@@ -2,7 +2,7 @@
   --t-beast: #f0a52b; --t-dragon: #ff6a3c; --t-mech: #27a9dd; --t-undead: #22be86; --t-demon: #b15cf0; --t-neutral: #7f8aa0;
   --atk: #f0a32a; --hpc: #ff5a4f;
   /* Sunward */
-  --bg: #f6f0e5; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
+  --bg: #7d756b; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
   --acc: #f0902e; --acc-dk: #c46f17; --threat: #e5446b; --threat-dk: #b32c50; --shadow: rgba(90, 66, 30, 0.16);
   --cw: 209px; --ch: 278px; /* one standard card size everywhere (shop / warband / hand / combat) */
@@ -397,3 +397,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .over .fcap { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.2em; color: var(--ink3); text-transform: uppercase; margin-bottom: 22px; }
 
 svg { width: 18px; height: 18px; }
+
+/* darker board (warm taupe): lighten the text + labels that sit directly on the
+   backdrop or on the dimmed game-over wash, so they stay legible. */
+.zt, .atop h1, .alog, .over h1 { color: #f6efe2; }
+.hint, .warband-hint, .clash .vs, .empty, .over .fcap { color: #ddd2c0; }
+.zt b, .side.you, .over .final { color: #ffb259; }
+.side.foe { color: #ff6f95; }

@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat replay fix** — attackers occasionally lunged toward where their target *used to be*
+  (positions were measured during render off the previous frame); the measurement now happens after
+  each beat commits, so combat reads in order.
+- **Darker board** — the backdrop is now a warm taupe so the cards and art pop.
 - **Card readability** — Battlecry & Deathrattle now get their own pills (like Start/Consume) and the
   description starts on the same line on every card; right-click any card to **inspect** it (centred,
   enlarged, dimmed backdrop — click out or Escape to close).

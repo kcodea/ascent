@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-16
 
+### Combat out-of-order fix + darker board + tier-1 art + renames
+- **Combat replaying out of order — fixed (the important one).** The simulator is deterministic and
+  the beat advance is a monotonic `k => k+1`, so the *data* order was never wrong (confirmed by
+  tracing). The bug was in the visual layer: the attacker→target **lunge** and the Start-of-Combat
+  **projectiles** were measured by reading the DOM *during render* (`querySelector(...)
+  .getBoundingClientRect()`), and the lunge was stored by **mutating a ref during render**. Render
+  sees the *previously committed* frame, so when a death or summon shifted a minion between beats, an
+  attacker lunged toward where its target *used to be* — and StrictMode's intentional double-render
+  amplified the inconsistency. Moved both measurements into a `useLayoutEffect` (runs after the beat
+  commits, when the DOM is current) and hold them in state, so render is pure and StrictMode-safe.
+  Verified live (slow + normal speed): attackers lunge at the correct target, combat plays in order
+  and completes, console clean.
+- **Darker board.** The backdrop went from bright cream (`#f6f0e5`) to a warm taupe (`#7d756b`) so
+  the cards and art pop; the text that sits directly on the board (zone titles, hints, combat log +
+  side labels, the game-over wash) was lightened to stay legible.
+- **Tier-1 art + renames.** Wired illustrations for **Alleycat, Sporeling, Stray, Target Dummy**
+  (downsized to 512²). Renamed **Alleycur → Alleycat** and **Pocket Sandbag → Target Dummy** — display
+  names only; the card ids (`alley`, `sandbag`) are unchanged, so art lookup + the run tests are
+  unaffected (the sim references were comments).
+- Verified: `typecheck` (+ web) + `lint` + `test` (67) + `build:web` (8 art PNGs bundle) all pass;
+  dark board + Alleycat/Sporeling art + the rename confirmed live.
+
 ### Art fills the panel + standardized text line + Battlecry/Deathrattle pills + right-click inspect
 - **Art zoomed to fill** — `object-fit` back to `cover` (from `contain`), so the illustration fills
   the 60 % art panel edge-to-edge (the user preferred full-bleed over the letterboxed full image).

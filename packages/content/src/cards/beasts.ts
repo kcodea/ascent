@@ -12,7 +12,7 @@ import type { CardDef } from '@game/core';
 export const BEASTS: CardDef[] = [
   {
     id: 'alley',
-    name: 'Alleycur',
+    name: 'Alleycat',
     tribe: 'beast',
     tier: 1,
     attack: 1,

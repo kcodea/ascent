@@ -9,7 +9,7 @@ import type { CardDef } from '@game/core';
 export const NEUTRAL: CardDef[] = [
   {
     id: 'sandbag',
-    name: 'Pocket Sandbag',
+    name: 'Target Dummy',
     tribe: 'neutral',
     tier: 1,
     attack: 0,

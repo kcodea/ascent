@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { CombatEvent, Keyword, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { THREATS } from '@game/sim';
@@ -201,7 +201,13 @@ export function Arena() {
   const [floats, setFloats] = useState<Float[]>([]);
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
-  const lungeRef = useRef<{ uid: string; transform: string } | null>(null);
+  // Lunge + SC projectiles depend on live DOM positions, so they're measured in a
+  // layout effect (after each beat commits — the DOM is current, not stale by a
+  // frame) and held in state. Measuring during render read the *previous* frame's
+  // layout, so a death/summon that shifted a minion made attackers lunge at where
+  // their target used to be — combat looked like it played out of order.
+  const [lunge, setLunge] = useState<{ uid: string; transform: string } | null>(null);
+  const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number }[]>([]);
   const done = beatIdx >= beats.length;
 
   useEffect(() => {
@@ -265,6 +271,52 @@ export function Arena() {
     else if (combat.result === 'lose') sfx.lose();
   }, [done, combat]);
 
+  // Measure lunge + SC projectiles AFTER the beat commits, so positions reflect the
+  // frame on screen (not the previous one). Runs synchronously before paint.
+  useLayoutEffect(() => {
+    const cur = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
+    const prev = beatIdx > 1 ? beats[beatIdx - 2] : undefined;
+    const center = (uid: string): { x: number; y: number } | null => {
+      const el = document.querySelector(`.ascene [data-uid="${uid}"]`);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    };
+
+    // The attacker slides in on its attack beat and stays planted through the
+    // following impact beat (so we don't recompute off the already-lunged element).
+    if (cur?.primary.type === 'attack') {
+      const a = center(cur.primary.attacker);
+      const d = center(cur.primary.defender);
+      if (a && d) {
+        const dx = Math.round((d.x - a.x) * 0.55);
+        const dy = Math.round((d.y - a.y) * 0.55);
+        setLunge({ uid: cur.primary.attacker, transform: `translate(${dx}px, ${dy}px) scale(1.04)` });
+      }
+    } else if (!(cur && RESULT_TYPES.has(cur.primary.type) && prev?.primary.type === 'attack')) {
+      setLunge(null); // not an attack, and not the impact right after one
+    }
+
+    // Start-of-Combat bolts fly from the caster to each target its next-beat damage hits.
+    if (cur?.primary.type === 'sc') {
+      const src = center(cur.primary.source);
+      const next = beats[beatIdx];
+      const ps: { id: number; x: number; y: number; dx: number; dy: number }[] = [];
+      if (src && next) {
+        for (let i = next.start; i < next.end; i++) {
+          const ev = events[i];
+          if (ev?.type === 'dmg') {
+            const t = center(ev.target);
+            if (t) ps.push({ id: i, x: src.x, y: src.y, dx: t.x - src.x, dy: t.y - src.y });
+          }
+        }
+      }
+      setProjectiles(ps);
+    } else {
+      setProjectiles([]);
+    }
+  }, [beatIdx, beats, events]);
+
   const names = useMemo(() => {
     const m = new Map<string, string>();
     if (!combat) return m;
@@ -290,57 +342,13 @@ export function Arena() {
     for (let i = currentBeat.start; i < currentBeat.end; i++) Object.assign(anims, animFor(events[i]));
   }
 
-  // The attacker slides in on its action beat and stays planted through the
-  // following impact beat, then retracts. Cached so the impact beat doesn't
-  // recompute off the already-transformed element.
-  const prevBeat = beatIdx > 1 ? beats[beatIdx - 2] : undefined;
-  if (currentBeat?.primary.type === 'attack') {
-    const pe = currentBeat.primary;
-    const aEl = document.querySelector(`.ascene [data-uid="${pe.attacker}"]`);
-    const dEl = document.querySelector(`.ascene [data-uid="${pe.defender}"]`);
-    if (aEl && dEl) {
-      const ar = aEl.getBoundingClientRect();
-      const dr = dEl.getBoundingClientRect();
-      const dx = dr.left + dr.width / 2 - (ar.left + ar.width / 2);
-      const dy = dr.top + dr.height / 2 - (ar.top + ar.height / 2);
-      lungeRef.current = {
-        uid: pe.attacker,
-        transform: `translate(${Math.round(dx * 0.55)}px, ${Math.round(dy * 0.55)}px) scale(1.04)`,
-      };
-    }
-  } else if (!(currentBeat && RESULT_TYPES.has(currentBeat.primary.type) && prevBeat?.primary.type === 'attack')) {
-    lungeRef.current = null; // not an attack, and not the impact right after one
-  }
-  let lungeUid: string | null = null;
-  let lungeTransform: string | undefined;
-  if (lungeRef.current) {
-    lungeUid = lungeRef.current.uid;
-    lungeTransform = lungeRef.current.transform;
+  // The lunging attacker is measured in the layout effect above (correct, current
+  // positions); here we just apply its anim class. `projectiles` is also state.
+  const lungeUid = lunge?.uid ?? null;
+  const lungeTransform = lunge?.transform;
+  if (lungeUid) {
     const atk = frame.player.find((u) => u.uid === lungeUid) ?? frame.enemy.find((u) => u.uid === lungeUid);
     anims[lungeUid] = atk?.keywords.includes('C') ? 'attacking cleaving' : 'attacking';
-  }
-
-  // Start-of-Combat projectiles: during the cast beat, a bolt flies from the
-  // source to each enemy its (next-beat) damage will land on.
-  const projectiles: { id: number; x: number; y: number; dx: number; dy: number }[] = [];
-  if (currentBeat?.primary.type === 'sc') {
-    const srcEl = document.querySelector(`.ascene [data-uid="${currentBeat.primary.source}"]`);
-    const next = beats[beatIdx];
-    if (srcEl && next) {
-      const sr = srcEl.getBoundingClientRect();
-      const sx = sr.left + sr.width / 2;
-      const sy = sr.top + sr.height / 2;
-      for (let i = next.start; i < next.end; i++) {
-        const ev = events[i];
-        if (ev && ev.type === 'dmg') {
-          const tEl = document.querySelector(`.ascene [data-uid="${ev.target}"]`);
-          if (tEl) {
-            const tr = tEl.getBoundingClientRect();
-            projectiles.push({ id: i, x: sx, y: sy, dx: tr.left + tr.width / 2 - sx, dy: tr.top + tr.height / 2 - sy });
-          }
-        }
-      }
-    }
   }
 
   let log = 'The boards take their positions…';

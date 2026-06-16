@@ -319,6 +319,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .unit.struck .hp { animation: hpflash 0.45s ease; }
 @keyframes hpflash { 0%, 100% { transform: none; box-shadow: none; } 40% { transform: scale(1.45); box-shadow: 0 0 14px 3px var(--threat); filter: brightness(1.25); } }
 @keyframes floatup { 0% { opacity: 0; transform: translate(-50%, 8px); } 14% { opacity: 1; } 62% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -38px); } }
+/* Start-of-Combat bolt flying from the caster to its target */
+.proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
+@keyframes projfly { 0% { transform: translate(0, 0); opacity: 0.4; } 15% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 1; } }
 .unit.dying .card { animation: dyingpop 0.42s ease; }
 @keyframes dyingpop { 0% { transform: scale(1); } 35% { transform: scale(1.14); filter: brightness(1.4); } 100% { transform: scale(0.7); } }
 

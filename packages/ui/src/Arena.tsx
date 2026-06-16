@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { CombatEvent, Keyword, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { THREATS } from '@game/sim';
@@ -280,6 +280,29 @@ export function Arena() {
     anims[lungeUid] = atk?.keywords.includes('C') ? 'attacking cleaving' : 'attacking';
   }
 
+  // Start-of-Combat projectiles: during the cast beat, a bolt flies from the
+  // source to each enemy its (next-beat) damage will land on.
+  const projectiles: { id: number; x: number; y: number; dx: number; dy: number }[] = [];
+  if (currentBeat?.primary.type === 'sc') {
+    const srcEl = document.querySelector(`.ascene [data-uid="${currentBeat.primary.source}"]`);
+    const next = beats[beatIdx];
+    if (srcEl && next) {
+      const sr = srcEl.getBoundingClientRect();
+      const sx = sr.left + sr.width / 2;
+      const sy = sr.top + sr.height / 2;
+      for (let i = next.start; i < next.end; i++) {
+        const ev = events[i];
+        if (ev && ev.type === 'dmg') {
+          const tEl = document.querySelector(`.ascene [data-uid="${ev.target}"]`);
+          if (tEl) {
+            const tr = tEl.getBoundingClientRect();
+            projectiles.push({ id: i, x: sx, y: sy, dx: tr.left + tr.width / 2 - sx, dy: tr.top + tr.height / 2 - sy });
+          }
+        }
+      }
+    }
+  }
+
   let log = 'The boards take their positions…';
   for (let i = processedEnd - 1; i >= 0; i--) {
     const line = narrate(events[i]!, names);
@@ -318,6 +341,14 @@ export function Arena() {
         </div>
         <div className="side you"><span className="rl" /><span>Your Warband</span></div>
       </div>
+
+      {projectiles.map((p) => (
+        <span
+          key={`proj-${beatIdx}-${p.id}`}
+          className="proj"
+          style={{ left: p.x, top: p.y, '--dx': `${p.dx}px`, '--dy': `${p.dy}px` } as CSSProperties}
+        />
+      ))}
 
       <div className="alog">{log}</div>
     </div>

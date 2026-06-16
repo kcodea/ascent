@@ -72,8 +72,12 @@ means the boundary leaked.
   Face the Omen → arena → Climb On → next wave / game over), verified live. Run: `npm run dev`;
   headless: `npm run bot`. M1's "is it fun / is it readable" slice is up. **Remaining for M1 polish:**
   click-to-target Hero Power, reposition (drag), a little combat juice.
-- **M2 — content + balance**: all 6 tribes + full card set; triples/Discover; headless balance
-  runner; first tuning pass against the counter matrix.
+- **M2 — content + balance** *(in progress)*: ✓ all 6 tribes + full card set (Beasts, Dragons,
+  Undead, Mechs, Demons + neutral glue — Mech adds Divine-Shield/shield-break + Magnetic merge;
+  Demon adds the recruit-time Consume system); ✓ headless **balance runner** (`npm run balance`)
+  that probes the A.6 counter matrix with mono-tribe boards. **Remaining:** triples/Discover; first
+  tuning pass — the runner already flags the targets (Mech mono-board is dominant everywhere, Beast
+  is underpowered, Dragon/Undead are generically strong with no counter edge; Demon's matrix holds).
 - **M3 — meta**: unlocks, ascension modifiers, daily seeds, save/replay.
 - **M4 — juice & onboarding**: pacing polish, audio, VFX, tutorial, full accessibility + touch.
 

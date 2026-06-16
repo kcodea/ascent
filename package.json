@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "harness": "tsx packages/tools/src/combat-harness.ts",
     "bot": "tsx packages/tools/src/run-harness.ts",
+    "balance": "tsx packages/tools/src/balance.ts",
     "dev": "npm run dev -w apps/web",
     "build:web": "npm run build -w apps/web",
     "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",

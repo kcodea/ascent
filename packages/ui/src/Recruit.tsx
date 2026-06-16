@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, type BoardCard } from '@game/sim';
 import { Card, type CardView } from './Card';
@@ -58,6 +58,7 @@ export function Recruit() {
   const [seconds, setSeconds] = useState(TURN_SECONDS);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
   const prevStatsRef = useRef<Map<string, number>>(new Map());
+  const flipRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   const timeUp = seconds <= 0; // turn timer expired: lock everything but End Turn
@@ -220,6 +221,29 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [run.board, run.hand]);
 
+  // FLIP: when the warband reorders (a minion played / sold / repositioned), slide
+  // the existing cards from their old spots to their new ones (a quick shuffle).
+  useLayoutEffect(() => {
+    const cards = document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]');
+    const next = new Map<string, number>();
+    cards.forEach((el) => {
+      const id = el.getAttribute('data-uid');
+      if (!id) return;
+      const left = el.getBoundingClientRect().left;
+      next.set(id, left);
+      const prev = flipRef.current.get(id);
+      if (prev !== undefined && Math.abs(prev - left) > 1) {
+        el.style.transition = 'none';
+        el.style.transform = `translateX(${prev - left}px)`;
+        requestAnimationFrame(() => {
+          el.style.transition = 'transform 0.28s ease';
+          el.style.transform = '';
+        });
+      }
+    });
+    flipRef.current = next;
+  }, [run.board]);
+
   const applyDrop = (d: DragState, zone: Zone | null, x: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
       dispatch({ type: 'buy', uid: d.uid });
@@ -340,6 +364,7 @@ export function Recruit() {
           {run.board.map((m) => (
             <Card
               key={m.uid}
+              uid={m.uid}
               card={instView(m)}
               highlight={heroArmed}
               dimmed={isDragging(m.uid)}

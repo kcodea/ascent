@@ -61,6 +61,7 @@ const statCls = (cur: number, base?: number): string =>
 /** The one standardized card — identical size/shape in shop, warband, and hand. */
 export function Card({
   card,
+  uid,
   onClick,
   highlight,
   dimmed,
@@ -72,6 +73,8 @@ export function Card({
   onDrop,
 }: {
   card: CardView;
+  /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
+  uid?: string;
   onClick?: () => void;
   highlight?: boolean;
   /** Dim this card while a copy of it is being dragged. */
@@ -87,6 +90,7 @@ export function Card({
   return (
     <div
       className={`card${highlight ? ' armed' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}`}
+      data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
       onClick={onClick}
       role={onClick ? 'button' : undefined}

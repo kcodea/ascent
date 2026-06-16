@@ -1,11 +1,12 @@
 import { Icon } from './Icon';
 import { useGame } from './store';
 
-/** Bottom bar (below the hand): Embers, Resolve, and the hero power. */
+/** Bottom bar (below the hand): Embers and Resolve flanking the big central hero. */
 export function StatusBar() {
   const run = useGame((s) => s.run);
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
+  const sellTick = useGame((s) => s.sellTick);
   const canHero = run.heroReady && run.board.length > 0;
   return (
     <div className="statusbar">
@@ -15,15 +16,9 @@ export function StatusBar() {
           <div className="v">{run.embers}</div>
           <div className="l">Embers</div>
         </div>
+        {sellTick > 0 && <span className="sellfx" key={sellTick}>+1</span>}
       </div>
-      <div className="chip h" title="Resolve — your health. Lose it when a wave beats you; at 0 the run ends.">
-        <span className="ic"><Icon name="heart" /></span>
-        <div>
-          <div className="v">{run.resolve}</div>
-          <div className="l">Resolve</div>
-        </div>
-      </div>
-      <div className="sp" />
+
       <div
         className={`hero${canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}`}
         title="Hero Power — Temper: once per wave, give a minion +1/+1. Click, then click a minion."
@@ -33,6 +28,14 @@ export function StatusBar() {
         <div>
           <div className="nm">Forgewarden</div>
           <div className="pw">{heroArmed ? 'Pick a minion…' : 'Temper · +1/+1'}</div>
+        </div>
+      </div>
+
+      <div className="chip h" title="Resolve — your health. Lose it when a wave beats you; at 0 the run ends.">
+        <span className="ic"><Icon name="heart" /></span>
+        <div>
+          <div className="v">{run.resolve}</div>
+          <div className="l">Resolve</div>
         </div>
       </div>
     </div>

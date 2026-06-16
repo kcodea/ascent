@@ -13,6 +13,10 @@ const KW_ICON: Partial<Record<Keyword, string>> = {
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
 };
+/** Each tribe's own footer glyph (handoff: the symbol matches the type — paw = Beast, etc.). */
+const TRIBE_ICON: Record<Tribe, string> = {
+  beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star',
+};
 
 const mdBold = (s: string): string => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 
@@ -67,12 +71,9 @@ export function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-
       <div className="art">
         {card.cost !== undefined && <span className="cost">{card.cost}</span>}
-        <Sprite name={spriteForTribe(card.tribe)} scale={4} />
-        <span className="atk">{card.attack}</span>
-        <span className="hp">{card.health}</span>
+        <Sprite name={spriteForTribe(card.tribe)} scale={5} />
       </div>
       <div className="cbody">
         <div className="cn">{card.name}</div>
@@ -88,9 +89,13 @@ export function Card({
         )}
         <div className="desc" dangerouslySetInnerHTML={{ __html: mdBold(card.text) }} />
       </div>
-      <div className="ctype">
-        <Icon name="paw" />
-        {TRIBE_LABEL[card.tribe]}
+      <div className="cfoot">
+        <span className="atk">{card.attack}</span>
+        <span className="ctype">
+          <Icon name={TRIBE_ICON[card.tribe]} />
+          {TRIBE_LABEL[card.tribe]}
+        </span>
+        <span className="hp">{card.health}</span>
       </div>
     </div>
   );

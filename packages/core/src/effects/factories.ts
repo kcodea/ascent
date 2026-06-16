@@ -201,4 +201,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const health = num(params.health, 1);
     for (const m of ctx.living(self.side)) ctx.buff(m, attack, health, self.uid);
   },
+
+  // --- Demons (combat-resolved: Brood Matron breeds, the Sovereign destroys) ---
+
+  /** Brood Matron — each time another friend dies, summon a token beside self. */
+  onFriendDeathSummon: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion === self || minion.side !== self.side) return;
+    ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
+  },
+
+  /** Abyssal Sovereign — Start of Combat: destroy the enemy with the highest Attack. */
+  scDestroyHighestAttack: (ctx, self, params) => {
+    const foe: Side = self.side === 'player' ? 'enemy' : 'player';
+    const targets = ctx.living(foe);
+    if (targets.length === 0) return;
+    const victim = targets.reduce((a, b) => (b.attack > a.attack ? b : a));
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} drags down the mightiest` });
+    ctx.damage(victim, victim.health, false, true); // destroy: ignores Divine Shield
+  },
 };

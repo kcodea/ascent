@@ -57,11 +57,19 @@ export type EffectFactoryId =
   | 'onShieldBreakGrantShield'
   | 'onShieldBreakDamage'
   | 'onShieldBreakBuffAll'
+  // Demons — Consume / destroy (combat-resolved half)
+  | 'onFriendDeathSummon'
+  | 'scDestroyHighestAttack'
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'
   | 'buffOnBuy'
-  | 'battlecryGrantKeyword';
+  | 'battlecryGrantKeyword'
+  // Demons — Consume (recruit-resolved half)
+  | 'battlecryConsume'
+  | 'consumeFodderOnSummon'
+  | 'onConsumeBuffSelf'
+  | 'onConsumeGrantSelfKeyword';
 
 export interface EffectDef {
   on: GameEvent;

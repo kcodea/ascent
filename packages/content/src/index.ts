@@ -5,6 +5,7 @@ import { BEASTS } from './cards/beasts';
 import { DRAGONS } from './cards/dragons';
 import { UNDEAD } from './cards/undead';
 import { MECHS } from './cards/mechs';
+import { DEMONS } from './cards/demons';
 import { TOKENS } from './cards/tokens';
 import { ENEMY } from './cards/enemy';
 
@@ -14,6 +15,7 @@ export const ALL_CARDS: CardDef[] = [
   ...DRAGONS,
   ...UNDEAD,
   ...MECHS,
+  ...DEMONS,
   ...TOKENS,
   ...ENEMY,
 ];
@@ -33,7 +35,11 @@ export function validateCards(cards: CardDef[] = ALL_CARDS): void {
     if (seen.has(card.id)) throw new Error(`Duplicate card id: ${card.id}`);
     seen.add(card.id);
     for (const effect of card.effects) {
-      if (effect.do === 'deathrattleSummon' || effect.do === 'battlecrySummon') {
+      if (
+        effect.do === 'deathrattleSummon' ||
+        effect.do === 'battlecrySummon' ||
+        effect.do === 'onFriendDeathSummon'
+      ) {
         const tokenId = (effect.params as { tokenId?: string } | undefined)?.tokenId;
         if (!tokenId || !cards.some((c) => c.id === tokenId)) {
           throw new Error(`${card.id}: ${effect.do} references missing token "${tokenId}"`);
@@ -49,5 +55,6 @@ export { BEASTS } from './cards/beasts';
 export { DRAGONS } from './cards/dragons';
 export { UNDEAD } from './cards/undead';
 export { MECHS } from './cards/mechs';
+export { DEMONS } from './cards/demons';
 export { TOKENS } from './cards/tokens';
 export { ENEMY } from './cards/enemy';

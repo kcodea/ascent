@@ -26,4 +26,16 @@ export const TOKENS: CardDef[] = [
     text: 'A 1/1 Beast token.',
     token: true,
   },
+  {
+    id: 'impscrap',
+    name: 'Imp Scrap',
+    tribe: 'demon',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    text: 'A 1/1 Demon Fodder token — meant to be eaten.',
+    token: true,
+  },
 ];

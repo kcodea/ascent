@@ -208,6 +208,35 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.filter((e) => e.type === 'buff').length).toBeGreaterThanOrEqual(3);
   });
 
+  it('Abyssal Sovereign Start of Combat destroys the highest-Attack enemy', () => {
+    const a = run(
+      [{ cardId: 'sov', attack: 7, health: 7, keywords: ['SC'] }],
+      [
+        { cardId: 'omen', attack: 9, health: 9, keywords: [] },
+        { cardId: 'omen', attack: 2, health: 5, keywords: [] },
+      ],
+      9,
+    );
+    expect(a.events[0]?.type).toBe('sc');
+    const firstDeath = a.events.findIndex((e) => e.type === 'death');
+    const firstAttack = a.events.findIndex((e) => e.type === 'attack');
+    expect(firstDeath).toBeGreaterThanOrEqual(0);
+    expect(firstDeath).toBeLessThan(firstAttack); // the 9/9 fell before the attack loop
+    expect(a.result).toBe('win');
+  });
+
+  it('Brood Matron breeds an Imp each time a friend dies', () => {
+    const a = run(
+      [
+        { cardId: 'brood', attack: 3, health: 30 },
+        { cardId: 'alley', attack: 1, health: 1 },
+      ],
+      [{ cardId: 'omen', attack: 2, health: 40, keywords: [] }],
+      4,
+    );
+    expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true);
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

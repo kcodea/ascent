@@ -253,6 +253,72 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.some((c) => c.cardId === 'cling')).toBe(true);
   });
 
+  it('Soulfeeder Battlecry consumes the weakest friend and grows', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [],
+      board: [{ uid: 'v', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: [], golden: false }],
+      shop: [{ uid: 'x', cardId: 'feed' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    expect(s.board.length).toBe(1); // the sandbag was eaten
+    const feed = s.board.find((c) => c.cardId === 'feed');
+    expect(feed?.attack).toBe(3); // 3 + 0
+    expect(feed?.health).toBe(6); // 2 + 4
+  });
+
+  it('Pactstone Acolyte gains an extra +1/+1 when you consume', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [],
+      board: [
+        { uid: 'p', cardId: 'pact', tribe: 'demon', attack: 2, health: 3, keywords: [], golden: false },
+        { uid: 'v', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 2, keywords: [], golden: false },
+      ],
+      shop: [{ uid: 'x', cardId: 'feed' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // Soulfeeder eats the sandbag → onConsume
+    const pact = s.board.find((c) => c.cardId === 'pact');
+    expect(pact?.attack).toBe(3); // 2 + 1
+    expect(pact?.health).toBe(4); // 3 + 1
+  });
+
+  it('Maw of the Pit gains a Divine Shield when you consume', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [],
+      board: [
+        { uid: 'm', cardId: 'maw', tribe: 'demon', attack: 4, health: 5, keywords: ['T'], golden: false },
+        { uid: 'v', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 2, keywords: [], golden: false },
+      ],
+      shop: [{ uid: 'x', cardId: 'feed' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    expect(s.board.find((c) => c.cardId === 'maw')?.keywords).toContain('DS');
+  });
+
+  it('Voracious Imp eats a Fodder token summoned beside it', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [],
+      board: [{ uid: 'i', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
+      shop: [{ uid: 'x', cardId: 'alley' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // Alleycur summons a Stray → Imp eats it
+    expect(s.board.some((c) => c.cardId === 'stray')).toBe(false);
+    const imp = s.board.find((c) => c.cardId === 'imp');
+    expect(imp?.attack).toBe(3); // 2 + 1
+    expect(imp?.health).toBe(3); // 2 + 1
+  });
+
   it('a full scripted run is deterministic end to end', () => {
     expect(serialize(playToEnd(999))).toEqual(serialize(playToEnd(999)));
   });

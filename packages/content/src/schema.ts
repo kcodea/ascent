@@ -39,10 +39,16 @@ export const EffectFactoryIdSchema = z.enum([
   'onShieldBreakGrantShield',
   'onShieldBreakDamage',
   'onShieldBreakBuffAll',
+  'onFriendDeathSummon',
+  'scDestroyHighestAttack',
   'battlecryBuffTribe',
   'battlecrySummon',
   'buffOnBuy',
   'battlecryGrantKeyword',
+  'battlecryConsume',
+  'consumeFodderOnSummon',
+  'onConsumeBuffSelf',
+  'onConsumeGrantSelfKeyword',
 ]);
 
 export const EffectDefSchema = z.object({

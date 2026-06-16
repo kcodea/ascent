@@ -383,7 +383,7 @@ export function Recruit() {
         </div>
         <div className="row hand">
           {run.hand.length === 0 ? (
-            <div className="empty" style={{ flex: '0 1 auto', padding: '0 24px', borderStyle: 'dashed' }}>
+            <div className="empty handempty">
               Drag a minion down from the tavern to buy it, then drag it up to your warband to play.
             </div>
           ) : (

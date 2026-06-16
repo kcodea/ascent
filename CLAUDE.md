@@ -88,3 +88,19 @@ means the boundary leaked.
 
 > The full Build Handoff v2 (exact card text/stats, threat templates, combat spec A.3, UX spec) was
 > provided by the user in-session. Ask to vendor it into `docs/handoff.md` if you want it on disk.
+
+## Dev log & roadmap (KEEP CURRENT — do this every commit)
+
+Two living docs track the project's history and queue. **Every commit must update them:**
+
+- **`docs/devlog.md`** — the detailed history. For each commit (or tight group of commits),
+  prepend a dated entry: the commit subject, an extremely detailed description of *what changed and
+  why* (engine/content/UI/balance), how it was verified (tests, harness, live DOM checks), and any
+  follow-ups it created. Newest first. This is the "what was done" record — be thorough.
+- **`docs/roadmap.md`** — the forward queue, broken down by milestone/section (M2 remaining, M3, M4)
+  plus a Backlog/Ideas section. When you finish something, move it out of the queue (it's now in the
+  devlog); when you discover new work, add it under the right section. Keep it honest and current.
+
+The `## Milestones` list above stays a high-level summary; the granular, always-current queue lives
+in `docs/roadmap.md`. Order of operations for a commit: make the change → update `docs/devlog.md` +
+`docs/roadmap.md` → commit them together.

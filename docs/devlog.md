@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-16
 
+### Feel/functionality pass — hand box, combat juice, spell frame, golden text
+- **Hand box** (`fdee24c`): the empty-hand box now spans the bottom frame's width (~760px, ≈ the
+  Embers·Hero·Resolve StatusBar) and no longer clips under the hero — trimmed the card-row height to
+  264 (= card height), the column gap, zone headers, and the control-bar margin so the three rows +
+  chrome fit above the fixed StatusBar (~50px clearance).
+- **Combat juice** (`c3f4d9a`): a breaking Divine Shield bursts a golden shard ring; in-combat
+  summoned minions pop in; a kill shakes the board (hit-stop feel). Verified the shake live.
+- **Spell frame + golden text** (`3462758`): the Discover spell now has a distinct demon-purple
+  arcane frame; golden text-doubling broadened to bold "deal **3**" and SC-AoE phrasing ("3 to
+  every", "3 more") so a tripled card's printed numbers match its doubled effect.
+- Verified live this pass: taunt shield ward (steel emblem on the enemy), dead minions removed (not
+  greyed), End-Combat top-centre, persistent StatusBar + hero-ready glow, board shake on a kill.
+- **Note:** balance tuning (the counter matrix) is explicitly deferred — feel + functionality first.
+  Minion art (the Ember Whelp dragon) is also deferred; art specs + a per-card image-override path
+  are noted in the roadmap.
+
+
 ### Triple/Drummer/Echo fixes + combat & recruit polish + SFX
 - **Engine fixes** (`7c6945a`): tripling now combines the three copies' *current* stats — the sum of
   the two highest attacks and two highest healths — and unions all their keywords (so a buffed /

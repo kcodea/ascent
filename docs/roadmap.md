@@ -38,12 +38,11 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Responsive layout for short viewports** — fixed 264px cards × 3 rows + chrome only fits tall
       screens right now; needs a scale-to-fit or compact mode for laptops.
 - [ ] **Single-target Battlecries** (e.g. "give a friendly minion +X/+X") — the Hero-Power targeting
-      line + aim infrastructure is ready to reuse; no current card is player-targeted.
-- [ ] Spell-card visual polish — the Discover spell ("Glimpse Beyond") renders as a minion-shaped
-      card with the stat footer hidden; could get its own spell frame.
+      line + aim infrastructure is ready to reuse; no current card is player-targeted. (Content; on
+      hold until the feel/functionality pass + balance are done.)
 - [ ] Confirm/refine the **name-on-art card layout** — implemented from a fuzzy ask (name pill on
       the art's bottom, keyword/text area below); revisit spacing + legibility with the user.
-- [ ] Broaden golden text-doubling to Start-of-Combat AoE phrasing (Galewing/Chromatic say "3 to
-      every enemy" rather than "deal 3", so the text doesn't double though the effect does).
-- [ ] More combat juice — shield-break sparks, in-combat summon pops, hit-stop / shake on big blows.
+- [ ] **Minion art** — replace pixel sprites with illustrated art (e.g. the Ember Whelp dragon).
+      Wire a per-card image override (`apps/web/public/art/minions/<id>.png`, 512×512, transparent);
+      art lives in `C:\Game Assets\Ascent Art`. Skipped for now per the user.
 - [ ] Vendor the full Build Handoff v2 into `docs/handoff.md` (currently in-session only).

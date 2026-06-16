@@ -23,10 +23,11 @@ npm run typecheck && npm run lint
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
 - **Combat feel** — wind-up → impact attacks, dead minions removed (not greyed), Divine-Shield gold
-  aura, poison mist, Start-of-Combat projectile bolts, Taunt shield wards, big damage floats + HP
-  flashes, and a synthesized SFX bank with a mute toggle.
+  aura + shatter-on-break, poison mist, Start-of-Combat projectile bolts, Taunt shield wards, summon
+  pop-ins, a board shake on kills, big damage floats + HP flashes, and a synthesized SFX bank + mute.
 - **Recruit** — a Tavern-Tier box in the control bar, a slot-free warband that FLIP-shuffles when it
-  reorders, a burning rope in the last 15 s, drag-to-target Hero Power, green/red stat colours.
+  reorders, a wide hand box matching the bottom frame, a burning rope in the last 15 s, drag-to-target
+  Hero Power, green/red stat colours, an arcane frame for the Discover spell.
 - **Fixes** — tripling keeps buffs + keywords (sum of the top two stats); Doublecast Drummer & Echo
   Warden now work; embers uncapped within a turn; early waves softened.
 - **HUD** — Embers · Forgewarden · Resolve rooted at the bottom across recruit and combat; "End

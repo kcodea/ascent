@@ -1,6 +1,16 @@
+import type { CSSProperties } from 'react';
+import type { Tribe } from '@game/core';
+import { Icon } from './Icon';
 import { useGame } from './store';
 
-/** Top bar: wordmark + the altitude (wave) meter. Currencies/hero live in the bottom StatusBar. */
+const TRIBE_ICON: Record<Tribe, string> = {
+  beast: 'paw', dragon: 'flame', undead: 'skull', mech: 'gear', demon: 'eye', neutral: 'star',
+};
+const TRIBE_LABEL: Record<Tribe, string> = {
+  beast: 'Beast', dragon: 'Dragon', undead: 'Undead', mech: 'Mech', demon: 'Demon', neutral: 'Neutral',
+};
+
+/** Top bar: wordmark + altitude (wave) meter + the tribes in play this run. */
 export function HudBar() {
   const run = useGame((s) => s.run);
   return (
@@ -14,7 +24,14 @@ export function HudBar() {
         </span>
         <span className="lbl">Best {run.best}</span>
       </div>
-      <div className="sp" />
+      <div className="tribes" title="Tribes in play this run">
+        <span className="tl">Tribes</span>
+        {run.tribes.map((t) => (
+          <span className="tb" key={t} style={{ '--c': `var(--t-${t})` } as CSSProperties} title={TRIBE_LABEL[t]}>
+            <Icon name={TRIBE_ICON[t]} />
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

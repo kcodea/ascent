@@ -20,6 +20,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .alt { display: flex; align-items: center; gap: 11px; background: var(--card); border: 2px solid var(--line); border-radius: 13px; padding: 6px 15px; }
 .alt .w { font-family: 'Outfit'; font-weight: 800; font-size: 18px; color: var(--acc-dk); line-height: 1; }
 .alt .lbl { font-family: 'Outfit'; font-weight: 700; font-size: 11px; letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
+.tribes { margin-left: auto; display: flex; align-items: center; gap: 6px; background: var(--card); border: 2px solid var(--line); border-radius: 13px; padding: 5px 12px; }
+.tribes .tl { font-family: 'Outfit'; font-weight: 700; font-size: 11px; letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; margin-right: 2px; }
+.tribes .tb { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 20%, var(--card)); }
+.tribes .tb svg { width: 15px; height: 15px; color: var(--c); }
 .meter { width: 104px; height: 9px; border-radius: 6px; background: var(--bg2); overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--acc); border-radius: 6px; }
 .sp { flex: 1; }

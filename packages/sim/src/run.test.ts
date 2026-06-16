@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { makeRng } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import {
   createRun,
   reduce,
@@ -340,6 +341,16 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'discover', index: 1 });
     expect(s.hand.some((c) => c.cardId === 'cleric')).toBe(true);
     expect(s.discover).toBeUndefined();
+  });
+
+  it('a run draws 5 distinct tribes and the shop only offers them (+ neutral)', () => {
+    const s = createRun(7);
+    expect(s.tribes.length).toBe(5);
+    expect(new Set(s.tribes).size).toBe(5);
+    const allowed = new Set<string>([...s.tribes, 'neutral']);
+    for (const offer of s.shop) {
+      expect(allowed.has(CARD_INDEX[offer.cardId]!.tribe)).toBe(true);
+    }
   });
 
   it('a full scripted run is deterministic end to end', () => {

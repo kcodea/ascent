@@ -1,5 +1,5 @@
 import { makeRng } from '@game/core';
-import type { CombatResult, Keyword, Tribe } from '@game/core';
+import type { CombatResult, Keyword, Rng, Tribe } from '@game/core';
 import { CONFIG } from './config';
 import { rollShop } from './shop';
 import { selectThreat, type ThreatId } from './threats';
@@ -10,7 +10,25 @@ import { selectThreat, type ThreatId } from './threats';
  * are derived purely from (seed, wave) so they're identical every time a wave is
  * re-resolved — which is why the recruit-phase preview matches the actual fight.
  */
-export const TAG = { THREAT: 1, ENEMY: 2, SHOP: 3, COMBAT: 4 } as const;
+export const TAG = { THREAT: 1, ENEMY: 2, SHOP: 3, COMBAT: 4, TRIBES: 5 } as const;
+
+/** The playable (non-neutral) tribes. Grows as tribes are added; a run draws 5 of them. */
+export const PLAYABLE_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
+export const TRIBES_PER_RUN = 5;
+
+/**
+ * Pick a run's active tribes (handoff: only 5 tribes appear in a run at once).
+ * Neutral glue is always available on top. With exactly 5 playable tribes today
+ * this returns all of them (shuffled); it bounds the pool once more are added.
+ */
+export function selectRunTribes(rng: Rng): Tribe[] {
+  const pool = [...PLAYABLE_TRIBES];
+  const picks: Tribe[] = [];
+  while (picks.length < TRIBES_PER_RUN && pool.length > 0) {
+    picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+  }
+  return picks;
+}
 
 /** Deterministic 32-bit mix of a seed and a few small integers (FNV-1a style). */
 export function mixSeed(...parts: number[]): number {
@@ -59,6 +77,8 @@ export interface RunState {
   board: BoardCard[];
   heroReady: boolean;
   threat: ThreatId;
+  /** The 5 non-neutral tribes active this run (handoff: 5 tribes per run). */
+  tribes: Tribe[];
   /** Advancing state of the shop RNG stream. */
   rngCursor: number;
   /** Monotonic counter for shop/board instance uids. */
@@ -101,6 +121,7 @@ export function createRun(seed: number): RunState {
     board: [],
     heroReady: true,
     threat: selectThreat(1, makeRng(mixSeed(seed, 1, TAG.THREAT))),
+    tribes: selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES))),
     rngCursor: mixSeed(seed, 0, TAG.SHOP),
     uidSeq: 0,
   };

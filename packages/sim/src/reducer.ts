@@ -228,7 +228,12 @@ function offerDiscover(s: RunState, tripleTier: number): void {
   let floor = target;
   let pool: typeof BUYABLE_CARDS = [];
   while (pool.length < 3 && floor >= 1) {
-    pool = BUYABLE_CARDS.filter((c) => c.tier <= target && c.tier >= floor);
+    pool = BUYABLE_CARDS.filter(
+      (c) =>
+        c.tier <= target &&
+        c.tier >= floor &&
+        (c.tribe === 'neutral' || s.tribes.includes(c.tribe)),
+    );
     floor--;
   }
   if (pool.length === 0) return;

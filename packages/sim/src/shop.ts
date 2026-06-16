@@ -13,7 +13,10 @@ export const tierSlots = (tier: number): number =>
  */
 export function rollShop(state: RunState): void {
   const rng = makeRng(state.rngCursor);
-  const pool = BUYABLE_CARDS.filter((card) => card.tier <= state.tier);
+  const pool = BUYABLE_CARDS.filter(
+    (card) =>
+      card.tier <= state.tier && (card.tribe === 'neutral' || state.tribes.includes(card.tribe)),
+  );
   const slots = tierSlots(state.tier);
   const offers: RunState['shop'] = [];
 

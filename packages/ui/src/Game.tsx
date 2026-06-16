@@ -3,6 +3,7 @@ import { Recruit } from './Recruit';
 import { Arena } from './Arena';
 import { GameOver } from './GameOver';
 import { StatusBar } from './StatusBar';
+import { Inspect } from './Inspect';
 import { useGame } from './store';
 
 /** Root of the playable game. The StatusBar (Embers · Hero · Resolve) is rooted at
@@ -20,6 +21,7 @@ export function Game() {
         </>
       )}
       <StatusBar />
+      <Inspect />
     </>
   );
 }

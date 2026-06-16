@@ -4,6 +4,7 @@ import { artFor } from './art';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
+import { useGame } from './store';
 
 const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Shield', P: 'Poison', W: 'Windfury', R: 'Reborn', C: 'Cleave', M: 'Magnetic', SC: 'Start', CN: 'Consume',
@@ -67,6 +68,19 @@ export interface CardView {
 const statCls = (cur: number, base?: number): string =>
   base === undefined || cur === base ? '' : cur > base ? ' up' : ' down';
 
+/**
+ * Battlecry / Deathrattle aren't keywords in the data model — they read from the
+ * text prefix and get their own pill (matching Start / Consume), so every card's
+ * keyword row lands in the same place and the description starts on a fixed line.
+ */
+const triggerPill = (text: string): { label: string; icon: string } | null =>
+  // tolerate leading markdown/space (the text is usually "**Battlecry:** …")
+  /^\W*battlecry/i.test(text)
+    ? { label: 'Battlecry', icon: 'battlecry' }
+    : /^\W*deathrattle/i.test(text)
+      ? { label: 'Deathrattle', icon: 'skull' }
+      : null;
+
 /** The one standardized card — identical size/shape in shop, warband, and hand. */
 export function Card({
   card,
@@ -99,12 +113,25 @@ export function Card({
   onDragOver?: (e: DragEvent) => void;
   onDrop?: (e: DragEvent) => void;
 }) {
+  const inspectCard = useGame((s) => s.inspectCard);
+  // Pills row: the trigger (Battlecry / Deathrattle, derived from the text) then any
+  // keyword pills. Always rendered (reserves a row) so the description starts on a
+  // fixed line whether or not the card has pills.
+  const trigger = triggerPill(card.text);
+  const pills: { label: string; icon?: string }[] = [
+    ...(trigger ? [trigger] : []),
+    ...card.keywords.map((k) => ({ label: KW_LABEL[k], icon: KW_ICON[k] })),
+  ];
   return (
     <div
       className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.spell ? ' spellcard' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
       onClick={onClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        inspectCard(card);
+      }}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       aria-label={onClick ? `${card.name}, ${card.attack}/${card.health}` : undefined}
@@ -138,16 +165,14 @@ export function Card({
       </div>
       <div className="cbody">
         <div className="cn">{card.name}</div>
-        {card.keywords.length > 0 && (
-          <div className="kws">
-            {card.keywords.map((k) => (
-              <span className="kw" key={k}>
-                {KW_ICON[k] && <Icon name={KW_ICON[k]!} />}
-                {KW_LABEL[k]}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="kws">
+          {pills.map((p, i) => (
+            <span className="kw" key={`${p.label}-${i}`}>
+              {p.icon && <Icon name={p.icon} />}
+              {p.label}
+            </span>
+          ))}
+        </div>
         {card.text && (
           <div
             className="desc"

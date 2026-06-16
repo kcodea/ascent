@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-16
 
+### Art fills the panel + standardized text line + Battlecry/Deathrattle pills + right-click inspect
+- **Art zoomed to fill** — `object-fit` back to `cover` (from `contain`), so the illustration fills
+  the 60 % art panel edge-to-edge (the user preferred full-bleed over the letterboxed full image).
+- **Standardized text line** — the keyword-pill row (`.kws`) now always renders and reserves one
+  pill-row of height, so a card's description starts on the same line whether or not it has pills.
+  Verified Start (Ember Whelp), Battlecry (Alleycur), and Deathrattle (Sporeling) all land their
+  description at the same Y (456 px).
+- **Battlecry / Deathrattle pills** — these aren't keywords in the data model, so the Card derives
+  them from the text prefix (tolerating the `**bold**` markdown — `/^\W*battlecry/i`) and shows a pill
+  matching the existing Start / Consume style: Battlecry gets a new horn glyph, Deathrattle the skull.
+- **Right-click inspect** — right-clicking any card (shop, hand, warband, or a combat unit) floats a
+  centred, enlarged copy over a dimmed + blurred backdrop for a close look; click the backdrop or
+  press Escape to dismiss. New `inspect` store state + `inspectCard`/`clearInspect` actions, an
+  `<Inspect>` overlay at the Game root, and `onContextMenu` on the Card. Any dispatch also closes it.
+- **Verified live**: art fills the panel; Start/Battlecry/Deathrattle descriptions all align at
+  456 px; both new pills render with icons; inspect opens centred (centreX = viewport centre) and
+  closes on backdrop-click and Escape. `typecheck` (+ web) + `lint` + `test` (67) + `build:web` pass.
+
 ### Bigger cards + 60% full-image art + compact Omen + sweet-spot targeting
 - **Cards larger** — added `--cw` / `--ch` card-size variables (one standard size used in shop,
   warband, hand, and combat). Width +10 % (190→209 px) and height +14 px (264→278 px).

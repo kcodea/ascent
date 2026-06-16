@@ -6,6 +6,12 @@ const ICONS: Record<string, ReactNode> = {
   shield: <path fill="none" stroke="currentColor" strokeWidth="2.5" d="M12 3l7 2.5v6c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5v-6L12 3z" />,
   cleave: <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M4 6l16 12M20 6L4 18" />,
   sc: <path fill="currentColor" d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />,
+  battlecry: (
+    <>
+      <path fill="currentColor" d="M4 9.5v5h3l6 3.5v-12L7 9.5H4z" />
+      <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M16.5 8.5l2.5-1.5M17.5 12H21M16.5 15.5l2.5 1.5" />
+    </>
+  ),
   ember: <path fill="currentColor" d="M12 2s5 6 5 11a5 5 0 11-10 0c0-2 1-4 2-5 0 2 1 3 2 3 1-3-1-6 1-9z" />,
   heart: <path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z" />,
   anvil: <path fill="currentColor" d="M5 7h9c0 2 1 3 3 3v3l3 1-1 3H7l-1-3 2-1V9H5V7zm1 11h10v2H6v-2z" />,

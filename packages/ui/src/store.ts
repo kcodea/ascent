@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createRun, reduce, type Action, type RunState } from '@game/sim';
+import type { CardView } from './Card';
 import { sfx } from './sfx';
 
 const countGolden = (s: RunState): number =>
@@ -27,10 +28,15 @@ interface GameStore {
   heroArmed: boolean;
   /** Increments on each sell — drives the gold "+1" flash on the Embers chip. */
   sellTick: number;
+  /** The card being inspected (right-click) in a centred, enlarged overlay, or null. */
+  inspect: CardView | null;
   /** Apply an engine action — the only way run state changes. Pure reducer under the hood. */
   dispatch: (action: Action) => void;
   /** Toggle Hero Power targeting mode. */
   armHero: () => void;
+  /** Open / close the inspect overlay for a card. */
+  inspectCard: (view: CardView) => void;
+  clearInspect: () => void;
   /** Start a fresh run. */
   newRun: (seed?: number) => void;
 }
@@ -41,6 +47,7 @@ export const useGame = create<GameStore>((set) => ({
   run: createRun(randomSeed()),
   heroArmed: false,
   sellTick: 0,
+  inspect: null,
   dispatch: (action) =>
     set((s) => {
       const next = reduce(s.run, action);
@@ -48,9 +55,12 @@ export const useGame = create<GameStore>((set) => ({
       return {
         run: next,
         heroArmed: false, // any action clears targeting
+        inspect: null, // …and closes the inspect overlay
         sellTick: action.type === 'sell' ? s.sellTick + 1 : s.sellTick,
       };
     }),
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
-  newRun: (seed) => set({ run: createRun(seed ?? randomSeed()), heroArmed: false, sellTick: 0 }),
+  inspectCard: (view) => set({ inspect: view }),
+  clearInspect: () => set({ inspect: null }),
+  newRun: (seed) => set({ run: createRun(seed ?? randomSeed()), heroArmed: false, sellTick: 0, inspect: null }),
 }));

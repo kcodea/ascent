@@ -17,7 +17,7 @@ const RING = 2 * Math.PI * 17; // countdown ring circumference
 function shopView(cardId: string): CardView {
   const c = CARD_INDEX[cardId];
   return {
-    name: c.name, tribe: c.tribe, attack: c.attack, health: c.health,
+    name: c.name, cardId: c.id, tribe: c.tribe, attack: c.attack, health: c.health,
     keywords: c.keywords, text: c.text, cost: CONFIG.minionCost, tier: c.tier,
     baseAttack: c.attack, baseHealth: c.health,
   };
@@ -26,7 +26,7 @@ function instView(inst: BoardCard): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.id === 'discoverspell';
   return {
-    name: c.name, tribe: inst.tribe, attack: inst.attack, health: inst.health,
+    name: c.name, cardId: c.id, tribe: inst.tribe, attack: inst.attack, health: inst.health,
     keywords: inst.keywords, text: c.text, golden: inst.golden,
     tier: spell ? undefined : c.tier, spell,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
@@ -432,7 +432,7 @@ export function Recruit() {
                 return (
                   <Card
                     key={`${id}-${i}`}
-                    card={{ name: c.name, tribe: c.tribe, attack: c.attack, health: c.health, keywords: c.keywords, text: c.text, tier: c.tier }}
+                    card={{ name: c.name, cardId: c.id, tribe: c.tribe, attack: c.attack, health: c.health, keywords: c.keywords, text: c.text, tier: c.tier }}
                     onClick={() => dispatch({ type: 'discover', index: i })}
                   />
                 );

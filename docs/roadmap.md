@@ -42,7 +42,12 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       hold until the feel/functionality pass + balance are done.)
 - [ ] Confirm/refine the **name-on-art card layout** — implemented from a fuzzy ask (name pill on
       the art's bottom, keyword/text area below); revisit spacing + legibility with the user.
-- [ ] **Minion art** — replace pixel sprites with illustrated art (e.g. the Ember Whelp dragon).
-      Wire a per-card image override (`apps/web/public/art/minions/<id>.png`, 512×512, transparent);
-      art lives in `C:\Game Assets\Ascent Art`. Skipped for now per the user.
+- [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop
+      `<id>.png` into `packages/ui/src/art/minions/` → it replaces that card's pixel sprite
+      everywhere; falls back to the sprite when absent). Four are in (`whelp`, `imp`, `drone`,
+      `drummer`); the rest of the ~30-card set still uses sprites. Source art lives in
+      `C:\Game Assets\Ascent Art\Minions`; see the README in the art dir for the card-id ↔ name table.
+- [ ] **Art compression.** The illustrations are ~650 KB PNGs at 512×512; fine for a handful, but
+      convert to WebP (or add a build-time compress) before the full set lands so the bundle stays
+      lean.
 - [ ] Vendor the full Build Handoff v2 into `docs/handoff.md` (currently in-session only).

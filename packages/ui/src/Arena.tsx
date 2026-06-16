@@ -177,7 +177,7 @@ function Unit({
 }) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const view: CardView = {
-    name: u.name, tribe: u.tribe, attack: u.attack, health: Math.max(0, u.health),
+    name: u.name, cardId: u.cardId, tribe: u.tribe, attack: u.attack, health: Math.max(0, u.health),
     keywords: u.keywords, text: CARD_INDEX[u.cardId]?.text ?? '', tier: CARD_INDEX[u.cardId]?.tier,
     baseAttack: CARD_INDEX[u.cardId]?.attack, baseHealth: CARD_INDEX[u.cardId]?.health,
   };
@@ -351,7 +351,7 @@ export function Arena() {
   const floatsFor = (uid: string) => floats.filter((f) => f.uid === uid);
 
   return (
-    <div className="arena">
+    <div className={`arena${done ? ` done ${combat.result}` : ''}`}>
       <div className="atop">
         <h1 className="disp">THE WAVE BREAKS</h1>
         <div className="asub">Wave {run.wave} · {THREATS[run.threat].name}</div>

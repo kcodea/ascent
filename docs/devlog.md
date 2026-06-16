@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-16
 
+### Illustrated art pipeline + more combat feel
+- **Art pipeline** — a per-card image override. A new `packages/ui/src/art.ts` enumerates
+  `art/minions/*.png` at build time via `import.meta.glob` (keyed by filename = card id), and the
+  Card renders an `<img class="artimg">` (object-fit cover, top-anchored) when a matching file
+  exists, falling back to the generated pixel `Sprite` otherwise — purely additive, a no-op until
+  art is added. `cardId` is now threaded through every CardView (shop, warband/inst, Discover, and
+  the combat Arena unit), so an illustration shows in all three rows + combat. The first four
+  illustrations are wired — `whelp` (Ember Whelp), `imp` (Voracious Imp), `drone` (Spare Part
+  Drone), `drummer` (Doublecast Drummer) — copied from `C:\Game Assets\Ascent Art\Minions` and
+  downsized from the 1254² ~2.3 MB originals to 512×512 (~650 KB) for the bundle. A README in the
+  art dir documents the card-id ↔ name table, the format/size spec, and the one Vite caveat (restart
+  `npm run dev` once if you drop the *first* files into the previously-empty folder, since the glob
+  compiles to an empty map at startup).
+- **More combat feel** — four additions on top of the existing lunge/shatter/poison/SC/summon juice:
+  (1) **death dissolve** — a dying minion now flashes, crumples with a slight tumble + desaturate,
+  and fades to nothing, instead of shrinking to 0.7 and popping out; (2) a white-hot **impact spark**
+  at each struck minion (a `::before` flash on the existing `struck` class); (3) a **win/lose scene
+  tint** when the replay settles — a soft green vignette on a win, raspberry on a loss
+  (`.arena.done.win|lose .ascene::after`); (4) **snappier lunge easing** (0.16 s with a slight
+  overshoot) so a strike reads as a committed blow.
+- **Verified live** (drove a real run via synthetic pointer-drags; combat slowed temporarily to film,
+  then SPEED restored to 1.5): Ember Whelp / Voracious Imp / Spare Part Drone render their
+  illustrations in shop, warband, *and* combat, while art-less cards keep their pixel sprite; combat
+  lunges + SC scorch + deaths play; both result tints show (green win, raspberry loss). `npm run
+  typecheck` + `typecheck:web` + `lint` + `test` (67) + `build:web` all pass; the four PNGs emit as
+  hashed bundle assets.
+- **Notes:** balance tuning stays deferred (feel + functionality first). As art scales past a handful
+  of cards, the ~650 KB PNGs will want WebP/compression — flagged in the roadmap.
+
 ### Feel/functionality pass — hand box, combat juice, spell frame, golden text
 - **Hand box** (`fdee24c`): the empty-hand box now spans the bottom frame's width (~760px, ≈ the
   Embers·Hero·Resolve StatusBar) and no longer clips under the hero — trimmed the card-row height to

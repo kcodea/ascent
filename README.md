@@ -22,9 +22,15 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Combat feel** — wind-up → impact attacks, dead minions removed (not greyed), Divine-Shield gold
-  aura + shatter-on-break, poison mist, Start-of-Combat projectile bolts, Taunt shield wards, summon
-  pop-ins, a board shake on kills, big damage floats + HP flashes, and a synthesized SFX bank + mute.
+- **Illustrated art** — a per-card image pipeline: drop `<card-id>.png` into
+  `packages/ui/src/art/minions/` and it replaces that card's pixel sprite in the shop, warband, and
+  combat (falls back to the sprite when absent). First four illustrations are in (Ember Whelp,
+  Voracious Imp, Spare Part Drone, Doublecast Drummer).
+- **Combat feel** — wind-up → impact attacks with snappier lunge easing, a death dissolve (dying
+  minions crumple + fade), a white-hot impact spark on each hit, a win/lose scene tint when the
+  replay settles, Divine-Shield gold aura + shatter-on-break, poison mist, Start-of-Combat projectile
+  bolts, Taunt shield wards, summon pop-ins, a board shake on kills, damage floats + HP flashes, and
+  a synthesized SFX bank + mute.
 - **Recruit** — a Tavern-Tier box in the control bar, a slot-free warband that FLIP-shuffles when it
   reorders, a wide hand box matching the bottom frame, a burning rope in the last 15 s, drag-to-target
   Hero Power, green/red stat colours, an arcane frame for the Discover spell.

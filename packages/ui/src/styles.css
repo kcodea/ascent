@@ -129,6 +129,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .art { position: relative; flex: 0 0 50%; min-height: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 18%, var(--card)); border-radius: 11px 11px 0 0; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */
 .art canvas { max-width: 84%; max-height: 86%; }
+/* illustrated art (art/minions/<id>.png) fills the panel edge-to-edge, replacing the sprite */
+.artimg { width: 100%; height: 100%; object-fit: cover; object-position: center top; border-radius: 11px 11px 0 0; display: block; -webkit-user-drag: none; user-select: none; }
 .cost { position: absolute; top: 5px; left: 5px; width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 2px solid var(--acc); font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); display: grid; place-items: center; z-index: 4; }
 .tierbadge { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 10px; border-radius: 7px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* Taunt: a steel shield ward — this minion is a wall enemies must hit first */
@@ -253,7 +255,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .endcombat svg { color: #fff; }
 .endcombat:hover { filter: brightness(1.05); }
 @keyframes endpop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-.ascene { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 0; }
+.ascene { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 0; }
 .side { font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; display: flex; align-items: center; gap: 12px; }
 .side .rl { flex: 1; height: 2px; border-radius: 2px; }
 .side.foe { color: var(--threat-dk); } .side.foe .rl { background: linear-gradient(90deg, var(--threat), transparent); }
@@ -264,7 +266,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .clash { height: 38px; display: flex; align-items: center; justify-content: center; gap: 14px; }
 .clash .ln { width: 90px; height: 2px; border-radius: 2px; background: var(--line); }
 .clash .vs { font-family: 'Outfit'; font-weight: 900; font-size: 14px; letter-spacing: 0.2em; color: var(--ink3); }
-.unit { position: relative; width: 190px; height: 264px; transition: transform 0.18s; }
+.unit { position: relative; width: 190px; height: 264px; transition: transform 0.16s cubic-bezier(0.34, 1.25, 0.64, 1); }
 .unit .card { width: 100%; height: 100%; animation: none; }
 .unit .nm { font-family: 'Outfit'; font-weight: 700; font-size: 11px; color: var(--ink2); margin-bottom: 5px; white-space: nowrap; max-width: 128px; overflow: hidden; text-overflow: ellipsis; }
 .tok { position: relative; width: 112px; height: 112px; border-radius: 20px; background: color-mix(in srgb, var(--c) 20%, var(--card)); border: 2px solid var(--line); display: grid; place-items: center; }
@@ -276,6 +278,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .unit.attacking .card { box-shadow: 0 0 0 3px var(--acc), 0 3px 0 var(--shadow); }
 .unit.struck .card { animation: struck 0.32s ease; }
 @keyframes struck { 0%, 100% { transform: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.25); } }
+/* a white-hot impact spark at the point of contact */
+.unit.struck::before { content: ''; position: absolute; top: 36%; left: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 214, 130, 0.62) 42%, transparent 70%); z-index: 11; pointer-events: none; animation: impactspark 0.3s ease-out forwards; }
+@keyframes impactspark { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4); } }
 .unit.flare .card { animation: flare 0.5s ease; }
 .unit.reborn .card { animation: flare 0.5s ease; }
 @keyframes flare { 0% { filter: brightness(1.9); } 100% { filter: none; } }
@@ -317,6 +322,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* a kill shakes the board (hit-stop feel) */
 .ascene.shaking { animation: boardshake 0.3s ease; }
 @keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }
+/* a soft vignette tint when the replay settles — green for a win, raspberry for a loss */
+.arena.done.win .ascene::after, .arena.done.lose .ascene::after { content: ''; position: absolute; inset: -12px; pointer-events: none; z-index: 13; border-radius: 18px; animation: resulttint 0.6s ease forwards; }
+.arena.done.win .ascene::after { background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(34, 190, 134, 0.26)); }
+.arena.done.lose .ascene::after { background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(229, 57, 99, 0.26)); }
+@keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
 .alog { flex: none; text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: 16px; color: var(--ink); min-height: 26px; padding: 10px 0; }
 .result { flex: none; display: flex; align-items: center; gap: 16px; justify-content: center; background: var(--card); border: 2px solid var(--line); border-radius: 15px; padding: 12px 18px; box-shadow: 0 4px 0 var(--shadow); }
 .verdict { font-family: 'Outfit'; font-weight: 900; font-size: 24px; letter-spacing: 0.06em; }
@@ -345,8 +355,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Start-of-Combat bolt flying from the caster to its target */
 .proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
 @keyframes projfly { 0% { transform: translate(0, 0); opacity: 0.4; } 15% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 1; } }
-.unit.dying .card { animation: dyingpop 0.42s ease; }
-@keyframes dyingpop { 0% { transform: scale(1); } 35% { transform: scale(1.14); filter: brightness(1.4); } 100% { transform: scale(0.7); } }
+.unit.dying .card { animation: dyingpop 0.46s ease forwards; }
+@keyframes dyingpop {
+  0% { transform: scale(1); opacity: 1; }
+  28% { transform: scale(1.13) rotate(-2deg); filter: brightness(1.55) saturate(0.5); }
+  100% { transform: scale(0.52) translateY(16px) rotate(4deg); opacity: 0; filter: grayscale(1) brightness(0.65); }
+}
 
 /* GAME OVER */
 .over { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 88%, transparent); }

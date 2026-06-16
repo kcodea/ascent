@@ -1,5 +1,6 @@
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
+import { artFor } from './art';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
@@ -45,6 +46,8 @@ const doubleNums = (s: string): string =>
 
 export interface CardView {
   name: string;
+  /** Card id — used to look up illustrated art (falls back to the tribe sprite). */
+  cardId?: string;
   tribe: Tribe;
   attack: number;
   health: number;
@@ -124,7 +127,11 @@ export function Card({
       )}
       <div className="art">
         {card.cost !== undefined && <span className="cost">{card.cost}</span>}
-        <Sprite name={spriteForTribe(card.tribe)} scale={5} />
+        {artFor(card.cardId) ? (
+          <img className="artimg" src={artFor(card.cardId)} alt="" draggable={false} />
+        ) : (
+          <Sprite name={spriteForTribe(card.tribe)} scale={5} />
+        )}
       </div>
       <div className="cbody">
         <div className="cn">{card.name}</div>

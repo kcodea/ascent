@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-16
 
+### Bigger cards + 60% full-image art + compact Omen + sweet-spot targeting
+- **Cards larger** — added `--cw` / `--ch` card-size variables (one standard size used in shop,
+  warband, hand, and combat). Width +10 % (190→209 px) and height +14 px (264→278 px).
+- **Art area 60 %, full image** — the art panel grew 50 %→60 % of the card and `object-fit` changed
+  cover→**contain**, so the *whole* illustration is shown (no cropping); the tribe-tinted panel frames
+  it. (The earlier "art too big" was a containment bug, already fixed; this is the size/fit the user
+  asked for — 512² art is still the right source.)
+- **Compact Omen** — the upcoming-threat banner was tightened (padding 11→7, name 24→19, description
+  13→12, sigil 50→44, spacing) from ~123 px to ~100 px, funding the taller cards so the net vertical
+  footprint barely changes. Verified live: recruit keeps ~31 px clearance above the StatusBar and the
+  combat scene still fits.
+- **Sweet-spot targeting** — the Hero-Power aim (and any future single-target ability) now follows the
+  cursor exactly: you can aim **anywhere on a minion's card**, no snap to its centre. The minion under
+  the cursor lights up with a strong accent ring (`.card.targeted`). Verified the aim circle lands at
+  the cursor (901,631) rather than the card centre (954,720), and the hovered card highlights.
+- **Verified live**: cards measure 209×278, art panel ~60 % showing the full image, Omen ~100 px,
+  recruit clearance ~31 px, combat fits, tier colours intact, sweet-spot aim + highlight confirmed.
+  `typecheck` (+ web) + `lint` + `test` (67) + `build:web` all pass.
+
 ### Drag precision pass + tier colours + art-covers-text fix
 - **Drag precision** (the headline ask — make dragging exact, clean, satisfying). Six fixes to the
   pointer-drag in `Recruit.tsx`:

@@ -54,7 +54,7 @@ export function Recruit() {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
   const [snapping, setSnapping] = useState(false);
-  const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean } | null>(null);
+  const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean; targetUid: string | null } | null>(null);
   const [seconds, setSeconds] = useState(TURN_SECONDS);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
   const prevStatsRef = useRef<Map<string, number>>(new Map());
@@ -172,15 +172,17 @@ export function Recruit() {
       const f = document.querySelector('.statusbar .hero .f');
       if (!f) return;
       const r = f.getBoundingClientRect();
-      const targetEl = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-zone="warband"] .row .card');
-      let tx = e.clientX;
-      let ty = e.clientY;
-      if (targetEl) {
-        const cr = targetEl.getBoundingClientRect();
-        tx = cr.left + cr.width / 2;
-        ty = cr.top + cr.height / 2;
-      }
-      setAim({ ox: r.left + r.width / 2, oy: r.top + r.height / 2, tx, ty, onTarget: !!targetEl });
+      // The aim point follows the cursor exactly — you can target anywhere on a
+      // minion's card (no snap to centre); the hovered minion lights up.
+      const target = minionAt(e.clientX, e.clientY);
+      setAim({
+        ox: r.left + r.width / 2,
+        oy: r.top + r.height / 2,
+        tx: e.clientX,
+        ty: e.clientY,
+        onTarget: !!target,
+        targetUid: target?.uid ?? null,
+      });
     };
     const up = (e: PointerEvent): void => {
       if (!moved) return; // a plain click — stays armed for a follow-up click
@@ -402,6 +404,7 @@ export function Recruit() {
               uid={m.uid}
               card={instView(m)}
               highlight={heroArmed}
+              targeted={heroArmed && aim?.targetUid === m.uid}
               dimmed={isDragging(m.uid)}
               buffed={buffedUids.has(m.uid)}
               onPointerDown={heroArmed ? undefined : beginDrag(m.uid, 'board', instView(m))}

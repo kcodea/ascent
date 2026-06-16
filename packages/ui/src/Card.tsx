@@ -73,6 +73,7 @@ export function Card({
   uid,
   onClick,
   highlight,
+  targeted,
   dimmed,
   buffed,
   onPointerDown,
@@ -86,6 +87,8 @@ export function Card({
   uid?: string;
   onClick?: () => void;
   highlight?: boolean;
+  /** The current aim target of a hero power / single-target ability — strong highlight. */
+  targeted?: boolean;
   /** Dim this card while a copy of it is being dragged. */
   dimmed?: boolean;
   /** Play a one-shot green buff flash (a recruit-phase stat buff just landed). */
@@ -98,7 +101,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.spell ? ' spellcard' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.spell ? ' spellcard' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
       onClick={onClick}

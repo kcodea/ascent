@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Bigger cards & full art** — cards are 10 % wider and a touch taller, the art panel is now 60 % of
+  the card and shows the *whole* illustration; the upcoming-threat banner was slimmed to make room.
+- **Sweet-spot targeting** — the Hero Power aim follows the cursor so you can target anywhere on a
+  minion's card (no snap to centre), and the minion under the cursor lights up.
 - **Drag feel** — a precision pass: the held card tracks the cursor with zero lag and stays pinned
   to the grab point, a glowing bar marks the exact slot a minion will drop into, valid zones light
   up, pointer-capture survives fast flicks, and reorders land where you aim (fixed an off-by-one that

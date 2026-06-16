@@ -1,4 +1,4 @@
-import type { DragEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, type BoardCard } from '@game/sim';
 import { Card, type CardView } from './Card';
@@ -10,10 +10,10 @@ import { Icon } from './Icon';
 import { useGame } from './store';
 
 type DragSource = 'shop' | 'hand' | 'board';
-/** Module-scoped drag payload — works with real and synthetic drag events (dataTransfer optional). */
-let dragPayload: { uid: string; source: DragSource } | null = null;
+type Zone = 'tavern' | 'warband' | 'hand';
 
 const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
+const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a drag
 
 function shopView(cardId: string): CardView {
   const c = CARD_INDEX[cardId];
@@ -30,6 +30,17 @@ function instView(inst: BoardCard): CardView {
   };
 }
 
+interface DragState {
+  uid: string;
+  source: DragSource;
+  view: CardView;
+  ox: number; oy: number; // pointer offset within the card
+  w: number; h: number; // the source card's size, so the floating card matches exactly
+  startX: number; startY: number; // pointer position at press
+  x: number; y: number; // current pointer
+  active: boolean; // crossed the drag threshold (vs a click)
+}
+
 export function Recruit() {
   const run = useGame((s) => s.run);
   const dispatch = useGame((s) => s.dispatch);
@@ -37,32 +48,107 @@ export function Recruit() {
   const lc = run.lastCombat;
   const emptySlots = Math.max(0, CONFIG.boardMax - run.board.length);
 
-  const startDrag = (uid: string, source: DragSource) => (e: DragEvent) => {
-    dragPayload = { uid, source };
-    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const [overZone, setOverZone] = useState<Zone | null>(null);
+  const [snapping, setSnapping] = useState(false);
+  const dragRef = useRef<DragState | null>(null);
+  dragRef.current = drag;
+
+  const zoneAt = (x: number, y: number): Zone | null => {
+    const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
+    return (el?.getAttribute('data-zone') as Zone) ?? null;
   };
-  const allowDrop = (e: DragEvent) => e.preventDefault();
-  const take = (e: DragEvent): typeof dragPayload => {
-    e.preventDefault();
-    e.stopPropagation();
-    const p = dragPayload;
-    dragPayload = null;
-    return p;
+  // Insertion index in the warband, from the pointer's x against the cards' centres.
+  const warbandIndexAt = (x: number): number => {
+    const cards = [...document.querySelectorAll('[data-zone="warband"] .card')];
+    let i = 0;
+    for (const c of cards) {
+      const r = c.getBoundingClientRect();
+      if (x > r.left + r.width / 2) i++;
+    }
+    return i;
   };
-  const dropTavern = (e: DragEvent) => {
-    const p = take(e);
-    if (p?.source === 'board') dispatch({ type: 'sell', uid: p.uid });
+
+  const beginDrag = (uid: string, source: DragSource, view: CardView) => (e: ReactPointerEvent) => {
+    if (e.button !== 0) return;
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setDrag({
+      uid, source, view,
+      ox: e.clientX - r.left, oy: e.clientY - r.top,
+      w: r.width, h: r.height,
+      startX: e.clientX, startY: e.clientY,
+      x: e.clientX, y: e.clientY,
+      active: false,
+    });
   };
-  const dropHand = (e: DragEvent) => {
-    const p = take(e);
-    if (p?.source === 'shop') dispatch({ type: 'buy', uid: p.uid });
+
+  useEffect(() => {
+    if (!drag) return;
+    const onMove = (e: PointerEvent): void => {
+      setDrag((d) => {
+        if (!d) return d;
+        const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
+        if (active) document.body.classList.add('dragging');
+        return { ...d, x: e.clientX, y: e.clientY, active };
+      });
+      setOverZone(zoneAt(e.clientX, e.clientY));
+    };
+    const onUp = (e: PointerEvent): void => {
+      document.body.classList.remove('dragging');
+      const d = dragRef.current;
+      if (!d || !d.active) {
+        // a click, not a drag — let onClick (hero targeting) handle it
+        setDrag(null);
+        setOverZone(null);
+        return;
+      }
+      const zone = zoneAt(e.clientX, e.clientY);
+      const acted = applyDrop(d, zone, e.clientX);
+      if (acted) {
+        setDrag(null);
+        setOverZone(null);
+      } else {
+        // invalid drop — snap the card back to where it came from
+        setSnapping(true);
+        setDrag((cur) => (cur ? { ...cur, x: cur.startX, y: cur.startY } : cur));
+        window.setTimeout(() => {
+          setSnapping(false);
+          setDrag(null);
+          setOverZone(null);
+        }, 180);
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [drag?.uid]);
+
+  const applyDrop = (d: DragState, zone: Zone | null, x: number): boolean => {
+    if (d.source === 'shop' && zone === 'hand') {
+      dispatch({ type: 'buy', uid: d.uid });
+      return true;
+    }
+    if (d.source === 'hand' && zone === 'warband') {
+      dispatch({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(x) });
+      return true;
+    }
+    if (d.source === 'board' && zone === 'warband') {
+      dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(x) });
+      return true;
+    }
+    if ((d.source === 'board' || d.source === 'hand') && zone === 'tavern') {
+      dispatch({ type: 'sell', uid: d.uid });
+      return true;
+    }
+    return false;
   };
-  const dropWarband = (toIndex: number) => (e: DragEvent) => {
-    const p = take(e);
-    if (!p) return;
-    if (p.source === 'hand') dispatch({ type: 'play', uid: p.uid, toIndex });
-    else if (p.source === 'board') dispatch({ type: 'reposition', uid: p.uid, toIndex });
-  };
+
+  // Gold sell-preview glow: an owned card hovered over the tavern.
+  const sellGlow = overZone === 'tavern' && (drag?.source === 'board' || drag?.source === 'hand');
+  const isDragging = (uid: string): boolean => drag?.active === true && drag.uid === uid;
 
   return (
     <div className="app">
@@ -83,7 +169,7 @@ export function Recruit() {
 
       <Omen />
 
-      <div className="zone">
+      <div className={`zone${sellGlow ? ' sellglow' : ''}`} data-zone="tavern">
         <div className="zh">
           <span className="zt disp">
             The Tavern · Tier <b>{run.tier}</b>
@@ -112,14 +198,19 @@ export function Recruit() {
             )}
           </button>
         </div>
-        <div className="row" onDragOver={allowDrop} onDrop={dropTavern}>
+        <div className="row">
           {run.shop.map((o) => (
-            <Card key={o.uid} card={shopView(o.cardId)} draggable onDragStart={startDrag(o.uid, 'shop')} />
+            <Card
+              key={o.uid}
+              card={shopView(o.cardId)}
+              dimmed={isDragging(o.uid)}
+              onPointerDown={beginDrag(o.uid, 'shop', shopView(o.cardId))}
+            />
           ))}
         </div>
       </div>
 
-      <div className="zone">
+      <div className="zone" data-zone="warband">
         <div className="zh">
           <span className="zt disp">
             Your Warband · <b>{run.board.length}/{CONFIG.boardMax}</b>
@@ -128,23 +219,20 @@ export function Recruit() {
             {heroArmed ? 'click a minion to Temper it (+1/+1)' : 'drag from hand to play · drag to reorder'}
           </span>
         </div>
-        <div className="row" onDragOver={allowDrop} onDrop={dropWarband(Math.ceil(run.board.length / 2))}>
-          {/* Empty slots split around the minions so the board anchors from the centre. */}
+        <div className="row">
           {Array.from({ length: Math.floor(emptySlots / 2) }).map((_, i) => (
             <div className="empty" key={`eb-${i}`}>
               Empty
             </div>
           ))}
-          {run.board.map((m, i) => (
+          {run.board.map((m) => (
             <Card
               key={m.uid}
               card={instView(m)}
               highlight={heroArmed}
+              dimmed={isDragging(m.uid)}
               onClick={heroArmed ? () => dispatch({ type: 'heroPower', uid: m.uid }) : undefined}
-              draggable
-              onDragStart={startDrag(m.uid, 'board')}
-              onDragOver={allowDrop}
-              onDrop={dropWarband(i)}
+              onPointerDown={beginDrag(m.uid, 'board', instView(m))}
             />
           ))}
           {Array.from({ length: emptySlots - Math.floor(emptySlots / 2) }).map((_, i) => (
@@ -155,7 +243,7 @@ export function Recruit() {
         </div>
       </div>
 
-      <div className="zone">
+      <div className="zone" data-zone="hand">
         <div className="zh">
           <span className="zt disp">
             Your Hand · <b>{run.hand.length}</b>
@@ -166,14 +254,19 @@ export function Recruit() {
             FACE THE OMEN
           </button>
         </div>
-        <div className="row hand" onDragOver={allowDrop} onDrop={dropHand}>
+        <div className="row hand">
           {run.hand.length === 0 ? (
             <div className="empty" style={{ flex: '0 1 auto', padding: '0 24px', borderStyle: 'dashed' }}>
               Drag a minion down from the tavern to buy it, then drag it up to your warband to play.
             </div>
           ) : (
             run.hand.map((m) => (
-              <Card key={m.uid} card={instView(m)} draggable onDragStart={startDrag(m.uid, 'hand')} />
+              <Card
+                key={m.uid}
+                card={instView(m)}
+                dimmed={isDragging(m.uid)}
+                onPointerDown={beginDrag(m.uid, 'hand', instView(m))}
+              />
             ))
           )}
         </div>
@@ -181,6 +274,15 @@ export function Recruit() {
 
       <StatusBar />
       <Legend />
+
+      {drag?.active && (
+        <div
+          className={`dragcard${snapping ? ' snap' : ''}`}
+          style={{ left: drag.x - drag.ox, top: drag.y - drag.oy, width: drag.w, height: drag.h }}
+        >
+          <Card card={drag.view} />
+        </div>
+      )}
 
       {run.discover && (
         <div className="discover-ov" role="dialog" aria-label="Discover a card">

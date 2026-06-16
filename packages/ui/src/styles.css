@@ -133,6 +133,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .discover-title b { color: var(--acc-dk); }
 .discover-cards { display: flex; gap: 16px; justify-content: center; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+/* custom drag: a solid card follows the cursor; the source dims; invalid drops snap back */
+.dragcard { position: fixed; z-index: 100; pointer-events: none; transform: scale(1.05); filter: drop-shadow(0 14px 20px rgba(0, 0, 0, 0.32)); }
+.dragcard.snap { transition: left 0.18s ease, top 0.18s ease; }
+.dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
+.card.dragsrc { opacity: 0.3; }
+.zone.sellglow .row { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: 0 0 0 3px var(--acc), 0 0 24px -2px color-mix(in srgb, var(--acc) 75%, transparent); border-radius: 16px; }
+.zone.sellglow .row::after { content: 'Sell +1'; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; color: var(--acc-dk); text-transform: uppercase; }
+.zone[data-zone='tavern'] .row { position: relative; transition: box-shadow 0.12s, background 0.12s; }
 .ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 14px; height: 14px; color: var(--c); }
 .statusbar { display: flex; align-items: center; justify-content: center; gap: 22px; flex: none; }

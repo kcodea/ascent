@@ -1,4 +1,4 @@
-import type { CSSProperties, DragEvent } from 'react';
+import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
@@ -48,6 +48,8 @@ export function Card({
   card,
   onClick,
   highlight,
+  dimmed,
+  onPointerDown,
   draggable,
   onDragStart,
   onDragOver,
@@ -56,6 +58,9 @@ export function Card({
   card: CardView;
   onClick?: () => void;
   highlight?: boolean;
+  /** Dim this card while a copy of it is being dragged. */
+  dimmed?: boolean;
+  onPointerDown?: (e: ReactPointerEvent) => void;
   draggable?: boolean;
   onDragStart?: (e: DragEvent) => void;
   onDragOver?: (e: DragEvent) => void;
@@ -63,7 +68,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${card.golden ? ' golden' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}`}
       style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
@@ -79,6 +84,7 @@ export function Card({
             }
           : undefined
       }
+      onPointerDown={onPointerDown}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}

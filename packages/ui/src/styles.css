@@ -8,7 +8,7 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
-body { font-family: 'Nunito Sans', sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+body { font-family: 'Nunito Sans', sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; }
 /* gauntlet opens over anything grabbable/clickable */
 .card, .btn, button, .hero:not(.spent), .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 /* closed fist while a card is being dragged */
@@ -45,7 +45,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .chip.g .ic { background: var(--t-beast); } .chip.h .ic { background: var(--threat); }
 .chip .v { font-family: 'Outfit'; font-weight: 800; font-size: 20px; line-height: 1; }
 .chip .l { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
-.hero { display: flex; align-items: center; gap: 9px; background: var(--card); border: 2px solid var(--line); border-radius: 13px; padding: 4px 14px 4px 5px; cursor: pointer; }
+.hero { display: flex; align-items: center; gap: 9px; background: var(--card); border: 2px solid var(--line); border-radius: 13px; padding: 4px 14px 4px 5px; }
 .hero:hover:not(.spent) { border-color: var(--acc); }
 .hero.spent { opacity: 0.5; cursor: default; }
 .hero .f { width: 34px; height: 34px; border-radius: 10px; background: var(--ink); display: grid; place-items: center; }
@@ -84,17 +84,19 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .zt { font-family: 'Outfit'; font-weight: 800; font-size: 14px; letter-spacing: 0.02em; }
 .zt b { color: var(--acc-dk); }
 .hint { font-size: 12px; font-weight: 700; color: var(--ink3); }
-.btn { font-family: 'Outfit'; font-weight: 700; font-size: 12px; padding: 7px 13px; border-radius: 11px; border: 2px solid var(--line); background: var(--card); color: var(--ink); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.btn { font-family: 'Outfit'; font-weight: 700; font-size: 12px; padding: 7px 13px; border-radius: 11px; border: 2px solid var(--line); background: var(--card); color: var(--ink); display: flex; align-items: center; gap: 6px; }
 .btn:hover:not(:disabled) { border-color: var(--acc); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn svg { width: 15px; height: 15px; color: var(--ink2); }
-.shopctl { display: flex; justify-content: center; gap: 14px; margin-bottom: 9px; flex: none; }
+.shopctl { display: flex; justify-content: center; gap: 14px; margin-bottom: 16px; flex: none; position: relative; z-index: 6; }
 .btn.big { font-size: 17px; padding: 13px 26px; border-radius: 15px; gap: 9px; box-shadow: 0 3px 0 var(--shadow); }
 .btn.big svg { width: 23px; height: 23px; }
 .btn.big .c { font-size: 17px; }
 .btn.big.endturn { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
 .btn.big.endturn svg { color: #fff; }
 .btn.big.endturn:hover { border-color: var(--acc-dk); filter: brightness(1.05); }
+.btn.big.endturn.urgent { animation: endpulse 0.9s ease-in-out infinite; }
+@keyframes endpulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 45%, transparent); } }
 .btn .c { color: var(--acc-dk); font-weight: 800; }
 .btn.frozen { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
 .btn.frozen svg { color: #fff; }
@@ -109,7 +111,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .row.hand .card:hover { transform: translateY(-26px); z-index: 20; }
 
 /* STANDARD CARD */
-.card { position: relative; flex: 0 0 190px; width: 190px; height: 264px; background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 3px 0 var(--shadow); cursor: pointer; transition: transform 0.12s, border-color 0.12s; animation: cardpop 0.26s ease; }
+.card { position: relative; flex: 0 0 190px; width: 190px; height: 264px; background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 3px 0 var(--shadow); transition: transform 0.12s, border-color 0.12s; animation: cardpop 0.26s ease; }
 .card:hover { transform: translateY(-3px); border-color: var(--acc); z-index: 5; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 50%; min-height: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 18%, var(--card)); border-radius: 11px 11px 0 0; }
@@ -153,7 +155,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card.dragsrc { opacity: 0.3; }
 .zone.sellglow .row { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: 0 0 0 3px var(--acc), 0 0 24px -2px color-mix(in srgb, var(--acc) 75%, transparent); border-radius: 16px; }
 .zone.sellglow .row::after { content: 'Sell +1'; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; color: var(--acc-dk); text-transform: uppercase; }
-.zone[data-zone='tavern'] .row { position: relative; transition: box-shadow 0.12s, background 0.12s; }
+.zone[data-zone='tavern'] .row { position: relative; align-items: flex-start; transition: box-shadow 0.12s, background 0.12s; }
 
 /* targeting line — Hero Power (and future single-target Battlecries) */
 .aimline { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 90; overflow: visible; }

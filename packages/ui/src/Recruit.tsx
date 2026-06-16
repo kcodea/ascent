@@ -59,6 +59,7 @@ export function Recruit() {
   const [seconds, setSeconds] = useState(TURN_SECONDS);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
+  const timeUp = seconds <= 0; // turn timer expired: lock everything but End Turn
 
   const zoneAt = (x: number, y: number): Zone | null => {
     const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
@@ -76,7 +77,7 @@ export function Recruit() {
   };
 
   const beginDrag = (uid: string, source: DragSource, view: CardView) => (e: ReactPointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || timeUp) return; // no dragging once the turn timer is up
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setDrag({
       uid, source, view,
@@ -94,13 +95,12 @@ export function Recruit() {
       setDrag((d) => {
         if (!d) return d;
         const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
-        if (active) document.body.classList.add('dragging');
         return { ...d, x: e.clientX, y: e.clientY, active };
       });
       setOverZone(zoneAt(e.clientX, e.clientY));
     };
     const onUp = (e: PointerEvent): void => {
-      document.body.classList.remove('dragging');
+      document.body.classList.remove('dragging'); // cursor reverts on release, before any snap-back
       const d = dragRef.current;
       if (!d || !d.active) {
         // a click, not a drag — let onClick (hero targeting) handle it
@@ -126,11 +126,21 @@ export function Recruit() {
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
   }, [drag?.uid]);
+
+  // Drive the closed-fist cursor strictly off drag state, so it can never get
+  // stranded on (the bug where the grab cursor stuck after the first drag).
+  useEffect(() => {
+    if (!drag?.active) return;
+    document.body.classList.add('dragging');
+    return () => document.body.classList.remove('dragging');
+  }, [drag?.active]);
 
   // Hero Power targeting: while armed, draw a glowing line from the hero to the
   // cursor, snapping to the friendly minion under it. (A future single-target
@@ -161,15 +171,11 @@ export function Recruit() {
   // Round timer: count down each recruit turn; at 0 the player is forced into
   // combat (paused while a Discover pick is open). UI-only — the engine is untimed.
   useEffect(() => {
-    if (run.phase !== 'recruit') return;
-    if (seconds <= 0) {
-      dispatch({ type: 'faceOmen' });
-      return;
-    }
-    if (run.discover) return;
+    // At 0 the timer just stops — actions lock (except End Turn); no auto-combat.
+    if (run.phase !== 'recruit' || seconds <= 0 || run.discover) return;
     const id = window.setTimeout(() => setSeconds((s) => s - 1), 1000);
     return () => window.clearTimeout(id);
-  }, [seconds, run.phase, run.discover, dispatch]);
+  }, [seconds, run.phase, run.discover]);
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
@@ -236,17 +242,17 @@ export function Recruit() {
           <span className="hint">drag down to your hand to buy (3) · drag a minion here to sell (+1)</span>
         </div>
         <div className="shopctl">
-          <button className="btn big" disabled={run.embers < CONFIG.refreshCost} onClick={() => dispatch({ type: 'roll' })}>
+          <button className="btn big" disabled={run.embers < CONFIG.refreshCost || timeUp} onClick={() => dispatch({ type: 'roll' })}>
             <Icon name="refresh" />
             Refresh <span className="c">{CONFIG.refreshCost}</span>
           </button>
-          <button className={`btn big${run.frozen ? ' frozen' : ''}`} onClick={() => dispatch({ type: 'freeze' })}>
+          <button className={`btn big${run.frozen ? ' frozen' : ''}`} disabled={timeUp} onClick={() => dispatch({ type: 'freeze' })}>
             <Icon name="freeze" />
             Freeze
           </button>
           <button
             className="btn big"
-            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost}
+            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp}
             onClick={() => dispatch({ type: 'upgrade' })}
           >
             <Icon name="up" />
@@ -256,7 +262,7 @@ export function Recruit() {
               </>
             )}
           </button>
-          <button className="btn big endturn" onClick={() => dispatch({ type: 'faceOmen' })}>
+          <button className={`btn big endturn${timeUp ? ' urgent' : ''}`} onClick={() => dispatch({ type: 'faceOmen' })}>
             <Icon name="sword" />
             End Turn
           </button>
@@ -294,7 +300,7 @@ export function Recruit() {
               card={instView(m)}
               highlight={heroArmed}
               dimmed={isDragging(m.uid)}
-              onClick={heroArmed ? () => dispatch({ type: 'heroPower', uid: m.uid }) : undefined}
+              onClick={heroArmed && !timeUp ? () => dispatch({ type: 'heroPower', uid: m.uid }) : undefined}
               onPointerDown={beginDrag(m.uid, 'board', instView(m))}
             />
           ))}

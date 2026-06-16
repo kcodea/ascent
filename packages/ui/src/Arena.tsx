@@ -17,6 +17,13 @@ interface UnitFrame {
   alive: boolean;
 }
 
+interface Float {
+  id: number;
+  uid: string;
+  text: string;
+  kind: string;
+}
+
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
@@ -59,9 +66,12 @@ function computeFrame(
   return { player, enemy };
 }
 
+// Per-event beat lengths (ms). SPEED scales the whole sequence — higher = slower.
+const SPEED = 1.2;
 const DELAY: Record<string, number> = {
   sc: 760, attack: 340, dmg: 230, shield: 520, poison: 520, reborn: 560, death: 360, summon: 380, buff: 320,
 };
+const FLOAT_MS = 1000;
 const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
 const WHY = {
   win: 'The wave breaks against your warband.',
@@ -70,7 +80,7 @@ const WHY = {
 } as const;
 const KW_ICON: Partial<Record<Keyword, string>> = { T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc' };
 
-/** The transient animation class for the unit(s) the active event acts on. */
+/** The transient animation class for the unit the active event acts on. */
 function animFor(e: CombatEvent | undefined): Record<string, string> {
   if (!e) return {};
   switch (e.type) {
@@ -115,13 +125,12 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
 }
 
 function Unit({
-  u, side, anim, float, pulse,
+  u, side, anim, floats,
 }: {
   u: UnitFrame;
   side: 'foe' | 'you';
   anim?: string;
-  float?: { text: string; kind: string };
-  pulse?: number;
+  floats?: { id: number; text: string; kind: string }[];
 }) {
   const sprite: SpriteName = side === 'foe' ? 'undead' : spriteForTribe(u.tribe);
   const tintTribe = side === 'foe' ? 'undead' : u.tribe;
@@ -142,7 +151,9 @@ function Unit({
             ))}
           </span>
         )}
-        {float && <span key={pulse} className={`float ${float.kind}`}>{float.text}</span>}
+        {floats?.map((f) => (
+          <span key={f.id} className={`float ${f.kind}`}>{f.text}</span>
+        ))}
       </div>
       <span className="ua">{u.attack}</span>
       <span className="uh">{Math.max(0, u.health)}</span>
@@ -156,14 +167,25 @@ export function Arena() {
   const combat = run.lastCombat;
   const events = combat?.events ?? [];
   const [step, setStep] = useState(0);
+  const [floats, setFloats] = useState<Float[]>([]);
   const done = step >= events.length;
 
   useEffect(() => {
     if (done) return;
     const e = events[step];
-    const id = window.setTimeout(() => setStep((k) => k + 1), DELAY[e.type] ?? 300);
+    const id = window.setTimeout(() => setStep((k) => k + 1), (DELAY[e.type] ?? 300) * SPEED);
     return () => window.clearTimeout(id);
   }, [step, done, events]);
+
+  // Spawn a floating number when an event lands; it dissipates on its own timer.
+  useEffect(() => {
+    const f = floatFor(step > 0 ? events[step - 1] : undefined);
+    if (!f) return;
+    const id = step;
+    setFloats((arr) => (arr.some((x) => x.id === id) ? arr : [...arr, { id, ...f }]));
+    const t = window.setTimeout(() => setFloats((arr) => arr.filter((x) => x.id !== id)), FLOAT_MS);
+    return () => window.clearTimeout(t);
+  }, [step, events]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();
@@ -181,12 +203,12 @@ export function Arena() {
   if (!combat) return null;
 
   const anims = animFor(step > 0 ? events[step - 1] : undefined);
-  const float = floatFor(step > 0 ? events[step - 1] : undefined);
   let log = 'The boards take their positions…';
   for (let i = Math.min(step, events.length) - 1; i >= 0; i--) {
     const line = narrate(events[i], names);
     if (line) { log = line; break; }
   }
+  const floatsFor = (uid: string) => floats.filter((f) => f.uid === uid);
 
   return (
     <div className="arena">
@@ -205,13 +227,13 @@ export function Arena() {
         <div className="side foe"><span>The Omen</span><span className="rl" /></div>
         <div className="line foe">
           {frame.enemy.map((u) => (
-            <Unit key={u.uid} u={u} side="foe" anim={anims[u.uid]} float={float?.uid === u.uid ? float : undefined} pulse={step} />
+            <Unit key={u.uid} u={u} side="foe" anim={anims[u.uid]} floats={floatsFor(u.uid)} />
           ))}
         </div>
         <div className="clash"><span className="ln" /><span className="vs disp">VS</span><span className="ln" /></div>
         <div className="line you">
           {frame.player.map((u) => (
-            <Unit key={u.uid} u={u} side="you" anim={anims[u.uid]} float={float?.uid === u.uid ? float : undefined} pulse={step} />
+            <Unit key={u.uid} u={u} side="you" anim={anims[u.uid]} floats={floatsFor(u.uid)} />
           ))}
         </div>
         <div className="side you"><span className="rl" /><span>Your Warband</span></div>

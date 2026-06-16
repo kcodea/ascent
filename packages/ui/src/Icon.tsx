@@ -13,6 +13,15 @@ const ICONS: Record<string, ReactNode> = {
   freeze: <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M12 2v20M4 7l16 10M20 7L4 17" />,
   up: <path fill="currentColor" d="M12 3l9 10h-6v8H9v-8H3z" />,
   sword: <path fill="currentColor" d="M14 3h7v7l-3.5-1L9 17l1 3-3 1-1-3 8-8.5L14 6z" />,
+  paw: (
+    <>
+      <ellipse cx="12" cy="16.2" rx="4.3" ry="3.4" fill="currentColor" />
+      <circle cx="6.4" cy="11" r="2" fill="currentColor" />
+      <circle cx="17.6" cy="11" r="2" fill="currentColor" />
+      <circle cx="9.4" cy="7.4" r="1.9" fill="currentColor" />
+      <circle cx="14.6" cy="7.4" r="1.9" fill="currentColor" />
+    </>
+  ),
 };
 
 export function Icon({ name }: { name: string }) {

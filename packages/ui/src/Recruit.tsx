@@ -3,13 +3,15 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, type BoardCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { HudBar } from './HudBar';
+import { StatusBar } from './StatusBar';
 import { Omen } from './Omen';
 import { Legend } from './Legend';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
+type DragSource = 'shop' | 'hand' | 'board';
 /** Module-scoped drag payload — works with real and synthetic drag events (dataTransfer optional). */
-let dragPayload: { uid: string; source: 'hand' | 'board' } | null = null;
+let dragPayload: { uid: string; source: DragSource } | null = null;
 
 const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
 
@@ -35,22 +37,32 @@ export function Recruit() {
   const lc = run.lastCombat;
   const emptySlots = Math.max(0, CONFIG.boardMax - run.board.length);
 
-  const startDrag = (uid: string, source: 'hand' | 'board') => (e: DragEvent) => {
+  const startDrag = (uid: string, source: DragSource) => (e: DragEvent) => {
     dragPayload = { uid, source };
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
   };
   const allowDrop = (e: DragEvent) => e.preventDefault();
-  const dropAt = (toIndex: number) => (e: DragEvent) => {
+  const take = (e: DragEvent): typeof dragPayload => {
     e.preventDefault();
     e.stopPropagation();
     const p = dragPayload;
     dragPayload = null;
+    return p;
+  };
+  const dropTavern = (e: DragEvent) => {
+    const p = take(e);
+    if (p?.source === 'board') dispatch({ type: 'sell', uid: p.uid });
+  };
+  const dropHand = (e: DragEvent) => {
+    const p = take(e);
+    if (p?.source === 'shop') dispatch({ type: 'buy', uid: p.uid });
+  };
+  const dropWarband = (toIndex: number) => (e: DragEvent) => {
+    const p = take(e);
     if (!p) return;
     if (p.source === 'hand') dispatch({ type: 'play', uid: p.uid, toIndex });
-    else dispatch({ type: 'reposition', uid: p.uid, toIndex });
+    else if (p.source === 'board') dispatch({ type: 'reposition', uid: p.uid, toIndex });
   };
-  const onBoardClick = (uid: string) =>
-    dispatch(heroArmed ? { type: 'heroPower', uid } : { type: 'sell', uid });
 
   return (
     <div className="app">
@@ -76,6 +88,7 @@ export function Recruit() {
           <span className="zt disp">
             The Tavern · Tier <b>{run.tier}</b>
           </span>
+          <span className="hint">drag down to your hand to buy (3) · drag a minion here to sell (+1)</span>
           <span className="sp" />
           <button className="btn" disabled={run.embers < CONFIG.refreshCost} onClick={() => dispatch({ type: 'roll' })}>
             <Icon name="refresh" />
@@ -98,9 +111,9 @@ export function Recruit() {
             )}
           </button>
         </div>
-        <div className="row">
+        <div className="row" onDragOver={allowDrop} onDrop={dropTavern}>
           {run.shop.map((o) => (
-            <Card key={o.uid} card={shopView(o.cardId)} onClick={() => dispatch({ type: 'buy', uid: o.uid })} />
+            <Card key={o.uid} card={shopView(o.cardId)} draggable onDragStart={startDrag(o.uid, 'shop')} />
           ))}
         </div>
       </div>
@@ -110,22 +123,21 @@ export function Recruit() {
           <span className="zt disp">
             Your Warband · <b>{run.board.length}/{CONFIG.boardMax}</b>
           </span>
-          <span className="sp" />
           <span className="hint">
-            {heroArmed ? 'click a minion to Temper it (+1/+1)' : 'drag to reorder · click to sell (+1 Ember)'}
+            {heroArmed ? 'click a minion to Temper it (+1/+1)' : 'drag from hand to play · drag to reorder'}
           </span>
         </div>
-        <div className="row" onDragOver={allowDrop} onDrop={dropAt(run.board.length)}>
+        <div className="row" onDragOver={allowDrop} onDrop={dropWarband(run.board.length)}>
           {run.board.map((m, i) => (
             <Card
               key={m.uid}
               card={instView(m)}
               highlight={heroArmed}
-              onClick={() => onBoardClick(m.uid)}
+              onClick={heroArmed ? () => dispatch({ type: 'heroPower', uid: m.uid }) : undefined}
               draggable
               onDragStart={startDrag(m.uid, 'board')}
               onDragOver={allowDrop}
-              onDrop={dropAt(i)}
+              onDrop={dropWarband(i)}
             />
           ))}
           {Array.from({ length: emptySlots }).map((_, i) => (
@@ -147,25 +159,20 @@ export function Recruit() {
             FACE THE OMEN
           </button>
         </div>
-        <div className="row">
+        <div className="row" onDragOver={allowDrop} onDrop={dropHand}>
           {run.hand.length === 0 ? (
             <div className="empty" style={{ flex: '0 1 auto', padding: '0 24px', borderStyle: 'dashed' }}>
-              Buy minions from the tavern, then click them here to play onto your warband.
+              Drag a minion down from the tavern to buy it, then drag it up to your warband to play.
             </div>
           ) : (
             run.hand.map((m) => (
-              <Card
-                key={m.uid}
-                card={instView(m)}
-                onClick={() => dispatch({ type: 'play', uid: m.uid })}
-                draggable
-                onDragStart={startDrag(m.uid, 'hand')}
-              />
+              <Card key={m.uid} card={instView(m)} draggable onDragStart={startDrag(m.uid, 'hand')} />
             ))
           )}
         </div>
       </div>
 
+      <StatusBar />
       <Legend />
     </div>
   );

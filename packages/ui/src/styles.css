@@ -81,7 +81,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .row { flex: 1; display: flex; gap: 10px; min-height: 0; justify-content: center; }
 
 /* STANDARD CARD */
-.card { flex: 0 0 132px; width: 132px; background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 3px 0 var(--shadow); cursor: pointer; transition: transform 0.12s, border-color 0.12s; }
+.card { flex: 0 0 165px; width: 165px; background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 3px 0 var(--shadow); cursor: pointer; transition: transform 0.12s, border-color 0.12s; }
 .card:hover { transform: translateY(-3px); border-color: var(--acc); }
 .art { position: relative; height: 70px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 18%, var(--card)); }
 .art canvas { width: 64px; height: 64px; }
@@ -95,7 +95,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .kw svg { width: 9px; height: 9px; }
 .desc { font-size: 12px; font-weight: 600; line-height: 1.32; color: var(--ink2); text-align: center; flex: 1; }
 .desc b { color: var(--ink); font-weight: 700; }
-.empty { flex: 0 0 132px; width: 132px; border: 2px dashed var(--line); border-radius: 13px; display: grid; place-items: center; color: var(--ink3); font-family: 'Outfit'; font-weight: 700; font-size: 12px; }
+.empty { flex: 0 0 165px; width: 165px; border: 2px dashed var(--line); border-radius: 13px; display: grid; place-items: center; color: var(--ink3); font-family: 'Outfit'; font-weight: 700; font-size: 12px; }
+.ctype { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 5px 0; font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; background: color-mix(in srgb, var(--c) 14%, var(--card)); color: color-mix(in srgb, var(--c) 64%, var(--ink)); border-top: 1px solid var(--line); }
+.ctype svg { width: 13px; height: 13px; color: var(--c); }
+.statusbar { display: flex; align-items: center; gap: 12px; flex: none; }
 
 .card.armed { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 40%, transparent), 0 3px 0 var(--shadow); }
 .card[draggable='true'] { cursor: grab; }
@@ -163,13 +166,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card:focus-visible, .btn:focus-visible, .hero:focus-visible, .climb:focus-visible, .skip:focus-visible, .over .btn:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
 .ares { position: absolute; top: 4px; left: 0; font-family: 'Outfit'; font-weight: 800; font-size: 13px; color: var(--threat-dk); display: flex; align-items: center; gap: 6px; }
 .ares svg { width: 16px; height: 16px; color: var(--threat); }
-.float { position: absolute; top: -10px; left: 50%; font-family: 'Outfit'; font-weight: 900; font-size: 20px; pointer-events: none; z-index: 6; white-space: nowrap; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); animation: floatup 0.7s ease forwards; }
-.float.dmg { color: #fff; background: var(--threat); padding: 0 7px; border-radius: 9px; font-size: 16px; }
+.float { position: absolute; top: -12px; left: 50%; font-family: 'Outfit'; font-weight: 900; font-size: 24px; pointer-events: none; z-index: 6; white-space: nowrap; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); animation: floatup 1s ease forwards; }
+.float.dmg { color: #fff; background: var(--threat); padding: 0 8px; border-radius: 9px; font-size: 19px; }
 .float.poison { color: var(--t-undead); }
 .float.shield { color: var(--acc-dk); }
 .float.reborn { color: var(--t-demon); }
-.float.buff { color: #fff; background: var(--acc); padding: 0 7px; border-radius: 9px; font-size: 14px; }
-@keyframes floatup { 0% { opacity: 0; transform: translate(-50%, 8px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -30px); } }
+.float.buff { color: #fff; background: var(--acc); padding: 0 8px; border-radius: 9px; font-size: 17px; }
+@keyframes floatup { 0% { opacity: 0; transform: translate(-50%, 8px); } 14% { opacity: 1; } 62% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -38px); } }
 .unit.dying .tok { animation: dyingpop 0.42s ease; }
 @keyframes dyingpop { 0% { transform: scale(1); } 35% { transform: scale(1.14); filter: brightness(1.4); } 100% { transform: scale(0.7); } }
 

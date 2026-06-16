@@ -10,6 +10,9 @@ const KW_LABEL: Record<Keyword, string> = {
 const KW_ICON: Partial<Record<Keyword, string>> = {
   T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc',
 };
+const TRIBE_LABEL: Record<Tribe, string> = {
+  beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
+};
 
 const mdBold = (s: string): string => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 
@@ -84,6 +87,10 @@ export function Card({
           </div>
         )}
         <div className="desc" dangerouslySetInnerHTML={{ __html: mdBold(card.text) }} />
+      </div>
+      <div className="ctype">
+        <Icon name="paw" />
+        {TRIBE_LABEL[card.tribe]}
       </div>
     </div>
   );

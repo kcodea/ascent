@@ -244,10 +244,12 @@ export function simulate(
           ? 'draw'
           : 'lose';
 
-  // Player damage on loss (A.3 step 9): Σ over surviving enemies of 1 + ceil((atk+hp)/9).
+  // Player damage on loss (A.3 step 9): scaled by the size of the surviving
+  // enemy board, min 1. Stat-based (no flat per-survivor term) so a gentle early
+  // board costs ~1 Resolve while a fat late board bites — the climb still ends.
   const playerDamage =
     result === 'lose'
-      ? survivorsE.reduce((sum, m) => sum + 1 + Math.ceil((m.attack + m.health) / 9), 0)
+      ? Math.max(1, Math.round(survivorsE.reduce((sum, m) => sum + (m.attack + m.health) / 8, 0)))
       : 0;
 
   return { events, result, playerDamage, initial };

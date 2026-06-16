@@ -31,8 +31,8 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(a.result).toBe('lose');
-    // The Gnasher survives ~6/5 → 1 + ceil((6 + 5) / 9) = 3.
-    expect(a.playerDamage).toBe(3);
+    // The Gnasher survives ~6/5 → round((6 + 5) / 8) = 1 (min 1).
+    expect(a.playerDamage).toBe(1);
   });
 
   it('fires Pack Scrounger Deathrattle — summons two Pups', () => {

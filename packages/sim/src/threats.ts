@@ -81,11 +81,19 @@ export function selectThreat(_wave: number, rng: Rng, previous?: ThreatId): Thre
   return rng.pick(pool);
 }
 
-/** The rising curve (handoff C.7): how board size and stats scale with the wave. */
-export function enemyScaling(wave: number): { extraCount: number; statScale: number } {
+/**
+ * The rising curve (handoff C.7) with a deliberately gentle on-ramp: the player
+ * opens with a 1-minion board (3 embers = one buy), so early waves must stay
+ * near that size or the run is unwinnable. Enemy *width* is capped near the wave
+ * number, and stats ramp from ~55% at wave 1 to full template strength by ~wave
+ * 5; from there the A.5 scaling takes over. These are starting dials — tune via
+ * `npm run balance`.
+ */
+export function enemyScaling(wave: number): { countCap: number; statScale: number } {
+  const ramp = Math.min(1, 0.55 + 0.12 * (wave - 1)); // w1≈0.55 … w5≈1.0
   return {
-    extraCount: Math.floor(wave / CONFIG.curve.extraCountPerWaves),
-    statScale: 1 + wave * CONFIG.curve.statScalePerWave,
+    countCap: wave + 1, // bind enemy width near the player's board early
+    statScale: (1 + wave * CONFIG.curve.statScalePerWave) * ramp,
   };
 }
 
@@ -96,11 +104,12 @@ export function enemyScaling(wave: number): { extraCount: number; statScale: num
  */
 export function buildEnemyBoard(threatId: ThreatId, wave: number, rng: Rng): BoardMinion[] {
   const template = TEMPLATES[threatId];
-  const { extraCount, statScale } = enemyScaling(wave);
-  const count = Math.min(
-    CONFIG.boardMax,
-    template.count[0] + rng.int(template.count[1] - template.count[0] + 1) + extraCount,
-  );
+  const { countCap, statScale } = enemyScaling(wave);
+  const natural =
+    template.count[0] +
+    rng.int(template.count[1] - template.count[0] + 1) +
+    Math.floor(wave / CONFIG.curve.extraCountPerWaves);
+  const count = Math.max(1, Math.min(CONFIG.boardMax, countCap, natural));
   const board: BoardMinion[] = [];
   for (let i = 0; i < count; i++) {
     const base = template.stat[0] + rng.int(template.stat[1] - template.stat[0] + 1);

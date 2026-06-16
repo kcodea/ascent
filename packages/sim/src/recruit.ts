@@ -1,0 +1,134 @@
+import type { CardDef } from '@game/core';
+import { CARD_INDEX } from '@game/content';
+import { CONFIG } from './config';
+import type { BoardCard, RunState } from './state';
+
+/**
+ * The recruit-phase half of the effect system (handoff C.5), split across the
+ * Battlegrounds buy → hand → play flow:
+ *   buy  → card enters the hand; buy-triggers fire (Brightwing Broker)  → `applyOnBuy`
+ *   play → card enters the board; summon-buffs fire (Kennelmaster /
+ *          Bristleback Matron), then the card's own Battlecry             → `playCard`
+ * Results bake straight into the board's stats, so by the time the player faces
+ * the Omen each minion is a resolved stat block — combat then only deals with the
+ * combat keywords (A.3).
+ *
+ * Same `EffectDef` data, two execution surfaces: `buffOnSummon` lives here (for
+ * recruit summons) AND in `@game/core` (for combat summons like Deathrattles).
+ */
+
+interface RecruitContext {
+  state: RunState;
+  summon(card: CardDef, nearUid: string): BoardCard | undefined;
+}
+
+type RecruitFn = (
+  ctx: RecruitContext,
+  self: BoardCard,
+  params: Record<string, unknown>,
+  payload: { minion: BoardCard },
+) => void;
+
+const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
+const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+
+const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
+  /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
+  buffOnBuy: (_ctx, self, params, { minion }) => {
+    if (minion === self) return;
+    minion.attack += num(params.attack);
+    minion.health += num(params.health);
+  },
+
+  /** Kennelmaster / Bristleback Matron: buff each summoned friend of `tribe`. */
+  buffOnSummon: (_ctx, self, params, { minion }) => {
+    if (minion === self) return;
+    const tribe = str(params.tribe);
+    if (tribe && tribe !== 'any' && minion.tribe !== tribe) return;
+    minion.attack += num(params.attack);
+    minion.health += num(params.health);
+  },
+
+  /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
+  battlecryBuffTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const attack = num(params.attack);
+    const health = num(params.health);
+    const includeSelf = params.includeSelf !== false;
+    for (const card of ctx.state.board) {
+      if (card.tribe !== tribe) continue;
+      if (!includeSelf && card === self) continue;
+      card.attack += attack;
+      card.health += health;
+    }
+  },
+
+  /** Alleycur: Battlecry summon `count` copies of a token beside self. */
+  battlecrySummon: (ctx, self, params) => {
+    const token = CARD_INDEX[str(params.tokenId)];
+    if (!token) return;
+    const count = num(params.count, 1);
+    for (let i = 0; i < count; i++) ctx.summon(token, self.uid);
+  },
+};
+
+/** Fire a board-wide recruit trigger (`onBuy` / `onSummon`). */
+function fire(ctx: RecruitContext, event: 'onBuy' | 'onSummon', payload: { minion: BoardCard }): void {
+  // Snapshot: a handler may summon, which mutates the board.
+  for (const card of [...ctx.state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== event) continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) fn(ctx, card, effect.params ?? {}, payload);
+    }
+  }
+}
+
+function makeContext(state: RunState): RecruitContext {
+  const ctx: RecruitContext = {
+    state,
+    summon: (card, nearUid) => {
+      if (state.board.length >= CONFIG.boardMax) return undefined;
+      const minion: BoardCard = {
+        uid: `b${state.uidSeq++}`,
+        cardId: card.id,
+        tribe: card.tribe,
+        attack: card.attack,
+        health: card.health,
+        keywords: [...card.keywords],
+        golden: false,
+      };
+      const near = state.board.findIndex((x) => x.uid === nearUid);
+      state.board.splice(near >= 0 ? near + 1 : state.board.length, 0, minion);
+      fire(ctx, 'onSummon', { minion });
+      return minion;
+    },
+  };
+  return ctx;
+}
+
+/** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
+export function applyOnBuy(state: RunState, bought: BoardCard): void {
+  const ctx = makeContext(state);
+  fire(ctx, 'onBuy', { minion: bought });
+}
+
+/**
+ * Resolve a card's play-time effects, mutating the board in place. Call after the
+ * card has been moved from the hand onto `state.board`. Summon-buffs fire first
+ * (the played card has just entered), then its own Battlecry — whose summoned
+ * tokens in turn fire their own summon-buffs.
+ */
+export function playCard(state: RunState, played: BoardCard): void {
+  const ctx = makeContext(state);
+  fire(ctx, 'onSummon', { minion: played });
+  const def = CARD_INDEX[played.cardId];
+  if (!def) return;
+  for (const effect of def.effects) {
+    if (effect.on !== 'onPlay') continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (fn) fn(ctx, played, effect.params ?? {}, { minion: played });
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "baseUrl": "../..",
+    "paths": {
+      "@game/core": ["packages/core/src/index.ts"],
+      "@game/content": ["packages/content/src/index.ts"],
+      "@game/sim": ["packages/sim/src/index.ts"],
+      "@game/ui": ["packages/ui/src/index.ts"]
+    }
+  },
+  "include": ["src", "../../packages/ui/src"]
+}

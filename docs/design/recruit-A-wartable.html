@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ASCENT — Direction A · War-Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Spectral:ital@0;1&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#080a12; --void2:#0e1322; --panel:#141a2c; --panel2:#1b2238; --line:#2c3656;
+  --brass:#c9a24b; --brass-lt:#f0d28a; --brass-dk:#8a6f33;
+  --ember:#e0533d; --ember-lt:#ff8a64; --cyan:#7fe1ef; --cyan-dk:#3a8893;
+  --ink:#ece6d5; --ink-2:#c6ccdd; --ink-dim:#8b91a8; --ink-faint:#5f6a88;
+  --t-beast:#e0a557; --t-dragon:#f5934a; --t-mech:#86cfe0; --t-undead:#74c79a; --t-demon:#cf78d6; --t-neutral:#c3cbe0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Spline Sans Mono',monospace;color:var(--ink);height:100vh;overflow:hidden;
+  background:
+   radial-gradient(90% 60% at 50% -8%,rgba(127,225,239,.08),transparent 55%),
+   radial-gradient(120% 70% at 50% 112%,rgba(224,83,61,.16),transparent 52%),
+   linear-gradient(180deg,#10162a,#0b0f1c 48%,#080a12);}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;opacity:.04;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.app{display:grid;grid-template-columns:118px 1fr;height:100vh}
+
+/* SPIRE */
+.spire{position:relative;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:18px 0;
+  background:linear-gradient(180deg,rgba(14,19,34,.6),rgba(8,10,18,.85))}
+.spire .cap{font-family:'Cinzel',serif;font-weight:700;font-size:8px;letter-spacing:.34em;color:var(--brass);opacity:.6;writing-mode:vertical-rl;position:absolute;top:50%;left:6px;transform:translateY(-50%)}
+.alt{text-align:center}.alt .n{font-weight:700;font-size:30px;color:var(--cyan);line-height:1;text-shadow:0 0 16px rgba(127,225,239,.45)}.alt .l{font-size:7.5px;letter-spacing:.24em;color:var(--ink-faint);margin-top:4px}
+.gauge{position:relative;width:14px;flex:1;margin:14px 0;border-radius:8px;overflow:hidden;background:linear-gradient(180deg,#0b1020,#090c16);box-shadow:inset 0 0 0 1px rgba(201,162,75,.22),inset 0 8px 16px rgba(0,0,0,.6)}
+.tide{position:absolute;left:0;right:0;bottom:0;height:42%;background:linear-gradient(180deg,rgba(224,83,61,0),var(--ember) 65%,#c8243a);box-shadow:0 0 16px var(--ember)}
+.summit{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 14px 3px var(--cyan)}
+.climber{position:absolute;bottom:58%;left:50%;transform:translate(-50%,50%);width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--brass-lt),var(--brass-dk));box-shadow:0 0 12px 2px rgba(231,200,120,.8),0 0 0 2px rgba(8,10,18,.9)}
+.deep{text-align:center}.deep .v{font-weight:700;font-size:15px;color:var(--brass-lt)}.deep .l{font-size:7.5px;letter-spacing:.22em;color:var(--ink-faint);margin-top:3px}
+
+.main{display:flex;flex-direction:column;min-width:0;padding:13px 20px;gap:11px;height:100vh}
+
+/* HUD */
+.hud{display:flex;align-items:center;gap:14px;flex:none}
+.mark{font-family:'Cinzel',serif;font-weight:900;font-size:21px;letter-spacing:.18em;background:linear-gradient(180deg,var(--brass-lt),var(--brass-dk));-webkit-background-clip:text;background-clip:text;color:transparent}
+.goal{font-family:'Spectral',serif;font-style:italic;font-size:12px;color:var(--ink-dim)}.goal b{color:var(--cyan);font-style:normal;font-family:'Spline Sans Mono'}
+.sp{flex:1}
+.pill{display:flex;align-items:center;gap:9px;padding:7px 13px;border-radius:9px;background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line)}
+.pill svg{width:17px;height:17px}.pill .v{font-weight:700;font-size:16px;line-height:1}.pill .l{font-size:7.5px;letter-spacing:.16em;color:var(--ink-faint);margin-top:3px}
+.pill.g .v{color:var(--brass-lt)} .pill.h .v{color:#ff9a8a}
+.hero{display:flex;align-items:center;gap:9px;padding:5px 13px 5px 6px;border-radius:9px;background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line)}
+.hero .f{width:34px;height:34px;border-radius:7px;background:radial-gradient(circle at 35% 25%,#3a2f5c,#1a1430);border:1px solid var(--brass-dk);display:grid;place-items:center}
+.hero .nm{font-family:'Cinzel',serif;font-size:10.5px;font-weight:700}.hero .pw{font-size:8.5px;color:var(--cyan);margin-top:2px}
+
+/* OMEN */
+.omen{position:relative;border-radius:12px;padding:11px 16px;display:flex;gap:16px;align-items:center;overflow:hidden;flex:none;
+  background:radial-gradient(120% 160% at 0 50%,rgba(224,83,61,.22),transparent 60%),linear-gradient(180deg,#1c1724,#140f1b);
+  border:1px solid rgba(224,83,61,.4);box-shadow:inset 0 0 30px rgba(224,83,61,.08)}
+.omen::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(224,83,61,.05) 0 2px,transparent 2px 9px)}
+.sigil{width:50px;height:50px;flex:none;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 40% 30%,rgba(224,83,61,.4),rgba(20,12,18,.9));border:1px solid rgba(224,83,61,.55);box-shadow:0 0 22px rgba(224,83,61,.3)}
+.sigil svg{width:26px;height:26px;color:var(--ember-lt)}
+.ob{flex:1;min-width:0}
+.oey{font-size:7.5px;letter-spacing:.28em;color:var(--ember-lt);margin-bottom:3px}
+.onm{font-family:'Cinzel',serif;font-weight:900;font-size:21px;letter-spacing:.04em;color:#ffdccd;text-shadow:0 0 20px rgba(224,83,61,.5);line-height:1}
+.ode{font-family:'Spectral',serif;font-style:italic;font-size:11.5px;color:#ecd1c8;margin:4px 0 6px;max-width:560px}
+.oc{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.oc .k{font-size:7.5px;letter-spacing:.16em;color:var(--ink-faint)}
+.chip{font-size:9.5px;font-weight:600;color:#0c1f24;background:linear-gradient(180deg,var(--cyan),var(--cyan-dk));padding:3px 10px;border-radius:20px}
+.prev{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}.prev .pl{font-size:7.5px;letter-spacing:.16em;color:var(--ink-faint)}
+.pr{display:flex;gap:5px}
+.eu{width:28px;height:38px;border-radius:6px;background:linear-gradient(180deg,rgba(224,83,61,.26),rgba(20,12,18,.85));border:1px solid rgba(224,83,61,.45);position:relative;display:grid;place-items:center}
+.eu svg{width:13px;height:13px;color:rgba(255,180,150,.5)}
+.eu .a,.eu .h{position:absolute;bottom:-3px;width:15px;height:15px;border-radius:50%;font-size:8px;font-weight:700;display:grid;place-items:center;color:#fff}
+.eu .a{left:-3px;background:radial-gradient(circle at 35% 30%,#ffc081,#9a4a14)}.eu .h{right:-3px;background:radial-gradient(circle at 35% 30%,#ff9a9a,#7a1220)}
+.eu .kw{position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:14px;height:14px;color:var(--t-undead)}
+
+/* ZONES */
+.zone{flex:1;display:flex;flex-direction:column;min-height:0}
+.zh{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex:none}
+.zl{font-family:'Cinzel',serif;font-size:9.5px;letter-spacing:.2em;color:var(--ink-dim);white-space:nowrap}.zl b{color:var(--brass-lt)}
+.rule{flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+.btn{font-weight:700;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:8px 12px;border-radius:7px;border:1px solid var(--line);color:var(--ink);background:linear-gradient(180deg,var(--panel),var(--panel2));display:flex;align-items:center;gap:6px}
+.btn .c{color:var(--brass-lt)}.btn svg{width:13px;height:13px}
+.btn.up{border-color:var(--brass-dk);color:var(--brass-lt)}
+.btn.go{padding:9px 20px;font-size:11px;letter-spacing:.14em;color:#150d05;background:linear-gradient(180deg,var(--brass-lt),var(--brass-dk));border-color:var(--brass-lt);box-shadow:0 0 18px -3px rgba(231,200,120,.5)}
+.row{flex:1;display:flex;gap:9px;min-height:0}
+
+/* CARD */
+.card{flex:1;position:relative;border-radius:10px;background:linear-gradient(180deg,var(--c-lt),var(--c-dk));border:1.5px solid var(--c-bd);box-shadow:0 12px 26px -14px #000,inset 0 1px 0 rgba(255,255,255,.06);display:flex;flex-direction:column;padding:8px 9px;min-width:0}
+.cost{position:absolute;top:-7px;left:-7px;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#1a1206;background:radial-gradient(circle at 35% 30%,var(--brass-lt),var(--brass-dk));box-shadow:0 0 12px rgba(201,162,75,.5),inset 0 0 0 1.5px rgba(255,255,255,.3)}
+.emb{position:absolute;top:6px;right:7px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 38% 30%,rgba(255,255,255,.12),rgba(0,0,0,.4));border:1px solid var(--c-bd)}
+.emb svg{width:15px;height:15px;color:var(--c-bd);filter:brightness(1.4)}
+.pips{display:flex;gap:2px}.pips i{width:5px;height:5px;border-radius:50%;background:var(--c-bd);box-shadow:0 0 4px var(--c-bd)}
+.cn{font-family:'Cinzel',serif;font-weight:700;font-size:11px;color:#fff;margin-top:5px;padding-right:28px;line-height:1.05;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.ct{font-size:6.5px;letter-spacing:.16em;color:var(--c-bd);filter:brightness(1.4);text-transform:uppercase;margin-top:2px}
+.kws{display:flex;gap:3px;flex-wrap:wrap;margin-top:5px}
+.kw{font-size:7px;font-weight:700;padding:2px 5px;border-radius:4px;display:flex;align-items:center;gap:3px;border:1px solid var(--line);background:rgba(0,0,0,.34);color:var(--ink-2)}
+.kw svg{width:8px;height:8px}
+.plate{margin-top:6px;flex:1;background:rgba(6,8,14,.55);border:1px solid rgba(255,255,255,.06);border-radius:6px;padding:6px 7px;overflow:hidden}
+.desc{font-size:9.5px;line-height:1.34;color:var(--ink)}.desc b{color:var(--brass-lt);font-weight:600}
+.st{position:absolute;width:29px;height:29px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:15px;box-shadow:0 3px 7px rgba(0,0,0,.5),inset 0 0 0 1.5px rgba(255,255,255,.2);color:#fff}
+.st.a{left:-6px;bottom:-6px;background:radial-gradient(circle at 35% 28%,#ffc081,#8a3a12)}.st.h{right:-6px;bottom:-6px;background:radial-gradient(circle at 35% 28%,#ff9a9a,#8a1220)}
+
+.legend{flex:none;display:flex;align-items:center;gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.05);flex-wrap:wrap}
+.legend .lt{font-family:'Cinzel',serif;font-size:8.5px;letter-spacing:.2em;color:var(--ink-faint);margin-right:3px}
+.li{font-size:8px;color:var(--ink-dim);display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:14px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05)}.li b{color:var(--ink-2);font-weight:600}.li svg{width:9px;height:9px;color:var(--brass-lt)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-beast" viewBox="0 0 24 24"><path fill="currentColor" d="M6 13a2 2 0 110-4 2 2 0 010 4zm12 0a2 2 0 110-4 2 2 0 010 4zM9 8a2 2 0 11-4 0 2 2 0 014 0zm10 0a2 2 0 11-4 0 2 2 0 014 0zm-7 3c3 0 5 2.5 5 5 0 2-2 3-5 3s-5-1-5-3c0-2.5 2-5 5-5z"/></symbol>
+  <symbol id="i-dragon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c1 3 0 5-1 6 2 0 4 1 5 3 2-1 4-1 6 0-2 1-3 3-3 5-1-2-3-3-5-3 1 2 1 5-2 7-3-2-3-5-2-7-2 0-4 1-5 3 0-2-1-4-3-5 2-1 4-1 6 0 1-2 3-3 5-3-1-1-2-3-1-6z"/></symbol>
+  <symbol id="i-mech" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm0 2.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM11 2h2l.4 2.3 1.9.8L17 3.8l1.4 1.4-1.1 1.7.8 1.9L20.4 9v2l-2.3.4-.8 1.9 1.1 1.7L17 16.4l-1.7-1.1-1.9.8L13 18.4h-2l-.4-2.3-1.9-.8L7 16.4 5.6 15l1.1-1.7-.8-1.9L3.6 11V9l2.3-.4.8-1.9L5.6 5 7 3.6l1.7 1.1 1.9-.8z"/></symbol>
+  <symbol id="i-undead" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c4 0 7 3 7 7 0 2-1 4-3 5v2a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2c-2-1-3-3-3-5 0-4 3-7 7-7zm-3 7a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/></symbol>
+  <symbol id="i-demon" viewBox="0 0 24 24"><path fill="currentColor" d="M2 12c3-4 7-6 10-6s7 2 10 6c-3 4-7 6-10 6S5 16 2 12zm10 3a3 3 0 100-6 3 3 0 000 6z"/></symbol>
+  <symbol id="i-poison" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2s6 7 6 11a6 6 0 11-12 0c0-4 6-11 6-11z"/></symbol>
+  <symbol id="i-taunt" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" d="M12 3l7 2.5v6c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5v-6L12 3z"/></symbol>
+  <symbol id="i-cleave" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M4 6l16 12M20 6L4 18"/></symbol>
+  <symbol id="i-sc" viewBox="0 0 24 24"><path fill="currentColor" d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></symbol>
+  <symbol id="i-ember" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2s5 6 5 11a5 5 0 11-10 0c0-2 1-4 2-5 0 2 1 3 2 3 1-3-1-6 1-9z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z"/></symbol>
+  <symbol id="i-anvil" viewBox="0 0 24 24"><path fill="currentColor" d="M5 7h9c0 2 1 3 3 3v3l3 1-1 3H7l-1-3 2-1V9H5V7zm1 11h10v2H6v-2z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M20 11a8 8 0 10-1 5M20 4v5h-5"/></symbol>
+  <symbol id="i-freeze" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M12 2v20M4 7l16 10M20 7L4 17"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3l9 10h-6v8H9v-8H3z"/></symbol>
+  <symbol id="i-sword" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3h7v7l-3.5-1L9 17l1 3-3 1-1-3 8-8.5L14 6z"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="spire">
+    <div class="cap">THE ASCENT</div>
+    <div class="alt"><div class="n">6</div><div class="l">ALTITUDE</div></div>
+    <div class="gauge"><div class="summit"></div><div class="climber"></div><div class="tide"></div></div>
+    <div class="deep"><div class="v">6</div><div class="l">DEEPEST</div></div>
+  </aside>
+  <main class="main">
+    <div class="hud">
+      <div class="mark">ASCENT</div>
+      <span class="goal">Build a board that <b>counters the omen</b>, then face it.</span>
+      <div class="sp"></div>
+      <div class="pill g"><svg><use href="#i-ember"/></svg><div><div class="v">7</div><div class="l">EMBERS</div></div></div>
+      <div class="pill h"><svg><use href="#i-heart"/></svg><div><div class="v">24</div><div class="l">RESOLVE</div></div></div>
+      <div class="hero"><div class="f"><svg style="width:18px;height:18px;color:var(--brass-lt)"><use href="#i-anvil"/></svg></div><div><div class="nm">Forgewarden</div><div class="pw">Temper · +1/+1</div></div></div>
+    </div>
+
+    <div class="omen">
+      <div class="sigil"><svg><use href="#i-poison"/></svg></div>
+      <div class="ob">
+        <div class="oey">⟶ INCOMING OMEN · WAVE 6 · YOU WILL FIGHT THIS</div>
+        <div class="onm">Venom Swarm</div>
+        <div class="ode">Many small minions, several with Poison — one touch kills your biggest minion.</div>
+        <div class="oc"><span class="k">BEST ANSWERED BY</span><span class="chip">Mechs · Shields</span><span class="chip">Demons · Fodder</span></div>
+      </div>
+      <div class="prev"><span class="pl">ENEMY PREVIEW</span>
+        <div class="pr">
+          <div class="eu"><svg class="kw"><use href="#i-poison"/></svg><svg><use href="#i-undead"/></svg><span class="a">2</span><span class="h">2</span></div>
+          <div class="eu"><svg class="kw"><use href="#i-poison"/></svg><svg><use href="#i-undead"/></svg><span class="a">2</span><span class="h">3</span></div>
+          <div class="eu"><svg><use href="#i-undead"/></svg><span class="a">3</span><span class="h">2</span></div>
+          <div class="eu"><svg class="kw"><use href="#i-poison"/></svg><svg><use href="#i-undead"/></svg><span class="a">2</span><span class="h">2</span></div>
+          <div class="eu"><svg><use href="#i-undead"/></svg><span class="a">3</span><span class="h">3</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="zone">
+      <div class="zh">
+        <span class="zl">⌂ THE TAVERN · TIER <b>3</b> · drag down to recruit</span><span class="rule"></span>
+        <span class="btn"><svg><use href="#i-refresh"/></svg>Refresh <span class="c">1</span></span>
+        <span class="btn"><svg><use href="#i-freeze"/></svg>Freeze</span>
+        <span class="btn up"><svg><use href="#i-up"/></svg>Tier <span class="c">7</span></span>
+      </div>
+      <div class="row">
+        <div class="card" style="--c-lt:#163039;--c-dk:#0b181f;--c-bd:#86cfe0"><div class="cost">3</div><div class="emb"><svg><use href="#i-mech"/></svg></div><div class="pips"><i></i></div><div class="cn">Spare Part Drone</div><div class="ct">Mech</div><div class="kws"><span class="kw"><svg><use href="#i-shield"/></svg>Divine Shield</span></div><div class="plate"><div class="desc"><b>Divine Shield</b> — blocks the first hit it takes.</div></div><div class="st a">2</div><div class="st h">1</div></div>
+        <div class="card" style="--c-lt:#163039;--c-dk:#0b181f;--c-bd:#86cfe0"><div class="cost">3</div><div class="emb"><svg><use href="#i-mech"/></svg></div><div class="pips"><i></i><i></i></div><div class="cn">Selfless Sentinel</div><div class="ct">Mech</div><div class="kws"></div><div class="plate"><div class="desc"><b>Deathrattle:</b> give a friend a <b>Divine Shield</b>.</div></div><div class="st a">2</div><div class="st h">1</div></div>
+        <div class="card" style="--c-lt:#301630;--c-dk:#180a18;--c-bd:#cf78d6"><div class="cost">3</div><div class="emb"><svg><use href="#i-demon"/></svg></div><div class="pips"><i></i><i></i></div><div class="cn">Soulfeeder</div><div class="ct">Demon</div><div class="kws"></div><div class="plate"><div class="desc"><b>Battlecry:</b> destroy a friend and add its stats to this.</div></div><div class="st a">3</div><div class="st h">2</div></div>
+        <div class="card" style="--c-lt:#3a210f;--c-dk:#1a0f06;--c-bd:#f5934a"><div class="cost">3</div><div class="emb"><svg><use href="#i-dragon"/></svg></div><div class="pips"><i></i><i></i><i></i></div><div class="cn">Cinderwing Matron</div><div class="ct">Dragon</div><div class="kws"></div><div class="plate"><div class="desc"><b>Battlecry:</b> give other Dragons +1/+2.</div></div><div class="st a">3</div><div class="st h">4</div></div>
+        <div class="card" style="--c-lt:#222a3c;--c-dk:#10141d;--c-bd:#c3cbe0"><div class="cost">3</div><div class="emb"><svg><use href="#i-taunt"/></svg></div><div class="pips"><i></i></div><div class="cn">Pocket Sandbag</div><div class="ct">Neutral</div><div class="kws"><span class="kw"><svg><use href="#i-taunt"/></svg>Taunt</span></div><div class="plate"><div class="desc"><b>Taunt</b> — enemies must attack this first.</div></div><div class="st a">0</div><div class="st h">4</div></div>
+      </div>
+    </div>
+
+    <div class="zone">
+      <div class="zh"><span class="zl">⬡ YOUR WARBAND <b>4 / 7</b> · click to sell (+1)</span><span class="rule"></span><span class="btn go"><svg><use href="#i-sword"/></svg>FACE THE OMEN</span></div>
+      <div class="row">
+        <div class="card" style="--c-lt:#163039;--c-dk:#0b181f;--c-bd:#86cfe0"><div class="emb"><svg><use href="#i-mech"/></svg></div><div class="pips"><i></i></div><div class="cn">Spare Part Drone</div><div class="ct">Mech</div><div class="kws"><span class="kw"><svg><use href="#i-shield"/></svg>Divine Shield</span></div><div class="plate"><div class="desc"><b>Divine Shield</b> — blocks the first hit.</div></div><div class="st a">3</div><div class="st h">2</div></div>
+        <div class="card" style="--c-lt:#163039;--c-dk:#0b181f;--c-bd:#86cfe0"><div class="emb"><svg><use href="#i-mech"/></svg></div><div class="pips"><i></i><i></i><i></i></div><div class="cn">Shield Capacitor</div><div class="ct">Mech</div><div class="kws"></div><div class="plate"><div class="desc">When a friendly Shield breaks, give another friend a Shield.</div></div><div class="st a">2</div><div class="st h">4</div></div>
+        <div class="card" style="--c-lt:#163039;--c-dk:#0b181f;--c-bd:#86cfe0"><div class="emb"><svg><use href="#i-mech"/></svg></div><div class="pips"><i></i><i></i></div><div class="cn">Selfless Sentinel</div><div class="ct">Mech</div><div class="kws"></div><div class="plate"><div class="desc"><b>Deathrattle:</b> give a friend a Divine Shield.</div></div><div class="st a">2</div><div class="st h">1</div></div>
+        <div class="card" style="--c-lt:#222a3c;--c-dk:#10141d;--c-bd:#c3cbe0"><div class="emb"><svg><use href="#i-taunt"/></svg></div><div class="pips"><i></i></div><div class="cn">Pocket Sandbag</div><div class="ct">Neutral</div><div class="kws"><span class="kw"><svg><use href="#i-taunt"/></svg>Taunt</span></div><div class="plate"><div class="desc"><b>Taunt</b> — protect your other minions.</div></div><div class="st a">0</div><div class="st h">4</div></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="lt">KEYWORDS</span>
+      <span class="li"><svg><use href="#i-taunt"/></svg><b>Taunt</b> attacked first</span>
+      <span class="li"><svg><use href="#i-shield"/></svg><b>Divine Shield</b> blocks one hit</span>
+      <span class="li"><svg><use href="#i-poison"/></svg><b>Poison</b> destroys what it hits</span>
+      <span class="li"><svg><use href="#i-cleave"/></svg><b>Cleave</b> hits neighbours</span>
+      <span class="li"><svg><use href="#i-sc"/></svg><b>Start of Combat</b></span>
+    </div>
+  </main>
+</div>
+</body>
+</html>

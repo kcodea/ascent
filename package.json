@@ -1,0 +1,37 @@
+{
+  "name": "ascent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ASCENT — single-player roguelike auto-battler. Deterministic engine + DOM UI.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "harness": "tsx packages/tools/src/combat-harness.ts",
+    "bot": "tsx packages/tools/src/run-harness.ts",
+    "dev": "npm run dev -w apps/web",
+    "build:web": "npm run build -w apps/web",
+    "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.1",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}

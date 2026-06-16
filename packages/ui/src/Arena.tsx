@@ -1,0 +1,234 @@
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import type { CombatEvent, Keyword, MinionSnapshot, Tribe } from '@game/core';
+import { THREATS } from '@game/sim';
+import { Icon } from './Icon';
+import { Sprite } from './Sprite';
+import { spriteForTribe, type SpriteName } from './sprites';
+import { useGame } from './store';
+
+interface UnitFrame {
+  uid: string;
+  name: string;
+  tribe: Tribe;
+  attack: number;
+  health: number;
+  keywords: Keyword[];
+  divineShield: boolean;
+  alive: boolean;
+}
+
+const fromSnap = (s: MinionSnapshot): UnitFrame => ({
+  uid: s.uid, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
+  keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
+});
+
+/** Fold the event log up to `upto` into the live board state — a pure function of the step index. */
+function computeFrame(
+  initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] },
+  events: CombatEvent[],
+  upto: number,
+): { player: UnitFrame[]; enemy: UnitFrame[] } {
+  const player = initial.player.map(fromSnap);
+  const enemy = initial.enemy.map(fromSnap);
+  const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
+  for (let i = 0; i < Math.min(upto, events.length); i++) {
+    const e = events[i];
+    if (e.type === 'dmg') {
+      const u = find(e.target);
+      if (u) u.health = e.remainingHp;
+    } else if (e.type === 'shield') {
+      const u = find(e.target);
+      if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS'); }
+    } else if (e.type === 'poison') {
+      const u = find(e.target);
+      if (u) u.health = 0;
+    } else if (e.type === 'reborn') {
+      const u = find(e.target);
+      if (u) { u.health = e.hp; u.keywords = u.keywords.filter((k) => k !== 'R'); }
+    } else if (e.type === 'death') {
+      const u = find(e.target);
+      if (u) { u.alive = false; u.health = 0; }
+    } else if (e.type === 'buff') {
+      const u = find(e.target);
+      if (u) { u.attack += e.attack; u.health += e.health; }
+    } else if (e.type === 'summon') {
+      const arr = e.side === 'player' ? player : enemy;
+      arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
+    }
+  }
+  return { player, enemy };
+}
+
+const DELAY: Record<string, number> = {
+  sc: 760, attack: 340, dmg: 230, shield: 520, poison: 520, reborn: 560, death: 360, summon: 380, buff: 320,
+};
+const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
+const WHY = {
+  win: 'The wave breaks against your warband.',
+  lose: 'The omen overwhelmed your warband.',
+  draw: 'Both boards fell — a grim stalemate.',
+} as const;
+const KW_ICON: Partial<Record<Keyword, string>> = { T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc' };
+
+/** The transient animation class for the unit(s) the active event acts on. */
+function animFor(e: CombatEvent | undefined): Record<string, string> {
+  if (!e) return {};
+  switch (e.type) {
+    case 'attack': return { [e.attacker]: 'attacking' };
+    case 'dmg': return { [e.target]: 'struck' };
+    case 'shield': return { [e.target]: 'flare' };
+    case 'poison': return { [e.target]: 'poisoned' };
+    case 'reborn': return { [e.target]: 'flare' };
+    case 'buff': return { [e.target]: 'flare' };
+    case 'sc': return { [e.source]: 'flare' };
+    case 'death': return { [e.target]: 'dying' };
+    default: return {};
+  }
+}
+
+/** A floating number/glyph over the unit the active event acts on. */
+function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind: string } | null {
+  if (!e) return null;
+  switch (e.type) {
+    case 'dmg': return { uid: e.target, text: `−${e.amount}`, kind: 'dmg' };
+    case 'poison': return { uid: e.target, text: '☠', kind: 'poison' };
+    case 'shield': return { uid: e.target, text: '◇', kind: 'shield' };
+    case 'reborn': return { uid: e.target, text: '♻', kind: 'reborn' };
+    case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
+    default: return null;
+  }
+}
+
+function narrate(e: CombatEvent, names: Map<string, string>): string | null {
+  const n = (uid: string) => names.get(uid) ?? 'a minion';
+  switch (e.type) {
+    case 'sc': return e.text;
+    case 'attack': return `${n(e.attacker)} strikes ${n(e.defender)}.`;
+    case 'shield': return '◇ A Divine Shield absorbs the blow!';
+    case 'poison': return `☠ Poison! ${n(e.target)} is destroyed.`;
+    case 'reborn': return `♻ ${n(e.target)} is Reborn at 1 Health.`;
+    case 'death': return `${n(e.target)} falls.`;
+    case 'summon': return `${e.minion.name} joins the fray.`;
+    case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
+    default: return null;
+  }
+}
+
+function Unit({
+  u, side, anim, float, pulse,
+}: {
+  u: UnitFrame;
+  side: 'foe' | 'you';
+  anim?: string;
+  float?: { text: string; kind: string };
+  pulse?: number;
+}) {
+  const sprite: SpriteName = side === 'foe' ? 'undead' : spriteForTribe(u.tribe);
+  const tintTribe = side === 'foe' ? 'undead' : u.tribe;
+  const cls = ['unit', side, u.alive ? '' : 'dead', anim ?? ''].filter(Boolean).join(' ');
+  const badges = u.keywords.filter((k) => KW_ICON[k]);
+  return (
+    <div className={cls}>
+      <span className="nm">{u.name}</span>
+      <div
+        className={`tok${u.keywords.includes('T') ? ' taunt' : ''}${u.divineShield ? ' ds' : ''}`}
+        style={{ '--c': `var(--t-${tintTribe})` } as CSSProperties}
+      >
+        <Sprite name={sprite} scale={5} />
+        {badges.length > 0 && (
+          <span className="kb">
+            {badges.map((k) => (
+              <i key={k}><Icon name={KW_ICON[k]!} /></i>
+            ))}
+          </span>
+        )}
+        {float && <span key={pulse} className={`float ${float.kind}`}>{float.text}</span>}
+      </div>
+      <span className="ua">{u.attack}</span>
+      <span className="uh">{Math.max(0, u.health)}</span>
+    </div>
+  );
+}
+
+export function Arena() {
+  const run = useGame((s) => s.run);
+  const dispatch = useGame((s) => s.dispatch);
+  const combat = run.lastCombat;
+  const events = combat?.events ?? [];
+  const [step, setStep] = useState(0);
+  const done = step >= events.length;
+
+  useEffect(() => {
+    if (done) return;
+    const e = events[step];
+    const id = window.setTimeout(() => setStep((k) => k + 1), DELAY[e.type] ?? 300);
+    return () => window.clearTimeout(id);
+  }, [step, done, events]);
+
+  const names = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!combat) return m;
+    for (const u of [...combat.initial.player, ...combat.initial.enemy]) m.set(u.uid, u.name);
+    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.minion.name);
+    return m;
+  }, [combat]);
+
+  const frame = useMemo(
+    () => (combat ? computeFrame(combat.initial, events, step) : { player: [], enemy: [] }),
+    [combat, events, step],
+  );
+
+  if (!combat) return null;
+
+  const anims = animFor(step > 0 ? events[step - 1] : undefined);
+  const float = floatFor(step > 0 ? events[step - 1] : undefined);
+  let log = 'The boards take their positions…';
+  for (let i = Math.min(step, events.length) - 1; i >= 0; i--) {
+    const line = narrate(events[i], names);
+    if (line) { log = line; break; }
+  }
+
+  return (
+    <div className="arena">
+      <div className="atop">
+        <div className="ares"><Icon name="heart" />Resolve {run.resolve}</div>
+        <h1 className="disp">THE WAVE BREAKS</h1>
+        <div className="asub">Wave {run.wave} · {THREATS[run.threat].name}</div>
+        {!done && (
+          <button className="skip" onClick={() => setStep(events.length)}>
+            <Icon name="sword" />Skip
+          </button>
+        )}
+      </div>
+
+      <div className="ascene">
+        <div className="side foe"><span>The Omen</span><span className="rl" /></div>
+        <div className="line foe">
+          {frame.enemy.map((u) => (
+            <Unit key={u.uid} u={u} side="foe" anim={anims[u.uid]} float={float?.uid === u.uid ? float : undefined} pulse={step} />
+          ))}
+        </div>
+        <div className="clash"><span className="ln" /><span className="vs disp">VS</span><span className="ln" /></div>
+        <div className="line you">
+          {frame.player.map((u) => (
+            <Unit key={u.uid} u={u} side="you" anim={anims[u.uid]} float={float?.uid === u.uid ? float : undefined} pulse={step} />
+          ))}
+        </div>
+        <div className="side you"><span className="rl" /><span>Your Warband</span></div>
+      </div>
+
+      <div className="alog">{log}</div>
+
+      {done && (
+        <div className="result">
+          <span className={`verdict disp ${combat.result}`}>{VERDICT[combat.result]}</span>
+          <span className="rres">{combat.result === 'lose' ? `−${combat.playerDamage} Resolve` : '−0 Resolve'}</span>
+          <span className="rwhy">{WHY[combat.result]}</span>
+          <button className="climb" onClick={() => dispatch({ type: 'resolveCombat' })}>
+            <Icon name="up" />Climb On
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

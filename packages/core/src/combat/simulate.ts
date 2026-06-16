@@ -1,0 +1,254 @@
+import type {
+  BoardMinion,
+  CombatContext,
+  CombatEvent,
+  CombatOutcome,
+  CombatResult,
+  Minion,
+  MinionSnapshot,
+  Side,
+} from '../types';
+import type { Rng } from '../rng';
+import { CombatBus } from '../events';
+import { FACTORIES } from '../effects/factories';
+import { instantiate, type CardIndex } from './minion';
+
+const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
+const ITERATION_GUARD = 300;
+const REATTACK_GUARD = 50;
+
+/**
+ * Resolve a combat deterministically (handoff A.3) and return an event log the
+ * UI can replay. Pure: depends only on its inputs and the seeded `rng`. Clones
+ * every minion — shared CardDefs are never mutated.
+ */
+export function simulate(
+  player: BoardMinion[],
+  enemy: BoardMinion[],
+  rng: Rng,
+  cards: CardIndex,
+): CombatResult {
+  const events: CombatEvent[] = [];
+  const bus = new CombatBus();
+  let uidCounter = 0;
+  const mkUid = (): string => `m${uidCounter++}`;
+
+  const boards: Record<Side, Minion[]> = {
+    player: player.map((b) => instantiate(b, 'player', cards, mkUid)),
+    enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
+  };
+
+  const snapshot = (m: Minion): MinionSnapshot => ({
+    uid: m.uid,
+    cardId: m.cardId,
+    name: m.name,
+    tribe: m.tribe,
+    attack: m.attack,
+    health: m.health,
+    keywords: [...m.keywords],
+  });
+
+  const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
+
+  const ctx: CombatContext = {
+    rng,
+    bus,
+    boards,
+    events,
+    log: (event) => {
+      events.push(event);
+    },
+    living,
+    getCard: (id) => {
+      const card = cards[id];
+      if (!card) throw new Error(`Unknown card: ${id}`);
+      return card;
+    },
+    buff: (target, attack, health, source) => {
+      target.attack += attack;
+      target.health += health;
+      if (health > 0) target.maxHealth += health;
+      events.push({ type: 'buff', target: target.uid, attack, health, source });
+    },
+    damage: (target, amount, poison = false, bypassShield = false) =>
+      dealDamage(target, amount, poison, bypassShield),
+    summon: (side, card, nearUid) => {
+      const minion = instantiate(
+        { cardId: card.id, attack: card.attack, health: card.health },
+        side,
+        cards,
+        mkUid,
+      );
+      // Board cap of 7 (handoff A.2): a full board can't receive summons.
+      if (living(side).length >= 7) return minion;
+      const arr = boards[side];
+      let index = arr.length;
+      if (nearUid) {
+        const near = arr.findIndex((x) => x.uid === nearUid);
+        if (near >= 0) index = near + 1;
+      }
+      arr.splice(index, 0, minion);
+      registerEffects(minion);
+      events.push({ type: 'summon', minion: snapshot(minion), side, index });
+      bus.emit('onSummon', { minion, side });
+      return minion;
+    },
+  };
+
+  function registerEffects(minion: Minion): void {
+    for (const effect of minion.effects) {
+      const fn = FACTORIES[effect.do];
+      if (!fn) continue; // recruit-phase effects without a combat factory are inert here
+      bus.on(effect.on, (payload) => {
+        // A dead minion fires nothing except its own Deathrattle.
+        if (minion.dead && effect.on !== 'onDeath') return;
+        fn(ctx, minion, effect.params ?? {}, payload);
+      });
+    }
+  }
+
+  for (const side of ['player', 'enemy'] as const) {
+    for (const minion of boards[side]) registerEffects(minion);
+  }
+
+  const initial = {
+    player: boards.player.map(snapshot),
+    enemy: boards.enemy.map(snapshot),
+  };
+
+  function killOrReborn(minion: Minion): void {
+    // Reborn (A.3 step 6): the first death returns the minion at 1 health.
+    if (minion.rebornAvailable) {
+      minion.rebornAvailable = false;
+      minion.keywords = minion.keywords.filter((k) => k !== 'R');
+      minion.health = 1;
+      if (minion.attack < 1) minion.attack = 1;
+      events.push({ type: 'reborn', target: minion.uid, hp: 1 });
+      return;
+    }
+    minion.dead = true;
+    minion.health = 0;
+    events.push({ type: 'death', target: minion.uid });
+    bus.emit('onDeath', { minion, side: minion.side });
+  }
+
+  function dealDamage(target: Minion, amount: number, poison: boolean, bypassShield: boolean): void {
+    if (target.dead || target.health <= 0) return;
+    // Divine Shield absorbs the first instance — and still blocks Poison (A.3).
+    if (!bypassShield && target.divineShield) {
+      target.divineShield = false;
+      target.keywords = target.keywords.filter((k) => k !== 'DS');
+      events.push({ type: 'shield', target: target.uid });
+      bus.emit('onLoseDivineShield', { minion: target, side: target.side });
+      return;
+    }
+    target.health -= amount;
+    events.push({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health) });
+    if (poison && target.health > 0) {
+      target.health = 0;
+      events.push({ type: 'poison', target: target.uid });
+    }
+    if (target.health <= 0) killOrReborn(target);
+  }
+
+  // Targeting: random among living enemies, Taunts first if any (A.3 step 4).
+  function chooseTarget(defenderSide: Side): Minion | undefined {
+    const live = living(defenderSide);
+    if (live.length === 0) return undefined;
+    const taunts = live.filter((m) => m.keywords.includes('T'));
+    return rng.pick(taunts.length > 0 ? taunts : live);
+  }
+
+  function performAttack(attacker: Minion, defenderSide: Side, depth: number): void {
+    if (attacker.dead || attacker.health <= 0) return;
+    const swings = attacker.keywords.includes('W') ? 2 : 1; // Windfury (A.3 step 5)
+    for (let s = 0; s < swings; s++) {
+      if (attacker.dead || attacker.health <= 0) break;
+      const target = chooseTarget(defenderSide);
+      if (!target) break;
+      events.push({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s });
+
+      const targetWasAlive = !target.dead && target.health > 0;
+      const poison = attacker.keywords.includes('P');
+
+      // Cleave hits the target's neighbours before retaliation (A.3 step 5).
+      if (attacker.keywords.includes('C')) {
+        const arr = boards[defenderSide];
+        const di = arr.indexOf(target);
+        const neighbours = [arr[di - 1], arr[di + 1]].filter(
+          (n): n is Minion => !!n && !n.dead && n.health > 0,
+        );
+        for (const n of neighbours) dealDamage(n, attacker.attack, poison, false);
+      }
+
+      dealDamage(target, attacker.attack, poison, false); // main hit
+      dealDamage(attacker, target.attack, target.keywords.includes('P'), false); // retaliation
+
+      // On-kill re-attack (Gnasher).
+      const killed = targetWasAlive && (target.dead || target.health <= 0);
+      if (killed && attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
+        bus.emit('onKill', { attacker, victim: target });
+        performAttack(attacker, defenderSide, depth + 1);
+      }
+    }
+  }
+
+  // --- Start of Combat: player minions left→right (A.3 step 1) ---
+  for (const minion of [...boards.player]) {
+    if (minion.dead || minion.health <= 0) continue;
+    for (const effect of minion.effects) {
+      if (effect.on !== 'startOfCombat') continue;
+      const fn = FACTORIES[effect.do];
+      if (fn) fn(ctx, minion, effect.params ?? {}, {});
+    }
+  }
+
+  // --- First attacker: more living minions goes first; tie → seeded (A.3 step 2) ---
+  const playerCount = living('player').length;
+  const enemyCount = living('enemy').length;
+  let turn: Side =
+    playerCount > enemyCount
+      ? 'player'
+      : enemyCount > playerCount
+        ? 'enemy'
+        : rng.next() < 0.5
+          ? 'player'
+          : 'enemy';
+
+  // --- Attack loop: each side cycles living minions left→right; sides alternate ---
+  const pointer: Record<Side, number> = { player: 0, enemy: 0 };
+  let guard = 0;
+  while (living('player').length > 0 && living('enemy').length > 0 && guard++ < ITERATION_GUARD) {
+    const attackerSide = turn;
+    const defenderSide = OTHER[turn];
+    const live = living(attackerSide);
+    if (live.length === 0) {
+      turn = defenderSide;
+      continue;
+    }
+    const attacker = live[pointer[attackerSide] % live.length] as Minion;
+    pointer[attackerSide] += 1;
+    performAttack(attacker, defenderSide, 0);
+    turn = defenderSide;
+  }
+
+  // --- Outcome (A.3 step 8) ---
+  const survivorsP = living('player');
+  const survivorsE = living('enemy');
+  const result: CombatOutcome =
+    survivorsP.length > 0 && survivorsE.length > 0
+      ? 'draw' // iteration guard reached with both sides alive
+      : survivorsE.length === 0 && survivorsP.length > 0
+        ? 'win'
+        : survivorsP.length === 0 && survivorsE.length === 0
+          ? 'draw'
+          : 'lose';
+
+  // Player damage on loss (A.3 step 9): Σ over surviving enemies of 1 + ceil((atk+hp)/9).
+  const playerDamage =
+    result === 'lose'
+      ? survivorsE.reduce((sum, m) => sum + 1 + Math.ceil((m.attack + m.health) / 9), 0)
+      : 0;
+
+  return { events, result, playerDamage, initial };
+}

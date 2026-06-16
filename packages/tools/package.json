@@ -1,0 +1,11 @@
+{
+  "name": "@game/tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@game/core": "*",
+    "@game/content": "*",
+    "@game/sim": "*"
+  }
+}

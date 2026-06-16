@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="sunward">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ASCENT — E·2 · Pixel Arena (3 schemes)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --t-beast:#f0a52b; --t-dragon:#ff6a3c; --t-mech:#27a9dd; --t-undead:#22be86; --t-demon:#b15cf0; --t-neutral:#7f8aa0;
+  --atk:#f0a32a; --hpc:#ff5a4f;
+}
+:root[data-theme="tide"]{
+  --bg:#eef2f7; --bg2:#e2e8f1; --card:#ffffff; --line:#d6dee9; --ink:#18202e; --ink2:#566177; --ink3:#8a93a4;
+  --acc:#15b8c6; --acc-dk:#0c8f9b; --threat:#ff5a4f; --threat-dk:#d83b32; --shadow:rgba(24,42,60,.13);
+}
+:root[data-theme="sunward"]{
+  --bg:#f6f0e5; --bg2:#efe5d4; --card:#fffdf8; --line:#e7dcc7; --ink:#2a2017; --ink2:#6c5d48; --ink3:#9c8b71;
+  --acc:#f0902e; --acc-dk:#c46f17; --threat:#e5446b; --threat-dk:#b32c50; --shadow:rgba(90,66,30,.16);
+}
+:root[data-theme="night"]{
+  --bg:#0f141c; --bg2:#141b25; --card:#1b232f; --line:#2b3543; --ink:#eef3f9; --ink2:#9aa8ba; --ink3:#69788a;
+  --acc:#33e0c4; --acc-dk:#16a892; --threat:#ff6a5c; --threat-dk:#c43d33; --shadow:rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito Sans',sans-serif;color:var(--ink);height:100vh;overflow:hidden;background:var(--bg)}
+.disp{font-family:'Outfit',sans-serif}
+.app{display:flex;flex-direction:column;height:100vh;padding:14px 18px;gap:11px}
+canvas.spr{image-rendering:pixelated;display:block}
+
+/* scheme switch */
+.themes{position:fixed;top:10px;right:14px;z-index:50;display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:5px}
+.themes button{font-family:'Outfit';font-weight:700;font-size:12px;padding:5px 11px;border-radius:8px;border:0;background:transparent;color:var(--ink2);cursor:pointer}
+.themes button.on{background:var(--acc);color:#fff}
+
+/* TOP BAR */
+.bar{display:flex;align-items:center;gap:12px;flex:none}
+.wm{font-family:'Outfit';font-weight:800;font-size:19px;letter-spacing:.08em;color:#fff;background:var(--ink);padding:7px 15px;border-radius:11px}
+.alt{display:flex;align-items:center;gap:11px;background:var(--card);border:2px solid var(--line);border-radius:13px;padding:6px 15px}
+.alt .w{font-family:'Outfit';font-weight:800;font-size:18px;color:var(--acc-dk);line-height:1}
+.alt .lbl{font-family:'Outfit';font-weight:700;font-size:11px;letter-spacing:.08em;color:var(--ink3);text-transform:uppercase}
+.meter{width:104px;height:9px;border-radius:6px;background:var(--bg2);overflow:hidden}.meter i{display:block;height:100%;width:45%;background:var(--acc);border-radius:6px}
+.sp{flex:1}
+.chip{display:flex;align-items:center;gap:9px;background:var(--card);border:2px solid var(--line);border-radius:13px;padding:5px 15px 5px 11px}
+.chip .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center}.chip .ic svg{width:19px;height:19px;color:#fff}
+.chip.g .ic{background:var(--t-beast)}.chip.h .ic{background:var(--threat)}
+.chip .v{font-family:'Outfit';font-weight:800;font-size:20px;line-height:1}.chip .l{font-family:'Outfit';font-weight:700;font-size:10px;letter-spacing:.06em;color:var(--ink3);text-transform:uppercase}
+.hero{display:flex;align-items:center;gap:9px;background:var(--card);border:2px solid var(--line);border-radius:13px;padding:4px 15px 4px 5px}
+.hero .f{width:34px;height:34px;border-radius:10px;background:var(--ink);display:grid;place-items:center}.hero .f svg{width:19px;height:19px;color:var(--acc)}
+.hero .nm{font-family:'Outfit';font-weight:700;font-size:13px}.hero .pw{font-size:11px;font-weight:600;color:var(--ink2)}
+
+/* OMEN */
+.omen{background:var(--threat);border-radius:15px;padding:11px 18px;display:flex;align-items:center;gap:16px;flex:none;box-shadow:0 5px 0 var(--threat-dk)}
+.osig{width:50px;height:50px;border-radius:13px;background:#fff;display:grid;place-items:center;flex:none}.osig svg{width:28px;height:28px;color:var(--threat)}
+.ob{flex:1;min-width:0;color:#fff}
+.oey{font-family:'Outfit';font-weight:700;font-size:10px;letter-spacing:.16em;text-transform:uppercase;opacity:.9}
+.onm{font-family:'Outfit';font-weight:900;font-size:24px;line-height:1;margin:1px 0 2px}
+.ode{font-size:13px;font-weight:600;opacity:.95;max-width:540px;line-height:1.3}
+.oc{display:flex;align-items:center;gap:7px;margin-top:6px;flex-wrap:wrap}.oc .k{font-family:'Outfit';font-weight:700;font-size:10px;letter-spacing:.07em;text-transform:uppercase;opacity:.85}
+.cc{font-family:'Outfit';font-weight:700;font-size:12px;color:#fff;padding:3px 11px;border-radius:8px}.cc.m{background:var(--t-mech)}.cc.d{background:var(--t-demon)}
+.prev{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}.prev .pl{font-family:'Outfit';font-weight:700;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#fff;opacity:.85}
+.pr{display:flex;gap:6px}
+.eu{width:38px;height:46px;border-radius:10px;background:#fff;position:relative;display:flex;align-items:center;justify-content:center}
+.eu .s{position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);font-family:'Outfit';font-weight:800;font-size:11px;background:var(--ink);color:#fff;padding:1px 7px;border-radius:7px}
+.eu .pz{position:absolute;top:-6px;right:-5px;width:18px;height:18px;border-radius:50%;background:var(--t-undead);display:grid;place-items:center}.eu .pz svg{width:11px;height:11px;color:#fff}
+
+/* ZONES */
+.zone{flex:1;display:flex;flex-direction:column;min-height:0}
+.zh{display:flex;align-items:center;gap:11px;margin-bottom:7px}
+.zt{font-family:'Outfit';font-weight:800;font-size:14px;letter-spacing:.02em}.zt b{color:var(--acc-dk)}
+.zh .sp{flex:1}
+.btn{font-family:'Outfit';font-weight:700;font-size:12px;padding:7px 13px;border-radius:11px;border:2px solid var(--line);background:var(--card);color:var(--ink);display:flex;align-items:center;gap:6px}
+.btn svg{width:15px;height:15px;color:var(--ink2)}.btn .c{color:var(--acc-dk);font-weight:800}
+.btn.go{background:var(--acc);color:#fff;border-color:var(--acc-dk);box-shadow:0 4px 0 var(--acc-dk);padding:7px 20px;font-size:14px;font-weight:800}.btn.go svg{color:#fff}
+.row{flex:1;display:flex;gap:10px;min-height:0;justify-content:center}
+
+/* STANDARD CARD — identical in shop, warband, hand */
+.card{flex:0 0 132px;width:132px;background:var(--card);border-radius:13px;border:2px solid var(--line);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 3px 0 var(--shadow)}
+.art{position:relative;height:70px;display:grid;place-items:center;background:color-mix(in srgb, var(--c) 18%, var(--card))}
+.art canvas{width:64px;height:64px}
+.cost{position:absolute;top:5px;left:5px;width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--acc);font-family:'Outfit';font-weight:800;font-size:14px;color:var(--acc-dk);display:grid;place-items:center}
+.atk,.hp{position:absolute;bottom:-9px;width:30px;height:30px;border-radius:9px;font-family:'Outfit';font-weight:800;font-size:17px;color:#fff;display:flex;align-items:center;justify-content:center;border:2px solid var(--card)}
+.atk{left:6px;background:var(--atk)}.hp{right:6px;background:var(--hpc)}
+.body{padding:13px 9px 9px;display:flex;flex-direction:column;flex:1}
+.cn{font-family:'Outfit';font-weight:700;font-size:13px;line-height:1.05;text-align:center}
+.kws{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin:6px 0}
+.kw{font-family:'Outfit';font-weight:700;font-size:9.5px;letter-spacing:.02em;padding:2px 7px;border-radius:7px;background:var(--c);color:#fff;display:flex;align-items:center;gap:3px}.kw svg{width:9px;height:9px}
+.desc{font-size:12px;font-weight:600;line-height:1.32;color:var(--ink2);text-align:center;flex:1}.desc b{color:var(--ink);font-weight:700}
+.empty{flex:0 0 132px;width:132px;border:2px dashed var(--line);border-radius:13px;background:transparent;box-shadow:none;display:grid;place-items:center}
+.empty span{font-family:'Outfit';font-weight:700;color:var(--ink3);font-size:12px}
+
+.legend{flex:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.legend .lt{font-family:'Outfit';font-weight:800;font-size:11px;letter-spacing:.1em;color:var(--ink3);text-transform:uppercase}
+.li{font-family:'Outfit';font-weight:700;font-size:11px;color:var(--ink2);display:flex;align-items:center;gap:6px;background:var(--card);border:2px solid var(--line);border-radius:9px;padding:4px 10px}.li b{color:var(--ink)}.li svg{width:13px;height:13px;color:var(--acc-dk)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-poison" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2s6 7 6 11a6 6 0 11-12 0c0-4 6-11 6-11z"/></symbol>
+  <symbol id="i-taunt" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" d="M12 3l7 2.5v6c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5v-6L12 3z"/></symbol>
+  <symbol id="i-cleave" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M4 6l16 12M20 6L4 18"/></symbol>
+  <symbol id="i-sc" viewBox="0 0 24 24"><path fill="currentColor" d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></symbol>
+  <symbol id="i-ember" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2s5 6 5 11a5 5 0 11-10 0c0-2 1-4 2-5 0 2 1 3 2 3 1-3-1-6 1-9z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z"/></symbol>
+  <symbol id="i-anvil" viewBox="0 0 24 24"><path fill="currentColor" d="M5 7h9c0 2 1 3 3 3v3l3 1-1 3H7l-1-3 2-1V9H5V7zm1 11h10v2H6v-2z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M20 11a8 8 0 10-1 5M20 4v5h-5"/></symbol>
+  <symbol id="i-freeze" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M12 2v20M4 7l16 10M20 7L4 17"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3l9 10h-6v8H9v-8H3z"/></symbol>
+  <symbol id="i-sword" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3h7v7l-3.5-1L9 17l1 3-3 1-1-3 8-8.5L14 6z"/></symbol>
+</svg>
+
+<div class="themes">
+  <button data-set-theme="tide">Tide</button>
+  <button data-set-theme="sunward" class="on">Sunward</button>
+  <button data-set-theme="night">Nightclimb</button>
+</div>
+
+<div class="app">
+  <div class="bar">
+    <div class="wm disp">ASCENT</div>
+    <div class="alt"><span class="lbl">Altitude</span><span class="w">WAVE 6</span><span class="meter"><i></i></span><span class="lbl">Best 6</span></div>
+    <div class="sp"></div>
+    <div class="chip g"><span class="ic"><svg><use href="#i-ember"/></svg></span><div><div class="v">7</div><div class="l">Embers</div></div></div>
+    <div class="chip h"><span class="ic"><svg><use href="#i-heart"/></svg></span><div><div class="v">24</div><div class="l">Resolve</div></div></div>
+    <div class="hero"><div class="f"><svg><use href="#i-anvil"/></svg></div><div><div class="nm">Forgewarden</div><div class="pw">Temper · +1/+1</div></div></div>
+  </div>
+
+  <div class="omen">
+    <div class="osig"><svg><use href="#i-poison"/></svg></div>
+    <div class="ob">
+      <div class="oey">Incoming Omen · Wave 6</div>
+      <div class="onm disp">Venom Swarm</div>
+      <div class="ode">Many small minions, several with Poison — one touch destroys your biggest minion.</div>
+      <div class="oc"><span class="k">Answered by</span><span class="cc m">Mechs · Shields</span><span class="cc d">Demons · Fodder</span></div>
+    </div>
+    <div class="prev"><span class="pl">Enemy board</span>
+      <div class="pr">
+        <div class="eu"><span class="pz"><svg><use href="#i-poison"/></svg></span><canvas class="spr" data-spr="undead" data-scale="2"></canvas><span class="s">2/2</span></div>
+        <div class="eu"><span class="pz"><svg><use href="#i-poison"/></svg></span><canvas class="spr" data-spr="undead" data-scale="2"></canvas><span class="s">2/3</span></div>
+        <div class="eu"><canvas class="spr" data-spr="undead" data-scale="2"></canvas><span class="s">3/2</span></div>
+        <div class="eu"><span class="pz"><svg><use href="#i-poison"/></svg></span><canvas class="spr" data-spr="undead" data-scale="2"></canvas><span class="s">2/2</span></div>
+        <div class="eu"><canvas class="spr" data-spr="undead" data-scale="2"></canvas><span class="s">3/3</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="zone">
+    <div class="zh"><span class="zt disp">The Tavern · Tier <b>3</b></span><span class="sp"></span>
+      <span class="btn"><svg><use href="#i-refresh"/></svg>Refresh <span class="c">1</span></span>
+      <span class="btn"><svg><use href="#i-freeze"/></svg>Freeze</span>
+      <span class="btn"><svg><use href="#i-up"/></svg>Tier <span class="c">7</span></span>
+    </div>
+    <div class="row">
+      <div class="card" style="--c:var(--t-mech)"><div class="art"><span class="cost">3</span><canvas class="spr" data-spr="mech"></canvas><span class="atk">2</span><span class="hp">1</span></div><div class="body"><div class="cn">Spare Part Drone</div><div class="kws"><span class="kw"><svg><use href="#i-shield"/></svg>Shield</span></div><div class="desc"><b>Divine Shield</b> — blocks the first hit.</div></div></div>
+      <div class="card" style="--c:var(--t-demon)"><div class="art"><span class="cost">3</span><canvas class="spr" data-spr="demon"></canvas><span class="atk">3</span><span class="hp">2</span></div><div class="body"><div class="cn">Soulfeeder</div><div class="kws"></div><div class="desc"><b>Battlecry:</b> destroy a friend, add its stats.</div></div></div>
+      <div class="card" style="--c:var(--t-dragon)"><div class="art"><span class="cost">3</span><canvas class="spr" data-spr="dragon"></canvas><span class="atk">3</span><span class="hp">4</span></div><div class="body"><div class="cn">Cinderwing Matron</div><div class="kws"></div><div class="desc"><b>Battlecry:</b> give other Dragons +1/+2.</div></div></div>
+      <div class="card" style="--c:var(--t-neutral)"><div class="art"><span class="cost">3</span><canvas class="spr" data-spr="neutral"></canvas><span class="atk">0</span><span class="hp">4</span></div><div class="body"><div class="cn">Pocket Sandbag</div><div class="kws"><span class="kw"><svg><use href="#i-taunt"/></svg>Taunt</span></div><div class="desc"><b>Taunt</b> — must be attacked first.</div></div></div>
+    </div>
+  </div>
+
+  <div class="zone">
+    <div class="zh"><span class="zt disp">Your Warband · <b>4/7</b></span><span class="sp"></span><span style="font-size:12px;font-weight:700;color:var(--ink3)">drag from hand to play</span></div>
+    <div class="row">
+      <div class="card" style="--c:var(--t-mech)"><div class="art"><canvas class="spr" data-spr="mech"></canvas><span class="atk">3</span><span class="hp">2</span></div><div class="body"><div class="cn">Spare Part Drone</div><div class="kws"><span class="kw"><svg><use href="#i-shield"/></svg>Shield</span></div><div class="desc"><b>Divine Shield</b></div></div></div>
+      <div class="card" style="--c:var(--t-mech)"><div class="art"><canvas class="spr" data-spr="mech"></canvas><span class="atk">2</span><span class="hp">4</span></div><div class="body"><div class="cn">Shield Capacitor</div><div class="kws"></div><div class="desc">On Shield break, Shield another friend.</div></div></div>
+      <div class="card" style="--c:var(--t-mech)"><div class="art"><canvas class="spr" data-spr="mech"></canvas><span class="atk">2</span><span class="hp">1</span></div><div class="body"><div class="cn">Selfless Sentinel</div><div class="kws"></div><div class="desc"><b>Deathrattle:</b> give a friend a Shield.</div></div></div>
+      <div class="card" style="--c:var(--t-neutral)"><div class="art"><canvas class="spr" data-spr="neutral"></canvas><span class="atk">0</span><span class="hp">4</span></div><div class="body"><div class="cn">Pocket Sandbag</div><div class="kws"><span class="kw"><svg><use href="#i-taunt"/></svg>Taunt</span></div><div class="desc"><b>Taunt</b> wall.</div></div></div>
+      <div class="empty"><span>Empty</span></div>
+      <div class="empty"><span>Empty</span></div>
+      <div class="empty"><span>Empty</span></div>
+    </div>
+  </div>
+
+  <div class="zone">
+    <div class="zh"><span class="zt disp">Your Hand · <b>3</b></span><span class="sp"></span><span class="btn go"><svg><use href="#i-sword"/></svg>FACE THE OMEN</span></div>
+    <div class="row">
+      <div class="card" style="--c:var(--t-dragon)"><div class="art"><canvas class="spr" data-spr="dragon"></canvas><span class="atk">3</span><span class="hp">4</span></div><div class="body"><div class="cn">Cinderwing Matron</div><div class="kws"></div><div class="desc"><b>Battlecry:</b> give other Dragons +1/+2.</div></div></div>
+      <div class="card" style="--c:var(--t-demon)"><div class="art"><canvas class="spr" data-spr="demon"></canvas><span class="atk">3</span><span class="hp">2</span></div><div class="body"><div class="cn">Soulfeeder</div><div class="kws"></div><div class="desc"><b>Battlecry:</b> destroy a friend, add its stats.</div></div></div>
+      <div class="card" style="--c:var(--t-mech)"><div class="art"><canvas class="spr" data-spr="mech"></canvas><span class="atk">2</span><span class="hp">1</span></div><div class="body"><div class="cn">Spare Part Drone</div><div class="kws"><span class="kw"><svg><use href="#i-shield"/></svg>Shield</span></div><div class="desc"><b>Divine Shield</b> — blocks the first hit.</div></div></div>
+      <div class="empty"><span>Empty</span></div>
+      <div class="empty"><span>Empty</span></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="lt">Keywords</span>
+    <span class="li"><svg><use href="#i-taunt"/></svg><b>Taunt</b></span>
+    <span class="li"><svg><use href="#i-shield"/></svg><b>Divine Shield</b></span>
+    <span class="li"><svg><use href="#i-poison"/></svg><b>Poison</b></span>
+    <span class="li"><svg><use href="#i-cleave"/></svg><b>Cleave</b></span>
+    <span class="li"><svg><use href="#i-sc"/></svg><b>Start of Combat</b></span>
+  </div>
+</div>
+
+<script>
+const SPAL=[null,0x222530,0x3a4150,0xff5a4f,0xf6c75a,0xf6f8fc,0x5fc6e0,0x357f99,0xc56cd8,0x7a3a90,0xff9a42,0xc25a1c,0x66c48c,0x35784f,0xc6b083,0x7c6a4a];
+const SPR={
+  mech:["0000000440000000","0000000170000000","0001111111110000","0011666666661100","0116655555566110","0166651551566610","0166655555566610","0016677777766100","0001166666611000","0011666666666100","0166677777776610","0166677777776610","0166655555566610","0016666666666100","0001100001100000","0007700007700000"],
+  demon:["0000000000000000","0000100000010000","0000180000810000","0001188888811000","0011888888881100","0118888888888110","0118835885388110","0118888888888110","0118899889988110","0011888888881100","0001888888810000","0000118888110000","0000110000110000","0000990000990000","0000000000000000","0000000000000000"],
+  dragon:["0000000000000000","0000a00000a00000","0001a00000a10000","0001aaaaaaa10000","001aaaaaaaaaa100","01aaa5aaaa5aaa10","01aaa3aaaa3aaa10","01aaaaaaaaaaaa10","001aaaaaaaaaa100","0001aaaaaaaa1000","0011baaaaaab1100","01baaaaaaaaab100","001aaaaaaaaa1000","0001100001100000","0000bb0000bb0000","0000000000000000"],
+  undead:["0000000000000000","0000000000000000","0000011111100000","0001cccccccc1000","001cccccccccc100","01cccccccccccc10","01ccc1cccc1ccc10","01cccccccccccc10","01ccdccddccdcc10","01cccccccccccc10","001cccccccccc100","0001cccccccc1000","00011cccccc11000","0000dddddddd0000","0000000000000000","0000000000000000"],
+  neutral:["0000000000000000","0000011011000000","0000111111110000","0001eeeeeeee1000","001eeeeeeeeee100","01eeeeeeeeeeee10","01eee1eeee1eee10","01eeeeeeeeeeee10","01eeefeeeefeee10","01eeeeeeeeeeee10","01eeeeeeeeeeee10","001eeeeeeeeee100","0001eeeeeeee1000","0000111111110000","0000ffffffff0000","0000000000000000"]
+};
+function draw(cv,rows,scale){const ctx=cv.getContext('2d');cv.width=16*scale;cv.height=16*scale;for(let y=0;y<16;y++){const r=rows[y];for(let x=0;x<16;x++){const idx=parseInt(r[x],16);if(!idx)continue;const c=SPAL[idx];if(c==null)continue;ctx.fillStyle='#'+c.toString(16).padStart(6,'0');ctx.fillRect(x*scale,y*scale,scale,scale);}}}
+document.querySelectorAll('canvas.spr').forEach(cv=>{const s=SPR[cv.dataset.spr];if(s)draw(cv,s,+(cv.dataset.scale)||4);});
+document.querySelectorAll('[data-set-theme]').forEach(b=>b.addEventListener('click',()=>{document.documentElement.dataset.theme=b.dataset.setTheme;document.querySelectorAll('[data-set-theme]').forEach(x=>x.classList.toggle('on',x===b));}));
+</script>
+</body>
+</html>

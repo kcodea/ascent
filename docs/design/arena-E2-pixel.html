@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="sunward">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ASCENT — Combat Arena · Pixel (Sunward)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --t-beast:#f0a52b; --t-dragon:#ff6a3c; --t-mech:#27a9dd; --t-undead:#22be86; --t-demon:#b15cf0; --t-neutral:#7f8aa0;
+  --atk:#f0a32a; --hpc:#ff5a4f;
+}
+:root[data-theme="tide"]{--bg:#eef2f7;--bg2:#e2e8f1;--card:#fff;--line:#d6dee9;--ink:#18202e;--ink2:#566177;--ink3:#8a93a4;--acc:#15b8c6;--acc-dk:#0c8f9b;--threat:#ff5a4f;--threat-dk:#d83b32;--shadow:rgba(24,42,60,.13);}
+:root[data-theme="sunward"]{--bg:#f6f0e5;--bg2:#efe5d4;--card:#fffdf8;--line:#e7dcc7;--ink:#2a2017;--ink2:#6c5d48;--ink3:#9c8b71;--acc:#f0902e;--acc-dk:#c46f17;--threat:#e5446b;--threat-dk:#b32c50;--shadow:rgba(90,66,30,.16);}
+:root[data-theme="night"]{--bg:#0f141c;--bg2:#141b25;--card:#1b232f;--line:#2b3543;--ink:#eef3f9;--ink2:#9aa8ba;--ink3:#69788a;--acc:#33e0c4;--acc-dk:#16a892;--threat:#ff6a5c;--threat-dk:#c43d33;--shadow:rgba(0,0,0,.45);}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito Sans',sans-serif;color:var(--ink);height:100vh;overflow:hidden;
+  background:radial-gradient(80% 46% at 50% 0%,color-mix(in srgb,var(--threat) 16%,var(--bg)),transparent 60%),radial-gradient(80% 46% at 50% 100%,color-mix(in srgb,var(--acc) 16%,var(--bg)),transparent 60%),var(--bg)}
+.disp{font-family:'Outfit',sans-serif}
+canvas.spr{image-rendering:pixelated;display:block}
+.arena{display:flex;flex-direction:column;height:100vh;padding:14px 20px}
+
+.themes{position:fixed;top:10px;left:14px;z-index:50;display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:5px}
+.themes button{font-family:'Outfit';font-weight:700;font-size:12px;padding:5px 11px;border-radius:8px;border:0;background:transparent;color:var(--ink2);cursor:pointer}
+.themes button.on{background:var(--acc);color:#fff}
+
+.top{flex:none;text-align:center;position:relative;padding:4px 0 8px}
+.top h1{font-family:'Outfit';font-weight:900;font-size:22px;letter-spacing:.12em;color:var(--ink)}
+.top .sub{font-family:'Outfit';font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--threat);margin-top:3px}
+.skip{position:absolute;top:2px;right:0;font-family:'Outfit';font-weight:700;font-size:13px;padding:8px 16px;border-radius:11px;border:2px solid var(--line);background:var(--card);color:var(--ink);display:flex;align-items:center;gap:7px}
+.skip svg{width:15px;height:15px;color:var(--ink2)}
+
+.scene{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;min-height:0;padding:6px 0}
+.side{font-family:'Outfit';font-weight:800;font-size:12px;letter-spacing:.2em;text-transform:uppercase;display:flex;align-items:center;gap:12px}
+.side .rl{flex:1;height:2px;border-radius:2px}
+.side.foe{color:var(--threat-dk)}.side.foe .rl{background:linear-gradient(90deg,var(--threat),transparent)}
+.side.you{color:var(--acc-dk);justify-content:flex-end}.side.you .rl{background:linear-gradient(90deg,transparent,var(--acc))}
+.line{display:flex;gap:18px;justify-content:center;align-items:center;padding:26px 0;border-radius:18px}
+.line.foe{background:color-mix(in srgb,var(--threat) 8%,transparent)}
+.line.you{background:color-mix(in srgb,var(--acc) 9%,transparent)}
+.clash{height:118px;display:flex;align-items:center;justify-content:center;gap:14px;margin:0}
+.clash .ln{width:90px;height:2px;border-radius:2px;background:var(--line)}
+.clash .vs{font-family:'Outfit';font-weight:900;font-size:14px;letter-spacing:.2em;color:var(--ink3)}
+
+/* UNIT */
+.unit{position:relative;width:130px;display:flex;flex-direction:column;align-items:center;transition:transform .18s}
+.unit .nm{font-family:'Outfit';font-weight:700;font-size:12px;color:var(--ink2);margin-bottom:6px;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.tok{position:relative;width:118px;height:118px;border-radius:22px;background:color-mix(in srgb,var(--c) 20%,var(--card));border:2px solid var(--line);display:grid;place-items:center}
+.tok canvas{width:96px;height:96px}
+.ua,.uh{position:absolute;bottom:-14px;width:40px;height:40px;border-radius:12px;font-family:'Outfit';font-weight:800;font-size:22px;color:#fff;display:flex;align-items:center;justify-content:center;border:3px solid var(--bg)}
+.ua{left:-10px;background:var(--atk)}.uh{right:-10px;background:var(--hpc)}
+.kb{position:absolute;top:-11px;right:-11px;display:flex;gap:4px}
+.kb i{width:26px;height:26px;border-radius:50%;background:var(--c);display:grid;place-items:center;border:3px solid var(--bg)}.kb i svg{width:14px;height:14px;color:#fff}
+
+/* states */
+.unit.atk{transform:translateY(-34px) scale(1.07);z-index:5}
+.unit.atk .tok{box-shadow:0 12px 22px -8px var(--shadow),0 0 0 3px var(--acc)}
+.tok.taunt{border-color:var(--ink);border-width:3px;box-shadow:0 0 0 3px color-mix(in srgb,var(--ink) 35%,transparent)}
+.tok.ds::after{content:"";position:absolute;inset:-8px;border-radius:28px;border:3px solid var(--acc);box-shadow:0 0 14px -2px var(--acc)}
+.unit.struck .tok{animation:struck 1.2s ease-in-out infinite}
+@keyframes struck{0%,100%{transform:none;filter:none}45%{transform:translateY(5px) scale(.95);filter:brightness(1.25)}}
+.unit.dying{opacity:.32;filter:grayscale(.75)}
+.tok.poison{background:color-mix(in srgb,var(--t-undead) 42%,var(--card))}
+.tok.poison::after{content:"";position:absolute;inset:0;border-radius:18px;background:color-mix(in srgb,var(--t-undead) 30%,transparent)}
+
+/* LOG + RESULT */
+.log{flex:none;text-align:center;font-family:'Outfit';font-weight:700;font-size:16px;color:var(--ink);padding:10px 0;display:flex;align-items:center;justify-content:center;gap:9px}
+.log .ic{width:24px;height:24px;border-radius:50%;background:var(--acc);display:grid;place-items:center}.log .ic svg{width:14px;height:14px;color:#fff}
+.result{flex:none;display:flex;align-items:center;gap:16px;justify-content:center;background:var(--card);border:2px solid var(--line);border-radius:15px;padding:12px 18px;box-shadow:0 4px 0 var(--shadow)}
+.verdict{font-family:'Outfit';font-weight:900;font-size:24px;letter-spacing:.06em;color:var(--acc-dk)}
+.rwhy{font-size:13px;font-weight:600;color:var(--ink2);flex:1}
+.rres{font-family:'Outfit';font-weight:800;font-size:14px;color:var(--ink)}
+.climb{font-family:'Outfit';font-weight:800;font-size:15px;padding:9px 22px;border-radius:12px;border:0;background:var(--acc);color:#fff;box-shadow:0 4px 0 var(--acc-dk);display:flex;align-items:center;gap:7px}.climb svg{width:16px;height:16px;color:#fff}
+.note{flex:none;text-align:center;font-size:11px;color:var(--ink3);font-weight:600;padding-top:7px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-poison" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2s6 7 6 11a6 6 0 11-12 0c0-4 6-11 6-11z"/></symbol>
+  <symbol id="i-taunt" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" d="M12 3l7 2.5v6c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5v-6L12 3z"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path fill="currentColor" d="M5 4l9 8-9 8V4zm10 0h3v16h-3z"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3l9 10h-6v8H9v-8H3z"/></symbol>
+</svg>
+
+<div class="themes">
+  <button data-set-theme="tide">Tide</button>
+  <button data-set-theme="sunward" class="on">Sunward</button>
+  <button data-set-theme="night">Nightclimb</button>
+</div>
+
+<div class="arena">
+  <div class="top">
+    <h1 class="disp">THE WAVE BREAKS</h1>
+    <div class="sub">Wave 6 · Venom Swarm</div>
+    <button class="skip"><svg><use href="#i-skip"/></svg>Skip</button>
+  </div>
+
+  <div class="scene">
+    <div class="side foe"><span>The Omen</span><span class="rl"></span></div>
+    <div class="line foe">
+      <div class="unit"><span class="nm">Omen Minion</span><div class="tok poison" style="--c:var(--t-undead)"><canvas class="spr" data-spr="undead"></canvas></div><span class="ua">2</span><span class="uh">2</span><span class="kb"><i><svg><use href="#i-poison"/></svg></i></span></div>
+      <div class="unit struck"><span class="nm">Omen Minion</span><div class="tok" style="--c:var(--t-undead)"><canvas class="spr" data-spr="undead"></canvas></div><span class="ua">2</span><span class="uh">1</span></div>
+      <div class="unit dying"><span class="nm">Omen Minion</span><div class="tok" style="--c:var(--t-undead)"><canvas class="spr" data-spr="undead"></canvas></div><span class="ua">3</span><span class="uh">0</span></div>
+      <div class="unit"><span class="nm">Omen Minion</span><div class="tok" style="--c:var(--t-undead)"><canvas class="spr" data-spr="undead"></canvas></div><span class="ua">2</span><span class="uh">2</span><span class="kb"><i><svg><use href="#i-poison"/></svg></i></span></div>
+      <div class="unit"><span class="nm">Omen Minion</span><div class="tok" style="--c:var(--t-undead)"><canvas class="spr" data-spr="undead"></canvas></div><span class="ua">3</span><span class="uh">3</span></div>
+    </div>
+
+    <div class="clash"><span class="ln"></span><span class="vs disp">VS</span><span class="ln"></span></div>
+
+    <div class="line you">
+      <div class="unit atk"><span class="nm">Spare Part Drone</span><div class="tok" style="--c:var(--t-mech)"><canvas class="spr" data-spr="mech"></canvas></div><span class="ua">3</span><span class="uh">2</span></div>
+      <div class="unit"><span class="nm">Shield Capacitor</span><div class="tok ds" style="--c:var(--t-mech)"><canvas class="spr" data-spr="mech"></canvas></div><span class="ua">2</span><span class="uh">4</span><span class="kb"><i><svg><use href="#i-shield"/></svg></i></span></div>
+      <div class="unit"><span class="nm">Selfless Sentinel</span><div class="tok" style="--c:var(--t-mech)"><canvas class="spr" data-spr="mech"></canvas></div><span class="ua">2</span><span class="uh">1</span></div>
+      <div class="unit"><span class="nm">Pocket Sandbag</span><div class="tok taunt" style="--c:var(--t-neutral)"><canvas class="spr" data-spr="neutral"></canvas></div><span class="ua">0</span><span class="uh">4</span><span class="kb"><i><svg><use href="#i-taunt"/></svg></i></span></div>
+    </div>
+    <div class="side you"><span class="rl"></span><span>Your Warband</span></div>
+  </div>
+
+  <div class="log"><span class="ic"><svg><use href="#i-shield"/></svg></span>A Divine Shield absorbs the venom — your wall holds!</div>
+
+  <div class="result">
+    <span class="verdict disp">HELD</span>
+    <span class="rres">−0 Resolve</span>
+    <span class="rwhy">Poison melted your front line, but your Shields soaked the swarm and your Taunt held the rest.</span>
+    <button class="climb"><svg><use href="#i-up"/></svg>Climb On</button>
+  </div>
+  <div class="note">↑ live combat frame (one attacker lunging, a kill fading out, a poisoned hit, a Divine Shield ring, a Taunt border) + the end-of-combat verdict beat</div>
+</div>
+
+<script>
+const SPAL=[null,0x222530,0x3a4150,0xff5a4f,0xf6c75a,0xf6f8fc,0x5fc6e0,0x357f99,0xc56cd8,0x7a3a90,0xff9a42,0xc25a1c,0x66c48c,0x35784f,0xc6b083,0x7c6a4a];
+const SPR={
+  mech:["0000000440000000","0000000170000000","0001111111110000","0011666666661100","0116655555566110","0166651551566610","0166655555566610","0016677777766100","0001166666611000","0011666666666100","0166677777776610","0166677777776610","0166655555566610","0016666666666100","0001100001100000","0007700007700000"],
+  undead:["0000000000000000","0000000000000000","0000011111100000","0001cccccccc1000","001cccccccccc100","01cccccccccccc10","01ccc1cccc1ccc10","01cccccccccccc10","01ccdccddccdcc10","01cccccccccccc10","001cccccccccc100","0001cccccccc1000","00011cccccc11000","0000dddddddd0000","0000000000000000","0000000000000000"],
+  neutral:["0000000000000000","0000011011000000","0000111111110000","0001eeeeeeee1000","001eeeeeeeeee100","01eeeeeeeeeeee10","01eee1eeee1eee10","01eeeeeeeeeeee10","01eeefeeeefeee10","01eeeeeeeeeeee10","01eeeeeeeeeeee10","001eeeeeeeeee100","0001eeeeeeee1000","0000111111110000","0000ffffffff0000","0000000000000000"]
+};
+function draw(cv,rows,scale){const ctx=cv.getContext('2d');cv.width=16*scale;cv.height=16*scale;for(let y=0;y<16;y++){const r=rows[y];for(let x=0;x<16;x++){const idx=parseInt(r[x],16);if(!idx)continue;const c=SPAL[idx];if(c==null)continue;ctx.fillStyle='#'+c.toString(16).padStart(6,'0');ctx.fillRect(x*scale,y*scale,scale,scale);}}}
+document.querySelectorAll('canvas.spr').forEach(cv=>{const s=SPR[cv.dataset.spr];if(s)draw(cv,s,6);});
+document.querySelectorAll('[data-set-theme]').forEach(b=>b.addEventListener('click',()=>{document.documentElement.dataset.theme=b.dataset.setTheme;document.querySelectorAll('[data-set-theme]').forEach(x=>x.classList.toggle('on',x===b));}));
+</script>
+</body>
+</html>

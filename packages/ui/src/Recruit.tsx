@@ -1,0 +1,172 @@
+import type { DragEvent } from 'react';
+import { CARD_INDEX } from '@game/content';
+import { CONFIG, type BoardCard } from '@game/sim';
+import { Card, type CardView } from './Card';
+import { HudBar } from './HudBar';
+import { Omen } from './Omen';
+import { Legend } from './Legend';
+import { Icon } from './Icon';
+import { useGame } from './store';
+
+/** Module-scoped drag payload — works with real and synthetic drag events (dataTransfer optional). */
+let dragPayload: { uid: string; source: 'hand' | 'board' } | null = null;
+
+const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
+
+function shopView(cardId: string): CardView {
+  const c = CARD_INDEX[cardId];
+  return {
+    name: c.name, tribe: c.tribe, attack: c.attack, health: c.health,
+    keywords: c.keywords, text: c.text, cost: CONFIG.minionCost,
+  };
+}
+function instView(inst: BoardCard): CardView {
+  const c = CARD_INDEX[inst.cardId];
+  return {
+    name: c.name, tribe: inst.tribe, attack: inst.attack, health: inst.health,
+    keywords: inst.keywords, text: c.text,
+  };
+}
+
+export function Recruit() {
+  const run = useGame((s) => s.run);
+  const dispatch = useGame((s) => s.dispatch);
+  const heroArmed = useGame((s) => s.heroArmed);
+  const lc = run.lastCombat;
+  const emptySlots = Math.max(0, CONFIG.boardMax - run.board.length);
+
+  const startDrag = (uid: string, source: 'hand' | 'board') => (e: DragEvent) => {
+    dragPayload = { uid, source };
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  };
+  const allowDrop = (e: DragEvent) => e.preventDefault();
+  const dropAt = (toIndex: number) => (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const p = dragPayload;
+    dragPayload = null;
+    if (!p) return;
+    if (p.source === 'hand') dispatch({ type: 'play', uid: p.uid, toIndex });
+    else dispatch({ type: 'reposition', uid: p.uid, toIndex });
+  };
+  const onBoardClick = (uid: string) =>
+    dispatch(heroArmed ? { type: 'heroPower', uid } : { type: 'sell', uid });
+
+  return (
+    <div className="app">
+      <HudBar />
+
+      {lc && (
+        <div className={`toast ${lc.result}`}>
+          <span className="vd">{VERDICT[lc.result]}</span>
+          <span>
+            {lc.result === 'lose'
+              ? `The omen broke through — −${lc.playerDamage} Resolve.`
+              : lc.result === 'draw'
+                ? 'The last clash ended in a stalemate.'
+                : 'You held the wave — no Resolve lost.'}
+          </span>
+        </div>
+      )}
+
+      <Omen />
+
+      <div className="zone">
+        <div className="zh">
+          <span className="zt disp">
+            The Tavern · Tier <b>{run.tier}</b>
+          </span>
+          <span className="sp" />
+          <button className="btn" disabled={run.embers < CONFIG.refreshCost} onClick={() => dispatch({ type: 'roll' })}>
+            <Icon name="refresh" />
+            Refresh <span className="c">{CONFIG.refreshCost}</span>
+          </button>
+          <button className={`btn${run.frozen ? ' frozen' : ''}`} onClick={() => dispatch({ type: 'freeze' })}>
+            <Icon name="freeze" />
+            Freeze
+          </button>
+          <button
+            className="btn"
+            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost}
+            onClick={() => dispatch({ type: 'upgrade' })}
+          >
+            <Icon name="up" />
+            {run.tier >= CONFIG.maxTier ? 'Tier MAX' : (
+              <>
+                Tier <span className="c">{run.upgradeCost}</span>
+              </>
+            )}
+          </button>
+        </div>
+        <div className="row">
+          {run.shop.map((o) => (
+            <Card key={o.uid} card={shopView(o.cardId)} onClick={() => dispatch({ type: 'buy', uid: o.uid })} />
+          ))}
+        </div>
+      </div>
+
+      <div className="zone">
+        <div className="zh">
+          <span className="zt disp">
+            Your Warband · <b>{run.board.length}/{CONFIG.boardMax}</b>
+          </span>
+          <span className="sp" />
+          <span className="hint">
+            {heroArmed ? 'click a minion to Temper it (+1/+1)' : 'drag to reorder · click to sell (+1 Ember)'}
+          </span>
+        </div>
+        <div className="row" onDragOver={allowDrop} onDrop={dropAt(run.board.length)}>
+          {run.board.map((m, i) => (
+            <Card
+              key={m.uid}
+              card={instView(m)}
+              highlight={heroArmed}
+              onClick={() => onBoardClick(m.uid)}
+              draggable
+              onDragStart={startDrag(m.uid, 'board')}
+              onDragOver={allowDrop}
+              onDrop={dropAt(i)}
+            />
+          ))}
+          {Array.from({ length: emptySlots }).map((_, i) => (
+            <div className="empty" key={`empty-${i}`}>
+              Empty
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="zone">
+        <div className="zh">
+          <span className="zt disp">
+            Your Hand · <b>{run.hand.length}</b>
+          </span>
+          <span className="sp" />
+          <button className="btn go" onClick={() => dispatch({ type: 'faceOmen' })}>
+            <Icon name="sword" />
+            FACE THE OMEN
+          </button>
+        </div>
+        <div className="row">
+          {run.hand.length === 0 ? (
+            <div className="empty" style={{ flex: '0 1 auto', padding: '0 24px', borderStyle: 'dashed' }}>
+              Buy minions from the tavern, then click them here to play onto your warband.
+            </div>
+          ) : (
+            run.hand.map((m) => (
+              <Card
+                key={m.uid}
+                card={instView(m)}
+                onClick={() => dispatch({ type: 'play', uid: m.uid })}
+                draggable
+                onDragStart={startDrag(m.uid, 'hand')}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+      <Legend />
+    </div>
+  );
+}

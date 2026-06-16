@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ASCENT — Direction F · Ascendant HUD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Saira:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#070a10; --void2:#0b1018; --panel:rgba(18,27,40,.5); --panel2:rgba(24,36,52,.6);
+  --line:#1d2b3c; --line2:#33536b; --cyan:#5fd3e6; --cyan-dk:#2a8a9c; --gold:#d9b35e; --threat:#ff6a52;
+  --ink:#dde8f1; --ink2:#8499ad; --ink3:#516477;
+  --t-beast:#e0a557; --t-dragon:#f5934a; --t-mech:#6fcfe6; --t-undead:#6fd6a6; --t-demon:#cf86dc; --t-neutral:#aab6c8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Saira',sans-serif;color:var(--ink);height:100vh;overflow:hidden;
+  background:radial-gradient(70% 50% at 12% 0%,rgba(95,211,230,.08),transparent 55%),radial-gradient(60% 50% at 100% 100%,rgba(255,106,82,.08),transparent 55%),var(--void)}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgba(95,211,230,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(95,211,230,.04) 1px,transparent 1px);background-size:34px 34px}
+.disp{font-family:'Rajdhani',sans-serif}.mono{font-family:'Spline Sans Mono',monospace}
+.app{position:relative;z-index:2;display:grid;grid-template-columns:104px 1fr;height:100vh;padding:18px 22px;gap:8px}
+
+/* TELEMETRY GAUGE */
+.tel{position:relative;display:flex;flex-direction:column;align-items:center;padding:4px 0;border-right:1px solid var(--line)}
+.tel .lbl{font-family:'Spline Sans Mono';font-size:9px;letter-spacing:.3em;color:var(--cyan-dk)}
+.tel .alt{font-family:'Rajdhani';font-weight:700;font-size:46px;color:var(--cyan);line-height:.85;text-shadow:0 0 16px rgba(95,211,230,.5)}
+.tel .u{font-family:'Spline Sans Mono';font-size:9px;letter-spacing:.24em;color:var(--ink3);margin-top:2px}
+.gauge{position:relative;flex:1;width:100%;margin:14px 0;display:flex;justify-content:center}
+.gauge .rail{position:absolute;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--cyan),rgba(95,211,230,.15) 45%,rgba(255,106,82,.4) 92%,var(--threat))}
+.gauge .tick{position:absolute;left:50%;transform:translateX(-50%);width:14px;height:1px;background:var(--line2)}
+.gauge .node{position:absolute;left:50%;bottom:48%;transform:translate(-50%,50%);width:12px;height:12px;background:var(--cyan);box-shadow:0 0 12px 3px rgba(95,211,230,.7);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.tel .deep{font-family:'Rajdhani';font-weight:700;font-size:18px;color:var(--ink2)}.tel .dl{font-family:'Spline Sans Mono';font-size:8px;letter-spacing:.2em;color:var(--ink3)}
+
+.main{display:flex;flex-direction:column;min-width:0;padding-left:14px;gap:11px;height:100%}
+
+/* STATUS STRIP */
+.bar{display:flex;align-items:center;gap:16px;flex:none}
+.wm{font-family:'Rajdhani';font-weight:700;font-size:24px;letter-spacing:.4em;color:var(--ink);padding-bottom:3px;border-bottom:1px solid var(--cyan-dk)}
+.sub{font-family:'Spline Sans Mono';font-size:10px;letter-spacing:.12em;color:var(--ink3)}
+.sp{flex:1}
+.read{display:flex;align-items:center;gap:9px;padding:5px 14px;background:var(--panel);border:1px solid var(--line);clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+.read svg{width:17px;height:17px}.read .v{font-family:'Spline Sans Mono';font-weight:700;font-size:17px;line-height:1}.read .l{font-family:'Spline Sans Mono';font-size:8px;letter-spacing:.16em;color:var(--ink3);margin-top:2px}
+.read.g svg{color:var(--gold)}.read.g .v{color:var(--gold)}.read.h svg{color:var(--threat)}.read.h .v{color:#ff9684}
+.hero{display:flex;align-items:center;gap:9px;padding:4px 14px 4px 5px;background:var(--panel);border:1px solid var(--line);clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+.hero .f{width:32px;height:32px;background:var(--void2);border:1px solid var(--line2);display:grid;place-items:center}.hero .f svg{width:17px;height:17px;color:var(--cyan)}
+.hero .nm{font-family:'Rajdhani';font-weight:600;font-size:14px;letter-spacing:.04em}.hero .pw{font-family:'Spline Sans Mono';font-size:9px;color:var(--cyan-dk)}
+
+/* OMEN — threat scan */
+.omen{position:relative;padding:13px 18px;display:flex;gap:18px;align-items:center;flex:none;
+  background:linear-gradient(100deg,rgba(255,106,82,.14),var(--panel2) 60%);border:1px solid var(--line2)}
+.omen::before,.omen::after{content:"";position:absolute;width:14px;height:14px}
+.omen::before{top:-1px;left:-1px;border-top:2px solid var(--threat);border-left:2px solid var(--threat)}
+.omen::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--threat);border-right:2px solid var(--threat)}
+.sig{width:54px;height:54px;flex:none;display:grid;place-items:center;background:rgba(255,106,82,.12);border:1px solid var(--threat);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.sig svg{width:26px;height:26px;color:var(--threat)}
+.ob{flex:1;min-width:0}
+.oey{font-family:'Spline Sans Mono';font-size:9px;letter-spacing:.26em;color:var(--threat);display:flex;align-items:center;gap:8px}
+.onm{font-family:'Rajdhani';font-weight:700;font-size:27px;letter-spacing:.08em;color:#ffd9d1;line-height:1;margin:1px 0 3px;text-transform:uppercase}
+.ode{font-size:13.5px;color:var(--ink);opacity:.92;max-width:540px;line-height:1.32}
+.oc{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}.oc .k{font-family:'Spline Sans Mono';font-size:9px;letter-spacing:.16em;color:var(--ink3)}
+.tagc{font-family:'Rajdhani';font-weight:600;font-size:13px;letter-spacing:.06em;color:var(--cyan);padding:2px 11px;border:1px solid var(--cyan-dk);background:rgba(95,211,230,.08)}
+.prev{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}.prev .pl{font-family:'Spline Sans Mono';font-size:9px;letter-spacing:.16em;color:var(--ink3)}
+.pr{display:flex;gap:6px}
+.eu{width:30px;height:42px;background:rgba(255,106,82,.08);border:1px solid rgba(255,106,82,.4);position:relative;display:grid;place-items:center}
+.eu svg{width:14px;height:14px;color:var(--t-undead)}
+.eu .s{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);font-family:'Spline Sans Mono';font-weight:700;font-size:10px;color:var(--ink);background:var(--void2);padding:0 4px;border:1px solid var(--line2)}
+.eu .kw{position:absolute;top:-7px;right:-6px;width:14px;height:14px;color:var(--threat)}
+
+/* ZONES */
+.zone{flex:1;display:flex;flex-direction:column;min-height:0}
+.zh{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.zl{font-family:'Rajdhani';font-weight:700;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2)}.zl b{color:var(--cyan)}
+.rule{flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+.btn{font-family:'Rajdhani';font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding:7px 14px;border:1px solid var(--line2);color:var(--ink);background:var(--panel);display:flex;align-items:center;gap:7px;clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+.btn svg{width:14px;height:14px;color:var(--ink2)}.btn .c{color:var(--cyan)}
+.btn.go{border-color:var(--cyan);color:var(--cyan);background:rgba(95,211,230,.1);padding:7px 22px;box-shadow:0 0 16px -4px rgba(95,211,230,.5)}.btn.go svg{color:var(--cyan)}
+.row{flex:1;display:flex;gap:10px;min-height:0}
+
+/* CARD */
+.card{flex:1;position:relative;background:var(--panel2);border:1px solid var(--line2);display:flex;flex-direction:column;padding:9px 10px;min-width:0;
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+.card::before{content:"";position:absolute;top:5px;left:0;width:3px;height:26px;background:var(--c)}
+.chd{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding-left:6px}
+.cn{font-family:'Rajdhani';font-weight:600;font-size:16px;letter-spacing:.03em;line-height:1.04;color:#fff}
+.ct{font-family:'Spline Sans Mono';font-size:8px;letter-spacing:.16em;color:var(--c);text-transform:uppercase;margin-top:2px}
+.gl{width:26px;height:26px;display:grid;place-items:center;flex:none;border:1px solid var(--c);background:rgba(255,255,255,.04);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}.gl svg{width:15px;height:15px;color:var(--c)}
+.cost{position:absolute;top:-1px;right:14px;font-family:'Spline Sans Mono';font-weight:700;font-size:13px;color:var(--gold);background:var(--void2);border:1px solid var(--gold);padding:1px 7px}
+.kws{display:flex;gap:5px;flex-wrap:wrap;margin:7px 0 0 6px}
+.kw{font-family:'Spline Sans Mono';font-size:8px;font-weight:600;letter-spacing:.04em;padding:2px 6px;border:1px solid var(--line2);color:var(--ink2);display:flex;align-items:center;gap:3px}.kw svg{width:9px;height:9px;color:var(--c)}
+.desc{font-size:13px;line-height:1.36;color:var(--ink);opacity:.88;margin:7px 0 0 6px;flex:1}.desc b{color:var(--cyan);font-weight:600;opacity:1}
+.foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px}
+.hex{font-family:'Spline Sans Mono';font-weight:700;font-size:16px;color:#fff;width:34px;height:30px;display:grid;place-items:center;clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)}
+.hex.a{background:var(--gold);color:#1c1402}.hex.h{background:var(--threat);color:#2a0a06}
+
+.legend{flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:7px;border-top:1px solid var(--line)}
+.legend .lt{font-family:'Spline Sans Mono';font-size:9px;letter-spacing:.18em;color:var(--ink3)}
+.li{font-family:'Rajdhani';font-weight:600;font-size:13px;letter-spacing:.04em;color:var(--ink2);display:flex;align-items:center;gap:6px}.li b{color:var(--ink)}.li svg{width:13px;height:13px;color:var(--cyan)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-beast" viewBox="0 0 24 24"><path fill="currentColor" d="M6 13a2 2 0 110-4 2 2 0 010 4zm12 0a2 2 0 110-4 2 2 0 010 4zM9 8a2 2 0 11-4 0 2 2 0 014 0zm10 0a2 2 0 11-4 0 2 2 0 014 0zm-7 3c3 0 5 2.5 5 5 0 2-2 3-5 3s-5-1-5-3c0-2.5 2-5 5-5z"/></symbol>
+  <symbol id="i-dragon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c1 3 0 5-1 6 2 0 4 1 5 3 2-1 4-1 6 0-2 1-3 3-3 5-1-2-3-3-5-3 1 2 1 5-2 7-3-2-3-5-2-7-2 0-4 1-5 3 0-2-1-4-3-5 2-1 4-1 6 0 1-2 3-3 5-3-1-1-2-3-1-6z"/></symbol>
+  <symbol id="i-mech" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm0 2.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM11 2h2l.4 2.3 1.9.8L17 3.8l1.4 1.4-1.1 1.7.8 1.9L20.4 9v2l-2.3.4-.8 1.9 1.1 1.7L17 16.4l-1.7-1.1-1.9.8L13 18.4h-2l-.4-2.3-1.9-.8L7 16.4 5.6 15l1.1-1.7-.8-1.9L3.6 11V9l2.3-.4.8-1.9L5.6 5 7 3.6l1.7 1.1 1.9-.8z"/></symbol>
+  <symbol id="i-undead" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c4 0 7 3 7 7 0 2-1 4-3 5v2a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2c-2-1-3-3-3-5 0-4 3-7 7-7zm-3 7a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/></symbol>
+  <symbol id="i-demon" viewBox="0 0 24 24"><path fill="currentColor" d="M2 12c3-4 7-6 10-6s7 2 10 6c-3 4-7 6-10 6S5 16 2 12zm10 3a3 3 0 100-6 3 3 0 000 6z"/></symbol>
+  <symbol id="i-poison" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2s6 7 6 11a6 6 0 11-12 0c0-4 6-11 6-11z"/></symbol>
+  <symbol id="i-taunt" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" d="M12 3l7 2.5v6c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5v-6L12 3z"/></symbol>
+  <symbol id="i-cleave" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M4 6l16 12M20 6L4 18"/></symbol>
+  <symbol id="i-sc" viewBox="0 0 24 24"><path fill="currentColor" d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></symbol>
+  <symbol id="i-ember" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2s5 6 5 11a5 5 0 11-10 0c0-2 1-4 2-5 0 2 1 3 2 3 1-3-1-6 1-9z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z"/></symbol>
+  <symbol id="i-anvil" viewBox="0 0 24 24"><path fill="currentColor" d="M5 7h9c0 2 1 3 3 3v3l3 1-1 3H7l-1-3 2-1V9H5V7zm1 11h10v2H6v-2z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M20 11a8 8 0 10-1 5M20 4v5h-5"/></symbol>
+  <symbol id="i-freeze" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M12 2v20M4 7l16 10M20 7L4 17"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3l9 10h-6v8H9v-8H3z"/></symbol>
+  <symbol id="i-sword" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3h7v7l-3.5-1L9 17l1 3-3 1-1-3 8-8.5L14 6z"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="tel">
+    <div class="lbl">ALT</div>
+    <div class="alt disp">06</div>
+    <div class="u">ALTITUDE</div>
+    <div class="gauge">
+      <div class="rail"></div>
+      <div class="tick" style="top:6%"></div><div class="tick" style="top:28%"></div><div class="tick" style="top:50%"></div><div class="tick" style="top:72%"></div><div class="tick" style="top:94%"></div>
+      <div class="node"></div>
+    </div>
+    <div class="deep disp">06</div><div class="dl">DEEPEST</div>
+  </aside>
+
+  <main class="main">
+    <div class="bar">
+      <div class="wm disp">ASCENT</div><span class="sub">// recruit phase</span>
+      <div class="sp"></div>
+      <div class="read g"><svg><use href="#i-ember"/></svg><div><div class="v">7</div><div class="l">EMBERS</div></div></div>
+      <div class="read h"><svg><use href="#i-heart"/></svg><div><div class="v">24</div><div class="l">RESOLVE</div></div></div>
+      <div class="hero"><div class="f"><svg><use href="#i-anvil"/></svg></div><div><div class="nm">FORGEWARDEN</div><div class="pw">temper +1/+1</div></div></div>
+    </div>
+
+    <div class="omen">
+      <div class="sig"><svg><use href="#i-poison"/></svg></div>
+      <div class="ob">
+        <div class="oey">⟐ THREAT SCAN · WAVE 06</div>
+        <div class="onm disp">Venom Swarm</div>
+        <div class="ode">Many small minions, several with Poison — one touch kills your biggest minion.</div>
+        <div class="oc"><span class="k">COUNTER</span><span class="tagc">Mechs · Shields</span><span class="tagc">Demons · Fodder</span></div>
+      </div>
+      <div class="prev"><span class="pl">HOSTILES · 5</span>
+        <div class="pr">
+          <div class="eu"><svg class="kw"><use href="#i-poison"/></svg><svg><use href="#i-undead"/></svg><span class="s">2/2</span></div>
+          <div class="eu"><svg class="kw"><use href="#i-poison"/></svg><svg><use href="#i-undead"/></svg><span class="s">2/3</span></div>
+          <div class="eu"><svg><use href="#i-undead"/></svg><span class="s">3/2</span></div>
+          <div class="eu"><svg class="kw"><use href="#i-poison"/></svg><svg><use href="#i-undead"/></svg><span class="s">2/2</span></div>
+          <div class="eu"><svg><use href="#i-undead"/></svg><span class="s">3/3</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="zone">
+      <div class="zh"><span class="zl">TAVERN ▸ TIER <b>3</b></span><span class="rule"></span>
+        <span class="btn"><svg><use href="#i-refresh"/></svg>Refresh <span class="c">1</span></span>
+        <span class="btn"><svg><use href="#i-freeze"/></svg>Freeze</span>
+        <span class="btn"><svg><use href="#i-up"/></svg>Tier <span class="c">7</span></span>
+      </div>
+      <div class="row">
+        <div class="card" style="--c:var(--t-mech)"><span class="cost">3</span><div class="chd"><div><div class="cn">Spare Part Drone</div><div class="ct">Mech</div></div><span class="gl"><svg><use href="#i-mech"/></svg></span></div><div class="kws"><span class="kw"><svg><use href="#i-shield"/></svg>SHIELD</span></div><div class="desc"><b>Divine Shield</b> — blocks the first hit it takes.</div><div class="foot"><span class="hex a">2</span><span class="hex h">1</span></div></div>
+        <div class="card" style="--c:var(--t-mech)"><span class="cost">3</span><div class="chd"><div><div class="cn">Selfless Sentinel</div><div class="ct">Mech</div></div><span class="gl"><svg><use href="#i-mech"/></svg></span></div><div class="kws"></div><div class="desc"><b>Deathrattle:</b> give a friend a <b>Divine Shield</b>.</div><div class="foot"><span class="hex a">2</span><span class="hex h">1</span></div></div>
+        <div class="card" style="--c:var(--t-demon)"><span class="cost">3</span><div class="chd"><div><div class="cn">Soulfeeder</div><div class="ct">Demon</div></div><span class="gl"><svg><use href="#i-demon"/></svg></span></div><div class="kws"></div><div class="desc"><b>Battlecry:</b> destroy a friend and add its stats to this.</div><div class="foot"><span class="hex a">3</span><span class="hex h">2</span></div></div>
+        <div class="card" style="--c:var(--t-dragon)"><span class="cost">3</span><div class="chd"><div><div class="cn">Cinderwing Matron</div><div class="ct">Dragon</div></div><span class="gl"><svg><use href="#i-dragon"/></svg></span></div><div class="kws"></div><div class="desc"><b>Battlecry:</b> give other Dragons +1/+2.</div><div class="foot"><span class="hex a">3</span><span class="hex h">4</span></div></div>
+        <div class="card" style="--c:var(--t-neutral)"><span class="cost">3</span><div class="chd"><div><div class="cn">Pocket Sandbag</div><div class="ct">Neutral</div></div><span class="gl"><svg><use href="#i-taunt"/></svg></span></div><div class="kws"><span class="kw"><svg><use href="#i-taunt"/></svg>TAUNT</span></div><div class="desc"><b>Taunt</b> — enemies must attack this first.</div><div class="foot"><span class="hex a">0</span><span class="hex h">4</span></div></div>
+      </div>
+    </div>
+
+    <div class="zone">
+      <div class="zh"><span class="zl">WARBAND ▸ <b>4/7</b></span><span class="rule"></span><span class="btn go"><svg><use href="#i-sword"/></svg>FACE THE OMEN</span></div>
+      <div class="row">
+        <div class="card" style="--c:var(--t-mech)"><div class="chd"><div><div class="cn">Spare Part Drone</div><div class="ct">Mech</div></div><span class="gl"><svg><use href="#i-mech"/></svg></span></div><div class="kws"><span class="kw"><svg><use href="#i-shield"/></svg>SHIELD</span></div><div class="desc"><b>Divine Shield</b> — blocks the first hit.</div><div class="foot"><span class="hex a">3</span><span class="hex h">2</span></div></div>
+        <div class="card" style="--c:var(--t-mech)"><div class="chd"><div><div class="cn">Shield Capacitor</div><div class="ct">Mech</div></div><span class="gl"><svg><use href="#i-mech"/></svg></span></div><div class="kws"></div><div class="desc">On friendly Shield break, Shield another friend.</div><div class="foot"><span class="hex a">2</span><span class="hex h">4</span></div></div>
+        <div class="card" style="--c:var(--t-mech)"><div class="chd"><div><div class="cn">Selfless Sentinel</div><div class="ct">Mech</div></div><span class="gl"><svg><use href="#i-mech"/></svg></span></div><div class="kws"></div><div class="desc"><b>Deathrattle:</b> give a friend a Shield.</div><div class="foot"><span class="hex a">2</span><span class="hex h">1</span></div></div>
+        <div class="card" style="--c:var(--t-neutral)"><div class="chd"><div><div class="cn">Pocket Sandbag</div><div class="ct">Neutral</div></div><span class="gl"><svg><use href="#i-taunt"/></svg></span></div><div class="kws"><span class="kw"><svg><use href="#i-taunt"/></svg>TAUNT</span></div><div class="desc"><b>Taunt</b> — protect your other minions.</div><div class="foot"><span class="hex a">0</span><span class="hex h">4</span></div></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="lt">KEYWORDS</span>
+      <span class="li"><svg><use href="#i-taunt"/></svg><b>Taunt</b> attacked first</span>
+      <span class="li"><svg><use href="#i-shield"/></svg><b>Divine Shield</b> blocks one hit</span>
+      <span class="li"><svg><use href="#i-poison"/></svg><b>Poison</b> destroys what it hits</span>
+      <span class="li"><svg><use href="#i-cleave"/></svg><b>Cleave</b> hits neighbours</span>
+    </div>
+  </main>
+</div>
+</body>
+</html>

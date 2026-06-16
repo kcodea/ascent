@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@game/core": ["packages/core/src/index.ts"],
+      "@game/content": ["packages/content/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src/**/*.ts"],
+  // @game/ui is React/DOM — typechecked separately via apps/web/tsconfig.json (npm run typecheck:web).
+  "exclude": ["packages/ui"]
+}

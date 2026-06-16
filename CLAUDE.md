@@ -75,9 +75,14 @@ means the boundary leaked.
 - **M2 — content + balance** *(in progress)*: ✓ all 6 tribes + full card set (Beasts, Dragons,
   Undead, Mechs, Demons + neutral glue — Mech adds Divine-Shield/shield-break + Magnetic merge;
   Demon adds the recruit-time Consume system); ✓ headless **balance runner** (`npm run balance`)
-  that probes the A.6 counter matrix with mono-tribe boards. **Remaining:** triples/Discover; first
-  tuning pass — the runner already flags the targets (Mech mono-board is dominant everywhere, Beast
-  is underpowered, Dragon/Undead are generically strong with no counter edge; Demon's matrix holds).
+  that probes the A.6 counter matrix with mono-tribe boards; ✓ **triples + Discover** (3 copies →
+  golden 2×, peek 1-of-3 one tier up); ✓ **5 tribes per run** + active-tribe HUD; ✓ early-game
+  **balance on-ramp** (enemy width/stats ramp in over waves 1–5 + gentler loss damage, so waves 1–3
+  are winnable); ✓ a big **UX pass** — pointer-drag with snap-back + gold sell glow, custom
+  gauntlet/hand cursors, keyword tooltips + terse mechanical text, fanned hover-pop hand, 1:1 combat
+  cards, Hero-Power targeting line, 2× tavern controls, hero-sized Ember/Resolve panels, center-
+  anchored warband, +15% card width. **Remaining:** the deeper counter-matrix tuning pass (the
+  runner flags Mech dominant, Beast underpowered, Dragon/Undead flat — starting-dial work).
 - **M3 — meta**: unlocks, ascension modifiers, daily seeds, save/replay.
 - **M4 — juice & onboarding**: pacing polish, audio, VFX, tutorial, full accessibility + touch.
 

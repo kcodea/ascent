@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CombatEvent, Keyword, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { THREATS } from '@game/sim';
@@ -78,19 +78,22 @@ function computeFrame(
   return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };
 }
 
-// Per-beat lengths (ms), keyed by the beat's primary event. SPEED scales it all.
-const SPEED = 1.2;
+// Per-beat lengths (ms), keyed by the beat's first event. SPEED scales it all
+// (higher = slower; 1.5 is ~25% slower than the previous 1.2).
+const SPEED = 1.5;
 const DELAY: Record<string, number> = {
-  sc: 760, attack: 460, summon: 420, buff: 360, reborn: 560,
-  // result events resolve within their primary's beat; kept as fallbacks
-  dmg: 230, shield: 520, shieldUp: 480, poison: 520, death: 360,
+  // action beats (the wind-up / cast)
+  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 560,
+  // result beats (the impact — keyed by the first result event)
+  dmg: 360, shield: 460, shieldUp: 460, poison: 480, death: 320,
 };
-const FLOAT_MS = 1000;
+const FLOAT_MS = 1250;
 
 /**
- * A combat beat: a primary action (attack / SC / summon / buff / reborn) plus the
- * result events it caused (damage, shields, poison, deaths). Everything in a beat
- * resolves at once — so an attacker and its target take damage simultaneously.
+ * Combat beats. An action (attack / SC / summon / buff / reborn) is its own beat —
+ * the wind-up — and the run of result events it caused (damage, shields, poison,
+ * deaths) is the *next* beat, where everything lands at once. So an attacker lunges
+ * in (beat 1), then it and its target take damage together (beat 2).
  */
 const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'death']);
 interface Beat {
@@ -103,8 +106,11 @@ function buildBeats(events: CombatEvent[]): Beat[] {
   let i = 0;
   while (i < events.length) {
     const start = i;
-    i++;
-    while (i < events.length && RESULT_TYPES.has(events[i]!.type)) i++;
+    if (RESULT_TYPES.has(events[i]!.type)) {
+      while (i < events.length && RESULT_TYPES.has(events[i]!.type)) i++; // group the impact
+    } else {
+      i++; // a single action
+    }
     beats.push({ start, end: i, primary: events[start]! });
   }
   return beats;
@@ -196,6 +202,7 @@ export function Arena() {
   const beats = useMemo(() => buildBeats(events), [events]);
   const [beatIdx, setBeatIdx] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
+  const lungeRef = useRef<{ uid: string; transform: string } | null>(null);
   const done = beatIdx >= beats.length;
 
   // Advance one beat at a time (a beat = an action + all its result events).
@@ -248,9 +255,10 @@ export function Arena() {
     for (let i = currentBeat.start; i < currentBeat.end; i++) Object.assign(anims, animFor(events[i]));
   }
 
-  // Slide the current beat's attacker into its target so the blow's direction reads.
-  let lungeUid: string | null = null;
-  let lungeTransform: string | undefined;
+  // The attacker slides in on its action beat and stays planted through the
+  // following impact beat, then retracts. Cached so the impact beat doesn't
+  // recompute off the already-transformed element.
+  const prevBeat = beatIdx > 1 ? beats[beatIdx - 2] : undefined;
   if (currentBeat?.primary.type === 'attack') {
     const pe = currentBeat.primary;
     const aEl = document.querySelector(`.ascene [data-uid="${pe.attacker}"]`);
@@ -258,11 +266,22 @@ export function Arena() {
     if (aEl && dEl) {
       const ar = aEl.getBoundingClientRect();
       const dr = dEl.getBoundingClientRect();
-      lungeUid = pe.attacker;
       const dx = dr.left + dr.width / 2 - (ar.left + ar.width / 2);
       const dy = dr.top + dr.height / 2 - (ar.top + ar.height / 2);
-      lungeTransform = `translate(${Math.round(dx * 0.62)}px, ${Math.round(dy * 0.62)}px) scale(1.05)`;
+      lungeRef.current = {
+        uid: pe.attacker,
+        transform: `translate(${Math.round(dx * 0.55)}px, ${Math.round(dy * 0.55)}px) scale(1.04)`,
+      };
     }
+  } else if (!(currentBeat && RESULT_TYPES.has(currentBeat.primary.type) && prevBeat?.primary.type === 'attack')) {
+    lungeRef.current = null; // not an attack, and not the impact right after one
+  }
+  let lungeUid: string | null = null;
+  let lungeTransform: string | undefined;
+  if (lungeRef.current) {
+    lungeUid = lungeRef.current.uid;
+    lungeTransform = lungeRef.current.transform;
+    anims[lungeUid] = 'attacking';
   }
 
   let log = 'The boards take their positions…';

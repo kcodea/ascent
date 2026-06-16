@@ -76,6 +76,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .btn:hover:not(:disabled) { border-color: var(--acc); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn svg { width: 15px; height: 15px; color: var(--ink2); }
+.shopctl { display: flex; justify-content: center; gap: 14px; margin-bottom: 9px; flex: none; }
+.btn.big { font-size: 17px; padding: 13px 26px; border-radius: 15px; gap: 9px; box-shadow: 0 3px 0 var(--shadow); }
+.btn.big svg { width: 23px; height: 23px; }
+.btn.big .c { font-size: 17px; }
 .btn .c { color: var(--acc-dk); font-weight: 800; }
 .btn.frozen { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
 .btn.frozen svg { color: #fff; }

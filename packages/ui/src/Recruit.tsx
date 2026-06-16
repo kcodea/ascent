@@ -89,17 +89,18 @@ export function Recruit() {
             The Tavern · Tier <b>{run.tier}</b>
           </span>
           <span className="hint">drag down to your hand to buy (3) · drag a minion here to sell (+1)</span>
-          <span className="sp" />
-          <button className="btn" disabled={run.embers < CONFIG.refreshCost} onClick={() => dispatch({ type: 'roll' })}>
+        </div>
+        <div className="shopctl">
+          <button className="btn big" disabled={run.embers < CONFIG.refreshCost} onClick={() => dispatch({ type: 'roll' })}>
             <Icon name="refresh" />
             Refresh <span className="c">{CONFIG.refreshCost}</span>
           </button>
-          <button className={`btn${run.frozen ? ' frozen' : ''}`} onClick={() => dispatch({ type: 'freeze' })}>
+          <button className={`btn big${run.frozen ? ' frozen' : ''}`} onClick={() => dispatch({ type: 'freeze' })}>
             <Icon name="freeze" />
             Freeze
           </button>
           <button
-            className="btn"
+            className="btn big"
             disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost}
             onClick={() => dispatch({ type: 'upgrade' })}
           >
@@ -127,7 +128,13 @@ export function Recruit() {
             {heroArmed ? 'click a minion to Temper it (+1/+1)' : 'drag from hand to play · drag to reorder'}
           </span>
         </div>
-        <div className="row" onDragOver={allowDrop} onDrop={dropWarband(run.board.length)}>
+        <div className="row" onDragOver={allowDrop} onDrop={dropWarband(Math.ceil(run.board.length / 2))}>
+          {/* Empty slots split around the minions so the board anchors from the centre. */}
+          {Array.from({ length: Math.floor(emptySlots / 2) }).map((_, i) => (
+            <div className="empty" key={`eb-${i}`}>
+              Empty
+            </div>
+          ))}
           {run.board.map((m, i) => (
             <Card
               key={m.uid}
@@ -140,8 +147,8 @@ export function Recruit() {
               onDrop={dropWarband(i)}
             />
           ))}
-          {Array.from({ length: emptySlots }).map((_, i) => (
-            <div className="empty" key={`empty-${i}`}>
+          {Array.from({ length: emptySlots - Math.floor(emptySlots / 2) }).map((_, i) => (
+            <div className="empty" key={`ea-${i}`}>
               Empty
             </div>
           ))}

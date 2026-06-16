@@ -142,6 +142,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .zone.sellglow .row { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: 0 0 0 3px var(--acc), 0 0 24px -2px color-mix(in srgb, var(--acc) 75%, transparent); border-radius: 16px; }
 .zone.sellglow .row::after { content: 'Sell +1'; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; color: var(--acc-dk); text-transform: uppercase; }
 .zone[data-zone='tavern'] .row { position: relative; transition: box-shadow 0.12s, background 0.12s; }
+
+/* targeting line — Hero Power (and future single-target Battlecries) */
+.aimline { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 90; overflow: visible; }
+.aimline line { stroke: var(--acc); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 3 11; filter: drop-shadow(0 0 6px var(--acc)); animation: aimdash 0.5s linear infinite; }
+.aimline circle { fill: var(--acc); filter: drop-shadow(0 0 7px var(--acc)); }
+.aimline circle.on { fill: #fff; stroke: var(--acc); stroke-width: 4; }
+@keyframes aimdash { to { stroke-dashoffset: -14; } }
 .ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 14px; height: 14px; color: var(--c); }
 .statusbar { display: flex; align-items: center; justify-content: center; gap: 22px; flex: none; }

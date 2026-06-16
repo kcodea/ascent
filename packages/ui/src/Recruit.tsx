@@ -51,6 +51,7 @@ export function Recruit() {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
   const [snapping, setSnapping] = useState(false);
+  const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean } | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
 
@@ -125,6 +126,32 @@ export function Recruit() {
       window.removeEventListener('pointerup', onUp);
     };
   }, [drag?.uid]);
+
+  // Hero Power targeting: while armed, draw a glowing line from the hero to the
+  // cursor, snapping to the friendly minion under it. (A future single-target
+  // Battlecry would reuse this — random/tribe-wide effects never arm targeting.)
+  useEffect(() => {
+    if (!heroArmed) {
+      setAim(null);
+      return;
+    }
+    const move = (e: PointerEvent): void => {
+      const f = document.querySelector('.statusbar .hero .f');
+      if (!f) return;
+      const r = f.getBoundingClientRect();
+      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-zone="warband"] .card');
+      let tx = e.clientX;
+      let ty = e.clientY;
+      if (target) {
+        const cr = target.getBoundingClientRect();
+        tx = cr.left + cr.width / 2;
+        ty = cr.top + cr.height / 2;
+      }
+      setAim({ ox: r.left + r.width / 2, oy: r.top + r.height / 2, tx, ty, onTarget: !!target });
+    };
+    window.addEventListener('pointermove', move);
+    return () => window.removeEventListener('pointermove', move);
+  }, [heroArmed]);
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
@@ -282,6 +309,13 @@ export function Recruit() {
         >
           <Card card={drag.view} />
         </div>
+      )}
+
+      {heroArmed && aim && (
+        <svg className="aimline" aria-hidden="true">
+          <line x1={aim.ox} y1={aim.oy} x2={aim.tx} y2={aim.ty} />
+          <circle cx={aim.tx} cy={aim.ty} r={aim.onTarget ? 16 : 7} className={aim.onTarget ? 'on' : ''} />
+        </svg>
       )}
 
       {run.discover && (

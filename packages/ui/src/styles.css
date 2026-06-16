@@ -8,7 +8,11 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
-body { font-family: 'Nunito Sans', sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; }
+body { font-family: 'Nunito Sans', sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* gauntlet opens over anything grabbable/clickable */
+.card, .btn, button, .hero:not(.spent), .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* closed fist while a card is being dragged */
+body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing !important; }
 .disp { font-family: 'Outfit', sans-serif; }
 canvas.spr { image-rendering: pixelated; display: block; }
 
@@ -148,8 +152,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 @keyframes sellrise { 0% { opacity: 0; transform: translateY(6px); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
 
 .card.armed { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 40%, transparent), 0 3px 0 var(--shadow); }
-.card[draggable='true'] { cursor: grab; }
-.card[draggable='true']:active { cursor: grabbing; }
+.card[draggable='true'] { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; }
+.card[draggable='true']:active { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
 .hero.armed { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 35%, transparent); }
 
 /* LEGEND */

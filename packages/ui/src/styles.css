@@ -87,6 +87,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .btn.go svg { color: #fff; }
 .btn.go:disabled { box-shadow: none; }
 .row { flex: 1; display: flex; gap: 10px; min-height: 0; justify-content: center; }
+/* Hand: a held, slightly-overlapping fan (up to 10 cards). Hover pops a card forward + up. */
+.row.hand { gap: 0; align-items: flex-end; }
+.row.hand .card { margin-left: -64px; transition: transform 0.15s ease, margin 0.15s ease; }
+.row.hand .card:first-child { margin-left: 0; }
+.row.hand .card:hover { transform: translateY(-26px); z-index: 20; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 190px; width: 190px; background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 3px 0 var(--shadow); cursor: pointer; transition: transform 0.12s, border-color 0.12s; animation: cardpop 0.26s ease; }
@@ -132,6 +137,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .statusbar .hero .f svg { width: 62px; height: 62px; }
 .statusbar .hero .nm { font-size: 23px; }
 .statusbar .hero .pw { font-size: 15px; }
+/* Embers / Resolve sized to flank the big hero portrait */
+.statusbar .chip { padding: 18px 30px; border-radius: 22px; gap: 16px; }
+.statusbar .chip .ic { width: 64px; height: 64px; border-radius: 16px; }
+.statusbar .chip .ic svg { width: 36px; height: 36px; }
+.statusbar .chip .v { font-size: 42px; }
+.statusbar .chip .l { font-size: 13px; letter-spacing: 0.08em; }
+.statusbar .sellfx { font-size: 22px; top: -4px; right: 14px; }
 .sellfx { position: absolute; top: -8px; right: 8px; font-family: 'Outfit'; font-weight: 900; font-size: 16px; color: #d99a2e; pointer-events: none; animation: sellrise 0.85s ease forwards; }
 @keyframes sellrise { 0% { opacity: 0; transform: translateY(6px); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
 

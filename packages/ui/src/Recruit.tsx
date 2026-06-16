@@ -166,7 +166,7 @@ export function Recruit() {
             FACE THE OMEN
           </button>
         </div>
-        <div className="row" onDragOver={allowDrop} onDrop={dropHand}>
+        <div className="row hand" onDragOver={allowDrop} onDrop={dropHand}>
           {run.hand.length === 0 ? (
             <div className="empty" style={{ flex: '0 1 auto', padding: '0 24px', borderStyle: 'dashed' }}>
               Drag a minion down from the tavern to buy it, then drag it up to your warband to play.

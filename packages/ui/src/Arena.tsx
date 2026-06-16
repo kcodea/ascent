@@ -122,13 +122,14 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
   switch (e.type) {
     case 'attack': return { [e.attacker]: 'attacking' };
     case 'dmg': return { [e.target]: 'struck' };
-    case 'shield': return { [e.target]: 'flare' };
+    case 'shield': return { [e.target]: 'shatter' };
     case 'shieldUp': return { [e.target]: 'shieldgain' };
     case 'poison': return { [e.target]: 'poisoned' };
     case 'reborn': return { [e.target]: 'reborn' };
     case 'buff': return { [e.target]: 'buffed' };
     case 'sc': return { [e.source]: 'sccast' };
     case 'death': return { [e.target]: 'dying' };
+    case 'summon': return { [e.minion.uid]: 'summoned' };
     default: return {};
   }
 }
@@ -198,8 +199,17 @@ export function Arena() {
   const beats = useMemo(() => buildBeats(events), [events]);
   const [beatIdx, setBeatIdx] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
+  const [shake, setShake] = useState(0);
+  const [shaking, setShaking] = useState(false);
   const lungeRef = useRef<{ uid: string; transform: string } | null>(null);
   const done = beatIdx >= beats.length;
+
+  useEffect(() => {
+    if (!shake) return;
+    setShaking(true);
+    const t = window.setTimeout(() => setShaking(false), 300);
+    return () => window.clearTimeout(t);
+  }, [shake]);
 
   // Advance one beat at a time (a beat = an action + all its result events).
   useEffect(() => {
@@ -235,15 +245,17 @@ export function Arena() {
     const once = (k: string, fn: () => void): void => {
       if (!done2.has(k)) { done2.add(k); fn(); }
     };
+    let kill = false;
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e) continue;
       if (e.type === 'attack') once('attack', sfx.attack);
       else if (e.type === 'dmg') once('hit', sfx.hit);
-      else if (e.type === 'death') once('death', sfx.death);
+      else if (e.type === 'death') { once('death', sfx.death); kill = true; }
       else if (e.type === 'shieldUp') once('shield', sfx.shield);
       else if (e.type === 'buff') once('buff', sfx.buff);
     }
+    if (kill) setShake((n) => n + 1); // a death shakes the board (hit-stop feel)
   }, [beatIdx, beats, events]);
 
   // Verdict sting when the replay finishes.
@@ -354,7 +366,7 @@ export function Arena() {
         )}
       </div>
 
-      <div className="ascene">
+      <div className={`ascene${shaking ? ' shaking' : ''}`}>
         <div className="side foe"><span>The Omen</span><span className="rl" /></div>
         <div className="line foe">
           {frame.enemy.map((u) => (

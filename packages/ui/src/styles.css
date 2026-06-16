@@ -299,6 +299,19 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Cleave: a slash sweeping across the attacker */
 .unit.cleaving::before { content: ''; position: absolute; inset: -4px; z-index: 9; pointer-events: none; background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.92) 50%, transparent 58%); animation: cleaveswipe 0.45s ease; }
 @keyframes cleaveswipe { 0% { opacity: 0; transform: translateX(-28%); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateX(28%); } }
+
+/* shield break — a golden ring of shards bursts out as the aura shatters */
+.unit.shatter .card { animation: flare 0.4s ease; }
+.unit.shatter::after { content: ''; position: absolute; inset: -6px; border-radius: 19px; border: 3px solid #f4cf6a; pointer-events: none; z-index: 9; animation: shardburst 0.42s ease forwards; }
+@keyframes shardburst { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
+
+/* in-combat summon — the new minion pops in */
+.unit.summoned .card { animation: summonpop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes summonpop { 0% { transform: scale(0.2); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
+
+/* a kill shakes the board (hit-stop feel) */
+.ascene.shaking { animation: boardshake 0.3s ease; }
+@keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }
 .alog { flex: none; text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: 16px; color: var(--ink); min-height: 26px; padding: 10px 0; }
 .result { flex: none; display: flex; align-items: center; gap: 16px; justify-content: center; background: var(--card); border: 2px solid var(--line); border-radius: 15px; padding: 12px 18px; box-shadow: 0 4px 0 var(--shadow); }
 .verdict { font-family: 'Outfit'; font-weight: 900; font-size: 24px; letter-spacing: 0.06em; }

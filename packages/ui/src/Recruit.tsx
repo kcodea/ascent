@@ -3,7 +3,6 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, type BoardCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { HudBar } from './HudBar';
-import { StatusBar } from './StatusBar';
 import { Omen } from './Omen';
 import { Legend } from './Legend';
 import { Icon } from './Icon';
@@ -324,7 +323,6 @@ export function Recruit() {
         </div>
       </div>
 
-      <StatusBar />
       <Legend />
 
       {drag?.active && (

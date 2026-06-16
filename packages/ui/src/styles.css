@@ -16,7 +16,7 @@ body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, 
 .disp { font-family: 'Outfit', sans-serif; }
 canvas.spr { image-rendering: pixelated; display: block; }
 
-.app { display: flex; flex-direction: column; height: 100vh; padding: 14px 18px; gap: 11px; }
+.app { display: flex; flex-direction: column; height: 100vh; padding: 14px 18px 150px; gap: 11px; }
 
 /* HUD */
 .bar { display: flex; align-items: center; gap: 12px; flex: none; }
@@ -170,7 +170,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 14px; height: 14px; color: var(--c); }
 .ctype.spell { flex: 1; color: var(--t-demon); font-size: 12px; }
-.statusbar { display: flex; align-items: center; justify-content: center; gap: 22px; flex: none; }
+.statusbar { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 22px; z-index: 40; }
+/* hero power available + unused — a gentle pulse so the player notices it */
+.hero.ready { border-color: var(--acc); animation: heroready 1.5s ease-in-out infinite; }
+@keyframes heroready { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 38%, transparent); } }
+/* resolve took a hit */
+.chip.h.hit { animation: hitshake 0.5s ease; }
+@keyframes hitshake { 0%, 100% { transform: none; } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.resfx { position: absolute; top: -10px; right: 14px; font-family: 'Outfit'; font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 .statusbar .hero { padding: 9px 28px 9px 9px; border-radius: 24px; gap: 18px; }
 .statusbar .hero .f { width: 108px; height: 108px; border-radius: 24px; }
 .statusbar .hero .f svg { width: 62px; height: 62px; }
@@ -199,7 +206,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .li svg { width: 13px; height: 13px; color: var(--acc-dk); }
 
 /* COMBAT ARENA */
-.arena { height: 100vh; display: flex; flex-direction: column; padding: 16px 22px;
+.arena { height: 100vh; display: flex; flex-direction: column; padding: 16px 22px 150px;
   background: radial-gradient(80% 42% at 50% 0%, color-mix(in srgb, var(--threat) 16%, var(--bg)), transparent 60%),
               radial-gradient(80% 42% at 50% 100%, color-mix(in srgb, var(--acc) 16%, var(--bg)), transparent 60%), var(--bg); }
 .atop { flex: none; text-align: center; position: relative; padding: 2px 0 6px; }
@@ -207,6 +214,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .asub { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--threat); margin-top: 3px; }
 .skip { position: absolute; top: 0; right: 0; font-family: 'Outfit'; font-weight: 700; font-size: 13px; padding: 8px 16px; border-radius: 11px; border: 2px solid var(--line); background: var(--card); color: var(--ink); display: flex; align-items: center; gap: 7px; cursor: pointer; }
 .skip svg { color: var(--ink2); }
+.endcombat { margin-top: 9px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; padding: 10px 28px; border-radius: 13px; border: 0; background: var(--acc); color: #fff; box-shadow: 0 4px 0 var(--acc-dk); display: inline-flex; align-items: center; gap: 8px; animation: endpop 0.3s ease; }
+.endcombat svg { color: #fff; }
+.endcombat:hover { filter: brightness(1.05); }
+@keyframes endpop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .ascene { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 0; }
 .side { font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; display: flex; align-items: center; gap: 12px; }
 .side .rl { flex: 1; height: 2px; border-radius: 2px; }

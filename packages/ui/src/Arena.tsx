@@ -115,12 +115,6 @@ function buildBeats(events: CombatEvent[]): Beat[] {
   }
   return beats;
 }
-const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
-const WHY = {
-  win: 'The wave breaks against your warband.',
-  lose: 'The omen overwhelmed your warband.',
-  draw: 'Both boards fell — a grim stalemate.',
-} as const;
 /** The transient animation class for the unit the active event acts on. */
 function animFor(e: CombatEvent | undefined): Record<string, string> {
   if (!e) return {};
@@ -296,10 +290,13 @@ export function Arena() {
   return (
     <div className="arena">
       <div className="atop">
-        <div className="ares"><Icon name="heart" />Resolve {run.resolve}</div>
         <h1 className="disp">THE WAVE BREAKS</h1>
         <div className="asub">Wave {run.wave} · {THREATS[run.threat].name}</div>
-        {!done && (
+        {done ? (
+          <button className="endcombat" onClick={() => dispatch({ type: 'resolveCombat' })}>
+            <Icon name="up" />End Combat
+          </button>
+        ) : (
           <button className="skip" onClick={() => setBeatIdx(beats.length)}>
             <Icon name="sword" />Skip
           </button>
@@ -323,17 +320,6 @@ export function Arena() {
       </div>
 
       <div className="alog">{log}</div>
-
-      {done && (
-        <div className="result">
-          <span className={`verdict disp ${combat.result}`}>{VERDICT[combat.result]}</span>
-          <span className="rres">{combat.result === 'lose' ? `−${combat.playerDamage} Resolve` : '−0 Resolve'}</span>
-          <span className="rwhy">{WHY[combat.result]}</span>
-          <button className="climb" onClick={() => dispatch({ type: 'resolveCombat' })}>
-            <Icon name="up" />Climb On
-          </button>
-        </div>
-      )}
     </div>
   );
 }

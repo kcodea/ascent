@@ -79,8 +79,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   battlecryGrantKeyword: (ctx, self, params) => {
     const kws = Array.isArray(params.keywords) ? (params.keywords as Keyword[]) : [];
     if (kws.length === 0) return;
-    const others = ctx.state.board.filter((c) => c !== self);
-    const target = (others.length > 0 ? others : [self]).reduce((a, b) => (b.attack > a.attack ? b : a));
+    // Only consider minions missing at least one granted keyword — never waste
+    // the grant on a minion that already has the effect (e.g. don't re-Poison).
+    const lacks = (c: BoardCard): boolean => kws.some((k) => !c.keywords.includes(k));
+    const others = ctx.state.board.filter((c) => c !== self && lacks(c));
+    const pool = others.length > 0 ? others : lacks(self) ? [self] : [];
+    if (pool.length === 0) return; // everyone already has it
+    const target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
     for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
   },
 

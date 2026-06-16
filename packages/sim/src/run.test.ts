@@ -383,6 +383,33 @@ describe('run loop (@game/sim)', () => {
     }
   });
 
+  it('selling adds embers even at the turn income (no max-embers cap)', () => {
+    let s: RunState = {
+      ...createRun(1), // embers 3 == maxEmbers 3 (start of turn)
+      board: [{ uid: 'x', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false }],
+    };
+    expect(s.embers).toBe(3);
+    s = reduce(s, { type: 'sell', uid: 'x' });
+    expect(s.embers).toBe(4); // +1, uncapped (previously capped at maxEmbers → bug)
+  });
+
+  it('a keyword grant targets a minion that lacks it, never one that already has it', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [],
+      board: [
+        { uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: ['P'], golden: false },
+        { uid: 'mid', cardId: 'cleaver', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false },
+      ],
+      shop: [{ uid: 'x', cardId: 'toxin' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    expect(s.board.find((c) => c.uid === 'mid')?.keywords).toContain('P'); // the one lacking Poison
+    expect(s.board.find((c) => c.uid === 'big')?.keywords.filter((k) => k === 'P').length).toBe(1); // not re-granted
+  });
+
   it('a full scripted run is deterministic end to end', () => {
     expect(serialize(playToEnd(999))).toEqual(serialize(playToEnd(999)));
   });

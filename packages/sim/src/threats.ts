@@ -90,9 +90,11 @@ export function selectThreat(_wave: number, rng: Rng, previous?: ThreatId): Thre
  * `npm run balance`.
  */
 export function enemyScaling(wave: number): { countCap: number; statScale: number } {
-  const ramp = Math.min(1, 0.55 + 0.12 * (wave - 1)); // w1≈0.55 … w5≈1.0
+  // Turns 1–4 are deliberately soft (the player has a 1–4 minion board); full
+  // template strength only by ~wave 7.
+  const ramp = Math.min(1, 0.3 + 0.12 * (wave - 1)); // w1 .30 · w2 .42 · w3 .54 · w4 .66 · w7 1.0
   return {
-    countCap: wave + 1, // bind enemy width near the player's board early
+    countCap: wave, // enemy width tracks the wave (w1→1, w2→2, …); the player's board grows ~+1/turn
     statScale: (1 + wave * CONFIG.curve.statScalePerWave) * ramp,
   };
 }

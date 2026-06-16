@@ -110,7 +110,7 @@ export function reduce(state: RunState, action: Action): RunState {
         if (hi < 0) return state;
         s.hand.splice(hi, 1);
       }
-      s.embers = Math.min(s.maxEmbers, s.embers + CONFIG.sellValue);
+      s.embers += CONFIG.sellValue; // embers are uncapped within a turn (no max-embers ceiling)
       return s;
     }
 

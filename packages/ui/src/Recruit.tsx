@@ -14,6 +14,8 @@ type Zone = 'tavern' | 'warband' | 'hand';
 
 const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
 const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a drag
+const TURN_SECONDS = 30; // round timer; at 0 the player is forced into combat
+const RING = 2 * Math.PI * 17; // countdown ring circumference
 
 function shopView(cardId: string): CardView {
   const c = CARD_INDEX[cardId];
@@ -52,6 +54,7 @@ export function Recruit() {
   const [overZone, setOverZone] = useState<Zone | null>(null);
   const [snapping, setSnapping] = useState(false);
   const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean } | null>(null);
+  const [seconds, setSeconds] = useState(TURN_SECONDS);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
 
@@ -153,6 +156,19 @@ export function Recruit() {
     return () => window.removeEventListener('pointermove', move);
   }, [heroArmed]);
 
+  // Round timer: count down each recruit turn; at 0 the player is forced into
+  // combat (paused while a Discover pick is open). UI-only — the engine is untimed.
+  useEffect(() => {
+    if (run.phase !== 'recruit') return;
+    if (seconds <= 0) {
+      dispatch({ type: 'faceOmen' });
+      return;
+    }
+    if (run.discover) return;
+    const id = window.setTimeout(() => setSeconds((s) => s - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [seconds, run.phase, run.discover, dispatch]);
+
   const applyDrop = (d: DragState, zone: Zone | null, x: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
       dispatch({ type: 'buy', uid: d.uid });
@@ -180,6 +196,20 @@ export function Recruit() {
   return (
     <div className="app">
       <HudBar />
+
+      <div className="rtimer" data-low={seconds <= 5} title="Time left this turn — at 0 you're forced into combat">
+        <svg viewBox="0 0 40 40">
+          <circle className="rt-bg" cx="20" cy="20" r="17" />
+          <circle
+            className="rt-fg"
+            cx="20"
+            cy="20"
+            r="17"
+            style={{ strokeDasharray: RING, strokeDashoffset: RING * (1 - Math.max(0, seconds) / TURN_SECONDS) }}
+          />
+        </svg>
+        <span className="rt-n">{Math.max(0, seconds)}</span>
+      </div>
 
       {lc && (
         <div className={`toast ${lc.result}`}>

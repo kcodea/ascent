@@ -179,6 +179,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .float.dmg { color: #fff; background: var(--threat); padding: 0 8px; border-radius: 9px; font-size: 19px; }
 .float.poison { color: var(--t-undead); }
 .float.shield { color: var(--acc-dk); }
+.float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }
 .float.buff { color: #fff; background: var(--acc); padding: 0 8px; border-radius: 9px; font-size: 17px; }
 @keyframes floatup { 0% { opacity: 0; transform: translate(-50%, 8px); } 14% { opacity: 1; } 62% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -38px); } }

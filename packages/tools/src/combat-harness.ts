@@ -44,6 +44,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ${n(ev.target)} takes ${ev.amount}  (${ev.remainingHp} hp left)`;
     case 'shield':
       return `   ◇ ${n(ev.target)}'s Divine Shield absorbs it`;
+    case 'shieldUp':
+      return `   ◇ ${n(ev.target)} gains a Divine Shield`;
     case 'poison':
       return `   ☠ ${n(ev.target)} is destroyed by Poison`;
     case 'reborn':

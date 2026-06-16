@@ -47,11 +47,28 @@ export function reduce(state: RunState, action: Action): RunState {
 
     case 'play': {
       // hand → board (Battlegrounds: play to trigger summon-buffs + Battlecry)
-      if (s.board.length >= CONFIG.boardMax) return state;
       const i = s.hand.findIndex((c) => c.uid === action.uid);
       if (i < 0) return state;
-      const [card] = s.hand.splice(i, 1);
-      if (!card) return state;
+      const card = s.hand[i]!;
+
+      // Magnetic (handoff A.4): a Cling Drone dropped directly onto a friendly
+      // Mech merges its stats in instead of taking a board slot — so it works on
+      // a full board and fires no summon-buff / Battlecry.
+      if (card.keywords.includes('M') && action.toIndex !== undefined && action.toIndex < s.board.length) {
+        const target = s.board[action.toIndex];
+        if (target && target.tribe === 'mech') {
+          s.hand.splice(i, 1);
+          target.attack += card.attack;
+          target.health += card.health;
+          for (const k of card.keywords) {
+            if (k !== 'M' && !target.keywords.includes(k)) target.keywords.push(k);
+          }
+          return s;
+        }
+      }
+
+      if (s.board.length >= CONFIG.boardMax) return state;
+      s.hand.splice(i, 1);
       const to =
         action.toIndex === undefined
           ? s.board.length

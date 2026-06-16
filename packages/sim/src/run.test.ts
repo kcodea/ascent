@@ -212,6 +212,47 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.cardId === 'gnash')?.keywords).toContain('P');
   });
 
+  it('Magnetic merges a Cling Drone onto a friendly Mech (no new slot)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [],
+      board: [{ uid: 'd', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false }],
+      shop: [{ uid: 'x', cardId: 'cling' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid, toIndex: 0 }); // drop onto the Mech
+    expect(s.board.length).toBe(1); // merged, not added
+    expect(s.hand.length).toBe(0);
+    const drone = s.board[0]!;
+    expect(drone.attack).toBe(4); // 2 + 2
+    expect(drone.health).toBe(3); // 1 + 2
+    expect(drone.keywords).toContain('DS');
+    expect(drone.keywords).not.toContain('M'); // Magnetic itself isn't transferred
+  });
+
+  it('a Magnetic minion dropped off a Mech plays as a normal body', () => {
+    let s: RunState = { ...createRun(1), embers: 3, hand: [], board: [], shop: [{ uid: 'x', cardId: 'cling' }] };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // no target → normal play
+    expect(s.board.length).toBe(1);
+    expect(s.board[0]!.cardId).toBe('cling');
+  });
+
+  it('Magnetic does not merge onto a non-Mech', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [],
+      board: [{ uid: 'g', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
+      shop: [{ uid: 'x', cardId: 'cling' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid, toIndex: 0 });
+    expect(s.board.length).toBe(2); // placed as its own minion
+    expect(s.board.some((c) => c.cardId === 'cling')).toBe(true);
+  });
+
   it('a full scripted run is deterministic end to end', () => {
     expect(serialize(playToEnd(999))).toEqual(serialize(playToEnd(999)));
   });

@@ -17,7 +17,7 @@ interface GameStore {
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
 
-export const useGame = create<GameStore>((set, get) => ({
+export const useGame = create<GameStore>((set) => ({
   run: createRun(randomSeed()),
   heroArmed: false,
   sellTick: 0,

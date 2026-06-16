@@ -151,6 +151,63 @@ describe('simulate (handoff A.3)', () => {
     expect(summons.length).toBeGreaterThan(0);
   });
 
+  it('Omega Bulwark Start of Combat shields every other friendly Mech', () => {
+    const a = run(
+      [
+        { cardId: 'omega', attack: 6, health: 6, keywords: ['DS', 'T'] },
+        { cardId: 'arc', attack: 3, health: 3 },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 1, keywords: [] }],
+      11,
+    );
+    expect(a.events[0]?.type).toBe('sc');
+    // Omega already has its own Shield, so only the unshielded Arclight gains one.
+    expect(a.events.filter((e) => e.type === 'shieldUp').length).toBe(1);
+  });
+
+  it('Selfless Sentinel Deathrattle grants a surviving friend a Shield', () => {
+    const a = run(
+      [
+        { cardId: 'selfless', attack: 2, health: 1 },
+        { cardId: 'sandbag', attack: 0, health: 30, keywords: [] },
+      ],
+      [{ cardId: 'omen', attack: 3, health: 30, keywords: [] }],
+      6,
+    );
+    expect(a.events.some((e) => e.type === 'death')).toBe(true);
+    expect(a.events.some((e) => e.type === 'shieldUp')).toBe(true);
+  });
+
+  it('Arclight Reactor pings an enemy when a friendly Mech Shield breaks', () => {
+    const a = run(
+      [
+        { cardId: 'drone', attack: 2, health: 1, keywords: ['DS'] },
+        { cardId: 'arc', attack: 3, health: 3 },
+      ],
+      [{ cardId: 'omen', attack: 2, health: 40, keywords: [] }],
+      8,
+    );
+    const i = a.events.findIndex((e) => e.type === 'shield');
+    expect(i).toBeGreaterThanOrEqual(0);
+    const ping = a.events[i + 1];
+    expect(ping?.type).toBe('dmg');
+    if (ping?.type === 'dmg') expect(ping.amount).toBe(3); // Reactor's 3, fired off the break
+  });
+
+  it('Junkyard Titan buffs the whole board when a friendly Shield breaks', () => {
+    const a = run(
+      [
+        { cardId: 'drone', attack: 2, health: 1, keywords: ['DS'] },
+        { cardId: 'junk', attack: 4, health: 4 },
+        { cardId: 'sandbag', attack: 0, health: 20, keywords: [] },
+      ],
+      [{ cardId: 'omen', attack: 2, health: 40, keywords: [] }],
+      8,
+    );
+    // The break buffs all three living friends +1/+1.
+    expect(a.events.filter((e) => e.type === 'buff').length).toBeGreaterThanOrEqual(3);
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

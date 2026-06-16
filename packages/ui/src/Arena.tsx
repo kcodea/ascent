@@ -46,6 +46,9 @@ function computeFrame(
     } else if (e.type === 'shield') {
       const u = find(e.target);
       if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS'); }
+    } else if (e.type === 'shieldUp') {
+      const u = find(e.target);
+      if (u) { u.divineShield = true; if (!u.keywords.includes('DS')) u.keywords.push('DS'); }
     } else if (e.type === 'poison') {
       const u = find(e.target);
       if (u) u.health = 0;
@@ -69,7 +72,7 @@ function computeFrame(
 // Per-event beat lengths (ms). SPEED scales the whole sequence — higher = slower.
 const SPEED = 1.2;
 const DELAY: Record<string, number> = {
-  sc: 760, attack: 340, dmg: 230, shield: 520, poison: 520, reborn: 560, death: 360, summon: 380, buff: 320,
+  sc: 760, attack: 340, dmg: 230, shield: 520, shieldUp: 480, poison: 520, reborn: 560, death: 360, summon: 380, buff: 320,
 };
 const FLOAT_MS = 1000;
 const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
@@ -87,6 +90,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'attack': return { [e.attacker]: 'attacking' };
     case 'dmg': return { [e.target]: 'struck' };
     case 'shield': return { [e.target]: 'flare' };
+    case 'shieldUp': return { [e.target]: 'flare' };
     case 'poison': return { [e.target]: 'poisoned' };
     case 'reborn': return { [e.target]: 'flare' };
     case 'buff': return { [e.target]: 'flare' };
@@ -103,6 +107,7 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
     case 'dmg': return { uid: e.target, text: `−${e.amount}`, kind: 'dmg' };
     case 'poison': return { uid: e.target, text: '☠', kind: 'poison' };
     case 'shield': return { uid: e.target, text: '◇', kind: 'shield' };
+    case 'shieldUp': return { uid: e.target, text: '◇', kind: 'shieldup' };
     case 'reborn': return { uid: e.target, text: '♻', kind: 'reborn' };
     case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
     default: return null;
@@ -115,6 +120,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'sc': return e.text;
     case 'attack': return `${n(e.attacker)} strikes ${n(e.defender)}.`;
     case 'shield': return '◇ A Divine Shield absorbs the blow!';
+    case 'shieldUp': return `◇ ${n(e.target)} gains a Divine Shield.`;
     case 'poison': return `☠ Poison! ${n(e.target)} is destroyed.`;
     case 'reborn': return `♻ ${n(e.target)} is Reborn at 1 Health.`;
     case 'death': return `${n(e.target)} falls.`;

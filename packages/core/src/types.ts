@@ -51,6 +51,12 @@ export type EffectFactoryId =
   | 'deathrattleBuffRandom'
   | 'onFriendDeathBuffRandom'
   | 'deathrattleFillTribe'
+  // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
+  | 'scGrantShieldTribe'
+  | 'deathrattleGrantShield'
+  | 'onShieldBreakGrantShield'
+  | 'onShieldBreakDamage'
+  | 'onShieldBreakBuffAll'
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'
@@ -132,6 +138,7 @@ export type CombatEvent =
   | { type: 'attack'; attacker: string; defender: string; swing: number }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number }
   | { type: 'shield'; target: string }
+  | { type: 'shieldUp'; target: string }
   | { type: 'poison'; target: string }
   | { type: 'reborn'; target: string; hp: number }
   | { type: 'death'; target: string }

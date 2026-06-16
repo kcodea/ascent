@@ -4,10 +4,19 @@ import { NEUTRAL } from './cards/neutral';
 import { BEASTS } from './cards/beasts';
 import { DRAGONS } from './cards/dragons';
 import { UNDEAD } from './cards/undead';
+import { MECHS } from './cards/mechs';
 import { TOKENS } from './cards/tokens';
 import { ENEMY } from './cards/enemy';
 
-export const ALL_CARDS: CardDef[] = [...NEUTRAL, ...BEASTS, ...DRAGONS, ...UNDEAD, ...TOKENS, ...ENEMY];
+export const ALL_CARDS: CardDef[] = [
+  ...NEUTRAL,
+  ...BEASTS,
+  ...DRAGONS,
+  ...UNDEAD,
+  ...MECHS,
+  ...TOKENS,
+  ...ENEMY,
+];
 
 export const CARD_INDEX: Record<string, CardDef> = Object.fromEntries(
   ALL_CARDS.map((card) => [card.id, card]),
@@ -39,5 +48,6 @@ export { NEUTRAL } from './cards/neutral';
 export { BEASTS } from './cards/beasts';
 export { DRAGONS } from './cards/dragons';
 export { UNDEAD } from './cards/undead';
+export { MECHS } from './cards/mechs';
 export { TOKENS } from './cards/tokens';
 export { ENEMY } from './cards/enemy';

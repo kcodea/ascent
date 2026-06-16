@@ -33,8 +33,8 @@ The game is a **deterministic simulation, fully decoupled from the UI.**
 - **Never mutate shared `CardDef`s** — clone into combat `Minion` instances.
 - Recruit-phase effects (Battlecry, buff-on-summon, consume) bake into stats before combat; the
   combat simulator runs combat-time effects (Start-of-Combat, Deathrattle, on-shield-break,
-  on-kill) and emits log events. Combat event vocabulary: `sc · attack · dmg · shield · poison ·
-  reborn · death · summon · buff`.
+  on-kill) and emits log events. Combat event vocabulary: `sc · attack · dmg · shield · shieldUp ·
+  poison · reborn · death · summon · buff`.
 
 ## Monorepo
 

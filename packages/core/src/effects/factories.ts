@@ -24,6 +24,14 @@ interface MinionPayload {
   side?: Side;
 }
 
+/** Grant a Divine Shield to a living minion (Mechs). Idempotent; logs a `shieldUp`. */
+function grantShield(ctx: CombatContext, m: Minion): void {
+  if (m.dead || m.health <= 0 || m.divineShield) return;
+  m.divineShield = true;
+  if (!m.keywords.includes('DS')) m.keywords.push('DS');
+  ctx.log({ type: 'shieldUp', target: m.uid });
+}
+
 /**
  * Combat-time factories. This is a *partial* registry: recruit-time ids
  * (battlecries, buff-on-buy) are implemented in `@game/sim` against the run
@@ -145,5 +153,52 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     while (ctx.living(self.side).length < 7 && guard++ < 7) {
       ctx.summon(self.side, ctx.getCard(ctx.rng.pick(pool)), self.uid);
     }
+  },
+
+  // --- Mechs (Divine Shield walls + shield-break payoffs) ---
+
+  /** Omega Bulwark — Start of Combat: give all your Mechs a Divine Shield. */
+  scGrantShieldTribe: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'mech') as Tribe;
+    const friends = ctx.living(self.side).filter((m) => m.tribe === tribe);
+    if (friends.length === 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} raises the shieldwall` });
+    for (const m of friends) grantShield(ctx, m);
+  },
+
+  /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield. */
+  deathrattleGrantShield: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
+    if (pool.length === 0) return;
+    grantShield(ctx, ctx.rng.pick(pool));
+  },
+
+  /** Shield Capacitor — when a friendly Shield breaks, give another friend a Shield. */
+  onShieldBreakGrantShield: (ctx, self, _params, payload) => {
+    const { minion, side } = payload as MinionPayload;
+    if (self.dead || side !== self.side) return;
+    const pool = ctx.living(self.side).filter((m) => m !== self && m !== minion && !m.divineShield);
+    if (pool.length === 0) return;
+    grantShield(ctx, ctx.rng.pick(pool));
+  },
+
+  /** Arclight Reactor — when a friendly Mech's Shield breaks, deal `amount` to a random enemy. */
+  onShieldBreakDamage: (ctx, self, params, payload) => {
+    const { minion, side } = payload as MinionPayload;
+    if (self.dead || side !== self.side || minion.tribe !== 'mech') return;
+    const foe: Side = self.side === 'player' ? 'enemy' : 'player';
+    const targets = ctx.living(foe);
+    if (targets.length === 0) return;
+    ctx.damage(ctx.rng.pick(targets), num(params.amount, 3));
+  },
+
+  /** Junkyard Titan — when any friendly Shield breaks, give your minions +atk/+hp. */
+  onShieldBreakBuffAll: (ctx, self, params, payload) => {
+    const { side } = payload as MinionPayload;
+    if (self.dead || side !== self.side) return;
+    const attack = num(params.attack, 1);
+    const health = num(params.health, 1);
+    for (const m of ctx.living(self.side)) ctx.buff(m, attack, health, self.uid);
   },
 };

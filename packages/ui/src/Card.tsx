@@ -64,6 +64,7 @@ export function Card({
   onClick,
   highlight,
   dimmed,
+  buffed,
   onPointerDown,
   draggable,
   onDragStart,
@@ -75,6 +76,8 @@ export function Card({
   highlight?: boolean;
   /** Dim this card while a copy of it is being dragged. */
   dimmed?: boolean;
+  /** Play a one-shot green buff flash (a recruit-phase stat buff just landed). */
+  buffed?: boolean;
   onPointerDown?: (e: ReactPointerEvent) => void;
   draggable?: boolean;
   onDragStart?: (e: DragEvent) => void;
@@ -83,7 +86,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}`}
       style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
       onClick={onClick}
       role={onClick ? 'button' : undefined}

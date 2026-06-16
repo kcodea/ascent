@@ -57,6 +57,8 @@ export function Recruit() {
   const [snapping, setSnapping] = useState(false);
   const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean } | null>(null);
   const [seconds, setSeconds] = useState(TURN_SECONDS);
+  const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
+  const prevStatsRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   const timeUp = seconds <= 0; // turn timer expired: lock everything but End Turn
@@ -177,6 +179,29 @@ export function Recruit() {
     return () => window.clearTimeout(id);
   }, [seconds, run.phase, run.discover]);
 
+  // Flash a card green when its stats jump in the recruit phase (a buff landed).
+  useEffect(() => {
+    const prev = prevStatsRef.current;
+    const next = new Map<string, number>();
+    const newly: string[] = [];
+    for (const c of [...run.board, ...run.hand]) {
+      const cur = c.attack + c.health;
+      next.set(c.uid, cur);
+      if (prev.has(c.uid) && cur > (prev.get(c.uid) ?? 0)) newly.push(c.uid);
+    }
+    prevStatsRef.current = next;
+    if (newly.length === 0) return;
+    setBuffedUids((s) => new Set([...s, ...newly]));
+    const t = window.setTimeout(() => {
+      setBuffedUids((s) => {
+        const n = new Set(s);
+        for (const u of newly) n.delete(u);
+        return n;
+      });
+    }, 700);
+    return () => window.clearTimeout(t);
+  }, [run.board, run.hand]);
+
   const applyDrop = (d: DragState, zone: Zone | null, x: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
       dispatch({ type: 'buy', uid: d.uid });
@@ -200,6 +225,13 @@ export function Recruit() {
   // Gold sell-preview glow: an owned card hovered over the tavern.
   const sellGlow = overZone === 'tavern' && (drag?.source === 'board' || drag?.source === 'hand');
   const isDragging = (uid: string): boolean => drag?.active === true && drag.uid === uid;
+  // Electric flair while a Magnetic minion hovers a friendly Mech (it'll merge on drop).
+  const wouldMagnetize =
+    !!drag?.active &&
+    drag.source === 'hand' &&
+    drag.view.keywords.includes('M') &&
+    overZone === 'warband' &&
+    run.board[warbandIndexAt(drag.x)]?.tribe === 'mech';
 
   return (
     <div className="app">
@@ -287,6 +319,7 @@ export function Recruit() {
               card={instView(m)}
               highlight={heroArmed}
               dimmed={isDragging(m.uid)}
+              buffed={buffedUids.has(m.uid)}
               onClick={heroArmed && !timeUp ? () => dispatch({ type: 'heroPower', uid: m.uid }) : undefined}
               onPointerDown={beginDrag(m.uid, 'board', instView(m))}
             />
@@ -316,6 +349,7 @@ export function Recruit() {
                 key={m.uid}
                 card={instView(m)}
                 dimmed={isDragging(m.uid)}
+                buffed={buffedUids.has(m.uid)}
                 onPointerDown={beginDrag(m.uid, 'hand', instView(m))}
               />
             ))
@@ -327,7 +361,7 @@ export function Recruit() {
 
       {drag?.active && (
         <div
-          className={`dragcard${snapping ? ' snap' : ''}`}
+          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}`}
           style={{
             width: drag.w,
             height: drag.h,

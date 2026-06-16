@@ -41,6 +41,8 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       line + aim infrastructure is ready to reuse; no current card is player-targeted.
 - [ ] Spell-card visual polish — the Discover spell ("Glimpse Beyond") renders as a minion-shaped
       card with the stat footer hidden; could get its own spell frame.
+- [ ] Confirm/refine the **name-on-art card layout** — implemented from a fuzzy ask (name pill on
+      the art's bottom, keyword/text area below); revisit spacing + legibility with the user.
 - [ ] Broaden golden text-doubling to Start-of-Combat AoE phrasing (Galewing/Chromatic say "3 to
       every enemy" rather than "deal 3", so the text doesn't double though the effect does).
 - [ ] More combat juice — shield-break sparks, in-combat summon pops, hit-stop / shake on big blows.

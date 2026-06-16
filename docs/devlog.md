@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-16
 
+### Combat-feel beats, engine/balance fixes, card-UX pass, repo conventions
+- **Combat replay → beats** (`195f2ca`): the replay advances in beats — a primary action (attack /
+  Start-of-Combat / summon / buff / reborn) and all the result events it caused (both minions'
+  damage, shields, poison, deaths) resolve together. So an attacker and its target take damage at
+  the same instant and their floats land together. Dead minions are removed from the board (no grey
+  fade): a death from a prior beat is filtered out; the minion dying in the current beat shows for
+  one beat then is gone; the result screen shows survivors only.
+- **Engine / balance** (`4c29eb4`): embers are uncapped within a turn — selling was clamped to
+  `maxEmbers` (== current embers right after the per-turn refill) so it paid nothing at turn start;
+  now sell just adds. Keyword grants (Toxin/Plaguebringer) target the highest-attack friend that
+  *lacks* the keyword, never wasting the grant. Enemy strength softened for turns 1–4 (ramp 0.30→1.0
+  over waves 1–7, width tracks the wave); greedy bot climbs to ~wave 8–10.
+- **Card UX** (`dedf1b5` + styles in `195f2ca`): the name now sits as a pill on the bottom of the
+  art with the keyword/text area below it (more room for legible text). Removed the result toast bar
+  above the Omen. The drag-ghost positions via GPU transform (clean 150ms snap-back instead of a
+  juddery left/top animation) with a small follow-lag + tilt for felt weight.
+- **Repo conventions**: README carries a Recent-changes + Short-term-roadmap summary; CLAUDE.md gains
+  a rule to keep README/devlog/roadmap current each commit, and a rule to ask clarifying questions on
+  ambiguous asks. (The private GitHub repo `kcodea/ascent` was created earlier in the day.)
+
 ### UI fixes: button layering, no text-select/right-click, cursor + timer behavior (`a2c7b19`)
 - **Shop controls layering** — the Refresh/Freeze/Tier/End Turn bar now sits above the tavern cards
   (`position:relative; z-index:6` + 16px clearance, tavern row aligned `flex-start`). The tall 264px

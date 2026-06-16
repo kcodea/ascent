@@ -5,6 +5,13 @@ ever-rising curve of **threat-typed** enemy boards. Survive as long as you can; 
 survived. Endless ascension, **bounded engine** (6 tiers, gold cap 10, board 7), threat telegraph
 before each shop.
 
+## Working with the user
+
+**Ask clarifying questions whenever a direction is confusing or you're unsure what's wanted for a
+specific ask** — don't guess at ambiguous UI/UX or design intent and build the wrong thing. Use the
+question tool for genuine forks (the user's call); for the rest, state your assumption and proceed.
+When you do make a judgement call on a fuzzy ask, flag it in your summary so the user can correct it.
+
 ## What is locked vs open
 
 - **LOCKED — game rules & content** (per the user's Build Handoff v2): economy, combat
@@ -100,7 +107,10 @@ Two living docs track the project's history and queue. **Every commit must updat
 - **`docs/roadmap.md`** — the forward queue, broken down by milestone/section (M2 remaining, M3, M4)
   plus a Backlog/Ideas section. When you finish something, move it out of the queue (it's now in the
   devlog); when you discover new work, add it under the right section. Keep it honest and current.
+- **`README.md`** — keep its **Recent changes** (the latest few highlights) and **Short-term
+  roadmap** sections current, so the repo's front page shows at a glance what just changed and
+  what's next.
 
 The `## Milestones` list above stays a high-level summary; the granular, always-current queue lives
 in `docs/roadmap.md`. Order of operations for a commit: make the change → update `docs/devlog.md` +
-`docs/roadmap.md` → commit them together.
+`docs/roadmap.md` + the README summary → commit them together.

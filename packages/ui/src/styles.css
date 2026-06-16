@@ -94,6 +94,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .tavernbox { display: inline-flex; align-items: center; gap: 6px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; padding: 0 22px; border-radius: 15px; background: var(--bg2); color: var(--ink2); border: 2px dashed var(--line); }
 .tavernbox b { color: var(--acc-dk); }
 .warband-hint { color: var(--ink3); font-family: 'Outfit'; font-weight: 700; font-size: 13px; letter-spacing: 0.02em; }
+/* burning rope — the last 15s of the turn, above the warband */
+.rope { position: relative; flex: none; height: 9px; margin: -2px 14px 2px; border-radius: 5px; overflow: visible; background: repeating-linear-gradient(45deg, #cf9f5d 0 5px, #b3863f 5px 10px); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); }
+.rope-lit { position: absolute; left: 0; top: 0; bottom: 0; background: #2a1c10; border-radius: 5px 0 0 5px; transition: width 1s linear; }
+.rope-flame { position: absolute; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff9a2e 45%, rgba(255, 80, 20, 0.6) 70%, transparent 74%); box-shadow: 0 0 14px 5px rgba(255, 140, 40, 0.7); transition: left 1s linear; animation: flicker 0.16s steps(2) infinite; }
+@keyframes flicker { 0% { opacity: 0.82; transform: translate(-50%, -50%) scale(0.95); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); } }
 .btn.big svg { width: 23px; height: 23px; }
 .btn.big .c { font-size: 17px; }
 .btn.big.endturn { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
@@ -123,6 +128,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .art canvas { max-width: 84%; max-height: 86%; }
 .cost { position: absolute; top: 5px; left: 5px; width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 2px solid var(--acc); font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); display: grid; place-items: center; z-index: 4; }
 .tierbadge { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 10px; border-radius: 7px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
+/* Taunt: a steel shield ward — this minion is a wall enemies must hit first */
+.card.taunt { box-shadow: 0 0 0 2px #5f6a8a, 0 3px 0 var(--shadow); }
+.tauntward { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; background: #5f6a8a; border: 2px solid var(--card); display: grid; place-items: center; z-index: 4; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25); }
+.tauntward svg { width: 15px; height: 15px; color: #fff; }
 .cfoot { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: color-mix(in srgb, var(--c) 14%, var(--card)); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; }
 .atk, .hp { flex: none; width: 30px; height: 30px; border-radius: 9px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; color: #fff; display: flex; align-items: center; justify-content: center; }
 .atk { background: var(--atk); } .hp { background: var(--hpc); }
@@ -239,7 +248,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .side .rl { flex: 1; height: 2px; border-radius: 2px; }
 .side.foe { color: var(--threat-dk); } .side.foe .rl { background: linear-gradient(90deg, var(--threat), transparent); }
 .side.you { color: var(--acc-dk); justify-content: flex-end; } .side.you .rl { background: linear-gradient(90deg, transparent, var(--acc)); }
-.line { display: flex; gap: 14px; justify-content: center; align-items: center; padding: 8px 0; border-radius: 18px; min-height: 0; }
+.line { display: flex; gap: 14px; justify-content: center; align-items: center; padding: 8px 0; border-radius: 18px; min-height: 272px; }
 .line.foe { background: color-mix(in srgb, var(--threat) 8%, transparent); }
 .line.you { background: color-mix(in srgb, var(--acc) 9%, transparent); }
 .clash { height: 38px; display: flex; align-items: center; justify-content: center; gap: 14px; }
@@ -299,13 +308,16 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card:focus-visible, .btn:focus-visible, .hero:focus-visible, .climb:focus-visible, .skip:focus-visible, .over .btn:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
 .ares { position: absolute; top: 4px; left: 0; font-family: 'Outfit'; font-weight: 800; font-size: 13px; color: var(--threat-dk); display: flex; align-items: center; gap: 6px; }
 .ares svg { width: 16px; height: 16px; color: var(--threat); }
-.float { position: absolute; top: -12px; left: 50%; font-family: 'Outfit'; font-weight: 900; font-size: 24px; pointer-events: none; z-index: 6; white-space: nowrap; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); animation: floatup 1s ease forwards; }
-.float.dmg { color: #fff; background: var(--threat); padding: 0 8px; border-radius: 9px; font-size: 19px; }
+.float { position: absolute; top: -22px; left: 50%; font-family: 'Outfit'; font-weight: 900; font-size: 34px; pointer-events: none; z-index: 12; white-space: nowrap; text-shadow: 0 2px 5px rgba(0, 0, 0, 0.45); animation: floatup 1s ease forwards; }
+.float.dmg { color: #fff; background: var(--threat); padding: 2px 12px; border-radius: 11px; font-size: 30px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
 .float.poison { color: var(--t-undead); }
 .float.shield { color: var(--acc-dk); }
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }
-.float.buff { color: #fff; background: var(--acc); padding: 0 8px; border-radius: 9px; font-size: 17px; }
+.float.buff { color: #fff; background: #1aa86f; padding: 2px 11px; border-radius: 11px; font-size: 26px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
+/* the struck minion's HP badge flares when it takes damage */
+.unit.struck .hp { animation: hpflash 0.45s ease; }
+@keyframes hpflash { 0%, 100% { transform: none; box-shadow: none; } 40% { transform: scale(1.45); box-shadow: 0 0 14px 3px var(--threat); filter: brightness(1.25); } }
 @keyframes floatup { 0% { opacity: 0; transform: translate(-50%, 8px); } 14% { opacity: 1; } 62% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -38px); } }
 .unit.dying .card { animation: dyingpop 0.42s ease; }
 @keyframes dyingpop { 0% { transform: scale(1); } 35% { transform: scale(1.14); filter: brightness(1.4); } 100% { transform: scale(0.7); } }

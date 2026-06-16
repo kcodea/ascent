@@ -86,7 +86,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}`}
       style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
@@ -109,6 +109,9 @@ export function Card({
       onDrop={onDrop}
     >
       {card.tier !== undefined && <span className="tierbadge">Tier {card.tier}</span>}
+      {card.keywords.includes('T') && (
+        <span className="tauntward" aria-hidden="true"><Icon name="taunt" /></span>
+      )}
       <div className="art">
         {card.cost !== undefined && <span className="cost">{card.cost}</span>}
         <Sprite name={spriteForTribe(card.tribe)} scale={5} />

@@ -299,6 +299,13 @@ export function Recruit() {
         </div>
       </div>
 
+      {seconds <= 15 && (
+        <div className="rope" title={`${seconds}s left`}>
+          <div className="rope-lit" style={{ width: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
+          <div className="rope-flame" style={{ left: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
+        </div>
+      )}
+
       <div className="zone" data-zone="warband">
         <div className="zh">
           <span className="zt disp">

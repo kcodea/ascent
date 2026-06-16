@@ -126,13 +126,21 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card { position: relative; flex: 0 0 190px; width: 190px; height: 264px; background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 3px 0 var(--shadow); transition: transform 0.12s, border-color 0.12s; animation: cardpop 0.26s ease; }
 .card:hover { transform: translateY(-3px); border-color: var(--acc); z-index: 20; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
-.art { position: relative; flex: 0 0 50%; min-height: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 18%, var(--card)); border-radius: 11px 11px 0 0; }
+.art { position: relative; flex: 0 0 50%; min-height: 0; overflow: hidden; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 18%, var(--card)); border-radius: 11px 11px 0 0; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */
 .art canvas { max-width: 84%; max-height: 86%; }
-/* illustrated art (art/minions/<id>.png) fills the panel edge-to-edge, replacing the sprite */
-.artimg { width: 100%; height: 100%; object-fit: cover; object-position: center top; border-radius: 11px 11px 0 0; display: block; -webkit-user-drag: none; user-select: none; }
+/* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
+   size it to the square's width-driven height and overflow onto the text below) */
+.artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; -webkit-user-drag: none; user-select: none; }
 .cost { position: absolute; top: 5px; left: 5px; width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 2px solid var(--acc); font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); display: grid; place-items: center; z-index: 4; }
 .tierbadge { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 10px; border-radius: 7px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
+/* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
+.tierbadge[data-tier="1"] { background: #74809a; }
+.tierbadge[data-tier="2"] { background: #1f9d6b; }
+.tierbadge[data-tier="3"] { background: #2b82d4; }
+.tierbadge[data-tier="4"] { background: #7b54c8; }
+.tierbadge[data-tier="5"] { background: #ef8a25; }
+.tierbadge[data-tier="6"] { background: #e0395f; }
 /* Taunt: a steel shield ward — this minion is a wall enemies must hit first */
 .card.taunt { box-shadow: 0 0 0 2px #5f6a8a, 0 3px 0 var(--shadow); }
 .tauntward { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; background: #5f6a8a; border: 2px solid var(--card); display: grid; place-items: center; z-index: 4; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25); }
@@ -178,8 +186,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
 /* custom drag: a solid card follows the cursor; the source dims; invalid drops snap back */
-.dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); transition: transform 0.05s ease-out; }
-.dragcard.snap { transition: transform 0.15s ease; }
+.dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); transition: none; will-change: transform; }
+.dragcard.snap { transition: transform 0.16s cubic-bezier(0.34, 1.2, 0.64, 1); }
 .dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
 /* Magnetic: electric crackle while a Cling Drone hovers a friendly Mech (will merge on drop) */
 .dragcard.electric .card { animation: crackle 0.28s ease-in-out infinite; }
@@ -197,6 +205,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .zone.sellglow .row { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: 0 0 0 3px var(--acc), 0 0 24px -2px color-mix(in srgb, var(--acc) 75%, transparent); border-radius: 16px; }
 .zone.sellglow .row::after { content: 'Sell +1'; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; color: var(--acc-dk); text-transform: uppercase; }
 .zone[data-zone='tavern'] .row { position: relative; transition: box-shadow 0.12s, background 0.12s; }
+/* valid drop target (buy onto hand, play/reorder onto warband) — a soft accent frame */
+.zone.dropok .row { background: color-mix(in srgb, var(--acc) 9%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent); border-radius: 16px; transition: box-shadow 0.12s, background 0.12s; }
+/* live insertion bar — the exact slot a played / reordered minion will drop into */
+.row.warband { position: relative; }
+.dropmark { position: absolute; top: 10px; bottom: 10px; width: 4px; margin-left: -2px; border-radius: 3px; background: var(--acc); box-shadow: 0 0 10px 2px color-mix(in srgb, var(--acc) 70%, transparent); z-index: 30; pointer-events: none; transition: left 0.09s ease; animation: dropmarkin 0.12s ease; }
+@keyframes dropmarkin { from { opacity: 0; transform: scaleY(0.6); } to { opacity: 1; transform: scaleY(1); } }
 
 /* targeting line — Hero Power (and future single-target Battlecries) */
 .aimline { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 90; overflow: visible; }

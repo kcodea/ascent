@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-16
 
+### Drag precision pass + tier colours + art-covers-text fix
+- **Drag precision** (the headline ask — make dragging exact, clean, satisfying). Six fixes to the
+  pointer-drag in `Recruit.tsx`:
+  1. **Zero-lag tracking** — the floating card had a 50 ms `transition: transform` so it always
+     trailed the cursor; now it tracks instantly (the transition is kept only for the snap-back).
+  2. **Grab-point lock** — `scale(1.04)`/`rotate` pivoted around the card's corner, sliding the
+     grabbed point ~4 px off the cursor; `transform-origin` is now set to the exact grab point so the
+     card stays pinned under the pointer (rotate softened to 1.5°).
+  3. **Reorder off-by-one fix** — `warbandIndexAt` counted the dragged board card itself (it stays in
+     the DOM, dimmed), so a rightward/inward reorder overshot by one ("doesn't go where you think").
+     It now excludes the dragged card; verified live that dragging the left minion of three into the
+     middle lands it at index 1, not dumped at the end.
+  4. **Pointer capture** — `setPointerCapture` on press so move/up keep firing through fast flicks or
+     when the pointer leaves the window.
+  5. **Live insertion marker** — a glowing accent bar shows the exact slot a played / reordered minion
+     will drop into, sliding between cards as you move.
+  6. **Drop-zone glow** — the hand lights up when a shop card will buy, the warband when a card will
+     play / reorder (the tavern already had its gold sell glow).
+- **Tier colours** — the tier badge was dark on every card; tiers 1–6 now ramp cool→warm
+  (slate · green · blue · violet · orange · raspberry) via a `data-tier` attribute, so tier reads at
+  a glance. Applies in the shop, warband, and combat.
+- **Art covers text — fixed.** The illustration was rendering 186 px tall inside a 130 px art panel
+  (the grid auto-sized the square PNG to its *width*-driven height) and `​.art` had no `overflow:
+  hidden`, so it spilled 56 px down over the keyword chips + description. The image is now
+  absolutely positioned to fill its panel exactly and the panel clips — text sits cleanly below.
+  This was a CSS bug, **not** the asset size (512² is fine). Card size was left as-is on purpose:
+  growing height would break the three-rows-clear-the-StatusBar fit tuned last batch.
+- **Verified live** (drove a real run via synthetic pointer-drags): the art now fills its panel
+  exactly (measured), tier badges show distinct colours, the insertion marker renders at the correct
+  slot, 2- and 3-card reorders land precisely where aimed, no console errors. `typecheck` (+ web) +
+  `lint` + `test` (67) + `build:web` all pass.
+
 ### Illustrated art pipeline + more combat feel
 - **Art pipeline** — a per-card image override. A new `packages/ui/src/art.ts` enumerates
   `art/minions/*.png` at build time via `import.meta.glob` (keyed by filename = card id), and the

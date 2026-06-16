@@ -68,10 +68,13 @@ export function Recruit() {
     return (el?.getAttribute('data-zone') as Zone) ?? null;
   };
   // Insertion index in the warband, from the pointer's x against the cards' centres.
-  const warbandIndexAt = (x: number): number => {
-    const cards = [...document.querySelectorAll('[data-zone="warband"] .card')];
+  // `excludeUid` drops the dragged card from the count when *reordering* a board minion
+  // (it's still in the DOM, so without this a rightward drag overshoots by one).
+  const warbandIndexAt = (x: number, excludeUid?: string): number => {
+    const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]')];
     let i = 0;
     for (const c of cards) {
+      if (c.getAttribute('data-uid') === excludeUid) continue;
       const r = c.getBoundingClientRect();
       if (x > r.left + r.width / 2) i++;
     }
@@ -80,7 +83,11 @@ export function Recruit() {
 
   const beginDrag = (uid: string, source: DragSource, view: CardView) => (e: ReactPointerEvent) => {
     if (e.button !== 0 || timeUp) return; // no dragging once the turn timer is up
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const el = e.currentTarget as HTMLElement;
+    const r = el.getBoundingClientRect();
+    // capture the pointer so move/up keep firing even if it leaves the window or races
+    // ahead of the floating card — events still bubble to the window listeners.
+    try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
     setDrag({
       uid, source, view,
       ox: e.clientX - r.left, oy: e.clientY - r.top,
@@ -254,7 +261,7 @@ export function Recruit() {
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {
-      dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(x) });
+      dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(x, d.uid) });
       return true;
     }
     if ((d.source === 'board' || d.source === 'hand') && zone === 'tavern') {
@@ -274,6 +281,33 @@ export function Recruit() {
     drag.view.keywords.includes('M') &&
     overZone === 'warband' &&
     run.board[warbandIndexAt(drag.x)]?.tribe === 'mech';
+
+  // Live insertion marker — show exactly where a played / reordered minion will land.
+  const canDropWarband =
+    !!drag?.active &&
+    overZone === 'warband' &&
+    !wouldMagnetize &&
+    ((drag.source === 'hand' && run.board.length < CONFIG.boardMax) || drag.source === 'board');
+  const dropIndex = canDropWarband
+    ? warbandIndexAt(drag!.x, drag!.source === 'board' ? drag!.uid : undefined)
+    : -1;
+  // x of the insertion bar within the warband row (between the two cards it splits).
+  const dropMarkLeft = (): number => {
+    const row = document.querySelector('[data-zone="warband"] .row.warband');
+    if (!row) return 0;
+    const rowR = row.getBoundingClientRect();
+    const cards = [...row.querySelectorAll<HTMLElement>('.card[data-uid]')].filter(
+      (c) => !(drag?.source === 'board' && c.getAttribute('data-uid') === drag.uid),
+    );
+    if (cards.length === 0) return rowR.width / 2;
+    if (dropIndex <= 0) return cards[0]!.getBoundingClientRect().left - rowR.left - 7;
+    if (dropIndex >= cards.length) return cards[cards.length - 1]!.getBoundingClientRect().right - rowR.left + 7;
+    const a = cards[dropIndex - 1]!.getBoundingClientRect();
+    const b = cards[dropIndex]!.getBoundingClientRect();
+    return (a.right + b.left) / 2 - rowR.left;
+  };
+  // A shop card over the hand will buy it — glow the hand to confirm the drop target.
+  const canDropHand = !!drag?.active && drag.source === 'shop' && overZone === 'hand';
 
   return (
     <div className="app">
@@ -350,7 +384,7 @@ export function Recruit() {
         </div>
       )}
 
-      <div className="zone" data-zone="warband">
+      <div className={`zone${canDropWarband ? ' dropok' : ''}`} data-zone="warband">
         <div className="zh">
           <span className="zt disp">
             Your Warband · <b>{run.board.length}/{CONFIG.boardMax}</b>
@@ -360,6 +394,7 @@ export function Recruit() {
           </span>
         </div>
         <div className="row warband">
+          {canDropWarband && <span className="dropmark" style={{ left: dropMarkLeft() }} aria-hidden="true" />}
           {run.board.length === 0 && <div className="warband-hint">Drag minions up from your hand to play them here.</div>}
           {run.board.map((m) => (
             <Card
@@ -375,7 +410,7 @@ export function Recruit() {
         </div>
       </div>
 
-      <div className="zone" data-zone="hand">
+      <div className={`zone${canDropHand ? ' dropok' : ''}`} data-zone="hand">
         <div className="zh">
           <span className="zt disp">
             Your Hand · <b>{run.hand.length}</b>
@@ -406,7 +441,9 @@ export function Recruit() {
           style={{
             width: drag.w,
             height: drag.h,
-            transform: `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(1.04) rotate(-2deg)`,
+            // pivot scale/rotate around the exact grab point so the card stays under the cursor
+            transformOrigin: `${drag.ox}px ${drag.oy}px`,
+            transform: `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(1.04) rotate(-1.5deg)`,
           }}
         >
           <Card card={drag.view} />

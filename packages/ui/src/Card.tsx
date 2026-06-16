@@ -121,7 +121,7 @@ export function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      {card.tier !== undefined && <span className="tierbadge">Tier {card.tier}</span>}
+      {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
       {card.keywords.includes('T') && (
         <span className="tauntward" aria-hidden="true"><Icon name="taunt" /></span>
       )}

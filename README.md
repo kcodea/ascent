@@ -22,10 +22,16 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Drag feel** — a precision pass: the held card tracks the cursor with zero lag and stays pinned
+  to the grab point, a glowing bar marks the exact slot a minion will drop into, valid zones light
+  up, pointer-capture survives fast flicks, and reorders land where you aim (fixed an off-by-one that
+  overshot rightward drags).
+- **Tier colours** — the tier badge now ramps cool→warm across tiers 1–6 (slate→raspberry) so tier
+  reads at a glance.
 - **Illustrated art** — a per-card image pipeline: drop `<card-id>.png` into
   `packages/ui/src/art/minions/` and it replaces that card's pixel sprite in the shop, warband, and
   combat (falls back to the sprite when absent). First four illustrations are in (Ember Whelp,
-  Voracious Imp, Spare Part Drone, Doublecast Drummer).
+  Voracious Imp, Spare Part Drone, Doublecast Drummer); fixed the art overflowing onto the card text.
 - **Combat feel** — wind-up → impact attacks with snappier lunge easing, a death dissolve (dying
   minions crumple + fade), a white-hot impact spark on each hit, a win/lose scene tint when the
   replay settles, Divine-Shield gold aura + shatter-on-break, poison mist, Start-of-Combat projectile

@@ -49,6 +49,7 @@ export function Recruit() {
   const run = useGame((s) => s.run);
   const dispatch = useGame((s) => s.dispatch);
   const heroArmed = useGame((s) => s.heroArmed);
+  const armHero = useGame((s) => s.armHero);
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
@@ -142,31 +143,50 @@ export function Recruit() {
     return () => document.body.classList.remove('dragging');
   }, [drag?.active]);
 
-  // Hero Power targeting: while armed, draw a glowing line from the hero to the
-  // cursor, snapping to the friendly minion under it. (A future single-target
-  // Battlecry would reuse this — random/tribe-wide effects never arm targeting.)
+  // Hero Power targeting: arm by pressing the hero, then drag a glowing line to a
+  // friendly minion and release on it (anywhere on the card is a valid target);
+  // release off a minion to cancel. A plain click stays armed for a follow-up
+  // click. (A future single-target Battlecry would reuse this exact flow.)
   useEffect(() => {
     if (!heroArmed) {
       setAim(null);
       return;
     }
+    let moved = false;
+    const minionAt = (x: number, y: number): BoardCard | null => {
+      const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card');
+      if (!el) return null;
+      const cards = [...document.querySelectorAll('[data-zone="warband"] .row .card')];
+      return run.board[cards.indexOf(el)] ?? null;
+    };
     const move = (e: PointerEvent): void => {
+      moved = true;
       const f = document.querySelector('.statusbar .hero .f');
       if (!f) return;
       const r = f.getBoundingClientRect();
-      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-zone="warband"] .card');
+      const targetEl = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-zone="warband"] .row .card');
       let tx = e.clientX;
       let ty = e.clientY;
-      if (target) {
-        const cr = target.getBoundingClientRect();
+      if (targetEl) {
+        const cr = targetEl.getBoundingClientRect();
         tx = cr.left + cr.width / 2;
         ty = cr.top + cr.height / 2;
       }
-      setAim({ ox: r.left + r.width / 2, oy: r.top + r.height / 2, tx, ty, onTarget: !!target });
+      setAim({ ox: r.left + r.width / 2, oy: r.top + r.height / 2, tx, ty, onTarget: !!targetEl });
+    };
+    const up = (e: PointerEvent): void => {
+      if (!moved) return; // a plain click — stays armed for a follow-up click
+      const target = minionAt(e.clientX, e.clientY);
+      if (target && !timeUp) dispatch({ type: 'heroPower', uid: target.uid });
+      else armHero(); // released without a valid target — snaps back / cancels
     };
     window.addEventListener('pointermove', move);
-    return () => window.removeEventListener('pointermove', move);
-  }, [heroArmed]);
+    window.addEventListener('pointerup', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+  }, [heroArmed, run.board, timeUp, dispatch, armHero]);
 
   // Round timer: count down each recruit turn; at 0 the player is forced into
   // combat (paused while a Discover pick is open). UI-only — the engine is untimed.
@@ -324,8 +344,7 @@ export function Recruit() {
               highlight={heroArmed}
               dimmed={isDragging(m.uid)}
               buffed={buffedUids.has(m.uid)}
-              onClick={heroArmed && !timeUp ? () => dispatch({ type: 'heroPower', uid: m.uid }) : undefined}
-              onPointerDown={beginDrag(m.uid, 'board', instView(m))}
+              onPointerDown={heroArmed ? undefined : beginDrag(m.uid, 'board', instView(m))}
             />
           ))}
         </div>

@@ -37,8 +37,8 @@ export function StatusBar() {
 
       <div
         className={`hero${canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
-        title="Hero Power — Temper: once per wave, give a minion +1/+1. Click, then click a minion."
-        onClick={() => canHero && armHero()}
+        title="Hero Power — Temper: once per wave, give a minion +1/+1. Drag from here onto a minion (or click, then click a minion)."
+        onPointerDown={() => canHero && !heroArmed && armHero()}
       >
         <div className="f"><Icon name="anvil" /></div>
         <div>

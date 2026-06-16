@@ -31,6 +31,11 @@ const TRIBE_ICON: Record<Tribe, string> = {
 };
 
 const mdBold = (s: string): string => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+/** Golden (tripled) cards show their numbers doubled, e.g. "+1/+1" → "+2/+2", "deal 1" → "deal 2". */
+const doubleNums = (s: string): string =>
+  s
+    .replace(/\+(\d+)/g, (_m, n: string) => '+' + String(Number(n) * 2))
+    .replace(/\bdeal (\d+)/gi, (_m, n: string) => 'deal ' + String(Number(n) * 2));
 
 export interface CardView {
   name: string;
@@ -42,6 +47,8 @@ export interface CardView {
   cost?: number;
   golden?: boolean;
   tier?: number;
+  /** A non-minion spell card (e.g. the triple Discover) — hides the stat footer. */
+  spell?: boolean;
 }
 
 /** The one standardized card — identical size/shape in shop, warband, and hand. */
@@ -108,15 +115,26 @@ export function Card({
             ))}
           </div>
         )}
-        {card.text && <div className="desc" dangerouslySetInnerHTML={{ __html: mdBold(card.text) }} />}
+        {card.text && (
+          <div
+            className="desc"
+            dangerouslySetInnerHTML={{ __html: mdBold(card.golden ? doubleNums(card.text) : card.text) }}
+          />
+        )}
       </div>
       <div className="cfoot">
-        <span className="atk">{card.attack}</span>
-        <span className="ctype">
-          <Icon name={TRIBE_ICON[card.tribe]} />
-          {TRIBE_LABEL[card.tribe]}
-        </span>
-        <span className="hp">{card.health}</span>
+        {card.spell ? (
+          <span className="ctype spell">✦ Spell</span>
+        ) : (
+          <>
+            <span className="atk">{card.attack}</span>
+            <span className="ctype">
+              <Icon name={TRIBE_ICON[card.tribe]} />
+              {TRIBE_LABEL[card.tribe]}
+            </span>
+            <span className="hp">{card.health}</span>
+          </>
+        )}
       </div>
       {card.keywords.length > 0 && (
         <div className="tip" role="tooltip">

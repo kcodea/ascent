@@ -237,6 +237,23 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true);
   });
 
+  it('a golden minion fires its effect at doubled magnitude', () => {
+    const a = run(
+      [
+        { cardId: 'spore', attack: 1, health: 1, golden: true }, // golden Sporeling
+        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 5, health: 30, keywords: [] }],
+      5,
+    );
+    const buff = a.events.find((e) => e.type === 'buff');
+    expect(buff).toBeDefined();
+    if (buff?.type === 'buff') {
+      expect(buff.attack).toBe(2); // +1/+1 doubled to +2/+2
+      expect(buff.health).toBe(2);
+    }
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

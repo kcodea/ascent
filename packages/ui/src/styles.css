@@ -163,6 +163,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 @keyframes aimdash { to { stroke-dashoffset: -14; } }
 .ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 14px; height: 14px; color: var(--c); }
+.ctype.spell { flex: 1; color: var(--t-demon); font-size: 12px; }
 .statusbar { display: flex; align-items: center; justify-content: center; gap: 22px; flex: none; }
 .statusbar .hero { padding: 9px 28px 9px 9px; border-radius: 24px; gap: 18px; }
 .statusbar .hero .f { width: 108px; height: 108px; border-radius: 24px; }

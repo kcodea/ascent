@@ -26,9 +26,11 @@ function shopView(cardId: string): CardView {
 }
 function instView(inst: BoardCard): CardView {
   const c = CARD_INDEX[inst.cardId];
+  const spell = c.id === 'discoverspell';
   return {
     name: c.name, tribe: inst.tribe, attack: inst.attack, health: inst.health,
-    keywords: inst.keywords, text: c.text, golden: inst.golden, tier: c.tier,
+    keywords: inst.keywords, text: c.text, golden: inst.golden,
+    tier: spell ? undefined : c.tier, spell,
   };
 }
 
@@ -351,7 +353,7 @@ export function Recruit() {
         <div className="discover-ov" role="dialog" aria-label="Discover a card">
           <div className="discover-box">
             <div className="discover-title">
-              Triple! <b>Discover</b> a card to add to your hand.
+              <b>Discover</b> — choose a minion from the next tier.
             </div>
             <div className="discover-cards">
               {run.discover.map((id, i) => {

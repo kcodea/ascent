@@ -38,4 +38,16 @@ export const TOKENS: CardDef[] = [
     text: 'A 1/1 Demon Fodder token — meant to be eaten.',
     token: true,
   },
+  {
+    id: 'discoverspell',
+    name: 'Glimpse Beyond',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    effects: [],
+    text: '**Discover** a minion from the next tier up.',
+    token: true,
+  },
 ];

@@ -27,6 +27,7 @@ export function instantiate(
     keywords,
     divineShield: keywords.includes('DS'),
     rebornAvailable: keywords.includes('R'),
+    golden: board.golden ?? false,
     reAttackOnKill: card.effects.some((e) => e.do === 'reAttackOnKill'),
     side,
     effects: card.effects,

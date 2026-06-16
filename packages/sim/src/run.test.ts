@@ -320,7 +320,7 @@ describe('run loop (@game/sim)', () => {
     expect(imp?.health).toBe(3); // 2 + 1
   });
 
-  it('three copies combine into a golden 2x minion and grant a Discover', () => {
+  const threeSandbags = (): RunState => {
     const mk = (uid: string): BoardCard => ({
       uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false,
     });
@@ -328,12 +328,29 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'a' });
     s = reduce(s, { type: 'play', uid: 'b' });
     s = reduce(s, { type: 'play', uid: 'c' }); // the third completes the triple
+    return s;
+  };
+
+  it('three copies combine into a golden 2x minion in hand — no Discover yet', () => {
+    const s = threeSandbags();
     const golden = [...s.board, ...s.hand].find((c) => c.golden);
     expect(golden?.cardId).toBe('sandbag');
     expect(golden?.attack).toBe(0); // 0 × 2
     expect(golden?.health).toBe(8); // 4 × 2 (base stats doubled)
     expect([...s.board, ...s.hand].filter((c) => c.cardId === 'sandbag' && !c.golden).length).toBe(0);
-    expect(s.discover?.length).toBe(3); // the triple granted a Discover
+    expect(s.discover).toBeUndefined(); // the Discover comes from the spell, not the triple
+  });
+
+  it('playing the golden grants a Discover spell; playing that spell opens the Discover', () => {
+    let s = threeSandbags();
+    const golden = s.hand.find((c) => c.golden)!;
+    s = reduce(s, { type: 'play', uid: golden.uid }); // golden → board + Discover spell to hand
+    const spell = s.hand.find((c) => c.cardId === 'discoverspell');
+    expect(spell).toBeDefined();
+    expect(s.discover).toBeUndefined(); // not until the spell is played
+    s = reduce(s, { type: 'play', uid: spell!.uid });
+    expect(s.discover?.length).toBe(3);
+    expect(s.hand.some((c) => c.cardId === 'discoverspell')).toBe(false); // spell consumed, no board slot
   });
 
   it('Discover adds the chosen card to the hand and clears the offer', () => {
@@ -341,6 +358,19 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'discover', index: 1 });
     expect(s.hand.some((c) => c.cardId === 'cleric')).toBe(true);
     expect(s.discover).toBeUndefined();
+  });
+
+  it('a golden minion bakes its Battlecry in at doubled magnitude', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [{ uid: 'w', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: ['SC'], golden: false }],
+      hand: [{ uid: 'gc', cardId: 'cleric', tribe: 'dragon', attack: 2, health: 6, keywords: [], golden: true }],
+    };
+    s = reduce(s, { type: 'play', uid: 'gc' }); // golden Hoard Cleric: Dragons +2/+2 (doubled)
+    expect(s.board.find((c) => c.cardId === 'whelp')?.attack).toBe(4); // 2 + 2
+    expect(s.board.find((c) => c.cardId === 'whelp')?.health).toBe(3); // 1 + 2
   });
 
   it('a run draws 5 distinct tribes and the shop only offers them (+ neutral)', () => {

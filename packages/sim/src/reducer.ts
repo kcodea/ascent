@@ -52,6 +52,14 @@ export function reduce(state: RunState, action: Action): RunState {
       if (i < 0) return state;
       const card = s.hand[i]!;
 
+      // A Discover spell isn't a minion: playing it opens the Discover (a peek one
+      // tier up) and is consumed — no board slot.
+      if (card.cardId === 'discoverspell') {
+        s.hand.splice(i, 1);
+        offerDiscover(s, s.tier);
+        return s;
+      }
+
       // Magnetic (handoff A.4): a Cling Drone dropped directly onto a friendly
       // Mech merges its stats in instead of taking a board slot — so it works on
       // a full board and fires no summon-buff / Battlecry.
@@ -77,6 +85,18 @@ export function reduce(state: RunState, action: Action): RunState {
       s.board.splice(to, 0, card);
       playCard(s, card);
       checkTriples(s);
+      if (card.golden) {
+        // Playing a golden minion grants a Discover spell (peek one tier up).
+        s.hand.push({
+          uid: `b${s.uidSeq++}`,
+          cardId: 'discoverspell',
+          tribe: 'neutral',
+          attack: 0,
+          health: 1,
+          keywords: [],
+          golden: false,
+        });
+      }
       return s;
     }
 
@@ -218,7 +238,7 @@ function checkTriples(s: RunState): void {
       keywords: [...def.keywords],
       golden: true,
     });
-    offerDiscover(s, def.tier);
+    // The Discover isn't granted now — it comes from a spell when the golden is played.
   }
 }
 

@@ -33,13 +33,15 @@ type RecruitFn = (
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+/** Tripled minions bake their recruit buffs in at doubled magnitude. */
+const gold = (c: BoardCard): number => (c.golden ? 2 : 1);
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
   buffOnBuy: (_ctx, self, params, { minion }) => {
     if (minion === self) return;
-    minion.attack += num(params.attack);
-    minion.health += num(params.health);
+    minion.attack += num(params.attack) * gold(self);
+    minion.health += num(params.health) * gold(self);
   },
 
   /** Kennelmaster / Bristleback Matron: buff each summoned friend of `tribe`. */
@@ -47,15 +49,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (minion === self) return;
     const tribe = str(params.tribe);
     if (tribe && tribe !== 'any' && minion.tribe !== tribe) return;
-    minion.attack += num(params.attack);
-    minion.health += num(params.health);
+    minion.attack += num(params.attack) * gold(self);
+    minion.health += num(params.health) * gold(self);
   },
 
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
   battlecryBuffTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
-    const attack = num(params.attack);
-    const health = num(params.health);
+    const attack = num(params.attack) * gold(self);
+    const health = num(params.health) * gold(self);
     const includeSelf = params.includeSelf !== false;
     for (const card of ctx.state.board) {
       if (card.tribe !== tribe) continue;
@@ -101,8 +103,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Pactstone Acolyte / Ravening Glutton: on any friendly consume, grow. */
   onConsumeBuffSelf: (_ctx, self, params) => {
-    self.attack += num(params.attack);
-    self.health += num(params.health);
+    self.attack += num(params.attack) * gold(self);
+    self.health += num(params.health) * gold(self);
   },
 
   /** Maw of the Pit: on any friendly consume, gain a keyword (a Divine Shield). */

@@ -10,10 +10,13 @@ describe('content', () => {
     expect(Object.keys(CARD_INDEX).length).toBe(ALL_CARDS.length);
   });
 
-  it('every card conveys its meaning — body text or a keyword', () => {
+  it('every buyable card conveys its meaning — body text or a keyword', () => {
     // Keyword-only cards (e.g. a plain Taunt) ship empty text on purpose: the
     // keyword badge + hover tooltip carry the meaning. So a card must have one.
+    // Tokens are runtime filler (the Omen's stats/keywords come from the threat
+    // generator), so they're exempt.
     for (const card of ALL_CARDS) {
+      if (card.token) continue;
       expect(card.text.length > 0 || card.keywords.length > 0).toBe(true);
     }
   });

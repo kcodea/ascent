@@ -119,6 +119,8 @@ export interface Minion {
   keywords: Keyword[];
   divineShield: boolean;
   rebornAvailable: boolean;
+  /** Tripled minion — combat-time effects fire at doubled magnitude. */
+  golden: boolean;
   /** Derived combat capability (Gnasher): attacks again after a kill. */
   reAttackOnKill: boolean;
   side: Side;

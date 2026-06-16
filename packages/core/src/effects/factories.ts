@@ -18,6 +18,8 @@ export type EffectFn = (
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+/** Tripled minions fire their buff/damage effects at doubled magnitude. */
+const mul = (self: Minion): number => (self.golden ? 2 : 1);
 
 interface MinionPayload {
   minion: Minion;
@@ -53,15 +55,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || side !== self.side || minion === self) return;
     const tribe = str(params.tribe) as Tribe | 'any';
     if (tribe !== 'any' && minion.tribe !== tribe) return;
-    ctx.buff(minion, num(params.attack), num(params.health), self.uid);
+    ctx.buff(minion, num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
 
   /** Deathrattle: buff all living friends of `tribe` (+atk/+hp). */
   deathrattleBuffTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tribe = str(params.tribe) as Tribe | 'any';
-    const attack = num(params.attack);
-    const health = num(params.health);
+    const attack = num(params.attack) * mul(self);
+    const health = num(params.health) * mul(self);
     for (const m of ctx.living(self.side)) {
       if (tribe === 'any' || m.tribe === tribe) ctx.buff(m, attack, health, self.uid);
     }
@@ -84,7 +86,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const targets = ctx.living(foe);
     if (targets.length === 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} strikes` });
-    const amount = num(params.amount, 1);
+    const amount = num(params.amount, 1) * mul(self);
     const mode = str(params.target) || 'leftmost';
     if (mode === 'all') {
       for (const t of targets) ctx.damage(t, amount);
@@ -113,8 +115,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     if (ctx.living(foe).length === 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rains fire` });
-    const base = num(params.base, 3);
-    const per = num(params.perTribe, 3);
+    const base = num(params.base, 3) * mul(self);
+    const per = num(params.perTribe, 3) * mul(self);
     const tribe = str(params.tribe) as Tribe;
     for (const t of ctx.living(foe)) ctx.damage(t, base);
     const others = ctx.living(self.side).filter((m) => m !== self && m.tribe === tribe).length;
@@ -132,7 +134,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if ((payload as MinionPayload).minion !== self) return;
     const friends = ctx.living(self.side);
     if (friends.length === 0) return;
-    ctx.buff(ctx.rng.pick(friends), num(params.attack), num(params.health), self.uid);
+    ctx.buff(ctx.rng.pick(friends), num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
 
   /** Rot Weaver: each time another friend dies, buff a random living friend. */
@@ -141,7 +143,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || minion === self || minion.side !== self.side) return;
     const friends = ctx.living(self.side);
     if (friends.length === 0) return;
-    ctx.buff(ctx.rng.pick(friends), num(params.attack), num(params.health), self.uid);
+    ctx.buff(ctx.rng.pick(friends), num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
 
   /** Deathrattle (Ghastweaver): fill the board with random cards from `pool`. */
@@ -190,15 +192,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     const targets = ctx.living(foe);
     if (targets.length === 0) return;
-    ctx.damage(ctx.rng.pick(targets), num(params.amount, 3));
+    ctx.damage(ctx.rng.pick(targets), num(params.amount, 3) * mul(self));
   },
 
   /** Junkyard Titan — when any friendly Shield breaks, give your minions +atk/+hp. */
   onShieldBreakBuffAll: (ctx, self, params, payload) => {
     const { side } = payload as MinionPayload;
     if (self.dead || side !== self.side) return;
-    const attack = num(params.attack, 1);
-    const health = num(params.health, 1);
+    const attack = num(params.attack, 1) * mul(self);
+    const health = num(params.health, 1) * mul(self);
     for (const m of ctx.living(self.side)) ctx.buff(m, attack, health, self.uid);
   },
 

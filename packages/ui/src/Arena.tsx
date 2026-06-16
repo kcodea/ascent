@@ -131,12 +131,14 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
 
 /** A combat unit — the same Card as recruit, wrapped for animations, floats, and the DS ring. */
 function Unit({
-  u, side, anim, floats,
+  u, side, anim, floats, lunge,
 }: {
   u: UnitFrame;
   side: 'foe' | 'you';
   anim?: string;
   floats?: { id: number; text: string; kind: string }[];
+  /** Inline transform that slides the attacker into its target. */
+  lunge?: string;
 }) {
   const cls = ['unit', side, u.alive ? '' : 'dead', u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const view: CardView = {
@@ -144,7 +146,7 @@ function Unit({
     keywords: u.keywords, text: CARD_INDEX[u.cardId]?.text ?? '', tier: CARD_INDEX[u.cardId]?.tier,
   };
   return (
-    <div className={cls}>
+    <div className={cls} data-uid={u.uid} style={lunge ? { transform: lunge, zIndex: 10 } : undefined}>
       <Card card={view} />
       {floats?.map((f) => (
         <span key={f.id} className={`float ${f.kind}`}>{f.text}</span>
@@ -195,6 +197,22 @@ export function Arena() {
   if (!combat) return null;
 
   const anims = animFor(step > 0 ? events[step - 1] : undefined);
+  // Slide the attacker into its target so it's clear where the blow landed.
+  const ae = step > 0 ? events[step - 1] : undefined;
+  let lungeUid: string | null = null;
+  let lungeTransform: string | undefined;
+  if (ae?.type === 'attack') {
+    const aEl = document.querySelector(`.ascene [data-uid="${ae.attacker}"]`);
+    const dEl = document.querySelector(`.ascene [data-uid="${ae.defender}"]`);
+    if (aEl && dEl) {
+      const ar = aEl.getBoundingClientRect();
+      const dr = dEl.getBoundingClientRect();
+      lungeUid = ae.attacker;
+      const dx = dr.left + dr.width / 2 - (ar.left + ar.width / 2);
+      const dy = dr.top + dr.height / 2 - (ar.top + ar.height / 2);
+      lungeTransform = `translate(${Math.round(dx * 0.62)}px, ${Math.round(dy * 0.62)}px) scale(1.05)`;
+    }
+  }
   let log = 'The boards take their positions…';
   for (let i = Math.min(step, events.length) - 1; i >= 0; i--) {
     const line = narrate(events[i], names);
@@ -219,13 +237,13 @@ export function Arena() {
         <div className="side foe"><span>The Omen</span><span className="rl" /></div>
         <div className="line foe">
           {frame.enemy.map((u) => (
-            <Unit key={u.uid} u={u} side="foe" anim={anims[u.uid]} floats={floatsFor(u.uid)} />
+            <Unit key={u.uid} u={u} side="foe" anim={anims[u.uid]} floats={floatsFor(u.uid)} lunge={u.uid === lungeUid ? lungeTransform : undefined} />
           ))}
         </div>
         <div className="clash"><span className="ln" /><span className="vs disp">VS</span><span className="ln" /></div>
         <div className="line you">
           {frame.player.map((u) => (
-            <Unit key={u.uid} u={u} side="you" anim={anims[u.uid]} floats={floatsFor(u.uid)} />
+            <Unit key={u.uid} u={u} side="you" anim={anims[u.uid]} floats={floatsFor(u.uid)} lunge={u.uid === lungeUid ? lungeTransform : undefined} />
           ))}
         </div>
         <div className="side you"><span className="rl" /><span>Your Warband</span></div>

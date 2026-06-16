@@ -221,8 +221,6 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .kb { position: absolute; top: -10px; right: -10px; display: flex; gap: 4px; }
 .kb i { width: 24px; height: 24px; border-radius: 50%; background: var(--c); display: grid; place-items: center; border: 3px solid var(--bg); }
 .kb i svg { width: 13px; height: 13px; color: #fff; }
-.line.you .unit.attacking { transform: translateY(-24px) scale(1.06); z-index: 5; }
-.line.foe .unit.attacking { transform: translateY(24px) scale(1.06); z-index: 5; }
 .unit.attacking .card { box-shadow: 0 0 0 3px var(--acc), 0 3px 0 var(--shadow); }
 .unit.ds .card::after { content: ''; position: absolute; inset: -6px; border-radius: 18px; border: 3px solid var(--acc); pointer-events: none; }
 .unit.struck .card { animation: struck 0.32s ease; }

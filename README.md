@@ -22,16 +22,15 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Combat read** — attacks play as wind-up → impact (attacker and target take damage together),
-  dead minions are removed, ~25% slower; flair for Divine Shield (golden aura), poison (green mist),
-  Start of Combat, in-combat buffs, and Cleave; stats above/below base render green/red.
+- **Combat feel** — wind-up → impact attacks, dead minions removed (not greyed), Divine-Shield gold
+  aura, poison mist, Start-of-Combat projectile bolts, Taunt shield wards, big damage floats + HP
+  flashes, and a synthesized SFX bank with a mute toggle.
+- **Recruit** — a Tavern-Tier box in the control bar, a slot-free warband that FLIP-shuffles when it
+  reorders, a burning rope in the last 15 s, drag-to-target Hero Power, green/red stat colours.
+- **Fixes** — tripling keeps buffs + keywords (sum of the top two stats); Doublecast Drummer & Echo
+  Warden now work; embers uncapped within a turn; early waves softened.
 - **HUD** — Embers · Forgewarden · Resolve rooted at the bottom across recruit and combat; "End
   Combat" at the top-centre; a Resolve loss flashes the chip; the Hero Power pulses when ready.
-- **Card UX** — fixed 1:1 card size; name on the art; even row spacing; a 30s turn timer that locks
-  actions (except End Turn) at zero; transform-based drag (clean snap-back + a little weight);
-  Magnetic merge crackles with electricity.
-- **Rules/balance** — embers uncapped within a turn (sell always pays); keyword grants skip minions
-  that already have the keyword; early waves softened.
 
 ## Short-term roadmap
 

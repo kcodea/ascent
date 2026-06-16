@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-16
 
+### Triple/Drummer/Echo fixes + combat & recruit polish + SFX
+- **Engine fixes** (`7c6945a`): tripling now combines the three copies' *current* stats — the sum of
+  the two highest attacks and two highest healths — and unions all their keywords (so a buffed /
+  Poison / Divine-Shield copy keeps it), instead of resetting to 2× base. Doublecast Drummer now
+  makes Battlecries fire one extra time per Drummer. Echo Warden now works in combat (friendly
+  summons fire one extra time per Echo); its text reads "In combat, …".
+- **Recruit layout** (`2f57101`): a shaded, non-clickable "Tavern · Tier N" box was added to the
+  control row; the warband dropped its fixed "Empty" slots (renders just the played minions with a
+  hint when empty); the keyword legend strip was removed.
+- **Combat polish** (`5dac9c8`): Taunt minions wear a steel shield ward; damage/buff floats are much
+  larger and the struck minion's HP badge flares; combat lines hold a static height; a burning rope
+  appears in the last 15 s of a turn above the warband. Plus a Start-of-Combat **projectile** bolt
+  (`6e8e285`) that flies from the caster to each target it hits.
+- **Targeting** (`fe502a6`): the Hero Power is now drag-to-target — press the Forgewarden, drag the
+  aim line onto a friendly minion, release to Temper it (the whole card is the target); release off
+  to cancel. A plain click still arms. The same flow is ready for a single-target Battlecry.
+- **Shuffle** (`4374ef7`): the warband FLIP-slides cards into place when it reorders (play / summon /
+  sell / reposition); magnetic merges don't reorder so they don't shuffle.
+- **SFX** (`1f1fe87`): a synthesized Web Audio sound bank (no asset files) for recruit actions,
+  combat beats, triples, and win/lose, with a mute toggle (persisted) in the HUD.
+
+
 ### Combat overhaul + flair, stat colours, persistent HUD, even layout
 - **Combat read cleanup** (`cacae5e`): attacks now play as a clear wind-up (the attacker lunges in,
   no damage) then an impact beat (it and its target take damage together, dead removed), instead of

@@ -63,7 +63,7 @@ export const DEMONS: CardDef[] = [
     health: 5,
     keywords: ['T'],
     effects: [{ on: 'onConsume', do: 'onConsumeGrantSelfKeyword', params: { keyword: 'DS' } }],
-    text: 'On consume, gain a **Divine Shield**. Has Taunt.',
+    text: 'On consume, gain a **Divine Shield**.',
   },
   {
     id: 'glut',
@@ -74,7 +74,7 @@ export const DEMONS: CardDef[] = [
     health: 5,
     keywords: ['C', 'CN'],
     effects: [{ on: 'onConsume', do: 'onConsumeBuffSelf', params: { attack: 2, health: 2 } }],
-    text: 'On consume, gain **+2/+2**. **Cleave** hits beside its target.',
+    text: 'On consume, gain **+2/+2**.',
   },
   {
     id: 'sov',

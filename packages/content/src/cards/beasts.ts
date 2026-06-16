@@ -30,7 +30,7 @@ export const BEASTS: CardDef[] = [
     health: 2,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'pup', count: 2 } }],
-    text: '**Deathrattle:** when it dies, summon two 1/1 Pups.',
+    text: '**Deathrattle:** summon two 1/1 Pups.',
   },
   {
     id: 'kennel',
@@ -52,7 +52,7 @@ export const BEASTS: CardDef[] = [
     health: 4,
     keywords: ['C'],
     effects: [],
-    text: '**Cleave** — when it attacks, also hits the minions beside its target.',
+    text: '',
   },
   {
     id: 'matron',

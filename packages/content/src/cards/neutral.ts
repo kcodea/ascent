@@ -16,7 +16,7 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: ['T'],
     effects: [],
-    text: '**Taunt** — enemies must attack this first. A cheap wall to protect your other minions.',
+    text: '',
   },
   {
     id: 'broker',

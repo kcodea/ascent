@@ -19,7 +19,7 @@ export const MECHS: CardDef[] = [
     health: 1,
     keywords: ['DS'],
     effects: [],
-    text: '**Divine Shield** — blocks the first hit it takes.',
+    text: '',
   },
   {
     id: 'cling',
@@ -30,7 +30,7 @@ export const MECHS: CardDef[] = [
     health: 2,
     keywords: ['M'],
     effects: [],
-    text: '**Magnetic** — merge onto a Mech to add its stats.',
+    text: '',
   },
   {
     id: 'selfless',

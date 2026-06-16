@@ -10,8 +10,12 @@ describe('content', () => {
     expect(Object.keys(CARD_INDEX).length).toBe(ALL_CARDS.length);
   });
 
-  it('every card ships non-empty newcomer text', () => {
-    for (const card of ALL_CARDS) expect(card.text.length).toBeGreaterThan(0);
+  it('every card conveys its meaning — body text or a keyword', () => {
+    // Keyword-only cards (e.g. a plain Taunt) ship empty text on purpose: the
+    // keyword badge + hover tooltip carry the meaning. So a card must have one.
+    for (const card of ALL_CARDS) {
+      expect(card.text.length > 0 || card.keywords.length > 0).toBe(true);
+    }
   });
 
   it('Deathrattle-summon effects reference tokens that exist', () => {

@@ -10,6 +10,18 @@ const KW_LABEL: Record<Keyword, string> = {
 const KW_ICON: Partial<Record<Keyword, string>> = {
   T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc',
 };
+/** Plain-language keyword meanings, revealed in the hover tooltip (handoff A.4). */
+const KW_DESC: Record<Keyword, string> = {
+  T: 'Taunt — Enemies must attack this minion first.',
+  DS: 'Divine Shield — Blocks the first hit it takes.',
+  P: 'Poison — Destroys any minion it damages.',
+  W: 'Windfury — Attacks twice each combat turn.',
+  R: 'Reborn — The first time it dies, it returns with 1 Health.',
+  C: 'Cleave — Also hits the minions beside its target.',
+  M: 'Magnetic — Drag onto a friendly Mech to merge its stats in.',
+  SC: 'Start of Combat — Triggers once, right before the fight begins.',
+  CN: 'Consume — Eats one of your minions to add its stats.',
+};
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
 };
@@ -88,7 +100,7 @@ export function Card({
             ))}
           </div>
         )}
-        <div className="desc" dangerouslySetInnerHTML={{ __html: mdBold(card.text) }} />
+        {card.text && <div className="desc" dangerouslySetInnerHTML={{ __html: mdBold(card.text) }} />}
       </div>
       <div className="cfoot">
         <span className="atk">{card.attack}</span>
@@ -98,6 +110,15 @@ export function Card({
         </span>
         <span className="hp">{card.health}</span>
       </div>
+      {card.keywords.length > 0 && (
+        <div className="tip" role="tooltip">
+          {card.keywords.map((k) => (
+            <div className="tiprow" key={k}>
+              {KW_DESC[k]}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -73,6 +73,8 @@ export const CardDefSchema = z.object({
   health: z.number().int().positive(),
   keywords: z.array(KeywordSchema),
   effects: z.array(EffectDefSchema),
-  text: z.string().min(1),
+  // Body text is mechanical-only and may be empty for keyword-only cards
+  // (the keyword badge + hover tooltip carry the meaning).
+  text: z.string(),
   token: z.boolean().optional(),
 });

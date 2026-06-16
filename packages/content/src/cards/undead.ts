@@ -38,7 +38,7 @@ export const UNDEAD: CardDef[] = [
     health: 2,
     keywords: ['R'],
     effects: [],
-    text: '**Reborn** — the first time it dies, it returns with 1 Health.',
+    text: '',
   },
   {
     id: 'rot',
@@ -60,7 +60,7 @@ export const UNDEAD: CardDef[] = [
     health: 4,
     keywords: ['P'],
     effects: [],
-    text: '**Poison** — destroys any minion it damages. Melts giant Taunts.',
+    text: '',
   },
   {
     id: 'plague',

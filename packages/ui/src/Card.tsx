@@ -49,7 +49,14 @@ export interface CardView {
   tier?: number;
   /** A non-minion spell card (e.g. the triple Discover) — hides the stat footer. */
   spell?: boolean;
+  /** Base (printed) stats — stats above base render green, below base render red. */
+  baseAttack?: number;
+  baseHealth?: number;
 }
+
+/** Green when a stat is above its base, red when below — for at-a-glance buffs/damage. */
+const statCls = (cur: number, base?: number): string =>
+  base === undefined || cur === base ? '' : cur > base ? ' up' : ' down';
 
 /** The one standardized card — identical size/shape in shop, warband, and hand. */
 export function Card({
@@ -127,12 +134,12 @@ export function Card({
           <span className="ctype spell">✦ Spell</span>
         ) : (
           <>
-            <span className="atk">{card.attack}</span>
+            <span className={`atk${statCls(card.attack, card.baseAttack)}`}>{card.attack}</span>
             <span className="ctype">
               <Icon name={TRIBE_ICON[card.tribe]} />
               {TRIBE_LABEL[card.tribe]}
             </span>
-            <span className="hp">{card.health}</span>
+            <span className={`hp${statCls(card.health, card.baseHealth)}`}>{card.health}</span>
           </>
         )}
       </div>

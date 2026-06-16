@@ -128,11 +128,11 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'attack': return { [e.attacker]: 'attacking' };
     case 'dmg': return { [e.target]: 'struck' };
     case 'shield': return { [e.target]: 'flare' };
-    case 'shieldUp': return { [e.target]: 'flare' };
+    case 'shieldUp': return { [e.target]: 'shieldgain' };
     case 'poison': return { [e.target]: 'poisoned' };
-    case 'reborn': return { [e.target]: 'flare' };
-    case 'buff': return { [e.target]: 'flare' };
-    case 'sc': return { [e.source]: 'flare' };
+    case 'reborn': return { [e.target]: 'reborn' };
+    case 'buff': return { [e.target]: 'buffed' };
+    case 'sc': return { [e.source]: 'sccast' };
     case 'death': return { [e.target]: 'dying' };
     default: return {};
   }
@@ -183,6 +183,7 @@ function Unit({
   const view: CardView = {
     name: u.name, tribe: u.tribe, attack: u.attack, health: Math.max(0, u.health),
     keywords: u.keywords, text: CARD_INDEX[u.cardId]?.text ?? '', tier: CARD_INDEX[u.cardId]?.tier,
+    baseAttack: CARD_INDEX[u.cardId]?.attack, baseHealth: CARD_INDEX[u.cardId]?.health,
   };
   return (
     <div className={cls} data-uid={u.uid} style={lunge ? { transform: lunge, zIndex: 10 } : undefined}>
@@ -281,7 +282,8 @@ export function Arena() {
   if (lungeRef.current) {
     lungeUid = lungeRef.current.uid;
     lungeTransform = lungeRef.current.transform;
-    anims[lungeUid] = 'attacking';
+    const atk = frame.player.find((u) => u.uid === lungeUid) ?? frame.enemy.find((u) => u.uid === lungeUid);
+    anims[lungeUid] = atk?.keywords.includes('C') ? 'attacking cleaving' : 'attacking';
   }
 
   let log = 'The boards take their positions…';

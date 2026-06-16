@@ -21,6 +21,7 @@ function shopView(cardId: string): CardView {
   return {
     name: c.name, tribe: c.tribe, attack: c.attack, health: c.health,
     keywords: c.keywords, text: c.text, cost: CONFIG.minionCost, tier: c.tier,
+    baseAttack: c.attack, baseHealth: c.health,
   };
 }
 function instView(inst: BoardCard): CardView {
@@ -30,6 +31,8 @@ function instView(inst: BoardCard): CardView {
     name: c.name, tribe: inst.tribe, attack: inst.attack, health: inst.health,
     keywords: inst.keywords, text: c.text, golden: inst.golden,
     tier: spell ? undefined : c.tier, spell,
+    baseAttack: inst.golden ? c.attack * 2 : c.attack,
+    baseHealth: inst.golden ? c.health * 2 : c.health,
   };
 }
 

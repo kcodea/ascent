@@ -122,6 +122,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .cfoot { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: color-mix(in srgb, var(--c) 14%, var(--card)); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; }
 .atk, .hp { flex: none; width: 30px; height: 30px; border-radius: 9px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; color: #fff; display: flex; align-items: center; justify-content: center; }
 .atk { background: var(--atk); } .hp { background: var(--hpc); }
+/* stats above base read green, below base read red */
+.atk.up, .hp.up { background: #1aa86f; }
+.atk.down, .hp.down { background: #d23b2b; }
 .cbody { padding: 0 9px 8px; margin-top: -20px; position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .cn { align-self: center; max-width: 100%; font-family: 'Outfit'; font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 .kws { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin: 6px 0 4px; }
@@ -225,13 +228,36 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .kb i { width: 24px; height: 24px; border-radius: 50%; background: var(--c); display: grid; place-items: center; border: 3px solid var(--bg); }
 .kb i svg { width: 13px; height: 13px; color: #fff; }
 .unit.attacking .card { box-shadow: 0 0 0 3px var(--acc), 0 3px 0 var(--shadow); }
-.unit.ds .card::after { content: ''; position: absolute; inset: -6px; border-radius: 18px; border: 3px solid var(--acc); pointer-events: none; }
 .unit.struck .card { animation: struck 0.32s ease; }
-.unit.poisoned .card { animation: poisonpop 0.5s ease; }
-.unit.flare .card { animation: flare 0.5s ease; }
 @keyframes struck { 0%, 100% { transform: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.25); } }
-@keyframes poisonpop { 0%, 100% { filter: none; } 50% { filter: hue-rotate(70deg) brightness(1.2); } }
+.unit.flare .card { animation: flare 0.5s ease; }
+.unit.reborn .card { animation: flare 0.5s ease; }
 @keyframes flare { 0% { filter: brightness(1.9); } 100% { filter: none; } }
+
+/* Divine Shield: a golden aura, lost when it breaks, granted on shieldUp */
+.unit.ds .card { box-shadow: 0 0 0 3px #f4cf6a, 0 0 18px 1px rgba(244, 207, 106, 0.7), 0 3px 0 var(--shadow); }
+.unit.ds .card::after { content: ''; position: absolute; inset: -7px; border-radius: 19px; border: 2px solid #f4cf6a; pointer-events: none; animation: aurapulse 1.8s ease-in-out infinite; }
+@keyframes aurapulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.unit.shieldgain .card { animation: shieldgain 0.6s ease; }
+@keyframes shieldgain { 0% { box-shadow: 0 0 0 12px rgba(244, 207, 106, 0); } 40% { box-shadow: 0 0 0 5px #f4cf6a, 0 0 28px 5px rgba(244, 207, 106, 0.9); } 100% { box-shadow: 0 0 0 3px #f4cf6a, 0 3px 0 var(--shadow); } }
+
+/* Poison: a green mist creeping down over the unit */
+.unit.poisoned .card { animation: poisonpop 0.6s ease; }
+@keyframes poisonpop { 0%, 100% { filter: none; } 50% { filter: hue-rotate(70deg) brightness(1.2); } }
+.unit.poisoned::after { content: ''; position: absolute; inset: 0; border-radius: 13px; background: linear-gradient(180deg, transparent, rgba(34, 190, 134, 0.55)); pointer-events: none; z-index: 8; animation: mist 0.75s ease forwards; }
+@keyframes mist { 0% { opacity: 0; transform: translateY(-35%); } 35% { opacity: 1; } 100% { opacity: 0; transform: translateY(0); } }
+
+/* Start of Combat: a golden cast pulse on the source */
+.unit.sccast .card { animation: sccast 0.7s ease; }
+@keyframes sccast { 0% { filter: none; box-shadow: 0 3px 0 var(--shadow); } 45% { filter: brightness(1.45); box-shadow: 0 0 30px 7px rgba(240, 144, 46, 0.85); } 100% { filter: none; box-shadow: 0 3px 0 var(--shadow); } }
+
+/* Buff: a green pulse so a combat buff is felt */
+.unit.buffed .card { animation: buffpulse 0.6s ease; }
+@keyframes buffpulse { 0%, 100% { box-shadow: 0 3px 0 var(--shadow); transform: none; } 45% { box-shadow: 0 0 0 3px #22be86, 0 0 22px 3px rgba(34, 190, 134, 0.7); transform: scale(1.04); } }
+
+/* Cleave: a slash sweeping across the attacker */
+.unit.cleaving::before { content: ''; position: absolute; inset: -4px; z-index: 9; pointer-events: none; background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.92) 50%, transparent 58%); animation: cleaveswipe 0.45s ease; }
+@keyframes cleaveswipe { 0% { opacity: 0; transform: translateX(-28%); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateX(28%); } }
 .alog { flex: none; text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: 16px; color: var(--ink); min-height: 26px; padding: 10px 0; }
 .result { flex: none; display: flex; align-items: center; gap: 16px; justify-content: center; background: var(--card); border: 2px solid var(--line); border-radius: 15px; padding: 12px 18px; box-shadow: 0 4px 0 var(--shadow); }
 .verdict { font-family: 'Outfit'; font-weight: 900; font-size: 24px; letter-spacing: 0.06em; }

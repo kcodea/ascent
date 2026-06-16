@@ -1,5 +1,5 @@
 import { makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
@@ -42,6 +42,7 @@ export function reduce(state: RunState, action: Action): RunState {
       };
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
+      checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       return s;
     }
 
@@ -75,6 +76,7 @@ export function reduce(state: RunState, action: Action): RunState {
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
       playCard(s, card);
+      checkTriples(s);
       return s;
     }
 
@@ -132,6 +134,25 @@ export function reduce(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'discover': {
+      if (!s.discover) return state;
+      const id = s.discover[action.index];
+      const def = id ? CARD_INDEX[id] : undefined;
+      if (!def) return state;
+      s.hand.push({
+        uid: `b${s.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+      s.discover = undefined;
+      checkTriples(s); // the discovered copy might itself complete a triple
+      return s;
+    }
+
     case 'faceOmen': {
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
@@ -153,6 +174,72 @@ export function reduce(state: RunState, action: Action): RunState {
       return s;
     }
   }
+}
+
+/**
+ * Battlegrounds triple: three non-golden copies of a card (across hand + board)
+ * combine into one golden copy at 2× base stats, and the triple grants a
+ * Discover. Loops so a combine that frees a slot can reveal another triple.
+ */
+function checkTriples(s: RunState): void {
+  for (let guard = 0; guard < 10; guard++) {
+    const counts = new Map<string, number>();
+    for (const c of [...s.board, ...s.hand]) {
+      if (!c.golden) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+    }
+    let tripleId: string | undefined;
+    for (const [id, n] of counts) {
+      if (n >= 3) {
+        tripleId = id;
+        break;
+      }
+    }
+    if (!tripleId) return;
+
+    let removed = 0;
+    const pull = (arr: RunState['hand']): void => {
+      for (let i = arr.length - 1; i >= 0 && removed < 3; i--) {
+        if (arr[i]!.cardId === tripleId && !arr[i]!.golden) {
+          arr.splice(i, 1);
+          removed++;
+        }
+      }
+    };
+    pull(s.hand); // consume from the hand first, then the board
+    pull(s.board);
+
+    const def = CARD_INDEX[tripleId]!;
+    s.hand.push({
+      uid: `b${s.uidSeq++}`,
+      cardId: def.id,
+      tribe: def.tribe,
+      attack: def.attack * 2,
+      health: def.health * 2,
+      keywords: [...def.keywords],
+      golden: true,
+    });
+    offerDiscover(s, def.tier);
+  }
+}
+
+/** A triple grants a Discover: 3 distinct cards from one tier up (capped at maxTier). */
+function offerDiscover(s: RunState, tripleTier: number): void {
+  const target = Math.min(CONFIG.maxTier, tripleTier + 1);
+  let floor = target;
+  let pool: typeof BUYABLE_CARDS = [];
+  while (pool.length < 3 && floor >= 1) {
+    pool = BUYABLE_CARDS.filter((c) => c.tier <= target && c.tier >= floor);
+    floor--;
+  }
+  if (pool.length === 0) return;
+  const rng = makeRng(s.rngCursor);
+  const avail = [...pool];
+  const picks: string[] = [];
+  for (let i = 0; i < 3 && avail.length > 0; i++) {
+    picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
+  }
+  s.rngCursor = rng.state();
+  s.discover = picks;
 }
 
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */

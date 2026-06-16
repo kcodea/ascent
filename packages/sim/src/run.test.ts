@@ -319,6 +319,29 @@ describe('run loop (@game/sim)', () => {
     expect(imp?.health).toBe(3); // 2 + 1
   });
 
+  it('three copies combine into a golden 2x minion and grant a Discover', () => {
+    const mk = (uid: string): BoardCard => ({
+      uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false,
+    });
+    let s: RunState = { ...createRun(1), embers: 0, board: [], shop: [], hand: [mk('a'), mk('b'), mk('c')] };
+    s = reduce(s, { type: 'play', uid: 'a' });
+    s = reduce(s, { type: 'play', uid: 'b' });
+    s = reduce(s, { type: 'play', uid: 'c' }); // the third completes the triple
+    const golden = [...s.board, ...s.hand].find((c) => c.golden);
+    expect(golden?.cardId).toBe('sandbag');
+    expect(golden?.attack).toBe(0); // 0 × 2
+    expect(golden?.health).toBe(8); // 4 × 2 (base stats doubled)
+    expect([...s.board, ...s.hand].filter((c) => c.cardId === 'sandbag' && !c.golden).length).toBe(0);
+    expect(s.discover?.length).toBe(3); // the triple granted a Discover
+  });
+
+  it('Discover adds the chosen card to the hand and clears the offer', () => {
+    let s: RunState = { ...createRun(1), hand: [], discover: ['whelp', 'cleric', 'nadir'] };
+    s = reduce(s, { type: 'discover', index: 1 });
+    expect(s.hand.some((c) => c.cardId === 'cleric')).toBe(true);
+    expect(s.discover).toBeUndefined();
+  });
+
   it('a full scripted run is deterministic end to end', () => {
     expect(serialize(playToEnd(999))).toEqual(serialize(playToEnd(999)));
   });

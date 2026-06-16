@@ -28,6 +28,7 @@ export interface CardView {
   keywords: Keyword[];
   text: string;
   cost?: number;
+  golden?: boolean;
 }
 
 /** The one standardized card — identical size/shape in shop, warband, and hand. */
@@ -50,7 +51,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${card.golden ? ' golden' : ''}`}
       style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
       onClick={onClick}
       role={onClick ? 'button' : undefined}

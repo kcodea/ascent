@@ -26,7 +26,7 @@ function instView(inst: BoardCard): CardView {
   const c = CARD_INDEX[inst.cardId];
   return {
     name: c.name, tribe: inst.tribe, attack: inst.attack, health: inst.health,
-    keywords: inst.keywords, text: c.text,
+    keywords: inst.keywords, text: c.text, golden: inst.golden,
   };
 }
 
@@ -174,6 +174,28 @@ export function Recruit() {
 
       <StatusBar />
       <Legend />
+
+      {run.discover && (
+        <div className="discover-ov" role="dialog" aria-label="Discover a card">
+          <div className="discover-box">
+            <div className="discover-title">
+              Triple! <b>Discover</b> a card to add to your hand.
+            </div>
+            <div className="discover-cards">
+              {run.discover.map((id, i) => {
+                const c = CARD_INDEX[id];
+                return (
+                  <Card
+                    key={`${id}-${i}`}
+                    card={{ name: c.name, tribe: c.tribe, attack: c.attack, health: c.health, keywords: c.keywords, text: c.text }}
+                    onClick={() => dispatch({ type: 'discover', index: i })}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

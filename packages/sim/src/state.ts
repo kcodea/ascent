@@ -63,6 +63,8 @@ export interface RunState {
   rngCursor: number;
   /** Monotonic counter for shop/board instance uids. */
   uidSeq: number;
+  /** A pending Discover offer (3 card ids) granted by a triple — pick one to hand. */
+  discover?: string[];
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
 }
@@ -76,6 +78,7 @@ export type Action =
   | { type: 'upgrade' }
   | { type: 'reposition'; uid: string; toIndex: number }
   | { type: 'heroPower'; uid: string }
+  | { type: 'discover'; index: number }
   | { type: 'faceOmen' }
   | { type: 'resolveCombat' };
 

@@ -34,6 +34,11 @@ function grantShield(ctx: CombatContext, m: Minion): void {
   ctx.log({ type: 'shieldUp', target: m.uid });
 }
 
+/** Echo Warden: each living one on the side makes a friendly summon fire one extra time. */
+function echoReps(ctx: CombatContext, side: Side): number {
+  return 1 + ctx.living(side).filter((m) => m.cardId === 'echo').length;
+}
+
 /**
  * Combat-time factories. This is a *partial* registry: recruit-time ids
  * (battlecries, buff-on-buy) are implemented in `@game/sim` against the run
@@ -45,8 +50,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummon: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const card = ctx.getCard(str(params.tokenId));
-    const count = num(params.count, 1);
-    for (let i = 0; i < count; i++) ctx.summon(self.side, card, self.uid);
+    const total = num(params.count, 1) * echoReps(ctx, self.side);
+    for (let i = 0; i < total; i++) ctx.summon(self.side, card, self.uid);
   },
 
   /** When a friendly minion of `tribe` is summoned, buff it (+atk/+hp). */
@@ -210,7 +215,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   onFriendDeathSummon: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion === self || minion.side !== self.side) return;
-    ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
+    const reps = echoReps(ctx, self.side);
+    for (let i = 0; i < reps; i++) ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
   },
 
   /** Abyssal Sovereign — Start of Combat: destroy the enemy with the highest Attack. */

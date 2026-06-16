@@ -254,6 +254,19 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
+  it('Echo Warden makes a Deathrattle summon fire one extra time', () => {
+    const a = run(
+      [
+        { cardId: 'pack', attack: 2, health: 1 }, // Deathrattle: summon two 1/1 Pups
+        { cardId: 'echo', attack: 2, health: 12 },
+      ],
+      [{ cardId: 'omen', attack: 5, health: 30 }],
+      1,
+    );
+    const pups = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
+    expect(pups).toBe(4); // 2 pups × (1 + one Echo)
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

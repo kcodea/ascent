@@ -185,9 +185,13 @@ export function playCard(state: RunState, played: BoardCard): void {
   fire(ctx, 'onSummon', { minion: played });
   const def = CARD_INDEX[played.cardId];
   if (!def) return;
+  // Doublecast Drummer: each one on the board makes Battlecries fire one extra time.
+  const drummers = state.board.filter((c) => c.cardId === 'drummer').length;
+  const repeats = 1 + drummers;
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
-    if (fn) fn(ctx, played, effect.params ?? {}, { minion: played });
+    if (!fn) continue;
+    for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played });
   }
 }

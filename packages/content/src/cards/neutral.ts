@@ -38,7 +38,7 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [],
-    text: 'Your minions that summon others do it **one extra time**.',
+    text: '**In combat,** your minions that summon others do it **one extra time**.',
   },
   {
     id: 'drummer',

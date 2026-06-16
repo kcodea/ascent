@@ -216,26 +216,32 @@ function checkTriples(s: RunState): void {
     }
     if (!tripleId) return;
 
-    let removed = 0;
+    // Collect the three copies being combined, with their *current* stats/keywords.
+    const combined: BoardCard[] = [];
     const pull = (arr: RunState['hand']): void => {
-      for (let i = arr.length - 1; i >= 0 && removed < 3; i--) {
+      for (let i = arr.length - 1; i >= 0 && combined.length < 3; i--) {
         if (arr[i]!.cardId === tripleId && !arr[i]!.golden) {
+          combined.push(arr[i]!);
           arr.splice(i, 1);
-          removed++;
         }
       }
     };
     pull(s.hand); // consume from the hand first, then the board
     pull(s.board);
 
+    // Golden = sum of the two highest attacks / healths across the three, and the
+    // union of all their keywords — buffs and granted keywords are retained.
+    const atks = combined.map((c) => c.attack).sort((a, b) => b - a);
+    const hps = combined.map((c) => c.health).sort((a, b) => b - a);
+    const keywords = [...new Set(combined.flatMap((c) => c.keywords))];
     const def = CARD_INDEX[tripleId]!;
     s.hand.push({
       uid: `b${s.uidSeq++}`,
       cardId: def.id,
       tribe: def.tribe,
-      attack: def.attack * 2,
-      health: def.health * 2,
-      keywords: [...def.keywords],
+      attack: (atks[0] ?? 0) + (atks[1] ?? 0),
+      health: (hps[0] ?? 0) + (hps[1] ?? 0),
+      keywords,
       golden: true,
     });
     // The Discover isn't granted now — it comes from a spell when the golden is played.

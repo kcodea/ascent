@@ -410,6 +410,34 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'big')?.keywords.filter((k) => k === 'P').length).toBe(1); // not re-granted
   });
 
+  it('tripling combines current stats (top two) and unions keywords', () => {
+    const mk = (uid: string, attack: number, health: number, keywords: ('P' | 'T')[]): BoardCard => ({
+      uid, cardId: 'sandbag', tribe: 'neutral', attack, health, keywords, golden: false,
+    });
+    // 1/1 Poison · 2/3 · 1/3  →  3/6 Poison
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [],
+      hand: [mk('a', 1, 1, ['P']), mk('b', 2, 3, []), mk('c', 1, 3, [])],
+    };
+    s = reduce(s, { type: 'play', uid: 'a' });
+    s = reduce(s, { type: 'play', uid: 'b' });
+    s = reduce(s, { type: 'play', uid: 'c' });
+    const golden = [...s.board, ...s.hand].find((c) => c.golden)!;
+    expect(golden.attack).toBe(3); // 2 + 1 (top two attacks)
+    expect(golden.health).toBe(6); // 3 + 3 (top two healths)
+    expect(golden.keywords).toContain('P'); // keyword retained across the combine
+  });
+
+  it('Doublecast Drummer makes a Battlecry fire twice', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false }],
+      hand: [{ uid: 'al', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'al' }); // Alleycur Battlecry: summon a Stray → fires twice
+    expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
+  });
+
   it('a full scripted run is deterministic end to end', () => {
     expect(serialize(playToEnd(999))).toEqual(serialize(playToEnd(999)));
   });

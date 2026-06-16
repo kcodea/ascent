@@ -19,14 +19,14 @@ function shopView(cardId: string): CardView {
   const c = CARD_INDEX[cardId];
   return {
     name: c.name, tribe: c.tribe, attack: c.attack, health: c.health,
-    keywords: c.keywords, text: c.text, cost: CONFIG.minionCost,
+    keywords: c.keywords, text: c.text, cost: CONFIG.minionCost, tier: c.tier,
   };
 }
 function instView(inst: BoardCard): CardView {
   const c = CARD_INDEX[inst.cardId];
   return {
     name: c.name, tribe: inst.tribe, attack: inst.attack, health: inst.health,
-    keywords: inst.keywords, text: c.text, golden: inst.golden,
+    keywords: inst.keywords, text: c.text, golden: inst.golden, tier: c.tier,
   };
 }
 
@@ -224,6 +224,10 @@ export function Recruit() {
               </>
             )}
           </button>
+          <button className="btn big endturn" onClick={() => dispatch({ type: 'faceOmen' })}>
+            <Icon name="sword" />
+            End Turn
+          </button>
         </div>
         <div className="row">
           {run.shop.map((o) => (
@@ -275,11 +279,6 @@ export function Recruit() {
           <span className="zt disp">
             Your Hand · <b>{run.hand.length}</b>
           </span>
-          <span className="sp" />
-          <button className="btn go" onClick={() => dispatch({ type: 'faceOmen' })}>
-            <Icon name="sword" />
-            FACE THE OMEN
-          </button>
         </div>
         <div className="row hand">
           {run.hand.length === 0 ? (
@@ -330,7 +329,7 @@ export function Recruit() {
                 return (
                   <Card
                     key={`${id}-${i}`}
-                    card={{ name: c.name, tribe: c.tribe, attack: c.attack, health: c.health, keywords: c.keywords, text: c.text }}
+                    card={{ name: c.name, tribe: c.tribe, attack: c.attack, health: c.health, keywords: c.keywords, text: c.text, tier: c.tier }}
                     onClick={() => dispatch({ type: 'discover', index: i })}
                   />
                 );

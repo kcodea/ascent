@@ -41,6 +41,7 @@ export interface CardView {
   text: string;
   cost?: number;
   golden?: boolean;
+  tier?: number;
 }
 
 /** The one standardized card — identical size/shape in shop, warband, and hand. */
@@ -90,6 +91,7 @@ export function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      {card.tier !== undefined && <span className="tierbadge">Tier {card.tier}</span>}
       <div className="art">
         {card.cost !== undefined && <span className="cost">{card.cost}</span>}
         <Sprite name={spriteForTribe(card.tribe)} scale={5} />

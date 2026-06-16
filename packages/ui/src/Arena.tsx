@@ -30,15 +30,22 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
 });
 
-/** Fold the event log up to `upto` into the live board state — a pure function of the step index. */
+/**
+ * Fold the event log up to `upto` into the live board state. Deaths from *before*
+ * the current beat (index < `beatStart`) are removed outright; a minion dying in
+ * the current beat is kept one beat (rendered with its death pop, no grey) so the
+ * killing blow reads, then it's gone next beat.
+ */
 function computeFrame(
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] },
   events: CombatEvent[],
   upto: number,
+  beatStart: number,
 ): { player: UnitFrame[]; enemy: UnitFrame[] } {
   const player = initial.player.map(fromSnap);
   const enemy = initial.enemy.map(fromSnap);
   const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
+  const gone = new Set<string>();
   for (let i = 0; i < Math.min(upto, events.length); i++) {
     const e = events[i];
     if (e.type === 'dmg') {
@@ -59,6 +66,7 @@ function computeFrame(
     } else if (e.type === 'death') {
       const u = find(e.target);
       if (u) { u.alive = false; u.health = 0; }
+      if (i < beatStart) gone.add(e.target);
     } else if (e.type === 'buff') {
       const u = find(e.target);
       if (u) { u.attack += e.attack; u.health += e.health; }
@@ -67,15 +75,40 @@ function computeFrame(
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
     }
   }
-  return { player, enemy };
+  return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };
 }
 
-// Per-event beat lengths (ms). SPEED scales the whole sequence — higher = slower.
+// Per-beat lengths (ms), keyed by the beat's primary event. SPEED scales it all.
 const SPEED = 1.2;
 const DELAY: Record<string, number> = {
-  sc: 760, attack: 340, dmg: 230, shield: 520, shieldUp: 480, poison: 520, reborn: 560, death: 360, summon: 380, buff: 320,
+  sc: 760, attack: 460, summon: 420, buff: 360, reborn: 560,
+  // result events resolve within their primary's beat; kept as fallbacks
+  dmg: 230, shield: 520, shieldUp: 480, poison: 520, death: 360,
 };
 const FLOAT_MS = 1000;
+
+/**
+ * A combat beat: a primary action (attack / SC / summon / buff / reborn) plus the
+ * result events it caused (damage, shields, poison, deaths). Everything in a beat
+ * resolves at once — so an attacker and its target take damage simultaneously.
+ */
+const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'death']);
+interface Beat {
+  start: number;
+  end: number;
+  primary: CombatEvent;
+}
+function buildBeats(events: CombatEvent[]): Beat[] {
+  const beats: Beat[] = [];
+  let i = 0;
+  while (i < events.length) {
+    const start = i;
+    i++;
+    while (i < events.length && RESULT_TYPES.has(events[i]!.type)) i++;
+    beats.push({ start, end: i, primary: events[start]! });
+  }
+  return beats;
+}
 const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
 const WHY = {
   win: 'The wave breaks against your warband.',
@@ -140,7 +173,7 @@ function Unit({
   /** Inline transform that slides the attacker into its target. */
   lunge?: string;
 }) {
-  const cls = ['unit', side, u.alive ? '' : 'dead', u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
+  const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const view: CardView = {
     name: u.name, tribe: u.tribe, attack: u.attack, health: Math.max(0, u.health),
     keywords: u.keywords, text: CARD_INDEX[u.cardId]?.text ?? '', tier: CARD_INDEX[u.cardId]?.tier,
@@ -160,26 +193,35 @@ export function Arena() {
   const dispatch = useGame((s) => s.dispatch);
   const combat = run.lastCombat;
   const events = combat?.events ?? [];
-  const [step, setStep] = useState(0);
+  const beats = useMemo(() => buildBeats(events), [events]);
+  const [beatIdx, setBeatIdx] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
-  const done = step >= events.length;
+  const done = beatIdx >= beats.length;
 
+  // Advance one beat at a time (a beat = an action + all its result events).
   useEffect(() => {
-    if (done) return;
-    const e = events[step];
-    const id = window.setTimeout(() => setStep((k) => k + 1), (DELAY[e.type] ?? 300) * SPEED);
+    if (beatIdx >= beats.length) return;
+    const beat = beats[beatIdx]!;
+    const id = window.setTimeout(() => setBeatIdx((k) => k + 1), (DELAY[beat.primary.type] ?? 300) * SPEED);
     return () => window.clearTimeout(id);
-  }, [step, done, events]);
+  }, [beatIdx, beats]);
 
-  // Spawn a floating number when an event lands; it dissipates on its own timer.
+  // Spawn floats for every damage/poison/shield in the beat just resolved — all at once.
   useEffect(() => {
-    const f = floatFor(step > 0 ? events[step - 1] : undefined);
-    if (!f) return;
-    const id = step;
-    setFloats((arr) => (arr.some((x) => x.id === id) ? arr : [...arr, { id, ...f }]));
-    const t = window.setTimeout(() => setFloats((arr) => arr.filter((x) => x.id !== id)), FLOAT_MS);
+    if (beatIdx === 0) return;
+    const beat = beats[beatIdx - 1];
+    if (!beat) return;
+    const spawned: Float[] = [];
+    for (let i = beat.start; i < beat.end; i++) {
+      const f = floatFor(events[i]);
+      if (f) spawned.push({ id: i, ...f });
+    }
+    if (spawned.length === 0) return;
+    setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
+    const ids = new Set(spawned.map((s) => s.id));
+    const t = window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS);
     return () => window.clearTimeout(t);
-  }, [step, events]);
+  }, [beatIdx, beats, events]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();
@@ -189,33 +231,43 @@ export function Arena() {
     return m;
   }, [combat]);
 
+  const processedEnd = beatIdx === 0 ? 0 : beats[beatIdx - 1]!.end;
+  // Mid-replay, keep the current beat's dying minions one beat; once done, drop
+  // every dead minion so the result shows only survivors.
+  const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : beats[beatIdx - 1]!.start;
   const frame = useMemo(
-    () => (combat ? computeFrame(combat.initial, events, step) : { player: [], enemy: [] }),
-    [combat, events, step],
+    () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart) : { player: [], enemy: [] }),
+    [combat, events, processedEnd, beatStart],
   );
 
   if (!combat) return null;
 
-  const anims = animFor(step > 0 ? events[step - 1] : undefined);
-  // Slide the attacker into its target so it's clear where the blow landed.
-  const ae = step > 0 ? events[step - 1] : undefined;
+  const currentBeat = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
+  const anims: Record<string, string> = {};
+  if (currentBeat) {
+    for (let i = currentBeat.start; i < currentBeat.end; i++) Object.assign(anims, animFor(events[i]));
+  }
+
+  // Slide the current beat's attacker into its target so the blow's direction reads.
   let lungeUid: string | null = null;
   let lungeTransform: string | undefined;
-  if (ae?.type === 'attack') {
-    const aEl = document.querySelector(`.ascene [data-uid="${ae.attacker}"]`);
-    const dEl = document.querySelector(`.ascene [data-uid="${ae.defender}"]`);
+  if (currentBeat?.primary.type === 'attack') {
+    const pe = currentBeat.primary;
+    const aEl = document.querySelector(`.ascene [data-uid="${pe.attacker}"]`);
+    const dEl = document.querySelector(`.ascene [data-uid="${pe.defender}"]`);
     if (aEl && dEl) {
       const ar = aEl.getBoundingClientRect();
       const dr = dEl.getBoundingClientRect();
-      lungeUid = ae.attacker;
+      lungeUid = pe.attacker;
       const dx = dr.left + dr.width / 2 - (ar.left + ar.width / 2);
       const dy = dr.top + dr.height / 2 - (ar.top + ar.height / 2);
       lungeTransform = `translate(${Math.round(dx * 0.62)}px, ${Math.round(dy * 0.62)}px) scale(1.05)`;
     }
   }
+
   let log = 'The boards take their positions…';
-  for (let i = Math.min(step, events.length) - 1; i >= 0; i--) {
-    const line = narrate(events[i], names);
+  for (let i = processedEnd - 1; i >= 0; i--) {
+    const line = narrate(events[i]!, names);
     if (line) { log = line; break; }
   }
   const floatsFor = (uid: string) => floats.filter((f) => f.uid === uid);
@@ -227,7 +279,7 @@ export function Arena() {
         <h1 className="disp">THE WAVE BREAKS</h1>
         <div className="asub">Wave {run.wave} · {THREATS[run.threat].name}</div>
         {!done && (
-          <button className="skip" onClick={() => setStep(events.length)}>
+          <button className="skip" onClick={() => setBeatIdx(beats.length)}>
             <Icon name="sword" />Skip
           </button>
         )}

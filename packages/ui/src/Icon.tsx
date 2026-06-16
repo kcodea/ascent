@@ -27,6 +27,18 @@ const ICONS: Record<string, ReactNode> = {
   skull: <path fill="currentColor" d="M12 3a7 7 0 017 7c0 2.2-1 4.1-2.6 5.3v2.2a1.5 1.5 0 01-1.5 1.5h-1v-2h-2v2H9.1a1.5 1.5 0 01-1.5-1.5v-2.2A7 7 0 015 10a7 7 0 017-7zm-3 7.5a1.6 1.6 0 100 3.2 1.6 1.6 0 000-3.2zm6 0a1.6 1.6 0 100 3.2 1.6 1.6 0 000-3.2z" />,
   eye: <path fill="currentColor" d="M2 12c3-4.5 7-6.5 10-6.5S19 7.5 22 12c-3 4.5-7 6.5-10 6.5S5 16.5 2 12zm10 3a3 3 0 100-6 3 3 0 000 6z" />,
   star: <path fill="currentColor" d="M12 2l2.3 7.2H22l-6.1 4.5 2.3 7.3-6.2-4.5-6.2 4.5 2.3-7.3L2 9.2h7.7z" />,
+  sound: (
+    <>
+      <path fill="currentColor" d="M3 9v6h4l5 4V5L7 9H3z" />
+      <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15.5 9a4 4 0 010 6M18 6.5a8 8 0 010 11" />
+    </>
+  ),
+  mute: (
+    <>
+      <path fill="currentColor" d="M3 9v6h4l5 4V5L7 9H3z" />
+      <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M16 9.5l5 5M21 9.5l-5 5" />
+    </>
+  ),
 };
 
 export function Icon({ name }: { name: string }) {

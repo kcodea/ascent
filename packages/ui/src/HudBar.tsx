@@ -1,6 +1,7 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
 import { Icon } from './Icon';
+import { isMuted, toggleMute } from './sfx';
 import { useGame } from './store';
 
 const TRIBE_ICON: Record<Tribe, string> = {
@@ -13,6 +14,7 @@ const TRIBE_LABEL: Record<Tribe, string> = {
 /** Top bar: wordmark + altitude (wave) meter + the tribes in play this run. */
 export function HudBar() {
   const run = useGame((s) => s.run);
+  const [muted, setMuted] = useState(isMuted());
   return (
     <div className="bar">
       <div className="wm disp">ASCENT</div>
@@ -32,6 +34,9 @@ export function HudBar() {
           </span>
         ))}
       </div>
+      <button className="mutebtn" title={muted ? 'Unmute' : 'Mute'} onClick={() => setMuted(toggleMute())}>
+        <Icon name={muted ? 'mute' : 'sound'} />
+      </button>
     </div>
   );
 }

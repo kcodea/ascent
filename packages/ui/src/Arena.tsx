@@ -4,6 +4,7 @@ import { CARD_INDEX } from '@game/content';
 import { THREATS } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { Icon } from './Icon';
+import { sfx } from './sfx';
 import { useGame } from './store';
 
 interface UnitFrame {
@@ -224,6 +225,33 @@ export function Arena() {
     const t = window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS);
     return () => window.clearTimeout(t);
   }, [beatIdx, beats, events]);
+
+  // Combat SFX — one sound per notable event type in the beat just resolved.
+  useEffect(() => {
+    if (beatIdx === 0) return;
+    const beat = beats[beatIdx - 1];
+    if (!beat) return;
+    const done2 = new Set<string>();
+    const once = (k: string, fn: () => void): void => {
+      if (!done2.has(k)) { done2.add(k); fn(); }
+    };
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e) continue;
+      if (e.type === 'attack') once('attack', sfx.attack);
+      else if (e.type === 'dmg') once('hit', sfx.hit);
+      else if (e.type === 'death') once('death', sfx.death);
+      else if (e.type === 'shieldUp') once('shield', sfx.shield);
+      else if (e.type === 'buff') once('buff', sfx.buff);
+    }
+  }, [beatIdx, beats, events]);
+
+  // Verdict sting when the replay finishes.
+  useEffect(() => {
+    if (!done || !combat) return;
+    if (combat.result === 'win') sfx.win();
+    else if (combat.result === 'lose') sfx.lose();
+  }, [done, combat]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();

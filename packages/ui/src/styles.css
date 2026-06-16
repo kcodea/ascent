@@ -25,6 +25,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .alt .w { font-family: 'Outfit'; font-weight: 800; font-size: 18px; color: var(--acc-dk); line-height: 1; }
 .alt .lbl { font-family: 'Outfit'; font-weight: 700; font-size: 11px; letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
 .tribes { margin-left: auto; display: flex; align-items: center; gap: 6px; background: var(--card); border: 2px solid var(--line); border-radius: 13px; padding: 5px 12px; }
+.mutebtn { width: 40px; height: 40px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink2); display: grid; place-items: center; cursor: pointer; flex: none; }
+.mutebtn:hover { border-color: var(--acc); color: var(--ink); }
+.mutebtn svg { width: 19px; height: 19px; }
 .tribes .tl { font-family: 'Outfit'; font-weight: 700; font-size: 11px; letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; margin-right: 2px; }
 .tribes .tb { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 20%, var(--card)); }
 .tribes .tb svg { width: 15px; height: 15px; color: var(--c); }

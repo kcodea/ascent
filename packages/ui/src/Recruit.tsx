@@ -4,7 +4,6 @@ import { CONFIG, type BoardCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { HudBar } from './HudBar';
 import { Omen } from './Omen';
-import { Legend } from './Legend';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
@@ -50,7 +49,6 @@ export function Recruit() {
   const run = useGame((s) => s.run);
   const dispatch = useGame((s) => s.dispatch);
   const heroArmed = useGame((s) => s.heroArmed);
-  const emptySlots = Math.max(0, CONFIG.boardMax - run.board.length);
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
@@ -261,6 +259,9 @@ export function Recruit() {
           <span className="hint">drag down to your hand to buy (3) · drag a minion here to sell (+1)</span>
         </div>
         <div className="shopctl">
+          <span className="tavernbox">
+            Tavern · Tier <b>{run.tier}</b>
+          </span>
           <button className="btn big" disabled={run.embers < CONFIG.refreshCost || timeUp} onClick={() => dispatch({ type: 'roll' })}>
             <Icon name="refresh" />
             Refresh <span className="c">{CONFIG.refreshCost}</span>
@@ -307,12 +308,8 @@ export function Recruit() {
             {heroArmed ? 'click a minion to Temper it (+1/+1)' : 'drag from hand to play · drag to reorder'}
           </span>
         </div>
-        <div className="row">
-          {Array.from({ length: Math.floor(emptySlots / 2) }).map((_, i) => (
-            <div className="empty" key={`eb-${i}`}>
-              Empty
-            </div>
-          ))}
+        <div className="row warband">
+          {run.board.length === 0 && <div className="warband-hint">Drag minions up from your hand to play them here.</div>}
           {run.board.map((m) => (
             <Card
               key={m.uid}
@@ -323,11 +320,6 @@ export function Recruit() {
               onClick={heroArmed && !timeUp ? () => dispatch({ type: 'heroPower', uid: m.uid }) : undefined}
               onPointerDown={beginDrag(m.uid, 'board', instView(m))}
             />
-          ))}
-          {Array.from({ length: emptySlots - Math.floor(emptySlots / 2) }).map((_, i) => (
-            <div className="empty" key={`ea-${i}`}>
-              Empty
-            </div>
           ))}
         </div>
       </div>
@@ -356,8 +348,6 @@ export function Recruit() {
           )}
         </div>
       </div>
-
-      <Legend />
 
       {drag?.active && (
         <div

@@ -186,13 +186,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .side .rl { flex: 1; height: 2px; border-radius: 2px; }
 .side.foe { color: var(--threat-dk); } .side.foe .rl { background: linear-gradient(90deg, var(--threat), transparent); }
 .side.you { color: var(--acc-dk); justify-content: flex-end; } .side.you .rl { background: linear-gradient(90deg, transparent, var(--acc)); }
-.line { display: flex; gap: 16px; justify-content: center; align-items: center; padding: 22px 0; border-radius: 18px; min-height: 132px; }
+.line { display: flex; gap: 14px; justify-content: center; align-items: center; padding: 8px 0; border-radius: 18px; min-height: 0; }
 .line.foe { background: color-mix(in srgb, var(--threat) 8%, transparent); }
 .line.you { background: color-mix(in srgb, var(--acc) 9%, transparent); }
-.clash { height: 92px; display: flex; align-items: center; justify-content: center; gap: 14px; }
+.clash { height: 38px; display: flex; align-items: center; justify-content: center; gap: 14px; }
 .clash .ln { width: 90px; height: 2px; border-radius: 2px; background: var(--line); }
 .clash .vs { font-family: 'Outfit'; font-weight: 900; font-size: 14px; letter-spacing: 0.2em; color: var(--ink3); }
-.unit { position: relative; width: 120px; display: flex; flex-direction: column; align-items: center; transition: transform 0.18s; }
+.unit { position: relative; width: 190px; height: 264px; transition: transform 0.18s; }
+.unit .card { width: 100%; height: 100%; animation: none; }
 .unit .nm { font-family: 'Outfit'; font-weight: 700; font-size: 11px; color: var(--ink2); margin-bottom: 5px; white-space: nowrap; max-width: 128px; overflow: hidden; text-overflow: ellipsis; }
 .tok { position: relative; width: 112px; height: 112px; border-radius: 20px; background: color-mix(in srgb, var(--c) 20%, var(--card)); border: 2px solid var(--line); display: grid; place-items: center; }
 .ua, .uh { position: absolute; bottom: -13px; width: 38px; height: 38px; border-radius: 11px; font-family: 'Outfit'; font-weight: 800; font-size: 20px; color: #fff; display: flex; align-items: center; justify-content: center; border: 3px solid var(--bg); }
@@ -202,12 +203,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .kb i svg { width: 13px; height: 13px; color: #fff; }
 .line.you .unit.attacking { transform: translateY(-24px) scale(1.06); z-index: 5; }
 .line.foe .unit.attacking { transform: translateY(24px) scale(1.06); z-index: 5; }
-.unit.attacking .tok { box-shadow: 0 0 0 3px var(--acc); }
-.tok.taunt { border-color: var(--ink); border-width: 3px; }
-.tok.ds::after { content: ''; position: absolute; inset: -8px; border-radius: 26px; border: 3px solid var(--acc); }
-.unit.struck .tok { animation: struck 0.32s ease; }
-.unit.poisoned .tok { animation: poisonpop 0.5s ease; }
-.unit.flare .tok { animation: flare 0.5s ease; }
+.unit.attacking .card { box-shadow: 0 0 0 3px var(--acc), 0 3px 0 var(--shadow); }
+.unit.ds .card::after { content: ''; position: absolute; inset: -6px; border-radius: 18px; border: 3px solid var(--acc); pointer-events: none; }
+.unit.struck .card { animation: struck 0.32s ease; }
+.unit.poisoned .card { animation: poisonpop 0.5s ease; }
+.unit.flare .card { animation: flare 0.5s ease; }
 .unit.dead { opacity: 0.3; filter: grayscale(0.75); transition: opacity 0.3s, filter 0.3s; }
 @keyframes struck { 0%, 100% { transform: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.25); } }
 @keyframes poisonpop { 0%, 100% { filter: none; } 50% { filter: hue-rotate(70deg) brightness(1.2); } }
@@ -234,7 +234,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .float.reborn { color: var(--t-demon); }
 .float.buff { color: #fff; background: var(--acc); padding: 0 8px; border-radius: 9px; font-size: 17px; }
 @keyframes floatup { 0% { opacity: 0; transform: translate(-50%, 8px); } 14% { opacity: 1; } 62% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -38px); } }
-.unit.dying .tok { animation: dyingpop 0.42s ease; }
+.unit.dying .card { animation: dyingpop 0.42s ease; }
 @keyframes dyingpop { 0% { transform: scale(1); } 35% { transform: scale(1.14); filter: brightness(1.4); } 100% { transform: scale(0.7); } }
 
 /* GAME OVER */

@@ -17,7 +17,7 @@ export const ENEMY: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [],
-    text: 'An enemy minion conjured by the Omen.',
+    text: '',
     token: true,
   },
 ];

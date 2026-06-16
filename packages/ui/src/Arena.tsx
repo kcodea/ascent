@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CombatEvent, Keyword, MinionSnapshot, Tribe } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { THREATS } from '@game/sim';
+import { Card, type CardView } from './Card';
 import { Icon } from './Icon';
-import { Sprite } from './Sprite';
-import { spriteForTribe, type SpriteName } from './sprites';
 import { useGame } from './store';
 
 interface UnitFrame {
   uid: string;
+  cardId: string;
   name: string;
   tribe: Tribe;
   attack: number;
@@ -25,7 +26,7 @@ interface Float {
 }
 
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
-  uid: s.uid, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
+  uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
 });
 
@@ -81,8 +82,6 @@ const WHY = {
   lose: 'The omen overwhelmed your warband.',
   draw: 'Both boards fell — a grim stalemate.',
 } as const;
-const KW_ICON: Partial<Record<Keyword, string>> = { T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc' };
-
 /** The transient animation class for the unit the active event acts on. */
 function animFor(e: CombatEvent | undefined): Record<string, string> {
   if (!e) return {};
@@ -130,6 +129,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
   }
 }
 
+/** A combat unit — the same Card as recruit, wrapped for animations, floats, and the DS ring. */
 function Unit({
   u, side, anim, floats,
 }: {
@@ -138,31 +138,17 @@ function Unit({
   anim?: string;
   floats?: { id: number; text: string; kind: string }[];
 }) {
-  const sprite: SpriteName = side === 'foe' ? 'undead' : spriteForTribe(u.tribe);
-  const tintTribe = side === 'foe' ? 'undead' : u.tribe;
-  const cls = ['unit', side, u.alive ? '' : 'dead', anim ?? ''].filter(Boolean).join(' ');
-  const badges = u.keywords.filter((k) => KW_ICON[k]);
+  const cls = ['unit', side, u.alive ? '' : 'dead', u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
+  const view: CardView = {
+    name: u.name, tribe: u.tribe, attack: u.attack, health: Math.max(0, u.health),
+    keywords: u.keywords, text: CARD_INDEX[u.cardId]?.text ?? '',
+  };
   return (
     <div className={cls}>
-      <span className="nm">{u.name}</span>
-      <div
-        className={`tok${u.keywords.includes('T') ? ' taunt' : ''}${u.divineShield ? ' ds' : ''}`}
-        style={{ '--c': `var(--t-${tintTribe})` } as CSSProperties}
-      >
-        <Sprite name={sprite} scale={5} />
-        {badges.length > 0 && (
-          <span className="kb">
-            {badges.map((k) => (
-              <i key={k}><Icon name={KW_ICON[k]!} /></i>
-            ))}
-          </span>
-        )}
-        {floats?.map((f) => (
-          <span key={f.id} className={`float ${f.kind}`}>{f.text}</span>
-        ))}
-      </div>
-      <span className="ua">{u.attack}</span>
-      <span className="uh">{Math.max(0, u.health)}</span>
+      <Card card={view} />
+      {floats?.map((f) => (
+        <span key={f.id} className={`float ${f.kind}`}>{f.text}</span>
+      ))}
     </div>
   );
 }

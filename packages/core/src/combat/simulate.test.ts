@@ -109,6 +109,48 @@ describe('simulate (handoff A.3)', () => {
     expect(scHits.length).toBe(3); // Attack 3 → three 1-damage hits before the attack loop
   });
 
+  it('Poison (Webspinner Matron) destroys whatever it damages', () => {
+    const a = run(
+      [{ cardId: 'maex', attack: 4, health: 4, keywords: ['P'] }],
+      [{ cardId: 'omen', attack: 2, health: 30, keywords: [] }],
+      2,
+    );
+    expect(a.events.some((e) => e.type === 'poison')).toBe(true);
+    expect(a.result).toBe('win'); // poison melts the 30-hp wall in one hit
+  });
+
+  it('Reborn (Grave Knit) returns once at 1 Health', () => {
+    const a = run(
+      [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }],
+      [{ cardId: 'omen', attack: 5, health: 5, keywords: [] }],
+      3,
+    );
+    expect(a.events.some((e) => e.type === 'reborn')).toBe(true);
+  });
+
+  it('Sporeling Deathrattle buffs a surviving friend', () => {
+    const a = run(
+      [
+        { cardId: 'spore', attack: 1, health: 1 },
+        { cardId: 'sandbag', attack: 0, health: 12, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 6, health: 9, keywords: [] }],
+      5,
+    );
+    expect(a.events.some((e) => e.type === 'buff')).toBe(true);
+  });
+
+  it('Ghastweaver Deathrattle fills the board with Undead', () => {
+    const a = run(
+      [{ cardId: 'ghast', attack: 5, health: 5 }],
+      [{ cardId: 'omen', attack: 9, health: 9, keywords: [] }],
+      7,
+    );
+    const undead = new Set(['spore', 'toxin', 'knit', 'rot', 'maex', 'plague']);
+    const summons = a.events.filter((e) => e.type === 'summon' && undead.has(e.minion.cardId));
+    expect(summons.length).toBeGreaterThan(0);
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

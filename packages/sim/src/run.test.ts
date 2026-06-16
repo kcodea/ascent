@@ -199,6 +199,19 @@ describe('run loop (@game/sim)', () => {
     expect(cleric?.health).toBe(4);
   });
 
+  it('Toxin Tender grants Poison to your highest-attack minion when played', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [],
+      board: [{ uid: 'g', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
+      shop: [{ uid: 'x', cardId: 'toxin' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    expect(s.board.find((c) => c.cardId === 'gnash')?.keywords).toContain('P');
+  });
+
   it('a full scripted run is deterministic end to end', () => {
     expect(serialize(playToEnd(999))).toEqual(serialize(playToEnd(999)));
   });

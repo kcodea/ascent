@@ -116,4 +116,34 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       ctx.damage(ctx.rng.pick(targets), per);
     }
   },
+
+  // --- Undead (combat-time Deathrattle / on-death value) ---
+
+  /** Deathrattle (Sporeling): buff a random living friend. */
+  deathrattleBuffRandom: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const friends = ctx.living(self.side);
+    if (friends.length === 0) return;
+    ctx.buff(ctx.rng.pick(friends), num(params.attack), num(params.health), self.uid);
+  },
+
+  /** Rot Weaver: each time another friend dies, buff a random living friend. */
+  onFriendDeathBuffRandom: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion === self || minion.side !== self.side) return;
+    const friends = ctx.living(self.side);
+    if (friends.length === 0) return;
+    ctx.buff(ctx.rng.pick(friends), num(params.attack), num(params.health), self.uid);
+  },
+
+  /** Deathrattle (Ghastweaver): fill the board with random cards from `pool`. */
+  deathrattleFillTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const pool = Array.isArray(params.pool) ? (params.pool as string[]) : [];
+    if (pool.length === 0) return;
+    let guard = 0;
+    while (ctx.living(self.side).length < 7 && guard++ < 7) {
+      ctx.summon(self.side, ctx.getCard(ctx.rng.pick(pool)), self.uid);
+    }
+  },
 };

@@ -48,10 +48,14 @@ export type EffectFactoryId =
   | 'scDamage'
   | 'scSplitDamage'
   | 'scAoePerTribe'
+  | 'deathrattleBuffRandom'
+  | 'onFriendDeathBuffRandom'
+  | 'deathrattleFillTribe'
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'
-  | 'buffOnBuy';
+  | 'buffOnBuy'
+  | 'battlecryGrantKeyword';
 
 export interface EffectDef {
   on: GameEvent;

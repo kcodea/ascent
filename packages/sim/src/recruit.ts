@@ -1,4 +1,4 @@
-import type { CardDef } from '@game/core';
+import type { CardDef, Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import type { BoardCard, RunState } from './state';
@@ -69,6 +69,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!token) return;
     const count = num(params.count, 1);
     for (let i = 0; i < count; i++) ctx.summon(token, self.uid);
+  },
+
+  /** Toxin Tender / Plaguebringer: grant keyword(s) to your highest-attack other minion (the carry). */
+  battlecryGrantKeyword: (ctx, self, params) => {
+    const kws = Array.isArray(params.keywords) ? (params.keywords as Keyword[]) : [];
+    if (kws.length === 0) return;
+    const others = ctx.state.board.filter((c) => c !== self);
+    const target = (others.length > 0 ? others : [self]).reduce((a, b) => (b.attack > a.attack ? b : a));
+    for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
   },
 };
 

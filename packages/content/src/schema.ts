@@ -31,9 +31,13 @@ export const EffectFactoryIdSchema = z.enum([
   'scDamage',
   'scSplitDamage',
   'scAoePerTribe',
+  'deathrattleBuffRandom',
+  'onFriendDeathBuffRandom',
+  'deathrattleFillTribe',
   'battlecryBuffTribe',
   'battlecrySummon',
   'buffOnBuy',
+  'battlecryGrantKeyword',
 ]);
 
 export const EffectDefSchema = z.object({

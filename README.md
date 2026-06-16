@@ -22,15 +22,16 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Combat feel** — replay now resolves each clash in one beat (attacker + target take damage
-  simultaneously); dead minions are removed instead of greyed; attackers slide into their target.
-- **Card UX** — fixed 1:1 card size everywhere; the name sits on the art with the text below; a
-  30s turn timer that locks actions (except End Turn) at zero; transform-based drag with a clean
-  snap-back + a little weight.
+- **Combat read** — attacks play as wind-up → impact (attacker and target take damage together),
+  dead minions are removed, ~25% slower; flair for Divine Shield (golden aura), poison (green mist),
+  Start of Combat, in-combat buffs, and Cleave; stats above/below base render green/red.
+- **HUD** — Embers · Forgewarden · Resolve rooted at the bottom across recruit and combat; "End
+  Combat" at the top-centre; a Resolve loss flashes the chip; the Hero Power pulses when ready.
+- **Card UX** — fixed 1:1 card size; name on the art; even row spacing; a 30s turn timer that locks
+  actions (except End Turn) at zero; transform-based drag (clean snap-back + a little weight);
+  Magnetic merge crackles with electricity.
 - **Rules/balance** — embers uncapped within a turn (sell always pays); keyword grants skip minions
-  that already have the keyword; early waves (1–4) softened considerably.
-- **Triples/Discover** — a triple makes a golden 2× minion; playing it grants a Discover spell that
-  reveals one tier up; golden minions' effects are doubled.
+  that already have the keyword; early waves softened.
 
 ## Short-term roadmap
 

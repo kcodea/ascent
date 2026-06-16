@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-16
 
+### Combat overhaul + flair, stat colours, persistent HUD, even layout
+- **Combat read cleanup** (`cacae5e`): attacks now play as a clear wind-up (the attacker lunges in,
+  no damage) then an impact beat (it and its target take damage together, dead removed), instead of
+  everything resolving at once. The lunge is cached so it stays planted through the impact then
+  retracts. Combat is ~25% slower (SPEED 1.2→1.5) and floats linger longer.
+- **Combat VFX + stat colours** (`e03c048`): Divine Shield is a pulsing golden aura (flashes on when
+  granted, gone when broken); poison drops a green mist; Start of Combat fires a golden cast pulse;
+  an in-combat buff gives a green pulse; a Cleave attacker shows a white slash. Stats above their
+  base render green, below base render red, on cards everywhere.
+- **Engine / balance** (`4c29eb4`): embers uncapped within a turn (sell always pays); keyword grants
+  target a friend that *lacks* the keyword; early waves 1–4 softened (bot climbs to ~wave 8–10).
+- **Persistent HUD + combat end** (`eb25733`): the StatusBar (Embers · Forgewarden · Resolve) is now
+  rooted at the bottom across recruit and combat (moved to the Game root, fixed). Removed the bottom
+  result bar; "Climb On" is now "End Combat" at the top-centre. A Resolve loss shakes/flashes the
+  chip and floats the −X. The Hero Power pulses when it's available and unused.
+- **Layout + flair** (`49f0ad3`): rows are fixed-height so spacing is equal (tavern↔warband ==
+  warband↔hand, 54px); a hovered card's tooltip rises above the shop buttons; dragging a Magnetic
+  minion over a friendly Mech crackles with electricity; a recruit-phase buff flashes the card green.
+
 ### Combat-feel beats, engine/balance fixes, card-UX pass, repo conventions
 - **Combat replay → beats** (`195f2ca`): the replay advances in beats — a primary action (attack /
   Start-of-Combat / summon / buff / reborn) and all the result events it caused (both minions'

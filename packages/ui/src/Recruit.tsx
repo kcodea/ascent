@@ -12,7 +12,6 @@ import { useGame } from './store';
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
 
-const VERDICT = { win: 'HELD', lose: 'BROKEN', draw: 'STALEMATE' } as const;
 const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a drag
 const TURN_SECONDS = 30; // round timer; at 0 the player is forced into combat
 const RING = 2 * Math.PI * 17; // countdown ring circumference
@@ -49,7 +48,6 @@ export function Recruit() {
   const run = useGame((s) => s.run);
   const dispatch = useGame((s) => s.dispatch);
   const heroArmed = useGame((s) => s.heroArmed);
-  const lc = run.lastCombat;
   const emptySlots = Math.max(0, CONFIG.boardMax - run.board.length);
 
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -114,14 +112,14 @@ export function Recruit() {
         setDrag(null);
         setOverZone(null);
       } else {
-        // invalid drop — snap the card back to where it came from
+        // invalid drop — snap the card cleanly back to where it came from
         setSnapping(true);
         setDrag((cur) => (cur ? { ...cur, x: cur.startX, y: cur.startY } : cur));
         window.setTimeout(() => {
           setSnapping(false);
           setDrag(null);
           setOverZone(null);
-        }, 180);
+        }, 150);
       }
     };
     window.addEventListener('pointermove', onMove);
@@ -205,7 +203,7 @@ export function Recruit() {
     <div className="app">
       <HudBar />
 
-      <div className="rtimer" data-low={seconds <= 5} title="Time left this turn — at 0 you're forced into combat">
+      <div className="rtimer" data-low={seconds <= 5} title="Time left this turn — at 0 your actions lock; hit End Turn to fight">
         <svg viewBox="0 0 40 40">
           <circle className="rt-bg" cx="20" cy="20" r="17" />
           <circle
@@ -218,19 +216,6 @@ export function Recruit() {
         </svg>
         <span className="rt-n">{Math.max(0, seconds)}</span>
       </div>
-
-      {lc && (
-        <div className={`toast ${lc.result}`}>
-          <span className="vd">{VERDICT[lc.result]}</span>
-          <span>
-            {lc.result === 'lose'
-              ? `The omen broke through — −${lc.playerDamage} Resolve.`
-              : lc.result === 'draw'
-                ? 'The last clash ended in a stalemate.'
-                : 'You held the wave — no Resolve lost.'}
-          </span>
-        </div>
-      )}
 
       <Omen />
 
@@ -342,7 +327,11 @@ export function Recruit() {
       {drag?.active && (
         <div
           className={`dragcard${snapping ? ' snap' : ''}`}
-          style={{ left: drag.x - drag.ox, top: drag.y - drag.oy, width: drag.w, height: drag.h }}
+          style={{
+            width: drag.w,
+            height: drag.h,
+            transform: `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(1.04) rotate(-2deg)`,
+          }}
         >
           <Card card={drag.view} />
         </div>

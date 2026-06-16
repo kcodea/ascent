@@ -162,6 +162,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card.golden .art { background: color-mix(in srgb, #f4cf6a 32%, var(--card)); }
 .card.golden .cn { color: #b07d10; }
 
+/* Discover spell — an arcane frame so it reads as a spell, not a minion */
+.card.spellcard { border-color: var(--t-demon); box-shadow: 0 0 0 2px color-mix(in srgb, var(--t-demon) 55%, transparent), 0 3px 0 var(--shadow), 0 0 18px -3px color-mix(in srgb, var(--t-demon) 70%, transparent); }
+.card.spellcard .art { background: radial-gradient(120% 90% at 50% 25%, color-mix(in srgb, var(--t-demon) 40%, var(--card)), color-mix(in srgb, var(--t-demon) 18%, var(--card))); border-radius: 11px 11px 0 0; }
+.card.spellcard .ctype.spell { color: var(--t-demon); font-weight: 800; }
+
 /* Discover overlay (triple reward) */
 .discover-ov { position: fixed; inset: 0; background: rgba(40, 28, 12, 0.5); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 50; animation: fadein 0.2s ease; }
 .discover-box { background: var(--card); border: 3px solid var(--acc); border-radius: 20px; padding: 22px 26px; box-shadow: 0 18px 50px -10px rgba(0, 0, 0, 0.4); }

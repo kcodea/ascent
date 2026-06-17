@@ -230,37 +230,29 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [run.board, run.hand]);
 
-  // --- Live warband drag: the dragged board minion rides along as a held copy while
-  // its placeholder slides to the live insertion slot, so dropping it lands in place
-  // (no post-drop "swap" animation). A played hand card opens a slot the same way. ---
+  // --- Live warband drag: a dragged board minion is *lifted out* of the row entirely
+  // (the floating copy IS the card) for the whole drag; the rest physically close up,
+  // and an empty drop-slot opens at the live insertion point while over the warband.
+  // Dropping lands the card straight into that slot — no post-drop "swap". A played
+  // hand card opens the same slot. ---
   const wouldMagnetize =
     !!drag?.active &&
     drag.source === 'hand' &&
     drag.view.keywords.includes('M') &&
     overZone === 'warband' &&
     run.board[warbandIndexAt(drag.x)]?.tribe === 'mech';
-  const draggingBoardOver = !!drag?.active && drag.source === 'board' && overZone === 'warband' && !wouldMagnetize;
-  const playingOver =
-    !!drag?.active && drag.source === 'hand' && overZone === 'warband' && !wouldMagnetize && run.board.length < CONFIG.boardMax;
-  // insertion slot among the *other* board minions (the dragged one is excluded)
-  const gapIndex = draggingBoardOver
-    ? warbandIndexAt(drag!.x, drag!.uid)
-    : playingOver
-      ? warbandIndexAt(drag!.x)
-      : -1;
-  // Render order: the dragged minion rides to the live slot (as a faint placeholder),
-  // everything else slides to make room.
-  const displayBoard =
-    draggingBoardOver && drag
-      ? (() => {
-          const i = run.board.findIndex((m) => m.uid === drag.uid);
-          if (i < 0) return run.board;
-          const copy = [...run.board];
-          const [held] = copy.splice(i, 1);
-          if (held) copy.splice(Math.max(0, Math.min(copy.length, gapIndex)), 0, held);
-          return copy;
-        })()
-      : run.board;
+  const draggingBoard = !!drag?.active && drag.source === 'board';
+  const overWarband =
+    !!drag?.active &&
+    overZone === 'warband' &&
+    !wouldMagnetize &&
+    (drag.source === 'board' || (drag.source === 'hand' && run.board.length < CONFIG.boardMax));
+  // The dragged board minion leaves the row immediately and stays out for the whole drag.
+  const displayBoard = draggingBoard ? run.board.filter((m) => m.uid !== drag!.uid) : run.board;
+  // Where the empty drop-slot opens (insertion index among the displayed cards), or -1.
+  const gapIndex = overWarband
+    ? warbandIndexAt(drag!.x, drag!.source === 'board' ? drag!.uid : undefined)
+    : -1;
   const flipKey = displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
 
   // FLIP: slide warband cards from their old spots to new ones — live as the drop slot
@@ -387,7 +379,7 @@ export function Recruit() {
         </div>
       )}
 
-      <div className={`zone${draggingBoardOver || playingOver ? ' dropok' : ''}`} data-zone="warband">
+      <div className={`zone${overWarband ? ' dropok' : ''}`} data-zone="warband">
         <div className="zh">
           <span className="zt disp">
             Your Warband · <b>{run.board.length}/{CONFIG.boardMax}</b>
@@ -402,19 +394,18 @@ export function Recruit() {
           )}
           {displayBoard.map((m, i) => (
             <Fragment key={m.uid}>
-              {playingOver && gapIndex === i && <span className="dropslot" aria-hidden="true" />}
+              {gapIndex === i && <span className="dropslot" aria-hidden="true" />}
               <Card
                 uid={m.uid}
                 card={instView(m)}
                 highlight={heroArmed}
                 targeted={heroArmed && aim?.targetUid === m.uid}
-                dimmed={draggingBoardOver && m.uid === drag?.uid}
                 buffed={buffedUids.has(m.uid)}
                 onPointerDown={heroArmed ? undefined : beginDrag(m.uid, 'board', instView(m))}
               />
             </Fragment>
           ))}
-          {playingOver && gapIndex >= displayBoard.length && <span className="dropslot" aria-hidden="true" />}
+          {gapIndex >= displayBoard.length && <span className="dropslot" aria-hidden="true" />}
         </div>
       </div>
 

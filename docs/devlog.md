@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Warband drag — truly lift the held card out (drop-in-place, take 2)
+- The previous pass only lifted the dragged board minion out *while the cursor was over the
+  warband*; dragging it away (e.g. toward the hand) flipped it back to a solid card in the row, so
+  you saw a duplicate — the copy you're holding *and* the original still sitting in the warband.
+  Now the dragged minion is lifted out of the row for the **entire** drag (the floating copy is the
+  card), the rest physically close up, and an empty drop-slot opens at the live insertion point only
+  while hovering the warband — the held copy drops straight into it. Also made the drop-slot more
+  visible. Verified live: dragging toward the hand leaves only the other minion in the warband (no
+  duplicate); holding over the warband opens the slot with the dragged card lifted out.
+
 ### Keyword system (Immune/Stealth/Avenge/End-of-Turn + out-of-combat Deathrattle) + drop-in-place drag + lighter board
 - **Lighter board** — the taupe backdrop was a touch dark; nudged `--bg` `#7d756b` → `#8c857a`.
 - **Drop-in-place warband drag** — reordering a board minion no longer does a jarring post-drop

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CONFIG } from '@game/sim';
+import { heroArt } from './art';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
@@ -9,9 +10,9 @@ export function StatusBar() {
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
   const sellTick = useGame((s) => s.sellTick);
-  // Fortify can target a warband minion OR a tavern offer, so it's usable as long as there's
-  // any minion to buff (an empty board is fine if the shop has offers).
-  const canHero = run.heroReady && (run.board.length > 0 || run.shop.length > 0);
+  // Fortify can target a warband minion OR a tavern offer, so it's usable whenever it's
+  // ready — no friend on board required (you can buff a shop minion).
+  const canHero = run.heroReady;
   // Projected starting Embers for the next two waves (each wave grows maxEmbers by
   // embersPerWave, capped). Base curve only for now — future cards will modify this.
   const nextEmbers = Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave);
@@ -52,7 +53,13 @@ export function StatusBar() {
         className={`hero${canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
         onPointerDown={() => canHero && !heroArmed && armHero()}
       >
-        <div className="f"><Icon name="anvil" /></div>
+        <div className="f">
+          {heroArt('warden') ? (
+            <img className="heroimg" src={heroArt('warden')} alt="Warden" draggable={false} />
+          ) : (
+            <Icon name="anvil" />
+          )}
+        </div>
         <div>
           <div className="nm">Warden</div>
           <div className="pw">{heroArmed ? 'Pick a minion…' : 'Fortify · +1/+1'}</div>

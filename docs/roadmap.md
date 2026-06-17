@@ -93,10 +93,11 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop
       `<id>.png` into `packages/ui/src/art/minions/` → it replaces that card's pixel sprite
       everywhere; falls back to the sprite when absent). In so far: `whelp`, `imp`, `drone`, `drummer`,
-      `spiritfire`, `fred`, `emberpouch`, `bulwark`; the rest of the ~30-card set still uses sprites. Several more illustrations
-      are already sitting unused in the source folder (ArcaneWeaver, BrightwingBroker, Karwind,
+      `spiritfire`, `fred`, `emberpouch`, `bulwark`, `broker`; the rest of the ~30-card set still uses sprites.
+      Several more illustrations are already sitting unused in the source folder (ArcaneWeaver, Karwind,
       Kennelmaster, SpiritOfThePack…) — wire each once its card id is confirmed. Source art lives in
-      `C:\Game Assets\Ascent Art\Minions`; see the README in the art dir for the card-id ↔ name table.
+      `C:\Game Assets\Ascent Art\Minions`. **Hero portraits** use a parallel pipeline (`art/heroes/<id>.png`
+      → `heroArt()`); the Warden portrait is wired — add more as heroes are introduced.
 - [ ] **Divine Shield art style — bubble vs. crest.** The effect-art overlay pipeline shipped
       (`art/effects/*.png` → `effectArt()`; `.dsfx` screen-blends a glowing aura over any `DS` minion,
       live on Spare Part Drone). The current asset is a shield **crest** shape; if a rounder "bubble/dome"

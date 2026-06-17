@@ -230,19 +230,34 @@ export function simulate(
           ? 'player'
           : 'enemy';
 
-  // --- Attack loop: each side cycles living minions left→right; sides alternate ---
-  const pointer: Record<Side, number> = { player: 0, enemy: 0 };
+  // --- Attack loop: each side cycles its minions left→right; sides alternate ---
+  // Track the next attacker by *identity*, not by an index into the living list: a dead
+  // minion stays in the board array but drops out of living(), which re-indexes — indexing
+  // into living() would skip the minion to the right of one that just died. Resuming from
+  // the last attacker's position in the full board array keeps the order stable across
+  // deaths and mid-combat summons.
+  const lastAttacker: Record<Side, Minion | null> = { player: null, enemy: null };
+  const nextAttacker = (side: Side): Minion | undefined => {
+    const arr = boards[side];
+    const last = lastAttacker[side];
+    const start = last ? arr.indexOf(last) + 1 : 0;
+    for (let k = 0; k < arr.length; k++) {
+      const m = arr[(start + k) % arr.length];
+      if (m && !m.dead && m.health > 0) {
+        lastAttacker[side] = m;
+        return m;
+      }
+    }
+    return undefined;
+  };
   let guard = 0;
   while (living('player').length > 0 && living('enemy').length > 0 && guard++ < ITERATION_GUARD) {
-    const attackerSide = turn;
     const defenderSide = OTHER[turn];
-    const live = living(attackerSide);
-    if (live.length === 0) {
+    const attacker = nextAttacker(turn);
+    if (!attacker) {
       turn = defenderSide;
       continue;
     }
-    const attacker = live[pointer[attackerSide] % live.length] as Minion;
-    pointer[attackerSide] += 1;
     performAttack(attacker, defenderSide, 0);
     turn = defenderSide;
   }

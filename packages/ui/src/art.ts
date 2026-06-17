@@ -33,3 +33,16 @@ for (const [path, url] of Object.entries(fxModules)) {
   if (id) FX_ART[id] = url;
 }
 export const effectArt = (name: string): string | undefined => FX_ART[name];
+
+/** Hero portraits — drop a PNG into `packages/ui/src/art/heroes/<id>.png` (e.g. `warden.png`). */
+const heroModules = import.meta.glob('./art/heroes/*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+const HERO_ART: Record<string, string> = {};
+for (const [path, url] of Object.entries(heroModules)) {
+  const id = path.split('/').pop()?.replace(/\.png$/, '') ?? '';
+  if (id) HERO_ART[id] = url;
+}
+export const heroArt = (name: string): string | undefined => HERO_ART[name];

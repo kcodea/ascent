@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Combat attack-order fix, Warden + Broker art, spell rules, drag sensitivity
+- **Combat bug — attacker order after a death (fixed).** The attack loop picked the next attacker by
+  indexing into the **living** list (`live[pointer % live.length]`). When a minion died it dropped out
+  of `living()`, which **re-indexes**, so the pointer skipped the minion to the right of the one that
+  died — e.g. with `[Sporeling 1/2, Stray, Taunt Sporeling]`, the front Sporeling traded in and died,
+  then the **Taunt Sporeling attacked before the Stray**. Now the next attacker is tracked by
+  **identity** (resume from the last attacker's position in the full board array), which is stable
+  across deaths *and* mid-combat summons. Added a regression test (front 1/1 dies → the 2nd minion,
+  not the 3rd, swings next). (Not a Taunt issue — Taunt only affects targeting, never attack order.)
+- **Hero (Warden) + Brightwing Broker art wired.** Added an `art/heroes/*.png` glob + `heroArt()`; the
+  hero panel now shows the **Warden** portrait (falls back to the anvil icon if absent). Brightwing
+  Broker (`broker`, a Tier-2 neutral) gets its illustration via the normal minion glob. Both 512²,
+  confirmed bundled.
+- **Hero power usable without a friend on board.** `canHero` is now just `heroReady` (was gated on
+  having a board/shop minion) — since Fortify can target a tavern offer, it's always usable when ready.
+- **Spells: no triple, no sell.** `checkTriples` ignores spell cards (three copies stay separate), and
+  the `sell` reducer refuses spells (they're only played for their effect). Drag-to-sell already
+  excluded spells in the UI; this enforces it in the engine too. (+2 tests.)
+- **Card insertion is more sensitive.** Dragging a card now moves the insertion point past another
+  card when the cursor reaches **~35%** into it (was the 50% centre), so cards slide out of the way
+  sooner — e.g. dropping next to a lone minion pushes it aside instead of landing on the far side.
+  Tunable via `INSERT_FRAC` in Recruit.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**81**, +3) + `build:web` pass; combat-order
+  regression test green, Warden portrait rendering live, hero power armable on an empty board, Broker +
+  Warden art bundled.
+
 ### Hero power can buff tavern minions, embers-projection popup, spell-sell fix + polish
 - **Hero power targets the tavern now.** Fortify reads "give a minion +1/+1" (not "a *friendly*
   minion"), so it can target a **tavern offer**, not just the warband. `ShopCard` gained `atk`/`hp`/

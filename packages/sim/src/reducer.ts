@@ -142,6 +142,8 @@ export function reduce(state: RunState, action: Action): RunState {
       } else {
         const hi = s.hand.findIndex((c) => c.uid === action.uid);
         if (hi < 0) return state;
+        // Spells can't be sold — they're only played for their effect.
+        if (CARD_INDEX[s.hand[hi]!.cardId]?.spell) return state;
         s.hand.splice(hi, 1);
       }
       s.embers += CONFIG.sellValue; // embers are uncapped within a turn (no max-embers ceiling)
@@ -263,7 +265,8 @@ function checkTriples(s: RunState): void {
   for (let guard = 0; guard < 10; guard++) {
     const counts = new Map<string, number>();
     for (const c of [...s.board, ...s.hand]) {
-      if (!c.golden) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+      // Spells are never minions — they don't triple (they're cast for their effect).
+      if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     let tripleId: string | undefined;
     for (const [id, n] of counts) {

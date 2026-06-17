@@ -22,6 +22,12 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat fix** — attackers no longer swing out of order after a minion dies mid-combat (the next
+  attacker is tracked by identity, not by a shifting index).
+- **Hero art** — the Warden hero now has a portrait, and Brightwing Broker has its illustration.
+- **Spells** — can't be tripled or sold; they're only played for their effect. Hero power is usable
+  with no minion on your board (it can buff a shop offer).
+- **Snappier reordering** — cards slide out of the way sooner as you drag (insertion triggers earlier).
 - **Hero power hits the tavern** — Fortify ("give a minion +1/+1") can now buff a shop offer, not just
   your warband; the buff is baked in when you buy it.
 - **Embers forecast** — hover the Embers chip to see how many you'll start the next two waves with.

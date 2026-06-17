@@ -10,6 +10,9 @@ type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
 
 const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a drag
+// How far into a card the cursor must reach (fraction of width) before the insertion point
+// moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
+const INSERT_FRAC = 0.35;
 const TURN_SECONDS = 30; // round timer; at 0 the player is forced into combat
 const RING = 2 * Math.PI * 17; // countdown ring circumference
 
@@ -92,7 +95,7 @@ export function Recruit() {
     for (const c of cards) {
       if (c.getAttribute('data-uid') === excludeUid) continue;
       const r = c.getBoundingClientRect();
-      if (x > r.left + r.width / 2) i++;
+      if (x > r.left + r.width * INSERT_FRAC) i++;
     }
     return i;
   };
@@ -105,7 +108,7 @@ export function Recruit() {
     for (const c of cards) {
       if (c.getAttribute('data-uid') === excludeUid) continue;
       const r = c.getBoundingClientRect();
-      if (x > r.left + r.width / 2) i++;
+      if (x > r.left + r.width * INSERT_FRAC) i++;
     }
     return i;
   };

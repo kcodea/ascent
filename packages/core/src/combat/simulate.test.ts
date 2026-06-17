@@ -24,6 +24,26 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerDamage).toBe(b.playerDamage);
   });
 
+  it('attack order resumes after the front minion dies — does not skip the next', () => {
+    // Player [1/1, 2/5, 3/5] vs a 1/20 wall: the 1/1 trades in and dies to retaliation,
+    // then the SECOND minion (not the third) must swing next. Regression for the bug where
+    // the attacker was indexed into the living() list, which re-indexes when a minion dies.
+    const p: BoardMinion[] = [
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 2, health: 5 },
+      { cardId: 'stray', attack: 3, health: 5 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'stray', attack: 1, health: 20 }];
+    const a = run(p, e, 3);
+    const pUids = a.initial.player.map((m) => m.uid);
+    const playerAttackers: string[] = [];
+    for (const ev of a.events) {
+      if (ev.type === 'attack' && pUids.includes(ev.attacker)) playerAttackers.push(ev.attacker);
+    }
+    expect(playerAttackers[0]).toBe(pUids[0]); // the 1/1 swings first (and dies)
+    expect(playerAttackers[1]).toBe(pUids[1]); // the 2/5 swings next — NOT the 3/5
+  });
+
   it('applies the player-damage formula on a loss', () => {
     const a = run(
       [{ cardId: 'alley', attack: 1, health: 1 }],

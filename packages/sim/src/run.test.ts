@@ -435,6 +435,21 @@ describe('run loop (@game/sim)', () => {
     expect([bought.attack, bought.health]).toEqual([2, 2]); // 1/1 + the Fortify buff
   });
 
+  it('spells never triple (three copies stay separate)', () => {
+    const spell = (uid: string) => ({ uid, cardId: 'spiritfire', tribe: 'neutral' as const, attack: 0, health: 1, keywords: [], golden: false });
+    let s: RunState = { ...createRun(1), embers: 3, hand: [spell('a'), spell('b'), spell('c')], shop: [{ uid: 'x', cardId: 'alley' }] };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // buying a minion runs checkTriples
+    expect(s.hand.filter((c) => c.cardId === 'spiritfire').length).toBe(3); // not combined
+    expect(s.hand.some((c) => c.cardId === 'spiritfire' && c.golden)).toBe(false);
+  });
+
+  it('spells cannot be sold', () => {
+    const s: RunState = { ...createRun(1), embers: 0, hand: [{ uid: 'a', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    const after = reduce(s, { type: 'sell', uid: 'a' });
+    expect(after.embers).toBe(0); // no +1
+    expect(after.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // stays in hand
+  });
+
   const threeSandbags = (): RunState => {
     const mk = (uid: string): BoardCard => ({
       uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false,

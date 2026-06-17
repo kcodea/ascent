@@ -22,6 +22,11 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Scales to your screen** — cards now grow with the viewport height (clamped), so the board fills
+  16:9 up to 21:9 / ultrawide instead of sitting tiny in the middle.
+- **Cost badge** hangs over the card's top-left corner — solid orange, white text, bigger.
+- **Gentler hand hover** — hovering a hand card lifts it just enough to reveal it (no more big pop
+  that bounced out from under the cursor).
 - **Mirror layout** — the shop offers and your warband now sit on opposite halves of the board (with
   the rope timer on the centre line); the Refresh/Freeze/Tier/End-Turn controls are a separate bar.
 - **HUD in the corner** — Embers · Hero · Resolve moved to a compact tray in the bottom-left, giving

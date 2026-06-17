@@ -19,7 +19,6 @@ export function HudBar() {
     <div className="bar">
       <div className="wm disp">ASCENT</div>
       <div className="alt">
-        <span className="lbl">Altitude</span>
         <span className="w">WAVE {run.wave}</span>
         <span className="meter">
           <i style={{ width: `${Math.min(100, run.wave * 8)}%` }} />

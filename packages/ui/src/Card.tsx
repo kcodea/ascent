@@ -164,11 +164,12 @@ export function Card({
       onDrop={onDrop}
     >
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
+      {/* cost badge — a direct child of .card (not .art) so it can overhang the corner */}
+      {card.cost !== undefined && <span className="cost">{card.cost}</span>}
       {card.keywords.includes('T') && (
         <span className="tauntward" aria-hidden="true"><Icon name="taunt" /></span>
       )}
       <div className="art">
-        {card.cost !== undefined && <span className="cost">{card.cost}</span>}
         {artFor(card.cardId) ? (
           <img className="artimg" src={artFor(card.cardId)} alt="" draggable={false} />
         ) : (

@@ -70,8 +70,11 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       depth / hover-lift / fan overlap are first-pass values — revisit once more cards are in play
       (and on shorter viewports) so the resting peek and the pop both feel right.
 
-- [ ] **Responsive layout for short viewports** — fixed 264px cards × 3 rows + chrome only fits tall
-      screens right now; needs a scale-to-fit or compact mode for laptops.
+- [ ] **Scale the chrome too (HUD / buttons / fonts).** Card sizing now scales with the viewport
+      (`--ch: clamp(220px, 27vh, 384px)`) so the board fills 16:9 → 21:9 screens. The chrome (top HUD,
+      tavern controls, status tray, body text) is still fixed-px, so it looks comparatively small on
+      large monitors — scale it with the viewport (or a root rem) for a fully proportional UI. Also
+      double-check very short viewports (≤720px) and the combat arena at the new card scale.
 - [ ] **Single-target Battlecries** (e.g. "give a friendly minion +X/+X") — the Hero-Power targeting
       line + aim infrastructure is ready to reuse; no current card is player-targeted. (Content; on
       hold until the feel/functionality pass + balance are done.)

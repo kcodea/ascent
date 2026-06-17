@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Scale the board to the viewport (16:9 → 21:9), overhang cost badge, Stray ≠ Fodder
+- **Stray is no longer treated as Fodder.** `consumeFodderOnSummon` now matches **strictly the `FD`
+  keyword** (dropped the "any token" fallback), so a Voracious Imp won't eat a summoned Beast Stray.
+  (Stray never had the keyword — the fallback was making it behave like Fodder.) Test updated to assert
+  the Stray *stays* and the Imp is unchanged.
+- **Card sizing now scales with the viewport** so the board fills big screens (the game looked tiny on
+  a 3440×1440 / 21:9 monitor): `--ch: clamp(220px, 27vh, 384px)`, `--cw = --ch × 0.752`, and the
+  bottom padding + warband nudge are now `--ch`-relative. Verified across sizes — at **3440×1440** cards
+  are **384px** tall (was a flat 278px) with **no overflow**; fits 16:9 down to ~768px tall too. The
+  ultrawide play area stays centred (cards big, side margins are expected on 21:9). *Chrome (HUD/buttons)
+  is still fixed-px — flagged for a follow-up if the user wants it scaled too.*
+- **Hand hover is gentle now.** The hover-pop was `translateY(-150px)` — it flung the card ~184px up,
+  out from under the cursor (causing a hover/un-hover bounce). Now `translateY(-5%)` (≈33px lift) +
+  `z-index` — just enough to reveal the card and bring it to the front, staying under the pointer.
+- **Cost badge overhangs the corner.** Moved the `.cost` badge out of the `overflow:hidden` `.art` to
+  be a direct child of `.card`, then restyled it to hang over the **top-left corner** (eclipsing the
+  edge), filled solid **orange** with **white** text, **~50% larger** (26→40px, 14→21px), with a cream
+  ring + shadow so it reads as a sticker.
+- **Removed the "Altitude" label** from the top wave readout (just the wave number + meter now).
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**75**) + `build:web` pass; scaling measured at
+  3440×1440 (no overflow), cost badge / Stray / Altitude / hand-hover confirmed live. `TURN_SECONDS`
+  test bump reverted to 30.
+
 ### Mirror layout: offers vs warband across the centre, HUD to the bottom-left corner
 - **Tavern controls decoupled from the offers.** The Refresh/Freeze/Tier/End-Turn `shopctl` bar moved
   out of the tavern `[data-zone]` and now sits as its own control bar under the HUD; the tavern zone

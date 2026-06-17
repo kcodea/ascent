@@ -99,11 +99,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.consume(self, victim);
   },
 
-  /** Voracious Imp: when a **Fodder**-keyword minion (or any token) is played/summoned
-   *  beside it, eat it. Keying off the keyword lets any future card mark itself Fodder. */
+  /** Voracious Imp: when a **Fodder**-keyword minion is played/summoned beside it, eat it.
+   *  Strictly the keyword — plain tokens (e.g. a Beast Stray) are not Fodder and are safe. */
   consumeFodderOnSummon: (ctx, self, _params, { minion }) => {
     if (minion === self) return;
-    if (!minion.keywords.includes('FD') && !CARD_INDEX[minion.cardId]?.token) return;
+    if (!minion.keywords.includes('FD')) return;
     ctx.consume(self, minion);
   },
 

@@ -304,7 +304,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.cardId === 'maw')?.keywords).toContain('DS');
   });
 
-  it('Voracious Imp eats a Fodder token summoned beside it', () => {
+  it('Voracious Imp ignores a non-Fodder summon (a Stray token is not Fodder)', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -313,11 +313,11 @@ describe('run loop (@game/sim)', () => {
       shop: [{ uid: 'x', cardId: 'alley' }],
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
-    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // Alleycat summons a Stray → Imp eats it
-    expect(s.board.some((c) => c.cardId === 'stray')).toBe(false);
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // Alleycat summons a Stray — not Fodder
+    expect(s.board.some((c) => c.cardId === 'stray')).toBe(true); // Stray stays — the Imp won't eat it
     const imp = s.board.find((c) => c.cardId === 'imp');
-    expect(imp?.attack).toBe(3); // 2 + 1
-    expect(imp?.health).toBe(3); // 2 + 1
+    expect(imp?.attack).toBe(2); // unchanged — ate nothing
+    expect(imp?.health).toBe(2);
   });
 
   it('Voracious Imp eats a Fodder-keyword minion played beside it (demons need fuel)', () => {

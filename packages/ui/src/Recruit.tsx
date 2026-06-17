@@ -92,6 +92,7 @@ export function Recruit() {
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
   const [resetting, setResetting] = useState(false);
+  const [showLog, setShowLog] = useState(false); // the post-combat Combat Log overlay
   const prevPhaseRef = useRef(run.phase);
   const findEl = useCallback(
     (uid: string): Element | null =>
@@ -107,6 +108,7 @@ export function Recruit() {
   useEffect(() => {
     if (!inCombat) {
       setCombatStage('closing');
+      setShowLog(false); // close the log when the fight is over
       return;
     }
     setCombatStage('closing');
@@ -328,6 +330,15 @@ export function Recruit() {
       next.set(c.uid, cur);
       if (prev.has(c.uid) && cur > (prev.get(c.uid) ?? 0)) newly.push(c.uid);
     }
+    // Tavern offers can be buffed too (the hero power can Fortify a shop minion) —
+    // track their effective stats (base + the stored offer buff) so they flash as well.
+    for (const o of run.shop) {
+      const base = CARD_INDEX[o.cardId];
+      if (!base) continue;
+      const cur = base.attack + (o.atk ?? 0) + base.health + (o.hp ?? 0);
+      next.set(o.uid, cur);
+      if (prev.has(o.uid) && cur > (prev.get(o.uid) ?? 0)) newly.push(o.uid);
+    }
     prevStatsRef.current = next;
     if (newly.length === 0) return;
     setBuffedUids((s) => new Set([...s, ...newly]));
@@ -339,7 +350,7 @@ export function Recruit() {
       });
     }, 700);
     return () => window.clearTimeout(t);
-  }, [run.board, run.hand]);
+  }, [run.board, run.hand, run.shop]);
 
   // --- Live warband drag: a dragged board minion is *lifted out* of the row entirely
   // (the floating copy IS the card) for the whole drag; the rest physically close up,
@@ -537,20 +548,26 @@ export function Recruit() {
       </div>
       ) : (
         <div className="combatctl">
-          <span className="cbanner">
-            <b>Wave {run.wave}</b> · {THREATS[run.threat].name}
-          </span>
-          {replay.done ? (
-            <button className="btn big endturn" onClick={() => dispatch({ type: 'resolveCombat' })}>
-              <Icon name="up" />
-              {replay.result === 'win' ? 'Climb On' : 'End Combat'}
-            </button>
-          ) : (
-            <button className="btn big" onClick={replay.skip}>
-              <Icon name="sword" />
-              Skip
-            </button>
-          )}
+          <span className="cbanner">{THREATS[run.threat].name}</span>
+          <div className="cbtns">
+            {replay.done ? (
+              <>
+                <button className="btn big" onClick={() => setShowLog(true)}>
+                  <Icon name="battlecry" />
+                  Combat Log
+                </button>
+                <button className="btn big endturn" onClick={() => dispatch({ type: 'resolveCombat' })}>
+                  <Icon name="up" />
+                  {replay.result === 'win' ? 'Climb On' : 'End Combat'}
+                </button>
+              </>
+            ) : (
+              <button className="btn big" onClick={replay.skip}>
+                <Icon name="sword" />
+                Skip
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -577,6 +594,7 @@ export function Recruit() {
                 card={shopView(o)}
                 highlight={heroArmed}
                 targeted={heroArmed && aim?.targetUid === o.uid}
+                buffed={buffedUids.has(o.uid)}
                 onPointerDown={heroArmed ? undefined : beginDrag(o.uid, 'shop', shopView(o))}
               />
             </Fragment>
@@ -599,13 +617,6 @@ export function Recruit() {
         <div className="rope" title={`${seconds}s left`}>
           <div className="rope-lit" style={{ width: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
           <div className="rope-flame" style={{ left: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
-        </div>
-      )}
-      {inCombat && (
-        <div className="clash" aria-hidden="true">
-          <span className="ln" />
-          <span className="vs disp">VS</span>
-          <span className="ln" />
         </div>
       )}
 
@@ -711,6 +722,26 @@ export function Recruit() {
           {[18, 70, 128, 162, 215, 268, 305, 340].map((a) => (
             <span className="ss-ray" key={a} style={{ '--a': `${a}deg` } as CSSProperties} />
           ))}
+        </div>
+      )}
+
+      {showLog && (
+        <div className="logov" role="dialog" aria-label="Combat log" onClick={() => setShowLog(false)}>
+          <div className="logbox" onClick={(e) => e.stopPropagation()}>
+            <div className="logtitle">
+              Combat Log <span className={`logverdict ${replay.result ?? ''}`}>{replay.result === 'win' ? 'Victory' : replay.result === 'lose' ? 'Defeat' : 'Draw'}</span>
+            </div>
+            <div className="loglines">
+              {replay.fullLog.length === 0 ? (
+                <div className="logline">No blows were struck.</div>
+              ) : (
+                replay.fullLog.map((line, i) => (
+                  <div className="logline" key={i}>{line}</div>
+                ))
+              )}
+            </div>
+            <button className="btn big" onClick={() => setShowLog(false)}>Close</button>
+          </div>
         </div>
       )}
 

@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Mana economy, teal cost, combat-log + banner polish, buff-proc fixes, board 1
+The UI half of a large batch (the Fodder/Demon and Kennelmaster reworks land in following
+commits):
+- **Board 1** — reverted the play-surface backdrop to `board1.png` (the user preferred its aesthetic).
+- **Embers → Mana (display only).** Relabelled the resource to **Mana** and recoloured it **teal**
+  (`--mana: #30d2ff`): a new droplet icon in the status chip, teal chip icon, teal button costs. The
+  card **cost badge is back to a circle** (dropped the flame), teal. Internal identifiers stay
+  `embers` (per the user's call — this is a cosmetic rename, the economy logic is unchanged).
+- **Combat presentation.** Removed the `—VS—` divider; the top combat banner now shows just the
+  **threat name** (the wave already lives in the HUD) as a raspberry pill pinned out-of-flow on the
+  left, so the action buttons stay centred. Added a **Combat Log** button that appears beside **End
+  Combat / Climb On** once the replay settles — it opens an overlay listing the whole fight narrated
+  line by line (with the verdict). Both post-combat buttons are centred.
+- **Buff-proc fixes.** The buff animation no longer "snaps back": the spring easing is now scoped to
+  the *rise* only, and the settle eases out (`animation-fill-mode: both`), so the card returns
+  smoothly. **Tavern offers buffed by the hero power now play the proc too** — the buff-detection
+  effect tracks shop offers' effective stats (base + the stored offer buff), not just board/hand.
+- **Card text bigger** — keyword pills 9.5→12px and the description 12→14px for readability.
+- **Taunt ward −15%** (78→66px) and **Soulfeeder + Kennelmaster art** wired (`feed.png`, `kennel.png`).
+- **Verified live:** board 1 + teal Mana circle + "Mana" label + teal button costs confirmed via
+  screenshot; hero-powering a tavern offer now flashes it (`cardbuff` + burst); a full
+  recruit→combat→recruit cycle shows the threat-name banner, no VS, the centred Combat Log + End
+  Combat, and the log overlay opens with its verdict. Fresh-server console is clean (the hook-order
+  warnings seen mid-edit were stale Fast-Refresh transition artifacts). `typecheck` (+web) + `lint` +
+  `test` (**81**) + `build:web` all pass.
+
 ### In-place combat — the shop closes, the enemies arrive (no more separate arena screen)
 Combat now plays out **on the recruit board itself** instead of cutting to a separate full-screen
 arena. When you End Turn, the top half "closes up" (the tavern offers, the control bar, the timer,

@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Mana economy** — Embers are now **Mana**, recoloured teal (`#30d2ff`): a droplet resource icon
+  and a teal circular cost badge. A **Combat Log** button (beside End Combat) replays the fight in
+  text; the `—VS—` divider is gone and the combat banner now names the threat. Buff procs no longer
+  snap back, and tavern offers buffed by the hero power flash too. Bigger card text; **board 1** art.
 - **In-place combat** — no more cutting to a separate arena screen. When you End Turn the shop
   "closes" (the offers, controls, timer, rope and hand animate away) and the enemy team **arrives**
   where the tavern was, while your **warband, hero, and the whole HUD stay exactly where they are**.

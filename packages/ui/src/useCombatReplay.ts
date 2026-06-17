@@ -171,6 +171,8 @@ export interface CombatReplay {
   projectiles: { id: number; x: number; y: number; dx: number; dy: number }[];
   floatsFor: (uid: string) => Float[];
   log: string;
+  /** The whole fight narrated, line by line — for the post-combat Combat Log. */
+  fullLog: string[];
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -356,9 +358,13 @@ export function useCombatReplay(
     if (line) { log = line; break; }
   }
   const floatsFor = (uid: string): Float[] => floats.filter((f) => f.uid === uid);
+  const fullLog = useMemo(
+    () => events.map((e) => narrate(e, names)).filter((l): l is string => l !== null),
+    [events, names],
+  );
 
   return {
-    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log,
+    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log, fullLog,
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, skip: () => setBeatIdx(beats.length),
   };

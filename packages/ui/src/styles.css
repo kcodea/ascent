@@ -9,6 +9,7 @@
   --bg: #8c857a; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
   --acc: #f0902e; --acc-dk: #c46f17; --threat: #e5446b; --threat-dk: #b32c50; --shadow: rgba(90, 66, 30, 0.16);
+  --mana: #30d2ff; --mana-dk: #1592c2; /* the Mana economy (was Embers) — teal blue */
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      viewport height so the board fills big screens (16:9 → 21:9), clamped to sane bounds */
   --ch: clamp(220px, 27vh, 384px); --cw: calc(var(--ch) * 0.752);
@@ -64,6 +65,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .chip .ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; }
 .chip .ic svg { width: 19px; height: 19px; color: #fff; }
 .chip.g .ic { background: var(--acc); } .chip.h .ic { background: var(--threat); }
+.chip.mana .ic { background: var(--mana); } /* Mana economy reads teal, not tangerine */
 .chip .v { font-family: 'Outfit'; font-weight: 800; font-size: 20px; line-height: 1; }
 .chip .l { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
 .hero { display: flex; align-items: center; gap: 9px; background: var(--card); border: 2px solid var(--line); border-radius: 13px; padding: 4px 14px 4px 5px; }
@@ -132,7 +134,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .btn.big.endturn:hover { border-color: var(--acc-dk); filter: brightness(1.05); }
 .btn.big.endturn.urgent { animation: endpulse 0.9s ease-in-out infinite; }
 @keyframes endpulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 45%, transparent); } }
-.btn .c { color: var(--acc-dk); font-weight: 800; }
+.btn .c { color: var(--mana-dk); font-weight: 800; } /* button costs are Mana (teal) */
 .btn.frozen { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
 .btn.frozen svg { color: #fff; }
 .btn.go { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 7px 20px; font-size: 14px; font-weight: 800; }
@@ -160,10 +162,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
-/* cost badge — the cost number sits inside an ember (flame), pushed up-left to eclipse the corner */
-.cost { position: absolute; top: -44px; left: -42px; width: 103px; height: 103px; z-index: 6; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.42)); }
-.cost svg { width: 100%; height: 100%; color: var(--acc); filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff); }
-.cost .costn { position: absolute; inset: 0; display: grid; place-items: center; padding-top: 17px; font-family: 'Outfit'; font-weight: 800; font-size: 31px; color: #fff; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5); }
+/* cost badge — a teal Mana circle overhanging the top-left corner */
+.cost { position: absolute; top: -20px; left: -16px; width: 60px; height: 60px; z-index: 6; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
+.cost .costn { font-family: 'Outfit'; font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
 .tierbadge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
 .tierbadge[data-tier="1"] { background: #74809a; }
@@ -176,8 +177,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card.taunt { box-shadow: 0 0 0 2px #5f6a8a, 0 3px 0 var(--shadow); }
 /* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth). */
 .card.stealth { opacity: 0.8; box-shadow: 0 0 0 2px #3f6f7a, 0 0 14px -2px rgba(63, 111, 122, 0.7), 0 3px 0 var(--shadow); }
-.tauntward { position: absolute; top: -16px; right: -16px; width: 78px; height: 78px; border-radius: 50%; background: #5f6a8a; border: 4px solid var(--card); display: grid; place-items: center; z-index: 6; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
-.tauntward svg { width: 45px; height: 45px; color: #fff; }
+.tauntward { position: absolute; top: -14px; right: -14px; width: 66px; height: 66px; border-radius: 50%; background: #5f6a8a; border: 4px solid var(--card); display: grid; place-items: center; z-index: 6; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
+.tauntward svg { width: 38px; height: 38px; color: #fff; }
 /* the tribe label sits between the (now absolute, overhanging) atk/hp badges — pad it clear
    of them so the larger text never slips under a badge */
 .cfoot { display: flex; align-items: center; justify-content: center; padding: 5px 52px; background: color-mix(in srgb, var(--c) 14%, var(--card)); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; }
@@ -195,10 +196,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .cn { flex: none; align-self: center; max-width: 100%; font-family: 'Outfit'; font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 /* always reserves one pill-row of height (even with no pills) so the description below
    always starts on the same line — Battlecry text aligns with Start-of-Combat text, etc. */
-.kws { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; align-items: center; min-height: 18px; margin: 6px 0 4px; }
-.kw { font-family: 'Outfit'; font-weight: 700; font-size: 9.5px; letter-spacing: 0.02em; padding: 2px 7px; border-radius: 7px; background: var(--c); color: #fff; display: flex; align-items: center; gap: 3px; }
-.kw svg { width: 9px; height: 9px; }
-.desc { font-size: 12px; font-weight: 600; line-height: 1.32; color: var(--ink2); text-align: center; flex: 1; }
+.kws { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; align-items: center; min-height: 22px; margin: 6px 0 5px; }
+.kw { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 8px; background: var(--c); color: #fff; display: flex; align-items: center; gap: 4px; }
+.kw svg { width: 12px; height: 12px; }
+.desc { font-size: 14px; font-weight: 600; line-height: 1.34; color: var(--ink2); text-align: center; flex: 1; }
 .desc b { color: var(--ink); font-weight: 700; }
 
 /* keyword tooltip — reveals after ~1.5s of hover (handoff) */
@@ -253,11 +254,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
   50% { box-shadow: 0 0 0 4px #7fdcf2, 0 0 32px 9px rgba(95, 198, 224, 0.95); }
 }
 /* recruit-phase buff proc (a stat buff just landed on this card) — a green flash +
-   a brighter, springier pop so a hero-power / spell buff reads at a glance */
-.card.cardbuff { animation: cardbuff 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 21; }
+   a pop. The spring easing is scoped to the *rise* only; the settle eases out so the
+   card doesn't bounce/snap back when the animation ends. */
+.card.cardbuff { animation: cardbuff 0.62s both; z-index: 21; }
 @keyframes cardbuff {
-  0% { box-shadow: 0 3px 0 var(--shadow); }
-  30% { box-shadow: 0 0 0 4px #2bd897, 0 0 30px 8px rgba(43, 216, 151, 0.85); transform: translateY(-7px) scale(1.06); filter: brightness(1.22); }
+  0% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+  32% { box-shadow: 0 0 0 4px #2bd897, 0 0 30px 8px rgba(43, 216, 151, 0.85); transform: translateY(-7px) scale(1.06); filter: brightness(1.2); animation-timing-function: ease-out; }
   100% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; }
 }
 /* the buff burst overlay: an expanding ring + radiating spark shards, painted on top */
@@ -519,9 +521,22 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .app.combat .zone[data-zone='hand'] { transform: translate(-50%, 155%); opacity: 0; pointer-events: none; transition: transform 0.5s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.35s ease; }
 
 /* the combat control bar takes the shop control bar's slot (same buttons → same height) */
-.combatctl { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 10px; flex: none; min-height: 52px; animation: combatctlin 0.4s ease both; }
-.cbanner { font-family: 'Outfit'; font-weight: 700; font-size: 16px; color: var(--ink2); letter-spacing: 0.02em; }
-.cbanner b { color: var(--threat-dk); }
+.combatctl { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; flex: none; min-height: 52px; animation: combatctlin 0.4s ease both; }
+/* the threat (opponent) label sits out of flow on the left, so the buttons stay centred */
+.cbanner { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--threat-dk); background: color-mix(in srgb, var(--card) 82%, transparent); border: 2px solid color-mix(in srgb, var(--threat) 32%, var(--line)); padding: 7px 16px; border-radius: 12px; }
+.cbtns { display: flex; align-items: center; gap: 14px; }
+/* post-combat Combat Log overlay */
+.logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
+@keyframes logfade { from { opacity: 0; } to { opacity: 1; } }
+.logbox { width: min(560px, 90vw); max-height: 76vh; display: flex; flex-direction: column; gap: 13px; background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 18px 20px; box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.5); }
+.logtitle { font-family: 'Outfit'; font-weight: 900; font-size: 20px; letter-spacing: 0.04em; display: flex; align-items: center; gap: 12px; }
+.logverdict { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 11px; border-radius: 9px; }
+.logverdict.win { color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 20%, transparent); }
+.logverdict.lose { color: var(--threat-dk); background: color-mix(in srgb, var(--threat) 18%, transparent); }
+.logverdict.draw { color: var(--ink2); background: var(--bg2); }
+.loglines { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 6px; }
+.logline { font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 600; color: var(--ink2); padding: 7px 11px; border-radius: 8px; background: var(--bg2); }
+.logbox .btn { align-self: center; }
 @keyframes combatctlin { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 
 /* faint team tints + the enemy "arrival" once the fight is on */
@@ -532,9 +547,6 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   0% { opacity: 0; transform: translateY(-64px) scale(0.9); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-
-/* the VS divider sits out of flow (centred on the board) so the warband doesn't shift */
-.app.combat .clash { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, 54vw); z-index: 2; animation: combatctlin 0.5s ease both; }
 
 /* a kill shakes just the unit rows (never the HUD / hero) */
 .app.shaking .zone[data-zone='tavern'] .row, .app.shaking .zone[data-zone='warband'] .row { animation: boardshake 0.3s ease; }

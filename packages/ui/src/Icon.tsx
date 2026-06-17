@@ -13,6 +13,12 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   ember: <path fill="currentColor" d="M12 2s5 6 5 11a5 5 0 11-10 0c0-2 1-4 2-5 0 2 1 3 2 3 1-3-1-6 1-9z" />,
+  mana: (
+    <>
+      <path fill="currentColor" d="M12 2.5C12 2.5 5 10 5 14.5a7 7 0 0014 0C19 10 12 2.5 12 2.5z" />
+      <path fill="rgba(255,255,255,0.5)" d="M9.3 13.4c.3-1.7 1.4-3.4 2.7-4.9-2 .8-3.6 2.6-3.9 4.7-.1.6.3 1.1.9.9.2-.1.3-.4.3-.7z" />
+    </>
+  ),
   heart: <path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z" />,
   anvil: <path fill="currentColor" d="M5 7h9c0 2 1 3 3 3v3l3 1-1 3H7l-1-3 2-1V9H5V7zm1 11h10v2H6v-2z" />,
   refresh: <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M20 11a8 8 0 10-1 5M20 4v5h-5" />,

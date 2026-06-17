@@ -36,18 +36,18 @@ export function StatusBar() {
   return (
     <div className="statusbar">
       <div className="statusrow">
-        <div className="chip g">
-          <span className="ic"><Icon name="ember" /></span>
+        <div className="chip g mana">
+          <span className="ic"><Icon name="mana" /></span>
           <div>
             <div className="v">{run.embers}</div>
-            <div className="l">Embers</div>
+            <div className="l">Mana</div>
           </div>
           {sellTick > 0 && <span className="sellfx" key={sellTick}>+1</span>}
-          {/* hover: how many Embers you'll start the next two waves with (cascading up) */}
+          {/* hover: how much Mana you'll start the next two waves with (cascading up) */}
           <div className="emberproj" role="tooltip">
-            <div className="ept">Embers · coming up</div>
-            <div className="epr"><span>Wave {run.wave + 2}</span><b><Icon name="ember" />{afterEmbers}</b></div>
-            <div className="epr"><span>Wave {run.wave + 1}</span><b><Icon name="ember" />{nextEmbers}</b></div>
+            <div className="ept">Mana · coming up</div>
+            <div className="epr"><span>Wave {run.wave + 2}</span><b><Icon name="mana" />{afterEmbers}</b></div>
+            <div className="epr"><span>Wave {run.wave + 1}</span><b><Icon name="mana" />{nextEmbers}</b></div>
           </div>
         </div>
 

@@ -164,10 +164,9 @@ export function Card({
       onDrop={onDrop}
     >
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
-      {/* cost badge — the cost sits inside an ember (flame), overhanging the corner */}
+      {/* cost badge — a teal Mana circle overhanging the corner */}
       {card.cost !== undefined && (
         <span className="cost">
-          <Icon name="ember" />
           <span className="costn">{card.cost}</span>
         </span>
       )}

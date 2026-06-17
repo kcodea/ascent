@@ -83,7 +83,7 @@ function computeFrame(
 const SPEED = 1.5;
 const DELAY: Record<string, number> = {
   // action beats (the wind-up / cast)
-  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 560,
+  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 560, improve: 520,
   // result beats (the impact — keyed by the first result event)
   dmg: 360, shield: 460, shieldUp: 460, poison: 480, death: 320,
 };
@@ -126,6 +126,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'poison': return { [e.target]: 'poisoned' };
     case 'reborn': return { [e.target]: 'reborn' };
     case 'buff': return { [e.target]: 'buffed' };
+    case 'improve': return { [e.target]: 'buffed' };
     case 'sc': return { [e.source]: 'sccast' };
     case 'death': return { [e.target]: 'dying' };
     case 'summon': return { [e.minion.uid]: 'summoned' };
@@ -143,6 +144,7 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
     case 'shieldUp': return { uid: e.target, text: '◇', kind: 'shieldup' };
     case 'reborn': return { uid: e.target, text: '♻', kind: 'reborn' };
     case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
+    case 'improve': return { uid: e.target, text: '✦', kind: 'buff' };
     default: return null;
   }
 }
@@ -163,6 +165,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'death': return { text: `${n(e.target)} is destroyed.`, kind: 'death' };
     case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
+    case 'improve': return { text: `${n(e.target)}'s summon aura strengthens by +${e.amount}/+${e.amount}.`, kind: 'buff' };
     default: return null;
   }
 }
@@ -179,6 +182,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'death': return `${n(e.target)} falls.`;
     case 'summon': return `${e.minion.name} joins the fray.`;
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
+    case 'improve': return `${n(e.target)}'s aura strengthens (+${e.amount}/+${e.amount}).`;
     default: return null;
   }
 }

@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Kennelmaster Avenge text/anim, DS scale nudge
+- **Kennelmaster reflects its Avenge boost.** Its board card now shows the *current* summon-buff
+  magnitude (`+1/+1` → **`+2/+2`** at `summonBonus` 1, etc.), rendered **green** as a modified value
+  (`instView` rebuilds the text with a `{{…}}` marker → `descUp()` in the Card → `.desc .descup`).
+- **A combat pulse when Avenge triggers.** `avengeImproveSummon` now logs a new `improve` combat
+  event; the replay pulses the Kennelmaster (✦ green float + a beat) and the log reads "…aura
+  strengthens (+1/+1)." (New `CombatEvent` variant wired through the replay + harness narrators.)
+- **In-combat escalation confirmed** — `buffOnSummon` reads the live `summonBonus`, which Avenge
+  increments mid-fight, so a Beast summoned *after* the trigger gets the higher buff for the rest of
+  that combat (and it persists onward).
+- **Divine-Shield scale** nudged 1.32 → 1.18 (less overshoot). The real fix is matching-aspect art:
+  the art panel is **5:4 (1.25:1)** but the source is 3:2, so `fill` distorts — a 5:4 frame
+  (e.g. **1280×1024**, edge-to-edge, transparent centre) would fill it cleanly at scale 1.0.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**85**) + `build:web` pass; app loads clean,
+  DS art renders at scale 1.18, no console errors.
+
 ### Buff-jank fix (root cause), new DS art, Omen art, 2× combat buttons
 - **Buff "reset" jank — actually fixed this time (found the root cause).** The card visibly
   disappeared/reappeared *after* the buff animation. Cause: `.card` always carries

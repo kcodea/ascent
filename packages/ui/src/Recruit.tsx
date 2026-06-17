@@ -42,9 +42,17 @@ function shopView(card: ShopCard, spellCostMod = 0): CardView {
 function instView(inst: BoardCard): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
+  // Kennelmaster's Avenge permanently raises its summon buff — show the boosted magnitude
+  // in the text, wrapped in {{…}} so the Card renders it green (a modified value).
+  let text = c.text;
+  const sb = inst.summonBonus ?? 0;
+  if (sb > 0 && c.id === 'kennel') {
+    const m = 1 + sb;
+    text = `Each **Beast** you summon gains {{+${m}/+${m}}}. **Avenge (3):** Improve this.`;
+  }
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, attack: inst.attack, health: inst.health,
-    keywords: inst.keywords, text: c.text, golden: inst.golden,
+    keywords: inst.keywords, text, golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,

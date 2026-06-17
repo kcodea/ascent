@@ -58,6 +58,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   + ${ev.minion.name} (${ev.minion.attack}/${ev.minion.health}) summoned on ${ev.side}`;
     case 'buff':
       return `   ↑ ${n(ev.target)} +${ev.attack}/+${ev.health}`;
+    case 'improve':
+      return `   ✦ ${n(ev.target)} aura +${ev.amount}/+${ev.amount}`;
   }
 }
 

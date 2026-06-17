@@ -187,7 +187,8 @@ export type CombatEvent =
   | { type: 'death'; target: string }
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number }
-  | { type: 'buff'; target: string; attack: number; health: number; source: string };
+  | { type: 'buff'; target: string; attack: number; health: number; source: string }
+  | { type: 'improve'; target: string; amount: number }; // Kennelmaster's Avenge strengthens its summon aura
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 

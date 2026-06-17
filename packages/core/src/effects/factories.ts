@@ -164,13 +164,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Avenge (X) — Kennelmaster: after every `count` friendly deaths, permanently improve this
    *  minion's summon buff by +1/+1 (its `summonBonus`, carried back to the run board afterwards).
-   *  Affects every Beast it summons for the rest of the fight, and every future fight. */
-  avengeImproveSummon: (_ctx, self, params, payload) => {
+   *  Affects every Beast it summons for the rest of the fight, and every future fight. Logs an
+   *  `improve` event so the UI can pulse it. */
+  avengeImproveSummon: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
     if (count % x !== 0) return;
     self.summonBonus += 1;
+    ctx.log({ type: 'improve', target: self.uid, amount: 1 });
   },
 
   /** Deathrattle (Ghastweaver): fill the board with random cards from `pool`. */

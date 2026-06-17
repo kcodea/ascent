@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Tripling a summon-buff card combines its accrued buffs (Kennelmaster)
+- **Bug:** tripling a buffed Kennelmaster dropped its Avenge buffs — the golden showed only +2/+2
+  (golden ×2 of the base) instead of combining the copies. Two Kennelmasters at +6/+6 and +4/+4
+  should triple to **+10/+10**.
+- **Fix:** the summon-buff magnitude now **combines like a stat on triple**. `checkTriples` carries
+  a new `summonBonus = base + (top-two combined bonuses)` onto the golden, and the separate golden
+  ×2 was removed from `buffOnSummon` (both the combat and recruit factories) — the combine *is* the
+  doubling. So a fresh triple still doubles the base (1+1 → +2/+2; Bristleback 2+2 → +4/+4), while
+  two boosted copies sum (6+4 → +10/+10). `doubleNums` now skips `{{…}}` markers so a golden
+  Kennelmaster's already-final magnitude isn't doubled again in the text.
+- **Combat log already covers it.** Every combat event prints to the Combat Log (the verbose
+  `narrateLog` handles attack/dmg/shield/poison/reborn/death/summon/**buff**/**improve**…), so a
+  beast getting buffed and Kennelmaster's Avenge "aura strengthens" both show as lines — useful for
+  triage, as requested. (The `improve` line was added in the prior commit.)
+- **Tests (+2, 87 total):** tripling two boosted Kennelmasters yields a golden with `summonBonus` 9
+  (→ +10/+10); a golden Kennelmaster grants its full +10/+10 (no double-counting). `typecheck`
+  (+web) + `lint` + `test` (**87**) + `build:web` pass; the bot plays full runs deterministically;
+  app loads clean.
+
 ### Kennelmaster Avenge text/anim, DS scale nudge
 - **Kennelmaster reflects its Avenge boost.** Its board card now shows the *current* summon-buff
   magnitude (`+1/+1` → **`+2/+2`** at `summonBonus` 1, etc.), rendered **green** as a modified value

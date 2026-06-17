@@ -215,6 +215,36 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'k')?.summonBonus).toBe(2); // carried back from combat
   });
 
+  it('tripling a Kennelmaster combines its accrued Avenge buffs', () => {
+    // Two Kennelmasters at +6/+6 (summonBonus 5) and +4/+4 (summonBonus 3) + a fresh one →
+    // the golden's buff is the combined +10/+10 (summonBonus 9 = base 1 + top-two 5 + 3).
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [
+        { uid: 'k1', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false, summonBonus: 5 },
+        { uid: 'k2', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false, summonBonus: 3 },
+      ],
+      shop: [{ uid: 'x', cardId: 'kennel' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
+    const golden = s.hand.find((c) => c.cardId === 'kennel' && c.golden);
+    expect(golden?.summonBonus).toBe(9); // base 1 + (5 + 3) → grants +10/+10
+  });
+
+  it('a golden Kennelmaster grants its full combined buff (no golden double-counting)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [{ uid: 'k', cardId: 'kennel', tribe: 'beast', attack: 4, health: 6, keywords: [], golden: true, summonBonus: 9 }],
+      hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'a' });
+    const stray = s.board.find((c) => c.cardId === 'stray');
+    expect([stray?.attack, stray?.health]).toEqual([11, 11]); // 1/1 + (base 1 + summonBonus 9) = +10/+10
+  });
+
   it('Dragon Battlecries bake into stats when played', () => {
     let s: RunState = {
       ...createRun(1),

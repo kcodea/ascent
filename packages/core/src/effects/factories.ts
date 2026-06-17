@@ -54,15 +54,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < total; i++) ctx.summon(self.side, card, self.uid);
   },
 
-  /** When a friendly minion of `tribe` is summoned, buff it (+atk/+hp). `self.summonBonus`
-   *  (Kennelmaster's Avenge improvements) adds to the per-stat magnitude before doubling. */
+  /** When a friendly minion of `tribe` is summoned, buff it. The per-stat magnitude is the
+   *  base buff + `self.summonBonus` (Kennelmaster's Avenge / triple-combined bonus). No golden
+   *  doubling here — a golden's bonus already encodes the combined magnitude (see checkTriples). */
   buffOnSummon: (ctx, self, params, payload) => {
     const { minion, side } = payload as MinionPayload;
     if (self.dead || side !== self.side || minion === self) return;
     const tribe = str(params.tribe) as Tribe | 'any';
     if (tribe !== 'any' && minion.tribe !== tribe) return;
     const bonus = self.summonBonus;
-    ctx.buff(minion, (num(params.attack) + bonus) * mul(self), (num(params.health) + bonus) * mul(self), self.uid);
+    ctx.buff(minion, num(params.attack) + bonus, num(params.health) + bonus, self.uid);
   },
 
   /** Deathrattle: buff all living friends of `tribe` (+atk/+hp). */

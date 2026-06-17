@@ -299,6 +299,18 @@ function checkTriples(s: RunState): void {
     const hps = combined.map((c) => c.health).sort((a, b) => b - a);
     const keywords = [...new Set(combined.flatMap((c) => c.keywords))];
     const def = CARD_INDEX[tripleId]!;
+    // A summon-buff card (Kennelmaster / Bristleback Matron) carries its accrued buff
+    // through the triple: the golden's summonBonus = its base buff + the two highest
+    // bonuses combined, so the granted magnitude (base + summonBonus) is the SUM of the
+    // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
+    // a fresh triple just doubles the base (the golden doubling falls out of the combine).
+    const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon');
+    let summonBonus: number | undefined;
+    if (summonEffect) {
+      const base = Number((summonEffect.params as { attack?: number })?.attack ?? 0);
+      const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
+      summonBonus = base + (sbs[0] ?? 0) + (sbs[1] ?? 0);
+    }
     s.hand.push({
       uid: `b${s.uidSeq++}`,
       cardId: def.id,
@@ -307,6 +319,7 @@ function checkTriples(s: RunState): void {
       health: (hps[0] ?? 0) + (hps[1] ?? 0),
       keywords,
       golden: true,
+      summonBonus,
     });
     // The Discover isn't granted now — it comes from a spell when the golden is played.
   }

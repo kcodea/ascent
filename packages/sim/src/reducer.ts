@@ -242,6 +242,9 @@ export function reduce(state: RunState, action: Action): RunState {
         attack: b.attack,
         health: b.health,
         keywords: [...b.keywords],
+        golden: b.golden,
+        summonBonus: b.summonBonus ?? 0,
+        sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
       }));
       s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX);
       s.phase = 'combat';
@@ -336,6 +339,14 @@ function offerDiscover(s: RunState, tripleTier: number): void {
 
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */
 function advanceAfterCombat(s: RunState, result: CombatResult): void {
+  // Persist per-instance combat state (Kennelmaster's Avenge permanently improves its
+  // summon buff for the rest of the run), keyed back to the originating board card.
+  if (result.playerSummonBonus) {
+    for (const { sourceUid, bonus } of result.playerSummonBonus) {
+      const card = s.board.find((c) => c.uid === sourceUid);
+      if (card) card.summonBonus = bonus;
+    }
+  }
   if (result.result === 'lose') s.resolve = Math.max(0, s.resolve - result.playerDamage);
 
   if (s.resolve <= 0) {

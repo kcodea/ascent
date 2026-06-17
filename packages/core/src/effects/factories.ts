@@ -54,13 +54,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < total; i++) ctx.summon(self.side, card, self.uid);
   },
 
-  /** When a friendly minion of `tribe` is summoned, buff it (+atk/+hp). */
+  /** When a friendly minion of `tribe` is summoned, buff it (+atk/+hp). `self.summonBonus`
+   *  (Kennelmaster's Avenge improvements) adds to the per-stat magnitude before doubling. */
   buffOnSummon: (ctx, self, params, payload) => {
     const { minion, side } = payload as MinionPayload;
     if (self.dead || side !== self.side || minion === self) return;
     const tribe = str(params.tribe) as Tribe | 'any';
     if (tribe !== 'any' && minion.tribe !== tribe) return;
-    ctx.buff(minion, num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
+    const bonus = self.summonBonus;
+    ctx.buff(minion, (num(params.attack) + bonus) * mul(self), (num(params.health) + bonus) * mul(self), self.uid);
   },
 
   /** Deathrattle: buff all living friends of `tribe` (+atk/+hp). */
@@ -158,6 +160,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const x = Math.max(1, num(params.count, 3));
     if (count % x !== 0) return;
     ctx.buff(self, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
+  /** Avenge (X) — Kennelmaster: after every `count` friendly deaths, permanently improve this
+   *  minion's summon buff by +1/+1 (its `summonBonus`, carried back to the run board afterwards).
+   *  Affects every Beast it summons for the rest of the fight, and every future fight. */
+  avengeImproveSummon: (_ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    if (count % x !== 0) return;
+    self.summonBonus += 1;
   },
 
   /** Deathrattle (Ghastweaver): fill the board with random cards from `pool`. */

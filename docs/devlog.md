@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Kennelmaster — "Avenge (3): Improve this", permanent across the run
+Reworked Kennelmaster to **"Each Beast you summon gains +1/+1. Avenge (3): Improve this."** The
+Avenge boost is **permanent for the whole run** (the user's call), which meant threading per-instance
+state through the pure combat boundary and carrying it back.
+- **New per-instance `summonBonus`.** `BoardCard.summonBonus` (run) ↔ `BoardMinion.summonBonus` +
+  `sourceUid` (combat input) ↔ `Minion.summonBonus` (combat-mutable) ↔ `CombatResult.playerSummonBonus`
+  (carry-back). `buffOnSummon` (both the combat factory and the recruit one) now adds `summonBonus` to
+  its per-stat magnitude, so the bonus raises every Beast the Kennelmaster summons.
+- **New `avengeImproveSummon` factory** (combat): on every 3rd friendly death, while alive, it bumps
+  its own `summonBonus` by 1 — improving every Beast it summons for the rest of the fight.
+- **Carry-back + persistence.** `simulate()` reports each sourced minion's final `summonBonus` in
+  `playerSummonBonus`; `advanceAfterCombat` writes it back onto the originating board card (matched by
+  `sourceUid`), so the improved buff persists into future fights. `faceOmen` now also threads
+  `golden` into combat (it wasn't before — a latent bug where golden minions didn't fire combat
+  effects at 2×), so a golden Kennelmaster's summon buff doubles correctly.
+- **Tests (85 total, +3):** a combat test (3 Taunt sandbags die first → Avenge fires once → `bonus: 1`
+  in `playerSummonBonus`, deterministic because Taunts are targeted first), a run test that the
+  recruit summon buff scales with the accrued bonus (Stray gets +3/+3 at `summonBonus: 2`), and a run
+  test that `resolveCombat` persists the bonus onto the board card.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**85**) + `build:web` pass; the headless bot
+  plays full runs (waves 8–10) deterministically with no crashes; the live app loads clean. Soulfeeder
+  + Kennelmaster art were wired in the earlier UI commit.
+
 ### Fodder reworked — Soulfeeder seeds the tavern, Demons devour it (+ a real tavern refresh)
 Redesigned the Demon Fodder loop per the user's new spec. Fodder no longer sits in your hand to be
 played beside a Demon; it **arrives in the tavern** and your Demons **eat it automatically**.

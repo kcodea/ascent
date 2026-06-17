@@ -58,6 +58,9 @@ export interface BoardCard {
   health: number;
   keywords: Keyword[];
   golden: boolean;
+  /** Extra magnitude on this card's summon-buff effect, accrued permanently across the run
+   *  (Kennelmaster's Avenge improvements). Default/absent = 0. */
+  summonBonus?: number;
 }
 
 export type Phase = 'recruit' | 'combat' | 'gameover';

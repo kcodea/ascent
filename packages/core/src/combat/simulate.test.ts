@@ -24,6 +24,22 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerDamage).toBe(b.playerDamage);
   });
 
+  it('Kennelmaster Avenge (3) improves its summon buff and reports the bonus to carry back', () => {
+    // 3 Taunt sandbags are killed first (forced targets) while the no-Taunt Kennelmaster
+    // chips the tanky enemy — so all 3 friends die with Kennelmaster alive → Avenge (3)
+    // fires once → summonBonus 1, reported in playerSummonBonus (deterministic: Taunts go first).
+    const p: BoardMinion[] = [
+      { cardId: 'kennel', attack: 2, health: 50, sourceUid: 'K' },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 20 }];
+    const r = run(p, e, 7);
+    expect(r.result).toBe('win'); // Kennelmaster outlasts the attacker
+    expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
+  });
+
   it('attack order resumes after the front minion dies — does not skip the next', () => {
     // Player [1/1, 2/5, 3/5] vs a 1/20 wall: the 1/1 trades in and dies to retaliation,
     // then the SECOND minion (not the third) must swing next. Regression for the bug where

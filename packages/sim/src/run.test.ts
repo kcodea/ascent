@@ -184,6 +184,37 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.cardId === 'stray')?.attack).toBe(2); // 1 + 1
   });
 
+  it("Kennelmaster's summon buff scales with its accrued Avenge bonus", () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      // a Kennelmaster that has already improved twice (Avenge fired twice in past fights)
+      board: [{ uid: 'k', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false, summonBonus: 2 }],
+      hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'a' }); // Alleycat + its Stray are Beasts summoned beside it
+    const stray = s.board.find((c) => c.cardId === 'stray');
+    expect([stray?.attack, stray?.health]).toEqual([4, 4]); // 1/1 + (1+2)/(1+2)
+  });
+
+  it("persists a Kennelmaster's Avenge improvement across combat (whole-run)", () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      board: [{ uid: 'k', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false, summonBonus: 0 }],
+      lastCombat: {
+        events: [],
+        result: 'win',
+        playerDamage: 0,
+        initial: { player: [], enemy: [] },
+        playerSummonBonus: [{ sourceUid: 'k', bonus: 2 }],
+      },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.find((c) => c.uid === 'k')?.summonBonus).toBe(2); // carried back from combat
+  });
+
   it('Dragon Battlecries bake into stats when played', () => {
     let s: RunState = {
       ...createRun(1),

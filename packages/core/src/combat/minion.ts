@@ -29,6 +29,8 @@ export function instantiate(
     rebornAvailable: keywords.includes('R'),
     golden: board.golden ?? false,
     reAttackOnKill: card.effects.some((e) => e.do === 'reAttackOnKill'),
+    summonBonus: board.summonBonus ?? 0,
+    sourceUid: board.sourceUid,
     side,
     effects: card.effects,
     dead: false,

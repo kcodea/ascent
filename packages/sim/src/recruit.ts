@@ -44,13 +44,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     minion.health += num(params.health) * gold(self);
   },
 
-  /** Kennelmaster / Bristleback Matron: buff each summoned friend of `tribe`. */
+  /** Kennelmaster / Bristleback Matron: buff each summoned friend of `tribe`. Kennelmaster's
+   *  Avenge improvements (`self.summonBonus`, persisted on the board card) raise the magnitude. */
   buffOnSummon: (_ctx, self, params, { minion }) => {
     if (minion === self) return;
     const tribe = str(params.tribe);
     if (tribe && tribe !== 'any' && minion.tribe !== tribe) return;
-    minion.attack += num(params.attack) * gold(self);
-    minion.health += num(params.health) * gold(self);
+    const bonus = self.summonBonus ?? 0;
+    minion.attack += (num(params.attack) + bonus) * gold(self);
+    minion.health += (num(params.health) + bonus) * gold(self);
   },
 
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */

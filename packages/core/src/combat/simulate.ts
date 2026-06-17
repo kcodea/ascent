@@ -282,5 +282,11 @@ export function simulate(
       ? Math.max(1, Math.round(survivorsE.reduce((sum, m) => sum + (m.attack + m.health) / 8, 0)))
       : 0;
 
-  return { events, result, playerDamage, initial };
+  // Per-instance state to carry back to the run board: a Kennelmaster whose Avenge
+  // improved its summon buff this combat keeps the higher bonus for the run.
+  const playerSummonBonus = boards.player
+    .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0)
+    .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
+
+  return { events, result, playerDamage, initial, playerSummonBonus };
 }

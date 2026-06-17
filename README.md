@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Kennelmaster** — now "Each Beast you summon gains +1/+1. **Avenge (3): Improve this**" — each 3
+  friendly deaths permanently bumps its summon buff for the rest of the run (per-instance state is
+  threaded through combat and carried back). Also fixed a latent bug where golden minions didn't fire
+  combat effects at 2×.
 - **Fodder reworked** — Fodder (Fred) is no longer rollable; **Soulfeeder** (now T1) seeds it into
   your next tavern, and your **Demons eat it automatically** when it arrives (a random Demon per
   Fodder). **Voracious Imp** (now T2) gains **2× stats from Fodder** (golden 3×); the usual on-consume

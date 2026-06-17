@@ -40,8 +40,11 @@ export const BEASTS: CardDef[] = [
     attack: 2,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'buffOnSummon', params: { tribe: 'beast', attack: 1, health: 1 } }],
-    text: 'Each Beast you summon gets **+1/+1**.',
+    effects: [
+      { on: 'onSummon', do: 'buffOnSummon', params: { tribe: 'beast', attack: 1, health: 1 } },
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
+    ],
+    text: 'Each **Beast** you summon gains **+1/+1**. **Avenge (3):** Improve this.',
   },
   {
     id: 'cleaver',

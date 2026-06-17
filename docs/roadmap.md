@@ -18,6 +18,9 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
   - Demon's matrix **holds** — leave as the reference.
 - [ ] (stretch) Teach the balance runner to test realistic *mixed* boards, not just mono-tribe, so
       the win-rates reflect actual play.
+- [ ] **Cards for the new triggers.** The keyword *system* now supports Avenge (X) and End of Turn
+      (game events + `avengeBuff` / `endOfTurnBuff` factories + pills), but no card declares them yet —
+      they're dormant until the card set adds users. Immune / Stealth work on any card today.
 
 ## M3 — meta
 

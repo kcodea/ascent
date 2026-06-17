@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral']);
 
-export const KeywordSchema = z.enum(['T', 'DS', 'P', 'W', 'R', 'C', 'M', 'SC', 'CN']);
+export const KeywordSchema = z.enum(['T', 'DS', 'P', 'W', 'R', 'C', 'M', 'SC', 'CN', 'IMM', 'ST']);
 
 export const GameEventSchema = z.enum([
   'onPlay',
@@ -19,8 +19,10 @@ export const GameEventSchema = z.enum([
   'onConsume',
   'onKill',
   'startOfCombat',
+  'avenge',
   'onBuy',
   'onSell',
+  'endOfTurn',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -34,6 +36,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffRandom',
   'onFriendDeathBuffRandom',
   'deathrattleFillTribe',
+  'avengeBuff',
   'scGrantShieldTribe',
   'deathrattleGrantShield',
   'onShieldBreakGrantShield',
@@ -45,6 +48,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecrySummon',
   'buffOnBuy',
   'battlecryGrantKeyword',
+  'endOfTurnBuff',
   'battlecryConsume',
   'consumeFodderOnSummon',
   'onConsumeBuffSelf',

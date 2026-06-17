@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { applyOnBuy, playCard } from './recruit';
+import { applyEndOfTurn, applyOnBuy, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
 
 /**
@@ -174,6 +174,8 @@ export function reduce(state: RunState, action: Action): RunState {
     }
 
     case 'faceOmen': {
+      // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
+      applyEndOfTurn(s);
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
       const enemy = buildEnemyBoard(s.threat, s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));

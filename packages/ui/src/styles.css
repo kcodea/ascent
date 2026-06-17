@@ -2,7 +2,7 @@
   --t-beast: #f0a52b; --t-dragon: #ff6a3c; --t-mech: #27a9dd; --t-undead: #22be86; --t-demon: #b15cf0; --t-neutral: #7f8aa0;
   --atk: #f0a32a; --hpc: #ff5a4f;
   /* Sunward */
-  --bg: #7d756b; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
+  --bg: #8c857a; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
   --acc: #f0902e; --acc-dk: #c46f17; --threat: #e5446b; --threat-dk: #b32c50; --shadow: rgba(90, 66, 30, 0.16);
   --cw: 209px; --ch: 278px; /* one standard card size everywhere (shop / warband / hand / combat) */
@@ -144,6 +144,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .tierbadge[data-tier="6"] { background: #e0395f; }
 /* Taunt: a steel shield ward — this minion is a wall enemies must hit first */
 .card.taunt { box-shadow: 0 0 0 2px #5f6a8a, 0 3px 0 var(--shadow); }
+/* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth). */
+.card.stealth { opacity: 0.8; box-shadow: 0 0 0 2px #3f6f7a, 0 0 14px -2px rgba(63, 111, 122, 0.7), 0 3px 0 var(--shadow); }
 .tauntward { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; background: #5f6a8a; border: 2px solid var(--card); display: grid; place-items: center; z-index: 4; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25); }
 .tauntward svg { width: 15px; height: 15px; color: #fff; }
 .cfoot { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: color-mix(in srgb, var(--c) 14%, var(--card)); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; }
@@ -219,8 +221,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .zone.dropok .row { background: color-mix(in srgb, var(--acc) 9%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent); border-radius: 16px; transition: box-shadow 0.12s, background 0.12s; }
 /* live insertion bar — the exact slot a played / reordered minion will drop into */
 .row.warband { position: relative; }
-.dropmark { position: absolute; top: 10px; bottom: 10px; width: 4px; margin-left: -2px; border-radius: 3px; background: var(--acc); box-shadow: 0 0 10px 2px color-mix(in srgb, var(--acc) 70%, transparent); z-index: 30; pointer-events: none; transition: left 0.09s ease; animation: dropmarkin 0.12s ease; }
-@keyframes dropmarkin { from { opacity: 0; transform: scaleY(0.6); } to { opacity: 1; transform: scaleY(1); } }
+/* the live drop slot a dragged / played minion will land in — the row's other cards
+   slide (FLIP) to open it, and the held copy drops straight into it. */
+.dropslot { flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); border-radius: 13px; border: 2px dashed color-mix(in srgb, var(--acc) 60%, transparent); background: color-mix(in srgb, var(--acc) 13%, transparent); }
 
 /* targeting line — Hero Power (and future single-target Battlecries) */
 .aimline { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 90; overflow: visible; }

@@ -8,9 +8,10 @@ import { useGame } from './store';
 
 const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Shield', P: 'Poison', W: 'Windfury', R: 'Reborn', C: 'Cleave', M: 'Magnetic', SC: 'Start', CN: 'Consume',
+  IMM: 'Immune', ST: 'Stealth',
 };
 const KW_ICON: Partial<Record<Keyword, string>> = {
-  T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc',
+  T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc', IMM: 'shield', ST: 'eye',
 };
 /** Plain-language keyword meanings, revealed in the hover tooltip (handoff A.4). */
 const KW_DESC: Record<Keyword, string> = {
@@ -23,6 +24,8 @@ const KW_DESC: Record<Keyword, string> = {
   M: 'Magnetic — Drag onto a friendly Mech to merge its stats in.',
   SC: 'Start of Combat — Triggers once, right before the fight begins.',
   CN: 'Consume — Eats one of your minions to add its stats.',
+  IMM: 'Immune — Takes no damage.',
+  ST: 'Stealth — Can’t be attacked until it attacks.',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
@@ -69,17 +72,21 @@ const statCls = (cur: number, base?: number): string =>
   base === undefined || cur === base ? '' : cur > base ? ' up' : ' down';
 
 /**
- * Battlecry / Deathrattle aren't keywords in the data model — they read from the
- * text prefix and get their own pill (matching Start / Consume), so every card's
- * keyword row lands in the same place and the description starts on a fixed line.
+ * Trigger abilities (Battlecry / Deathrattle / Avenge / End of Turn) aren't keywords
+ * in the data model — they read from the text prefix and get their own pill (matching
+ * Start / Consume), so every card's keyword row lands in the same place and the
+ * description starts on a fixed line. Tolerates leading markdown/space ("**Battlecry:**").
  */
 const triggerPill = (text: string): { label: string; icon: string } | null =>
-  // tolerate leading markdown/space (the text is usually "**Battlecry:** …")
   /^\W*battlecry/i.test(text)
     ? { label: 'Battlecry', icon: 'battlecry' }
     : /^\W*deathrattle/i.test(text)
       ? { label: 'Deathrattle', icon: 'skull' }
-      : null;
+      : /^\W*avenge/i.test(text)
+        ? { label: 'Avenge', icon: 'skull' }
+        : /^\W*end of turn/i.test(text)
+          ? { label: 'End of Turn', icon: 'sc' }
+          : null;
 
 /** The one standardized card — identical size/shape in shop, warband, and hand. */
 export function Card({
@@ -124,7 +131,7 @@ export function Card({
   ];
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.spell ? ' spellcard' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.spell ? ' spellcard' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
       onClick={onClick}

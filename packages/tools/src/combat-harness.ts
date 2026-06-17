@@ -52,6 +52,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ♻ ${n(ev.target)} is Reborn at 1 hp`;
     case 'death':
       return `   † ${n(ev.target)} dies`;
+    case 'reveal':
+      return `   ◐ ${n(ev.target)} loses Stealth`;
     case 'summon':
       return `   + ${ev.minion.name} (${ev.minion.attack}/${ev.minion.health}) summoned on ${ev.side}`;
     case 'buff':

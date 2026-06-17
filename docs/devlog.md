@@ -3,6 +3,38 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-17
+
+### Keyword system (Immune/Stealth/Avenge/End-of-Turn + out-of-combat Deathrattle) + drop-in-place drag + lighter board
+- **Lighter board** — the taupe backdrop was a touch dark; nudged `--bg` `#7d756b` → `#8c857a`.
+- **Drop-in-place warband drag** — reordering a board minion no longer does a jarring post-drop
+  "swap" animation. While you drag, the minion rides along as the held copy and its placeholder
+  slides to the live insertion slot (the other cards open a gap via FLIP); on release the card lands
+  exactly where it already shows, so there's no second shuffle. A played hand card opens the same
+  slot. (Replaced the absolute drop-bar with a real `displayBoard` reorder + a `.dropslot` gap;
+  `flipKey` drives the live FLIP. Verified live via a held drag — the order is already final before
+  release.)
+- **Keywords wired/fixed** across `@game/core` + `@game/sim` + UI, with the zod schema kept in
+  lockstep:
+  - **Immune (`IMM`)** — takes no damage at all (checked first in `dealDamage`, before Divine Shield;
+    blocks Poison and destroy-by-damage too). Combat keyword, works on any card. Tested.
+  - **Stealth (`ST`)** — can't be targeted by attacks (`chooseTarget` skips it; if every defender is
+    Stealthed the swing is skipped) and is lost the moment it attacks (emits a new `reveal` event so
+    the replay drops the keyword; the card wears a shadowy look until then). Tested.
+  - **Avenge** — new `avenge` game event: `simulate` keeps a per-side death tally and emits it on
+    each death; the `avengeBuff` factory fires every X friendly deaths. Trigger + pill wired (text
+    prefix "Avenge (X):"); ready for any card that declares it.
+  - **End of Turn** — new `endOfTurn` game event fired by `applyEndOfTurn` at the top of `faceOmen`
+    (the turn ending / timer hitting 0), baking into the board before combat; `endOfTurnBuff` recruit
+    factory + pill wired.
+  - **Deathrattle now fires out of combat** — when a minion is Consumed (destroyed in the recruit
+    phase) its Deathrattle resolves via recruit-side factories (summon / buff-tribe / buff-carry /
+    grant-shield). Tested (Soulfeeder eating a Sporeling triggers its +1/+1).
+  - Verified the rest already behave to spec: Battlecry (onPlay, +Drummer re-trigger), Divine Shield,
+    Poison, Reborn, Start of Combat, Consume, Cleave, Windfury (existing tests cover them).
+- **Verified:** `typecheck` (+ web) + `lint` + `test` (**70**, +3) + `build:web` all pass; lighter
+  board + Target Dummy art + clean render confirmed live.
+
 ## 2026-06-16
 
 ### Combat out-of-order fix + darker board + tier-1 art + renames

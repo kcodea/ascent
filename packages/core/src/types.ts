@@ -13,7 +13,9 @@ export type Keyword =
   | 'C' // Cleave
   | 'M' // Magnetic
   | 'SC' // Start of Combat
-  | 'CN'; // Consume
+  | 'CN' // Consume
+  | 'IMM' // Immune — takes no damage
+  | 'ST'; // Stealth — can't be targeted by attacks; lost on attacking
 
 export type Tier = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -30,8 +32,10 @@ export type GameEvent =
   | 'onConsume'
   | 'onKill'
   | 'startOfCombat'
+  | 'avenge' // after X friendly minions have died in combat
   | 'onBuy'
-  | 'onSell';
+  | 'onSell'
+  | 'endOfTurn'; // recruit phase: the turn ends (End Turn / timer hits 0)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -51,6 +55,7 @@ export type EffectFactoryId =
   | 'deathrattleBuffRandom'
   | 'onFriendDeathBuffRandom'
   | 'deathrattleFillTribe'
+  | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
   | 'scGrantShieldTribe'
   | 'deathrattleGrantShield'
@@ -65,6 +70,7 @@ export type EffectFactoryId =
   | 'battlecrySummon'
   | 'buffOnBuy'
   | 'battlecryGrantKeyword'
+  | 'endOfTurnBuff' // End of Turn: buff self (recruit)
   // Demons — Consume (recruit-resolved half)
   | 'battlecryConsume'
   | 'consumeFodderOnSummon'
@@ -152,6 +158,7 @@ export type CombatEvent =
   | { type: 'poison'; target: string }
   | { type: 'reborn'; target: string; hp: number }
   | { type: 'death'; target: string }
+  | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number }
   | { type: 'buff'; target: string; attack: number; health: number; source: string };
 

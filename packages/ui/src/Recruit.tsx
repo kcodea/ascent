@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, type BoardCard } from '@game/sim';
 import { Card, type CardView } from './Card';
@@ -230,8 +230,41 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [run.board, run.hand]);
 
-  // FLIP: when the warband reorders (a minion played / sold / repositioned), slide
-  // the existing cards from their old spots to their new ones (a quick shuffle).
+  // --- Live warband drag: the dragged board minion rides along as a held copy while
+  // its placeholder slides to the live insertion slot, so dropping it lands in place
+  // (no post-drop "swap" animation). A played hand card opens a slot the same way. ---
+  const wouldMagnetize =
+    !!drag?.active &&
+    drag.source === 'hand' &&
+    drag.view.keywords.includes('M') &&
+    overZone === 'warband' &&
+    run.board[warbandIndexAt(drag.x)]?.tribe === 'mech';
+  const draggingBoardOver = !!drag?.active && drag.source === 'board' && overZone === 'warband' && !wouldMagnetize;
+  const playingOver =
+    !!drag?.active && drag.source === 'hand' && overZone === 'warband' && !wouldMagnetize && run.board.length < CONFIG.boardMax;
+  // insertion slot among the *other* board minions (the dragged one is excluded)
+  const gapIndex = draggingBoardOver
+    ? warbandIndexAt(drag!.x, drag!.uid)
+    : playingOver
+      ? warbandIndexAt(drag!.x)
+      : -1;
+  // Render order: the dragged minion rides to the live slot (as a faint placeholder),
+  // everything else slides to make room.
+  const displayBoard =
+    draggingBoardOver && drag
+      ? (() => {
+          const i = run.board.findIndex((m) => m.uid === drag.uid);
+          if (i < 0) return run.board;
+          const copy = [...run.board];
+          const [held] = copy.splice(i, 1);
+          if (held) copy.splice(Math.max(0, Math.min(copy.length, gapIndex)), 0, held);
+          return copy;
+        })()
+      : run.board;
+  const flipKey = displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
+
+  // FLIP: slide warband cards from their old spots to new ones — live as the drop slot
+  // moves during a drag, and when the board reorders (play / sell / summon / reposition).
   useLayoutEffect(() => {
     const cards = document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]');
     const next = new Map<string, number>();
@@ -245,13 +278,13 @@ export function Recruit() {
         el.style.transition = 'none';
         el.style.transform = `translateX(${prev - left}px)`;
         requestAnimationFrame(() => {
-          el.style.transition = 'transform 0.28s ease';
+          el.style.transition = 'transform 0.2s ease';
           el.style.transform = '';
         });
       }
     });
     flipRef.current = next;
-  }, [run.board]);
+  }, [flipKey]);
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
@@ -276,38 +309,6 @@ export function Recruit() {
   // Gold sell-preview glow: an owned card hovered over the tavern.
   const sellGlow = overZone === 'tavern' && (drag?.source === 'board' || drag?.source === 'hand');
   const isDragging = (uid: string): boolean => drag?.active === true && drag.uid === uid;
-  // Electric flair while a Magnetic minion hovers a friendly Mech (it'll merge on drop).
-  const wouldMagnetize =
-    !!drag?.active &&
-    drag.source === 'hand' &&
-    drag.view.keywords.includes('M') &&
-    overZone === 'warband' &&
-    run.board[warbandIndexAt(drag.x)]?.tribe === 'mech';
-
-  // Live insertion marker — show exactly where a played / reordered minion will land.
-  const canDropWarband =
-    !!drag?.active &&
-    overZone === 'warband' &&
-    !wouldMagnetize &&
-    ((drag.source === 'hand' && run.board.length < CONFIG.boardMax) || drag.source === 'board');
-  const dropIndex = canDropWarband
-    ? warbandIndexAt(drag!.x, drag!.source === 'board' ? drag!.uid : undefined)
-    : -1;
-  // x of the insertion bar within the warband row (between the two cards it splits).
-  const dropMarkLeft = (): number => {
-    const row = document.querySelector('[data-zone="warband"] .row.warband');
-    if (!row) return 0;
-    const rowR = row.getBoundingClientRect();
-    const cards = [...row.querySelectorAll<HTMLElement>('.card[data-uid]')].filter(
-      (c) => !(drag?.source === 'board' && c.getAttribute('data-uid') === drag.uid),
-    );
-    if (cards.length === 0) return rowR.width / 2;
-    if (dropIndex <= 0) return cards[0]!.getBoundingClientRect().left - rowR.left - 7;
-    if (dropIndex >= cards.length) return cards[cards.length - 1]!.getBoundingClientRect().right - rowR.left + 7;
-    const a = cards[dropIndex - 1]!.getBoundingClientRect();
-    const b = cards[dropIndex]!.getBoundingClientRect();
-    return (a.right + b.left) / 2 - rowR.left;
-  };
   // A shop card over the hand will buy it — glow the hand to confirm the drop target.
   const canDropHand = !!drag?.active && drag.source === 'shop' && overZone === 'hand';
 
@@ -386,7 +387,7 @@ export function Recruit() {
         </div>
       )}
 
-      <div className={`zone${canDropWarband ? ' dropok' : ''}`} data-zone="warband">
+      <div className={`zone${draggingBoardOver || playingOver ? ' dropok' : ''}`} data-zone="warband">
         <div className="zh">
           <span className="zt disp">
             Your Warband · <b>{run.board.length}/{CONFIG.boardMax}</b>
@@ -396,20 +397,24 @@ export function Recruit() {
           </span>
         </div>
         <div className="row warband">
-          {canDropWarband && <span className="dropmark" style={{ left: dropMarkLeft() }} aria-hidden="true" />}
-          {run.board.length === 0 && <div className="warband-hint">Drag minions up from your hand to play them here.</div>}
-          {run.board.map((m) => (
-            <Card
-              key={m.uid}
-              uid={m.uid}
-              card={instView(m)}
-              highlight={heroArmed}
-              targeted={heroArmed && aim?.targetUid === m.uid}
-              dimmed={isDragging(m.uid)}
-              buffed={buffedUids.has(m.uid)}
-              onPointerDown={heroArmed ? undefined : beginDrag(m.uid, 'board', instView(m))}
-            />
+          {run.board.length === 0 && !drag?.active && (
+            <div className="warband-hint">Drag minions up from your hand to play them here.</div>
+          )}
+          {displayBoard.map((m, i) => (
+            <Fragment key={m.uid}>
+              {playingOver && gapIndex === i && <span className="dropslot" aria-hidden="true" />}
+              <Card
+                uid={m.uid}
+                card={instView(m)}
+                highlight={heroArmed}
+                targeted={heroArmed && aim?.targetUid === m.uid}
+                dimmed={draggingBoardOver && m.uid === drag?.uid}
+                buffed={buffedUids.has(m.uid)}
+                onPointerDown={heroArmed ? undefined : beginDrag(m.uid, 'board', instView(m))}
+              />
+            </Fragment>
           ))}
+          {playingOver && gapIndex >= displayBoard.length && <span className="dropslot" aria-hidden="true" />}
         </div>
       </div>
 

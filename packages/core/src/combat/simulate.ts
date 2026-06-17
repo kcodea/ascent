@@ -116,6 +116,9 @@ export function simulate(
     enemy: boards.enemy.map(snapshot),
   };
 
+  // Running death tally per side — drives Avenge (X) (A.4).
+  const deaths: Record<Side, number> = { player: 0, enemy: 0 };
+
   function killOrReborn(minion: Minion): void {
     // Reborn (A.3 step 6): the first death returns the minion at 1 health.
     if (minion.rebornAvailable) {
@@ -130,10 +133,15 @@ export function simulate(
     minion.health = 0;
     events.push({ type: 'death', target: minion.uid });
     bus.emit('onDeath', { minion, side: minion.side });
+    // Avenge: count the death and notify that side's avengers.
+    deaths[minion.side] += 1;
+    bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
   }
 
   function dealDamage(target: Minion, amount: number, poison: boolean, bypassShield: boolean): void {
     if (target.dead || target.health <= 0) return;
+    // Immune: takes no damage at all (A.4) — even from Poison or destroy effects.
+    if (target.keywords.includes('IMM')) return;
     // Divine Shield absorbs the first instance — and still blocks Poison (A.3).
     if (!bypassShield && target.divineShield) {
       target.divineShield = false;
@@ -152,8 +160,10 @@ export function simulate(
   }
 
   // Targeting: random among living enemies, Taunts first if any (A.3 step 4).
+  // Stealth minions can't be targeted (A.4); if every defender is Stealthed there's
+  // no legal target and the swing is skipped.
   function chooseTarget(defenderSide: Side): Minion | undefined {
-    const live = living(defenderSide);
+    const live = living(defenderSide).filter((m) => !m.keywords.includes('ST'));
     if (live.length === 0) return undefined;
     const taunts = live.filter((m) => m.keywords.includes('T'));
     return rng.pick(taunts.length > 0 ? taunts : live);
@@ -161,6 +171,11 @@ export function simulate(
 
   function performAttack(attacker: Minion, defenderSide: Side, depth: number): void {
     if (attacker.dead || attacker.health <= 0) return;
+    // Stealth is lost the moment a minion attacks (A.4) — it becomes targetable.
+    if (attacker.keywords.includes('ST')) {
+      attacker.keywords = attacker.keywords.filter((k) => k !== 'ST');
+      events.push({ type: 'reveal', target: attacker.uid });
+    }
     const swings = attacker.keywords.includes('W') ? 2 : 1; // Windfury (A.3 step 5)
     for (let s = 0; s < swings; s++) {
       if (attacker.dead || attacker.health <= 0) break;

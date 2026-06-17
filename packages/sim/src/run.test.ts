@@ -320,6 +320,25 @@ describe('run loop (@game/sim)', () => {
     expect(imp?.health).toBe(3); // 2 + 1
   });
 
+  it('Deathrattle fires out of combat — a Consumed minion triggers it', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      hand: [{ uid: 'f', cardId: 'feed', tribe: 'demon', attack: 3, health: 3, keywords: ['CN'], golden: false }],
+      board: [
+        { uid: 'sp', cardId: 'spore', tribe: 'undead', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'c', cardId: 'sandbag', tribe: 'neutral', attack: 10, health: 10, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'f' }); // Soulfeeder's Battlecry eats the weakest friend (Sporeling)
+    expect(s.board.some((c) => c.uid === 'sp')).toBe(false); // Sporeling was consumed/destroyed
+    // Sporeling's Deathrattle (give a friend +1/+1) fired out of combat → the carry grew.
+    const carry = s.board.find((c) => c.uid === 'c');
+    expect(carry?.attack).toBe(11);
+    expect(carry?.health).toBe(11);
+  });
+
   const threeSandbags = (): RunState => {
     const mk = (uid: string): BoardCard => ({
       uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false,

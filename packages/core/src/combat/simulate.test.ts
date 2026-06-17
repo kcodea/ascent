@@ -267,6 +267,31 @@ describe('simulate (handoff A.3)', () => {
     expect(pups).toBe(4); // 2 pups × (1 + one Echo)
   });
 
+  it('Immune — takes no damage at all (A.4)', () => {
+    const a = run(
+      [{ cardId: 'omen', attack: 3, health: 3, keywords: ['IMM'] }],
+      [{ cardId: 'omen', attack: 4, health: 6, keywords: [] }],
+      3,
+    );
+    // m0 is the immune player minion — it never takes a point of damage, even on retaliation.
+    expect(a.events.some((e) => e.type === 'dmg' && e.target === 'm0')).toBe(false);
+    expect(a.result).toBe('win'); // grinds the 4/6 down while taking nothing
+  });
+
+  it('Stealth — not targeted until it attacks, then loses Stealth (A.4)', () => {
+    const a = run(
+      [{ cardId: 'omen', attack: 2, health: 6, keywords: ['ST'] }],
+      [{ cardId: 'omen', attack: 1, health: 8, keywords: [] }],
+      4,
+    );
+    const revealIdx = a.events.findIndex((e) => e.type === 'reveal' && e.target === 'm0');
+    expect(revealIdx).toBeGreaterThan(-1); // m0 attacked and lost Stealth
+    const attackedWhileStealthed = a.events
+      .slice(0, revealIdx)
+      .some((e) => e.type === 'attack' && e.defender === 'm0');
+    expect(attackedWhileStealthed).toBe(false); // never hit while Stealthed
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

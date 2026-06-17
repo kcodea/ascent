@@ -117,7 +117,65 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const kw = str(params.keyword) as Keyword;
     if (kw && !self.keywords.includes(kw)) self.keywords.push(kw);
   },
+
+  /** End of Turn: buff self (+atk/+hp) when the recruit turn ends. */
+  endOfTurnBuff: (_ctx, self, params) => {
+    self.attack += num(params.attack) * gold(self);
+    self.health += num(params.health) * gold(self);
+  },
+
+  // --- Deathrattles that can also resolve out of combat (e.g. when Consumed). The
+  //     combat versions live in @game/core; these bake into the board's stats. Out
+  //     of combat there's no RNG, so "random" picks become the highest-Attack carry. ---
+
+  /** Deathrattle: summon `count` copies of a token. */
+  deathrattleSummon: (ctx, self, params) => {
+    const token = CARD_INDEX[str(params.tokenId)];
+    if (!token) return;
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) ctx.summon(token, self.uid);
+  },
+
+  /** Deathrattle: buff all friends of `tribe` (+atk/+hp). */
+  deathrattleBuffTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const a = num(params.attack) * gold(self);
+    const h = num(params.health) * gold(self);
+    for (const c of ctx.state.board) {
+      if (c !== self && (tribe === 'any' || c.tribe === tribe)) {
+        c.attack += a;
+        c.health += h;
+      }
+    }
+  },
+
+  /** Deathrattle: buff the carry (+atk/+hp) — "random" friend out of combat. */
+  deathrattleBuffRandom: (ctx, self, params) => {
+    const friends = ctx.state.board.filter((c) => c !== self);
+    if (friends.length === 0) return;
+    const t = friends.reduce((a, b) => (b.attack > a.attack ? b : a));
+    t.attack += num(params.attack) * gold(self);
+    t.health += num(params.health) * gold(self);
+  },
+
+  /** Deathrattle: give the carry a Divine Shield. */
+  deathrattleGrantShield: (ctx, self) => {
+    const pool = ctx.state.board.filter((c) => c !== self && !c.keywords.includes('DS'));
+    if (pool.length === 0) return;
+    const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
+    t.keywords.push('DS');
+  },
 };
+
+/** Run a destroyed minion's own Deathrattle out of combat (it was Consumed/destroyed). */
+function fireDeathrattle(ctx: RecruitContext, victim: BoardCard): void {
+  const def = CARD_INDEX[victim.cardId];
+  if (!def) return;
+  for (const effect of def.effects) {
+    if (effect.on !== 'onDeath') continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (fn) fn(ctx, victim, effect.params ?? {}, { minion: victim });
+  }
+}
 
 /** Fire a board-wide recruit trigger (`onBuy` / `onSummon`). */
 function fire(
@@ -162,6 +220,8 @@ function makeContext(state: RunState): RecruitContext {
       state.board.splice(i, 1);
       consumer.attack += victim.attack;
       consumer.health += victim.health;
+      // Deathrattle fires out of combat too — the consumed minion was destroyed.
+      fireDeathrattle(ctx, victim);
       fire(ctx, 'onConsume', { minion: consumer });
     },
   };
@@ -172,6 +232,21 @@ function makeContext(state: RunState): RecruitContext {
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   const ctx = makeContext(state);
   fire(ctx, 'onBuy', { minion: bought });
+}
+
+/** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),
+ *  just before the board faces the Omen. Each minion's effect acts on itself. */
+export function applyEndOfTurn(state: RunState): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'endOfTurn') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+    }
+  }
 }
 
 /**

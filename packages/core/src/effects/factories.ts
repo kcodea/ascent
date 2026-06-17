@@ -151,6 +151,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(ctx.rng.pick(friends), num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
 
+  /** Avenge (X): after every `count` friendly deaths in combat, buff self (+atk/+hp). */
+  avengeBuff: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    if (count % x !== 0) return;
+    ctx.buff(self, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
   /** Deathrattle (Ghastweaver): fill the board with random cards from `pool`. */
   deathrattleFillTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;

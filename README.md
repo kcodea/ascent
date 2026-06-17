@@ -22,6 +22,11 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Keywords** — Immune (takes no damage) and Stealth (untargetable until it attacks) added; Avenge
+  and End-of-Turn triggers wired; Deathrattle now also fires out of combat (when a minion is
+  Consumed). Divine Shield / Poison / Reborn / Start-of-Combat / Consume / Cleave / Windfury verified.
+- **Drop-in-place drag** — reordering a warband minion now slides the others open as you drag and
+  drops the card exactly where shown — no jarring post-drop swap.
 - **Combat replay fix** — attackers occasionally lunged toward where their target *used to be*
   (positions were measured during render off the previous frame); the measurement now happens after
   each beat commits, so combat reads in order.

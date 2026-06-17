@@ -64,6 +64,9 @@ function computeFrame(
     } else if (e.type === 'reborn') {
       const u = find(e.target);
       if (u) { u.health = e.hp; u.keywords = u.keywords.filter((k) => k !== 'R'); }
+    } else if (e.type === 'reveal') {
+      const u = find(e.target);
+      if (u) u.keywords = u.keywords.filter((k) => k !== 'ST'); // Stealth lost on attack
     } else if (e.type === 'death') {
       const u = find(e.target);
       if (u) { u.alive = false; u.health = 0; }

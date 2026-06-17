@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, type CardView } from './Card';
+import { summonBuffText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -42,14 +43,8 @@ function shopView(card: ShopCard, spellCostMod = 0): CardView {
 function instView(inst: BoardCard): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
-  // Kennelmaster's Avenge permanently raises its summon buff — show the boosted magnitude
-  // in the text, wrapped in {{…}} so the Card renders it green (a modified value).
-  let text = c.text;
-  const sb = inst.summonBonus ?? 0;
-  if (sb > 0 && c.id === 'kennel') {
-    const m = 1 + sb;
-    text = `Each **Beast** you summon gains {{+${m}/+${m}}}. **Avenge (3):** Improve this.`;
-  }
+  // A summon-buff card (Kennelmaster) shows its current boosted magnitude (green via {{…}}).
+  const text = summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, attack: inst.attack, health: inst.health,
     keywords: inst.keywords, text, golden: inst.golden,
@@ -83,6 +78,7 @@ export function Recruit() {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
   const [snapping, setSnapping] = useState(false);
+  const [magSlide, setMagSlide] = useState(false); // a Magnetic card sliding into its Mech
   const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean; targetUid: string | null } | null>(null);
   const [seconds, setSeconds] = useState(turnSeconds);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
@@ -221,6 +217,30 @@ export function Recruit() {
       // hero) stay click-through and a card can land on the hand tucked behind them.
       const zone = zoneAt(e.clientX, e.clientY);
       document.body.classList.remove('dragging'); // cursor reverts on release
+
+      // Magnetic merge: a Cling Drone dropped onto a friendly Mech first "lands", then slides
+      // into the Mech (left→right) with electricity, and only then merges (the buff lands).
+      const magIdx =
+        d.source === 'hand' && d.view.keywords.includes('M') && zone === 'warband'
+          ? warbandIndexAt(e.clientX)
+          : -1;
+      const magMech = magIdx >= 0 ? run.board[magIdx] : undefined;
+      if (magMech && magMech.tribe === 'mech') {
+        const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${magMech.uid}"]`);
+        if (el) {
+          const r = el.getBoundingClientRect();
+          setMagSlide(true);
+          setDrag((cur) => (cur ? { ...cur, x: r.left + r.width / 2, y: r.top + r.height / 2 } : cur));
+        }
+        window.setTimeout(() => {
+          dispatch({ type: 'play', uid: d.uid, toIndex: magIdx }); // reducer merges into the Mech
+          setMagSlide(false);
+          setDrag(null);
+          setOverZone(null);
+        }, el ? 440 : 0);
+        return;
+      }
+
       const acted = applyDrop(d, zone, e.clientX, e.clientY);
       if (acted || d.view.spell) {
         // a spell that misses just ends — it was never lifted from the hand
@@ -427,9 +447,11 @@ export function Recruit() {
   const overShop = draggingShop && overZone === 'tavern' && drag!.uid !== run.spell?.uid;
   const shopGapIndex = overShop ? shopIndexAt(drag!.x, drag!.uid) : -1;
   // Where the empty drop-slot opens (insertion index among the displayed cards), or -1.
-  const gapIndex = overWarband
-    ? warbandIndexAt(drag!.x, drag!.source === 'board' ? drag!.uid : undefined)
-    : -1;
+  // A magnetizing Cling Drone also shoves cards aside (a slot opens beside the target Mech).
+  const gapIndex =
+    overWarband || wouldMagnetize
+      ? warbandIndexAt(drag!.x, drag!.source === 'board' ? drag!.uid : undefined)
+      : -1;
   const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
   const flipKey =
     displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
@@ -663,7 +685,7 @@ export function Recruit() {
         </div>
       )}
 
-      <div className={`zone${overWarband ? ' dropok' : ''}`} data-zone="warband">
+      <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
         <div className={`row warband${resetting ? ' resetting' : ''}`}>
           {inCombat ? (
             replay.frame.player.map((u) => (
@@ -729,7 +751,7 @@ export function Recruit() {
 
       {drag?.active && !castingSpell && (
         <div
-          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}`}
+          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize || magSlide ? ' electric' : ''}${magSlide ? ' magslide' : ''}`}
           style={{
             width: drag.w,
             height: drag.h,

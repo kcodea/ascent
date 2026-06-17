@@ -290,7 +290,7 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
-  it('Echo Warden makes a Deathrattle summon fire one extra time', () => {
+  it('Echo Warden adds one extra summoned token (additive, not multiplicative)', () => {
     const a = run(
       [
         { cardId: 'pack', attack: 2, health: 1 }, // Deathrattle: summon two 1/1 Pups
@@ -300,7 +300,20 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     const pups = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
-    expect(pups).toBe(4); // 2 pups × (1 + one Echo)
+    expect(pups).toBe(3); // 2 Pups + 1 (one Echo Warden), not 2×2
+  });
+
+  it('a golden Echo Warden adds two extra summoned tokens', () => {
+    const a = run(
+      [
+        { cardId: 'pack', attack: 2, health: 1 }, // Deathrattle: summon two 1/1 Pups
+        { cardId: 'echo', attack: 2, health: 12, golden: true },
+      ],
+      [{ cardId: 'omen', attack: 5, health: 30 }],
+      1,
+    );
+    const pups = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
+    expect(pups).toBe(4); // 2 Pups + 2 (golden Echo Warden)
   });
 
   it('Immune — takes no damage at all (A.4)', () => {

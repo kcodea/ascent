@@ -13,6 +13,9 @@ export interface UnitFrame {
   keywords: Keyword[];
   divineShield: boolean;
   alive: boolean;
+  golden: boolean;
+  /** Live summon-buff bonus (Kennelmaster) — climbs via `improve` events mid-fight. */
+  summonBonus: number;
 }
 
 interface Float {
@@ -25,6 +28,7 @@ interface Float {
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
+  golden: s.golden ?? false, summonBonus: s.summonBonus ?? 0,
 });
 
 /**
@@ -70,6 +74,9 @@ function computeFrame(
     } else if (e.type === 'buff') {
       const u = find(e.target);
       if (u) { u.attack += e.attack; u.health += e.health; }
+    } else if (e.type === 'improve') {
+      const u = find(e.target);
+      if (u) u.summonBonus += e.amount; // Kennelmaster's aura climbs mid-fight → live card text
     } else if (e.type === 'summon') {
       const arr = e.side === 'player' ? player : enemy;
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));

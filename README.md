@@ -22,6 +22,11 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat juice + fixes** — Divine Shield now has new art + a soft yellow glow; combat cards update
+  live (a Kennelmaster's buff climbs mid-fight and reads golden); **Echo Warden** is additive (Pack
+  Scrounger + 1 Echo = 3 Pups, golden Echo = +2); and **Magnetic** cards shove the board aside and
+  slide into the Mech with electricity before merging. Tripling a buffed Kennelmaster now combines
+  the buffs (+6 & +4 → +10).
 - **Combat log + Fodder/DS visuals** — the post-combat log now spells out every hit with damage and
   remaining Health (colour-tagged); the **Divine-Shield** effect art wraps a shielded card's art
   panel; and **Fodder consume is now visible** — a ghost Fred pops into the tavern and swirls into the

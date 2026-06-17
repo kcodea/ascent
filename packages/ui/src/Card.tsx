@@ -143,7 +143,7 @@ export function Card({
   ];
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.spell ? ' spellcard' : ''}${card.tribe2 ? ' dual' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.spell ? ' spellcard' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}

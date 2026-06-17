@@ -34,9 +34,13 @@ function grantShield(ctx: CombatContext, m: Minion): void {
   ctx.log({ type: 'shieldUp', target: m.uid });
 }
 
-/** Echo Warden: each living one on the side makes a friendly summon fire one extra time. */
-function echoReps(ctx: CombatContext, side: Side): number {
-  return 1 + ctx.living(side).filter((m) => m.cardId === 'echo').length;
+/** Echo Warden: each living one adds *extra* summoned tokens (additive, not multiplicative) —
+ *  a golden Echo Warden counts as 2. So Pack Scrounger (2 Pups) + one Echo Warden → 3 Pups. */
+function echoBonus(ctx: CombatContext, side: Side): number {
+  return ctx
+    .living(side)
+    .filter((m) => m.cardId === 'echo')
+    .reduce((sum, m) => sum + (m.golden ? 2 : 1), 0);
 }
 
 /**
@@ -50,7 +54,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummon: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const card = ctx.getCard(str(params.tokenId));
-    const total = num(params.count, 1) * echoReps(ctx, self.side);
+    const total = num(params.count, 1) + echoBonus(ctx, self.side);
     for (let i = 0; i < total; i++) ctx.summon(self.side, card, self.uid);
   },
 
@@ -240,7 +244,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   onFriendDeathSummon: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion === self || minion.side !== self.side) return;
-    const reps = echoReps(ctx, self.side);
+    const reps = 1 + echoBonus(ctx, self.side);
     for (let i = 0; i < reps; i++) ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
   },
 

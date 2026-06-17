@@ -169,6 +169,10 @@ export interface MinionSnapshot {
   attack: number;
   health: number;
   keywords: Keyword[];
+  /** Tripled — so the UI can render the golden treatment in combat too. */
+  golden?: boolean;
+  /** Current summon-buff bonus (Kennelmaster) — for the live combat card text. */
+  summonBonus?: number;
 }
 
 /**

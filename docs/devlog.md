@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### New DS art + glow, live combat buffs (Kennelmaster), additive Echo Warden, Magnetic slide
+- **Divine Shield** — re-wired the new (square 1024²) effect art at `scale(1.06)`, and added a **soft
+  yellow glow fill** on any card with Divine Shield (`.card.dscard` — an outer glow + inner art-panel
+  glow, shared by recruit + combat; dropped the old combat-only box-shadow).
+- **Live combat card state (Kennelmaster).** Combat cards were static — a golden/avenged Kennelmaster
+  showed "+1/+1" and no golden frame. Now `MinionSnapshot` carries `golden` + `summonBonus`, the
+  replay folds `improve` events into a unit's live `summonBonus`, and `Unit` renders the golden
+  treatment + the **current** buff magnitude (via a shared `summonBuffText` helper used by recruit and
+  combat). So a Kennelmaster's text now climbs mid-fight as Avenge fires (+6/+6 → +7/+7 …) and reads
+  golden. (General groundwork — other live-updating combat cards can reuse it.)
+- **Echo Warden is additive, not multiplicative.** It now adds *extra* summoned tokens rather than
+  re-running the summon: Pack Scrounger (2 Pups) + one Echo Warden → **3** Pups (not 4). A **golden**
+  Echo Warden adds **2** ("1 more" → "2 more"). Replaced `echoReps` (×) with `echoBonus` (+).
+- **Magnetic slide.** A Cling Drone dropped on a Mech now **shoves the warband aside** (a slot opens),
+  then the held card **slides into the Mech** (left→right) with the electric crackle before the merge
+  lands — instead of vanishing instantly. (`onUp` animates the floating card into the target Mech,
+  then dispatches the merge.)
+- **Tests (+1, 88):** golden Echo Warden adds 2 (the existing Echo test became the additive +1 case).
+  `typecheck` (+web) + `lint` + `test` (**88**) + `build:web` pass; live: DS art loads (512²) with the
+  yellow glow, combat renders cleanly via the new Unit code, no console errors.
+
 ### Tripling a summon-buff card combines its accrued buffs (Kennelmaster)
 - **Bug:** tripling a buffed Kennelmaster dropped its Avenge buffs — the golden showed only +2/+2
   (golden ×2 of the base) instead of combining the copies. Two Kennelmasters at +6/+6 and +4/+4

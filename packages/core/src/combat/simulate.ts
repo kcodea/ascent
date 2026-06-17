@@ -46,6 +46,8 @@ export function simulate(
     attack: m.attack,
     health: m.health,
     keywords: [...m.keywords],
+    golden: m.golden,
+    summonBonus: m.summonBonus,
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);

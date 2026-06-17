@@ -72,6 +72,12 @@ export interface RunState {
   upgradeCost: number;
   frozen: boolean;
   shop: ShopCard[];
+  /** The single tavern spell offered on the right of the shop (always present). */
+  spell: ShopCard | null;
+  /** Spells cast this run — drives spell-tracking minions. */
+  spellsCast: number;
+  /** Flat reduction to spell purchase costs (min 0) — drives "your spells cost less". */
+  spellCostMod: number;
   /** Cards bought but not yet played (Battlegrounds hand). */
   hand: BoardCard[];
   board: BoardCard[];
@@ -91,7 +97,7 @@ export interface RunState {
 
 export type Action =
   | { type: 'buy'; uid: string }
-  | { type: 'play'; uid: string; toIndex?: number }
+  | { type: 'play'; uid: string; toIndex?: number; targetUid?: string }
   | { type: 'sell'; uid: string }
   | { type: 'roll' }
   | { type: 'freeze' }
@@ -117,6 +123,9 @@ export function createRun(seed: number): RunState {
     upgradeCost: CONFIG.upgradeCost[2] ?? 5,
     frozen: false,
     shop: [],
+    spell: null,
+    spellsCast: 0,
+    spellCostMod: 0,
     hand: [],
     board: [],
     heroReady: true,

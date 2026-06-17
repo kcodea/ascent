@@ -1,5 +1,5 @@
 import { makeRng } from '@game/core';
-import { BUYABLE_CARDS } from '@game/content';
+import { BUYABLE_CARDS, SPELL_CARDS } from '@game/content';
 import type { RunState } from './state';
 
 /** Shop size by tier (handoff A.2): 3 @ T1, 4 @ T2–3, 5 @ T4–5, 6 @ T6. */
@@ -35,5 +35,10 @@ export function rollShop(state: RunState): void {
   }
 
   state.shop = offers;
+  // Always offer one spell on the right (handoff), drawn from the spell pool.
+  state.spell =
+    SPELL_CARDS.length > 0
+      ? { uid: `s${state.uidSeq++}`, cardId: SPELL_CARDS[rng.int(SPELL_CARDS.length)]!.id }
+      : null;
   state.rngCursor = rng.state();
 }

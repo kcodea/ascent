@@ -22,6 +22,9 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Spells** — a spell is always offered on the right of the tavern (its own cost, not the flat
+  minion cost). First spell: **Spirit Fire** (2 gold) — drag it onto a friendly minion for +3/+3.
+  Hooks are in for spell-cost buffs, minions that cast spells, and spell-cast tracking.
 - **Keywords** — Immune (takes no damage) and Stealth (untargetable until it attacks) added; Avenge
   and End-of-Turn triggers wired; Deathrattle now also fires out of combat (when a minion is
   Consumed). Divine Shield / Poison / Reborn / Start-of-Combat / Consume / Cleave / Windfury verified.

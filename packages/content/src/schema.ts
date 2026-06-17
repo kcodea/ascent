@@ -23,6 +23,8 @@ export const GameEventSchema = z.enum([
   'onBuy',
   'onSell',
   'endOfTurn',
+  'cast',
+  'spellCast',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -53,6 +55,8 @@ export const EffectFactoryIdSchema = z.enum([
   'consumeFodderOnSummon',
   'onConsumeBuffSelf',
   'onConsumeGrantSelfKeyword',
+  'spellBuffTarget',
+  'castSpell',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -81,4 +85,7 @@ export const CardDefSchema = z.object({
   // (the keyword badge + hover tooltip carry the meaning).
   text: z.string(),
   token: z.boolean().optional(),
+  spell: z.boolean().optional(),
+  cost: z.number().int().nonnegative().optional(),
+  target: z.enum(['friendly']).optional(),
 });

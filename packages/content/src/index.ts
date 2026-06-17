@@ -7,6 +7,7 @@ import { UNDEAD } from './cards/undead';
 import { MECHS } from './cards/mechs';
 import { DEMONS } from './cards/demons';
 import { TOKENS } from './cards/tokens';
+import { SPELLS } from './cards/spells';
 import { ENEMY } from './cards/enemy';
 
 export const ALL_CARDS: CardDef[] = [
@@ -17,6 +18,7 @@ export const ALL_CARDS: CardDef[] = [
   ...MECHS,
   ...DEMONS,
   ...TOKENS,
+  ...SPELLS,
   ...ENEMY,
 ];
 
@@ -24,8 +26,11 @@ export const CARD_INDEX: Record<string, CardDef> = Object.fromEntries(
   ALL_CARDS.map((card) => [card.id, card]),
 );
 
-/** Cards offered in the shop (buyable only — excludes tokens and enemy filler). */
-export const BUYABLE_CARDS: CardDef[] = ALL_CARDS.filter((card) => !card.token);
+/** Minions offered in the shop (excludes tokens, spells, and enemy filler). */
+export const BUYABLE_CARDS: CardDef[] = ALL_CARDS.filter((card) => !card.token && !card.spell);
+
+/** Tavern spells — the pool the always-offered right-hand spell slot draws from. */
+export const SPELL_CARDS: CardDef[] = ALL_CARDS.filter((card) => card.spell);
 
 /** Validate every card against the schema; throws on the first problem. */
 export function validateCards(cards: CardDef[] = ALL_CARDS): void {
@@ -57,4 +62,5 @@ export { UNDEAD } from './cards/undead';
 export { MECHS } from './cards/mechs';
 export { DEMONS } from './cards/demons';
 export { TOKENS } from './cards/tokens';
+export { SPELLS } from './cards/spells';
 export { ENEMY } from './cards/enemy';

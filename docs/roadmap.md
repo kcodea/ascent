@@ -6,21 +6,21 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 
 ## M2 — content + balance (in progress)
 
-- [ ] **Counter-matrix tuning pass** (the remaining M2 deliverable). Turn the starting stat dials
-      against `npm run balance` until the A.6 matrix holds — each tribe should beat the threats it
-      answers more than the ones it doesn't. Known targets from the runner:
-  - Mech mono-board is **dominant everywhere** — the Divine-Shield + shield-break (Capacitor →
-    Reactor → Titan) + Omega re-shield chain snowballs; bring it down or give Horde/Undying a real
-    answer to shields.
-  - Beast is **underpowered** (anemic 1/1 tokens) — buff the curve.
-  - Dragon / Undead are **flat** (generically strong, no counter edge) — sharpen so their answers
-    (Dragon→Horde/Iron, Undead→Iron/Glass) read higher than the rest.
-  - Demon's matrix **holds** — leave as the reference.
-- [ ] (stretch) Teach the balance runner to test realistic *mixed* boards, not just mono-tribe, so
-      the win-rates reflect actual play.
-- [ ] **Cards for the new triggers.** The keyword *system* now supports Avenge (X) and End of Turn
-      (game events + `avengeBuff` / `endOfTurnBuff` factories + pills), but no card declares them yet —
-      they're dormant until the card set adds users. Immune / Stealth work on any card today.
+- [ ] **Enemy-strength curve tool** (the way we'll actually balance — not the old mono-tribe matrix
+      runner, which is deprioritized per the user). Build a way to tune how fast enemy boards scale
+      per wave so the climb's difficulty ramp feels right. Design TBD.
+- [ ] **More spells + spell-synergy cards.** The spell *system* is in (a spell is always offered on
+      the right; Spirit Fire = target a friend, +3/+3, costs 2). Hooks are wired and ready for cards:
+  - `spellCast` event + `state.spellsCast` counter → minions that care about spells cast.
+  - `castSpell` factory → minions that cast a spell from an event (auto-targets the carry).
+  - `state.spellCostMod` → "your spells cost less" effects (subtracted at buy).
+  - A second spell, and at least one card using each hook, would exercise the plumbing.
+- [ ] **Targeted Battlecries (minions).** The targeting mechanic now exists (`target: 'friendly'` +
+      a `targetUid` on `play` + drag-onto-a-friend, used by Spirit Fire). A *minion* whose Battlecry
+      targets needs a `battlecryBuffTarget`-style factory + a place-then-target UI gesture (a spell
+      just vanishes; a minion also takes a board slot). Small once a card needs it.
+- [ ] **Cards for the keyword triggers.** Avenge (X) and End of Turn are wired (events + factories +
+      pills) but no card declares them yet. Immune / Stealth work on any card today.
 
 ## M3 — meta
 

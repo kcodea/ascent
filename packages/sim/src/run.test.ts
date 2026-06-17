@@ -339,6 +339,45 @@ describe('run loop (@game/sim)', () => {
     expect(carry?.health).toBe(11);
   });
 
+  it('always offers one spell on the right of the shop', () => {
+    const s = createRun(1);
+    expect(s.spell).not.toBeNull();
+    expect(CARD_INDEX[s.spell!.cardId]?.spell).toBe(true);
+  });
+
+  it('buys a spell into the hand at its own cost (not the minion cost)', () => {
+    let s: RunState = { ...createRun(1), embers: 5 };
+    const def = CARD_INDEX[s.spell!.cardId]!;
+    s = reduce(s, { type: 'buy', uid: s.spell!.uid });
+    expect(s.embers).toBe(5 - (def.cost ?? 0)); // Spirit Fire costs 2, not 3
+    expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(true);
+    expect(s.spell).toBeNull(); // slot empties until the next roll
+  });
+
+  it('Spirit Fire buffs the targeted friend +3/+3, is consumed, and counts as a cast', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 5,
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'buy', uid: s.spell!.uid });
+    const spell = s.hand.find((c) => c.cardId === 'spiritfire')!;
+    s = reduce(s, { type: 'play', uid: spell.uid, targetUid: 'm' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([4, 4]); // 1/1 + 3/3
+    expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(false); // no board slot — consumed
+    expect(s.spellsCast).toBe(1);
+  });
+
+  it('a targeted spell played with no valid target is not cast', () => {
+    let s: RunState = { ...createRun(1), embers: 5, board: [] };
+    s = reduce(s, { type: 'buy', uid: s.spell!.uid });
+    const spell = s.hand.find((c) => c.cardId === 'spiritfire')!;
+    const after = reduce(s, { type: 'play', uid: spell.uid }); // no targetUid
+    expect(after.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // stays in hand
+    expect(after.spellsCast).toBe(0);
+  });
+
   const threeSandbags = (): RunState => {
     const mk = (uid: string): BoardCard => ({
       uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false,

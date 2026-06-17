@@ -35,7 +35,9 @@ export type GameEvent =
   | 'avenge' // after X friendly minions have died in combat
   | 'onBuy'
   | 'onSell'
-  | 'endOfTurn'; // recruit phase: the turn ends (End Turn / timer hits 0)
+  | 'endOfTurn' // recruit phase: the turn ends (End Turn / timer hits 0)
+  | 'cast' // a spell's own effect resolves (its chosen target is in the payload)
+  | 'spellCast'; // recruit phase: any spell was cast (for spell-tracking minions)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -75,7 +77,10 @@ export type EffectFactoryId =
   | 'battlecryConsume'
   | 'consumeFodderOnSummon'
   | 'onConsumeBuffSelf'
-  | 'onConsumeGrantSelfKeyword';
+  | 'onConsumeGrantSelfKeyword'
+  // Spells (recruit-resolved): a spell's own effect, and minions that cast spells
+  | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (Spirit Fire)
+  | 'castSpell'; // a minion casts a named spell (auto-targets a friend)
 
 export interface EffectDef {
   on: GameEvent;
@@ -97,6 +102,12 @@ export interface CardDef {
   text: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp Scrap). */
   token?: boolean;
+  /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
+  spell?: boolean;
+  /** Purchase cost. Minions omit this (they use CONFIG.minionCost); spells set it. */
+  cost?: number;
+  /** Requires the player to pick a friendly minion when played/cast (spells, targeted Battlecries). */
+  target?: 'friendly';
 }
 
 /**

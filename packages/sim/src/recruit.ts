@@ -164,7 +164,35 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
     t.keywords.push('DS');
   },
+
+  // --- Spells ---
+
+  /** Spirit Fire — cast: buff the chosen target +atk/+hp (`self` is the target). */
+  spellBuffTarget: (_ctx, self, params) => {
+    self.attack += num(params.attack);
+    self.health += num(params.health);
+  },
+
+  /** A minion casts a named spell from an event, auto-targeting the carry (the
+   *  highest-attack friend). Counts the cast but doesn't re-fire spellCast (no recursion). */
+  castSpell: (ctx, self, params) => {
+    const spellDef = CARD_INDEX[str(params.spellId)];
+    if (!spellDef) return;
+    const friends = ctx.state.board.filter((c) => c !== self);
+    const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
+    applyCastEffects(ctx, spellDef, target);
+    ctx.state.spellsCast += 1;
+  },
 };
+
+/** Apply a spell's `cast` effects to its chosen target. */
+function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target: BoardCard): void {
+  for (const effect of spellDef.effects) {
+    if (effect.on !== 'cast') continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (fn) fn(ctx, target, effect.params ?? {}, { minion: target });
+  }
+}
 
 /** Run a destroyed minion's own Deathrattle out of combat (it was Consumed/destroyed). */
 function fireDeathrattle(ctx: RecruitContext, victim: BoardCard): void {
@@ -232,6 +260,25 @@ function makeContext(state: RunState): RecruitContext {
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   const ctx = makeContext(state);
   fire(ctx, 'onBuy', { minion: bought });
+}
+
+/**
+ * Cast a spell from the hand (handoff: spells). Resolves its `cast` effects on the
+ * chosen target, tallies the cast, and notifies spell-tracking minions (`spellCast`).
+ */
+export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {
+  const ctx = makeContext(state);
+  if (target) applyCastEffects(ctx, spellDef, target);
+  state.spellsCast += 1;
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'spellCast') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+    }
+  }
 }
 
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),

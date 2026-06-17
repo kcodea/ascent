@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Spell system + Spirit Fire + targeted casting
+- **A new card kind: spells.** `CardDef` grew `spell` / `cost` / `target`; spells set their own cost
+  (minions stay flat `CONFIG.minionCost`), are excluded from the minion pool, and never take a board
+  slot. The shop now always offers exactly one spell on the **right** (`state.spell`, re-rolled each
+  refresh from `SPELL_CARDS`). Zod schema kept in lockstep.
+- **Spirit Fire** (the first spell): cost **2**, *target a friendly minion → +3/+3*. Bought into the
+  hand, then **cast by dragging it onto a friend** (the target highlights; release off a minion snaps
+  back). Verified live: 2/1 Drone → 5/4, spell consumed, slot re-offers on reroll.
+- **Targeting mechanic** (the "target Battlecry" change): `target: 'friendly'` + a `targetUid` on the
+  `play` action + `boardUidAt()` + the existing aim-highlight. Spirit Fire is its first user; targeted
+  *minion* Battlecries reuse the same path (a small factory + place-then-target gesture away).
+- **Plumbing set up now, ready for cards** (per the user — buffable spells, spell-casters,
+  spell-trackers):
+  - `spellCast` game event + `state.spellsCast` counter — minions that track spells cast.
+  - `castSpell` recruit factory — a minion casts a named spell from an event (auto-targets the carry;
+    counts the cast without re-firing `spellCast`, so no recursion).
+  - `state.spellCostMod` — flat reduction subtracted from spell cost at buy ("your spells cost less").
+- **Verified:** `typecheck` (+ web) + `lint` + `test` (**74**, +4 spell tests) + `build:web` pass;
+  the shop slot, buy, drag-to-target cast (+3/+3), consume, and reroll re-offer all confirmed live.
+
 ### Fix: warband cards flew off-screen when wiggling a held minion
 - Dragging a held minion back and forth over another a few times made the other cards "spazz out"
   and vanish. Cause: the FLIP slide measured each card's `getBoundingClientRect()` **including its

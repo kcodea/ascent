@@ -14,8 +14,16 @@ const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a d
 const TURN_SECONDS = 30; // round timer; at 0 the player is forced into combat
 const RING = 2 * Math.PI * 17; // countdown ring circumference
 
-function shopView(cardId: string): CardView {
+function shopView(cardId: string, spellCostMod = 0): CardView {
   const c = CARD_INDEX[cardId];
+  if (c.spell) {
+    // A tavern spell: its own (modifiable) cost, no tier badge, no stat footer.
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
+      keywords: c.keywords, text: c.text, cost: Math.max(0, (c.cost ?? 0) - spellCostMod), spell: true,
+      target: c.target,
+    };
+  }
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, attack: c.attack, health: c.health,
     keywords: c.keywords, text: c.text, cost: CONFIG.minionCost, tier: c.tier,
@@ -24,11 +32,11 @@ function shopView(cardId: string): CardView {
 }
 function instView(inst: BoardCard): CardView {
   const c = CARD_INDEX[inst.cardId];
-  const spell = c.id === 'discoverspell';
+  const spell = c.spell === true || c.id === 'discoverspell';
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, attack: inst.attack, health: inst.health,
     keywords: inst.keywords, text: c.text, golden: inst.golden,
-    tier: spell ? undefined : c.tier, spell,
+    tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
   };
@@ -66,6 +74,11 @@ export function Recruit() {
   const zoneAt = (x: number, y: number): Zone | null => {
     const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
     return (el?.getAttribute('data-zone') as Zone) ?? null;
+  };
+  /** The uid of the board minion under a point (for spell / battlecry targeting), or null. */
+  const boardUidAt = (x: number, y: number): string | null => {
+    const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
+    return el?.getAttribute('data-uid') ?? null;
   };
   // Insertion index in the warband, from the pointer's x against the cards' centres.
   // `excludeUid` drops the dragged card from the count when *reordering* a board minion
@@ -118,7 +131,7 @@ export function Recruit() {
         return;
       }
       const zone = zoneAt(e.clientX, e.clientY);
-      const acted = applyDrop(d, zone, e.clientX);
+      const acted = applyDrop(d, zone, e.clientX, e.clientY);
       if (acted) {
         setDrag(null);
         setOverZone(null);
@@ -241,11 +254,16 @@ export function Recruit() {
     drag.view.keywords.includes('M') &&
     overZone === 'warband' &&
     run.board[warbandIndexAt(drag.x)]?.tribe === 'mech';
+  // Casting a targeted spell from the hand: highlight the friendly minion under the
+  // cursor (it's the target), and don't treat it as a board-insertion drag.
+  const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && drag.view.target === 'friendly';
+  const castTargetUid = castingSpell ? boardUidAt(drag!.x, drag!.y) : null;
   const draggingBoard = !!drag?.active && drag.source === 'board';
   const overWarband =
     !!drag?.active &&
     overZone === 'warband' &&
     !wouldMagnetize &&
+    !drag.view.spell &&
     (drag.source === 'board' || (drag.source === 'hand' && run.board.length < CONFIG.boardMax));
   // The dragged board minion leaves the row immediately and stays out for the whole drag.
   const displayBoard = draggingBoard ? run.board.filter((m) => m.uid !== drag!.uid) : run.board;
@@ -290,9 +308,24 @@ export function Recruit() {
     }
   }, [flipKey]);
 
-  const applyDrop = (d: DragState, zone: Zone | null, x: number): boolean => {
+  const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
       dispatch({ type: 'buy', uid: d.uid });
+      return true;
+    }
+    if ((d.source === 'board' || d.source === 'hand') && zone === 'tavern') {
+      dispatch({ type: 'sell', uid: d.uid });
+      return true;
+    }
+    // Cast a spell from the hand onto its target (Spirit Fire → a friendly minion).
+    if (d.source === 'hand' && d.view.spell) {
+      if (d.view.target === 'friendly') {
+        const targetUid = boardUidAt(x, y);
+        if (!targetUid) return false; // must be released on a friendly minion
+        dispatch({ type: 'play', uid: d.uid, targetUid });
+        return true;
+      }
+      dispatch({ type: 'play', uid: d.uid }); // untargeted spell
       return true;
     }
     if (d.source === 'hand' && zone === 'warband') {
@@ -301,10 +334,6 @@ export function Recruit() {
     }
     if (d.source === 'board' && zone === 'warband') {
       dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(x, d.uid) });
-      return true;
-    }
-    if ((d.source === 'board' || d.source === 'hand') && zone === 'tavern') {
-      dispatch({ type: 'sell', uid: d.uid });
       return true;
     }
     return false;
@@ -381,6 +410,14 @@ export function Recruit() {
               onPointerDown={beginDrag(o.uid, 'shop', shopView(o.cardId))}
             />
           ))}
+          {run.spell && (
+            <Card
+              key={run.spell.uid}
+              card={shopView(run.spell.cardId, run.spellCostMod)}
+              dimmed={isDragging(run.spell.uid)}
+              onPointerDown={beginDrag(run.spell.uid, 'shop', shopView(run.spell.cardId, run.spellCostMod))}
+            />
+          )}
         </div>
       </div>
 
@@ -410,8 +447,8 @@ export function Recruit() {
               <Card
                 uid={m.uid}
                 card={instView(m)}
-                highlight={heroArmed}
-                targeted={heroArmed && aim?.targetUid === m.uid}
+                highlight={heroArmed || castingSpell}
+                targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                 buffed={buffedUids.has(m.uid)}
                 onPointerDown={heroArmed ? undefined : beginDrag(m.uid, 'board', instView(m))}
               />

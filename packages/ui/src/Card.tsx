@@ -62,6 +62,8 @@ export interface CardView {
   tier?: number;
   /** A non-minion spell card (e.g. the triple Discover) — hides the stat footer. */
   spell?: boolean;
+  /** Requires a friendly target when cast (drives the cast-by-drag targeting). */
+  target?: 'friendly';
   /** Base (printed) stats — stats above base render green, below base render red. */
   baseAttack?: number;
   baseHealth?: number;

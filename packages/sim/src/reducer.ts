@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { applyEndOfTurn, applyOnBuy, playCard } from './recruit';
+import { applyEndOfTurn, applyOnBuy, castSpell, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
 
 /**
@@ -24,6 +24,26 @@ export function reduce(state: RunState, action: Action): RunState {
 
   switch (action.type) {
     case 'buy': {
+      // The right-hand spell slot: pays its own (modifiable) cost, into the hand.
+      // No triple / buy-trigger — a spell isn't a minion.
+      if (s.spell && s.spell.uid === action.uid) {
+        const spellDef = CARD_INDEX[s.spell.cardId];
+        if (!spellDef) return state;
+        const cost = Math.max(0, (spellDef.cost ?? 0) - s.spellCostMod);
+        if (s.embers < cost || s.hand.length >= CONFIG.handMax) return state;
+        s.embers -= cost;
+        s.hand.push({
+          uid: `b${s.uidSeq++}`,
+          cardId: spellDef.id,
+          tribe: spellDef.tribe,
+          attack: spellDef.attack,
+          health: spellDef.health,
+          keywords: [...spellDef.keywords],
+          golden: false,
+        });
+        s.spell = null; // bought — the slot stays empty until the next roll
+        return s;
+      }
       const i = s.shop.findIndex((c) => c.uid === action.uid);
       if (i < 0 || s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
       const offer = s.shop[i]!;
@@ -57,6 +77,19 @@ export function reduce(state: RunState, action: Action): RunState {
       if (card.cardId === 'discoverspell') {
         s.hand.splice(i, 1);
         offerDiscover(s, s.tier);
+        return s;
+      }
+
+      // Other spells: cast on the chosen target, then consume — no board slot.
+      const def = CARD_INDEX[card.cardId];
+      if (def?.spell) {
+        let target: BoardCard | undefined;
+        if (def.target === 'friendly') {
+          target = s.board.find((c) => c.uid === action.targetUid);
+          if (!target) return state; // a friendly target is required to cast
+        }
+        castSpell(s, def, target);
+        s.hand.splice(i, 1);
         return s;
       }
 

@@ -231,11 +231,19 @@ function makeContext(state: RunState): RecruitContext {
   return ctx;
 }
 
+/** Drakko the Drummer: your Battlecries fire extra times. A golden Drakko adds 2 (triples);
+ *  multiple Drakkos do NOT stack — only the best single one counts. Returns the total fire count. */
+function drummerRepeats(state: RunState): number {
+  const drummers = state.board.filter((c) => c.cardId === 'drummer');
+  const bonus = drummers.some((d) => d.golden) ? 2 : drummers.length > 0 ? 1 : 0;
+  return 1 + bonus;
+}
+
 /** Resolve a chosen Choose One option's effects on the played card (its picked Battlecry).
- *  Honors Doublecast Drummer, like a normal Battlecry. */
+ *  Honors Drakko the Drummer, like a normal Battlecry. */
 export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDef['effects']): void {
   const ctx = makeContext(state);
-  const repeats = 1 + state.board.filter((c) => c.cardId === 'drummer').length;
+  const repeats = drummerRepeats(state);
   for (const effect of effects) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
@@ -345,9 +353,8 @@ export function playCard(state: RunState, played: BoardCard): void {
   // Choose One: the Battlecry is whichever option the player picks — deferred to `applyChooseOne`
   // (the reducer opens the prompt). onSummon buffs above still apply (it was summoned normally).
   if (def.chooseOne && def.chooseOne.length > 0) return;
-  // Doublecast Drummer: each one on the board makes Battlecries fire one extra time.
-  const drummers = state.board.filter((c) => c.cardId === 'drummer').length;
-  const repeats = 1 + drummers;
+  // Drakko the Drummer makes Battlecries fire extra times (golden triples; no stacking).
+  const repeats = drummerRepeats(state);
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];

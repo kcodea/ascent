@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **New cards + spell QoL** — **Drakko the Drummer** (T5; golden triples Battlecries, doesn't stack)
+  and **Sylus the Reaper** (T5; Deathrattles proc an extra time, golden +2, stacks); Ember Pouch is
+  now **Mana Pouch**. Spells can be cast by dragging them anywhere from the warband up (incl. the
+  tavern). `docs/cards.csv` is grouped by tribe with a tripled-version column for triple triage.
 - **Choose One + polish** — cards can offer a **Choose One** Battlecry (pick 1 of 2 effects on play;
   sample: Wildwood Shaper). Divine Shield is now a bold soft-yellow glow (halo + on-top wash) that
   reads across the board; the Magnetic + Fodder animations are slower/clearer; and `docs/cards.csv`

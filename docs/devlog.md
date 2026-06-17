@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Mana Pouch + Drakko + Sylus, spells play "upward", CSV by type with golden column
+- **`docs/cards.csv` reorganised** into `# === TRIBE ===` sections, with new **`golden_text`** +
+  **`golden_effect`** columns so the *tripled* version of every card is visible for triage (incl.
+  the gotchas — e.g. word-count summons like "summon a Stray" don't auto-double their text, and 3
+  summoned tokens trigger their own triple).
+- **Spells play anywhere from the warband up.** Dragging a spell up to the tavern now casts it
+  (you can't sell spells, so the old snap-back was just annoying). A targeted spell hits the minion
+  under the cursor, or auto-targets your **carry** (highest-Attack) when flung up with no minion
+  under it; untargeted spells just resolve. Spells no longer show the "Sell +1" glow over the tavern.
+- **Ember Pouch → Mana Pouch** (id stable), art rewired. ✓ live (name + art).
+- **Doublecast Drummer → Drakko the Drummer**, moved to **Tier 5**, art rewired. The golden version
+  **triples** Battlecries (fires 3×), and **multiple Drakkos do NOT stack** (only the best one
+  counts; golden = +2, else +1). New `drummerRepeats` helper used by both the play + Choose-One paths.
+- **New: Sylus the Reaper** (Tier 5 neutral) — "In combat, your Deathrattles proc 1 more time."
+  Golden procs **2 more**, and **multiple Sylus stack** (additive). Combat re-runs the dying minion's
+  own onDeath effects `bonus` extra times. Art wired.
+- **Tests (+4, 94):** golden Drakko triples / multiple Drakkos don't stack; Sylus re-procs a
+  Deathrattle (golden +2, and stacks). `typecheck` (+web) + `lint` + `test` (**94**) + `build:web`
+  pass; live: Mana Pouch shows its new name + art, no console errors.
+
 ### Choose One, bolder DS glow, slower Magnetic/Fodder, cards CSV
 - **Choose One** wired. A card can carry `chooseOne: [{ text, effects }, …]`; playing it defers the
   Battlecry, opens a modal of the options, and the picked option's `effects` resolve as the Battlecry

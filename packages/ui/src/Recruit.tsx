@@ -514,6 +514,17 @@ export function Recruit() {
     setSpark({ x, y, key });
     window.setTimeout(() => setSpark((s) => (s?.key === key ? null : s)), 600);
   };
+  // The "carry" — your highest-Attack minion — auto-target for a targeted spell flung upward.
+  const carryUid = (): string | undefined =>
+    run.board.length ? run.board.reduce((a, b) => (b.attack > a.attack ? b : a)).uid : undefined;
+  // Spark on a targeted minion's card centre (falls back to the drop point).
+  const sparkAtUid = (uid: string, fx: number, fy: number): void => {
+    const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${uid}"]`);
+    if (el) {
+      const r = el.getBoundingClientRect();
+      fireSpark(r.left + r.width / 2, r.top + r.height / 2);
+    } else fireSpark(fx, fy);
+  };
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
@@ -533,17 +544,19 @@ export function Recruit() {
       dispatch({ type: 'sell', uid: d.uid });
       return true;
     }
-    // Cast a spell from the hand onto its target (Spirit Fire → a friendly minion).
+    // Cast a spell — playable anywhere from the warband up (incl. the tavern), since spells can't
+    // be sold. A targeted spell hits the minion under the cursor, or auto-targets the carry when
+    // flung up with no minion under it; an untargeted spell just resolves.
     if (d.source === 'hand' && d.view.spell) {
+      const up = zone === 'warband' || zone === 'tavern';
       if (d.view.target === 'friendly') {
-        const targetUid = boardUidAt(x, y);
-        if (!targetUid) return false; // must be released on a friendly minion
+        const targetUid = boardUidAt(x, y) ?? (up ? carryUid() : undefined);
+        if (!targetUid) return false; // no friendly minion to cast on
         dispatch({ type: 'play', uid: d.uid, targetUid });
-        fireSpark(x, y); // spark bursts on the target it hit
+        sparkAtUid(targetUid, x, y); // spark bursts on the minion it hit
         return true;
       }
-      // Untargeted spell ("give your board…"): drop anywhere in the warband to cast.
-      if (zone === 'warband') {
+      if (up) {
         dispatch({ type: 'play', uid: d.uid });
         fireSpark(x, y);
         return true;
@@ -561,8 +574,9 @@ export function Recruit() {
     return false;
   };
 
-  // Gold sell-preview glow: an owned card hovered over the tavern.
-  const sellGlow = overZone === 'tavern' && (drag?.source === 'board' || drag?.source === 'hand');
+  // Gold sell-preview glow: an owned (non-spell) card hovered over the tavern. Spells dragged up
+  // to the tavern are *played*, not sold, so they don't get the sell glow.
+  const sellGlow = overZone === 'tavern' && (drag?.source === 'board' || drag?.source === 'hand') && !drag?.view.spell;
   const isDragging = (uid: string): boolean => drag?.active === true && drag.uid === uid;
   // A shop card over the hand will buy it — glow the hand to confirm the drop target.
   const canDropHand = !!drag?.active && drag.source === 'shop' && overZone === 'hand';

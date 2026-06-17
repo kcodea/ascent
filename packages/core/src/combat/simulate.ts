@@ -135,6 +135,18 @@ export function simulate(
     minion.health = 0;
     events.push({ type: 'death', target: minion.uid });
     bus.emit('onDeath', { minion, side: minion.side });
+    // Sylus the Reaper: the dying minion's own Deathrattle procs extra times (golden = +2;
+    // multiple Sylus stack additively). Re-runs only this minion's onDeath effects.
+    const reaperBonus = living(minion.side).reduce(
+      (n, m) => n + (m.cardId === 'sylus' ? (m.golden ? 2 : 1) : 0),
+      0,
+    );
+    for (let r = 0; r < reaperBonus; r++) {
+      for (const effect of minion.effects) {
+        if (effect.on !== 'onDeath') continue;
+        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+      }
+    }
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });

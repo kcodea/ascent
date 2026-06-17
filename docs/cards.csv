@@ -1,53 +1,73 @@
-id,name,kind,tribe,tier,attack,health,cost,keywords,text,effect,art
-# --- edit stats/text/keywords freely; add new rows at the bottom. `effect` is a plain-English
-# --- note of what the card does — Claude wires the real EffectDef. `art` = is illustrated art wired.
-# --- keywords (pipe-separated): Taunt|Shield|Poison|Windfury|Reborn|Cleave|Magnetic|Start|Consume|Fodder|Immune|Stealth|Rally
-sandbag,Target Dummy,minion,neutral,1,0,4,,Taunt,,,TRUE
-broker,Brightwing Broker,minion,neutral,2,2,3,,,Every minion you buy gets +1/+1.,buffOnBuy +1/+1 (recruit),TRUE
-echo,Echo Warden,minion,neutral,3,2,4,,,"In combat, your summon effects make 1 more token.",adds +1 token to summons (golden +2),FALSE
-drummer,Doublecast Drummer,minion,neutral,4,2,4,,,Your Battlecries trigger twice.,doubles Battlecries (recruit),TRUE
-alley,Alleycat,minion,beast,1,1,1,,,Battlecry: summon a 1/1 Stray next to it.,battlecrySummon stray x1,TRUE
-pack,Pack Scrounger,minion,beast,2,2,2,,,Deathrattle: summon two 1/1 Pups.,deathrattleSummon pup x2,FALSE
-kennel,Kennelmaster,minion,beast,2,2,3,,,Each Beast you summon gains +1/+1. Avenge (3): Improve this.,buffOnSummon beast +1/+1 + avengeImproveSummon(3),TRUE
-cleaver,Ravenous Cleaver,minion,beast,3,2,4,,Cleave,,,FALSE
-matron,Bristleback Matron,minion,beast,4,4,4,,,Each Beast you summon gets +2/+2.,buffOnSummon beast +2/+2,FALSE
-gnash,"Gnasher, the Overrun",minion,beast,5,6,6,,,"When it kills a minion, it attacks again.",reAttackOnKill,FALSE
-pack6,Spirit of the Pack,minion,beast,6,4,4,,,Deathrattle: give all your Beasts +4/+4.,deathrattleBuffTribe beast +4/+4,FALSE
-whelp,Ember Whelp,minion,dragon,1,2,1,,Start,Start of Combat: deal 1 to the enemy on the far left.,scDamage 1 leftmost,TRUE
-cleric,Hoard Cleric,minion,dragon,2,1,3,,,Battlecry: give all your Dragons +1/+1.,battlecryBuffTribe dragon +1/+1,FALSE
-cinder,Cinderwing Matron,minion,dragon,3,3,4,,,Battlecry: give other Dragons +1/+2.,battlecryBuffTribe dragon +1/+2 (not self),FALSE
-razor,Razorscale Warlord,minion,dragon,4,4,4,,,Battlecry: give your Dragons +2/+1.,battlecryBuffTribe dragon +2/+1,FALSE
-chrom,Chromatic Caller,minion,dragon,4,3,5,,Start,"Start of Combat: deal damage equal to its Attack, split across enemies.",scSplitDamage,FALSE
-nadir,"Nadir, Hoardlord",minion,dragon,5,5,6,,Taunt|Shield,Battlecry: give your Dragons +2/+2.,battlecryBuffTribe dragon +2/+2,FALSE
-gale,Galewing Apex,minion,dragon,6,6,6,,Start,"Start of Combat: 3 to every enemy, then 3 more to a random enemy per other Dragon.",scAoePerTribe base 3 per 3 dragon,FALSE
-spore,Sporeling,minion,undead,1,1,2,,,Deathrattle: give a random friend +1/+1.,deathrattleBuffRandom +1/+1,TRUE
-toxin,Toxin Tender,minion,undead,2,1,2,,,Battlecry: give a friend Poison.,battlecryGrantKeyword Poison,FALSE
-knit,Grave Knit,minion,undead,2,2,2,,Reborn,,,FALSE
-rot,Rot Weaver,minion,undead,3,3,3,,,"Each time a friend dies, give a random friend +1/+1.",onFriendDeathBuffRandom +1/+1,FALSE
-maex,Webspinner Matron,minion,undead,4,4,4,,Poison,,,FALSE
-plague,Plaguebringer,minion,undead,5,5,5,,,Battlecry: give a friend Poison and Windfury.,battlecryGrantKeyword Poison+Windfury,FALSE
-ghast,Ghastweaver,minion,undead,6,5,5,,,Deathrattle: fill your board with random Undead.,deathrattleFillTribe undead,FALSE
-drone,Spare Part Drone,minion,mech,1,2,1,,Shield,,,TRUE
-cling,Cling Drone,minion,mech,2,2,2,,Magnetic,,,FALSE
-selfless,Selfless Sentinel,minion,mech,2,2,1,,,Deathrattle: give a friend a Divine Shield.,deathrattleGrantShield,FALSE
-cap,Shield Capacitor,minion,mech,3,2,4,,,"When a friendly Shield breaks, give another friend a Shield.",onShieldBreakGrantShield,FALSE
-arc,Arclight Reactor,minion,mech,4,3,3,,,"When a friendly Mech Shield breaks, deal 3 to a random enemy.",onShieldBreakDamage 3,FALSE
-junk,Junkyard Titan,minion,mech,5,4,4,,,"When any friendly Shield breaks, give your minions +1/+1.",onShieldBreakBuffAll +1/+1,FALSE
-omega,Omega Bulwark,minion,mech,6,6,6,,Shield|Taunt,Start of Combat: give all your Mechs a Shield.,scGrantShieldTribe mech,FALSE
-feed,Soulfeeder,minion,demon,1,2,2,,,Battlecry: add Fodder to your next tavern.,battlecryAddTavernFodder fred,TRUE
-imp,Voracious Imp,minion,demon,2,2,2,,Consume,Gains 2x stats from Fodder.,fodderMult 2 (golden 3),TRUE
-pact,Pactstone Acolyte,minion,demon,2,2,3,,,When you consume a minion, gain an extra +1/+1.,onConsumeBuffSelf +1/+1,FALSE
-brood,Brood Matron,minion,demon,3,3,3,,,Each time a friend dies, summon a 1/1 Imp.,onFriendDeathSummon impscrap,FALSE
-maw,Maw of the Pit,minion,demon,4,4,5,,Taunt,On consume, gain a Divine Shield.,onConsumeGrantSelfKeyword Shield,FALSE
-glut,Ravening Glutton,minion,demon,5,5,5,,Cleave|Consume,On consume, gain +2/+2.,onConsumeBuffSelf +2/+2,FALSE
-sov,Abyssal Sovereign,minion,demon,6,7,7,,Start,Start of Combat: destroy the enemy with the highest Attack.,scDestroyHighestAttack,FALSE
-shaper,Wildwood Shaper,minion,beast,2,2,3,,,Choose One: give your Beasts +1/+1; or summon two 1/1 Strays.,chooseOne [buffTribe beast +1/+1 | summon stray x2],FALSE
-spiritfire,Spirit Fire,spell,neutral,1,,,2,,Give a friendly minion +3/+3.,cast spellBuffTarget +3/+3 (target friendly),TRUE
-emberpouch,Ember Pouch,spell,neutral,1,,,1,,Gain 1 Mana.,cast gainEmbers 1,TRUE
-bulwark,Bulwark,spell,neutral,1,,,1,,Give a friendly minion +0/+1 and Taunt.,cast spellBuffTarget +0/+1 + Taunt (target friendly),TRUE
-fred,Fred,token,demon,1,1,1,,Fodder,A 1/1 Demon Fodder — your Demons devour it from the tavern.,token (not rollable; added by Soulfeeder),TRUE
-pup,Pup,token,beast,1,1,1,,,A 1/1 Beast token.,token,FALSE
-stray,Stray,token,beast,1,1,1,,,A 1/1 Beast token.,token,TRUE
-impscrap,Imp Scrap,token,demon,1,1,1,,,A 1/1 Demon token.,token,FALSE
-discoverspell,Glimpse Beyond,token,neutral,1,0,1,,,Discover a minion from the next tier up.,token (triple reward),FALSE
-omen,Omen Minion,token,neutral,1,1,1,,,,enemy filler (stats set per wave),TRUE
+id,name,kind,tribe,tier,attack,health,cost,keywords,text,effect,golden_text,golden_effect,art
+# === HOW TO USE ===
+# Edit stats/text/keywords freely; add new rows under the right section. `effect` is a plain-English
+# note of what the card does (Claude wires the real EffectDef). `golden_text` / `golden_effect` show
+# the TRIPLED version — for triaging triple issues. `art` = is illustrated art wired.
+# keywords (pipe-separated): Taunt|Shield|Poison|Windfury|Reborn|Cleave|Magnetic|Start|Consume|Fodder|Immune|Stealth|Rally
+# Note: golden stats are always 2x base. Most text numbers double; "Nx" -> N+1; word-counts ("a","two","twice") do NOT auto-update.
+#
+# === NEUTRAL ===
+sandbag,Target Dummy,minion,neutral,1,0,4,,Taunt,,,,2x stats -> 0/8; Taunt,TRUE
+broker,Brightwing Broker,minion,neutral,2,2,3,,,Every minion you buy gets +1/+1.,buffOnBuy +1/+1,Every minion you buy gets +2/+2.,buys get +2/+2,TRUE
+echo,Echo Warden,minion,neutral,3,2,4,,,"In combat, your summon effects make 1 more token.",adds +1 token to summons,"In combat, your summon effects make 2 more token.",+2 tokens; STACKS additively with other Echoes,FALSE
+drummer,Drakko the Drummer,minion,neutral,5,2,4,,,Your Battlecries fire 1 more time.,Battlecries fire +1 time (fire 2x total),Your Battlecries fire 2 more time.,Battlecries fire 3x; does NOT stack with other Drakkos,TRUE
+sylus,Sylus the Reaper,minion,neutral,5,4,5,,,"In combat, your Deathrattles proc 1 more time.",Deathrattles proc +1 time,"In combat, your Deathrattles proc 2 more time.",Deathrattles +2 procs; DOES stack with other Sylus,TRUE
+#
+# === BEASTS ===
+alley,Alleycat,minion,beast,1,1,1,,,Battlecry: summon a 1/1 Stray next to it.,battlecrySummon stray x1,Battlecry: summon a 1/1 Stray next to it.,summons 2 Strays (count x2) — TEXT says 'a' so won't auto-update,TRUE
+pack,Pack Scrounger,minion,beast,2,2,2,,,Deathrattle: summon two 1/1 Pups.,deathrattleSummon pup x2,Deathrattle: summon two 1/1 Pups.,summons 4 Pups (count x2) — TEXT says 'two' so won't auto-update,FALSE
+kennel,Kennelmaster,minion,beast,2,2,3,,,Each Beast you summon gains +1/+1. Avenge (3): Improve this.,buffOnSummon beast +1/+1 + avengeImproveSummon(3),Each Beast you summon gains +2/+2. Avenge (3): Improve this.,summon buff COMBINES on triple (sum of top-two); fresh golden = +2/+2,TRUE
+cleaver,Ravenous Cleaver,minion,beast,3,2,4,,Cleave,,,,2x stats -> 4/8; Cleave,FALSE
+matron,Bristleback Matron,minion,beast,4,4,4,,,Each Beast you summon gets +2/+2.,buffOnSummon beast +2/+2,Each Beast you summon gets +4/+4.,summon buff +4/+4 (via combine),FALSE
+gnash,"Gnasher, the Overrun",minion,beast,5,6,6,,,"When it kills a minion, it attacks again.",reAttackOnKill,"When it kills a minion, it attacks again.",2x stats -> 12/12; re-attack unchanged,FALSE
+pack6,Spirit of the Pack,minion,beast,6,4,4,,,Deathrattle: give all your Beasts +4/+4.,deathrattleBuffTribe beast +4/+4,Deathrattle: give all your Beasts +8/+8.,board-wide +8/+8,FALSE
+shaper,Wildwood Shaper,minion,beast,2,2,3,,,Choose One: give your Beasts +1/+1; or summon two 1/1 Strays.,chooseOne [buffTribe beast +1/+1 | summon stray x2],Choose One: give your Beasts +2/+2; or summon two 1/1 Strays.,both options doubled (Beasts +2/+2; or 4 Strays),FALSE
+#
+# === DRAGONS ===
+whelp,Ember Whelp,minion,dragon,1,2,1,,Start,Start of Combat: deal 1 to the enemy on the far left.,scDamage 1 leftmost,Start of Combat: deal 2 to the enemy on the far left.,SC deal 2,TRUE
+cleric,Hoard Cleric,minion,dragon,2,1,3,,,Battlecry: give all your Dragons +1/+1.,battlecryBuffTribe dragon +1/+1,Battlecry: give all your Dragons +2/+2.,Dragons +2/+2,FALSE
+cinder,Cinderwing Matron,minion,dragon,3,3,4,,,Battlecry: give other Dragons +1/+2.,battlecryBuffTribe dragon +1/+2 (not self),Battlecry: give other Dragons +2/+4.,other Dragons +2/+4,FALSE
+razor,Razorscale Warlord,minion,dragon,4,4,4,,,Battlecry: give your Dragons +2/+1.,battlecryBuffTribe dragon +2/+1,Battlecry: give your Dragons +4/+2.,Dragons +4/+2,FALSE
+chrom,Chromatic Caller,minion,dragon,4,3,5,,Start,"Start of Combat: deal damage equal to its Attack, split across enemies.",scSplitDamage,"Start of Combat: deal damage equal to its Attack, split across enemies.",splits 2x damage (Attack is doubled to 6),FALSE
+nadir,"Nadir, Hoardlord",minion,dragon,5,5,6,,Taunt|Shield,Battlecry: give your Dragons +2/+2.,battlecryBuffTribe dragon +2/+2,Battlecry: give your Dragons +4/+4.,Dragons +4/+4,FALSE
+gale,Galewing Apex,minion,dragon,6,6,6,,Start,"Start of Combat: 3 to every enemy, then 3 more to a random enemy per other Dragon.",scAoePerTribe base 3 per 3,"Start of Combat: 6 to every enemy, then 6 more to a random enemy per other Dragon.",AoE 6 + 6 per Dragon,FALSE
+#
+# === UNDEAD ===
+spore,Sporeling,minion,undead,1,1,2,,,Deathrattle: give a random friend +1/+1.,deathrattleBuffRandom +1/+1,Deathrattle: give a random friend +2/+2.,+2/+2,TRUE
+toxin,Toxin Tender,minion,undead,2,1,2,,,Battlecry: give a friend Poison.,battlecryGrantKeyword Poison,Battlecry: give a friend Poison.,2x stats; grants Poison (unchanged),FALSE
+knit,Grave Knit,minion,undead,2,2,2,,Reborn,,,,2x stats -> 4/4; Reborn,FALSE
+rot,Rot Weaver,minion,undead,3,3,3,,,"Each time a friend dies, give a random friend +1/+1.",onFriendDeathBuffRandom +1/+1,"Each time a friend dies, give a random friend +2/+2.",+2/+2 per death,FALSE
+maex,Webspinner Matron,minion,undead,4,4,4,,Poison,,,,2x stats -> 8/8; Poison,FALSE
+plague,Plaguebringer,minion,undead,5,5,5,,,Battlecry: give a friend Poison and Windfury.,battlecryGrantKeyword Poison+Windfury,Battlecry: give a friend Poison and Windfury.,2x stats; grants Poison+Windfury (unchanged),FALSE
+ghast,Ghastweaver,minion,undead,6,5,5,,,Deathrattle: fill your board with random Undead.,deathrattleFillTribe undead,Deathrattle: fill your board with random Undead.,2x stats; fills board (unchanged),FALSE
+#
+# === MECH ===
+drone,Spare Part Drone,minion,mech,1,2,1,,Shield,,,,2x stats -> 4/2; Shield,TRUE
+cling,Cling Drone,minion,mech,2,2,2,,Magnetic,,,,2x stats -> 4/4; merges its (doubled) stats into a Mech,FALSE
+selfless,Selfless Sentinel,minion,mech,2,2,1,,,Deathrattle: give a friend a Divine Shield.,deathrattleGrantShield,Deathrattle: give a friend a Divine Shield.,2x stats; grants 1 Shield (unchanged),FALSE
+cap,Shield Capacitor,minion,mech,3,2,4,,,"When a friendly Shield breaks, give another friend a Shield.",onShieldBreakGrantShield,"When a friendly Shield breaks, give another friend a Shield.",2x stats; effect unchanged,FALSE
+arc,Arclight Reactor,minion,mech,4,3,3,,,"When a friendly Mech Shield breaks, deal 3 to a random enemy.",onShieldBreakDamage 3,"When a friendly Mech Shield breaks, deal 6 to a random enemy.",deal 6 on break,FALSE
+junk,Junkyard Titan,minion,mech,5,4,4,,,"When any friendly Shield breaks, give your minions +1/+1.",onShieldBreakBuffAll +1/+1,"When any friendly Shield breaks, give your minions +2/+2.",+2/+2 on break,FALSE
+omega,Omega Bulwark,minion,mech,6,6,6,,Shield|Taunt,Start of Combat: give all your Mechs a Shield.,scGrantShieldTribe mech,Start of Combat: give all your Mechs a Shield.,2x stats; shields all Mechs (unchanged),FALSE
+#
+# === DEMON ===
+feed,Soulfeeder,minion,demon,1,2,2,,,Battlecry: add Fodder to your next tavern.,battlecryAddTavernFodder fred,Battlecry: add Fodder to your next tavern.,2x stats; adds 2 Fodder (count x2),TRUE
+imp,Voracious Imp,minion,demon,2,2,2,,Consume,Gains 2x stats from Fodder.,fodderMult 2,Gains 3x stats from Fodder.,fodder gives 3x stats,TRUE
+pact,Pactstone Acolyte,minion,demon,2,2,3,,,"When you consume a minion, gain an extra +1/+1.",onConsumeBuffSelf +1/+1,"When you consume a minion, gain an extra +2/+2.",+2/+2 per consume,FALSE
+brood,Brood Matron,minion,demon,3,3,3,,,"Each time a friend dies, summon a 1/1 Imp.",onFriendDeathSummon impscrap,"Each time a friend dies, summon a 1/1 Imp.",2x stats; summons 1 Imp/death (count unchanged),FALSE
+maw,Maw of the Pit,minion,demon,4,4,5,,Taunt,"On consume, gain a Divine Shield.",onConsumeGrantSelfKeyword Shield,"On consume, gain a Divine Shield.",2x stats; gains Shield (unchanged),FALSE
+glut,Ravening Glutton,minion,demon,5,5,5,,Cleave|Consume,"On consume, gain +2/+2.",onConsumeBuffSelf +2/+2,"On consume, gain +4/+4.",+4/+4 per consume,FALSE
+sov,Abyssal Sovereign,minion,demon,6,7,7,,Start,Start of Combat: destroy the enemy with the highest Attack.,scDestroyHighestAttack,Start of Combat: destroy the enemy with the highest Attack.,2x stats; destroys 1 (unchanged),FALSE
+#
+# === SPELLS (cost, not stats; spells do NOT triple) ===
+spiritfire,Spirit Fire,spell,neutral,1,,,2,,Give a friendly minion +3/+3.,cast spellBuffTarget +3/+3 (target friendly),—,spells do not triple,TRUE
+emberpouch,Mana Pouch,spell,neutral,1,,,1,,Gain 1 Mana.,cast gainEmbers 1,—,spells do not triple,TRUE
+bulwark,Bulwark,spell,neutral,1,,,1,,Give a friendly minion +0/+1 and Taunt.,cast spellBuffTarget +0/+1 + Taunt (target friendly),—,spells do not triple,TRUE
+#
+# === TOKENS (not rollable; do NOT triple) ===
+fred,Fred,token,demon,1,1,1,,Fodder,A 1/1 Demon Fodder — your Demons devour it from the tavern.,token (added by Soulfeeder),—,—,TRUE
+pup,Pup,token,beast,1,1,1,,,A 1/1 Beast token.,token,—,—,FALSE
+stray,Stray,token,beast,1,1,1,,,A 1/1 Beast token.,token,—,—,TRUE
+impscrap,Imp Scrap,token,demon,1,1,1,,,A 1/1 Demon token.,token,—,—,FALSE
+discoverspell,Glimpse Beyond,token,neutral,1,0,1,,,Discover a minion from the next tier up.,token (triple reward),—,—,FALSE
+omen,Omen Minion,token,neutral,1,1,1,,,,enemy filler (stats set per wave),—,—,TRUE

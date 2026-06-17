@@ -316,6 +316,34 @@ describe('simulate (handoff A.3)', () => {
     expect(pups).toBe(4); // 2 Pups + 2 (golden Echo Warden)
   });
 
+  it('Sylus the Reaper procs a Deathrattle one extra time', () => {
+    const a = run(
+      [
+        { cardId: 'pack', attack: 2, health: 1 }, // Deathrattle: summon two 1/1 Pups
+        { cardId: 'sylus', attack: 4, health: 12 },
+      ],
+      [{ cardId: 'omen', attack: 5, health: 30 }],
+      1,
+    );
+    const pups = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
+    expect(pups).toBe(4); // the Deathrattle runs 2× (1 + 1 Sylus) → 2 Pups each
+  });
+
+  it('a golden Sylus procs a Deathrattle two extra times, and Sylus stacks', () => {
+    // Use a buff Deathrattle (Spirit of the Pack: all Beasts +4/+4) so the proc count is the number
+    // of +4 buff events — no board-cap interference. Only the Cleaver is a living Beast to buff.
+    const procs = (board: BoardMinion[]): number =>
+      run(board, [{ cardId: 'omen', attack: 1, health: 200 }], 1).events.filter(
+        (e) => e.type === 'buff' && e.attack === 4,
+      ).length;
+    const pack6 = { cardId: 'pack6', attack: 1, health: 1 }; // Deathrattle: all Beasts +4/+4
+    const carry = { cardId: 'cleaver', attack: 2, health: 50 }; // surviving Beast
+    expect(procs([pack6, carry, { cardId: 'sylus', attack: 1, health: 50, golden: true }])).toBe(3); // 1 + 2 golden
+    expect(
+      procs([pack6, carry, { cardId: 'sylus', attack: 1, health: 50 }, { cardId: 'sylus', attack: 1, health: 50 }]),
+    ).toBe(3); // 1 + 1 + 1 (Sylus stacks)
+  });
+
   it('Immune — takes no damage at all (A.4)', () => {
     const a = run(
       [{ cardId: 'omen', attack: 3, health: 3, keywords: ['IMM'] }],

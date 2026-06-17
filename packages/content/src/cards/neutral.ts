@@ -41,14 +41,27 @@ export const NEUTRAL: CardDef[] = [
     text: '**In combat,** your summon effects make **1 more** token.',
   },
   {
+    // Battlecry doubler. Golden "triples" (fire 2 more times); multiple Drakkos do NOT stack.
     id: 'drummer',
-    name: 'Doublecast Drummer',
+    name: 'Drakko the Drummer',
     tribe: 'neutral',
-    tier: 4,
+    tier: 5,
     attack: 2,
     health: 4,
     keywords: [],
     effects: [],
-    text: 'Your **Battlecries trigger twice**.',
+    text: 'Your **Battlecries** fire **1 more** time.',
+  },
+  {
+    // Deathrattle doubler. Golden procs 2 more times; multiple Sylus DO stack (additive).
+    id: 'sylus',
+    name: 'Sylus the Reaper',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    effects: [],
+    text: '**In combat,** your Deathrattles proc **1 more** time.',
   },
 ];

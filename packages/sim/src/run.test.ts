@@ -623,13 +623,38 @@ describe('run loop (@game/sim)', () => {
     expect(golden.keywords).toContain('P'); // keyword retained across the combine
   });
 
-  it('Doublecast Drummer makes a Battlecry fire twice', () => {
+  it('Drakko the Drummer makes a Battlecry fire twice', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false }],
       hand: [{ uid: 'al', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
     };
-    s = reduce(s, { type: 'play', uid: 'al' }); // Alleycur Battlecry: summon a Stray → fires twice
+    s = reduce(s, { type: 'play', uid: 'al' }); // Alleycat Battlecry: summon a Stray → fires twice
+    expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
+  });
+
+  it('a golden Drakko triples Battlecries', () => {
+    // Hoard Cleric (+1/+1 to Dragons, incl. self) — avoids token triples. Golden Drakko fires it 3×.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: true }],
+      hand: [{ uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'c' });
+    const cleric = s.board.find((c) => c.cardId === 'cleric');
+    expect([cleric?.attack, cleric?.health]).toEqual([4, 6]); // 1/3 + 3×(+1/+1)
+  });
+
+  it('multiple Drakkos do NOT stack (still fires twice)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [
+        { uid: 'd1', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'd2', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'al', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'al' }); // two Drakkos → still 2x → 2 Strays
     expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
   });
 

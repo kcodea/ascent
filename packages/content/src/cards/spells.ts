@@ -23,7 +23,7 @@ export const SPELLS: CardDef[] = [
   },
   {
     id: 'emberpouch',
-    name: 'Ember Pouch',
+    name: 'Mana Pouch',
     tribe: 'neutral',
     tier: 1,
     attack: 0,

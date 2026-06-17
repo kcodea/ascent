@@ -38,6 +38,14 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Recruit perf pass (if it persists locally).** Dropped `background-attachment: fixed` (a real
+      repaint win). If buy/drag still micro-stutters on a local `npm run dev` build (not just the
+      preview window), memoise `Card` (stabilise the per-card view objects + `beginDrag` callbacks) and
+      update the floating drag-card transform imperatively (via ref) instead of re-rendering the whole
+      recruit tree on every pointermove.
+- [ ] **Fodder keyword — more users.** `FD` is now a keyword (Fred carries it; consume keys off it).
+      Give other cheap/token minions the keyword and/or add cards that interact with Fodder, now that
+      it's a reusable marker rather than one card.
 - [ ] **Dual-type minions — activate the data model.** The UI split-hue is wired (`CardView.tribe2`
       → `.card.dual` splits the art + footer into both `--c`/`--c2` hues), but it's dormant: nothing
       sets a second tribe yet. To use it, add `tribe2?: Tribe` to `CardDef` (+ zod schema), decide which
@@ -61,7 +69,7 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop
       `<id>.png` into `packages/ui/src/art/minions/` → it replaces that card's pixel sprite
       everywhere; falls back to the sprite when absent). In so far: `whelp`, `imp`, `drone`, `drummer`,
-      `spiritfire`, `fodder`; the rest of the ~30-card set still uses sprites. Several more illustrations
+      `spiritfire`, `fred`; the rest of the ~30-card set still uses sprites. Several more illustrations
       are already sitting unused in the source folder (ArcaneWeaver, BrightwingBroker, Karwind,
       Kennelmaster, SpiritOfThePack…) — wire each once its card id is confirmed. Source art lives in
       `C:\Game Assets\Ascent Art\Minions`; see the README in the art dir for the card-id ↔ name table.

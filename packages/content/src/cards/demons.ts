@@ -11,15 +11,15 @@ import type { CardDef } from '@game/core';
  */
 export const DEMONS: CardDef[] = [
   {
-    id: 'fodder',
-    name: 'Fodder',
+    id: 'fred',
+    name: 'Fred',
     tribe: 'demon',
     tier: 1,
     attack: 1,
     health: 1,
-    keywords: [],
+    keywords: ['FD'],
     effects: [],
-    text: 'Cheap fuel — play it beside a Demon to be **consumed** for its payoff.',
+    text: '',
   },
   {
     id: 'imp',
@@ -30,7 +30,7 @@ export const DEMONS: CardDef[] = [
     health: 2,
     keywords: ['CN'],
     effects: [{ on: 'onSummon', do: 'consumeFodderOnSummon' }],
-    text: 'When you play **Fodder**, this **eats it and gains its stats**.',
+    text: 'When you play a **Fodder** minion, this **eats it and gains its stats**.',
   },
   {
     id: 'feed',

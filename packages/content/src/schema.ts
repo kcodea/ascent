@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral']);
 
-export const KeywordSchema = z.enum(['T', 'DS', 'P', 'W', 'R', 'C', 'M', 'SC', 'CN', 'IMM', 'ST']);
+export const KeywordSchema = z.enum(['T', 'DS', 'P', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST']);
 
 export const GameEventSchema = z.enum([
   'onPlay',

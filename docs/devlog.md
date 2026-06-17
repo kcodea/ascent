@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Fodder → a keyword (card becomes "Fred") + HUD tray, tavern raised, rope centred
+- **Fodder is now a keyword (`FD`), not a one-off card.** Added `FD` to the `Keyword` union
+  (`@game/core`) + the zod `KeywordSchema` (`@game/content`). The Tier-1 demon card is renamed
+  **Fodder → Fred** (`id: 'fred'`, `keywords: ['FD']`, empty body text — the pill carries the meaning,
+  so the old "Cheap fuel —" prose is gone). The consume trigger (`consumeFodderOnSummon`) now keys off
+  the **keyword** (`minion.keywords.includes('FD')`) instead of the hard-coded `cardId === 'fodder'`,
+  with the token fallback kept — so any future card can be marked Fodder and be eaten. Voracious Imp's
+  text now reads "When you play a **Fodder** minion…". Card UI gained `FD → 'Fodder'` in the label +
+  tooltip maps (label-only pill, like Consume). Art renamed `art/minions/fodder.png → fred.png` to
+  track the new id. The `fred`/`FD` consume test was updated. (Verified live: Fred shows the "Fodder"
+  pill + `fred.png` art + no description; the Imp eats a played Fred.)
+- **Status-bar tray.** Embers · Hero · Resolve now sit in one connecting rounded frame (the
+  `.statusbar` got a translucent card background, border, radius + tighter gap) so they read as a
+  single unit instead of three floating panels.
+- **Hero never fades.** Dropped the `opacity: 0.5` on the spent hero — the portrait/power stays full
+  strength even when it can't be used this wave (the ready-pulse is the only "available" cue).
+- **Tavern raised, warband lowered, rope centred.** With the freed room, the Tavern now rides high
+  near the HUD (was vertically centred), the Warband floats down toward the hand (`margin-top: auto`),
+  and the burning rope timer is pinned across the **centre of the board** (`position: fixed; top: 50%`)
+  instead of tucked under the tavern.
+- **Hand fans up from behind the tray, snappier.** The tucked hand now sits behind the status-bar
+  tray (its bg cleanly hides the tucked portion; cards peek above), and the hover-pop transition was
+  sped up (0.16s → 0.08s with a snappier curve). The status bar stays fully opaque (never faded).
+- **Perf: dropped `background-attachment: fixed`** on the board image. The app never scrolls (100vh,
+  overflow hidden), so `fixed` was pure cost — a full-viewport repaint on every paint — for zero
+  visual difference. Removing it visibly smoothed repaints (preview screenshots that were *timing out*
+  now return instantly). The remaining buy/drag micro-stutter is most likely the preview window's
+  remote-control + screenshot overhead; a local `npm run dev` build should feel markedly smoother. A
+  deeper pass (memoising cards / imperative drag-follow) is queued if it persists locally.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**75**) + `build:web` pass; all of the above
+  confirmed live (DOM probes + screenshots). `TURN_SECONDS`/`SPEED` test bumps reverted to 30/1.5.
+
 ### Tribe recolour + HUD/layout pass: hand tucked under the bar, omen + row labels gone
 A UI/feel batch (all verified live in the running app):
 - **Tribe hues recoloured** to the user's spec (each drives a card's `--c` accent → art panel

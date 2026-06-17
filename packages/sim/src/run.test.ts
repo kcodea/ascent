@@ -320,16 +320,16 @@ describe('run loop (@game/sim)', () => {
     expect(imp?.health).toBe(3); // 2 + 1
   });
 
-  it('Voracious Imp eats a Fodder card played beside it (demons need fuel)', () => {
+  it('Voracious Imp eats a Fodder-keyword minion played beside it (demons need fuel)', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 0,
       shop: [],
       board: [{ uid: 'i', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
-      hand: [{ uid: 'f', cardId: 'fodder', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false }],
     };
-    s = reduce(s, { type: 'play', uid: 'f' }); // Fodder played → Imp consumes it
-    expect(s.board.some((c) => c.cardId === 'fodder')).toBe(false); // eaten, not placed
+    s = reduce(s, { type: 'play', uid: 'f' }); // Fred (Fodder) played → Imp consumes it
+    expect(s.board.some((c) => c.cardId === 'fred')).toBe(false); // eaten, not placed
     const imp = s.board.find((c) => c.cardId === 'imp');
     expect([imp?.attack, imp?.health]).toEqual([3, 3]); // 2/2 + 1/1
   });

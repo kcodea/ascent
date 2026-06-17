@@ -22,6 +22,14 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Fodder is a keyword** — the Tier-1 demon card is now **Fred** with a **Fodder** pill (no more
+  "cheap fuel" text); Consume minions eat anything with the keyword, so it's reusable across cards.
+- **HUD tray** — Embers · Hero · Resolve sit in one connecting frame; the hero never fades (even when
+  it can't be used), and the hand fans up from *behind* the tray with a snappier hover-pop.
+- **Board layout** — the tavern rides high near the top, the warband sits lower, and the burning-rope
+  turn timer is pinned across the centre of the board.
+- **Smoother paint** — dropped the fixed-attachment board background (a constant full-screen repaint)
+  since the board never scrolls — no visual change, less stutter.
 - **Tribe colours** — recoloured to read at a glance: Beast green, Dragon red/orange, Mech blue,
   Undead dark slate-blue, Demon purple, Neutral light greige (dual-type split-hue wired but dormant).
 - **Cleaner board** — the red omen bar and the per-row labels are gone (just the wave # up top); the

@@ -14,6 +14,7 @@ export type Keyword =
   | 'M' // Magnetic
   | 'SC' // Start of Combat
   | 'CN' // Consume
+  | 'FD' // Fodder — a cheap minion meant to be Consumed
   | 'IMM' // Immune — takes no damage
   | 'ST'; // Stealth — can't be targeted by attacks; lost on attacking
 

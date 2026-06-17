@@ -8,7 +8,7 @@ import { useGame } from './store';
 
 const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Shield', P: 'Poison', W: 'Windfury', R: 'Reborn', C: 'Cleave', M: 'Magnetic', SC: 'Start', CN: 'Consume',
-  IMM: 'Immune', ST: 'Stealth',
+  FD: 'Fodder', IMM: 'Immune', ST: 'Stealth',
 };
 const KW_ICON: Partial<Record<Keyword, string>> = {
   T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc', IMM: 'shield', ST: 'eye',
@@ -24,6 +24,7 @@ const KW_DESC: Record<Keyword, string> = {
   M: 'Magnetic — Drag onto a friendly Mech to merge its stats in.',
   SC: 'Start of Combat — Triggers once, right before the fight begins.',
   CN: 'Consume — Eats one of your minions to add its stats.',
+  FD: 'Fodder — A cheap minion, meant to be eaten by a Consume minion.',
   IMM: 'Immune — Takes no damage.',
   ST: 'Stealth — Can’t be attacked until it attacks.',
 };

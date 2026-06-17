@@ -245,6 +245,36 @@ describe('run loop (@game/sim)', () => {
     expect([stray?.attack, stray?.health]).toEqual([11, 11]); // 1/1 + (base 1 + summonBonus 9) = +10/+10
   });
 
+  it('Choose One: playing prompts, then the picked option resolves as the Battlecry', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sh' });
+    expect(s.chooseOne?.cardId).toBe('shaper'); // the Battlecry waits on the choice
+    expect(s.board.find((c) => c.uid === 'b')?.attack).toBe(1); // not buffed yet
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // "give your Beasts +1/+1"
+    expect(s.chooseOne).toBeUndefined();
+    expect(s.board.find((c) => c.uid === 'b')?.attack).toBe(2); // Alleycat 1 → 2
+    expect(s.board.find((c) => c.uid === 'sh')?.attack).toBe(3); // Shaper 2 → 3 (includes self)
+  });
+
+  it('Choose One: the other option summons tokens', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [],
+      hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sh' });
+    s = reduce(s, { type: 'chooseOne', index: 1 }); // "summon two 1/1 Strays"
+    expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
+  });
+
   it('Dragon Battlecries bake into stats when played', () => {
     let s: RunState = {
       ...createRun(1),

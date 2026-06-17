@@ -37,7 +37,7 @@ const TRIBE_ICON: Record<Tribe, string> = {
   beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star',
 };
 
-const mdBold = (s: string): string => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+export const mdBold = (s: string): string => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 /** A {{…}} marker → a green "modified" span (e.g. Kennelmaster's Avenge-boosted buff). */
 const descUp = (s: string): string => s.replace(/\{\{(.+?)\}\}/g, '<span class="descup">$1</span>');
 /**

@@ -90,4 +90,26 @@ export const BEASTS: CardDef[] = [
     effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 4, health: 4 } }],
     text: '**Deathrattle:** give all your Beasts +4/+4.',
   },
+  {
+    // Sample Choose One card — picks one Battlecry when played (see CardDef.chooseOne).
+    id: 'shaper',
+    name: 'Wildwood Shaper',
+    tribe: 'beast',
+    tier: 2,
+    attack: 2,
+    health: 3,
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      {
+        text: 'Give your Beasts **+1/+1**.',
+        effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'beast', attack: 1, health: 1 } }],
+      },
+      {
+        text: 'Summon two 1/1 **Strays**.',
+        effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'stray', count: 2 } }],
+      },
+    ],
+    text: '**Choose One:** give your Beasts +1/+1; or summon two 1/1 Strays.',
+  },
 ];

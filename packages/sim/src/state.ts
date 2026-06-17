@@ -107,6 +107,9 @@ export interface RunState {
   fodderEatenSeq: number;
   /** A pending Discover offer (3 card ids) granted by a triple — pick one to hand. */
   discover?: string[];
+  /** A pending Choose One — a played card waiting for the player to pick an option. The
+   *  options live on the card def (`CARD_INDEX[cardId].chooseOne`). */
+  chooseOne?: { uid: string; cardId: string };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
 }
@@ -122,6 +125,7 @@ export type Action =
   | { type: 'reorderShop'; uid: string; toIndex: number }
   | { type: 'heroPower'; uid: string }
   | { type: 'discover'; index: number }
+  | { type: 'chooseOne'; index: number }
   | { type: 'faceOmen' }
   | { type: 'resolveCombat' };
 

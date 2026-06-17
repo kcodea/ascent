@@ -162,14 +162,20 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
-/* Divine Shield: a soft golden glow filling any card that has it (recruit + combat),
-   with a gentle pulse — no overlay art. */
-.card.dscard { box-shadow: 0 0 17px 2px rgba(244, 207, 106, 0.6), inset 0 0 24px rgba(244, 207, 106, 0.4), 0 3px 0 var(--shadow); animation: dsglow 2.2s ease-in-out infinite; }
-.card.dscard .art { box-shadow: inset 0 0 26px rgba(244, 207, 106, 0.45); }
-@keyframes dsglow {
-  0%, 100% { box-shadow: 0 0 14px 2px rgba(244, 207, 106, 0.5), inset 0 0 20px rgba(244, 207, 106, 0.32), 0 3px 0 var(--shadow); }
-  50% { box-shadow: 0 0 22px 4px rgba(244, 207, 106, 0.72), inset 0 0 28px rgba(244, 207, 106, 0.48), 0 3px 0 var(--shadow); }
+/* Divine Shield: an unmistakable soft-yellow glow — a bright halo + ring AROUND the card and
+   a glowing wash ON TOP of it (concentrated over the art so the text stays legible), pulsing.
+   Shown on any shielded card, recruit + combat, so DS reads at a glance across the board. */
+.card.dscard { z-index: 3; box-shadow: 0 0 26px 6px rgba(255, 221, 110, 0.85), 0 0 0 3px rgba(255, 221, 110, 0.9), 0 3px 0 var(--shadow); animation: dsglow 1.8s ease-in-out infinite; }
+.card.dscard::after {
+  content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; z-index: 8;
+  background: radial-gradient(110% 80% at 50% 32%, rgba(255, 236, 150, 0.5), rgba(255, 224, 120, 0.18) 50%, transparent 74%);
+  mix-blend-mode: screen; animation: dswash 1.8s ease-in-out infinite;
 }
+@keyframes dsglow {
+  0%, 100% { box-shadow: 0 0 20px 4px rgba(255, 221, 110, 0.65), 0 0 0 3px rgba(255, 221, 110, 0.75), 0 3px 0 var(--shadow); }
+  50% { box-shadow: 0 0 34px 9px rgba(255, 221, 110, 1), 0 0 0 3px rgba(255, 221, 110, 1), 0 3px 0 var(--shadow); }
+}
+@keyframes dswash { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
 /* cost badge — a teal Mana circle overhanging the top-left corner */
 .cost { position: absolute; top: -20px; left: -16px; width: 60px; height: 60px; z-index: 6; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
 .cost .costn { font-family: 'Outfit'; font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
@@ -244,6 +250,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .discover-title { font-family: 'Outfit'; font-weight: 800; font-size: 19px; text-align: center; margin-bottom: 16px; color: var(--ink); }
 .discover-title b { color: var(--acc-dk); }
 .discover-cards { display: flex; gap: 16px; justify-content: center; }
+/* Choose One — two big option buttons */
+.chooseone-opts { display: flex; gap: 16px; justify-content: center; }
+.chooseopt { width: 240px; min-height: 96px; padding: 18px 20px; border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: 'Nunito Sans', sans-serif; font-weight: 600; font-size: 16px; line-height: 1.35; text-align: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }
+.chooseopt:hover { border-color: var(--acc); transform: translateY(-3px); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35); }
+.chooseopt b { color: var(--acc-dk); font-weight: 800; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
 /* right-click inspect: the card floats to centre, enlarged, over a dimmed backdrop */
@@ -256,8 +267,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* custom drag: a solid card follows the cursor; the source dims; invalid drops snap back */
 .dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); transition: none; will-change: transform; }
 .dragcard.snap { transition: transform 0.16s cubic-bezier(0.34, 1.2, 0.64, 1); }
-/* a Magnetic card sliding + shrinking into its Mech before it merges */
-.dragcard.magslide { transition: transform 0.36s cubic-bezier(0.4, 0, 0.2, 1); }
+/* a Magnetic card sliding + shrinking into its Mech before it merges (slow + readable) */
+.dragcard.magslide { transition: transform 0.72s cubic-bezier(0.4, 0, 0.2, 1); }
 .dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
 /* Magnetic: electric crackle while a Cling Drone hovers a friendly Mech (will merge on drop) */
 .dragcard.electric .card { animation: crackle 0.28s ease-in-out infinite; }
@@ -299,7 +310,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 }
 /* tavern Fodder consume — a ghost Fred pops in the tavern then spins/shrinks into the
    Demon that ate it (a purple swirl), so the auto-consume is visible (not instantaneous) */
-.fodderghost { position: fixed; z-index: 60; pointer-events: none; transform-origin: center; filter: drop-shadow(0 0 16px rgba(177, 92, 240, 0.95)); animation: fodderswirl 0.8s cubic-bezier(0.5, 0, 0.7, 1) forwards; }
+.fodderghost { position: fixed; z-index: 60; pointer-events: none; transform-origin: center; filter: drop-shadow(0 0 16px rgba(177, 92, 240, 0.95)); animation: fodderswirl 1.35s cubic-bezier(0.5, 0, 0.7, 1) forwards; }
 .fodderghost .card { width: 100%; height: 100%; animation: none; box-shadow: 0 0 0 3px var(--t-demon), 0 8px 22px rgba(0, 0, 0, 0.4); }
 @keyframes fodderswirl {
   0% { transform: translate(0, 0) scale(0.6) rotate(0deg); opacity: 0; }

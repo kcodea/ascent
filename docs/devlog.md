@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Choose One, bolder DS glow, slower Magnetic/Fodder, cards CSV
+- **Choose One** wired. A card can carry `chooseOne: [{ text, effects }, …]`; playing it defers the
+  Battlecry, opens a modal of the options, and the picked option's `effects` resolve as the Battlecry
+  (honors Doublecast Drummer; a golden Choose-One still grants its Discover after the pick). New
+  `CardDef.chooseOne` (+ zod), `RunState.chooseOne` + a `chooseOne` action, `applyChooseOne` in
+  recruit, the reducer flow, and a Choose-One overlay (two big option buttons). Sample card added —
+  **Wildwood Shaper** (T2 Beast: "give your Beasts +1/+1" or "summon two 1/1 Strays"). 2 tests.
+- **Divine Shield — way more recognizable.** Dropped to a glow but made it bold: a bright soft-yellow
+  **halo + ring around** the card *and* a glowing screen-blend **wash on top** (concentrated over the
+  art so text stays legible), pulsing — reads at a glance across the board.
+- **Slower Magnetic + Fodder animations.** The Magnetic slide is 0.36 s → **0.72 s** (and the merge
+  fires at 720 ms), and the Fodder swirl 0.8 s → **1.35 s** (ghost held to 1.4 s) — clearer what's
+  happening.
+- **`docs/cards.csv`** — every card (minions, spells, tokens) as editable rows: id, name, kind,
+  tribe, tier, atk/hp, cost, keywords, text, an effect note, and whether art is wired. Add rows at
+  the bottom for new cards; I apply edits back into the content `.ts` files.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**90**) + `build:web` pass; live: the DS card
+  shows the strong yellow halo + on-top wash, no console errors. (Choose One is covered by unit tests
+  — it needs a Tier-2 board to trigger in the live UI.)
+
 ### DS = golden glow only, Rally keyword, buff-replay fix, smoother Magnetic
 - **Divine Shield** — dropped the overlay art entirely; a shielded card now just gets a **soft golden
   glow** (`.card.dscard`, an outer + inner glow with a gentle `dsglow` pulse, recruit + combat).

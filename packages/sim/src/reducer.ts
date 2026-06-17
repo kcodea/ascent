@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { applyEndOfTurn, applyOnBuy, castSpell, consumeTavernFodder, playCard } from './recruit';
+import { applyChooseOne, applyEndOfTurn, applyOnBuy, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
 
 /**
@@ -118,19 +118,25 @@ export function reduce(state: RunState, action: Action): RunState {
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
       playCard(s, card);
-      checkTriples(s);
-      if (card.golden) {
-        // Playing a golden minion grants a Discover spell (peek one tier up).
-        s.hand.push({
-          uid: `b${s.uidSeq++}`,
-          cardId: 'discoverspell',
-          tribe: 'neutral',
-          attack: 0,
-          health: 1,
-          keywords: [],
-          golden: false,
-        });
+      // Choose One: pause for the player's pick before resolving triples / the golden Discover.
+      if (CARD_INDEX[card.cardId]?.chooseOne?.length) {
+        s.chooseOne = { uid: card.uid, cardId: card.cardId };
+        return s;
       }
+      checkTriples(s);
+      if (card.golden) grantGoldenDiscover(s);
+      return s;
+    }
+
+    case 'chooseOne': {
+      if (!s.chooseOne) return state;
+      const card = s.board.find((c) => c.uid === s.chooseOne!.uid);
+      const option = CARD_INDEX[s.chooseOne.cardId]?.chooseOne?.[action.index];
+      if (!card || !option) return state;
+      applyChooseOne(s, card, option.effects); // the chosen Battlecry resolves now
+      s.chooseOne = undefined;
+      checkTriples(s);
+      if (card.golden) grantGoldenDiscover(s);
       return s;
     }
 
@@ -257,6 +263,19 @@ export function reduce(state: RunState, action: Action): RunState {
       return s;
     }
   }
+}
+
+/** Playing a golden minion grants a Discover spell (peek one tier up) into the hand. */
+function grantGoldenDiscover(s: RunState): void {
+  s.hand.push({
+    uid: `b${s.uidSeq++}`,
+    cardId: 'discoverspell',
+    tribe: 'neutral',
+    attack: 0,
+    health: 1,
+    keywords: [],
+    golden: false,
+  });
 }
 
 /**

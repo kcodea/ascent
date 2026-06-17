@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, type BoardCard, type ShopCard } from '@game/sim';
-import { Card, type CardView } from './Card';
+import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
@@ -245,7 +245,7 @@ export function Recruit() {
           setMagSlide(false);
           setDrag(null);
           setOverZone(null);
-        }, el ? 360 : 0);
+        }, el ? 720 : 0);
         return;
       }
 
@@ -419,7 +419,7 @@ export function Recruit() {
       return { fid: ev.fodderId, x0: gx - w / 2, y0: cy - h / 2, w, h, dx, dy };
     });
     setFodderAnim({ key: run.fodderEatenSeq, ghosts });
-    const t = window.setTimeout(() => setFodderAnim(null), 820);
+    const t = window.setTimeout(() => setFodderAnim(null), 1400);
     return () => window.clearTimeout(t);
   }, [run.fodderEatenSeq, run.fodderEaten]);
 
@@ -840,6 +840,26 @@ export function Recruit() {
               )}
             </div>
             <button className="btn big" onClick={() => setShowLog(false)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {run.chooseOne && (
+        <div className="discover-ov" role="dialog" aria-label="Choose One">
+          <div className="discover-box">
+            <div className="discover-title">
+              <b>Choose One</b> — {CARD_INDEX[run.chooseOne.cardId]?.name}
+            </div>
+            <div className="chooseone-opts">
+              {(CARD_INDEX[run.chooseOne.cardId]?.chooseOne ?? []).map((opt, i) => (
+                <button
+                  className="chooseopt"
+                  key={i}
+                  onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                  dangerouslySetInnerHTML={{ __html: mdBold(opt.text) }}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}

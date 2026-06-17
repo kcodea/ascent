@@ -91,4 +91,8 @@ export const CardDefSchema = z.object({
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly']).optional(),
   fodderMult: z.number().int().positive().optional(),
+  chooseOne: z
+    .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }))
+    .min(2)
+    .optional(),
 });

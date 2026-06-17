@@ -115,6 +115,9 @@ export interface CardDef {
   /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
    *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
   fodderMult?: number;
+  /** Choose One: when played, the player picks one of these options; its `effects` then resolve
+   *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
+  chooseOne?: { text: string; effects: EffectDef[] }[];
 }
 
 /**

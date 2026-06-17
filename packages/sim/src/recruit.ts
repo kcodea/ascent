@@ -231,6 +231,18 @@ function makeContext(state: RunState): RecruitContext {
   return ctx;
 }
 
+/** Resolve a chosen Choose One option's effects on the played card (its picked Battlecry).
+ *  Honors Doublecast Drummer, like a normal Battlecry. */
+export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDef['effects']): void {
+  const ctx = makeContext(state);
+  const repeats = 1 + state.board.filter((c) => c.cardId === 'drummer').length;
+  for (const effect of effects) {
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (!fn) continue;
+    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card });
+  }
+}
+
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   const ctx = makeContext(state);
@@ -330,6 +342,9 @@ export function playCard(state: RunState, played: BoardCard): void {
   fire(ctx, 'onSummon', { minion: played });
   const def = CARD_INDEX[played.cardId];
   if (!def) return;
+  // Choose One: the Battlecry is whichever option the player picks — deferred to `applyChooseOne`
+  // (the reducer opens the prompt). onSummon buffs above still apply (it was summoned normally).
+  if (def.chooseOne && def.chooseOne.length > 0) return;
   // Doublecast Drummer: each one on the board makes Battlecries fire one extra time.
   const drummers = state.board.filter((c) => c.cardId === 'drummer').length;
   const repeats = 1 + drummers;

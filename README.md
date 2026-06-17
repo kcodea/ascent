@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Choose One + polish** — cards can offer a **Choose One** Battlecry (pick 1 of 2 effects on play;
+  sample: Wildwood Shaper). Divine Shield is now a bold soft-yellow glow (halo + on-top wash) that
+  reads across the board; the Magnetic + Fodder animations are slower/clearer; and `docs/cards.csv`
+  holds the full card list for balance edits.
 - **Combat juice + fixes** — Divine Shield now has new art + a soft yellow glow; combat cards update
   live (a Kennelmaster's buff climbs mid-fight and reads golden); **Echo Warden** is additive (Pack
   Scrounger + 1 Echo = 3 Pups, golden Echo = +2); and **Magnetic** cards shove the board aside and

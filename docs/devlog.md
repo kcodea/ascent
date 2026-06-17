@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Fix: warband cards flew off-screen when wiggling a held minion
+- Dragging a held minion back and forth over another a few times made the other cards "spazz out"
+  and vanish. Cause: the FLIP slide measured each card's `getBoundingClientRect()` **including its
+  in-flight transform**, then stored that interpolated value as the next "first" position — so rapid
+  drags compounded the deltas until `translateX` flung cards far off-screen. Fixed by dropping any
+  in-progress transform (`transition:none; transform:''`) on every tracked card *before* measuring,
+  so each FLIP works from true layout positions; deltas stay bounded by the row width. Verified live:
+  wiggling a held minion back and forth 8× over a 3-card board leaves every other card on-screen in
+  place (was: flung away / gone).
+
 ### Warband drag — truly lift the held card out (drop-in-place, take 2)
 - The previous pass only lifted the dragged board minion out *while the cursor was over the
   warband*; dragging it away (e.g. toward the hand) flipped it back to a solid card in the row, so

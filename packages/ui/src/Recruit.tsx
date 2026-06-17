@@ -258,24 +258,36 @@ export function Recruit() {
   // FLIP: slide warband cards from their old spots to new ones — live as the drop slot
   // moves during a drag, and when the board reorders (play / sell / summon / reposition).
   useLayoutEffect(() => {
-    const cards = document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]');
+    const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]')];
+    // Drop any in-flight FLIP first, so we measure each card's *true* layout position
+    // and not an interpolated transform — otherwise rapid drags compound the deltas and
+    // fling cards off-screen.
+    for (const el of cards) {
+      el.style.transition = 'none';
+      el.style.transform = '';
+    }
     const next = new Map<string, number>();
-    cards.forEach((el) => {
+    const moved: HTMLElement[] = [];
+    for (const el of cards) {
       const id = el.getAttribute('data-uid');
-      if (!id) return;
-      const left = el.getBoundingClientRect().left;
+      if (!id) continue;
+      const left = el.getBoundingClientRect().left; // natural left (transform cleared above)
       next.set(id, left);
       const prev = flipRef.current.get(id);
       if (prev !== undefined && Math.abs(prev - left) > 1) {
-        el.style.transition = 'none';
-        el.style.transform = `translateX(${prev - left}px)`;
-        requestAnimationFrame(() => {
+        el.style.transform = `translateX(${prev - left}px)`; // invert to the old spot
+        moved.push(el);
+      }
+    }
+    flipRef.current = next;
+    if (moved.length > 0) {
+      requestAnimationFrame(() => {
+        for (const el of moved) {
           el.style.transition = 'transform 0.2s ease';
           el.style.transform = '';
-        });
-      }
-    });
-    flipRef.current = next;
+        }
+      });
+    }
   }, [flipKey]);
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number): boolean => {

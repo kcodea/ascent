@@ -5,6 +5,42 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### In-place combat — the shop closes, the enemies arrive (no more separate arena screen)
+Combat now plays out **on the recruit board itself** instead of cutting to a separate full-screen
+arena. When you End Turn, the top half "closes up" (the tavern offers, the control bar, the timer,
+the rope and the hand animate away) and the enemy team **arrives** where the tavern was — while the
+**warband, the Warden hero frame, the HUD (ASCENT / wave / tribes / mute) and the Embers/Resolve
+panel never move**. After the fight, your board plays a one-shot **reset** animation as the next
+shop opens. (Item 11 of the batch.)
+- **`Recruit` is the single, always-mounted board.** `Game.tsx` no longer swaps `Recruit` ↔ `Arena`;
+  it renders `Recruit` for every phase, so the persistent chrome literally never unmounts (hence it
+  can't move). `Arena.tsx` is **deleted**.
+- **Replay engine extracted to a hook.** All of the old Arena's beat/lunge/projectile/float/SFX/
+  verdict logic moved verbatim into `useCombatReplay(combat, { active, findEl })` (new
+  `useCombatReplay.ts`); the combat `Unit` card moved to `Unit.tsx`. The hook is decoupled from
+  layout: `active` gates the clock (so we can hold on the intro), and `findEl(uid)` resolves a unit's
+  live DOM node for measuring lunges/bolts in *any* layout (it now looks inside the warband + tavern
+  zones). The UI still only **replays** `simulate()` — it never computes combat.
+- **Intro staging.** A local `combatStage` sequences `closing` → `fighting`: ~480 ms of "shop
+  closing" (offers + control bar fold up and fade; the hand slides off the bottom), then the enemies
+  arrive (slide-in) in the tavern's slot and the replay begins. The control bar's slot swaps to a
+  compact combat bar (Wave · threat + **Skip**, then **Climb On**/End Combat when the replay settles)
+  — same height, so the warband doesn't reflow. The VS divider is positioned out of flow so it can't
+  shift the warband either.
+- **Post-combat reset.** Returning to recruit tags the warband row `.resetting` for a 0.65 s settle
+  animation; the shop reopens around it.
+- **Timer-reset fix (caught live).** Because `Recruit` no longer remounts per wave, the round timer
+  (which used to re-init on remount) stopped resetting — it carried 0s into the next wave. Added an
+  effect keyed on `run.wave` that re-arms `seconds` to that wave's `turnSeconds` at the start of each
+  recruit phase. Also gated drag-start and Hero-Power aiming on `!inCombat`.
+- **Verified live (full loop):** drove a real run via synthetic pointer drags — bought + played a
+  minion, hit End Turn, and confirmed through the DOM + screenshots that the shop closes (`app` →
+  `app combat` → `app combat fighting`), the enemy unit arrives in the tavern zone, the warband units
+  render in place, the HUD/hero/Embers stay put, the narration line shows, then End Combat returns to
+  recruit (`row warband resetting` → settled), the shop reopens (4 offers), Resolve ticks 30→29, and
+  the wave advances to 2 with the timer correctly re-armed (35 s). No console errors. `typecheck`
+  (+web) + `lint` + `test` (**81**) + `build:web` all pass.
+
 ### Card/VFX/timer polish pass — spacing, spell sparks, buff procs, scaling timer
 A grab-bag of feel + readability fixes (items 1–10 of an 11-item batch; the in-place combat
 transition is the separate item below):

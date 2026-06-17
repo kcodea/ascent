@@ -1,13 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useState, type CSSProperties } from 'react';
-import type { CombatEvent, Keyword, MinionSnapshot, Tribe } from '@game/core';
-import { CARD_INDEX } from '@game/content';
-import { THREATS } from '@game/sim';
-import { Card, type CardView } from './Card';
-import { Icon } from './Icon';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import type { CombatEvent, CombatResult, Keyword, MinionSnapshot, Tribe } from '@game/core';
 import { sfx } from './sfx';
-import { useGame } from './store';
 
-interface UnitFrame {
+/** A live combat unit, folded from the initial snapshot + the event log up to a beat. */
+export interface UnitFrame {
   uid: string;
   cardId: string;
   name: string;
@@ -167,51 +163,52 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
   }
 }
 
-/** A combat unit — the same Card as recruit, wrapped for animations, floats, and the DS ring. */
-function Unit({
-  u, side, anim, floats, lunge,
-}: {
-  u: UnitFrame;
-  side: 'foe' | 'you';
-  anim?: string;
-  floats?: { id: number; text: string; kind: string }[];
-  /** Inline transform that slides the attacker into its target. */
-  lunge?: string;
-}) {
-  const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
-  const view: CardView = {
-    name: u.name, cardId: u.cardId, tribe: u.tribe, attack: u.attack, health: Math.max(0, u.health),
-    keywords: u.keywords, text: CARD_INDEX[u.cardId]?.text ?? '', tier: CARD_INDEX[u.cardId]?.tier,
-    baseAttack: CARD_INDEX[u.cardId]?.attack, baseHealth: CARD_INDEX[u.cardId]?.health,
-  };
-  return (
-    <div className={cls} data-uid={u.uid} style={lunge ? { transform: lunge, zIndex: 10 } : undefined}>
-      <Card card={view} />
-      {floats?.map((f) => (
-        <span key={f.id} className={`float ${f.kind}`}>{f.text}</span>
-      ))}
-    </div>
-  );
+export interface CombatReplay {
+  frame: { player: UnitFrame[]; enemy: UnitFrame[] };
+  anims: Record<string, string>;
+  lungeUid: string | null;
+  lungeTransform: string | undefined;
+  projectiles: { id: number; x: number; y: number; dx: number; dy: number }[];
+  floatsFor: (uid: string) => Float[];
+  log: string;
+  done: boolean;
+  result: CombatResult['result'] | null;
+  shaking: boolean;
+  beatCount: number;
+  skip: () => void;
 }
 
-export function Arena() {
-  const run = useGame((s) => s.run);
-  const dispatch = useGame((s) => s.dispatch);
-  const combat = run.lastCombat;
-  const events = combat?.events ?? [];
+/**
+ * The combat-replay engine, decoupled from layout. Folds `combat`'s event log into a
+ * beat-by-beat animation: `active` gates whether the clock is ticking (so the caller
+ * can hold on a "shop closing / enemies arriving" intro before the fight starts), and
+ * `findEl` resolves a unit's live DOM node for measuring lunges + projectile bolts
+ * (so the same engine works in any layout). The UI only *replays* — it never computes
+ * the outcome (that's `simulate()`).
+ */
+export function useCombatReplay(
+  combat: CombatResult | null | undefined,
+  opts: { active: boolean; findEl: (uid: string) => Element | null },
+): CombatReplay {
+  const { active, findEl } = opts;
+  const events = useMemo(() => combat?.events ?? [], [combat]);
   const beats = useMemo(() => buildBeats(events), [events]);
   const [beatIdx, setBeatIdx] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
-  // Lunge + SC projectiles depend on live DOM positions, so they're measured in a
-  // layout effect (after each beat commits — the DOM is current, not stale by a
-  // frame) and held in state. Measuring during render read the *previous* frame's
-  // layout, so a death/summon that shifted a minion made attackers lunge at where
-  // their target used to be — combat looked like it played out of order.
   const [lunge, setLunge] = useState<{ uid: string; transform: string } | null>(null);
   const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number }[]>([]);
   const done = beatIdx >= beats.length;
+
+  // A fresh combat resets the replay to the top (the hook persists across fights).
+  useEffect(() => {
+    setBeatIdx(0);
+    setFloats([]);
+    setLunge(null);
+    setProjectiles([]);
+    setShake(0);
+  }, [combat]);
 
   useEffect(() => {
     if (!shake) return;
@@ -220,13 +217,14 @@ export function Arena() {
     return () => window.clearTimeout(t);
   }, [shake]);
 
-  // Advance one beat at a time (a beat = an action + all its result events).
+  // Advance one beat at a time (a beat = an action + all its result events) — only
+  // once `active` (the intro animation has finished and the fight is on).
   useEffect(() => {
-    if (beatIdx >= beats.length) return;
+    if (!active || beatIdx >= beats.length) return;
     const beat = beats[beatIdx]!;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), (DELAY[beat.primary.type] ?? 300) * SPEED);
     return () => window.clearTimeout(id);
-  }, [beatIdx, beats]);
+  }, [active, beatIdx, beats]);
 
   // Spawn floats for every damage/poison/shield in the beat just resolved — all at once.
   useEffect(() => {
@@ -269,10 +267,10 @@ export function Arena() {
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
-    if (!done || !combat) return;
+    if (!active || !done || !combat) return;
     if (combat.result === 'win') sfx.win();
     else if (combat.result === 'lose') sfx.lose();
-  }, [done, combat]);
+  }, [active, done, combat]);
 
   // Measure lunge + SC projectiles AFTER the beat commits, so positions reflect the
   // frame on screen (not the previous one). Runs synchronously before paint.
@@ -280,7 +278,7 @@ export function Arena() {
     const cur = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
     const prev = beatIdx > 1 ? beats[beatIdx - 2] : undefined;
     const center = (uid: string): { x: number; y: number } | null => {
-      const el = document.querySelector(`.ascene [data-uid="${uid}"]`);
+      const el = findEl(uid);
       if (!el) return null;
       const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -318,7 +316,7 @@ export function Arena() {
     } else {
       setProjectiles([]);
     }
-  }, [beatIdx, beats, events]);
+  }, [beatIdx, beats, events, findEl]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();
@@ -337,8 +335,6 @@ export function Arena() {
     [combat, events, processedEnd, beatStart],
   );
 
-  if (!combat) return null;
-
   const currentBeat = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
   const anims: Record<string, string> = {};
   if (currentBeat) {
@@ -346,7 +342,7 @@ export function Arena() {
   }
 
   // The lunging attacker is measured in the layout effect above (correct, current
-  // positions); here we just apply its anim class. `projectiles` is also state.
+  // positions); here we just apply its anim class.
   const lungeUid = lunge?.uid ?? null;
   const lungeTransform = lunge?.transform;
   if (lungeUid) {
@@ -359,49 +355,11 @@ export function Arena() {
     const line = narrate(events[i]!, names);
     if (line) { log = line; break; }
   }
-  const floatsFor = (uid: string) => floats.filter((f) => f.uid === uid);
+  const floatsFor = (uid: string): Float[] => floats.filter((f) => f.uid === uid);
 
-  return (
-    <div className={`arena${done ? ` done ${combat.result}` : ''}`}>
-      <div className="atop">
-        <h1 className="disp">THE WAVE BREAKS</h1>
-        <div className="asub">Wave {run.wave} · {THREATS[run.threat].name}</div>
-        {done ? (
-          <button className="endcombat" onClick={() => dispatch({ type: 'resolveCombat' })}>
-            <Icon name="up" />End Combat
-          </button>
-        ) : (
-          <button className="skip" onClick={() => setBeatIdx(beats.length)}>
-            <Icon name="sword" />Skip
-          </button>
-        )}
-      </div>
-
-      <div className={`ascene${shaking ? ' shaking' : ''}`}>
-        <div className="side foe"><span>The Omen</span><span className="rl" /></div>
-        <div className="line foe">
-          {frame.enemy.map((u) => (
-            <Unit key={u.uid} u={u} side="foe" anim={anims[u.uid]} floats={floatsFor(u.uid)} lunge={u.uid === lungeUid ? lungeTransform : undefined} />
-          ))}
-        </div>
-        <div className="clash"><span className="ln" /><span className="vs disp">VS</span><span className="ln" /></div>
-        <div className="line you">
-          {frame.player.map((u) => (
-            <Unit key={u.uid} u={u} side="you" anim={anims[u.uid]} floats={floatsFor(u.uid)} lunge={u.uid === lungeUid ? lungeTransform : undefined} />
-          ))}
-        </div>
-        <div className="side you"><span className="rl" /><span>Your Warband</span></div>
-      </div>
-
-      {projectiles.map((p) => (
-        <span
-          key={`proj-${beatIdx}-${p.id}`}
-          className="proj"
-          style={{ left: p.x, top: p.y, '--dx': `${p.dx}px`, '--dy': `${p.dy}px` } as CSSProperties}
-        />
-      ))}
-
-      <div className="alog">{log}</div>
-    </div>
-  );
+  return {
+    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log,
+    done, result: combat ? combat.result : null, shaking,
+    beatCount: beats.length, skip: () => setBeatIdx(beats.length),
+  };
 }

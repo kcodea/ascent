@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **In-place combat** — no more cutting to a separate arena screen. When you End Turn the shop
+  "closes" (the offers, controls, timer, rope and hand animate away) and the enemy team **arrives**
+  where the tavern was, while your **warband, hero, and the whole HUD stay exactly where they are**.
+  After the fight your board plays a reset animation as the next shop opens.
 - **Polish pass** — more space between cards (badges no longer overlap), a countdown tick on the last
   five seconds, a 3× Taunt emblem, a +30% Divine-Shield glow, the turn timer grows +5s per wave
   (cap 70s), bigger tier pills (now on spells too), a white-outlined cost ember, a **spell spark**

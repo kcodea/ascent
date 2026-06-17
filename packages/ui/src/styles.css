@@ -466,7 +466,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .arena.done.win .ascene::after { background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(34, 190, 134, 0.26)); }
 .arena.done.lose .ascene::after { background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(229, 57, 99, 0.26)); }
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
-.alog { flex: none; text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: 16px; color: var(--ink); min-height: 26px; padding: 10px 0; }
+.alog { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 30; text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: 17px; color: var(--ink); background: color-mix(in srgb, var(--card) 88%, transparent); padding: 9px 24px; border-radius: 14px; border: 2px solid var(--line); box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.45); pointer-events: none; max-width: 70vw; }
 .result { flex: none; display: flex; align-items: center; gap: 16px; justify-content: center; background: var(--card); border: 2px solid var(--line); border-radius: 15px; padding: 12px 18px; box-shadow: 0 4px 0 var(--shadow); }
 .verdict { font-family: 'Outfit'; font-weight: 900; font-size: 24px; letter-spacing: 0.06em; }
 .verdict.win { color: var(--acc-dk); } .verdict.lose { color: var(--threat-dk); } .verdict.draw { color: var(--ink2); }
@@ -499,6 +499,57 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   0% { transform: scale(1); opacity: 1; }
   28% { transform: scale(1.13) rotate(-2deg); filter: brightness(1.55) saturate(0.5); }
   100% { transform: scale(0.52) translateY(16px) rotate(4deg); opacity: 0; filter: grayscale(1) brightness(0.65); }
+}
+
+/* ===================== in-place combat (shop closes → enemies arrive) =====================
+   Combat plays out on the recruit board itself: the top half (tavern offers, the control
+   bar, the timer, the rope and the hand) "closes up" and leaves, then the enemy team
+   "arrives" where the tavern was. The warband, hero frame, HUD (ASCENT/wave/tribes/mute)
+   never move — `Recruit` stays mounted the whole time, only its top-half content swaps. */
+.app { position: relative; }
+
+/* the shop closing: the control bar + the tavern offers fold up and fade out */
+.shopctl.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
+.app.combat:not(.fighting) .zone[data-zone='tavern'] .row { animation: shopclose 0.45s ease forwards; }
+@keyframes shopclose {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
+}
+/* the hand slides down out of view for the whole fight */
+.app.combat .zone[data-zone='hand'] { transform: translate(-50%, 155%); opacity: 0; pointer-events: none; transition: transform 0.5s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.35s ease; }
+
+/* the combat control bar takes the shop control bar's slot (same buttons → same height) */
+.combatctl { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 10px; flex: none; min-height: 52px; animation: combatctlin 0.4s ease both; }
+.cbanner { font-family: 'Outfit'; font-weight: 700; font-size: 16px; color: var(--ink2); letter-spacing: 0.02em; }
+.cbanner b { color: var(--threat-dk); }
+@keyframes combatctlin { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+
+/* faint team tints + the enemy "arrival" once the fight is on */
+.app.fighting .zone[data-zone='tavern'] .row { background: color-mix(in srgb, var(--threat) 8%, transparent); border-radius: 18px; }
+.app.fighting .zone[data-zone='warband'] .row { background: color-mix(in srgb, var(--acc) 9%, transparent); border-radius: 18px; }
+.app.fighting .zone[data-zone='tavern'] .unit { animation: enemyarrive 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+@keyframes enemyarrive {
+  0% { opacity: 0; transform: translateY(-64px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* the VS divider sits out of flow (centred on the board) so the warband doesn't shift */
+.app.combat .clash { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, 54vw); z-index: 2; animation: combatctlin 0.5s ease both; }
+
+/* a kill shakes just the unit rows (never the HUD / hero) */
+.app.shaking .zone[data-zone='tavern'] .row, .app.shaking .zone[data-zone='warband'] .row { animation: boardshake 0.3s ease; }
+
+/* a soft vignette tint when the replay settles — green for a win, raspberry for a loss */
+.app.combat.done::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 13; animation: resulttint 0.6s ease forwards; }
+.app.combat.done.win::after { background: radial-gradient(120% 78% at 50% 46%, transparent 48%, rgba(34, 190, 134, 0.22)); }
+.app.combat.done.lose::after { background: radial-gradient(120% 78% at 50% 46%, transparent 48%, rgba(229, 57, 99, 0.22)); }
+
+/* post-combat: the warband settles back in as the next shop opens */
+.row.warband.resetting .card { animation: boardreset 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+@keyframes boardreset {
+  0% { transform: translateY(12px) scale(0.9); opacity: 0.35; }
+  60% { transform: translateY(0) scale(1.05); opacity: 1; }
+  100% { transform: none; }
 }
 
 /* GAME OVER */

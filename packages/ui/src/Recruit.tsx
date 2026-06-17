@@ -1,11 +1,13 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
+import { Unit } from './Unit';
+import { useCombatReplay } from './useCombatReplay';
 
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
@@ -66,8 +68,8 @@ export function Recruit() {
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
 
-  // Round timer grows +5s each wave, capped at 70s (Recruit re-mounts each recruit phase,
-  // so this initialises fresh per wave).
+  // Round timer grows +5s each wave, capped at 70s. (Recruit now stays mounted across
+  // combat, so the per-wave reset is an effect keyed on the wave — see below.)
   const turnSeconds = Math.min(70, TURN_SECONDS + (run.wave - 1) * 5);
 
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -79,6 +81,49 @@ export function Recruit() {
   // A one-shot spark burst at a screen point, fired when a spell is cast.
   const [spark, setSpark] = useState<{ x: number; y: number; key: number } | null>(null);
   const sparkKeyRef = useRef(0);
+
+  // --- In-place combat. Instead of swapping to a separate arena screen, the fight
+  // plays out on this same board: the shop "closes" (the tavern offers, controls,
+  // timer, rope and hand animate away), then the enemy team "arrives" where the
+  // tavern was — the warband, hero frame, HUD (ASCENT/wave/tribes/mute) never move.
+  // `combatStage` sequences the intro (close → fight); the replay engine runs once
+  // the enemies have arrived. After the fight, the warband plays a reset animation. ---
+  const inCombat = run.phase === 'combat';
+  const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
+  const fighting = inCombat && combatStage === 'fighting';
+  const [resetting, setResetting] = useState(false);
+  const prevPhaseRef = useRef(run.phase);
+  const findEl = useCallback(
+    (uid: string): Element | null =>
+      document.querySelector(
+        `[data-zone="warband"] [data-uid="${uid}"], [data-zone="tavern"] [data-uid="${uid}"]`,
+      ),
+    [],
+  );
+  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl });
+
+  // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
+  // and the replay begin.
+  useEffect(() => {
+    if (!inCombat) {
+      setCombatStage('closing');
+      return;
+    }
+    setCombatStage('closing');
+    const t = window.setTimeout(() => setCombatStage('fighting'), 480);
+    return () => window.clearTimeout(t);
+  }, [inCombat, run.lastCombat]);
+
+  // Returning to recruit after a fight: play a one-shot board "reset" on the warband.
+  useEffect(() => {
+    if (prevPhaseRef.current === 'combat' && run.phase === 'recruit') {
+      prevPhaseRef.current = run.phase;
+      setResetting(true);
+      const t = window.setTimeout(() => setResetting(false), 650);
+      return () => window.clearTimeout(t);
+    }
+    prevPhaseRef.current = run.phase;
+  }, [run.phase]);
   const prevStatsRef = useRef<Map<string, number>>(new Map());
   const flipRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<DragState | null>(null);
@@ -122,7 +167,7 @@ export function Recruit() {
   };
 
   const beginDrag = (uid: string, source: DragSource, view: CardView) => (e: ReactPointerEvent) => {
-    if (e.button !== 0 || timeUp) return; // no dragging once the turn timer is up
+    if (e.button !== 0 || timeUp || inCombat) return; // no dragging once the turn timer is up / in combat
     const el = e.currentTarget as HTMLElement;
     const r = el.getBoundingClientRect();
     // capture the pointer so move/up keep firing even if it leaves the window or races
@@ -210,7 +255,7 @@ export function Recruit() {
   // tavern spell); a tavern buff rides in when the offer is bought. Release off a minion to
   // cancel; a plain click stays armed for a follow-up click.
   useEffect(() => {
-    if (!heroArmed) {
+    if (!heroArmed || inCombat) {
       setAim(null);
       return;
     }
@@ -252,7 +297,13 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, run.spell?.uid, timeUp, dispatch, armHero]);
+  }, [heroArmed, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
+
+  // Reset the round clock at the start of each recruit wave. (Recruit stays mounted
+  // across combat now, so unlike before it can't rely on a remount to re-initialise.)
+  useEffect(() => {
+    setSeconds(turnSeconds);
+  }, [run.wave, turnSeconds]);
 
   // Round timer: count down each recruit turn; at 0 the player is forced into
   // combat (paused while a Discover pick is open). UI-only — the engine is untimed.
@@ -431,9 +482,14 @@ export function Recruit() {
   const canDropHand = !!drag?.active && drag.source === 'shop' && overZone === 'hand';
 
   return (
-    <div className="app">
+    <div
+      className={`app${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${
+        inCombat && replay.done ? ` done ${replay.result}` : ''
+      }`}
+    >
       <HudBar />
 
+      {!inCombat && (
       <div className="rtimer" data-low={seconds <= 5} title="Time left this turn — at 0 your actions lock; hit End Turn to fight">
         <svg viewBox="0 0 40 40">
           <circle className="rt-bg" cx="20" cy="20" r="17" />
@@ -447,8 +503,10 @@ export function Recruit() {
         </svg>
         <span className="rt-n">{Math.max(0, seconds)}</span>
       </div>
+      )}
 
-      <div className="shopctl">
+      {!fighting ? (
+      <div className={`shopctl${inCombat ? ' closing' : ''}`}>
         <span className="tavernbox">
           Tavern · Tier <b>{run.tier}</b>
         </span>
@@ -477,9 +535,40 @@ export function Recruit() {
           End Turn
         </button>
       </div>
+      ) : (
+        <div className="combatctl">
+          <span className="cbanner">
+            <b>Wave {run.wave}</b> · {THREATS[run.threat].name}
+          </span>
+          {replay.done ? (
+            <button className="btn big endturn" onClick={() => dispatch({ type: 'resolveCombat' })}>
+              <Icon name="up" />
+              {replay.result === 'win' ? 'Climb On' : 'End Combat'}
+            </button>
+          ) : (
+            <button className="btn big" onClick={replay.skip}>
+              <Icon name="sword" />
+              Skip
+            </button>
+          )}
+        </div>
+      )}
 
       <div className={`zone${sellGlow ? ' sellglow' : ''}`} data-zone="tavern">
         <div className="row">
+          {fighting ? (
+            replay.frame.enemy.map((u) => (
+              <Unit
+                key={u.uid}
+                u={u}
+                side="foe"
+                anim={replay.anims[u.uid]}
+                floats={replay.floatsFor(u.uid)}
+                lunge={u.uid === replay.lungeUid ? replay.lungeTransform : undefined}
+              />
+            ))
+          ) : (
+          <>
           {displayShop.map((o, i) => (
             <Fragment key={o.uid}>
               {shopGapIndex === i && <span className="dropslot" aria-hidden="true" />}
@@ -501,35 +590,59 @@ export function Recruit() {
               onPointerDown={heroArmed ? undefined : beginDrag(run.spell.uid, 'shop', shopView(run.spell, run.spellCostMod))}
             />
           )}
+          </>
+          )}
         </div>
       </div>
 
-      {seconds <= 15 && (
+      {!inCombat && seconds <= 15 && (
         <div className="rope" title={`${seconds}s left`}>
           <div className="rope-lit" style={{ width: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
           <div className="rope-flame" style={{ left: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
         </div>
       )}
+      {inCombat && (
+        <div className="clash" aria-hidden="true">
+          <span className="ln" />
+          <span className="vs disp">VS</span>
+          <span className="ln" />
+        </div>
+      )}
 
       <div className={`zone${overWarband ? ' dropok' : ''}`} data-zone="warband">
-        <div className="row warband">
-          {run.board.length === 0 && !drag?.active && (
-            <div className="warband-hint">Drag minions up from your hand to play them here.</div>
-          )}
-          {displayBoard.map((m, i) => (
-            <Fragment key={m.uid}>
-              {gapIndex === i && <span className="dropslot" aria-hidden="true" />}
-              <Card
-                uid={m.uid}
-                card={instView(m)}
-                highlight={heroArmed || castingSpell}
-                targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
-                buffed={buffedUids.has(m.uid)}
-                onPointerDown={heroArmed ? undefined : beginDrag(m.uid, 'board', instView(m))}
+        <div className={`row warband${resetting ? ' resetting' : ''}`}>
+          {inCombat ? (
+            replay.frame.player.map((u) => (
+              <Unit
+                key={u.uid}
+                u={u}
+                side="you"
+                anim={replay.anims[u.uid]}
+                floats={replay.floatsFor(u.uid)}
+                lunge={u.uid === replay.lungeUid ? replay.lungeTransform : undefined}
               />
-            </Fragment>
-          ))}
-          {gapIndex >= displayBoard.length && <span className="dropslot" aria-hidden="true" />}
+            ))
+          ) : (
+            <>
+              {run.board.length === 0 && !drag?.active && (
+                <div className="warband-hint">Drag minions up from your hand to play them here.</div>
+              )}
+              {displayBoard.map((m, i) => (
+                <Fragment key={m.uid}>
+                  {gapIndex === i && <span className="dropslot" aria-hidden="true" />}
+                  <Card
+                    uid={m.uid}
+                    card={instView(m)}
+                    highlight={heroArmed || castingSpell}
+                    targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
+                    buffed={buffedUids.has(m.uid)}
+                    onPointerDown={heroArmed ? undefined : beginDrag(m.uid, 'board', instView(m))}
+                  />
+                </Fragment>
+              ))}
+              {gapIndex >= displayBoard.length && <span className="dropslot" aria-hidden="true" />}
+            </>
+          )}
         </div>
       </div>
 
@@ -546,6 +659,19 @@ export function Recruit() {
           ))}
         </div>
       </div>
+
+      {/* Start-of-Combat bolts fly from caster to target (measured in the replay). */}
+      {fighting &&
+        replay.projectiles.map((p) => (
+          <span
+            key={`proj-${p.id}`}
+            className="proj"
+            style={{ left: p.x, top: p.y, '--dx': `${p.dx}px`, '--dy': `${p.dy}px` } as CSSProperties}
+          />
+        ))}
+
+      {/* Combat narration — a single rolling line where the hand used to fan. */}
+      {fighting && <div className="alog">{replay.log}</div>}
 
       {drag?.active && !castingSpell && (
         <div

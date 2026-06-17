@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Mirror layout: offers vs warband across the centre, HUD to the bottom-left corner
+- **Tavern controls decoupled from the offers.** The Refresh/Freeze/Tier/End-Turn `shopctl` bar moved
+  out of the tavern `[data-zone]` and now sits as its own control bar under the HUD; the tavern zone
+  wraps only the offer cards. The **offers and warband are now flex-grow halves that mirror each other
+  across the board's centre** (`flex: 1 1 0; justify-content: center` on each) — shop on top, your
+  board below, like two facing lines.
+- **Rope back on the centre line.** The burning-rope timer returned to the flow *between* the two
+  zones (`position: relative; align-self: center`), so it lands exactly on the offers/warband split at
+  any viewport (was a fixed `top: 50%`, which sat on the warband's edge).
+- **Warband nudged up** (`padding-bottom: 48px`) to open a clearer gap above the hand (measured ~130px
+  warband-bottom → hand-peek at 1300px tall).
+- **HUD moved to the bottom-LEFT corner** and shrunk. The Embers · Hero · Resolve tray was the
+  bottom-centre centrepiece (hero portrait 108px); it's now a **compact** tray pinned bottom-left
+  (hero 50px, smaller chips), so the **hand owns the whole bottom-centre** with room to breathe. The
+  compact tray (~440px wide) clears the centred hand — no overlap. (Kept `pointer-events: none` + the
+  mid-drag hero pass-through in case a very wide hand fan reaches the corner.)
+- **Hand hover snappier** stayed (0.08s); with the bar out of the centre the hand peeks/pops in the
+  open instead of from behind the panels.
+- **Divine Shield overlay removed** ("too much noise for now"): dropped the `.dsfx` image from `Card`
+  + its CSS and the now-unused `effectArt` import. The `effectArt()` helper + `art/effects/divineshield.png`
+  are **retained** (unused) so it's a one-line re-add later.
+- **Minion-pool quantities — placeholder.** Added `POOL_QUANTITIES` to `@game/sim` config (Tier 1→16,
+  2→15, 3→13, 4→11, 5→9, 6→7, **7→5 as a forward placeholder** — no tier-7 cards yet). **Not wired into
+  shop rolls yet**; the finite-pool refactor is queued in the roadmap.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**75**) + `build:web` pass; the mirrored layout,
+  centred rope, bottom-left tray, removed DS, and Fred's Fodder pill all confirmed live (DOM probes +
+  screenshots). `TURN_SECONDS`/`SPEED` test bumps reverted to 30/1.5.
+
 ### Fodder → a keyword (card becomes "Fred") + HUD tray, tavern raised, rope centred
 - **Fodder is now a keyword (`FD`), not a one-off card.** Added `FD` to the `Keyword` union
   (`@game/core`) + the zod `KeywordSchema` (`@game/content`). The Tier-1 demon card is renamed

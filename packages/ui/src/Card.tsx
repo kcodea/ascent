@@ -1,6 +1,6 @@
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
-import { artFor, effectArt } from './art';
+import { artFor } from './art';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
@@ -166,9 +166,6 @@ export function Card({
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
       {card.keywords.includes('T') && (
         <span className="tauntward" aria-hidden="true"><Icon name="taunt" /></span>
-      )}
-      {card.keywords.includes('DS') && effectArt('divineshield') && (
-        <img className="dsfx" src={effectArt('divineshield')} alt="" aria-hidden="true" draggable={false} />
       )}
       <div className="art">
         {card.cost !== undefined && <span className="cost">{card.cost}</span>}

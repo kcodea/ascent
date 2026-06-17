@@ -22,6 +22,12 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Mirror layout** — the shop offers and your warband now sit on opposite halves of the board (with
+  the rope timer on the centre line); the Refresh/Freeze/Tier/End-Turn controls are a separate bar.
+- **HUD in the corner** — Embers · Hero · Resolve moved to a compact tray in the bottom-left, giving
+  the hand the whole bottom-centre to fan out.
+- **Removed the Divine Shield card overlay** for now (too noisy); the art/helper are kept for a subtler
+  re-add later.
 - **Fodder is a keyword** — the Tier-1 demon card is now **Fred** with a **Fodder** pill (no more
   "cheap fuel" text); Consume minions eat anything with the keyword, so it's reusable across cards.
 - **HUD tray** — Embers · Hero · Resolve sit in one connecting frame; the hero never fades (even when

@@ -380,36 +380,37 @@ export function Recruit() {
         <span className="rt-n">{Math.max(0, seconds)}</span>
       </div>
 
+      <div className="shopctl">
+        <span className="tavernbox">
+          Tavern · Tier <b>{run.tier}</b>
+        </span>
+        <button className="btn big" disabled={run.embers < CONFIG.refreshCost || timeUp} onClick={() => dispatch({ type: 'roll' })}>
+          <Icon name="refresh" />
+          Refresh <span className="c">{CONFIG.refreshCost}</span>
+        </button>
+        <button className={`btn big${run.frozen ? ' frozen' : ''}`} disabled={timeUp} onClick={() => dispatch({ type: 'freeze' })}>
+          <Icon name="freeze" />
+          Freeze
+        </button>
+        <button
+          className="btn big"
+          disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp}
+          onClick={() => dispatch({ type: 'upgrade' })}
+        >
+          <Icon name="up" />
+          {run.tier >= CONFIG.maxTier ? 'Tier MAX' : (
+            <>
+              Tier <span className="c">{run.upgradeCost}</span>
+            </>
+          )}
+        </button>
+        <button className={`btn big endturn${timeUp ? ' urgent' : ''}`} onClick={() => dispatch({ type: 'faceOmen' })}>
+          <Icon name="sword" />
+          End Turn
+        </button>
+      </div>
+
       <div className={`zone${sellGlow ? ' sellglow' : ''}`} data-zone="tavern">
-        <div className="shopctl">
-          <span className="tavernbox">
-            Tavern · Tier <b>{run.tier}</b>
-          </span>
-          <button className="btn big" disabled={run.embers < CONFIG.refreshCost || timeUp} onClick={() => dispatch({ type: 'roll' })}>
-            <Icon name="refresh" />
-            Refresh <span className="c">{CONFIG.refreshCost}</span>
-          </button>
-          <button className={`btn big${run.frozen ? ' frozen' : ''}`} disabled={timeUp} onClick={() => dispatch({ type: 'freeze' })}>
-            <Icon name="freeze" />
-            Freeze
-          </button>
-          <button
-            className="btn big"
-            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp}
-            onClick={() => dispatch({ type: 'upgrade' })}
-          >
-            <Icon name="up" />
-            {run.tier >= CONFIG.maxTier ? 'Tier MAX' : (
-              <>
-                Tier <span className="c">{run.upgradeCost}</span>
-              </>
-            )}
-          </button>
-          <button className={`btn big endturn${timeUp ? ' urgent' : ''}`} onClick={() => dispatch({ type: 'faceOmen' })}>
-            <Icon name="sword" />
-            End Turn
-          </button>
-        </div>
         <div className="row">
           {run.shop.map((o) => (
             <Card

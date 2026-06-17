@@ -38,6 +38,17 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Finite minion pool (copy quantities per tier).** Make the shop draw from + return to a shared,
+      finite pool so copies are a contested resource (the engine behind triples + "someone else took my
+      minion" tension). Per-tier copy counts (placeholder constant `POOL_QUANTITIES` already in
+      `@game/sim` config, **not yet wired**):
+      Tier 1 → **16**, Tier 2 → **15**, Tier 3 → **13**, Tier 4 → **11**, Tier 5 → **9**, Tier 6 → **7**,
+      Tier 7 → **5** (forward placeholder — no tier-7 cards yet, `maxTier` is 6). Wiring it means
+      `rollShop` pulls from the pool (weighted by remaining copies, gated to ≤ current tier) and
+      sell/reroll return copies.
+- [ ] **Divine Shield indicator (re-add).** The `.dsfx` overlay was removed as too noisy. `effectArt()`
+      + `art/effects/divineshield.png` are retained — re-add a *subtler* DS cue (small corner badge or a
+      thin rim) when wanted, rather than the full-card aura.
 - [ ] **Recruit perf pass (if it persists locally).** Dropped `background-attachment: fixed` (a real
       repaint win). If buy/drag still micro-stutters on a local `npm run dev` build (not just the
       preview window), memoise `Card` (stabilise the per-card view objects + `beginDrag` callbacks) and

@@ -1,5 +1,9 @@
 :root {
-  --t-beast: #f0a52b; --t-dragon: #ff6a3c; --t-mech: #27a9dd; --t-undead: #22be86; --t-demon: #b15cf0; --t-neutral: #7f8aa0;
+  /* tribe hues (drive each card's accent --c): Beast green · Dragon red/orange · Mech blue ·
+     Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
+     card into both hues (see .card.dual / --c2). */
+  --t-beast: #4ea83b; --t-dragon: #ff6a3c; --t-mech: #27a9dd; --t-undead: #5c6f8c; --t-demon: #b15cf0; --t-neutral: #9a8d79;
+  --poison: #22be86; /* combat poison green — decoupled from the Undead tribe hue */
   --atk: #f0a32a; --hpc: #ff5a4f;
   /* Sunward */
   --bg: #8c857a; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
@@ -19,7 +23,11 @@ body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, 
 .disp { font-family: 'Outfit', sans-serif; }
 canvas.spr { image-rendering: pixelated; display: block; }
 
-.app { display: flex; flex-direction: column; height: 100vh; padding: 12px 18px 150px; gap: 8px; }
+.app { display: flex; flex-direction: column; height: 100vh; padding: 12px 18px 172px; gap: 8px; }
+/* With the omen + row labels gone and the hand tucked under the status bar, let the
+   Tavern + Warband settle lower: auto margins centre the block in the freed space. */
+.zone[data-zone='tavern'] { margin-top: auto; }
+.zone[data-zone='warband'] { margin-bottom: auto; }
 
 /* HUD */
 .bar { display: flex; align-items: center; gap: 12px; flex: none; }
@@ -48,7 +56,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .chip { position: relative; display: flex; align-items: center; gap: 9px; background: var(--card); border: 2px solid var(--line); border-radius: 13px; padding: 5px 15px 5px 11px; cursor: help; }
 .chip .ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; }
 .chip .ic svg { width: 19px; height: 19px; color: #fff; }
-.chip.g .ic { background: var(--t-beast); } .chip.h .ic { background: var(--threat); }
+.chip.g .ic { background: var(--acc); } .chip.h .ic { background: var(--threat); }
 .chip .v { font-family: 'Outfit'; font-weight: 800; font-size: 20px; line-height: 1; }
 .chip .l { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
 .hero { display: flex; align-items: center; gap: 9px; background: var(--card); border: 2px solid var(--line); border-radius: 13px; padding: 4px 14px 4px 5px; }
@@ -81,7 +89,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .eu { width: 38px; height: 46px; border-radius: 10px; background: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
 .eu canvas { width: 32px; height: 32px; }
 .eu .s { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 11px; background: var(--ink); color: #fff; padding: 1px 7px; border-radius: 7px; }
-.eu .pz { position: absolute; top: -6px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: var(--t-undead); display: grid; place-items: center; }
+.eu .pz { position: absolute; top: -6px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: var(--poison); display: grid; place-items: center; }
 .eu .pz svg { width: 11px; height: 11px; color: #fff; }
 
 /* ZONES */
@@ -119,11 +127,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .btn.go svg { color: #fff; }
 .btn.go:disabled { box-shadow: none; }
 .row { flex: none; height: var(--ch); display: flex; gap: 10px; justify-content: center; align-items: center; }
-/* Hand: a held, slightly-overlapping fan (up to 10 cards). Hover pops a card forward + up. */
-.row.hand { gap: 0; align-items: flex-end; }
-.row.hand .card { margin-left: -70px; transition: transform 0.15s ease, margin 0.15s ease; }
+/* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
+   Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
+   The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
+.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: min(1180px, 94vw); z-index: 25; display: flex; justify-content: center; align-items: flex-end; }
+.row.hand { gap: 0; align-items: flex-end; height: var(--ch); width: 100%; }
+.row.hand .card { margin-left: -84px; transform: translateY(30px); transition: transform 0.16s ease, margin 0.16s ease; }
 .row.hand .card:first-child { margin-left: 0; }
-.row.hand .card:hover { transform: translateY(-26px); z-index: 20; }
+.row.hand .card:hover { transform: translateY(-150px); z-index: 45; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 3px 0 var(--shadow); transition: transform 0.12s, border-color 0.12s; animation: cardpop 0.26s ease; }
@@ -151,8 +162,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Divine Shield: the golden shield-crest art screen-blended over the minion's
    portrait so it reads as a glowing aura the minion shows through (not an opaque
    sticker). A slow pulse sells "active protection". */
-.dsfx { position: absolute; top: 2%; left: 0; width: 100%; height: 56%; object-fit: contain; object-position: center; pointer-events: none; z-index: 5; mix-blend-mode: screen; opacity: 0.9; filter: drop-shadow(0 0 5px rgba(255, 196, 84, 0.55)); animation: dsfx-pulse 2.2s ease-in-out infinite; }
-@keyframes dsfx-pulse { 0%, 100% { opacity: 0.78; } 50% { opacity: 0.98; } }
+.dsfx { position: absolute; top: -7%; left: -6%; width: 112%; height: 78%; object-fit: contain; object-position: center; pointer-events: none; z-index: 5; mix-blend-mode: screen; opacity: 0.95; filter: drop-shadow(0 0 7px rgba(255, 196, 84, 0.6)); animation: dsfx-pulse 2.2s ease-in-out infinite; }
+@keyframes dsfx-pulse { 0%, 100% { opacity: 0.82; } 50% { opacity: 1; } }
 .tauntward { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; background: #5f6a8a; border: 2px solid var(--card); display: grid; place-items: center; z-index: 4; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25); }
 .tauntward svg { width: 15px; height: 15px; color: #fff; }
 .cfoot { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: color-mix(in srgb, var(--c) 14%, var(--card)); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; }
@@ -161,8 +172,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* stats above base read green, below base read red */
 .atk.up, .hp.up { background: #1aa86f; }
 .atk.down, .hp.down { background: #d23b2b; }
+/* Dual-type minion: split the art panel + footer down the middle, one tribe hue each side
+   (driven by --c / --c2; set when a CardView carries a second tribe). */
+.card.dual .art { background: linear-gradient(100deg, color-mix(in srgb, var(--c) 20%, var(--card)) 0 47%, color-mix(in srgb, var(--c2) 20%, var(--card)) 53% 100%); }
+.card.dual .cfoot { background: linear-gradient(100deg, color-mix(in srgb, var(--c) 16%, var(--card)) 0 47%, color-mix(in srgb, var(--c2) 16%, var(--card)) 53% 100%); }
 .cbody { padding: 0 9px 8px; margin-top: -20px; position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
-.cn { align-self: center; max-width: 100%; font-family: 'Outfit'; font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+.cn { flex: none; align-self: center; max-width: 100%; font-family: 'Outfit'; font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 /* always reserves one pill-row of height (even with no pills) so the description below
    always starts on the same line — Battlecry text aligns with Start-of-Combat text, etc. */
 .kws { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; align-items: center; min-height: 18px; margin: 6px 0 4px; }
@@ -170,9 +185,6 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .kw svg { width: 9px; height: 9px; }
 .desc { font-size: 12px; font-weight: 600; line-height: 1.32; color: var(--ink2); text-align: center; flex: 1; }
 .desc b { color: var(--ink); font-weight: 700; }
-.empty { flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); border: 2px dashed var(--line); border-radius: 13px; display: grid; place-items: center; color: var(--ink3); font-family: 'Outfit'; font-weight: 700; font-size: 12px; }
-/* empty-hand hint spans the width of the bottom frame (Embers · Hero · Resolve) */
-.empty.handempty { flex: 0 0 760px; width: 760px; max-width: 94%; height: 100%; padding: 0 24px; }
 
 /* keyword tooltip — reveals after ~1.5s of hover (handoff) */
 .tip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); width: 210px; background: var(--ink); color: #fff; border-radius: 11px; padding: 10px 12px; font-size: 11.5px; line-height: 1.4; font-weight: 600; box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55); opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s; }
@@ -241,7 +253,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 14px; height: 14px; color: var(--c); }
 .ctype.spell { flex: 1; color: var(--t-demon); font-size: 12px; }
-.statusbar { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 22px; z-index: 40; }
+/* The hand fans up from behind this bar; let drops/grabs pass through the chips to the
+   hand cards tucked behind, while the hero (the one interactive control) still captures. */
+.statusbar { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 22px; z-index: 40; pointer-events: none; }
+.statusbar .hero { pointer-events: auto; }
+/* mid-drag, even the hero lets the drop fall through to the hand tucked behind the bar */
+body.dragging .statusbar .hero { pointer-events: none; }
 /* hero power available + unused — a gentle pulse so the player notices it */
 .hero.ready { border-color: var(--acc); animation: heroready 1.5s ease-in-out infinite; }
 @keyframes heroready { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 38%, transparent); } }
@@ -379,7 +396,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .ares svg { width: 16px; height: 16px; color: var(--threat); }
 .float { position: absolute; top: -22px; left: 50%; font-family: 'Outfit'; font-weight: 900; font-size: 34px; pointer-events: none; z-index: 12; white-space: nowrap; text-shadow: 0 2px 5px rgba(0, 0, 0, 0.45); animation: floatup 1s ease forwards; }
 .float.dmg { color: #fff; background: var(--threat); padding: 2px 12px; border-radius: 11px; font-size: 30px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
-.float.poison { color: var(--t-undead); }
+.float.poison { color: var(--poison); }
 .float.shield { color: var(--acc-dk); }
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }

@@ -22,6 +22,13 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Tribe colours** — recoloured to read at a glance: Beast green, Dragon red/orange, Mech blue,
+  Undead dark slate-blue, Demon purple, Neutral light greige (dual-type split-hue wired but dormant).
+- **Cleaner board** — the red omen bar and the per-row labels are gone (just the wave # up top); the
+  hand now fans up from *behind* the Embers/Hero/Resolve bar and pops up when you hover a card, which
+  lets the Tavern + Warband settle lower with more room.
+- **Fixes** — Fodder's name now shows (a flex-shrink bug squashed the name pill on long-text cards);
+  the Divine Shield aura is bigger and spills over the card edges while still showing the minion.
 - **Board art** — the play surface is now an illustrated crystal arena (under a dark scrim so cards
   and HUD stay legible).
 - **Warden** — the hero is renamed **Warden** and the hero power **Temper → Fortify** (+1/+1).

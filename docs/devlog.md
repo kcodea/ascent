@@ -5,6 +5,47 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Tribe recolour + HUD/layout pass: hand tucked under the bar, omen + row labels gone
+A UI/feel batch (all verified live in the running app):
+- **Tribe hues recoloured** to the user's spec (each drives a card's `--c` accent → art panel
+  tint, footer, keyword pills, and the HUD tribe dots): **Beast green** `#4ea83b`, **Dragon
+  red/orange** `#ff6a3c`, **Mech blue** `#27a9dd`, **Undead dark slate-blue** `#5c6f8c`, **Demon
+  purple** `#b15cf0`, **Neutral light greige** `#9a8d79`. Two colours were *overloaded* onto tribe
+  hues and had to be decoupled first: the **Embers** chip icon (was `--t-beast`, now `--acc` so it
+  stays warm) and the **combat poison** green (floats + omen badge — now a dedicated `--poison`
+  `#22be86`, the old Undead hue, so poison reads green regardless of the Undead recolour).
+- **Dual-type capability** (forward-looking — "dual-type minions will exist"): `CardView` gained an
+  optional `tribe2`; a `.card.dual` splits the art panel + footer down the middle into both hues
+  (`--c` / `--c2`). Dormant until the card data model carries a second tribe (see roadmap) — no card
+  triggers it yet, so it's a ready visual, not active content.
+- **Fodder's name now shows.** Root cause was a flex bug, not data: `.cbody` is a flex column and
+  `.cn` (the name pill) had default `flex-shrink: 1`, so Fodder's longer description overflowed and
+  squeezed the name to **5px** tall (invisible). Fixed with `.cn { flex: none }` — the name keeps its
+  full height on every card; the description clips instead if it's ever too long. (Confirmed live:
+  Fodder's `.cn` went 5px → 18px, text "Fodder" visible.)
+- **Divine Shield overlay enlarged.** `.dsfx` now spills past the card edges (`112%`×`78%`, offset
+  up/left) so the shield reads as an aura *around* the minion, not a contained icon — while the
+  screen blend keeps the minion visible through it (confirmed on Spare Part Drone: bigger golden
+  shield, drone still clearly readable underneath).
+- **Removed the red omen bar.** Per the user, the pre-shop threat telegraph is gone for now — only
+  the wave # (already in the top HUD) remains. `<Omen />` is no longer rendered (the component file
+  is retained, unrendered, for easy restoration later).
+- **Removed the left-row labels** ("The Tavern · Tier", "Your Warband · n/7", "Your Hand") — the
+  per-zone `.zh` headers were dropped from all three rows for a cleaner board.
+- **Hand reworked into a bottom fan tucked under the status bar.** The hand is now `position: fixed`
+  at the bottom centre (`z-index: 25`, below the bar), its lower half behind the Embers/Hero/Resolve
+  panels; a hovered card pops fully up (`translateY(-150px)`, `z-index: 45`) to read in full. The old
+  dashed empty-hand box is gone (empty hand renders nothing). This frees the hand's old full-height
+  row, so the **Tavern + Warband now centre lower** in the freed space (auto margins).
+  - *Drop/interaction fixes this required:* the status bar is now `pointer-events: none` (only the
+    hero captures, and even the hero goes click-through mid-drag via `body.dragging`) so a card can be
+    **bought/played/grabbed** through the bar to the hand tucked behind it; and `onUp` now resolves
+    the drop **zone before** clearing `body.dragging`, so the pass-through is still active at the
+    moment the drop is read. Verified live: buying by dropping dead-centre (over the hero) lands in
+    the hand, and playing a card from the tucked hand up to the warband works.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**75**) + `build:web` all pass; every item
+  above confirmed live via DOM probes + screenshots.
+
 ### Board art + Warden rename + aim-line spell casting + Divine Shield art + Fodder (demons fixed)
 A six-part feel/content pass (all verified live in the running app):
 - **Board background art.** The user's `board1` (a purple crystalline arena) is now the play surface:

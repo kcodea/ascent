@@ -53,6 +53,8 @@ export interface CardView {
   /** Card id — used to look up illustrated art (falls back to the tribe sprite). */
   cardId?: string;
   tribe: Tribe;
+  /** Second tribe for dual-type minions — splits the card into both hues. */
+  tribe2?: Tribe;
   attack: number;
   health: number;
   keywords: Keyword[];
@@ -133,9 +135,9 @@ export function Card({
   ];
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.spell ? ' spellcard' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.spell ? ' spellcard' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
-      style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
+      style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}
       onContextMenu={(e) => {
         e.preventDefault();

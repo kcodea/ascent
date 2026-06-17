@@ -3,7 +3,6 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, type BoardCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { HudBar } from './HudBar';
-import { Omen } from './Omen';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
@@ -122,15 +121,18 @@ export function Recruit() {
       setOverZone(zoneAt(e.clientX, e.clientY));
     };
     const onUp = (e: PointerEvent): void => {
-      document.body.classList.remove('dragging'); // cursor reverts on release, before any snap-back
       const d = dragRef.current;
       if (!d || !d.active) {
+        document.body.classList.remove('dragging');
         // a click, not a drag — let onClick (hero targeting) handle it
         setDrag(null);
         setOverZone(null);
         return;
       }
+      // Resolve the drop zone *before* clearing body.dragging, so the status bar (and
+      // hero) stay click-through and a card can land on the hand tucked behind them.
       const zone = zoneAt(e.clientX, e.clientY);
+      document.body.classList.remove('dragging'); // cursor reverts on release
       const acted = applyDrop(d, zone, e.clientX, e.clientY);
       if (acted || d.view.spell) {
         // a spell that misses just ends — it was never lifted from the hand
@@ -378,15 +380,7 @@ export function Recruit() {
         <span className="rt-n">{Math.max(0, seconds)}</span>
       </div>
 
-      <Omen />
-
       <div className={`zone${sellGlow ? ' sellglow' : ''}`} data-zone="tavern">
-        <div className="zh">
-          <span className="zt disp">
-            The Tavern · Tier <b>{run.tier}</b>
-          </span>
-          <span className="hint">drag down to your hand to buy (3) · drag a minion here to sell (+1)</span>
-        </div>
         <div className="shopctl">
           <span className="tavernbox">
             Tavern · Tier <b>{run.tier}</b>
@@ -444,14 +438,6 @@ export function Recruit() {
       )}
 
       <div className={`zone${overWarband ? ' dropok' : ''}`} data-zone="warband">
-        <div className="zh">
-          <span className="zt disp">
-            Your Warband · <b>{run.board.length}/{CONFIG.boardMax}</b>
-          </span>
-          <span className="hint">
-            {heroArmed ? 'click a minion to Fortify it (+1/+1)' : 'drag from hand to play · drag to reorder'}
-          </span>
-        </div>
         <div className="row warband">
           {run.board.length === 0 && !drag?.active && (
             <div className="warband-hint">Drag minions up from your hand to play them here.</div>
@@ -474,27 +460,16 @@ export function Recruit() {
       </div>
 
       <div className={`zone${canDropHand ? ' dropok' : ''}`} data-zone="hand">
-        <div className="zh">
-          <span className="zt disp">
-            Your Hand · <b>{run.hand.length}</b>
-          </span>
-        </div>
         <div className="row hand">
-          {run.hand.length === 0 ? (
-            <div className="empty handempty">
-              Drag a minion down from the tavern to buy it, then drag it up to your warband to play.
-            </div>
-          ) : (
-            run.hand.map((m) => (
-              <Card
-                key={m.uid}
-                card={instView(m)}
-                dimmed={isDragging(m.uid)}
-                buffed={buffedUids.has(m.uid)}
-                onPointerDown={beginDrag(m.uid, 'hand', instView(m))}
-              />
-            ))
-          )}
+          {run.hand.map((m) => (
+            <Card
+              key={m.uid}
+              card={instView(m)}
+              dimmed={isDragging(m.uid)}
+              buffed={buffedUids.has(m.uid)}
+              onPointerDown={beginDrag(m.uid, 'hand', instView(m))}
+            />
+          ))}
         </div>
       </div>
 

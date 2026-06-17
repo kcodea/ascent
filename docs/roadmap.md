@@ -38,6 +38,19 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Dual-type minions — activate the data model.** The UI split-hue is wired (`CardView.tribe2`
+      → `.card.dual` splits the art + footer into both `--c`/`--c2` hues), but it's dormant: nothing
+      sets a second tribe yet. To use it, add `tribe2?: Tribe` to `CardDef` (+ zod schema), decide which
+      cards are dual-typed and how dual types interact with the A.6 counter matrix, then surface both
+      tribe labels/icons in the footer. (Design + balance call.)
+- [ ] **Threat telegraph — reintroduce, lighter.** The red omen bar was removed per the user ("for
+      now"); the wave # in the HUD is all that's shown. The build spec still wants a pre-shop threat
+      telegraph — bring back a slimmer/optional form later. `Omen.tsx` is retained (unrendered) so the
+      enemy-preview derivation can be reused.
+- [ ] **Hand-tuck tuning.** The hand now fans up from behind the status bar (pops on hover). The tuck
+      depth / hover-lift / fan overlap are first-pass values — revisit once more cards are in play
+      (and on shorter viewports) so the resting peek and the pop both feel right.
+
 - [ ] **Responsive layout for short viewports** — fixed 264px cards × 3 rows + chrome only fits tall
       screens right now; needs a scale-to-fit or compact mode for laptops.
 - [ ] **Single-target Battlecries** (e.g. "give a friendly minion +X/+X") — the Hero-Power targeting

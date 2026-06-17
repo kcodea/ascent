@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Detailed combat log, Divine-Shield effect art, visible Fodder consume
+- **Detailed combat log.** The post-combat log now spells out **every event with damage and the
+  defender's remaining Health** — a new `narrateLog()` returns `{ text, kind }` per event (attacks
+  with their swing, each hit "takes N (M HP left)", shields, poison, reborn, deaths, summons, buffs).
+  Each line is colour-tagged by kind in the overlay (Start-of-Combat, attack, damage, death, shield,
+  buff…). (The terse rolling in-combat line is unchanged.)
+- **Divine-Shield effect art.** Wired the updated `art/effects/divineshield.png` as a `.dsfx` overlay
+  that **wraps the square art panel** of any shielded card — shown everywhere a DS minion appears
+  (shop, warband, combat), with a soft shimmer. Replaced the old combat-only golden box-shadow ring
+  (now just a faint glow) since the art carries the read; the shatter-on-break stays.
+- **Fodder consume is now visible.** It was resolving instantaneously (the player never saw it). Now
+  `consumeTavernFodder` records each consume (`state.fodderEaten` + a `fodderEatenSeq` tick), and the
+  UI replays it: a **ghost Fred pops into the tavern, then spins/shrinks/swirls into the Demon that
+  ate it** (purple, ~0.8s), measured from the live DOM so it flies to the right minion. The Demon's
+  buff proc still fires as it grows.
+- **Verified live:** the DS art overlays the art panel exactly (155×124); the combat log shows e.g.
+  "Omen Minion takes 1 damage (0 HP left)." / "Omen Minion is destroyed."; and a full
+  buy-Soulfeeder → roll cycle shows the ghost **Fred** swirling into Soulfeeder (which grew 2/2 → 3/3),
+  no Fred left as a static offer, ghost cleared after the swirl. `typecheck` (+web) + `lint` + `test`
+  (**85**) + `build:web` pass; no console errors. (Screenshot tool was unresponsive this session, so
+  checks were via the live DOM.)
+
 ### Kennelmaster — "Avenge (3): Improve this", permanent across the run
 Reworked Kennelmaster to **"Each Beast you summon gains +1/+1. Avenge (3): Improve this."** The
 Avenge boost is **permanent for the whole run** (the user's call), which meant threading per-instance

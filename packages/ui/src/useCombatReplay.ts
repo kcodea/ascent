@@ -147,6 +147,26 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
   }
 }
 
+/** Verbose narration for the Combat Log — every event spelled out, with damage and the
+ *  defender's remaining Health, tagged by kind so the overlay can colour each line. */
+function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string; kind: string } | null {
+  const n = (uid: string): string => names.get(uid) ?? 'a minion';
+  switch (e.type) {
+    case 'sc': return { text: e.text, kind: 'sc' };
+    case 'attack': return { text: `${n(e.attacker)} strikes ${n(e.defender)} for ${e.swing}.`, kind: 'attack' };
+    case 'dmg': return { text: `${n(e.target)} takes ${e.amount} damage (${Math.max(0, e.remainingHp)} HP left).`, kind: 'dmg' };
+    case 'shield': return { text: `${n(e.target)}'s Divine Shield absorbs the hit.`, kind: 'shield' };
+    case 'shieldUp': return { text: `${n(e.target)} gains a Divine Shield.`, kind: 'shield' };
+    case 'poison': return { text: `Poison destroys ${n(e.target)}.`, kind: 'poison' };
+    case 'reborn': return { text: `${n(e.target)} is Reborn at ${e.hp} HP.`, kind: 'reborn' };
+    case 'reveal': return { text: `${n(e.target)} breaks Stealth.`, kind: 'reveal' };
+    case 'death': return { text: `${n(e.target)} is destroyed.`, kind: 'death' };
+    case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
+    case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
+    default: return null;
+  }
+}
+
 function narrate(e: CombatEvent, names: Map<string, string>): string | null {
   const n = (uid: string) => names.get(uid) ?? 'a minion';
   switch (e.type) {
@@ -171,8 +191,9 @@ export interface CombatReplay {
   projectiles: { id: number; x: number; y: number; dx: number; dy: number }[];
   floatsFor: (uid: string) => Float[];
   log: string;
-  /** The whole fight narrated, line by line — for the post-combat Combat Log. */
-  fullLog: string[];
+  /** The whole fight narrated in detail (every attack, hit, shield, death…) for the
+   *  post-combat Combat Log — each line tagged with its kind for styling. */
+  fullLog: { text: string; kind: string }[];
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -359,7 +380,7 @@ export function useCombatReplay(
   }
   const floatsFor = (uid: string): Float[] => floats.filter((f) => f.uid === uid);
   const fullLog = useMemo(
-    () => events.map((e) => narrate(e, names)).filter((l): l is string => l !== null),
+    () => events.map((e) => narrateLog(e, names)).filter((l): l is { text: string; kind: string } => l !== null),
     [events, names],
   );
 

@@ -100,6 +100,11 @@ export interface RunState {
   /** Card ids queued to be injected into the *next* tavern refresh (Soulfeeder adds Fodder).
    *  Consumed (and possibly auto-eaten by your Demons) when the tavern next refreshes. */
   pendingTavern: string[];
+  /** The most recent tavern-Fodder auto-consume, for the UI to replay (show the Fodder
+   *  then swirl it into the eater). Transient. */
+  fodderEaten?: { eaterUid: string; fodderId: string }[];
+  /** Bumps each time Fodder is auto-eaten — the UI keys its swirl animation off this. */
+  fodderEatenSeq: number;
   /** A pending Discover offer (3 card ids) granted by a triple — pick one to hand. */
   discover?: string[];
   /** The most recent combat's result, for the UI to replay. Transient. */
@@ -146,6 +151,7 @@ export function createRun(seed: number): RunState {
     rngCursor: mixSeed(seed, 0, TAG.SHOP),
     uidSeq: 0,
     pendingTavern: [],
+    fodderEatenSeq: 0,
   };
   rollShop(state);
   return state;

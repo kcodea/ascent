@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat log + Fodder/DS visuals** — the post-combat log now spells out every hit with damage and
+  remaining Health (colour-tagged); the **Divine-Shield** effect art wraps a shielded card's art
+  panel; and **Fodder consume is now visible** — a ghost Fred pops into the tavern and swirls into the
+  Demon that eats it (it used to resolve instantly).
 - **Kennelmaster** — now "Each Beast you summon gains +1/+1. **Avenge (3): Improve this**" — each 3
   friendly deaths permanently bumps its summon buff for the rest of the run (per-instance state is
   threaded through combat and carried back). Also fixed a latent bug where golden minions didn't fire

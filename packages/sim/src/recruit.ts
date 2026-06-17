@@ -293,10 +293,12 @@ function fodderMultiplier(consumer: BoardCard): number {
  * checked — placing a Demon next to existing tavern Fodder does not trigger it.
  */
 export function consumeTavernFodder(state: RunState): void {
+  state.fodderEaten = [];
   const demons = state.board.filter((c) => c.tribe === 'demon');
   if (demons.length === 0) return;
   const rng = makeRng(state.rngCursor);
   const ctx = makeContext(state);
+  const eaten: { eaterUid: string; fodderId: string }[] = [];
   for (let i = state.shop.length - 1; i >= 0; i--) {
     const offer = state.shop[i]!;
     const fodder = CARD_INDEX[offer.cardId];
@@ -307,8 +309,14 @@ export function consumeTavernFodder(state: RunState): void {
     eater.attack += fodder.attack * mult;
     eater.health += fodder.health * mult;
     fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off
+    eaten.push({ eaterUid: eater.uid, fodderId: fodder.id });
   }
   state.rngCursor = rng.state();
+  // Record the consume for the UI to replay (show the Fodder, swirl it into the eater).
+  if (eaten.length > 0) {
+    state.fodderEaten = eaten;
+    state.fodderEatenSeq += 1;
+  }
 }
 
 /**

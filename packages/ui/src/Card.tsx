@@ -1,6 +1,6 @@
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
-import { artFor } from './art';
+import { artFor, effectArt } from './art';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
@@ -181,6 +181,11 @@ export function Card({
           <img className="artimg" src={artFor(card.cardId)} alt="" draggable={false} />
         ) : (
           <Sprite name={spriteForTribe(card.tribe)} scale={5} />
+        )}
+        {/* Divine Shield: the effect art wraps the square art panel (shown wherever a
+            shielded minion appears — shop, warband, and combat). */}
+        {card.keywords.includes('DS') && effectArt('divineshield') && (
+          <img className="dsfx" src={effectArt('divineshield')} alt="" draggable={false} aria-hidden="true" />
         )}
       </div>
       <div className="cbody">

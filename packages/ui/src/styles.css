@@ -162,6 +162,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
+/* Divine Shield effect art — wraps the square art panel, with a soft shimmer */
+.dsfx { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; z-index: 5; -webkit-user-drag: none; animation: dsfxpulse 2.1s ease-in-out infinite; }
+@keyframes dsfxpulse { 0%, 100% { opacity: 0.82; } 50% { opacity: 1; filter: brightness(1.12); } }
 /* cost badge — a teal Mana circle overhanging the top-left corner */
 .cost { position: absolute; top: -20px; left: -16px; width: 60px; height: 60px; z-index: 6; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
 .cost .costn { font-family: 'Outfit'; font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
@@ -283,6 +286,16 @@ canvas.spr { image-rendering: pixelated; display: block; }
   0% { opacity: 0; transform: rotate(var(--a)) translateY(-6px) scaleY(0.4); }
   30% { opacity: 1; }
   100% { opacity: 0; transform: rotate(var(--a)) translateY(-46px) scaleY(1); }
+}
+/* tavern Fodder consume — a ghost Fred pops in the tavern then spins/shrinks into the
+   Demon that ate it (a purple swirl), so the auto-consume is visible (not instantaneous) */
+.fodderghost { position: fixed; z-index: 60; pointer-events: none; transform-origin: center; filter: drop-shadow(0 0 16px rgba(177, 92, 240, 0.95)); animation: fodderswirl 0.8s cubic-bezier(0.5, 0, 0.7, 1) forwards; }
+.fodderghost .card { width: 100%; height: 100%; animation: none; box-shadow: 0 0 0 3px var(--t-demon), 0 8px 22px rgba(0, 0, 0, 0.4); }
+@keyframes fodderswirl {
+  0% { transform: translate(0, 0) scale(0.6) rotate(0deg); opacity: 0; }
+  16% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+  40% { transform: translate(0, 0) scale(1.05) rotate(-7deg); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.12) rotate(520deg); opacity: 0; }
 }
 /* spell spark — a one-shot accent-coloured burst where a cast spell resolves */
 .spellspark { position: fixed; width: 0; height: 0; z-index: 120; pointer-events: none; }
@@ -426,10 +439,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.reborn .card { animation: flare 0.5s ease; }
 @keyframes flare { 0% { filter: brightness(1.9); } 100% { filter: none; } }
 
-/* Divine Shield: a golden aura, lost when it breaks, granted on shieldUp */
-.unit.ds .card { box-shadow: 0 0 0 4px #f4cf6a, 0 0 23px 2px rgba(244, 207, 106, 0.72), 0 3px 0 var(--shadow); }
-.unit.ds .card::after { content: ''; position: absolute; inset: -7px; border-radius: 19px; border: 2.6px solid #f4cf6a; pointer-events: none; animation: aurapulse 1.8s ease-in-out infinite; }
-@keyframes aurapulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+/* Divine Shield now reads from the effect art wrapping the art panel (.dsfx, shown on any
+   shielded card). A faint card-level glow in combat keeps it legible at speed; the shatter
+   (on break) + shield-gain pulse stay. */
+.unit.ds .card { box-shadow: 0 0 14px 1px rgba(244, 207, 106, 0.5), 0 3px 0 var(--shadow); }
 .unit.shieldgain .card { animation: shieldgain 0.6s ease; }
 @keyframes shieldgain { 0% { box-shadow: 0 0 0 12px rgba(244, 207, 106, 0); } 40% { box-shadow: 0 0 0 5px #f4cf6a, 0 0 28px 5px rgba(244, 207, 106, 0.9); } 100% { box-shadow: 0 0 0 3px #f4cf6a, 0 3px 0 var(--shadow); } }
 
@@ -535,7 +548,16 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .logverdict.lose { color: var(--threat-dk); background: color-mix(in srgb, var(--threat) 18%, transparent); }
 .logverdict.draw { color: var(--ink2); background: var(--bg2); }
 .loglines { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 6px; }
-.logline { font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 600; color: var(--ink2); padding: 7px 11px; border-radius: 8px; background: var(--bg2); }
+.logline { font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 600; color: var(--ink2); padding: 7px 11px; border-radius: 8px; background: var(--bg2); border-left: 3px solid var(--line); }
+.logline.sc { border-left-color: var(--t-dragon); color: var(--ink); font-weight: 800; }
+.logline.attack { border-left-color: var(--ink3); }
+.logline.dmg { border-left-color: var(--threat); color: var(--threat-dk); }
+.logline.death { border-left-color: var(--ink); color: var(--ink); font-weight: 800; }
+.logline.shield { border-left-color: var(--acc); color: var(--acc-dk); }
+.logline.poison { border-left-color: var(--poison); }
+.logline.buff { border-left-color: #1aa86f; color: #157049; }
+.logline.summon { border-left-color: var(--t-beast); }
+.logline.reborn { border-left-color: var(--t-demon); }
 .logbox .btn { align-self: center; }
 @keyframes combatctlin { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 

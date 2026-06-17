@@ -81,6 +81,11 @@ export function Recruit() {
   // A one-shot spark burst at a screen point, fired when a spell is cast.
   const [spark, setSpark] = useState<{ x: number; y: number; key: number } | null>(null);
   const sparkKeyRef = useRef(0);
+  // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
+  const [fodderAnim, setFodderAnim] = useState<
+    { key: number; ghosts: { fid: string; x0: number; y0: number; w: number; h: number; dx: number; dy: number }[] } | null
+  >(null);
+  const prevFodderSeq = useRef(run.fodderEatenSeq);
 
   // --- In-place combat. Instead of swapping to a separate arena screen, the fight
   // plays out on this same board: the shop "closes" (the tavern offers, controls,
@@ -351,6 +356,36 @@ export function Recruit() {
     }, 700);
     return () => window.clearTimeout(t);
   }, [run.board, run.hand, run.shop]);
+
+  // Tavern Fodder was auto-eaten (fodderEatenSeq bumped): show a ghost Fred in the tavern
+  // and swirl it into the Demon that ate it (measured from the live DOM), then clear.
+  useEffect(() => {
+    if (run.fodderEatenSeq === prevFodderSeq.current) return;
+    prevFodderSeq.current = run.fodderEatenSeq;
+    const events = run.fodderEaten ?? [];
+    const rowEl = document.querySelector('[data-zone="tavern"] .row');
+    if (events.length === 0 || !rowEl) return;
+    const rr = rowEl.getBoundingClientRect();
+    const sample = rowEl.querySelector('.card')?.getBoundingClientRect();
+    const w = sample?.width ?? rr.height * 0.752;
+    const h = sample?.height ?? rr.height;
+    const cy = rr.top + rr.height / 2;
+    const ghosts = events.map((ev, i) => {
+      const gx = rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72);
+      const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${ev.eaterUid}"]`);
+      let dx = 0;
+      let dy = 220; // fallback: drift down if the eater isn't on screen
+      if (eaterEl) {
+        const er = eaterEl.getBoundingClientRect();
+        dx = er.left + er.width / 2 - gx;
+        dy = er.top + er.height / 2 - cy;
+      }
+      return { fid: ev.fodderId, x0: gx - w / 2, y0: cy - h / 2, w, h, dx, dy };
+    });
+    setFodderAnim({ key: run.fodderEatenSeq, ghosts });
+    const t = window.setTimeout(() => setFodderAnim(null), 820);
+    return () => window.clearTimeout(t);
+  }, [run.fodderEatenSeq, run.fodderEaten]);
 
   // --- Live warband drag: a dragged board minion is *lifted out* of the row entirely
   // (the floating copy IS the card) for the whole drag; the rest physically close up,
@@ -725,6 +760,27 @@ export function Recruit() {
         </div>
       )}
 
+      {/* Tavern Fodder: a ghost Fred pops in the tavern, then swirls into the Demon that ate it. */}
+      {!inCombat &&
+        fodderAnim?.ghosts.map((g, i) => {
+          const def = CARD_INDEX[g.fid];
+          if (!def) return null;
+          const view: CardView = {
+            name: def.name, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health,
+            keywords: def.keywords, text: def.text, tier: def.tier,
+          };
+          return (
+            <div
+              key={`${fodderAnim.key}-${i}`}
+              className="fodderghost"
+              style={{ left: g.x0, top: g.y0, width: g.w, height: g.h, '--dx': `${g.dx}px`, '--dy': `${g.dy}px` } as CSSProperties}
+              aria-hidden="true"
+            >
+              <Card card={view} />
+            </div>
+          );
+        })}
+
       {showLog && (
         <div className="logov" role="dialog" aria-label="Combat log" onClick={() => setShowLog(false)}>
           <div className="logbox" onClick={(e) => e.stopPropagation()}>
@@ -736,7 +792,7 @@ export function Recruit() {
                 <div className="logline">No blows were struck.</div>
               ) : (
                 replay.fullLog.map((line, i) => (
-                  <div className="logline" key={i}>{line}</div>
+                  <div className={`logline ${line.kind}`} key={i}>{line.text}</div>
                 ))
               )}
             </div>

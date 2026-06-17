@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Fodder reworked — Soulfeeder seeds the tavern, Demons devour it (+ a real tavern refresh)
+Redesigned the Demon Fodder loop per the user's new spec. Fodder no longer sits in your hand to be
+played beside a Demon; it **arrives in the tavern** and your Demons **eat it automatically**.
+- **Fred is out of the shop pool** (`token: true`) — it can't be rolled. It now only enters play
+  from other sources (Soulfeeder), and its text says so.
+- **Soulfeeder → Tier 1**, "**Battlecry:** add Fodder to your next tavern" (new
+  `battlecryAddTavernFodder` effect → pushes `fred` onto `state.pendingTavern`; golden adds 2). No
+  longer consumes a friend.
+- **Voracious Imp → Tier 2**, "Gains **2x** stats from Fodder" (golden "**3x**"). Implemented as a
+  new `CardDef.fodderMult` (Imp = 2; golden = base+1 = 3). The golden card-text transform learns the
+  "Nx → (N+1)x" rule so the doubled text reads "3x".
+- **A real "tavern refresh".** New `refreshTavern(state)` is the single tavern-population point —
+  both the manual **Refresh** and the **post-combat** refresh route through it. It rolls the shop,
+  injects any `pendingTavern` Fodder, then runs the auto-consume. (This is the hook the user wanted
+  so future effects can interact with refreshes.)
+- **Auto-consume (`consumeTavernFodder`).** When Fodder *enters* the tavern and you have ≥1 Demon on
+  board, each Fodder is eaten by **one random Demon** (2 Demons + 1 Fodder → a seeded coin-flip). The
+  eater gains the Fodder's stats × its `fodderMult`, and the **normal on-consume pipeline fires**
+  (Pactstone Acolyte +1/+1, Maw of the Pit Divine Shield, Ravening Glutton +2/+2). Eaten Fodder
+  leaves the tavern; with no Demon present it just sits there, buyable. Per the user's call, only
+  Fodder *entering* the tavern triggers this — placing a Demon next to existing Fodder does not.
+- **Tests:** replaced the 6 old recruit-consume tests with 7 covering the new flow — Fred not in the
+  pool, Soulfeeder queues Fodder, a Demon devours tavern Fodder (Imp 2×, golden 3×), on-consume
+  Demons pay off (Pactstone, Maw), and Fodder with no Demon stays. **82 tests pass.**
+- **Verified live:** Soulfeeder renders as Tier 1 with the new text; Fred never rolled across several
+  refreshes; Voracious Imp is absent at a Tier-1 shop (it moved to T2). `typecheck` (+web) + `lint` +
+  `build:web` pass; no console errors. (The synthetic-drag harness was too flaky to build a full
+  board live for an end-to-end consume, so that path leans on the unit coverage + the shared
+  `refreshTavern`/`consumeTavernFodder` code.)
+
 ### Mana economy, teal cost, combat-log + banner polish, buff-proc fixes, board 1
 The UI half of a large batch (the Fodder/Demon and Kennelmaster reworks land in following
 commits):

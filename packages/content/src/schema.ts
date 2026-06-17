@@ -53,6 +53,8 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnBuff',
   'battlecryConsume',
   'consumeFodderOnSummon',
+  'battlecryAddTavernFodder',
+  'avengeImproveSummon',
   'onConsumeBuffSelf',
   'onConsumeGrantSelfKeyword',
   'spellBuffTarget',
@@ -89,4 +91,5 @@ export const CardDefSchema = z.object({
   spell: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly']).optional(),
+  fodderMult: z.number().int().positive().optional(),
 });

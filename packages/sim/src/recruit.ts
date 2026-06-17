@@ -1,4 +1,4 @@
-import type { CardDef, Keyword } from '@game/core';
+import { makeRng, type CardDef, type Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import type { BoardCard, RunState } from './state';
@@ -100,11 +100,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Voracious Imp: when a **Fodder**-keyword minion is played/summoned beside it, eat it.
-   *  Strictly the keyword — plain tokens (e.g. a Beast Stray) are not Fodder and are safe. */
+   *  Strictly the keyword — plain tokens (e.g. a Beast Stray) are not Fodder and are safe.
+   *  (Legacy: fodder now lives in the tavern and is auto-eaten — see `consumeTavernFodder`.) */
   consumeFodderOnSummon: (ctx, self, _params, { minion }) => {
     if (minion === self) return;
     if (!minion.keywords.includes('FD')) return;
     ctx.consume(self, minion);
+  },
+
+  /** Soulfeeder: Battlecry — queue Fodder (Fred) into the *next* tavern refresh (golden adds 2). */
+  battlecryAddTavernFodder: (ctx, self, params) => {
+    const count = num(params.count, 1) * gold(self);
+    const id = str(params.tokenId) || 'fred';
+    (ctx.state.pendingTavern ??= []).push(...Array(count).fill(id));
   },
 
   /** Pactstone Acolyte / Ravening Glutton: on any friendly consume, grow. */
@@ -264,6 +272,41 @@ function makeContext(state: RunState): RecruitContext {
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   const ctx = makeContext(state);
   fire(ctx, 'onBuy', { minion: bought });
+}
+
+/** A Demon's stat multiplier when it eats Fodder (Voracious Imp = 2, golden = 3). */
+function fodderMultiplier(consumer: BoardCard): number {
+  const base = CARD_INDEX[consumer.cardId]?.fodderMult ?? 1;
+  if (base <= 1) return 1;
+  return consumer.golden ? base + 1 : base;
+}
+
+/**
+ * Demons devour Fodder sitting in the tavern. Called right after a tavern refresh
+ * adds Fodder: if you have any Demon on board, each Fodder is eaten by one *random*
+ * Demon (2 Demons + 1 Fodder → a coin-flip who eats it). The eater gains the fodder's
+ * stats × its multiplier and fires its on-consume effects (Pactstone / Maw / Glutton) —
+ * the normal Consume pipeline. Eaten Fodder leaves the tavern. With no Demon on board
+ * the Fodder simply stays (buyable). Per the rule, only Fodder *entering* the tavern is
+ * checked — placing a Demon next to existing tavern Fodder does not trigger it.
+ */
+export function consumeTavernFodder(state: RunState): void {
+  const demons = state.board.filter((c) => c.tribe === 'demon');
+  if (demons.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  const ctx = makeContext(state);
+  for (let i = state.shop.length - 1; i >= 0; i--) {
+    const offer = state.shop[i]!;
+    const fodder = CARD_INDEX[offer.cardId];
+    if (!fodder || !fodder.keywords.includes('FD')) continue;
+    const eater = demons[rng.int(demons.length)]!;
+    state.shop.splice(i, 1); // eaten — leaves the tavern
+    const mult = fodderMultiplier(eater);
+    eater.attack += fodder.attack * mult;
+    eater.health += fodder.health * mult;
+    fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off
+  }
+  state.rngCursor = rng.state();
 }
 
 /**

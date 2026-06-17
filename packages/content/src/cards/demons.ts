@@ -11,6 +11,8 @@ import type { CardDef } from '@game/core';
  */
 export const DEMONS: CardDef[] = [
   {
+    // Fred is the Fodder token — no longer rollable (token: true). It only enters the
+    // tavern from other sources (Soulfeeder's Battlecry); your Demons then eat it.
     id: 'fred',
     name: 'Fred',
     tribe: 'demon',
@@ -19,29 +21,31 @@ export const DEMONS: CardDef[] = [
     health: 1,
     keywords: ['FD'],
     effects: [],
-    text: '',
-  },
-  {
-    id: 'imp',
-    name: 'Voracious Imp',
-    tribe: 'demon',
-    tier: 1,
-    attack: 2,
-    health: 2,
-    keywords: ['CN'],
-    effects: [{ on: 'onSummon', do: 'consumeFodderOnSummon' }],
-    text: 'When you play a **Fodder** minion, this **eats it and gains its stats**.',
+    text: 'A 1/1 Demon **Fodder** — your Demons devour it from the tavern.',
+    token: true,
   },
   {
     id: 'feed',
     name: 'Soulfeeder',
     tribe: 'demon',
+    tier: 1,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryAddTavernFodder' }],
+    text: '**Battlecry:** add Fodder to your next tavern.',
+  },
+  {
+    id: 'imp',
+    name: 'Voracious Imp',
+    tribe: 'demon',
     tier: 2,
-    attack: 3,
+    attack: 2,
     health: 2,
     keywords: ['CN'],
-    effects: [{ on: 'onPlay', do: 'battlecryConsume' }],
-    text: '**Battlecry:** destroy a friend and add its stats to this.',
+    fodderMult: 2,
+    effects: [],
+    text: 'Gains **2x** stats from Fodder.',
   },
   {
     id: 'pact',

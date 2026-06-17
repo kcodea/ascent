@@ -40,10 +40,13 @@ const mdBold = (s: string): string => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 /**
  * Golden (tripled) cards show their numbers doubled to match the doubled effect:
  * "+1/+1" → "+2/+2", "deal 3" / "deal **3**" → "deal 6", "3 to every" → "6 to
- * every", "3 more" → "6 more". (Bare "N/N" token stats are left alone.)
+ * every", "3 more" → "6 more". A consume multiplier "Nx" instead grows by one
+ * (Voracious Imp "2x" → "3x"), matching the golden fodder rule. (Bare "N/N" token
+ * stats are left alone.)
  */
 const doubleNums = (s: string): string =>
   s
+    .replace(/(\*{0,2})(\d+)x\b/g, (_m, b: string, n: string) => b + String(Number(n) + 1) + 'x')
     .replace(/\+(\d+)/g, (_m, n: string) => '+' + String(Number(n) * 2))
     .replace(/(\bdeal\s+\*{0,2})(\d+)/gi, (_m, p: string, n: string) => p + String(Number(n) * 2))
     .replace(/(\*{0,2})(\d+)(\s+to\s+every)/gi, (_m, b: string, n: string, t: string) => b + String(Number(n) * 2) + t)

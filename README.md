@@ -22,6 +22,11 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Fodder reworked** — Fodder (Fred) is no longer rollable; **Soulfeeder** (now T1) seeds it into
+  your next tavern, and your **Demons eat it automatically** when it arrives (a random Demon per
+  Fodder). **Voracious Imp** (now T2) gains **2× stats from Fodder** (golden 3×); the usual on-consume
+  payoffs still fire. Both the manual Refresh and the post-combat refresh now flow through one
+  **tavern-refresh** path.
 - **Mana economy** — Embers are now **Mana**, recoloured teal (`#30d2ff`): a droplet resource icon
   and a teal circular cost badge. A **Combat Log** button (beside End Combat) replays the fight in
   text; the `—VS—` divider is gone and the combat banner now names the threat. Buff procs no longer

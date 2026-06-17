@@ -77,6 +77,8 @@ export type EffectFactoryId =
   // Demons — Consume (recruit-resolved half)
   | 'battlecryConsume'
   | 'consumeFodderOnSummon'
+  | 'battlecryAddTavernFodder' // Soulfeeder: queue a Fodder into the next tavern
+  | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'onConsumeBuffSelf'
   | 'onConsumeGrantSelfKeyword'
   // Spells (recruit-resolved): a spell's own effect, and minions that cast spells
@@ -110,6 +112,9 @@ export interface CardDef {
   cost?: number;
   /** Requires the player to pick a friendly minion when played/cast (spells, targeted Battlecries). */
   target?: 'friendly';
+  /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
+   *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
+  fodderMult?: number;
 }
 
 /**

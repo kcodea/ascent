@@ -94,6 +94,9 @@ export interface RunState {
   rngCursor: number;
   /** Monotonic counter for shop/board instance uids. */
   uidSeq: number;
+  /** Card ids queued to be injected into the *next* tavern refresh (Soulfeeder adds Fodder).
+   *  Consumed (and possibly auto-eaten by your Demons) when the tavern next refreshes. */
+  pendingTavern: string[];
   /** A pending Discover offer (3 card ids) granted by a triple — pick one to hand. */
   discover?: string[];
   /** The most recent combat's result, for the UI to replay. Transient. */
@@ -139,6 +142,7 @@ export function createRun(seed: number): RunState {
     tribes: selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES))),
     rngCursor: mixSeed(seed, 0, TAG.SHOP),
     uidSeq: 0,
+    pendingTavern: [],
   };
   rollShop(state);
   return state;

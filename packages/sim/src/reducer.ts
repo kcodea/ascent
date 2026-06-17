@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { applyEndOfTurn, applyOnBuy, castSpell, playCard } from './recruit';
+import { applyEndOfTurn, applyOnBuy, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
 
 /**
@@ -154,7 +154,7 @@ export function reduce(state: RunState, action: Action): RunState {
       if (s.embers < CONFIG.refreshCost) return state;
       s.embers -= CONFIG.refreshCost;
       s.frozen = false;
-      rollShop(s);
+      refreshTavern(s);
       return s;
     }
 
@@ -357,6 +357,23 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
   s.threat = selectThreat(s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.THREAT)), previous);
 
   if (s.frozen) s.frozen = false;
-  else rollShop(s);
+  else refreshTavern(s);
   s.phase = 'recruit';
+}
+
+/**
+ * Refresh the tavern: roll new offers, inject any Fodder queued for the next tavern
+ * (Soulfeeder), then let your Demons devour Fodder that just entered. Both the manual
+ * Refresh and the post-combat refresh route through here, so anything that interacts
+ * with "tavern refresh" hooks in one place.
+ */
+function refreshTavern(s: RunState): void {
+  rollShop(s);
+  const pending = s.pendingTavern ?? [];
+  if (pending.length === 0) return;
+  for (const id of pending) {
+    if (CARD_INDEX[id]) s.shop.push({ uid: `s${s.uidSeq++}`, cardId: id });
+  }
+  s.pendingTavern = [];
+  consumeTavernFodder(s); // Demons present? they eat the Fodder that just arrived
 }

@@ -39,6 +39,11 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Remove the legacy recruit-consume path.** The Fodder rework made Demons eat Fodder from the
+      tavern (`consumeTavernFodder`); the old "consume a board minion" path is now unused —
+      `RECRUIT_FACTORIES.battlecryConsume` + `consumeFodderOnSummon`, `makeContext().consume`, and its
+      out-of-combat Deathrattle firing have no card referencing them. Remove them (and the matching
+      `EffectFactoryId`s / schema entries) once we're sure no upcoming card wants board-consume.
 - [ ] **Audit/remove dead arena CSS.** Combat is now rendered in-place by `Recruit` (the separate
       `Arena.tsx` was deleted). The combat **building blocks** are still in use (`.unit.*`, `.float`,
       `.proj`, `.clash`, `.alog`) but several old full-screen-arena rules are likely dead now

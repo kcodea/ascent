@@ -221,6 +221,18 @@ export function Card({
           ))}
         </div>
       )}
+      {/* One-shot buff proc: an expanding ring + sparks burst over the card when a
+          recruit-phase buff lands (hero power, spell, summon buff). Painted on top. */}
+      {buffed && (
+        <span className="buffburst" aria-hidden="true">
+          <span className="bb-ring" />
+          <span className="bb-spark" style={{ '--a': '20deg' } as CSSProperties} />
+          <span className="bb-spark" style={{ '--a': '100deg' } as CSSProperties} />
+          <span className="bb-spark" style={{ '--a': '170deg' } as CSSProperties} />
+          <span className="bb-spark" style={{ '--a': '250deg' } as CSSProperties} />
+          <span className="bb-spark" style={{ '--a': '320deg' } as CSSProperties} />
+        </span>
+      )}
     </div>
   );
 }

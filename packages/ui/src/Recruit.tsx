@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
+import { sfx } from './sfx';
 import { useGame } from './store';
 
 type DragSource = 'shop' | 'hand' | 'board';
@@ -13,17 +14,17 @@ const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a d
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.35;
-const TURN_SECONDS = 30; // round timer; at 0 the player is forced into combat
+const TURN_SECONDS = 30; // base round timer (wave 1); grows +5s/wave, capped at 70 (see turnSeconds)
 const RING = 2 * Math.PI * 17; // countdown ring circumference
 
 function shopView(card: ShopCard, spellCostMod = 0): CardView {
   const c = CARD_INDEX[card.cardId];
   if (c.spell) {
-    // A tavern spell: its own (modifiable) cost, no tier badge, no stat footer.
+    // A tavern spell: its own (modifiable) cost + a tier pill, no stat footer.
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
       keywords: c.keywords, text: c.text, cost: Math.max(0, (c.cost ?? 0) - spellCostMod), spell: true,
-      target: c.target,
+      target: c.target, tier: c.tier,
     };
   }
   // A minion offer — fold in any tavern buff (e.g. the hero power) over its base stats,
@@ -65,12 +66,19 @@ export function Recruit() {
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
 
+  // Round timer grows +5s each wave, capped at 70s (Recruit re-mounts each recruit phase,
+  // so this initialises fresh per wave).
+  const turnSeconds = Math.min(70, TURN_SECONDS + (run.wave - 1) * 5);
+
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
   const [snapping, setSnapping] = useState(false);
   const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean; targetUid: string | null } | null>(null);
-  const [seconds, setSeconds] = useState(TURN_SECONDS);
+  const [seconds, setSeconds] = useState(turnSeconds);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
+  // A one-shot spark burst at a screen point, fired when a spell is cast.
+  const [spark, setSpark] = useState<{ x: number; y: number; key: number } | null>(null);
+  const sparkKeyRef = useRef(0);
   const prevStatsRef = useRef<Map<string, number>>(new Map());
   const flipRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<DragState | null>(null);
@@ -251,7 +259,11 @@ export function Recruit() {
   useEffect(() => {
     // At 0 the timer just stops — actions lock (except End Turn); no auto-combat.
     if (run.phase !== 'recruit' || seconds <= 0 || run.discover) return;
-    const id = window.setTimeout(() => setSeconds((s) => s - 1), 1000);
+    const id = window.setTimeout(() => {
+      // Tick out the last five seconds (the next displayed value is 5…1).
+      if (seconds - 1 <= 5 && seconds - 1 > 0) sfx.tick();
+      setSeconds((s) => s - 1);
+    }, 1000);
     return () => window.clearTimeout(id);
   }, [seconds, run.phase, run.discover]);
 
@@ -358,6 +370,14 @@ export function Recruit() {
     }
   }, [flipKey]);
 
+  // Pop a one-shot spark burst at a screen point (when a spell resolves).
+  const fireSpark = (x: number, y: number): void => {
+    sparkKeyRef.current += 1;
+    const key = sparkKeyRef.current;
+    setSpark({ x, y, key });
+    window.setTimeout(() => setSpark((s) => (s?.key === key ? null : s)), 600);
+  };
+
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
       dispatch({ type: 'buy', uid: d.uid });
@@ -382,11 +402,13 @@ export function Recruit() {
         const targetUid = boardUidAt(x, y);
         if (!targetUid) return false; // must be released on a friendly minion
         dispatch({ type: 'play', uid: d.uid, targetUid });
+        fireSpark(x, y); // spark bursts on the target it hit
         return true;
       }
       // Untargeted spell ("give your board…"): drop anywhere in the warband to cast.
       if (zone === 'warband') {
         dispatch({ type: 'play', uid: d.uid });
+        fireSpark(x, y);
         return true;
       }
       return false;
@@ -420,7 +442,7 @@ export function Recruit() {
             cx="20"
             cy="20"
             r="17"
-            style={{ strokeDasharray: RING, strokeDashoffset: RING * (1 - Math.max(0, seconds) / TURN_SECONDS) }}
+            style={{ strokeDasharray: RING, strokeDashoffset: RING * (1 - Math.max(0, seconds) / turnSeconds) }}
           />
         </svg>
         <span className="rt-n">{Math.max(0, seconds)}</span>
@@ -554,6 +576,16 @@ export function Recruit() {
           <line x1={aim.ox} y1={aim.oy} x2={aim.tx} y2={aim.ty} />
           <circle cx={aim.tx} cy={aim.ty} r={aim.onTarget ? 16 : 7} className={aim.onTarget ? 'on' : ''} />
         </svg>
+      )}
+
+      {/* Spell spark: a one-shot radiating burst where a cast spell resolved. */}
+      {spark && (
+        <div className="spellspark" key={spark.key} style={{ left: spark.x, top: spark.y }} aria-hidden="true">
+          <span className="ss-flash" />
+          {[18, 70, 128, 162, 215, 268, 305, 340].map((a) => (
+            <span className="ss-ray" key={a} style={{ '--a': `${a}deg` } as CSSProperties} />
+          ))}
+        </div>
       )}
 
       {run.discover && (

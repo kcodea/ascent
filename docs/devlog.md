@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Card/VFX/timer polish pass — spacing, spell sparks, buff procs, scaling timer
+A grab-bag of feel + readability fixes (items 1–10 of an 11-item batch; the in-place combat
+transition is the separate item below):
+- **More space between cards** — the row `gap` 10→22px so the (2×) Attack/Health badges of
+  adjacent cards no longer overlap.
+- **Countdown ticks** — a short square-wave `tick` blip plays on each of the last five seconds of a
+  turn (5·4·3·2·1), wired into the recruit timer (`sfx.tick()`), so you *hear* the clock running out.
+- **Taunt ward 3×** — the Taunt corner emblem is 26→78px (icon 15→45px) so Taunt reads at a glance.
+- **Divine-Shield glow +30%** — the combat DS aura's ring/blur/spread are ~30% thicker (`.unit.ds`).
+- **Turn timer grows per wave** — base 30s + 5s each wave, capped at 70s (`turnSeconds`); the ring +
+  rope fill scale to the new length. (Recruit remounts per wave, so it initialises fresh.)
+- **Tier pills bigger + on spells** — the "Tier X" pill/text is +25%, and spells now carry a tier
+  pill too (the tavern spell offer passes `tier` through `shopView`).
+- **Cost ember outlined** — the flame cost badge gets a soft white outline (double `drop-shadow`) so
+  it separates from the art behind it.
+- **Spell spark** — casting a spell pops a one-shot accent-coloured burst (a flash + 8 radiating
+  rays) at the point it resolved (`fireSpark` on the cast/play branches → `.spellspark`).
+- **Buff proc** — when a recruit-phase buff lands (hero power, spell, summon buff) the card now plays
+  a punchier green flash *plus* an expanding ring + spark shards (`.buffburst`), so e.g. Warden's
+  Fortify reads as a clear proc rather than a faint tint.
+- **Board art → board 2** — swapped the play-surface backdrop (`apps/web/public/board.jpg`) to the
+  new warm crystal-arena render (1536×1024 → JPEG q82, 135 KB).
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**81**) + `build:web` all pass; live DOM +
+  screenshot confirm row gap = 22px, the spell offer shows a "Tier 1" pill, the cost SVG carries the
+  white `drop-shadow` outline, the Taunt ward = 78px (only on Taunt cards — confirmed it doesn't
+  misfire on Divine-Shield/other cards), and board 2 is rendering. The tick/spark/buff-burst are
+  transient VFX/audio verified via code + the green build.
+
 ### Bigger stat badges (2x, overhanging) + HUD scale-up
 - **Attack / Health badges are 2× and overhang the card's bottom corners** (60px, was 30px), mirroring
   the cost ember at the top. They're absolutely positioned (out of the footer flow); the footer is

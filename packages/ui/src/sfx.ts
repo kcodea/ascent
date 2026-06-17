@@ -69,6 +69,7 @@ export const sfx = {
     tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1 });
     tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04 });
   },
+  tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09 }),
   combatStart: () => tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90 }),
   attack: () => tone({ freq: 320, dur: 0.08, type: 'sawtooth', vol: 0.1, slideTo: 130 }),
   hit: () => tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80 }),

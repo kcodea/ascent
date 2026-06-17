@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Polish pass** — more space between cards (badges no longer overlap), a countdown tick on the last
+  five seconds, a 3× Taunt emblem, a +30% Divine-Shield glow, the turn timer grows +5s per wave
+  (cap 70s), bigger tier pills (now on spells too), a white-outlined cost ember, a **spell spark**
+  when you cast, a punchier **buff proc** burst (e.g. Warden's Fortify), and **board 2** art.
 - **Bolder card stats** — Attack/Health are big badges overhanging the card's bottom corners (matching
   the cost ember), with larger tribe text.
 - **HP bar HUD** — Resolve is a health bar across the bottom of the corner tray (red heart + fill +

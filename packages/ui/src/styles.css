@@ -138,7 +138,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .btn.go { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 7px 20px; font-size: 14px; font-weight: 800; }
 .btn.go svg { color: #fff; }
 .btn.go:disabled { box-shadow: none; }
-.row { flex: none; height: var(--ch); display: flex; gap: 10px; justify-content: center; align-items: center; }
+.row { flex: none; height: var(--ch); display: flex; gap: 22px; justify-content: center; align-items: center; }
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
@@ -162,9 +162,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
 /* cost badge — the cost number sits inside an ember (flame), pushed up-left to eclipse the corner */
 .cost { position: absolute; top: -44px; left: -42px; width: 103px; height: 103px; z-index: 6; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.42)); }
-.cost svg { width: 100%; height: 100%; color: var(--acc); }
+.cost svg { width: 100%; height: 100%; color: var(--acc); filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff); }
 .cost .costn { position: absolute; inset: 0; display: grid; place-items: center; padding-top: 17px; font-family: 'Outfit'; font-weight: 800; font-size: 31px; color: #fff; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5); }
-.tierbadge { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 10px; border-radius: 7px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
+.tierbadge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
 .tierbadge[data-tier="1"] { background: #74809a; }
 .tierbadge[data-tier="2"] { background: #1f9d6b; }
@@ -176,8 +176,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card.taunt { box-shadow: 0 0 0 2px #5f6a8a, 0 3px 0 var(--shadow); }
 /* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth). */
 .card.stealth { opacity: 0.8; box-shadow: 0 0 0 2px #3f6f7a, 0 0 14px -2px rgba(63, 111, 122, 0.7), 0 3px 0 var(--shadow); }
-.tauntward { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; background: #5f6a8a; border: 2px solid var(--card); display: grid; place-items: center; z-index: 4; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25); }
-.tauntward svg { width: 15px; height: 15px; color: #fff; }
+.tauntward { position: absolute; top: -16px; right: -16px; width: 78px; height: 78px; border-radius: 50%; background: #5f6a8a; border: 4px solid var(--card); display: grid; place-items: center; z-index: 6; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
+.tauntward svg { width: 45px; height: 45px; color: #fff; }
 /* the tribe label sits between the (now absolute, overhanging) atk/hp badges — pad it clear
    of them so the larger text never slips under a badge */
 .cfoot { display: flex; align-items: center; justify-content: center; padding: 5px 52px; background: color-mix(in srgb, var(--c) 14%, var(--card)); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; }
@@ -252,11 +252,57 @@ canvas.spr { image-rendering: pixelated; display: block; }
   0%, 100% { box-shadow: 0 0 0 3px var(--t-mech), 0 0 22px 5px rgba(39, 169, 221, 0.75); }
   50% { box-shadow: 0 0 0 4px #7fdcf2, 0 0 32px 9px rgba(95, 198, 224, 0.95); }
 }
-/* recruit-phase buff flash (a stat buff just landed on this card) */
-.card.cardbuff { animation: cardbuff 0.7s ease; }
+/* recruit-phase buff proc (a stat buff just landed on this card) — a green flash +
+   a brighter, springier pop so a hero-power / spell buff reads at a glance */
+.card.cardbuff { animation: cardbuff 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 21; }
 @keyframes cardbuff {
-  0%, 100% { box-shadow: 0 3px 0 var(--shadow); }
-  40% { box-shadow: 0 0 0 3px #22be86, 0 0 22px 4px rgba(34, 190, 134, 0.7); transform: translateY(-4px) scale(1.03); }
+  0% { box-shadow: 0 3px 0 var(--shadow); }
+  30% { box-shadow: 0 0 0 4px #2bd897, 0 0 30px 8px rgba(43, 216, 151, 0.85); transform: translateY(-7px) scale(1.06); filter: brightness(1.22); }
+  100% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; }
+}
+/* the buff burst overlay: an expanding ring + radiating spark shards, painted on top */
+.buffburst { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
+.bb-ring {
+  position: absolute; top: 50%; left: 50%; width: 34%; aspect-ratio: 1; border-radius: 50%;
+  border: 4px solid #2bd897; box-shadow: 0 0 16px 2px rgba(43, 216, 151, 0.8);
+  transform: translate(-50%, -50%) scale(0.3); animation: bbring 0.6s ease-out forwards;
+}
+@keyframes bbring {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.95; }
+  100% { transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
+}
+.bb-spark {
+  position: absolute; top: 50%; left: 50%; width: 4px; height: 18px; margin: -9px -2px;
+  border-radius: 3px; background: linear-gradient(#eafff5, #2bd897);
+  box-shadow: 0 0 8px rgba(43, 216, 151, 0.9); opacity: 0;
+  transform: rotate(var(--a)) translateY(-6px); animation: bbspark 0.55s ease-out forwards;
+}
+@keyframes bbspark {
+  0% { opacity: 0; transform: rotate(var(--a)) translateY(-6px) scaleY(0.4); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-46px) scaleY(1); }
+}
+/* spell spark — a one-shot accent-coloured burst where a cast spell resolves */
+.spellspark { position: fixed; width: 0; height: 0; z-index: 120; pointer-events: none; }
+.ss-flash {
+  position: absolute; top: 50%; left: 50%; width: 64px; height: 64px; margin: -32px;
+  border-radius: 50%; background: radial-gradient(circle, #fff 0%, var(--acc) 45%, transparent 70%);
+  transform: scale(0.2); animation: ssflash 0.5s ease-out forwards;
+}
+@keyframes ssflash {
+  0% { transform: scale(0.2); opacity: 1; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+.ss-ray {
+  position: absolute; top: 50%; left: 50%; width: 4px; height: 26px; margin: -13px -2px;
+  border-radius: 3px; background: linear-gradient(#fff, var(--acc));
+  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--acc) 80%, #fff); opacity: 0;
+  transform: rotate(var(--a)) translateY(-8px); animation: ssray 0.55s ease-out forwards;
+}
+@keyframes ssray {
+  0% { opacity: 0; transform: rotate(var(--a)) translateY(-4px) scaleY(0.5); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-54px) scaleY(1); }
 }
 .card.dragsrc { opacity: 0.3; }
 .zone.sellglow .row { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: 0 0 0 3px var(--acc), 0 0 24px -2px color-mix(in srgb, var(--acc) 75%, transparent); border-radius: 16px; }
@@ -379,8 +425,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 @keyframes flare { 0% { filter: brightness(1.9); } 100% { filter: none; } }
 
 /* Divine Shield: a golden aura, lost when it breaks, granted on shieldUp */
-.unit.ds .card { box-shadow: 0 0 0 3px #f4cf6a, 0 0 18px 1px rgba(244, 207, 106, 0.7), 0 3px 0 var(--shadow); }
-.unit.ds .card::after { content: ''; position: absolute; inset: -7px; border-radius: 19px; border: 2px solid #f4cf6a; pointer-events: none; animation: aurapulse 1.8s ease-in-out infinite; }
+.unit.ds .card { box-shadow: 0 0 0 4px #f4cf6a, 0 0 23px 2px rgba(244, 207, 106, 0.72), 0 3px 0 var(--shadow); }
+.unit.ds .card::after { content: ''; position: absolute; inset: -7px; border-radius: 19px; border: 2.6px solid #f4cf6a; pointer-events: none; animation: aurapulse 1.8s ease-in-out infinite; }
 @keyframes aurapulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 .unit.shieldgain .card { animation: shieldgain 0.6s ease; }
 @keyframes shieldgain { 0% { box-shadow: 0 0 0 12px rgba(244, 207, 106, 0); } 40% { box-shadow: 0 0 0 5px #f4cf6a, 0 0 28px 5px rgba(244, 207, 106, 0.9); } 100% { box-shadow: 0 0 0 3px #f4cf6a, 0 3px 0 var(--shadow); } }

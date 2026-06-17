@@ -184,6 +184,7 @@ export function simulate(
       const target = chooseTarget(defenderSide);
       if (!target) break;
       events.push({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s });
+      bus.emit('onAttack', { minion: attacker, side: attacker.side }); // Rally + on-attack effects
 
       const targetWasAlive = !target.dead && target.health > 0;
       const poison = attacker.keywords.includes('P');

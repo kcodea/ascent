@@ -1,6 +1,6 @@
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
-import { artFor, effectArt } from './art';
+import { artFor } from './art';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
@@ -8,10 +8,10 @@ import { useGame } from './store';
 
 const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Shield', P: 'Poison', W: 'Windfury', R: 'Reborn', C: 'Cleave', M: 'Magnetic', SC: 'Start', CN: 'Consume',
-  FD: 'Fodder', IMM: 'Immune', ST: 'Stealth',
+  FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally',
 };
 const KW_ICON: Partial<Record<Keyword, string>> = {
-  T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc', IMM: 'shield', ST: 'eye',
+  T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc', IMM: 'shield', ST: 'eye', RL: 'sword',
 };
 /** Plain-language keyword meanings, revealed in the hover tooltip (handoff A.4). */
 const KW_DESC: Record<Keyword, string> = {
@@ -27,6 +27,7 @@ const KW_DESC: Record<Keyword, string> = {
   FD: 'Fodder — A cheap minion your Demon cards can consume for its stats.',
   IMM: 'Immune — Takes no damage.',
   ST: 'Stealth — Can’t be attacked until it attacks.',
+  RL: 'Rally — Triggers each time this attacks.',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
@@ -185,11 +186,6 @@ export function Card({
           <img className="artimg" src={artFor(card.cardId)} alt="" draggable={false} />
         ) : (
           <Sprite name={spriteForTribe(card.tribe)} scale={5} />
-        )}
-        {/* Divine Shield: the effect art wraps the square art panel (shown wherever a
-            shielded minion appears — shop, warband, and combat). */}
-        {card.keywords.includes('DS') && effectArt('divineshield') && (
-          <img className="dsfx" src={effectArt('divineshield')} alt="" draggable={false} aria-hidden="true" />
         )}
       </div>
       <div className="cbody">

@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### DS = golden glow only, Rally keyword, buff-replay fix, smoother Magnetic
+- **Divine Shield** — dropped the overlay art entirely; a shielded card now just gets a **soft golden
+  glow** (`.card.dscard`, an outer + inner glow with a gentle `dsglow` pulse, recruit + combat).
+- **Rally keyword** wired (`RL`): combat now emits `onAttack` per swing, so an `{ on: 'onAttack' }`
+  effect fires when a minion attacks. Added the keyword (core type + zod schema + pill/tooltip "Rally
+  — Triggers each time this attacks") and a default `rallyBuff` combat factory (on attack, buff your
+  other minions +atk/+hp; golden ×2). Ready for content — no card declares it yet.
+- **Buff-replay fix** — grabbing a minion mid-buff-flash and moving it replayed the buff animation
+  when the card re-mounted (lift-out → drop). `beginDrag` now clears the dragged uid from
+  `buffedUids`, so it doesn't re-trigger.
+- **Magnetic slide cleanup** — the merge animation was janky. Now when the slide starts the warband
+  **settles** (the shove slot closes) and the held card **shrinks straight into the Mech** (scale →
+  0.32, no tilt, 0.36 s) with the electric crackle, then merges. Tighter timing (360 ms).
+- **Ember Pouch** text "Gain 1 Ember" → "Gain **1 Mana**" (Mana rename consistency).
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**88**) + `build:web` pass; live: a shielded
+  card shows the golden `dsglow` (no overlay art), no console errors.
+
 ### New DS art + glow, live combat buffs (Kennelmaster), additive Echo Warden, Magnetic slide
 - **Divine Shield** — re-wired the new (square 1024²) effect art at `scale(1.06)`, and added a **soft
   yellow glow fill** on any card with Divine Shield (`.card.dscard` — an outer glow + inner art-panel

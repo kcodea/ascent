@@ -162,14 +162,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
-/* Divine Shield effect art — stretched to fill the art panel and scaled up so the golden
-   frame wraps right to the panel's edges (the surrounding transparent margin is clipped by
-   .art's overflow:hidden). Fully opaque, with a brightness shimmer. */
-.dsfx { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; transform: scale(1.06); pointer-events: none; z-index: 5; opacity: 1; -webkit-user-drag: none; animation: dsfxpulse 2.1s ease-in-out infinite; }
-@keyframes dsfxpulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.22); } }
-/* a soft yellow glow filling any card that has Divine Shield (recruit + combat) */
-.card.dscard { box-shadow: 0 0 18px 3px rgba(255, 209, 92, 0.6), inset 0 0 26px rgba(255, 216, 110, 0.4), 0 3px 0 var(--shadow); }
-.card.dscard .art { box-shadow: inset 0 0 30px rgba(255, 214, 100, 0.5); }
+/* Divine Shield: a soft golden glow filling any card that has it (recruit + combat),
+   with a gentle pulse — no overlay art. */
+.card.dscard { box-shadow: 0 0 17px 2px rgba(244, 207, 106, 0.6), inset 0 0 24px rgba(244, 207, 106, 0.4), 0 3px 0 var(--shadow); animation: dsglow 2.2s ease-in-out infinite; }
+.card.dscard .art { box-shadow: inset 0 0 26px rgba(244, 207, 106, 0.45); }
+@keyframes dsglow {
+  0%, 100% { box-shadow: 0 0 14px 2px rgba(244, 207, 106, 0.5), inset 0 0 20px rgba(244, 207, 106, 0.32), 0 3px 0 var(--shadow); }
+  50% { box-shadow: 0 0 22px 4px rgba(244, 207, 106, 0.72), inset 0 0 28px rgba(244, 207, 106, 0.48), 0 3px 0 var(--shadow); }
+}
 /* cost badge — a teal Mana circle overhanging the top-left corner */
 .cost { position: absolute; top: -20px; left: -16px; width: 60px; height: 60px; z-index: 6; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
 .cost .costn { font-family: 'Outfit'; font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
@@ -256,8 +256,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* custom drag: a solid card follows the cursor; the source dims; invalid drops snap back */
 .dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); transition: none; will-change: transform; }
 .dragcard.snap { transition: transform 0.16s cubic-bezier(0.34, 1.2, 0.64, 1); }
-/* a Magnetic card sliding into its Mech (left→right) before it merges */
-.dragcard.magslide { transition: transform 0.42s cubic-bezier(0.45, 0, 0.2, 1); }
+/* a Magnetic card sliding + shrinking into its Mech before it merges */
+.dragcard.magslide { transition: transform 0.36s cubic-bezier(0.4, 0, 0.2, 1); }
 .dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
 /* Magnetic: electric crackle while a Cling Drone hovers a friendly Mech (will merge on drop) */
 .dragcard.electric .card { animation: crackle 0.28s ease-in-out infinite; }

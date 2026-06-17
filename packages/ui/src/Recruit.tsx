@@ -179,6 +179,14 @@ export function Recruit() {
 
   const beginDrag = (uid: string, source: DragSource, view: CardView) => (e: ReactPointerEvent) => {
     if (e.button !== 0 || timeUp || inCombat) return; // no dragging once the turn timer is up / in combat
+    // Grabbing a card mid-buff-flash clears its flash, so it doesn't replay the buff
+    // animation when the card re-mounts after the drag (lift-out → drop).
+    setBuffedUids((s) => {
+      if (!s.has(uid)) return s;
+      const n = new Set(s);
+      n.delete(uid);
+      return n;
+    });
     const el = e.currentTarget as HTMLElement;
     const r = el.getBoundingClientRect();
     // capture the pointer so move/up keep firing even if it leaves the window or races
@@ -237,7 +245,7 @@ export function Recruit() {
           setMagSlide(false);
           setDrag(null);
           setOverZone(null);
-        }, el ? 440 : 0);
+        }, el ? 360 : 0);
         return;
       }
 
@@ -422,6 +430,7 @@ export function Recruit() {
   // hand card opens the same slot. ---
   const wouldMagnetize =
     !!drag?.active &&
+    !magSlide && // once the slide starts, the warband settles (no more shove preview)
     drag.source === 'hand' &&
     drag.view.keywords.includes('M') &&
     overZone === 'warband' &&
@@ -433,6 +442,7 @@ export function Recruit() {
   const draggingBoard = !!drag?.active && drag.source === 'board';
   const overWarband =
     !!drag?.active &&
+    !magSlide &&
     overZone === 'warband' &&
     !wouldMagnetize &&
     !drag.view.spell &&
@@ -755,9 +765,12 @@ export function Recruit() {
           style={{
             width: drag.w,
             height: drag.h,
-            // pivot scale/rotate around the exact grab point so the card stays under the cursor
+            // pivot scale/rotate around the exact grab point so the card stays under the cursor.
+            // When magnetizing, the card shrinks straight into the Mech (no tilt) so it "absorbs".
             transformOrigin: `${drag.ox}px ${drag.oy}px`,
-            transform: `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(1.04) rotate(-1.5deg)`,
+            transform: magSlide
+              ? `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(0.32)`
+              : `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(1.04) rotate(-1.5deg)`,
           }}
         >
           <Card card={drag.view} />

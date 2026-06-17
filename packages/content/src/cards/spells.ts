@@ -32,7 +32,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 1,
     effects: [{ on: 'cast', do: 'gainEmbers', params: { amount: 1 } }],
-    text: 'Gain **1 Ember**.',
+    text: 'Gain **1 Mana**.',
   },
   {
     id: 'bulwark',

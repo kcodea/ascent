@@ -16,7 +16,8 @@ export type Keyword =
   | 'CN' // Consume
   | 'FD' // Fodder — a cheap minion meant to be Consumed
   | 'IMM' // Immune — takes no damage
-  | 'ST'; // Stealth — can't be targeted by attacks; lost on attacking
+  | 'ST' // Stealth — can't be targeted by attacks; lost on attacking
+  | 'RL'; // Rally — triggers an effect each time this attacks
 
 export type Tier = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -57,6 +58,7 @@ export type EffectFactoryId =
   | 'scAoePerTribe'
   | 'deathrattleBuffRandom'
   | 'onFriendDeathBuffRandom'
+  | 'rallyBuff' // Rally: when this attacks, buff your other minions (combat)
   | 'deathrattleFillTribe'
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)

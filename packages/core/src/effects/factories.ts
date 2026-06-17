@@ -149,6 +149,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(ctx.rng.pick(friends), num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
 
+  /** Rally — when *this* minion attacks, buff your other living minions (+atk/+hp). */
+  rallyBuff: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const attack = num(params.attack, 1) * mul(self);
+    const health = num(params.health, 1) * mul(self);
+    for (const m of ctx.living(self.side)) if (m !== self) ctx.buff(m, attack, health, self.uid);
+  },
+
   /** Rot Weaver: each time another friend dies, buff a random living friend. */
   onFriendDeathBuffRandom: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;

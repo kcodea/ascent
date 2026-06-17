@@ -22,8 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **HP bar HUD** — Resolve is now a health bar across the bottom of the corner tray (red heart + fill +
-  current health, no label), and the Warden hero panel is bigger.
+- **Bolder card stats** — Attack/Health are big badges overhanging the card's bottom corners (matching
+  the cost ember), with larger tribe text.
+- **HP bar HUD** — Resolve is a health bar across the bottom of the corner tray (red heart + fill +
+  current health, no label); the Warden hero panel and Embers chip are bigger and matched in height.
 - **Combat fix** — attackers no longer swing out of order after a minion dies mid-combat (the next
   attacker is tracked by identity, not by a shifting index).
 - **Hero art** — the Warden hero now has a portrait, and Brightwing Broker has its illustration.

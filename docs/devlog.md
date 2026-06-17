@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Bigger stat badges (2x, overhanging) + HUD scale-up
+- **Attack / Health badges are 2× and overhang the card's bottom corners** (60px, was 30px), mirroring
+  the cost ember at the top. They're absolutely positioned (out of the footer flow); the footer is
+  padded so the (larger) tribe label centres cleanly between them and never slips under a badge. The
+  horizontal overhang is a slight −8px (the bottom −12px does the "eclipse") so adjacent cards on a
+  packed board don't clash much.
+- **Cost ember pushed further up-left** (top/left −34/−32 → −44/−42) to eclipse the corner more.
+- **Tribe text bigger** (11→14px, icon 14→17px).
+- **Hero panel +15%** again (portrait 70→80px, name/power text scaled; panel ≈100px tall).
+- **Embers chip is now as tall as the hero** — the top row stretches (`align-items: stretch`) so the
+  Embers chip matches the hero's height (both ~100px), and its icon/value are scaled up to fill it.
+- **HP bar scaled up** with the rest (bar 15→20px, heart 26→32px, value 22→28px).
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**81**) + `build:web` pass; atk/hp = 60×60,
+  Embers chip = hero = 100px tall, HP bar 20px, and the tribe label fits (not clipped) — all confirmed
+  via DOM + live screenshots.
+
 ### Resolve as an HP bar, hero panel +20%, cost-text nudge, re-wired Broker art
 - **Resolve → an HP bar across the bottom of the status tray.** The chunky `[heart | 30 | "Resolve"]`
   chip is gone. The tray is now a column: **Embers + Hero on the top row**, and a full-width **HP bar

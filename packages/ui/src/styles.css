@@ -161,7 +161,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
 /* cost badge — the cost number sits inside an ember (flame), pushed up-left to eclipse the corner */
-.cost { position: absolute; top: -34px; left: -32px; width: 103px; height: 103px; z-index: 6; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.42)); }
+.cost { position: absolute; top: -44px; left: -42px; width: 103px; height: 103px; z-index: 6; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.42)); }
 .cost svg { width: 100%; height: 100%; color: var(--acc); }
 .cost .costn { position: absolute; inset: 0; display: grid; place-items: center; padding-top: 17px; font-family: 'Outfit'; font-weight: 800; font-size: 31px; color: #fff; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5); }
 .tierbadge { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 10px; border-radius: 7px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
@@ -178,9 +178,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card.stealth { opacity: 0.8; box-shadow: 0 0 0 2px #3f6f7a, 0 0 14px -2px rgba(63, 111, 122, 0.7), 0 3px 0 var(--shadow); }
 .tauntward { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; background: #5f6a8a; border: 2px solid var(--card); display: grid; place-items: center; z-index: 4; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25); }
 .tauntward svg { width: 15px; height: 15px; color: #fff; }
-.cfoot { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: color-mix(in srgb, var(--c) 14%, var(--card)); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; }
-.atk, .hp { flex: none; width: 30px; height: 30px; border-radius: 9px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; color: #fff; display: flex; align-items: center; justify-content: center; }
-.atk { background: var(--atk); } .hp { background: var(--hpc); }
+/* the tribe label sits between the (now absolute, overhanging) atk/hp badges — pad it clear
+   of them so the larger text never slips under a badge */
+.cfoot { display: flex; align-items: center; justify-content: center; padding: 5px 52px; background: color-mix(in srgb, var(--c) 14%, var(--card)); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; }
+/* Attack / Health — 2x badges that overhang the card's bottom corners (like the cost ember). */
+.atk, .hp { position: absolute; bottom: -12px; z-index: 6; flex: none; width: 60px; height: 60px; border-radius: 16px; border: 3px solid var(--card); font-family: 'Outfit'; font-weight: 800; font-size: 30px; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+.atk { left: -8px; background: var(--atk); } .hp { right: -8px; background: var(--hpc); }
 /* stats above base read green, below base read red */
 .atk.up, .hp.up { background: #1aa86f; }
 .atk.down, .hp.down { background: #d23b2b; }
@@ -273,21 +276,22 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .aimline circle { fill: var(--acc); filter: drop-shadow(0 0 7px var(--acc)); }
 .aimline circle.on { fill: #fff; stroke: var(--acc); stroke-width: 4; }
 @keyframes aimdash { to { stroke-dashoffset: -14; } }
-.ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
-.ctype svg { width: 14px; height: 14px; color: var(--c); }
-.ctype.spell { flex: 1; color: var(--t-demon); font-size: 12px; }
+.ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: 'Outfit'; font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
+.ctype svg { width: 17px; height: 17px; color: var(--c); }
+.ctype.spell { flex: 1; color: var(--t-demon); font-size: 15px; }
 /* The status tray, tucked into the bottom-LEFT corner so the hand owns the whole
    bottom-centre: Embers + Hero on the top row, the Resolve HP bar across the bottom.
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */
 .statusbar { position: fixed; bottom: 14px; left: 16px; display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; background: color-mix(in srgb, var(--card) 90%, transparent); border: 2px solid var(--line); border-radius: 24px; box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.45); }
-.statusrow { display: flex; align-items: center; justify-content: center; gap: 9px; }
+/* stretch so the Embers chip is as tall as the (taller) hero panel */
+.statusrow { display: flex; align-items: stretch; justify-content: center; gap: 9px; }
 /* Resolve HP bar: red heart on the left, fill in the middle, current health on the right */
-.hprow { position: relative; display: flex; align-items: center; gap: 10px; padding: 0 6px; }
+.hprow { position: relative; display: flex; align-items: center; gap: 12px; padding: 0 8px; }
 .hprow .ic { flex: none; display: grid; place-items: center; }
-.hprow .ic svg { width: 26px; height: 26px; color: var(--threat); }
-.hprow .hpbar { flex: 1; height: 15px; border-radius: 8px; background: color-mix(in srgb, var(--threat) 18%, var(--card)); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18); }
-.hprow .hpbar i { display: block; height: 100%; background: var(--hpc); border-radius: 8px; transition: width 0.35s ease; }
-.hprow .hpval { flex: none; min-width: 1.4em; text-align: right; font-family: 'Outfit'; font-weight: 800; font-size: 22px; color: var(--threat-dk); }
+.hprow .ic svg { width: 32px; height: 32px; color: var(--threat); }
+.hprow .hpbar { flex: 1; height: 20px; border-radius: 10px; background: color-mix(in srgb, var(--threat) 18%, var(--card)); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18); }
+.hprow .hpbar i { display: block; height: 100%; background: var(--hpc); border-radius: 10px; transition: width 0.35s ease; }
+.hprow .hpval { flex: none; min-width: 1.4em; text-align: right; font-family: 'Outfit'; font-weight: 800; font-size: 28px; color: var(--threat-dk); }
 .statusbar .hero { pointer-events: auto; }
 /* the Embers chip captures hover too (for its projection popup) */
 .statusbar .chip.g { pointer-events: auto; }
@@ -302,16 +306,17 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .resfx { position: absolute; top: -10px; right: 14px; font-family: 'Outfit'; font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 /* compact sizing for the corner tray (was hero-sized when it was the centrepiece); the
    hero panel is ~15% larger than the chips so it reads as the centrepiece of the tray */
-.statusbar .hero { padding: 7px 19px 7px 7px; border-radius: 20px; gap: 12px; }
-.statusbar .hero .f { width: 70px; height: 70px; border-radius: 18px; }
-.statusbar .hero .f svg { width: 38px; height: 38px; }
-.statusbar .hero .nm { font-size: 20px; }
-.statusbar .hero .pw { font-size: 14px; }
-.statusbar .chip { padding: 8px 14px; border-radius: 13px; gap: 9px; }
-.statusbar .chip .ic { width: 36px; height: 36px; border-radius: 10px; }
-.statusbar .chip .ic svg { width: 21px; height: 21px; }
-.statusbar .chip .v { font-size: 24px; }
-.statusbar .chip .l { font-size: 10px; letter-spacing: 0.06em; }
+.statusbar .hero { padding: 8px 22px 8px 8px; border-radius: 23px; gap: 14px; }
+.statusbar .hero .f { width: 80px; height: 80px; border-radius: 21px; }
+.statusbar .hero .f svg { width: 44px; height: 44px; }
+.statusbar .hero .nm { font-size: 23px; }
+.statusbar .hero .pw { font-size: 16px; }
+/* Embers chip scaled to fill the (hero-tall) chip */
+.statusbar .chip { padding: 11px 16px; border-radius: 18px; gap: 11px; }
+.statusbar .chip .ic { width: 64px; height: 64px; border-radius: 16px; }
+.statusbar .chip .ic svg { width: 36px; height: 36px; }
+.statusbar .chip .v { font-size: 34px; }
+.statusbar .chip .l { font-size: 12px; letter-spacing: 0.06em; }
 .statusbar .sellfx { font-size: 18px; top: -2px; right: 12px; }
 .sellfx { position: absolute; top: -8px; right: 8px; font-family: 'Outfit'; font-weight: 900; font-size: 16px; color: #d99a2e; pointer-events: none; animation: sellrise 0.85s ease forwards; }
 @keyframes sellrise { 0% { opacity: 0; transform: translateY(6px); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }

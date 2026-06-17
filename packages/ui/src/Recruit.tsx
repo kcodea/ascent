@@ -593,7 +593,7 @@ export function Recruit() {
                 </button>
                 <button className="btn big endturn" onClick={() => dispatch({ type: 'resolveCombat' })}>
                   <Icon name="up" />
-                  {replay.result === 'win' ? 'Climb On' : 'End Combat'}
+                  End Combat
                 </button>
               </>
             ) : (

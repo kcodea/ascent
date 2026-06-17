@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Buff-jank fix (root cause), new DS art, Omen art, 2× combat buttons
+- **Buff "reset" jank — actually fixed this time (found the root cause).** The card visibly
+  disappeared/reappeared *after* the buff animation. Cause: `.card` always carries
+  `animation: cardpop`, but `.card.cardbuff` *replaced* it; when the buff class cleared, the
+  `animation` property reverted to `cardpop`, which the browser treats as a newly-added animation and
+  **replays** (cardpop fades in from opacity 0). Fix: list `cardpop` first in the `.cardbuff` rule
+  (`animation: cardpop 0.26s ease, cardbuff 0.62s both`) so cardpop stays in the list across the
+  toggle and never restarts. Verified with `getAnimations()`: after the class clears there are no
+  running animations and the card holds `opacity: 1` (no replay). Covers the Fodder-eat path too
+  (same `.cardbuff`).
+- **New Divine-Shield art** — re-converted the updated `Effects/DivineShield.png` (still stretched to
+  fill + scaled 1.32× to wrap the art panel, fully opaque).
+- **Omen Minion art** — wired `OmenMinion.png` → `art/minions/omen.png` (id `omen`); the enemy filler
+  now renders its illustration instead of the pixel sprite.
+- **Combat buttons** — "Climb On" → **"End Combat"** (always); both post-combat buttons (Combat Log +
+  End Combat) are ~2× larger (32px, scoped to `.cbtns` so the tavern controls are unchanged) with a
+  wider gap so they never overlap.
+- **Verified live:** Omen enemy renders `omen.png`; DS art loads at scale 1.32 / opacity 1; the two
+  combat buttons are 32px and non-overlapping; buff no longer replays cardpop. `typecheck` (+web) +
+  `lint` + `build:web` pass; no console errors.
+
 ### Cleanup — removed the dead recruit-consume path + the old arena CSS
 Housekeeping from the two preceding reworks (no behaviour change):
 - **Dead recruit-consume code gone.** The Fodder rework left the old board-consume path unused —

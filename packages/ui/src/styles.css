@@ -258,10 +258,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
   0%, 100% { box-shadow: 0 0 0 3px var(--t-mech), 0 0 22px 5px rgba(39, 169, 221, 0.75); }
   50% { box-shadow: 0 0 0 4px #7fdcf2, 0 0 32px 9px rgba(95, 198, 224, 0.95); }
 }
-/* recruit-phase buff proc (a stat buff just landed on this card) — a green flash +
-   a pop. The spring easing is scoped to the *rise* only; the settle eases out so the
-   card doesn't bounce/snap back when the animation ends. */
-.card.cardbuff { animation: cardbuff 0.62s both; z-index: 21; }
+/* recruit-phase buff proc (a stat buff just landed on this card) — a green flash + a pop.
+   `cardpop` is kept first in the list (matching the base .card) so that toggling cardbuff
+   on/off does NOT re-add cardpop — otherwise removing the class replayed cardpop, making
+   the card flash invisible then fade back in ("disappear / reappear"). */
+.card.cardbuff { animation: cardpop 0.26s ease, cardbuff 0.62s both; z-index: 21; }
 @keyframes cardbuff {
   0% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
   32% { box-shadow: 0 0 0 4px #2bd897, 0 0 30px 8px rgba(43, 216, 151, 0.85); transform: translateY(-7px) scale(1.06); filter: brightness(1.2); animation-timing-function: ease-out; }
@@ -497,7 +498,12 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .combatctl { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; flex: none; min-height: 52px; animation: combatctlin 0.4s ease both; }
 /* the threat (opponent) label sits out of flow on the left, so the buttons stay centred */
 .cbanner { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--threat-dk); background: color-mix(in srgb, var(--card) 82%, transparent); border: 2px solid color-mix(in srgb, var(--threat) 32%, var(--line)); padding: 7px 16px; border-radius: 12px; }
-.cbtns { display: flex; align-items: center; gap: 14px; }
+/* the post-combat / Skip buttons are ~2x the shop controls (scoped to .cbtns so the
+   tavern controls keep their size); extra gap so they never crowd each other */
+.cbtns { display: flex; align-items: center; gap: 28px; }
+.cbtns .btn.big { font-size: 32px; padding: 24px 48px; border-radius: 18px; gap: 16px; box-shadow: 0 5px 0 var(--shadow); }
+.cbtns .btn.big svg { width: 42px; height: 42px; }
+.cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
 /* post-combat Combat Log overlay */
 .logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
 @keyframes logfade { from { opacity: 0; } to { opacity: 1; } }

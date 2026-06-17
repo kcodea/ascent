@@ -100,6 +100,10 @@ export interface RunState {
   /** Card ids queued to be injected into the *next* tavern refresh (Soulfeeder adds Fodder).
    *  Consumed (and possibly auto-eaten by your Demons) when the tavern next refreshes. */
   pendingTavern: string[];
+  /** Persistent per-cardId stat buffs that apply to *every* copy of a card for the rest of the
+   *  run, wherever it appears — tavern, hand, board, summoned, discovered (Ritualist buffs all
+   *  Fodder this way). Baked in at every instantiation; the tavern display reads it live. */
+  cardBuffs: Record<string, { attack: number; health: number }>;
   /** The most recent tavern-Fodder auto-consume, for the UI to replay (show the Fodder
    *  then swirl it into the eater). Transient. */
   fodderEaten?: { eaterUid: string; fodderId: string }[];
@@ -155,6 +159,7 @@ export function createRun(seed: number): RunState {
     rngCursor: mixSeed(seed, 0, TAG.SHOP),
     uidSeq: 0,
     pendingTavern: [],
+    cardBuffs: {},
     fodderEatenSeq: 0,
   };
   rollShop(state);

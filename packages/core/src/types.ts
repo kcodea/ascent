@@ -59,6 +59,7 @@ export type EffectFactoryId =
   | 'deathrattleBuffRandom'
   | 'onFriendDeathBuffRandom'
   | 'rallyBuff' // Rally: when this attacks, buff your other minions (combat)
+  | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'deathrattleFillTribe'
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
@@ -76,6 +77,7 @@ export type EffectFactoryId =
   | 'buffOnBuy'
   | 'battlecryGrantKeyword'
   | 'endOfTurnBuff' // End of Turn: buff self (recruit)
+  | 'buffFodderEverywhere' // End of Turn: buff the Fodder card type for the whole run (Ritualist)
   // Demons — Consume (recruit-resolved half)
   | 'battlecryAddTavernFodder' // Soulfeeder: queue a Fodder into the next tavern
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
@@ -211,6 +213,8 @@ export interface CombatResult {
   /** Per-instance state to persist on the run board after combat, keyed by the board
    *  card's uid (Kennelmaster's Avenge-improved summon bonus). Only entries that changed. */
   playerSummonBonus?: { sourceUid: string; bonus: number }[];
+  /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
+  playerHandGrants?: string[];
 }
 
 /**
@@ -227,6 +231,8 @@ export interface CombatContext {
   getCard(id: string): CardDef;
   buff(target: Minion, attack: number, health: number, source: string): void;
   summon(side: Side, card: CardDef, nearUid?: string): Minion;
+  /** Queue a card to be added to that side's hand after combat (player only is persisted). */
+  grantToHand(cardId: string, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { applyChooseOne, applyEndOfTurn, applyOnBuy, castSpell, consumeTavernFodder, playCard } from './recruit';
+import { applyChooseOne, applyEndOfTurn, applyOnBuy, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
 
 /**
@@ -51,13 +51,14 @@ export function reduce(state: RunState, action: Action): RunState {
       if (!card) return state;
       s.shop.splice(i, 1);
       s.embers -= CONFIG.minionCost;
+      const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
       const bought: BoardCard = {
         uid: `b${s.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
-        // fold in any tavern buff (e.g. the hero power applied to this offer)
-        attack: card.attack + (offer.atk ?? 0),
-        health: card.health + (offer.hp ?? 0),
+        // fold in any tavern buff (e.g. the hero power applied to this offer) + the run buff
+        attack: card.attack + (offer.atk ?? 0) + cb.attack,
+        health: card.health + (offer.hp ?? 0) + cb.health,
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: false,
       };
@@ -223,12 +224,13 @@ export function reduce(state: RunState, action: Action): RunState {
       const id = s.discover[action.index];
       const def = id ? CARD_INDEX[id] : undefined;
       if (!def) return state;
+      const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
       s.hand.push({
         uid: `b${s.uidSeq++}`,
         cardId: def.id,
         tribe: def.tribe,
-        attack: def.attack,
-        health: def.health,
+        attack: def.attack + dcb.attack,
+        health: def.health + dcb.health,
         keywords: [...def.keywords],
         golden: false,
       });
@@ -377,6 +379,23 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
     for (const { sourceUid, bonus } of result.playerSummonBonus) {
       const card = s.board.find((c) => c.uid === sourceUid);
       if (card) card.summonBonus = bonus;
+    }
+  }
+  // Deathrattle-granted cards (Arcane Weaver → a Spirit Fire copy) land in the hand for
+  // the next recruit, win or lose — capped by the hand limit.
+  if (result.playerHandGrants) {
+    for (const cardId of result.playerHandGrants) {
+      const def = CARD_INDEX[cardId];
+      if (!def || s.hand.length >= CONFIG.handMax) continue;
+      s.hand.push({
+        uid: `b${s.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
     }
   }
   if (result.result === 'lose') s.resolve = Math.max(0, s.resolve - result.playerDamage);

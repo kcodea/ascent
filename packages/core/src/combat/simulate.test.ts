@@ -40,6 +40,23 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
   });
 
+  it('Arcane Weaver Deathrattle reports a Spirit Fire to grant to the hand after combat', () => {
+    // The Weaver dies to retaliation; its Deathrattle queues a Spirit Fire for the player's hand.
+    const p: BoardMinion[] = [{ cardId: 'weaver', attack: 1, health: 1 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 5 }];
+    const r = run(p, e, 5);
+    expect(r.result).toBe('lose');
+    expect(r.playerHandGrants).toEqual(['spiritfire']);
+  });
+
+  it('a golden Arcane Weaver grants two Spirit Fires; an enemy Weaver grants the player none', () => {
+    const golden = run([{ cardId: 'weaver', attack: 1, health: 1, golden: true }], [{ cardId: 'sandbag', attack: 5, health: 5 }], 5);
+    expect(golden.playerHandGrants).toEqual(['spiritfire', 'spiritfire']);
+    // An enemy Weaver dying must not stuff the *player's* hand.
+    const enemySide = run([{ cardId: 'sandbag', attack: 5, health: 5 }], [{ cardId: 'weaver', attack: 1, health: 1 }], 5);
+    expect(enemySide.playerHandGrants).toBeUndefined();
+  });
+
   it('attack order resumes after the front minion dies — does not skip the next', () => {
     // Player [1/1, 2/5, 3/5] vs a 1/20 wall: the 1/1 trades in and dies to retaliation,
     // then the SECOND minion (not the third) must swing next. Regression for the bug where

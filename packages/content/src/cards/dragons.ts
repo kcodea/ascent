@@ -76,6 +76,17 @@ export const DRAGONS: CardDef[] = [
     text: '**Start of Combat:** deal damage equal to its Attack, split across enemies.',
   },
   {
+    id: 'weaver',
+    name: 'Arcane Weaver',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'spiritfire' } }],
+    text: '**Deathrattle:** add a copy of **Spirit Fire** to your hand.',
+  },
+  {
     id: 'nadir',
     name: 'Nadir, Hoardlord',
     tribe: 'dragon',

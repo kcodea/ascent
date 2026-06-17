@@ -22,6 +22,12 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **2 new cards + feel polish** — **Arcane Weaver** (T4 Dragon; Deathrattle adds a Spirit Fire to
+  your hand after combat) and **Ritualist** (T5 Demon; End of Turn gives all Fodder +1/+1
+  *wherever it is* — a persistent run enchantment that follows every copy from any source). A soft
+  **dust puff** kicks up when you click the empty board (never on a card); dragged cards now **float**
+  after the cursor on a whisper of lag; and a deathrattle that buffs many minions at once (Spirit of
+  the Pack) now flashes them all **simultaneously**. Spirit of the Pack + Cling Drone got sprites.
 - **New cards + spell QoL** — **Drakko the Drummer** (T5; golden triples Battlecries, doesn't stack)
   and **Sylus the Reaper** (T5; Deathrattles proc an extra time, golden +2, stacks); Ember Pouch is
   now **Mana Pouch**. Spells can be cast by dragging them anywhere from the warband up (incl. the

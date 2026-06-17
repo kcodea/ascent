@@ -5,6 +5,43 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Arcane Weaver + Ritualist, board dust, drag float, simultaneous deathrattle buffs, 2 sprites
+A seven-item content + polish batch.
+- **New: Arcane Weaver** (Tier 4 Dragon, 3/4) — **Deathrattle: add a copy of Spirit Fire to your
+  hand.** Combat can't touch the recruit hand, so this is a *carry-back*: a new combat factory
+  `deathrattleGrantSpell` calls `ctx.grantToHand(cardId, side)`; `simulate()` accumulates player-side
+  grants into `CombatResult.playerHandGrants`, and `advanceAfterCombat` pushes each into the hand
+  after the replay (win or lose, capped by `handMax`). Golden Weaver grants two; an enemy Weaver
+  grants the player none. Art wired.
+- **New: Ritualist** (Tier 5 Demon, 2/5) — **End of Turn: all Fodder gets +1/+1, wherever it is.**
+  This is a *persistent per-cardId run buff*: a new `RunState.cardBuffs` map (`cardId → {atk,hp}`)
+  is folded into **every** instantiation of a card — bought (`buy`), summoned/conjured (recruit
+  `summon`), discovered (`discover`), the demon-consume math (`consumeTavernFodder`), and the live
+  tavern display (`shopView`) — so a Fodder from *any* source carries the accrued buff. The new
+  recruit factory `buffFodderEverywhere` (fires on `endOfTurn`) bumps `cardBuffs` for every
+  FD-keyworded card and immediately buffs the Fodder already on the board / in the hand. Golden
+  doubles; multiple Ritualists stack. Art wired.
+- **Board dust** — a soft, earthy puff of motes kicks up on a primary click of the *empty board*.
+  A `puffBoard` handler on the `.app` root ignores any click whose target is a card or control
+  (`.card, button, a, input, [role=dialog], .bar, .rtimer, .shopctl`) and is suppressed while
+  aiming the Hero Power or dragging — so it reads as touching the table, never a card. Purely
+  cosmetic (mirrors the spell-spark pattern; doesn't block other handlers).
+- **Drag float** — the dragged card now follows the cursor on a whisper of lag (`.dragcard`
+  `transition: transform 0.08s ease-out`) instead of being rigidly pinned; `.snap` / `.magslide`
+  still override with their own transitions.
+- **Simultaneous multi-target deathrattle buffs** — `buildBeats` now collapses a *run of
+  consecutive `buff` events* into one beat, so an effect that buffs many minions at once (Spirit of
+  the Pack giving every Beast +4/+4, a Rally aura) flashes them all together rather than one at a
+  time. (Previously each buff was its own beat → sequential.)
+- **Sprites wired:** Spirit of the Pack (`pack6`) and Cling Drone (`cling`) now have art.
+- **Tests (+5, 99):** Arcane Weaver reports a Spirit Fire grant (golden → two; enemy-side → none);
+  Ritualist's End of Turn buffs Fodder on board + in hand and sets the run buff; a Fodder bought or
+  consumed after a proc carries it. `typecheck` + `test` (**99**) pass; live (fresh dev server):
+  both card defs load with the right effects, all four sprites resolve via `artFor`, the drag
+  transition + `.boarddust` rule are in the live stylesheet, a background click puffs (6 motes,
+  auto-expires) while a card click does not, and a Spirit-of-the-Pack death emits the two
+  consecutive `+4/+4` buff events the new beat-grouping collapses.
+
 ### Mana Pouch + Drakko + Sylus, spells play "upward", CSV by type with golden column
 - **`docs/cards.csv` reorganised** into `# === TRIBE ===` sections, with new **`golden_text`** +
   **`golden_effect`** columns so the *tripled* version of every card is visible for triage (incl.

@@ -20,7 +20,11 @@ const INSERT_FRAC = 0.35;
 const TURN_SECONDS = 30; // base round timer (wave 1); grows +5s/wave, capped at 70 (see turnSeconds)
 const RING = 2 * Math.PI * 17; // countdown ring circumference
 
-function shopView(card: ShopCard, spellCostMod = 0): CardView {
+function shopView(
+  card: ShopCard,
+  spellCostMod = 0,
+  cardBuffs?: Record<string, { attack: number; health: number }>,
+): CardView {
   const c = CARD_INDEX[card.cardId];
   if (c.spell) {
     // A tavern spell: its own (modifiable) cost + a tier pill, no stat footer.
@@ -30,11 +34,13 @@ function shopView(card: ShopCard, spellCostMod = 0): CardView {
       target: c.target, tier: c.tier,
     };
   }
-  // A minion offer — fold in any tavern buff (e.g. the hero power) over its base stats,
-  // so a buffed offer reads its new stats (green) and carries them in when bought.
+  // A minion offer — fold in any tavern buff (the hero power) plus any persistent run buff
+  // (Ritualist's Fodder enchantment) over its base stats, so a buffed offer reads its new
+  // stats (green) and carries them in when bought.
+  const cb = cardBuffs?.[c.id] ?? { attack: 0, health: 0 };
   return {
     name: c.name, cardId: c.id, tribe: c.tribe,
-    attack: c.attack + (card.atk ?? 0), health: c.health + (card.hp ?? 0),
+    attack: c.attack + (card.atk ?? 0) + cb.attack, health: c.health + (card.hp ?? 0) + cb.health,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     text: c.text, cost: CONFIG.minionCost, tier: c.tier,
     baseAttack: c.attack, baseHealth: c.health,
@@ -85,6 +91,9 @@ export function Recruit() {
   // A one-shot spark burst at a screen point, fired when a spell is cast.
   const [spark, setSpark] = useState<{ x: number; y: number; key: number } | null>(null);
   const sparkKeyRef = useRef(0);
+  // A small dust puff where you click the empty board (not a card/control) — pure tactile feel.
+  const [dust, setDust] = useState<{ x: number; y: number; key: number } | null>(null);
+  const dustKeyRef = useRef(0);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   const [fodderAnim, setFodderAnim] = useState<
     { key: number; ghosts: { fid: string; x0: number; y0: number; w: number; h: number; dx: number; dy: number }[] } | null
@@ -514,6 +523,18 @@ export function Recruit() {
     setSpark({ x, y, key });
     window.setTimeout(() => setSpark((s) => (s?.key === key ? null : s)), 600);
   };
+
+  // A dust puff on a primary click of the *empty board* — never on a card or any control,
+  // so it reads as touching the table itself. Purely cosmetic (doesn't block other handlers).
+  const puffBoard = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (e.button !== 0 || heroArmed || drag) return;
+    const t = e.target as HTMLElement;
+    if (t.closest('.card, button, a, input, [role="dialog"], .bar, .rtimer, .shopctl')) return;
+    dustKeyRef.current += 1;
+    const key = dustKeyRef.current;
+    setDust({ x: e.clientX, y: e.clientY, key });
+    window.setTimeout(() => setDust((d) => (d?.key === key ? null : d)), 620);
+  };
   // The "carry" — your highest-Attack minion — auto-target for a targeted spell flung upward.
   const carryUid = (): string | undefined =>
     run.board.length ? run.board.reduce((a, b) => (b.attack > a.attack ? b : a)).uid : undefined;
@@ -586,6 +607,7 @@ export function Recruit() {
       className={`app${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }`}
+      onPointerDown={puffBoard}
     >
       <HudBar />
 
@@ -680,11 +702,11 @@ export function Recruit() {
               {shopGapIndex === i && <span className="dropslot" aria-hidden="true" />}
               <Card
                 uid={o.uid}
-                card={shopView(o)}
+                card={shopView(o, 0, run.cardBuffs)}
                 highlight={heroArmed}
                 targeted={heroArmed && aim?.targetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
-                onPointerDown={heroArmed ? undefined : beginDrag(o.uid, 'shop', shopView(o))}
+                onPointerDown={heroArmed ? undefined : beginDrag(o.uid, 'shop', shopView(o, 0, run.cardBuffs))}
               />
             </Fragment>
           ))}
@@ -813,6 +835,20 @@ export function Recruit() {
           <span className="ss-flash" />
           {[18, 70, 128, 162, 215, 268, 305, 340].map((a) => (
             <span className="ss-ray" key={a} style={{ '--a': `${a}deg` } as CSSProperties} />
+          ))}
+        </div>
+      )}
+
+      {/* Board dust: a soft puff of motes kicked up where you tapped the empty table. */}
+      {dust && (
+        <div className="boarddust" key={dust.key} style={{ left: dust.x, top: dust.y }} aria-hidden="true">
+          <span className="bd-puff" />
+          {[28, 96, 150, 205, 270, 322].map((a, i) => (
+            <span
+              className="bd-mote"
+              key={a}
+              style={{ '--a': `${a}deg`, '--d': `${16 + (i % 3) * 7}px` } as CSSProperties}
+            />
           ))}
         </div>
       )}

@@ -149,6 +149,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(ctx.rng.pick(friends), num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
 
+  /** Deathrattle (Arcane Weaver): add a copy of a spell to your hand after combat. Golden grants two. */
+  deathrattleGrantSpell: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side);
+  },
+
   /** Rally — when *this* minion attacks, buff your other living minions (+atk/+hp). */
   rallyBuff: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;

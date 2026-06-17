@@ -20,7 +20,7 @@ kennel,Kennelmaster,minion,beast,2,2,3,,,Each Beast you summon gains +1/+1. Aven
 cleaver,Ravenous Cleaver,minion,beast,3,2,4,,Cleave,,,,2x stats -> 4/8; Cleave,FALSE
 matron,Bristleback Matron,minion,beast,4,4,4,,,Each Beast you summon gets +2/+2.,buffOnSummon beast +2/+2,Each Beast you summon gets +4/+4.,summon buff +4/+4 (via combine),FALSE
 gnash,"Gnasher, the Overrun",minion,beast,5,6,6,,,"When it kills a minion, it attacks again.",reAttackOnKill,"When it kills a minion, it attacks again.",2x stats -> 12/12; re-attack unchanged,FALSE
-pack6,Spirit of the Pack,minion,beast,6,4,4,,,Deathrattle: give all your Beasts +4/+4.,deathrattleBuffTribe beast +4/+4,Deathrattle: give all your Beasts +8/+8.,board-wide +8/+8,FALSE
+pack6,Spirit of the Pack,minion,beast,6,4,4,,,Deathrattle: give all your Beasts +4/+4.,deathrattleBuffTribe beast +4/+4,Deathrattle: give all your Beasts +8/+8.,board-wide +8/+8,TRUE
 shaper,Wildwood Shaper,minion,beast,2,2,3,,,Choose One: give your Beasts +1/+1; or summon two 1/1 Strays.,chooseOne [buffTribe beast +1/+1 | summon stray x2],Choose One: give your Beasts +2/+2; or summon two 1/1 Strays.,both options doubled (Beasts +2/+2; or 4 Strays),FALSE
 #
 # === DRAGONS ===
@@ -29,6 +29,7 @@ cleric,Hoard Cleric,minion,dragon,2,1,3,,,Battlecry: give all your Dragons +1/+1
 cinder,Cinderwing Matron,minion,dragon,3,3,4,,,Battlecry: give other Dragons +1/+2.,battlecryBuffTribe dragon +1/+2 (not self),Battlecry: give other Dragons +2/+4.,other Dragons +2/+4,FALSE
 razor,Razorscale Warlord,minion,dragon,4,4,4,,,Battlecry: give your Dragons +2/+1.,battlecryBuffTribe dragon +2/+1,Battlecry: give your Dragons +4/+2.,Dragons +4/+2,FALSE
 chrom,Chromatic Caller,minion,dragon,4,3,5,,Start,"Start of Combat: deal damage equal to its Attack, split across enemies.",scSplitDamage,"Start of Combat: deal damage equal to its Attack, split across enemies.",splits 2x damage (Attack is doubled to 6),FALSE
+weaver,Arcane Weaver,minion,dragon,4,3,4,,,Deathrattle: add a copy of Spirit Fire to your hand.,deathrattleGrantSpell spiritfire,Deathrattle: add 2 copies of Spirit Fire to your hand.,grants 2 Spirit Fires,TRUE
 nadir,"Nadir, Hoardlord",minion,dragon,5,5,6,,Taunt|Shield,Battlecry: give your Dragons +2/+2.,battlecryBuffTribe dragon +2/+2,Battlecry: give your Dragons +4/+4.,Dragons +4/+4,FALSE
 gale,Galewing Apex,minion,dragon,6,6,6,,Start,"Start of Combat: 3 to every enemy, then 3 more to a random enemy per other Dragon.",scAoePerTribe base 3 per 3,"Start of Combat: 6 to every enemy, then 6 more to a random enemy per other Dragon.",AoE 6 + 6 per Dragon,FALSE
 #
@@ -43,7 +44,7 @@ ghast,Ghastweaver,minion,undead,6,5,5,,,Deathrattle: fill your board with random
 #
 # === MECH ===
 drone,Spare Part Drone,minion,mech,1,2,1,,Shield,,,,2x stats -> 4/2; Shield,TRUE
-cling,Cling Drone,minion,mech,2,2,2,,Magnetic,,,,2x stats -> 4/4; merges its (doubled) stats into a Mech,FALSE
+cling,Cling Drone,minion,mech,2,2,2,,Magnetic,,,,2x stats -> 4/4; merges its (doubled) stats into a Mech,TRUE
 selfless,Selfless Sentinel,minion,mech,2,2,1,,,Deathrattle: give a friend a Divine Shield.,deathrattleGrantShield,Deathrattle: give a friend a Divine Shield.,2x stats; grants 1 Shield (unchanged),FALSE
 cap,Shield Capacitor,minion,mech,3,2,4,,,"When a friendly Shield breaks, give another friend a Shield.",onShieldBreakGrantShield,"When a friendly Shield breaks, give another friend a Shield.",2x stats; effect unchanged,FALSE
 arc,Arclight Reactor,minion,mech,4,3,3,,,"When a friendly Mech Shield breaks, deal 3 to a random enemy.",onShieldBreakDamage 3,"When a friendly Mech Shield breaks, deal 6 to a random enemy.",deal 6 on break,FALSE
@@ -57,6 +58,7 @@ pact,Pactstone Acolyte,minion,demon,2,2,3,,,"When you consume a minion, gain an 
 brood,Brood Matron,minion,demon,3,3,3,,,"Each time a friend dies, summon a 1/1 Imp.",onFriendDeathSummon impscrap,"Each time a friend dies, summon a 1/1 Imp.",2x stats; summons 1 Imp/death (count unchanged),FALSE
 maw,Maw of the Pit,minion,demon,4,4,5,,Taunt,"On consume, gain a Divine Shield.",onConsumeGrantSelfKeyword Shield,"On consume, gain a Divine Shield.",2x stats; gains Shield (unchanged),FALSE
 glut,Ravening Glutton,minion,demon,5,5,5,,Cleave|Consume,"On consume, gain +2/+2.",onConsumeBuffSelf +2/+2,"On consume, gain +4/+4.",+4/+4 per consume,FALSE
+ritualist,Ritualist,minion,demon,5,2,5,,,"End of Turn: all Fodder gets +1/+1, wherever it is.",buffFodderEverywhere +1/+1,"End of Turn: all Fodder gets +2/+2, wherever it is.",+2/+2 to all Fodder per turn,TRUE
 sov,Abyssal Sovereign,minion,demon,6,7,7,,Start,Start of Combat: destroy the enemy with the highest Attack.,scDestroyHighestAttack,Start of Combat: destroy the enemy with the highest Attack.,2x stats; destroys 1 (unchanged),FALSE
 #
 # === SPELLS (cost, not stats; spells do NOT triple) ===

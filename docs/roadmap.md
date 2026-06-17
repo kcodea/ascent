@@ -20,8 +20,11 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       a `targetUid` on `play` + the **hero-power aim-line** gesture, used by Spirit Fire). A *minion*
       whose Battlecry targets needs a `battlecryBuffTarget`-style factory + a place-then-target UI
       gesture (a spell just vanishes; a minion also takes a board slot). Small once a card needs it.
-- [ ] **Cards for the keyword triggers.** Avenge (X) and End of Turn are wired (events + factories +
-      pills) but no card declares them yet. Immune / Stealth work on any card today.
+- [ ] **More cards for the keyword triggers.** End of Turn now has a card (Ritualist) and Avenge (X)
+      is used by Kennelmaster; `endOfTurnBuff` (buff self) still has no card. Immune / Stealth work on
+      any card today. Two reusable primitives also just landed for future cards: `deathrattleGrantSpell`
+      (a combat death adds a card to your hand after combat, via `CombatResult.playerHandGrants`) and
+      `cardBuffs` (a persistent per-cardId run enchantment applied at every instantiation).
 
 ## M3 — meta
 

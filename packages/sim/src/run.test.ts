@@ -304,6 +304,48 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.cardId === 'gnash')?.keywords).toContain('P');
   });
 
+  it("Ritualist's End of Turn buffs all Fodder — existing copies and the run-level card buff", () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'recruit',
+      embers: 0,
+      shop: [],
+      board: [
+        { uid: 'r', cardId: 'ritualist', tribe: 'demon', attack: 2, health: 5, keywords: [], golden: false },
+        { uid: 'f1', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false },
+      ],
+      hand: [{ uid: 'f2', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false }],
+    };
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist before combat
+    expect(s.cardBuffs.fred).toEqual({ attack: 1, health: 1 }); // persists for the run
+    const f1 = s.board.find((c) => c.uid === 'f1');
+    expect([f1?.attack, f1?.health]).toEqual([2, 2]); // Fodder on the board buffed now
+    const f2 = s.hand.find((c) => c.uid === 'f2');
+    expect([f2?.attack, f2?.health]).toEqual([2, 2]); // Fodder in the hand too
+  });
+
+  it('Fodder found after a Ritualist proc carries the run buff — bought from the tavern', () => {
+    let s: RunState = { ...createRun(1), embers: 3, shop: [{ uid: 'sf', cardId: 'fred' }], hand: [], board: [], cardBuffs: { fred: { attack: 2, health: 2 } } };
+    s = reduce(s, { type: 'buy', uid: 'sf' });
+    const bought = s.hand.find((c) => c.cardId === 'fred');
+    expect([bought?.attack, bought?.health]).toEqual([3, 3]); // base 1/1 + the +2/+2 run buff
+  });
+
+  it('a Demon consuming buffed Fodder gains the buffed stats (×multiplier)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      board: [{ uid: 'imp', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
+      cardBuffs: { fred: { attack: 2, health: 2 } },
+      pendingTavern: ['fred'],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' }); // advance → next tavern injects Fred → the Imp eats it
+    const imp = s.board.find((c) => c.cardId === 'imp');
+    // Voracious Imp eats a (1+2)/(1+2) Fred at ×2 → +6/+6 → 8/8
+    expect([imp?.attack, imp?.health]).toEqual([8, 8]);
+  });
+
   it('Magnetic merges a Cling Drone onto a friendly Mech (no new slot)', () => {
     let s: RunState = {
       ...createRun(1),

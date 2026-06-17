@@ -32,6 +32,7 @@ export function simulate(
   const bus = new CombatBus();
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
+  const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
 
   const boards: Record<Side, Minion[]> = {
     player: player.map((b) => instantiate(b, 'player', cards, mkUid)),
@@ -94,6 +95,11 @@ export function simulate(
       events.push({ type: 'summon', minion: snapshot(minion), side, index });
       bus.emit('onSummon', { minion, side });
       return minion;
+    },
+    grantToHand: (cardId, side) => {
+      // Combat can't touch the recruit hand directly; record player-side grants so the
+      // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy).
+      if (side === 'player') handGrants.push(cardId);
     },
   };
 
@@ -303,5 +309,12 @@ export function simulate(
     .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0)
     .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
 
-  return { events, result, playerDamage, initial, playerSummonBonus };
+  return {
+    events,
+    result,
+    playerDamage,
+    initial,
+    playerSummonBonus,
+    playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
+  };
 }

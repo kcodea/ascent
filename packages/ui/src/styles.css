@@ -264,8 +264,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
 @keyframes inspectpop { from { opacity: 0; transform: scale(1.45); } to { opacity: 1; transform: scale(1.9); } }
 
-/* custom drag: a solid card follows the cursor; the source dims; invalid drops snap back */
-.dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); transition: none; will-change: transform; }
+/* custom drag: a solid card follows the cursor; the source dims; invalid drops snap back.
+   A whisper of lag (0.08s) so the card floats after the cursor instead of rigidly pinned;
+   .snap / .magslide below override with their own (longer) transitions. */
+.dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); transition: transform 0.08s ease-out; will-change: transform; }
 .dragcard.snap { transition: transform 0.16s cubic-bezier(0.34, 1.2, 0.64, 1); }
 /* a Magnetic card sliding + shrinking into its Mech before it merges (slow + readable) */
 .dragcard.magslide { transition: transform 0.72s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -339,6 +341,29 @@ canvas.spr { image-rendering: pixelated; display: block; }
   0% { opacity: 0; transform: rotate(var(--a)) translateY(-4px) scaleY(0.5); }
   30% { opacity: 1; }
   100% { opacity: 0; transform: rotate(var(--a)) translateY(-54px) scaleY(1); }
+}
+
+/* board dust: a soft, earthy puff of motes kicked up when you tap the empty table.
+   Muted brown, quick + subtle — it should read as touching the table, not a spell. */
+.boarddust { position: fixed; width: 0; height: 0; z-index: 80; pointer-events: none; }
+.bd-puff {
+  position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; margin: -15px;
+  border-radius: 50%; background: radial-gradient(circle, rgba(107, 86, 64, 0.32) 0%, transparent 68%);
+  transform: scale(0.3); animation: bdpuff 0.6s ease-out forwards;
+}
+@keyframes bdpuff {
+  0% { transform: scale(0.3); opacity: 0.6; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+.bd-mote {
+  position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; margin: -2.5px;
+  border-radius: 50%; background: rgba(120, 96, 70, 0.85); opacity: 0;
+  transform: rotate(var(--a)) translateY(0); animation: bdmote 0.62s ease-out forwards;
+}
+@keyframes bdmote {
+  0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.6); }
+  25% { opacity: 0.6; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(1); }
 }
 .card.dragsrc { opacity: 0.3; }
 .zone.sellglow .row { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: 0 0 0 3px var(--acc), 0 0 24px -2px color-mix(in srgb, var(--acc) 75%, transparent); border-radius: 16px; }

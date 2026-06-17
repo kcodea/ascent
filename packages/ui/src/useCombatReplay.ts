@@ -97,10 +97,14 @@ const DELAY: Record<string, number> = {
 const FLOAT_MS = 1250;
 
 /**
- * Combat beats. An action (attack / SC / summon / buff / reborn) is its own beat —
- * the wind-up — and the run of result events it caused (damage, shields, poison,
+ * Combat beats. An action (attack / SC / summon / reborn) is its own beat — the
+ * wind-up — and the run of result events it caused (damage, shields, poison,
  * deaths) is the *next* beat, where everything lands at once. So an attacker lunges
  * in (beat 1), then it and its target take damage together (beat 2).
+ *
+ * A run of consecutive `buff` events is *also* collapsed into one beat: a single
+ * effect that buffs many minions at once (Spirit of the Pack giving every Beast
+ * +4/+4, a Rally aura) fires them all together rather than one minion at a time.
  */
 const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'death']);
 interface Beat {
@@ -113,8 +117,11 @@ function buildBeats(events: CombatEvent[]): Beat[] {
   let i = 0;
   while (i < events.length) {
     const start = i;
-    if (RESULT_TYPES.has(events[i]!.type)) {
+    const t = events[i]!.type;
+    if (RESULT_TYPES.has(t)) {
       while (i < events.length && RESULT_TYPES.has(events[i]!.type)) i++; // group the impact
+    } else if (t === 'buff') {
+      while (i < events.length && events[i]!.type === 'buff') i++; // a multi-target buff lands at once
     } else {
       i++; // a single action
     }

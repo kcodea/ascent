@@ -92,6 +92,17 @@ export const DEMONS: CardDef[] = [
     text: 'On consume, gain **+2/+2**.',
   },
   {
+    id: 'ritualist',
+    name: 'Ritualist',
+    tribe: 'demon',
+    tier: 5,
+    attack: 2,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'buffFodderEverywhere', params: { attack: 1, health: 1 } }],
+    text: '**End of Turn:** all Fodder gets **+1/+1**, wherever it is.',
+  },
+  {
     id: 'sov',
     name: 'Abyssal Sovereign',
     tribe: 'demon',

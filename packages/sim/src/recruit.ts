@@ -34,6 +34,15 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions bake their recruit buffs in at doubled magnitude. */
 const gold = (c: BoardCard): number => (c.golden ? 2 : 1);
 
+/**
+ * The persistent per-cardId run buff (Ritualist enchants all Fodder). Applied to *every* new
+ * instance of the card — bought, summoned, conjured, discovered — and read live by the tavern
+ * display, so a copy from any source carries the accrued buff. Optional-chained for old saves.
+ */
+export function cardBuff(state: RunState, cardId: string): { attack: number; health: number } {
+  return state.cardBuffs?.[cardId] ?? { attack: 0, health: 0 };
+}
+
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
   buffOnBuy: (_ctx, self, params, { minion }) => {
@@ -115,6 +124,28 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   endOfTurnBuff: (_ctx, self, params) => {
     self.attack += num(params.attack) * gold(self);
     self.health += num(params.health) * gold(self);
+  },
+
+  /** Ritualist — End of Turn: every Fodder card type gains a *persistent* +atk/+hp for the rest
+   *  of the run (so future copies from the tavern, summons, Discover etc. carry it), and the
+   *  Fodder already on the board / in the hand gets it right now. Golden doubles; Ritualists stack. */
+  buffFodderEverywhere: (ctx, self, params) => {
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    const state = ctx.state;
+    state.cardBuffs ??= {};
+    for (const def of Object.values(CARD_INDEX)) {
+      if (!def.keywords.includes('FD')) continue;
+      const cur = (state.cardBuffs[def.id] ??= { attack: 0, health: 0 });
+      cur.attack += a;
+      cur.health += h;
+    }
+    for (const c of [...state.board, ...state.hand]) {
+      if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) {
+        c.attack += a;
+        c.health += h;
+      }
+    }
   },
 
   // --- Deathrattles that can also resolve out of combat (e.g. when Consumed). The
@@ -213,12 +244,13 @@ function makeContext(state: RunState): RecruitContext {
     state,
     summon: (card, nearUid) => {
       if (state.board.length >= CONFIG.boardMax) return undefined;
+      const buff = cardBuff(state, card.id); // a conjured Fodder carries Ritualist's run buff
       const minion: BoardCard = {
         uid: `b${state.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
-        attack: card.attack,
-        health: card.health,
+        attack: card.attack + buff.attack,
+        health: card.health + buff.health,
         keywords: [...card.keywords],
         golden: false,
       };
@@ -287,8 +319,9 @@ export function consumeTavernFodder(state: RunState): void {
     const eater = demons[rng.int(demons.length)]!;
     state.shop.splice(i, 1); // eaten — leaves the tavern
     const mult = fodderMultiplier(eater);
-    eater.attack += fodder.attack * mult;
-    eater.health += fodder.health * mult;
+    const buff = cardBuff(state, fodder.id); // Ritualist's run buff feeds the eater too
+    eater.attack += (fodder.attack + buff.attack) * mult;
+    eater.health += (fodder.health + buff.health) * mult;
     fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off
     eaten.push({ eaterUid: eater.uid, fodderId: fodder.id });
   }

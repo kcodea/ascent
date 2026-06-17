@@ -396,39 +396,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .li b { color: var(--ink); }
 .li svg { width: 13px; height: 13px; color: var(--acc-dk); }
 
-/* COMBAT ARENA */
-.arena { height: 100vh; display: flex; flex-direction: column; padding: 16px 22px 150px;
-  background: radial-gradient(80% 42% at 50% 0%, color-mix(in srgb, var(--threat) 16%, var(--bg)), transparent 60%),
-              radial-gradient(80% 42% at 50% 100%, color-mix(in srgb, var(--acc) 16%, var(--bg)), transparent 60%), var(--bg); }
-.atop { flex: none; text-align: center; position: relative; padding: 2px 0 6px; }
-.atop h1 { font-family: 'Outfit'; font-weight: 900; font-size: 22px; letter-spacing: 0.12em; }
-.asub { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--threat); margin-top: 3px; }
-.skip { position: absolute; top: 0; right: 0; font-family: 'Outfit'; font-weight: 700; font-size: 13px; padding: 8px 16px; border-radius: 11px; border: 2px solid var(--line); background: var(--card); color: var(--ink); display: flex; align-items: center; gap: 7px; cursor: pointer; }
-.skip svg { color: var(--ink2); }
-.endcombat { margin-top: 9px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; padding: 10px 28px; border-radius: 13px; border: 0; background: var(--acc); color: #fff; box-shadow: 0 4px 0 var(--acc-dk); display: inline-flex; align-items: center; gap: 8px; animation: endpop 0.3s ease; }
-.endcombat svg { color: #fff; }
-.endcombat:hover { filter: brightness(1.05); }
-@keyframes endpop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-.ascene { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 0; }
-.side { font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; display: flex; align-items: center; gap: 12px; }
-.side .rl { flex: 1; height: 2px; border-radius: 2px; }
-.side.foe { color: var(--threat-dk); } .side.foe .rl { background: linear-gradient(90deg, var(--threat), transparent); }
-.side.you { color: var(--acc-dk); justify-content: flex-end; } .side.you .rl { background: linear-gradient(90deg, transparent, var(--acc)); }
-.line { display: flex; gap: 14px; justify-content: center; align-items: center; padding: 8px 0; border-radius: 18px; min-height: var(--ch); }
-.line.foe { background: color-mix(in srgb, var(--threat) 8%, transparent); }
-.line.you { background: color-mix(in srgb, var(--acc) 9%, transparent); }
-.clash { height: 38px; display: flex; align-items: center; justify-content: center; gap: 14px; }
-.clash .ln { width: 90px; height: 2px; border-radius: 2px; background: var(--line); }
-.clash .vs { font-family: 'Outfit'; font-weight: 900; font-size: 14px; letter-spacing: 0.2em; color: var(--ink3); }
+/* COMBAT — units render in-place on the recruit board (the old full-screen arena layout
+   — .arena/.atop/.ascene/.side/.line/.clash — is gone; combat lives in Recruit now). */
 .unit { position: relative; width: var(--cw); height: var(--ch); transition: transform 0.16s cubic-bezier(0.34, 1.25, 0.64, 1); }
 .unit .card { width: 100%; height: 100%; animation: none; }
-.unit .nm { font-family: 'Outfit'; font-weight: 700; font-size: 11px; color: var(--ink2); margin-bottom: 5px; white-space: nowrap; max-width: 128px; overflow: hidden; text-overflow: ellipsis; }
-.tok { position: relative; width: 112px; height: 112px; border-radius: 20px; background: color-mix(in srgb, var(--c) 20%, var(--card)); border: 2px solid var(--line); display: grid; place-items: center; }
-.ua, .uh { position: absolute; bottom: -13px; width: 38px; height: 38px; border-radius: 11px; font-family: 'Outfit'; font-weight: 800; font-size: 20px; color: #fff; display: flex; align-items: center; justify-content: center; border: 3px solid var(--bg); }
-.ua { left: -8px; background: var(--atk); } .uh { right: -8px; background: var(--hpc); }
-.kb { position: absolute; top: -10px; right: -10px; display: flex; gap: 4px; }
-.kb i { width: 24px; height: 24px; border-radius: 50%; background: var(--c); display: grid; place-items: center; border: 3px solid var(--bg); }
-.kb i svg { width: 13px; height: 13px; color: #fff; }
 .unit.attacking .card { box-shadow: 0 0 0 3px var(--acc), 0 3px 0 var(--shadow); }
 .unit.struck .card { animation: struck 0.32s ease; }
 @keyframes struck { 0%, 100% { transform: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.25); } }
@@ -473,28 +444,15 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.summoned .card { animation: summonpop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes summonpop { 0% { transform: scale(0.2); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
 
-/* a kill shakes the board (hit-stop feel) */
-.ascene.shaking { animation: boardshake 0.3s ease; }
+/* a kill shakes the unit rows (hit-stop feel) — see .app.shaking */
 @keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }
-/* a soft vignette tint when the replay settles — green for a win, raspberry for a loss */
-.arena.done.win .ascene::after, .arena.done.lose .ascene::after { content: ''; position: absolute; inset: -12px; pointer-events: none; z-index: 13; border-radius: 18px; animation: resulttint 0.6s ease forwards; }
-.arena.done.win .ascene::after { background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(34, 190, 134, 0.26)); }
-.arena.done.lose .ascene::after { background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(229, 57, 99, 0.26)); }
+/* result vignette keyframe — used by .app.combat.done::after */
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
 .alog { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 30; text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: 17px; color: var(--ink); background: color-mix(in srgb, var(--card) 88%, transparent); padding: 9px 24px; border-radius: 14px; border: 2px solid var(--line); box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.45); pointer-events: none; max-width: 70vw; }
-.result { flex: none; display: flex; align-items: center; gap: 16px; justify-content: center; background: var(--card); border: 2px solid var(--line); border-radius: 15px; padding: 12px 18px; box-shadow: 0 4px 0 var(--shadow); }
-.verdict { font-family: 'Outfit'; font-weight: 900; font-size: 24px; letter-spacing: 0.06em; }
-.verdict.win { color: var(--acc-dk); } .verdict.lose { color: var(--threat-dk); } .verdict.draw { color: var(--ink2); }
-.rres { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--ink); }
-.rwhy { font-size: 13px; font-weight: 600; color: var(--ink2); flex: 1; }
-.climb { font-family: 'Outfit'; font-weight: 800; font-size: 15px; padding: 9px 22px; border-radius: 12px; border: 0; background: var(--acc); color: #fff; box-shadow: 0 4px 0 var(--acc-dk); display: flex; align-items: center; gap: 7px; cursor: pointer; }
-.climb svg { color: #fff; }
-@media (prefers-reduced-motion: reduce) { .unit, .unit .tok, .card, .sellfx { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .unit, .card, .sellfx { transition: none !important; animation: none !important; } }
 
 /* polish: keyboard focus, floating combat numbers, death pop */
-.card:focus-visible, .btn:focus-visible, .hero:focus-visible, .climb:focus-visible, .skip:focus-visible, .over .btn:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
-.ares { position: absolute; top: 4px; left: 0; font-family: 'Outfit'; font-weight: 800; font-size: 13px; color: var(--threat-dk); display: flex; align-items: center; gap: 6px; }
-.ares svg { width: 16px; height: 16px; color: var(--threat); }
+.card:focus-visible, .btn:focus-visible, .hero:focus-visible, .over .btn:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
 .float { position: absolute; top: -22px; left: 50%; font-family: 'Outfit'; font-weight: 900; font-size: 34px; pointer-events: none; z-index: 12; white-space: nowrap; text-shadow: 0 2px 5px rgba(0, 0, 0, 0.45); animation: floatup 1s ease forwards; }
 .float.dmg { color: #fff; background: var(--threat); padding: 2px 12px; border-radius: 11px; font-size: 30px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
 .float.poison { color: var(--poison); }

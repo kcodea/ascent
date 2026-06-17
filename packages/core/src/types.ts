@@ -75,8 +75,6 @@ export type EffectFactoryId =
   | 'battlecryGrantKeyword'
   | 'endOfTurnBuff' // End of Turn: buff self (recruit)
   // Demons — Consume (recruit-resolved half)
-  | 'battlecryConsume'
-  | 'consumeFodderOnSummon'
   | 'battlecryAddTavernFodder' // Soulfeeder: queue a Fodder into the next tavern
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'onConsumeBuffSelf'

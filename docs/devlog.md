@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Cleanup — removed the dead recruit-consume path + the old arena CSS
+Housekeeping from the two preceding reworks (no behaviour change):
+- **Dead recruit-consume code gone.** The Fodder rework left the old board-consume path unused —
+  removed `RECRUIT_FACTORIES.battlecryConsume` + `consumeFodderOnSummon`, the `consume()` context
+  method, `fireDeathrattle`, and the `battlecryConsume`/`consumeFodderOnSummon` `EffectFactoryId`s
+  (core type + zod schema). The on-consume *effects* (Pactstone/Maw/Glutton) and the `onConsume`
+  event stay — they're fired by `consumeTavernFodder`.
+- **Dead arena CSS gone.** Combat renders in-place now, so the old full-screen-arena rules were
+  unused — dropped `.arena/.atop/.ascene/.asub/.side/.line/.clash/.skip/.endcombat` (+ `endpop`),
+  the `.result/.verdict/.rres/.rwhy/.climb` result panel, `.ares`, and the legacy unit badges
+  `.unit .nm/.tok/.ua/.uh/.kb`. Kept everything still live (`.unit.*`, `.float`, `.proj`, `.alog`,
+  `boardshake`/`resulttint` keyframes). CSS bundle 42 → 37 KB.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**85**) + `build:web` pass; combat still renders
+  (enemy units, banner, narration) with no console errors.
+
 ### Detailed combat log, Divine-Shield effect art, visible Fodder consume
 - **Detailed combat log.** The post-combat log now spells out **every event with damage and the
   defender's remaining Health** — a new `narrateLog()` returns `{ text, kind }` per event (attacks

@@ -20,8 +20,6 @@ import type { BoardCard, RunState } from './state';
 interface RecruitContext {
   state: RunState;
   summon(card: CardDef, nearUid: string): BoardCard | undefined;
-  /** Demon Consume: destroy `victim`, fold its stats into `consumer`, fire `onConsume`. */
-  consume(consumer: BoardCard, victim: BoardCard): void;
 }
 
 type RecruitFn = (
@@ -92,23 +90,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   // --- Demons (Consume, recruit-resolved: bakes into stats before combat) ---
-
-  /** Soulfeeder: Battlecry — destroy your weakest other friend and add its stats. */
-  battlecryConsume: (ctx, self) => {
-    const others = ctx.state.board.filter((c) => c !== self);
-    if (others.length === 0) return;
-    const victim = others.reduce((a, b) => (b.attack + b.health < a.attack + a.health ? b : a));
-    ctx.consume(self, victim);
-  },
-
-  /** Voracious Imp: when a **Fodder**-keyword minion is played/summoned beside it, eat it.
-   *  Strictly the keyword — plain tokens (e.g. a Beast Stray) are not Fodder and are safe.
-   *  (Legacy: fodder now lives in the tavern and is auto-eaten — see `consumeTavernFodder`.) */
-  consumeFodderOnSummon: (ctx, self, _params, { minion }) => {
-    if (minion === self) return;
-    if (!minion.keywords.includes('FD')) return;
-    ctx.consume(self, minion);
-  },
 
   /** Soulfeeder: Battlecry — queue Fodder (Fred) into the *next* tavern refresh (golden adds 2). */
   battlecryAddTavernFodder: (ctx, self, params) => {
@@ -208,17 +189,6 @@ function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target: BoardC
   }
 }
 
-/** Run a destroyed minion's own Deathrattle out of combat (it was Consumed/destroyed). */
-function fireDeathrattle(ctx: RecruitContext, victim: BoardCard): void {
-  const def = CARD_INDEX[victim.cardId];
-  if (!def) return;
-  for (const effect of def.effects) {
-    if (effect.on !== 'onDeath') continue;
-    const fn = RECRUIT_FACTORIES[effect.do];
-    if (fn) fn(ctx, victim, effect.params ?? {}, { minion: victim });
-  }
-}
-
 /** Fire a board-wide recruit trigger (`onBuy` / `onSummon`). */
 function fire(
   ctx: RecruitContext,
@@ -255,16 +225,6 @@ function makeContext(state: RunState): RecruitContext {
       state.board.splice(near >= 0 ? near + 1 : state.board.length, 0, minion);
       fire(ctx, 'onSummon', { minion });
       return minion;
-    },
-    consume: (consumer, victim) => {
-      const i = state.board.indexOf(victim);
-      if (i < 0) return;
-      state.board.splice(i, 1);
-      consumer.attack += victim.attack;
-      consumer.health += victim.health;
-      // Deathrattle fires out of combat too — the consumed minion was destroyed.
-      fireDeathrattle(ctx, victim);
-      fire(ctx, 'onConsume', { minion: consumer });
     },
   };
   return ctx;

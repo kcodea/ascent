@@ -51,8 +51,6 @@ export const EffectFactoryIdSchema = z.enum([
   'buffOnBuy',
   'battlecryGrantKeyword',
   'endOfTurnBuff',
-  'battlecryConsume',
-  'consumeFodderOnSummon',
   'battlecryAddTavernFodder',
   'avengeImproveSummon',
   'onConsumeBuffSelf',

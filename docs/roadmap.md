@@ -39,17 +39,6 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 
 ## Backlog / ideas (unscheduled)
 
-- [ ] **Remove the legacy recruit-consume path.** The Fodder rework made Demons eat Fodder from the
-      tavern (`consumeTavernFodder`); the old "consume a board minion" path is now unused —
-      `RECRUIT_FACTORIES.battlecryConsume` + `consumeFodderOnSummon`, `makeContext().consume`, and its
-      out-of-combat Deathrattle firing have no card referencing them. Remove them (and the matching
-      `EffectFactoryId`s / schema entries) once we're sure no upcoming card wants board-consume.
-- [ ] **Audit/remove dead arena CSS.** Combat is now rendered in-place by `Recruit` (the separate
-      `Arena.tsx` was deleted). The combat **building blocks** are still in use (`.unit.*`, `.float`,
-      `.proj`, `.clash`, `.alog`) but several old full-screen-arena rules are likely dead now
-      (`.arena`, `.atop`, `.ascene`, `.side`, `.line`, and possibly `.result`/`.verdict`/`.skip`/
-      `.endcombat` if not shared with GameOver/Omen). Sweep `styles.css` and drop the unused ones.
-
 - [ ] **Tavern-targeting for spells (and more cards).** The hero power (Fortify) can now buff a tavern
       offer — `ShopCard` carries `atk`/`hp`/`keywords` and `buy` bakes them in. Extend this to *spells*:
       add a target scope that includes the tavern (vs `target: 'friendly'`), and teach the cast path

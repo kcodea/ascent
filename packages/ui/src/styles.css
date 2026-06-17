@@ -68,7 +68,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .chip .l { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
 .hero { display: flex; align-items: center; gap: 9px; background: var(--card); border: 2px solid var(--line); border-radius: 13px; padding: 4px 14px 4px 5px; }
 .hero:hover:not(.spent) { border-color: var(--acc); }
-.hero.spent { cursor: default; } /* never fade the hero/portrait, even when it can't be used */
+/* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
+   arrow) so moving onto a spent hero doesn't visibly switch/flicker the cursor */
+.hero.spent { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .hero .f { width: 34px; height: 34px; border-radius: 10px; background: var(--ink); display: grid; place-items: center; }
 .hero .f svg { width: 19px; height: 19px; color: var(--acc); }
 .hero .nm { font-family: 'Outfit'; font-weight: 700; font-size: 13px; }
@@ -157,8 +159,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
-/* cost badge — overhangs the card's top-left corner, solid orange with white text (~50% bigger) */
-.cost { position: absolute; top: -11px; left: -11px; width: 40px; height: 40px; border-radius: 50%; background: var(--acc); border: 3px solid var(--card); font-family: 'Outfit'; font-weight: 800; font-size: 21px; color: #fff; display: grid; place-items: center; z-index: 6; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28); }
+/* cost badge — the cost number sits inside an ember (flame), overhanging the top-left corner */
+.cost { position: absolute; top: -14px; left: -13px; width: 47px; height: 47px; z-index: 6; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); }
+.cost svg { width: 100%; height: 100%; color: var(--acc); }
+.cost .costn { position: absolute; inset: 0; display: grid; place-items: center; padding-top: 10px; font-family: 'Outfit'; font-weight: 800; font-size: 17px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
 .tierbadge { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 10px; border-radius: 7px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
 .tierbadge[data-tier="1"] { background: #74809a; }
@@ -196,6 +200,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* keyword tooltip — reveals after ~1.5s of hover (handoff) */
 .tip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); width: 210px; background: var(--ink); color: #fff; border-radius: 11px; padding: 10px 12px; font-size: 11.5px; line-height: 1.4; font-weight: 600; box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55); opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s; }
 .card:hover .tip { opacity: 1; transition-delay: 1.5s; }
+/* hero-power tooltip — same dark pill as the keyword tip, popping above the corner tray */
+.herotip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: 248px; background: var(--ink); color: #fff; border-radius: 12px; padding: 11px 14px; font-size: 12px; line-height: 1.45; font-weight: 600; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+.herotip b { color: var(--acc); }
+.hero:hover .herotip { opacity: 1; transition-delay: 0.35s; }
 .tiprow + .tiprow { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
 
 /* golden (tripled) minion */

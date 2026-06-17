@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Cost-in-an-ember, styled hero tooltip + cursor fix, shop gets the warband lift-out drag
+- **Cost sits inside an ember (flame).** The cost badge was a plain orange circle; it's now the ember
+  flame `Icon` (orange) with the cost number (white) over its bulb, still overhanging the card's
+  top-left corner — visually tying the cost to Embers (the currency).
+- **Spent-hero cursor fixed.** `.hero.spent` used `cursor: default` (the OS arrow), so moving onto a
+  used hero power visibly switched/flickered away from the game's custom SVG cursors. It now keeps the
+  custom `gauntlet_default` cursor — no jarring switch. (The Embers/Resolve chips are `pointer-events:
+  none`, so only the hero showed this.)
+- **Hero-power tooltip now matches the aesthetic.** Replaced the native `title=""` (ugly OS tooltip)
+  with a styled `.herotip` — the same dark rounded pill as the card keyword tooltips, "Fortify" in
+  orange, popping above the corner tray on hover. Reads "Used this wave." when the power is spent.
+- **Shop drag = warband drag (no more "shadow").** Buying used the dim-shadow (`.dragsrc` opacity) — the
+  dragged offer stayed dimmed in place while a copy floated. Now the shop uses the warband's **lift-out
+  + FLIP**: the dragged offer leaves the row entirely (the floating copy *is* the card) and the rest
+  **slide to close the gap**; on drop it buys. Implemented by adding `displayShop` (filters the dragged
+  offer, mirroring `displayBoard`), giving shop cards `data-uid`, folding the spell's shown/hidden state
+  into `flipKey`, and extending the FLIP `useLayoutEffect` to track **both** the tavern and warband
+  rows. Verified live: dragging an offer lifts it out (no `.dragsrc`), the others slide, release on the
+  hand buys it, and the row closes up.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**75**) + `build:web` pass; cost badge, spent-hero
+  cursor (`gauntlet_default`), styled tooltip, and shop lift-out/slide/buy all confirmed live.
+  `TURN_SECONDS` test bump reverted to 30.
+
 ### Scale the board to the viewport (16:9 → 21:9), overhang cost badge, Stray ≠ Fodder
 - **Stray is no longer treated as Fodder.** `consumeFodderOnSummon` now matches **strictly the `FD`
   keyword** (dropped the "any token" fallback), so a Voracious Imp won't eat a summoned Beast Stray.

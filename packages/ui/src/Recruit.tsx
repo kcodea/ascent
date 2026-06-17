@@ -280,16 +280,27 @@ export function Recruit() {
     (drag.source === 'board' || (drag.source === 'hand' && run.board.length < CONFIG.boardMax));
   // The dragged board minion leaves the row immediately and stays out for the whole drag.
   const displayBoard = draggingBoard ? run.board.filter((m) => m.uid !== drag!.uid) : run.board;
+  // Same lift-out for the shop: a dragged offer leaves the row and the rest close up (FLIP),
+  // instead of leaving a dimmed "shadow" card in place while you buy.
+  const draggingShop = !!drag?.active && drag.source === 'shop';
+  const displayShop = draggingShop ? run.shop.filter((o) => o.uid !== drag!.uid) : run.shop;
   // Where the empty drop-slot opens (insertion index among the displayed cards), or -1.
   const gapIndex = overWarband
     ? warbandIndexAt(drag!.x, drag!.source === 'board' ? drag!.uid : undefined)
     : -1;
-  const flipKey = displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
+  const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
+  const flipKey =
+    displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
 
-  // FLIP: slide warband cards from their old spots to new ones — live as the drop slot
-  // moves during a drag, and when the board reorders (play / sell / summon / reposition).
+  // FLIP: slide shop + warband cards from their old spots to new ones — live as the drop
+  // slot moves during a drag, and when either row changes (buy / play / sell / summon /
+  // reposition / lift-out). Both rows are tracked so a lifted-out card closes the gap.
   useLayoutEffect(() => {
-    const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]')];
+    const cards = [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]',
+      ),
+    ];
     // Drop any in-flight FLIP first, so we measure each card's *true* layout position
     // and not an interpolated transform — otherwise rapid drags compound the deltas and
     // fling cards off-screen.
@@ -412,19 +423,19 @@ export function Recruit() {
 
       <div className={`zone${sellGlow ? ' sellglow' : ''}`} data-zone="tavern">
         <div className="row">
-          {run.shop.map((o) => (
+          {displayShop.map((o) => (
             <Card
               key={o.uid}
+              uid={o.uid}
               card={shopView(o.cardId)}
-              dimmed={isDragging(o.uid)}
               onPointerDown={beginDrag(o.uid, 'shop', shopView(o.cardId))}
             />
           ))}
-          {run.spell && (
+          {run.spell && !(draggingShop && drag!.uid === run.spell.uid) && (
             <Card
               key={run.spell.uid}
+              uid={run.spell.uid}
               card={shopView(run.spell.cardId, run.spellCostMod)}
-              dimmed={isDragging(run.spell.uid)}
               onPointerDown={beginDrag(run.spell.uid, 'shop', shopView(run.spell.cardId, run.spellCostMod))}
             />
           )}

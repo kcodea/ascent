@@ -22,6 +22,11 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Cleaner buying** — dragging a shop card now lifts it out and the rest slide to close the gap (same
+  feel as reordering the warband), instead of leaving a dimmed "shadow" behind.
+- **Cost-in-an-ember** — the card cost now sits inside a little ember/flame badge over the corner.
+- **Hero polish** — the hero-power tooltip is now a styled pill (matching the card tooltips) and the
+  cursor no longer flickers when hovering a used hero power.
 - **Scales to your screen** — cards now grow with the viewport height (clamped), so the board fills
   16:9 up to 21:9 / ultrawide instead of sitting tiny in the middle.
 - **Cost badge** hangs over the card's top-left corner — solid orange, white text, bigger.

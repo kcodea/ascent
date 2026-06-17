@@ -92,6 +92,19 @@ export function Recruit() {
     }
     return i;
   };
+  // Insertion index among the shop's *minion* offers (the spell stays pinned at the end).
+  const shopIndexAt = (x: number, excludeUid?: string): number => {
+    const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .row .card[data-uid]')].filter(
+      (c) => c.getAttribute('data-uid') !== run.spell?.uid,
+    );
+    let i = 0;
+    for (const c of cards) {
+      if (c.getAttribute('data-uid') === excludeUid) continue;
+      const r = c.getBoundingClientRect();
+      if (x > r.left + r.width / 2) i++;
+    }
+    return i;
+  };
 
   const beginDrag = (uid: string, source: DragSource, view: CardView) => (e: ReactPointerEvent) => {
     if (e.button !== 0 || timeUp) return; // no dragging once the turn timer is up
@@ -284,13 +297,17 @@ export function Recruit() {
   // instead of leaving a dimmed "shadow" card in place while you buy.
   const draggingShop = !!drag?.active && drag.source === 'shop';
   const displayShop = draggingShop ? run.shop.filter((o) => o.uid !== drag!.uid) : run.shop;
+  // A dragged offer (not the pinned spell) over the tavern reorders the shop — open a slot.
+  const overShop = draggingShop && overZone === 'tavern' && drag!.uid !== run.spell?.uid;
+  const shopGapIndex = overShop ? shopIndexAt(drag!.x, drag!.uid) : -1;
   // Where the empty drop-slot opens (insertion index among the displayed cards), or -1.
   const gapIndex = overWarband
     ? warbandIndexAt(drag!.x, drag!.source === 'board' ? drag!.uid : undefined)
     : -1;
   const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
   const flipKey =
-    displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
+    displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
+    displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
 
   // FLIP: slide shop + warband cards from their old spots to new ones — live as the drop
   // slot moves during a drag, and when either row changes (buy / play / sell / summon /
@@ -335,6 +352,12 @@ export function Recruit() {
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
     if (d.source === 'shop' && zone === 'hand') {
       dispatch({ type: 'buy', uid: d.uid });
+      return true;
+    }
+    // A shop offer dropped back in the tavern reorders it (so it lands where you drop it,
+    // like the warband, instead of snapping back). The spell stays pinned at the end.
+    if (d.source === 'shop' && zone === 'tavern' && d.uid !== run.spell?.uid) {
+      dispatch({ type: 'reorderShop', uid: d.uid, toIndex: shopIndexAt(x, d.uid) });
       return true;
     }
     if ((d.source === 'board' || d.source === 'hand') && zone === 'tavern') {
@@ -423,14 +446,17 @@ export function Recruit() {
 
       <div className={`zone${sellGlow ? ' sellglow' : ''}`} data-zone="tavern">
         <div className="row">
-          {displayShop.map((o) => (
-            <Card
-              key={o.uid}
-              uid={o.uid}
-              card={shopView(o.cardId)}
-              onPointerDown={beginDrag(o.uid, 'shop', shopView(o.cardId))}
-            />
+          {displayShop.map((o, i) => (
+            <Fragment key={o.uid}>
+              {shopGapIndex === i && <span className="dropslot" aria-hidden="true" />}
+              <Card
+                uid={o.uid}
+                card={shopView(o.cardId)}
+                onPointerDown={beginDrag(o.uid, 'shop', shopView(o.cardId))}
+              />
+            </Fragment>
           ))}
+          {shopGapIndex >= displayShop.length && <span className="dropslot" aria-hidden="true" />}
           {run.spell && !(draggingShop && drag!.uid === run.spell.uid) && (
             <Card
               key={run.spell.uid}

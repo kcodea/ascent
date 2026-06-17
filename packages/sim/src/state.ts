@@ -103,6 +103,7 @@ export type Action =
   | { type: 'freeze' }
   | { type: 'upgrade' }
   | { type: 'reposition'; uid: string; toIndex: number }
+  | { type: 'reorderShop'; uid: string; toIndex: number }
   | { type: 'heroPower'; uid: string }
   | { type: 'discover'; index: number }
   | { type: 'faceOmen' }

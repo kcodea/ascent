@@ -22,6 +22,11 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **New T1 spells** — **Ember Pouch** (gain an Ember) and **Bulwark** (+0/+1 and Taunt to a friend)
+  join Spirit Fire in the rotating spell slot.
+- **Reorderable shop** — you can now drag shop offers to rearrange them (like the warband), so a
+  dragged card lands where you drop it instead of snapping back; the spell stays pinned on the right.
+- **Bigger cost badge** — the ember cost badge is 2× larger.
 - **Cleaner buying** — dragging a shop card now lifts it out and the rest slide to close the gap (same
   feel as reordering the warband), instead of leaving a dimmed "shadow" behind.
 - **Cost-in-an-ember** — the card cost now sits inside a little ember/flame badge over the corner.

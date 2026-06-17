@@ -160,9 +160,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
 /* cost badge — the cost number sits inside an ember (flame), overhanging the top-left corner */
-.cost { position: absolute; top: -14px; left: -13px; width: 47px; height: 47px; z-index: 6; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); }
+.cost { position: absolute; top: -24px; left: -22px; width: 94px; height: 94px; z-index: 6; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.42)); }
 .cost svg { width: 100%; height: 100%; color: var(--acc); }
-.cost .costn { position: absolute; inset: 0; display: grid; place-items: center; padding-top: 10px; font-family: 'Outfit'; font-weight: 800; font-size: 17px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.cost .costn { position: absolute; inset: 0; display: grid; place-items: center; padding-top: 20px; font-family: 'Outfit'; font-weight: 800; font-size: 34px; color: #fff; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5); }
 .tierbadge { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 10px; border-radius: 7px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
 .tierbadge[data-tier="1"] { background: #74809a; }

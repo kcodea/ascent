@@ -57,6 +57,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onConsumeGrantSelfKeyword',
   'spellBuffTarget',
   'castSpell',
+  'gainEmbers',
 ]);
 
 export const EffectDefSchema = z.object({

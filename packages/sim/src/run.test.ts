@@ -360,7 +360,7 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('buys a spell into the hand at its own cost (not the minion cost)', () => {
-    let s: RunState = { ...createRun(1), embers: 5 };
+    let s: RunState = { ...createRun(1), embers: 5, spell: { uid: 'sp', cardId: 'spiritfire' } };
     const def = CARD_INDEX[s.spell!.cardId]!;
     s = reduce(s, { type: 'buy', uid: s.spell!.uid });
     expect(s.embers).toBe(5 - (def.cost ?? 0)); // Spirit Fire costs 2, not 3
@@ -372,6 +372,7 @@ describe('run loop (@game/sim)', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 5,
+      spell: { uid: 'sp', cardId: 'spiritfire' },
       board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'buy', uid: s.spell!.uid });
@@ -384,12 +385,38 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('a targeted spell played with no valid target is not cast', () => {
-    let s: RunState = { ...createRun(1), embers: 5, board: [] };
+    let s: RunState = { ...createRun(1), embers: 5, board: [], spell: { uid: 'sp', cardId: 'spiritfire' } };
     s = reduce(s, { type: 'buy', uid: s.spell!.uid });
     const spell = s.hand.find((c) => c.cardId === 'spiritfire')!;
     const after = reduce(s, { type: 'play', uid: spell.uid }); // no targetUid
     expect(after.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // stays in hand
     expect(after.spellsCast).toBe(0);
+  });
+
+  it('Ember Pouch gains an Ember when cast (net-neutral after its 1 cost)', () => {
+    let s: RunState = { ...createRun(1), embers: 5, spell: { uid: 'sp', cardId: 'emberpouch' } };
+    s = reduce(s, { type: 'buy', uid: s.spell!.uid }); // pay 1 → 4
+    expect(s.embers).toBe(4);
+    const pouch = s.hand.find((c) => c.cardId === 'emberpouch')!;
+    s = reduce(s, { type: 'play', uid: pouch.uid }); // untargeted → gain 1 → 5
+    expect(s.embers).toBe(5);
+    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(false); // consumed
+    expect(s.spellsCast).toBe(1);
+  });
+
+  it('Bulwark gives a friend +0/+1 and Taunt', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 5,
+      spell: { uid: 'sp', cardId: 'bulwark' },
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'buy', uid: s.spell!.uid });
+    const spell = s.hand.find((c) => c.cardId === 'bulwark')!;
+    s = reduce(s, { type: 'play', uid: spell.uid, targetUid: 'm' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([2, 3]); // +0/+1
+    expect(m.keywords).toContain('T'); // and Taunt
   });
 
   const threeSandbags = (): RunState => {

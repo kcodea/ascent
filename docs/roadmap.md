@@ -9,12 +9,13 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Enemy-strength curve tool** (the way we'll actually balance — not the old mono-tribe matrix
       runner, which is deprioritized per the user). Build a way to tune how fast enemy boards scale
       per wave so the climb's difficulty ramp feels right. Design TBD.
-- [ ] **More spells + spell-synergy cards.** The spell *system* is in (a spell is always offered on
-      the right; Spirit Fire = target a friend, +3/+3, costs 2). Hooks are wired and ready for cards:
+- [ ] **More spells + spell-synergy cards.** Three T1 spells now rotate in the slot: Spirit Fire
+      (+3/+3 to a friend), Ember Pouch (gain 1 Ember — *net-neutral as specced; revisit*), Bulwark
+      (+0/+1 + Taunt to a friend). Hooks still unused by any *minion* card:
   - `spellCast` event + `state.spellsCast` counter → minions that care about spells cast.
   - `castSpell` factory → minions that cast a spell from an event (auto-targets the carry).
   - `state.spellCostMod` → "your spells cost less" effects (subtracted at buy).
-  - A second spell, and at least one card using each hook, would exercise the plumbing.
+  - A minion using each hook would exercise the plumbing; higher-tier spells would round out the pool.
 - [ ] **Targeted Battlecries (minions).** The targeting mechanic now exists (`target: 'friendly'` +
       a `targetUid` on `play` + the **hero-power aim-line** gesture, used by Spirit Fire). A *minion*
       whose Battlecry targets needs a `battlecryBuffTarget`-style factory + a place-then-target UI
@@ -83,7 +84,7 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop
       `<id>.png` into `packages/ui/src/art/minions/` → it replaces that card's pixel sprite
       everywhere; falls back to the sprite when absent). In so far: `whelp`, `imp`, `drone`, `drummer`,
-      `spiritfire`, `fred`; the rest of the ~30-card set still uses sprites. Several more illustrations
+      `spiritfire`, `fred`, `emberpouch`, `bulwark`; the rest of the ~30-card set still uses sprites. Several more illustrations
       are already sitting unused in the source folder (ArcaneWeaver, BrightwingBroker, Karwind,
       Kennelmaster, SpiritOfThePack…) — wire each once its card id is confirmed. Source art lives in
       `C:\Game Assets\Ascent Art\Minions`; see the README in the art dir for the card-id ↔ name table.

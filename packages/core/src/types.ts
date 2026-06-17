@@ -80,8 +80,9 @@ export type EffectFactoryId =
   | 'onConsumeBuffSelf'
   | 'onConsumeGrantSelfKeyword'
   // Spells (recruit-resolved): a spell's own effect, and minions that cast spells
-  | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (Spirit Fire)
-  | 'castSpell'; // a minion casts a named spell (auto-targets a friend)
+  | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (+ optional keyword: Spirit Fire, Bulwark)
+  | 'castSpell' // a minion casts a named spell (auto-targets a friend)
+  | 'gainEmbers'; // cast: gain Embers (untargeted — Ember Pouch)
 
 export interface EffectDef {
   on: GameEvent;

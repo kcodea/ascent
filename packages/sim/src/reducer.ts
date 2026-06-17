@@ -177,6 +177,17 @@ export function reduce(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'reorderShop': {
+      // Purely cosmetic — rearrange the current offers (so dragging an offer lands where
+      // you drop it, like the warband, instead of snapping back to its slot).
+      const i = s.shop.findIndex((c) => c.uid === action.uid);
+      if (i < 0) return state;
+      const to = Math.max(0, Math.min(s.shop.length - 1, action.toIndex));
+      const [card] = s.shop.splice(i, 1);
+      if (card) s.shop.splice(to, 0, card);
+      return s;
+    }
+
     case 'heroPower': {
       if (!s.heroReady) return state;
       const card = s.board.find((c) => c.uid === action.uid);

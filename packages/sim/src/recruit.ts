@@ -168,10 +168,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   // --- Spells ---
 
-  /** Spirit Fire — cast: buff the chosen target +atk/+hp (`self` is the target). */
+  /** Spirit Fire / Bulwark — cast: buff the chosen target +atk/+hp, and grant an optional
+   *  keyword (`self` is the target). */
   spellBuffTarget: (_ctx, self, params) => {
     self.attack += num(params.attack);
     self.health += num(params.health);
+    const kw = str(params.keyword);
+    if (kw && !self.keywords.includes(kw as Keyword)) self.keywords.push(kw as Keyword);
   },
 
   /** A minion casts a named spell from an event, auto-targeting the carry (the
@@ -270,6 +273,11 @@ export function applyOnBuy(state: RunState, bought: BoardCard): void {
 export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {
   const ctx = makeContext(state);
   if (target) applyCastEffects(ctx, spellDef, target);
+  // Untargeted "run" cast effects (e.g. Ember Pouch) act on the run, not a minion.
+  // Embers are uncapped within a turn (like selling), so no max-embers clamp here.
+  for (const effect of spellDef.effects) {
+    if (effect.on === 'cast' && effect.do === 'gainEmbers') state.embers += num(effect.params?.amount);
+  }
   state.spellsCast += 1;
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];

@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Bigger cost badge, reorderable shop, + two new T1 spells (Ember Pouch, Bulwark)
+- **Cost badge 2× larger** — the ember/flame cost badge doubled (47→94px, font 17→34px) and its corner
+  overhang scaled with it, so the cost reads at a glance.
+- **Shop offers are reorderable** (like the warband). Added a `reorderShop` action (mirrors
+  `reposition`, purely cosmetic on `s.shop`) + an `overShop`/`shopGapIndex` drop-slot + a `shopIndexAt`
+  helper; `applyDrop` now reorders an offer dropped back in the tavern instead of snapping it back to
+  its slot (the spell stays pinned at the end). This removes the "teleport back to slot" jank — a
+  dragged offer lands where you drop it. Verified live: dragging offer 1 to slot 3 reorders it, the
+  drop-slot shows, and the spell stays last.
+- **Two new Tier-1 spells** (art wired from the Spells folder → `art/minions/{emberpouch,bulwark}.png`,
+  512²; the spell slot now rotates among all three):
+  - **Ember Pouch** (1 cost, untargeted) — *Gain 1 Ember.* New untargeted cast path: `gainEmbers` is
+    handled in `castSpell` against the run state (embers uncapped within a turn, like selling). **Note:
+    net-neutral** as specced (pay 1 on buy, gain 1 on cast) — flagged in case more/over-time gain was
+    intended.
+  - **Bulwark** (1 cost, target a friend) — *+0/+1 and Taunt.* Extended `spellBuffTarget` to grant an
+    optional `keyword` param (so it buffs **and** grants Taunt); reused for any future buff-a-keyword
+    spell.
+  - Added `gainEmbers` to the `EffectFactoryId` (core type + zod schema); `params` already allowed the
+    `keyword`/`amount` keys.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**77**, +2 for the new spells) + `build:web` pass;
+  cost-badge size, shop reorder + drop-slot, and both spells (art + cost + text, Ember Pouch net-neutral,
+  Bulwark +0/+1 + Taunt) confirmed live. `TURN_SECONDS` test bump reverted to 30.
+
 ### Cost-in-an-ember, styled hero tooltip + cursor fix, shop gets the warband lift-out drag
 - **Cost sits inside an ember (flame).** The cost badge was a plain orange circle; it's now the ember
   flame `Icon` (orange) with the cost number (white) over its bulb, still overhanging the card's

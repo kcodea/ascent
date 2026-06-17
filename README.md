@@ -22,6 +22,8 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **HP bar HUD** — Resolve is now a health bar across the bottom of the corner tray (red heart + fill +
+  current health, no label), and the Warden hero panel is bigger.
 - **Combat fix** — attackers no longer swing out of order after a minion dies mid-combat (the next
   attacker is tracked by identity, not by a shifting index).
 - **Hero art** — the Warden hero now has a portrait, and Brightwing Broker has its illustration.

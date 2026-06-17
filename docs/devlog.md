@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Resolve as an HP bar, hero panel +20%, cost-text nudge, re-wired Broker art
+- **Resolve → an HP bar across the bottom of the status tray.** The chunky `[heart | 30 | "Resolve"]`
+  chip is gone. The tray is now a column: **Embers + Hero on the top row**, and a full-width **HP bar
+  across the bottom** — red heart on the left, the red fill in the middle (`resolve / maxResolve`), and
+  the **current health on the right**. No "Resolve" label. Frees the tray's third slot so the hero can
+  grow. (The resolve-loss shake + −X float moved onto the bar.)
+- **Hero panel +20%** — the Warden portrait is 58→70px with the name/power text scaled to match, so it
+  reads as the tray's centrepiece.
+- **Cost text nudged up** — the number sits a little higher in the flame's body (`.costn` padding-top
+  24→17px) so it reads as more centred.
+- **Re-wired the new Brightwing Broker art** — re-exported the updated source to `broker.png` (512²);
+  confirmed it re-bundled with a fresh hash.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**81**) + `build:web` pass; HP bar (full at 30/30,
+  value 30, no label), 70px hero portrait, and the cost padding all confirmed via DOM (the preview
+  screenshot tool was unresponsive this session, so visual checks were done through the live DOM + the
+  build output).
+
 ### Combat attack-order fix, Warden + Broker art, spell rules, drag sensitivity
 - **Combat bug — attacker order after a death (fixed).** The attack loop picked the next attacker by
   indexing into the **living** list (`live[pointer % live.length]`). When a minion died it dropped out

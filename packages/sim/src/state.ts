@@ -43,6 +43,11 @@ export function mixSeed(...parts: number[]): number {
 export interface ShopCard {
   uid: string;
   cardId: string;
+  /** Buffs applied to this offer while it's in the tavern (e.g. the hero power targeting
+   *  a shop minion) — baked into the minion's stats/keywords when it's bought. */
+  atk?: number;
+  hp?: number;
+  keywords?: Keyword[];
 }
 
 export interface BoardCard {

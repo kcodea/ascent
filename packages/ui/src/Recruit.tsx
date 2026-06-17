@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, type BoardCard } from '@game/sim';
+import { CONFIG, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
@@ -13,8 +13,8 @@ const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a d
 const TURN_SECONDS = 30; // round timer; at 0 the player is forced into combat
 const RING = 2 * Math.PI * 17; // countdown ring circumference
 
-function shopView(cardId: string, spellCostMod = 0): CardView {
-  const c = CARD_INDEX[cardId];
+function shopView(card: ShopCard, spellCostMod = 0): CardView {
+  const c = CARD_INDEX[card.cardId];
   if (c.spell) {
     // A tavern spell: its own (modifiable) cost, no tier badge, no stat footer.
     return {
@@ -23,9 +23,13 @@ function shopView(cardId: string, spellCostMod = 0): CardView {
       target: c.target,
     };
   }
+  // A minion offer — fold in any tavern buff (e.g. the hero power) over its base stats,
+  // so a buffed offer reads its new stats (green) and carries them in when bought.
   return {
-    name: c.name, cardId: c.id, tribe: c.tribe, attack: c.attack, health: c.health,
-    keywords: c.keywords, text: c.text, cost: CONFIG.minionCost, tier: c.tier,
+    name: c.name, cardId: c.id, tribe: c.tribe,
+    attack: c.attack + (card.atk ?? 0), health: c.health + (card.hp ?? 0),
+    keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
+    text: c.text, cost: CONFIG.minionCost, tier: c.tier,
     baseAttack: c.attack, baseHealth: c.health,
   };
 }
@@ -190,21 +194,23 @@ export function Recruit() {
     return () => document.body.classList.remove('dragging');
   }, [drag?.active]);
 
-  // Hero Power targeting: arm by pressing the hero, then drag a glowing line to a
-  // friendly minion and release on it (anywhere on the card is a valid target);
-  // release off a minion to cancel. A plain click stays armed for a follow-up
-  // click. (A future single-target Battlecry would reuse this exact flow.)
+  // Hero Power targeting: arm by pressing the hero, then drag a glowing line to a minion
+  // and release on it. Fortify targets "a minion" — your warband OR a tavern offer (not the
+  // tavern spell); a tavern buff rides in when the offer is bought. Release off a minion to
+  // cancel; a plain click stays armed for a follow-up click.
   useEffect(() => {
     if (!heroArmed) {
       setAim(null);
       return;
     }
     let moved = false;
-    const minionAt = (x: number, y: number): BoardCard | null => {
-      const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card');
-      if (!el) return null;
-      const cards = [...document.querySelectorAll('[data-zone="warband"] .row .card')];
-      return run.board[cards.indexOf(el)] ?? null;
+    const minionAt = (x: number, y: number): { uid: string } | null => {
+      const el = document
+        .elementFromPoint(x, y)
+        ?.closest('[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]');
+      const uid = el?.getAttribute('data-uid');
+      if (!uid || uid === run.spell?.uid) return null; // a minion (warband or tavern), never the spell
+      return { uid };
     };
     const move = (e: PointerEvent): void => {
       moved = true;
@@ -235,7 +241,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, run.board, timeUp, dispatch, armHero]);
+  }, [heroArmed, run.spell?.uid, timeUp, dispatch, armHero]);
 
   // Round timer: count down each recruit turn; at 0 the player is forced into
   // combat (paused while a Discover pick is open). UI-only — the engine is untimed.
@@ -360,7 +366,10 @@ export function Recruit() {
       dispatch({ type: 'reorderShop', uid: d.uid, toIndex: shopIndexAt(x, d.uid) });
       return true;
     }
-    if ((d.source === 'board' || d.source === 'hand') && zone === 'tavern') {
+    // Sell a minion (board or hand) by dropping it on the tavern. Spells are excluded —
+    // dragging a spell is a cast/play gesture, so on the tavern it just cancels (a spell
+    // dragged up to the offers must never silently sell for +1).
+    if ((d.source === 'board' || d.source === 'hand') && zone === 'tavern' && !d.view.spell) {
       dispatch({ type: 'sell', uid: d.uid });
       return true;
     }
@@ -451,8 +460,10 @@ export function Recruit() {
               {shopGapIndex === i && <span className="dropslot" aria-hidden="true" />}
               <Card
                 uid={o.uid}
-                card={shopView(o.cardId)}
-                onPointerDown={beginDrag(o.uid, 'shop', shopView(o.cardId))}
+                card={shopView(o)}
+                highlight={heroArmed}
+                targeted={heroArmed && aim?.targetUid === o.uid}
+                onPointerDown={heroArmed ? undefined : beginDrag(o.uid, 'shop', shopView(o))}
               />
             </Fragment>
           ))}
@@ -461,8 +472,8 @@ export function Recruit() {
             <Card
               key={run.spell.uid}
               uid={run.spell.uid}
-              card={shopView(run.spell.cardId, run.spellCostMod)}
-              onPointerDown={beginDrag(run.spell.uid, 'shop', shopView(run.spell.cardId, run.spellCostMod))}
+              card={shopView(run.spell, run.spellCostMod)}
+              onPointerDown={heroArmed ? undefined : beginDrag(run.spell.uid, 'shop', shopView(run.spell, run.spellCostMod))}
             />
           )}
         </div>

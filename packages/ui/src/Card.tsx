@@ -24,7 +24,7 @@ const KW_DESC: Record<Keyword, string> = {
   M: 'Magnetic — Drag onto a friendly Mech to merge its stats in.',
   SC: 'Start of Combat — Triggers once, right before the fight begins.',
   CN: 'Consume — Eats one of your minions to add its stats.',
-  FD: 'Fodder — A cheap minion, meant to be eaten by a Consume minion.',
+  FD: 'Fodder — A cheap minion your Demon cards can consume for its stats.',
   IMM: 'Immune — Takes no damage.',
   ST: 'Stealth — Can’t be attacked until it attacks.',
 };

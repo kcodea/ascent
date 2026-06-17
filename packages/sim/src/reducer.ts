@@ -55,9 +55,10 @@ export function reduce(state: RunState, action: Action): RunState {
         uid: `b${s.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
-        attack: card.attack,
-        health: card.health,
-        keywords: [...card.keywords],
+        // fold in any tavern buff (e.g. the hero power applied to this offer)
+        attack: card.attack + (offer.atk ?? 0),
+        health: card.health + (offer.hp ?? 0),
+        keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: false,
       };
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
@@ -191,11 +192,22 @@ export function reduce(state: RunState, action: Action): RunState {
     case 'heroPower': {
       if (!s.heroReady) return state;
       const card = s.board.find((c) => c.uid === action.uid);
-      if (!card) return state;
-      card.attack += 1;
-      card.health += 1;
-      s.heroReady = false;
-      return s;
+      if (card) {
+        card.attack += 1;
+        card.health += 1;
+        s.heroReady = false;
+        return s;
+      }
+      // Fortify targets "a minion" (not just a friendly one) — a tavern offer counts.
+      // The buff is stored on the offer and baked in when it's bought.
+      const offer = s.shop.find((c) => c.uid === action.uid);
+      if (offer) {
+        offer.atk = (offer.atk ?? 0) + 1;
+        offer.hp = (offer.hp ?? 0) + 1;
+        s.heroReady = false;
+        return s;
+      }
+      return state;
     }
 
     case 'discover': {

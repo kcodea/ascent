@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Hero power can buff tavern minions, embers-projection popup, spell-sell fix + polish
+- **Hero power targets the tavern now.** Fortify reads "give a minion +1/+1" (not "a *friendly*
+  minion"), so it can target a **tavern offer**, not just the warband. `ShopCard` gained `atk`/`hp`/
+  `keywords` buff fields; the hero-power reducer applies +1/+1 to a targeted offer, `shopView` shows the
+  buffed stats (green), and **buy bakes the buff into the minion**. The aim (`minionAt`) now detects
+  warband *or* tavern minion cards (never the spell), and `canHero` allows arming with an empty board
+  as long as the shop has offers. Sets up the general "target a tavern minion" capability for future
+  spells/cards. (Verified live: Fortify a shop Sporeling 1/2 → 2/3, bought as a 2/3; tests cover it.)
+- **Spell "+1g" fix.** Dropping a *spell* on the tavern was hitting the minion-sell branch (`+1` Ember),
+  so dragging a spell up toward the offers (now at the top) could silently sell it. Spells are now
+  excluded from drag-to-sell — a spell dragged to the tavern just cancels (cast/play only). (Targeted
+  spells already gave no embers when released without a target; the only intended +1 is Ember Pouch's
+  net-neutral cast — buy −1, cast +1.)
+- **Embers projection popup.** Hovering the Embers chip pops a small panel showing the **starting Embers
+  for the next two waves** (cascading up, e.g. "Wave 2 → 4, Wave 3 → 5"), based on the maxEmbers curve.
+  Made the Embers chip hoverable (it was `pointer-events: none` in the corner tray; still passes through
+  mid-drag) and gave the chips the game's custom cursor instead of the OS `help` cursor.
+- **Fodder tooltip** reworded — "A cheap minion your **Demon cards** can consume for its stats."
+- **Cost badge** — the ember (flame) is ~10% larger and the cost number ~10% smaller, pushed further
+  up-left to eclipse the corner more (number kept in the flame's body).
+- **Hero panel ~15% larger** in the corner tray (portrait + text), so it reads as the tray's centrepiece.
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**78**, +1 tavern-targeting) + `build:web` pass;
+  embers popup, cost badge, hero panel, Fodder text, spell-no-sell, and hero-power-on-tavern all
+  confirmed live.
+
 ### Bigger cost badge, reorderable shop, + two new T1 spells (Ember Pouch, Bulwark)
 - **Cost badge 2× larger** — the ember/flame cost badge doubled (47→94px, font 17→34px) and its corner
   overhang scaled with it, so the cost reads at a glance.

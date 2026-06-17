@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CONFIG } from '@game/sim';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
@@ -8,7 +9,13 @@ export function StatusBar() {
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
   const sellTick = useGame((s) => s.sellTick);
-  const canHero = run.heroReady && run.board.length > 0;
+  // Fortify can target a warband minion OR a tavern offer, so it's usable as long as there's
+  // any minion to buff (an empty board is fine if the shop has offers).
+  const canHero = run.heroReady && (run.board.length > 0 || run.shop.length > 0);
+  // Projected starting Embers for the next two waves (each wave grows maxEmbers by
+  // embersPerWave, capped). Base curve only for now — future cards will modify this.
+  const nextEmbers = Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave);
+  const afterEmbers = Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave);
 
   // When Resolve drops (a wave broke through), shake the chip + float the −X.
   const prevResolve = useRef(run.resolve);
@@ -26,13 +33,19 @@ export function StatusBar() {
 
   return (
     <div className="statusbar">
-      <div className="chip g" title="Embers — your gold this wave. Spend on minions (3), Refresh (1), Tier upgrades.">
+      <div className="chip g">
         <span className="ic"><Icon name="ember" /></span>
         <div>
           <div className="v">{run.embers}</div>
           <div className="l">Embers</div>
         </div>
         {sellTick > 0 && <span className="sellfx" key={sellTick}>+1</span>}
+        {/* hover: how many Embers you'll start the next two waves with (cascading up) */}
+        <div className="emberproj" role="tooltip">
+          <div className="ept">Embers · coming up</div>
+          <div className="epr"><span>Wave {run.wave + 2}</span><b><Icon name="ember" />{afterEmbers}</b></div>
+          <div className="epr"><span>Wave {run.wave + 1}</span><b><Icon name="ember" />{nextEmbers}</b></div>
+        </div>
       </div>
 
       <div

@@ -39,6 +39,15 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Tavern-targeting for spells (and more cards).** The hero power (Fortify) can now buff a tavern
+      offer — `ShopCard` carries `atk`/`hp`/`keywords` and `buy` bakes them in. Extend this to *spells*:
+      add a target scope that includes the tavern (vs `target: 'friendly'`), and teach the cast path
+      (`spellBuffTarget`, which mutates a `BoardCard`) to also buff a `ShopCard` when the target is an
+      offer. Then a spell like a tavern-only buff could target the shop.
+- [ ] **Ember-gain modifiers feed the projection.** The Embers-chip popup projects the next two waves'
+      starting Embers from the base `maxEmbers` curve. When cards modify Ember gain (per-wave income,
+      one-shot ramp, etc.), fold their effect into the projection so it stays accurate.
+
 - [ ] **Finite minion pool (copy quantities per tier).** Make the shop draw from + return to a shared,
       finite pool so copies are a contested resource (the engine behind triples + "someone else took my
       minion" tension). Per-tier copy counts (placeholder constant `POOL_QUANTITIES` already in

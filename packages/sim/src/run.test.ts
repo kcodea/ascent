@@ -419,6 +419,22 @@ describe('run loop (@game/sim)', () => {
     expect(m.keywords).toContain('T'); // and Taunt
   });
 
+  it('hero power can buff a tavern offer, and the buff is baked in when bought', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      heroReady: true,
+      board: [],
+      shop: [{ uid: 'x', cardId: 'alley' }], // Alleycat is a 1/1
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'x' }); // Fortify a *tavern* minion
+    expect([s.shop[0]?.atk, s.shop[0]?.hp]).toEqual([1, 1]);
+    expect(s.heroReady).toBe(false);
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    const bought = s.hand.find((c) => c.cardId === 'alley')!;
+    expect([bought.attack, bought.health]).toEqual([2, 2]); // 1/1 + the Fortify buff
+  });
+
   const threeSandbags = (): RunState => {
     const mk = (uid: string): BoardCard => ({
       uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false,

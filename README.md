@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Hero power hits the tavern** — Fortify ("give a minion +1/+1") can now buff a shop offer, not just
+  your warband; the buff is baked in when you buy it.
+- **Embers forecast** — hover the Embers chip to see how many you'll start the next two waves with.
+- **Fix** — dragging a spell up to the offers no longer accidentally sells it for +1.
 - **New T1 spells** — **Ember Pouch** (gain an Ember) and **Bulwark** (+0/+1 and Taunt to a friend)
   join Spirit Fire in the rotating spell slot.
 - **Reorderable shop** — you can now drag shop offers to rearrange them (like the warband), so a

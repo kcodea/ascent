@@ -99,10 +99,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.consume(self, victim);
   },
 
-  /** Voracious Imp: when a Fodder token is summoned to your board, eat it. */
+  /** Voracious Imp: when Fodder (or any token) is played/summoned beside it, eat it. */
   consumeFodderOnSummon: (ctx, self, _params, { minion }) => {
     if (minion === self) return;
-    if (!CARD_INDEX[minion.cardId]?.token) return;
+    if (minion.cardId !== 'fodder' && !CARD_INDEX[minion.cardId]?.token) return;
     ctx.consume(self, minion);
   },
 

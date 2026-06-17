@@ -20,3 +20,16 @@ for (const [path, url] of Object.entries(modules)) {
 
 /** The illustrated art URL for a card id, or undefined if none has been added. */
 export const artFor = (cardId?: string): string | undefined => (cardId ? MINION_ART[cardId] : undefined);
+
+/** Keyword/effect overlay art (e.g. the Divine Shield bubble drawn over a shielded minion). */
+const fxModules = import.meta.glob('./art/effects/*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+const FX_ART: Record<string, string> = {};
+for (const [path, url] of Object.entries(fxModules)) {
+  const id = path.split('/').pop()?.replace(/\.png$/, '') ?? '';
+  if (id) FX_ART[id] = url;
+}
+export const effectArt = (name: string): string | undefined => FX_ART[name];

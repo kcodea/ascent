@@ -5,6 +5,48 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Board art + Warden rename + aim-line spell casting + Divine Shield art + Fodder (demons fixed)
+A six-part feel/content pass (all verified live in the running app):
+- **Board background art.** The user's `board1` (a purple crystalline arena) is now the play surface:
+  exported to `apps/web/public/board.jpg` (1536×1024, JPEG q82 → 201 kB) and painted on `body` under a
+  dark scrim gradient (`linear-gradient(rgba(28,22,16,.34), …(.46))` over `url('/board.jpg') cover
+  fixed`) so the cards/HUD stay legible. (Kept the taupe `--bg` as the fallback under the image.)
+- **Spell casting reworked to match the hero power** (replacing last pass's drag-the-card-onto-a-friend
+  gesture, per the user's spec):
+  - **Non-targeted spells** ("buff your whole board", "gain Embers") — drag the card up and release
+    anywhere in the warband space, like playing a minion; the effect fires. (`applyDrop` spell branch:
+    no `target` → dropping on `zone==='warband'` dispatches the cast.)
+  - **Targeted spells** (`target:'friendly'`, e.g. Spirit Fire) — the instant the card leaves the hand
+    it **turns into the Forgewarden/Warden targeting line**: the floating card is hidden and an SVG
+    aim-line (`svg.aimline`) is drawn from the hand to the cursor with a reticle that snaps **on** over
+    a valid friendly minion (which gets the strong `targeted` highlight, same as the hero power).
+    Release on a minion → spell goes off; **release off any minion → snaps back to hand**; **right-click
+    → snaps back to hand** and the line ends. (`castingSpell`/`castTargetUid` derive from the live drag;
+    `onUp` clears without dispatch when no target; a window `contextmenu` listener cancels held spells.)
+  - Verified live: aim-line + reticle render on drag-out (`dragcard` hidden), release on the Imp cast
+    Spirit Fire **+3/+3 (2/2 → 5/5)** and emptied the hand, and **both** cancel paths (empty-release,
+    right-click) left the card in hand with the line gone.
+- **Rename Forgewarden → Warden, hero power Temper → Fortify.** Pure UI/string change in `StatusBar`
+  (title, hero name, "Fortify · +1/+1" subtitle) + the Recruit hint; the `+1/+1` effect is unchanged.
+- **Spirit Fire art** wired (`art/minions/spiritfire.png`, 512²) — the spell card now shows its
+  illustration via the existing `artFor` glob (card id = filename).
+- **Divine Shield effect art.** Added an `art/effects/*.png` glob + `effectArt(name)` in `art.ts`;
+  `Card` overlays `effectArt('divineshield')` on any minion with the `DS` keyword. The art is a golden
+  shield-crest on transparent — rendered naïvely (`object-fit:cover`) it was opaque and hid the minion,
+  so `.dsfx` uses **`mix-blend-mode:screen` + `object-fit:contain` + a slow opacity pulse**, making it a
+  glowing aura the minion shows *through*. Verified live on **Spare Part Drone** (the drone reads clearly
+  under the shield glow). *Follow-up for the user's call: it's a shield **crest** shape, not a bubble —
+  swap art or move to a corner badge if a rounder "bubble" look is wanted.*
+- **Fodder — the fix that makes Demons actually work.** The Consume engine (Voracious Imp et al.) had no
+  cheap fuel to eat, so Demons were dead on arrival. Added **Fodder** (Tier 1 **1/1** Demon, art wired)
+  as a buyable card, and taught the consume trigger to recognize it (`consumeFodderOnSummon` now fires
+  for `cardId==='fodder'` as well as tokens). Verified live: bought + played Fodder beside a 5/5
+  Voracious Imp → Imp **ate it → 6/6**, Fodder did not linger on the board. (Voracious Imp text updated:
+  "When you play **Fodder**, this eats it and gains its stats.")
+- **Verified:** `typecheck` (+web) + `lint` + `test` (**75**, +1 Fodder-consume test) + `build:web` all
+  pass; the six features above confirmed live via DOM checks + screenshots. `TURN_SECONDS`/`SPEED` test
+  bumps reverted to 30/1.5.
+
 ### Spell system + Spirit Fire + targeted casting
 - **A new card kind: spells.** `CardDef` grew `spell` / `cost` / `target`; spells set their own cost
   (minions stay flat `CONFIG.minionCost`), are excluded from the minion pool, and never take a board

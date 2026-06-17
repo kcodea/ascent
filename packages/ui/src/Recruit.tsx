@@ -132,7 +132,8 @@ export function Recruit() {
       }
       const zone = zoneAt(e.clientX, e.clientY);
       const acted = applyDrop(d, zone, e.clientX, e.clientY);
-      if (acted) {
+      if (acted || d.view.spell) {
+        // a spell that misses just ends — it was never lifted from the hand
         setDrag(null);
         setOverZone(null);
       } else {
@@ -146,13 +147,23 @@ export function Recruit() {
         }, 150);
       }
     };
+    // Right-click while aiming a spell cancels it (snaps back to the hand).
+    const onCtx = (e: MouseEvent): void => {
+      if (dragRef.current?.view.spell) {
+        e.preventDefault();
+        setDrag(null);
+        setOverZone(null);
+      }
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
+    window.addEventListener('contextmenu', onCtx);
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('contextmenu', onCtx);
     };
   }, [drag?.uid]);
 
@@ -325,8 +336,12 @@ export function Recruit() {
         dispatch({ type: 'play', uid: d.uid, targetUid });
         return true;
       }
-      dispatch({ type: 'play', uid: d.uid }); // untargeted spell
-      return true;
+      // Untargeted spell ("give your board…"): drop anywhere in the warband to cast.
+      if (zone === 'warband') {
+        dispatch({ type: 'play', uid: d.uid });
+        return true;
+      }
+      return false;
     }
     if (d.source === 'hand' && zone === 'warband') {
       dispatch({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(x) });
@@ -434,7 +449,7 @@ export function Recruit() {
             Your Warband · <b>{run.board.length}/{CONFIG.boardMax}</b>
           </span>
           <span className="hint">
-            {heroArmed ? 'click a minion to Temper it (+1/+1)' : 'drag from hand to play · drag to reorder'}
+            {heroArmed ? 'click a minion to Fortify it (+1/+1)' : 'drag from hand to play · drag to reorder'}
           </span>
         </div>
         <div className="row warband">
@@ -483,7 +498,7 @@ export function Recruit() {
         </div>
       </div>
 
-      {drag?.active && (
+      {drag?.active && !castingSpell && (
         <div
           className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}`}
           style={{
@@ -496,6 +511,15 @@ export function Recruit() {
         >
           <Card card={drag.view} />
         </div>
+      )}
+
+      {/* Targeted spell: the card leaves the hand and becomes an aim line (like the Hero
+          Power) — release on a friend to cast, release off / right-click to cancel. */}
+      {castingSpell && drag && (
+        <svg className="aimline" aria-hidden="true">
+          <line x1={drag.startX} y1={drag.startY} x2={drag.x} y2={drag.y} />
+          <circle cx={drag.x} cy={drag.y} r={castTargetUid ? 16 : 7} className={castTargetUid ? 'on' : ''} />
+        </svg>
       )}
 
       {heroArmed && aim && (

@@ -22,9 +22,18 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Board art** — the play surface is now an illustrated crystal arena (under a dark scrim so cards
+  and HUD stay legible).
+- **Warden** — the hero is renamed **Warden** and the hero power **Temper → Fortify** (+1/+1).
+- **Divine Shield aura** — minions with Divine Shield now wear a glowing golden shield overlay that
+  the minion shows *through* (screen-blended + a slow pulse), live on Spare Part Drone.
+- **Demons work now (Fodder)** — added **Fodder**, a Tier-1 1/1 Demon, as cheap fuel for the Consume
+  minions (Voracious Imp & co. had nothing to eat before); play it beside a Demon and it gets eaten.
 - **Spells** — a spell is always offered on the right of the tavern (its own cost, not the flat
-  minion cost). First spell: **Spirit Fire** (2 gold) — drag it onto a friendly minion for +3/+3.
-  Hooks are in for spell-cost buffs, minions that cast spells, and spell-cast tracking.
+  minion cost). First spell: **Spirit Fire** (2 gold), +3/+3 to a friend. Targeted spells cast with
+  the **same aim-line as the hero power** — drag the card out of hand, the cursor becomes a targeting
+  line, click a friendly minion to fire (release off a minion or right-click to cancel). Non-targeted
+  spells just drop into the warband. Hooks are in for spell-cost buffs, spell-casters, and spell-tracking.
 - **Keywords** — Immune (takes no damage) and Stealth (untargetable until it attacks) added; Avenge
   and End-of-Turn triggers wired; Deathrattle now also fires out of combat (when a minion is
   Consumed). Divine Shield / Poison / Reborn / Start-of-Combat / Consume / Cleave / Windfury verified.
@@ -61,7 +70,7 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   Hero Power, green/red stat colours, an arcane frame for the Discover spell.
 - **Fixes** — tripling keeps buffs + keywords (sum of the top two stats); Doublecast Drummer & Echo
   Warden now work; embers uncapped within a turn; early waves softened.
-- **HUD** — Embers · Forgewarden · Resolve rooted at the bottom across recruit and combat; "End
+- **HUD** — Embers · Warden · Resolve rooted at the bottom across recruit and combat; "End
   Combat" at the top-centre; a Resolve loss flashes the chip; the Hero Power pulses when ready.
 
 ## Short-term roadmap

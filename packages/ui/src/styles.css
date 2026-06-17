@@ -10,6 +10,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 body { font-family: 'Nunito Sans', sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; }
+/* board art: a soft dark scrim over the illustrated table keeps the cards + on-board text readable */
+body { background: linear-gradient(rgba(28, 22, 16, 0.34), rgba(28, 22, 16, 0.46)), url('/board.jpg') center / cover no-repeat fixed, var(--bg); }
 /* gauntlet opens over anything grabbable/clickable */
 .card, .btn, button, .hero:not(.spent), .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 /* closed fist while a card is being dragged */
@@ -146,6 +148,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card.taunt { box-shadow: 0 0 0 2px #5f6a8a, 0 3px 0 var(--shadow); }
 /* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth). */
 .card.stealth { opacity: 0.8; box-shadow: 0 0 0 2px #3f6f7a, 0 0 14px -2px rgba(63, 111, 122, 0.7), 0 3px 0 var(--shadow); }
+/* Divine Shield: the golden shield-crest art screen-blended over the minion's
+   portrait so it reads as a glowing aura the minion shows through (not an opaque
+   sticker). A slow pulse sells "active protection". */
+.dsfx { position: absolute; top: 2%; left: 0; width: 100%; height: 56%; object-fit: contain; object-position: center; pointer-events: none; z-index: 5; mix-blend-mode: screen; opacity: 0.9; filter: drop-shadow(0 0 5px rgba(255, 196, 84, 0.55)); animation: dsfx-pulse 2.2s ease-in-out infinite; }
+@keyframes dsfx-pulse { 0%, 100% { opacity: 0.78; } 50% { opacity: 0.98; } }
 .tauntward { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; background: #5f6a8a; border: 2px solid var(--card); display: grid; place-items: center; z-index: 4; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25); }
 .tauntward svg { width: 15px; height: 15px; color: #fff; }
 .cfoot { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: color-mix(in srgb, var(--c) 14%, var(--card)); border-top: 1px solid var(--line); border-radius: 0 0 11px 11px; }

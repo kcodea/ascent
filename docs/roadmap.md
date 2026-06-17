@@ -16,9 +16,9 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
   - `state.spellCostMod` → "your spells cost less" effects (subtracted at buy).
   - A second spell, and at least one card using each hook, would exercise the plumbing.
 - [ ] **Targeted Battlecries (minions).** The targeting mechanic now exists (`target: 'friendly'` +
-      a `targetUid` on `play` + drag-onto-a-friend, used by Spirit Fire). A *minion* whose Battlecry
-      targets needs a `battlecryBuffTarget`-style factory + a place-then-target UI gesture (a spell
-      just vanishes; a minion also takes a board slot). Small once a card needs it.
+      a `targetUid` on `play` + the **hero-power aim-line** gesture, used by Spirit Fire). A *minion*
+      whose Battlecry targets needs a `battlecryBuffTarget`-style factory + a place-then-target UI
+      gesture (a spell just vanishes; a minion also takes a board slot). Small once a card needs it.
 - [ ] **Cards for the keyword triggers.** Avenge (X) and End of Turn are wired (events + factories +
       pills) but no card declares them yet. Immune / Stealth work on any card today.
 
@@ -47,9 +47,15 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       the art's bottom, keyword/text area below); revisit spacing + legibility with the user.
 - [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop
       `<id>.png` into `packages/ui/src/art/minions/` → it replaces that card's pixel sprite
-      everywhere; falls back to the sprite when absent). Four are in (`whelp`, `imp`, `drone`,
-      `drummer`); the rest of the ~30-card set still uses sprites. Source art lives in
+      everywhere; falls back to the sprite when absent). In so far: `whelp`, `imp`, `drone`, `drummer`,
+      `spiritfire`, `fodder`; the rest of the ~30-card set still uses sprites. Several more illustrations
+      are already sitting unused in the source folder (ArcaneWeaver, BrightwingBroker, Karwind,
+      Kennelmaster, SpiritOfThePack…) — wire each once its card id is confirmed. Source art lives in
       `C:\Game Assets\Ascent Art\Minions`; see the README in the art dir for the card-id ↔ name table.
+- [ ] **Divine Shield art style — bubble vs. crest.** The effect-art overlay pipeline shipped
+      (`art/effects/*.png` → `effectArt()`; `.dsfx` screen-blends a glowing aura over any `DS` minion,
+      live on Spare Part Drone). The current asset is a shield **crest** shape; if a rounder "bubble/dome"
+      shimmer reads better, swap the art or move it to a corner badge — user's call.
 - [ ] **Art compression.** The illustrations are ~650 KB PNGs at 512×512; fine for a handful, but
       convert to WebP (or add a build-time compress) before the full set lands so the bundle stays
       lean.

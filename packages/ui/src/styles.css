@@ -162,9 +162,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
-/* Divine Shield effect art — wraps the square art panel, with a soft shimmer */
-.dsfx { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; z-index: 5; -webkit-user-drag: none; animation: dsfxpulse 2.1s ease-in-out infinite; }
-@keyframes dsfxpulse { 0%, 100% { opacity: 0.82; } 50% { opacity: 1; filter: brightness(1.12); } }
+/* Divine Shield effect art — stretched to fill the art panel and scaled up so the golden
+   frame wraps right to the panel's edges (the surrounding transparent margin is clipped by
+   .art's overflow:hidden). Fully opaque, with a brightness shimmer. */
+.dsfx { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; transform: scale(1.32); pointer-events: none; z-index: 5; opacity: 1; -webkit-user-drag: none; animation: dsfxpulse 2.1s ease-in-out infinite; }
+@keyframes dsfxpulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.22); } }
 /* cost badge — a teal Mana circle overhanging the top-left corner */
 .cost { position: absolute; top: -20px; left: -16px; width: 60px; height: 60px; z-index: 6; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
 .cost .costn { font-family: 'Outfit'; font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }

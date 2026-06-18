@@ -429,13 +429,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
   filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
   animation: cardrefin 0.3s ease-out;
 }
+/* the popup minions sit at 80% size (baked into the float transform so it composes with the wobble) */
 .cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; }
 @keyframes cardrefin { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes cardreffloat {
-  0%, 100% { transform: translateY(0) rotate(-1.1deg); }
-  30% { transform: translateY(-5px) rotate(0.9deg); }
-  60% { transform: translateY(-2px) rotate(1.3deg); }
-  85% { transform: translateY(-6px) rotate(-0.5deg); }
+  0%, 100% { transform: scale(0.8) translateY(0) rotate(-1.1deg); }
+  30% { transform: scale(0.8) translateY(-5px) rotate(0.9deg); }
+  60% { transform: scale(0.8) translateY(-2px) rotate(1.3deg); }
+  85% { transform: scale(0.8) translateY(-6px) rotate(-0.5deg); }
 }
 /* Choose One — two big option buttons */
 .chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }

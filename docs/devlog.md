@@ -11,6 +11,8 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   gently **bobs + wobbles in place** (a continuous float) so it reads clearly as an info card, not a real
   one, and it's wrapped in a **soft white haze** (layered white drop-shadows). Verified live: hidden at
   150 ms, shown by 650 ms; entrance + float animations active; haze present; no console errors.
+- The popup minions also render at **80% size** (scale baked into the float keyframes so it composes with
+  the wobble) — verified ~0.82× the source card on screen.
 
 ### Referenced-card hover popup
 - Hovering a card that references another now shows the referenced card as a **popup to the right**,

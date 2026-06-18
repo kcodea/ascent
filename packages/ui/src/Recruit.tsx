@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
@@ -186,30 +186,67 @@ export function Recruit() {
     return i;
   };
 
-  const beginDrag = (uid: string, source: DragSource, view: CardView) => (e: ReactPointerEvent) => {
-    if (e.button !== 0 || timeUp || inCombat) return; // no dragging once the turn timer is up / in combat
-    // Grabbing a card mid-buff-flash clears its flash, so it doesn't replay the buff
-    // animation when the card re-mounts after the drag (lift-out → drop).
-    setBuffedUids((s) => {
-      if (!s.has(uid)) return s;
-      const n = new Set(s);
-      n.delete(uid);
-      return n;
-    });
-    const el = e.currentTarget as HTMLElement;
-    const r = el.getBoundingClientRect();
-    // capture the pointer so move/up keep firing even if it leaves the window or races
-    // ahead of the floating card — events still bubble to the window listeners.
-    try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
-    setDrag({
-      uid, source, view,
-      ox: e.clientX - r.left, oy: e.clientY - r.top,
-      w: r.width, h: r.height,
-      startX: e.clientX, startY: e.clientY,
-      x: e.clientX, y: e.clientY,
-      active: false,
-    });
-  };
+  // Stable per-card view objects, keyed by uid. Recompute only when the underlying run data
+  // changes — during a drag nothing dispatches, so `run.*` refs are stable and these stay
+  // cached, which is what lets the memoized Card skip re-render on every pointermove.
+  const shopViews = useMemo(
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, 0, run.cardBuffs)] as const)),
+    [run.shop, run.cardBuffs],
+  );
+  const spellView = useMemo(
+    () => (run.spell ? shopView(run.spell, run.spellCostMod) : null),
+    [run.spell, run.spellCostMod],
+  );
+  const boardViews = useMemo(() => new Map(run.board.map((m) => [m.uid, instView(m)] as const)), [run.board]);
+  const handViews = useMemo(() => new Map(run.hand.map((m) => [m.uid, instView(m)] as const)), [run.hand]);
+
+  // A single stable pointer-down handler shared by every card: it reads the grabbed card's uid
+  // + zone from the DOM and its view from this ref, so the handler's identity never changes
+  // mid-drag (a fresh per-card closure would defeat Card's memo). Replaces the old per-card
+  // `beginDrag(uid, source, view)` factory.
+  const viewsRef = useRef({ shopViews, spellView, boardViews, handViews, spellUid: run.spell?.uid });
+  viewsRef.current = { shopViews, spellView, boardViews, handViews, spellUid: run.spell?.uid };
+  const onCardPointerDown = useCallback(
+    (e: ReactPointerEvent): void => {
+      if (e.button !== 0 || timeUp || inCombat) return; // no dragging once the turn timer is up / in combat
+      const el = e.currentTarget as HTMLElement;
+      const uid = el.dataset.uid;
+      if (!uid) return;
+      const zone = el.closest('[data-zone]')?.getAttribute('data-zone');
+      const source: DragSource = zone === 'warband' ? 'board' : zone === 'hand' ? 'hand' : 'shop';
+      const v = viewsRef.current;
+      const view =
+        source === 'board'
+          ? v.boardViews.get(uid)
+          : source === 'hand'
+            ? v.handViews.get(uid)
+            : uid === v.spellUid
+              ? v.spellView ?? undefined
+              : v.shopViews.get(uid);
+      if (!view) return;
+      // Grabbing a card mid-buff-flash clears its flash, so it doesn't replay the buff
+      // animation when the card re-mounts after the drag (lift-out → drop).
+      setBuffedUids((s) => {
+        if (!s.has(uid)) return s;
+        const n = new Set(s);
+        n.delete(uid);
+        return n;
+      });
+      const r = el.getBoundingClientRect();
+      // capture the pointer so move/up keep firing even if it leaves the window or races
+      // ahead of the floating card — events still bubble to the window listeners.
+      try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
+      setDrag({
+        uid, source, view,
+        ox: e.clientX - r.left, oy: e.clientY - r.top,
+        w: r.width, h: r.height,
+        startX: e.clientX, startY: e.clientY,
+        x: e.clientX, y: e.clientY,
+        active: false,
+      });
+    },
+    [timeUp, inCombat],
+  );
 
   useEffect(() => {
     if (!drag) return;
@@ -702,11 +739,11 @@ export function Recruit() {
               {shopGapIndex === i && <span className="dropslot" aria-hidden="true" />}
               <Card
                 uid={o.uid}
-                card={shopView(o, 0, run.cardBuffs)}
+                card={shopViews.get(o.uid)!}
                 highlight={heroArmed}
                 targeted={heroArmed && aim?.targetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
-                onPointerDown={heroArmed ? undefined : beginDrag(o.uid, 'shop', shopView(o, 0, run.cardBuffs))}
+                onPointerDown={heroArmed ? undefined : onCardPointerDown}
               />
             </Fragment>
           ))}
@@ -715,8 +752,8 @@ export function Recruit() {
             <Card
               key={run.spell.uid}
               uid={run.spell.uid}
-              card={shopView(run.spell, run.spellCostMod)}
-              onPointerDown={heroArmed ? undefined : beginDrag(run.spell.uid, 'shop', shopView(run.spell, run.spellCostMod))}
+              card={spellView!}
+              onPointerDown={heroArmed ? undefined : onCardPointerDown}
             />
           )}
           </>
@@ -754,11 +791,11 @@ export function Recruit() {
                   {gapIndex === i && <span className="dropslot" aria-hidden="true" />}
                   <Card
                     uid={m.uid}
-                    card={instView(m)}
+                    card={boardViews.get(m.uid)!}
                     highlight={heroArmed || castingSpell}
                     targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
-                    onPointerDown={heroArmed ? undefined : beginDrag(m.uid, 'board', instView(m))}
+                    onPointerDown={heroArmed ? undefined : onCardPointerDown}
                   />
                 </Fragment>
               ))}
@@ -773,10 +810,11 @@ export function Recruit() {
           {run.hand.map((m) => (
             <Card
               key={m.uid}
-              card={instView(m)}
+              uid={m.uid}
+              card={handViews.get(m.uid)!}
               dimmed={isDragging(m.uid)}
               buffed={buffedUids.has(m.uid)}
-              onPointerDown={beginDrag(m.uid, 'hand', instView(m))}
+              onPointerDown={onCardPointerDown}
             />
           ))}
         </div>

@@ -22,6 +22,9 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Buttery drag** — cards are now memoized, so dragging one no longer re-renders the whole board
+  every pointermove (measured: ~0 card re-renders per move, down from one-per-card). Only the
+  floating card you're holding updates as you move.
 - **Proportional chrome** — the HUD, turn timer, status tray, tavern controls, and modal overlays
   now scale with the viewport (via a `--u` scaled unit) just like the cards do, so they no longer
   look tiny on large monitors. Floored at the current sizes (zero change on laptops / short windows),

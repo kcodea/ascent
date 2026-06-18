@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Buttery drag — memoize Card so the board doesn't re-render on every pointermove
+Dragging a card fired `setDrag`/`setOverZone` on every pointermove, re-rendering the whole recruit
+tree — including all 7–14 `Card`s (each an `<img>` + pills + `dangerouslySetInnerHTML` text). Now:
+- **`Card` is wrapped in `React.memo`** and its props are stabilized so the memo actually fires:
+  - The per-card **view objects** are hoisted into `useMemo` maps keyed by uid
+    (`shopViews` / `boardViews` / `handViews` + a `spellView`), recomputed only when the underlying
+    `run.*` slice changes. During a drag nothing dispatches, so those refs are stable → the maps
+    return the *same* `CardView` object for each card across pointermove re-renders.
+  - The per-card `beginDrag(uid, source, view)` factory (a fresh closure every render) is replaced by
+    **one stable `onCardPointerDown`** shared by every card: it reads the grabbed card's uid + zone
+    from the DOM and its view from a ref, so its identity never changes mid-drag. (Hand cards now also
+    carry `data-uid` so the handler can resolve them.)
+- **Result (measured live):** 10 pointermoves during a drag caused **2 total card re-renders** (the
+  dragged card's dim-flip + the floating card mounting once) — ~0.2/move, vs. ~one-per-card-per-move
+  before. The per-second turn-timer tick also no longer re-renders the cards.
+- The drag *mechanics* (`onMove`/`onUp`/`applyDrop`) are untouched, so behavior is unchanged.
+  **Verified** end-to-end with synthetic pointer drags: buy (tavern→hand, −3 mana), play
+  (hand→warband), and sell (board→tavern, +1 mana) all still work; the floating card appears/clears
+  correctly. `typecheck` + `lint` + `test` (99) + `build:web` all clean; no runtime console errors on
+  a fresh load. (Note: editing `Card.tsx` now full-reloads in dev rather than hot-swapping — Fast
+  Refresh bails on a memo-wrapped export in a file that also exports helpers; harmless, dev-only.)
+
 ### Proportional chrome — HUD / controls / status tray / overlays scale with the viewport
 The cards already scale with viewport height (`--ch`), but the chrome was fixed-px, so on big
 monitors the HUD/buttons/fonts looked comparatively tiny (a flagged backlog item).

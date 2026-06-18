@@ -62,11 +62,14 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Divine Shield indicator (re-add).** The `.dsfx` overlay was removed as too noisy. `effectArt()`
       + `art/effects/divineshield.png` are retained — re-add a *subtler* DS cue (small corner badge or a
       thin rim) when wanted, rather than the full-card aura.
-- [ ] **Recruit perf pass (if it persists locally).** Dropped `background-attachment: fixed` (a real
-      repaint win). If buy/drag still micro-stutters on a local `npm run dev` build (not just the
-      preview window), memoise `Card` (stabilise the per-card view objects + `beginDrag` callbacks) and
-      update the floating drag-card transform imperatively (via ref) instead of re-rendering the whole
-      recruit tree on every pointermove.
+- [ ] **Recruit perf pass — further (if it still micro-stutters locally).** Done so far: `Card` is
+      memoized + its props stabilized (per-card view objects via `useMemo` maps, one shared
+      pointer-down handler), so during a drag the board's cards no longer re-render (measured: ~0 card
+      renders per pointermove vs. one-per-card before). If a local `npm run dev` build *still*
+      stutters, the next lever is to take the floating drag-card transform fully imperative (write it
+      to the node via a ref on pointermove) so the recruit tree doesn't re-render at all between
+      meaningful state changes (zone/insertion-index/magnetize). Also dropped `background-attachment:
+      fixed` earlier (a real repaint win).
 - [ ] **Fodder keyword — more users.** `FD` is now a keyword (Fred carries it; consume keys off it).
       Give other cheap/token minions the keyword and/or add cards that interact with Fodder, now that
       it's a reusable marker rather than one card.

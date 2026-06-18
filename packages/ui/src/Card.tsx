@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import { artFor } from './art';
@@ -101,8 +102,11 @@ const triggerPill = (text: string): { label: string; icon: string } | null =>
           ? { label: 'End of Turn', icon: 'sc' }
           : null;
 
-/** The one standardized card — identical size/shape in shop, warband, and hand. */
-export function Card({
+/** The one standardized card — identical size/shape in shop, warband, and hand.
+ *  Memoized: during a drag the parent re-renders on every pointermove, but a card whose
+ *  props are unchanged skips re-render (the recruit screen stabilises the view objects +
+ *  the pointer-down handler so this actually fires). Only the floating drag-card updates. */
+export const Card = memo(function Card({
   card,
   uid,
   onClick,
@@ -242,4 +246,4 @@ export function Card({
       )}
     </div>
   );
-}
+});

@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Fix: enemy minions now animate their attacks
+- Enemy (tavern-side) attacks showed no lunge. Cause: the `enemyarrive` entrance animation used
+  `both` fill, so it **held its final `transform`** on every enemy unit — and a filling CSS animation
+  overrides the inline lunge transform (player units have no such animation, so they were fine).
+  Dropped the fill (the keyframe ends at the identity transform, so the entrance is unchanged); enemy
+  lunges now apply. Verified live — an attacking enemy now lunges (`translate(326px, 218px) scale(1.04)`),
+  and a full combat replays with no console errors.
+
 ### Correct Echo Warden art + new Ember Whelp art
 - Re-wired **Echo Warden** from the now-present `EchoWarden.png` (replacing the earlier wrong guess —
   a spectral figure surrounded by echoed summons, fitting the card), and swapped **Ember Whelp** to

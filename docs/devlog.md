@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Card body restyle — tribe colour fills the frame
+- Per feedback, the tribe colour now **fills the card frame** instead of just outlining it: the card
+  body is a tribe wash, the **art is inset + outlined** (a tribe border with the wash framing it), and
+  **only the description sits in a white box** — matching the painted mockups. The footer carries the
+  wash too, and dual-types split the frame + footer + rim half-and-half. Golden / spell / Triple Reward
+  keep their own special frames.
+- **Fix (affects most cards):** centring the description via `display:flex` had turned inline `<b>` runs
+  into separate flex items, so bold words rendered cramped / out of flow. Wrapped the description HTML in
+  a single span so it flows inline normally and still centres in the box.
+- CSS + one JSX wrapper. `typecheck` + `lint` clean; verified live across all six tribes, a vanilla
+  (no-text) card, and the dual (split frame + correctly-flowing bold text) — 0 console errors.
+
 ### Tribe-coloured card edges
 - Every minion card now flags its **type by its outer edge**: a tribe-coloured ring (Beast green,
   Dragon orange, Mech teal, Undead slate, Demon purple, Neutral tan) plus a soft same-hue glow.

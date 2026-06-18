@@ -47,7 +47,8 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] Pacing polish, audio, VFX. _(Ongoing — recently: referenced-card hover popups (see the token a
       card creates / your current Fodder), sequenced per-card End-of-Turn telegraph with Chronos repeats
       + per-card FX (Ritualist shop wash, Combinator electrify), ornate Discover frame, Reborn/Venomous
-      particle FX, Triple Reward glow, tribe-coloured card edges (dual = split rim).)_
+      particle FX, Triple Reward glow, tribe-coloured card frames — body wash + outlined art + white
+      text box (dual = split frame/edge).)_
 - [ ] Tutorial / first-run onboarding.
 - [ ] Full accessibility + touch support.
 

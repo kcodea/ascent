@@ -23,8 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Tribe-coloured card edges** — every minion shows its type by its outer edge (Beast green, Dragon
-  orange, Mech teal, Undead slate, Demon purple); dual-types split the rim half-and-half.
+- **Tribe colour fills the card frame** — each minion's body is washed in its type colour (Beast green,
+  Dragon orange, Mech teal, Undead slate, Demon purple) with the art outlined and just the description in
+  a white box; dual-types split the frame + edge half-and-half.
 - **Toxin Tender targets** — its Battlecry is now player-aimed (like the Hero Power): play it, then
   click a friendly minion to give *that* minion Venomous (ending the turn auto-targets your carry).
 - **Finite minion pool** — the shop now draws from a shared, finite pool (T1 10 … T6 6 copies per

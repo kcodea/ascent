@@ -261,10 +261,11 @@ export const Card = memo(function Card({
           ))}
         </div>
         {card.text && (
-          <div
-            className="desc"
-            dangerouslySetInnerHTML={{ __html: descUp(mdBold(card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text)) }}
-          />
+          <div className="desc">
+            <span
+              dangerouslySetInnerHTML={{ __html: descUp(mdBold(card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text)) }}
+            />
+          </div>
         )}
       </div>
       <div className="cfoot">

@@ -2,6 +2,7 @@ import { makeRng, type CardDef, type Keyword } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { mixSeed, TAG, type BoardCard, type RunState } from './state';
+import { takeFromPool } from './shop';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -178,6 +179,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         keywords: [...def.keywords],
         golden: false,
       });
+      takeFromPool(ctx.state, def.id); // a conjured copy leaves the shared pool
     }
     ctx.state.rngCursor = rng.state();
   },

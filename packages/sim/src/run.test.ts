@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { makeRng } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import {
+  CONFIG,
+  POOL_QUANTITIES,
   createRun,
   reduce,
   serialize,
@@ -1016,5 +1018,69 @@ describe('run loop (@game/sim)', () => {
     expect(golden).toBeDefined();
     expect([golden!.attack, golden!.health]).toEqual([6, 14]); // base 0/4 ×2 = 0/8, + merged +6/+6
     expect(golden!.buffs).toEqual([{ source: 'Spirit Fire', attack: 6, health: 6, count: 2 }]);
+  });
+
+  it('createRun stocks the finite pool with the per-tier quantities', () => {
+    const s = createRun(11);
+    // Some copies of a T1 neutral may already sit in the opening shop, so pool-remaining + offered = stock.
+    const inShop = s.shop.filter((o) => o.cardId === 'sandbag').length;
+    expect((s.pool['sandbag'] ?? 0) + inShop).toBe(POOL_QUANTITIES[1]);
+    expect(CONFIG.maxTier).toBe(6);
+  });
+
+  it('the finite pool conserves copies across buy / reroll / sell', () => {
+    // Total pooled copies = remaining pool + pooled cards held in shop / hand / board (golden = 3).
+    // Buying, rerolling and selling only move copies between those buckets — the total is invariant.
+    const poolTotal = (s: RunState): number => {
+      const owned = (c: BoardCard): number => (c.cardId in s.pool ? (c.golden ? 3 : 1) : 0);
+      let total = Object.values(s.pool).reduce((a, b) => a + b, 0);
+      for (const o of s.shop) if (o.cardId in s.pool) total += 1;
+      for (const c of s.hand) total += owned(c);
+      for (const c of s.board) total += owned(c);
+      return total;
+    };
+    let s = createRun(7);
+    const initial = poolTotal(s);
+    if (s.shop[0]) s = reduce({ ...s, embers: 50 }, { type: 'buy', uid: s.shop[0].uid });
+    expect(poolTotal(s)).toBe(initial); // buy: shop → hand
+    for (let i = 0; i < 6; i++) s = reduce({ ...s, embers: 50 }, { type: 'roll' });
+    expect(poolTotal(s)).toBe(initial); // reroll: discarded offers return, fresh ones drawn
+    if (s.hand[0]) s = reduce(s, { type: 'sell', uid: s.hand[0].uid });
+    expect(poolTotal(s)).toBe(initial); // sell: held copy → pool
+  });
+
+  it('selling a minion returns its copy to the shared pool (a golden returns three)', () => {
+    let s: RunState = {
+      ...createRun(3),
+      board: [{ uid: 'x', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false }],
+    };
+    const before = s.pool['sandbag'] ?? 0;
+    s = reduce(s, { type: 'sell', uid: 'x' });
+    expect(s.pool['sandbag']).toBe(before + 1);
+
+    let g: RunState = {
+      ...createRun(3),
+      board: [{ uid: 'g', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 8, keywords: ['T'], golden: true }],
+    };
+    const gBefore = g.pool['sandbag'] ?? 0;
+    g = reduce(g, { type: 'sell', uid: 'g' });
+    expect(g.pool['sandbag']).toBe(gBefore + 3);
+  });
+
+  it('a card with no copies left is never offered; a fully exhausted pool offers nothing', () => {
+    let s = createRun(5);
+    // Drain every pooled card to 0 except the neutral Target Dummy (always T1-eligible).
+    const drained: Record<string, number> = {};
+    for (const id of Object.keys(s.pool)) drained[id] = id === 'sandbag' ? 5 : 0;
+    s = { ...s, pool: drained, shop: [], tier: 1 };
+    for (let r = 0; r < 8; r++) {
+      s = reduce({ ...s, embers: 50 }, { type: 'roll' });
+      expect(s.shop.length).toBeGreaterThan(0);
+      for (const offer of s.shop) expect(offer.cardId).toBe('sandbag'); // only the stocked card appears
+    }
+    const empty: Record<string, number> = {};
+    for (const id of Object.keys(s.pool)) empty[id] = 0;
+    s = reduce({ ...s, pool: empty, shop: [], embers: 50 }, { type: 'roll' });
+    expect(s.shop.length).toBe(0); // nothing left → no offers conjured from an empty pool
   });
 });

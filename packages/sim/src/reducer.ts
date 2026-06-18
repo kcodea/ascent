@@ -1,7 +1,7 @@
 import { makeRng, simulate, type BoardMinion, type CombatResult, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
-import { rollShop, topUpTavern } from './shop';
+import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { addBuff, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
@@ -176,17 +176,22 @@ export function reduce(state: RunState, action: Action): RunState {
 
     case 'sell': {
       // Sell from the board or the hand.
+      let sold: BoardCard | undefined;
       const bi = s.board.findIndex((c) => c.uid === action.uid);
       if (bi >= 0) {
+        sold = s.board[bi];
         s.board.splice(bi, 1);
       } else {
         const hi = s.hand.findIndex((c) => c.uid === action.uid);
         if (hi < 0) return state;
         // Spells can't be sold — they're only played for their effect.
         if (CARD_INDEX[s.hand[hi]!.cardId]?.spell) return state;
+        sold = s.hand[hi];
         s.hand.splice(hi, 1);
       }
       s.embers += CONFIG.sellValue; // embers are uncapped within a turn (no max-embers ceiling)
+      // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
+      if (sold) returnToPool(s, sold.cardId, sold.golden ? 3 : 1);
       return s;
     }
 
@@ -266,6 +271,7 @@ export function reduce(state: RunState, action: Action): RunState {
         keywords: [...def.keywords],
         golden: false,
       });
+      takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
       s.discover = undefined;
       checkTriples(s); // the discovered copy might itself complete a triple
       return s;

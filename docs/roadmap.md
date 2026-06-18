@@ -60,14 +60,16 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       starting Embers from the base `maxEmbers` curve. When cards modify Ember gain (per-wave income,
       one-shot ramp, etc.), fold their effect into the projection so it stays accurate.
 
-- [ ] **Finite minion pool (copy quantities per tier).** Make the shop draw from + return to a shared,
-      finite pool so copies are a contested resource (the engine behind triples + "someone else took my
-      minion" tension). Per-tier copy counts (placeholder constant `POOL_QUANTITIES` already in
-      `@game/sim` config, **not yet wired**):
-      Tier 1 → **16**, Tier 2 → **15**, Tier 3 → **13**, Tier 4 → **11**, Tier 5 → **9**, Tier 6 → **7**,
-      Tier 7 → **5** (forward placeholder — no tier-7 cards yet, `maxTier` is 6). Wiring it means
-      `rollShop` pulls from the pool (weighted by remaining copies, gated to ≤ current tier) and
-      sell/reroll return copies.
+- [x] **Finite minion pool (copy quantities per tier).** Wired: each run stocks `POOL_QUANTITIES[tier]`
+      copies (T1 **10**, T2 **9**, T3 **8**, T4 **7**, T5 **6**, T6 **6**) of every buyable minion of its
+      active tribes (+ neutral) into `RunState.pool`. The shop draws from it (a card at 0 copies stops
+      being offered), and sell / reroll return copies (a golden returns 3), while conjures (Discover,
+      Buddy) take a copy so selling them stays balanced. *Remaining refinement:* the draw is **gated** by
+      availability but not yet **weighted** by remaining count — kept the tier-proximity weighting so
+      existing seeded tests stay deterministic. Add copy-count weighting (BG-style: more copies → more
+      likely) if the contested feel needs sharpening.
+- [ ] **Pool UI — show remaining copies.** The pool is wired but invisible; a small "copies left" cue
+      (on the shop card, or fading a card type once it's exhausted) would make the contention legible.
 - [ ] **Divine Shield indicator (re-add).** The `.dsfx` overlay was removed as too noisy. `effectArt()`
       + `art/effects/divineshield.png` are retained — re-add a *subtler* DS cue (small corner badge or a
       thin rim) when wanted, rather than the full-card aura.

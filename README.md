@@ -23,6 +23,8 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Finite minion pool** — the shop now draws from a shared, finite pool (T1 10 … T6 6 copies per
+  card); a card with no copies left stops appearing, and selling or rerolling returns copies to it.
 - **Buff panel + Combinator** — the right-click buff breakdown now fits any number of sources (scrolls
   past a cap, never clips the numbers); Combinator welds its Cling Drones onto **2 random** Mechs each
   proc (seeded) instead of the highest-Attack ones, with the electrify visual kept in sync.

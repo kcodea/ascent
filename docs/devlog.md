@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Finite minion pool (draw-from + return-on-sell)
+- Wired the shared, finite minion pool the engine was scaffolded for. Each run stocks
+  `POOL_QUANTITIES[tier]` copies of every buyable minion of its active tribes (+ neutral) into a new
+  `RunState.pool`. The shop **draws from it** — `rollShop` / `topUpTavern` decrement on draw, a full
+  reroll returns the discarded offers first, and a card at **0 copies stops being offered** (the shop
+  just offers fewer cards). **Selling returns** copies (a golden returns 3, since it ate three), and
+  **conjures** (Discover, Buddy Buddy) take a copy so selling them stays balanced. Tokens / Fodder /
+  spells are never pooled. Old saves heal (re-stock) on `deserialize`.
+- **Quantities** (per the user): T1 **10**, T2 **9**, T3 **8**, T4 **7**, T5 **6**, T6 **6**.
+- **Draw weighting unchanged** — I gate by availability rather than weighting by remaining count, which
+  keeps the exact draw sequence from a full pool (so every existing seeded test is undisturbed) while
+  delivering depletion + return. Copy-count weighting (a drained card appearing less often, BG-style) is
+  a noted refinement; a "copies left" UI cue is queued too (the pool is currently invisible).
+- +5 sim tests (stocking, copy conservation across buy/reroll/sell, sell-returns incl. golden ×3, a
+  depleted card never offered + an empty pool offering nothing). `typecheck` + `lint` + `test` (**129**)
+  clean; verified live (pool stocks the Target Dummy at 10, rolls draw from it, no console errors).
+
 ### Buff-panel fit + Combinator welds random Mechs
 - **Buff inspect panel fits any number of sources.** Widened the breakdown (max-width 150→252px) and
   added a `max-height` + vertical scroll, so a heavily-buffed minion (e.g. `Karwind ×128 +209/+418`

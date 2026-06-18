@@ -1,7 +1,7 @@
 import { makeRng } from '@game/core';
 import type { CombatResult, Keyword, Rng, Tribe } from '@game/core';
 import { CONFIG } from './config';
-import { rollShop } from './shop';
+import { rollShop, stockPool } from './shop';
 import { selectThreat, type ThreatId } from './threats';
 
 /**
@@ -111,6 +111,10 @@ export interface RunState {
   tribes: Tribe[];
   /** Advancing state of the shop RNG stream. */
   rngCursor: number;
+  /** The shared, finite minion pool: cardId → copies remaining. The shop draws from it (a card at
+   *  0 stops being offered) and sell / reroll return copies to it. Only buyable minions of the run's
+   *  active tribes (+ neutral) are keyed here — tokens & spells are never pooled. */
+  pool: Record<string, number>;
   /** Monotonic counter for shop/board instance uids. */
   uidSeq: number;
   /** Card ids queued to be injected into the *next* tavern refresh (Soulfeeder adds Fodder).
@@ -158,6 +162,7 @@ export type Action =
 
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
 export function createRun(seed: number): RunState {
+  const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
   const state: RunState = {
     seed,
     wave: 1,
@@ -178,8 +183,9 @@ export function createRun(seed: number): RunState {
     board: [],
     heroReady: true,
     threat: selectThreat(1, makeRng(mixSeed(seed, 1, TAG.THREAT))),
-    tribes: selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES))),
+    tribes,
     rngCursor: mixSeed(seed, 0, TAG.SHOP),
+    pool: stockPool(tribes),
     uidSeq: 0,
     pendingTavern: [],
     cardBuffs: {},
@@ -196,5 +202,7 @@ export function serialize(state: RunState): string {
 }
 
 export function deserialize(json: string): RunState {
-  return JSON.parse(json) as RunState;
+  const state = JSON.parse(json) as RunState;
+  if (!state.pool) state.pool = stockPool(state.tribes); // heal saves from before the finite pool
+  return state;
 }

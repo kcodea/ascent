@@ -36,17 +36,16 @@ export const CONFIG = {
 
 /**
  * Minion-pool quantities per tier — how many copies of each tier's cards sit in the shared
- * shop pool. A finite pool is what makes triples a contested resource (buying/selling draws
- * from + returns copies). **Placeholder — not yet wired into shop rolls** (see roadmap: the
- * shop currently samples cards without a finite pool). Tier 7 is a forward placeholder; no
- * tier-7 cards exist yet (CONFIG.maxTier is 6).
+ * shop pool. A finite pool makes copies a contested resource: the shop draws from it (a card
+ * with 0 copies left stops being offered) and selling / rerolling returns copies. Tier 7 is a
+ * forward placeholder; no tier-7 cards exist yet (CONFIG.maxTier is 6).
  */
 export const POOL_QUANTITIES: Record<number, number> = {
-  1: 16,
-  2: 15,
-  3: 13,
-  4: 11,
-  5: 9,
-  6: 7,
-  7: 5,
+  1: 10,
+  2: 9,
+  3: 8,
+  4: 7,
+  5: 6,
+  6: 6,
+  7: 6,
 };

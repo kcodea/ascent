@@ -19,6 +19,8 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 - CSS-only. `typecheck` + `lint` + `test` (**131**) clean; verified live across all six tribes, a dual
   (split rim), a Divine-Shield card (teal ring + gold halo), a Reborn card (slate ring + blue halo),
   and a golden (gold frame preserved) — 0 console errors.
+- **Tuned per feedback:** thicker ring (3 → 4px) + a more saturated glow so the type colour reads at
+  a glance (the DS / Reborn outer halos and the dual split rim were scaled to match).
 
 ### Toxin Tender — player-targeted Battlecry
 - Toxin Tender's Battlecry is now **player-targeted** (like the Warden's Hero Power): play it to the

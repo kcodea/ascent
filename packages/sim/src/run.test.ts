@@ -510,6 +510,31 @@ describe('run loop (@game/sim)', () => {
     expect([cmb.attack, cmb.health]).toEqual([6, 7]); // self is not a target
   });
 
+  it('Combinator welds onto 2 RANDOM Mechs — the pair varies by seed, not the highest-Attack', () => {
+    const everBuffed = new Set<string>();
+    for (let seed = 1; seed <= 24; seed++) {
+      let s: RunState = {
+        ...createRun(seed),
+        phase: 'recruit',
+        embers: 0,
+        shop: [],
+        board: [
+          { uid: 'cmb', cardId: 'combinator', tribe: 'mech', attack: 6, health: 7, keywords: [], golden: false },
+          { uid: 'm1', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false },
+          { uid: 'm2', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false },
+          { uid: 'm3', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false },
+          { uid: 'm4', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false },
+        ],
+      };
+      s = reduce(s, { type: 'faceOmen' });
+      const buffed = s.board.filter((c) => c.uid.startsWith('m') && c.attack > 2).map((c) => c.uid);
+      expect(buffed.length).toBe(2); // exactly `targets` (2) Mechs welded each run
+      buffed.forEach((u) => everBuffed.add(u));
+    }
+    // Over 24 seeds the chosen pair shifts around — the old highest-Attack logic would always pick m1/m2.
+    expect(everBuffed.size).toBeGreaterThan(2);
+  });
+
   it('Chronos triggers End-of-Turn effects an extra time', () => {
     let s: RunState = {
       ...createRun(1),

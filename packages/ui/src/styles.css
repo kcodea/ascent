@@ -457,12 +457,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .inspect-card .card { animation: none; cursor: default; }
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
 /* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
-.inspect-buffs { align-self: center; min-width: 92px; max-width: 150px; background: color-mix(in srgb, var(--card) 95%, transparent); border: 2px solid var(--line); border-radius: 9px; padding: 6px 8px; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
+.inspect-buffs { align-self: center; min-width: 92px; max-width: min(252px, 44vw); max-height: min(72vh, 560px); overflow-y: auto; background: color-mix(in srgb, var(--card) 95%, transparent); border: 2px solid var(--line); border-radius: 9px; padding: 6px 8px; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
 .ib-title { font-family: 'Outfit'; font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); text-align: center; margin-bottom: 2px; }
 .ib-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 10px; white-space: nowrap; }
-.ib-src { font-family: 'Outfit'; font-weight: 700; color: var(--ink); }
+/* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
+.ib-src { font-family: 'Outfit'; font-weight: 700; color: var(--ink); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ib-src em { color: var(--ink3); font-style: normal; font-weight: 600; font-size: 8.5px; }
-.ib-amt { font-family: 'Outfit'; font-weight: 800; color: #1aa86f; }
+.ib-amt { font-family: 'Outfit'; font-weight: 800; color: #1aa86f; flex: 0 0 auto; }
 @keyframes inspectpop { from { opacity: 0; transform: scale(1.45); } to { opacity: 1; transform: scale(1.9); } }
 
 /* custom drag: a solid card follows the cursor; the source dims; invalid drops snap back.

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, magnetizesTo, chronosRepeats, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, magnetizesTo, magnetizeTargets, chronosRepeats, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText } from './cardText';
 import { HudBar } from './HudBar';
@@ -725,16 +725,15 @@ export function Recruit() {
       if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
       const kind: Beat['kind'] =
         card.cardId === 'ritualist' ? 'ritualist' : card.cardId === 'combinator' ? 'combinator' : 'generic';
-      // Combinator electrifies the 2 highest-Attack friendly Mechs (incl. dual-type), like the reducer.
-      const targets =
-        kind === 'combinator'
-          ? run.board
-              .filter((c) => c.uid !== card.uid && (c.tribe === 'mech' || CARD_INDEX[c.cardId]?.tribe2 === 'mech'))
-              .sort((a, b) => b.attack - a.attack)
-              .slice(0, 2)
-              .map((c) => c.uid)
-          : [];
-      for (let r = 0; r < repeats; r++) beats.push({ uid: card.uid, kind, targets });
+      // Combinator welds onto 2 *random* friendly Mechs each proc — derive the exact same uids the
+      // reducer will (shared seeded picker), so the electrify highlights the Mechs that actually get
+      // buffed. Computed per proc (r), since each repeat picks a fresh random pair.
+      const slot = run.board.indexOf(card);
+      for (let r = 0; r < repeats; r++) {
+        const targets =
+          kind === 'combinator' ? magnetizeTargets(run.board, card.uid, 2, run.seed, run.wave, slot, r) : [];
+        beats.push({ uid: card.uid, kind, targets });
+      }
     }
     if (beats.length === 0) {
       dispatch({ type: 'faceOmen' });

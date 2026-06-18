@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Buff-panel fit + Combinator welds random Mechs
+- **Buff inspect panel fits any number of sources.** Widened the breakdown (max-width 150→252px) and
+  added a `max-height` + vertical scroll, so a heavily-buffed minion (e.g. `Karwind ×128 +209/+418`
+  alongside a dozen other sources) shows every row. The source name flexes/ellipsizes only if a name is
+  unusually long, while the `+atk/+hp` amount is pinned always-visible (`flex: 0 0 auto`). Verified live
+  with 12 sources incl. 200+ buffs — all fit, nothing clipped, scroll kicks in past the height cap.
+- **Combinator welds onto RANDOM Mechs (per proc).** It used to pick the 2 *highest-Attack* friendly
+  Mechs (deterministic). Now it picks 2 at **random**, fresh each proc — so Chronos repeats spread to
+  different Mechs. The pick is seeded by (run seed, wave, the Combinator's board slot, proc) through a
+  new shared `magnetizeTargets()` helper (exported from `@game/sim`), so it's reproducible **and** the
+  recruit UI derives the exact same uids to electrify — the visual stays in sync with the actual welds
+  without restructuring the recruit→combat flow. +1 sim test (over 24 seeds the welded pair shifts
+  around, where the old highest-Attack logic always picked the same two).
+- `typecheck` + `lint` + `test` (**125**) clean; buff panel verified live.
+- *(Re: pool quantities — answered the user inline: the shop currently samples with replacement from
+  the eligible pool with no finite per-tier counts; `POOL_QUANTITIES` remains an unwired placeholder.)*
+
 ### Tavern control bar restyle (toward the Pixel Arena mockup)
 - Reworked the shop control bar to match the user's mockup. Cost/tier numbers are now **large, bold,
   colored inline** with **no pill** (the earlier teal-pill cost treatment is dropped). The **Refresh**

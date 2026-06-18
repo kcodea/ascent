@@ -10,7 +10,7 @@ import { selectThreat, type ThreatId } from './threats';
  * are derived purely from (seed, wave) so they're identical every time a wave is
  * re-resolved — which is why the recruit-phase preview matches the actual fight.
  */
-export const TAG = { THREAT: 1, ENEMY: 2, SHOP: 3, COMBAT: 4, TRIBES: 5 } as const;
+export const TAG = { THREAT: 1, ENEMY: 2, SHOP: 3, COMBAT: 4, TRIBES: 5, MAGNET: 6 } as const;
 
 /** The playable (non-neutral) tribes. Grows as tribes are added; a run draws 5 of them. */
 export const PLAYABLE_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];

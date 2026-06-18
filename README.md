@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Buff panel + Combinator** — the right-click buff breakdown now fits any number of sources (scrolls
+  past a cap, never clips the numbers); Combinator welds its Cling Drones onto **2 random** Mechs each
+  proc (seeded) instead of the highest-Attack ones, with the electrify visual kept in sync.
 - **Tavern bar restyle** — the shop controls now match the Pixel Arena mockup: bold colored inline
   numbers (no pill), the current-tier indicator and upgrade button both wear a house icon, and the
   Refresh cost + tier number get the same emphasis (teal cost, tangerine tier).

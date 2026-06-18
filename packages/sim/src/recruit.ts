@@ -1,7 +1,7 @@
 import { makeRng, type CardDef, type Keyword } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
-import type { BoardCard, RunState } from './state';
+import { mixSeed, TAG, type BoardCard, type RunState } from './state';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -26,7 +26,9 @@ type RecruitFn = (
   ctx: RecruitContext,
   self: BoardCard,
   params: Record<string, unknown>,
-  payload: { minion: BoardCard },
+  /** `proc` is the repeat index of this End-of-Turn trigger (0-based; Chronos drives extras) — used
+   *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. */
+  payload: { minion: BoardCard; proc?: number },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -70,6 +72,35 @@ export function boardManaBonus(state: RunState): number {
     const per = CARD_INDEX[c.cardId]?.manaPerTurn ?? 0;
     return sum + per * (c.golden ? 2 : 1) + (c.manaBonus ?? 0);
   }, 0);
+}
+
+/**
+ * Pick up to `count` distinct friendly **Mech** uids for a Combinator weld — chosen at *random*, not
+ * by Attack. Seeded by (run seed, wave, the Combinator's board `slot`, `proc`), so the selection is
+ * unpredictable yet reproducible: each proc welds onto a fresh random set, and the UI can derive the
+ * exact same uids (to electrify them) without the sim having to resolve first. Excludes `selfUid`;
+ * dual-type Mechs (Heckbinder) count. Does not mutate `board`.
+ */
+export function magnetizeTargets(
+  board: BoardCard[],
+  selfUid: string,
+  count: number,
+  seed: number,
+  wave: number,
+  slot: number,
+  proc: number,
+): string[] {
+  const eligible = board.filter(
+    (c) => c.uid !== selfUid && (c.tribe === 'mech' || CARD_INDEX[c.cardId]?.tribe2 === 'mech'),
+  );
+  const rng = makeRng(mixSeed(seed, wave, TAG.MAGNET, slot, proc));
+  for (let i = eligible.length - 1; i > 0; i--) {
+    const j = rng.int(i + 1); // Fisher-Yates with the seeded RNG
+    const tmp = eligible[i]!;
+    eligible[i] = eligible[j]!;
+    eligible[j] = tmp;
+  }
+  return eligible.slice(0, count).map((c) => c.uid);
 }
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
@@ -190,19 +221,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
 
-  /** Combinator — End of Turn: weld a token's (Cling Drone's) stats onto `targets` *other* friendly
-   *  Mechs (highest-attack first), `count` drones each (golden doubles the drone count). */
-  endOfTurnMagnetizeMechs: (ctx, self, params) => {
+  /** Combinator — End of Turn: weld a token's (Cling Drone's) stats onto `targets` *random* other
+   *  friendly Mechs, `count` drones each (golden doubles the drone count). The targets are picked
+   *  fresh each proc (seeded), so the welds spread unpredictably — not always the highest-Attack Mechs. */
+  endOfTurnMagnetizeMechs: (ctx, self, params, payload) => {
     const token = CARD_INDEX[str(params.tokenId) || 'cling'];
     if (!token) return;
     const targets = num(params.targets, 2);
     const drones = num(params.count, 1) * gold(self);
-    const mechs = ctx.state.board
-      .filter((c) => c !== self && (c.tribe === 'mech' || CARD_INDEX[c.cardId]?.tribe2 === 'mech'))
-      .sort((a, b) => b.attack - a.attack)
-      .slice(0, targets);
-    for (const m of mechs) {
-      addBuff(m, nameOf(self), token.attack * drones, token.health * drones);
+    const slot = ctx.state.board.indexOf(self);
+    const uids = magnetizeTargets(
+      ctx.state.board, self.uid, targets, ctx.state.seed, ctx.state.wave, slot, num(payload.proc, 0),
+    );
+    for (const uid of uids) {
+      const m = ctx.state.board.find((c) => c.uid === uid);
+      if (m) addBuff(m, nameOf(self), token.attack * drones, token.health * drones);
     }
   },
 
@@ -475,7 +508,7 @@ export function applyEndOfTurn(state: RunState): void {
       if (effect.on !== 'endOfTurn') continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
-      for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card });
+      for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
     }
   }
 }

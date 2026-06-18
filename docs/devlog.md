@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Correct Echo Warden art + new Ember Whelp art
+- Re-wired **Echo Warden** from the now-present `EchoWarden.png` (replacing the earlier wrong guess —
+  a spectral figure surrounded by echoed summons, fitting the card), and swapped **Ember Whelp** to
+  `EmberWhelp2.png` (a fierier flame-breathing whelp). Both verified loaded in-app.
+- **Policy:** only wire card art when a source file's name matches the card — never guess from an
+  un-attributed file (a wrong guess is worse than the pixel-sprite fallback).
+
 ### Shaper/Echo art, minimal Karwind burn, magnetize pass 2, golden buff breakdown
 - **Wired Wildwood Shaper + Echo Warden art** (`shaper.png`, `echo.png`). *Note:* there was no
   `EchoWarden.png` in the source folder — used the only un-attributed export (a leafy winged creature)

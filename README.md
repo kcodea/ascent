@@ -22,6 +22,12 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Esc menu + dual-tribe + polish** — a new **Esc / settings menu** with a display-resolution scaler
+  (Fit to Window · 1920×1080 · 2560×1440 · 3440×1440), letterboxing the game into a centred 16:9 / 21:9
+  box. **Heckbinder** now correctly counts as a Mech *and* Demon (you can magnetize onto it, and Mech /
+  Demon buffs hit it). Golden cards fill the whole text box in gold; tripled-card text now reads
+  correctly (counts + grammar). The **Reborn** glow now washes over the art with drifting tear
+  particles, and the Mana "coming up" tooltip uses the teal Mana icon.
 - **Card cues + Heckbinder + Reborn rework** — golden minions now have a gold name pill + text box;
   **Reborn** minions show a blue aura and now return at their *base* stats (shedding combat buffs +
   granted effects like Divine Shield). New **Heckbinder** (T4 Demon/Mech, the first dual-type) that

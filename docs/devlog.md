@@ -5,6 +5,40 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Heckbinder dual-tribe fix, mana tooltip, golden-text correctness + full fill, Reborn FX, Esc resolution menu
+- **Magnetize onto Heckbinder now works.** `magnetizesTo()` was checking only the *target's* primary
+  tribe, so a Mech-magnetic card (Cling Drone) couldn't weld onto Heckbinder (primary tribe Demon).
+  It now intersects BOTH cards' tribe sets — Heckbinder counts as a Mech, so anything Mech-magnetic
+  attaches to it (and it still attaches to a Mech or Demon).
+- **Dual-types count as both tribes for buffs**, not just magnetizing. Added a combat `Minion.tribe2`
+  (from the def) and taught the tribe-buff sites (combat: buff-tribe, AoE-per-tribe, shield-tribe;
+  recruit: battlecry/deathrattle buff-tribe, Combinator's auto-magnetize) to match either tribe.
+  Regression-safe — single-tribe cards have `tribe2 === undefined`. Tested (Cling→Heckbinder merge;
+  Heckbinder shielded by Omega Bulwark's Mech grant).
+- **Mana projection tooltip** ("coming up") icon was tinted `--acc` (orange), reading as an ember —
+  now `--mana` teal, matching the chip.
+- **Golden text correctness.** The naive number-doubler mis-rendered cards whose golden form changes a
+  *count* or needs plural grammar. Added an explicit `CardDef.goldenText` (+ zod, threaded through the
+  card views) used verbatim when golden: **Buddy Buddy** (add *two* minions), **Soulfeeder** (add *2*
+  Fodder), **Combinator** (*two* Drones), and grammar fixes for **Drakko/Sylus/Chronos/Echo** ("1 more
+  time" → "2 more times"). Summon cards whose counts *don't* change when golden (Alleycat, Pack
+  Scrounger, Brood Matron, Wildwood Shaper) are already correct under the doubler, so they're left.
+- **Golden box fills the whole card.** Tinted the `.card.golden` background gold (the body shows it
+  edge-to-edge) and dropped the inset description panel, so the entire text area reads gold (+ gold
+  footer, on top of the existing gold name pill).
+- **Reborn FX upgraded.** The blue aura now also washes OVER the art (screen-blend, like Divine Shield)
+  and the whole card pulses; added drifting spectral "tear" particles (staggered, ~one at a time) for
+  life. All keyed off the `R` keyword, so they vanish the instant a minion Reborns in combat.
+- **Esc menu + resolution scaler.** New pause/settings overlay (Esc key or a bottom-right gear) with a
+  display-resolution picker: **Fit to Window / 1920×1080 / 2560×1440 / 3440×1440**. The whole game now
+  renders into a centred "stage" box driven by `--gw`/`--gh`; the card/chrome scaling keys off the box
+  (not the raw viewport), so picking a fixed 16:9 / 21:9 size letterboxes the rest against a dark frame.
+  No transform-scale, so drag + pointer math are untouched; window-edge HUD (status tray, hand, timer,
+  combat log) is offset into the box by `--bar-x/--bar-y`. Choice persists (localStorage). Verified
+  live: fit = full window; on 1080p, 16:9 fills + 21:9 letterboxes to aspect 2.333; menu applies +
+  persists; no console errors.
+- `typecheck` + `lint` + `test` (**115**) + `build:web` clean.
+
 ### Rope width cap, +30% proc flourish, golden/Reborn card cues, Reborn-at-base, dual-type Heckbinder
 - **Rope no longer scales with the monitor.** It was `width: 86%` of the viewport, so it stretched
   edge-to-edge on wide screens. Capped to `min(1180px, 92vw)` (the board's content frame) — verified

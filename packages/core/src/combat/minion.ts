@@ -21,6 +21,7 @@ export function instantiate(
     cardId: card.id,
     name: card.name,
     tribe: card.tribe,
+    tribe2: card.tribe2,
     attack: board.attack,
     health: board.health,
     maxHealth: board.health,

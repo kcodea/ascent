@@ -39,6 +39,7 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [],
     text: '**In combat,** your summon effects make **1 more** token.',
+    goldenText: '**In combat,** your summon effects make **2 more** tokens.',
   },
   {
     id: 'buddy',
@@ -50,6 +51,7 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tier: 1 } }],
     text: '**Battlecry:** add a random **Tier 1** minion to your hand.',
+    goldenText: '**Battlecry:** add **two** random **Tier 1** minions to your hand.',
   },
   {
     // Battlecry doubler. Golden "triples" (fire 2 more times); multiple Drakkos do NOT stack.
@@ -62,6 +64,7 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [],
     text: 'Your **Battlecries** fire **1 more** time.',
+    goldenText: 'Your **Battlecries** fire **2 more** times.',
   },
   {
     // Deathrattle doubler. Golden procs 2 more times; multiple Sylus DO stack (additive).
@@ -74,6 +77,7 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [],
     text: '**In combat,** your Deathrattles proc **1 more** time.',
+    goldenText: '**In combat,** your Deathrattles proc **2 more** times.',
   },
   {
     // End-of-Turn doubler (recruit). Golden triggers 2 more times; multiple Chronos do NOT
@@ -87,5 +91,6 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [],
     text: 'Your **End of Turn** effects trigger **1 more** time.',
+    goldenText: 'Your **End of Turn** effects trigger **2 more** times.',
   },
 ];

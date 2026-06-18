@@ -42,7 +42,7 @@ function shopView(
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: c.attack + (card.atk ?? 0) + cb.attack, health: c.health + (card.hp ?? 0) + cb.health,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
-    text: c.text, cost: CONFIG.minionCost, tier: c.tier,
+    text: c.text, goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier,
     baseAttack: c.attack, baseHealth: c.health,
   };
 }
@@ -53,7 +53,7 @@ function instView(inst: BoardCard): CardView {
   const text = summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2, attack: inst.attack, health: inst.health,
-    keywords: inst.keywords, text, golden: inst.golden,
+    keywords: inst.keywords, text, goldenText: c.goldenText, golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
@@ -322,7 +322,7 @@ export function Recruit() {
           ? warbandIndexAt(e.clientX)
           : -1;
       const magMech = magIdx >= 0 ? run.board[magIdx] : undefined;
-      if (magMech && magnetizesTo(d.view.cardId, magMech.tribe)) {
+      if (magMech && magnetizesTo(d.view.cardId, magMech.cardId)) {
         const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${magMech.uid}"]`);
         if (el) {
           const r = el.getBoundingClientRect();
@@ -553,7 +553,7 @@ export function Recruit() {
     !!drag?.active &&
     !magSlide && // once the slide starts, the warband settles (no more shove preview)
     !!magHoverTarget &&
-    magnetizesTo(drag.view.cardId, magHoverTarget.tribe);
+    magnetizesTo(drag.view.cardId, magHoverTarget.cardId);
   // Casting a targeted spell from the hand: highlight the friendly minion under the
   // cursor (it's the target), and don't treat it as a board-insertion drag.
   const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && drag.view.target === 'friendly';

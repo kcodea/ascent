@@ -225,6 +225,20 @@ describe('simulate (handoff A.3)', () => {
     expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([4, 4]); // 2/2 base × 2
   });
 
+  it('a dual-type Mech (Heckbinder) is counted by a Mech tribe buff', () => {
+    // Omega Bulwark's Start of Combat shields all Mechs — Heckbinder (Demon/Mech) must be included.
+    const a = run(
+      [
+        { cardId: 'omega', attack: 2, health: 6, keywords: ['T'] },
+        { cardId: 'heckbinder', attack: 3, health: 3, keywords: [] },
+      ],
+      [{ cardId: 'omen', attack: 2, health: 30, keywords: [] }],
+      4,
+    );
+    const heckUid = a.initial.player.find((m) => m.cardId === 'heckbinder')?.uid;
+    expect(a.events.some((e) => e.type === 'shieldUp' && e.target === heckUid)).toBe(true);
+  });
+
   it('Sporeling Deathrattle buffs a surviving friend', () => {
     const a = run(
       [

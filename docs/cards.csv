@@ -10,11 +10,11 @@ id,name,kind,tribe,tier,attack,health,cost,keywords,text,effect,golden_text,gold
 # === NEUTRAL ===
 sandbag,Target Dummy,minion,neutral,1,0,4,,Taunt,,,,2x stats -> 0/8; Taunt,TRUE
 broker,Brightwing Broker,minion,neutral,2,2,3,,,Every minion you buy gets +1/+1.,buffOnBuy +1/+1,Every minion you buy gets +2/+2.,buys get +2/+2,TRUE
-echo,Echo Warden,minion,neutral,3,2,4,,,"In combat, your summon effects make 1 more token.",adds +1 token to summons,"In combat, your summon effects make 2 more token.",+2 tokens; STACKS additively with other Echoes,FALSE
+echo,Echo Warden,minion,neutral,3,2,4,,,"In combat, your summon effects make 1 more token.",adds +1 token to summons,"In combat, your summon effects make 2 more tokens.",+2 tokens; STACKS additively with other Echoes,FALSE
 buddy,Buddy Buddy,minion,neutral,3,3,4,,,Battlecry: add a random Tier 1 minion to your hand.,battlecryGainRandomMinion tier 1,Battlecry: add 2 random Tier 1 minions to your hand.,gains 2 random T1 minions,TRUE
-drummer,Drakko the Drummer,minion,neutral,5,2,4,,,Your Battlecries fire 1 more time.,Battlecries fire +1 time (fire 2x total),Your Battlecries fire 2 more time.,Battlecries fire 3x; does NOT stack with other Drakkos,TRUE
-sylus,Sylus the Reaper,minion,neutral,5,4,5,,,"In combat, your Deathrattles proc 1 more time.",Deathrattles proc +1 time,"In combat, your Deathrattles proc 2 more time.",Deathrattles +2 procs; DOES stack with other Sylus,TRUE
-chronos,Chronos,minion,neutral,5,1,6,,,Your End of Turn effects trigger 1 more time.,End-of-Turn effects fire +1 time (no stack — best Chronos),Your End of Turn effects trigger 2 more time.,End-of-Turn fires 3x; does NOT stack with other Chronos,TRUE
+drummer,Drakko the Drummer,minion,neutral,5,2,4,,,Your Battlecries fire 1 more time.,Battlecries fire +1 time (fire 2x total),Your Battlecries fire 2 more times.,Battlecries fire 3x; does NOT stack with other Drakkos,TRUE
+sylus,Sylus the Reaper,minion,neutral,5,4,5,,,"In combat, your Deathrattles proc 1 more time.",Deathrattles proc +1 time,"In combat, your Deathrattles proc 2 more times.",Deathrattles +2 procs; DOES stack with other Sylus,TRUE
+chronos,Chronos,minion,neutral,5,1,6,,,Your End of Turn effects trigger 1 more time.,End-of-Turn effects fire +1 time (no stack — best Chronos),Your End of Turn effects trigger 2 more times.,End-of-Turn fires 3x; does NOT stack with other Chronos,TRUE
 #
 # === BEASTS ===
 alley,Alleycat,minion,beast,1,1,1,,,Battlecry: summon a 1/1 Stray next to it.,battlecrySummon stray x1,Battlecry: summon a 1/1 Stray next to it.,summons 2 Strays (count x2) — TEXT says 'a' so won't auto-update,TRUE
@@ -59,7 +59,7 @@ combinator,Combinator,minion,mech,5,6,7,,,End of Turn: magnetize a Cling Drone o
 omega,Omega Bulwark,minion,mech,6,6,6,,Shield|Taunt,Start of Combat: give all your Mechs a Shield.,scGrantShieldTribe mech,Start of Combat: give all your Mechs a Shield.,2x stats; shields all Mechs (unchanged),FALSE
 #
 # === DEMON ===
-feed,Soulfeeder,minion,demon,1,2,2,,,Battlecry: add Fodder to your next tavern.,battlecryAddTavernFodder fred,Battlecry: add Fodder to your next tavern.,2x stats; adds 2 Fodder (count x2),TRUE
+feed,Soulfeeder,minion,demon,1,2,2,,,Battlecry: add Fodder to your next tavern.,battlecryAddTavernFodder fred,Battlecry: add 2 Fodder to your next tavern.,2x stats; adds 2 Fodder (count x2),TRUE
 imp,Voracious Imp,minion,demon,2,2,2,,Consume,Gains 2x stats from Fodder.,fodderMult 2,Gains 3x stats from Fodder.,fodder gives 3x stats,TRUE
 pact,Pactstone Acolyte,minion,demon,2,2,3,,,"When you consume a minion, gain an extra +1/+1.",onConsumeBuffSelf +1/+1,"When you consume a minion, gain an extra +2/+2.",+2/+2 per consume,FALSE
 brood,Brood Matron,minion,demon,3,3,3,,,"Each time a friend dies, summon a 1/1 Imp.",onFriendDeathSummon impscrap,"Each time a friend dies, summon a 1/1 Imp.",2x stats; summons 1 Imp/death (count unchanged),FALSE

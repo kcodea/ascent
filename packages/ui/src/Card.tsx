@@ -69,6 +69,8 @@ export interface CardView {
   health: number;
   keywords: Keyword[];
   text: string;
+  /** Explicit golden text (overrides the numeric doubler when shown golden). */
+  goldenText?: string;
   cost?: number;
   golden?: boolean;
   tier?: number;
@@ -211,7 +213,7 @@ export const Card = memo(function Card({
         {card.text && (
           <div
             className="desc"
-            dangerouslySetInnerHTML={{ __html: descUp(mdBold(card.golden ? doubleNums(card.text) : card.text)) }}
+            dangerouslySetInnerHTML={{ __html: descUp(mdBold(card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text)) }}
           />
         )}
       </div>
@@ -267,6 +269,22 @@ export const Card = memo(function Card({
           <span className="bc-mote" style={{ '--a': '22deg' } as CSSProperties} />
         </span>
       )}
+      {/* Reborn — spectral blue tears drift up across the card now and then for a touch of life. */}
+      {card.keywords.includes('R') && (
+        <span className="reborntears" aria-hidden="true">
+          {REBORN_TEARS.map((t, i) => (
+            <span key={i} className="rt" style={{ left: t.x, top: t.y, animationDelay: t.d } as CSSProperties} />
+          ))}
+        </span>
+      )}
     </div>
   );
 });
+
+/** Drifting positions + staggered delays for the Reborn tear particles. */
+const REBORN_TEARS = [
+  { x: '20%', y: '34%', d: '0s' },
+  { x: '70%', y: '26%', d: '1.7s' },
+  { x: '44%', y: '58%', d: '3.2s' },
+  { x: '82%', y: '50%', d: '4.6s' },
+];

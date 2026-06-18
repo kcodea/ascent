@@ -108,6 +108,7 @@ export const MECHS: CardDef[] = [
       },
     ],
     text: '**End of Turn:** magnetize a Cling Drone onto 2 friendly Mechs.',
+    goldenText: '**End of Turn:** magnetize **two** Cling Drones onto 2 friendly Mechs.',
   },
   {
     id: 'omega',

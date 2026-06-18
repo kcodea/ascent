@@ -6,11 +6,16 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
 
-/** Whether a Magnetic minion can weld onto a target of the given tribe: it merges onto a friendly
- *  minion sharing one of its tribes (Cling Drone → Mech; Heckbinder, a Demon/Mech, → Mech or Demon). */
-export function magnetizesTo(cardId: string, targetTribe: Tribe): boolean {
-  const def = CARD_INDEX[cardId];
-  return !!def && (def.tribe === targetTribe || def.tribe2 === targetTribe);
+/** Whether a Magnetic minion can weld onto a target minion: they must share a tribe, counting BOTH
+ *  cards' tribes. So Cling Drone (Mech) → any Mech *including* Heckbinder (Demon/Mech); Heckbinder
+ *  → a Mech or a Demon; and a Mech-magnetic card can attach onto Heckbinder because it's also a Mech. */
+export function magnetizesTo(magneticCardId: string, targetCardId: string): boolean {
+  const m = CARD_INDEX[magneticCardId];
+  const t = CARD_INDEX[targetCardId];
+  if (!m || !t) return false;
+  const mag: Tribe[] = [m.tribe, m.tribe2].filter((x): x is Tribe => !!x);
+  const tgt: Tribe[] = [t.tribe, t.tribe2].filter((x): x is Tribe => !!x);
+  return mag.some((x) => tgt.includes(x));
 }
 
 /**
@@ -108,7 +113,7 @@ export function reduce(state: RunState, action: Action): RunState {
       // → Mech or Demon.)
       if (card.keywords.includes('M') && action.toIndex !== undefined && action.toIndex < s.board.length) {
         const target = s.board[action.toIndex];
-        if (target && magnetizesTo(card.cardId, target.tribe)) {
+        if (target && magnetizesTo(card.cardId, target.cardId)) {
           s.hand.splice(i, 1);
           target.attack += card.attack;
           target.health += card.health;

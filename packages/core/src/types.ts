@@ -113,6 +113,11 @@ export interface CardDef {
   effects: EffectDef[];
   /** Exact newcomer-facing text (handoff A.7), shipped verbatim. */
   text: string;
+  /** Explicit golden (tripled) text — used verbatim when the card is golden, overriding the naive
+   *  number-doubler. Needed when golden changes a *count* (Buddy Buddy adds two minions, Soulfeeder
+   *  two Fodder) or for grammar ("1 more time" → "2 more times"). Cards where doubling the printed
+   *  numbers is already correct leave this unset. */
+  goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp Scrap). */
   token?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
@@ -158,6 +163,8 @@ export interface Minion {
   cardId: string;
   name: string;
   tribe: Tribe;
+  /** Optional second tribe (dual-type, e.g. Heckbinder = Demon/Mech) — counts for tribe buffs too. */
+  tribe2?: Tribe;
   attack: number;
   health: number;
   maxHealth: number;

@@ -564,6 +564,17 @@ describe('run loop (@game/sim)', () => {
     expect(b.board.length).toBe(2);
   });
 
+  it('a Mech-magnetic card (Cling Drone) can magnetize ONTO Heckbinder — it counts as a Mech', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      hand: [{ uid: 'c', cardId: 'cling', tribe: 'mech', attack: 2, health: 2, keywords: ['M'], golden: false }],
+      board: [{ uid: 'h', cardId: 'heckbinder', tribe: 'demon', attack: 3, health: 3, keywords: ['M'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'c', toIndex: 0 });
+    expect(s.board.length).toBe(1); // merged onto Heckbinder (a Demon/Mech)
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([5, 5]); // 3/3 + 2/2
+  });
+
   it('a Magnetic minion dropped off a Mech plays as a normal body', () => {
     let s: RunState = { ...createRun(1), embers: 3, hand: [], board: [], shop: [{ uid: 'x', cardId: 'cling' }] };
     s = reduce(s, { type: 'buy', uid: 'x' });

@@ -143,7 +143,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack, 1) * gold(self);
     const h = num(params.health, 1) * gold(self);
     for (const c of ctx.state.board) {
-      if (tribe && tribe !== 'any' && c.tribe !== tribe) continue;
+      if (tribe && tribe !== 'any' && c.tribe !== tribe && CARD_INDEX[c.cardId]?.tribe2 !== tribe) continue;
       c.attack += a;
       c.health += h;
     }
@@ -184,7 +184,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const targets = num(params.targets, 2);
     const drones = num(params.count, 1) * gold(self);
     const mechs = ctx.state.board
-      .filter((c) => c !== self && c.tribe === 'mech')
+      .filter((c) => c !== self && (c.tribe === 'mech' || CARD_INDEX[c.cardId]?.tribe2 === 'mech'))
       .sort((a, b) => b.attack - a.attack)
       .slice(0, targets);
     for (const m of mechs) {
@@ -232,7 +232,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack) * gold(self);
     const h = num(params.health) * gold(self);
     for (const c of ctx.state.board) {
-      if (c !== self && (tribe === 'any' || c.tribe === tribe)) {
+      if (c !== self && (tribe === 'any' || c.tribe === tribe || CARD_INDEX[c.cardId]?.tribe2 === tribe)) {
         c.attack += a;
         c.health += h;
       }

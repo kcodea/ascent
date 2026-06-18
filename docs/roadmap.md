@@ -76,12 +76,12 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Fodder keyword — more users.** `FD` is now a keyword (Fred carries it; consume keys off it).
       Give other cheap/token minions the keyword and/or add cards that interact with Fodder, now that
       it's a reusable marker rather than one card.
-- [x] **Dual-type minions — data model activated.** `CardDef.tribe2` (+ zod) is live, the footer shows
-      both tribe labels/icons, the split-hue renders, and Magnetic now welds onto any friendly minion
-      sharing one of the dragged card's tribes (`magnetizesTo()`). First dual card: **Heckbinder**
-      (Demon/Mech). *Remaining design call:* dual types currently count as their **primary** tribe for
-      tribe buffs + the A.6 counter matrix (only Magnetic targeting + display use both) — decide if a
-      dual minion should count as both for buffs/counters.
+- [x] **Dual-type minions — fully wired.** `CardDef.tribe2` (+ combat `Minion.tribe2`, + zod) is live;
+      the footer shows both labels/icons + split-hue; Magnetic welds via both cards' tribe sets
+      (`magnetizesTo()` — you can magnetize onto Heckbinder); and dual types now count as **both** tribes
+      for tribe buffs (combat + recruit). First dual card: **Heckbinder** (Demon/Mech). *Open only:* the
+      A.6 **counter matrix** still keys off the primary tribe — decide if a dual minion should be
+      answered by either tribe's counter (balance call).
 - [ ] **Threat telegraph — reintroduce, lighter.** The red omen bar was removed per the user ("for
       now"); the wave # in the HUD is all that's shown. The build spec still wants a pre-shop threat
       telegraph — bring back a slimmer/optional form later. `Omen.tsx` is retained (unrendered) so the

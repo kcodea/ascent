@@ -34,6 +34,7 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryAddTavernFodder' }],
     text: '**Battlecry:** add Fodder to your next tavern.',
+    goldenText: '**Battlecry:** add **2** Fodder to your next tavern.',
   },
   {
     id: 'imp',

@@ -77,7 +77,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const attack = num(params.attack) * mul(self);
     const health = num(params.health) * mul(self);
     for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe) ctx.buff(m, attack, health, self.uid);
+      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe) ctx.buff(m, attack, health, self.uid);
     }
   },
 
@@ -131,7 +131,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const per = num(params.perTribe, 3) * mul(self);
     const tribe = str(params.tribe) as Tribe;
     for (const t of ctx.living(foe)) ctx.damage(t, base);
-    const others = ctx.living(self.side).filter((m) => m !== self && m.tribe === tribe).length;
+    const others = ctx.living(self.side).filter((m) => m !== self && (m.tribe === tribe || m.tribe2 === tribe)).length;
     for (let i = 0; i < others; i++) {
       const targets = ctx.living(foe);
       if (targets.length === 0) break;
@@ -211,7 +211,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Omega Bulwark — Start of Combat: give all your Mechs a Divine Shield. */
   scGrantShieldTribe: (ctx, self, params) => {
     const tribe = (str(params.tribe) || 'mech') as Tribe;
-    const friends = ctx.living(self.side).filter((m) => m.tribe === tribe);
+    const friends = ctx.living(self.side).filter((m) => m.tribe === tribe || m.tribe2 === tribe);
     if (friends.length === 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} raises the shieldwall` });
     for (const m of friends) grantShield(ctx, m);

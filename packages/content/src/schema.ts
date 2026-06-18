@@ -93,6 +93,7 @@ export const CardDefSchema = z.object({
   // Body text is mechanical-only and may be empty for keyword-only cards
   // (the keyword badge + hover tooltip carry the meaning).
   text: z.string(),
+  goldenText: z.string().optional(),
   token: z.boolean().optional(),
   spell: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),

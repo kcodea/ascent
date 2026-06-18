@@ -23,6 +23,7 @@ export function Unit({
     // Summon-buff cards (Kennelmaster) show their live magnitude — `summonBonus` can climb
     // mid-fight via Avenge, so the combat card updates too.
     text: summonBuffText(u.cardId, u.summonBonus) ?? def?.text ?? '',
+    goldenText: def?.goldenText,
     tier: def?.tier,
     baseAttack: (def?.attack ?? 0) * goldMul, baseHealth: (def?.health ?? 0) * goldMul,
   };

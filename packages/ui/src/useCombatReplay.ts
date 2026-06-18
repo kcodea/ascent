@@ -67,6 +67,9 @@ function computeFrame(
     } else if (e.type === 'reveal') {
       const u = find(e.target);
       if (u) u.keywords = u.keywords.filter((k) => k !== 'ST'); // Stealth lost on attack
+    } else if (e.type === 'venomLost') {
+      const u = find(e.target);
+      if (u) u.keywords = u.keywords.filter((k) => k !== 'V'); // Venomous spent on its first proc
     } else if (e.type === 'death') {
       const u = find(e.target);
       if (u) { u.alive = false; u.health = 0; }
@@ -268,14 +271,28 @@ export function useCombatReplay(
   }, [active, beatIdx, beats]);
 
   // Spawn floats for every damage/poison/shield in the beat just resolved — all at once.
+  // Buff events are *summed per target* so a multi-proc deathrattle (e.g. Spirit of the Pack
+  // re-procced by Sylus for +12/+12) shows one correct "+12/+12" per minion, not three "+4/+4".
   useEffect(() => {
     if (beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     const spawned: Float[] = [];
+    const buffByTarget = new Map<string, { a: number; h: number; id: number }>();
     for (let i = beat.start; i < beat.end; i++) {
-      const f = floatFor(events[i]);
+      const e = events[i];
+      if (e?.type === 'buff') {
+        const cur = buffByTarget.get(e.target) ?? { a: 0, h: 0, id: i };
+        cur.a += e.attack;
+        cur.h += e.health;
+        buffByTarget.set(e.target, cur);
+        continue;
+      }
+      const f = floatFor(e);
       if (f) spawned.push({ id: i, ...f });
+    }
+    for (const [uid, { a, h, id }] of buffByTarget) {
+      spawned.push({ id, uid, text: `+${a}/+${h}`, kind: 'buff' });
     }
     if (spawned.length === 0) return;
     setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);

@@ -1,5 +1,5 @@
 import { makeRng, type CardDef, type Keyword } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import type { BoardCard, RunState } from './state';
 
@@ -41,6 +41,18 @@ const gold = (c: BoardCard): number => (c.golden ? 2 : 1);
  */
 export function cardBuff(state: RunState, cardId: string): { attack: number; health: number } {
   return state.cardBuffs?.[cardId] ?? { attack: 0, health: 0 };
+}
+
+/**
+ * Total bonus max-mana-per-turn the board currently grants (Money Bot, or a Mech it magnetized
+ * into). Each card contributes its def's `manaPerTurn` (×2 if golden) plus any absorbed `manaBonus`.
+ * Summed fresh from the board each turn, so selling the source removes its income.
+ */
+export function boardManaBonus(state: RunState): number {
+  return state.board.reduce((sum, c) => {
+    const per = CARD_INDEX[c.cardId]?.manaPerTurn ?? 0;
+    return sum + per * (c.golden ? 2 : 1) + (c.manaBonus ?? 0);
+  }, 0);
 }
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
@@ -90,13 +102,51 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const kws = Array.isArray(params.keywords) ? (params.keywords as Keyword[]) : [];
     if (kws.length === 0) return;
     // Only consider minions missing at least one granted keyword — never waste
-    // the grant on a minion that already has the effect (e.g. don't re-Poison).
+    // the grant on a minion that already has the effect (e.g. don't re-grant Venomous).
     const lacks = (c: BoardCard): boolean => kws.some((k) => !c.keywords.includes(k));
     const others = ctx.state.board.filter((c) => c !== self && lacks(c));
     const pool = others.length > 0 ? others : lacks(self) ? [self] : [];
     if (pool.length === 0) return; // everyone already has it
     const target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
     for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
+  },
+
+  /** Buddy Buddy: Battlecry — add `count` random minions of `tier` to your hand (golden doubles
+   *  the count). Drawn from the run's buyable pool (active tribes + neutral). Honors the hand cap. */
+  battlecryGainRandomMinion: (ctx, self, params) => {
+    const tier = num(params.tier, 1);
+    const reps = num(params.count, 1) * gold(self);
+    const pool = BUYABLE_CARDS.filter(
+      (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+    );
+    if (pool.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < reps && ctx.state.hand.length < CONFIG.handMax; i++) {
+      const def = pool[rng.int(pool.length)]!;
+      const cb = cardBuff(ctx.state, def.id);
+      ctx.state.hand.push({
+        uid: `b${ctx.state.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack + cb.attack,
+        health: def.health + cb.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Karwind: whenever a Battlecry resolves, buff your minions of `tribe` (+atk/+hp). Golden 2×. */
+  onBattlecryBuffTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    for (const c of ctx.state.board) {
+      if (tribe && tribe !== 'any' && c.tribe !== tribe) continue;
+      c.attack += a;
+      c.health += h;
+    }
   },
 
   // --- Demons (Consume, recruit-resolved: bakes into stats before combat) ---
@@ -124,6 +174,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   endOfTurnBuff: (_ctx, self, params) => {
     self.attack += num(params.attack) * gold(self);
     self.health += num(params.health) * gold(self);
+  },
+
+  /** Combinator — End of Turn: weld a token's (Cling Drone's) stats onto `targets` *other* friendly
+   *  Mechs (highest-attack first), `count` drones each (golden doubles the drone count). */
+  endOfTurnMagnetizeMechs: (ctx, self, params) => {
+    const token = CARD_INDEX[str(params.tokenId) || 'cling'];
+    if (!token) return;
+    const targets = num(params.targets, 2);
+    const drones = num(params.count, 1) * gold(self);
+    const mechs = ctx.state.board
+      .filter((c) => c !== self && c.tribe === 'mech')
+      .sort((a, b) => b.attack - a.attack)
+      .slice(0, targets);
+    for (const m of mechs) {
+      m.attack += token.attack * drones;
+      m.health += token.health * drones;
+    }
   },
 
   /** Ritualist — End of Turn: every Fodder card type gains a *persistent* +atk/+hp for the rest
@@ -271,6 +338,21 @@ function drummerRepeats(state: RunState): number {
   return 1 + bonus;
 }
 
+/** Notify Battlecry-triggered watchers (Karwind) that a Battlecry just resolved. Call once per
+ *  Battlecry *fire* — including each Drakko repeat — so a doubled Battlecry procs Karwind twice. */
+function fireBattlecryTriggered(state: RunState): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'battlecryTriggered') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+    }
+  }
+}
+
 /** Resolve a chosen Choose One option's effects on the played card (its picked Battlecry).
  *  Honors Drakko the Drummer, like a normal Battlecry. */
 export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDef['effects']): void {
@@ -281,6 +363,8 @@ export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDe
     if (!fn) continue;
     for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card });
   }
+  // a Choose One IS a Battlecry → notify Karwind, once per fire (Drakko repeats included)
+  for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state);
 }
 
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
@@ -391,10 +475,13 @@ export function playCard(state: RunState, played: BoardCard): void {
   if (def.chooseOne && def.chooseOne.length > 0) return;
   // Drakko the Drummer makes Battlecries fire extra times (golden triples; no stacking).
   const repeats = drummerRepeats(state);
+  const hasBattlecry = def.effects.some((e) => e.on === 'onPlay');
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
     for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played });
   }
+  // each Battlecry fire (incl. Drakko repeats) procs Battlecry-triggered watchers (Karwind)
+  if (hasBattlecry) for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state);
 }

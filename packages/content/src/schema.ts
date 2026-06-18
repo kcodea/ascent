@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral']);
 
-export const KeywordSchema = z.enum(['T', 'DS', 'P', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL']);
+export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL']);
 
 export const GameEventSchema = z.enum([
   'onPlay',
@@ -23,6 +23,7 @@ export const GameEventSchema = z.enum([
   'onBuy',
   'onSell',
   'endOfTurn',
+  'battlecryTriggered',
   'cast',
   'spellCast',
 ]);
@@ -53,7 +54,10 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecrySummon',
   'buffOnBuy',
   'battlecryGrantKeyword',
+  'battlecryGainRandomMinion',
+  'onBattlecryBuffTribe',
   'endOfTurnBuff',
+  'endOfTurnMagnetizeMechs',
   'battlecryAddTavernFodder',
   'avengeImproveSummon',
   'onConsumeBuffSelf',
@@ -93,6 +97,7 @@ export const CardDefSchema = z.object({
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly']).optional(),
   fodderMult: z.number().int().positive().optional(),
+  manaPerTurn: z.number().int().positive().optional(),
   chooseOne: z
     .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }))
     .min(2)

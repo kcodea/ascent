@@ -35,7 +35,7 @@ export function Omen() {
         <div className="pr">
           {enemies.slice(0, 7).map((e, i) => (
             <div className="eu" key={i}>
-              {e.keywords?.includes('P') && (
+              {e.keywords?.includes('V') && (
                 <span className="pz"><Icon name="poison" /></span>
               )}
               <Sprite name="undead" scale={2} />

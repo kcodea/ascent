@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CONFIG } from '@game/sim';
+import { CONFIG, boardManaBonus } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { useGame } from './store';
@@ -14,9 +14,11 @@ export function StatusBar() {
   // ready — no friend on board required (you can buff a shop minion).
   const canHero = run.heroReady;
   // Projected starting Embers for the next two waves (each wave grows maxEmbers by
-  // embersPerWave, capped). Base curve only for now — future cards will modify this.
-  const nextEmbers = Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave);
-  const afterEmbers = Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave);
+  // embersPerWave, capped), plus any board mana income (Money Bot) on top of the cap —
+  // assuming the source stays on board.
+  const manaBonus = boardManaBonus(run);
+  const nextEmbers = Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave) + manaBonus;
+  const afterEmbers = Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave) + manaBonus;
   const hpPct = Math.max(0, Math.min(100, (run.resolve / run.maxResolve) * 100));
 
   // When Resolve drops (a wave broke through), shake the chip + float the −X.

@@ -7,7 +7,7 @@ export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral'
 export type Keyword =
   | 'T' // Taunt
   | 'DS' // Divine Shield
-  | 'P' // Poison
+  | 'V' // Venomous — destroys what it damages; drops off after its first proc in combat
   | 'W' // Windfury
   | 'R' // Reborn
   | 'C' // Cleave
@@ -38,6 +38,7 @@ export type GameEvent =
   | 'onBuy'
   | 'onSell'
   | 'endOfTurn' // recruit phase: the turn ends (End Turn / timer hits 0)
+  | 'battlecryTriggered' // recruit phase: a Battlecry just resolved (fires per Drakko repeat) — Karwind
   | 'cast' // a spell's own effect resolves (its chosen target is in the payload)
   | 'spellCast'; // recruit phase: any spell was cast (for spell-tracking minions)
 
@@ -76,7 +77,10 @@ export type EffectFactoryId =
   | 'battlecrySummon'
   | 'buffOnBuy'
   | 'battlecryGrantKeyword'
+  | 'battlecryGainRandomMinion' // Battlecry: add a random minion of a tier to your hand (Buddy Buddy)
+  | 'onBattlecryBuffTribe' // when any Battlecry resolves, buff your tribe (Karwind)
   | 'endOfTurnBuff' // End of Turn: buff self (recruit)
+  | 'endOfTurnMagnetizeMechs' // End of Turn: merge a token's stats into N friendly Mechs (Combinator)
   | 'buffFodderEverywhere' // End of Turn: buff the Fodder card type for the whole run (Ritualist)
   // Demons — Consume (recruit-resolved half)
   | 'battlecryAddTavernFodder' // Soulfeeder: queue a Fodder into the next tavern
@@ -117,6 +121,9 @@ export interface CardDef {
   /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
    *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
   fodderMult?: number;
+  /** Money Bot: while this (or a Mech it magnetized into) is on the board, the player's max mana
+   *  per turn is raised by this much (golden doubles). Recruit-only; lost when the card leaves. */
+  manaPerTurn?: number;
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; effects: EffectDef[] }[];
@@ -197,6 +204,7 @@ export type CombatEvent =
   | { type: 'reborn'; target: string; hp: number }
   | { type: 'death'; target: string }
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
+  | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number }
   | { type: 'buff'; target: string; attack: number; health: number; source: string }
   | { type: 'improve'; target: string; amount: number }; // Kennelmaster's Avenge strengthens its summon aura

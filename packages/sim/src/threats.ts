@@ -21,7 +21,7 @@ export const THREATS: Record<ThreatId, Threat> = {
     id: 'venom',
     name: 'Venom Swarm',
     description:
-      'Many small minions, several with Poison — one touch kills your biggest minion. Bring Divine Shields or cheap bodies to soak it.',
+      'Many small minions, several with Venomous — one touch kills your biggest minion. Bring Divine Shields or cheap bodies to soak it.',
     punishes: 'Single big carries; low body count',
     answeredBy: ['mech', 'demon'],
   },
@@ -29,7 +29,7 @@ export const THREATS: Record<ThreatId, Threat> = {
     id: 'iron',
     name: 'Ironwall',
     description:
-      'A few enormous Taunt + Shield minions. Chip damage bounces off — use Poison to kill them in one hit.',
+      'A few enormous Taunt + Shield minions. Chip damage bounces off — use Venomous to kill them in one hit.',
     punishes: 'Wide chip; low burst',
     answeredBy: ['undead', 'dragon'],
   },
@@ -53,7 +53,7 @@ export const THREATS: Record<ThreatId, Threat> = {
     id: 'undying',
     name: 'Undying',
     description:
-      'Minions that keep coming back (Reborn). Tempo alone can’t close. Bring Poison, destroy-effects, or a flood of bodies.',
+      'Minions that keep coming back (Reborn). Tempo alone can’t close. Bring Venomous, destroy-effects, or a flood of bodies.',
     punishes: 'Tempo boards that can’t close',
     answeredBy: ['beast', 'demon'],
   },
@@ -68,7 +68,7 @@ interface Template {
 }
 
 const TEMPLATES: Record<ThreatId, Template> = {
-  venom: { count: [5, 7], stat: [1, 2], keywords: ['P', 'P', null] },
+  venom: { count: [5, 7], stat: [1, 2], keywords: ['V', 'V', null] },
   iron: { count: [2, 3], stat: [6, 9], keywords: ['T', 'DS'] },
   horde: { count: [6, 7], stat: [2, 3], keywords: [null, null] },
   glass: { count: [2, 2], stat: [8, 12], keywords: [null] },

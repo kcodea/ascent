@@ -61,6 +61,10 @@ export interface BoardCard {
   /** Extra magnitude on this card's summon-buff effect, accrued permanently across the run
    *  (Kennelmaster's Avenge improvements). Default/absent = 0. */
   summonBonus?: number;
+  /** Mana-per-turn this card grants *beyond* its own def (a Money Bot magnetized into it).
+   *  The card's own `manaPerTurn` is read from its def; this holds only the absorbed bonus,
+   *  so it survives the magnetize-merge + triple and is lost when the card is sold. */
+  manaBonus?: number;
 }
 
 export type Phase = 'recruit' | 'combat' | 'gameover';

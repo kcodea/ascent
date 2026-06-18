@@ -91,6 +91,18 @@ export const BEASTS: CardDef[] = [
     text: '**Deathrattle:** give all your Beasts +4/+4.',
   },
   {
+    // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.
+    id: 'grim',
+    name: 'Grim',
+    tribe: 'beast',
+    tier: 6,
+    attack: 7,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 6, health: 6 } }],
+    text: '**Deathrattle:** give your Beasts **+6/+6** for the rest of combat.',
+  },
+  {
     // Sample Choose One card — picks one Battlecry when played (see CardDef.chooseOne).
     id: 'shaper',
     name: 'Wildwood Shaper',

@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop, topUpTavern } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { applyChooseOne, applyEndOfTurn, applyOnBuy, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
+import { applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
 
 /**
@@ -107,6 +107,11 @@ export function reduce(state: RunState, action: Action): RunState {
           for (const k of card.keywords) {
             if (k !== 'M' && !target.keywords.includes(k)) target.keywords.push(k);
           }
+          // Money Bot magnetized in: its mana-per-turn rides along on the host Mech (and survives
+          // the host's triple); selling the host removes it.
+          const mDef = CARD_INDEX[card.cardId];
+          const mana = (mDef?.manaPerTurn ?? 0) * (card.golden ? 2 : 1) + (card.manaBonus ?? 0);
+          if (mana > 0) target.manaBonus = (target.manaBonus ?? 0) + mana;
           return s;
         }
       }
@@ -332,6 +337,9 @@ function checkTriples(s: RunState): void {
       const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
       summonBonus = base + (sbs[0] ?? 0) + (sbs[1] ?? 0);
     }
+    // Absorbed mana-per-turn (a Money Bot magnetized into one of the copies) carries through the
+    // triple so the income survives (the golden's own def.manaPerTurn handles the un-merged case).
+    const absorbedMana = combined.reduce((sum, c) => sum + (c.manaBonus ?? 0), 0);
     s.hand.push({
       uid: `b${s.uidSeq++}`,
       cardId: def.id,
@@ -341,6 +349,7 @@ function checkTriples(s: RunState): void {
       keywords,
       golden: true,
       summonBonus,
+      manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
     });
     // The Discover isn't granted now — it comes from a spell when the golden is played.
   }
@@ -410,7 +419,9 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
   s.wave += 1;
   s.best = Math.max(s.best, s.wave);
   s.maxEmbers = Math.min(CONFIG.embersCap, s.maxEmbers + CONFIG.embersPerWave);
-  s.embers = s.maxEmbers;
+  // Money Bot & co. raise the effective max above the base curve while on the board — added on
+  // top of the cap (a deliberate economy card), recomputed each turn so selling it removes it.
+  s.embers = s.maxEmbers + boardManaBonus(s);
   s.heroReady = true;
   if (s.tier < CONFIG.maxTier) {
     s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - CONFIG.upgradeDiscountPerWave);

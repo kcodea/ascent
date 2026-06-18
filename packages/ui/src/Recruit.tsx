@@ -114,6 +114,8 @@ export function Recruit() {
   // A one-shot flourish under a freshly-played minion whose Battlecry just fired.
   const [battlecryUids, setBattlecryUids] = useState<Set<string>>(new Set());
   const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
+  // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
+  const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
 
   // --- In-place combat. Instead of swapping to a separate arena screen, the fight
   // plays out on this same board: the shop "closes" (the tavern offers, controls,
@@ -148,11 +150,19 @@ export function Recruit() {
     handBeforeCombatRef.current = new Set(run.hand.map((c) => c.uid));
     setCombatStage('closing');
     setEndTurnFlash(true);
+    // Flourish under the minions whose End-of-Turn effect just resolved (Ritualist, Combinator…),
+    // visible on the board through the shop-closing beat — the same look as a Battlecry proc.
+    const eot = run.board
+      .filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'endOfTurn'))
+      .map((c) => c.uid);
+    if (eot.length) setEotProcUids(new Set(eot));
     const banner = window.setTimeout(() => setEndTurnFlash(false), 850);
+    const eotClear = window.setTimeout(() => setEotProcUids(new Set()), 760);
     const t = window.setTimeout(() => setCombatStage('fighting'), 480);
     return () => {
       window.clearTimeout(t);
       window.clearTimeout(banner);
+      window.clearTimeout(eotClear);
     };
   }, [inCombat, run.lastCombat]);
 
@@ -859,7 +869,7 @@ export function Recruit() {
                     highlight={heroArmed || castingSpell}
                     targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
-                    battlecry={battlecryUids.has(m.uid)}
+                    battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     onPointerDown={heroArmed ? undefined : onCardPointerDown}
                   />
                 </Fragment>

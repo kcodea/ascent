@@ -8,17 +8,17 @@ import { spriteForTribe } from './sprites';
 import { useGame } from './store';
 
 const KW_LABEL: Record<Keyword, string> = {
-  T: 'Taunt', DS: 'Shield', P: 'Poison', W: 'Windfury', R: 'Reborn', C: 'Cleave', M: 'Magnetic', SC: 'Start', CN: 'Consume',
+  T: 'Taunt', DS: 'Shield', V: 'Venomous', W: 'Windfury', R: 'Reborn', C: 'Cleave', M: 'Magnetic', SC: 'Start', CN: 'Consume',
   FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally',
 };
 const KW_ICON: Partial<Record<Keyword, string>> = {
-  T: 'taunt', DS: 'shield', P: 'poison', C: 'cleave', SC: 'sc', IMM: 'shield', ST: 'eye', RL: 'sword',
+  T: 'taunt', DS: 'shield', V: 'poison', C: 'cleave', SC: 'sc', IMM: 'shield', ST: 'eye', RL: 'sword',
 };
 /** Plain-language keyword meanings, revealed in the hover tooltip (handoff A.4). */
 const KW_DESC: Record<Keyword, string> = {
   T: 'Taunt — Enemies must attack this minion first.',
   DS: 'Divine Shield — Blocks the first hit it takes.',
-  P: 'Poison — Destroys any minion it damages.',
+  V: 'Venomous — Destroys any minion it damages. Drops off after its first proc in combat.',
   W: 'Windfury — Attacks twice each combat turn.',
   R: 'Reborn — The first time it dies, it returns with 1 Health.',
   C: 'Cleave — Also hits the minions beside its target.',

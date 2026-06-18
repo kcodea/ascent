@@ -158,11 +158,17 @@ export function simulate(
     bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
   }
 
-  function dealDamage(target: Minion, amount: number, poison: boolean, bypassShield: boolean): void {
+  function dealDamage(
+    target: Minion,
+    amount: number,
+    poison: boolean,
+    bypassShield: boolean,
+    poisoner?: Minion,
+  ): void {
     if (target.dead || target.health <= 0) return;
-    // Immune: takes no damage at all (A.4) — even from Poison or destroy effects.
+    // Immune: takes no damage at all (A.4) — even from Venomous or destroy effects.
     if (target.keywords.includes('IMM')) return;
-    // Divine Shield absorbs the first instance — and still blocks Poison (A.3).
+    // Divine Shield absorbs the first instance — and still blocks Venomous (A.3).
     if (!bypassShield && target.divineShield) {
       target.divineShield = false;
       target.keywords = target.keywords.filter((k) => k !== 'DS');
@@ -175,6 +181,11 @@ export function simulate(
     if (poison && target.health > 0) {
       target.health = 0;
       events.push({ type: 'poison', target: target.uid });
+      // Venomous proc: the poisoner spends its venom (drops off for the rest of combat).
+      if (poisoner && poisoner.keywords.includes('V')) {
+        poisoner.keywords = poisoner.keywords.filter((k) => k !== 'V');
+        events.push({ type: 'venomLost', target: poisoner.uid });
+      }
     }
     if (target.health <= 0) killOrReborn(target);
   }
@@ -205,7 +216,7 @@ export function simulate(
       bus.emit('onAttack', { minion: attacker, side: attacker.side }); // Rally + on-attack effects
 
       const targetWasAlive = !target.dead && target.health > 0;
-      const poison = attacker.keywords.includes('P');
+      const poison = attacker.keywords.includes('V'); // Venomous
 
       // Cleave hits the target's neighbours before retaliation (A.3 step 5).
       if (attacker.keywords.includes('C')) {
@@ -214,11 +225,11 @@ export function simulate(
         const neighbours = [arr[di - 1], arr[di + 1]].filter(
           (n): n is Minion => !!n && !n.dead && n.health > 0,
         );
-        for (const n of neighbours) dealDamage(n, attacker.attack, poison, false);
+        for (const n of neighbours) dealDamage(n, attacker.attack, poison, false, attacker);
       }
 
-      dealDamage(target, attacker.attack, poison, false); // main hit
-      dealDamage(attacker, target.attack, target.keywords.includes('P'), false); // retaliation
+      dealDamage(target, attacker.attack, poison, false, attacker); // main hit
+      dealDamage(attacker, target.attack, target.keywords.includes('V'), false, target); // retaliation
 
       // On-kill re-attack (Gnasher).
       const killed = targetWasAlive && (target.dead || target.health <= 0);

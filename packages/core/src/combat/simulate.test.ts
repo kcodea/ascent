@@ -162,14 +162,31 @@ describe('simulate (handoff A.3)', () => {
     expect(scHits.length).toBe(3); // Attack 3 → three 1-damage hits before the attack loop
   });
 
-  it('Poison (Webspinner Matron) destroys whatever it damages', () => {
+  it('Venomous (Webspinner Matron) destroys whatever it damages', () => {
     const a = run(
-      [{ cardId: 'maex', attack: 4, health: 4, keywords: ['P'] }],
+      [{ cardId: 'maex', attack: 4, health: 4, keywords: ['V'] }],
       [{ cardId: 'omen', attack: 2, health: 30, keywords: [] }],
       2,
     );
     expect(a.events.some((e) => e.type === 'poison')).toBe(true);
-    expect(a.result).toBe('win'); // poison melts the 30-hp wall in one hit
+    expect(a.result).toBe('win'); // venom melts the 30-hp wall in one hit
+  });
+
+  it('Venomous drops off after its first proc — a second wall survives the venom', () => {
+    // A fragile 1/3 Venomous vs two 1/20 walls: it poisons (destroys) the first wall (on the
+    // retaliation), spends its venom, then can only chip the second for 1 before it dies. Were
+    // venom permanent it would poison the second wall too and win — so a loss proves the drop-off.
+    const a = run(
+      [{ cardId: 'maex', attack: 1, health: 3, keywords: ['V'] }],
+      [
+        { cardId: 'omen', attack: 1, health: 20, keywords: [] },
+        { cardId: 'omen', attack: 1, health: 20, keywords: [] },
+      ],
+      4,
+    );
+    expect(a.events.filter((e) => e.type === 'poison').length).toBe(1); // venom procs exactly once
+    expect(a.events.some((e) => e.type === 'venomLost')).toBe(true); // …and then drops off
+    expect(a.result).toBe('lose'); // the second wall survives now that the venom is spent
   });
 
   it('Reborn (Grave Knit) returns once at 1 Health', () => {

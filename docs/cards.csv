@@ -3,13 +3,15 @@ id,name,kind,tribe,tier,attack,health,cost,keywords,text,effect,golden_text,gold
 # Edit stats/text/keywords freely; add new rows under the right section. `effect` is a plain-English
 # note of what the card does (Claude wires the real EffectDef). `golden_text` / `golden_effect` show
 # the TRIPLED version — for triaging triple issues. `art` = is illustrated art wired.
-# keywords (pipe-separated): Taunt|Shield|Poison|Windfury|Reborn|Cleave|Magnetic|Start|Consume|Fodder|Immune|Stealth|Rally
+# keywords (pipe-separated): Taunt|Shield|Venomous|Windfury|Reborn|Cleave|Magnetic|Start|Consume|Fodder|Immune|Stealth|Rally
+# (Venomous = one-touch kill; drops off after its first proc in combat, unless re-granted)
 # Note: golden stats are always 2x base. Most text numbers double; "Nx" -> N+1; word-counts ("a","two","twice") do NOT auto-update.
 #
 # === NEUTRAL ===
 sandbag,Target Dummy,minion,neutral,1,0,4,,Taunt,,,,2x stats -> 0/8; Taunt,TRUE
 broker,Brightwing Broker,minion,neutral,2,2,3,,,Every minion you buy gets +1/+1.,buffOnBuy +1/+1,Every minion you buy gets +2/+2.,buys get +2/+2,TRUE
 echo,Echo Warden,minion,neutral,3,2,4,,,"In combat, your summon effects make 1 more token.",adds +1 token to summons,"In combat, your summon effects make 2 more token.",+2 tokens; STACKS additively with other Echoes,FALSE
+buddy,Buddy Buddy,minion,neutral,3,3,4,,,Battlecry: add a random Tier 1 minion to your hand.,battlecryGainRandomMinion tier 1,Battlecry: add 2 random Tier 1 minions to your hand.,gains 2 random T1 minions,TRUE
 drummer,Drakko the Drummer,minion,neutral,5,2,4,,,Your Battlecries fire 1 more time.,Battlecries fire +1 time (fire 2x total),Your Battlecries fire 2 more time.,Battlecries fire 3x; does NOT stack with other Drakkos,TRUE
 sylus,Sylus the Reaper,minion,neutral,5,4,5,,,"In combat, your Deathrattles proc 1 more time.",Deathrattles proc +1 time,"In combat, your Deathrattles proc 2 more time.",Deathrattles +2 procs; DOES stack with other Sylus,TRUE
 #
@@ -21,6 +23,7 @@ cleaver,Ravenous Cleaver,minion,beast,3,2,4,,Cleave,,,,2x stats -> 4/8; Cleave,F
 matron,Bristleback Matron,minion,beast,4,4,4,,,Each Beast you summon gets +2/+2.,buffOnSummon beast +2/+2,Each Beast you summon gets +4/+4.,summon buff +4/+4 (via combine),FALSE
 gnash,"Gnasher, the Overrun",minion,beast,5,6,6,,,"When it kills a minion, it attacks again.",reAttackOnKill,"When it kills a minion, it attacks again.",2x stats -> 12/12; re-attack unchanged,FALSE
 pack6,Spirit of the Pack,minion,beast,6,4,4,,,Deathrattle: give all your Beasts +4/+4.,deathrattleBuffTribe beast +4/+4,Deathrattle: give all your Beasts +8/+8.,board-wide +8/+8,TRUE
+grim,Grim,minion,beast,6,7,1,,,Deathrattle: give your Beasts +6/+6 for the rest of combat.,deathrattleBuffTribe beast +6/+6,Deathrattle: give your Beasts +12/+12 for the rest of combat.,board-wide +12/+12,TRUE
 shaper,Wildwood Shaper,minion,beast,2,2,3,,,Choose One: give your Beasts +1/+1; or summon two 1/1 Strays.,chooseOne [buffTribe beast +1/+1 | summon stray x2],Choose One: give your Beasts +2/+2; or summon two 1/1 Strays.,both options doubled (Beasts +2/+2; or 4 Strays),FALSE
 #
 # === DRAGONS ===
@@ -32,14 +35,15 @@ chrom,Chromatic Caller,minion,dragon,4,3,5,,Start,"Start of Combat: deal damage 
 weaver,Arcane Weaver,minion,dragon,4,3,4,,,Deathrattle: add a copy of Spirit Fire to your hand.,deathrattleGrantSpell spiritfire,Deathrattle: add 2 copies of Spirit Fire to your hand.,grants 2 Spirit Fires,TRUE
 nadir,"Nadir, Hoardlord",minion,dragon,5,5,6,,Taunt|Shield,Battlecry: give your Dragons +2/+2.,battlecryBuffTribe dragon +2/+2,Battlecry: give your Dragons +4/+4.,Dragons +4/+4,FALSE
 gale,Galewing Apex,minion,dragon,6,6,6,,Start,"Start of Combat: 3 to every enemy, then 3 more to a random enemy per other Dragon.",scAoePerTribe base 3 per 3,"Start of Combat: 6 to every enemy, then 6 more to a random enemy per other Dragon.",AoE 6 + 6 per Dragon,FALSE
+karwind,Karwind,minion,dragon,6,2,12,,,"Whenever a Battlecry triggers, give your Dragons +1/+2.",onBattlecryBuffTribe dragon +1/+2,"Whenever a Battlecry triggers, give your Dragons +2/+4.",+2/+4 per Battlecry; procs once per fire (Drakko = 2x),TRUE
 #
 # === UNDEAD ===
 spore,Sporeling,minion,undead,1,1,2,,,Deathrattle: give a random friend +1/+1.,deathrattleBuffRandom +1/+1,Deathrattle: give a random friend +2/+2.,+2/+2,TRUE
-toxin,Toxin Tender,minion,undead,2,1,2,,,Battlecry: give a friend Poison.,battlecryGrantKeyword Poison,Battlecry: give a friend Poison.,2x stats; grants Poison (unchanged),FALSE
+toxin,Toxin Tender,minion,undead,2,1,2,,,Battlecry: give a friend Venomous.,battlecryGrantKeyword Venomous,Battlecry: give a friend Venomous.,2x stats; grants Venomous (unchanged),FALSE
 knit,Grave Knit,minion,undead,2,2,2,,Reborn,,,,2x stats -> 4/4; Reborn,FALSE
 rot,Rot Weaver,minion,undead,3,3,3,,,"Each time a friend dies, give a random friend +1/+1.",onFriendDeathBuffRandom +1/+1,"Each time a friend dies, give a random friend +2/+2.",+2/+2 per death,FALSE
-maex,Webspinner Matron,minion,undead,4,4,4,,Poison,,,,2x stats -> 8/8; Poison,FALSE
-plague,Plaguebringer,minion,undead,5,5,5,,,Battlecry: give a friend Poison and Windfury.,battlecryGrantKeyword Poison+Windfury,Battlecry: give a friend Poison and Windfury.,2x stats; grants Poison+Windfury (unchanged),FALSE
+maex,Webspinner Matron,minion,undead,4,4,4,,Venomous,,,,2x stats -> 8/8; Venomous,FALSE
+plague,Plaguebringer,minion,undead,5,5,5,,,Battlecry: give a friend Venomous and Windfury.,battlecryGrantKeyword Venomous+Windfury,Battlecry: give a friend Venomous and Windfury.,2x stats; grants Venomous+Windfury (unchanged),FALSE
 ghast,Ghastweaver,minion,undead,6,5,5,,,Deathrattle: fill your board with random Undead.,deathrattleFillTribe undead,Deathrattle: fill your board with random Undead.,2x stats; fills board (unchanged),FALSE
 #
 # === MECH ===
@@ -47,8 +51,10 @@ drone,Spare Part Drone,minion,mech,1,2,1,,Shield,,,,2x stats -> 4/2; Shield,TRUE
 cling,Cling Drone,minion,mech,2,2,2,,Magnetic,,,,2x stats -> 4/4; merges its (doubled) stats into a Mech,TRUE
 selfless,Selfless Sentinel,minion,mech,2,2,1,,,Deathrattle: give a friend a Divine Shield.,deathrattleGrantShield,Deathrattle: give a friend a Divine Shield.,2x stats; grants 1 Shield (unchanged),FALSE
 cap,Shield Capacitor,minion,mech,3,2,4,,,"When a friendly Shield breaks, give another friend a Shield.",onShieldBreakGrantShield,"When a friendly Shield breaks, give another friend a Shield.",2x stats; effect unchanged,FALSE
+moneybot,Money Bot,minion,mech,3,3,3,,Magnetic,"While on your board, you have +1 max mana each turn.",manaPerTurn 1 (Magnetic — merges its income into a host Mech),"While on your board, you have +2 max mana each turn.","+2 max mana; income survives magnetize + triple, lost when sold",TRUE
 arc,Arclight Reactor,minion,mech,4,3,3,,,"When a friendly Mech Shield breaks, deal 3 to a random enemy.",onShieldBreakDamage 3,"When a friendly Mech Shield breaks, deal 6 to a random enemy.",deal 6 on break,FALSE
 junk,Junkyard Titan,minion,mech,5,4,4,,,"When any friendly Shield breaks, give your minions +1/+1.",onShieldBreakBuffAll +1/+1,"When any friendly Shield breaks, give your minions +2/+2.",+2/+2 on break,FALSE
+combinator,Combinator,minion,mech,5,6,7,,,End of Turn: magnetize a Cling Drone onto 2 friendly Mechs.,endOfTurnMagnetizeMechs cling x1 targets 2,End of Turn: magnetize 2 Cling Drones onto 2 friendly Mechs.,2 drones each (+4/+4 to 2 Mechs),TRUE
 omega,Omega Bulwark,minion,mech,6,6,6,,Shield|Taunt,Start of Combat: give all your Mechs a Shield.,scGrantShieldTribe mech,Start of Combat: give all your Mechs a Shield.,2x stats; shields all Mechs (unchanged),FALSE
 #
 # === DEMON ===

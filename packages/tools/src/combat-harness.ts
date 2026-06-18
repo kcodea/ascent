@@ -47,13 +47,15 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
     case 'shieldUp':
       return `   ◇ ${n(ev.target)} gains a Divine Shield`;
     case 'poison':
-      return `   ☠ ${n(ev.target)} is destroyed by Poison`;
+      return `   ☠ ${n(ev.target)} is destroyed by Venomous`;
     case 'reborn':
       return `   ♻ ${n(ev.target)} is Reborn at 1 hp`;
     case 'death':
       return `   † ${n(ev.target)} dies`;
     case 'reveal':
       return `   ◐ ${n(ev.target)} loses Stealth`;
+    case 'venomLost':
+      return `   ☣ ${n(ev.target)} spends its Venomous`;
     case 'summon':
       return `   + ${ev.minion.name} (${ev.minion.attack}/${ev.minion.health}) summoned on ${ev.side}`;
     case 'buff':

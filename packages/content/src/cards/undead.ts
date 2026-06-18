@@ -1,10 +1,11 @@
 import type { CardDef } from '@game/core';
 
 /**
- * Undead (handoff A.7) — Poison application + Deathrattle value. Answers Ironwall
- * (Poison melts giant Taunts) and Glass Cannon (Poison trades up; bodies absorb).
- * Toxin Tender / Plaguebringer grant Poison (+Windfury) at recruit; the rest pay
- * off in combat (Deathrattles, Reborn, an innate Poison body).
+ * Undead (handoff A.7) — Venomous application + Deathrattle value. Answers Ironwall
+ * (Venomous melts giant Taunts) and Glass Cannon (Venomous trades up; bodies absorb).
+ * Toxin Tender / Plaguebringer grant Venomous (+Windfury) at recruit; the rest pay
+ * off in combat (Deathrattles, Reborn, an innate Venomous body). Venomous now drops off
+ * after its first proc in combat (one-shot per fight unless re-granted).
  */
 export const UNDEAD: CardDef[] = [
   {
@@ -26,8 +27,8 @@ export const UNDEAD: CardDef[] = [
     attack: 1,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['P'] } }],
-    text: '**Battlecry:** give a friend **Poison**.',
+    effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['V'] } }],
+    text: '**Battlecry:** give a friend **Venomous**.',
   },
   {
     id: 'knit',
@@ -58,7 +59,7 @@ export const UNDEAD: CardDef[] = [
     tier: 4,
     attack: 4,
     health: 4,
-    keywords: ['P'],
+    keywords: ['V'],
     effects: [],
     text: '',
   },
@@ -70,8 +71,8 @@ export const UNDEAD: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['P', 'W'] } }],
-    text: '**Battlecry:** give a friend **Poison and Windfury**.',
+    effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['V', 'W'] } }],
+    text: '**Battlecry:** give a friend **Venomous and Windfury**.',
   },
   {
     id: 'ghast',

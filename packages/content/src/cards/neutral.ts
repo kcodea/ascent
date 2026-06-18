@@ -41,6 +41,17 @@ export const NEUTRAL: CardDef[] = [
     text: '**In combat,** your summon effects make **1 more** token.',
   },
   {
+    id: 'buddy',
+    name: 'Buddy Buddy',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tier: 1 } }],
+    text: '**Battlecry:** add a random **Tier 1** minion to your hand.',
+  },
+  {
     // Battlecry doubler. Golden "triples" (fire 2 more times); multiple Drakkos do NOT stack.
     id: 'drummer',
     name: 'Drakko the Drummer',

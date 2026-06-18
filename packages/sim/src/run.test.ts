@@ -8,6 +8,7 @@ import {
   deserialize,
   selectThreat,
   buildEnemyBoard,
+  boardManaBonus,
   THREAT_IDS,
   type BoardCard,
   type RunState,
@@ -291,7 +292,7 @@ describe('run loop (@game/sim)', () => {
     expect(cleric?.health).toBe(4);
   });
 
-  it('Toxin Tender grants Poison to your highest-attack minion when played', () => {
+  it('Toxin Tender grants Venomous to your highest-attack minion when played', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -301,7 +302,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    expect(s.board.find((c) => c.cardId === 'gnash')?.keywords).toContain('P');
+    expect(s.board.find((c) => c.cardId === 'gnash')?.keywords).toContain('V');
   });
 
   it("Ritualist's End of Turn buffs all Fodder — existing copies and the run-level card buff", () => {
@@ -363,6 +364,113 @@ describe('run loop (@game/sim)', () => {
     expect(s.shop[0]!.uid).toBe('keep'); // the frozen offer is preserved, still first
     expect(s.spell).not.toBeNull(); // the missing spell is filled in
     expect(s.frozen).toBe(false); // freeze is consumed for the new turn
+  });
+
+  it('Buddy Buddy adds a random Tier 1 minion to your hand (golden adds two)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [],
+      hand: [{ uid: 'b', cardId: 'buddy', tribe: 'neutral', attack: 3, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'b' });
+    expect(s.board.find((c) => c.cardId === 'buddy')).toBeDefined();
+    const gained = s.hand;
+    expect(gained.length).toBe(1); // one random T1 minion granted to hand
+    expect(CARD_INDEX[gained[0]!.cardId]?.tier).toBe(1);
+
+    // golden Buddy Buddy grants two
+    let g: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [],
+      hand: [{ uid: 'bg', cardId: 'buddy', tribe: 'neutral', attack: 6, health: 8, keywords: [], golden: true }],
+    };
+    g = reduce(g, { type: 'play', uid: 'bg' });
+    // two random T1 minions (the golden also grants its usual Discover spell, so ignore that one)
+    expect(g.hand.filter((c) => c.cardId !== 'discoverspell').length).toBe(2);
+  });
+
+  it('Karwind buffs your Dragons whenever a Battlecry triggers', () => {
+    // Play Hoard Cleric (Dragon Battlecry +1/+1 to dragons) with Karwind on board: the Cleric's
+    // Battlecry buffs Karwind +1/+1, then the battlecry-triggered proc gives Dragons +1/+2.
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [{ uid: 'k', cardId: 'karwind', tribe: 'dragon', attack: 2, health: 12, keywords: [], golden: false }],
+      hand: [{ uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'c' });
+    const k = s.board.find((c) => c.uid === 'k')!;
+    expect([k.attack, k.health]).toEqual([4, 15]); // 2/12 +1/+1 (Cleric) +1/+2 (Karwind proc)
+  });
+
+  it('Karwind procs once per Battlecry fire — Drakko doubling triggers it twice', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [
+        { uid: 'k', cardId: 'karwind', tribe: 'dragon', attack: 2, health: 12, keywords: [], golden: false },
+        { uid: 'd', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'c' });
+    const k = s.board.find((c) => c.uid === 'k')!;
+    // Cleric Battlecry fires 2× (+2/+2) and Karwind procs 2× (+2/+4): 2/12 → 6/18
+    expect([k.attack, k.health]).toEqual([6, 18]);
+  });
+
+  it('Money Bot raises max mana while on board; selling it removes the income', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      board: [{ uid: 'mb', cardId: 'moneybot', tribe: 'mech', attack: 3, health: 3, keywords: ['M'], golden: false }],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } },
+    };
+    expect(boardManaBonus(s)).toBe(1);
+    s = reduce(s, { type: 'resolveCombat' }); // advance a turn → start with base max + the bonus
+    expect(s.embers).toBe(s.maxEmbers + 1);
+  });
+
+  it('Money Bot magnetized into a Mech passes on its mana; selling the host removes it (survives a triple)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [{ uid: 'mb', cardId: 'moneybot', tribe: 'mech', attack: 3, health: 3, keywords: ['M'], golden: false }],
+      board: [{ uid: 'd', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'mb', toIndex: 0 }); // magnetize onto the Spare Part Drone
+    expect(s.board.length).toBe(1); // merged, not a new slot
+    expect(s.board[0]!.manaBonus).toBe(1); // the host absorbed Money Bot's income
+    expect(boardManaBonus(s)).toBe(1);
+    s = reduce(s, { type: 'sell', uid: 'd' }); // sell the host
+    expect(boardManaBonus(s)).toBe(0); // income gone with it
+  });
+
+  it('Combinator magnetizes a Cling Drone (+2/+2) onto 2 other friendly Mechs at end of turn', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'recruit',
+      embers: 0,
+      shop: [],
+      board: [
+        { uid: 'cmb', cardId: 'combinator', tribe: 'mech', attack: 6, health: 7, keywords: [], golden: false },
+        { uid: 'd1', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+        { uid: 'd2', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Combinator before combat
+    const d1 = s.board.find((c) => c.uid === 'd1')!;
+    const d2 = s.board.find((c) => c.uid === 'd2')!;
+    const cmb = s.board.find((c) => c.uid === 'cmb')!;
+    expect([d1.attack, d1.health]).toEqual([4, 3]); // 2/1 + a Cling Drone (2/2)
+    expect([d2.attack, d2.health]).toEqual([4, 3]);
+    expect([cmb.attack, cmb.health]).toEqual([6, 7]); // self is not a target
   });
 
   it('Magnetic merges a Cling Drone onto a friendly Mech (no new slot)', () => {
@@ -655,25 +763,25 @@ describe('run loop (@game/sim)', () => {
       embers: 3,
       hand: [],
       board: [
-        { uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: ['P'], golden: false },
+        { uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: ['V'], golden: false },
         { uid: 'mid', cardId: 'cleaver', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false },
       ],
       shop: [{ uid: 'x', cardId: 'toxin' }],
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    expect(s.board.find((c) => c.uid === 'mid')?.keywords).toContain('P'); // the one lacking Poison
-    expect(s.board.find((c) => c.uid === 'big')?.keywords.filter((k) => k === 'P').length).toBe(1); // not re-granted
+    expect(s.board.find((c) => c.uid === 'mid')?.keywords).toContain('V'); // the one lacking Venomous
+    expect(s.board.find((c) => c.uid === 'big')?.keywords.filter((k) => k === 'V').length).toBe(1); // not re-granted
   });
 
   it('tripling combines current stats (top two) and unions keywords', () => {
-    const mk = (uid: string, attack: number, health: number, keywords: ('P' | 'T')[]): BoardCard => ({
+    const mk = (uid: string, attack: number, health: number, keywords: ('V' | 'T')[]): BoardCard => ({
       uid, cardId: 'sandbag', tribe: 'neutral', attack, health, keywords, golden: false,
     });
-    // 1/1 Poison · 2/3 · 1/3  →  3/6 Poison
+    // 1/1 Venomous · 2/3 · 1/3  →  3/6 Venomous
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], board: [],
-      hand: [mk('a', 1, 1, ['P']), mk('b', 2, 3, []), mk('c', 1, 3, [])],
+      hand: [mk('a', 1, 1, ['V']), mk('b', 2, 3, []), mk('c', 1, 3, [])],
     };
     s = reduce(s, { type: 'play', uid: 'a' });
     s = reduce(s, { type: 'play', uid: 'b' });
@@ -681,7 +789,7 @@ describe('run loop (@game/sim)', () => {
     const golden = [...s.board, ...s.hand].find((c) => c.golden)!;
     expect(golden.attack).toBe(3); // 2 + 1 (top two attacks)
     expect(golden.health).toBe(6); // 3 + 3 (top two healths)
-    expect(golden.keywords).toContain('P'); // keyword retained across the combine
+    expect(golden.keywords).toContain('V'); // keyword retained across the combine
   });
 
   it('Drakko the Drummer makes a Battlecry fire twice', () => {

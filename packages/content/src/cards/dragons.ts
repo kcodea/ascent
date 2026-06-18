@@ -114,4 +114,17 @@ export const DRAGONS: CardDef[] = [
     ],
     text: '**Start of Combat:** 3 to every enemy, then 3 more to a random enemy per other Dragon.',
   },
+  {
+    // Each Battlecry *resolution* pumps your Dragons — so Drakko (which fires Battlecries an extra
+    // time) procs Karwind once per fire. A recruit-phase engine that rewards a Battlecry-heavy board.
+    id: 'karwind',
+    name: 'Karwind',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 2,
+    health: 12,
+    keywords: [],
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 1, health: 2 } }],
+    text: 'Whenever a **Battlecry** triggers, give your Dragons **+1/+2**.',
+  },
 ];

@@ -22,6 +22,12 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **5 new cards + Venomous** — **Buddy Buddy** (add a random T1 minion), **Combinator** (end of turn,
+  magnetize Cling Drones onto your Mechs), **Grim** (Deathrattle: +6/+6 to your Beasts), **Karwind**
+  (buffs your Dragons every time a Battlecry fires — twice with Drakko), and **Money Bot** (+1 max
+  mana per turn while on board; magnetize it into a Mech to keep the income). **Poison is now
+  Venomous** and drops off after its first kill each combat. End-of-turn procs flash an animation,
+  and multi-proc combat buffs now show the correct total (e.g. +12/+12, not +4/+4).
 - **Fixes + juice** — frozen taverns now top up empty slots/spell after combat; a clear "End of
   Turn" banner; the Fodder-eat animation shows the *buffed* stats, slower and wreathed in purple
   swirls; combat-granted cards (Arcane Weaver → Spirit Fire) glow as they land in hand; the

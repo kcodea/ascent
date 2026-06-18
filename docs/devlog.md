@@ -3,6 +3,39 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-18
+
+### 5 new cards + Venomous (Poison rework) + end-of-turn proc anim + mid-combat buff display fix
+A big content + mechanics batch.
+- **Poison → Venomous.** The keyword is renamed everywhere (code `'P'` → `'V'`, schema, all card data,
+  threat templates, UI labels/tooltips, CSV, tests) and its mechanic changed: **Venomous drops off
+  after its first proc in combat.** When a unit's venom destroys a target (the poison event fires),
+  that poisoner loses `V` and emits a new `venomLost` combat event; the UI removes the badge mid-fight.
+  So a Venomous body is a one-shot per fight (unless re-granted). Tested (one-proc-then-survives).
+- **Buddy Buddy** (T3 neutral 3/4) — Battlecry: add a random Tier 1 minion to your hand (golden: two).
+  New recruit factory `battlecryGainRandomMinion` (draws from the run's buyable T1 pool, honors the
+  hand cap, uses the shop RNG). Fires through Drakko like any Battlecry.
+- **Combinator** (T5 Mech 6/7) — End of Turn: magnetize a Cling Drone (+2/+2) onto 2 *other* friendly
+  Mechs (golden: 2 drones each → +4/+4). New `endOfTurnMagnetizeMechs`.
+- **Grim** (T6 Beast 7/1) — Deathrattle: give your Beasts +6/+6 for the rest of combat (golden +12/+12).
+  Reuses the existing `deathrattleBuffTribe` (data-only).
+- **Karwind** (T6 Dragon 2/12) — whenever a Battlecry *triggers*, give your Dragons +1/+2 (golden +2/+4).
+  New `battlecryTriggered` recruit event, fired once per Battlecry resolution — **including each Drakko
+  repeat**, so a doubled Battlecry procs Karwind twice. New `onBattlecryBuffTribe`. Tested (incl. Drakko).
+- **Money Bot** (T3 Mech 3/3, Magnetic) — while on your board, **+1 max mana per turn** (golden +2). A
+  board-derived economy: the per-turn embers are recomputed each turn as `maxEmbers + boardManaBonus`
+  (a new `CardDef.manaPerTurn` + a `BoardCard.manaBonus` for the absorbed amount). Magnetizing it into a
+  Spare Part Drone transfers the income onto the host, which survives the host's triple; selling the host
+  removes it. The mana projection tooltip folds it in. Tested (on-board, magnetize-transfer, sell-removal).
+- **End-of-turn proc flourish.** Cards whose End-of-Turn effect resolves (Ritualist, Combinator…) now
+  flash the same under-card sigil as a Battlecry, on the board through the shop-closing beat.
+- **Mid-combat buff display fix.** A multi-proc deathrattle (e.g. Spirit of the Pack re-procced by Sylus
+  for +12/+12) showed three separate "+4/+4" floats; the combat replay now **sums buff events per target
+  within a beat** and shows one correct "+12/+12" per minion. (Stat badges were already correct.)
+- All 5 sprites wired (BuddyBuddy / Combinator / Grim / Karwind / MoneyBot). `typecheck` + `lint` +
+  `test` (**107**) + `build:web` clean; live: cards load with the right stats/art, combat replays with no
+  console errors, the End-of-Turn banner + flourish fire.
+
 ## 2026-06-17
 
 ### Bug-fix + juice batch — freeze refill, end-of-turn feel, combat grants, end-game fix, sounds

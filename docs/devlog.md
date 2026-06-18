@@ -5,6 +5,37 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Bug-fix + juice batch — freeze refill, end-of-turn feel, combat grants, end-game fix, sounds
+An eight-item batch of fixes and feel polish.
+- **Frozen taverns top up.** Freezing a partial shop (you'd bought some minions, or the spell)
+  used to carry it over with the gaps; now after combat a frozen tavern fills its empty minion
+  slots back up to the tier count and re-adds a spell if missing, keeping every frozen offer in
+  place. New `topUpTavern()` shares the weighted-draw helper with `rollShop` (refactored out a
+  `drawOfferId`). Tested.
+- **A clear "End of Turn" beat.** Ending the turn already fired end-of-turn effects (`faceOmen` →
+  `applyEndOfTurn`); now a brief centred **"End of Turn"** banner plays on the recruit→combat
+  transition so it reads. (Verified live.)
+- **Fodder eat animation shows what was eaten.** A Demon devouring tavern Fodder showed a 1/1 ghost
+  even when Ritualist had buffed it. The consume record (`fodderEaten`) now carries the Fodder's
+  *effective* stats, the ghost renders them (green vs. the 1/1 base), the swirl is **slower** (1.35s
+  → 2.2s, holding full-size so the stats read), and it's wreathed in **orbiting purple orbs**.
+- **Combat hand-grants pop in.** A card a combat Deathrattle adds to your hand (Arcane Weaver →
+  Spirit Fire) now flashes an accent glow as it arrives — the hand is snapshotted on entering
+  combat, and the new uids afterward are flagged as grants.
+- **End-game state fixed.** The game-over overlay (`.over`) had no `z-index`, so the live board's
+  positioned chrome (hand z-25, status z-40, timer z-80, …) painted *through* it — the "busted" end
+  screen where the board showed on top. It's now `position: fixed; z-index: 300` (above all chrome)
+  with a near-opaque scrim, so it cleanly covers + blocks the dead board. (Verified the rule live.)
+- **Imp Scrap** is a plain 1/1 with no keyword/Fodder interaction — its misleading "…meant to be
+  eaten" body text is now blank.
+- **A "wrong" sound on rejected actions.** A buy/play/roll/upgrade you can't afford (or that's
+  otherwise a no-op — the reducer returns the same reference) now plays a low descending **deny**
+  buzz instead of the success blip.
+- **Battlecry flourish.** Playing a minion whose Battlecry fires now swells a tribe-tinted sigil
+  from *under* the card with sparks fanning out — detected by diffing the board for a new card whose
+  def has an `onPlay` effect (or Choose One). (Verified live on Soulfeeder.)
+- `typecheck` + `lint` + `test` (**100**) + `build:web` all clean; no runtime console errors.
+
 ### Buttery drag — memoize Card so the board doesn't re-render on every pointermove
 Dragging a card fired `setDrag`/`setOverZone` on every pointermove, re-rendering the whole recruit
 tree — including all 7–14 `Card`s (each an `<img>` + pills + `dangerouslySetInnerHTML` text). Now:

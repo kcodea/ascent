@@ -1,7 +1,7 @@
 import { makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
-import { rollShop } from './shop';
+import { rollShop, topUpTavern } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { applyChooseOne, applyEndOfTurn, applyOnBuy, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
@@ -418,8 +418,12 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
   const previous = s.threat;
   s.threat = selectThreat(s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.THREAT)), previous);
 
-  if (s.frozen) s.frozen = false;
-  else refreshTavern(s);
+  // A frozen tavern carries over, but still tops up any empty minion slots / missing spell
+  // (freezing a partial shop shouldn't leave you with fewer options); otherwise full reroll.
+  if (s.frozen) {
+    topUpTavern(s);
+    s.frozen = false;
+  } else refreshTavern(s);
   s.phase = 'recruit';
 }
 

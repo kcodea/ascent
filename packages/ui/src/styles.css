@@ -316,14 +316,80 @@ canvas.spr { image-rendering: pixelated; display: block; }
 }
 /* tavern Fodder consume — a ghost Fred pops in the tavern then spins/shrinks into the
    Demon that ate it (a purple swirl), so the auto-consume is visible (not instantaneous) */
-.fodderghost { position: fixed; z-index: 60; pointer-events: none; transform-origin: center; filter: drop-shadow(0 0 16px rgba(177, 92, 240, 0.95)); animation: fodderswirl 1.35s cubic-bezier(0.5, 0, 0.7, 1) forwards; }
+.fodderghost { position: fixed; z-index: 60; pointer-events: none; transform-origin: center; filter: drop-shadow(0 0 16px rgba(177, 92, 240, 0.95)); animation: fodderswirl 2.2s cubic-bezier(0.5, 0, 0.7, 1) forwards; }
 .fodderghost .card { width: 100%; height: 100%; animation: none; box-shadow: 0 0 0 3px var(--t-demon), 0 8px 22px rgba(0, 0, 0, 0.4); }
+/* Slower now, and holds the Fodder full-size (10%→62%, ~1.1s) so its eaten stats read clearly,
+   then it spins down into the eater Demon over the last beat. */
 @keyframes fodderswirl {
   0% { transform: translate(0, 0) scale(0.6) rotate(0deg); opacity: 0; }
-  16% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
-  40% { transform: translate(0, 0) scale(1.05) rotate(-7deg); opacity: 1; }
-  100% { transform: translate(var(--dx), var(--dy)) scale(0.12) rotate(520deg); opacity: 0; }
+  10% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: translate(0, 0) scale(1.04) rotate(-6deg); opacity: 1; }
+  62% { transform: translate(0, 0) scale(1.04) rotate(5deg); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.12) rotate(540deg); opacity: 0; }
 }
+/* purple swirl wreath around the eaten Fodder — 4 orbs orbiting the card */
+.fodderswirl { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.fs-orb {
+  position: absolute; top: 50%; left: 50%; width: 15px; height: 15px; margin: -7.5px;
+  border-radius: 50%; background: radial-gradient(circle, #efd6ff 0%, var(--t-demon) 55%, transparent 74%);
+  box-shadow: 0 0 13px 3px rgba(177, 92, 240, 0.9);
+  animation: fsorb 1.15s linear infinite; animation-delay: calc(var(--n) * -0.2875s);
+}
+@keyframes fsorb {
+  0% { transform: rotate(0deg) translateX(calc(var(--cw) * 0.46)) rotate(0deg); opacity: 0.55; }
+  50% { opacity: 1; }
+  100% { transform: rotate(360deg) translateX(calc(var(--cw) * 0.46)) rotate(-360deg); opacity: 0.55; }
+}
+
+/* "End of Turn" banner — a brief centred title as the turn ends (end-of-turn effects resolved). */
+.eotbanner { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; pointer-events: none; }
+.eotbanner .eot-text {
+  font-family: 'Outfit'; font-weight: 900; font-size: clamp(34px, 6vh, 64px); letter-spacing: 0.08em;
+  text-transform: uppercase; color: #fff; text-shadow: 0 3px 0 var(--acc-dk), 0 0 34px rgba(240, 144, 46, 0.75);
+  animation: eotpop 0.85s ease forwards;
+}
+@keyframes eotpop {
+  0% { opacity: 0; transform: scale(0.72) translateY(10px); letter-spacing: 0.02em; }
+  24% { opacity: 1; transform: scale(1) translateY(0); letter-spacing: 0.08em; }
+  72% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1.07) translateY(-8px); }
+}
+
+/* Battlecry flourish — a tribe-tinted sigil swelling from *under* a just-played minion, with
+   a few sparks fanning down from its base. Renders behind the card so it reads as "underneath". */
+.bcryfx { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: visible; }
+.bc-glow {
+  position: absolute; left: 50%; bottom: -22px; transform: translateX(-50%) scale(0.4);
+  width: 82%; height: 46px; border-radius: 50%; filter: blur(1px);
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--c) 88%, #fff) 0%, color-mix(in srgb, var(--c) 55%, transparent) 46%, transparent 72%);
+  animation: bcglow 0.76s ease-out forwards;
+}
+@keyframes bcglow {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.4); }
+  28% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(1.55); }
+}
+.bc-mote {
+  position: absolute; left: 50%; bottom: -8px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, var(--c) 60%, transparent 76%);
+  box-shadow: 0 0 11px 2px color-mix(in srgb, var(--c) 70%, transparent);
+  animation: bcmote 0.76s ease-out forwards;
+}
+@keyframes bcmote {
+  0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.6); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(40px) scale(1); }
+}
+
+/* A card a combat Deathrattle just handed you (Arcane Weaver → Spirit Fire) — a one-shot accent
+   glow as it lands in the hand. No transform (the hand fan owns the card's transform). */
+.card.arrived { animation: cardarrive 1s ease both; z-index: 46; }
+@keyframes cardarrive {
+  0% { box-shadow: 0 0 0 5px var(--acc), 0 0 42px 13px color-mix(in srgb, var(--acc) 85%, transparent); filter: brightness(1.4) saturate(1.1); }
+  35% { box-shadow: 0 0 0 4px var(--acc), 0 0 32px 9px color-mix(in srgb, var(--acc) 72%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; filter: none; }
+}
+
 /* spell spark — a one-shot accent-coloured burst where a cast spell resolves */
 .spellspark { position: fixed; width: 0; height: 0; z-index: 120; pointer-events: none; }
 .ss-flash {
@@ -599,7 +665,12 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 }
 
 /* GAME OVER */
-.over { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 88%, transparent); }
+/* Game-over: a full-cover scrim that must sit above ALL board chrome (hand z-25, status z-40,
+   timer z-80, dragcard z-100, modal overlays z-200) — `.app` doesn't establish a stacking
+   context, so without a high z-index its positioned descendants paint through this overlay
+   (the "busted" end-game where the live board showed on top). Near-opaque so the dead board
+   reads as a faint ghost, not an interactive screen; it also captures clicks (blocks the board). */
+.over { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 94%, transparent); animation: fadein 0.3s ease; }
 .over .box { text-align: center; }
 .over .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.3em; color: var(--threat); text-transform: uppercase; }
 .over h1 { font-family: 'Outfit'; font-weight: 900; font-size: 52px; letter-spacing: 0.06em; color: var(--ink); margin: 10px 0; }

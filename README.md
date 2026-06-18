@@ -22,6 +22,11 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Fixes + juice** — frozen taverns now top up empty slots/spell after combat; a clear "End of
+  Turn" banner; the Fodder-eat animation shows the *buffed* stats, slower and wreathed in purple
+  swirls; combat-granted cards (Arcane Weaver → Spirit Fire) glow as they land in hand; the
+  game-over screen no longer lets the board show through; a "wrong" buzz when you can't afford a
+  card; and a flourish under a minion when its Battlecry fires.
 - **Buttery drag** — cards are now memoized, so dragging one no longer re-renders the whole board
   every pointermove (measured: ~0 card re-renders per move, down from one-per-card). Only the
   floating card you're holding updates as you move.

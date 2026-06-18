@@ -58,6 +58,12 @@ export const sfx = {
     tone({ freq: 540, dur: 0.07, type: 'square', vol: 0.1 });
     tone({ freq: 820, dur: 0.09, type: 'square', vol: 0.08, delay: 0.05 });
   },
+  // Rejected action (can't afford, board/hand full, timer up) — a low, dissonant "wrong"
+  // double-buzz that descends, so it reads as a clear no, not a success blip.
+  deny: () => {
+    tone({ freq: 200, dur: 0.12, type: 'square', vol: 0.13, slideTo: 150 });
+    tone({ freq: 150, dur: 0.17, type: 'square', vol: 0.12, slideTo: 96, delay: 0.085 });
+  },
   play: () => tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150 }),
   sell: () => {
     tone({ freq: 700, dur: 0.07, type: 'square', vol: 0.09 });

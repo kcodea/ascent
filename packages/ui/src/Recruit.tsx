@@ -95,10 +95,25 @@ export function Recruit() {
   const [dust, setDust] = useState<{ x: number; y: number; key: number } | null>(null);
   const dustKeyRef = useRef(0);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
+  // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
+  // Fred shows e.g. 3/3, not the 1/1 base.
   const [fodderAnim, setFodderAnim] = useState<
-    { key: number; ghosts: { fid: string; x0: number; y0: number; w: number; h: number; dx: number; dy: number }[] } | null
+    {
+      key: number;
+      ghosts: { fid: string; attack: number; health: number; x0: number; y0: number; w: number; h: number; dx: number; dy: number }[];
+    } | null
   >(null);
   const prevFodderSeq = useRef(run.fodderEatenSeq);
+  // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
+  // end-of-turn effects (Ritualist & co.) just resolved.
+  const [endTurnFlash, setEndTurnFlash] = useState(false);
+  // Cards a combat Deathrattle just added to the hand (Arcane Weaver → Spirit Fire) — pop them
+  // in when they arrive. Snapshot the hand on entering combat; the new uids afterwards are grants.
+  const [arrivedUids, setArrivedUids] = useState<Set<string>>(new Set());
+  const handBeforeCombatRef = useRef<Set<string>>(new Set());
+  // A one-shot flourish under a freshly-played minion whose Battlecry just fired.
+  const [battlecryUids, setBattlecryUids] = useState<Set<string>>(new Set());
+  const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
 
   // --- In-place combat. Instead of swapping to a separate arena screen, the fight
   // plays out on this same board: the shop "closes" (the tavern offers, controls,
@@ -122,23 +137,43 @@ export function Recruit() {
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl });
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
-  // and the replay begin.
+  // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just
+  // resolved) and snapshot the hand so post-combat grants can be detected.
   useEffect(() => {
     if (!inCombat) {
       setCombatStage('closing');
       setShowLog(false); // close the log when the fight is over
       return;
     }
+    handBeforeCombatRef.current = new Set(run.hand.map((c) => c.uid));
     setCombatStage('closing');
+    setEndTurnFlash(true);
+    const banner = window.setTimeout(() => setEndTurnFlash(false), 850);
     const t = window.setTimeout(() => setCombatStage('fighting'), 480);
-    return () => window.clearTimeout(t);
+    return () => {
+      window.clearTimeout(t);
+      window.clearTimeout(banner);
+    };
   }, [inCombat, run.lastCombat]);
 
-  // Returning to recruit after a fight: play a one-shot board "reset" on the warband.
+  // Returning to recruit after a fight: play a one-shot board "reset" on the warband, and
+  // pop in any cards a combat Deathrattle added to the hand (uids not present pre-combat).
   useEffect(() => {
     if (prevPhaseRef.current === 'combat' && run.phase === 'recruit') {
       prevPhaseRef.current = run.phase;
       setResetting(true);
+      const before = handBeforeCombatRef.current;
+      const granted = run.hand.filter((c) => !before.has(c.uid)).map((c) => c.uid);
+      if (granted.length > 0) {
+        setArrivedUids((s) => new Set([...s, ...granted]));
+        window.setTimeout(() => {
+          setArrivedUids((s) => {
+            const n = new Set(s);
+            for (const u of granted) n.delete(u);
+            return n;
+          });
+        }, 1100);
+      }
       const t = window.setTimeout(() => setResetting(false), 650);
       return () => window.clearTimeout(t);
     }
@@ -439,6 +474,35 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [run.board, run.hand, run.shop]);
 
+  // A freshly-played minion with a Battlecry gets a one-shot flourish beneath it. Diff the
+  // board's uids; a new card whose def has an onPlay effect (or Choose One) just fired its
+  // Battlecry. (Summoned tokens like Strays have no onPlay, so they don't flash.)
+  useEffect(() => {
+    if (inCombat) {
+      prevBoardUidsRef.current = new Set(run.board.map((c) => c.uid));
+      return;
+    }
+    const prev = prevBoardUidsRef.current;
+    const fresh = run.board
+      .filter((c) => {
+        if (prev.has(c.uid)) return false;
+        const def = CARD_INDEX[c.cardId];
+        return !!def && (def.effects.some((e) => e.on === 'onPlay') || (def.chooseOne?.length ?? 0) > 0);
+      })
+      .map((c) => c.uid);
+    prevBoardUidsRef.current = new Set(run.board.map((c) => c.uid));
+    if (fresh.length === 0) return;
+    setBattlecryUids((s) => new Set([...s, ...fresh]));
+    const t = window.setTimeout(() => {
+      setBattlecryUids((s) => {
+        const n = new Set(s);
+        for (const u of fresh) n.delete(u);
+        return n;
+      });
+    }, 760);
+    return () => window.clearTimeout(t);
+  }, [run.board, inCombat]);
+
   // Tavern Fodder was auto-eaten (fodderEatenSeq bumped): show a ghost Fred in the tavern
   // and swirl it into the Demon that ate it (measured from the live DOM), then clear.
   useEffect(() => {
@@ -462,10 +526,10 @@ export function Recruit() {
         dx = er.left + er.width / 2 - gx;
         dy = er.top + er.height / 2 - cy;
       }
-      return { fid: ev.fodderId, x0: gx - w / 2, y0: cy - h / 2, w, h, dx, dy };
+      return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0: gx - w / 2, y0: cy - h / 2, w, h, dx, dy };
     });
     setFodderAnim({ key: run.fodderEatenSeq, ghosts });
-    const t = window.setTimeout(() => setFodderAnim(null), 1400);
+    const t = window.setTimeout(() => setFodderAnim(null), 2300); // slower: hold, then swirl in
     return () => window.clearTimeout(t);
   }, [run.fodderEatenSeq, run.fodderEaten]);
 
@@ -795,6 +859,7 @@ export function Recruit() {
                     highlight={heroArmed || castingSpell}
                     targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
+                    battlecry={battlecryUids.has(m.uid)}
                     onPointerDown={heroArmed ? undefined : onCardPointerDown}
                   />
                 </Fragment>
@@ -814,6 +879,7 @@ export function Recruit() {
               card={handViews.get(m.uid)!}
               dimmed={isDragging(m.uid)}
               buffed={buffedUids.has(m.uid)}
+              arrived={arrivedUids.has(m.uid)}
               onPointerDown={onCardPointerDown}
             />
           ))}
@@ -832,6 +898,13 @@ export function Recruit() {
 
       {/* Combat narration — a single rolling line where the hand used to fan. */}
       {fighting && <div className="alog">{replay.log}</div>}
+
+      {/* A clear "End of Turn" beat as the turn ends (end-of-turn effects have resolved). */}
+      {endTurnFlash && (
+        <div className="eotbanner" aria-hidden="true">
+          <span className="eot-text">End of Turn</span>
+        </div>
+      )}
 
       {drag?.active && !castingSpell && (
         <div
@@ -891,14 +964,16 @@ export function Recruit() {
         </div>
       )}
 
-      {/* Tavern Fodder: a ghost Fred pops in the tavern, then swirls into the Demon that ate it. */}
+      {/* Tavern Fodder: a ghost Fred pops in the tavern (showing its *eaten* stats — buffed by
+          Ritualist if applicable), wreathed in purple swirls, then drifts into the Demon that ate it. */}
       {!inCombat &&
         fodderAnim?.ghosts.map((g, i) => {
           const def = CARD_INDEX[g.fid];
           if (!def) return null;
           const view: CardView = {
-            name: def.name, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health,
+            name: def.name, cardId: def.id, tribe: def.tribe, attack: g.attack, health: g.health,
             keywords: def.keywords, text: def.text, tier: def.tier,
+            baseAttack: def.attack, baseHealth: def.health, // so a buffed Fred reads its gain in green
           };
           return (
             <div
@@ -907,6 +982,11 @@ export function Recruit() {
               style={{ left: g.x0, top: g.y0, width: g.w, height: g.h, '--dx': `${g.dx}px`, '--dy': `${g.dy}px` } as CSSProperties}
               aria-hidden="true"
             >
+              <span className="fodderswirl" aria-hidden="true">
+                {[0, 1, 2, 3].map((n) => (
+                  <span className="fs-orb" key={n} style={{ '--n': n } as CSSProperties} />
+                ))}
+              </span>
               <Card card={view} />
             </div>
           );

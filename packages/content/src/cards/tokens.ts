@@ -35,7 +35,8 @@ export const TOKENS: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [],
-    text: 'A 1/1 Demon Fodder token — meant to be eaten.',
+    // A plain 1/1 with no keyword and no Fodder interaction — no body text (the stats say it all).
+    text: '',
     token: true,
   },
   {

@@ -114,6 +114,8 @@ export const Card = memo(function Card({
   targeted,
   dimmed,
   buffed,
+  battlecry,
+  arrived,
   onPointerDown,
   draggable,
   onDragStart,
@@ -131,6 +133,10 @@ export const Card = memo(function Card({
   dimmed?: boolean;
   /** Play a one-shot green buff flash (a recruit-phase stat buff just landed). */
   buffed?: boolean;
+  /** One-shot flourish beneath a just-played minion whose Battlecry fired. */
+  battlecry?: boolean;
+  /** One-shot pop-in when a card is added to the hand mid-flow (combat Deathrattle grant). */
+  arrived?: boolean;
   onPointerDown?: (e: ReactPointerEvent) => void;
   draggable?: boolean;
   onDragStart?: (e: DragEvent) => void;
@@ -148,7 +154,7 @@ export const Card = memo(function Card({
   ];
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.spell ? ' spellcard' : ''}${card.tribe2 ? ' dual' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.spell ? ' spellcard' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}
@@ -242,6 +248,16 @@ export const Card = memo(function Card({
           <span className="bb-spark" style={{ '--a': '170deg' } as CSSProperties} />
           <span className="bb-spark" style={{ '--a': '250deg' } as CSSProperties} />
           <span className="bb-spark" style={{ '--a': '320deg' } as CSSProperties} />
+        </span>
+      )}
+      {/* Battlecry flourish — a glowing sigil swells from *under* the card (tribe-tinted),
+          with motes rising up its face, when its Battlecry fires on play. */}
+      {battlecry && (
+        <span className="bcryfx" aria-hidden="true">
+          <span className="bc-glow" />
+          <span className="bc-mote" style={{ '--a': '-22deg' } as CSSProperties} />
+          <span className="bc-mote" style={{ '--a': '0deg' } as CSSProperties} />
+          <span className="bc-mote" style={{ '--a': '22deg' } as CSSProperties} />
         </span>
       )}
     </div>

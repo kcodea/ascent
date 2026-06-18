@@ -344,6 +344,25 @@ describe('run loop (@game/sim)', () => {
     const imp = s.board.find((c) => c.cardId === 'imp');
     // Voracious Imp eats a (1+2)/(1+2) Fred at ×2 → +6/+6 → 8/8
     expect([imp?.attack, imp?.health]).toEqual([8, 8]);
+    // the consume record carries the Fodder's *buffed* stats (3/3) so the eat animation shows them
+    expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred', attack: 3, health: 3 });
+  });
+
+  it('a frozen tavern tops up empty slots + a missing spell after combat', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      frozen: true,
+      shop: [{ uid: 'keep', cardId: 'alley' }], // one frozen offer; the rest were bought away
+      spell: null, // …and the spell was bought
+      lastCombat: { events: [], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.phase).toBe('recruit');
+    expect(s.shop.length).toBe(3); // tier 1 → 3 slots, topped up from the 1 frozen offer
+    expect(s.shop[0]!.uid).toBe('keep'); // the frozen offer is preserved, still first
+    expect(s.spell).not.toBeNull(); // the missing spell is filled in
+    expect(s.frozen).toBe(false); // freeze is consumed for the new turn
   });
 
   it('Magnetic merges a Cling Drone onto a friendly Mech (no new slot)', () => {

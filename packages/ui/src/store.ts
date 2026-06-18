@@ -8,6 +8,15 @@ const countGolden = (s: RunState): number =>
 
 /** Fire the sound for a dispatched action (+ a sparkle when a triple just formed). */
 function actionSfx(action: Action, prev: RunState, next: RunState): void {
+  // The reducer returns the *same* reference for a rejected action (can't afford, board/hand
+  // full, timer up). For the actions a player actively triggers expecting something to happen,
+  // play a clear "wrong" buzz instead of the success blip — and skip the success sound.
+  if (next === prev) {
+    if (action.type === 'buy' || action.type === 'play' || action.type === 'roll' || action.type === 'upgrade') {
+      sfx.deny();
+    }
+    return;
+  }
   switch (action.type) {
     case 'buy': sfx.buy(); break;
     case 'play': sfx.play(); break;

@@ -311,7 +311,7 @@ export function consumeTavernFodder(state: RunState): void {
   if (demons.length === 0) return;
   const rng = makeRng(state.rngCursor);
   const ctx = makeContext(state);
-  const eaten: { eaterUid: string; fodderId: string }[] = [];
+  const eaten: { eaterUid: string; fodderId: string; attack: number; health: number }[] = [];
   for (let i = state.shop.length - 1; i >= 0; i--) {
     const offer = state.shop[i]!;
     const fodder = CARD_INDEX[offer.cardId];
@@ -320,10 +320,13 @@ export function consumeTavernFodder(state: RunState): void {
     state.shop.splice(i, 1); // eaten — leaves the tavern
     const mult = fodderMultiplier(eater);
     const buff = cardBuff(state, fodder.id); // Ritualist's run buff feeds the eater too
-    eater.attack += (fodder.attack + buff.attack) * mult;
-    eater.health += (fodder.health + buff.health) * mult;
+    const fa = fodder.attack + buff.attack;
+    const fh = fodder.health + buff.health;
+    eater.attack += fa * mult;
+    eater.health += fh * mult;
     fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off
-    eaten.push({ eaterUid: eater.uid, fodderId: fodder.id });
+    // Record the Fodder's *effective* (buffed) stats so the eat animation shows them, not 1/1.
+    eaten.push({ eaterUid: eater.uid, fodderId: fodder.id, attack: fa, health: fh });
   }
   state.rngCursor = rng.state();
   // Record the consume for the UI to replay (show the Fodder, swirl it into the eater).

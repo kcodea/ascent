@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Tribe-coloured card edges
+- Every minion card now flags its **type by its outer edge**: a tribe-coloured ring (Beast green,
+  Dragon orange, Mech teal, Undead slate, Demon purple, Neutral tan) plus a soft same-hue glow.
+  **Dual-types split the rim half-and-half** (Heckbinder → Demon purple / Mech teal) via a
+  pseudo-element gradient rim (a `box-shadow` can't be two colours). Driven by the existing `--c` /
+  `--c2` card vars, so it's data-free.
+- The edge previously did double duty for keyword cues; reconciled so **tribe owns the rim**: Divine
+  Shield and Reborn keep their pulsing glow but as an **outer halo** layered around the tribe ring
+  (DS = tribe ring + gold halo; Reborn = tribe ring + blue halo); Taunt now relies on its shield-ward
+  badge and Stealth on its faded look (their edge rings dropped). Golden / spell / Triple Reward keep
+  their special gold / purple frames (the tribe edge is suppressed there).
+- CSS-only. `typecheck` + `lint` + `test` (**131**) clean; verified live across all six tribes, a dual
+  (split rim), a Divine-Shield card (teal ring + gold halo), a Reborn card (slate ring + blue halo),
+  and a golden (gold frame preserved) — 0 console errors.
+
 ### Toxin Tender — player-targeted Battlecry
 - Toxin Tender's Battlecry is now **player-targeted** (like the Warden's Hero Power): play it to the
   board, then aim a glowing line at any friendly minion and click to grant **Venomous** to *that*

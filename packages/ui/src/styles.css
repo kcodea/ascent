@@ -232,7 +232,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .row.hand .card:hover { transform: translateY(-5%); z-index: 45; }
 
 /* STANDARD CARD */
-.card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 3px 0 var(--shadow); transition: transform 0.12s, border-color 0.12s; animation: cardpop 0.26s ease; }
+.card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 3px var(--c), 0 3px 0 var(--shadow), 0 0 14px -4px color-mix(in srgb, var(--c) 55%, transparent); transition: transform 0.12s, border-color 0.12s; animation: cardpop 0.26s ease; }
 .card:hover { transform: translateY(-3px); border-color: var(--acc); z-index: 20; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 18%, var(--card)); border-radius: 11px 11px 0 0; }
@@ -244,29 +244,29 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Divine Shield: an unmistakable soft-yellow glow — a bright halo + ring AROUND the card and
    a glowing wash ON TOP of it (concentrated over the art so the text stays legible), pulsing.
    Shown on any shielded card, recruit + combat, so DS reads at a glance across the board. */
-.card.dscard { z-index: 3; box-shadow: 0 0 26px 6px rgba(255, 221, 110, 0.85), 0 0 0 3px rgba(255, 221, 110, 0.9), 0 3px 0 var(--shadow); animation: dsglow 1.8s ease-in-out infinite; }
+.card.dscard { z-index: 3; box-shadow: 0 0 0 3px var(--c), 0 0 26px 6px rgba(255, 221, 110, 0.82), 0 3px 0 var(--shadow); animation: dsglow 1.8s ease-in-out infinite; }
 .card.dscard::after {
   content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; z-index: 8;
   background: radial-gradient(110% 80% at 50% 32%, rgba(255, 236, 150, 0.5), rgba(255, 224, 120, 0.18) 50%, transparent 74%);
   mix-blend-mode: screen; animation: dswash 1.8s ease-in-out infinite;
 }
 @keyframes dsglow {
-  0%, 100% { box-shadow: 0 0 20px 4px rgba(255, 221, 110, 0.65), 0 0 0 3px rgba(255, 221, 110, 0.75), 0 3px 0 var(--shadow); }
-  50% { box-shadow: 0 0 34px 9px rgba(255, 221, 110, 1), 0 0 0 3px rgba(255, 221, 110, 1), 0 3px 0 var(--shadow); }
+  0%, 100% { box-shadow: 0 0 0 3px var(--c), 0 0 20px 4px rgba(255, 221, 110, 0.62), 0 3px 0 var(--shadow); }
+  50% { box-shadow: 0 0 0 3px var(--c), 0 0 34px 9px rgba(255, 221, 110, 1), 0 3px 0 var(--shadow); }
 }
 @keyframes dswash { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
 /* Reborn — a pulsing blue aura AROUND the card plus a blue wash OVER the art (like Divine Shield),
    recruit + combat. In combat both drop the moment the minion Reborns (it sheds the 'R' keyword),
    so the effect marks "still has its one revival left". */
-.card.reborncard { z-index: 3; box-shadow: 0 0 24px 5px rgba(86, 150, 235, 0.8), 0 0 0 3px rgba(120, 170, 242, 0.92), 0 3px 0 var(--shadow); animation: rebornglow 1.8s ease-in-out infinite; }
+.card.reborncard { z-index: 3; box-shadow: 0 0 0 3px var(--c), 0 0 24px 5px rgba(86, 150, 235, 0.78), 0 3px 0 var(--shadow); animation: rebornglow 1.8s ease-in-out infinite; }
 .card.reborncard::after {
   content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; z-index: 8;
   background: radial-gradient(120% 84% at 50% 30%, rgba(126, 184, 250, 0.46), rgba(92, 152, 236, 0.16) 52%, transparent 76%);
   mix-blend-mode: screen; animation: rebornwash 1.8s ease-in-out infinite;
 }
 @keyframes rebornglow {
-  0%, 100% { box-shadow: 0 0 18px 3px rgba(86, 150, 235, 0.6), 0 0 0 2px rgba(120, 170, 242, 0.8), 0 3px 0 var(--shadow); }
-  50% { box-shadow: 0 0 30px 8px rgba(86, 150, 235, 0.95), 0 0 0 3px rgba(140, 185, 250, 1), 0 3px 0 var(--shadow); }
+  0%, 100% { box-shadow: 0 0 0 3px var(--c), 0 0 18px 3px rgba(86, 150, 235, 0.58), 0 3px 0 var(--shadow); }
+  50% { box-shadow: 0 0 0 3px var(--c), 0 0 30px 8px rgba(86, 150, 235, 0.95), 0 3px 0 var(--shadow); }
 }
 @keyframes rebornwash { 0%, 100% { opacity: 0.62; } 50% { opacity: 1; } }
 /* spectral tears that rise across the card — bigger + brighter, several at a time for a lively glow */
@@ -313,10 +313,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .tierbadge[data-tier="4"] { background: #7b54c8; }
 .tierbadge[data-tier="5"] { background: #ef8a25; }
 .tierbadge[data-tier="6"] { background: #e0395f; }
-/* Taunt: a steel shield ward — this minion is a wall enemies must hit first */
-.card.taunt { box-shadow: 0 0 0 2px #5f6a8a, 0 3px 0 var(--shadow); }
-/* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth). */
-.card.stealth { opacity: 0.8; box-shadow: 0 0 0 2px #3f6f7a, 0 0 14px -2px rgba(63, 111, 122, 0.7), 0 3px 0 var(--shadow); }
+/* Taunt: marked by the steel shield ward badge (top-right); the outer edge stays the tribe colour. */
+/* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth); edge stays tribe-coloured. */
+.card.stealth { opacity: 0.8; }
 .tauntward { position: absolute; top: -14px; right: -14px; width: 66px; height: 66px; border-radius: 50%; background: #5f6a8a; border: 4px solid var(--card); display: grid; place-items: center; z-index: 6; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
 .tauntward svg { width: 38px; height: 38px; color: #fff; }
 /* the tribe label sits between the (now absolute, overhanging) atk/hp badges — pad it clear
@@ -332,6 +331,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
    (driven by --c / --c2; set when a CardView carries a second tribe). */
 .card.dual .art { background: linear-gradient(100deg, color-mix(in srgb, var(--c) 20%, var(--card)) 0 47%, color-mix(in srgb, var(--c2) 20%, var(--card)) 53% 100%); }
 .card.dual .cfoot { background: linear-gradient(100deg, color-mix(in srgb, var(--c) 16%, var(--card)) 0 47%, color-mix(in srgb, var(--c2) 16%, var(--card)) 53% 100%); }
+/* Tribe edge — dual types split the outer rim half-and-half. A box-shadow can't be two colours, so
+   the split is drawn as a pseudo-element rim behind the card and the solid ring is dropped for it. */
+.card.dual { box-shadow: 0 3px 0 var(--shadow), 0 0 14px -4px color-mix(in srgb, var(--c) 55%, transparent); }
+.card.dual::before { content: ''; position: absolute; inset: -3px; border-radius: 16px; background: linear-gradient(112deg, var(--c) 0 47%, var(--c2) 53% 100%); z-index: -1; pointer-events: none; }
+.card.golden.dual::before, .card.spellcard::before, .card.triplecard::before { display: none; } /* special frames win */
 .cbody { padding: 0 9px 8px; margin-top: -20px; position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .cn { flex: none; align-self: center; max-width: 100%; font-family: 'Outfit'; font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 /* always reserves one pill-row of height (even with no pills) so the description below

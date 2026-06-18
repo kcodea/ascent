@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Gnasher vs Reborn, golden Brood Matron, Imp rename, Spirit of the Pack cut
+- **Gnasher re-attacks after killing a Reborn target.** Dropping a Reborn minion to 0 revives it
+  (`killOrReborn` returns it at base stats and leaves `dead` false), so the on-kill check
+  `target.dead || target.health <= 0` read false and Gnasher's re-attack never fired against a Reborn
+  body. Now `performAttack` snapshots the target's Reborn availability before the swing and counts a
+  *consumed* Reborn as a kill too — so Gnasher keeps swinging through it. +1 sim test (Gnasher clears a
+  lone Reborn Grave Knit in exactly two swings, the enemy never getting to attack — which fails under
+  the old check).
+- **Golden Brood Matron breeds two Imps per death.** `onFriendDeathSummon` summoned `1 + echoBonus`
+  regardless of golden; it now uses `mul(self) + echoBonus`, so a golden Brood Matron makes **2** Imps
+  per friend death (Echo Wardens still stack on top). Added explicit `goldenText` + 1 sim test (golden
+  → 2, plain → 1).
+- **Imp Scrap → Imp.** The Brood Matron token is renamed to **Imp** (id stays `impscrap`, so Brood
+  Matron's `tokenId` param and the existing tests are untouched) and now has illustrated art.
+- **Art wired:** Brood Matron (`BroodMatron.png` → `brood.png`) and the Imp token (`Imp.png` →
+  `impscrap.png`), both 512×512 — verified loading live. Wired-art count is now 32.
+- **Spirit of the Pack (`pack6`) removed.** The tier-6 Beast (Deathrattle: all Beasts +4/+4) is cut
+  from the set and its art file deleted. The one test that used it as a buff-Deathrattle vehicle now
+  uses **Grim** (+6/+6), which remains the board-wide Beast buff; `useCombatReplay` comments updated to
+  match.
+- **Tavern Up cost emphasised.** The upgrade button's cost is now larger (22px, bold) inside a teal
+  Mana pill, scoped to a new `.tavernup` class so the sibling **Refresh** cost keeps its baseline look.
+- `typecheck` + `lint` + `test` (**124**) + `build:web` clean; art + button verified live (brood/Imp
+  render at 512×512; Tavern Up cost 22px in a pill, Refresh cost unchanged at 17px). Repacked
+  `ascent-itch.zip` (41 entries — brood + impscrap in, pack6 out; `index.html` at root, forward-slash
+  paths).
+
 ### Venomous retaliation + "Tavern Up" button
 - **Venomous now procs on the attacker too.** A unit that *attacks* a Venomous minion took the
   defender's retaliation damage, but the venom proc/drop-off was skipped whenever that raw retaliation

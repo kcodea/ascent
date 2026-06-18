@@ -104,9 +104,10 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop
       `<id>.png` into `packages/ui/src/art/minions/` → it replaces that card's pixel sprite
       everywhere; falls back to the sprite when absent). **Every source illustration that maps to an
-      existing card id is now wired** (28: alley, broker, buddy, bulwark, chronos, cling, combinator,
-      drone, drummer, emberpouch, feed, fred, grim, heckbinder, imp, karwind, kennel, moneybot, omen,
-      pack6, ritualist, sandbag, spiritfire, spore, stray, sylus, weaver, whelp). The rest still use
+      existing card id is now wired** (32: alley, brood, broker, buddy, bulwark, chronos, cling,
+      combinator, discoverspell, drone, drummer, echo, emberpouch, feed, fred, grim, heckbinder, imp,
+      impscrap, karwind, kennel, moneybot, omen, ritualist, sandbag, shaper, spiritfire, spore, stray,
+      sylus, weaver, whelp). The rest still use
       pixel sprites and have **no source art yet** — every source illustration now maps to a card.
       Source art lives in `C:\Game Assets\Ascent Art\Minions`. **Hero portraits** use a parallel
       pipeline (`art/heroes/<id>.png` → `heroArt()`); the Warden portrait is wired.

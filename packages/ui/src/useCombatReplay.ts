@@ -113,8 +113,8 @@ const FLOAT_MS = 1250;
  * in (beat 1), then it and its target take damage together (beat 2).
  *
  * A run of consecutive `buff` events is *also* collapsed into one beat: a single
- * effect that buffs many minions at once (Spirit of the Pack giving every Beast
- * +4/+4, a Rally aura) fires them all together rather than one minion at a time.
+ * effect that buffs many minions at once (Grim's Deathrattle giving every Beast
+ * +6/+6, a Rally aura) fires them all together rather than one minion at a time.
  */
 const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'death']);
 interface Beat {
@@ -278,8 +278,8 @@ export function useCombatReplay(
   }, [active, beatIdx, beats]);
 
   // Spawn floats for every damage/poison/shield in the beat just resolved — all at once.
-  // Buff events are *summed per target* so a multi-proc deathrattle (e.g. Spirit of the Pack
-  // re-procced by Sylus for +12/+12) shows one correct "+12/+12" per minion, not three "+4/+4".
+  // Buff events are *summed per target* so a multi-proc deathrattle (e.g. Grim re-procced by
+  // Sylus for +18/+18) shows one correct "+18/+18" per minion, not three "+6/+6".
   useEffect(() => {
     if (beatIdx === 0) return;
     const beat = beats[beatIdx - 1];

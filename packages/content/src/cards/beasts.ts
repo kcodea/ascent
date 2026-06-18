@@ -80,17 +80,6 @@ export const BEASTS: CardDef[] = [
     text: 'When it kills a minion, it **attacks again**.',
   },
   {
-    id: 'pack6',
-    name: 'Spirit of the Pack',
-    tribe: 'beast',
-    tier: 6,
-    attack: 4,
-    health: 4,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 4, health: 4 } }],
-    text: '**Deathrattle:** give all your Beasts +4/+4.',
-  },
-  {
     // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.
     id: 'grim',
     name: 'Grim',

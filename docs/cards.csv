@@ -23,7 +23,6 @@ kennel,Kennelmaster,minion,beast,2,2,3,,,Each Beast you summon gains +1/+1. Aven
 cleaver,Ravenous Cleaver,minion,beast,3,2,4,,Cleave,,,,2x stats -> 4/8; Cleave,FALSE
 matron,Bristleback Matron,minion,beast,4,4,4,,,Each Beast you summon gets +2/+2.,buffOnSummon beast +2/+2,Each Beast you summon gets +4/+4.,summon buff +4/+4 (via combine),FALSE
 gnash,"Gnasher, the Overrun",minion,beast,5,6,6,,,"When it kills a minion, it attacks again.",reAttackOnKill,"When it kills a minion, it attacks again.",2x stats -> 12/12; re-attack unchanged,FALSE
-pack6,Spirit of the Pack,minion,beast,6,4,4,,,Deathrattle: give all your Beasts +4/+4.,deathrattleBuffTribe beast +4/+4,Deathrattle: give all your Beasts +8/+8.,board-wide +8/+8,TRUE
 grim,Grim,minion,beast,6,7,1,,,Deathrattle: give your Beasts +6/+6 for the rest of combat.,deathrattleBuffTribe beast +6/+6,Deathrattle: give your Beasts +12/+12 for the rest of combat.,board-wide +12/+12,TRUE
 shaper,Wildwood Shaper,minion,beast,2,2,3,,,Choose One: give your Beasts +1/+1; or summon two 1/1 Strays.,chooseOne [buffTribe beast +1/+1 | summon stray x2],Choose One: give your Beasts +2/+2; or summon two 1/1 Strays.,both options doubled (Beasts +2/+2; or 4 Strays),FALSE
 #
@@ -62,7 +61,7 @@ omega,Omega Bulwark,minion,mech,6,6,6,,Shield|Taunt,Start of Combat: give all yo
 feed,Soulfeeder,minion,demon,1,2,2,,,Battlecry: add Fodder to your next tavern.,battlecryAddTavernFodder fred,Battlecry: add 2 Fodder to your next tavern.,2x stats; adds 2 Fodder (count x2),TRUE
 imp,Voracious Imp,minion,demon,2,2,2,,Consume,Gains 2x stats from Fodder.,fodderMult 2,Gains 3x stats from Fodder.,fodder gives 3x stats,TRUE
 pact,Pactstone Acolyte,minion,demon,2,2,3,,,"When you consume a minion, gain an extra +1/+1.",onConsumeBuffSelf +1/+1,"When you consume a minion, gain an extra +2/+2.",+2/+2 per consume,FALSE
-brood,Brood Matron,minion,demon,3,3,3,,,"Each time a friend dies, summon a 1/1 Imp.",onFriendDeathSummon impscrap,"Each time a friend dies, summon a 1/1 Imp.",2x stats; summons 1 Imp/death (count unchanged),FALSE
+brood,Brood Matron,minion,demon,3,3,3,,,"Each time a friend dies, summon a 1/1 Imp.",onFriendDeathSummon impscrap,"Each time a friend dies, summon two 1/1 Imps.",summons 2 Imps/death (golden),TRUE
 maw,Maw of the Pit,minion,demon,4,4,5,,Taunt,"On consume, gain a Divine Shield.",onConsumeGrantSelfKeyword Shield,"On consume, gain a Divine Shield.",2x stats; gains Shield (unchanged),FALSE
 heckbinder,Heckbinder,minion,demon,4,3,3,,Magnetic,Magnetize onto a friendly Mech or Demon.,dual-type Demon/Mech (tribe2 mech); magnetizes to a Mech OR Demon,Magnetize onto a friendly Mech or Demon.,2x stats -> 6/6; merges its doubled stats,TRUE
 glut,Ravening Glutton,minion,demon,5,5,5,,Cleave|Consume,"On consume, gain +2/+2.",onConsumeBuffSelf +2/+2,"On consume, gain +4/+4.",+4/+4 per consume,FALSE
@@ -78,6 +77,6 @@ bulwark,Bulwark,spell,neutral,1,,,1,,Give a friendly minion +0/+1 and Taunt.,cas
 fred,Fred,token,demon,1,1,1,,Fodder,A 1/1 Demon Fodder — your Demons devour it from the tavern.,token (added by Soulfeeder),—,—,TRUE
 pup,Pup,token,beast,1,1,1,,,A 1/1 Beast token.,token,—,—,FALSE
 stray,Stray,token,beast,1,1,1,,,A 1/1 Beast token.,token,—,—,TRUE
-impscrap,Imp Scrap,token,demon,1,1,1,,,A 1/1 Demon token.,token,—,—,FALSE
+impscrap,Imp,token,demon,1,1,1,,,A 1/1 Demon token.,token,—,—,TRUE
 discoverspell,Triple Reward,token,neutral,1,0,1,,,Discover a Tier N+1 minion (text names the exact tier; capped at 6),token (triple/golden reward),—,—,TRUE
 omen,Omen Minion,token,neutral,1,1,1,,,,enemy filler (stats set per wave),—,—,TRUE

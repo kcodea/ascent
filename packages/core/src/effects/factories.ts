@@ -259,7 +259,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   onFriendDeathSummon: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion === self || minion.side !== self.side) return;
-    const reps = 1 + echoBonus(ctx, self.side);
+    // Golden Brood Matron breeds two per death; Echo Wardens add extra on top (additive).
+    const reps = mul(self) + echoBonus(ctx, self.side);
     for (let i = 0; i < reps; i++) ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
   },
 

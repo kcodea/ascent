@@ -69,6 +69,7 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'onDeath', do: 'onFriendDeathSummon', params: { tokenId: 'impscrap' } }],
     text: 'Each time a friend dies, summon a 1/1 Imp.',
+    goldenText: 'Each time a friend dies, summon **two** 1/1 Imps.',
   },
   {
     // Dual-type Demon/Mech. Magnetic — and because it's also a Mech it can weld onto a friendly

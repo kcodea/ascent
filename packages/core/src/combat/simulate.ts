@@ -233,6 +233,7 @@ export function simulate(
       bus.emit('onAttack', { minion: attacker, side: attacker.side }); // Rally + on-attack effects
 
       const targetWasAlive = !target.dead && target.health > 0;
+      const targetCouldReborn = target.rebornAvailable; // a Reborn target that "dies" returns to life
       const poison = attacker.keywords.includes('V'); // Venomous
 
       // Cleave hits the target's neighbours before retaliation (A.3 step 5).
@@ -248,8 +249,11 @@ export function simulate(
       dealDamage(target, attacker.attack, poison, false, attacker); // main hit
       dealDamage(attacker, target.attack, target.keywords.includes('V'), false, target); // retaliation
 
-      // On-kill re-attack (Gnasher).
-      const killed = targetWasAlive && (target.dead || target.health <= 0);
+      // On-kill re-attack (Gnasher). Dropping a Reborn target to 0 counts as a kill even though it
+      // returns to life — it spent its Reborn — so detect a consumed Reborn alongside an outright death.
+      const killed =
+        targetWasAlive &&
+        (target.dead || target.health <= 0 || (targetCouldReborn && !target.rebornAvailable));
       if (killed && attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
         bus.emit('onKill', { attacker, victim: target });
         performAttack(attacker, defenderSide, depth + 1);

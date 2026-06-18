@@ -118,7 +118,7 @@ export interface CardDef {
    *  two Fodder) or for grammar ("1 more time" → "2 more times"). Cards where doubling the printed
    *  numbers is already correct leave this unset. */
   goldenText?: string;
-  /** Non-buyable token (e.g. Pup, Stray, Imp Scrap). */
+  /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;

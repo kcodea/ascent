@@ -25,12 +25,12 @@ Subsequent additions hot-reload fine.
 | `cleaver` | Ravenous Cleaver | `cap` | Shield Capacitor |
 | `matron` | Bristleback Matron | `arc` | Arclight Reactor |
 | `gnash` | Gnasher, the Overrun | `junk` | Junkyard Titan |
-| `pack6` | Spirit of the Pack | `omega` | Omega Bulwark |
+| | | `omega` | Omega Bulwark |
 | **Dragons** | | **Demons** | |
 | `whelp` | Ember Whelp ✅ | `imp` | Voracious Imp ✅ |
 | `cleric` | Hoard Cleric | `feed` | Soulfeeder |
 | `cinder` | Cinderwing Matron | `pact` | Pactstone Acolyte |
-| `razor` | Razorscale Warlord | `brood` | Brood Matron |
+| `razor` | Razorscale Warlord | `brood` | Brood Matron ✅ |
 | `chrom` | Chromatic Caller | `maw` | Maw of the Pit |
 | `nadir` | Nadir, Hoardlord | `glut` | Ravening Glutton |
 | `gale` | Galewing Apex | `sov` | Abyssal Sovereign |
@@ -42,7 +42,7 @@ Subsequent additions hot-reload fine.
 | `maex` | Webspinner Matron | **Tokens** | |
 | `plague` | Plaguebringer | `pup` | Pup |
 | `ghast` | Ghastweaver | `stray` | Stray |
-| | | `impscrap` | Imp Scrap |
+| | | `impscrap` | Imp ✅ |
 | | | `discoverspell` | Glimpse Beyond |
 
 ✅ = art added.

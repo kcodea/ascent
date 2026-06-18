@@ -872,7 +872,7 @@ export function Recruit() {
           Freeze
         </button>
         <button
-          className="btn big"
+          className="btn big tavernup"
           disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp}
           onClick={() => dispatch({ type: 'upgrade' })}
         >

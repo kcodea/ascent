@@ -28,7 +28,7 @@ export const TOKENS: CardDef[] = [
   },
   {
     id: 'impscrap',
-    name: 'Imp Scrap',
+    name: 'Imp',
     tribe: 'demon',
     tier: 1,
     attack: 1,

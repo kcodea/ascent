@@ -382,6 +382,39 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true);
   });
 
+  it('a golden Brood Matron breeds two Imps per death (one for a plain one)', () => {
+    // The Alleycat trades with a 1/1 Omen and dies, firing Brood Matron's breed exactly once.
+    const imps = (golden: boolean): number =>
+      run(
+        [
+          { cardId: 'alley', attack: 1, health: 1 },
+          { cardId: 'brood', attack: 3, health: 30, golden },
+        ],
+        [{ cardId: 'omen', attack: 1, health: 1, keywords: [] }],
+        1,
+      ).events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length;
+    expect(imps(false)).toBe(1);
+    expect(imps(true)).toBe(2);
+  });
+
+  it('Gnasher keeps attacking after killing a Reborn target', () => {
+    // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
+    // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned
+    // body off — clearing the board on its own turn (exactly 2 swings, the enemy never gets to attack).
+    // With the bug the kill wasn't registered, the turn passed, and combat ran far longer.
+    const a = run(
+      [
+        { cardId: 'gnash', attack: 6, health: 6 },
+        { cardId: 'sandbag', attack: 0, health: 30, keywords: ['T'] }, // inert filler so Gnasher goes first
+      ],
+      [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }],
+      1,
+    );
+    expect(a.events.some((e) => e.type === 'reborn')).toBe(true);
+    expect(a.events.filter((e) => e.type === 'attack').length).toBe(2); // both swings are Gnasher's
+    expect(a.result).toBe('win');
+  });
+
   it('a golden minion fires its effect at doubled magnitude', () => {
     const a = run(
       [
@@ -439,17 +472,17 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('a golden Sylus procs a Deathrattle two extra times, and Sylus stacks', () => {
-    // Use a buff Deathrattle (Spirit of the Pack: all Beasts +4/+4) so the proc count is the number
-    // of +4 buff events — no board-cap interference. Only the Cleaver is a living Beast to buff.
+    // Use a buff Deathrattle (Grim: all Beasts +6/+6) so the proc count is the number of +6 buff
+    // events — no board-cap interference. Only the Cleaver is a living Beast to buff.
     const procs = (board: BoardMinion[]): number =>
       run(board, [{ cardId: 'omen', attack: 1, health: 200 }], 1).events.filter(
-        (e) => e.type === 'buff' && e.attack === 4,
+        (e) => e.type === 'buff' && e.attack === 6,
       ).length;
-    const pack6 = { cardId: 'pack6', attack: 1, health: 1 }; // Deathrattle: all Beasts +4/+4
+    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Deathrattle: all Beasts +6/+6
     const carry = { cardId: 'cleaver', attack: 2, health: 50 }; // surviving Beast
-    expect(procs([pack6, carry, { cardId: 'sylus', attack: 1, health: 50, golden: true }])).toBe(3); // 1 + 2 golden
+    expect(procs([grim, carry, { cardId: 'sylus', attack: 1, health: 50, golden: true }])).toBe(3); // 1 + 2 golden
     expect(
-      procs([pack6, carry, { cardId: 'sylus', attack: 1, health: 50 }, { cardId: 'sylus', attack: 1, health: 50 }]),
+      procs([grim, carry, { cardId: 'sylus', attack: 1, health: 50 }, { cardId: 'sylus', attack: 1, health: 50 }]),
     ).toBe(3); // 1 + 1 + 1 (Sylus stacks)
   });
 

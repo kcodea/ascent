@@ -204,7 +204,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 }
 .btn.big svg { width: 23px; height: 23px; }
 .btn.big .c { font-size: 17px; display: inline-flex; align-items: center; gap: calc(3 * var(--u)); }
-.btn.big .c svg { width: 17px; height: 17px; color: var(--mana-dk); }
+/* The Tavern Up cost is emphasised: larger, bolder, in a teal Mana pill so the upgrade price pops. */
+.btn.big.tavernup .c { font-size: 22px; font-weight: 800; gap: calc(4 * var(--u)); padding: calc(2 * var(--u)) calc(9 * var(--u)); border-radius: calc(10 * var(--u)); background: color-mix(in srgb, var(--mana) 24%, transparent); border: 1.5px solid color-mix(in srgb, var(--mana-dk) 45%, transparent); }
+.btn.big.tavernup .c svg { width: 23px; height: 23px; color: var(--mana-dk); }
 .btn.big.endturn { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
 .btn.big.endturn svg { color: #fff; }
 .btn.big.endturn:hover { border-color: var(--acc-dk); filter: brightness(1.05); }

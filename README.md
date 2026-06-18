@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Gnasher fix + Brood Matron + Imp** — Gnasher now keeps attacking after killing a **Reborn** target
+  (the revive still counts as a kill); a **golden Brood Matron** breeds two Imps per death; the Imp Scrap
+  token is renamed **Imp**; Brood Matron + Imp got art; **Spirit of the Pack** was cut; and the **Tavern
+  Up** cost is bigger and sits in a teal mana pill.
 - **Venomous retaliation + "Tavern Up" button** — attacking a Venomous minion now poisons the
   attacker via retaliation (unless it's shielded), even when the raw hit was already lethal; the
   upgrade button now reads **Tavern Up** with a mana symbol on the cost.

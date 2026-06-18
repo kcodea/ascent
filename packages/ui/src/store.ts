@@ -73,3 +73,9 @@ export const useGame = create<GameStore>((set) => ({
   clearInspect: () => set({ inspect: null }),
   newRun: (seed) => set({ run: createRun(seed ?? randomSeed()), heroArmed: false, sellTick: 0, inspect: null }),
 }));
+
+// DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
+// Discover / game-over / End-of-Turn UI). Stripped from production builds.
+if (import.meta.env.DEV) {
+  (window as unknown as { useGame?: typeof useGame }).useGame = useGame;
+}

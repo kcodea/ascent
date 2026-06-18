@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, magnetizesTo, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, magnetizesTo, chronosRepeats, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText } from './cardText';
 import { HudBar } from './HudBar';
@@ -120,7 +120,11 @@ export function Recruit() {
   const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
-  const endTurnPendingRef = useRef(false); // a brief end-of-turn beat is playing before combat
+  const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
+  // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
+  const [shopFlash, setShopFlash] = useState(0);
+  // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
+  const [electrifyUids, setElectrifyUids] = useState<Set<string>>(new Set());
 
   // --- In-place combat. Instead of swapping to a separate arena screen, the fight
   // plays out on this same board: the shop "closes" (the tavern offers, controls,
@@ -650,26 +654,60 @@ export function Recruit() {
     window.setTimeout(() => setDust((d) => (d?.key === key ? null : d)), 620);
   };
 
-  // End Turn → face the Omen. If any minion has an End-of-Turn effect, first flash the
-  // Battlecry-style proc flourish on those minions (on the still-mounted recruit board), then
-  // face the Omen a beat later — so the end-of-turn procs are visible before the board flips to
-  // combat. (The effects themselves still resolve inside `faceOmen`.)
+  // End Turn → face the Omen. End-of-Turn effects play out *one at a time* on the still-mounted
+  // recruit board so the player sees each one fire — and each repeats `chronosRepeats` times when a
+  // Chronos is in play (mirrors `applyEndOfTurn`'s per-card-then-repeat order). Each beat flashes the
+  // proc flourish under its card plus a tailored effect: Ritualist washes the whole shop purple (it
+  // buffs the Fodder there), Combinator electrifies the Mechs it magnetizes onto. Then it faces the
+  // Omen. (The effects themselves still *resolve* inside `faceOmen` — this is purely the telegraph.)
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
-    const eot = run.board
-      .filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'endOfTurn'))
-      .map((c) => c.uid);
-    if (eot.length === 0) {
+    const repeats = chronosRepeats(run);
+    type Beat = { uid: string; kind: 'ritualist' | 'combinator' | 'generic'; targets: string[] };
+    const beats: Beat[] = [];
+    for (const card of run.board) {
+      const def = CARD_INDEX[card.cardId];
+      if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
+      const kind: Beat['kind'] =
+        card.cardId === 'ritualist' ? 'ritualist' : card.cardId === 'combinator' ? 'combinator' : 'generic';
+      // Combinator electrifies the 2 highest-Attack friendly Mechs (incl. dual-type), like the reducer.
+      const targets =
+        kind === 'combinator'
+          ? run.board
+              .filter((c) => c.uid !== card.uid && (c.tribe === 'mech' || CARD_INDEX[c.cardId]?.tribe2 === 'mech'))
+              .sort((a, b) => b.attack - a.attack)
+              .slice(0, 2)
+              .map((c) => c.uid)
+          : [];
+      for (let r = 0; r < repeats; r++) beats.push({ uid: card.uid, kind, targets });
+    }
+    if (beats.length === 0) {
       dispatch({ type: 'faceOmen' });
       return;
     }
     endTurnPendingRef.current = true;
-    setEotProcUids(new Set(eot));
-    window.setTimeout(() => {
-      setEotProcUids(new Set());
-      endTurnPendingRef.current = false;
-      dispatch({ type: 'faceOmen' });
-    }, 620);
+    const BEAT = 760;
+    const GAP = 170;
+    const playBeat = (i: number): void => {
+      if (i >= beats.length) {
+        setEotProcUids(new Set());
+        setElectrifyUids(new Set());
+        endTurnPendingRef.current = false;
+        dispatch({ type: 'faceOmen' });
+        return;
+      }
+      const b = beats[i]!;
+      setEotProcUids(new Set([b.uid]));
+      if (b.kind === 'ritualist') setShopFlash((k) => k + 1);
+      if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
+      sfx.proc();
+      window.setTimeout(() => {
+        setEotProcUids(new Set());
+        setElectrifyUids(new Set());
+        window.setTimeout(() => playBeat(i + 1), GAP);
+      }, BEAT);
+    };
+    playBeat(0);
   };
   // The "carry" — your highest-Attack minion — auto-target for a targeted spell flung upward.
   const carryUid = (): string | undefined =>
@@ -819,6 +857,7 @@ export function Recruit() {
       )}
 
       <div className={`zone${sellGlow ? ' sellglow' : ''}`} data-zone="tavern">
+        {shopFlash > 0 && <div className="shopflash" key={shopFlash} aria-hidden="true" />}
         <div className="row">
           {fighting ? (
             replay.frame.enemy.map((u) => (
@@ -902,6 +941,7 @@ export function Recruit() {
                     targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
+                    electrify={electrifyUids.has(m.uid)}
                     onPointerDown={heroArmed ? undefined : onCardPointerDown}
                   />
                 </Fragment>
@@ -1076,22 +1116,24 @@ export function Recruit() {
 
       {run.discover && (
         <div className="discover-ov" role="dialog" aria-label="Discover a card">
-          <div className="discover-box">
-            <div className="discover-title">
-              <b>Discover</b> — choose a minion from the next tier.
-            </div>
-            <div className="discover-cards">
+          <div className="disc-panel">
+            <span className="disc-gem disc-gem-top" aria-hidden="true" />
+            <div className="disc-banner"><span className="disp">Discover</span></div>
+            <div className="disc-sub">Choose a minion from the next tier.</div>
+            <div className="disc-cards">
               {run.discover.map((id, i) => {
                 const c = CARD_INDEX[id];
                 return (
-                  <Card
-                    key={`${id}-${i}`}
-                    card={{ name: c.name, cardId: c.id, tribe: c.tribe, attack: c.attack, health: c.health, keywords: c.keywords, text: c.text, tier: c.tier }}
-                    onClick={() => dispatch({ type: 'discover', index: i })}
-                  />
+                  <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                    <Card
+                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, attack: c.attack, health: c.health, keywords: c.keywords, text: c.text, tier: c.tier }}
+                      onClick={() => dispatch({ type: 'discover', index: i })}
+                    />
+                  </div>
                 );
               })}
             </div>
+            <span className="disc-gem disc-gem-bot" aria-hidden="true" />
           </div>
         </div>
       )}

@@ -340,7 +340,9 @@ function drummerRepeats(state: RunState): number {
 
 /** Chronos: your End-of-Turn effects trigger extra times. A golden Chronos adds 2; multiple
  *  Chronos do NOT stack (only the best single one counts) — mirrors Drakko. Returns the count. */
-function chronosRepeats(state: RunState): number {
+/** How many times End-of-Turn effects fire this turn: 1, +1 per Chronos (best one only — golden
+ *  Chronos adds 2, no stacking). Exported so the UI can replay each proc the matching number of times. */
+export function chronosRepeats(state: RunState): number {
   const chronos = state.board.filter((c) => c.cardId === 'chronos');
   const bonus = chronos.some((c) => c.golden) ? 2 : chronos.length > 0 ? 1 : 0;
   return 1 + bonus;

@@ -85,6 +85,11 @@ export const sfx = {
     tone({ freq: 480, dur: 0.09, type: 'triangle', vol: 0.12 });
     tone({ freq: 720, dur: 0.12, type: 'triangle', vol: 0.1, delay: 0.06 });
   },
+  // An End-of-Turn effect firing — a short shimmer so each proc is heard, not just seen.
+  proc: () => {
+    tone({ freq: 540, dur: 0.1, type: 'triangle', vol: 0.11, slideTo: 880 });
+    tone({ freq: 1080, dur: 0.13, type: 'sine', vol: 0.07, delay: 0.05 });
+  },
   triple: () => chord([523, 659, 784, 1046], { dur: 0.13, type: 'triangle', vol: 0.12 }, 0.06),
   win: () => chord([523, 659, 784, 1046], { dur: 0.2, type: 'triangle', vol: 0.14 }, 0.1),
   lose: () => chord([392, 311, 233], { dur: 0.24, type: 'sawtooth', vol: 0.13 }, 0.12),

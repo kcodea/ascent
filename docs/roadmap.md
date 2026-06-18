@@ -42,7 +42,9 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 
 ## M4 — juice & onboarding
 
-- [ ] Pacing polish, audio, VFX.
+- [ ] Pacing polish, audio, VFX. _(Ongoing — recently: sequenced per-card End-of-Turn telegraph with
+      Chronos repeats + per-card FX (Ritualist shop wash, Combinator electrify), ornate Discover frame,
+      Reborn/Venomous particle FX, Triple Reward glow.)_
 - [ ] Tutorial / first-run onboarding.
 - [ ] Full accessibility + touch support.
 

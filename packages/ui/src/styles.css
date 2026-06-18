@@ -382,11 +382,44 @@ canvas.spr { image-rendering: pixelated; display: block; }
 }
 
 /* Discover overlay (triple reward) */
-.discover-ov { position: fixed; inset: 0; background: rgba(40, 28, 12, 0.5); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 50; animation: fadein 0.2s ease; }
+.discover-ov { position: fixed; inset: 0; background: rgba(34, 22, 9, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 50; animation: fadein 0.2s ease; }
 .discover-box { background: var(--card); border: 3px solid var(--acc); border-radius: calc(20 * var(--u)); padding: calc(22 * var(--u)) calc(26 * var(--u)); box-shadow: 0 18px 50px -10px rgba(0, 0, 0, 0.4); }
 .discover-title { font-family: 'Outfit'; font-weight: 800; font-size: calc(19 * var(--u)); text-align: center; margin-bottom: calc(16 * var(--u)); color: var(--ink); }
 .discover-title b { color: var(--acc-dk); }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
+/* Discover — an ornate, gold-framed parchment panel with a banner title, blue gems, a flourished
+   subtitle, and tier-coloured glows on the three cards. */
+.disc-panel {
+  position: relative;
+  background: radial-gradient(120% 92% at 50% 0%, #fdf6e6, transparent 62%), linear-gradient(168deg, #f8efd9, #efe0bf);
+  border: 5px solid #d6a83e; border-radius: calc(24 * var(--u));
+  padding: calc(46 * var(--u)) calc(40 * var(--u)) calc(34 * var(--u));
+  box-shadow: 0 0 0 2px #7c531a, inset 0 0 0 2px #f6dd9a, inset 0 0 0 6px #c8922e, inset 0 0 60px rgba(176, 130, 50, 0.18), 0 30px 80px -20px rgba(0, 0, 0, 0.7);
+}
+.disc-banner {
+  position: absolute; top: calc(-22 * var(--u)); left: 50%; transform: translateX(-50%);
+  background: linear-gradient(180deg, #f8edd2, #e7cf9f); border: 3px solid #c8922e; border-radius: calc(13 * var(--u));
+  padding: calc(7 * var(--u)) calc(46 * var(--u)); white-space: nowrap;
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.45), inset 0 -3px 6px rgba(150, 100, 30, 0.2);
+}
+.disc-banner .disp { font-weight: 900; font-size: calc(30 * var(--u)); color: #5a3d12; letter-spacing: 0.03em; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
+.disc-gem {
+  position: absolute; left: 50%; width: calc(20 * var(--u)); height: calc(20 * var(--u)); transform: translateX(-50%) rotate(45deg);
+  background: linear-gradient(135deg, #a6ddff, #2f9fe0 58%, #1a6ba3); border: 2px solid #e3f1ff; border-radius: calc(5 * var(--u));
+  box-shadow: 0 0 16px 4px rgba(70, 170, 240, 0.85); z-index: 4;
+}
+.disc-gem-top { top: calc(-44 * var(--u)); }
+.disc-gem-bot { bottom: calc(-12 * var(--u)); }
+.disc-sub { text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: calc(16 * var(--u)); color: #8a6a3a; letter-spacing: 0.04em; margin: calc(8 * var(--u)) 0 calc(24 * var(--u)); }
+.disc-sub::before, .disc-sub::after { content: '✦'; color: #d6a83e; }
+.disc-sub::before { margin-right: calc(10 * var(--u)); }
+.disc-sub::after { margin-left: calc(10 * var(--u)); }
+.disc-cards { display: flex; gap: calc(22 * var(--u)); justify-content: center; }
+.disc-slot { display: inline-flex; border-radius: 14px; animation: discpulse 2s ease-in-out infinite; }
+@keyframes discpulse {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent), 0 0 26px 4px color-mix(in srgb, var(--c) 50%, transparent); }
+  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 68%, transparent), 0 0 40px 9px color-mix(in srgb, var(--c) 72%, transparent); }
+}
 /* Choose One — two big option buttons */
 .chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 .chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: 'Nunito Sans', sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }
@@ -414,6 +447,29 @@ canvas.spr { image-rendering: pixelated; display: block; }
 @keyframes crackle {
   0%, 100% { box-shadow: 0 0 0 3px var(--t-mech), 0 0 22px 5px rgba(39, 169, 221, 0.75); }
   50% { box-shadow: 0 0 0 4px #7fdcf2, 0 0 32px 9px rgba(95, 198, 224, 0.95); }
+}
+/* Combinator's End of Turn — the Mechs it magnetizes onto crackle with electricity (reuses crackle). */
+.card.electrify { z-index: 4; animation: crackle 0.26s ease-in-out infinite; }
+/* Ritualist's End of Turn — a purple wash pulses over the whole shop (it buffs the Fodder there). */
+.zone[data-zone='tavern'] { position: relative; }
+.shopflash {
+  position: absolute; inset: calc(-10 * var(--u)); z-index: 12; pointer-events: none; border-radius: 20px;
+  background: radial-gradient(58% 72% at 50% 50%, rgba(177, 92, 240, 0.58), rgba(177, 92, 240, 0.24) 54%, transparent 78%);
+  mix-blend-mode: screen; animation: shopflash 0.78s ease-out forwards;
+}
+.shopflash::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; border: 3px solid rgba(190, 120, 245, 0.9);
+  animation: shopflashring 0.78s ease-out forwards;
+}
+@keyframes shopflash {
+  0% { opacity: 0; transform: scale(0.96); }
+  28% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.03); }
+}
+@keyframes shopflashring {
+  0% { opacity: 0; transform: scale(0.92); }
+  30% { opacity: 0.9; }
+  100% { opacity: 0; transform: scale(1.06); }
 }
 /* recruit-phase buff proc (a stat buff just landed on this card) — a green flash + a pop.
    `cardpop` is kept first in the list (matching the base .card) so that toggling cardbuff
@@ -804,7 +860,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    (the "busted" end-game where the live board showed on top). Near-opaque so the dead board
    reads as a faint ghost, not an interactive screen; it also captures clicks (blocks the board). */
 .over { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 94%, transparent); animation: fadein 0.3s ease; }
-.over .box { text-align: center; }
+.over .box { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .over .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.3em; color: var(--threat); text-transform: uppercase; }
 .over h1 { font-family: 'Outfit'; font-weight: 900; font-size: 52px; letter-spacing: 0.06em; color: var(--ink); margin: 10px 0; }
 .over .final { font-family: 'Outfit'; font-weight: 900; font-size: 72px; color: var(--acc-dk); line-height: 1; }

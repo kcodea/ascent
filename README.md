@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Discover frame + EoT telegraph** — the Discover screen is now an ornate gold-framed parchment panel
+  (banner, gems, tier-coloured card glows). End-of-Turn effects play **one minion at a time** (repeating
+  per Chronos): Ritualist washes the shop purple, Combinator electrifies the Mechs it magnetizes. Also
+  centered the game-over button.
 - **Triple Reward glow + itch build** — the Triple Reward spell now wears a golden frame/text-box with a
   vibrant pulsing orange glow. Added `npm run package:itch`, which builds and zips an itch.io-ready
   **`ascent-itch.zip`** (relative asset paths, `index.html` at the zip root).

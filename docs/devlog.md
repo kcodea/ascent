@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Ornate Discover frame, centered game-over button, sequenced End-of-Turn animations
+- **Discover frame redesign.** The Discover overlay is now an ornate, gold-framed parchment panel —
+  a layered gold border, a "Discover" banner plaque, blue gems above/below, a ✦-flourished subtitle,
+  and each of the three cards in a **tier-coloured pulsing glow** (green/red/purple by tribe). New
+  classes (`.disc-panel`/`.disc-banner`/`.disc-gem`/`.disc-sub`/`.disc-slot`) so the Choose-One overlay
+  (which shared `.discover-box`) is untouched. Verified live: panel + banner + 2 gems + tribe-tinted
+  glows render.
+- **Game-over button centered.** `.btn` is `display:flex` (block-level), so the box's `text-align:center`
+  never centered it — it sat full-width/left. Made `.over .box` a centered flex column; verified the
+  box centers in the window and the button centers in the box (and the real "Begin a New Ascent" path
+  resets cleanly, no crash).
+- **End-of-Turn plays out one card at a time.** Reworked the End-Turn telegraph: instead of flashing
+  all End-of-Turn minions at once, each fires **individually in sequence**, and **repeats
+  `chronosRepeats` times** when a Chronos is in play (mirrors `applyEndOfTurn`'s per-card-then-repeat
+  order; `chronosRepeats` is now exported from `@game/sim`). Each beat flashes the proc flourish under
+  its card plus a tailored effect — **Ritualist** washes the whole shop purple (it buffs the Fodder
+  there; new `.shopflash` over the tavern), **Combinator** crackles electricity over the two Mechs it
+  magnetizes onto (new `electrify` prop reusing the `crackle` keyframe). Plus a short "proc" shimmer
+  per beat. Then it faces the Omen. Verified live (Ritualist×2 + shop flash, then Combinator×2 +
+  electrified Drone & Money Bot, → combat).
+- Added a **DEV-only `window.useGame` handle** (stripped from production) to stage UI states from the
+  console for verification.
+- `typecheck` + `lint` + `test` (**116**) + `build:web` + `package:itch` clean.
+
 ### Triple Reward glow + itch.io packaging
 - **Triple Reward card glow.** The Discover/triple-reward spell now wears the **golden frame + gold
   text box** (like a tripled minion — gold border, gold body tint, gold name pill + footer) and a

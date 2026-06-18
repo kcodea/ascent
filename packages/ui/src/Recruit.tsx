@@ -382,8 +382,8 @@ export function Recruit() {
           setDrag(null);
           setOverZone(null);
           // let the Mech keep crackling a beat past the merge, then settle on the green buff flash
-          window.setTimeout(() => setMagTargetUid(null), 200);
-        }, el ? 320 : 0);
+          window.setTimeout(() => setMagTargetUid(null), 120);
+        }, el ? 280 : 0);
         return;
       }
 
@@ -567,7 +567,7 @@ export function Recruit() {
     const uids = run.karwindFlash ?? [];
     if (uids.length === 0) return;
     setKarwindFlameUids(new Set(uids));
-    const t = window.setTimeout(() => setKarwindFlameUids(new Set()), 900);
+    const t = window.setTimeout(() => setKarwindFlameUids(new Set()), 520);
     return () => window.clearTimeout(t);
   }, [run.karwindFlashSeq, run.karwindFlash]);
 
@@ -1062,10 +1062,10 @@ export function Recruit() {
             // When magnetizing, the card shrinks straight into the Mech (no tilt) so it "absorbs".
             transformOrigin: `${drag.ox}px ${drag.oy}px`,
             transform: magSlide
-              ? `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(0.16)`
+              ? `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(0.06)`
               : `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(1.04) rotate(-1.5deg)`,
-            // fade as it shrinks in, so the absorb finishes cleanly instead of a tiny card popping out
-            opacity: magSlide ? 0.15 : 1,
+            // accelerate + fade fully out as it shrinks in, so it vanishes cleanly into the Mech
+            opacity: magSlide ? 0 : 1,
           }}
         >
           <Card card={drag.view} />

@@ -314,10 +314,11 @@ export const Card = memo(function Card({
       {karwind && (
         <span className="karwindflame" aria-hidden="true">
           <span className="kf-glow" />
-          <span className="kf-tongue" style={{ '--kx': '20%', '--kd': '0s' } as CSSProperties} />
-          <span className="kf-tongue" style={{ '--kx': '43%', '--kd': '0.09s' } as CSSProperties} />
-          <span className="kf-tongue" style={{ '--kx': '62%', '--kd': '0.04s' } as CSSProperties} />
-          <span className="kf-tongue" style={{ '--kx': '80%', '--kd': '0.13s' } as CSSProperties} />
+          <span className="kf-tongue" style={{ '--kx': '14%', '--kd': '0.02s' } as CSSProperties} />
+          <span className="kf-tongue" style={{ '--kx': '32%', '--kd': '0.05s' } as CSSProperties} />
+          <span className="kf-tongue" style={{ '--kx': '50%', '--kd': '0s' } as CSSProperties} />
+          <span className="kf-tongue" style={{ '--kx': '68%', '--kd': '0.04s' } as CSSProperties} />
+          <span className="kf-tongue" style={{ '--kx': '86%', '--kd': '0.02s' } as CSSProperties} />
         </span>
       )}
       {/* Battlecry flourish — a glowing sigil swells from *under* the card (tribe-tinted),

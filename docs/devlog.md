@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Shaper/Echo art, minimal Karwind burn, magnetize pass 2, golden buff breakdown
+- **Wired Wildwood Shaper + Echo Warden art** (`shaper.png`, `echo.png`). *Note:* there was no
+  `EchoWarden.png` in the source folder — used the only un-attributed export (a leafy winged creature)
+  for `echo`; swap the file if that's the wrong asset.
+- **Karwind flame, reworked.** The old effect filled the whole card (72%-tall tongues, 0.9s) and read
+  inconsistently. Now it's a **quick, minimal burn along the bottom edge** (5 small uniform tongues
+  ~17% tall + a bottom glow band, 0.5s) — just a "Karwind is working" indicator, consistent across
+  every buffed Dragon. Verified live.
+- **Magnetize pass 2.** The drone now fully **vanishes into the Mech** (scale → 0.06, opacity → 0,
+  accelerating ease) in **0.28s** (was a lingering 0.16-scale/0.15-opacity remnant over 0.32s), with
+  the target Mech's crackle settling faster onto the green buff flash. (Drag gestures can't be driven
+  headless, so the feel is best confirmed in-game.)
+- **Buffs now carry through triples → goldens itemize in inspect.** The triple now keeps the two best
+  copies (by total stats), **sums their stats AND merges their per-source buff breakdowns** onto the
+  golden. For uniform buffs / fresh triples this is identical to the old top-two-atk/top-two-hp result;
+  it only differs for oddly asymmetric per-copy buffs (rare), and in exchange a golden's inspect panel
+  now lists its buffs (e.g. `Spirit Fire ×2 +6/+6`, `Karwind ×2 +2/+4`) consistently with its stats.
+  Verified live + unit-tested (golden carries `Spirit Fire ×2 +6/+6`).
+- `typecheck` + `lint` + `test` (**120**) + `build:web` clean; art + Karwind + golden breakdown
+  verified live, no console errors.
+
 ### Cleaner magnetize "absorb"
 - The magnetize merge was janky: the dropped card crept to the target over **0.72 s**, shrank to 0.32
   with a box-shadow crackle *on the flying card*, then the stats jumped — slow, and the target Mech

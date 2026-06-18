@@ -978,4 +978,18 @@ describe('run loop (@game/sim)', () => {
     const dragon = s.board.find((c) => c.uid === 'd')!;
     expect(dragon.buffs?.some((b) => b.source === 'Karwind')).toBe(true);
   });
+
+  it('a triple merges the buff breakdown onto the golden (so it itemizes in inspect)', () => {
+    const buffed = (uid: string): BoardCard => {
+      const c: BoardCard = { uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false };
+      addBuff(c, 'Spirit Fire', 3, 3); // each copy +3/+3 before combining
+      return c;
+    };
+    let s: RunState = { ...createRun(1), board: [], hand: [buffed('a'), buffed('b'), buffed('c')] };
+    s = reduce(s, { type: 'play', uid: 'a' }); // 3rd copy lands → triple combines
+    const golden = [...s.board, ...s.hand].find((c) => c.golden);
+    expect(golden).toBeDefined();
+    expect([golden!.attack, golden!.health]).toEqual([6, 14]); // base 0/4 ×2 = 0/8, + merged +6/+6
+    expect(golden!.buffs).toEqual([{ source: 'Spirit Fire', attack: 6, health: 6, count: 2 }]);
+  });
 });

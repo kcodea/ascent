@@ -4,7 +4,19 @@ import { CONFIG } from './config';
 import { rollShop, topUpTavern } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { addBuff, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
-import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
+import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
+
+/** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
+ *  breakdown through a triple. */
+function mergeBuffs(buffs: CardBuff[]): CardBuff[] {
+  const out: CardBuff[] = [];
+  for (const b of buffs) {
+    const e = out.find((x) => x.source === b.source);
+    if (e) { e.attack += b.attack; e.health += b.health; e.count += b.count; }
+    else out.push({ ...b });
+  }
+  return out;
+}
 
 /** Whether a Magnetic minion can weld onto a target minion: they must share a tribe, counting BOTH
  *  cards' tribes. So Cling Drone (Mech) → any Mech *including* Heckbinder (Demon/Mech); Heckbinder
@@ -334,10 +346,13 @@ function checkTriples(s: RunState): void {
     pull(s.hand); // consume from the hand first, then the board
     pull(s.board);
 
-    // Golden = sum of the two highest attacks / healths across the three, and the
-    // union of all their keywords — buffs and granted keywords are retained.
-    const atks = combined.map((c) => c.attack).sort((a, b) => b - a);
-    const hps = combined.map((c) => c.health).sort((a, b) => b - a);
+    // Golden = the two best copies (by total stats) stacked: their stats summed, their per-source
+    // buff breakdowns merged (so the golden's inspect panel still itemizes its buffs), and the union
+    // of all three's keywords. For uniform buffs / fresh triples this equals the old "top-two atk +
+    // top-two hp" result; it only differs for oddly asymmetric per-copy buffs (rare), and in exchange
+    // the breakdown stays consistent with the stats.
+    const kept = [...combined].sort((a, b) => (b.attack + b.health) - (a.attack + a.health)).slice(0, 2);
+    const goldenBuffs = mergeBuffs(kept.flatMap((c) => c.buffs ?? []));
     const keywords = [...new Set(combined.flatMap((c) => c.keywords))];
     const def = CARD_INDEX[tripleId]!;
     // A summon-buff card (Kennelmaster / Bristleback Matron) carries its accrued buff
@@ -359,12 +374,13 @@ function checkTriples(s: RunState): void {
       uid: `b${s.uidSeq++}`,
       cardId: def.id,
       tribe: def.tribe,
-      attack: (atks[0] ?? 0) + (atks[1] ?? 0),
-      health: (hps[0] ?? 0) + (hps[1] ?? 0),
+      attack: kept.reduce((sum, c) => sum + c.attack, 0),
+      health: kept.reduce((sum, c) => sum + c.health, 0),
       keywords,
       golden: true,
       summonBonus,
       manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
+      buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
     });
     // The Discover isn't granted now — it comes from a spell when the golden is played.
   }

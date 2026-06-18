@@ -203,7 +203,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
   100% { transform: translate(calc(-50% + var(--ex, 0px)), calc(-28 * var(--u))) scale(0.2); opacity: 0; }
 }
 .btn.big svg { width: 23px; height: 23px; }
-.btn.big .c { font-size: 17px; }
+.btn.big .c { font-size: 17px; display: inline-flex; align-items: center; gap: calc(3 * var(--u)); }
+.btn.big .c svg { width: 17px; height: 17px; color: var(--mana-dk); }
 .btn.big.endturn { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
 .btn.big.endturn svg { color: #fff; }
 .btn.big.endturn:hover { border-color: var(--acc-dk); filter: brightness(1.05); }

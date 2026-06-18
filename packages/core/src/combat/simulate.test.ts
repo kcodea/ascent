@@ -172,6 +172,40 @@ describe('simulate (handoff A.3)', () => {
     expect(a.result).toBe('win'); // venom melts the 30-hp wall in one hit
   });
 
+  it('attacking a Venomous target kills the attacker via retaliation venom (unless shielded)', () => {
+    // a beefy non-venomous attacker into a tiny Venomous defender: the defender's retaliation venom
+    // should still finish the attacker, even though the attacker easily survives the raw 1 damage.
+    const a = run(
+      [{ cardId: 'omen', attack: 9, health: 30, keywords: [] }],
+      [{ cardId: 'maex', attack: 1, health: 1, keywords: ['V'] }],
+      2,
+    );
+    expect(a.events.some((e) => e.type === 'venomLost')).toBe(true);
+    expect(a.result).not.toBe('win'); // the attacker took the venom and died (draw)
+    // but a Divine Shield eats the venom — the attacker shrugs it off and wins.
+    const b = run(
+      [{ cardId: 'omen', attack: 9, health: 30, keywords: ['DS'] }],
+      [{ cardId: 'maex', attack: 1, health: 1, keywords: ['V'] }],
+      2,
+    );
+    expect(b.result).toBe('win');
+  });
+
+  it('Venom procs (and drops off) even when the attacker dies to the raw retaliation damage', () => {
+    // A frail attacker into a big Venomous wall: it dies to the raw 5, but the venom must still proc
+    // + drop off (not silently skip because the raw hit was already lethal). Player has more minions
+    // so it attacks first → its 1/2 swings into the wall and eats the retaliation.
+    const a = run(
+      [
+        { cardId: 'omen', attack: 1, health: 2, keywords: [] },
+        { cardId: 'omen', attack: 1, health: 30, keywords: [] }, // filler → player attacks first
+      ],
+      [{ cardId: 'maex', attack: 5, health: 40, keywords: ['V'] }],
+      2,
+    );
+    expect(a.events.some((e) => e.type === 'venomLost')).toBe(true);
+  });
+
   it('Venomous drops off after its first proc — a second wall survives the venom', () => {
     // A fragile 1/3 Venomous vs two 1/20 walls: it poisons (destroys) the first wall (on the
     // retaliation), spends its venom, then can only chip the second for 1 before it dies. Were

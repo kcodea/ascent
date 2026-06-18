@@ -877,9 +877,9 @@ export function Recruit() {
           onClick={() => dispatch({ type: 'upgrade' })}
         >
           <Icon name="up" />
-          {run.tier >= CONFIG.maxTier ? 'Tier MAX' : (
+          {run.tier >= CONFIG.maxTier ? 'Tavern MAX' : (
             <>
-              Tier <span className="c">{run.upgradeCost}</span>
+              Tavern Up <span className="c"><Icon name="mana" />{run.upgradeCost}</span>
             </>
           )}
         </button>

@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Venomous retaliation + "Tavern Up" button** — attacking a Venomous minion now poisons the
+  attacker via retaliation (unless it's shielded), even when the raw hit was already lethal; the
+  upgrade button now reads **Tavern Up** with a mana symbol on the cost.
 - **Golden buffs + polish** — tripled (golden) minions now itemize their buffs in the inspect panel;
   Wildwood Shaper & Echo Warden got art; Karwind's flame is now a quick minimal bottom-burn; the
   magnetize absorb is cleaner still.

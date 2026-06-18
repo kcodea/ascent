@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Venomous retaliation + "Tavern Up" button
+- **Venomous now procs on the attacker too.** A unit that *attacks* a Venomous minion took the
+  defender's retaliation damage, but the venom proc/drop-off was skipped whenever that raw retaliation
+  was already lethal (the guard was `if (poison && target.health > 0)`). Now the proc fires whenever
+  damage actually lands — i.e. past the Immune/Divine-Shield early-returns — so attacking a Venomous
+  unit kills the attacker and consumes the defender's `V`, **unless the attacker is shielded** (a
+  Divine-Shield/Immune attacker absorbs the hit and the venom never lands, exactly as before). One-line
+  fix in `dealDamage` (`if (poison)`); `performAttack` already forwarded the defender's venom on
+  retaliation. Added 2 sim tests — (a) attacking a Venomous target kills the attacker via retaliation
+  venom, shielded variant survives; (b) the proc **and drop-off** fire even when the raw retaliation is
+  lethal (would fail under the old `target.health > 0` guard). All **122** tests pass.
+- **"Tier ^" → "Tavern Up" + mana cost.** The upgrade button now reads **Tavern Up** (and **Tavern
+  MAX** at cap) with a teal **mana drop** rendered inline before the cost number. Sized 17px to match
+  the cost text (`.btn.big .c` is now an `inline-flex` row with a small gap). Verified live: the button
+  shows `Tavern Up 5`, two icons, the cost icon computed at 17px / mana-dk teal; Recruit re-renders and
+  a real `roll` dispatch produced **zero** new console errors (the residual `<Recruit>` errors in the
+  buffer are the documented stale artifact from forcing `newRun` mid-combat on the long-running server).
+- Repacked `ascent-itch.zip` (40 entries, `index.html` at root, all forward-slash paths). `typecheck`
+  + `lint` + `test` (122) + `build:web` clean.
+
 ### Fix: enemy minions now animate their attacks
 - Enemy (tavern-side) attacks showed no lunge. Cause: the `enemyarrive` entrance animation used
   `both` fill, so it **held its final `transform`** on every enemy unit — and a filling CSS animation

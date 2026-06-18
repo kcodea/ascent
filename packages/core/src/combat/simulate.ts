@@ -191,8 +191,12 @@ export function simulate(
     }
     target.health -= amount;
     events.push({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health) });
-    if (poison && target.health > 0) {
-      target.health = 0;
+    // Venomous: reaching here means the hit actually landed (Immune + Divine Shield already returned
+    // above), so any damage from a Venomous source destroys the target — even if the raw hit was
+    // already lethal. So attacking a Venomous minion is fatal *unless you were shielded from the
+    // damage*, and the venom procs/drops off whichever side it lands on (main hit or retaliation).
+    if (poison) {
+      if (target.health > 0) target.health = 0;
       events.push({ type: 'poison', target: target.uid });
       // Venomous proc: the poisoner spends its venom (drops off for the rest of combat).
       if (poisoner && poisoner.keywords.includes('V')) {

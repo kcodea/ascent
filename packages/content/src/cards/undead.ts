@@ -27,8 +27,9 @@ export const UNDEAD: CardDef[] = [
     attack: 1,
     health: 2,
     keywords: [],
+    target: 'friendly',
     effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['V'] } }],
-    text: '**Battlecry:** give a friend **Venomous**.',
+    text: '**Battlecry:** give a friendly minion **Venomous**.',
   },
   {
     id: 'knit',

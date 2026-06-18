@@ -141,6 +141,10 @@ export interface RunState {
   /** A pending Choose One — a played card waiting for the player to pick an option. The
    *  options live on the card def (`CARD_INDEX[cardId].chooseOne`). */
   chooseOne?: { uid: string; cardId: string };
+  /** A played minion with a *targeted* Battlecry (`CardDef.target === 'friendly'`, e.g. Toxin Tender),
+   *  on the board and waiting for the player to pick the friendly minion its Battlecry hits. Resolved
+   *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. */
+  pendingTarget?: { uid: string; cardId: string };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
 }
@@ -157,6 +161,7 @@ export type Action =
   | { type: 'heroPower'; uid: string }
   | { type: 'discover'; index: number }
   | { type: 'chooseOne'; index: number }
+  | { type: 'battlecryTarget'; targetUid: string }
   | { type: 'faceOmen' }
   | { type: 'resolveCombat' };
 

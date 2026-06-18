@@ -28,8 +28,9 @@ type RecruitFn = (
   self: BoardCard,
   params: Record<string, unknown>,
   /** `proc` is the repeat index of this End-of-Turn trigger (0-based; Chronos drives extras) — used
-   *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. */
-  payload: { minion: BoardCard; proc?: number },
+   *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
+   *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. */
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -143,17 +144,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let i = 0; i < count; i++) ctx.summon(token, self.uid);
   },
 
-  /** Toxin Tender / Plaguebringer: grant keyword(s) to your highest-attack other minion (the carry). */
-  battlecryGrantKeyword: (ctx, self, params) => {
+  /** Toxin Tender / Plaguebringer: grant keyword(s) to a friendly minion. Toxin Tender is
+   *  player-targeted (`payload.target` is the chosen minion); Plaguebringer auto-picks the
+   *  highest-attack friend that still lacks a granted keyword (never wasting it). */
+  battlecryGrantKeyword: (ctx, self, params, payload) => {
     const kws = Array.isArray(params.keywords) ? (params.keywords as Keyword[]) : [];
     if (kws.length === 0) return;
-    // Only consider minions missing at least one granted keyword — never waste
-    // the grant on a minion that already has the effect (e.g. don't re-grant Venomous).
-    const lacks = (c: BoardCard): boolean => kws.some((k) => !c.keywords.includes(k));
-    const others = ctx.state.board.filter((c) => c !== self && lacks(c));
-    const pool = others.length > 0 ? others : lacks(self) ? [self] : [];
-    if (pool.length === 0) return; // everyone already has it
-    const target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
+    let target = payload.target;
+    if (!target) {
+      // No explicit target → auto-pick: only minions missing a granted keyword, highest attack.
+      const lacks = (c: BoardCard): boolean => kws.some((k) => !c.keywords.includes(k));
+      const others = ctx.state.board.filter((c) => c !== self && lacks(c));
+      const pool = others.length > 0 ? others : lacks(self) ? [self] : [];
+      if (pool.length === 0) return; // everyone already has it
+      target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
+    }
     for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
   },
 
@@ -422,6 +427,24 @@ export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDe
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
 }
 
+/** Resolve a deferred *targeted* Battlecry (Toxin Tender) on the player-chosen friendly `target`.
+ *  Fires the played card's onPlay effects with the target injected, honoring Drakko + Karwind. */
+export function applyBattlecryTarget(state: RunState, card: BoardCard, target: BoardCard): void {
+  state.karwindFlash = [];
+  const ctx = makeContext(state);
+  const def = CARD_INDEX[card.cardId];
+  if (!def) return;
+  const repeats = drummerRepeats(state);
+  for (const effect of def.effects) {
+    if (effect.on !== 'onPlay') continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (!fn) continue;
+    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, target });
+  }
+  for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // a Battlecry → procs Karwind
+  if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
+}
+
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   const ctx = makeContext(state);
@@ -530,6 +553,9 @@ export function playCard(state: RunState, played: BoardCard): void {
   // Choose One: the Battlecry is whichever option the player picks — deferred to `applyChooseOne`
   // (the reducer opens the prompt). onSummon buffs above still apply (it was summoned normally).
   if (def.chooseOne && def.chooseOne.length > 0) return;
+  // Targeted Battlecry (Toxin Tender): the player picks the friendly target next — deferred to
+  // `applyBattlecryTarget` (the reducer sets `pendingTarget`). onSummon already fired above.
+  if (def.target === 'friendly') return;
   // Drakko the Drummer makes Battlecries fire extra times (golden triples; no stacking).
   const repeats = drummerRepeats(state);
   const hasBattlecry = def.effects.some((e) => e.on === 'onPlay');

@@ -16,10 +16,12 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
   - `castSpell` factory → minions that cast a spell from an event (auto-targets the carry).
   - `state.spellCostMod` → "your spells cost less" effects (subtracted at buy).
   - A minion using each hook would exercise the plumbing; higher-tier spells would round out the pool.
-- [ ] **Targeted Battlecries (minions).** The targeting mechanic now exists (`target: 'friendly'` +
-      a `targetUid` on `play` + the **hero-power aim-line** gesture, used by Spirit Fire). A *minion*
-      whose Battlecry targets needs a `battlecryBuffTarget`-style factory + a place-then-target UI
-      gesture (a spell just vanishes; a minion also takes a board slot). Small once a card needs it.
+- [x] **Targeted Battlecries (minions).** Done — the place-then-target gesture is built: a minion with
+      `CardDef.target: 'friendly'` plays to the board, parks a `RunState.pendingTarget`, and the player
+      aims the hero-power-style line at a friendly minion (a new `battlecryTarget` action resolves it;
+      ends auto-resolve on the carry). **Toxin Tender** is the first user (grants Venomous to the chosen
+      minion). To add a *stat* targeted Battlecry (e.g. +X/+X), just add a `battlecryBuffTarget`-style
+      factory that reads `payload.target` — the rest is wired.
 - [ ] **More cards for the keyword triggers.** End of Turn has cards (Ritualist, Combinator) + a
       multiplier (Chronos); Avenge (X) is used by Kennelmaster; the `battlecryTriggered` event has
       Karwind; Battlecry/Deathrattle/End-of-Turn all have repeat-modifiers now (Drakko/Sylus/Chronos).
@@ -98,9 +100,9 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       depth / hover-lift / fan overlap are first-pass values — revisit once more cards are in play
       (and on shorter viewports) so the resting peek and the pop both feel right.
 
-- [ ] **Single-target Battlecries** (e.g. "give a friendly minion +X/+X") — the Hero-Power targeting
-      line + aim infrastructure is ready to reuse; no current card is player-targeted. (Content; on
-      hold until the feel/functionality pass + balance are done.)
+- [ ] **More single-target Battlecries** (e.g. "give a friendly minion +X/+X") — the full place-then-aim
+      gesture now ships (Toxin Tender → Venomous). A stat version just needs a `battlecryBuffTarget`
+      factory reading `payload.target`; the UI/aim/`pendingTarget` plumbing is reusable as-is.
 - [ ] Confirm/refine the **name-on-art card layout** — implemented from a fuzzy ask (name pill on
       the art's bottom, keyword/text area below); revisit spacing + legibility with the user.
 - [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop

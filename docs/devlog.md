@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Toxin Tender — player-targeted Battlecry
+- Toxin Tender's Battlecry is now **player-targeted** (like the Warden's Hero Power): play it to the
+  board, then aim a glowing line at any friendly minion and click to grant **Venomous** to *that*
+  minion. Built on the deferred-resolution pattern (mirrors Choose One): `CardDef.target: 'friendly'`
+  makes `playCard` fire onSummon but **defer** the Battlecry; the reducer parks a `RunState.pendingTarget`;
+  a new `battlecryTarget` action resolves the grant on the chosen minion. `battlecryGrantKeyword` is now
+  target-aware — an explicit target wins, else it auto-picks the highest-attack friend lacking the
+  keyword (so **Plaguebringer keeps its auto behaviour**). An unresolved target **auto-resolves on the
+  carry** if the turn ends first, so the play is never stranded.
+- UI: a `pendingTarget` aim-line effect (mirrors the Hero Power's) + an accent prompt — "Choose a minion
+  for Toxin Tender's Battlecry"; the board minions arm and the played minion's drag is suppressed so a
+  click targets rather than drags.
+- +3 sim tests (defer-then-grant on the chosen minion — not the higher-attack carry; end-turn
+  auto-resolve on the carry; Plaguebringer still auto-grants) + updated the old auto-grant test.
+  `typecheck` + `lint` + `test` (**131**) clean; verified live (play → pendingTarget + prompt;
+  `battlecryTarget` grants Venomous to the chosen minion, not the highest-attack one; 0 console errors).
+
 ### Finite minion pool (draw-from + return-on-sell)
 - Wired the shared, finite minion pool the engine was scaffolded for. Each run stocks
   `POOL_QUANTITIES[tier]` copies of every buyable minion of its active tribes (+ neutral) into a new

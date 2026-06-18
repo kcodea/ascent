@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { addBuff, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
@@ -157,6 +157,12 @@ export function reduce(state: RunState, action: Action): RunState {
         s.chooseOne = { uid: card.uid, cardId: card.cardId };
         return s;
       }
+      // Targeted Battlecry (Toxin Tender): pause for the player to pick the friendly target (its
+      // Battlecry resolves in `battlecryTarget`), before triples / the golden Discover.
+      if (CARD_INDEX[card.cardId]?.target === 'friendly') {
+        s.pendingTarget = { uid: card.uid, cardId: card.cardId };
+        return s;
+      }
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
       return s;
@@ -169,6 +175,18 @@ export function reduce(state: RunState, action: Action): RunState {
       if (!card || !option) return state;
       applyChooseOne(s, card, option.effects); // the chosen Battlecry resolves now
       s.chooseOne = undefined;
+      checkTriples(s);
+      if (card.golden) grantGoldenDiscover(s);
+      return s;
+    }
+
+    case 'battlecryTarget': {
+      if (!s.pendingTarget) return state;
+      const card = s.board.find((c) => c.uid === s.pendingTarget!.uid);
+      const target = s.board.find((c) => c.uid === action.targetUid);
+      if (!card || !target) return state; // a friendly target is required
+      applyBattlecryTarget(s, card, target); // the deferred Battlecry resolves on the chosen minion
+      s.pendingTarget = undefined;
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
       return s;
@@ -278,6 +296,14 @@ export function reduce(state: RunState, action: Action): RunState {
     }
 
     case 'faceOmen': {
+      // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
+      // carry — never strand a played Toxin Tender without its grant.
+      if (s.pendingTarget) {
+        const src = s.board.find((c) => c.uid === s.pendingTarget!.uid);
+        const carry = s.board.length ? s.board.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
+        if (src && carry) applyBattlecryTarget(s, src, carry);
+        s.pendingTarget = undefined;
+      }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
       // Resolve combat now (deterministic) but don't apply the outcome yet —

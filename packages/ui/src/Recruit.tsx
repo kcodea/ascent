@@ -480,6 +480,48 @@ export function Recruit() {
     };
   }, [heroArmed, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
 
+  // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
+  // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors
+  // the Hero Power). Clicking off any warband minion is ignored (keep aiming); ending the turn first
+  // auto-resolves on the carry in the reducer, so the play is never stranded.
+  const pendingTarget = run.pendingTarget;
+  useEffect(() => {
+    if (!pendingTarget || inCombat) {
+      setAim(null);
+      return;
+    }
+    const minionAt = (x: number, y: number): { uid: string } | null => {
+      const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
+      const uid = el?.getAttribute('data-uid');
+      return uid ? { uid } : null;
+    };
+    const move = (e: PointerEvent): void => {
+      const origin = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${pendingTarget.uid}"]`);
+      if (!origin) return;
+      const r = origin.getBoundingClientRect();
+      const target = minionAt(e.clientX, e.clientY);
+      setAim({
+        ox: r.left + r.width / 2,
+        oy: r.top + r.height / 2,
+        tx: e.clientX,
+        ty: e.clientY,
+        onTarget: !!target,
+        targetUid: target?.uid ?? null,
+      });
+    };
+    const pick = (e: PointerEvent): void => {
+      if (e.button !== 0 || timeUp) return;
+      const target = minionAt(e.clientX, e.clientY);
+      if (target) dispatch({ type: 'battlecryTarget', targetUid: target.uid });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerdown', pick);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerdown', pick);
+    };
+  }, [pendingTarget, timeUp, dispatch, inCombat]);
+
   // Reset the round clock at the start of each recruit wave. (Recruit stays mounted
   // across combat now, so unlike before it can't rely on a remount to re-initialise.)
   useEffect(() => {
@@ -998,13 +1040,13 @@ export function Recruit() {
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}
                     dragging={!!drag?.active}
-                    highlight={heroArmed || castingSpell}
-                    targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
+                    highlight={heroArmed || castingSpell || !!pendingTarget}
+                    targeted={((heroArmed || !!pendingTarget) && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid)}
-                    onPointerDown={heroArmed ? undefined : onCardPointerDown}
+                    onPointerDown={heroArmed || pendingTarget ? undefined : onCardPointerDown}
                   />
                 </Fragment>
               ))}
@@ -1081,11 +1123,19 @@ export function Recruit() {
         </svg>
       )}
 
-      {heroArmed && aim && (
+      {(heroArmed || pendingTarget) && aim && (
         <svg className="aimline" aria-hidden="true">
           <line x1={aim.ox} y1={aim.oy} x2={aim.tx} y2={aim.ty} />
           <circle cx={aim.tx} cy={aim.ty} r={aim.onTarget ? 16 : 7} className={aim.onTarget ? 'on' : ''} />
         </svg>
+      )}
+
+      {/* Targeted-Battlecry prompt: a played Toxin Tender waits for you to pick the friendly minion
+          its grant lands on (click a warband minion; ending the turn auto-targets the carry). */}
+      {pendingTarget && !inCombat && (
+        <div className="targetprompt" aria-live="polite">
+          Choose a minion for {CARD_INDEX[pendingTarget.cardId]?.name ?? 'this'}&rsquo;s Battlecry
+        </div>
       )}
 
       {/* Spell spark: a one-shot radiating burst where a cast spell resolved. */}

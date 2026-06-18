@@ -295,7 +295,7 @@ describe('run loop (@game/sim)', () => {
     expect(cleric?.health).toBe(4);
   });
 
-  it('Toxin Tender grants Venomous to your highest-attack minion when played', () => {
+  it('Toxin Tender grants Venomous to the minion you target after playing it', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -305,6 +305,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'g' }); // pick the target after playing
     expect(s.board.find((c) => c.cardId === 'gnash')?.keywords).toContain('V');
   });
 
@@ -879,21 +880,59 @@ describe('run loop (@game/sim)', () => {
     expect(s.embers).toBe(4); // +1, uncapped (previously capped at maxEmbers → bug)
   });
 
-  it('a keyword grant targets a minion that lacks it, never one that already has it', () => {
+  it('Toxin Tender is player-targeted: its Battlecry waits, then grants Venomous to the chosen minion', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
       hand: [],
       board: [
-        { uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: ['V'], golden: false },
+        { uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false },
         { uid: 'mid', cardId: 'cleaver', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false },
       ],
       shop: [{ uid: 'x', cardId: 'toxin' }],
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    expect(s.board.find((c) => c.uid === 'mid')?.keywords).toContain('V'); // the one lacking Venomous
-    expect(s.board.find((c) => c.uid === 'big')?.keywords.filter((k) => k === 'V').length).toBe(1); // not re-granted
+    // Played to the board, but the Battlecry waits for a target — nothing has Venomous yet.
+    expect(s.pendingTarget?.cardId).toBe('toxin');
+    expect(s.board.some((c) => c.keywords.includes('V'))).toBe(false);
+    // Pick 'mid', NOT the highest-attack 'big' — proving it's the player's choice, not an auto-carry.
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'mid' });
+    expect(s.pendingTarget).toBeUndefined();
+    expect(s.board.find((c) => c.uid === 'mid')?.keywords).toContain('V');
+    expect(s.board.find((c) => c.uid === 'big')?.keywords).not.toContain('V');
+  });
+
+  it('an unresolved Toxin Tender target auto-resolves on the carry when the turn ends', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [],
+      board: [{ uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
+      shop: [{ uid: 'x', cardId: 'toxin' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    expect(s.pendingTarget?.cardId).toBe('toxin');
+    s = reduce(s, { type: 'faceOmen' }); // end the turn without picking → grant lands on the carry (big)
+    expect(s.pendingTarget).toBeUndefined();
+    expect(s.board.find((c) => c.uid === 'big')?.keywords).toContain('V');
+  });
+
+  it('Plaguebringer auto-grants Venomous + Windfury to the highest-attack friend that lacks it', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [
+        { uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: ['V', 'W'], golden: false },
+        { uid: 'mid', cardId: 'cleaver', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'p', cardId: 'plague', tribe: 'undead', attack: 5, health: 5, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'p' });
+    expect(s.pendingTarget).toBeUndefined(); // Plaguebringer is untargeted (auto)
+    expect(s.board.find((c) => c.uid === 'mid')?.keywords).toEqual(expect.arrayContaining(['V', 'W']));
   });
 
   it('tripling combines current stats (top two) and unions keywords', () => {

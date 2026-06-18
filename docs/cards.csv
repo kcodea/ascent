@@ -39,7 +39,7 @@ karwind,Karwind,minion,dragon,6,2,12,,,"Whenever a Battlecry triggers, give your
 #
 # === UNDEAD ===
 spore,Sporeling,minion,undead,1,1,2,,,Deathrattle: give a random friend +1/+1.,deathrattleBuffRandom +1/+1,Deathrattle: give a random friend +2/+2.,+2/+2,TRUE
-toxin,Toxin Tender,minion,undead,2,1,2,,,Battlecry: give a friend Venomous.,battlecryGrantKeyword Venomous,Battlecry: give a friend Venomous.,2x stats; grants Venomous (unchanged),FALSE
+toxin,Toxin Tender,minion,undead,2,1,2,,,Battlecry: give a friendly minion Venomous.,battlecryGrantKeyword Venomous (player-targeted; target: friendly),Battlecry: give a friendly minion Venomous.,2x stats; grants Venomous (unchanged),FALSE
 knit,Grave Knit,minion,undead,2,2,2,,Reborn,,,,2x stats -> 4/4; Reborn,FALSE
 rot,Rot Weaver,minion,undead,3,3,3,,,"Each time a friend dies, give a random friend +1/+1.",onFriendDeathBuffRandom +1/+1,"Each time a friend dies, give a random friend +2/+2.",+2/+2 per death,FALSE
 maex,Webspinner Matron,minion,undead,4,4,4,,Venomous,,,,2x stats -> 8/8; Venomous,FALSE

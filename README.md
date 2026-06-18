@@ -23,6 +23,8 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Snappier magnetize** — a Magnetic drone now absorbs cleanly into its Mech (~0.32s shrink-in) and
+  the Mech crackles + flashes as it lands, instead of a slow creep.
 - **Buff breakdown + Karwind flames** — right-click a minion to see its buffs itemized by source
   (`Nadir ×1 +2/+2`, `Spirit Fire ×2 +6/+6`); Dragons buffed by Karwind now flash with flames. Hand
   minions must be played to the board before they can be sold (else they snap back).

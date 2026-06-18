@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Cleaner magnetize "absorb"
+- The magnetize merge was janky: the dropped card crept to the target over **0.72 s**, shrank to 0.32
+  with a box-shadow crackle *on the flying card*, then the stats jumped — slow, and the target Mech
+  never reacted. Rebuilt it as a snappy **absorb**: the drone shrinks straight into the Mech in ~0.32 s
+  (down to 0.16 scale + fading out), and the electric crackle now plays on the **target Mech** (it
+  keeps crackling a beat past the merge), landing on the existing green buff flash. Faster + reads as
+  the Mech eating the drone. (`typecheck`/`lint`/`build` clean; merge logic unit-tested already —
+  drag gestures can't be driven in the headless preview, so the timing is best felt in-game.)
+
 ### Buff-source breakdown, Karwind flames, drag-popup + sell fixes
 - **Per-source buff tracking + inspect breakdown.** `BoardCard` now carries a `buffs` list (source,
   ±atk/±hp, count), populated by a new `addBuff()` that every recruit buff routes through (battlecry

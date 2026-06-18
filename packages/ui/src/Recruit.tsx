@@ -110,6 +110,7 @@ export function Recruit() {
   const [overZone, setOverZone] = useState<Zone | null>(null);
   const [snapping, setSnapping] = useState(false);
   const [magSlide, setMagSlide] = useState(false); // a Magnetic card sliding into its Mech
+  const [magTargetUid, setMagTargetUid] = useState<string | null>(null); // the Mech being merged into (crackles)
   const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean; targetUid: string | null } | null>(null);
   const [seconds, setSeconds] = useState(turnSeconds);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
@@ -371,15 +372,18 @@ export function Recruit() {
         const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${magMech.uid}"]`);
         if (el) {
           const r = el.getBoundingClientRect();
-          setMagSlide(true);
+          setMagSlide(true); // the drone shrinks straight into the Mech…
+          setMagTargetUid(magMech.uid); // …and the Mech crackles as it absorbs it
           setDrag((cur) => (cur ? { ...cur, x: r.left + r.width / 2, y: r.top + r.height / 2 } : cur));
         }
         window.setTimeout(() => {
-          dispatch({ type: 'play', uid: d.uid, toIndex: magIdx }); // reducer merges into the Mech
+          dispatch({ type: 'play', uid: d.uid, toIndex: magIdx }); // reducer merges into the Mech (stats pop)
           setMagSlide(false);
           setDrag(null);
           setOverZone(null);
-        }, el ? 720 : 0);
+          // let the Mech keep crackling a beat past the merge, then settle on the green buff flash
+          window.setTimeout(() => setMagTargetUid(null), 200);
+        }, el ? 320 : 0);
         return;
       }
 
@@ -998,7 +1002,7 @@ export function Recruit() {
                     targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
-                    electrify={electrifyUids.has(m.uid)}
+                    electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid)}
                     onPointerDown={heroArmed ? undefined : onCardPointerDown}
                   />
@@ -1050,7 +1054,7 @@ export function Recruit() {
 
       {drag?.active && !castingSpell && (
         <div
-          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize || magSlide ? ' electric' : ''}${magSlide ? ' magslide' : ''}`}
+          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}`}
           style={{
             width: drag.w,
             height: drag.h,
@@ -1058,8 +1062,10 @@ export function Recruit() {
             // When magnetizing, the card shrinks straight into the Mech (no tilt) so it "absorbs".
             transformOrigin: `${drag.ox}px ${drag.oy}px`,
             transform: magSlide
-              ? `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(0.32)`
+              ? `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(0.16)`
               : `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(1.04) rotate(-1.5deg)`,
+            // fade as it shrinks in, so the absorb finishes cleanly instead of a tiny card popping out
+            opacity: magSlide ? 0.15 : 1,
           }}
         >
           <Card card={drag.view} />

@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Fix: end-of-turn proc flourish now actually shows; smooth board return from combat
+Two follow-up fixes to the previous batch.
+- **End-of-turn flourish was invisible.** It was triggered on *combat entry*, but the warband flips
+  from recruit `Card`s to combat `Unit`s the instant the phase changes — so the cards being flashed
+  no longer existed. Now **End Turn** plays the flourish on the still-mounted recruit board first: if
+  any minion has an End-of-Turn effect, those minions flash the Battlecry-style `.bcryfx` sigil for a
+  ~620ms beat, *then* `faceOmen` fires (effects resolve + combat). Boards with no End-of-Turn card go
+  straight to combat as before. (The effects themselves always resolved in `faceOmen` — this is the
+  missing visual.)
+- **Board "flash/jank/reset" returning from combat.** Every `.card` plays `cardpop` on mount, and the
+  warband cards re-mount when returning from combat (they were `Unit`s). The `resetting` class (which
+  overrides `cardpop` with `boardreset`) was set in a `useEffect` that runs *after* the cards already
+  painted `cardpop`, so the two animations raced. Fixed by setting `resetting` in a **`useLayoutEffect`
+  (before paint)** so the board paints `boardreset` directly, and softened `boardreset` to a calm
+  rise-in (no scale-overshoot bounce). Verified live: the returning warband card's computed animation
+  is `boardreset` (not `cardpop`), with no console errors.
+- Confirmed for the user: the **minion caps are all enforced** — board 7 (play, recruit summon, and
+  combat summon all gate on it), hand 10, mana/gold cap 10, tier 6.
+- `typecheck` + `lint` + `build:web` clean; combat round-trip verified live.
+
 ### 5 new cards + Venomous (Poison rework) + end-of-turn proc anim + mid-combat buff display fix
 A big content + mechanics batch.
 - **Poison → Venomous.** The keyword is renamed everywhere (code `'P'` → `'V'`, schema, all card data,

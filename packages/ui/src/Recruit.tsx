@@ -116,6 +116,7 @@ export function Recruit() {
   const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
+  const endTurnPendingRef = useRef(false); // a brief end-of-turn beat is playing before combat
 
   // --- In-place combat. Instead of swapping to a separate arena screen, the fight
   // plays out on this same board: the shop "closes" (the tavern offers, controls,
@@ -150,25 +151,20 @@ export function Recruit() {
     handBeforeCombatRef.current = new Set(run.hand.map((c) => c.uid));
     setCombatStage('closing');
     setEndTurnFlash(true);
-    // Flourish under the minions whose End-of-Turn effect just resolved (Ritualist, Combinator…),
-    // visible on the board through the shop-closing beat — the same look as a Battlecry proc.
-    const eot = run.board
-      .filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'endOfTurn'))
-      .map((c) => c.uid);
-    if (eot.length) setEotProcUids(new Set(eot));
     const banner = window.setTimeout(() => setEndTurnFlash(false), 850);
-    const eotClear = window.setTimeout(() => setEotProcUids(new Set()), 760);
     const t = window.setTimeout(() => setCombatStage('fighting'), 480);
     return () => {
       window.clearTimeout(t);
       window.clearTimeout(banner);
-      window.clearTimeout(eotClear);
     };
   }, [inCombat, run.lastCombat]);
 
   // Returning to recruit after a fight: play a one-shot board "reset" on the warband, and
   // pop in any cards a combat Deathrattle added to the hand (uids not present pre-combat).
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so `resetting` is applied *before* the first paint of the
+  // recruit board — otherwise the re-mounting warband cards paint their base `cardpop` first
+  // and then swap to `boardreset` when the class lands a tick later, which reads as a jank/flash.
+  useLayoutEffect(() => {
     if (prevPhaseRef.current === 'combat' && run.phase === 'recruit') {
       prevPhaseRef.current = run.phase;
       setResetting(true);
@@ -646,6 +642,28 @@ export function Recruit() {
     setDust({ x: e.clientX, y: e.clientY, key });
     window.setTimeout(() => setDust((d) => (d?.key === key ? null : d)), 620);
   };
+
+  // End Turn → face the Omen. If any minion has an End-of-Turn effect, first flash the
+  // Battlecry-style proc flourish on those minions (on the still-mounted recruit board), then
+  // face the Omen a beat later — so the end-of-turn procs are visible before the board flips to
+  // combat. (The effects themselves still resolve inside `faceOmen`.)
+  const endTurn = (): void => {
+    if (inCombat || endTurnPendingRef.current) return;
+    const eot = run.board
+      .filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'endOfTurn'))
+      .map((c) => c.uid);
+    if (eot.length === 0) {
+      dispatch({ type: 'faceOmen' });
+      return;
+    }
+    endTurnPendingRef.current = true;
+    setEotProcUids(new Set(eot));
+    window.setTimeout(() => {
+      setEotProcUids(new Set());
+      endTurnPendingRef.current = false;
+      dispatch({ type: 'faceOmen' });
+    }, 620);
+  };
   // The "carry" — your highest-Attack minion — auto-target for a targeted spell flung upward.
   const carryUid = (): string | undefined =>
     run.board.length ? run.board.reduce((a, b) => (b.attack > a.attack ? b : a)).uid : undefined;
@@ -763,7 +781,7 @@ export function Recruit() {
             </>
           )}
         </button>
-        <button className={`btn big endturn${timeUp ? ' urgent' : ''}`} onClick={() => dispatch({ type: 'faceOmen' })}>
+        <button className={`btn big endturn${timeUp ? ' urgent' : ''}`} onClick={endTurn}>
           <Icon name="sword" />
           End Turn
         </button>

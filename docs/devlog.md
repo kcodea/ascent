@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Better burning-rope timer — real flame + braided fuse, repositioned to clear the rows
+The last-15s turn timer rope was a thin faint line with a small round glow dot crammed against the
+tavern row. Rebuilt it:
+- **Braided fuse** (rounded, diagonal-strand texture with top highlight) instead of a flat line, and
+  a **charred trail** behind the flame (dark, with a glowing ember edge right at the burn point).
+- **A real flame** at the burn point: a warm halo, a flame-shaped body, a hot inner core, and three
+  rising **ember** sparks — all flickering. Replaces the single radial dot.
+- **Repositioned**: more vertical margin so the fuse sits centred in the tavern↔warband gap (was
+  cramped against the tavern). Tuned the flame height + margin so the flame licks up to exactly the
+  tavern row's bottom with **0px overlap** (measured live: 22px below the tavern, 16px above the
+  warband). All sizes scale with the `--u` chrome unit.
+- `typecheck` + `lint` + `build:web` clean; verified live (rope + flame parts render, correct burn
+  position, no console errors).
+
 ### Triage: Soulfeeder "procs every round" — engine is correct; fixed frozen-tavern Fodder stranding
 Reported: Soulfeeder seems to proc every round after one play. Triaged with deterministic tests:
 - **The engine procs Soulfeeder exactly once.** A multi-round test confirms its attack goes

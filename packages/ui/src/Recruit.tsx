@@ -858,7 +858,14 @@ export function Recruit() {
       {!inCombat && seconds <= 15 && (
         <div className="rope" title={`${seconds}s left`}>
           <div className="rope-lit" style={{ width: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
-          <div className="rope-flame" style={{ left: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
+          <div className="rope-flame" style={{ left: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }}>
+            <span className="fl-glow" />
+            <span className="fl-body" />
+            <span className="fl-core" />
+            <span className="fl-ember" style={{ '--ex': '-6px', animationDelay: '0s' } as CSSProperties} />
+            <span className="fl-ember" style={{ '--ex': '5px', animationDelay: '0.33s' } as CSSProperties} />
+            <span className="fl-ember" style={{ '--ex': '-1px', animationDelay: '0.66s' } as CSSProperties} />
+          </div>
         </div>
       )}
 

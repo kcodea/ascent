@@ -124,13 +124,68 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(22 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px dashed var(--line); }
 .tavernbox b { color: var(--acc-dk); }
 .warband-hint { color: var(--ink3); font-family: 'Outfit'; font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.02em; }
-/* burning rope — the last 15s of the turn, above the warband */
-/* burning rope (last 15s) — sits on the centre line between the offers and the warband
-   (in flow between the two zones, so it lands on the split at any viewport) */
-.rope { position: relative; flex: none; align-self: center; width: 88%; height: 9px; margin: 0; z-index: 4; border-radius: 5px; overflow: visible; background: repeating-linear-gradient(45deg, #cf9f5d 0 5px, #b3863f 5px 10px); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); }
-.rope-lit { position: absolute; left: 0; top: 0; bottom: 0; background: #2a1c10; border-radius: 5px 0 0 5px; transition: width 1s linear; }
-.rope-flame { position: absolute; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff9a2e 45%, rgba(255, 80, 20, 0.6) 70%, transparent 74%); box-shadow: 0 0 14px 5px rgba(255, 140, 40, 0.7); transition: left 1s linear; animation: flicker 0.16s steps(2) infinite; }
-@keyframes flicker { 0% { opacity: 0.82; transform: translate(-50%, -50%) scale(0.95); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); } }
+/* burning rope (last 15s of the turn) — a braided fuse on the board's centre line (in flow between
+   the offers and the warband, so it lands on the split at any viewport) that burns left→right with
+   a live flame (halo + hot core + rising embers) and a glowing char edge trailing behind it. The
+   extra vertical margin gives the flame room to lick up without crowding the tavern row. */
+.rope {
+  position: relative; flex: none; align-self: center; width: 86%; height: calc(8 * var(--u));
+  margin: calc(11 * var(--u)) 0 calc(6 * var(--u)); z-index: 4; border-radius: 999px; overflow: visible;
+  background:
+    repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
+    linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  animation: ropein 0.4s ease both;
+}
+@keyframes ropein { from { opacity: 0; transform: scaleX(0.96); } to { opacity: 1; transform: none; } }
+.rope-lit {
+  position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px; transition: width 1s linear;
+  background:
+    repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 3px, rgba(12, 7, 3, 0.55) 3px 7px),
+    linear-gradient(to bottom, #3a2517, #140b05);
+  box-shadow: inset calc(-11 * var(--u)) 0 calc(10 * var(--u)) calc(-5 * var(--u)) rgba(255, 135, 45, 0.95);
+}
+/* the live flame, anchored to the burn point and rising from the rope */
+.rope-flame { position: absolute; top: 50%; left: 0; width: 0; height: 0; transform: translate(-50%, -50%); transition: left 1s linear; z-index: 6; pointer-events: none; }
+.rope-flame .fl-glow {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
+  width: calc(58 * var(--u)); height: calc(26 * var(--u)); border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 185, 75, 0.8), rgba(255, 95, 25, 0.3) 45%, transparent 70%);
+  animation: ropeglow 0.5s ease-in-out infinite alternate;
+}
+.rope-flame .fl-body {
+  position: absolute; left: 0; bottom: 0; transform: translateX(-50%); transform-origin: 50% 100%;
+  width: calc(17 * var(--u)); height: calc(18 * var(--u));
+  background: radial-gradient(ellipse at 50% 82%, #fff3b0 0%, #ffd34a 26%, #ff9a2e 56%, #ff5a1e 80%, rgba(255, 70, 20, 0.12) 100%);
+  border-radius: 50% 50% 48% 52% / 70% 70% 36% 36%;
+  filter: drop-shadow(0 0 calc(7 * var(--u)) rgba(255, 140, 40, 0.85));
+  animation: ropeflame 0.16s ease-in-out infinite alternate;
+}
+.rope-flame .fl-core {
+  position: absolute; left: 0; bottom: calc(1 * var(--u)); transform: translateX(-50%); transform-origin: 50% 100%;
+  width: calc(8 * var(--u)); height: calc(11 * var(--u));
+  background: radial-gradient(ellipse at 50% 80%, #fffbe0 0%, #ffe07a 55%, rgba(255, 205, 90, 0.3) 100%);
+  border-radius: 50% 50% 48% 52% / 70% 70% 36% 36%;
+  animation: ropeflame 0.13s ease-in-out infinite alternate-reverse;
+}
+.rope-flame .fl-ember {
+  position: absolute; left: 0; bottom: calc(5 * var(--u)); width: calc(4 * var(--u)); height: calc(4 * var(--u));
+  border-radius: 50%; background: radial-gradient(circle, #ffe3a0, #ff8a2e 70%, transparent);
+  animation: ropeember 1s ease-out infinite;
+}
+@keyframes ropeflame {
+  0% { transform: translateX(-50%) scale(1.05, 0.9) skewX(-5deg); opacity: 0.92; }
+  100% { transform: translateX(-50%) scale(0.93, 1.16) skewX(5deg); opacity: 1; }
+}
+@keyframes ropeglow {
+  0% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.92); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+}
+@keyframes ropeember {
+  0% { transform: translate(-50%, 0) scale(1); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--ex, 0px)), calc(-28 * var(--u))) scale(0.2); opacity: 0; }
+}
 .btn.big svg { width: 23px; height: 23px; }
 .btn.big .c { font-size: 17px; }
 .btn.big.endturn { background: var(--acc); color: #fff; border-color: var(--acc-dk); }

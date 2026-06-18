@@ -165,21 +165,26 @@ export const Card = memo(function Card({
   // Ritualist / Soulfeeder → current Fodder, Alleycat → Stray) shows it to the right on hover. The
   // popup is portalled to <body> so it escapes the card's hover/drag transforms and sits on top.
   const hasRefs = !!refCards?.length;
-  const [refPos, setRefPos] = useState<{ left: number; top: number } | null>(null);
+  const [refPos, setRefPos] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const refTimer = useRef<number | null>(null);
   // Show after a ~0.5s hover (so it doesn't flash while you skim the board); position is measured
-  // when it actually opens, so it tracks the card even if it popped up (hand) in the meantime.
+  // when it actually opens, so it tracks the card even if it popped up (hand) in the meantime. The
+  // popup renders at 0.8 scale — we anchor the scale to the source-facing edge (transform-origin) and
+  // position so that *visible* edge sits a small gap from the hovered card (not the full-size box).
   const showRefTip = (el: HTMLElement): void => {
     if (refTimer.current) window.clearTimeout(refTimer.current);
     refTimer.current = window.setTimeout(() => {
       const r = el.getBoundingClientRect();
       const n = refCards?.length ?? 1;
-      const gap = 14;
-      const tipW = r.width * n + (n - 1) * 8 + 14;
-      const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
+      const gap = 8;
+      const tipW = r.width * n + (n - 1) * 8; // layout width (full-size cards)
+      const visW = tipW * 0.8; // rendered width after the 0.8 scale
+      const flip = r.right + gap + visW > window.innerWidth - 6; // off the right edge → show on the left
+      // right: origin left → visible left edge = box.left = r.right + gap.
+      // flip:  origin right → visible right edge = box.left + tipW = r.left - gap → box.left = r.left - gap - tipW.
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
       const top = Math.max(6, Math.min(r.top, window.innerHeight - r.height - 6));
-      setRefPos({ left, top });
+      setRefPos({ left, top, origin: flip ? 'right' : 'left' });
     }, 500);
   };
   const hideRefTip = (): void => {
@@ -323,7 +328,7 @@ export const Card = memo(function Card({
       {/* Referenced-card popup — portalled to <body> so it floats above neighbouring cards/spells. */}
       {refPos && hasRefs && createPortal(
         <div className="cardref" style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
-          <div className="cardref-inner">
+          <div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
             {refCards!.map((rc, i) => (
               <Card key={`${rc.cardId ?? i}`} card={rc} />
             ))}

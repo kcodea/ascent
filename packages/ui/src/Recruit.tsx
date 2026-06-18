@@ -16,7 +16,7 @@ type Zone = 'tavern' | 'warband' | 'hand';
 const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a drag
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
-const INSERT_FRAC = 0.35;
+const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 30; // base round timer (wave 1); grows +5s/wave, capped at 70 (see turnSeconds)
 const RING = 2 * Math.PI * 17; // countdown ring circumference
 
@@ -360,7 +360,7 @@ export function Recruit() {
       // first "lands", then slides in (left→right) with electricity, and only then merges.
       const magIdx =
         d.source === 'hand' && d.view.keywords.includes('M') && zone === 'warband'
-          ? warbandIndexAt(e.clientX)
+          ? warbandIndexAt(e.clientX - d.ox + d.w / 2)
           : -1;
       const magMech = magIdx >= 0 ? run.board[magIdx] : undefined;
       if (magMech && magnetizesTo(d.view.cardId, magMech.cardId)) {
@@ -587,8 +587,11 @@ export function Recruit() {
   // and an empty drop-slot opens at the live insertion point while over the warband.
   // Dropping lands the card straight into that slot — no post-drop "swap". A played
   // hand card opens the same slot. ---
+  // Insertion / hover tracks the dragged card's *centre* (not the raw pointer, which is offset by
+  // wherever you grabbed the card) — so the drop slot lands where the card visually sits.
+  const dragCx = drag ? drag.x - drag.ox + drag.w / 2 : 0;
   const magHoverTarget = drag?.active && drag.source === 'hand' && drag.view.keywords.includes('M') && overZone === 'warband'
-    ? run.board[warbandIndexAt(drag.x)]
+    ? run.board[warbandIndexAt(dragCx)]
     : undefined;
   const wouldMagnetize =
     !!drag?.active &&
@@ -615,12 +618,12 @@ export function Recruit() {
   const displayShop = draggingShop ? run.shop.filter((o) => o.uid !== drag!.uid) : run.shop;
   // A dragged offer (not the pinned spell) over the tavern reorders the shop — open a slot.
   const overShop = draggingShop && overZone === 'tavern' && drag!.uid !== run.spell?.uid;
-  const shopGapIndex = overShop ? shopIndexAt(drag!.x, drag!.uid) : -1;
+  const shopGapIndex = overShop ? shopIndexAt(dragCx, drag!.uid) : -1;
   // Where the empty drop-slot opens (insertion index among the displayed cards), or -1.
   // A magnetizing Cling Drone also shoves cards aside (a slot opens beside the target Mech).
   const gapIndex =
     overWarband || wouldMagnetize
-      ? warbandIndexAt(drag!.x, drag!.source === 'board' ? drag!.uid : undefined)
+      ? warbandIndexAt(dragCx, drag!.source === 'board' ? drag!.uid : undefined)
       : -1;
   const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
   const flipKey =
@@ -755,6 +758,8 @@ export function Recruit() {
   };
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
+    // Insertion uses the dragged card's centre (not the raw drop pointer), matching the live preview.
+    const cx = x - d.ox + d.w / 2;
     if (d.source === 'shop' && zone === 'hand') {
       dispatch({ type: 'buy', uid: d.uid });
       return true;
@@ -762,7 +767,7 @@ export function Recruit() {
     // A shop offer dropped back in the tavern reorders it (so it lands where you drop it,
     // like the warband, instead of snapping back). The spell stays pinned at the end.
     if (d.source === 'shop' && zone === 'tavern' && d.uid !== run.spell?.uid) {
-      dispatch({ type: 'reorderShop', uid: d.uid, toIndex: shopIndexAt(x, d.uid) });
+      dispatch({ type: 'reorderShop', uid: d.uid, toIndex: shopIndexAt(cx, d.uid) });
       return true;
     }
     // Sell a minion (board or hand) by dropping it on the tavern. Spells are excluded —
@@ -792,11 +797,11 @@ export function Recruit() {
       return false;
     }
     if (d.source === 'hand' && zone === 'warband') {
-      dispatch({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(x) });
+      dispatch({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(cx) });
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {
-      dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(x, d.uid) });
+      dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(cx, d.uid) });
       return true;
     }
     return false;

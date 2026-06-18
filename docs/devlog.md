@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Drag insertion sweet spot + tooltip proximity
+- **Drag drop now follows the card, not the cursor.** The warband/shop insertion index was computed
+  from the raw pointer x — but the floating card is offset by wherever you grabbed it, so grabbing the
+  right side dropped the card a slot too far right. It now uses the dragged card's **centre**
+  (`pointer − grabOffset + width/2`) at every insertion site (live drop-slot preview, play, reposition,
+  shop reorder, magnetize target), with `INSERT_FRAC` 0.35 → **0.5** so a card slots after another only
+  once its centre passes that card's midpoint. (Verified by code: the harness can't drive React's
+  pointer-capture drag synthetically.)
+- **Referenced-card popup hugs the hovered card.** The 0.8 scale was anchored at centre, so the popup
+  appeared to drift ~30px off the source. Now the scale is anchored to the source-facing edge
+  (transform-origin left/right) and positioned so the *visible* edge sits ~8px from the hovered card
+  (flips side near the screen edge). Verified live: popup's visible left edge ≈ the source card's right
+  edge (~8px), origin left-center.
+- `typecheck` + `lint` + `test` (**116**) + `build:web` + `package:itch` clean.
+
 ### Referenced-card popup polish — delay + float + haze
 - The referenced-card popup now opens after a **~0.5s hover** (so it doesn't flash while skimming the
   board; position is measured when it opens, so it tracks a popped-up hand card). It **slides in**, then

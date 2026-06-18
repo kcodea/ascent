@@ -23,6 +23,8 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Drop + popup tuning** — drag insertion now tracks the dragged card's centre (not the cursor), so a
+  card drops where it visually sits; the referenced-card popup now hugs the card you're hovering.
 - **Referenced-card hover popup** — hovering a card that references another (Combinator → Cling Drone,
   Ritualist/Soulfeeder → your *current* Fodder, Alleycat → Stray, …) shows it as a popup to the right,
   on top of neighbours — opening after a short hover and floating in place with a soft white haze.

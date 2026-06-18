@@ -420,6 +420,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
   0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent), 0 0 26px 4px color-mix(in srgb, var(--c) 50%, transparent); }
   50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 68%, transparent), 0 0 40px 9px color-mix(in srgb, var(--c) 72%, transparent); }
 }
+/* Referenced-card hover popup (e.g. Combinator → Cling Drone, Ritualist → current Fodder). Portalled
+   to <body>, so it floats above neighbouring cards / spells. Position (left/top) is set inline. */
+.cardref {
+  position: fixed; z-index: 150; pointer-events: none; display: flex; gap: calc(8 * var(--u));
+  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.55)); animation: cardreffade 0.12s ease-out;
+}
+@keyframes cardreffade { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 /* Choose One — two big option buttons */
 .chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 .chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: 'Nunito Sans', sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }

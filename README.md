@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Referenced-card hover popup** — hovering a card that references another (Combinator → Cling Drone,
+  Ritualist/Soulfeeder → your *current* Fodder, Alleycat → Stray, …) shows it as a popup to the right,
+  on top of neighbours.
 - **Discover frame + EoT telegraph** — the Discover screen is now an ornate gold-framed parchment panel
   (banner, gems, tier-coloured card glows). End-of-Turn effects play **one minion at a time** (repeating
   per Chronos): Ritualist washes the shop purple, Combinator electrifies the Mechs it magnetizes. Also

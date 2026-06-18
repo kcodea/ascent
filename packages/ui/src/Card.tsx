@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import { artFor } from './art';
@@ -119,6 +120,7 @@ export const Card = memo(function Card({
   battlecry,
   arrived,
   electrify,
+  refCards,
   onPointerDown,
   draggable,
   onDragStart,
@@ -142,6 +144,8 @@ export const Card = memo(function Card({
   arrived?: boolean;
   /** Electric flash — a Mech being magnetized onto by Combinator's End-of-Turn. */
   electrify?: boolean;
+  /** Cards this card references (the token it summons / Fodder it buffs) — shown as a hover popup. */
+  refCards?: CardView[];
   onPointerDown?: (e: ReactPointerEvent) => void;
   draggable?: boolean;
   onDragStart?: (e: DragEvent) => void;
@@ -157,12 +161,29 @@ export const Card = memo(function Card({
     ...(trigger ? [trigger] : []),
     ...card.keywords.map((k) => ({ label: KW_LABEL[k], icon: KW_ICON[k] })),
   ];
+  // Referenced-card hover popup: a card that names/creates another (Combinator → Cling Drone,
+  // Ritualist / Soulfeeder → current Fodder, Alleycat → Stray) shows it to the right on hover. The
+  // popup is portalled to <body> so it escapes the card's hover/drag transforms and sits on top.
+  const hasRefs = !!refCards?.length;
+  const [refPos, setRefPos] = useState<{ left: number; top: number } | null>(null);
+  const showRefTip = (el: HTMLElement): void => {
+    const r = el.getBoundingClientRect();
+    const n = refCards?.length ?? 1;
+    const gap = 14;
+    const tipW = r.width * n + (n - 1) * 8 + 14;
+    const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
+    const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
+    const top = Math.max(6, Math.min(r.top, window.innerHeight - r.height - 6));
+    setRefPos({ left, top });
+  };
   return (
     <div
       className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}
+      onMouseEnter={hasRefs ? (e) => showRefTip(e.currentTarget) : undefined}
+      onMouseLeave={hasRefs ? () => setRefPos(null) : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
         inspectCard(card);
@@ -287,6 +308,15 @@ export const Card = memo(function Card({
             <span key={i} className="vd" style={{ left: t.x, top: t.y, animationDelay: t.d } as CSSProperties} />
           ))}
         </span>
+      )}
+      {/* Referenced-card popup — portalled to <body> so it floats above neighbouring cards/spells. */}
+      {refPos && hasRefs && createPortal(
+        <div className="cardref" style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
+          {refCards!.map((rc, i) => (
+            <Card key={`${rc.cardId ?? i}`} card={rc} />
+          ))}
+        </div>,
+        document.body,
       )}
     </div>
   );

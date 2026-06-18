@@ -20,6 +20,26 @@ const INSERT_FRAC = 0.35;
 const TURN_SECONDS = 30; // base round timer (wave 1); grows +5s/wave, capped at 70 (see turnSeconds)
 const RING = 2 * Math.PI * 17; // countdown ring circumference
 
+/** Cards that reference another card → hovering shows it as a popup. The token a card summons /
+ *  creates, or the Fodder it buffs / consumes (so the player can read what it does, and see the
+ *  *current* buffed Fodder for Ritualist & co). */
+const CARD_REFERENCES: Record<string, string[]> = {
+  alley: ['stray'], shaper: ['stray'], pack: ['pup'], brood: ['impscrap'], combinator: ['cling'],
+  feed: ['fred'], imp: ['fred'], ritualist: ['fred'], maw: ['fred'], glut: ['fred'], pact: ['fred'],
+};
+/** A referenced token's card view. Fodder ('fred') folds in Ritualist's persistent buff so the
+ *  popup shows its current stats. */
+function tokenRefView(id: string, cardBuffs?: Record<string, { attack: number; health: number }>): CardView {
+  const c = CARD_INDEX[id];
+  const cb = cardBuffs?.[id] ?? { attack: 0, health: 0 };
+  return {
+    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+    attack: c.attack + cb.attack, health: c.health + cb.health,
+    keywords: c.keywords, text: c.text, tier: c.tier,
+    baseAttack: c.attack, baseHealth: c.health,
+  };
+}
+
 function shopView(
   card: ShopCard,
   spellCostMod = 0,
@@ -248,6 +268,19 @@ export function Recruit() {
     () => (run.spell ? shopView(run.spell, run.spellCostMod) : null),
     [run.spell, run.spellCostMod],
   );
+  // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
+  // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
+  const refViewsByUid = useMemo(() => {
+    const m = new Map<string, CardView[]>();
+    const add = (uid: string, cardId: string): void => {
+      const refs = CARD_REFERENCES[cardId];
+      if (refs) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs)));
+    };
+    for (const c of run.board) add(c.uid, c.cardId);
+    for (const c of run.hand) add(c.uid, c.cardId);
+    for (const o of run.shop) add(o.uid, o.cardId);
+    return m;
+  }, [run.board, run.hand, run.shop, run.cardBuffs]);
   const boardViews = useMemo(() => new Map(run.board.map((m) => [m.uid, instView(m)] as const)), [run.board]);
   const handViews = useMemo(() => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier)] as const)), [run.hand, run.tier]);
 
@@ -878,6 +911,7 @@ export function Recruit() {
               <Card
                 uid={o.uid}
                 card={shopViews.get(o.uid)!}
+                refCards={refViewsByUid.get(o.uid)}
                 highlight={heroArmed}
                 targeted={heroArmed && aim?.targetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
@@ -937,6 +971,7 @@ export function Recruit() {
                   <Card
                     uid={m.uid}
                     card={boardViews.get(m.uid)!}
+                    refCards={refViewsByUid.get(m.uid)}
                     highlight={heroArmed || castingSpell}
                     targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
@@ -959,6 +994,7 @@ export function Recruit() {
               key={m.uid}
               uid={m.uid}
               card={handViews.get(m.uid)!}
+              refCards={refViewsByUid.get(m.uid)}
               dimmed={isDragging(m.uid)}
               buffed={buffedUids.has(m.uid)}
               arrived={arrivedUids.has(m.uid)}

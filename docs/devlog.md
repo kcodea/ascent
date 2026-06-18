@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Referenced-card hover popup
+- Hovering a card that references another now shows the referenced card as a **popup to the right**,
+  portalled to `<body>` at z-index 150 so it floats **above neighbouring cards / spells**. Covers every
+  card that names/creates/affects another: **Alleycat / Wildwood Shaper → Stray**, **Pack Scrounger →
+  Pup**, **Brood Matron → Imp Scrap**, **Combinator → Cling Drone**, and the Fodder cards **Soulfeeder /
+  Voracious Imp / Ritualist / Pactstone Acolyte / Maw / Ravening Glutton → Fodder**. The Fodder popup
+  reflects its **current buffed stats** (folds in Ritualist's persistent enchant), so the player can see
+  what their Fodder is at right now. Positions to the right by default, flips to the left near the screen
+  edge, and clamps on-screen. Wired via a memoized `refViewsByUid` map (stable across a drag, preserving
+  the card memo). Verified live: Combinator→Cling Drone (2/2), Alleycat→Stray (1/1), Ritualist→Fodder
+  shown at 4/4 (1/1 base + a 3/3 enchant), Soulfeeder→Fodder; popup on `<body>`, z-150, no errors.
+- `typecheck` + `lint` + `test` (**116**) + `build:web` + `package:itch` clean.
+
 ### Ornate Discover frame, centered game-over button, sequenced End-of-Turn animations
 - **Discover frame redesign.** The Discover overlay is now an ornate, gold-framed parchment panel —
   a layered gold border, a "Discover" banner plaque, blue gems above/below, a ✦-flourished subtitle,

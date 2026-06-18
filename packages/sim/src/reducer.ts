@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop, topUpTavern } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
+import { addBuff, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
 
 /** Whether a Magnetic minion can weld onto a target minion: they must share a tribe, counting BOTH
@@ -68,12 +68,14 @@ export function reduce(state: RunState, action: Action): RunState {
         uid: `b${s.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
-        // fold in any tavern buff (e.g. the hero power applied to this offer) + the run buff
-        attack: card.attack + (offer.atk ?? 0) + cb.attack,
-        health: card.health + (offer.hp ?? 0) + cb.health,
+        // base + the persistent run buff (Ritualist's Fodder enchantment, baked at instantiation)
+        attack: card.attack + cb.attack,
+        health: card.health + cb.health,
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: false,
       };
+      // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
+      addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
@@ -115,8 +117,7 @@ export function reduce(state: RunState, action: Action): RunState {
         const target = s.board[action.toIndex];
         if (target && magnetizesTo(card.cardId, target.cardId)) {
           s.hand.splice(i, 1);
-          target.attack += card.attack;
-          target.health += card.health;
+          addBuff(target, CARD_INDEX[card.cardId]?.name ?? card.cardId, card.attack, card.health);
           for (const k of card.keywords) {
             if (k !== 'M' && !target.keywords.includes(k)) target.keywords.push(k);
           }
@@ -222,8 +223,7 @@ export function reduce(state: RunState, action: Action): RunState {
       if (!s.heroReady) return state;
       const card = s.board.find((c) => c.uid === action.uid);
       if (card) {
-        card.attack += 1;
-        card.health += 1;
+        addBuff(card, 'Fortify', 1, 1);
         s.heroReady = false;
         return s;
       }

@@ -3,4 +3,4 @@ export * from './threats';
 export * from './shop';
 export * from './state';
 export * from './reducer';
-export { boardManaBonus, cardBuff, chronosRepeats } from './recruit';
+export { addBuff, boardManaBonus, cardBuff, chronosRepeats } from './recruit';

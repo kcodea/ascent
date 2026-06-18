@@ -10,6 +10,7 @@ import {
   buildEnemyBoard,
   boardManaBonus,
   THREAT_IDS,
+  addBuff,
   type BoardCard,
   type RunState,
 } from './index';
@@ -935,5 +936,46 @@ describe('run loop (@game/sim)', () => {
   it('save/load round-trips', () => {
     const s = createRun(5);
     expect(serialize(deserialize(serialize(s)))).toEqual(serialize(s));
+  });
+
+  it('addBuff accumulates per source with a count, and ignores keyword-only (0/0) grants', () => {
+    const card: BoardCard = { uid: 'x', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false };
+    addBuff(card, 'Spirit Fire', 3, 3);
+    addBuff(card, 'Spirit Fire', 3, 3);
+    addBuff(card, 'Karwind', 1, 2);
+    addBuff(card, 'Toxin Tender', 0, 0); // keyword-only → not listed as a stat buff
+    expect([card.attack, card.health]).toEqual([2 + 6 + 1, 1 + 6 + 2]);
+    expect(card.buffs).toEqual([
+      { source: 'Spirit Fire', attack: 6, health: 6, count: 2 },
+      { source: 'Karwind', attack: 1, health: 2, count: 1 },
+    ]);
+  });
+
+  it('hero Fortify records its source on the buffed minion (inspect breakdown)', () => {
+    let s: RunState = {
+      ...createRun(7),
+      heroReady: true,
+      board: [{ uid: 'd', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'd' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 2]);
+    expect(s.board[0]!.buffs).toEqual([{ source: 'Fortify', attack: 1, health: 1, count: 1 }]);
+  });
+
+  it('Karwind flame-flags the Dragons its battlecry-trigger buffs', () => {
+    let s: RunState = {
+      ...createRun(7),
+      embers: 99,
+      board: [
+        { uid: 'k', cardId: 'karwind', tribe: 'dragon', attack: 2, health: 12, keywords: [], golden: false },
+        { uid: 'd', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'p', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'p' }); // Hoard Cleric's Battlecry → triggers Karwind
+    expect(s.karwindFlash).toContain('d');
+    expect(s.karwindFlash).toContain('k');
+    const dragon = s.board.find((c) => c.uid === 'd')!;
+    expect(dragon.buffs?.some((b) => b.source === 'Karwind')).toBe(true);
   });
 });

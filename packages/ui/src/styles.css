@@ -447,9 +447,18 @@ canvas.spr { image-rendering: pixelated; display: block; }
 
 /* right-click inspect: the card floats to centre, enlarged, over a dimmed backdrop */
 .inspect-ov { position: fixed; inset: 0; z-index: 200; background: rgba(26, 16, 6, 0.6); backdrop-filter: blur(2px); display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-.inspect-card { transform: scale(1.9); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
+/* The inspect view scales the whole group (buff breakdown + card) as one unit, so the breakdown
+   panel sits cleanly to the LEFT of the enlarged card without transform/layout mismatch. */
+.inspect-card { display: flex; align-items: center; gap: 10px; transform: scale(1.9); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
 .inspect-card .card { animation: none; cursor: default; }
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
+/* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
+.inspect-buffs { align-self: center; min-width: 92px; max-width: 150px; background: color-mix(in srgb, var(--card) 95%, transparent); border: 2px solid var(--line); border-radius: 9px; padding: 6px 8px; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
+.ib-title { font-family: 'Outfit'; font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); text-align: center; margin-bottom: 2px; }
+.ib-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 10px; white-space: nowrap; }
+.ib-src { font-family: 'Outfit'; font-weight: 700; color: var(--ink); }
+.ib-src em { color: var(--ink3); font-style: normal; font-weight: 600; font-size: 8.5px; }
+.ib-amt { font-family: 'Outfit'; font-weight: 800; color: #1aa86f; }
 @keyframes inspectpop { from { opacity: 0; transform: scale(1.45); } to { opacity: 1; transform: scale(1.9); } }
 
 /* custom drag: a solid card follows the cursor; the source dims; invalid drops snap back.
@@ -498,6 +507,30 @@ canvas.spr { image-rendering: pixelated; display: block; }
   0% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
   32% { box-shadow: 0 0 0 4px #2bd897, 0 0 30px 8px rgba(43, 216, 151, 0.85); transform: translateY(-7px) scale(1.06); filter: brightness(1.2); animation-timing-function: ease-out; }
   100% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; }
+}
+/* Karwind flame flash — flames sweep up a Dragon that Karwind's battlecry trigger just buffed,
+   plus a warm glow, so it's clear the buff came from Karwind (on top of the green buff burst). */
+.karwindflame { position: absolute; inset: 0; border-radius: 13px; overflow: hidden; pointer-events: none; z-index: 9; }
+.kf-glow {
+  position: absolute; inset: 0; border-radius: 13px; mix-blend-mode: screen; opacity: 0;
+  background: radial-gradient(130% 75% at 50% 102%, rgba(255, 160, 50, 0.85), rgba(255, 90, 30, 0.35) 45%, transparent 74%);
+  box-shadow: inset 0 0 0 2px rgba(255, 140, 40, 0.9);
+  animation: kfglow 0.9s ease-out forwards;
+}
+.kf-tongue {
+  position: absolute; bottom: -8%; left: var(--kx); transform: translateX(-50%);
+  width: 30%; height: 72%; opacity: 0;
+  background: linear-gradient(to top, #ffe487 0%, #ff9a32 38%, #ff501e 68%, rgba(255, 80, 30, 0) 100%);
+  border-radius: 50% 50% 46% 46% / 70% 70% 30% 30%;
+  filter: blur(1.6px) drop-shadow(0 0 7px rgba(255, 120, 40, 0.8));
+  animation: kftongue 0.9s ease-out var(--kd) forwards;
+}
+@keyframes kfglow { 0% { opacity: 0; } 28% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes kftongue {
+  0% { opacity: 0; transform: translateX(-50%) translateY(22%) scaleY(0.5) scaleX(0.9); }
+  24% { opacity: 1; transform: translateX(-50%) translateY(0) scaleY(1.06) scaleX(1); }
+  56% { opacity: 0.9; transform: translateX(-50%) translateY(-9%) scaleY(0.94) scaleX(0.86); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-22%) scaleY(1.12) scaleX(0.78); }
 }
 /* the buff burst overlay: an expanding ring + radiating spark shards, painted on top */
 .buffburst { position: absolute; inset: 0; pointer-events: none; z-index: 30; }

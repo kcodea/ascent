@@ -33,6 +33,23 @@ const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : f
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions bake their recruit buffs in at doubled magnitude. */
 const gold = (c: BoardCard): number => (c.golden ? 2 : 1);
+/** A card's display name (the buff-source label in the inspect breakdown). */
+const nameOf = (card: BoardCard): string => CARD_INDEX[card.cardId]?.name ?? card.cardId;
+
+/**
+ * Apply a recruit-phase stat buff to a card AND record its source for the inspect-panel breakdown
+ * ("Spirit Fire ×2: +6/+6"). Pass `count` (default 1) for how many times the source applied. Pure
+ * keyword grants (0/0) mutate nothing here and aren't listed. Base stats are never recorded.
+ */
+export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
+  card.attack += attack;
+  card.health += health;
+  if (attack === 0 && health === 0) return;
+  card.buffs ??= [];
+  const e = card.buffs.find((b) => b.source === source);
+  if (e) { e.attack += attack; e.health += health; e.count += count; }
+  else card.buffs.push({ source, attack, health, count });
+}
 
 /**
  * The persistent per-cardId run buff (Ritualist enchants all Fodder). Applied to *every* new
@@ -59,8 +76,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
   buffOnBuy: (_ctx, self, params, { minion }) => {
     if (minion === self) return;
-    minion.attack += num(params.attack) * gold(self);
-    minion.health += num(params.health) * gold(self);
+    addBuff(minion, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
 
   /** Kennelmaster / Bristleback Matron: buff each summoned friend of `tribe`. The magnitude is
@@ -71,8 +87,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = str(params.tribe);
     if (tribe && tribe !== 'any' && minion.tribe !== tribe) return;
     const bonus = self.summonBonus ?? 0;
-    minion.attack += num(params.attack) + bonus;
-    minion.health += num(params.health) + bonus;
+    addBuff(minion, nameOf(self), num(params.attack) + bonus, num(params.health) + bonus);
   },
 
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
@@ -84,8 +99,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const card of ctx.state.board) {
       if (card.tribe !== tribe) continue;
       if (!includeSelf && card === self) continue;
-      card.attack += attack;
-      card.health += health;
+      addBuff(card, nameOf(self), attack, health);
     }
   },
 
@@ -137,15 +151,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.rngCursor = rng.state();
   },
 
-  /** Karwind: whenever a Battlecry resolves, buff your minions of `tribe` (+atk/+hp). Golden 2×. */
+  /** Karwind: whenever a Battlecry resolves, buff your minions of `tribe` (+atk/+hp). Golden 2×.
+   *  Records the buffed uids so the UI can flame-flash exactly those minions. */
   onBattlecryBuffTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
     const a = num(params.attack, 1) * gold(self);
     const h = num(params.health, 1) * gold(self);
+    const flash = (ctx.state.karwindFlash ??= []);
     for (const c of ctx.state.board) {
       if (tribe && tribe !== 'any' && c.tribe !== tribe && CARD_INDEX[c.cardId]?.tribe2 !== tribe) continue;
-      c.attack += a;
-      c.health += h;
+      addBuff(c, nameOf(self), a, h);
+      if (!flash.includes(c.uid)) flash.push(c.uid);
     }
   },
 
@@ -160,8 +176,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Pactstone Acolyte / Ravening Glutton: on any friendly consume, grow. */
   onConsumeBuffSelf: (_ctx, self, params) => {
-    self.attack += num(params.attack) * gold(self);
-    self.health += num(params.health) * gold(self);
+    addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
 
   /** Maw of the Pit: on any friendly consume, gain a keyword (a Divine Shield). */
@@ -172,8 +187,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** End of Turn: buff self (+atk/+hp) when the recruit turn ends. */
   endOfTurnBuff: (_ctx, self, params) => {
-    self.attack += num(params.attack) * gold(self);
-    self.health += num(params.health) * gold(self);
+    addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
 
   /** Combinator — End of Turn: weld a token's (Cling Drone's) stats onto `targets` *other* friendly
@@ -188,8 +202,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       .sort((a, b) => b.attack - a.attack)
       .slice(0, targets);
     for (const m of mechs) {
-      m.attack += token.attack * drones;
-      m.health += token.health * drones;
+      addBuff(m, nameOf(self), token.attack * drones, token.health * drones);
     }
   },
 
@@ -208,10 +221,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       cur.health += h;
     }
     for (const c of [...state.board, ...state.hand]) {
-      if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) {
-        c.attack += a;
-        c.health += h;
-      }
+      if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) addBuff(c, nameOf(self), a, h);
     }
   },
 
@@ -233,8 +243,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health) * gold(self);
     for (const c of ctx.state.board) {
       if (c !== self && (tribe === 'any' || c.tribe === tribe || CARD_INDEX[c.cardId]?.tribe2 === tribe)) {
-        c.attack += a;
-        c.health += h;
+        addBuff(c, nameOf(self), a, h);
       }
     }
   },
@@ -244,8 +253,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const friends = ctx.state.board.filter((c) => c !== self);
     if (friends.length === 0) return;
     const t = friends.reduce((a, b) => (b.attack > a.attack ? b : a));
-    t.attack += num(params.attack) * gold(self);
-    t.health += num(params.health) * gold(self);
+    addBuff(t, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
 
   /** Deathrattle: give the carry a Divine Shield. */
@@ -261,8 +269,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Spirit Fire / Bulwark — cast: buff the chosen target +atk/+hp, and grant an optional
    *  keyword (`self` is the target). */
   spellBuffTarget: (_ctx, self, params) => {
-    self.attack += num(params.attack);
-    self.health += num(params.health);
+    addBuff(self, str(params._source) || nameOf(self), num(params.attack), num(params.health));
     const kw = str(params.keyword);
     if (kw && !self.keywords.includes(kw as Keyword)) self.keywords.push(kw as Keyword);
   },
@@ -279,12 +286,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 };
 
-/** Apply a spell's `cast` effects to its chosen target. */
+/** Apply a spell's `cast` effects to its chosen target. The spell's name is injected as `_source`
+ *  so target buffs (Spirit Fire) record it for the inspect breakdown. */
 function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target: BoardCard): void {
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
-    if (fn) fn(ctx, target, effect.params ?? {}, { minion: target });
+    if (fn) fn(ctx, target, { ...(effect.params ?? {}), _source: spellDef.name }, { minion: target });
   }
 }
 
@@ -366,6 +374,7 @@ function fireBattlecryTriggered(state: RunState): void {
 /** Resolve a chosen Choose One option's effects on the played card (its picked Battlecry).
  *  Honors Drakko the Drummer, like a normal Battlecry. */
 export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDef['effects']): void {
+  state.karwindFlash = [];
   const ctx = makeContext(state);
   const repeats = drummerRepeats(state);
   for (const effect of effects) {
@@ -375,6 +384,7 @@ export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDe
   }
   // a Choose One IS a Battlecry → notify Karwind, once per fire (Drakko repeats included)
   for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state);
+  if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
 }
 
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
@@ -416,8 +426,7 @@ export function consumeTavernFodder(state: RunState): void {
     const buff = cardBuff(state, fodder.id); // Ritualist's run buff feeds the eater too
     const fa = fodder.attack + buff.attack;
     const fh = fodder.health + buff.health;
-    eater.attack += fa * mult;
-    eater.health += fh * mult;
+    addBuff(eater, 'Consume', fa * mult, fh * mult);
     fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off
     // Record the Fodder's *effective* (buffed) stats so the eat animation shows them, not 1/1.
     eaten.push({ eaterUid: eater.uid, fodderId: fodder.id, attack: fa, health: fh });
@@ -478,6 +487,7 @@ export function applyEndOfTurn(state: RunState): void {
  * tokens in turn fire their own summon-buffs.
  */
 export function playCard(state: RunState, played: BoardCard): void {
+  state.karwindFlash = []; // Karwind's battlecry-triggered buff repopulates this for the flame flash
   const ctx = makeContext(state);
   fire(ctx, 'onSummon', { minion: played });
   const def = CARD_INDEX[played.cardId];
@@ -496,4 +506,5 @@ export function playCard(state: RunState, played: BoardCard): void {
   }
   // each Battlecry fire (incl. Drakko repeats) procs Battlecry-triggered watchers (Karwind)
   if (hasBattlecry) for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state);
+  if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
 }

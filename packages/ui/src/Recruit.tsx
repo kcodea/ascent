@@ -81,6 +81,7 @@ function instView(inst: BoardCard, tier = 1): CardView {
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
+    buffs: inst.buffs,
   };
 }
 
@@ -141,6 +142,9 @@ export function Recruit() {
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
+  // Dragons Karwind just flame-buffed (keyed off run.karwindFlashSeq) — a one-shot flame flash.
+  const [karwindFlameUids, setKarwindFlameUids] = useState<Set<string>>(new Set());
+  const prevKarwindSeq = useRef(run.karwindFlashSeq);
   // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
   const [shopFlash, setShopFlash] = useState(0);
   // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
@@ -552,6 +556,17 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [run.board, inCombat]);
 
+  // Karwind flame flash: when a Battlecry triggers Karwind, flame the Dragons it buffed (~0.9s).
+  useEffect(() => {
+    if (run.karwindFlashSeq === prevKarwindSeq.current) return;
+    prevKarwindSeq.current = run.karwindFlashSeq;
+    const uids = run.karwindFlash ?? [];
+    if (uids.length === 0) return;
+    setKarwindFlameUids(new Set(uids));
+    const t = window.setTimeout(() => setKarwindFlameUids(new Set()), 900);
+    return () => window.clearTimeout(t);
+  }, [run.karwindFlashSeq, run.karwindFlash]);
+
   // Tavern Fodder was auto-eaten (fodderEatenSeq bumped): show a ghost Fred in the tavern
   // and swirl it into the Demon that ate it (measured from the live DOM), then clear.
   useEffect(() => {
@@ -770,10 +785,10 @@ export function Recruit() {
       dispatch({ type: 'reorderShop', uid: d.uid, toIndex: shopIndexAt(cx, d.uid) });
       return true;
     }
-    // Sell a minion (board or hand) by dropping it on the tavern. Spells are excluded —
-    // dragging a spell is a cast/play gesture, so on the tavern it just cancels (a spell
-    // dragged up to the offers must never silently sell for +1).
-    if ((d.source === 'board' || d.source === 'hand') && zone === 'tavern' && !d.view.spell) {
+    // Sell a *board* minion by dropping it on the tavern. A minion must be played to the board first
+    // before it can be sold — a hand minion flung up to the tavern just snaps back to the hand (it
+    // falls through to the invalid-drop snap-back below). Spells are never sold (cast/play gesture).
+    if (d.source === 'board' && zone === 'tavern' && !d.view.spell) {
       dispatch({ type: 'sell', uid: d.uid });
       return true;
     }
@@ -807,9 +822,9 @@ export function Recruit() {
     return false;
   };
 
-  // Gold sell-preview glow: an owned (non-spell) card hovered over the tavern. Spells dragged up
-  // to the tavern are *played*, not sold, so they don't get the sell glow.
-  const sellGlow = overZone === 'tavern' && (drag?.source === 'board' || drag?.source === 'hand') && !drag?.view.spell;
+  // Gold sell-preview glow: a *board* minion hovered over the tavern (only board minions sell;
+  // a hand minion snaps back). Spells dragged up are *played*, not sold, so no sell glow.
+  const sellGlow = overZone === 'tavern' && drag?.source === 'board' && !drag?.view.spell;
   const isDragging = (uid: string): boolean => drag?.active === true && drag.uid === uid;
   // A shop card over the hand will buy it — glow the hand to confirm the drop target.
   const canDropHand = !!drag?.active && drag.source === 'shop' && overZone === 'hand';
@@ -917,6 +932,7 @@ export function Recruit() {
                 uid={o.uid}
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
+                dragging={!!drag?.active}
                 highlight={heroArmed}
                 targeted={heroArmed && aim?.targetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
@@ -977,11 +993,13 @@ export function Recruit() {
                     uid={m.uid}
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}
+                    dragging={!!drag?.active}
                     highlight={heroArmed || castingSpell}
                     targeted={(heroArmed && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid)}
+                    karwind={karwindFlameUids.has(m.uid)}
                     onPointerDown={heroArmed ? undefined : onCardPointerDown}
                   />
                 </Fragment>
@@ -1000,6 +1018,7 @@ export function Recruit() {
               uid={m.uid}
               card={handViews.get(m.uid)!}
               refCards={refViewsByUid.get(m.uid)}
+              dragging={!!drag?.active}
               dimmed={isDragging(m.uid)}
               buffed={buffedUids.has(m.uid)}
               arrived={arrivedUids.has(m.uid)}

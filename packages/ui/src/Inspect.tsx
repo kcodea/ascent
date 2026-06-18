@@ -33,6 +33,17 @@ export function Inspect() {
       aria-label={`${inspect.name} — close to dismiss`}
     >
       <div className="inspect-card" onClick={(e) => e.stopPropagation()}>
+        {inspect.buffs && inspect.buffs.length > 0 && (
+          <div className="inspect-buffs">
+            <div className="ib-title">Buffs</div>
+            {inspect.buffs.map((b, i) => (
+              <div className="ib-row" key={`${b.source}-${i}`}>
+                <span className="ib-src">{b.source} <em>×{b.count}</em></span>
+                <span className="ib-amt">+{b.attack}/+{b.health}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <Card card={inspect} />
       </div>
     </div>

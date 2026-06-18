@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Buff-source breakdown, Karwind flames, drag-popup + sell fixes
+- **Per-source buff tracking + inspect breakdown.** `BoardCard` now carries a `buffs` list (source,
+  ±atk/±hp, count), populated by a new `addBuff()` that every recruit buff routes through (battlecry
+  tribe buffs, Karwind, Spirit Fire, Fortify, Broker, Kennelmaster, Combinator, Ritualist, consume,
+  magnetize, deathrattles). Right-click → inspect now shows the breakdown to the **left** of the card,
+  e.g. `Nadir ×1 +2/+2`, `Karwind ×1 +1/+2`, `Spirit Fire ×2 +6/+6`. (Goldens don't itemize — the
+  triple sums stats ambiguously; known limitation.) Verified live + unit-tested.
+- **Karwind flame highlight.** When a Battlecry triggers Karwind, the Dragons it buffs now flash with
+  flames (a transient `karwindFlash` uid list + seq drives a flame overlay), on top of the normal green
+  buff flash — so it's clear the extra buff came from Karwind. Verified live (playing Hoard Cleric
+  flame-flagged all 3 dragons) + unit-tested.
+- **No referenced-card popup while dragging.** Holding/dragging a card no longer counts as "hovering" a
+  minion — a `dragging` prop suppresses the popup and drops any open one.
+- **Minions must be on the board to sell.** A hand minion flung up to the tavern now snaps back to the
+  hand instead of selling (only board minions sell; the sell-glow matches).
+- `typecheck` + `lint` + `test` (**119**) + `build:web` clean.
+
 ### Drag insertion sweet spot + tooltip proximity
 - **Drag drop now follows the card, not the cursor.** The warband/shop insertion index was computed
   from the raw pointer x — but the floating card is offset by wherever you grabbed it, so grabbing the

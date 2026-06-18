@@ -50,6 +50,15 @@ export interface ShopCard {
   keywords?: Keyword[];
 }
 
+/** One source's contribution to a minion's recruit-phase buffs, accumulated for the inspect panel
+ *  breakdown ("Spirit Fire ×2: +6/+6"). `count` = how many times that source buffed this card. */
+export interface CardBuff {
+  source: string;
+  attack: number;
+  health: number;
+  count: number;
+}
+
 export interface BoardCard {
   uid: string;
   cardId: string;
@@ -58,6 +67,9 @@ export interface BoardCard {
   health: number;
   keywords: Keyword[];
   golden: boolean;
+  /** Per-source recruit-phase stat buffs applied to this instance (Karwind, Nadir, Spirit Fire,
+   *  Fortify, …) — drives the inspect-panel breakdown. Base stats are NOT recorded here. */
+  buffs?: CardBuff[];
   /** Extra magnitude on this card's summon-buff effect, accrued permanently across the run
    *  (Kennelmaster's Avenge improvements). Default/absent = 0. */
   summonBonus?: number;
@@ -115,6 +127,11 @@ export interface RunState {
   fodderEaten?: { eaterUid: string; fodderId: string; attack: number; health: number }[];
   /** Bumps each time Fodder is auto-eaten — the UI keys its swirl animation off this. */
   fodderEatenSeq: number;
+  /** Dragon uids Karwind just flame-buffed on the most recent Battlecry — the UI flashes flames
+   *  on them (on top of the normal buff flash). Transient. */
+  karwindFlash?: string[];
+  /** Bumps each time Karwind flame-buffs — the UI keys its flame animation off this. */
+  karwindFlashSeq: number;
   /** A pending Discover offer (3 card ids) granted by a triple — pick one to hand. */
   discover?: string[];
   /** A pending Choose One — a played card waiting for the player to pick an option. The
@@ -167,6 +184,7 @@ export function createRun(seed: number): RunState {
     pendingTavern: [],
     cardBuffs: {},
     fodderEatenSeq: 0,
+    karwindFlashSeq: 0,
   };
   rollShop(state);
   return state;

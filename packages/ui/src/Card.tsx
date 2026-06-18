@@ -82,6 +82,8 @@ export interface CardView {
   /** Base (printed) stats — stats above base render green, below base render red. */
   baseAttack?: number;
   baseHealth?: number;
+  /** Per-source recruit buffs (for the inspect-panel breakdown). */
+  buffs?: { source: string; attack: number; health: number; count: number }[];
 }
 
 /** Green when a stat is above its base, red when below — for at-a-glance buffs/damage. */
@@ -120,7 +122,9 @@ export const Card = memo(function Card({
   battlecry,
   arrived,
   electrify,
+  karwind,
   refCards,
+  dragging,
   onPointerDown,
   draggable,
   onDragStart,
@@ -144,8 +148,12 @@ export const Card = memo(function Card({
   arrived?: boolean;
   /** Electric flash — a Mech being magnetized onto by Combinator's End-of-Turn. */
   electrify?: boolean;
+  /** Flame flash — a Dragon just buffed by Karwind (on top of the normal buff flash). */
+  karwind?: boolean;
   /** Cards this card references (the token it summons / Fodder it buffs) — shown as a hover popup. */
   refCards?: CardView[];
+  /** A drag is in progress somewhere — suppress the referenced-card hover popup (you're holding a card). */
+  dragging?: boolean;
   onPointerDown?: (e: ReactPointerEvent) => void;
   draggable?: boolean;
   onDragStart?: (e: DragEvent) => void;
@@ -192,13 +200,15 @@ export const Card = memo(function Card({
     setRefPos(null);
   };
   useEffect(() => () => { if (refTimer.current) window.clearTimeout(refTimer.current); }, []);
+  // While a card is being held/dragged, you're not "hovering" anything — drop any popup + don't open one.
+  useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
   return (
     <div
       className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}
-      onMouseEnter={hasRefs ? (e) => showRefTip(e.currentTarget) : undefined}
+      onMouseEnter={hasRefs && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
       onMouseLeave={hasRefs ? hideRefTip : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -297,6 +307,17 @@ export const Card = memo(function Card({
           <span className="bb-spark" style={{ '--a': '170deg' } as CSSProperties} />
           <span className="bb-spark" style={{ '--a': '250deg' } as CSSProperties} />
           <span className="bb-spark" style={{ '--a': '320deg' } as CSSProperties} />
+        </span>
+      )}
+      {/* Karwind — a Dragon just got Karwind's battlecry-triggered buff: flames sweep up the card
+          (on top of the normal green buff flash), marking it as Karwind's doing. */}
+      {karwind && (
+        <span className="karwindflame" aria-hidden="true">
+          <span className="kf-glow" />
+          <span className="kf-tongue" style={{ '--kx': '20%', '--kd': '0s' } as CSSProperties} />
+          <span className="kf-tongue" style={{ '--kx': '43%', '--kd': '0.09s' } as CSSProperties} />
+          <span className="kf-tongue" style={{ '--kx': '62%', '--kd': '0.04s' } as CSSProperties} />
+          <span className="kf-tongue" style={{ '--kx': '80%', '--kd': '0.13s' } as CSSProperties} />
         </span>
       )}
       {/* Battlecry flourish — a glowing sigil swells from *under* the card (tribe-tinted),

@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Buff breakdown + Karwind flames** — right-click a minion to see its buffs itemized by source
+  (`Nadir ×1 +2/+2`, `Spirit Fire ×2 +6/+6`); Dragons buffed by Karwind now flash with flames. Hand
+  minions must be played to the board before they can be sold (else they snap back).
 - **Drop + popup tuning** — drag insertion now tracks the dragged card's centre (not the cursor), so a
   card drops where it visually sits; the referenced-card popup now hugs the card you're hovering.
 - **Referenced-card hover popup** — hovering a card that references another (Combinator → Cling Drone,

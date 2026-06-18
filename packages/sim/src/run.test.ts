@@ -366,6 +366,42 @@ describe('run loop (@game/sim)', () => {
     expect(s.frozen).toBe(false); // freeze is consumed for the new turn
   });
 
+  it('a frozen tavern still delivers Soulfeeder-queued Fodder (not stranded)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      frozen: true,
+      board: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
+      pendingTavern: ['fred'], // queued by Soulfeeder's Battlecry last turn
+      lastCombat: { events: [], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.find((c) => c.cardId === 'feed')!.attack).toBe(3); // the demon ate the queued Fred (+1/+1)
+    expect(s.pendingTavern).toEqual([]); // queue cleared — not stranded by the freeze
+  });
+
+  it('Soulfeeder queues Fodder only once — it does not re-proc on later rounds', () => {
+    let s: RunState = {
+      ...createRun(1),
+      resolve: 999, maxResolve: 999,
+      embers: 0, shop: [],
+      hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
+      board: [],
+    };
+    s = reduce(s, { type: 'play', uid: 'sf' });
+    const atk = () => s.board.find((c) => c.cardId === 'feed')!.attack;
+    expect(atk()).toBe(2);
+    const seen: number[] = [];
+    for (let r = 0; r < 4; r++) {
+      s = reduce(s, { type: 'faceOmen' });
+      s = reduce(s, { type: 'resolveCombat' });
+      seen.push(atk());
+    }
+    // ate one Fred on the first refresh (2 → 3), then never again — no per-round re-proc
+    expect(seen).toEqual([3, 3, 3, 3]);
+    expect(s.pendingTavern).toEqual([]);
+  });
+
   it('Buddy Buddy adds a random Tier 1 minion to your hand (golden adds two)', () => {
     let s: RunState = {
       ...createRun(1),

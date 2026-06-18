@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Triage: Soulfeeder "procs every round" — engine is correct; fixed frozen-tavern Fodder stranding
+Reported: Soulfeeder seems to proc every round after one play. Triaged with deterministic tests:
+- **The engine procs Soulfeeder exactly once.** A multi-round test confirms its attack goes
+  `2 → 3 → 3 → 3 → 3` (eats one queued Fred on the first refresh, never again) and `pendingTavern`
+  is `['fred']` then `[]` forever. `refreshTavern` clears the queue after injecting, so there is no
+  per-round re-proc in the simulation.
+- **Real related bug found + fixed: a frozen tavern stranded the queued Fodder.** When you froze,
+  `advanceAfterCombat` took the `topUpTavern` path, which never injected/consumed `pendingTavern` —
+  so a Soulfeeder-queued Fred was stuck forever (the *opposite* of "every round," but a genuine bug).
+  Extracted `injectPendingTavern()` and now run it on **both** the reroll and the frozen carry-over,
+  so the promised Fred always arrives (and is eaten) exactly once. Tested (frozen delivery + the
+  once-only multi-round case).
+- **The "every round" visual could not be reproduced.** The two candidate animations both fire once
+  by construction: the Fodder eat-swirl is gated by `fodderEatenSeq` (bumped only on a real consume,
+  i.e. once), and the Battlecry flourish is gated by a played-uids set (`prevBoardUidsRef`, which
+  retains the card across the combat→recruit round-trip). Instrumented both + attempted a live
+  repro; no re-fire observed. Awaiting a repro clip / details from the user to pin any visual.
+- `typecheck` + `lint` + `test` (**110**) clean.
+
 ### Chronos (End-of-Turn doubler) + a real fix for the return-to-shop minion flicker
 - **Return-to-shop flicker — root cause found + fixed.** Frame-by-frame capture of the combat→recruit
   return showed the warband card playing `boardreset` cleanly (opacity 0.45→1)… and then, at ~650ms

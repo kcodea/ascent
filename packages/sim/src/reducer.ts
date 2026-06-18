@@ -431,8 +431,11 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
 
   // A frozen tavern carries over, but still tops up any empty minion slots / missing spell
   // (freezing a partial shop shouldn't leave you with fewer options); otherwise full reroll.
+  // Either way, queued Fodder (Soulfeeder) still gets injected — freezing must not strand the
+  // promised Fodder in `pendingTavern` forever.
   if (s.frozen) {
     topUpTavern(s);
+    injectPendingTavern(s);
     s.frozen = false;
   } else refreshTavern(s);
   s.phase = 'recruit';
@@ -446,6 +449,15 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
  */
 function refreshTavern(s: RunState): void {
   rollShop(s);
+  injectPendingTavern(s);
+}
+
+/**
+ * Inject any Fodder queued for this tavern (Soulfeeder) into the shop, then let Demons devour what
+ * just arrived. Runs for both a fresh reroll and a frozen carry-over, so a queued Fred always
+ * arrives (and is consumed) exactly once rather than being stranded in `pendingTavern`.
+ */
+function injectPendingTavern(s: RunState): void {
   const pending = s.pendingTavern ?? [];
   if (pending.length === 0) return;
   for (const id of pending) {

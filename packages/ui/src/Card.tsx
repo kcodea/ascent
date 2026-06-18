@@ -269,7 +269,7 @@ export const Card = memo(function Card({
           <span className="bc-mote" style={{ '--a': '22deg' } as CSSProperties} />
         </span>
       )}
-      {/* Reborn — spectral blue tears drift up across the card now and then for a touch of life. */}
+      {/* Reborn — spectral blue tears drift up across the card for a touch of life. */}
       {card.keywords.includes('R') && (
         <span className="reborntears" aria-hidden="true">
           {REBORN_TEARS.map((t, i) => (
@@ -277,14 +277,32 @@ export const Card = memo(function Card({
           ))}
         </span>
       )}
+      {/* Venomous — green venom globs constantly drip off the card (no rim glow). */}
+      {card.keywords.includes('V') && (
+        <span className="venomdrip" aria-hidden="true">
+          {VENOM_DRIPS.map((t, i) => (
+            <span key={i} className="vd" style={{ left: t.x, top: t.y, animationDelay: t.d } as CSSProperties} />
+          ))}
+        </span>
+      )}
     </div>
   );
 });
 
-/** Drifting positions + staggered delays for the Reborn tear particles. */
+/** Drifting positions + staggered delays for the Reborn tear particles (several visible at once). */
 const REBORN_TEARS = [
-  { x: '20%', y: '34%', d: '0s' },
-  { x: '70%', y: '26%', d: '1.7s' },
-  { x: '44%', y: '58%', d: '3.2s' },
-  { x: '82%', y: '50%', d: '4.6s' },
+  { x: '18%', y: '34%', d: '0s' },
+  { x: '68%', y: '24%', d: '0.9s' },
+  { x: '42%', y: '54%', d: '1.8s' },
+  { x: '82%', y: '46%', d: '2.6s' },
+  { x: '30%', y: '20%', d: '3.4s' },
+  { x: '58%', y: '60%', d: '4.0s' },
+];
+
+/** Venom glob source points (along the lower art) + staggered delays for a constant drip. */
+const VENOM_DRIPS = [
+  { x: '24%', y: '52%', d: '0s' },
+  { x: '54%', y: '60%', d: '0.7s' },
+  { x: '74%', y: '50%', d: '1.5s' },
+  { x: '40%', y: '46%', d: '2.2s' },
 ];

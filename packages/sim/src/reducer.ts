@@ -125,6 +125,8 @@ export function reduce(state: RunState, action: Action): RunState {
           const mDef = CARD_INDEX[card.cardId];
           const mana = (mDef?.manaPerTurn ?? 0) * (card.golden ? 2 : 1) + (card.manaBonus ?? 0);
           if (mana > 0) target.manaBonus = (target.manaBonus ?? 0) + mana;
+          // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
+          if (card.golden) grantGoldenDiscover(s);
           return s;
         }
       }

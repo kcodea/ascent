@@ -79,5 +79,5 @@ fred,Fred,token,demon,1,1,1,,Fodder,A 1/1 Demon Fodder — your Demons devour it
 pup,Pup,token,beast,1,1,1,,,A 1/1 Beast token.,token,—,—,FALSE
 stray,Stray,token,beast,1,1,1,,,A 1/1 Beast token.,token,—,—,TRUE
 impscrap,Imp Scrap,token,demon,1,1,1,,,A 1/1 Demon token.,token,—,—,FALSE
-discoverspell,Glimpse Beyond,token,neutral,1,0,1,,,Discover a minion from the next tier up.,token (triple reward),—,—,FALSE
+discoverspell,Triple Reward,token,neutral,1,0,1,,,Discover a Tier N+1 minion (text names the exact tier; capped at 6),token (triple/golden reward),—,—,TRUE
 omen,Omen Minion,token,neutral,1,1,1,,,,enemy filler (stats set per wave),—,—,TRUE

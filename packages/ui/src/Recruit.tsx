@@ -46,11 +46,15 @@ function shopView(
     baseAttack: c.attack, baseHealth: c.health,
   };
 }
-function instView(inst: BoardCard): CardView {
+function instView(inst: BoardCard, tier = 1): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
-  // A summon-buff card (Kennelmaster) shows its current boosted magnitude (green via {{…}}).
-  const text = summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
+  // Triple Reward names the exact Tier it Discovers from (current Tier + 1, capped). A summon-buff
+  // card (Kennelmaster) instead shows its current boosted magnitude (green via {{…}}).
+  const text =
+    c.id === 'discoverspell'
+      ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
+      : summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2, attack: inst.attack, health: inst.health,
     keywords: inst.keywords, text, goldenText: c.goldenText, golden: inst.golden,
@@ -241,7 +245,7 @@ export function Recruit() {
     [run.spell, run.spellCostMod],
   );
   const boardViews = useMemo(() => new Map(run.board.map((m) => [m.uid, instView(m)] as const)), [run.board]);
-  const handViews = useMemo(() => new Map(run.hand.map((m) => [m.uid, instView(m)] as const)), [run.hand]);
+  const handViews = useMemo(() => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier)] as const)), [run.hand, run.tier]);
 
   // A single stable pointer-down handler shared by every card: it reads the grabbed card's uid
   // + zone from the DOM and its view from this ref, so the handler's identity never changes

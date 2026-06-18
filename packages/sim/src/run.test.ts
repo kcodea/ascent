@@ -575,6 +575,17 @@ describe('run loop (@game/sim)', () => {
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([5, 5]); // 3/3 + 2/2
   });
 
+  it('magnetizing a GOLDEN Magnetic still grants the triple Discover', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      hand: [{ uid: 'c', cardId: 'cling', tribe: 'mech', attack: 4, health: 4, keywords: ['M'], golden: true }],
+      board: [{ uid: 'd', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'c', toIndex: 0 });
+    expect(s.board.length).toBe(1); // merged, no board slot taken
+    expect(s.hand.some((h) => h.cardId === 'discoverspell')).toBe(true); // golden "play" still grants the Discover
+  });
+
   it('a Magnetic minion dropped off a Mech plays as a normal body', () => {
     let s: RunState = { ...createRun(1), embers: 3, hand: [], board: [], shop: [{ uid: 'x', cardId: 'cling' }] };
     s = reduce(s, { type: 'buy', uid: 'x' });

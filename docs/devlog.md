@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Golden-magnetize Discover, beefier Reborn tears + Venomous drip, Triple Reward rename/art/dynamic text
+- **Golden Magnetic now grants its Discover.** Welding a golden Magnetic minion (e.g. a tripled Cling
+  Drone) onto a host returned early in the reducer, skipping the `grantGoldenDiscover` that a normal
+  golden play runs — so you lost the triple reward. The magnetize merge path now grants it too. Tested.
+- **Reborn tears are punchier** — bigger (11×15), brighter, faster cadence, and **6** particles (was 4)
+  so several drift at once instead of one-at-a-time. (Per the user — they like the effect.)
+- **New: Venomous drip.** Cards with Venomous now constantly drip green venom globs (form → swell →
+  elongate → fall), keyed off the `V` keyword. No rim glow (per the user) — just the drips. Same overlay
+  pattern as the Reborn tears; shows in the shop, on granted-Venomous minions, and on combat venom units.
+- **Glimpse Beyond → Triple Reward.** Renamed the Discover spell, wired its art from the Spells source
+  folder (`art/minions/discoverspell.png`), and made its text **name the exact tier** it Discovers from:
+  `Discover a Tier {min(6, currentTier + 1)} minion` — recomputed from the live shop tier (so it reads
+  "Tier 2" on tier 1, "Tier 6" on tier 6). Matches the actual `offerDiscover` formula.
+- `typecheck` + `lint` + `test` (**116**) + `build:web` clean; rename + art + dynamic-text formula +
+  CSS verified live, no console errors.
+
 ### Heckbinder dual-tribe fix, mana tooltip, golden-text correctness + full fill, Reborn FX, Esc resolution menu
 - **Magnetize onto Heckbinder now works.** `magnetizesTo()` was checking only the *target's* primary
   tribe, so a Mech-magnetic card (Cling Drone) couldn't weld onto Heckbinder (primary tribe Demon).

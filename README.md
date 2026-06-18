@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Triple Reward + drip FX** — renamed the Discover spell to **Triple Reward** (with art); its text now
+  names the exact tier it Discovers from. Welding a **golden** Magnetic minion now still grants that
+  reward. The **Reborn** tears are bigger and livelier, and **Venomous** minions now constantly drip
+  green venom globs.
 - **Esc menu + dual-tribe + polish** — a new **Esc / settings menu** with a display-resolution scaler
   (Fit to Window · 1920×1080 · 2560×1440 · 3440×1440), letterboxing the game into a centred 16:9 / 21:9
   box. **Heckbinder** now correctly counts as a Mech *and* Demon (you can magnetize onto it, and Mech /

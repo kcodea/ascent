@@ -41,14 +41,16 @@ export const TOKENS: CardDef[] = [
   },
   {
     id: 'discoverspell',
-    name: 'Glimpse Beyond',
+    name: 'Triple Reward',
     tribe: 'neutral',
     tier: 1,
     attack: 0,
     health: 1,
     keywords: [],
     effects: [],
-    text: '**Discover** a minion from the next tier up.',
+    // The displayed text is overridden in the UI to name the exact Tier (current + 1, capped) —
+    // see `discoverSpellText` in Recruit. This is the fallback if that ever isn't applied.
+    text: '**Discover** a minion from one Tier up.',
     token: true,
   },
 ];

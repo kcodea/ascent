@@ -83,11 +83,6 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       depth / hover-lift / fan overlap are first-pass values — revisit once more cards are in play
       (and on shorter viewports) so the resting peek and the pop both feel right.
 
-- [ ] **Scale the chrome too (HUD / buttons / fonts).** Card sizing now scales with the viewport
-      (`--ch: clamp(220px, 27vh, 384px)`) so the board fills 16:9 → 21:9 screens. The chrome (top HUD,
-      tavern controls, status tray, body text) is still fixed-px, so it looks comparatively small on
-      large monitors — scale it with the viewport (or a root rem) for a fully proportional UI. Also
-      double-check very short viewports (≤720px) and the combat arena at the new card scale.
 - [ ] **Single-target Battlecries** (e.g. "give a friendly minion +X/+X") — the Hero-Power targeting
       line + aim infrastructure is ready to reuse; no current card is player-targeted. (Content; on
       hold until the feel/functionality pass + balance are done.)
@@ -95,17 +90,21 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       the art's bottom, keyword/text area below); revisit spacing + legibility with the user.
 - [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop
       `<id>.png` into `packages/ui/src/art/minions/` → it replaces that card's pixel sprite
-      everywhere; falls back to the sprite when absent). In so far: `whelp`, `imp`, `drone`, `drummer`,
-      `spiritfire`, `fred`, `emberpouch`, `bulwark`, `broker`; the rest of the ~30-card set still uses sprites.
-      Several more illustrations are already sitting unused in the source folder (ArcaneWeaver, Karwind,
-      Kennelmaster, SpiritOfThePack…) — wire each once its card id is confirmed. Source art lives in
-      `C:\Game Assets\Ascent Art\Minions`. **Hero portraits** use a parallel pipeline (`art/heroes/<id>.png`
-      → `heroArt()`); the Warden portrait is wired — add more as heroes are introduced.
+      everywhere; falls back to the sprite when absent). **Every source illustration that maps to an
+      existing card id is now wired** (21: alley, broker, bulwark, cling, drone, drummer, emberpouch,
+      feed, fred, imp, kennel, omen, pack6, ritualist, sandbag, spiritfire, spore, stray, sylus,
+      weaver, whelp). The remaining ~30 cards still use pixel sprites and have **no source art yet**.
+      Three illustrations sit in the source folder with **no matching card id** — `Combinator`, `Grim`,
+      `Karwind` — wire each once the user confirms which card it belongs to (these need a card, not
+      just wiring). Source art lives in `C:\Game Assets\Ascent Art\Minions`. **Hero portraits** use a
+      parallel pipeline (`art/heroes/<id>.png` → `heroArt()`); the Warden portrait is wired.
 - [ ] **Divine Shield art style — bubble vs. crest.** The effect-art overlay pipeline shipped
       (`art/effects/*.png` → `effectArt()`; `.dsfx` screen-blends a glowing aura over any `DS` minion,
       live on Spare Part Drone). The current asset is a shield **crest** shape; if a rounder "bubble/dome"
       shimmer reads better, swap the art or move it to a corner badge — user's call.
 - [ ] **Art compression.** The illustrations are ~650 KB PNGs at 512×512; fine for a handful, but
       convert to WebP (or add a build-time compress) before the full set lands so the bundle stays
-      lean.
+      lean. *(Blocked on tooling: no WebP encoder is installed — `cwebp`/ImageMagick/`ffmpeg`/`sharp`
+      all absent. Either install one, add `sharp` as a dev dep + a build step, or downscale the
+      source PNGs to ~400px via the existing System.Drawing path, since cards display at ~290px.)*
 - [ ] Vendor the full Build Handoff v2 into `docs/handoff.md` (currently in-session only).

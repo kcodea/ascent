@@ -22,6 +22,10 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Proportional chrome** — the HUD, turn timer, status tray, tavern controls, and modal overlays
+  now scale with the viewport (via a `--u` scaled unit) just like the cards do, so they no longer
+  look tiny on large monitors. Floored at the current sizes (zero change on laptops / short windows),
+  growing to ~+34% on tall displays. Combat's big post-fight buttons keep their size.
 - **2 new cards + feel polish** — **Arcane Weaver** (T4 Dragon; Deathrattle adds a Spirit Fire to
   your hand after combat) and **Ritualist** (T5 Demon; End of Turn gives all Fodder +1/+1
   *wherever it is* — a persistent run enchantment that follows every copy from any source). A soft

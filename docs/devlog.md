@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-17
 
+### Proportional chrome — HUD / controls / status tray / overlays scale with the viewport
+The cards already scale with viewport height (`--ch`), but the chrome was fixed-px, so on big
+monitors the HUD/buttons/fonts looked comparatively tiny (a flagged backlog item).
+- **New scaled unit `--u: clamp(1px, 0.107vh, 1.34px)`** — a "scaled pixel" with a **1px floor**
+  (so laptops and short windows read *exactly* as before — zero regression at ≤~935px tall) that
+  grows to **+34%** on tall monitors (1440px+). Chrome dimensions are expressed as `calc(N * var(--u))`
+  so every piece scales by the same factor and stays proportional to the cards.
+- **Converted:** the top HUD (wordmark, wave meter, tribes, mute), the round turn-timer, the bottom
+  status tray (Resolve bar + value, the hero/power panel + portrait, the Ember/Mana chips — including
+  the larger "hero-sized" overrides), zone headers, the tavern controls (Refresh/Freeze/Tier/End Turn
+  + the Tavern-tier label), the result toast, and the two modal overlays (Combat Log + Discover /
+  Choose One). The combat arena's intentionally-huge post-fight buttons (`.cbtns .btn.big`, 32px) keep
+  their fixed size via the more-specific selector — they're sized for combat readability, not chrome.
+- **Verified** objectively via the preview (resize + `getComputedStyle`, no screenshots needed):
+  at 800px tall every value equals its original px (wordmark 19, big button 17, status-chip value 34,
+  hero name 23, hero portrait 80×80, Resolve value 28); at 1440px tall all scale by ×1.34 in lockstep
+  (25.46 / 22.78 / 45.56 / 30.82 / 107×107 / 37.52). Overlay rules parsed correctly; `build:web` +
+  `lint` clean; no console errors.
+- Also scouted the **minion-art backlog**: every source illustration that maps to an existing card id
+  is now wired (21 cards); the leftover source art (`Combinator`, `Grim`, `Karwind`) has no matching
+  card, so it needs a card decision, not just wiring. **Art→WebP compression** is blocked on tooling
+  (no encoder installed) — noted in the roadmap.
+
 ### Arcane Weaver + Ritualist, board dust, drag float, simultaneous deathrattle buffs, 2 sprites
 A seven-item content + polish batch.
 - **New: Arcane Weaver** (Tier 4 Dragon, 3/4) — **Deathrattle: add a copy of Spirit Fire to your

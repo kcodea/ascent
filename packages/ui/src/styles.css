@@ -421,12 +421,22 @@ canvas.spr { image-rendering: pixelated; display: block; }
   50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 68%, transparent), 0 0 40px 9px color-mix(in srgb, var(--c) 72%, transparent); }
 }
 /* Referenced-card hover popup (e.g. Combinator → Cling Drone, Ritualist → current Fodder). Portalled
-   to <body>, so it floats above neighbouring cards / spells. Position (left/top) is set inline. */
+   to <body>, so it floats above neighbouring cards / spells. Position (left/top) is set inline. It
+   slides in, then gently bobs + wobbles in place (so it clearly reads as an info card, not a real one),
+   wrapped in a soft white haze. */
 .cardref {
-  position: fixed; z-index: 150; pointer-events: none; display: flex; gap: calc(8 * var(--u));
-  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.55)); animation: cardreffade 0.12s ease-out;
+  position: fixed; z-index: 150; pointer-events: none;
+  filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
+  animation: cardrefin 0.3s ease-out;
 }
-@keyframes cardreffade { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; }
+@keyframes cardrefin { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes cardreffloat {
+  0%, 100% { transform: translateY(0) rotate(-1.1deg); }
+  30% { transform: translateY(-5px) rotate(0.9deg); }
+  60% { transform: translateY(-2px) rotate(1.3deg); }
+  85% { transform: translateY(-6px) rotate(-0.5deg); }
+}
 /* Choose One — two big option buttons */
 .chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 .chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: 'Nunito Sans', sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }

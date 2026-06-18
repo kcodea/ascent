@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Referenced-card popup polish — delay + float + haze
+- The referenced-card popup now opens after a **~0.5s hover** (so it doesn't flash while skimming the
+  board; position is measured when it opens, so it tracks a popped-up hand card). It **slides in**, then
+  gently **bobs + wobbles in place** (a continuous float) so it reads clearly as an info card, not a real
+  one, and it's wrapped in a **soft white haze** (layered white drop-shadows). Verified live: hidden at
+  150 ms, shown by 650 ms; entrance + float animations active; haze present; no console errors.
+
 ### Referenced-card hover popup
 - Hovering a card that references another now shows the referenced card as a **popup to the right**,
   portalled to `<body>` at z-index 150 so it floats **above neighbouring cards / spells**. Covers every

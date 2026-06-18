@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
@@ -166,16 +166,27 @@ export const Card = memo(function Card({
   // popup is portalled to <body> so it escapes the card's hover/drag transforms and sits on top.
   const hasRefs = !!refCards?.length;
   const [refPos, setRefPos] = useState<{ left: number; top: number } | null>(null);
+  const refTimer = useRef<number | null>(null);
+  // Show after a ~0.5s hover (so it doesn't flash while you skim the board); position is measured
+  // when it actually opens, so it tracks the card even if it popped up (hand) in the meantime.
   const showRefTip = (el: HTMLElement): void => {
-    const r = el.getBoundingClientRect();
-    const n = refCards?.length ?? 1;
-    const gap = 14;
-    const tipW = r.width * n + (n - 1) * 8 + 14;
-    const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
-    const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
-    const top = Math.max(6, Math.min(r.top, window.innerHeight - r.height - 6));
-    setRefPos({ left, top });
+    if (refTimer.current) window.clearTimeout(refTimer.current);
+    refTimer.current = window.setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      const n = refCards?.length ?? 1;
+      const gap = 14;
+      const tipW = r.width * n + (n - 1) * 8 + 14;
+      const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
+      const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
+      const top = Math.max(6, Math.min(r.top, window.innerHeight - r.height - 6));
+      setRefPos({ left, top });
+    }, 500);
   };
+  const hideRefTip = (): void => {
+    if (refTimer.current) { window.clearTimeout(refTimer.current); refTimer.current = null; }
+    setRefPos(null);
+  };
+  useEffect(() => () => { if (refTimer.current) window.clearTimeout(refTimer.current); }, []);
   return (
     <div
       className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${card.tribe2 ? ' dual' : ''}`}
@@ -183,7 +194,7 @@ export const Card = memo(function Card({
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}
       onMouseEnter={hasRefs ? (e) => showRefTip(e.currentTarget) : undefined}
-      onMouseLeave={hasRefs ? () => setRefPos(null) : undefined}
+      onMouseLeave={hasRefs ? hideRefTip : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
         inspectCard(card);
@@ -312,9 +323,11 @@ export const Card = memo(function Card({
       {/* Referenced-card popup — portalled to <body> so it floats above neighbouring cards/spells. */}
       {refPos && hasRefs && createPortal(
         <div className="cardref" style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
-          {refCards!.map((rc, i) => (
-            <Card key={`${rc.cardId ?? i}`} card={rc} />
-          ))}
+          <div className="cardref-inner">
+            {refCards!.map((rc, i) => (
+              <Card key={`${rc.cardId ?? i}`} card={rc} />
+            ))}
+          </div>
         </div>,
         document.body,
       )}

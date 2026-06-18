@@ -1,10 +1,17 @@
-import { makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
+import { makeRng, simulate, type BoardMinion, type CombatResult, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop, topUpTavern } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type RunState } from './state';
+
+/** Whether a Magnetic minion can weld onto a target of the given tribe: it merges onto a friendly
+ *  minion sharing one of its tribes (Cling Drone → Mech; Heckbinder, a Demon/Mech, → Mech or Demon). */
+export function magnetizesTo(cardId: string, targetTribe: Tribe): boolean {
+  const def = CARD_INDEX[cardId];
+  return !!def && (def.tribe === targetTribe || def.tribe2 === targetTribe);
+}
 
 /**
  * The run-loop state machine as a pure reducer: `(state, action) => state`
@@ -95,12 +102,13 @@ export function reduce(state: RunState, action: Action): RunState {
         return s;
       }
 
-      // Magnetic (handoff A.4): a Cling Drone dropped directly onto a friendly
-      // Mech merges its stats in instead of taking a board slot — so it works on
-      // a full board and fires no summon-buff / Battlecry.
+      // Magnetic (handoff A.4): a Magnetic minion dropped directly onto a friendly minion sharing
+      // one of its tribes merges its stats in instead of taking a board slot — so it works on a full
+      // board and fires no summon-buff / Battlecry. (Cling Drone → Mech; Heckbinder, a Demon/Mech,
+      // → Mech or Demon.)
       if (card.keywords.includes('M') && action.toIndex !== undefined && action.toIndex < s.board.length) {
         const target = s.board[action.toIndex];
-        if (target && target.tribe === 'mech') {
+        if (target && magnetizesTo(card.cardId, target.tribe)) {
           s.hand.splice(i, 1);
           target.attack += card.attack;
           target.health += card.health;

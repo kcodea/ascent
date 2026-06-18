@@ -62,8 +62,15 @@ function computeFrame(
       const u = find(e.target);
       if (u) u.health = 0;
     } else if (e.type === 'reborn') {
+      // Returns at base stats: overwrite attack/health/keywords/shield (not a delta) so the buffed
+      // body sheds its combat buffs + granted keywords and the blue Reborn aura drops (no more 'R').
       const u = find(e.target);
-      if (u) { u.health = e.hp; u.keywords = u.keywords.filter((k) => k !== 'R'); }
+      if (u) {
+        u.health = e.hp;
+        u.attack = e.attack;
+        u.keywords = [...e.keywords];
+        u.divineShield = e.keywords.includes('DS');
+      }
     } else if (e.type === 'reveal') {
       const u = find(e.target);
       if (u) u.keywords = u.keywords.filter((k) => k !== 'ST'); // Stealth lost on attack

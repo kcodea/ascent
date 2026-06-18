@@ -64,6 +64,7 @@ imp,Voracious Imp,minion,demon,2,2,2,,Consume,Gains 2x stats from Fodder.,fodder
 pact,Pactstone Acolyte,minion,demon,2,2,3,,,"When you consume a minion, gain an extra +1/+1.",onConsumeBuffSelf +1/+1,"When you consume a minion, gain an extra +2/+2.",+2/+2 per consume,FALSE
 brood,Brood Matron,minion,demon,3,3,3,,,"Each time a friend dies, summon a 1/1 Imp.",onFriendDeathSummon impscrap,"Each time a friend dies, summon a 1/1 Imp.",2x stats; summons 1 Imp/death (count unchanged),FALSE
 maw,Maw of the Pit,minion,demon,4,4,5,,Taunt,"On consume, gain a Divine Shield.",onConsumeGrantSelfKeyword Shield,"On consume, gain a Divine Shield.",2x stats; gains Shield (unchanged),FALSE
+heckbinder,Heckbinder,minion,demon,4,3,3,,Magnetic,Magnetize onto a friendly Mech or Demon.,dual-type Demon/Mech (tribe2 mech); magnetizes to a Mech OR Demon,Magnetize onto a friendly Mech or Demon.,2x stats -> 6/6; merges its doubled stats,TRUE
 glut,Ravening Glutton,minion,demon,5,5,5,,Cleave|Consume,"On consume, gain +2/+2.",onConsumeBuffSelf +2/+2,"On consume, gain +4/+4.",+4/+4 per consume,FALSE
 ritualist,Ritualist,minion,demon,5,2,5,,,"End of Turn: all Fodder gets +1/+1, wherever it is.",buffFodderEverywhere +1/+1,"End of Turn: all Fodder gets +2/+2, wherever it is.",+2/+2 to all Fodder per turn,TRUE
 sov,Abyssal Sovereign,minion,demon,6,7,7,,Start,Start of Combat: destroy the enemy with the highest Attack.,scDestroyHighestAttack,Start of Combat: destroy the enemy with the highest Attack.,2x stats; destroys 1 (unchanged),FALSE

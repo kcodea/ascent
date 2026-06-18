@@ -128,13 +128,26 @@ export function simulate(
   const deaths: Record<Side, number> = { player: 0, enemy: 0 };
 
   function killOrReborn(minion: Minion): void {
-    // Reborn (A.3 step 6): the first death returns the minion at 1 health.
+    // Reborn (A.3 step 6): the first death returns the minion at its *base* card stats — it sheds
+    // every combat buff and granted keyword (Divine Shield, etc.), keeping only its printed keywords
+    // (minus the spent Reborn). A golden minion returns at doubled base. So a 2/1 buffed to a 10/3
+    // Divine-Shield body comes back a plain 2/1. (Recruit-permanent stats live on the run board and
+    // are untouched — this only resets the combat instance.)
     if (minion.rebornAvailable) {
       minion.rebornAvailable = false;
-      minion.keywords = minion.keywords.filter((k) => k !== 'R');
-      minion.health = 1;
-      if (minion.attack < 1) minion.attack = 1;
-      events.push({ type: 'reborn', target: minion.uid, hp: 1 });
+      const def = cards[minion.cardId];
+      const mul = minion.golden ? 2 : 1;
+      if (def) {
+        minion.attack = Math.max(0, def.attack * mul);
+        minion.health = Math.max(1, def.health * mul);
+        minion.maxHealth = minion.health;
+        minion.keywords = def.keywords.filter((k) => k !== 'R');
+        minion.divineShield = def.keywords.includes('DS');
+      } else {
+        minion.keywords = minion.keywords.filter((k) => k !== 'R');
+        minion.health = 1;
+      }
+      events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords] });
       return;
     }
     minion.dead = true;

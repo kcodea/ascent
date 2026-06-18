@@ -22,6 +22,11 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Card cues + Heckbinder + Reborn rework** — golden minions now have a gold name pill + text box;
+  **Reborn** minions show a blue aura and now return at their *base* stats (shedding combat buffs +
+  granted effects like Divine Shield). New **Heckbinder** (T4 Demon/Mech, the first dual-type) that
+  magnetizes onto a Mech *or* Demon. Battlecry/End-of-Turn proc effects are punchier, and the
+  burning-rope timer no longer stretches with monitor width.
 - **Chronos + smoother return** — new **Chronos** (T5; your End-of-Turn effects trigger an extra
   time). Also fixed the minion flicker when the board comes back from combat — it was double-firing
   its entrance animation; now it re-enters once, cleanly.

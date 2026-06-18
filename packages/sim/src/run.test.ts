@@ -546,6 +546,24 @@ describe('run loop (@game/sim)', () => {
     expect(drone.keywords).not.toContain('M'); // Magnetic itself isn't transferred
   });
 
+  it('Heckbinder (Demon/Mech) magnetizes onto a Demon or a Mech, but not other tribes', () => {
+    const heck = (): BoardCard => ({ uid: 'h', cardId: 'heckbinder', tribe: 'demon', attack: 3, health: 3, keywords: ['M'], golden: false });
+    // onto a Demon → merges (+3/+3)
+    let d: RunState = { ...createRun(1), embers: 0, shop: [], hand: [heck()], board: [{ uid: 't', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }] };
+    d = reduce(d, { type: 'play', uid: 'h', toIndex: 0 });
+    expect(d.board.length).toBe(1);
+    expect([d.board[0]!.attack, d.board[0]!.health]).toEqual([5, 5]);
+    // onto a Mech → merges
+    let m: RunState = { ...createRun(1), embers: 0, shop: [], hand: [heck()], board: [{ uid: 't', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false }] };
+    m = reduce(m, { type: 'play', uid: 'h', toIndex: 0 });
+    expect(m.board.length).toBe(1);
+    expect([m.board[0]!.attack, m.board[0]!.health]).toEqual([5, 4]);
+    // onto a Beast → no merge; plays as its own 3/3 body
+    let b: RunState = { ...createRun(1), embers: 0, shop: [], hand: [heck()], board: [{ uid: 't', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }] };
+    b = reduce(b, { type: 'play', uid: 'h', toIndex: 0 });
+    expect(b.board.length).toBe(2);
+  });
+
   it('a Magnetic minion dropped off a Mech plays as a normal body', () => {
     let s: RunState = { ...createRun(1), embers: 3, hand: [], board: [], shop: [{ uid: 'x', cardId: 'cling' }] };
     s = reduce(s, { type: 'buy', uid: 'x' });

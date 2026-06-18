@@ -189,13 +189,40 @@ describe('simulate (handoff A.3)', () => {
     expect(a.result).toBe('lose'); // the second wall survives now that the venom is spent
   });
 
-  it('Reborn (Grave Knit) returns once at 1 Health', () => {
+  it('Reborn (Grave Knit) returns once, at its base stats', () => {
     const a = run(
       [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }],
       [{ cardId: 'omen', attack: 5, health: 5, keywords: [] }],
       3,
     );
     expect(a.events.some((e) => e.type === 'reborn')).toBe(true);
+  });
+
+  it('Reborn returns at BASE stats — sheds combat buffs + granted keywords (e.g. Divine Shield)', () => {
+    // A Grave Knit (base 2/2) that entered combat buffed to a 10/3 Divine-Shield body.
+    const a = run(
+      [{ cardId: 'knit', attack: 10, health: 3, keywords: ['R', 'DS'] }],
+      [{ cardId: 'omen', attack: 4, health: 40, keywords: [] }],
+      3,
+    );
+    const reborn = a.events.find((e) => e.type === 'reborn');
+    expect(reborn).toBeDefined();
+    if (reborn && reborn.type === 'reborn') {
+      expect(reborn.attack).toBe(2); // base attack, not the buffed 10
+      expect(reborn.hp).toBe(2); // base health, not 3 (and not Hearthstone's 1)
+      expect(reborn.keywords).not.toContain('DS'); // granted Divine Shield is gone
+      expect(reborn.keywords).not.toContain('R'); // Reborn itself is spent
+    }
+  });
+
+  it('a golden Reborn minion returns at doubled base stats', () => {
+    const a = run(
+      [{ cardId: 'knit', attack: 20, health: 9, keywords: ['R'], golden: true }],
+      [{ cardId: 'omen', attack: 4, health: 60, keywords: [] }],
+      3,
+    );
+    const reborn = a.events.find((e) => e.type === 'reborn');
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([4, 4]); // 2/2 base × 2
   });
 
   it('Sporeling Deathrattle buffs a surviving friend', () => {

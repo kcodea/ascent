@@ -76,11 +76,12 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Fodder keyword — more users.** `FD` is now a keyword (Fred carries it; consume keys off it).
       Give other cheap/token minions the keyword and/or add cards that interact with Fodder, now that
       it's a reusable marker rather than one card.
-- [ ] **Dual-type minions — activate the data model.** The UI split-hue is wired (`CardView.tribe2`
-      → `.card.dual` splits the art + footer into both `--c`/`--c2` hues), but it's dormant: nothing
-      sets a second tribe yet. To use it, add `tribe2?: Tribe` to `CardDef` (+ zod schema), decide which
-      cards are dual-typed and how dual types interact with the A.6 counter matrix, then surface both
-      tribe labels/icons in the footer. (Design + balance call.)
+- [x] **Dual-type minions — data model activated.** `CardDef.tribe2` (+ zod) is live, the footer shows
+      both tribe labels/icons, the split-hue renders, and Magnetic now welds onto any friendly minion
+      sharing one of the dragged card's tribes (`magnetizesTo()`). First dual card: **Heckbinder**
+      (Demon/Mech). *Remaining design call:* dual types currently count as their **primary** tribe for
+      tribe buffs + the A.6 counter matrix (only Magnetic targeting + display use both) — decide if a
+      dual minion should count as both for buffs/counters.
 - [ ] **Threat telegraph — reintroduce, lighter.** The red omen bar was removed per the user ("for
       now"); the wave # in the HUD is all that's shown. The build spec still wants a pre-shop threat
       telegraph — bring back a slimmer/optional form later. `Omen.tsx` is retained (unrendered) so the
@@ -97,14 +98,12 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop
       `<id>.png` into `packages/ui/src/art/minions/` → it replaces that card's pixel sprite
       everywhere; falls back to the sprite when absent). **Every source illustration that maps to an
-      existing card id is now wired** (27: alley, broker, buddy, bulwark, chronos, cling, combinator,
-      drone, drummer, emberpouch, feed, fred, grim, imp, karwind, kennel, moneybot, omen, pack6,
-      ritualist, sandbag, spiritfire, spore, stray, sylus, weaver, whelp). The rest still use pixel
-      sprites and
-      have **no source art yet**. One illustration sits in the source folder with **no matching card
-      id** — `Heckbinder` — wire it once the user confirms which card it's for (needs a card, not just
-      wiring). Source art lives in `C:\Game Assets\Ascent Art\Minions`. **Hero portraits** use a
-      parallel pipeline (`art/heroes/<id>.png` → `heroArt()`); the Warden portrait is wired.
+      existing card id is now wired** (28: alley, broker, buddy, bulwark, chronos, cling, combinator,
+      drone, drummer, emberpouch, feed, fred, grim, heckbinder, imp, karwind, kennel, moneybot, omen,
+      pack6, ritualist, sandbag, spiritfire, spore, stray, sylus, weaver, whelp). The rest still use
+      pixel sprites and have **no source art yet** — every source illustration now maps to a card.
+      Source art lives in `C:\Game Assets\Ascent Art\Minions`. **Hero portraits** use a parallel
+      pipeline (`art/heroes/<id>.png` → `heroArt()`); the Warden portrait is wired.
 - [ ] **Divine Shield art style — bubble vs. crest.** The effect-art overlay pipeline shipped
       (`art/effects/*.png` → `effectArt()`; `.dsfx` screen-blends a glowing aura over any `DS` minion,
       live on Spare Part Drone). The current asset is a shield **crest** shape; if a rounder "bubble/dome"

@@ -154,7 +154,7 @@ export const Card = memo(function Card({
   ];
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.spell ? ' spellcard' : ''}${card.tribe2 ? ' dual' : ''}`}
+      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}
@@ -223,7 +223,14 @@ export const Card = memo(function Card({
             <span className={`atk${statCls(card.attack, card.baseAttack)}`}>{card.attack}</span>
             <span className="ctype">
               <Icon name={TRIBE_ICON[card.tribe]} />
-              {TRIBE_LABEL[card.tribe]}
+              {card.tribe2 ? (
+                <>
+                  {TRIBE_LABEL[card.tribe]} <span className="ctype-sep">/</span> <Icon name={TRIBE_ICON[card.tribe2]} />
+                  {TRIBE_LABEL[card.tribe2]}
+                </>
+              ) : (
+                TRIBE_LABEL[card.tribe]
+              )}
             </span>
             <span className={`hp${statCls(card.health, card.baseHealth)}`}>{card.health}</span>
           </>

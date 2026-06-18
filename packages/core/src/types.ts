@@ -103,6 +103,9 @@ export interface CardDef {
   id: string;
   name: string;
   tribe: Tribe;
+  /** Optional second tribe — a dual-type minion (e.g. Heckbinder = Demon/Mech). Counts as both
+   *  tribes for tribe checks (Magnetic targeting, tribe buffs) and renders a split-hue card. */
+  tribe2?: Tribe;
   tier: Tier;
   attack: number;
   health: number;
@@ -201,7 +204,7 @@ export type CombatEvent =
   | { type: 'shield'; target: string }
   | { type: 'shieldUp'; target: string }
   | { type: 'poison'; target: string }
-  | { type: 'reborn'; target: string; hp: number }
+  | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[] } // returns at base stats
   | { type: 'death'; target: string }
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous

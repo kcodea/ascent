@@ -18,7 +18,7 @@ export function Unit({
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
   const view: CardView = {
-    name: u.name, cardId: u.cardId, tribe: u.tribe, attack: u.attack, health: Math.max(0, u.health),
+    name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2, attack: u.attack, health: Math.max(0, u.health),
     keywords: u.keywords, golden: u.golden,
     // Summon-buff cards (Kennelmaster) show their live magnitude — `summonBonus` can climb
     // mid-fight via Avenge, so the combat card updates too.

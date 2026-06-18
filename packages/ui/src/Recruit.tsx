@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, magnetizesTo, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText } from './cardText';
 import { HudBar } from './HudBar';
@@ -39,7 +39,7 @@ function shopView(
   // stats (green) and carries them in when bought.
   const cb = cardBuffs?.[c.id] ?? { attack: 0, health: 0 };
   return {
-    name: c.name, cardId: c.id, tribe: c.tribe,
+    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: c.attack + (card.atk ?? 0) + cb.attack, health: c.health + (card.hp ?? 0) + cb.health,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     text: c.text, cost: CONFIG.minionCost, tier: c.tier,
@@ -52,7 +52,7 @@ function instView(inst: BoardCard): CardView {
   // A summon-buff card (Kennelmaster) shows its current boosted magnitude (green via {{…}}).
   const text = summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
   return {
-    name: c.name, cardId: c.id, tribe: inst.tribe, attack: inst.attack, health: inst.health,
+    name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2, attack: inst.attack, health: inst.health,
     keywords: inst.keywords, text, golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
@@ -315,14 +315,14 @@ export function Recruit() {
       const zone = zoneAt(e.clientX, e.clientY);
       document.body.classList.remove('dragging'); // cursor reverts on release
 
-      // Magnetic merge: a Cling Drone dropped onto a friendly Mech first "lands", then slides
-      // into the Mech (left→right) with electricity, and only then merges (the buff lands).
+      // Magnetic merge: a Magnetic minion dropped onto a friendly minion sharing one of its tribes
+      // first "lands", then slides in (left→right) with electricity, and only then merges.
       const magIdx =
         d.source === 'hand' && d.view.keywords.includes('M') && zone === 'warband'
           ? warbandIndexAt(e.clientX)
           : -1;
       const magMech = magIdx >= 0 ? run.board[magIdx] : undefined;
-      if (magMech && magMech.tribe === 'mech') {
+      if (magMech && magnetizesTo(d.view.cardId, magMech.tribe)) {
         const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${magMech.uid}"]`);
         if (el) {
           const r = el.getBoundingClientRect();
@@ -546,13 +546,14 @@ export function Recruit() {
   // and an empty drop-slot opens at the live insertion point while over the warband.
   // Dropping lands the card straight into that slot — no post-drop "swap". A played
   // hand card opens the same slot. ---
+  const magHoverTarget = drag?.active && drag.source === 'hand' && drag.view.keywords.includes('M') && overZone === 'warband'
+    ? run.board[warbandIndexAt(drag.x)]
+    : undefined;
   const wouldMagnetize =
     !!drag?.active &&
     !magSlide && // once the slide starts, the warband settles (no more shove preview)
-    drag.source === 'hand' &&
-    drag.view.keywords.includes('M') &&
-    overZone === 'warband' &&
-    run.board[warbandIndexAt(drag.x)]?.tribe === 'mech';
+    !!magHoverTarget &&
+    magnetizesTo(drag.view.cardId, magHoverTarget.tribe);
   // Casting a targeted spell from the hand: highlight the friendly minion under the
   // cursor (it's the target), and don't treat it as a board-insertion drag.
   const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && drag.view.target === 'friendly';

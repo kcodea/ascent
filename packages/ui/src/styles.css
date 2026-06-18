@@ -129,7 +129,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
    a live flame (halo + hot core + rising embers) and a glowing char edge trailing behind it. The
    extra vertical margin gives the flame room to lick up without crowding the tavern row. */
 .rope {
-  position: relative; flex: none; align-self: center; width: 86%; height: calc(8 * var(--u));
+  /* Capped width (matches the board's content frame) so it doesn't stretch to the monitor edge on
+     wide screens — it ends around the card row rather than running the full viewport. */
+  position: relative; flex: none; align-self: center; width: min(1180px, 92vw); height: calc(8 * var(--u));
   margin: calc(11 * var(--u)) 0 calc(6 * var(--u)); z-index: 4; border-radius: 999px; overflow: visible;
   background:
     repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
@@ -235,6 +237,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
   50% { box-shadow: 0 0 34px 9px rgba(255, 221, 110, 1), 0 0 0 3px rgba(255, 221, 110, 1), 0 3px 0 var(--shadow); }
 }
 @keyframes dswash { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
+/* Reborn — a soft blue aura around the card (recruit + combat). In combat it drops the moment the
+   minion Reborns (it sheds the 'R' keyword), so the glow marks "still has its one revival left". */
+.card.reborncard { box-shadow: 0 0 24px 5px rgba(86, 150, 235, 0.8), 0 0 0 3px rgba(120, 170, 242, 0.92), 0 3px 0 var(--shadow); animation: rebornglow 1.8s ease-in-out infinite; }
+@keyframes rebornglow {
+  0%, 100% { box-shadow: 0 0 18px 3px rgba(86, 150, 235, 0.6), 0 0 0 2px rgba(120, 170, 242, 0.8), 0 3px 0 var(--shadow); }
+  50% { box-shadow: 0 0 30px 8px rgba(86, 150, 235, 0.95), 0 0 0 3px rgba(140, 185, 250, 1), 0 3px 0 var(--shadow); }
+}
 /* cost badge — a teal Mana circle overhanging the top-left corner */
 .cost { position: absolute; top: -20px; left: -16px; width: 60px; height: 60px; z-index: 6; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
 .cost .costn { font-family: 'Outfit'; font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
@@ -296,7 +305,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* golden (tripled) minion */
 .card.golden { border-color: #e7b53d; box-shadow: 0 0 0 2px #f4cf6a, 0 3px 0 var(--shadow), 0 0 18px -2px rgba(231, 181, 61, 0.7); }
 .card.golden .art { background: color-mix(in srgb, #f4cf6a 32%, var(--card)); }
-.card.golden .cn { color: #b07d10; }
+/* golden name pill — filled gold instead of just gold text */
+.card.golden .cn { background: linear-gradient(180deg, #ffe9a6, #f1cb5e); color: #6e5008; box-shadow: 0 1px 3px rgba(120, 80, 10, 0.32); }
+/* golden text box — the description sits in a soft gold panel */
+.card.golden .desc { background: color-mix(in srgb, #f4cf6a 24%, var(--card)); border-radius: 8px; padding: 3px 6px; }
+.card.golden .cfoot { background: color-mix(in srgb, #f4cf6a 22%, var(--card)); }
 
 /* Discover spell — an arcane frame so it reads as a spell, not a minion */
 .card.spellcard { border-color: var(--t-demon); box-shadow: 0 0 0 2px color-mix(in srgb, var(--t-demon) 55%, transparent), 0 3px 0 var(--shadow), 0 0 18px -3px color-mix(in srgb, var(--t-demon) 70%, transparent); }
@@ -414,26 +427,26 @@ canvas.spr { image-rendering: pixelated; display: block; }
    a few sparks fanning down from its base. Renders behind the card so it reads as "underneath". */
 .bcryfx { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: visible; }
 .bc-glow {
-  position: absolute; left: 50%; bottom: -22px; transform: translateX(-50%) scale(0.4);
-  width: 82%; height: 46px; border-radius: 50%; filter: blur(1px);
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--c) 88%, #fff) 0%, color-mix(in srgb, var(--c) 55%, transparent) 46%, transparent 72%);
-  animation: bcglow 0.76s ease-out forwards;
+  position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%) scale(0.4);
+  width: 94%; height: 60px; border-radius: 50%; filter: blur(1px);
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--c) 95%, #fff) 0%, color-mix(in srgb, var(--c) 62%, transparent) 48%, transparent 74%);
+  animation: bcglow 0.8s ease-out forwards;
 }
 @keyframes bcglow {
   0% { opacity: 0; transform: translateX(-50%) scale(0.4); }
-  28% { opacity: 1; }
-  100% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(1.55); }
+  26% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(13px) scale(2); }
 }
 .bc-mote {
-  position: absolute; left: 50%; bottom: -8px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%;
+  position: absolute; left: 50%; bottom: -10px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%;
   background: radial-gradient(circle, #fff 0%, var(--c) 60%, transparent 76%);
-  box-shadow: 0 0 11px 2px color-mix(in srgb, var(--c) 70%, transparent);
-  animation: bcmote 0.76s ease-out forwards;
+  box-shadow: 0 0 15px 3px color-mix(in srgb, var(--c) 80%, transparent);
+  animation: bcmote 0.8s ease-out forwards;
 }
 @keyframes bcmote {
   0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.6); }
   30% { opacity: 1; }
-  100% { opacity: 0; transform: rotate(var(--a)) translateY(40px) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(52px) scale(1); }
 }
 
 /* A card a combat Deathrattle just handed you (Arcane Weaver → Spirit Fire) — a one-shot accent
@@ -511,6 +524,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: 'Outfit'; font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 17px; height: 17px; color: var(--c); }
 .ctype.spell { flex: 1; color: var(--t-demon); font-size: 15px; }
+/* dual-type footer (Heckbinder = Demon/Mech): two labels + icons, so shrink to fit; second icon is the --c2 hue */
+.card.dual .ctype { font-size: 10.5px; gap: 3px; letter-spacing: 0.01em; }
+.card.dual .ctype svg { width: 13px; height: 13px; }
+.card.dual .ctype svg:last-of-type { color: var(--c2); }
+.ctype-sep { opacity: 0.5; font-weight: 700; }
 /* The status tray, tucked into the bottom-LEFT corner so the hand owns the whole
    bottom-centre: Embers + Hero on the top row, the Resolve HP bar across the bottom.
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */

@@ -77,6 +77,7 @@ export const CardDefSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   tribe: TribeSchema,
+  tribe2: TribeSchema.optional(),
   tier: z.union([
     z.literal(1),
     z.literal(2),

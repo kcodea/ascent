@@ -70,6 +70,20 @@ export const DEMONS: CardDef[] = [
     text: 'Each time a friend dies, summon a 1/1 Imp.',
   },
   {
+    // Dual-type Demon/Mech. Magnetic — and because it's also a Mech it can weld onto a friendly
+    // Mech *or* Demon, merging its 3/3 in. A flexible glue body for either tribe.
+    id: 'heckbinder',
+    name: 'Heckbinder',
+    tribe: 'demon',
+    tribe2: 'mech',
+    tier: 4,
+    attack: 3,
+    health: 3,
+    keywords: ['M'],
+    effects: [],
+    text: 'Magnetize onto a friendly **Mech** or **Demon**.',
+  },
+  {
     id: 'maw',
     name: 'Maw of the Pit',
     tribe: 'demon',

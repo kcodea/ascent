@@ -5,6 +5,40 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Rope width cap, +30% proc flourish, golden/Reborn card cues, Reborn-at-base, dual-type Heckbinder
+- **Rope no longer scales with the monitor.** It was `width: 86%` of the viewport, so it stretched
+  edge-to-edge on wide screens. Capped to `min(1180px, 92vw)` (the board's content frame) — verified
+  live: on a 1907px monitor it renders at exactly 1180px instead of ~1640px.
+- **Proc flourish ~30% more noticeable.** The under-card Battlecry / End-of-Turn sigil (`.bcryfx`)
+  got bigger + brighter: glow 46→60px (expand 1.55×→2×), motes 9→12px with a larger halo, travel
+  40→52px, hotter core mix.
+- **Golden (tripled) cards read at a glance:** the name pill is now a filled gold gradient (not just
+  gold text) and the description sits in a soft gold panel, with a gold-tinted footer.
+- **Reborn cards show a pulsing blue aura** (`.card.reborncard`, keyed off the `R` keyword) — recruit
+  + combat. In combat it drops the instant the minion Reborns (it sheds `R`), so the glow marks "one
+  revival left."
+- **Reborn now returns at BASE stats.** A minion that died Reborn used to come back at its current
+  (buffed) attack and 1 health, keeping granted keywords. Now it returns at its *printed* card stats
+  and base keywords — shedding all combat buffs and granted effects (Divine Shield, etc.); golden
+  returns at doubled base. So a 2/1 buffed to a 10/3 Divine-Shield body comes back a plain 2/1. The
+  `reborn` event now carries `attack` + `keywords` so the combat replay applies the reset. (This is
+  the "combat stats are temporary" rule; recruit-permanent stats live on the run board, untouched.)
+  Tested (base reset, granted-DS shed, golden = 2× base).
+- **New: Heckbinder** (T4 Demon/Mech, 3/3, Magnetic) — the first **dual-type** minion. Added
+  `CardDef.tribe2` (+ zod schema); a Magnetic minion now welds onto any friendly minion sharing one
+  of its tribes (new `magnetizesTo()`), so Heckbinder merges onto a **Mech or a Demon** (Cling Drone
+  still Mech-only). Renders the split-hue card + a "Demon / Mech" footer. Art wired. Tested
+  (magnetizes to demon + mech, not beast).
+- **Mechanics checks (items 5 & 6):** there's currently **no way to destroy a board minion during
+  the shop phase** (selling removes it without a Deathrattle; Consume eats tavern Fodder; triple /
+  magnetize aren't destroys), so those rules have no trigger yet. The model they describe already
+  holds: recruit-phase Deathrattle factories apply *permanent* stat changes, and combat buffs are
+  combat-only (now reinforced by Reborn-at-base). The "Reborn lost permanently unless tripled" rule
+  would need a per-card flag + restore-on-triple once a shop-destroy mechanic exists — flagged for
+  the user.
+- `typecheck` + `lint` + `test` (**113**) + `build:web` clean; rope cap + Heckbinder load verified
+  live, no console errors.
+
 ### Better burning-rope timer — real flame + braided fuse, repositioned to clear the rows
 The last-15s turn timer rope was a thin faint line with a small round glow dot crammed against the
 tavern row. Rebuilt it:

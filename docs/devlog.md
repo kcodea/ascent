@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Tavern control bar restyle (toward the Pixel Arena mockup)
+- Reworked the shop control bar to match the user's mockup. Cost/tier numbers are now **large, bold,
+  colored inline** with **no pill** (the earlier teal-pill cost treatment is dropped). The **Refresh**
+  cost is bold teal Mana; the **current-tier** indicator's number is bold tangerine.
+- The current-tier indicator (`.tavernbox`) gained a **house icon**, the bigger orange tier number, and
+  a solid border (was dashed). The **upgrade button** got the same house icon (new `house` glyph added
+  to `Icon`) and keeps **"Tavern Up" + the teal Mana cost** (→ "Tavern MAX" at cap).
+- **Design note:** the mockup's leftmost "Tavern · Tier 6" is the *current-tier indicator*, not the
+  upgrade button — so the "Tavern · Tier N" wording lives there, and the upgrade button stays "Tavern
+  Up" to avoid showing "Tavern · Tier" twice. (Together they satisfy "tier wording + cost": the tier on
+  the indicator, the cost on the button.)
+- `typecheck` + `lint` clean; verified live — bar reads "🏠 Tavern · Tier 1 · Refresh 1 · Freeze · 🏠
+  Tavern Up 5 · End Turn" with bold colored numbers, and a forced re-render + real roll logged zero new
+  console errors.
+
 ### Gnasher vs Reborn, golden Brood Matron, Imp rename, Spirit of the Pack cut
 - **Gnasher re-attacks after killing a Reborn target.** Dropping a Reborn minion to 0 revives it
   (`killOrReborn` returns it at base stats and leaves `dead` false), so the on-kill check

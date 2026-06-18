@@ -24,6 +24,7 @@ const ICONS: Record<string, ReactNode> = {
   refresh: <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M20 11a8 8 0 10-1 5M20 4v5h-5" />,
   freeze: <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M12 2v20M4 7l16 10M20 7L4 17" />,
   up: <path fill="currentColor" d="M12 3l9 10h-6v8H9v-8H3z" />,
+  house: <path fill="currentColor" d="M12 3.2L2.8 11H5.2V20.5H10V15H14V20.5H18.8V11H21.2Z" />,
   sword: <path fill="currentColor" d="M14 3h7v7l-3.5-1L9 17l1 3-3 1-1-3 8-8.5L14 6z" />,
   paw: (
     <>

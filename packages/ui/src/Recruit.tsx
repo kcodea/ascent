@@ -861,6 +861,7 @@ export function Recruit() {
       {!fighting ? (
       <div className={`shopctl${inCombat ? ' closing' : ''}`}>
         <span className="tavernbox">
+          <Icon name="house" />
           Tavern · Tier <b>{run.tier}</b>
         </span>
         <button className="btn big" disabled={run.embers < CONFIG.refreshCost || timeUp} onClick={() => dispatch({ type: 'roll' })}>
@@ -876,7 +877,7 @@ export function Recruit() {
           disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp}
           onClick={() => dispatch({ type: 'upgrade' })}
         >
-          <Icon name="up" />
+          <Icon name="house" />
           {run.tier >= CONFIG.maxTier ? 'Tavern MAX' : (
             <>
               Tavern Up <span className="c"><Icon name="mana" />{run.upgradeCost}</span>

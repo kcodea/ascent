@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Tavern bar restyle** — the shop controls now match the Pixel Arena mockup: bold colored inline
+  numbers (no pill), the current-tier indicator and upgrade button both wear a house icon, and the
+  Refresh cost + tier number get the same emphasis (teal cost, tangerine tier).
 - **Gnasher fix + Brood Matron + Imp** — Gnasher now keeps attacking after killing a **Reborn** target
   (the revive still counts as a kill); a **golden Brood Matron** breeds two Imps per death; the Imp Scrap
   token is renamed **Imp**; Brood Matron + Imp got art; **Spirit of the Pack** was cut; and the **Tavern

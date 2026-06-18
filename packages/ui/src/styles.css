@@ -135,8 +135,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .shopctl { display: flex; align-items: stretch; justify-content: center; gap: calc(14 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; position: relative; z-index: 6; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */
-.tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(22 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px dashed var(--line); }
-.tavernbox b { color: var(--acc-dk); }
+.tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }
+.tavernbox svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--ink2); }
+.tavernbox b { color: var(--acc); font-size: calc(21 * var(--u)); }
 .warband-hint { color: var(--ink3); font-family: 'Outfit'; font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.02em; }
 /* burning rope (last 15s of the turn) — a braided fuse on the board's centre line (in flow between
    the offers and the warband, so it lands on the split at any viewport) that burns left→right with
@@ -203,10 +204,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
   100% { transform: translate(calc(-50% + var(--ex, 0px)), calc(-28 * var(--u))) scale(0.2); opacity: 0; }
 }
 .btn.big svg { width: 23px; height: 23px; }
-.btn.big .c { font-size: 17px; display: inline-flex; align-items: center; gap: calc(3 * var(--u)); }
-/* The Tavern Up cost is emphasised: larger, bolder, in a teal Mana pill so the upgrade price pops. */
-.btn.big.tavernup .c { font-size: 22px; font-weight: 800; gap: calc(4 * var(--u)); padding: calc(2 * var(--u)) calc(9 * var(--u)); border-radius: calc(10 * var(--u)); background: color-mix(in srgb, var(--mana) 24%, transparent); border: 1.5px solid color-mix(in srgb, var(--mana-dk) 45%, transparent); }
-.btn.big.tavernup .c svg { width: 23px; height: 23px; color: var(--mana-dk); }
+/* Tavern-control costs + tier number: large, bold, colored inline numbers — no pill (matches the
+   Pixel Arena mockup). Costs are teal Mana; the Tavern's next-tier number is tangerine. */
+.btn.big .c { font-size: 22px; font-weight: 800; display: inline-flex; align-items: center; gap: calc(3 * var(--u)); }
+.btn.big .c svg { width: 21px; height: 21px; color: var(--mana-dk); }
 .btn.big.endturn { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
 .btn.big.endturn svg { color: #fff; }
 .btn.big.endturn:hover { border-color: var(--acc-dk); filter: brightness(1.05); }

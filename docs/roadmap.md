@@ -31,6 +31,9 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 
 ## M3 — meta
 
+- [x] **Shareable web build** — `npm run package:itch` builds with a relative base and zips an
+      itch.io-ready `ascent-itch.zip` (`index.html` at root, forward-slash entries). Good enough to hand
+      a playtest build to friends; a proper hosted/versioned deploy is still future work.
 - [ ] Unlocks — cards / heroes gated by progression.
 - [ ] Ascension modifiers — escalating run-difficulty tiers.
 - [ ] Daily seeds — shareable, deterministic runs (the engine already threads one seed everywhere).

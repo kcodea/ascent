@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Triple Reward glow + itch.io packaging
+- **Triple Reward card glow.** The Discover/triple-reward spell now wears the **golden frame + gold
+  text box** (like a tripled minion — gold border, gold body tint, gold name pill + footer) and a
+  **bright, vibrant orange glow that pulses** (`.card.triplecard`, keyed off the `discoverspell` id,
+  overriding the generic purple spell look). Verified live: rules present + `tripleglow` animation active.
+- **itch.io packaging.** The production build now uses a **relative base** (`base: './'` on `build` only;
+  dev stays absolute) so every asset resolves from itch's CDN sub-path. Confirmed the output is fully
+  relative — `index.html` → `./assets/…`, CSS → `../board.jpg` / `../cursors/…`, JS art via
+  `import.meta.url`, no leading-slash refs. Added `npm run package:itch` (build + a small PowerShell
+  zipper, `scripts/package-itch.ps1`) that emits **`ascent-itch.zip`** with `index.html` at the zip root
+  and **forward-slash entries** (PowerShell's `Compress-Archive` writes backslashes, which break on
+  itch's Linux unzip — the script writes the zip manually to avoid that). Upload that zip to itch.io as
+  an HTML game with "play in browser". (Zip + dist are gitignored.)
+- `typecheck` + `lint` + `test` (**116**) + `build:web` clean.
+
 ### Golden-magnetize Discover, beefier Reborn tears + Venomous drip, Triple Reward rename/art/dynamic text
 - **Golden Magnetic now grants its Discover.** Welding a golden Magnetic minion (e.g. a tripled Cling
   Drone) onto a host returned early in the reducer, skipping the `grantGoldenDiscover` that a normal

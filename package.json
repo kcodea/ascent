@@ -20,6 +20,7 @@
     "balance": "tsx packages/tools/src/balance.ts",
     "dev": "npm run dev -w apps/web",
     "build:web": "npm run build -w apps/web",
+    "package:itch": "npm run build:web && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-itch.ps1",
     "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",
     "lint": "eslint ."
   },

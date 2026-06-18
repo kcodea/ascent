@@ -6,7 +6,10 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 // Resolve workspace packages straight to their TS source so Vite compiles them
 // directly (no per-package build step). Boundaries stay enforced by imports.
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // Relative base for the production build so the bundle works when served from a
+  // sub-path (e.g. itch.io's CDN, which hosts the game under /html/<id>/). Dev stays absolute.
+  base: command === 'build' ? './' : '/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -16,4 +19,4 @@ export default defineConfig({
       '@game/ui': r('../../packages/ui/src/index.ts'),
     },
   },
-});
+}));

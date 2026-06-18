@@ -369,6 +369,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card.spellcard { border-color: var(--t-demon); box-shadow: 0 0 0 2px color-mix(in srgb, var(--t-demon) 55%, transparent), 0 3px 0 var(--shadow), 0 0 18px -3px color-mix(in srgb, var(--t-demon) 70%, transparent); }
 .card.spellcard .art { background: radial-gradient(120% 90% at 50% 25%, color-mix(in srgb, var(--t-demon) 40%, var(--card)), color-mix(in srgb, var(--t-demon) 18%, var(--card))); border-radius: 11px 11px 0 0; }
 .card.spellcard .ctype.spell { color: var(--t-demon); font-weight: 800; }
+/* Triple Reward — the triple/golden reward spell wears the golden frame + text box (like a tripled
+   minion) and a bright, vibrant orange glow that pulses. Overrides the generic spell (purple) look. */
+.card.triplecard { z-index: 5; border-color: #e7b53d; background: color-mix(in srgb, #f4cf6a 22%, var(--card)); box-shadow: 0 0 0 2px #f4cf6a, 0 0 26px 6px rgba(255, 138, 30, 0.9), 0 3px 0 var(--shadow); animation: tripleglow 1.5s ease-in-out infinite; }
+.card.triplecard .art { background: color-mix(in srgb, #f4cf6a 34%, var(--card)); border-radius: 11px 11px 0 0; }
+.card.triplecard .cn { background: linear-gradient(180deg, #ffe9a6, #f1cb5e); color: #6e5008; box-shadow: 0 1px 3px rgba(120, 80, 10, 0.32); }
+.card.triplecard .cfoot { background: color-mix(in srgb, #f4cf6a 30%, var(--card)); }
+.card.triplecard .ctype.spell { color: var(--acc-dk); }
+@keyframes tripleglow {
+  0%, 100% { box-shadow: 0 0 0 2px #f4cf6a, 0 0 20px 4px rgba(255, 138, 30, 0.72), 0 3px 0 var(--shadow); }
+  50% { box-shadow: 0 0 0 2px #ffd87a, 0 0 42px 13px rgba(255, 150, 42, 1), 0 3px 0 var(--shadow); }
+}
 
 /* Discover overlay (triple reward) */
 .discover-ov { position: fixed; inset: 0; background: rgba(40, 28, 12, 0.5); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 50; animation: fadein 0.2s ease; }

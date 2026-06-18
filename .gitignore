@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+ascent-itch.zip
 *.tsbuildinfo
 *.log
 .DS_Store

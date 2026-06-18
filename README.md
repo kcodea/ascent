@@ -16,12 +16,16 @@ npm run balance      # headless: probe the A.6 counter matrix
 npm run bot          # headless: a greedy bot plays full runs
 npm run harness      # headless: narrated combat event log + determinism proof
 npm run typecheck && npm run lint
+npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in browser")
 ```
 
 ## Recent changes
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Triple Reward glow + itch build** — the Triple Reward spell now wears a golden frame/text-box with a
+  vibrant pulsing orange glow. Added `npm run package:itch`, which builds and zips an itch.io-ready
+  **`ascent-itch.zip`** (relative asset paths, `index.html` at the zip root).
 - **Triple Reward + drip FX** — renamed the Discover spell to **Triple Reward** (with art); its text now
   names the exact tier it Discovers from. Welding a **golden** Magnetic minion now still grants that
   reward. The **Reborn** tears are bigger and livelier, and **Venomous** minions now constantly drip

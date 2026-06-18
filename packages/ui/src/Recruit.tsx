@@ -127,8 +127,10 @@ export function Recruit() {
   const inCombat = run.phase === 'combat';
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
-  const [resetting, setResetting] = useState(false);
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Log overlay
+  // Per-card stat snapshot for the recruit-phase green buff flash (declared up here so the
+  // combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
+  const prevStatsRef = useRef<Map<string, number>>(new Map());
   const prevPhaseRef = useRef(run.phase);
   const findEl = useCallback(
     (uid: string): Element | null =>
@@ -159,15 +161,18 @@ export function Recruit() {
     };
   }, [inCombat, run.lastCombat]);
 
-  // Returning to recruit after a fight: play a one-shot board "reset" on the warband, and
-  // pop in any cards a combat Deathrattle added to the hand (uids not present pre-combat).
-  // useLayoutEffect (not useEffect) so `resetting` is applied *before* the first paint of the
-  // recruit board — otherwise the re-mounting warband cards paint their base `cardpop` first
-  // and then swap to `boardreset` when the class lands a tick later, which reads as a jank/flash.
+  // Returning to recruit after a fight. The warband re-mounts (it was combat Units) and re-enters
+  // via the base `cardpop` — a single mount animation, so it can't re-fire from a class toggle (the
+  // old `resetting`/`boardreset` toggle flashed twice: once on mount, again when the class cleared).
+  // Here we only (a) pop in any cards a combat Deathrattle added to the hand, and (b) re-sync the
+  // stat snapshot so the green buff-flash doesn't spuriously fire on the cards coming back in.
+  // useLayoutEffect so the snapshot is synced before the buff-flash passive effect reads it.
   useLayoutEffect(() => {
     if (prevPhaseRef.current === 'combat' && run.phase === 'recruit') {
       prevPhaseRef.current = run.phase;
-      setResetting(true);
+      const snap = new Map<string, number>();
+      for (const c of [...run.board, ...run.hand]) snap.set(c.uid, c.attack + c.health);
+      prevStatsRef.current = snap;
       const before = handBeforeCombatRef.current;
       const granted = run.hand.filter((c) => !before.has(c.uid)).map((c) => c.uid);
       if (granted.length > 0) {
@@ -180,12 +185,9 @@ export function Recruit() {
           });
         }, 1100);
       }
-      const t = window.setTimeout(() => setResetting(false), 650);
-      return () => window.clearTimeout(t);
     }
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
-  const prevStatsRef = useRef<Map<string, number>>(new Map());
   const flipRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
@@ -861,7 +863,7 @@ export function Recruit() {
       )}
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        <div className={`row warband${resetting ? ' resetting' : ''}`}>
+        <div className="row warband">
           {inCombat ? (
             replay.frame.player.map((u) => (
               <Unit

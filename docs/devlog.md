@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Chronos (End-of-Turn doubler) + a real fix for the return-to-shop minion flicker
+- **Return-to-shop flicker — root cause found + fixed.** Frame-by-frame capture of the combat→recruit
+  return showed the warband card playing `boardreset` cleanly (opacity 0.45→1)… and then, at ~650ms
+  when the `resetting` class was *removed*, its `animation` reverted to the base `cardpop` and
+  **re-fired from opacity 0** — a second flash. The toggle itself was the bug: changing a card's
+  `animation` property (boardreset ↔ cardpop) restarts it. Fix: **drop the `resetting`/`boardreset`
+  toggle entirely** — the warband re-mounts and re-enters via the base `cardpop` once (no class to
+  toggle, so it can't re-fire), and the stat snapshot is re-synced on the transition so the green
+  buff-flash doesn't spuriously fire on the cards coming back in. Verified by capture: a single
+  `cardpop` 0→1 that settles at 1.0 with no second flash (previously opacity dropped back to 0 at
+  650ms). No console errors.
+- **New: Chronos** (T5 neutral 1/6) — *your End-of-Turn effects trigger 1 more time* (golden: 2 more;
+  multiple Chronos do **not** stack — best one counts, mirroring Drakko). `applyEndOfTurn` now repeats
+  each end-of-turn effect `chronosRepeats(state)` times, so e.g. Ritualist with a Chronos buffs Fodder
+  +2/+2 per turn, Combinator welds two rounds of Cling Drones, etc. Art wired. Tested.
+- `typecheck` + `lint` + `test` (**108**) + `build:web` clean.
+
 ### Fix: end-of-turn proc flourish now actually shows; smooth board return from combat
 Two follow-up fixes to the previous batch.
 - **End-of-turn flourish was invisible.** It was triggered on *combat entry*, but the warband flips

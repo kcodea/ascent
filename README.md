@@ -22,6 +22,9 @@ npm run typecheck && npm run lint
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Chronos + smoother return** — new **Chronos** (T5; your End-of-Turn effects trigger an extra
+  time). Also fixed the minion flicker when the board comes back from combat — it was double-firing
+  its entrance animation; now it re-enters once, cleanly.
 - **5 new cards + Venomous** — **Buddy Buddy** (add a random T1 minion), **Combinator** (end of turn,
   magnetize Cling Drones onto your Mechs), **Grim** (Deathrattle: +6/+6 to your Beasts), **Karwind**
   (buffs your Dragons every time a Battlecry fires — twice with Drakko), and **Money Bot** (+1 max

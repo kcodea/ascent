@@ -338,6 +338,14 @@ function drummerRepeats(state: RunState): number {
   return 1 + bonus;
 }
 
+/** Chronos: your End-of-Turn effects trigger extra times. A golden Chronos adds 2; multiple
+ *  Chronos do NOT stack (only the best single one counts) — mirrors Drakko. Returns the count. */
+function chronosRepeats(state: RunState): number {
+  const chronos = state.board.filter((c) => c.cardId === 'chronos');
+  const bonus = chronos.some((c) => c.golden) ? 2 : chronos.length > 0 ? 1 : 0;
+  return 1 + bonus;
+}
+
 /** Notify Battlecry-triggered watchers (Karwind) that a Battlecry just resolved. Call once per
  *  Battlecry *fire* — including each Drakko repeat — so a doubled Battlecry procs Karwind twice. */
 function fireBattlecryTriggered(state: RunState): void {
@@ -448,13 +456,15 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
   const ctx = makeContext(state);
+  const repeats = chronosRepeats(state); // Chronos: End-of-Turn effects trigger extra times
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
     for (const effect of def.effects) {
       if (effect.on !== 'endOfTurn') continue;
       const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+      if (!fn) continue;
+      for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card });
     }
   }
 }

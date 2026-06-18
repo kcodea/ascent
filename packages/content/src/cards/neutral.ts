@@ -75,4 +75,17 @@ export const NEUTRAL: CardDef[] = [
     effects: [],
     text: '**In combat,** your Deathrattles proc **1 more** time.',
   },
+  {
+    // End-of-Turn doubler (recruit). Golden triggers 2 more times; multiple Chronos do NOT
+    // stack (best one counts) — mirrors Drakko. Resolved in `applyEndOfTurn` (@game/sim).
+    id: 'chronos',
+    name: 'Chronos',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 1,
+    health: 6,
+    keywords: [],
+    effects: [],
+    text: 'Your **End of Turn** effects trigger **1 more** time.',
+  },
 ];

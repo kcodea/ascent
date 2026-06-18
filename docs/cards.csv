@@ -14,6 +14,7 @@ echo,Echo Warden,minion,neutral,3,2,4,,,"In combat, your summon effects make 1 m
 buddy,Buddy Buddy,minion,neutral,3,3,4,,,Battlecry: add a random Tier 1 minion to your hand.,battlecryGainRandomMinion tier 1,Battlecry: add 2 random Tier 1 minions to your hand.,gains 2 random T1 minions,TRUE
 drummer,Drakko the Drummer,minion,neutral,5,2,4,,,Your Battlecries fire 1 more time.,Battlecries fire +1 time (fire 2x total),Your Battlecries fire 2 more time.,Battlecries fire 3x; does NOT stack with other Drakkos,TRUE
 sylus,Sylus the Reaper,minion,neutral,5,4,5,,,"In combat, your Deathrattles proc 1 more time.",Deathrattles proc +1 time,"In combat, your Deathrattles proc 2 more time.",Deathrattles +2 procs; DOES stack with other Sylus,TRUE
+chronos,Chronos,minion,neutral,5,1,6,,,Your End of Turn effects trigger 1 more time.,End-of-Turn effects fire +1 time (no stack — best Chronos),Your End of Turn effects trigger 2 more time.,End-of-Turn fires 3x; does NOT stack with other Chronos,TRUE
 #
 # === BEASTS ===
 alley,Alleycat,minion,beast,1,1,1,,,Battlecry: summon a 1/1 Stray next to it.,battlecrySummon stray x1,Battlecry: summon a 1/1 Stray next to it.,summons 2 Strays (count x2) — TEXT says 'a' so won't auto-update,TRUE

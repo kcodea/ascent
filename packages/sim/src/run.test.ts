@@ -473,6 +473,24 @@ describe('run loop (@game/sim)', () => {
     expect([cmb.attack, cmb.health]).toEqual([6, 7]); // self is not a target
   });
 
+  it('Chronos triggers End-of-Turn effects an extra time', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'recruit',
+      embers: 0,
+      shop: [],
+      board: [
+        { uid: 'r', cardId: 'ritualist', tribe: 'demon', attack: 2, health: 5, keywords: [], golden: false },
+        { uid: 'ch', cardId: 'chronos', tribe: 'neutral', attack: 1, health: 6, keywords: [], golden: false },
+        { uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist twice (Chronos +1)
+    expect(s.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // +1/+1 applied twice
+    const f = s.board.find((c) => c.uid === 'f')!;
+    expect([f.attack, f.health]).toEqual([3, 3]); // the on-board Fred: 1/1 + 2/2
+  });
+
   it('Magnetic merges a Cling Drone onto a friendly Mech (no new slot)', () => {
     let s: RunState = {
       ...createRun(1),

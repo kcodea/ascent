@@ -656,13 +656,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .app.combat.done.win::after { background: radial-gradient(120% 78% at 50% 46%, transparent 48%, rgba(34, 190, 134, 0.22)); }
 .app.combat.done.lose::after { background: radial-gradient(120% 78% at 50% 46%, transparent 48%, rgba(229, 57, 99, 0.22)); }
 
-/* post-combat: the warband settles back in as the next shop opens — a calm rise-in (no overshoot
-   bounce), and it overrides the base card `cardpop` so the re-mounting board doesn't double-animate */
-.row.warband.resetting .card { animation: boardreset 0.4s ease both; }
-@keyframes boardreset {
-  0% { transform: translateY(7px) scale(0.97); opacity: 0.45; }
-  100% { transform: none; opacity: 1; }
-}
+/* post-combat: the warband re-enters via the base card `cardpop` (a single mount animation) —
+   no separate reset class to toggle, which is what double-flashed the board on the way back. */
 
 /* GAME OVER */
 /* Game-over: a full-cover scrim that must sit above ALL board chrome (hand z-25, status z-40,

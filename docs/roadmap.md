@@ -20,12 +20,13 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       a `targetUid` on `play` + the **hero-power aim-line** gesture, used by Spirit Fire). A *minion*
       whose Battlecry targets needs a `battlecryBuffTarget`-style factory + a place-then-target UI
       gesture (a spell just vanishes; a minion also takes a board slot). Small once a card needs it.
-- [ ] **More cards for the keyword triggers.** End of Turn has cards (Ritualist, Combinator); Avenge (X)
-      is used by Kennelmaster; the new `battlecryTriggered` event has Karwind; `endOfTurnBuff` (buff self)
-      still has no card. Immune / Stealth work on any card today. Reusable primitives available for future
-      cards: `deathrattleGrantSpell` (a combat death adds a card to hand, via `CombatResult.playerHandGrants`),
-      `cardBuffs` (a persistent per-cardId run enchantment), `battlecryGainRandomMinion` (add a random
-      minion of a tier to hand), `battlecryTriggered`/`onBattlecryBuffTribe` (react to any Battlecry firing),
+- [ ] **More cards for the keyword triggers.** End of Turn has cards (Ritualist, Combinator) + a
+      multiplier (Chronos); Avenge (X) is used by Kennelmaster; the `battlecryTriggered` event has
+      Karwind; Battlecry/Deathrattle/End-of-Turn all have repeat-modifiers now (Drakko/Sylus/Chronos).
+      `endOfTurnBuff` (buff self) still has no card. Immune / Stealth work on any card today. Reusable
+      primitives available for future cards: `deathrattleGrantSpell` (combat death adds a card to hand),
+      `cardBuffs` (persistent per-cardId run enchantment), `battlecryGainRandomMinion` (add a random
+      minion of a tier to hand), `battlecryTriggered`/`onBattlecryBuffTribe` (react to any Battlecry),
       and `CardDef.manaPerTurn` / `boardManaBonus` (board-derived max-mana economy — Money Bot).
 
 ## M3 — meta
@@ -96,9 +97,10 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [ ] **Minion art — remaining illustrations.** The per-card image pipeline shipped (drop
       `<id>.png` into `packages/ui/src/art/minions/` → it replaces that card's pixel sprite
       everywhere; falls back to the sprite when absent). **Every source illustration that maps to an
-      existing card id is now wired** (26: alley, broker, buddy, bulwark, cling, combinator, drone,
-      drummer, emberpouch, feed, fred, grim, imp, karwind, kennel, moneybot, omen, pack6, ritualist,
-      sandbag, spiritfire, spore, stray, sylus, weaver, whelp). The rest still use pixel sprites and
+      existing card id is now wired** (27: alley, broker, buddy, bulwark, chronos, cling, combinator,
+      drone, drummer, emberpouch, feed, fred, grim, imp, karwind, kennel, moneybot, omen, pack6,
+      ritualist, sandbag, spiritfire, spore, stray, sylus, weaver, whelp). The rest still use pixel
+      sprites and
       have **no source art yet**. One illustration sits in the source folder with **no matching card
       id** — `Heckbinder` — wire it once the user confirms which card it's for (needs a card, not just
       wiring). Source art lives in `C:\Game Assets\Ascent Art\Minions`. **Hero portraits** use a

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, magnetizesTo, magnetizeTargets, chronosRepeats, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurn, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText } from './cardText';
 import { HudBar } from './HudBar';
@@ -66,7 +66,7 @@ function shopView(
     baseAttack: c.attack, baseHealth: c.health,
   };
 }
-function instView(inst: BoardCard, tier = 1): CardView {
+function instView(inst: BoardCard, tier = 1, eot?: { attack: number; health: number }): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
   // Triple Reward names the exact Tier it Discovers from (current Tier + 1, capped). A summon-buff
@@ -75,13 +75,19 @@ function instView(inst: BoardCard, tier = 1): CardView {
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
       : summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
+  // Live End-of-Turn buff preview: fold the projected delta into the shown stats (so the board reads
+  // as it will when the turn ends), keep the eot chip + a breakdown entry so it's clearly an
+  // upcoming, not-yet-locked gain.
+  const eotA = eot?.attack ?? 0;
+  const eotH = eot?.health ?? 0;
   return {
-    name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2, attack: inst.attack, health: inst.health,
+    name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2, attack: inst.attack + eotA, health: inst.health + eotH,
     keywords: inst.keywords, text, goldenText: c.goldenText, golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
-    buffs: inst.buffs,
+    buffs: eot ? [...(inst.buffs ?? []), { source: 'End of Turn', attack: eotA, health: eotH, count: 1 }] : inst.buffs,
+    eotBuff: eot && (eotA !== 0 || eotH !== 0) ? { attack: eotA, health: eotH } : undefined,
   };
 }
 
@@ -300,8 +306,34 @@ export function Recruit() {
     for (const o of run.shop) add(o.uid, o.cardId);
     return m;
   }, [run.board, run.hand, run.shop, run.cardBuffs]);
-  const boardViews = useMemo(() => new Map(run.board.map((m) => [m.uid, instView(m)] as const)), [run.board]);
-  const handViews = useMemo(() => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier)] as const)), [run.hand, run.tier]);
+  // Live End-of-Turn buff projection — the exact stat deltas the EoT effects would apply right now,
+  // computed off a throwaway clone (no state mutation). Recomputed only when an input to the
+  // resolution changes (board / hand / Fodder buff / wave / seed), so it's stable across a drag.
+  const eotProjection = useMemo(
+    () => (run.phase === 'recruit' ? projectEndOfTurn(run) : {}),
+    [run.phase, run.board, run.hand, run.cardBuffs, run.wave, run.seed],
+  );
+  const boardViews = useMemo(
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotProjection[m.uid])] as const)),
+    [run.board, run.tier, eotProjection],
+  );
+  const handViews = useMemo(
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotProjection[m.uid])] as const)),
+    [run.hand, run.tier, eotProjection],
+  );
+  // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
+  // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.
+  const tripleReadyUids = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of [...run.board, ...run.hand]) {
+      if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+    }
+    const out = new Set<string>();
+    for (const o of run.shop) {
+      if (!CARD_INDEX[o.cardId]?.spell && (counts.get(o.cardId) ?? 0) >= 2) out.add(o.uid);
+    }
+    return out;
+  }, [run.board, run.hand, run.shop]);
 
   // A single stable pointer-down handler shared by every card: it reads the grabbed card's uid
   // + zone from the DOM and its view from this ref, so the handler's identity never changes
@@ -998,6 +1030,7 @@ export function Recruit() {
                 highlight={heroArmed}
                 targeted={heroArmed && aim?.targetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
+                tripleReady={tripleReadyUids.has(o.uid)}
                 onPointerDown={heroArmed ? undefined : onCardPointerDown}
               />
             </Fragment>

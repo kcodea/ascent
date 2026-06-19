@@ -90,6 +90,9 @@ export interface CardView {
   floorHealth?: number;
   /** Per-source recruit buffs (for the inspect-panel breakdown). */
   buffs?: { source: string; attack: number; health: number; count: number }[];
+  /** Pending End-of-Turn buff (recruit preview): the stats above already include it; this is the
+   *  delta, shown as a small "incoming" chip so the projection reads as a not-yet-locked buff. */
+  eotBuff?: { attack: number; health: number };
 }
 
 /**
@@ -145,6 +148,7 @@ export const Card = memo(function Card({
   onDragOver,
   onDrop,
   suppressPop,
+  tripleReady,
 }: {
   card: CardView;
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
@@ -177,6 +181,9 @@ export const Card = memo(function Card({
   /** Suppress the one-shot mount pop (used when the warband re-mounts on return from combat). Read
    *  once at mount and frozen, so toggling it later can't re-trigger the animation. */
   suppressPop?: boolean;
+  /** A tavern offer that would complete a triple if bought (you already hold 2 copies) — gets a
+   *  gold glow + floating up-arrows to flag it. */
+  tripleReady?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
   // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
@@ -224,7 +231,7 @@ export const Card = memo(function Card({
   useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
   return (
     <div
-      className={`card${popin ? ' popin' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${card.tribe2 ? ' dual' : ''}`}
+      className={`card${popin ? ' popin' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}
@@ -262,6 +269,19 @@ export const Card = memo(function Card({
       )}
       {card.keywords.includes('T') && (
         <span className="tauntward" aria-hidden="true"><Icon name="taunt" /></span>
+      )}
+      {/* Pending End-of-Turn buff preview: the stats already include it; this chip flags it as a
+          not-yet-locked, end-of-turn gain. */}
+      {card.eotBuff && (
+        <span className="eotchip" title="Pending End of Turn buff (locks in when the turn ends)">
+          <Icon name="up" />+{card.eotBuff.attack}/+{card.eotBuff.health}
+        </span>
+      )}
+      {/* Triple-ready: this tavern offer completes a triple if bought — gold arrows float up around it. */}
+      {tripleReady && (
+        <span className="triparrows" aria-hidden="true">
+          <span className="ta" /><span className="ta" /><span className="ta" /><span className="ta" />
+        </span>
       )}
       <div className="art">
         {artFor(card.cardId) ? (

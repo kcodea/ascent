@@ -539,6 +539,28 @@ export function applyEndOfTurn(state: RunState): void {
 }
 
 /**
+ * Preview the End-of-Turn *stat* buffs without changing anything: run the real `applyEndOfTurn` on a
+ * throwaway clone and diff the board + hand stats. Returns the per-uid delta for every minion whose
+ * stats would change (self-buffs, Combinator welds, Ritualist's Fodder buff — all of it, since it's
+ * the exact same code path). The recruit UI uses this to show those buffs live *during* the turn
+ * instead of only when it ends. Display-only: the real buffs still bake in once at end of turn.
+ */
+export function projectEndOfTurn(state: RunState): Record<string, { attack: number; health: number }> {
+  const clone = structuredClone(state);
+  applyEndOfTurn(clone);
+  const after = new Map<string, BoardCard>();
+  for (const c of [...clone.board, ...clone.hand]) after.set(c.uid, c);
+  const out: Record<string, { attack: number; health: number }> = {};
+  for (const c of [...state.board, ...state.hand]) {
+    const a = after.get(c.uid);
+    if (a && (a.attack !== c.attack || a.health !== c.health)) {
+      out[c.uid] = { attack: a.attack - c.attack, health: a.health - c.health };
+    }
+  }
+  return out;
+}
+
+/**
  * Resolve a card's play-time effects, mutating the board in place. Call after the
  * card has been moved from the hand onto `state.board`. Summon-buffs fire first
  * (the played card has just entered), then its own Battlecry — whose summoned

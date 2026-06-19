@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Live End-of-Turn buff preview + triple-ready tavern highlight
+Two recruit-screen quality-of-life features:
+- **End-of-Turn stat buffs now show live, during the turn, instead of only at the end.** New pure
+  helper `projectEndOfTurn(state)` (in `@game/sim`) runs the *real* `applyEndOfTurn` on a throwaway
+  `structuredClone` and diffs the board + hand stats, returning per-uid deltas — exact by construction
+  (same code path: self-buffs, Combinator's Mech welds, Ritualist's Fodder buff) and **zero side
+  effects** on the real state. The recruit UI folds those deltas into the shown stats (so the board
+  reads as it *will* when the turn ends), tags each affected minion with a small teal **"↑+x/+y"
+  pending chip** (top-right) and an inspect-breakdown "End of Turn" entry, and recomputes live as the
+  board changes. The real buffs still bake in once at end of turn (display-only preview, so combat /
+  sell / the buff-flash all still use true stats until then). Verified headless: Ritualist + 2 Fred on
+  board + 1 in hand → projection shows all three Fodder +1/+1, Ritualist none, and the source board is
+  left unmutated. `recruit.ts` (`projectEndOfTurn`), `Recruit.tsx` (`eotProjection`, `instView`),
+  `Card.tsx` (`eotBuff` chip), `styles.css`.
+- **Triple-ready tavern highlight.** A tavern offer you'd **complete a triple** by buying (you already
+  hold 2 non-golden copies across board + hand) now gets a **bright gold pulsing glow** (keeps the
+  tribe ring) and **gold arrows floating up** around it. Detection mirrors `checkTriples`' counting.
+  `Recruit.tsx` (`tripleReadyUids`), `Card.tsx` (`tripleReady` + arrows), `styles.css`.
+- Verified: `typecheck` + `lint` clean, `test` **133** pass; projection logic confirmed headless (tsx);
+  all new CSS (`tripglow`, `triparrow`, `eotchippulse`, tribe-ring preserved) confirmed via live
+  computed-style probes on a clean mount. In-game appearance (chip on a real Fodder minion, glow on a
+  real 3rd-copy offer) is for the user to confirm — a live board can't be built in the preview harness
+  (synthetic drags don't land; screenshots / timeout-evals hang).
+
 ### Combat VFX round 3 — staggered keyword procs, bright-blue reborn, two-threshold stat colours
 Follow-ups from playtesting the previous round:
 - **Keyword procs no longer collide with the damage number.** Poison (☠), Divine Shield (◇ break/gain)

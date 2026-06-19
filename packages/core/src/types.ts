@@ -40,7 +40,8 @@ export type GameEvent =
   | 'endOfTurn' // recruit phase: the turn ends (End Turn / timer hits 0)
   | 'battlecryTriggered' // recruit phase: a Battlecry just resolved (fires per Drakko repeat) — Karwind
   | 'cast' // a spell's own effect resolves (its chosen target is in the payload)
-  | 'spellCast'; // recruit phase: any spell was cast (for spell-tracking minions)
+  | 'spellCast' // recruit phase: any spell was cast (for spell-tracking minions)
+  | 'summonOverflow'; // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -87,10 +88,14 @@ export type EffectFactoryId =
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'onConsumeBuffSelf'
   | 'onConsumeGrantSelfKeyword'
+  | 'onConsumeShieldNextCombat' // Maw of the Pit: on consume, gain a Divine Shield for the next combat only
   // Spells (recruit-resolved): a spell's own effect, and minions that cast spells
   | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (+ optional keyword: Spirit Fire, Bulwark)
   | 'castSpell' // a minion casts a named spell (auto-targets a friend)
-  | 'gainEmbers'; // cast: gain Embers (untargeted — Ember Pouch)
+  | 'gainEmbers' // cast: gain Embers (untargeted — Ember Pouch)
+  | 'spellCastBuffOthers' // spellCast: give N other friendly minions +atk/+hp (Archmagus Guel)
+  | 'overflowBuffRandom' // summonOverflow: buff a random friendly minion (Flowing Monk)
+  | 'battlecryLinkDemon'; // Battlecry: link to a chosen friendly demon, mirroring its stat gains (Lifebinder)
 
 export interface EffectDef {
   on: GameEvent;
@@ -126,6 +131,9 @@ export interface CardDef {
   cost?: number;
   /** Requires the player to pick a friendly minion when played/cast (spells, targeted Battlecries). */
   target?: 'friendly';
+  /** Restricts a `target: 'friendly'` pick to one tribe and excludes self (Corrupted Lifebinder →
+   *  a friendly Demon). Absent = any friendly minion may be chosen. */
+  targetTribe?: Tribe;
   /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
    *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
   fodderMult?: number;
@@ -149,6 +157,8 @@ export interface BoardMinion {
   /** Overrides the card's keywords if present (e.g. a granted Poison). */
   keywords?: Keyword[];
   golden?: boolean;
+  /** Corrupted Lifebinder: the uid of the friendly minion it mirrors in combat. */
+  linkUid?: string;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -180,6 +190,9 @@ export interface Minion {
   summonBonus: number;
   /** The originating run board card's uid (if any), for per-instance carry-back. */
   sourceUid?: string;
+  /** Corrupted Lifebinder: the uid of the friendly minion this one mirrors — whenever that minion is
+   *  buffed in combat, this minion gains the same stats. */
+  linkUid?: string;
   side: Side;
   effects: EffectDef[];
   dead: boolean;
@@ -197,6 +210,8 @@ export interface MinionSnapshot {
   golden?: boolean;
   /** Current summon-buff bonus (Kennelmaster) — for the live combat card text. */
   summonBonus?: number;
+  /** Corrupted Lifebinder: the uid of the friendly minion it mirrors in combat. */
+  linkUid?: string;
 }
 
 /**

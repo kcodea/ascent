@@ -39,6 +39,21 @@ export function simulate(
     enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
   };
 
+  // Corrupted Lifebinder: `linkUid` arrives as the linked board card's uid — remap it to that minion's
+  // fresh combat uid (matched via sourceUid) so mid-fight buffs on the demon can find their mirror.
+  for (const side of ['player', 'enemy'] as const) {
+    for (const m of boards[side]) {
+      if (m.linkUid) m.linkUid = boards[side].find((x) => x.sourceUid === m.linkUid)?.uid;
+    }
+  }
+  /** Lifebinder mirror: anyone linked to `target` gains the same buff (source-guarded so the mirror
+   *  buff doesn't itself re-mirror, and so the UI shows it as a distinct gain on the Lifebinder). */
+  function mirrorLink(target: Minion, attack: number, health: number): void {
+    for (const m of boards[target.side]) {
+      if (!m.dead && m.linkUid === target.uid) ctx.buff(m, attack, health, 'Lifebinder');
+    }
+  }
+
   const snapshot = (m: Minion): MinionSnapshot => ({
     uid: m.uid,
     cardId: m.cardId,
@@ -72,6 +87,7 @@ export function simulate(
       target.health += health;
       if (health > 0) target.maxHealth += health;
       events.push({ type: 'buff', target: target.uid, attack, health, source });
+      if (source !== 'Lifebinder') mirrorLink(target, attack, health); // Corrupted Lifebinder follows along
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
@@ -82,8 +98,12 @@ export function simulate(
         cards,
         mkUid,
       );
-      // Board cap of 7 (handoff A.2): a full board can't receive summons.
-      if (living(side).length >= 7) return minion;
+      // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
+      // on the wasted body (the combat half of its recruit overflow buff).
+      if (living(side).length >= 7) {
+        bus.emit('summonOverflow', { side });
+        return minion;
+      }
       const arr = boards[side];
       let index = arr.length;
       if (nearUid) {

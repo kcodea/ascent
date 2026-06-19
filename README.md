@@ -23,9 +23,14 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Live End-of-Turn buff preview** — minions buffed by End-of-Turn effects (Ritualist's Fodder buff,
-  Combinator's Mech welds) now show those stats **during the turn** with a pending "↑+x/+y" chip,
-  instead of the buff only appearing at the very end.
+- **3 new minions** — **Archmagus Guel** (cast a tavern spell → +1/+1 to 2 other friends), **Flowing
+  Monk** (a summon that doesn't fit → +3/+3 to a random friend, in recruit *and* combat), and
+  **Corrupted Lifebinder** (bind to a friendly Demon and gain stats whenever it does, recruit + combat).
+- **Balance tweaks** — Maw of the Pit's Divine Shield now lasts only the next combat; Toxin Tender moved
+  to Tier 5; removed six cards (Abyssal Sovereign, Pactstone Acolyte, Chromatic Caller, Nadir, Galewing
+  Apex, Shield Capacitor).
+- **End-of-Turn stats tick up live** — during the end-of-turn animation, each buffed minion's numbers
+  now climb one proc at a time (instead of all appearing at the end).
 - **Triple-ready highlight** — a tavern minion that would **complete a triple** (you already hold 2
   copies) glows gold with arrows floating up around it.
 - **Readable damage numbers** — combat damage now pops up **next to each card's HP** (not off the top),

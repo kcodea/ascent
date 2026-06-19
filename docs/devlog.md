@@ -3,6 +3,53 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-19
+
+### Content pass — 3 new minions, 6 removals, Maw/Toxin tweaks, per-proc EoT animation
+A big content + mechanics batch from the user's spec.
+
+**New minions (art wired from name-matched source files):**
+- **Archmagus Guel** (T4 neutral 2/3) — *After you cast a tavern spell, give 2 other friendly minions
+  +1/+1.* New `spellCast` factory `spellCastBuffOthers` (seeded-random targets, excludes self). The
+  triple-reward Discover routes through `offerDiscover`, **not** `castSpell`, so it correctly doesn't
+  proc Guel.
+- **Flowing Monk** (T4 neutral 1/4) — *When you summon a minion that doesn't fit, give a random friendly
+  minion +3/+3.* Fires on **summon overflow** in both phases: recruit (`makeContext.summon`) and
+  **combat** (a new `summonOverflow` bus event from `simulate`'s `ctx.summon` + a combat
+  `overflowBuffRandom` factory). New `summonOverflow` GameEvent.
+- **Corrupted Lifebinder** (T6 Demon 1/1) — *Battlecry: bind to a friendly Demon; also gains the stats
+  whenever that minion does.* Targeted Battlecry restricted to Demons (new `targetTribe` on `CardDef`
+  + UI filter). The link mirrors gains **in recruit** (`syncLifebinders`, run after every reducer
+  action) **and in combat** (the linked demon's `buff` events mirror onto the Lifebinder inside
+  `simulate`; the board uid is remapped to the combat uid). If the demon leaves, the link just ends and
+  the Lifebinder keeps what it has.
+
+**Changes / removals:**
+- **Maw of the Pit** → *On consume, gain a Divine Shield for the next combat* — a one-combat shield now
+  (new `tempShield` flag + `onConsumeShieldNextCombat`; `resolveCombat` strips the DS after the fight).
+- **Toxin Tender** → Tier 5 (was 2).
+- Removed **Abyssal Sovereign, Pactstone Acolyte, Chromatic Caller, Nadir Hoardlord, Galewing Apex,
+  Shield Capacitor** (tests using them were updated/retired; their now-unused combat factories are left
+  inert).
+
+**End-of-Turn animation — reworked to what was actually asked:** the previous pre-turn "pending buff
+chip" preview is **removed**; instead the affected minions' **stats now visibly tick up one proc at a
+time during the end-of-turn animation** (new `projectEndOfTurnSteps` gives per-proc cumulative stats
+aligned to the UI's beat sequence; each beat sets the shown stats + flashes whoever just gained), then
+`faceOmen` bakes the same totals in.
+
+**Bug fix — Fodder ghost replaying every turn after a Soulfeeder:** the consume animation effect listed
+`run.fodderEaten` in its deps, but that array gets a fresh reference every action, so any action within
+the 2.3 s window re-ran the effect → its cleanup cancelled the clear-timeout → the ghost was stranded,
+then **re-mounted and replayed every time you returned from combat** (the intermittency = whether you
+acted in that window). Fixed by keying the effect on `fodderEatenSeq` alone + clearing the ghost on
+combat start.
+
+- Verified: `typecheck` + `lint` clean, `test` **139** pass (added coverage for Guel, Monk recruit +
+  combat, Lifebinder link/recruit-mirror/combat-mirror/link-ends, Maw one-combat shield); production
+  build bundles the 3 new art files; the live app mounts clean with the new content. The fodder repro
+  was confirmed headless (seq bumps once, stays) — the replay was purely the UI dep leak.
+
 ## 2026-06-18
 
 ### Live End-of-Turn buff preview + triple-ready tavern highlight

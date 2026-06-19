@@ -40,6 +40,18 @@ const gold = (c: BoardCard): number => (c.golden ? 2 : 1);
 /** A card's display name (the buff-source label in the inspect breakdown). */
 const nameOf = (card: BoardCard): string => CARD_INDEX[card.cardId]?.name ?? card.cardId;
 
+/** Pick up to `n` distinct items from `arr`, advancing the run's seeded RNG cursor — for recruit-phase
+ *  "random target" effects (Guel, Monk). Deterministic given the cursor, so replays/sims stay exact. */
+function pickRandom<T>(state: RunState, arr: T[], n: number): T[] {
+  if (arr.length <= n) return [...arr];
+  const rng = makeRng(state.rngCursor);
+  const pool = [...arr];
+  const out: T[] = [];
+  for (let i = 0; i < n && pool.length > 0; i++) out.push(pool.splice(rng.int(pool.length), 1)[0]!);
+  state.rngCursor = rng.state();
+  return out;
+}
+
 /**
  * Apply a recruit-phase stat buff to a card AND record its source for the inspect-panel breakdown
  * ("Spirit Fire ×2: +6/+6"). Pass `count` (default 1) for how many times the source applied. Pure
@@ -223,6 +235,42 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (kw && !self.keywords.includes(kw)) self.keywords.push(kw);
   },
 
+  /** Maw of the Pit: on any friendly consume, gain a Divine Shield for the *next combat only*. The DS
+   *  keyword is added (so it shows + enters the snapshot); `tempShield` flags it so `resolveCombat`
+   *  strips it after the fight. Consuming again re-arms it. */
+  onConsumeShieldNextCombat: (_ctx, self) => {
+    self.tempShield = true;
+    if (!self.keywords.includes('DS')) self.keywords.push('DS');
+  },
+
+  /** Archmagus Guel: after a tavern spell is cast, give `count` *other* friendly minions +atk/+hp.
+   *  Targets are random (seeded by the run cursor) so the buffs spread rather than snowball one carry. */
+  spellCastBuffOthers: (ctx, self, params) => {
+    const others = ctx.state.board.filter((c) => c !== self);
+    const picks = pickRandom(ctx.state, others, num(params.count, 2));
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    for (const m of picks) addBuff(m, nameOf(self), a, h);
+  },
+
+  /** Flowing Monk: when a summon can't fit the full board, give a random friendly minion +atk/+hp. */
+  overflowBuffRandom: (ctx, self, params) => {
+    const picks = pickRandom(ctx.state, [...ctx.state.board], 1);
+    const a = num(params.attack, 3) * gold(self);
+    const h = num(params.health, 3) * gold(self);
+    for (const m of picks) addBuff(m, nameOf(self), a, h);
+  },
+
+  /** Corrupted Lifebinder: bind to the chosen friendly Demon (never self). From then on the recruit
+   *  sync (`syncLifebinders`) + the combat simulator mirror that Demon's stat gains onto this card. */
+  battlecryLinkDemon: (_ctx, self, _params, payload) => {
+    const target = payload.target;
+    if (!target || target === self || target.tribe !== 'demon') return;
+    self.linkUid = target.uid;
+    self.linkBase = { attack: target.attack, health: target.health };
+    self.linkApplied = { attack: 0, health: 0 };
+  },
+
   /** End of Turn: buff self (+atk/+hp) when the recruit turn ends. */
   endOfTurnBuff: (_ctx, self, params) => {
     addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
@@ -358,7 +406,19 @@ function makeContext(state: RunState): RecruitContext {
   const ctx: RecruitContext = {
     state,
     summon: (card, nearUid) => {
-      if (state.board.length >= CONFIG.boardMax) return undefined;
+      if (state.board.length >= CONFIG.boardMax) {
+        // Overflow — the summon can't fit the full board. Flowing Monk pays off on the wasted body.
+        for (const c of [...state.board]) {
+          const def = CARD_INDEX[c.cardId];
+          if (!def) continue;
+          for (const effect of def.effects) {
+            if (effect.on !== 'summonOverflow') continue;
+            const fn = RECRUIT_FACTORIES[effect.do];
+            if (fn) fn(ctx, c, effect.params ?? {}, { minion: c });
+          }
+        }
+        return undefined;
+      }
       const buff = cardBuff(state, card.id); // a conjured Fodder carries Ritualist's run buff
       const minion: BoardCard = {
         uid: `b${state.uidSeq++}`,
@@ -539,25 +599,69 @@ export function applyEndOfTurn(state: RunState): void {
 }
 
 /**
- * Preview the End-of-Turn *stat* buffs without changing anything: run the real `applyEndOfTurn` on a
- * throwaway clone and diff the board + hand stats. Returns the per-uid delta for every minion whose
- * stats would change (self-buffs, Combinator welds, Ritualist's Fodder buff — all of it, since it's
- * the exact same code path). The recruit UI uses this to show those buffs live *during* the turn
- * instead of only when it ends. Display-only: the real buffs still bake in once at end of turn.
+ * Per-proc preview of the End-of-Turn effects, for the recruit UI to animate the stats rising one
+ * proc at a time. Returns one cumulative snapshot (per-uid current stats) *after* each (card × repeat)
+ * step, in the same order the UI plays its beats — so the board can show the gain land on each beat.
+ * Runs on a throwaway clone (no side effects); the final entry equals the real end-of-turn result.
  */
-export function projectEndOfTurn(state: RunState): Record<string, { attack: number; health: number }> {
+export function projectEndOfTurnSteps(state: RunState): Array<Record<string, { attack: number; health: number }>> {
   const clone = structuredClone(state);
-  applyEndOfTurn(clone);
-  const after = new Map<string, BoardCard>();
-  for (const c of [...clone.board, ...clone.hand]) after.set(c.uid, c);
-  const out: Record<string, { attack: number; health: number }> = {};
-  for (const c of [...state.board, ...state.hand]) {
-    const a = after.get(c.uid);
-    if (a && (a.attack !== c.attack || a.health !== c.health)) {
-      out[c.uid] = { attack: a.attack - c.attack, health: a.health - c.health };
+  const ctx = makeContext(clone);
+  const repeats = chronosRepeats(clone);
+  const steps: Array<Record<string, { attack: number; health: number }>> = [];
+  const snap = (): Record<string, { attack: number; health: number }> => {
+    const m: Record<string, { attack: number; health: number }> = {};
+    for (const c of [...clone.board, ...clone.hand]) m[c.uid] = { attack: c.attack, health: c.health };
+    return m;
+  };
+  for (const card of [...clone.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
+    for (let r = 0; r < repeats; r++) {
+      for (const effect of def.effects) {
+        if (effect.on !== 'endOfTurn') continue;
+        const fn = RECRUIT_FACTORIES[effect.do];
+        if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
+      }
+      steps.push(snap());
     }
   }
-  return out;
+  return steps;
+}
+
+/**
+ * Corrupted Lifebinder: keep each linked card in step with its demon's *recruit-phase* stat gains.
+ * Run after every reducer action — it applies only the new delta since last sync (tracked in
+ * `linkApplied`), so it's idempotent when nothing changed. If the linked demon is gone (sold / died /
+ * tripled into a new uid) the link simply ends and the Lifebinder keeps what it has. (Combat-time
+ * gains are mirrored separately, inside `simulate`.) The pass loop settles chained links.
+ */
+export function syncLifebinders(state: RunState): void {
+  for (let pass = 0; pass < 6; pass++) {
+    let changed = false;
+    for (const lb of state.board) {
+      if (!lb.linkUid) continue;
+      const demon = state.board.find((c) => c.uid === lb.linkUid);
+      if (!demon) {
+        lb.linkUid = undefined;
+        lb.linkBase = undefined;
+        lb.linkApplied = undefined;
+        continue;
+      }
+      const base = lb.linkBase ?? { attack: 0, health: 0 };
+      const gainedA = Math.max(0, demon.attack - base.attack);
+      const gainedH = Math.max(0, demon.health - base.health);
+      const applied = lb.linkApplied ?? { attack: 0, health: 0 };
+      const dA = gainedA - applied.attack;
+      const dH = gainedH - applied.health;
+      if (dA !== 0 || dH !== 0) {
+        addBuff(lb, 'Lifebinder', dA, dH);
+        lb.linkApplied = { attack: gainedA, health: gainedH };
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
 }
 
 /**

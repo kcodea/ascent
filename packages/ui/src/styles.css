@@ -288,12 +288,6 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .triparrows .ta:nth-child(3) { left: 62%; animation-delay: 0.66s; }
 .triparrows .ta:nth-child(4) { left: 84%; animation-delay: 0.98s; }
 @keyframes triparrow { 0% { opacity: 0; transform: translateY(12px) scale(0.85); } 25% { opacity: 1; } 70% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-30px) scale(1); } }
-
-/* Pending End-of-Turn buff chip — the projected EoT stat gain shown live in the card's top-right, so
-   the (already-folded-in) buff reads as an upcoming, not-yet-locked gain. */
-.eotchip { position: absolute; top: -9px; right: -7px; z-index: 12; display: inline-flex; align-items: center; gap: 2px; font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1; color: #06312c; background: linear-gradient(180deg, #57e6cf, #2fc7b4); padding: calc(3 * var(--u)) calc(7 * var(--u)); border-radius: 999px; border: 2px solid #effffb; box-shadow: 0 2px 7px rgba(0, 0, 0, 0.3); animation: eotchippulse 1.5s ease-in-out infinite; }
-.eotchip svg { width: calc(12 * var(--u)); height: calc(12 * var(--u)); }
-@keyframes eotchippulse { 0%, 100% { transform: scale(1); box-shadow: 0 2px 7px rgba(0, 0, 0, 0.3); } 50% { transform: scale(1.07); box-shadow: 0 2px 12px rgba(47, 199, 180, 0.7); } }
 /* spectral tears that rise across the card — bigger + brighter, several at a time for a lively glow */
 .reborntears { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; border-radius: 13px; }
 .reborntears .rt {

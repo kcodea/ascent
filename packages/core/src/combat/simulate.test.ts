@@ -151,17 +151,6 @@ describe('simulate (handoff A.3)', () => {
     if (ping?.type === 'dmg') expect(ping.amount).toBe(1);
   });
 
-  it('Start of Combat split damage — Chromatic Caller hits for its Attack', () => {
-    const a = run(
-      [{ cardId: 'chrom', attack: 3, health: 5 }],
-      [{ cardId: 'omen', attack: 6, health: 9, keywords: [] }],
-      3,
-    );
-    expect(a.events[0]?.type).toBe('sc');
-    const scHits = a.events.slice(1, 4).filter((e) => e.type === 'dmg');
-    expect(scHits.length).toBe(3); // Attack 3 → three 1-damage hits before the attack loop
-  });
-
   it('Venomous (Webspinner Matron) destroys whatever it damages', () => {
     const a = run(
       [{ cardId: 'maex', attack: 4, health: 4, keywords: ['V'] }],
@@ -375,23 +364,6 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.filter((e) => e.type === 'buff').length).toBeGreaterThanOrEqual(3);
   });
 
-  it('Abyssal Sovereign Start of Combat destroys the highest-Attack enemy', () => {
-    const a = run(
-      [{ cardId: 'sov', attack: 7, health: 7, keywords: ['SC'] }],
-      [
-        { cardId: 'omen', attack: 9, health: 9, keywords: [] },
-        { cardId: 'omen', attack: 2, health: 5, keywords: [] },
-      ],
-      9,
-    );
-    expect(a.events[0]?.type).toBe('sc');
-    const firstDeath = a.events.findIndex((e) => e.type === 'death');
-    const firstAttack = a.events.findIndex((e) => e.type === 'attack');
-    expect(firstDeath).toBeGreaterThanOrEqual(0);
-    expect(firstDeath).toBeLessThan(firstAttack); // the 9/9 fell before the attack loop
-    expect(a.result).toBe('win');
-  });
-
   it('Brood Matron breeds an Imp each time a friend dies', () => {
     const a = run(
       [
@@ -531,6 +503,34 @@ describe('simulate (handoff A.3)', () => {
       .slice(0, revealIdx)
       .some((e) => e.type === 'attack' && e.defender === 'm0');
     expect(attackedWhileStealthed).toBe(false); // never hit while Stealthed
+  });
+
+  it('Corrupted Lifebinder mirrors its linked minion\'s combat buffs', () => {
+    // Grim dies early → its Deathrattle buffs all living Beasts +6/+6 → the Stray gains +6/+6, and the
+    // Lifebinder linked to that Stray mirrors the same +6/+6 (a buff event tagged 'Lifebinder').
+    const p: BoardMinion[] = [
+      { cardId: 'lifebinder', attack: 1, health: 50, sourceUid: 'LB', linkUid: 'B' },
+      { cardId: 'stray', attack: 1, health: 50, sourceUid: 'B' },
+      { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 200 }];
+    const a = run(p, e, 3);
+    const mirror = a.events.filter((ev) => ev.type === 'buff' && ev.source === 'Lifebinder');
+    expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 6 && ev.health === 6)).toBe(true);
+  });
+
+  it('Flowing Monk buffs a friend when a combat summon overflows the full board', () => {
+    // 7 living (Monk + golden Brood + 5 Taunt sandbags). The omen kills a sandbag → golden Brood
+    // summons 2 Imps: the first fits (back to 7), the second overflows → Monk procs +3/+3.
+    const sb = (): BoardMinion => ({ cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] });
+    const p: BoardMinion[] = [
+      { cardId: 'monk', attack: 1, health: 40 },
+      { cardId: 'brood', attack: 6, health: 6, golden: true },
+      sb(), sb(), sb(), sb(), sb(),
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 80 }];
+    const a = run(p, e, 5);
+    expect(a.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 3)).toBe(true);
   });
 
   it('produces a finite, well-formed event log', () => {

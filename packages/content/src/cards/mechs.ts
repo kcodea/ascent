@@ -44,17 +44,6 @@ export const MECHS: CardDef[] = [
     text: '**Deathrattle:** give a friend a **Divine Shield**.',
   },
   {
-    id: 'cap',
-    name: 'Shield Capacitor',
-    tribe: 'mech',
-    tier: 3,
-    attack: 2,
-    health: 4,
-    keywords: [],
-    effects: [{ on: 'onLoseDivineShield', do: 'onShieldBreakGrantShield' }],
-    text: 'When a friendly Shield breaks, give another friend a Shield.',
-  },
-  {
     // Magnetic mech whose value is passive economy: while it (or a Mech it merged into) is on
     // the board, the player's max mana per turn is raised. Magnetize it onto Spare Part Drone to
     // carry the income on a sturdier body (and through a triple); selling that body removes it.

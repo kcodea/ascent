@@ -11,17 +11,18 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       per wave so the climb's difficulty ramp feels right. Design TBD.
 - [ ] **More spells + spell-synergy cards.** Three T1 spells now rotate in the slot: Spirit Fire
       (+3/+3 to a friend), Ember Pouch (gain 1 Ember — *net-neutral as specced; revisit*), Bulwark
-      (+0/+1 + Taunt to a friend). Hooks still unused by any *minion* card:
-  - `spellCast` event + `state.spellsCast` counter → minions that care about spells cast.
-  - `castSpell` factory → minions that cast a spell from an event (auto-targets the carry).
-  - `state.spellCostMod` → "your spells cost less" effects (subtracted at buy).
-  - A minion using each hook would exercise the plumbing; higher-tier spells would round out the pool.
+      (+0/+1 + Taunt to a friend). Hook usage:
+  - `spellCast` event + `state.spellsCast` counter → **now used by Archmagus Guel** (buff 2 others).
+  - `castSpell` factory → minions that cast a spell from an event (auto-targets the carry) — still unused.
+  - `state.spellCostMod` → "your spells cost less" effects (subtracted at buy) — still unused.
+  - Higher-tier spells would round out the pool.
 - [x] **Targeted Battlecries (minions).** Done — the place-then-target gesture is built: a minion with
       `CardDef.target: 'friendly'` plays to the board, parks a `RunState.pendingTarget`, and the player
       aims the hero-power-style line at a friendly minion (a new `battlecryTarget` action resolves it;
       ends auto-resolve on the carry). **Toxin Tender** is the first user (grants Venomous to the chosen
       minion). To add a *stat* targeted Battlecry (e.g. +X/+X), just add a `battlecryBuffTarget`-style
-      factory that reads `payload.target` — the rest is wired.
+      factory that reads `payload.target` — the rest is wired. **Corrupted Lifebinder** added
+      `CardDef.targetTribe` (restrict the pick to one tribe + exclude self) for tribe-locked targets.
 - [ ] **More cards for the keyword triggers.** End of Turn has cards (Ritualist, Combinator) + a
       multiplier (Chronos); Avenge (X) is used by Kennelmaster; the `battlecryTriggered` event has
       Karwind; Battlecry/Deathrattle/End-of-Turn all have repeat-modifiers now (Drakko/Sylus/Chronos).

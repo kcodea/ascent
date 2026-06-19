@@ -77,6 +77,18 @@ export interface BoardCard {
    *  The card's own `manaPerTurn` is read from its def; this holds only the absorbed bonus,
    *  so it survives the magnetize-merge + triple and is lost when the card is sold. */
   manaBonus?: number;
+  /** Maw of the Pit: a one-combat Divine Shield earned by consuming. The 'DS' keyword is added for
+   *  display + the snapshot; this flag marks it temporary so `resolveCombat` strips it after the next
+   *  fight (gain it again by consuming again). */
+  tempShield?: boolean;
+  /** Corrupted Lifebinder: the uid of the friendly demon it's linked to ("also gains the stats
+   *  whenever that minion does"). Carried into combat so the simulator mirrors mid-fight gains too. */
+  linkUid?: string;
+  /** The linked demon's stats at link time — Lifebinder mirrors gains *beyond* this (recruit sync). */
+  linkBase?: { attack: number; health: number };
+  /** How much of the linked demon's recruit gain Lifebinder has already mirrored, so each sync applies
+   *  only the new delta. */
+  linkApplied?: { attack: number; health: number };
 }
 
 export type Phase = 'recruit' | 'combat' | 'gameover';

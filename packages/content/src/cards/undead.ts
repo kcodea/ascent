@@ -23,7 +23,7 @@ export const UNDEAD: CardDef[] = [
     id: 'toxin',
     name: 'Toxin Tender',
     tribe: 'undead',
-    tier: 2,
+    tier: 5,
     attack: 1,
     health: 2,
     keywords: [],

@@ -173,6 +173,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(ctx.rng.pick(friends), num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
 
+  /** Flowing Monk: when a summon on this minion's side can't fit the full board (a `summonOverflow`),
+   *  buff a random living friend (+3/+3; golden doubles). The combat half of its recruit overflow buff. */
+  overflowBuffRandom: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side?: Side }).side !== self.side) return;
+    const friends = ctx.living(self.side);
+    if (friends.length === 0) return;
+    ctx.buff(ctx.rng.pick(friends), num(params.attack, 3) * mul(self), num(params.health, 3) * mul(self), self.uid);
+  },
+
   /** Avenge (X): after every `count` friendly deaths in combat, buff self (+atk/+hp). */
   avengeBuff: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };

@@ -26,6 +26,7 @@ export const GameEventSchema = z.enum([
   'battlecryTriggered',
   'cast',
   'spellCast',
+  'summonOverflow',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -62,9 +63,13 @@ export const EffectFactoryIdSchema = z.enum([
   'avengeImproveSummon',
   'onConsumeBuffSelf',
   'onConsumeGrantSelfKeyword',
+  'onConsumeShieldNextCombat',
   'spellBuffTarget',
   'castSpell',
   'gainEmbers',
+  'spellCastBuffOthers',
+  'overflowBuffRandom',
+  'battlecryLinkDemon',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -98,6 +103,7 @@ export const CardDefSchema = z.object({
   spell: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly']).optional(),
+  targetTribe: TribeSchema.optional(),
   fodderMult: z.number().int().positive().optional(),
   manaPerTurn: z.number().int().positive().optional(),
   chooseOne: z

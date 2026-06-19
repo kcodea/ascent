@@ -681,16 +681,16 @@ describe('run loop (@game/sim)', () => {
     expect([imp?.attack, imp?.health]).toEqual([7, 7]); // 4/4 + 3×(1/1)
   });
 
-  it('on-consume Demons pay off when they eat tavern Fodder (Pactstone Acolyte)', () => {
+  it('on-consume Demons pay off when they eat tavern Fodder (Ravening Glutton)', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
-      board: [{ uid: 'p', cardId: 'pact', tribe: 'demon', attack: 2, health: 3, keywords: [], golden: false }],
+      board: [{ uid: 'p', cardId: 'glut', tribe: 'demon', attack: 2, health: 3, keywords: [], golden: false }],
       pendingTavern: ['fred'],
     };
     s = reduce(s, { type: 'roll' });
-    const pact = s.board.find((c) => c.cardId === 'pact');
-    expect([pact?.attack, pact?.health]).toEqual([4, 5]); // 2/3 +1/+1 (Fodder ×1) +1/+1 (on-consume)
+    const glut = s.board.find((c) => c.cardId === 'glut');
+    expect([glut?.attack, glut?.health]).toEqual([5, 6]); // 2/3 +1/+1 (Fodder ×1) +2/+2 (on-consume)
   });
 
   it('Maw of the Pit gains a Divine Shield eating tavern Fodder', () => {
@@ -702,6 +702,101 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'roll' });
     expect(s.board.find((c) => c.cardId === 'maw')?.keywords).toContain('DS');
+  });
+
+  it('Maw of the Pit Divine Shield is spent after one combat', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      board: [{ uid: 'm', cardId: 'maw', tribe: 'demon', attack: 4, health: 5, keywords: ['T'], golden: false }],
+      pendingTavern: ['fred'],
+    };
+    s = reduce(s, { type: 'roll' }); // Maw eats Fodder → a one-combat Divine Shield
+    expect(s.board.find((c) => c.cardId === 'maw')?.keywords).toContain('DS');
+    expect(s.board.find((c) => c.cardId === 'maw')?.tempShield).toBe(true);
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    const maw = s.board.find((c) => c.cardId === 'maw');
+    expect(maw?.keywords).not.toContain('DS'); // spent — gone after the fight
+    expect(maw?.tempShield).toBeFalsy();
+  });
+
+  it('Archmagus Guel buffs 2 other friends when you cast a tavern spell', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 5,
+      hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      board: [
+        { uid: 'g', cardId: 'guel', tribe: 'neutral', attack: 2, health: 3, keywords: [], golden: false },
+        { uid: 'a', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' }); // cast Mana Pouch (a tavern spell)
+    const a = s.board.find((c) => c.uid === 'a');
+    const b = s.board.find((c) => c.uid === 'b');
+    const g = s.board.find((c) => c.uid === 'g');
+    expect([a?.attack, a?.health]).toEqual([2, 2]); // both *other* friends get +1/+1
+    expect([b?.attack, b?.health]).toEqual([2, 2]);
+    expect([g?.attack, g?.health]).toEqual([2, 3]); // Guel itself does not
+  });
+
+  it('Flowing Monk buffs a friend when a summon overflows the full board', () => {
+    const filler = (uid: string): BoardCard => ({ uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false });
+    let s: RunState = {
+      ...createRun(1),
+      embers: 5,
+      hand: [{ uid: 'al', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      board: [
+        { uid: 'mk', cardId: 'monk', tribe: 'neutral', attack: 1, health: 4, keywords: [], golden: false },
+        filler('f1'), filler('f2'), filler('f3'), filler('f4'), filler('f5'),
+      ],
+    };
+    // 6 minions → playing Alleycat makes 7, then its Stray Battlecry summon overflows → Monk procs.
+    s = reduce(s, { type: 'play', uid: 'al' });
+    expect(s.board.some((c) => c.buffs?.some((b) => b.source === 'Flowing Monk'))).toBe(true);
+  });
+
+  it('Corrupted Lifebinder Battlecry links to the chosen friendly demon', () => {
+    let s: RunState = {
+      ...createRun(1),
+      hand: [{ uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false }],
+      board: [{ uid: 'd', cardId: 'glut', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'lb' }); // targeted Battlecry defers to a friendly-demon pick
+    expect(s.pendingTarget?.uid).toBe('lb');
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'd' });
+    expect(s.board.find((c) => c.uid === 'lb')?.linkUid).toBe('d');
+  });
+
+  it('Corrupted Lifebinder mirrors its linked demon\'s recruit gains', () => {
+    let s: RunState = {
+      ...createRun(1),
+      heroReady: true,
+      board: [
+        { uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false, linkUid: 'd', linkBase: { attack: 5, health: 5 }, linkApplied: { attack: 0, health: 0 } },
+        { uid: 'd', cardId: 'glut', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'd' }); // Fortify the linked demon +1/+1
+    const lb = s.board.find((c) => c.uid === 'lb');
+    expect([s.board.find((c) => c.uid === 'd')?.attack, s.board.find((c) => c.uid === 'd')?.health]).toEqual([6, 6]);
+    expect([lb?.attack, lb?.health]).toEqual([2, 2]); // mirrored the +1/+1
+  });
+
+  it('Corrupted Lifebinder keeps its stats but stops mirroring when the demon leaves', () => {
+    let s: RunState = {
+      ...createRun(1),
+      heroReady: true,
+      board: [
+        { uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false, linkUid: 'd', linkBase: { attack: 5, health: 5 }, linkApplied: { attack: 2, health: 2 } },
+        { uid: 'd', cardId: 'glut', tribe: 'demon', attack: 7, health: 7, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'sell', uid: 'd' }); // the linked demon leaves
+    const lb = s.board.find((c) => c.uid === 'lb');
+    expect([lb?.attack, lb?.health]).toEqual([3, 3]); // keeps what it had
+    expect(lb?.linkUid).toBeUndefined(); // link ended
   });
 
   it('Fodder with no Demon on board just sits in the tavern (buyable)', () => {
@@ -841,7 +936,7 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('Discover adds the chosen card to the hand and clears the offer', () => {
-    let s: RunState = { ...createRun(1), hand: [], discover: ['whelp', 'cleric', 'nadir'] };
+    let s: RunState = { ...createRun(1), hand: [], discover: ['whelp', 'cleric', 'razor'] };
     s = reduce(s, { type: 'discover', index: 1 });
     expect(s.hand.some((c) => c.cardId === 'cleric')).toBe(true);
     expect(s.discover).toBeUndefined();

@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, syncLifebinders } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
@@ -40,6 +40,14 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
  * the combat-time effect system already works (see `@game/core`).
  */
 export function reduce(state: RunState, action: Action): RunState {
+  const next = reduceCore(state, action);
+  // Corrupted Lifebinder mirrors its linked demon's recruit gains — re-sync after any state change
+  // (idempotent when nothing moved). Combat-time mirroring happens inside `simulate`.
+  if (next !== state) syncLifebinders(next);
+  return next;
+}
+
+function reduceCore(state: RunState, action: Action): RunState {
   if (state.phase === 'gameover') return state;
   const s: RunState = structuredClone(state);
 
@@ -300,7 +308,11 @@ export function reduce(state: RunState, action: Action): RunState {
       // carry — never strand a played Toxin Tender without its grant.
       if (s.pendingTarget) {
         const src = s.board.find((c) => c.uid === s.pendingTarget!.uid);
-        const carry = s.board.length ? s.board.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
+        const def = src ? CARD_INDEX[src.cardId] : undefined;
+        // A tribe-restricted pick (Lifebinder → a friendly Demon, never self) must respect it; otherwise
+        // any friend works (Toxin Tender). No eligible target → the play resolves with no effect.
+        const pool = def?.targetTribe ? s.board.filter((c) => c !== src && c.tribe === def.targetTribe) : s.board;
+        const carry = pool.length ? pool.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
         if (src && carry) applyBattlecryTarget(s, src, carry);
         s.pendingTarget = undefined;
       }
@@ -317,6 +329,7 @@ export function reduce(state: RunState, action: Action): RunState {
         golden: b.golden,
         summonBonus: b.summonBonus ?? 0,
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
+        linkUid: b.linkUid, // Corrupted Lifebinder mirrors its linked demon in combat too
       }));
       s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX);
       // Outcome odds: re-simulate the same two boards on independent seeds for a win/draw/loss estimate.
@@ -340,6 +353,14 @@ export function reduce(state: RunState, action: Action): RunState {
     case 'resolveCombat': {
       if (s.phase !== 'combat' || !s.lastCombat) return state;
       advanceAfterCombat(s, s.lastCombat);
+      // Maw of the Pit's one-combat Divine Shield is spent — strip the temp DS so it doesn't carry to
+      // the next fight (consuming again re-arms it).
+      for (const c of s.board) {
+        if (c.tempShield) {
+          c.keywords = c.keywords.filter((k) => k !== 'DS');
+          c.tempShield = false;
+        }
+      }
       return s;
     }
   }

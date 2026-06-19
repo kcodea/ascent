@@ -54,6 +54,34 @@ export const NEUTRAL: CardDef[] = [
     goldenText: '**Battlecry:** add **two** random **Tier 1** minions to your hand.',
   },
   {
+    // Spell payoff. Each tavern spell you cast pumps two *other* friends (the triple-reward Discover
+    // is not a tavern spell, so it doesn't proc). Targets are chosen randomly among your other minions.
+    id: 'guel',
+    name: 'Archmagus Guel',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 2,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'spellCastBuffOthers', params: { attack: 1, health: 1, count: 2 } }],
+    text: 'After you cast a tavern spell, give 2 other friendly minions **+1/+1**.',
+    goldenText: 'After you cast a tavern spell, give 2 other friendly minions **+2/+2**.',
+  },
+  {
+    // Overflow payoff. When a summon can't fit your full board, a random friend gets the wasted body's
+    // worth of stats instead — turning board-cap overflow into value.
+    id: 'monk',
+    name: 'Flowing Monk',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 1,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'summonOverflow', do: 'overflowBuffRandom', params: { attack: 3, health: 3 } }],
+    text: "When you summon a minion that doesn't fit, give a random friendly minion **+3/+3**.",
+    goldenText: "When you summon a minion that doesn't fit, give a random friendly minion **+6/+6**.",
+  },
+  {
     // Battlecry doubler. Golden "triples" (fire 2 more times); multiple Drakkos do NOT stack.
     id: 'drummer',
     name: 'Drakko the Drummer',

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurn, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText } from './cardText';
 import { HudBar } from './HudBar';
@@ -66,7 +66,7 @@ function shopView(
     baseAttack: c.attack, baseHealth: c.health,
   };
 }
-function instView(inst: BoardCard, tier = 1, eot?: { attack: number; health: number }): CardView {
+function instView(inst: BoardCard, tier = 1, override?: { attack: number; health: number }): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
   // Triple Reward names the exact Tier it Discovers from (current Tier + 1, capped). A summon-buff
@@ -75,19 +75,16 @@ function instView(inst: BoardCard, tier = 1, eot?: { attack: number; health: num
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
       : summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
-  // Live End-of-Turn buff preview: fold the projected delta into the shown stats (so the board reads
-  // as it will when the turn ends), keep the eot chip + a breakdown entry so it's clearly an
-  // upcoming, not-yet-locked gain.
-  const eotA = eot?.attack ?? 0;
-  const eotH = eot?.health ?? 0;
+  // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
+  // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
   return {
-    name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2, attack: inst.attack + eotA, health: inst.health + eotH,
+    name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
+    attack: override?.attack ?? inst.attack, health: override?.health ?? inst.health,
     keywords: inst.keywords, text, goldenText: c.goldenText, golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
-    buffs: eot ? [...(inst.buffs ?? []), { source: 'End of Turn', attack: eotA, health: eotH, count: 1 }] : inst.buffs,
-    eotBuff: eot && (eotA !== 0 || eotH !== 0) ? { attack: eotA, health: eotH } : undefined,
+    buffs: inst.buffs,
   };
 }
 
@@ -159,6 +156,9 @@ export function Recruit() {
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
+  // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
+  // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
+  const [eotAnimStats, setEotAnimStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
   // Dragons Karwind just flame-buffed (keyed off run.karwindFlashSeq) — a one-shot flame flash.
   const [karwindFlameUids, setKarwindFlameUids] = useState<Set<string>>(new Set());
   const prevKarwindSeq = useRef(run.karwindFlashSeq);
@@ -204,6 +204,8 @@ export function Recruit() {
       return;
     }
     handBeforeCombatRef.current = new Set(run.hand.map((c) => c.uid));
+    setEotAnimStats(null); // the End-of-Turn climb is done + baked in; combat shows the real units
+    setFodderAnim(null); // never let a lingering Fodder ghost survive into combat + replay on return
     setCombatStage('closing');
     setEndTurnFlash(true);
     const banner = window.setTimeout(() => setEndTurnFlash(false), 850);
@@ -306,20 +308,15 @@ export function Recruit() {
     for (const o of run.shop) add(o.uid, o.cardId);
     return m;
   }, [run.board, run.hand, run.shop, run.cardBuffs]);
-  // Live End-of-Turn buff projection — the exact stat deltas the EoT effects would apply right now,
-  // computed off a throwaway clone (no state mutation). Recomputed only when an input to the
-  // resolution changes (board / hand / Fodder buff / wave / seed), so it's stable across a drag.
-  const eotProjection = useMemo(
-    () => (run.phase === 'recruit' ? projectEndOfTurn(run) : {}),
-    [run.phase, run.board, run.hand, run.cardBuffs, run.wave, run.seed],
-  );
+  // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
+  // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotProjection[m.uid])] as const)),
-    [run.board, run.tier, eotProjection],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid])] as const)),
+    [run.board, run.tier, eotAnimStats],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotProjection[m.uid])] as const)),
-    [run.hand, run.tier, eotProjection],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid])] as const)),
+    [run.hand, run.tier, eotAnimStats],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.
@@ -533,15 +530,32 @@ export function Recruit() {
   // the Hero Power). Clicking off any warband minion is ignored (keep aiming); ending the turn first
   // auto-resolves on the carry in the reducer, so the play is never stranded.
   const pendingTarget = run.pendingTarget;
+  // Which board minions are valid picks for the pending targeted Battlecry — all friends for an
+  // unrestricted pick (Toxin Tender), or only the required tribe (and never self) for Lifebinder.
+  const isPendingTarget = (uid: string): boolean => {
+    if (!pendingTarget) return false;
+    const def = CARD_INDEX[pendingTarget.cardId];
+    if (!def?.targetTribe) return true;
+    if (uid === pendingTarget.uid) return false;
+    return run.board.find((b) => b.uid === uid)?.tribe === def.targetTribe;
+  };
   useEffect(() => {
     if (!pendingTarget || inCombat) {
       setAim(null);
       return;
     }
+    // A tribe-restricted Battlecry (Lifebinder → a friendly Demon, never self) only accepts matching
+    // targets; an unrestricted one (Toxin Tender) accepts any friendly minion.
+    const def = CARD_INDEX[pendingTarget.cardId];
+    const valid = (uid: string): boolean => {
+      if (!def?.targetTribe) return true;
+      if (uid === pendingTarget.uid) return false;
+      return run.board.find((b) => b.uid === uid)?.tribe === def.targetTribe;
+    };
     const minionAt = (x: number, y: number): { uid: string } | null => {
       const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
       const uid = el?.getAttribute('data-uid');
-      return uid ? { uid } : null;
+      return uid && valid(uid) ? { uid } : null;
     };
     const move = (e: PointerEvent): void => {
       const origin = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${pendingTarget.uid}"]`);
@@ -568,7 +582,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerdown', pick);
     };
-  }, [pendingTarget, timeUp, dispatch, inCombat]);
+  }, [pendingTarget, timeUp, dispatch, inCombat, run.board]);
 
   // Reset the round clock at the start of each recruit wave. (Recruit stays mounted
   // across combat now, so unlike before it can't rely on a remount to re-initialise.)
@@ -689,7 +703,11 @@ export function Recruit() {
     setFodderAnim({ key: run.fodderEatenSeq, ghosts });
     const t = window.setTimeout(() => setFodderAnim(null), 2300); // slower: hold, then swirl in
     return () => window.clearTimeout(t);
-  }, [run.fodderEatenSeq, run.fodderEaten]);
+    // Keyed on the seq ONLY: `run.fodderEaten` gets a fresh array ref every action, so including it
+    // would re-run this effect (and its cleanup → clearTimeout) on unrelated actions, stranding the
+    // ghost forever — which then re-mounts + replays every time we come back from combat. The seq only
+    // changes when Fodder is actually eaten, so the snapshot read of `run.fodderEaten` here is current.
+  }, [run.fodderEatenSeq]);
 
   // --- Live warband drag: a dragged board minion is *lifted out* of the row entirely
   // (the floating copy IS the card) for the whole drag; the rest physically close up,
@@ -829,6 +847,12 @@ export function Recruit() {
       dispatch({ type: 'faceOmen' });
       return;
     }
+    // Per-proc cumulative stats (aligned 1:1 with `beats`) so the board's numbers visibly climb as each
+    // effect fires — then `faceOmen` bakes the same totals in for real. The pre-EoT stats are the floor.
+    const steps = projectEndOfTurnSteps(run);
+    const baseStats: Record<string, { attack: number; health: number }> = {};
+    for (const c of [...run.board, ...run.hand]) baseStats[c.uid] = { attack: c.attack, health: c.health };
+    const total = (s?: { attack: number; health: number }): number => (s ? s.attack + s.health : 0);
     endTurnPendingRef.current = true;
     const BEAT = 760;
     const GAP = 170;
@@ -844,6 +868,21 @@ export function Recruit() {
       setEotProcUids(new Set([b.uid]));
       if (b.kind === 'ritualist') setShopFlash((k) => k + 1);
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
+      // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
+      const cur = steps[i];
+      if (cur) {
+        setEotAnimStats(cur);
+        const prev = i > 0 ? steps[i - 1]! : baseStats;
+        const gained = Object.keys(cur).filter((uid) => total(cur[uid]) > total(prev[uid] ?? baseStats[uid]));
+        if (gained.length) {
+          setBuffedUids((s) => new Set([...s, ...gained]));
+          window.setTimeout(() => setBuffedUids((s) => {
+            const n = new Set(s);
+            for (const u of gained) n.delete(u);
+            return n;
+          }), BEAT);
+        }
+      }
       sfx.proc();
       window.setTimeout(() => {
         setEotProcUids(new Set());
@@ -1089,8 +1128,8 @@ export function Recruit() {
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}
                     dragging={!!drag?.active}
-                    highlight={heroArmed || castingSpell || !!pendingTarget}
-                    targeted={((heroArmed || !!pendingTarget) && aim?.targetUid === m.uid) || castTargetUid === m.uid}
+                    highlight={heroArmed || castingSpell || isPendingTarget(m.uid)}
+                    targeted={((heroArmed || isPendingTarget(m.uid)) && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}

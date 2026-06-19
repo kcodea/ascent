@@ -90,9 +90,6 @@ export interface CardView {
   floorHealth?: number;
   /** Per-source recruit buffs (for the inspect-panel breakdown). */
   buffs?: { source: string; attack: number; health: number; count: number }[];
-  /** Pending End-of-Turn buff (recruit preview): the stats above already include it; this is the
-   *  delta, shown as a small "incoming" chip so the projection reads as a not-yet-locked buff. */
-  eotBuff?: { attack: number; health: number };
 }
 
 /**
@@ -269,13 +266,6 @@ export const Card = memo(function Card({
       )}
       {card.keywords.includes('T') && (
         <span className="tauntward" aria-hidden="true"><Icon name="taunt" /></span>
-      )}
-      {/* Pending End-of-Turn buff preview: the stats already include it; this chip flags it as a
-          not-yet-locked, end-of-turn gain. */}
-      {card.eotBuff && (
-        <span className="eotchip" title="Pending End of Turn buff (locks in when the turn ends)">
-          <Icon name="up" />+{card.eotBuff.attack}/+{card.eotBuff.health}
-        </span>
       )}
       {/* Triple-ready: this tavern offer completes a triple if bought — gold arrows float up around it. */}
       {tripleReady && (

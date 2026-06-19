@@ -49,17 +49,6 @@ export const DEMONS: CardDef[] = [
     text: 'Gains **2x** stats from Fodder.',
   },
   {
-    id: 'pact',
-    name: 'Pactstone Acolyte',
-    tribe: 'demon',
-    tier: 2,
-    attack: 2,
-    health: 3,
-    keywords: [],
-    effects: [{ on: 'onConsume', do: 'onConsumeBuffSelf', params: { attack: 1, health: 1 } }],
-    text: 'When you consume a minion, gain an extra **+1/+1**.',
-  },
-  {
     id: 'brood',
     name: 'Brood Matron',
     tribe: 'demon',
@@ -93,8 +82,8 @@ export const DEMONS: CardDef[] = [
     attack: 4,
     health: 5,
     keywords: ['T'],
-    effects: [{ on: 'onConsume', do: 'onConsumeGrantSelfKeyword', params: { keyword: 'DS' } }],
-    text: 'On consume, gain a **Divine Shield**.',
+    effects: [{ on: 'onConsume', do: 'onConsumeShieldNextCombat' }],
+    text: 'On consume, gain a **Divine Shield** for the next combat.',
   },
   {
     id: 'glut',
@@ -119,20 +108,19 @@ export const DEMONS: CardDef[] = [
     text: '**End of Turn:** all Fodder gets **+1/+1**, wherever it is.',
   },
   {
-    id: 'sov',
-    name: 'Abyssal Sovereign',
+    // Targeted Battlecry: bind to a chosen friendly Demon. From then on it mirrors that Demon's stat
+    // gains — recruit buffs sync via `syncLifebinders`, and the combat simulator mirrors mid-fight
+    // gains too. If the linked Demon leaves (sold / dies / triples into a new uid) the link just ends.
+    id: 'lifebinder',
+    name: 'Corrupted Lifebinder',
     tribe: 'demon',
     tier: 6,
-    attack: 7,
-    health: 7,
-    keywords: ['SC'],
-    effects: [
-      {
-        on: 'startOfCombat',
-        do: 'scDestroyHighestAttack',
-        params: { text: 'Abyssal Sovereign drags down the mightiest' },
-      },
-    ],
-    text: '**Start of Combat:** destroy the enemy with the highest Attack.',
+    attack: 1,
+    health: 1,
+    keywords: [],
+    target: 'friendly',
+    targetTribe: 'demon',
+    effects: [{ on: 'onPlay', do: 'battlecryLinkDemon' }],
+    text: '**Battlecry:** bind to a friendly Demon. It also gains the stats whenever that minion does.',
   },
 ];

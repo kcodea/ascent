@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Art — wire the Pup token
+Wired `Sprite Pup.png` → the **Pup** token (id `pup`, the beast Pack Scrounger summons), which was still
+on the pixel-sprite fallback. The four minions added earlier today (Guel, Monk, Lifebinder, Deathsayer)
+were already wired. Noted: `DynamiteDuo.png` in the source folder has no matching card (orphan art), and
+~18 other cards still use pixel sprites because there's no name-matched source art for them yet.
+
 ### Deathsayer — Rally that procs the leftmost Deathrattle before its attack
 New **Deathsayer** (T4 Undead 3/5, **Rally**): each time it attacks, it fires your **leftmost friendly
 Deathrattle first**, then the hit lands. Art wired from the name-matched source.

@@ -360,9 +360,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffTarget: (ctx, self, params) => {
     let attack = num(params.attack);
     let health = num(params.health);
-    // The Spellbinder (passive): stat-granting spells give +X/+X more, X rising every 3 turns.
-    if ((attack > 0 || health > 0) && getHero(ctx.state.heroId).power.kind === 'spellAmplify') {
-      const bonus = spellAmplifyBonus(ctx.state.wave);
+    // Stat-granting spells pick up the run's spell bonus (Spellbinder hero now, cards later). The UI
+    // shows the same effective value via spellDisplayText — one source of truth (spellStatBonus).
+    if (attack > 0 || health > 0) {
+      const bonus = spellStatBonus(ctx.state);
       attack += bonus;
       health += bonus;
     }
@@ -382,6 +383,35 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.spellsCast += 1;
   },
 };
+
+/**
+ * Total +X/+X bonus applied to stat-granting spells, from every active source (the Spellbinder hero
+ * now; spell-buffing cards later just add here). This is the SINGLE source of truth — the reducer
+ * applies it (`spellBuffTarget`) and the UI displays it (`spellDisplayText`), so a spell card always
+ * shows its real value. New spell-buff effects should fold into this one function.
+ */
+export function spellStatBonus(state: RunState): number {
+  let bonus = 0;
+  if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.wave);
+  return bonus;
+}
+
+/**
+ * A spell's display text with its stat value updated to reflect `bonus` (and highlighted green via
+ * `{{…}}`). Returns the base text for non-stat spells or a zero bonus. Convention: a stat spell's
+ * text shows its value as "+A/+B" matching its `spellBuffTarget` params, so it can be substituted.
+ */
+export function spellDisplayText(cardId: string, bonus: number): string {
+  const def = CARD_INDEX[cardId];
+  if (!def) return '';
+  if (bonus <= 0) return def.text;
+  const eff = def.effects.find((e) => e.do === 'spellBuffTarget');
+  if (!eff) return def.text;
+  const ba = Number((eff.params as { attack?: number } | undefined)?.attack ?? 0);
+  const bh = Number((eff.params as { health?: number } | undefined)?.health ?? 0);
+  if (ba <= 0 && bh <= 0) return def.text;
+  return def.text.replace(`+${ba}/+${bh}`, `{{+${ba + bonus}/+${bh + bonus}}}`);
+}
 
 /** Apply a spell's `cast` effects to its chosen target. The spell's name is injected as `_source`
  *  so target buffs (Spirit Fire) record it for the inspect breakdown. */

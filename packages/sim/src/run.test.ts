@@ -14,6 +14,8 @@ import {
   THREAT_IDS,
   addBuff,
   getHero,
+  spellStatBonus,
+  spellDisplayText,
   type BoardCard,
   type RunState,
 } from './index';
@@ -1456,5 +1458,37 @@ describe('PvE win condition (@game/sim)', () => {
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.phase).toBe('gameover');
+  });
+});
+
+describe('spell stat bonus + display (@game/sim)', () => {
+  it('spellStatBonus aggregates active sources (Spellbinder scales; others = 0)', () => {
+    expect(spellStatBonus(createRun(1, 'warden'))).toBe(0);
+    expect(spellStatBonus({ ...createRun(1, 'spellbinder'), wave: 1 })).toBe(1);
+    expect(spellStatBonus({ ...createRun(1, 'spellbinder'), wave: 4 })).toBe(2);
+  });
+
+  it('spellDisplayText substitutes the effective value (green via {{…}}); base text otherwise', () => {
+    // No bonus → unchanged base text.
+    expect(spellDisplayText('spiritfire', 0)).toBe('Give a friendly minion **+3/+3**.');
+    // +1 bonus → the value updates and is highlighted.
+    expect(spellDisplayText('spiritfire', 1)).toBe('Give a friendly minion **{{+4/+4}}**.');
+    expect(spellDisplayText('bulwark', 1)).toBe('Give a friendly minion **{{+1/+2}}** and **Taunt**.');
+    // A non-stat spell (Mana Pouch) is untouched even with a bonus.
+    expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Mana**.');
+  });
+
+  it('the displayed value matches what a cast actually grants (Spellbinder, turn 1)', () => {
+    const s = { ...createRun(1, 'spellbinder'), wave: 1 };
+    const bonus = spellStatBonus(s);
+    // Spirit Fire's base is +3/+3; the card shows +4/+4 and a cast grants +4/+4 — same number.
+    expect(spellDisplayText('spiritfire', bonus)).toContain('+4/+4');
+    let r: RunState = {
+      ...s, board: [{ uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
+      hand: [{ uid: 'sf', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
+    };
+    r = reduce(r, { type: 'play', uid: 'sf', targetUid: 't' });
+    expect(r.board[0]!.attack).toBe(6); // 2 + 4
+    expect(r.board[0]!.health).toBe(6);
   });
 });

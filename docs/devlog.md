@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Spell cards show their real value (modifiers reflected) — one source of truth
+Spell cards now display their *effective* stat value, not the printed base — so as the Spellbinder on
+turn 1, Spirit Fire reads **+4/+4** (green), and a cast grants exactly that. Wired for the cards that
+will buff spells later:
+- **`spellStatBonus(state)`** (new, `@game/sim`) is the single source of truth for the +X/+X bonus to
+  stat-granting spells, summing all active sources (the Spellbinder hero now; spell-buff cards just
+  fold in here). The reducer's `spellBuffTarget` applies it (replacing the old inline hero check), and
+  the UI reads the *same* function — so the displayed number always equals what a cast actually does.
+- **`spellDisplayText(cardId, bonus)`** (new) returns the spell's text with its `+A/+B` substituted to
+  the effective value and highlighted green via `{{…}}` (the existing `.descup` treatment). The tavern
+  spell slot (`shopView`) and held spells (`instView`) both run it; non-stat spells (Mana Pouch) and a
+  zero bonus pass through unchanged. Convention: a stat spell's text shows its value as `+A/+B` matching
+  its `spellBuffTarget` params so it can be substituted.
+- Verified: `typecheck` + `lint` clean, `test` **166** pass (+3: `spellStatBonus` per hero/wave,
+  `spellDisplayText` substitution incl. the non-stat + no-bonus cases, and that the shown value equals
+  the cast result). Live: as the Spellbinder, the tavern Spirit Fire renders "+4/+4" in green.
+
 ### Three new heroes (placeholder names): The Reclaimer, The Spellbinder, Dusk
 Added the three spec'd heroes — names are **placeholders**, rename freely. Each needed a different
 piece of new plumbing, all now reusable:

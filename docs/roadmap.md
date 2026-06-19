@@ -56,6 +56,10 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
   - `spellCast` event + `state.spellsCast` counter → **now used by Archmagus Guel** (buff 2 others).
   - `castSpell` factory → minions that cast a spell from an event (auto-targets the carry) — still unused.
   - `state.spellCostMod` → "your spells cost less" effects (subtracted at buy) — still unused.
+  - **Spell-stat amplifiers are fully wired:** `spellStatBonus(state)` is the one source of truth for
+    the +X/+X to stat spells (the Spellbinder hero feeds it today), the reducer applies it, and the UI
+    shows it (`spellDisplayText`, green). A new "spells give +X/+X more" *card* just adds its term to
+    `spellStatBonus` — math + card display both update for free.
   - Higher-tier spells would round out the pool.
 - [x] **Targeted Battlecries (minions).** Done — the place-then-target gesture is built: a minion with
       `CardDef.target: 'friendly'` plays to the board, parks a `RunState.pendingTarget`, and the player

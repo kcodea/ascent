@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, getHero, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, getHero, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellStatBonus, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText } from './cardText';
 import { HudBar } from './HudBar';
@@ -44,13 +44,16 @@ function shopView(
   card: ShopCard,
   spellCostMod = 0,
   cardBuffs?: Record<string, { attack: number; health: number }>,
+  spellBonus = 0,
 ): CardView {
   const c = CARD_INDEX[card.cardId];
   if (c.spell) {
-    // A tavern spell: its own (modifiable) cost + a tier pill, no stat footer.
+    // A tavern spell: its own (modifiable) cost + a tier pill, no stat footer. Its value text
+    // reflects active spell bonuses (Spellbinder, etc.) so it shows what it'll actually grant.
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
-      keywords: c.keywords, text: c.text, cost: Math.max(0, (c.cost ?? 0) - spellCostMod), spell: true,
+      keywords: c.keywords, text: spellDisplayText(c.id, spellBonus),
+      cost: Math.max(0, (c.cost ?? 0) - spellCostMod), spell: true,
       target: c.target, tier: c.tier,
     };
   }
@@ -66,15 +69,23 @@ function shopView(
     baseAttack: c.attack, baseHealth: c.health,
   };
 }
-function instView(inst: BoardCard, tier = 1, override?: { attack: number; health: number }): CardView {
+function instView(
+  inst: BoardCard,
+  tier = 1,
+  override?: { attack: number; health: number },
+  spellBonus = 0,
+): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
-  // Triple Reward names the exact Tier it Discovers from (current Tier + 1, capped). A summon-buff
-  // card (Kennelmaster) instead shows its current boosted magnitude (green via {{…}}).
+  // Triple Reward names the exact Tier it Discovers from (current Tier + 1, capped). A held spell
+  // shows its bonus-adjusted value (Spellbinder, etc.); a summon-buff card (Kennelmaster) shows its
+  // current boosted magnitude. All green via {{…}}.
   const text =
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
-      : summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
+      : c.spell
+        ? spellDisplayText(c.id, spellBonus)
+        : summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
   return {
@@ -109,6 +120,9 @@ export function Recruit() {
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   const heroPowerKind = getHero(run.heroId).power.kind;
   const heroTargetsTavern = heroPowerKind === 'fortify';
+  // The active +X/+X bonus to stat-granting spells (Spellbinder, etc.) — so spell cards show their
+  // real value. One source of truth shared with the reducer's cast math.
+  const spellBonus = spellStatBonus(run);
 
   // Round timer grows +5s each wave, capped at 70s. (Recruit now stays mounted across
   // combat, so the per-wave reset is an effect keyed on the wave — see below.)
@@ -298,8 +312,8 @@ export function Recruit() {
     [run.shop, run.cardBuffs],
   );
   const spellView = useMemo(
-    () => (run.spell ? shopView(run.spell, run.spellCostMod) : null),
-    [run.spell, run.spellCostMod],
+    () => (run.spell ? shopView(run.spell, run.spellCostMod, undefined, spellBonus) : null),
+    [run.spell, run.spellCostMod, spellBonus],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
@@ -321,8 +335,8 @@ export function Recruit() {
     [run.board, run.tier, eotAnimStats],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid])] as const)),
-    [run.hand, run.tier, eotAnimStats],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus)] as const)),
+    [run.hand, run.tier, eotAnimStats, spellBonus],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.

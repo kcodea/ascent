@@ -40,6 +40,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffRandom',
   'onFriendDeathBuffRandom',
   'rallyBuff',
+  'rallyProcDeathrattle',
   'deathrattleGrantSpell',
   'buffFodderEverywhere',
   'deathrattleFillTribe',

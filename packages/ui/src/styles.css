@@ -889,6 +889,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .float.poison.sym { color: #46e6a0; text-shadow: 0 0 20px rgba(40, 230, 150, 0.95), 0 0 42px rgba(40, 230, 150, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6); }
 .float.reborn.sym { color: #a6dcff; text-shadow: 0 0 22px rgba(120, 200, 255, 1), 0 0 52px rgba(120, 200, 255, 0.85), 0 2px 6px rgba(0, 0, 0, 0.6); }
 .float.shield.sym, .float.shieldup.sym { color: #ffe08a; text-shadow: 0 0 20px rgba(255, 210, 110, 0.95), 0 0 42px rgba(255, 200, 90, 0.6), 0 2px 6px rgba(0, 0, 0, 0.6); }
+.float.rally.sym { color: #cba6f0; text-shadow: 0 0 20px rgba(180, 120, 240, 0.95), 0 0 44px rgba(160, 100, 230, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6); }
 @keyframes floatsym {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-14deg); }
   22% { opacity: 1; transform: translate(-50%, -50%) scale(1.4) rotate(5deg); }

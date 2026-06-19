@@ -61,6 +61,7 @@ export type EffectFactoryId =
   | 'deathrattleBuffRandom'
   | 'onFriendDeathBuffRandom'
   | 'rallyBuff' // Rally: when this attacks, buff your other minions (combat)
+  | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'deathrattleFillTribe'
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
@@ -232,7 +233,8 @@ export type CombatEvent =
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number }
   | { type: 'buff'; target: string; attack: number; health: number; source: string }
-  | { type: 'improve'; target: string; amount: number }; // Kennelmaster's Avenge strengthens its summon aura
+  | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
+  | { type: 'rally'; source: string; target: string }; // Deathsayer's Rally fires `target`'s Deathrattle
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 

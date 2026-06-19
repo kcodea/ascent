@@ -5,7 +5,7 @@ import type { UnitFrame } from './useCombatReplay';
 
 /** Keyword-proc floats (poison/shield/reborn) that bloom big in the card centre, staggered after the
  *  damage number so the two never collide. Damage/buff numbers stay in the HP/stat corner. */
-const SYM_KINDS = new Set(['poison', 'shield', 'shieldup', 'reborn']);
+const SYM_KINDS = new Set(['poison', 'shield', 'shieldup', 'reborn', 'rally']);
 
 /** A combat unit — the same Card as recruit, wrapped for animations, floats, and the DS ring. */
 export function Unit({

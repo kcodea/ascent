@@ -65,6 +65,19 @@ export const UNDEAD: CardDef[] = [
     text: '',
   },
   {
+    // Rally engine: each time it attacks, it fires your leftmost friendly Deathrattle *before* the hit
+    // lands (so any buffs/summons resolve first). Modest stats — the value is the repeated proc.
+    id: 'deathsayer',
+    name: 'Deathsayer',
+    tribe: 'undead',
+    tier: 4,
+    attack: 3,
+    health: 5,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyProcDeathrattle' }],
+    text: '**Rally:** before this attacks, trigger your leftmost Deathrattle.',
+  },
+  {
     id: 'plague',
     name: 'Plaguebringer',
     tribe: 'undead',

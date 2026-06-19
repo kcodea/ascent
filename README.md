@@ -23,6 +23,8 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Deathsayer** (T4 Undead, Rally) — each time it attacks, it fires your **leftmost Deathrattle
+  first** (with a clear proc + pause), so the buffs/summons land *before* the hit does.
 - **3 new minions** — **Archmagus Guel** (cast a tavern spell → +1/+1 to 2 other friends), **Flowing
   Monk** (a summon that doesn't fit → +3/+3 to a random friend, in recruit *and* combat), and
   **Corrupted Lifebinder** (bind to a friendly Demon and gain stats whenever it does, recruit + combat).

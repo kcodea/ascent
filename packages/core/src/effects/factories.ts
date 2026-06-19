@@ -164,6 +164,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) if (m !== self) ctx.buff(m, attack, health, self.uid);
   },
 
+  /** Deathsayer's Rally — when *this* attacks, fire your leftmost living minion's Deathrattle *first*
+   *  (before the hit lands; `onAttack` is emitted before damage). Logs a `rally` event (source =
+   *  Deathsayer, target = that minion) so the UI pauses + shows whose Deathrattle goes off, then runs
+   *  that minion's onDeath effects once — it stays alive (only true `deathrattle*` effects count, not
+   *  friend-death watchers like Brood Matron). Any buffs/summons it produces resolve before the attack. */
+  rallyProcDeathrattle: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const isDeathrattle = (m: Minion): boolean => m.effects.some((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle'));
+    const target = ctx.living(self.side).find(isDeathrattle);
+    if (!target) return;
+    ctx.log({ type: 'rally', source: self.uid, target: target.uid });
+    for (const effect of target.effects) {
+      if (effect.on !== 'onDeath' || !effect.do.startsWith('deathrattle')) continue;
+      FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+    }
+  },
+
   /** Rot Weaver: each time another friend dies, buff a random living friend. */
   onFriendDeathBuffRandom: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;

@@ -533,6 +533,24 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 3)).toBe(true);
   });
 
+  it('Deathsayer Rally fires the leftmost Deathrattle before its attack lands', () => {
+    // Deathsayer (no Deathrattle of its own) + a Sporeling (Deathrattle: +1/+1 a random friend). When
+    // Deathsayer attacks, its Rally fires the leftmost friendly Deathrattle (Sporeling's) first — so the
+    // buff event lands before that attack's damage.
+    const p: BoardMinion[] = [
+      { cardId: 'deathsayer', attack: 3, health: 8 },
+      { cardId: 'spore', attack: 1, health: 6 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 40 }];
+    const a = run(p, e, 7);
+    const rallyIdx = a.events.findIndex((ev) => ev.type === 'rally');
+    expect(rallyIdx).toBeGreaterThanOrEqual(0); // Rally procced
+    const buffAfter = a.events.findIndex((ev, i) => i > rallyIdx && ev.type === 'buff');
+    const dmgAfter = a.events.findIndex((ev, i) => i > rallyIdx && ev.type === 'dmg');
+    expect(buffAfter).toBeGreaterThanOrEqual(0); // the Deathrattle (+1/+1) fired
+    expect(buffAfter).toBeLessThan(dmgAfter); // ...before the attack's damage was dealt
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

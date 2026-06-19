@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Deathsayer — Rally that procs the leftmost Deathrattle before its attack
+New **Deathsayer** (T4 Undead 3/5, **Rally**): each time it attacks, it fires your **leftmost friendly
+Deathrattle first**, then the hit lands. Art wired from the name-matched source.
+- **Engine:** new combat factory `rallyProcDeathrattle` (subscribed to `onAttack`, which is emitted
+  *before* `dealDamage`, so the proc + any buffs/summons it produces resolve before the attack's
+  damage). It finds the leftmost living friend with a *true* Deathrattle (`onDeath` effect whose id
+  starts with `deathrattle`, so friend-death watchers like Brood Matron don't count), logs a new
+  `rally` combat event (source = Deathsayer, target = that minion), then runs that minion's onDeath
+  effects once (it stays alive). Sylus is intentionally *not* applied (one proc per attack).
+- **UI:** the `rally` event is its own beat with a pause (`DELAY.rally` 720 ms) — Deathsayer pulses
+  (`sccast`), the chosen minion flares + shows a violet **☠** bloom marking whose Deathrattle fires,
+  then its buff/summon beats play, *then* the attack's damage. Narrated in both combat logs; the
+  headless harness prints it too.
+- Verified: `typecheck` + `lint` clean, `test` **140** pass (new test asserts the Rally + the
+  Deathrattle's buff land in the log *before* that attack's damage); production build bundles the art;
+  the app mounts clean with the `rally` float styled. Stats are starting dials.
+
 ### Content pass — 3 new minions, 6 removals, Maw/Toxin tweaks, per-proc EoT animation
 A big content + mechanics batch from the user's spec.
 

@@ -110,7 +110,7 @@ function computeFrame(
 const SPEED = 1.5;
 const DELAY: Record<string, number> = {
   // action beats (the wind-up / cast)
-  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520,
+  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720,
   // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, death: 400,
@@ -165,6 +165,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'sc': return { [e.source]: 'sccast' };
     case 'death': return { [e.target]: 'dying' };
     case 'summon': return { [e.minion.uid]: 'summoned' };
+    case 'rally': return { [e.source]: 'sccast', [e.target]: 'flare' }; // Deathsayer pulses; the Deathrattle minion flares
     default: return {};
   }
 }
@@ -180,6 +181,7 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
     case 'reborn': return { uid: e.target, text: '♻', kind: 'reborn' };
     case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
     case 'improve': return { uid: e.target, text: '✦', kind: 'buff' };
+    case 'rally': return { uid: e.target, text: '☠', kind: 'rally' }; // marks whose Deathrattle is firing
     default: return null;
   }
 }
@@ -201,6 +203,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'improve': return { text: `${n(e.target)}'s summon aura strengthens by +${e.amount}/+${e.amount}.`, kind: 'buff' };
+    case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Deathrattle.`, kind: 'sc' };
     default: return null;
   }
 }
@@ -218,6 +221,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'summon': return `${e.minion.name} joins the fray.`;
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
     case 'improve': return `${n(e.target)}'s aura strengthens (+${e.amount}/+${e.amount}).`;
+    case 'rally': return `☠ ${n(e.source)}'s Rally fires ${n(e.target)}'s Deathrattle!`;
     default: return null;
   }
 }

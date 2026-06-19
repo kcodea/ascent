@@ -1196,6 +1196,24 @@ export function Recruit() {
             <div className="logtitle">
               Combat Log <span className={`logverdict ${replay.result ?? ''}`}>{replay.result === 'win' ? 'Victory' : replay.result === 'lose' ? 'Defeat' : 'Draw'}</span>
             </div>
+            {run.lastCombat?.odds && (
+              <div
+                className="logodds"
+                title="Estimated from 250 simulations of this matchup — the actual result was one roll of these odds."
+              >
+                <div className="oddscap">Outcome odds</div>
+                <div className="oddsbar">
+                  <span className="ob win" style={{ width: `${run.lastCombat.odds.win * 100}%` }} />
+                  <span className="ob draw" style={{ width: `${run.lastCombat.odds.draw * 100}%` }} />
+                  <span className="ob lose" style={{ width: `${run.lastCombat.odds.lose * 100}%` }} />
+                </div>
+                <div className="oddslabels">
+                  <span className="ol win">{Math.round(run.lastCombat.odds.win * 100)}% win</span>
+                  <span className="ol draw">{Math.round(run.lastCombat.odds.draw * 100)}% draw</span>
+                  <span className="ol lose">{Math.round(run.lastCombat.odds.lose * 100)}% loss</span>
+                </div>
+              </div>
+            )}
             <div className="loglines">
               {replay.fullLog.length === 0 ? (
                 <div className="logline">No blows were struck.</div>

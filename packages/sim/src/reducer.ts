@@ -319,6 +319,19 @@ export function reduce(state: RunState, action: Action): RunState {
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
       }));
       s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX);
+      // Outcome odds: re-simulate the same two boards on independent seeds for a win/draw/loss estimate.
+      // Combat is a cheap pure function on ~14 units, so a few hundred sims cost a few ms (once per
+      // fight). Seeds are derived from the run seed (a separate ODDS stream), so the odds are
+      // reproducible and don't disturb the real combat RNG. The actual result above is one such roll.
+      let win = 0, draw = 0, lose = 0;
+      const ODDS_SIMS = 250;
+      for (let i = 0; i < ODDS_SIMS; i++) {
+        const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX).result;
+        if (r === 'win') win++;
+        else if (r === 'draw') draw++;
+        else lose++;
+      }
+      s.lastCombat.odds = { win: win / ODDS_SIMS, draw: draw / ODDS_SIMS, lose: lose / ODDS_SIMS };
       s.phase = 'combat';
       return s;
     }

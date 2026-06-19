@@ -1122,4 +1122,24 @@ describe('run loop (@game/sim)', () => {
     s = reduce({ ...s, pool: empty, shop: [], embers: 50 }, { type: 'roll' });
     expect(s.shop.length).toBe(0); // nothing left → no offers conjured from an empty pool
   });
+
+  it('faceOmen computes deterministic outcome odds (win/draw/lose sum to 1)', () => {
+    const setup = (): RunState => ({
+      ...createRun(42),
+      phase: 'recruit',
+      embers: 0,
+      shop: [],
+      board: [
+        { uid: 'a', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false },
+        { uid: 'b', cardId: 'cleaver', tribe: 'beast', attack: 2, health: 4, keywords: ['C'], golden: false },
+      ],
+    });
+    const odds = reduce(setup(), { type: 'faceOmen' }).lastCombat!.odds!;
+    expect(odds).toBeDefined();
+    expect(odds.win + odds.draw + odds.lose).toBeCloseTo(1, 6);
+    expect(odds.win).toBeGreaterThanOrEqual(0);
+    expect(odds.lose).toBeGreaterThanOrEqual(0);
+    // Deterministic: the same seed + wave re-derives identical odds (own RNG stream).
+    expect(reduce(setup(), { type: 'faceOmen' }).lastCombat!.odds).toEqual(odds);
+  });
 });

@@ -883,6 +883,18 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .logverdict.win { color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 20%, transparent); }
 .logverdict.lose { color: var(--threat-dk); background: color-mix(in srgb, var(--threat) 18%, transparent); }
 .logverdict.draw { color: var(--ink2); background: var(--bg2); }
+/* Outcome-odds bar: the estimated win / draw / loss distribution for the matchup (the result was one roll). */
+.logodds { display: flex; flex-direction: column; gap: calc(5 * var(--u)); }
+.oddscap { font-family: 'Outfit'; font-weight: 800; font-size: calc(10 * var(--u)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.oddsbar { display: flex; height: calc(10 * var(--u)); border-radius: 999px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg2); }
+.oddsbar .ob { height: 100%; transition: width 0.3s ease; }
+.oddsbar .ob.win { background: var(--acc); }
+.oddsbar .ob.draw { background: var(--ink3); }
+.oddsbar .ob.lose { background: var(--threat); }
+.oddslabels { display: flex; justify-content: space-between; font-family: 'Outfit'; font-weight: 800; font-size: calc(12 * var(--u)); }
+.oddslabels .win { color: var(--acc-dk); }
+.oddslabels .draw { color: var(--ink3); }
+.oddslabels .lose { color: var(--threat-dk); }
 .loglines { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: calc(6 * var(--u)); padding-right: 6px; }
 .logline { font-family: 'Nunito Sans', sans-serif; font-size: calc(14 * var(--u)); font-weight: 600; color: var(--ink2); padding: calc(7 * var(--u)) calc(11 * var(--u)); border-radius: 8px; background: var(--bg2); border-left: 3px solid var(--line); }
 .logline.sc { border-left-color: var(--t-dragon); color: var(--ink); font-weight: 800; }

@@ -233,6 +233,9 @@ export interface CombatResult {
   playerSummonBonus?: { sourceUid: string; bonus: number }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
+  /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
+   *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
+  odds?: { win: number; draw: number; lose: number };
 }
 
 /**

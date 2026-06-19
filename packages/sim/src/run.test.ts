@@ -769,6 +769,17 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'lb')?.linkUid).toBe('d');
   });
 
+  it('Corrupted Lifebinder with no other friendly Demon plays without a prompt or link', () => {
+    let s: RunState = {
+      ...createRun(1),
+      hand: [{ uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false }],
+      board: [{ uid: 'b', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'lb' });
+    expect(s.pendingTarget).toBeUndefined(); // no viable Demon → no targeting prompt
+    expect(s.board.find((c) => c.uid === 'lb')?.linkUid).toBeUndefined(); // played without effect
+  });
+
   it('Corrupted Lifebinder mirrors its linked demon\'s recruit gains', () => {
     let s: RunState = {
       ...createRun(1),

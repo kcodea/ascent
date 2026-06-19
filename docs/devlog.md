@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Fix — no targeting prompt when there's no viable target
+A targeted Battlecry no longer strands the player on an unfulfillable prompt. The `play` action now
+sets `pendingTarget` **only if a viable target exists**; otherwise the minion just plays and its
+Battlecry doesn't fire. Tribe-restricted picks (Corrupted Lifebinder → a friendly Demon, never self)
+need a matching friend — with none, **no prompt, no link, played as-is**. Unrestricted picks (Toxin
+Tender) always have a target (themselves included), so they're unaffected. Engine-level, so the UI
+inherits it. Test added. `test` **143** pass.
+
 ### Golden Deathsayer — Rally proc is a ×2 multiplier
 A **golden Deathsayer** now procs the leftmost Deathrattle **twice** — implemented as a multiplier on
 the whole Rally proc count: `procs = (1 + Sylus extras) × (golden ? 2 : 1)`, so it stacks

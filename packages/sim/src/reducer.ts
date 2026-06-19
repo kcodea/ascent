@@ -165,11 +165,20 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.chooseOne = { uid: card.uid, cardId: card.cardId };
         return s;
       }
-      // Targeted Battlecry (Toxin Tender): pause for the player to pick the friendly target (its
-      // Battlecry resolves in `battlecryTarget`), before triples / the golden Discover.
-      if (CARD_INDEX[card.cardId]?.target === 'friendly') {
-        s.pendingTarget = { uid: card.uid, cardId: card.cardId };
-        return s;
+      // Targeted Battlecry (Toxin Tender / Lifebinder): pause for the player to pick the friendly target
+      // (resolved in `battlecryTarget`) — but only if a *viable* target exists. A tribe-restricted pick
+      // (Lifebinder → a friendly Demon, never self) needs a matching friend; with none, the Battlecry
+      // simply doesn't fire and the minion plays as-is (no prompt). An unrestricted pick (Toxin Tender)
+      // can always target a friend (itself included), so it always has one.
+      const playedDef = CARD_INDEX[card.cardId];
+      if (playedDef?.target === 'friendly') {
+        const hasTarget = playedDef.targetTribe
+          ? s.board.some((c) => c.uid !== card.uid && c.tribe === playedDef.targetTribe)
+          : true;
+        if (hasTarget) {
+          s.pendingTarget = { uid: card.uid, cardId: card.cardId };
+          return s;
+        }
       }
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);

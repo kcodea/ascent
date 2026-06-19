@@ -25,9 +25,12 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 - **Readable damage numbers** — combat damage now pops up **next to each card's HP** (not off the top),
   bigger and longer-lived, with attacker and target taking their hits at the same instant.
-- **In-combat HP/Attack colours** — a minion's stats now turn **red when damaged or debuffed below what
-  it entered the fight with** (a buffed 5/5 hit to 5/3 shows red HP); combat buffs still read green, and
-  the shop is unchanged (compares to the printed base).
+- **Dramatic keyword procs** — poison, Divine Shield and Reborn now **bloom big in the card centre a beat
+  after** the damage number (so they never overlap it); **Reborn flashes bright blue** with an expanding
+  ring when a minion returns from death.
+- **In-combat HP/Attack colours** — a recruit-buffed minion stays **green** in combat and only turns
+  **red once a stat drops below what it entered the fight with** (a 5/5 hit to 5/3 → red HP, green
+  attack); the shop is unchanged (compares to the printed base).
 - **Cleaner combat→recruit hand-off** — the warband no longer "jiggles" when you return from a fight,
   and the Hero Power (Fortify) reliably flashes the minion it buffs.
 - **Clearer combat** — attacks lean in and recoil instead of covering the target, the struck defender

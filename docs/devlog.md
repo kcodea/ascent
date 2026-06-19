@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Combat VFX round 3 — staggered keyword procs, bright-blue reborn, two-threshold stat colours
+Follow-ups from playtesting the previous round:
+- **Keyword procs no longer collide with the damage number.** Poison (☠), Divine Shield (◇ break/gain)
+  and Reborn (♻) floats used to spawn on top of the `−N` at the same HP corner. They now **bloom big
+  (64px) in the card centre, 0.26 s after** the damage number (a new `floatsym` animation + a `sym`
+  class on those float kinds), so the hit reads first and the proc lands as its own beat — and each is
+  much more apparent: poison glows green, shield gold, reborn electric blue. Damage/buff numbers still
+  sit in the stat corner. `Unit.tsx` (`SYM_KINDS`), `styles.css`.
+- **Reborn is now unmistakable.** Replaced the dim brightness `flare` with a **bright-blue resurrection
+  flash** (`rebornburst`: the unit flares electric blue, brightness 2.5 + blue drop-shadow) plus an
+  **expanding blue ring** (`rebornring` ::after). Bumped the reborn beat (`DELAY.reborn` 560→640 ms) so
+  the 0.85 s flash plays out before the next beat clears the class. `styles.css`, `useCombatReplay.ts`.
+- **Stronger poison proc** — vivid green flash (hue-rotate + saturate + green drop-shadow) and a denser
+  rising mist, so a Venomous kill is obvious. `styles.css`.
+- **Stat colours fixed: green stays green until actually reduced.** Last round set the combat baseline
+  to the *combat-start* stats, which made a recruit-buffed 5/5 read **neutral** the instant combat began
+  (cur == base). Now combat uses **two thresholds**: green above the **printed** base (it's buffed), red
+  below the **floor** it entered the fight with (it's been damaged/debuffed). So a 5/5 reads **green**
+  and only its HP flips **red** when chipped to 5/3 — exactly as asked. `statCls` gained a `floor` arg;
+  `CardView` gained `floorAttack`/`floorHealth`; `Unit.tsx` passes printed base + combat-start floor.
+  Shop/recruit is unchanged (no floor → printed-base compare).
+- Verified: `typecheck` + `lint` clean, `test` **133** pass; all new CSS confirmed applied via live
+  computed-style probes (`floatsym` delay 0.26 s/64px, reborn `rebornburst`+`rebornring`, sym colours)
+  on a clean fresh mount. Runtime motion is for the user to confirm in-browser (the preview renderer
+  still hangs on screenshots / `setTimeout` evals, and synthetic drags don't land, so a live fight
+  can't be driven here).
+
 ### Combat readability round 2 — damage numbers, in-combat stat colours, return jiggle, hero-power flash
 A grab-bag of combat/recruit polish from live playtesting:
 - **Damage numbers, near the HP and readable.** The floating combat numbers (`−N`, poison, shields,

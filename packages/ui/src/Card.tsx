@@ -82,13 +82,27 @@ export interface CardView {
   /** Base (printed) stats — stats above base render green, below base render red. */
   baseAttack?: number;
   baseHealth?: number;
+  /** Combat-only floor: the stats the minion *entered the fight* with. A stat below its floor reads
+   *  red (damaged / debuffed) even while still above the printed base; a stat above the printed base
+   *  but at/above its floor stays green (a recruit-buffed 5/5 reads green until it's chipped below 5).
+   *  Left undefined outside combat — the shop colours against the printed base alone. */
+  floorAttack?: number;
+  floorHealth?: number;
   /** Per-source recruit buffs (for the inspect-panel breakdown). */
   buffs?: { source: string; attack: number; health: number; count: number }[];
 }
 
-/** Green when a stat is above its base, red when below — for at-a-glance buffs/damage. */
-const statCls = (cur: number, base?: number): string =>
-  base === undefined || cur === base ? '' : cur > base ? ' up' : ' down';
+/**
+ * Stat colour. Shop/recruit (no `floor`): green above the printed base, red below, neutral at base.
+ * Combat (`floor` = the value the minion entered the fight with): red once it drops below that floor
+ * (damaged HP / debuffed attack); green while buffed above the printed base and still at/above the
+ * floor; neutral otherwise — so a recruit-buffed 5/5 reads green until it's chipped below 5, not the
+ * instant combat starts.
+ */
+const statCls = (cur: number, base?: number, floor?: number): string => {
+  if (floor !== undefined) return cur < floor ? ' down' : base !== undefined && cur > base ? ' up' : '';
+  return base === undefined || cur === base ? '' : cur > base ? ' up' : ' down';
+};
 
 /**
  * Trigger abilities (Battlecry / Deathrattle / Avenge / End of Turn) aren't keywords
@@ -279,7 +293,7 @@ export const Card = memo(function Card({
           <span className="ctype spell">✦ Spell</span>
         ) : (
           <>
-            <span className={`atk${statCls(card.attack, card.baseAttack)}`}>{card.attack}</span>
+            <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}`}>{card.attack}</span>
             <span className="ctype">
               <Icon name={TRIBE_ICON[card.tribe]} />
               {card.tribe2 ? (
@@ -291,7 +305,7 @@ export const Card = memo(function Card({
                 TRIBE_LABEL[card.tribe]
               )}
             </span>
-            <span className={`hp${statCls(card.health, card.baseHealth)}`}>{card.health}</span>
+            <span className={`hp${statCls(card.health, card.baseHealth, card.floorHealth)}`}>{card.health}</span>
           </>
         )}
       </div>

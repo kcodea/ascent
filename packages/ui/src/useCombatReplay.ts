@@ -110,7 +110,7 @@ function computeFrame(
 const SPEED = 1.5;
 const DELAY: Record<string, number> = {
   // action beats (the wind-up / cast)
-  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 560, improve: 520,
+  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520,
   // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, death: 400,

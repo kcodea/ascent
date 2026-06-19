@@ -800,8 +800,19 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.struck::before { content: ''; position: absolute; top: 36%; left: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 214, 130, 0.62) 42%, transparent 70%); z-index: 11; pointer-events: none; animation: impactspark 0.3s ease-out forwards; }
 @keyframes impactspark { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4); } }
 .unit.flare .card { animation: flare 0.5s ease; }
-.unit.reborn .card { animation: flare 0.5s ease; }
 @keyframes flare { 0% { filter: brightness(1.9); } 100% { filter: none; } }
+/* Reborn — an unmistakable bright-blue resurrection: the whole unit flares electric blue with an
+   expanding glowing ring the moment it returns from death. */
+.unit.reborn { z-index: 14; }
+.unit.reborn .card { animation: rebornburst 0.85s ease; }
+@keyframes rebornburst {
+  0% { box-shadow: 0 0 0 4px #5696eb, 0 3px 0 var(--shadow); filter: brightness(1); }
+  16% { box-shadow: 0 0 0 10px #a6dcff, 0 0 60px 20px rgba(120, 200, 255, 0.98); filter: brightness(2.5) drop-shadow(0 0 24px #a6dcff); }
+  55% { box-shadow: 0 0 0 5px #5696eb, 0 0 34px 10px rgba(120, 200, 255, 0.7); filter: brightness(1.35); }
+  100% { box-shadow: 0 3px 0 var(--shadow); filter: none; }
+}
+.unit.reborn::after { content: ''; position: absolute; inset: -8px; border-radius: 20px; border: 4px solid #a6dcff; pointer-events: none; z-index: 13; box-shadow: 0 0 24px 6px rgba(120, 200, 255, 0.85); animation: rebornring 0.85s ease forwards; }
+@keyframes rebornring { 0% { opacity: 1; transform: scale(0.75); } 100% { opacity: 0; transform: scale(1.6); } }
 
 /* Divine Shield now reads from the effect art wrapping the art panel (.dsfx, shown on any
    shielded card). The card-level yellow glow now comes from `.card.dscard` (shared with recruit);
@@ -809,10 +820,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.shieldgain .card { animation: shieldgain 0.6s ease; }
 @keyframes shieldgain { 0% { box-shadow: 0 0 0 12px rgba(244, 207, 106, 0); } 40% { box-shadow: 0 0 0 5px #f4cf6a, 0 0 28px 5px rgba(244, 207, 106, 0.9); } 100% { box-shadow: 0 0 0 3px #f4cf6a, 0 3px 0 var(--shadow); } }
 
-/* Poison: a green mist creeping down over the unit */
-.unit.poisoned .card { animation: poisonpop 0.6s ease; }
-@keyframes poisonpop { 0%, 100% { filter: none; } 50% { filter: hue-rotate(70deg) brightness(1.2); } }
-.unit.poisoned::after { content: ''; position: absolute; inset: 0; border-radius: 13px; background: linear-gradient(180deg, transparent, rgba(34, 190, 134, 0.55)); pointer-events: none; z-index: 8; animation: mist 0.75s ease forwards; }
+/* Poison: a vivid green flash + mist surging up over the unit — a clear "destroyed by Venomous" beat. */
+.unit.poisoned { z-index: 13; }
+.unit.poisoned .card { animation: poisonpop 0.7s ease; }
+@keyframes poisonpop { 0%, 100% { filter: none; } 45% { filter: hue-rotate(85deg) brightness(1.3) saturate(1.5) drop-shadow(0 0 16px rgba(40, 220, 140, 0.95)); } }
+.unit.poisoned::after { content: ''; position: absolute; inset: 0; border-radius: 13px; background: linear-gradient(180deg, transparent 8%, rgba(34, 210, 140, 0.72)); pointer-events: none; z-index: 8; animation: mist 0.8s ease forwards; }
 @keyframes mist { 0% { opacity: 0; transform: translateY(-35%); } 35% { opacity: 1; } 100% { opacity: 0; transform: translateY(0); } }
 
 /* Start of Combat: a golden cast pulse on the source */
@@ -855,6 +867,20 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }
 .float.buff { color: #fff; background: #1aa86f; padding: 3px 12px; border-radius: 12px; font-size: 34px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
+/* Keyword procs (poison ☠ / divine shield ◇ / reborn ♻) bloom BIG in the card centre, a beat AFTER
+   the −N damage number (0.26s delay), so the two never collide and the proc reads as its own dramatic
+   moment. Total (delay + 1.15s) stays under FLOAT_MS so it finishes before the float is cleared. */
+.float.sym { top: 38%; left: 50%; bottom: auto; right: auto; font-size: 64px; z-index: 28; opacity: 0; animation: floatsym 1.15s ease 0.26s forwards; }
+.float.poison.sym { color: #46e6a0; text-shadow: 0 0 20px rgba(40, 230, 150, 0.95), 0 0 42px rgba(40, 230, 150, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6); }
+.float.reborn.sym { color: #a6dcff; text-shadow: 0 0 22px rgba(120, 200, 255, 1), 0 0 52px rgba(120, 200, 255, 0.85), 0 2px 6px rgba(0, 0, 0, 0.6); }
+.float.shield.sym, .float.shieldup.sym { color: #ffe08a; text-shadow: 0 0 20px rgba(255, 210, 110, 0.95), 0 0 42px rgba(255, 200, 90, 0.6), 0 2px 6px rgba(0, 0, 0, 0.6); }
+@keyframes floatsym {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-14deg); }
+  22% { opacity: 1; transform: translate(-50%, -50%) scale(1.4) rotate(5deg); }
+  40% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  76% { opacity: 1; transform: translate(-50%, -56%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -82%) scale(0.92); }
+}
 /* the struck minion's HP badge flares when it takes damage */
 .unit.struck .hp { animation: hpflash 0.45s ease; }
 @keyframes hpflash { 0%, 100% { transform: none; box-shadow: none; } 40% { transform: scale(1.45); box-shadow: 0 0 14px 3px var(--threat); filter: brightness(1.25); } }

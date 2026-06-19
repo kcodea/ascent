@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Combat Log "Procs" tab, hand-in-combat, no-emoji text
+- **Procs tab.** The Combat Log overlay is now tabbed **Procs / Log**. The Procs tab is a per-source
+  report — who triggered what, how many times — e.g. "Deathsayer → Arcane Weaver's Deathrattle — 1×"
+  and "Arcane Weaver → Spirit Fire — 2×" (plus Summoned/Buffs by source + totals). To attribute, the
+  `toHand` and `summon` events now carry a `source` (the producing minion's uid); `rally` already had
+  source→target. Confirmed headless on the example board (1 rally Deathsayer→Arcane Weaver, 2 Spirit
+  Fires from Arcane Weaver). The Log tab keeps the blow-by-blow.
+- **Hand stays visible in combat.** It no longer slides away — it shrinks to a compact, non-interactive
+  peek pinned to the bottom (always see what you're holding), and the narration bar moves up to sit just
+  above it (`bottom: --ch×0.66 + 16`). The fly-to-hand card now lands on a visible hand.
+- **No emojis in combat text.** Removed the emoji prefixes from the rolling narration lines (poison,
+  shield, reborn, rally) and the "to your hand" label / Spirit-Fire line. (The over-card float symbols
+  — ☠ / ◇ / ♻ — are visual indicators, left as-is; flag if those should change too.)
+- Verified: `typecheck` + `lint` clean, `test` **144** pass (toHand now also asserts its `source`);
+  the `.alog` position, compact-hand transform, and Procs-tab CSS confirmed via live computed-style
+  probes on a clean mount. The in-combat *look* (hand peek + bar placement, Procs tab in the overlay)
+  is best confirmed in a live fight.
+
 ### Combat log readability + proc-count summary + cards-to-hand animation
 Three combat-feedback improvements:
 - **Combat narration bar is readable now.** `.alog` was getting light cream text (from a shared

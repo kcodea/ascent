@@ -112,17 +112,17 @@ export function simulate(
       }
       arr.splice(index, 0, minion);
       registerEffects(minion);
-      events.push({ type: 'summon', minion: snapshot(minion), side, index });
+      events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
       bus.emit('onSummon', { minion, side });
       return minion;
     },
-    grantToHand: (cardId, side) => {
+    grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
       // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a
       // `toHand` event so the replay shows the card flying to your hand as it happens.
       if (side === 'player') {
         handGrants.push(cardId);
-        events.push({ type: 'toHand', cardId, side });
+        events.push({ type: 'toHand', cardId, side, source: sourceUid });
       }
     },
   };

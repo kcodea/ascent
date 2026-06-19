@@ -867,7 +867,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 @keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }
 /* result vignette keyframe — used by .app.combat.done::after */
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
-.alog { position: fixed; left: 50%; bottom: calc(var(--bar-y) + 24px); transform: translateX(-50%); z-index: 30; text-align: center; font-family: 'Outfit'; font-weight: 800; font-size: 20px; color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: 11px 28px; border-radius: 14px; border: 2px solid color-mix(in srgb, var(--acc) 55%, var(--ink)); box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.6); pointer-events: none; max-width: 76vw; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
+.alog { position: fixed; left: 50%; bottom: calc(var(--bar-y) + var(--ch) * 0.66 + 16px); transform: translateX(-50%); z-index: 30; text-align: center; font-family: 'Outfit'; font-weight: 800; font-size: 20px; color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: 11px 28px; border-radius: 14px; border: 2px solid color-mix(in srgb, var(--acc) 55%, var(--ink)); box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.6); pointer-events: none; max-width: 76vw; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
 /* A combat-granted card (Arcane Weaver → Spirit Fire) pops in centre-screen, then flies down + fades
    toward the hand, so the player sees it being added. */
 .handgrant { position: fixed; left: 50%; top: 46%; z-index: 33; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: var(--cw); pointer-events: none; animation: tohandfly 1.15s cubic-bezier(0.4, 0, 0.5, 1) forwards; }
@@ -937,7 +937,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
 }
 /* the hand slides down out of view for the whole fight */
-.app.combat .zone[data-zone='hand'] { transform: translate(-50%, 155%); opacity: 0; pointer-events: none; transition: transform 0.5s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.35s ease; }
+/* In combat the hand stays visible as a compact, non-interactive peek pinned to the bottom (so you can
+   always see what you're holding); the narration bar sits just above it. */
+.app.combat .zone[data-zone='hand'] { transform: translate(-50%, 0) scale(0.66); transform-origin: bottom center; pointer-events: none; transition: transform 0.45s cubic-bezier(0.4, 0, 0.5, 1); }
 
 /* the combat control bar takes the shop control bar's slot (same buttons → same height) */
 .combatctl { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; flex: none; min-height: 52px; animation: combatctlin 0.4s ease both; }
@@ -983,13 +985,16 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .logline.reborn { border-left-color: var(--t-demon); }
 .logline.rally { border-left-color: var(--t-demon); color: var(--t-demon); font-weight: 800; }
 /* Proc-count summary block above the detailed log. */
-.logsummary { display: flex; flex-direction: column; gap: calc(4 * var(--u)); padding: calc(10 * var(--u)) calc(13 * var(--u)); background: var(--bg2); border: 2px solid var(--line); border-radius: calc(12 * var(--u)); }
-.logsum { font-family: 'Outfit'; font-weight: 800; font-size: calc(13.5 * var(--u)); color: var(--ink); }
-.logsum.attack { color: var(--ink2); }
-.logsum.rally { color: var(--t-demon); }
-.logsum.summon { color: var(--t-beast); }
-.logsum.buff { color: #157049; }
-.logsum.shield { color: var(--acc-dk); }
+/* Combat Log tab switcher (Procs / Log) + the per-source proc lines. */
+.logtabs { display: flex; gap: calc(8 * var(--u)); }
+.logtab { font-family: 'Outfit'; font-weight: 800; font-size: calc(14 * var(--u)); padding: calc(6 * var(--u)) calc(16 * var(--u)); border-radius: 999px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); }
+.logtab.active { background: var(--acc); color: #fff; border-color: var(--acc); }
+.logsum { font-family: 'Outfit'; font-weight: 700; font-size: calc(13.5 * var(--u)); color: var(--ink); padding: calc(3 * var(--u)) calc(11 * var(--u)); }
+.logsum.total { color: var(--ink2); font-weight: 800; }
+.logsum.head { color: var(--ink); font-weight: 900; font-size: calc(11.5 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.65; margin-top: calc(7 * var(--u)); }
+.logsum.rally { color: var(--t-demon); padding-left: calc(20 * var(--u)); }
+.logsum.summon { color: var(--t-beast); padding-left: calc(20 * var(--u)); }
+.logsum.buff { color: #157049; padding-left: calc(20 * var(--u)); }
 .logbox .btn { align-self: center; }
 @keyframes combatctlin { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 

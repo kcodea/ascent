@@ -592,7 +592,9 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 5, health: 20 }],
       1,
     );
-    expect(a.events.some((ev) => ev.type === 'toHand' && ev.cardId === 'spiritfire')).toBe(true);
+    const grant = a.events.find((ev) => ev.type === 'toHand');
+    expect(grant && grant.type === 'toHand' && grant.cardId === 'spiritfire').toBe(true);
+    expect(grant && grant.type === 'toHand' && !!grant.source).toBe(true); // attributed to Arcane Weaver (for the Procs tab)
     expect(a.playerHandGrants).toContain('spiritfire'); // still recorded for the post-combat hand add
   });
 

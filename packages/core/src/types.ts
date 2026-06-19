@@ -231,11 +231,11 @@ export type CombatEvent =
   | { type: 'death'; target: string }
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
-  | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number }
+  | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string }
   | { type: 'buff'; target: string; attack: number; health: number; source: string }
   | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
-  | { type: 'toHand'; cardId: string; side: Side }; // a combat effect adds a card to your hand (Arcane Weaver)
+  | { type: 'toHand'; cardId: string; side: Side; source?: string }; // a combat effect adds a card to your hand (Arcane Weaver)
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 
@@ -271,7 +271,7 @@ export interface CombatContext {
   buff(target: Minion, attack: number, health: number, source: string): void;
   summon(side: Side, card: CardDef, nearUid?: string): Minion;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
-  grantToHand(cardId: string, side: Side): void;
+  grantToHand(cardId: string, side: Side, sourceUid?: string): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

@@ -177,6 +177,7 @@ export function Recruit() {
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Log overlay
+  const [logTab, setLogTab] = useState<'procs' | 'log'>('procs'); // Procs summary vs the blow-by-blow log
   // Per-card stat snapshot for the recruit-phase green buff flash (declared up here so the
   // combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
   const prevStatsRef = useRef<Map<string, number>>(new Map());
@@ -1184,7 +1185,7 @@ export function Recruit() {
         };
         return (
           <div className="handgrant" key={replay.handGrant.key} aria-hidden="true">
-            <span className="hg-label">✋ To your hand</span>
+            <span className="hg-label">To your hand</span>
             <Card card={view} suppressPop />
           </div>
         );
@@ -1320,22 +1321,27 @@ export function Recruit() {
                 </div>
               </div>
             )}
-            {replay.logSummary.length > 0 && (
-              <div className="logsummary">
-                {replay.logSummary.map((s, i) => (
+            <div className="logtabs">
+              <button className={`logtab${logTab === 'procs' ? ' active' : ''}`} onClick={() => setLogTab('procs')}>Procs</button>
+              <button className={`logtab${logTab === 'log' ? ' active' : ''}`} onClick={() => setLogTab('log')}>Log</button>
+            </div>
+            {logTab === 'procs' ? (
+              <div className="loglines">
+                {replay.procs.map((s, i) => (
                   <div className={`logsum ${s.kind}`} key={i}>{s.text}</div>
                 ))}
               </div>
+            ) : (
+              <div className="loglines">
+                {replay.fullLog.length === 0 ? (
+                  <div className="logline">No blows were struck.</div>
+                ) : (
+                  replay.fullLog.map((line, i) => (
+                    <div className={`logline ${line.kind}`} key={i}>{line.text}</div>
+                  ))
+                )}
+              </div>
             )}
-            <div className="loglines">
-              {replay.fullLog.length === 0 ? (
-                <div className="logline">No blows were struck.</div>
-              ) : (
-                replay.fullLog.map((line, i) => (
-                  <div className={`logline ${line.kind}`} key={i}>{line.text}</div>
-                ))
-              )}
-            </div>
             <button className="btn big" onClick={() => setShowLog(false)}>Close</button>
           </div>
         </div>

@@ -218,28 +218,32 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
   switch (e.type) {
     case 'sc': return e.text;
     case 'attack': return `${n(e.attacker)} strikes ${n(e.defender)}.`;
-    case 'shield': return '◇ A Divine Shield absorbs the blow!';
-    case 'shieldUp': return `◇ ${n(e.target)} gains a Divine Shield.`;
-    case 'poison': return `☠ Poison! ${n(e.target)} is destroyed.`;
-    case 'reborn': return `♻ ${n(e.target)} is Reborn at 1 Health.`;
+    case 'shield': return 'A Divine Shield absorbs the blow!';
+    case 'shieldUp': return `${n(e.target)} gains a Divine Shield.`;
+    case 'poison': return `Poison! ${n(e.target)} is destroyed.`;
+    case 'reborn': return `${n(e.target)} is Reborn at 1 Health.`;
     case 'death': return `${n(e.target)} falls.`;
     case 'summon': return `${e.minion.name} joins the fray.`;
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
     case 'improve': return `${n(e.target)}'s aura strengthens (+${e.amount}/+${e.amount}).`;
-    case 'rally': return `☠ ${n(e.source)}'s Rally fires ${n(e.target)}'s Deathrattle!`;
-    case 'toHand': return `✋ ${cardName(e.cardId)} → your hand.`;
+    case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Deathrattle!`;
+    case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;
     default: return null;
   }
 }
 
-/** Aggregate tallies for the top of the Combat Log — proc counts per source, summon counts, totals —
- *  so it's easy to see "Flowing Monk procced 9× (+54/+54)" etc. at a glance (and for debugging). */
-function summarize(events: CombatEvent[], names: Map<string, string>): { text: string; kind: string }[] {
+/** A per-source proc report for the "Procs" tab — who triggered what, and how many times. Reads
+ *  attribution off the events: `rally` (source → the Deathrattle it fired), `toHand`/`summon`/`buff`
+ *  carry their producing minion's uid. So you get lines like "Deathsayer → Arcane Weaver's Deathrattle
+ *  — 1×" and "Arcane Weaver → Spirit Fire — 2×". Headers are tagged kind `head`. */
+function procReport(events: CombatEvent[], names: Map<string, string>): { text: string; kind: string }[] {
   const n = (uid: string): string => names.get(uid) ?? uid;
+  const inc = (m: Map<string, number>, k: string): void => void m.set(k, (m.get(k) ?? 0) + 1);
   let attacks = 0, dmg = 0, deaths = 0, reborn = 0, poison = 0, shieldUp = 0, shieldBreak = 0;
-  const summons = new Map<string, number>();
+  const rally = new Map<string, number>();
+  const generated = new Map<string, number>();
+  const summoned = new Map<string, number>();
   const buffs = new Map<string, { n: number; atk: number; hp: number }>();
-  const rallies = new Map<string, number>();
   for (const e of events) {
     if (e.type === 'attack') attacks++;
     else if (e.type === 'dmg') dmg += e.amount;
@@ -248,8 +252,9 @@ function summarize(events: CombatEvent[], names: Map<string, string>): { text: s
     else if (e.type === 'poison') poison++;
     else if (e.type === 'shieldUp') shieldUp++;
     else if (e.type === 'shield') shieldBreak++;
-    else if (e.type === 'summon') summons.set(e.minion.name, (summons.get(e.minion.name) ?? 0) + 1);
-    else if (e.type === 'rally') rallies.set(n(e.source), (rallies.get(n(e.source)) ?? 0) + 1);
+    else if (e.type === 'rally') inc(rally, `${n(e.source)} → ${n(e.target)}'s Deathrattle`);
+    else if (e.type === 'toHand') inc(generated, e.source ? `${n(e.source)} → ${cardName(e.cardId)}` : cardName(e.cardId));
+    else if (e.type === 'summon') inc(summoned, e.source ? `${n(e.source)} → ${e.minion.name}` : e.minion.name);
     else if (e.type === 'buff') {
       const k = n(e.source);
       const t = buffs.get(k) ?? { n: 0, atk: 0, hp: 0 };
@@ -258,16 +263,17 @@ function summarize(events: CombatEvent[], names: Map<string, string>): { text: s
     }
   }
   const out: { text: string; kind: string }[] = [];
-  out.push({ text: `${attacks} attacks · ${dmg} damage dealt · ${deaths} deaths`, kind: 'attack' });
-  if (rallies.size) out.push({ text: 'Rally procs — ' + [...rallies].map(([k, c]) => `${k} ×${c}`).join(', '), kind: 'rally' });
-  if (summons.size) out.push({ text: 'Summoned — ' + [...summons].map(([k, c]) => `${k} ×${c}`).join(', '), kind: 'summon' });
-  if (buffs.size) out.push({ text: 'Buffs — ' + [...buffs].map(([k, t]) => `${k} ×${t.n} (+${t.atk}/+${t.hp})`).join(', '), kind: 'buff' });
+  out.push({ text: `${attacks} attacks · ${dmg} damage dealt · ${deaths} deaths`, kind: 'total' });
   const kw: string[] = [];
   if (shieldUp) kw.push(`${shieldUp} shields gained`);
   if (shieldBreak) kw.push(`${shieldBreak} shields broken`);
   if (poison) kw.push(`${poison} poison kills`);
   if (reborn) kw.push(`${reborn} reborns`);
-  if (kw.length) out.push({ text: kw.join(' · '), kind: 'shield' });
+  if (kw.length) out.push({ text: kw.join(' · '), kind: 'total' });
+  if (rally.size) { out.push({ text: 'Rally', kind: 'head' }); for (const [k, c] of rally) out.push({ text: `${k} — ${c}×`, kind: 'rally' }); }
+  if (generated.size) { out.push({ text: 'Cards generated', kind: 'head' }); for (const [k, c] of generated) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
+  if (summoned.size) { out.push({ text: 'Summoned', kind: 'head' }); for (const [k, c] of summoned) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
+  if (buffs.size) { out.push({ text: 'Buffs', kind: 'head' }); for (const [k, t] of buffs) out.push({ text: `${k} — ${t.n}× (+${t.atk}/+${t.hp})`, kind: 'buff' }); }
   return out;
 }
 
@@ -282,8 +288,8 @@ export interface CombatReplay {
   /** The whole fight narrated in detail (every attack, hit, shield, death…) for the
    *  post-combat Combat Log — each line tagged with its kind for styling. */
   fullLog: { text: string; kind: string }[];
-  /** Aggregate proc-count tallies shown above the detailed log. */
-  logSummary: { text: string; kind: string }[];
+  /** Per-source proc report for the "Procs" tab (who triggered what, how many times). */
+  procs: { text: string; kind: string }[];
   /** A card a combat effect just granted to the hand, shown flying to the hand (null when none). */
   handGrant: { cardId: string; key: number } | null;
   done: boolean;
@@ -511,10 +517,10 @@ export function useCombatReplay(
     () => events.map((e) => narrateLog(e, names)).filter((l): l is { text: string; kind: string } => l !== null),
     [events, names],
   );
-  const logSummary = useMemo(() => summarize(events, names), [events, names]);
+  const procs = useMemo(() => procReport(events, names), [events, names]);
 
   return {
-    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log, fullLog, logSummary, handGrant,
+    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log, fullLog, procs, handGrant,
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, skip: () => setBeatIdx(beats.length),
   };

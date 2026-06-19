@@ -334,7 +334,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tribe edge — dual types split the outer rim half-and-half. A box-shadow can't be two colours, so
    the split is drawn as a pseudo-element rim behind the card and the solid ring is dropped for it. */
 .card.dual { background: linear-gradient(112deg, color-mix(in srgb, var(--c) 30%, var(--card)) 0 47%, color-mix(in srgb, var(--c2) 30%, var(--card)) 53% 100%); box-shadow: 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); }
-.card.dual::before { content: ''; position: absolute; inset: -4px; border-radius: 17px; background: linear-gradient(112deg, var(--c) 0 47%, var(--c2) 53% 100%); z-index: -1; pointer-events: none; }
+/* The split rim is a masked gradient *ring* (border-box minus content-box) rather than a filled
+   pseudo-element behind the card — so it stays a clean rim and never floods the interior when hover's
+   transform turns the card into a stacking context (which used to flip a z-index:-1 pseudo to the front). */
+.card.dual::before {
+  content: ''; position: absolute; inset: -4px; border-radius: 17px; padding: 4px; pointer-events: none;
+  background: linear-gradient(112deg, var(--c) 0 47%, var(--c2) 53% 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+/* Dual cards get the same boosted glow on hover as single cards (no solid ring, so the split rim shows). */
+.card.dual:hover { box-shadow: 0 3px 0 var(--shadow), 0 0 26px 2px color-mix(in srgb, var(--c) 90%, transparent); }
 .card.golden.dual::before, .card.spellcard::before, .card.triplecard::before { display: none; } /* special frames win */
 .cbody { padding: 0 9px 8px; margin-top: -20px; position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .cn { flex: none; align-self: center; max-width: 100%; font-family: 'Outfit'; font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
@@ -775,8 +785,13 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit { position: relative; width: var(--cw); height: var(--ch); transition: transform 0.16s cubic-bezier(0.34, 1.25, 0.64, 1); }
 .unit .card { width: 100%; height: 100%; animation: none; }
 .unit.attacking .card { box-shadow: 0 0 0 3px var(--acc), 0 3px 0 var(--shadow); }
-.unit.struck .card { animation: struck 0.32s ease; }
-@keyframes struck { 0%, 100% { transform: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.25); } }
+/* Layer the struck defender ABOVE the lunging/recoiling attacker so its stats are never covered at impact. */
+.unit.attacking { z-index: 8; }
+.unit.struck { z-index: 12; }
+/* Telegraph: the defender about to be hit gets a brief danger glow during the attacker's wind-up. */
+.unit.aimed .card { box-shadow: 0 0 0 3px var(--threat), 0 0 18px 3px color-mix(in srgb, var(--threat) 70%, transparent), 0 3px 0 var(--shadow); }
+.unit.struck .card { animation: struck 0.34s ease; }
+@keyframes struck { 0%, 100% { transform: none; filter: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.15) drop-shadow(0 0 8px var(--threat)); } }
 /* a white-hot impact spark at the point of contact */
 .unit.struck::before { content: ''; position: absolute; top: 36%; left: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 214, 130, 0.62) 42%, transparent 70%); z-index: 11; pointer-events: none; animation: impactspark 0.3s ease-out forwards; }
 @keyframes impactspark { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4); } }

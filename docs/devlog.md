@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Combat clarity pass — readable attacks (Phase 1–3)
+- Reworked the combat replay (`useCombatReplay` — animation-only, no logic changes) so exchanges read
+  as a clear back-and-forth instead of a blur:
+  - **Stop hiding the target:** the attacker leans in only **~40%** of the way (taps the defender's edge
+    instead of sliding over its stat badges), then **recoils** on the impact beat; and the struck
+    defender is **layered above** the attacker (z-index) so its dropping HP is never covered.
+  - **Weight + breathing room:** the impact beat is longer, hits **flash red**, and there's a ~200 ms
+    **settle** before the next swing so attacks don't run together.
+  - **Telegraph:** the defender about to be hit gets a brief **danger glow** during the wind-up.
+- All driven off the deterministic event log — zero risk to the sim. `test` (133) clean. (Live visuals
+  unverified this session: the preview renderer was hung for screenshots/animation polling.)
+
+### Fix: a Reborn attacker is next in line to attack again
+- A minion that died to retaliation on its own attack and **Reborned** went to the *back* of its side's
+  rotation (the `nextAttacker` pointer resumed after it). Now it keeps its place — it's the next attacker
+  for its side. One-line pointer rewind in `simulate`'s attack loop; +1 sim test.
+
+### Fix: dual-card hover no longer floods with colour
+- Hovering a dual-type card (Heckbinder) made its split coloring "go wild": the hover-lift `transform`
+  turns the card into a stacking context, which flips the `z-index:-1` split pseudo-element to the front
+  so the *solid* gradient floods the interior. Rebuilt the split rim as a **masked gradient ring**
+  (border-box minus content-box) that stays a clean rim regardless of stacking context, and gave dual
+  cards the same boosted-glow hover as singles.
+
 ### Combat odds — win/draw/loss bar in the log
 - After a fight, the **Combat Log** now shows the matchup's estimated **outcome odds** as a 3-segment
   win / draw / loss bar with percentages. `faceOmen` re-simulates the *same two boards* on **1000

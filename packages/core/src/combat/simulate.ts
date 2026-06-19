@@ -311,7 +311,14 @@ export function simulate(
       turn = defenderSide;
       continue;
     }
+    const rebornBefore = attacker.rebornAvailable;
     performAttack(attacker, defenderSide, 0);
+    // Reborn-on-attack: a minion that died to retaliation and Reborned keeps its place — it's next to
+    // attack again for its side (rewind the pointer to just before it) rather than going to the back.
+    if (rebornBefore && !attacker.rebornAvailable && !attacker.dead && attacker.health > 0) {
+      const arr = boards[turn];
+      lastAttacker[turn] = arr[arr.indexOf(attacker) - 1] ?? null;
+    }
     turn = defenderSide;
   }
 

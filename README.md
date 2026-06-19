@@ -23,6 +23,8 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Clearer combat** — attacks lean in and recoil instead of covering the target, the struck defender
+  stays on top so its HP is visible, hits flash + pause for a beat, and the next swing is telegraphed.
 - **Combat odds** — the Combat Log now shows the matchup's estimated win/draw/loss odds (a 3-segment
   bar), computed by re-simulating the fight 1000× on independent seeds.
 - **Tribe colour fills the card frame** — each minion's body is washed in its type colour (Beast green,

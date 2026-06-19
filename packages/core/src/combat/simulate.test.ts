@@ -259,6 +259,28 @@ describe('simulate (handoff A.3)', () => {
     expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([4, 4]); // 2/2 base × 2
   });
 
+  it('a minion that Reborns from its own attack is next in line to attack again', () => {
+    // Grave Knit attacks, dies to retaliation, and Reborns; the Taunt sandbag soaks the enemy's swing
+    // so the Knit survives — it should be the NEXT player attacker, not bumped behind the sandbag.
+    const a = run(
+      [
+        { cardId: 'knit', attack: 2, health: 2, keywords: ['R'] },
+        { cardId: 'sandbag', attack: 0, health: 60, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 3, health: 80, keywords: [] }],
+      1,
+    );
+    const knit = a.initial.player[0]!.uid;
+    const sand = a.initial.player[1]!.uid;
+    expect(a.events.some((e) => e.type === 'reborn' && e.target === knit)).toBe(true);
+    const playerAttacks = a.events
+      .filter((e) => e.type === 'attack' && (e.attacker === knit || e.attacker === sand))
+      .map((e) => (e.type === 'attack' ? e.attacker : ''));
+    // Knit attacks, Reborns, then attacks again — so the first two player swings are both Knit
+    // (without the fix it would be Knit then the sandbag).
+    expect(playerAttacks.slice(0, 2)).toEqual([knit, knit]);
+  });
+
   it('a dual-type Mech (Heckbinder) is counted by a Mech tribe buff', () => {
     // Omega Bulwark's Start of Combat shields all Mechs — Heckbinder (Demon/Mech) must be included.
     const a = run(

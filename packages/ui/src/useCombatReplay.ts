@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CombatEvent, CombatResult, Keyword, MinionSnapshot, Tribe } from '@game/core';
 import { sfx } from './sfx';
 
@@ -101,8 +101,9 @@ const SPEED = 1.5;
 const DELAY: Record<string, number> = {
   // action beats (the wind-up / cast)
   attack: 340, sc: 720, summon: 440, buff: 420, reborn: 560, improve: 520,
-  // result beats (the impact — keyed by the first result event)
-  dmg: 360, shield: 460, shieldUp: 460, poison: 480, death: 320,
+  // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
+  // (recoil + the defender's HP dropping) lands and reads before the next swing.
+  dmg: 460, shield: 460, shieldUp: 460, poison: 500, death: 400,
 };
 const FLOAT_MS = 1250;
 
@@ -143,7 +144,7 @@ function buildBeats(events: CombatEvent[]): Beat[] {
 function animFor(e: CombatEvent | undefined): Record<string, string> {
   if (!e) return {};
   switch (e.type) {
-    case 'attack': return { [e.attacker]: 'attacking' };
+    case 'attack': return { [e.attacker]: 'attacking', [e.defender]: 'aimed' };
     case 'dmg': return { [e.target]: 'struck' };
     case 'shield': return { [e.target]: 'shatter' };
     case 'shieldUp': return { [e.target]: 'shieldgain' };
@@ -249,6 +250,9 @@ export function useCombatReplay(
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
   const [lunge, setLunge] = useState<{ uid: string; transform: string } | null>(null);
+  // The current lunge's raw direction (set on the attack beat), so the following impact beat can
+  // recoil the attacker back along the same vector without re-measuring its (already-moved) element.
+  const lungeVec = useRef<{ uid: string; dx: number; dy: number } | null>(null);
   const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number }[]>([]);
   const done = beatIdx >= beats.length;
 
@@ -273,7 +277,10 @@ export function useCombatReplay(
   useEffect(() => {
     if (!active || beatIdx >= beats.length) return;
     const beat = beats[beatIdx]!;
-    const id = window.setTimeout(() => setBeatIdx((k) => k + 1), (DELAY[beat.primary.type] ?? 300) * SPEED);
+    let d = (DELAY[beat.primary.type] ?? 300) * SPEED;
+    // A short breath after an impact before the next swing, so attacks don't blur into each other.
+    if (RESULT_TYPES.has(beat.primary.type) && beats[beatIdx + 1]?.primary.type === 'attack') d += 200;
+    const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
   }, [active, beatIdx, beats]);
 
@@ -349,18 +356,23 @@ export function useCombatReplay(
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     };
 
-    // The attacker slides in on its attack beat and stays planted through the
-    // following impact beat (so we don't recompute off the already-lunged element).
+    // The attacker leans in on its attack beat — only ~40% of the way, so it taps the defender's edge
+    // instead of sliding over its stat badges. Then on the following impact beat it RECOILS back (along
+    // the same vector, from the stashed direction) so the struck defender + its dropping HP read clearly.
     if (cur?.primary.type === 'attack') {
       const a = center(cur.primary.attacker);
       const d = center(cur.primary.defender);
       if (a && d) {
-        const dx = Math.round((d.x - a.x) * 0.55);
-        const dy = Math.round((d.y - a.y) * 0.55);
-        setLunge({ uid: cur.primary.attacker, transform: `translate(${dx}px, ${dy}px) scale(1.04)` });
+        const dx = Math.round((d.x - a.x) * 0.4);
+        const dy = Math.round((d.y - a.y) * 0.4);
+        lungeVec.current = { uid: cur.primary.attacker, dx, dy };
+        setLunge({ uid: cur.primary.attacker, transform: `translate(${dx}px, ${dy}px) scale(1.05)` });
       }
-    } else if (!(cur && RESULT_TYPES.has(cur.primary.type) && prev?.primary.type === 'attack')) {
-      setLunge(null); // not an attack, and not the impact right after one
+    } else if (cur && RESULT_TYPES.has(cur.primary.type) && prev?.primary.type === 'attack' && lungeVec.current) {
+      const { uid, dx, dy } = lungeVec.current; // recoil: pull most of the way back off the defender
+      setLunge({ uid, transform: `translate(${Math.round(dx * 0.15)}px, ${Math.round(dy * 0.15)}px) scale(1)` });
+    } else {
+      setLunge(null);
     }
 
     // Start-of-Combat bolts fly from the caster to each target its next-beat damage hits.

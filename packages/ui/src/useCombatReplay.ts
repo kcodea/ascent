@@ -292,6 +292,8 @@ export interface CombatReplay {
   procs: { text: string; kind: string }[];
   /** A card a combat effect just granted to the hand, shown flying to the hand (null when none). */
   handGrant: { cardId: string; key: number } | null;
+  /** Card ids granted to the hand so far in the replay — appended to the combat hand so it grows live. */
+  handGrantsShown: string[];
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -518,9 +520,16 @@ export function useCombatReplay(
     [events, names],
   );
   const procs = useMemo(() => procReport(events, names), [events, names]);
+  // Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire) that have already
+  // "landed" — every `toHand` before the current beat. The recruit hand stays the pre-combat hand until
+  // `resolveCombat`, so the combat view appends these so the hand visibly grows as cards arrive.
+  const handGrantsShown = useMemo(() => {
+    const before = beats[beatIdx]?.start ?? events.length;
+    return events.slice(0, before).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
+  }, [beatIdx, beats, events]);
 
   return {
-    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log, fullLog, procs, handGrant,
+    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log, fullLog, procs, handGrant, handGrantsShown,
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, skip: () => setBeatIdx(beats.length),
   };

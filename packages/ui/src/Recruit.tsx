@@ -35,7 +35,7 @@ function tokenRefView(id: string, cardBuffs?: Record<string, { attack: number; h
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: c.attack + cb.attack, health: c.health + cb.health,
-    keywords: c.keywords, text: c.text, tier: c.tier,
+    keywords: c.keywords, text: c.text, tier: c.tier, spell: c.spell,
     baseAttack: c.attack, baseHealth: c.health,
   };
 }
@@ -1160,6 +1160,11 @@ export function Recruit() {
               arrived={arrivedUids.has(m.uid)}
               onPointerDown={onCardPointerDown}
             />
+          ))}
+          {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
+              committed to the real hand at `resolveCombat`). */}
+          {inCombat && replay.handGrantsShown.map((cardId, i) => (
+            <Card key={`grant-${i}`} card={tokenRefView(cardId, run.cardBuffs)} suppressPop />
           ))}
         </div>
       </div>

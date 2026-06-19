@@ -1249,3 +1249,55 @@ describe('run loop (@game/sim)', () => {
     expect(reduce(setup(), { type: 'faceOmen' }).lastCombat!.odds).toEqual(odds);
   });
 });
+
+describe('hero powers (@game/sim)', () => {
+  const mk = (uid: string, attack: number, health: number): BoardCard => ({
+    uid, cardId: 'sandbag', tribe: 'neutral', attack, health, keywords: [], golden: false,
+  });
+
+  it('createRun defaults to the Warden and accepts a chosen hero', () => {
+    expect(createRun(1).heroId).toBe('warden');
+    expect(createRun(1, 'oner').heroId).toBe('oner');
+    expect(createRun(1).heroPowerSpent).toBe(false);
+  });
+
+  it("Warden's Fortify scales with Tavern Tier (+Tier/+Tier) and spends the wave charge", () => {
+    let s: RunState = { ...createRun(1), tier: 3, heroReady: true, board: [mk('a', 2, 2)] };
+    s = reduce(s, { type: 'heroPower', uid: 'a' });
+    expect(s.board[0]!.attack).toBe(5); // 2 + tier(3)
+    expect(s.board[0]!.health).toBe(5);
+    expect(s.board[0]!.buffs).toEqual([{ source: 'Fortify', attack: 3, health: 3, count: 1 }]);
+    expect(s.heroReady).toBe(false);
+    // Second use this wave is rejected (charge spent).
+    expect(reduce(s, { type: 'heroPower', uid: 'a' })).toBe(s);
+  });
+
+  it("Warden's Fortify on a tavern offer carries +Tier (baked in when bought)", () => {
+    let s: RunState = { ...createRun(1), tier: 2, heroReady: true };
+    const offerUid = s.shop[0]!.uid;
+    s = reduce(s, { type: 'heroPower', uid: offerUid });
+    const offer = s.shop.find((c) => c.uid === offerUid)!;
+    expect(offer.atk).toBe(2);
+    expect(offer.hp).toBe(2);
+  });
+
+  it("Oner's Gild doubles a minion's stats, turns it golden, and is once per game", () => {
+    let s: RunState = { ...createRun(1, 'oner'), board: [mk('a', 3, 4), mk('b', 2, 2)] };
+    s = reduce(s, { type: 'heroPower', uid: 'a' });
+    expect(s.board[0]!.golden).toBe(true);
+    expect(s.board[0]!.attack).toBe(6); // doubled
+    expect(s.board[0]!.health).toBe(8);
+    expect(s.board[0]!.buffs).toEqual([{ source: 'Gild', attack: 3, health: 4, count: 1 }]);
+    expect(s.heroPowerSpent).toBe(true);
+    // Once per *game*: recharging the per-wave flag must not re-enable it.
+    s = { ...s, heroReady: true };
+    expect(reduce(s, { type: 'heroPower', uid: 'b' })).toBe(s);
+  });
+
+  it("Oner's Gild no-ops (no charge spent) on an already-golden minion", () => {
+    const s: RunState = { ...createRun(1, 'oner'), board: [{ ...mk('a', 3, 4), golden: true }] };
+    const after = reduce(s, { type: 'heroPower', uid: 'a' });
+    expect(after).toBe(s); // rejected → same reference
+    expect(after.heroPowerSpent).toBe(false); // charge preserved for a real target
+  });
+});

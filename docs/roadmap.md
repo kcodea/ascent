@@ -37,9 +37,22 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
 - [x] **Shareable web build** — `npm run package:itch` builds with a relative base and zips an
       itch.io-ready `ascent-itch.zip` (`index.html` at root, forward-slash entries). Good enough to hand
       a playtest build to friends; a proper hosted/versioned deploy is still future work.
-- [ ] Unlocks — cards / heroes gated by progression.
+- [~] **Heroes as data + hero select.** Shipped: `@game/sim/heroes.ts` registry (`HeroDef`, power
+      `kind` resolved in the reducer), `RunState.heroId`/`heroPowerSpent`, a pre-run **hero picker**
+      (`HeroSelect.tsx`, store flag `heroChoices`, no router). Two heroes: **Warden** (Fortify,
+      +Tier/+Tier) and **Oner** (Gild — golden a minion, once per game). Remaining:
+  - **More heroes** — each is a `HeroDef` + (only if novel) a new power `kind`. Power-kind ideas that
+    reuse existing plumbing: a flat-stat buff, a one-shot gold/mana, a reroll discount.
+  - **Hero-select offers a random subset** once >3 heroes exist (today it shows all). Consider always
+    including a simple "starter" hero so a new player isn't forced into a niche power.
+  - **Oner needs portrait art** (anvil-icon fallback today) — drop `art/heroes/oner.png`.
+- [ ] **Menu flow — Title → Play → Mode → Hero → run.** The hero picker is the first slice; extend the
+      same store-flag/scene pattern (no router) backward to a Title screen and a Mode select. Reuse the
+      overlay/`herocard` components. Keep it lean — a small `scene` enum in the store, not a framework.
+- [ ] Unlocks — cards / heroes gated by progression (heroes are now data, ready to gate).
 - [ ] Ascension modifiers — escalating run-difficulty tiers.
 - [ ] Daily seeds — shareable, deterministic runs (the engine already threads one seed everywhere).
+      Note: the hero-*choice* roll currently uses `Math.random` (UI meta) — seed it here for dailies.
 - [ ] Save / replay — `serialize`/`deserialize` exist; add run-resume UI + replay of a combat's
       event log from its seed.
 
@@ -116,7 +129,8 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       sylus, weaver, whelp). The rest still use
       pixel sprites and have **no source art yet** — every source illustration now maps to a card.
       Source art lives in `C:\Game Assets\Ascent Art\Minions`. **Hero portraits** use a parallel
-      pipeline (`art/heroes/<id>.png` → `heroArt()`); the Warden portrait is wired.
+      pipeline (`art/heroes/<id>.png` → `heroArt()`); the Warden portrait is wired. **Oner has no
+      portrait yet** (falls back to the anvil icon on the picker + HUD) — add `art/heroes/oner.png`.
 - [ ] **Divine Shield art style — bubble vs. crest.** The effect-art overlay pipeline shipped
       (`art/effects/*.png` → `effectArt()`; `.dsfx` screen-blends a glowing aura over any `DS` minion,
       live on Spare Part Drone). The current asset is a shield **crest** shape; if a rounder "bubble/dome"

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CONFIG, boardManaBonus } from '@game/sim';
+import { CONFIG, boardManaBonus, getHero } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { useGame } from './store';
@@ -10,9 +10,25 @@ export function StatusBar() {
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
   const sellTick = useGame((s) => s.sellTick);
-  // Fortify can target a warband minion OR a tavern offer, so it's usable whenever it's
-  // ready — no friend on board required (you can buff a shop minion).
-  const canHero = run.heroReady;
+  // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
+  const hero = getHero(run.heroId);
+  const power = hero.power;
+  // Once-per-game powers (Gild) gate on heroPowerSpent; the rest recharge each wave. Fortify can
+  // target a warband minion OR a tavern offer, so it's usable whenever ready — no friend required.
+  const canHero = power.oncePerGame ? !run.heroPowerSpent : run.heroReady;
+  // The big line under the hero name: what tapping the power does *right now*.
+  const powerLine = heroArmed
+    ? 'Pick a minion…'
+    : power.kind === 'fortify'
+      ? `${power.name} · +${run.tier}/+${run.tier}`
+      : `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`;
+  const powerNote = power.oncePerGame
+    ? run.heroPowerSpent
+      ? ' Already used this game.'
+      : ' Drag onto a friendly minion (or click, then click it). One use per game.'
+    : run.heroReady
+      ? ' Drag onto a minion (or click, then click a minion).'
+      : ' Used this wave.';
   // Projected starting Embers for the next two waves (each wave grows maxEmbers by
   // embersPerWave, capped), plus any board mana income (Money Bot) on top of the cap —
   // assuming the source stays on board.
@@ -58,19 +74,19 @@ export function StatusBar() {
           onPointerDown={() => canHero && !heroArmed && armHero()}
         >
           <div className="f">
-            {heroArt('warden') ? (
-              <img className="heroimg" src={heroArt('warden')} alt="Warden" draggable={false} />
+            {heroArt(hero.id) ? (
+              <img className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}
           </div>
           <div>
-            <div className="nm">Warden</div>
-            <div className="pw">{heroArmed ? 'Pick a minion…' : 'Fortify · +1/+1'}</div>
+            <div className="nm">{hero.name}</div>
+            <div className="pw">{powerLine}</div>
           </div>
           <div className="herotip" role="tooltip">
-            <b>Fortify</b> — once per wave, give a minion +1/+1.
-            {run.heroReady ? ' Drag onto a minion (or click, then click a minion).' : ' Used this wave.'}
+            <b>{power.name}</b> — {power.text}
+            {powerNote}
           </div>
         </div>
       </div>

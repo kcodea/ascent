@@ -1,6 +1,7 @@
 import { makeRng } from '@game/core';
 import type { CombatResult, Keyword, Rng, Tribe } from '@game/core';
 import { CONFIG } from './config';
+import { DEFAULT_HERO_ID } from './heroes';
 import { rollShop, stockPool } from './shop';
 import { selectThreat, type ThreatId } from './threats';
 
@@ -117,7 +118,12 @@ export interface RunState {
   /** Cards bought but not yet played (Battlegrounds hand). */
   hand: BoardCard[];
   board: BoardCard[];
+  /** Which hero is being played (indexes the HEROES registry). */
+  heroId: string;
+  /** Per-wave hero power charge (once-per-wave powers like Fortify). */
   heroReady: boolean;
+  /** Once-per-game hero powers (e.g. Oner's Gild) flip this and never recharge. */
+  heroPowerSpent: boolean;
   threat: ThreatId;
   /** The 5 non-neutral tribes active this run (handoff: 5 tribes per run). */
   tribes: Tribe[];
@@ -178,7 +184,7 @@ export type Action =
   | { type: 'resolveCombat' };
 
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
-export function createRun(seed: number): RunState {
+export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
   const state: RunState = {
     seed,
@@ -198,7 +204,9 @@ export function createRun(seed: number): RunState {
     spellCostMod: 0,
     hand: [],
     board: [],
+    heroId,
     heroReady: true,
+    heroPowerSpent: false,
     threat: selectThreat(1, makeRng(mixSeed(seed, 1, TAG.THREAT))),
     tribes,
     rngCursor: mixSeed(seed, 0, TAG.SHOP),

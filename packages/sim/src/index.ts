@@ -1,4 +1,5 @@
 export * from './config';
+export * from './heroes';
 export * from './threats';
 export * from './shop';
 export * from './state';

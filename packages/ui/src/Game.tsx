@@ -2,6 +2,7 @@ import './styles.css';
 import { useEffect, useState } from 'react';
 import { Recruit } from './Recruit';
 import { GameOver } from './GameOver';
+import { HeroSelect } from './HeroSelect';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { EscMenu } from './EscMenu';
@@ -52,6 +53,8 @@ export function Game() {
         <Icon name="gear" />
       </button>
       {menuOpen && <EscMenu res={res} onRes={setRes} onClose={() => setMenuOpen(false)} />}
+      {/* Topmost layer: the pre-run hero picker (self-gates on heroChoices). */}
+      <HeroSelect />
     </>
   );
 }

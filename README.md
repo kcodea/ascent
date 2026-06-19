@@ -23,6 +23,12 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Heroes are data now + a pre-run hero picker.** Pick your champion before each run (first load +
+  after a loss). **Warden**'s Fortify scales with Tavern Tier (**+Tier/+Tier**, so +3/+3 at Tier 3);
+  new hero **Oner** can **Gild** one friendly minion per game — turning it Golden (double stats *and*
+  doubled effects, e.g. a Deathrattle that fires twice). Adding a hero is data-only.
+- **Combat hand updates live.** A card granted *during* a fight (e.g. Arcane Weaver's Deathrattle →
+  Spirit Fire) now appears in the in-combat hand as it lands, not just after the fight.
 - **Deathsayer** (T4 Undead, Rally) — each time it attacks, it fires your **leftmost Deathrattle
   first** (with a clear proc + pause), so the buffs/summons land *before* the hit does.
 - **3 new minions** — **Archmagus Guel** (cast a tavern spell → +1/+1 to 2 other friends), **Flowing
@@ -276,7 +282,8 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 _(Full queue in [docs/roadmap.md](docs/roadmap.md).)_
 
 - **M2 (now):** counter-matrix tuning — Mech is too strong, Beast too weak, Dragon/Undead flat.
-- **M3 (meta):** unlocks, ascension modifiers, daily seeds, save/replay.
+- **M3 (meta):** more heroes + the full Title→Mode→Hero menu flow (hero picker shipped), unlocks,
+  ascension modifiers, daily seeds, save/replay.
 - **M4 (juice & onboarding):** audio/VFX, tutorial, full accessibility + touch.
 
 ## Layout

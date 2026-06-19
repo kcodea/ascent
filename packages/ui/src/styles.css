@@ -1034,6 +1034,24 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .over .final { font-family: 'Outfit'; font-weight: 900; font-size: 72px; color: var(--acc-dk); line-height: 1; }
 .over .fcap { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.2em; color: var(--ink3); text-transform: uppercase; margin-bottom: 22px; }
 
+/* Pre-run hero picker — first slice of the Title→Mode→Hero flow (one store flag drives it). */
+.heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 96vw; }
+.heroselect .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
+.hstitle { font-family: 'Outfit'; font-weight: 900; font-size: 52px; letter-spacing: 0.06em; color: #f6efe2; margin: 6px 0 26px; }
+.hsrow { display: flex; gap: 22px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
+.herocard { width: 256px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 22px 18px 18px; border-radius: 20px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_point.svg') 12 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
+.herocard:hover { transform: translateY(-6px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
+.hcart { width: 116px; height: 116px; border-radius: 18px; background: var(--ink); display: grid; place-items: center; overflow: hidden; flex: none; }
+.hcart img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
+.hcart svg { width: 54px; height: 54px; color: var(--acc); }
+.hcname { font-family: 'Outfit'; font-weight: 900; font-size: 24px; letter-spacing: 0.02em; }
+.hcpw { font-size: 13.5px; font-weight: 600; color: var(--ink2); line-height: 1.35; }
+.hcpw b { color: var(--acc-dk); font-weight: 800; }
+.hcblurb { font-size: 13px; font-style: italic; color: var(--ink3); line-height: 1.4; margin-top: auto; padding-top: 6px; }
+.hcpick { margin-top: 12px; font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 8px 22px; border-radius: 12px; }
+.herocard:hover .hcpick { background: var(--acc-dk); }
+
 svg { width: 18px; height: 18px; }
 
 /* darker board (warm taupe): lighten the text + labels that sit directly on the

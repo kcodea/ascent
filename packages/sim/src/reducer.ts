@@ -2,6 +2,7 @@ import { makeRng, simulate, type BoardMinion, type CombatResult, type Tribe } fr
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
+import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, syncLifebinders } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
@@ -272,23 +273,36 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'heroPower': {
-      if (!s.heroReady) return state;
+      const power = getHero(s.heroId).power;
+      // Once-per-game powers (Gild) gate on heroPowerSpent; the rest recharge each wave.
+      const available = power.oncePerGame ? !s.heroPowerSpent : s.heroReady;
+      if (!available) return state;
       const card = s.board.find((c) => c.uid === action.uid);
-      if (card) {
-        addBuff(card, 'Fortify', 1, 1);
-        s.heroReady = false;
-        return s;
+
+      if (power.kind === 'gild') {
+        // Oner: make a friendly board minion Golden — doubles its stats (recorded as a
+        // "Gild" buff so the inspect breakdown still sums) AND flips the golden flag, which
+        // doubles its effects (Deathrattles fire twice, ×N multipliers, etc.). Board only;
+        // a no-op (and no charge spent) on a missing target or an already-golden minion.
+        if (!card || card.golden) return state;
+        addBuff(card, 'Gild', card.attack, card.health);
+        card.golden = true;
+      } else {
+        // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
+        // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
+        const amt = s.tier;
+        if (card) addBuff(card, 'Fortify', amt, amt);
+        else {
+          const offer = s.shop.find((c) => c.uid === action.uid);
+          if (!offer) return state;
+          offer.atk = (offer.atk ?? 0) + amt;
+          offer.hp = (offer.hp ?? 0) + amt;
+        }
       }
-      // Fortify targets "a minion" (not just a friendly one) — a tavern offer counts.
-      // The buff is stored on the offer and baked in when it's bought.
-      const offer = s.shop.find((c) => c.uid === action.uid);
-      if (offer) {
-        offer.atk = (offer.atk ?? 0) + 1;
-        offer.hp = (offer.hp ?? 0) + 1;
-        s.heroReady = false;
-        return s;
-      }
-      return state;
+
+      if (power.oncePerGame) s.heroPowerSpent = true;
+      else s.heroReady = false;
+      return s;
     }
 
     case 'discover': {

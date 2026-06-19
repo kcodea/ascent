@@ -5,6 +5,45 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Heroes as data + Warden scaling + new hero "Oner" + pre-run hero picker
+First real **hero system** — heroes are now data (like cards), not a hardcoded single Warden.
+- **New `@game/sim/heroes.ts`.** A `HeroDef { id, name, blurb, power }` registry (`HEROES`,
+  `HERO_INDEX`, `getHero`, `DEFAULT_HERO_ID`). A power has a `kind` the reducer resolves; adding a
+  hero is data-only unless it needs a brand-new `kind`. `RunState` gained `heroId` + `heroPowerSpent`
+  (once-per-game lock); `createRun(seed, heroId?)` seeds the chosen hero (defaults to Warden).
+- **Warden's Fortify now scales with Tavern Tier** — `+Tier/+Tier` instead of a flat `+1/+1` (so at
+  Tier 3 it's +3/+3). Targets a warband minion (recorded as a `Fortify` buff) or a tavern offer (the
+  buff carries on the offer and bakes in when bought). Still once per wave.
+- **New hero `Oner` — power "Gild" (once per game):** make a friendly **board** minion Golden. It
+  doubles the minion's stats (recorded as a `Gild` buff so the inspect breakdown still sums) *and*
+  flips the golden flag — so its **effects** double too (Deathrattles fire twice, ×N multipliers, the
+  Demon fodder bonus, etc.). No-op (no charge spent) on a missing target or an already-golden minion.
+- **Pre-run hero picker** (`HeroSelect.tsx`) — the first slice of the eventual Title → Mode → Hero
+  flow. Driven by a single store flag (`heroChoices`); no router. Shows up to 3 heroes (all of them
+  while only 2 exist) on first load and after a game over ("Begin a New Ascent" now opens the picker).
+  Picking one starts a fresh run as that hero. Hero *choice* uses `Math.random` (UI-level meta, not
+  the seeded sim). The StatusBar hero panel now renders whatever hero the run is on (name, power line,
+  ready/spent, art with an icon fallback for art-less heroes like Oner).
+- Verified live (clean reload, `healthy`): picker renders both heroes; picking Oner flips the run +
+  HUD to "Oner · Gild · once per game"; buying→playing→gilding a Sporeling turned it golden 2/4 with
+  its Deathrattle doubled to **+2/+2** (vs the shop copy's +1/+1), HUD → "Gild · spent", a second use
+  rejected. `typecheck` + `lint` clean; `test` **149** pass (+5 hero-power tests: Warden tier-scaling
+  + offer carry, Oner double/golden/once-per-game + already-golden no-op, createRun hero defaults).
+- Follow-ups: **Oner needs portrait art** (currently the anvil icon fallback). Seed the hero-choice
+  roll for daily runs later. The picker is the seed for the full Title/Mode menu (see roadmap).
+
+### Combat hand updates live when a card is granted mid-fight
+- **Bug:** the hand shows in combat now, but a card *granted during* the fight (e.g. Arcane Weaver's
+  Deathrattle → Spirit Fire) didn't appear there — `run.hand` is the pre-combat snapshot (grants only
+  commit at `resolveCombat`), so the new card was invisible until after the fight.
+- **Fix:** `useCombatReplay` exposes `handGrantsShown` — the cards from `toHand` events *before the
+  current beat*; `Recruit` appends them to the combat hand (non-interactive, `suppressPop`), so the
+  hand visibly grows as each grant lands (one beat after its fly-to-hand animation). `tokenRefView`
+  now carries the `spell` flag, so a granted Spirit Fire renders as a spell card (and the Arcane
+  Weaver ref-popup is more correct too).
+- Verified live: a fragile Arcane Weaver, on death mid-combat, made **Spirit Fire** appear in the
+  combat hand (as a spell card) alongside the "Spirit Fire is added to your hand" narration.
+
 ### Combat Log "Procs" tab, hand-in-combat, no-emoji text
 - **Procs tab.** The Combat Log overlay is now tabbed **Procs / Log**. The Procs tab is a per-source
   report — who triggered what, how many times — e.g. "Deathsayer → Arcane Weaver's Deathrattle — 1×"

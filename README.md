@@ -26,11 +26,12 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **A win condition.** The PvE climb is now bounded at **20 waves** — survive wave 20 and you reach a
   **Victory** screen (Play Again restarts). "Start Over" is in the Esc menu, and the round clock no
   longer ticks until you've picked your hero.
-- **Three heroes, each with portrait art + an HP (Resolve) stat shown at pick.** Choose before each
-  run: **Warden** — Fortify scales with Tavern Tier (**+Tier/+Tier**); **Oner** — **Gild** a minion
-  Golden once per game (double stats *and* doubled effects); **Myra** — **Encore**, re-trigger a
-  friendly minion's **Battlecry** once per turn (**unlocks turn 3**). Heroes are data — adding one is a
-  registry entry, with optional per-hero HP and per-power unlock turn.
+- **Six heroes (a random 3 offered each run), with an HP stat shown at pick.** **Warden** — Fortify
+  (+Tier/+Tier); **Oner** — **Gild** a minion Golden once per game; **Myra** — **Encore** a Battlecry
+  (unlocks turn 3); plus three placeholder-named heroes: **The Reclaimer** (mark a minion → it dies for
+  its Deathrattle at combat start and an exact copy returns), **The Spellbinder** (passive: stat spells
+  give +X/+X more, scaling), **Dusk** (re-proc a minion's End of Turn). Heroes are data — adding one is
+  a registry entry, with optional per-hero HP, unlock turn, passives, and even combat-time powers.
 - **Combat hand updates live.** A card granted *during* a fight (e.g. Arcane Weaver's Deathrattle →
   Spirit Fire) now appears in the in-combat hand as it lands, not just after the fight.
 - **Deathsayer** (T4 Undead, Rally) — each time it attacks, it fires your **leftmost Deathrattle

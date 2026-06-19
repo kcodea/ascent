@@ -285,6 +285,33 @@ export function simulate(
     }
   }
 
+  // --- The Reclaimer: a marked player minion is destroyed at the start of combat (firing its
+  //     Deathrattle) and an exact copy is resummoned if there's room. Runs before the normal Start
+  //     of Combat effects, so the copy + any Deathrattle tokens take part in them. ---
+  for (const minion of [...boards.player]) {
+    if (!minion.resummon || minion.dead || minion.health <= 0) continue;
+    // Capture the full combat state for an exact copy (stats + granted keywords + golden + bonus).
+    const copyBoard: BoardMinion = {
+      cardId: minion.cardId,
+      attack: minion.attack,
+      health: minion.health,
+      keywords: [...minion.keywords],
+      golden: minion.golden,
+      summonBonus: minion.summonBonus,
+    };
+    minion.rebornAvailable = false; // force a true death (skip Reborn) so the Deathrattle fires
+    killOrReborn(minion);
+    // Bring back the exact copy if the deathrattle didn't already fill the board.
+    if (living('player').length < 7) {
+      const copy = instantiate(copyBoard, 'player', cards, mkUid);
+      const at = boards.player.indexOf(minion);
+      boards.player.splice(at >= 0 ? at + 1 : boards.player.length, 0, copy);
+      registerEffects(copy);
+      events.push({ type: 'summon', minion: snapshot(copy), side: 'player', index: boards.player.indexOf(copy), source: minion.uid });
+      bus.emit('onSummon', { minion: copy, side: 'player' });
+    }
+  }
+
   // --- Start of Combat: player minions left→right (A.3 step 1) ---
   for (const minion of [...boards.player]) {
     if (minion.dead || minion.health <= 0) continue;

@@ -49,6 +49,24 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerHandGrants).toEqual(['spiritfire']);
   });
 
+  it("The Reclaimer's resummon mark destroys a minion at start of combat (Deathrattle fires) + resummons an exact copy", () => {
+    // Pack Scrounger (Deathrattle: summon 2 Pups), marked + alone vs a trivial enemy.
+    const p: BoardMinion[] = [{ cardId: 'pack', attack: 3, health: 2, resummon: true }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
+    const r = run(p, e, 7);
+    // The original was destroyed (so its Deathrattle could fire)...
+    expect(r.events.some((ev) => ev.type === 'death')).toBe(true);
+    // ...the Deathrattle summoned 2 Pups...
+    expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup').length).toBe(2);
+    // ...and an exact copy of the Pack Scrounger (same 3/2 stats) returned.
+    const copy = r.events.find((ev) => ev.type === 'summon' && ev.minion.cardId === 'pack');
+    expect(copy).toBeDefined();
+    if (copy && copy.type === 'summon') {
+      expect(copy.minion.attack).toBe(3);
+      expect(copy.minion.health).toBe(2);
+    }
+  });
+
   it('a golden Arcane Weaver grants two Spirit Fires; an enemy Weaver grants the player none', () => {
     const golden = run([{ cardId: 'weaver', attack: 1, health: 1, golden: true }], [{ cardId: 'sandbag', attack: 5, health: 5 }], 5);
     expect(golden.playerHandGrants).toEqual(['spiritfire', 'spiritfire']);

@@ -4,7 +4,7 @@ import { CONFIG } from './config';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, replayBattlecry, syncLifebinders } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
@@ -294,6 +294,19 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
         // spent) on a missing target or a minion with no Battlecry to replay.
         if (!card || !replayBattlecry(s, card)) return state;
+      } else if (power.kind === 'replayEndOfTurn') {
+        // Dusk: proc a friendly board minion's End of Turn now. No-op on a missing target or a
+        // minion with no End-of-Turn effect.
+        if (!card || !replayEndOfTurn(s, card)) return state;
+      } else if (power.kind === 'resummon') {
+        // The Reclaimer: mark a friendly board minion to be destroyed + resummoned at start of
+        // combat (the combat sim does the work). Mark exactly one (clear any previous mark).
+        if (!card) return state;
+        for (const c of s.board) c.resummon = false;
+        card.resummon = true;
+      } else if (power.kind === 'spellAmplify') {
+        // The Spellbinder's power is passive (no activation) — nothing to do on a heroPower action.
+        return state;
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
@@ -360,6 +373,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         summonBonus: b.summonBonus ?? 0,
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
         linkUid: b.linkUid, // Corrupted Lifebinder mirrors its linked demon in combat too
+        resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
       }));
       s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX);
       // Outcome odds: re-simulate the same two boards on independent seeds for a win/draw/loss estimate.
@@ -559,6 +573,7 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
   // top of the cap (a deliberate economy card), recomputed each turn so selling it removes it.
   s.embers = s.maxEmbers + boardManaBonus(s);
   s.heroReady = true;
+  for (const c of s.board) c.resummon = false; // The Reclaimer's mark is a per-turn choice
   if (s.tier < CONFIG.maxTier) {
     s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - CONFIG.upgradeDiscountPerWave);
   }

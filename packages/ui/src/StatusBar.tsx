@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CONFIG, boardManaBonus, getHero } from '@game/sim';
+import { CONFIG, boardManaBonus, getHero, spellAmplifyBonus } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { useGame } from './store';
@@ -16,28 +16,36 @@ export function StatusBar() {
   // Some powers unlock on a later turn (Myra's Encore — turn 3); locked (and unusable) before then.
   const unlockWave = power.unlockWave ?? 1;
   const unlocked = run.wave >= unlockWave;
+  // Passive powers (Spellbinder) are always-on — never armed, never "used".
+  const isPassive = !!power.passive;
   // Once-per-game powers (Gild) gate on heroPowerSpent; the rest recharge each wave. Fortify can
   // target a warband minion OR a tavern offer, so it's usable whenever ready — no friend required.
-  const canHero = unlocked && (power.oncePerGame ? !run.heroPowerSpent : run.heroReady);
+  const canHero = !isPassive && unlocked && (power.oncePerGame ? !run.heroPowerSpent : run.heroReady);
   // The big line under the hero name: what tapping the power does *right now*.
-  const powerLine = heroArmed
-    ? 'Pick a minion…'
+  const powerLine = isPassive
+    ? power.kind === 'spellAmplify'
+      ? `${power.name} · +${spellAmplifyBonus(run.wave)}/+${spellAmplifyBonus(run.wave)} spells`
+      : `${power.name} · passive`
+    : heroArmed
+      ? 'Pick a minion…'
+      : !unlocked
+        ? `${power.name} · unlocks turn ${unlockWave}`
+        : power.kind === 'fortify'
+          ? `${power.name} · +${run.tier}/+${run.tier}`
+          : power.kind === 'gild'
+            ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
+            : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
+  const powerNote = isPassive
+    ? ' Passive — always on.'
     : !unlocked
-      ? `${power.name} · unlocks turn ${unlockWave}`
-      : power.kind === 'fortify'
-        ? `${power.name} · +${run.tier}/+${run.tier}`
-        : power.kind === 'gild'
-          ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
-          : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
-  const powerNote = !unlocked
-    ? ` Unlocks on turn ${unlockWave}.`
-    : power.oncePerGame
-      ? run.heroPowerSpent
-        ? ' Already used this game.'
-        : ' Drag onto a friendly minion (or click, then click it). One use per game.'
-      : run.heroReady
-        ? ' Drag onto a minion (or click, then click a minion).'
-        : ' Used this wave.';
+      ? ` Unlocks on turn ${unlockWave}.`
+      : power.oncePerGame
+        ? run.heroPowerSpent
+          ? ' Already used this game.'
+          : ' Drag onto a friendly minion (or click, then click it). One use per game.'
+        : run.heroReady
+          ? ' Drag onto a minion (or click, then click a minion).'
+          : ' Used this wave.';
   // Projected starting Embers for the next two waves (each wave grows maxEmbers by
   // embersPerWave, capped), plus any board mana income (Money Bot) on top of the cap —
   // assuming the source stays on board.
@@ -79,8 +87,8 @@ export function StatusBar() {
         </div>
 
         <div
-          className={`hero${canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
-          onPointerDown={() => canHero && !heroArmed && armHero()}
+          className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
+          onPointerDown={() => !isPassive && canHero && !heroArmed && armHero()}
         >
           <div className="f">
             {heroArt(hero.id) ? (

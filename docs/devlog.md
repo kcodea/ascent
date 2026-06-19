@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Three new heroes (placeholder names): The Reclaimer, The Spellbinder, Dusk
+Added the three spec'd heroes — names are **placeholders**, rename freely. Each needed a different
+piece of new plumbing, all now reusable:
+- **The Reclaimer — "Reclaim" (once per turn):** mark a friendly board minion; at the **start of
+  combat** it's destroyed (its Deathrattle fires) and an **exact copy** (stats + granted keywords +
+  golden) is resummoned if there's room. This is the first hero power that drives the **pure combat
+  simulator**: a `resummon` mark on `BoardCard` → `BoardMinion` → `Minion` (via `instantiate`), and a
+  new start-of-combat step in `simulate()` that force-kills the marked minion (skips Reborn so the
+  Deathrattle actually fires), then resummons an exact copy if `living(player) < 7`. The mark is a
+  per-turn choice (cleared in `advanceAfterCombat`); the copy is combat-only (the recruit board is
+  untouched, as always). Runs *before* the normal Start-of-Combat effects so the copy + any tokens
+  take part.
+- **The Spellbinder — "Attunement" (passive):** stat-granting spells give **+X/+X more**, X starting
+  at 1 and rising every 3 turns (`spellAmplifyBonus`). First **passive** hero — new `HeroPower.passive`
+  flag; the StatusBar shows it (with the live bonus) but never arms it, and the panel uses a neutral
+  `passive` style instead of the greyed "spent" look. The effect hooks `spellBuffTarget` (so it covers
+  both player- and minion-cast stat spells; non-stat spells like Mana Pouch are untouched).
+- **Dusk — "Cadence" (once per turn):** proc a friendly minion's **End of Turn** effect now — a near-
+  clone of Myra's Encore, applied to `endOfTurn` effects (`replayEndOfTurn`, honoring Chronos repeats).
+- **Hero-select now shows a random 3 of 6** (the subset behavior that was waiting on >3 heroes).
+- Judgement calls (flag if any should change): Reclaimer + Dusk are once-per-turn (re-choose each turn);
+  Reclaim forces a true death past Reborn so the Deathrattle fires; "when you have space" = combat board
+  < 7 after the Deathrattle resolves; the resummoned copy is ephemeral (no carry-back). Spellbinder's
+  scaling (`1 + floor((wave-1)/3)`) is a starting dial.
+- Verified: `typecheck` + `lint` clean, `test` **163** pass (+6: Dusk procs/locks, Spellbinder amplify
+  + scaling + hero-gating, Reclaimer mark + carry-into-combat, and a core `simulate` test for the
+  destroy→Deathrattle→exact-copy). Live: picker shows 3-of-6 (new heroes use the anvil fallback — **no
+  portrait art yet**); HUD shows Reclaim/Cadence "once per turn", Spellbinder "Attunement · +1/+1
+  spells" (passive, not armable).
+
 ### PvE win condition (survive wave 20 → Victory) + Start Over + clock waits for hero select
 - **Win condition (bounded PvE).** `CONFIG.maxWave` (20). Surviving the final wave ends the run in a
   new **`victory`** phase (the run doesn't advance past it); losing — Resolve hitting 0 — is still

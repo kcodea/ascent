@@ -10,7 +10,10 @@
 export type HeroPowerKind =
   | 'fortify' // Warden: give a minion +Tier/+Tier (scales with Tavern Tier)
   | 'gild' // Oner: make a friendly minion Golden
-  | 'replayBattlecry'; // Myra: re-trigger a friendly minion's Battlecry
+  | 'replayBattlecry' // Myra: re-trigger a friendly minion's Battlecry
+  | 'replayEndOfTurn' // Dusk: proc a friendly minion's End of Turn now
+  | 'resummon' // The Reclaimer: at start of combat, destroy a marked minion (procs its Deathrattle) + resummon a copy
+  | 'spellAmplify'; // The Spellbinder (passive): stat-granting spells give +X/+X more, X scaling every 3 waves
 
 export interface HeroPower {
   name: string;
@@ -21,6 +24,8 @@ export interface HeroPower {
   oncePerGame?: boolean;
   /** The wave (turn) the power first becomes usable; undefined = turn 1 (available immediately). */
   unlockWave?: number;
+  /** Passive powers are always-on (no activation/target) — the panel shows them, but you can't arm them. */
+  passive?: boolean;
 }
 
 export interface HeroDef {
@@ -69,7 +74,48 @@ export const HEROES: HeroDef[] = [
       text: "Each turn (from turn 3): trigger a friendly minion's Battlecry again.",
     },
   },
+  // --- Placeholder heroes (names TBD) — added per design spec, rename freely. ---
+  {
+    id: 'reclaimer',
+    name: 'The Reclaimer', // placeholder
+    blurb: 'Death is a doorway — send a minion through it and bring it back.',
+    resolve: 30,
+    power: {
+      name: 'Reclaim',
+      kind: 'resummon',
+      text: "Each turn: mark a minion. At the start of combat it's destroyed (its Deathrattle fires) and an exact copy returns if there's room.",
+    },
+  },
+  {
+    id: 'spellbinder',
+    name: 'The Spellbinder', // placeholder
+    blurb: 'Words sharpen in her hands — and sharpen further as the climb wears on.',
+    resolve: 30,
+    power: {
+      name: 'Attunement',
+      kind: 'spellAmplify',
+      passive: true,
+      text: 'Passive: your stat-granting spells give +X/+X more. X starts at 1 and rises every 3 turns.',
+    },
+  },
+  {
+    id: 'dusk',
+    name: 'Dusk', // placeholder
+    blurb: 'She calls the day to its close early — once, on your terms.',
+    resolve: 30,
+    power: {
+      name: 'Cadence',
+      kind: 'replayEndOfTurn',
+      text: "Each turn: trigger a friendly minion's End of Turn effect now.",
+    },
+  },
 ];
+
+/** The Spellbinder's spell bonus: +1/+1 to stat-granting spells, rising by 1 every 3 turns
+ *  (+1 on turns 1–3, +2 on 4–6, +3 on 7–9, …). A starting dial. */
+export function spellAmplifyBonus(wave: number): number {
+  return 1 + Math.floor((wave - 1) / 3);
+}
 
 export const HERO_INDEX: Record<string, HeroDef> = Object.fromEntries(
   HEROES.map((h) => [h.id, h]),

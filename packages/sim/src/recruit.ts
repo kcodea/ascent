@@ -1,6 +1,7 @@
 import { makeRng, type CardDef, type Keyword } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
+import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type BoardCard, type RunState } from './state';
 import { takeFromPool } from './shop';
 
@@ -356,8 +357,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Spirit Fire / Bulwark — cast: buff the chosen target +atk/+hp, and grant an optional
    *  keyword (`self` is the target). */
-  spellBuffTarget: (_ctx, self, params) => {
-    addBuff(self, str(params._source) || nameOf(self), num(params.attack), num(params.health));
+  spellBuffTarget: (ctx, self, params) => {
+    let attack = num(params.attack);
+    let health = num(params.health);
+    // The Spellbinder (passive): stat-granting spells give +X/+X more, X rising every 3 turns.
+    if ((attack > 0 || health > 0) && getHero(ctx.state.heroId).power.kind === 'spellAmplify') {
+      const bonus = spellAmplifyBonus(ctx.state.wave);
+      attack += bonus;
+      health += bonus;
+    }
+    addBuff(self, str(params._source) || nameOf(self), attack, health);
     const kw = str(params.keyword);
     if (kw && !self.keywords.includes(kw as Keyword)) self.keywords.push(kw as Keyword);
   },
@@ -528,6 +537,26 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   }
   for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // a Battlecry → procs Karwind
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
+  return true;
+}
+
+/**
+ * Dusk's hero power: proc a friendly minion's End of Turn effect right now (an extra trigger),
+ * honoring Chronos repeats — exactly like the natural end-of-turn, but for one chosen minion.
+ * Returns whether anything fired (the charge is only spent when it did).
+ */
+export function replayEndOfTurn(state: RunState, card: BoardCard): boolean {
+  const def = CARD_INDEX[card.cardId];
+  if (!def) return false;
+  const eot = def.effects.filter((e) => e.on === 'endOfTurn');
+  if (eot.length === 0) return false;
+  const ctx = makeContext(state);
+  const repeats = chronosRepeats(state);
+  for (const effect of eot) {
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (!fn) continue;
+    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
+  }
   return true;
 }
 

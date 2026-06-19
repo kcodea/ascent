@@ -90,6 +90,9 @@ export interface BoardCard {
   /** How much of the linked demon's recruit gain Lifebinder has already mirrored, so each sync applies
    *  only the new delta. */
   linkApplied?: { attack: number; health: number };
+  /** The Reclaimer's mark: at the start of the next combat this minion is destroyed (its Deathrattle
+   *  fires) and an exact copy is resummoned if there's room. Cleared each turn (re-choose). */
+  resummon?: boolean;
 }
 
 export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';

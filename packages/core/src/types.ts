@@ -166,6 +166,9 @@ export interface BoardMinion {
   /** The originating recruit board card's uid, so combat can report per-instance state
    *  (e.g. Avenge improvements) back for the run to persist. */
   sourceUid?: string;
+  /** The Reclaimer's mark: at the start of combat this minion is destroyed (Deathrattle fires) and
+   *  an exact copy is resummoned if there's room. */
+  resummon?: boolean;
 }
 
 /** A live combat instance. Mutable for the duration of one `simulate()` call. */
@@ -194,6 +197,8 @@ export interface Minion {
   /** Corrupted Lifebinder: the uid of the friendly minion this one mirrors — whenever that minion is
    *  buffed in combat, this minion gains the same stats. */
   linkUid?: string;
+  /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
+  resummon?: boolean;
   side: Side;
   effects: EffectDef[];
   dead: boolean;

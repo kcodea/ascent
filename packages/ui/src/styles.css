@@ -87,10 +87,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .chip .v { font-family: 'Outfit'; font-weight: 800; font-size: calc(20 * var(--u)); line-height: 1; }
 .chip .l { font-family: 'Outfit'; font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
 .hero { display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(4 * var(--u)) calc(14 * var(--u)) calc(4 * var(--u)) calc(5 * var(--u)); }
-.hero:hover:not(.spent) { border-color: var(--acc); }
+.hero:hover:not(.spent):not(.passive) { border-color: var(--acc); }
 /* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
-   arrow) so moving onto a spent hero doesn't visibly switch/flicker the cursor */
-.hero.spent { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+   arrow) so moving onto a spent/passive hero doesn't visibly switch/flicker the cursor */
+.hero.spent, .hero.passive { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .hero .f { width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: calc(10 * var(--u)); background: var(--ink); display: grid; place-items: center; overflow: hidden; }
 .hero .f svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); color: var(--acc); }
 .hero .f .heroimg { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; -webkit-user-drag: none; }

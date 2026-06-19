@@ -80,16 +80,19 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       a playtest build to friends; a proper hosted/versioned deploy is still future work.
 - [~] **Heroes as data + hero select.** Shipped: `@game/sim/heroes.ts` registry (`HeroDef`, power
       `kind` resolved in the reducer), `RunState.heroId`/`heroPowerSpent`, a pre-run **hero picker**
-      (`HeroSelect.tsx`, store flag `heroChoices`, no router), power-aware targeting (Fortify can hit a
-      tavern offer; Gild/Encore are warband-only), per-hero **Resolve** (`HeroDef.resolve`, shown on the
-      picker — all 30 now, will diverge), and per-power **unlock turn** (`HeroPower.unlockWave`). **Three
-      heroes, all with portrait art:** Warden (Fortify, +Tier/+Tier), Oner (Gild — golden a minion, once
-      per game), Myra (Encore — re-trigger a friendly Battlecry, once per turn, **unlocks turn 3**).
-      Remaining:
-  - **More heroes** — each is a `HeroDef` + (only if novel) a new power `kind`. Power-kind ideas that
-    reuse existing plumbing: a flat-stat buff, a one-shot gold/mana, a reroll discount, a token summon.
-  - **Hero-select offers a random subset** once >3 heroes exist (today it shows all). Consider always
-    including a simple "starter" hero so a new player isn't forced into a niche power.
+      (`HeroSelect.tsx`, store flag `heroChoices`, no router) **now offering a random 3-of-N**,
+      power-aware targeting (Fortify hits a tavern offer; the rest are warband-only), per-hero
+      **Resolve** (`HeroDef.resolve`, shown on the picker), per-power **unlock turn**
+      (`HeroPower.unlockWave`), and **passive powers** (`HeroPower.passive`). Power kinds now cover:
+      recruit buffs (`fortify`/`gild`), recruit re-triggers (`replayBattlecry`/`replayEndOfTurn`),
+      a passive (`spellAmplify`), and a **combat-driving** mark (`resummon` — reads in `simulate()`).
+      **Six heroes:** Warden, Oner, Myra (all with art) + **placeholder-named** Reclaimer (Reclaim),
+      Spellbinder (Attunement, passive), Dusk (Cadence). Remaining:
+  - **Name + draw art for the 3 placeholder heroes** (Reclaimer/Spellbinder/Dusk use the anvil fallback).
+  - **More heroes** — each is a `HeroDef` + (only if novel) a new power `kind`. Cheap kinds left: a
+    one-shot gold/mana, a reroll discount, a token summon.
+  - Consider always including a simple "starter" hero in the 3-of-N so a new player isn't forced into a
+    niche power.
 - [ ] **Menu flow — Title → Play → Mode → Hero → run.** The hero picker is the first slice; extend the
       same store-flag/scene pattern (no router) backward to a Title screen and a Mode select. Reuse the
       overlay/`herocard` components. Keep it lean — a small `scene` enum in the store, not a framework.

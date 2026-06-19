@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Golden Deathsayer — Rally proc is a ×2 multiplier
+A **golden Deathsayer** now procs the leftmost Deathrattle **twice** — implemented as a multiplier on
+the whole Rally proc count: `procs = (1 + Sylus extras) × (golden ? 2 : 1)`, so it stacks
+*multiplicatively* on Sylus (golden Deathsayer + 2 Sylus = (1+2)×2 = 6 procs, not 5). Added `goldenText`
+("…trigger your leftmost Deathrattle **twice**."). Tests lock it: golden alone → 2 procs, golden + 1
+Sylus → 4 (multiplicative, not additive). `test` **142** pass.
+
 ### Art — downscale pass (build prep)
 Added `scripts/downscale-art.ps1` (System.Drawing, no new deps) that caps in-repo minion illustrations
 at **640px** (cards display ~290px, so 640 is retina-crisp + headroom). Ran it: the four 1254×1254

@@ -76,6 +76,7 @@ export const UNDEAD: CardDef[] = [
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyProcDeathrattle' }],
     text: '**Rally:** before this attacks, trigger your leftmost Deathrattle.',
+    goldenText: '**Rally:** before this attacks, trigger your leftmost Deathrattle **twice**.',
   },
   {
     id: 'plague',

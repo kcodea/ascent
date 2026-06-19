@@ -176,11 +176,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const target = ctx.living(self.side).find(isDeathrattle);
     if (!target) return;
     ctx.log({ type: 'rally', source: self.uid, target: target.uid });
-    // The Deathrattle procs exactly as a real death would: once, plus Sylus the Reaper's extra procs
-    // (+1 per Sylus, +2 if golden). Echo Warden's extra tokens are already folded into the summon
-    // factories, so e.g. Pack Scrounger here = (2 + Echo) Pups × (1 + Sylus) procs.
+    // The Deathrattle procs like a real death would: once + Sylus the Reaper's extra procs (+1 per
+    // Sylus, +2 golden). A *golden Deathsayer* then doubles the whole thing — it's a multiplier, so it
+    // stacks multiplicatively on Sylus (e.g. golden Deathsayer + 2 Sylus = (1+2)×2 = 6 procs). Echo
+    // Warden's extra tokens are already folded into the summon factories.
     const reaperBonus = ctx.living(self.side).reduce((n, m) => n + (m.cardId === 'sylus' ? (m.golden ? 2 : 1) : 0), 0);
-    for (let r = 0; r < 1 + reaperBonus; r++) {
+    const procs = (1 + reaperBonus) * (self.golden ? 2 : 1);
+    for (let r = 0; r < procs; r++) {
       for (const effect of target.effects) {
         if (effect.on !== 'onDeath' || !effect.do.startsWith('deathrattle')) continue;
         FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });

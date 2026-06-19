@@ -570,6 +570,22 @@ describe('simulate (handoff A.3)', () => {
     expect(buffs).toBe(3); // 1 base proc + 2 Sylus extras, all before the attack lands
   });
 
+  it('a golden Deathsayer procs the leftmost Deathrattle twice — and multiplies on top of Sylus', () => {
+    const rallyBuffs = (golden: boolean, sylus: number, seed: number): number => {
+      const p: BoardMinion[] = [
+        { cardId: 'deathsayer', attack: 3, health: 40, golden },
+        { cardId: 'spore', attack: 1, health: 40 }, // Deathrattle: +1/+1 a random friend
+        ...Array.from({ length: sylus }, (): BoardMinion => ({ cardId: 'sylus', attack: 4, health: 40 })),
+      ];
+      const a = run(p, [{ cardId: 'omen', attack: 1, health: 400 }], seed);
+      const r = a.events.findIndex((ev) => ev.type === 'rally');
+      const dmg = a.events.findIndex((ev, i) => i > r && ev.type === 'dmg');
+      return a.events.filter((ev, i) => i > r && i < dmg && ev.type === 'buff').length;
+    };
+    expect(rallyBuffs(true, 0, 7)).toBe(2); // golden alone → twice
+    expect(rallyBuffs(true, 1, 7)).toBe(4); // (1 + 1 Sylus) × 2 = 4 — multiplicative, not 3
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

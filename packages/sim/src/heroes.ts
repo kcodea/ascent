@@ -19,6 +19,8 @@ export interface HeroPower {
   kind: HeroPowerKind;
   /** Once-per-game powers lock after a single use (vs the default once-per-wave). */
   oncePerGame?: boolean;
+  /** The wave (turn) the power first becomes usable; undefined = turn 1 (available immediately). */
+  unlockWave?: number;
 }
 
 export interface HeroDef {
@@ -26,6 +28,8 @@ export interface HeroDef {
   name: string;
   /** One-line flavour for the hero-select screen. */
   blurb: string;
+  /** Starting + max Resolve (the hero's HP). All 30 today; will diverge per hero over time. */
+  resolve: number;
   power: HeroPower;
 }
 
@@ -34,6 +38,7 @@ export const HEROES: HeroDef[] = [
     id: 'warden',
     name: 'The Warden',
     blurb: 'Steady, scaling muscle — every wave a minion grows with you.',
+    resolve: 30,
     power: {
       name: 'Fortify',
       kind: 'fortify',
@@ -44,6 +49,7 @@ export const HEROES: HeroDef[] = [
     id: 'oner',
     name: 'Oner',
     blurb: 'One perfect moment — gild a single minion and make it count.',
+    resolve: 30,
     power: {
       name: 'Gild',
       kind: 'gild',
@@ -55,10 +61,12 @@ export const HEROES: HeroDef[] = [
     id: 'myra',
     name: 'Myra',
     blurb: 'A conductor of entrances — call a minion to take its bow again.',
+    resolve: 30,
     power: {
       name: 'Encore',
       kind: 'replayBattlecry',
-      text: "Each turn: trigger a friendly minion's Battlecry again.",
+      unlockWave: 3,
+      text: "Each turn (from turn 3): trigger a friendly minion's Battlecry again.",
     },
   },
 ];

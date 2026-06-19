@@ -1,7 +1,7 @@
 import { makeRng } from '@game/core';
 import type { CombatResult, Keyword, Rng, Tribe } from '@game/core';
 import { CONFIG } from './config';
-import { DEFAULT_HERO_ID } from './heroes';
+import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { rollShop, stockPool } from './shop';
 import { selectThreat, type ThreatId } from './threats';
 
@@ -186,6 +186,8 @@ export type Action =
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
 export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
+  // The hero's Resolve is the run's starting (and max) HP — all 30 today, diverging per hero later.
+  const startResolve = getHero(heroId).resolve;
   const state: RunState = {
     seed,
     wave: 1,
@@ -193,8 +195,8 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     phase: 'recruit',
     embers: CONFIG.startEmbers,
     maxEmbers: CONFIG.startEmbers,
-    resolve: CONFIG.startResolve,
-    maxResolve: CONFIG.startResolve,
+    resolve: startResolve,
+    maxResolve: startResolve,
     tier: 1,
     upgradeCost: CONFIG.upgradeCost[2] ?? 5,
     frozen: false,

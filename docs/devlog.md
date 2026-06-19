@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Hero HP on the picker + Myra's Encore unlocks on turn 3
+- **Heroes have a Resolve (HP) stat.** `HeroDef.resolve` (all 30 today, will diverge per hero) now
+  seeds the run's starting + max Resolve in `createRun` instead of the global `CONFIG.startResolve`.
+  The hero picker shows it under each name as a red heart + number (matching the HUD's Resolve heart).
+- **Per-power unlock turn.** `HeroPower.unlockWave` (default 1) gates when a power becomes usable.
+  **Myra's Encore now unlocks on turn 3** — locked on turns 1 & 2 (the reducer rejects it; the HUD
+  reads "Encore · unlocks turn 3" and greys the panel; the picker shows an "Unlocks turn 3" badge).
+  From turn 3 it's the usual once-per-turn power.
+- Verified: `typecheck` + `lint` clean, `test` **154** pass (+2: Encore rejected on turns 1–2 and fires
+  on turn 3; `createRun` seeds each hero's Resolve). Live: picker shows ♥30 on all three + the badge on
+  Myra; as Myra, the HUD shows "unlocks turn 3" (greyed) at wave 1 and "once per turn" (ready) at wave 3.
+
 ### New hero "Myra" (Encore — re-trigger a Battlecry) + Oner/Myra portrait art
 - **Myra — power "Encore" (once per turn):** choose a friendly board minion and **trigger its
   Battlecry again**. New effect `kind: 'replayBattlecry'` + `replayBattlecry(state, card)` in

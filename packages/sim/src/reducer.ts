@@ -274,6 +274,8 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'heroPower': {
       const power = getHero(s.heroId).power;
+      // Some powers unlock on a later turn (Myra's Encore — turn 3); locked before then.
+      if (s.wave < (power.unlockWave ?? 1)) return state;
       // Once-per-game powers (Gild) gate on heroPowerSpent; the rest recharge each wave.
       const available = power.oncePerGame ? !s.heroPowerSpent : s.heroReady;
       if (!available) return state;

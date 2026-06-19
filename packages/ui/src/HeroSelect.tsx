@@ -21,6 +21,7 @@ export function HeroSelect() {
         <div className="hsrow">
           {choices.map((id) => {
             const hero = getHero(id);
+            const power = hero.power;
             const art = heroArt(hero.id);
             return (
               <button key={id} className="herocard" onClick={() => pickHero(id)}>
@@ -28,9 +29,16 @@ export function HeroSelect() {
                   {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
                 </div>
                 <div className="hcname">{hero.name}</div>
-                <div className="hcpw">
-                  <b>{hero.power.name}</b> · {hero.power.text}
+                <div className="hchp" title="Starting Resolve (HP)">
+                  <Icon name="heart" />
+                  {hero.resolve}
                 </div>
+                <div className="hcpw">
+                  <b>{power.name}</b> · {power.text}
+                </div>
+                {power.unlockWave && power.unlockWave > 1 && (
+                  <div className="hclock">Unlocks turn {power.unlockWave}</div>
+                )}
                 <div className="hcblurb">{hero.blurb}</div>
                 <div className="hcpick">Choose</div>
               </button>

@@ -76,9 +76,11 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 - [~] **Heroes as data + hero select.** Shipped: `@game/sim/heroes.ts` registry (`HeroDef`, power
       `kind` resolved in the reducer), `RunState.heroId`/`heroPowerSpent`, a pre-run **hero picker**
       (`HeroSelect.tsx`, store flag `heroChoices`, no router), power-aware targeting (Fortify can hit a
-      tavern offer; Gild/Encore are warband-only). **Three heroes, all with portrait art:** Warden
-      (Fortify, +Tier/+Tier), Oner (Gild — golden a minion, once per game), Myra (Encore — re-trigger a
-      friendly Battlecry, once per turn). Remaining:
+      tavern offer; Gild/Encore are warband-only), per-hero **Resolve** (`HeroDef.resolve`, shown on the
+      picker — all 30 now, will diverge), and per-power **unlock turn** (`HeroPower.unlockWave`). **Three
+      heroes, all with portrait art:** Warden (Fortify, +Tier/+Tier), Oner (Gild — golden a minion, once
+      per game), Myra (Encore — re-trigger a friendly Battlecry, once per turn, **unlocks turn 3**).
+      Remaining:
   - **More heroes** — each is a `HeroDef` + (only if novel) a new power `kind`. Power-kind ideas that
     reuse existing plumbing: a flat-stat buff, a one-shot gold/mana, a reroll discount, a token summon.
   - **Hero-select offers a random subset** once >3 heroes exist (today it shows all). Consider always

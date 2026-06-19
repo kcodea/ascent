@@ -13,6 +13,7 @@ import {
   boardManaBonus,
   THREAT_IDS,
   addBuff,
+  getHero,
   type BoardCard,
   type RunState,
 } from './index';
@@ -1306,7 +1307,7 @@ describe('hero powers (@game/sim)', () => {
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
-    let s: RunState = { ...createRun(1, 'myra'), board: [cleric()] };
+    let s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] }; // Encore unlocks turn 3
     s = reduce(s, { type: 'heroPower', uid: 'c' });
     expect(s.board[0]!.attack).toBe(2); // 1 + 1
     expect(s.board[0]!.health).toBe(4); // 3 + 1
@@ -1319,6 +1320,7 @@ describe('hero powers (@game/sim)', () => {
   it("Myra's Encore auto-targets a targeted Battlecry (Toxin Tender → best friend gets Venomous)", () => {
     const s: RunState = {
       ...createRun(1, 'myra'),
+      wave: 3, // Encore unlocks turn 3
       board: [
         { uid: 't', cardId: 'toxin', tribe: 'undead', attack: 1, health: 3, keywords: [], golden: false },
         mk('f', 5, 5), // highest-attack friend → auto-picked
@@ -1330,9 +1332,37 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("Myra's Encore no-ops (no charge spent) on a minion with no Battlecry", () => {
-    const s: RunState = { ...createRun(1, 'myra'), board: [mk('a', 2, 2)] }; // sandbag = vanilla
+    // wave 3 so it's unlocked — this tests the no-Battlecry path, not the turn lock.
+    const s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [mk('a', 2, 2)] }; // sandbag = vanilla
     const after = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(after).toBe(s); // rejected → same reference
     expect(after.heroReady).toBe(true); // charge preserved
+  });
+
+  it("Myra's Encore is locked until turn 3", () => {
+    const cleric = (): BoardCard => ({
+      uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
+    });
+    // Turns 1 & 2: locked — rejected, the minion is untouched, the charge preserved.
+    for (const wave of [1, 2]) {
+      const s: RunState = { ...createRun(1, 'myra'), wave, board: [cleric()] };
+      const after = reduce(s, { type: 'heroPower', uid: 'c' });
+      expect(after).toBe(s);
+      expect(after.board[0]!.attack).toBe(1);
+      expect(after.heroReady).toBe(true);
+    }
+    // Turn 3: unlocked — the Battlecry fires.
+    let s3: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] };
+    s3 = reduce(s3, { type: 'heroPower', uid: 'c' });
+    expect(s3.board[0]!.attack).toBe(2);
+    expect(s3.heroReady).toBe(false);
+  });
+
+  it("createRun seeds the run with the hero's Resolve (HP)", () => {
+    for (const id of ['warden', 'oner', 'myra']) {
+      const s = createRun(1, id);
+      expect(s.resolve).toBe(getHero(id).resolve);
+      expect(s.maxResolve).toBe(getHero(id).resolve);
+    }
   });
 });

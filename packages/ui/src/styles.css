@@ -1046,8 +1046,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .hcart img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .hcart svg { width: 54px; height: 54px; color: var(--acc); }
 .hcname { font-family: 'Outfit'; font-weight: 900; font-size: 24px; letter-spacing: 0.02em; }
+.hchp { display: inline-flex; align-items: center; gap: 5px; font-family: 'Outfit'; font-weight: 800; font-size: 18px; color: var(--ink); margin: -2px 0 2px; }
+.hchp svg { width: 17px; height: 17px; color: var(--hpc); }
 .hcpw { font-size: 13.5px; font-weight: 600; color: var(--ink2); line-height: 1.35; }
 .hcpw b { color: var(--acc-dk); font-weight: 800; }
+.hclock { font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 3px 10px; border-radius: 8px; }
 .hcblurb { font-size: 13px; font-style: italic; color: var(--ink3); line-height: 1.4; margin-top: auto; padding-top: 6px; }
 .hcpick { margin-top: 12px; font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 8px 22px; border-radius: 12px; }
 .herocard:hover .hcpick { background: var(--acc-dk); }

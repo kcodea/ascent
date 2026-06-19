@@ -23,10 +23,11 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Three heroes, each with portrait art.** Pick your champion before each run (first load + after a
-  loss): **Warden** — Fortify scales with Tavern Tier (**+Tier/+Tier**); **Oner** — **Gild** a minion
-  Golden once per game (double stats *and* doubled effects); **Myra** — **Encore**, once per turn,
-  re-trigger a friendly minion's **Battlecry**. Heroes are data — adding one is a registry entry.
+- **Three heroes, each with portrait art + an HP (Resolve) stat shown at pick.** Choose before each
+  run: **Warden** — Fortify scales with Tavern Tier (**+Tier/+Tier**); **Oner** — **Gild** a minion
+  Golden once per game (double stats *and* doubled effects); **Myra** — **Encore**, re-trigger a
+  friendly minion's **Battlecry** once per turn (**unlocks turn 3**). Heroes are data — adding one is a
+  registry entry, with optional per-hero HP and per-power unlock turn.
 - **Combat hand updates live.** A card granted *during* a fight (e.g. Arcane Weaver's Deathrattle →
   Spirit Fire) now appears in the in-combat hand as it lands, not just after the fight.
 - **Deathsayer** (T4 Undead, Rally) — each time it attacks, it fires your **leftmost Deathrattle

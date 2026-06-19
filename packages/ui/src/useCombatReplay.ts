@@ -1,6 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CombatEvent, CombatResult, Keyword, MinionSnapshot, Tribe } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { sfx } from './sfx';
+
+/** Card display name from its id (for combat-log lines about generated cards). */
+const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
 
 /** A live combat unit, folded from the initial snapshot + the event log up to a beat. */
 export interface UnitFrame {
@@ -110,7 +114,7 @@ function computeFrame(
 const SPEED = 1.5;
 const DELAY: Record<string, number> = {
   // action beats (the wind-up / cast)
-  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720,
+  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820,
   // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, death: 400,
@@ -204,6 +208,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'improve': return { text: `${n(e.target)}'s summon aura strengthens by +${e.amount}/+${e.amount}.`, kind: 'buff' };
     case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Deathrattle.`, kind: 'sc' };
+    case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
     default: return null;
   }
 }
@@ -222,8 +227,48 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
     case 'improve': return `${n(e.target)}'s aura strengthens (+${e.amount}/+${e.amount}).`;
     case 'rally': return `☠ ${n(e.source)}'s Rally fires ${n(e.target)}'s Deathrattle!`;
+    case 'toHand': return `✋ ${cardName(e.cardId)} → your hand.`;
     default: return null;
   }
+}
+
+/** Aggregate tallies for the top of the Combat Log — proc counts per source, summon counts, totals —
+ *  so it's easy to see "Flowing Monk procced 9× (+54/+54)" etc. at a glance (and for debugging). */
+function summarize(events: CombatEvent[], names: Map<string, string>): { text: string; kind: string }[] {
+  const n = (uid: string): string => names.get(uid) ?? uid;
+  let attacks = 0, dmg = 0, deaths = 0, reborn = 0, poison = 0, shieldUp = 0, shieldBreak = 0;
+  const summons = new Map<string, number>();
+  const buffs = new Map<string, { n: number; atk: number; hp: number }>();
+  const rallies = new Map<string, number>();
+  for (const e of events) {
+    if (e.type === 'attack') attacks++;
+    else if (e.type === 'dmg') dmg += e.amount;
+    else if (e.type === 'death') deaths++;
+    else if (e.type === 'reborn') reborn++;
+    else if (e.type === 'poison') poison++;
+    else if (e.type === 'shieldUp') shieldUp++;
+    else if (e.type === 'shield') shieldBreak++;
+    else if (e.type === 'summon') summons.set(e.minion.name, (summons.get(e.minion.name) ?? 0) + 1);
+    else if (e.type === 'rally') rallies.set(n(e.source), (rallies.get(n(e.source)) ?? 0) + 1);
+    else if (e.type === 'buff') {
+      const k = n(e.source);
+      const t = buffs.get(k) ?? { n: 0, atk: 0, hp: 0 };
+      t.n++; t.atk += e.attack; t.hp += e.health;
+      buffs.set(k, t);
+    }
+  }
+  const out: { text: string; kind: string }[] = [];
+  out.push({ text: `${attacks} attacks · ${dmg} damage dealt · ${deaths} deaths`, kind: 'attack' });
+  if (rallies.size) out.push({ text: 'Rally procs — ' + [...rallies].map(([k, c]) => `${k} ×${c}`).join(', '), kind: 'rally' });
+  if (summons.size) out.push({ text: 'Summoned — ' + [...summons].map(([k, c]) => `${k} ×${c}`).join(', '), kind: 'summon' });
+  if (buffs.size) out.push({ text: 'Buffs — ' + [...buffs].map(([k, t]) => `${k} ×${t.n} (+${t.atk}/+${t.hp})`).join(', '), kind: 'buff' });
+  const kw: string[] = [];
+  if (shieldUp) kw.push(`${shieldUp} shields gained`);
+  if (shieldBreak) kw.push(`${shieldBreak} shields broken`);
+  if (poison) kw.push(`${poison} poison kills`);
+  if (reborn) kw.push(`${reborn} reborns`);
+  if (kw.length) out.push({ text: kw.join(' · '), kind: 'shield' });
+  return out;
 }
 
 export interface CombatReplay {
@@ -237,6 +282,10 @@ export interface CombatReplay {
   /** The whole fight narrated in detail (every attack, hit, shield, death…) for the
    *  post-combat Combat Log — each line tagged with its kind for styling. */
   fullLog: { text: string; kind: string }[];
+  /** Aggregate proc-count tallies shown above the detailed log. */
+  logSummary: { text: string; kind: string }[];
+  /** A card a combat effect just granted to the hand, shown flying to the hand (null when none). */
+  handGrant: { cardId: string; key: number } | null;
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -268,6 +317,9 @@ export function useCombatReplay(
   // recoil the attacker back along the same vector without re-measuring its (already-moved) element.
   const lungeVec = useRef<{ uid: string; dx: number; dy: number } | null>(null);
   const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number }[]>([]);
+  // A card a combat effect just granted to the hand (Arcane Weaver → Spirit Fire) — shown flying to the
+  // hand for the duration of its beat, so the player sees it happen instead of it just appearing later.
+  const [handGrant, setHandGrant] = useState<{ cardId: string; key: number } | null>(null);
   const done = beatIdx >= beats.length;
 
   // A fresh combat resets the replay to the top (the hook persists across fights).
@@ -277,7 +329,15 @@ export function useCombatReplay(
     setLunge(null);
     setProjectiles([]);
     setShake(0);
+    setHandGrant(null);
   }, [combat]);
+
+  // Show the flying "→ hand" card only while its `toHand` beat is current; clear on any other beat.
+  useEffect(() => {
+    const beat = active ? beats[beatIdx] : undefined;
+    if (beat && beat.primary.type === 'toHand') setHandGrant({ cardId: beat.primary.cardId, key: beatIdx });
+    else setHandGrant(null);
+  }, [active, beatIdx, beats]);
 
   useEffect(() => {
     if (!shake) return;
@@ -451,9 +511,10 @@ export function useCombatReplay(
     () => events.map((e) => narrateLog(e, names)).filter((l): l is { text: string; kind: string } => l !== null),
     [events, names],
   );
+  const logSummary = useMemo(() => summarize(events, names), [events, names]);
 
   return {
-    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log, fullLog,
+    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log, fullLog, logSummary, handGrant,
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, skip: () => setBeatIdx(beats.length),
   };

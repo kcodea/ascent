@@ -118,8 +118,12 @@ export function simulate(
     },
     grantToHand: (cardId, side) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
-      // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy).
-      if (side === 'player') handGrants.push(cardId);
+      // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a
+      // `toHand` event so the replay shows the card flying to your hand as it happens.
+      if (side === 'player') {
+        handGrants.push(cardId);
+        events.push({ type: 'toHand', cardId, side });
+      }
     },
   };
 

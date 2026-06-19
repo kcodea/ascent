@@ -1173,6 +1173,23 @@ export function Recruit() {
           />
         ))}
 
+      {/* A card a combat effect just granted (Arcane Weaver → Spirit Fire) flies into your hand. */}
+      {fighting && replay.handGrant && (() => {
+        const def = CARD_INDEX[replay.handGrant.cardId];
+        if (!def) return null;
+        const view: CardView = {
+          name: def.name, cardId: def.id, tribe: def.tribe, tribe2: def.tribe2,
+          attack: def.attack, health: def.health, keywords: [...def.keywords], text: def.text,
+          tier: def.tier, spell: def.spell, baseAttack: def.attack, baseHealth: def.health,
+        };
+        return (
+          <div className="handgrant" key={replay.handGrant.key} aria-hidden="true">
+            <span className="hg-label">✋ To your hand</span>
+            <Card card={view} suppressPop />
+          </div>
+        );
+      })()}
+
       {/* Combat narration — a single rolling line where the hand used to fan. */}
       {fighting && <div className="alog">{replay.log}</div>}
 
@@ -1301,6 +1318,13 @@ export function Recruit() {
                   <span className="ol draw">{Math.round(run.lastCombat.odds.draw * 100)}% draw</span>
                   <span className="ol lose">{Math.round(run.lastCombat.odds.lose * 100)}% loss</span>
                 </div>
+              </div>
+            )}
+            {replay.logSummary.length > 0 && (
+              <div className="logsummary">
+                {replay.logSummary.map((s, i) => (
+                  <div className={`logsum ${s.kind}`} key={i}>{s.text}</div>
+                ))}
               </div>
             )}
             <div className="loglines">

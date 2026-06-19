@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Combat log readability + proc-count summary + cards-to-hand animation
+Three combat-feedback improvements:
+- **Combat narration bar is readable now.** `.alog` was getting light cream text (from a shared
+  title-screen rule) on its own light translucent pill — light-on-light. Made it a solid **dark pill
+  with cream text**, bigger + bolder. (Removed `.alog` from the `#f6efe2` rule.)
+- **Combat Log now opens with a proc-count summary.** New `summarize()` tallies the fight —
+  `N attacks · M damage · D deaths`, **Rally procs** (per source), **Summoned** (per token, e.g. "Pup
+  ×9"), **Buffs** (per source with totals, e.g. "Flowing Monk ×9 (+54/+54)"), and shields/poison/reborn
+  counts — rendered above the detailed line-by-line log. Great for seeing/​debugging how many times
+  things procced.
+- **Combat-generated cards now visibly fly to your hand.** `grantToHand` logs a new `toHand` combat
+  event; the replay shows the granted card (e.g. Arcane Weaver → **Spirit Fire**) pop in centre-screen
+  and fly down into the hand on its own beat, narrated in both logs. (It's still added to the real hand
+  after combat as before.)
+- Verified: `typecheck` + `lint` clean, `test` **144** pass (new test: a grant logs a `toHand` event);
+  `.alog`/`.handgrant`/summary CSS confirmed via live computed-style probes; app mounts clean.
+
 ### Fix — no targeting prompt when there's no viable target
 A targeted Battlecry no longer strands the player on an unfulfillable prompt. The `play` action now
 sets `pendingTarget` **only if a viable target exists**; otherwise the minion just plays and its

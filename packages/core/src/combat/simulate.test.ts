@@ -586,6 +586,16 @@ describe('simulate (handoff A.3)', () => {
     expect(rallyBuffs(true, 1, 7)).toBe(4); // (1 + 1 Sylus) × 2 = 4 — multiplicative, not 3
   });
 
+  it('a combat card grant logs a toHand event (Arcane Weaver → Spirit Fire)', () => {
+    const a = run(
+      [{ cardId: 'weaver', attack: 1, health: 1 }],
+      [{ cardId: 'omen', attack: 5, health: 20 }],
+      1,
+    );
+    expect(a.events.some((ev) => ev.type === 'toHand' && ev.cardId === 'spiritfire')).toBe(true);
+    expect(a.playerHandGrants).toContain('spiritfire'); // still recorded for the post-combat hand add
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

@@ -64,6 +64,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ✦ ${n(ev.target)} aura +${ev.amount}/+${ev.amount}`;
     case 'rally':
       return `   ☠ ${n(ev.source)}'s Rally fires ${n(ev.target)}'s Deathrattle`;
+    case 'toHand':
+      return `   ✋ ${CARD_INDEX[ev.cardId]?.name ?? ev.cardId} added to hand`;
   }
 }
 

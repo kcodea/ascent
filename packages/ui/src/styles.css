@@ -867,7 +867,18 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 @keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }
 /* result vignette keyframe — used by .app.combat.done::after */
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
-.alog { position: fixed; left: 50%; bottom: calc(var(--bar-y) + 24px); transform: translateX(-50%); z-index: 30; text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: 17px; color: var(--ink); background: color-mix(in srgb, var(--card) 88%, transparent); padding: 9px 24px; border-radius: 14px; border: 2px solid var(--line); box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.45); pointer-events: none; max-width: 70vw; }
+.alog { position: fixed; left: 50%; bottom: calc(var(--bar-y) + 24px); transform: translateX(-50%); z-index: 30; text-align: center; font-family: 'Outfit'; font-weight: 800; font-size: 20px; color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: 11px 28px; border-radius: 14px; border: 2px solid color-mix(in srgb, var(--acc) 55%, var(--ink)); box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.6); pointer-events: none; max-width: 76vw; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
+/* A combat-granted card (Arcane Weaver → Spirit Fire) pops in centre-screen, then flies down + fades
+   toward the hand, so the player sees it being added. */
+.handgrant { position: fixed; left: 50%; top: 46%; z-index: 33; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: var(--cw); pointer-events: none; animation: tohandfly 1.15s cubic-bezier(0.4, 0, 0.5, 1) forwards; }
+.hg-label { font-family: 'Outfit'; font-weight: 900; font-size: calc(16 * var(--u)); color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: calc(4 * var(--u)) calc(13 * var(--u)); border-radius: 999px; border: 2px solid var(--acc); white-space: nowrap; box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.5); }
+@keyframes tohandfly {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
+  16% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  34% { transform: translate(-50%, -50%) scale(1); }
+  72% { opacity: 1; transform: translate(-50%, calc(-50% + 22vh)) scale(0.78); }
+  100% { opacity: 0; transform: translate(-50%, calc(-50% + 52vh)) scale(0.42); }
+}
 @media (prefers-reduced-motion: reduce) { .unit, .card, .sellfx { transition: none !important; animation: none !important; } }
 
 /* polish: keyboard focus, floating combat numbers, death pop */
@@ -970,6 +981,15 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .logline.buff { border-left-color: #1aa86f; color: #157049; }
 .logline.summon { border-left-color: var(--t-beast); }
 .logline.reborn { border-left-color: var(--t-demon); }
+.logline.rally { border-left-color: var(--t-demon); color: var(--t-demon); font-weight: 800; }
+/* Proc-count summary block above the detailed log. */
+.logsummary { display: flex; flex-direction: column; gap: calc(4 * var(--u)); padding: calc(10 * var(--u)) calc(13 * var(--u)); background: var(--bg2); border: 2px solid var(--line); border-radius: calc(12 * var(--u)); }
+.logsum { font-family: 'Outfit'; font-weight: 800; font-size: calc(13.5 * var(--u)); color: var(--ink); }
+.logsum.attack { color: var(--ink2); }
+.logsum.rally { color: var(--t-demon); }
+.logsum.summon { color: var(--t-beast); }
+.logsum.buff { color: #157049; }
+.logsum.shield { color: var(--acc-dk); }
 .logbox .btn { align-self: center; }
 @keyframes combatctlin { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 
@@ -1013,7 +1033,7 @@ svg { width: 18px; height: 18px; }
 
 /* darker board (warm taupe): lighten the text + labels that sit directly on the
    backdrop or on the dimmed game-over wash, so they stay legible. */
-.zt, .atop h1, .alog, .over h1 { color: #f6efe2; }
+.zt, .atop h1, .over h1 { color: #f6efe2; }
 .hint, .warband-hint, .clash .vs, .empty, .over .fcap { color: #ddd2c0; }
 .zt b, .side.you, .over .final { color: #ffb259; }
 .side.foe { color: #ff6f95; }

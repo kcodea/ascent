@@ -23,10 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Heroes are data now + a pre-run hero picker.** Pick your champion before each run (first load +
-  after a loss). **Warden**'s Fortify scales with Tavern Tier (**+Tier/+Tier**, so +3/+3 at Tier 3);
-  new hero **Oner** can **Gild** one friendly minion per game — turning it Golden (double stats *and*
-  doubled effects, e.g. a Deathrattle that fires twice). Adding a hero is data-only.
+- **Three heroes, each with portrait art.** Pick your champion before each run (first load + after a
+  loss): **Warden** — Fortify scales with Tavern Tier (**+Tier/+Tier**); **Oner** — **Gild** a minion
+  Golden once per game (double stats *and* doubled effects); **Myra** — **Encore**, once per turn,
+  re-trigger a friendly minion's **Battlecry**. Heroes are data — adding one is a registry entry.
 - **Combat hand updates live.** A card granted *during* a fight (e.g. Arcane Weaver's Deathrattle →
   Spirit Fire) now appears in the in-combat hand as it lands, not just after the fight.
 - **Deathsayer** (T4 Undead, Rally) — each time it attacks, it fires your **leftmost Deathrattle

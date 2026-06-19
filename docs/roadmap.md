@@ -4,6 +4,42 @@ Forward-looking work, broken down by milestone. When something ships, move it ou
 goes in [devlog.md](devlog.md)); when new work appears, add it under the right section. Keep honest
 and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md).
 
+## Patch roadmap — the next 5 (strategic sequence)
+
+Sequenced by dependency + player value: **foundation → variety → retention → learnability → reach.**
+Each patch is a release a player would notice. The detailed task queue per milestone is below; this is
+the order we ship it in. (Heroes/cards are data, so small ones can land continuously between patches.)
+
+- **Patch 1 — Balance & Content Depth** *(finishes M2; foundation).* Make the climb fair before
+  building on it. Tune the **counter matrix** (balance truth — the runner flags Mech dominant, Beast
+  weak, Dragon/Undead flat; stat numbers are starting dials), build the **enemy-strength curve tool**,
+  and deepen content: fill the unused effect primitives with cards (`castSpell`, `endOfTurnBuff`,
+  `spellCostMod`), add **higher-tier spells** (only 3 T1 spells today), and even out thin tribes
+  (Dragon has 6 vs 8). *Why first:* every later patch sits on combat feeling right.
+- **Patch 2 — Front Door & Hero Roster** *(M3; variety).* The run's entry + variety. Generalize the
+  `heroChoices` flag into a `scene` enum and build **Title → Play → Mode → Hero → run** (no router;
+  small overlays reusing `herocard`). Add a data-driven **MODES** registry (Standard to start).
+  Expand the **hero roster to ~6–8** so the 3-of-N picker is meaningful, and **seed the hero-choice
+  roll** (for dailies). *Why now:* heroes are an active thread and the game needs a proper front door.
+- **Patch 3 — Meta Progression** *(M3; retention).* The "why keep playing" loop. **Unlocks**
+  (cards/heroes gated by a persisted profile), **ascension modifiers** (escalating difficulty as a
+  run-config knob), **daily seeds** (shareable deterministic runs — the engine already threads one
+  seed; seed from date), and **save/resume + combat replay** (`serialize`/`deserialize` exist; add
+  the resume UI + a share-a-seed/replay surface).
+- **Patch 4 — Onboarding & Game Feel** *(M4; learnability).* Now that it's fair, varied, and sticky,
+  make it teachable + juicy. A **first-run tutorial** (guided first wave: shop → hand → board →
+  Battlecry → threat → combat), an **audio pass** (music + fuller SFX coverage; hooks exist), and
+  **VFX polish** (lighter threat telegraph reintroduced, pool-copies-remaining cue, continued juice).
+- **Patch 5 — Reach & Release** *(M4 + distribution).* Broaden who/where can play. **Full touch
+  support** (tune drag/tap targets + the hand fan for small screens), **accessibility** (keyboard nav,
+  screen-reader labels, reduced-motion, colorblind-safe threat/tribe cues), and the **distribution
+  path** — WebP art compression (~26 → ~6 MB) for web, or a desktop **exe** (Tauri/Electron) — plus a
+  hosted/versioned deploy beyond the itch zip.
+
+**Tech-debt watch (fold into whichever patch touches it):** split `Recruit.tsx` (~1.4k lines) into
+Shop/Hand/Board subcomponents if it grows past ~1.5k; split `run.test.ts` (~1.3k) into per-area suites
+as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions land. No urgent debt.
+
 ## M2 — content + balance (in progress)
 
 - [ ] **Enemy-strength curve tool** (the way we'll actually balance — not the old mono-tribe matrix
@@ -39,13 +75,14 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       a playtest build to friends; a proper hosted/versioned deploy is still future work.
 - [~] **Heroes as data + hero select.** Shipped: `@game/sim/heroes.ts` registry (`HeroDef`, power
       `kind` resolved in the reducer), `RunState.heroId`/`heroPowerSpent`, a pre-run **hero picker**
-      (`HeroSelect.tsx`, store flag `heroChoices`, no router). Two heroes: **Warden** (Fortify,
-      +Tier/+Tier) and **Oner** (Gild — golden a minion, once per game). Remaining:
+      (`HeroSelect.tsx`, store flag `heroChoices`, no router), power-aware targeting (Fortify can hit a
+      tavern offer; Gild/Encore are warband-only). **Three heroes, all with portrait art:** Warden
+      (Fortify, +Tier/+Tier), Oner (Gild — golden a minion, once per game), Myra (Encore — re-trigger a
+      friendly Battlecry, once per turn). Remaining:
   - **More heroes** — each is a `HeroDef` + (only if novel) a new power `kind`. Power-kind ideas that
-    reuse existing plumbing: a flat-stat buff, a one-shot gold/mana, a reroll discount.
+    reuse existing plumbing: a flat-stat buff, a one-shot gold/mana, a reroll discount, a token summon.
   - **Hero-select offers a random subset** once >3 heroes exist (today it shows all). Consider always
     including a simple "starter" hero so a new player isn't forced into a niche power.
-  - **Oner needs portrait art** (anvil-icon fallback today) — drop `art/heroes/oner.png`.
 - [ ] **Menu flow — Title → Play → Mode → Hero → run.** The hero picker is the first slice; extend the
       same store-flag/scene pattern (no router) backward to a Title screen and a Mode select. Reuse the
       overlay/`herocard` components. Keep it lean — a small `scene` enum in the store, not a framework.
@@ -129,8 +166,9 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       sylus, weaver, whelp). The rest still use
       pixel sprites and have **no source art yet** — every source illustration now maps to a card.
       Source art lives in `C:\Game Assets\Ascent Art\Minions`. **Hero portraits** use a parallel
-      pipeline (`art/heroes/<id>.png` → `heroArt()`); the Warden portrait is wired. **Oner has no
-      portrait yet** (falls back to the anvil icon on the picker + HUD) — add `art/heroes/oner.png`.
+      pipeline (`art/heroes/<id>.png` → `heroArt()`); **all three heroes (Warden, Oner, Myra) are
+      wired**. `downscale-art.ps1 -Sub heroes` right-sizes hero portraits the same way. NOTE: Vite
+      resolves `import.meta.glob` at server start — restart the dev server after adding a new portrait.
 - [ ] **Divine Shield art style — bubble vs. crest.** The effect-art overlay pipeline shipped
       (`art/effects/*.png` → `effectArt()`; `.dsfx` screen-blends a glowing aura over any `DS` minion,
       live on Spare Part Drone). The current asset is a shield **crest** shape; if a rounder "bubble/dome"

@@ -505,6 +505,32 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
 }
 
+/**
+ * Myra's hero power: re-fire a friendly minion's Battlecry (its `onPlay` effects) right now —
+ * honoring Drakko repeats + Karwind, exactly as a fresh play would. Targeted Battlecries re-fire
+ * with no explicit target, so their auto-pick fallback chooses (Toxin Tender → the best friend);
+ * a Battlecry that strictly needs a player target (Corrupted Lifebinder) simply no-ops, and a
+ * Choose One minion has no `onPlay` effects so it isn't a valid target. Returns whether a Battlecry
+ * fired — the hero charge is only spent when it did.
+ */
+export function replayBattlecry(state: RunState, card: BoardCard): boolean {
+  const def = CARD_INDEX[card.cardId];
+  if (!def) return false;
+  const onPlay = def.effects.filter((e) => e.on === 'onPlay');
+  if (onPlay.length === 0) return false;
+  state.karwindFlash = [];
+  const ctx = makeContext(state);
+  const repeats = drummerRepeats(state);
+  for (const effect of onPlay) {
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (!fn) continue;
+    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card });
+  }
+  for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // a Battlecry → procs Karwind
+  if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
+  return true;
+}
+
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   const ctx = makeContext(state);

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, getHero, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText } from './cardText';
 import { HudBar } from './HudBar';
@@ -104,6 +104,9 @@ export function Recruit() {
   const dispatch = useGame((s) => s.dispatch);
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
+  // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
+  const heroPowerKind = getHero(run.heroId).power.kind;
+  const heroTargetsTavern = heroPowerKind === 'fortify';
 
   // Round timer grows +5s each wave, capped at 70s. (Recruit now stays mounted across
   // combat, so the per-wave reset is an effect keyed on the wave — see below.)
@@ -485,12 +488,15 @@ export function Recruit() {
       return;
     }
     let moved = false;
+    // Fortify may buff a tavern offer; Gild / Encore are warband-only (you can't gild or replay an
+    // unbought offer), so they only accept warband targets.
+    const sel = heroTargetsTavern
+      ? '[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]'
+      : '[data-zone="warband"] .row .card[data-uid]';
     const minionAt = (x: number, y: number): { uid: string } | null => {
-      const el = document
-        .elementFromPoint(x, y)
-        ?.closest('[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]');
+      const el = document.elementFromPoint(x, y)?.closest(sel);
       const uid = el?.getAttribute('data-uid');
-      if (!uid || uid === run.spell?.uid) return null; // a minion (warband or tavern), never the spell
+      if (!uid || uid === run.spell?.uid) return null; // a minion, never the spell
       return { uid };
     };
     const move = (e: PointerEvent): void => {
@@ -524,7 +530,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, run.spell?.uid, timeUp, dispatch, armHero, inCombat, flashBuffed]);
+  }, [heroArmed, heroTargetsTavern, run.spell?.uid, timeUp, dispatch, armHero, inCombat, flashBuffed]);
 
   // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
   // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors
@@ -1067,8 +1073,8 @@ export function Recruit() {
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
                 dragging={!!drag?.active}
-                highlight={heroArmed}
-                targeted={heroArmed && aim?.targetUid === o.uid}
+                highlight={heroArmed && heroTargetsTavern}
+                targeted={heroArmed && heroTargetsTavern && aim?.targetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 onPointerDown={heroArmed ? undefined : onCardPointerDown}

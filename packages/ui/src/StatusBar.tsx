@@ -21,7 +21,9 @@ export function StatusBar() {
     ? 'Pick a minion…'
     : power.kind === 'fortify'
       ? `${power.name} · +${run.tier}/+${run.tier}`
-      : `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`;
+      : power.kind === 'gild'
+        ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
+        : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   const powerNote = power.oncePerGame
     ? run.heroPowerSpent
       ? ' Already used this game.'

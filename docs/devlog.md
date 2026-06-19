@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### New hero "Myra" (Encore — re-trigger a Battlecry) + Oner/Myra portrait art
+- **Myra — power "Encore" (once per turn):** choose a friendly board minion and **trigger its
+  Battlecry again**. New effect `kind: 'replayBattlecry'` + `replayBattlecry(state, card)` in
+  `recruit.ts`, which re-fires the minion's `onPlay` effects right now — honoring Drakko repeats +
+  Karwind, exactly as a fresh play would. It returns whether a Battlecry fired, so the hero charge is
+  only spent when it did. Edge handling: a **targeted** Battlecry re-fires with no explicit target so
+  its auto-pick fallback chooses (Toxin Tender → the highest-attack eligible friend); a strict-target
+  Battlecry (Corrupted Lifebinder) no-ops; a **Choose One** minion has no `onPlay` effects so it isn't
+  a valid target; a vanilla minion no-ops with the charge preserved. Once per *turn* (uses `heroReady`,
+  recharges each wave — unlike Oner's once-per-game).
+- **Hero targeting is now power-aware.** Fortify may still target a tavern offer, but **Gild and
+  Encore are warband-only** (you can't gild or replay an unbought offer) — the aim selector and the
+  shop-offer highlight now respect the power kind, so offers no longer glow for board-only powers.
+- **Portrait art wired for Oner + Myra** (the picker + HUD showed an anvil-icon fallback before). The
+  `downscale-art.ps1` script gained a `-Sub` param (defaults to `minions`) so it right-sizes any art
+  subfolder; `oner.png`/`myra.png` were copied from the masters and downscaled to 640px (4.7 → 2.7 MB).
+  The hero picker now shows all three with real portraits.
+- Verified: `typecheck` + `lint` clean, `test` **152** pass (+3 Myra tests: Encore re-fires Hoard
+  Cleric's +1/+1 once per turn, auto-targets Toxin Tender → a friend gets Venomous, no-ops on a vanilla
+  minion). Live (fresh server so Vite re-globs the new art): picker shows Warden/Oner/Myra portraits;
+  picking Myra + Encoring a Hoard Cleric took it 1/3 → 2/4 and set "Encore · used".
+
 ### Heroes as data + Warden scaling + new hero "Oner" + pre-run hero picker
 First real **hero system** — heroes are now data (like cards), not a hardcoded single Warden.
 - **New `@game/sim/heroes.ts`.** A `HeroDef { id, name, blurb, power }` registry (`HEROES`,

@@ -4,7 +4,7 @@ import { CONFIG } from './config';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, syncLifebinders } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, replayBattlecry, syncLifebinders } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
@@ -287,6 +287,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card || card.golden) return state;
         addBuff(card, 'Gild', card.attack, card.health);
         card.golden = true;
+      } else if (power.kind === 'replayBattlecry') {
+        // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
+        // spent) on a missing target or a minion with no Battlecry to replay.
+        if (!card || !replayBattlecry(s, card)) return state;
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).

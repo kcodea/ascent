@@ -1300,4 +1300,39 @@ describe('hero powers (@game/sim)', () => {
     expect(after).toBe(s); // rejected → same reference
     expect(after.heroPowerSpent).toBe(false); // charge preserved for a real target
   });
+
+  it("Myra's Encore re-fires a friendly minion's Battlecry, once per turn", () => {
+    // Hoard Cleric's Battlecry buffs all your Dragons +1/+1 (includes itself).
+    const cleric = (): BoardCard => ({
+      uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
+    });
+    let s: RunState = { ...createRun(1, 'myra'), board: [cleric()] };
+    s = reduce(s, { type: 'heroPower', uid: 'c' });
+    expect(s.board[0]!.attack).toBe(2); // 1 + 1
+    expect(s.board[0]!.health).toBe(4); // 3 + 1
+    expect(s.board[0]!.buffs).toEqual([{ source: 'Hoard Cleric', attack: 1, health: 1, count: 1 }]);
+    expect(s.heroReady).toBe(false);
+    // Once per turn: a second use this wave is rejected.
+    expect(reduce(s, { type: 'heroPower', uid: 'c' })).toBe(s);
+  });
+
+  it("Myra's Encore auto-targets a targeted Battlecry (Toxin Tender → best friend gets Venomous)", () => {
+    const s: RunState = {
+      ...createRun(1, 'myra'),
+      board: [
+        { uid: 't', cardId: 'toxin', tribe: 'undead', attack: 1, health: 3, keywords: [], golden: false },
+        mk('f', 5, 5), // highest-attack friend → auto-picked
+      ],
+    };
+    const after = reduce(s, { type: 'heroPower', uid: 't' });
+    expect(after.board.find((c) => c.uid === 'f')!.keywords).toContain('V');
+    expect(after.heroReady).toBe(false);
+  });
+
+  it("Myra's Encore no-ops (no charge spent) on a minion with no Battlecry", () => {
+    const s: RunState = { ...createRun(1, 'myra'), board: [mk('a', 2, 2)] }; // sandbag = vanilla
+    const after = reduce(s, { type: 'heroPower', uid: 'a' });
+    expect(after).toBe(s); // rejected → same reference
+    expect(after.heroReady).toBe(true); // charge preserved
+  });
 });

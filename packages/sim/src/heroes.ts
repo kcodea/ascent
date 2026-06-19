@@ -9,7 +9,8 @@
 
 export type HeroPowerKind =
   | 'fortify' // Warden: give a minion +Tier/+Tier (scales with Tavern Tier)
-  | 'gild'; // Oner: make a friendly minion Golden
+  | 'gild' // Oner: make a friendly minion Golden
+  | 'replayBattlecry'; // Myra: re-trigger a friendly minion's Battlecry
 
 export interface HeroPower {
   name: string;
@@ -48,6 +49,16 @@ export const HEROES: HeroDef[] = [
       kind: 'gild',
       oncePerGame: true,
       text: 'Once per game: make a friendly minion Golden (doubles its base stats).',
+    },
+  },
+  {
+    id: 'myra',
+    name: 'Myra',
+    blurb: 'A conductor of entrances — call a minion to take its bow again.',
+    power: {
+      name: 'Encore',
+      kind: 'replayBattlecry',
+      text: "Each turn: trigger a friendly minion's Battlecry again.",
     },
   },
 ];

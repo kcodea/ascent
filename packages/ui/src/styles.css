@@ -233,7 +233,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; animation: cardpop 0.26s ease; }
-.card:hover { transform: translateY(-3px); border-color: var(--acc); z-index: 20; }
+.card:hover { transform: translateY(-3px); z-index: 20; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 26px 2px color-mix(in srgb, var(--c) 90%, transparent); }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */
@@ -755,9 +755,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .sellfx { position: absolute; top: -8px; right: 8px; font-family: 'Outfit'; font-weight: 900; font-size: 16px; color: #d99a2e; pointer-events: none; animation: sellrise 0.85s ease forwards; }
 @keyframes sellrise { 0% { opacity: 0; transform: translateY(6px); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
 
-.card.armed { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 40%, transparent), 0 3px 0 var(--shadow); }
+/* Selection emphasises the card's own tribe colour (brighter ring + glow) rather than a clashing accent. */
+.card.armed { box-shadow: 0 0 0 4px var(--c), 0 0 20px 1px color-mix(in srgb, var(--c) 80%, transparent), 0 3px 0 var(--shadow); }
 /* the minion currently under a hero-power / targeted-ability aim — strong, unmistakable */
-.card.targeted { border-color: var(--acc); box-shadow: 0 0 0 4px var(--acc), 0 0 24px 2px color-mix(in srgb, var(--acc) 70%, transparent), 0 3px 0 var(--shadow); transform: translateY(-4px) scale(1.03); z-index: 22; }
+.card.targeted { box-shadow: 0 0 0 4px var(--c), 0 0 32px 5px color-mix(in srgb, var(--c) 95%, transparent), 0 3px 0 var(--shadow); transform: translateY(-4px) scale(1.03); z-index: 22; }
 .card[draggable='true'] { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; }
 .card[draggable='true']:active { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
 .hero.armed { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 35%, transparent); }

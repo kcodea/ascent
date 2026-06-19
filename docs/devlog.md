@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Selection emphasises the tribe colour (no more orange selector)
+- Hovering / targeting a card now **brightens + grows its own tribe-colour glow** instead of applying
+  the accent (orange) selector line — so selection reads *with* the card's type rather than clashing
+  with it. Changed `.card:hover` (dropped the accent border for a boosted tribe glow), `.card.armed`
+  (targeting candidates) and `.card.targeted` (the current aim — a strong tribe glow + lift/scale). The
+  orange aim-*line* (the hero-power / Toxin Tender beam) is left as-is for now.
+- CSS-only; verified live — armed offers glow their own tribe (green / orange / slate / purple / teal),
+  no accent ring; 0 console errors.
+
 ### Card body restyle — tribe colour fills the frame
 - Per feedback, the tribe colour now **fills the card frame** instead of just outlining it: the card
   body is a tribe wash, the **art is inset + outlined** (a tribe border with the wash framing it), and

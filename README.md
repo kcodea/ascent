@@ -25,7 +25,8 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 - **Tribe colour fills the card frame** — each minion's body is washed in its type colour (Beast green,
   Dragon orange, Mech teal, Undead slate, Demon purple) with the art outlined and just the description in
-  a white box; dual-types split the frame + edge half-and-half.
+  a white box; dual-types split the frame + edge half-and-half. Hovering / selecting a card now
+  brightens its own tribe glow instead of an orange selector line.
 - **Toxin Tender targets** — its Battlecry is now player-aimed (like the Hero Power): play it, then
   click a friendly minion to give *that* minion Venomous (ending the turn auto-targets your carry).
 - **Finite minion pool** — the shop now draws from a shared, finite pool (T1 10 … T6 6 copies per

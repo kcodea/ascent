@@ -104,6 +104,8 @@ export function Recruit() {
   const dispatch = useGame((s) => s.dispatch);
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
+  // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
+  const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   const heroPowerKind = getHero(run.heroId).power.kind;
   const heroTargetsTavern = heroPowerKind === 'fortify';
@@ -591,24 +593,26 @@ export function Recruit() {
     };
   }, [pendingTarget, timeUp, dispatch, inCombat, run.board]);
 
-  // Reset the round clock at the start of each recruit wave. (Recruit stays mounted
-  // across combat now, so unlike before it can't rely on a remount to re-initialise.)
+  // Reset the round clock at the start of each recruit wave, and whenever the hero picker opens or
+  // closes (so wave 1 always begins at full time the moment a hero is chosen — even on a fresh run
+  // that died on wave 1, where run.wave doesn't change). Recruit stays mounted across combat now.
   useEffect(() => {
     setSeconds(turnSeconds);
-  }, [run.wave, turnSeconds]);
+  }, [run.wave, turnSeconds, heroSelecting]);
 
   // Round timer: count down each recruit turn; at 0 the player is forced into
-  // combat (paused while a Discover pick is open). UI-only — the engine is untimed.
+  // combat (paused while a Discover pick is open, and frozen while the hero picker is open).
+  // UI-only — the engine is untimed.
   useEffect(() => {
     // At 0 the timer just stops — actions lock (except End Turn); no auto-combat.
-    if (run.phase !== 'recruit' || seconds <= 0 || run.discover) return;
+    if (run.phase !== 'recruit' || seconds <= 0 || run.discover || heroSelecting) return;
     const id = window.setTimeout(() => {
       // Tick out the last five seconds (the next displayed value is 5…1).
       if (seconds - 1 <= 5 && seconds - 1 > 0) sfx.tick();
       setSeconds((s) => s - 1);
     }, 1000);
     return () => window.clearTimeout(id);
-  }, [seconds, run.phase, run.discover]);
+  }, [seconds, run.phase, run.discover, heroSelecting]);
 
   // Flash a card green when its stats jump in the recruit phase (a buff landed).
   useEffect(() => {

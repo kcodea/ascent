@@ -2,6 +2,7 @@ import './styles.css';
 import { useEffect, useState } from 'react';
 import { Recruit } from './Recruit';
 import { GameOver } from './GameOver';
+import { Victory } from './Victory';
 import { HeroSelect } from './HeroSelect';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
@@ -47,6 +48,7 @@ export function Game() {
     <>
       <Recruit />
       {phase === 'gameover' && <GameOver />}
+      {phase === 'victory' && <Victory />}
       <StatusBar />
       <Inspect />
       <button className="gearbtn" onPointerDown={() => setMenuOpen(true)} title="Settings (Esc)" aria-label="Settings">

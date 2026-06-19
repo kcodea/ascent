@@ -18,11 +18,11 @@ import {
   type RunState,
 } from './index';
 
-/** Play greedily to game over: buy an offer, play the hand onto the board, else face the omen. */
+/** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
 function playToEnd(seed: number): RunState {
   let s = createRun(seed);
   let steps = 0;
-  while (s.phase !== 'gameover' && steps++ < 10000) {
+  while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 10000) {
     if (s.phase === 'combat') {
       s = reduce(s, { type: 'resolveCombat' });
     } else if (s.hand.length > 0 && s.board.length < 7) {
@@ -1364,5 +1364,37 @@ describe('hero powers (@game/sim)', () => {
       expect(s.resolve).toBe(getHero(id).resolve);
       expect(s.maxResolve).toBe(getHero(id).resolve);
     }
+  });
+});
+
+describe('PvE win condition (@game/sim)', () => {
+  // High Resolve so the player survives whatever the wave throws (isolates the wave-cap logic
+  // from the combat outcome) — then fight one combat and check where the run lands.
+  const fightOnce = (wave: number): RunState => {
+    let s: RunState = { ...createRun(1), wave, resolve: 100, maxResolve: 100 };
+    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    s = reduce(s, { type: 'faceOmen' });
+    return reduce(s, { type: 'resolveCombat' });
+  };
+
+  it('surviving the final wave (maxWave) ends the run in victory', () => {
+    const s = fightOnce(CONFIG.maxWave);
+    expect(s.phase).toBe('victory');
+    expect(s.wave).toBe(CONFIG.maxWave); // did not advance past the cap
+  });
+
+  it('does not declare victory before the final wave', () => {
+    const s = fightOnce(CONFIG.maxWave - 1);
+    expect(s.phase).toBe('recruit'); // survived → advance, not victory
+    expect(s.wave).toBe(CONFIG.maxWave);
+  });
+
+  it('losing the final wave (Resolve to 0) is a game over, not a victory', () => {
+    // 1 Resolve + an empty board at the cap → the wave breaks through → game over.
+    let s: RunState = { ...createRun(1), wave: CONFIG.maxWave, resolve: 1, maxResolve: 1 };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.phase).toBe('gameover');
   });
 });

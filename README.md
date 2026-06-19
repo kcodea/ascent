@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **A win condition.** The PvE climb is now bounded at **20 waves** — survive wave 20 and you reach a
+  **Victory** screen (Play Again restarts). "Start Over" is in the Esc menu, and the round clock no
+  longer ticks until you've picked your hero.
 - **Three heroes, each with portrait art + an HP (Resolve) stat shown at pick.** Choose before each
   run: **Warden** — Fortify scales with Tavern Tier (**+Tier/+Tier**); **Oner** — **Gild** a minion
   Golden once per game (double stats *and* doubled effects); **Myra** — **Encore**, re-trigger a

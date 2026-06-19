@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### PvE win condition (survive wave 20 → Victory) + Start Over + clock waits for hero select
+- **Win condition (bounded PvE).** `CONFIG.maxWave` (20). Surviving the final wave ends the run in a
+  new **`victory`** phase (the run doesn't advance past it); losing — Resolve hitting 0 — is still
+  `gameover`. A new **Victory screen** (celebratory gold "VICTORY", "Waves Survived", a **Play Again**
+  button → the hero picker) layers on like the game-over screen. This bounds what CLAUDE.md framed as
+  an "endless" climb for the current PvE iteration; `maxWave` is a dial that will likely move to a
+  per-mode config once PvE/PvP modes land.
+- **Start Over** in the Esc menu — a red-tinted action under a new "Run" section that abandons the
+  current run and reopens the hero picker (`startHeroSelect`).
+- **The round clock waits for hero select.** The timer no longer ticks behind the picker — it's
+  frozen (and reset to full) while `heroChoices` is set, so wave 1 begins at full time the *moment*
+  a hero is chosen (also fixes the edge where dying on wave 1 + re-picking could start the new run on
+  a near-zero clock).
+- Verified: `typecheck` + `lint` clean, `test` **157** pass (+3: victory at maxWave, no early victory
+  at maxWave−1, a loss at the cap is still gameover). Live: the clock holds at 30 during the pick and
+  ticks (30→28) after; the Victory screen shows at wave 20; Start Over reopens the picker.
+
 ### Hero HP on the picker + Myra's Encore unlocks on turn 3
 - **Heroes have a Resolve (HP) stat.** `HeroDef.resolve` (all 30 today, will diverge per hero) now
   seeds the run's starting + max Resolve in `createRun` instead of the global `CONFIG.startResolve`.

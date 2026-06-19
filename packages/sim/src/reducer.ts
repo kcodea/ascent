@@ -49,7 +49,8 @@ export function reduce(state: RunState, action: Action): RunState {
 }
 
 function reduceCore(state: RunState, action: Action): RunState {
-  if (state.phase === 'gameover') return state;
+  // A finished run (loss or victory) takes no more actions — restart goes through the store.
+  if (state.phase === 'gameover' || state.phase === 'victory') return state;
   const s: RunState = structuredClone(state);
 
   // Recruit actions apply only in the recruit phase; `resolveCombat` only in combat.
@@ -539,6 +540,14 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
   if (s.resolve <= 0) {
     s.best = Math.max(s.best, s.wave);
     s.phase = 'gameover';
+    return;
+  }
+
+  // PvE win condition (current iteration): survive the final wave → the run ends in victory
+  // (don't advance past it). `s.wave` is still the wave just fought here.
+  if (s.wave >= CONFIG.maxWave) {
+    s.best = Math.max(s.best, s.wave);
+    s.phase = 'victory';
     return;
   }
 

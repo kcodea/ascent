@@ -12,6 +12,10 @@ export const CONFIG = {
   // Resolve (HP)
   startResolve: 30,
 
+  // PvE win condition (current iteration): surviving this wave ends the run in victory. A bounded
+  // climb (vs the old "endless"). Will likely become a per-mode dial once PvE/PvP modes land.
+  maxWave: 20,
+
   // Shop
   minionCost: 3,
   sellValue: 1,

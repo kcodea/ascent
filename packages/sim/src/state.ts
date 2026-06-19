@@ -92,7 +92,7 @@ export interface BoardCard {
   linkApplied?: { attack: number; health: number };
 }
 
-export type Phase = 'recruit' | 'combat' | 'gameover';
+export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
 
 export interface RunState {
   seed: number;

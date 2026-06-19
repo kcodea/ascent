@@ -18,14 +18,19 @@ the order we ship it in. (Heroes/cards are data, so small ones can land continuo
   (Dragon has 6 vs 8). *Why first:* every later patch sits on combat feeling right.
 - **Patch 2 — Front Door & Hero Roster** *(M3; variety).* The run's entry + variety. Generalize the
   `heroChoices` flag into a `scene` enum and build **Title → Play → Mode → Hero → run** (no router;
-  small overlays reusing `herocard`). Add a data-driven **MODES** registry (Standard to start).
-  Expand the **hero roster to ~6–8** so the 3-of-N picker is meaningful, and **seed the hero-choice
-  roll** (for dailies). *Why now:* heroes are an active thread and the game needs a proper front door.
-- **Patch 3 — Meta Progression** *(M3; retention).* The "why keep playing" loop. **Unlocks**
-  (cards/heroes gated by a persisted profile), **ascension modifiers** (escalating difficulty as a
-  run-config knob), **daily seeds** (shareable deterministic runs — the engine already threads one
-  seed; seed from date), and **save/resume + combat replay** (`serialize`/`deserialize` exist; add
-  the resume UI + a share-a-seed/replay surface).
+  small overlays reusing `herocard`). Add a data-driven **MODES** registry — the two intended modes
+  are **PvE** (the bounded climb; the 20-wave win condition + meta progression hang off it) and
+  **async PvP** (fight *snapshots* of other players' boards — no live opponent). Expand the **hero
+  roster to ~6–8** so the 3-of-N picker is meaningful, and **seed the hero-choice roll** (for dailies).
+  *Why now:* heroes are an active thread and the game needs a proper front door. *Shipped already:* the
+  PvE win condition (`CONFIG.maxWave` = 20 → Victory) + Start Over.
+- **Patch 3 — Meta Progression** *(M3; retention — **PvE side**).* The "why keep playing" loop, which
+  attaches to **PvE**: **unlocks** (cards/heroes gated by a persisted profile), **ascension modifiers**
+  (escalating difficulty as a run-config knob), **daily seeds** (shareable deterministic runs — the
+  engine already threads one seed; seed from date), and **save/resume + combat replay**
+  (`serialize`/`deserialize` exist; add the resume UI + a share-a-seed/replay surface). **Async PvP**
+  is a separate track: its "progression" is a ladder/rating over submitted board snapshots, not the
+  unlock economy — design it alongside but don't conflate it with PvE meta.
 - **Patch 4 — Onboarding & Game Feel** *(M4; learnability).* Now that it's fair, varied, and sticky,
   make it teachable + juicy. A **first-run tutorial** (guided first wave: shop → hand → board →
   Battlecry → threat → combat), an **audio pass** (music + fuller SFX coverage; hooks exist), and
@@ -88,8 +93,15 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 - [ ] **Menu flow — Title → Play → Mode → Hero → run.** The hero picker is the first slice; extend the
       same store-flag/scene pattern (no router) backward to a Title screen and a Mode select. Reuse the
       overlay/`herocard` components. Keep it lean — a small `scene` enum in the store, not a framework.
-- [ ] Unlocks — cards / heroes gated by progression (heroes are now data, ready to gate).
-- [ ] Ascension modifiers — escalating run-difficulty tiers.
+- [ ] **Modes — PvE + async PvP.** Two intended modes via a data-driven `MODES` registry. **PvE** is the
+      bounded climb (the win condition below + the meta-progression items here hang off it). **Async PvP**
+      fights *snapshots* of other players' submitted boards (no live opponent); its progression is a
+      ladder/rating, a separate track from the PvE unlock economy — design alongside, don't conflate.
+- [x] **PvE win condition.** `CONFIG.maxWave` (20): surviving the final wave → a `victory` phase + a
+      Victory screen ("Play Again" → picker); losing (Resolve 0) is still gameover. Bounds the old
+      "endless" framing for this iteration; `maxWave` will likely move to per-mode config.
+- [ ] Unlocks — cards / heroes gated by progression (heroes are now data, ready to gate). *(PvE)*
+- [ ] Ascension modifiers — escalating run-difficulty tiers. *(PvE)*
 - [ ] Daily seeds — shareable, deterministic runs (the engine already threads one seed everywhere).
       Note: the hero-*choice* roll currently uses `Math.random` (UI meta) — seed it here for dailies.
 - [ ] Save / replay — `serialize`/`deserialize` exist; add run-resume UI + replay of a combat's

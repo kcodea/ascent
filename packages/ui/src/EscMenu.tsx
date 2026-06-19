@@ -1,5 +1,7 @@
-/** Pause / settings overlay (Esc). Currently houses the display resolution scaler — pick a fixed
- *  16:9 / 21:9 box (the game letterboxes into it) or fill the window. The choice persists. */
+/** Pause / settings overlay (Esc). Houses the display resolution scaler (pick a fixed 16:9 / 21:9
+ *  box the game letterboxes into, or fill the window — the choice persists) and Start Over. */
+
+import { useGame } from './store';
 
 export const RES_OPTIONS: { id: string; label: string; sub: string }[] = [
   { id: 'fit', label: 'Fit to Window', sub: 'Fill the screen' },
@@ -15,6 +17,7 @@ export function EscMenu({
   onRes: (r: string) => void;
   onClose: () => void;
 }) {
+  const startHeroSelect = useGame((s) => s.startHeroSelect);
   return (
     <div className="escov" onPointerDown={onClose}>
       <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
@@ -32,6 +35,14 @@ export function EscMenu({
             </button>
           ))}
         </div>
+        <div className="escsec">Run</div>
+        <button
+          className="escbtn danger"
+          onPointerDown={() => { startHeroSelect(); onClose(); }}
+        >
+          <span className="ebl">Start Over</span>
+          <span className="ebs">Abandon this run + pick a new hero</span>
+        </button>
         <button className="escclose" onPointerDown={onClose}>Resume</button>
       </div>
     </div>

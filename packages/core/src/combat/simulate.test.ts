@@ -551,6 +551,25 @@ describe('simulate (handoff A.3)', () => {
     expect(buffAfter).toBeLessThan(dmgAfter); // ...before the attack's damage was dealt
   });
 
+  it('Deathsayer Rally proc respects Sylus (extra Deathrattle procs)', () => {
+    // Deathsayer + a Sporeling (Deathrattle: +1/+1) + two Sylus (each: Deathrattles proc 1 more time).
+    // When Deathsayer attacks, the Rally-proc'd Deathrattle fires 1 + 2 = 3 times → 3 buff events
+    // before that attack's damage, just like a real death would with two Sylus out.
+    const p: BoardMinion[] = [
+      { cardId: 'deathsayer', attack: 3, health: 30 },
+      { cardId: 'spore', attack: 1, health: 30 },
+      { cardId: 'sylus', attack: 4, health: 30 },
+      { cardId: 'sylus', attack: 4, health: 30 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 300 }];
+    const a = run(p, e, 7);
+    const rallyIdx = a.events.findIndex((ev) => ev.type === 'rally');
+    expect(rallyIdx).toBeGreaterThanOrEqual(0);
+    const dmgAfter = a.events.findIndex((ev, i) => i > rallyIdx && ev.type === 'dmg');
+    const buffs = a.events.filter((ev, i) => i > rallyIdx && i < dmgAfter && ev.type === 'buff').length;
+    expect(buffs).toBe(3); // 1 base proc + 2 Sylus extras, all before the attack lands
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

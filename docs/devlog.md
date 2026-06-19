@@ -5,11 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
-### Art — wire the Pup token
-Wired `Sprite Pup.png` → the **Pup** token (id `pup`, the beast Pack Scrounger summons), which was still
-on the pixel-sprite fallback. The four minions added earlier today (Guel, Monk, Lifebinder, Deathsayer)
-were already wired. Noted: `DynamiteDuo.png` in the source folder has no matching card (orphan art), and
-~18 other cards still use pixel sprites because there's no name-matched source art for them yet.
+### Deathsayer Rally respects Sylus + un-wire Pup placeholder art
+- **Rally now procs the Deathrattle the full number of times a real death would** — including **Sylus
+  the Reaper's** extra procs (+1 each, +2 golden). Earlier today Deathsayer fired the leftmost
+  Deathrattle exactly once; that was wrong (the user's board: Pack Scrounger + Echo Warden + 2 Sylus,
+  full board → only 3 Flowing Monk overflow procs instead of 9). `rallyProcDeathrattle` now loops
+  `1 + reaperBonus` (Sylus count) like `killOrReborn` does. Echo Warden's extra tokens were already
+  folded in via the summon factories. Confirmed headless on that exact board: **9 procs** (Pack
+  Scrounger ×3 via Sylus × 3 Pups via Echo). New test asserts 2 Sylus → 3 Deathrattle procs.
+- **Un-wired the Pup art** — `Sprite Pup.png` was a placeholder for a *new* (future) minion, not the
+  existing Pup token, so `pup.png` was removed (the Pup goes back to its pixel sprite).
+
+### Art — wire the Pup token *(superseded — reverted below same day)*
+Wired `Sprite Pup.png` → the **Pup** token, then **reverted** (see above): that art is a placeholder
+for a future minion, not the Pup. `DynamiteDuo.png` remains orphan art with no matching card.
 
 ### Deathsayer — Rally that procs the leftmost Deathrattle before its attack
 New **Deathsayer** (T4 Undead 3/5, **Rally**): each time it attacks, it fires your **leftmost friendly
@@ -19,7 +28,8 @@ Deathrattle first**, then the hit lands. Art wired from the name-matched source.
   damage). It finds the leftmost living friend with a *true* Deathrattle (`onDeath` effect whose id
   starts with `deathrattle`, so friend-death watchers like Brood Matron don't count), logs a new
   `rally` combat event (source = Deathsayer, target = that minion), then runs that minion's onDeath
-  effects once (it stays alive). Sylus is intentionally *not* applied (one proc per attack).
+  effects (it stays alive). _(Same-day follow-up: the proc now also respects Sylus — see the later
+  entry above.)_
 - **UI:** the `rally` event is its own beat with a pause (`DELAY.rally` 720 ms) — Deathsayer pulses
   (`sccast`), the chosen minion flares + shows a violet **☠** bloom marking whose Deathrattle fires,
   then its buff/summon beats play, *then* the attack's damage. Narrated in both combat logs; the

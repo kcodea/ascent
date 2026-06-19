@@ -16,7 +16,6 @@ export function Unit({
 }) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
-  const goldMul = u.golden ? 2 : 1;
   const view: CardView = {
     name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2, attack: u.attack, health: Math.max(0, u.health),
     keywords: u.keywords, golden: u.golden,
@@ -25,7 +24,10 @@ export function Unit({
     text: summonBuffText(u.cardId, u.summonBonus) ?? def?.text ?? '',
     goldenText: def?.goldenText,
     tier: def?.tier,
-    baseAttack: (def?.attack ?? 0) * goldMul, baseHealth: (def?.health ?? 0) * goldMul,
+    // In combat the baseline is the *combat-start* stats (what it entered with), not the printed card
+    // base: a 5/5 hit down to 5/3 shows its HP red (damaged), and a debuffed attack shows red too —
+    // while a *buff* above the entry value still reads green. (The shop keeps the printed-base compare.)
+    baseAttack: u.baseAttack, baseHealth: u.baseHealth,
   };
   return (
     <div className={cls} data-uid={u.uid} style={lunge ? { transform: lunge, zIndex: 10 } : undefined}>

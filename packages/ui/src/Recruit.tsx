@@ -114,6 +114,16 @@ export function Recruit() {
   const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean; targetUid: string | null } | null>(null);
   const [seconds, setSeconds] = useState(turnSeconds);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
+  // Fire the green buff-burst on a specific card for ~0.7s. Used to guarantee the Hero Power (Fortify)
+  // always animates its target, independent of the passive stat-diff flash.
+  const flashBuffed = useCallback((uid: string): void => {
+    setBuffedUids((s) => new Set([...s, uid]));
+    window.setTimeout(() => setBuffedUids((s) => {
+      const n = new Set(s);
+      n.delete(uid);
+      return n;
+    }), 700);
+  }, []);
   // A one-shot spark burst at a screen point, fired when a spell is cast.
   const [spark, setSpark] = useState<{ x: number; y: number; key: number } | null>(null);
   const sparkKeyRef = useRef(0);
@@ -165,6 +175,10 @@ export function Recruit() {
   // combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
   const prevStatsRef = useRef<Map<string, number>>(new Map());
   const prevPhaseRef = useRef(run.phase);
+  // True on the single render where we flip combat → recruit (prevPhaseRef is updated later, in the
+  // layout effect). The warband cards mount on exactly this render, so passing it as `suppressPop`
+  // makes them skip the mount-pop (no jiggle) while cards played later still pop normally.
+  const returningFromCombat = prevPhaseRef.current === 'combat' && run.phase === 'recruit';
   const findEl = useCallback(
     (uid: string): Element | null =>
       document.querySelector(
@@ -469,8 +483,10 @@ export function Recruit() {
     const up = (e: PointerEvent): void => {
       if (!moved) return; // a plain click — stays armed for a follow-up click
       const target = minionAt(e.clientX, e.clientY);
-      if (target && !timeUp) dispatch({ type: 'heroPower', uid: target.uid });
-      else armHero(); // released without a valid target — snaps back / cancels
+      if (target && !timeUp) {
+        dispatch({ type: 'heroPower', uid: target.uid });
+        flashBuffed(target.uid); // guarantee the Fortify buff-burst plays on the chosen minion
+      } else armHero(); // released without a valid target — snaps back / cancels
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -478,7 +494,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
+  }, [heroArmed, run.spell?.uid, timeUp, dispatch, armHero, inCombat, flashBuffed]);
 
   // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
   // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors
@@ -1046,6 +1062,7 @@ export function Recruit() {
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid)}
+                    suppressPop={returningFromCombat}
                     onPointerDown={heroArmed || pendingTarget ? undefined : onCardPointerDown}
                   />
                 </Fragment>

@@ -5,6 +5,44 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-18
 
+### Combat readability round 2 — damage numbers, in-combat stat colours, return jiggle, hero-power flash
+A grab-bag of combat/recruit polish from live playtesting:
+- **Damage numbers, near the HP and readable.** The floating combat numbers (`−N`, poison, shields,
+  buffs) were small, brief, and flew off the *top* of the card. They now pop over each card's own
+  **stat corner (next to the HP)**, are **bigger** (dmg 30→42px), **linger longer** (1.0→1.4 s,
+  `FLOAT_MS` 1250→1450), and **stay on the card** (pop-in → hold → gentle rise instead of flying away).
+  Because the attacker's retaliation and the target's hit already resolve in the **same impact beat**,
+  both numbers now spawn at the *same instant on their respective cards* — the exchange reads as
+  simultaneous (it always was in the data; the old off-top position hid it). `styles.css` (`.float`
+  + `floatup` keyframe), `useCombatReplay.ts` (`FLOAT_MS`).
+- **In-combat stat colours now use the *combat-start* baseline.** Previously a combat unit coloured its
+  stats against the *printed card base* (1/1), so a buffed 5/5 chipped down to 5/3 still showed green
+  HP (3 > 1). Now each `UnitFrame` carries `baseAttack`/`baseHealth` = the stats it **entered the fight
+  with** (for tokens, their summon stats; reset on Reborn). So **damaged HP and debuffed attack read
+  red**, while a genuine *combat* buff above the entry value still reads green. The shop/recruit is
+  unchanged (still compares to the printed base, so a recruit-buffed minion stays green there).
+  `useCombatReplay.ts` (`UnitFrame` + `fromSnap` + reborn fold), `Unit.tsx`.
+- **No more warband "jiggle" returning from combat.** The player board swaps `<Unit>`→`<Card>` on the
+  way back to recruit, so every card **re-mounted** and re-fired the base `cardpop` animation (the
+  random jiggle). The mount-pop is now opt-in via a `popin` class that's **frozen at mount** (a
+  `useState` initializer in `Card`), and the warband passes `suppressPop` on exactly the combat→recruit
+  render — so returning minions don't pop, while freshly bought/played cards still do. The hand never
+  re-mounts (it's hidden, not swapped) so it was already fine; the new shop still pops (it *is* new).
+  `styles.css`, `Card.tsx`, `Recruit.tsx` (`returningFromCombat`).
+- **Hero Power (Warden / Fortify) always flashes its target.** Releasing the Fortify line now
+  explicitly fires the green buff-burst on the chosen minion (`flashBuffed`), instead of relying solely
+  on the passive stat-diff flash — so it can never silently land with no animation. `Recruit.tsx`.
+- **Return "noise":** traced — *nothing* fires a sound on the combat→recruit return itself
+  (`resolveCombat` has no sfx hook). The only sound near that moment is the **win/lose verdict chord**
+  played when the replay finishes (just before "End Combat"). Removing the jiggle should make it read as
+  intentional; flagged for the user to confirm.
+- Verified: `typecheck` + `lint` clean, `test` **133** pass; new float/cardpop CSS confirmed via live
+  computed-style probes; fresh page mount renders clean (the transient React hook-order warnings were
+  HMR add-a-hook artifacts — a clean reload to WAVE 1 shows no error boundary). The *runtime* combat
+  visuals (floats by the HP, red damaged HP, no jiggle, hero burst) couldn't be screenshotted —
+  the preview renderer still hangs on screenshots and `setTimeout`-based evals — so the look is for the
+  user to confirm in-browser.
+
 ### Combat clarity pass — readable attacks (Phase 1–3)
 - Reworked the combat replay (`useCombatReplay` — animation-only, no logic changes) so exchanges read
   as a clear back-and-forth instead of a blur:

@@ -130,6 +130,7 @@ export const Card = memo(function Card({
   onDragStart,
   onDragOver,
   onDrop,
+  suppressPop,
 }: {
   card: CardView;
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
@@ -159,8 +160,13 @@ export const Card = memo(function Card({
   onDragStart?: (e: DragEvent) => void;
   onDragOver?: (e: DragEvent) => void;
   onDrop?: (e: DragEvent) => void;
+  /** Suppress the one-shot mount pop (used when the warband re-mounts on return from combat). Read
+   *  once at mount and frozen, so toggling it later can't re-trigger the animation. */
+  suppressPop?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
+  // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
+  const [popin] = useState(() => !suppressPop);
   // Pills row: the trigger (Battlecry / Deathrattle, derived from the text) then any
   // keyword pills. Always rendered (reserves a row) so the description starts on a
   // fixed line whether or not the card has pills.
@@ -204,7 +210,7 @@ export const Card = memo(function Card({
   useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
   return (
     <div
-      className={`card${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${card.tribe2 ? ' dual' : ''}`}
+      className={`card${popin ? ' popin' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}

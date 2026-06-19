@@ -16,6 +16,13 @@ export interface UnitFrame {
   golden: boolean;
   /** Live summon-buff bonus (Kennelmaster) — climbs via `improve` events mid-fight. */
   summonBonus: number;
+  /** Combat-start stats — the values this unit *entered the fight* with (for tokens, its summon stats).
+   *  This is the in-combat baseline for the green/red stat colouring: health below it reads red
+   *  (damaged), attack below it reads red (debuffed), above reads green (buffed). It is NOT the printed
+   *  card base used in the shop — a buffed 5/5 that drops to 5/3 in combat shows red, not green.
+   *  Reset on Reborn (a returned minion is "fresh" at its new stats). */
+  baseAttack: number;
+  baseHealth: number;
 }
 
 interface Float {
@@ -29,6 +36,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
   golden: s.golden ?? false, summonBonus: s.summonBonus ?? 0,
+  baseAttack: s.attack, baseHealth: s.health, // the stats it entered the fight (or was summoned) with
 });
 
 /**
@@ -70,6 +78,8 @@ function computeFrame(
         u.attack = e.attack;
         u.keywords = [...e.keywords];
         u.divineShield = e.keywords.includes('DS');
+        u.baseAttack = e.attack; // a returned minion is "fresh" — its stats become the new baseline
+        u.baseHealth = e.hp;
       }
     } else if (e.type === 'reveal') {
       const u = find(e.target);
@@ -105,7 +115,7 @@ const DELAY: Record<string, number> = {
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, death: 400,
 };
-const FLOAT_MS = 1250;
+const FLOAT_MS = 1450;
 
 /**
  * Combat beats. An action (attack / SC / summon / reborn) is its own beat — the

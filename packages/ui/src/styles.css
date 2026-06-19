@@ -232,7 +232,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .row.hand .card:hover { transform: translateY(-5%); z-index: 45; }
 
 /* STANDARD CARD */
-.card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; animation: cardpop 0.26s ease; }
+.card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }
+/* The mount-pop is opt-in via `popin` (frozen at mount in Card) so it fires for freshly bought/played
+   cards but NOT when the warband re-mounts on the way back from combat (that re-mount looked like a
+   random jiggle). Declared before .dscard/.reborncard/.unit so their persistent glows still win. */
+.card.popin { animation: cardpop 0.26s ease; }
 .card:hover { transform: translateY(-3px); z-index: 20; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 26px 2px color-mix(in srgb, var(--c) 90%, transparent); }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
@@ -841,17 +845,20 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 
 /* polish: keyboard focus, floating combat numbers, death pop */
 .card:focus-visible, .btn:focus-visible, .hero:focus-visible, .over .btn:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
-.float { position: absolute; top: -22px; left: 50%; font-family: 'Outfit'; font-weight: 900; font-size: 34px; pointer-events: none; z-index: 12; white-space: nowrap; text-shadow: 0 2px 5px rgba(0, 0, 0, 0.45); animation: floatup 1s ease forwards; }
-.float.dmg { color: #fff; background: var(--threat); padding: 2px 12px; border-radius: 11px; font-size: 30px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
+/* Damage/heal numbers pop up *over each card's own stat corner* (near the HP), so the attacker's
+   and the target's hits are both readable at the same instant — they spawn together (one impact beat).
+   Bigger and lingering longer than before, and they stay on the card instead of flying off the top. */
+.float { position: absolute; bottom: 15%; right: 7px; font-family: 'Outfit'; font-weight: 900; font-size: 34px; pointer-events: none; z-index: 25; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); animation: floatup 1.4s cubic-bezier(0.2, 0.85, 0.3, 1) forwards; }
+.float.dmg { color: #fff; background: var(--threat); padding: 3px 13px; border-radius: 12px; font-size: 42px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38); }
 .float.poison { color: var(--poison); }
 .float.shield { color: var(--acc-dk); }
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }
-.float.buff { color: #fff; background: #1aa86f; padding: 2px 11px; border-radius: 11px; font-size: 26px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
+.float.buff { color: #fff; background: #1aa86f; padding: 3px 12px; border-radius: 12px; font-size: 34px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
 /* the struck minion's HP badge flares when it takes damage */
 .unit.struck .hp { animation: hpflash 0.45s ease; }
 @keyframes hpflash { 0%, 100% { transform: none; box-shadow: none; } 40% { transform: scale(1.45); box-shadow: 0 0 14px 3px var(--threat); filter: brightness(1.25); } }
-@keyframes floatup { 0% { opacity: 0; transform: translate(-50%, 8px); } 14% { opacity: 1; } 62% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -38px); } }
+@keyframes floatup { 0% { opacity: 0; transform: translateY(14px) scale(0.5); } 12% { opacity: 1; transform: translateY(0) scale(1.18); } 26% { transform: translateY(0) scale(1); } 70% { opacity: 1; transform: translateY(-7px) scale(1); } 100% { opacity: 0; transform: translateY(-28px) scale(0.96); } }
 /* Start-of-Combat bolt flying from the caster to its target */
 .proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
 @keyframes projfly { 0% { transform: translate(0, 0); opacity: 0.4; } 15% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 1; } }

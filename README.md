@@ -23,6 +23,13 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Readable damage numbers** — combat damage now pops up **next to each card's HP** (not off the top),
+  bigger and longer-lived, with attacker and target taking their hits at the same instant.
+- **In-combat HP/Attack colours** — a minion's stats now turn **red when damaged or debuffed below what
+  it entered the fight with** (a buffed 5/5 hit to 5/3 shows red HP); combat buffs still read green, and
+  the shop is unchanged (compares to the printed base).
+- **Cleaner combat→recruit hand-off** — the warband no longer "jiggles" when you return from a fight,
+  and the Hero Power (Fortify) reliably flashes the minion it buffs.
 - **Clearer combat** — attacks lean in and recoil instead of covering the target, the struck defender
   stays on top so its HP is visible, hits flash + pause for a beat, and the next swing is telegraphed.
 - **Combat odds** — the Combat Log now shows the matchup's estimated win/draw/loss odds (a 3-segment

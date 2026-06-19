@@ -320,11 +320,12 @@ export function reduce(state: RunState, action: Action): RunState {
       }));
       s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX);
       // Outcome odds: re-simulate the same two boards on independent seeds for a win/draw/loss estimate.
-      // Combat is a cheap pure function on ~14 units, so a few hundred sims cost a few ms (once per
-      // fight). Seeds are derived from the run seed (a separate ODDS stream), so the odds are
-      // reproducible and don't disturb the real combat RNG. The actual result above is one such roll.
+      // Combat is a cheap pure function on ~14 units, so 1000 sims cost ~1ms warm (a few ms for a long
+      // grindy fight) and run once per fight. Seeds are derived from the run seed (a separate ODDS
+      // stream), so the odds are reproducible and don't disturb the real combat RNG. ~1000 sims keeps
+      // the margin of error to ~±1.5%; the actual result above is one such roll.
       let win = 0, draw = 0, lose = 0;
-      const ODDS_SIMS = 250;
+      const ODDS_SIMS = 1000;
       for (let i = 0; i < ODDS_SIMS; i++) {
         const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX).result;
         if (r === 'win') win++;

@@ -24,7 +24,7 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
 - **Combat odds** — the Combat Log now shows the matchup's estimated win/draw/loss odds (a 3-segment
-  bar), computed by re-simulating the fight 250× on independent seeds.
+  bar), computed by re-simulating the fight 1000× on independent seeds.
 - **Tribe colour fills the card frame** — each minion's body is washed in its type colour (Beast green,
   Dragon orange, Mech teal, Undead slate, Demon purple) with the art outlined and just the description in
   a white box; dual-types split the frame + edge half-and-half. Hovering / selecting a card now

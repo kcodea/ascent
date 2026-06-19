@@ -7,13 +7,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ### Combat odds — win/draw/loss bar in the log
 - After a fight, the **Combat Log** now shows the matchup's estimated **outcome odds** as a 3-segment
-  win / draw / loss bar with percentages. `faceOmen` re-simulates the *same two boards* on **250
-  independent seeds** and stores the distribution on `lastCombat.odds`. The seeds come from a dedicated
-  `TAG.ODDS` stream derived from the run seed, so the odds are **reproducible** and don't disturb the
-  real combat RNG. The actual fight is one roll of these odds (a tooltip says so).
-- **Cheap:** ~29 ms once per fight (combat is a pure function on ~14 units — the balance runner already
-  hammers it thousands of times). Win = accent, draw = grey, loss = threat-raspberry (matching the
-  verdict pill).
+  win / draw / loss bar with percentages. `faceOmen` re-simulates the *same two boards* on **1000
+  independent seeds** (margin of error ~±1.5%) and stores the distribution on `lastCombat.odds`. The
+  seeds come from a dedicated `TAG.ODDS` stream derived from the run seed, so the odds are
+  **reproducible** and don't disturb the real combat RNG. The actual fight is one roll of these odds
+  (a tooltip says so).
+- **Cheap:** measured ~1 ms warm per fight (a few ms for a long grindy fight); only the very first fight
+  of a session pays a one-time cold-JIT cost (~tens of ms). Combat is a pure function on ~14 units — the
+  balance runner already hammers it thousands of times. Win = accent, draw = grey, loss =
+  threat-raspberry (matching the verdict pill).
 - +1 sim test (odds sum to 1 + are deterministic per seed/wave). `typecheck` + `lint` + `test` (**132**)
   clean; the bar verified rendering live (segments 62/10/28 % with matching labels).
 

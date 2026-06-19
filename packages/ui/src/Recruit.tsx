@@ -1199,7 +1199,7 @@ export function Recruit() {
             {run.lastCombat?.odds && (
               <div
                 className="logodds"
-                title="Estimated from 250 simulations of this matchup — the actual result was one roll of these odds."
+                title="Estimated from 1000 simulations of this matchup — the actual result was one roll of these odds."
               >
                 <div className="oddscap">Outcome odds</div>
                 <div className="oddsbar">

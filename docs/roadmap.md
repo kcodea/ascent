@@ -121,9 +121,11 @@ and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md)
       (`art/effects/*.png` → `effectArt()`; `.dsfx` screen-blends a glowing aura over any `DS` minion,
       live on Spare Part Drone). The current asset is a shield **crest** shape; if a rounder "bubble/dome"
       shimmer reads better, swap the art or move it to a corner badge — user's call.
-- [ ] **Art compression.** The illustrations are ~650 KB PNGs at 512×512; fine for a handful, but
-      convert to WebP (or add a build-time compress) before the full set lands so the bundle stays
-      lean. *(Blocked on tooling: no WebP encoder is installed — `cwebp`/ImageMagick/`ffmpeg`/`sharp`
-      all absent. Either install one, add `sharp` as a dev dep + a build step, or downscale the
-      source PNGs to ~400px via the existing System.Drawing path, since cards display at ~290px.)*
+- [~] **Art compression.** *Downscale pass shipped* — `scripts/downscale-art.ps1` caps in-repo art at
+      640px (System.Drawing, no deps); the four 1254px illustrations are now 640px (minion art 31.5 →
+      26 MB). **Still pending: WebP** for the real win (~26 MB → ~6 MB), blocked on an encoder
+      (`cwebp`/`sharp`/ImageMagick/`ffmpeg` all absent — add `sharp` as a dev dep + a build step, or
+      install `cwebp`). Lower priority if the game ships as a desktop **exe** (assets load from disk, so
+      bundle size becomes a one-time installer cost, not a per-play download) — revisit once the
+      web-vs-exe distribution path is decided. Masters live in `C:\Game Assets\Ascent Art\Minions`.
 - [ ] Vendor the full Build Handoff v2 into `docs/handoff.md` (currently in-session only).

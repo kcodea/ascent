@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Art — downscale pass (build prep)
+Added `scripts/downscale-art.ps1` (System.Drawing, no new deps) that caps in-repo minion illustrations
+at **640px** (cards display ~290px, so 640 is retina-crisp + headroom). Ran it: the four 1254×1254
+illustrations (Guel/Monk/Lifebinder/Deathsayer) → 640px, **minion art 31.5 → 26 MB**. The high-res
+masters stay in `C:\Game Assets\Ascent Art\Minions`; re-run after dropping new art (idempotent). Modest
+win because most existing art was already 512px and PNG stays heavy for detailed images — the real
+reduction (~6 MB total) needs **WebP** (blocked on an encoder: add `sharp` as a dev dep + build step,
+or `cwebp`). Deferred since a desktop-exe path would make download size a one-time install rather than a
+per-play load. _(Detail in the size discussion this session.)_
+
 ### Deathsayer Rally respects Sylus + un-wire Pup placeholder art
 - **Rally now procs the Deathrattle the full number of times a real death would** — including **Sylus
   the Reaper's** extra procs (+1 each, +2 golden). Earlier today Deathsayer fired the leftmost

@@ -6,12 +6,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 ## 2026-06-19
 
 ### Card-spread audit tool (`npm run audit`)
-A re-runnable tally of the buyable minion pool by tribe × tier (+ spells), vs the target of ~17–23
-minions per tribe weighted toward tiers 3–5 (`packages/tools/src/card-audit.ts`). Current snapshot:
-**47 buyable minions** — Beast 8, Dragon 6, Undead 8, Mech 8, Demon 8, Neutral 9 — so every tribe is
-well under target (the set is ~40% built toward ~120). Aggregate tier shape skews mid already
-(T1 6 · T2 9 · T3 7 · T4 10 · T5 10 · T6 5) but is thin per-cell, and there are two holes: **Dragon
-T5 = 0** and **Neutral T6 = 0**. Spells: 3, all T1. Re-run as the set grows to track progress.
+A re-runnable tally of the buyable minion pool by tribe × tier (+ spells), vs the target of **13–15
+minions per tribe** across the 6 tiers, weighted toward tiers 3–5 (`packages/tools/src/card-audit.ts`).
+**Design intent (per the user):** the pool stays deliberately tight — run-to-run variety + complexity
+come from the **meta layer (heroes + quests/trinkets)**, not pool size. A small curated set is cheaper
+to balance and makes each card matter. Current snapshot: **47 buyable minions** — Beast 8, Dragon 6,
+Undead 8, Mech 8, Demon 8, Neutral 9 — so each tribe is **+4 to +7 short** of 13 (≈ +33 to reach ~84
+total). Aggregate tier shape already skews mid (T1 6 · T2 9 · T3 7 · T4 10 · T5 10 · T6 5) but is thin
+per-cell, with two holes: **Dragon T5 = 0** and **Neutral T6 = 0**. Spells: 3, all T1. The tool's
+`need` column shows each tribe's gap; re-run as the set grows.
 
 ### Spell cards show their real value (modifiers reflected) — one source of truth
 Spell cards now display their *effective* stat value, not the printed base — so as the Spellbinder on

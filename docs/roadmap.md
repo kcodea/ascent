@@ -13,9 +13,12 @@ the order we ship it in. (Heroes/cards are data, so small ones can land continuo
 - **Patch 1 — Balance & Content Depth** *(finishes M2; foundation).* Make the climb fair before
   building on it. Tune the **counter matrix** (balance truth — the runner flags Mech dominant, Beast
   weak, Dragon/Undead flat; stat numbers are starting dials), build the **enemy-strength curve tool**,
-  and deepen content: fill the unused effect primitives with cards (`castSpell`, `endOfTurnBuff`,
-  `spellCostMod`), add **higher-tier spells** (only 3 T1 spells today), and even out thin tribes
-  (Dragon has 6 vs 8). *Why first:* every later patch sits on combat feeling right.
+  and deepen content toward the pool target: **13–15 minions per tribe** across the 6 tiers, weighted
+  to T3–5 (run `npm run audit`). Today each tribe is +4 to +7 short (47 total, holes at Dragon T5 +
+  Neutral T6); fill the mid tiers, fill the unused primitives (`castSpell`, `endOfTurnBuff`,
+  `spellCostMod`), and add **higher-tier spells** (only 3 T1 today). The pool stays deliberately
+  small — variety comes from the **meta layer** (heroes + quests/trinkets), not card volume. *Why
+  first:* every later patch sits on combat feeling right.
 - **Patch 2 — Front Door & Hero Roster** *(M3; variety).* The run's entry + variety. Generalize the
   `heroChoices` flag into a `scene` enum and build **Title → Play → Mode → Hero → run** (no router;
   small overlays reusing `herocard`). Add a data-driven **MODES** registry — the two intended modes

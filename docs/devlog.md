@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Heroes named + all six portraits wired
+The three placeholder heroes got real names and the full roster got art:
+- **Renames:** "The Warden" → **Warden**; the resummon/Deathrattle hero (`reclaimer`) → **Sporen**; the
+  spell-amplify hero (`spellbinder`) → **Rohan**; the End-of-Turn hero (`dusk`) → **Djinn**. The three
+  new heroes' **ids were aligned to the names** (`reclaimer→sporen`, `spellbinder→rohan`, `dusk→djinn`)
+  since they were placeholders — contained to `heroes.ts` + `run.test.ts` (the UI reads `heroId` via
+  `getHero`, no hardcoded ids). Gendered pronouns in two blurbs were neutralized (names' intent unknown).
+- **Art:** all six source portraits (`Warden/Oner/Myra/Rohan/Djinn/Sporen.png`) are now wired — the new
+  three copied to `art/heroes/{rohan,djinn,sporen}.png` and downscaled to 640px. The picker + HUD show
+  real portraits for every hero (no more anvil fallback).
+- Verified: `typecheck` + `lint` clean, `test` **166** pass; live (fresh server so Vite re-globs the
+  art) all six render with correct names + portraits.
+
 ### Card-spread audit tool (`npm run audit`)
 A re-runnable tally of the buyable minion pool by tribe × tier (+ spells), vs the target of **13–15
 minions per tribe** across the 6 tiers, weighted toward tiers 3–5 (`packages/tools/src/card-audit.ts`).

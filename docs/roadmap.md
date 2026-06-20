@@ -93,9 +93,8 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       (`HeroPower.unlockWave`), and **passive powers** (`HeroPower.passive`). Power kinds now cover:
       recruit buffs (`fortify`/`gild`), recruit re-triggers (`replayBattlecry`/`replayEndOfTurn`),
       a passive (`spellAmplify`), and a **combat-driving** mark (`resummon` — reads in `simulate()`).
-      **Six heroes:** Warden, Oner, Myra (all with art) + **placeholder-named** Reclaimer (Reclaim),
-      Spellbinder (Attunement, passive), Dusk (Cadence). Remaining:
-  - **Name + draw art for the 3 placeholder heroes** (Reclaimer/Spellbinder/Dusk use the anvil fallback).
+      **Six heroes, all named + with portrait art:** Warden (Fortify), Oner (Gild), Myra (Encore),
+      Sporen (Reclaim), Rohan (Attunement, passive), Djinn (Cadence). Remaining:
   - **More heroes** — each is a `HeroDef` + (only if novel) a new power `kind`. Cheap kinds left: a
     one-shot gold/mana, a reroll discount, a token summon.
   - Consider always including a simple "starter" hero in the 3-of-N so a new player isn't forced into a

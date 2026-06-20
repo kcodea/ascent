@@ -41,7 +41,7 @@ export interface HeroDef {
 export const HEROES: HeroDef[] = [
   {
     id: 'warden',
-    name: 'The Warden',
+    name: 'Warden',
     blurb: 'Steady, scaling muscle — every wave a minion grows with you.',
     resolve: 30,
     power: {
@@ -74,11 +74,10 @@ export const HEROES: HeroDef[] = [
       text: "Each turn (from turn 3): trigger a friendly minion's Battlecry again.",
     },
   },
-  // --- Placeholder heroes (names TBD) — added per design spec, rename freely. ---
   {
-    id: 'reclaimer',
-    name: 'The Reclaimer', // placeholder
-    blurb: 'Death is a doorway — send a minion through it and bring it back.',
+    id: 'sporen',
+    name: 'Sporen',
+    blurb: 'Death is a doorway — send a minion through it and it blooms back.',
     resolve: 30,
     power: {
       name: 'Reclaim',
@@ -87,9 +86,9 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    id: 'spellbinder',
-    name: 'The Spellbinder', // placeholder
-    blurb: 'Words sharpen in her hands — and sharpen further as the climb wears on.',
+    id: 'rohan',
+    name: 'Rohan',
+    blurb: 'Words sharpen in skilled hands — and sharpen further as the climb wears on.',
     resolve: 30,
     power: {
       name: 'Attunement',
@@ -99,9 +98,9 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    id: 'dusk',
-    name: 'Dusk', // placeholder
-    blurb: 'She calls the day to its close early — once, on your terms.',
+    id: 'djinn',
+    name: 'Djinn',
+    blurb: 'Calls the day to its close early — once a turn, on your terms.',
     resolve: 30,
     power: {
       name: 'Cadence',

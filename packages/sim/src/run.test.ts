@@ -1368,13 +1368,13 @@ describe('hero powers (@game/sim)', () => {
     }
   });
 
-  it("Dusk's Cadence procs a friendly minion's End of Turn now (once per turn)", () => {
+  it("Djinn's Cadence procs a friendly minion's End of Turn now (once per turn)", () => {
     // Ritualist's End of Turn buffs every Fodder +1/+1; Fred is Fodder.
     const board = (): BoardCard[] => [
       { uid: 'r', cardId: 'ritualist', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false },
       { uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false },
     ];
-    let s: RunState = { ...createRun(1, 'dusk'), board: board() };
+    let s: RunState = { ...createRun(1, 'djinn'), board: board() };
     s = reduce(s, { type: 'heroPower', uid: 'r' });
     const fred = s.board.find((c) => c.uid === 'f')!;
     expect(fred.attack).toBe(2); // 1 + 1
@@ -1383,14 +1383,14 @@ describe('hero powers (@game/sim)', () => {
     expect(reduce(s, { type: 'heroPower', uid: 'r' })).toBe(s); // once per turn
   });
 
-  it("Dusk's Cadence no-ops (no charge) on a minion with no End of Turn effect", () => {
-    const s: RunState = { ...createRun(1, 'dusk'), board: [mk('a', 2, 2)] }; // sandbag = vanilla
+  it("Djinn's Cadence no-ops (no charge) on a minion with no End of Turn effect", () => {
+    const s: RunState = { ...createRun(1, 'djinn'), board: [mk('a', 2, 2)] }; // sandbag = vanilla
     const after = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(after).toBe(s);
     expect(after.heroReady).toBe(true);
   });
 
-  it('The Spellbinder amplifies stat-granting spells (+1 at turn 1, scaling), hero-gated', () => {
+  it('Rohan amplifies stat-granting spells (+1 at turn 1, scaling), hero-gated', () => {
     const cast = (heroId: string, wave: number): BoardCard => {
       let s: RunState = {
         ...createRun(1, heroId), wave, board: [mk('t', 2, 2)],
@@ -1399,26 +1399,26 @@ describe('hero powers (@game/sim)', () => {
       s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
       return s.board[0]!;
     };
-    // Spirit Fire = +3/+3. Spellbinder adds +1 at turn 1 → +4/+4 (2/2 → 6/6).
-    expect(cast('spellbinder', 1).attack).toBe(6);
+    // Spirit Fire = +3/+3. Rohan adds +1 at turn 1 → +4/+4 (2/2 → 6/6).
+    expect(cast('rohan', 1).attack).toBe(6);
     // Scales: +2 at turn 4 → +5/+5 (→ 7/7).
-    expect(cast('spellbinder', 4).attack).toBe(7);
-    // Hero-gated: a non-Spellbinder gets the base +3/+3 (→ 5/5).
+    expect(cast('rohan', 4).attack).toBe(7);
+    // Hero-gated: a non-Rohan gets the base +3/+3 (→ 5/5).
     expect(cast('warden', 1).attack).toBe(5);
   });
 
-  it('The Reclaimer marks one minion for resummon (clearing any previous mark)', () => {
-    let s: RunState = { ...createRun(1, 'reclaimer'), board: [mk('a', 2, 2), mk('b', 3, 3)] };
+  it('Sporen marks one minion for resummon (clearing any previous mark)', () => {
+    let s: RunState = { ...createRun(1, 'sporen'), board: [mk('a', 2, 2), mk('b', 3, 3)] };
     s = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(s.board.find((c) => c.uid === 'a')!.resummon).toBe(true);
     expect(s.board.find((c) => c.uid === 'b')!.resummon ?? false).toBe(false);
     expect(s.heroReady).toBe(false);
   });
 
-  it("The Reclaimer's mark carries into combat (marked minion destroyed + resummoned)", () => {
+  it("Sporen's mark carries into combat (marked minion destroyed + resummoned)", () => {
     // Pack Scrounger marked → at start of combat it dies (Deathrattle → 2 Pups) and a copy returns.
     let s: RunState = {
-      ...createRun(1, 'reclaimer'),
+      ...createRun(1, 'sporen'),
       board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'heroPower', uid: 'p' });
@@ -1462,10 +1462,10 @@ describe('PvE win condition (@game/sim)', () => {
 });
 
 describe('spell stat bonus + display (@game/sim)', () => {
-  it('spellStatBonus aggregates active sources (Spellbinder scales; others = 0)', () => {
+  it('spellStatBonus aggregates active sources (Rohan scales; others = 0)', () => {
     expect(spellStatBonus(createRun(1, 'warden'))).toBe(0);
-    expect(spellStatBonus({ ...createRun(1, 'spellbinder'), wave: 1 })).toBe(1);
-    expect(spellStatBonus({ ...createRun(1, 'spellbinder'), wave: 4 })).toBe(2);
+    expect(spellStatBonus({ ...createRun(1, 'rohan'), wave: 1 })).toBe(1);
+    expect(spellStatBonus({ ...createRun(1, 'rohan'), wave: 4 })).toBe(2);
   });
 
   it('spellDisplayText substitutes the effective value (green via {{…}}); base text otherwise', () => {
@@ -1478,8 +1478,8 @@ describe('spell stat bonus + display (@game/sim)', () => {
     expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Mana**.');
   });
 
-  it('the displayed value matches what a cast actually grants (Spellbinder, turn 1)', () => {
-    const s = { ...createRun(1, 'spellbinder'), wave: 1 };
+  it('the displayed value matches what a cast actually grants (Rohan, turn 1)', () => {
+    const s = { ...createRun(1, 'rohan'), wave: 1 };
     const bonus = spellStatBonus(s);
     // Spirit Fire's base is +3/+3; the card shows +4/+4 and a cast grants +4/+4 — same number.
     expect(spellDisplayText('spiritfire', bonus)).toContain('+4/+4');

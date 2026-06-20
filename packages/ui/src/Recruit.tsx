@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellStatBonus, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { summonBuffText } from './cardText';
+import { summonBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -85,7 +85,9 @@ function instView(
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
       : c.spell
         ? spellDisplayText(c.id, spellBonus)
-        : summonBuffText(c.id, inst.summonBonus ?? 0) ?? c.text;
+        : transformProgressText(c.id, inst.spellProgress ?? 0) ??
+          summonBuffText(c.id, inst.summonBonus ?? 0) ??
+          c.text;
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
   return {

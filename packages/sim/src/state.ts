@@ -93,6 +93,9 @@ export interface BoardCard {
   /** The Reclaimer's mark: at the start of the next combat this minion is destroyed (its Deathrattle
    *  fires) and an exact copy is resummoned if there's room. Cleared each turn (re-choose). */
   resummon?: boolean;
+  /** Spells cast while this card has been on the board — drives transform cards (Spirit Pup → Worgen
+   *  at 10). Per-instance; ticks only while on the board (the spellCast trigger fires for the board). */
+  spellProgress?: number;
 }
 
 export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';

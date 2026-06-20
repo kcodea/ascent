@@ -19,3 +19,16 @@ export function summonBuffText(cardId: string, summonBonus: number): string | nu
   const m = base + summonBonus;
   return def.text.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${m}}}`);
 }
+
+/**
+ * A transform card (Spirit Pup) appends its live "N to go" countdown (highlighted green) so the
+ * player sees how many spells remain before it transforms. `spellProgress` is the per-instance
+ * tally; returns null for non-transform cards so callers fall back to the printed text.
+ */
+export function transformProgressText(cardId: string, spellProgress: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'spellCastTransform');
+  if (!def || !eff) return null;
+  const at = Number((eff.params as { at?: number })?.at ?? 10);
+  return `${def.text} {{${Math.max(0, at - spellProgress)} to go}}`;
+}

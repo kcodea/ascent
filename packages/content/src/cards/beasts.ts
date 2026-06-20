@@ -113,4 +113,35 @@ export const BEASTS: CardDef[] = [
     ],
     text: '**Choose One:** give your Beasts +1/+1; or summon two 1/1 Strays.',
   },
+  {
+    id: 'spiritpup',
+    name: 'Spirit Pup',
+    tribe: 'beast',
+    tribe2: 'dragon',
+    tier: 5,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'spellCastTransform', params: { at: 10, into: 'spiritworgen', retroPerSpell: 1 } }],
+    text: 'Cast **10 spells** with this on board to transform into **Spirit Worgen**.',
+  },
+  {
+    // The transform target — obtained only via Spirit Pup, so `token: true` keeps it out of the shop
+    // pool while still living in CARD_INDEX (for the transform + its art). It keeps the Pup's stats at
+    // transform; its base 4/6 is only the schema floor.
+    id: 'spiritworgen',
+    name: 'Spirit Worgen',
+    tribe: 'beast',
+    tribe2: 'dragon',
+    tier: 5,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    token: true,
+    effects: [
+      { on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 1, health: 1 } },
+      { on: 'onSummon', do: 'summonBuffSelfTribe', params: { tribes: ['beast', 'dragon'], attack: 1, health: 1 } },
+    ],
+    text: 'Gains **+1/+1** whenever you summon a **Beast** or **Dragon**, and **+1/+1** for each spell cast this game.',
+  },
 ];

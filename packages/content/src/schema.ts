@@ -71,6 +71,9 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffOthers',
   'overflowBuffRandom',
   'battlecryLinkDemon',
+  'spellCastTransform',
+  'spellCastBuffSelf',
+  'summonBuffSelfTribe',
 ]);
 
 export const EffectDefSchema = z.object({

@@ -244,6 +244,35 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!self.keywords.includes('DS')) self.keywords.push('DS');
   },
 
+  /** Spirit Pup: each spell cast (while on board) ticks a per-instance counter; at `at` it transforms
+   *  into `into`, keeping its current stats and applying the new form's *retroactive* spell buff —
+   *  +retroPerSpell/+retroPerSpell for EVERY spell cast this game (the global tally), not just the
+   *  ones that counted toward the transform. */
+  spellCastTransform: (ctx, self, params) => {
+    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    if (self.spellProgress < num(params.at, 10)) return;
+    self.cardId = str(params.into);
+    self.spellProgress = undefined;
+    const per = num(params.retroPerSpell, 1) * gold(self);
+    addBuff(self, nameOf(self), ctx.state.spellsCast * per, ctx.state.spellsCast * per);
+  },
+
+  /** Spirit Worgen: +atk/+hp on each spell cast (the ongoing half of "+1/+1 per spell cast this
+   *  game" — the retroactive past spells are applied at transform). */
+  spellCastBuffSelf: (_ctx, self, params) => {
+    addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
+  },
+
+  /** Spirit Worgen: +atk/+hp when a friendly minion of one of `tribes` is summoned (played or
+   *  token-summoned). Self-targeting; ignores its own arrival. */
+  summonBuffSelfTribe: (_ctx, self, params, { minion }) => {
+    if (minion === self) return;
+    const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
+    const def = CARD_INDEX[minion.cardId];
+    if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2))) return;
+    addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
+  },
+
   /** Archmagus Guel: after a tavern spell is cast, give `count` *other* friendly minions +atk/+hp.
    *  Targets are random (seeded by the run cursor) so the buffs spread rather than snowball one carry. */
   spellCastBuffOthers: (ctx, self, params) => {

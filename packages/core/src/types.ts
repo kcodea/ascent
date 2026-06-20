@@ -96,7 +96,10 @@ export type EffectFactoryId =
   | 'gainEmbers' // cast: gain Embers (untargeted — Ember Pouch)
   | 'spellCastBuffOthers' // spellCast: give N other friendly minions +atk/+hp (Archmagus Guel)
   | 'overflowBuffRandom' // summonOverflow: buff a random friendly minion (Flowing Monk)
-  | 'battlecryLinkDemon'; // Battlecry: link to a chosen friendly demon, mirroring its stat gains (Lifebinder)
+  | 'battlecryLinkDemon' // Battlecry: link to a chosen friendly demon, mirroring its stat gains (Lifebinder)
+  | 'spellCastTransform' // spellCast: tick a per-instance counter; at the threshold, transform into another card (Spirit Pup → Worgen)
+  | 'spellCastBuffSelf' // spellCast: buff self +atk/+hp per spell cast (Spirit Worgen)
+  | 'summonBuffSelfTribe'; // onSummon: buff self when a friendly minion of a given tribe is summoned (Spirit Worgen)
 
 export interface EffectDef {
   on: GameEvent;

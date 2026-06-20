@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Spirit Pup → Spirit Worgen** (T5 Beast/Dragon) — the first **transform** card. Cast 10 spells with
+  the Pup on board (a live "N to go" countdown) and it becomes the Worgen, keeping its stats and then
+  scaling **+1/+1 per Beast/Dragon summoned and +1/+1 per spell cast all game** (retroactively).
 - **End-of-run screen.** Win or lose, you get a recap styled like the hero picker: the outcome, a
   round-by-round **W-L-W** strip, your final warband, and Play Again. (Hero picker now offers 2.)
 - **Echo Warden now echoes *any* summon.** "In combat, your summon effects summon 1 more copy" — it

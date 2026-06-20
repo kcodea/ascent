@@ -1492,3 +1492,57 @@ describe('spell stat bonus + display (@game/sim)', () => {
     expect(r.board[0]!.health).toBe(6);
   });
 });
+
+describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
+  const pouch = (i: number): BoardCard =>
+    ({ uid: `s${i}`, cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
+  const pup = (): BoardCard =>
+    ({ uid: 'p', cardId: 'spiritpup', tribe: 'beast', attack: 4, health: 6, keywords: [], golden: false });
+  const worgen = (): BoardCard =>
+    ({ uid: 'w', cardId: 'spiritworgen', tribe: 'beast', attack: 14, health: 16, keywords: [], golden: false });
+
+  it('transforms after 10 spells on board, keeping its stats + applying the retroactive spell buff', () => {
+    let s: RunState = { ...createRun(1), board: [pup()], hand: Array.from({ length: 10 }, (_, i) => pouch(i)) };
+    for (let i = 0; i < 9; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    expect(s.board[0]!.cardId).toBe('spiritpup'); // 9 spells — not yet
+    expect(s.board[0]!.spellProgress).toBe(9);
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // 10th
+    expect(s.board[0]!.cardId).toBe('spiritworgen'); // transformed
+    expect(s.board[0]!.attack).toBe(14); // 4 kept + 10 retroactive (10 spells this game)
+    expect(s.board[0]!.health).toBe(16);
+  });
+
+  it("the Worgen's retroactive buff counts ALL spells this game, not just the 10 toward the transform", () => {
+    // 3 spells cast before the Pup is even on board, then 10 with it → transform → +13/+13 retroactive.
+    let s: RunState = { ...createRun(1), hand: Array.from({ length: 13 }, (_, i) => pouch(i)) };
+    for (let i = 0; i < 3; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // no Pup yet
+    s = { ...s, board: [pup()] };
+    for (let i = 0; i < 10; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    expect(s.board[0]!.cardId).toBe('spiritworgen');
+    expect(s.board[0]!.attack).toBe(4 + 13); // retroactive on the global 13-spell tally
+  });
+
+  it('the Worgen gains +1/+1 per spell cast', () => {
+    let s: RunState = { ...createRun(1), board: [worgen()], hand: [pouch(0)] };
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    expect(s.board[0]!.attack).toBe(15);
+    expect(s.board[0]!.health).toBe(17);
+  });
+
+  it('the Worgen grows when a Beast/Dragon is summoned, but not a neutral', () => {
+    // Play a Dragon (Ember Whelp) → +1/+1.
+    let s: RunState = {
+      ...createRun(1), board: [worgen()],
+      hand: [{ uid: 'd', cardId: 'whelp', tribe: 'dragon', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'd' });
+    expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(15);
+    // Play a neutral → no change.
+    let n: RunState = {
+      ...createRun(1), board: [worgen()],
+      hand: [{ uid: 'x', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    n = reduce(n, { type: 'play', uid: 'x' });
+    expect(n.board.find((c) => c.uid === 'w')!.attack).toBe(14);
+  });
+});

@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### New minion: Spirit Pup → Spirit Worgen (a transform card + spell payoff)
+First **transform** card, and a meaty spell-synergy build-around (Beast pool 8→9).
+- **Spirit Pup** (T5 **Beast/Dragon**, 4/6): cast **10 spells with it on board** to transform into the
+  Spirit Worgen. A new per-instance counter (`BoardCard.spellProgress`) ticks on each `spellCast`
+  while the Pup is on the board; the card text shows a live **"N to go"** countdown (green, via the new
+  `transformProgressText`).
+- **Spirit Worgen** (T5 Beast/Dragon): **keeps the Pup's stats** at transform (only the cardId swaps →
+  new art + effects), and **gains +1/+1 per Beast or Dragon summoned** *and* **+1/+1 per spell cast this
+  game**. The spell buff is **retroactive** — at transform it applies the *global* all-game spell tally
+  (e.g. 3 spells before the Pup + 10 with it → +13/+13), not just the 10 toward the transform; then it
+  keeps climbing +1/+1 per future spell. (It's a non-buyable `token: true` card — obtained only via the
+  Pup — so it stays out of the shop pool while living in `CARD_INDEX` for the transform + its art.)
+- **New reusable primitives:** `spellCastTransform` (tick → transform at a threshold, keeping stats +
+  applying a retroactive per-spell buff), `spellCastBuffSelf` (+atk/+hp per spell), `summonBuffSelfTribe`
+  (+atk/+hp when a friendly minion of given tribes is summoned). Added to `EffectFactoryId` + the zod
+  enum. Art wired (`spiritpup.png` / `spiritworgen.png`).
+- Judgement calls (flag if any should change): the Worgen's base 4/6 is just the schema floor (it keeps
+  the instance stats); **"summoned" counts recruit-phase plays/token-summons** (so the buff is permanent),
+  not combat summons; the Pup only counts spells cast while on the **board** (not in hand).
+- Verified: `typecheck` + `lint` clean, `test` **172** pass (+4: transforms at 10 keeping stats +
+  retroactive; retroactive counts all-game spells; Worgen +1/+1 per spell; +1/+1 per Beast/Dragon, not
+  neutral). Live (fresh server re-globs the art): the Pup shows "10 → 5 to go" as spells cast, then
+  transforms into the 14/16 Worgen with its art + dual-tribe footer.
+
 ### End-of-run screen (final board + W-L-W summary) + hero choices 3→2 + Sporen verified
 - **End screen.** `GameOver` + `Victory` are unified into one **`EndScreen`** styled like the hero
   picker: the outcome title (gold "VICTORY" / red "FALLEN"), a round-by-round **W-L-W** pip strip, the

@@ -1,5 +1,5 @@
 import { makeRng } from '@game/core';
-import type { CombatResult, Keyword, Rng, Tribe } from '@game/core';
+import type { CombatOutcome, CombatResult, Keyword, Rng, Tribe } from '@game/core';
 import { CONFIG } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { rollShop, stockPool } from './shop';
@@ -103,6 +103,8 @@ export interface RunState {
   wave: number;
   /** Deepest wave reached this run. */
   best: number;
+  /** Result of each combat resolved this run, in order — drives the end-screen W-L-W summary. */
+  history: CombatOutcome[];
   phase: Phase;
   embers: number;
   maxEmbers: number;
@@ -195,6 +197,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     seed,
     wave: 1,
     best: 1,
+    history: [],
     phase: 'recruit',
     embers: CONFIG.startEmbers,
     maxEmbers: CONFIG.startEmbers,

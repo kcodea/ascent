@@ -1058,6 +1058,26 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .hcpick { margin-top: 12px; font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 8px 22px; border-radius: 12px; }
 .herocard:hover .hcpick { background: var(--acc-dk); }
 
+/* End-of-run screen — reuses the hero-picker overlay (.heroselect/.hsbox); shows the round
+   W-L-W summary + the final warband. */
+.endbox { max-width: 96vw; }
+.endscreen .hstitle { margin: 4px 0 0; }
+.endsub { font-family: 'Outfit'; font-weight: 700; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: #ddd2c0; margin-top: 6px; }
+.endpips { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; max-width: 560px; margin: 14px 0 4px; }
+.endpip { width: 24px; height: 24px; border-radius: 6px; font-family: 'Outfit'; font-weight: 800; font-size: 13px; color: #fff; display: grid; place-items: center; }
+.endpip.win { background: #3b9e57; }
+.endpip.lose { background: var(--threat); }
+.endpip.draw { background: var(--ink3); }
+.endboardlabel { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: #ddd2c0; margin: 22px 0 6px; }
+.endboard { display: flex; gap: 6px; justify-content: center; align-items: flex-start; flex-wrap: wrap; zoom: 0.42; max-width: 1600px; }
+.endboard .card { cursor: default; }
+.endempty { font-family: 'Outfit'; font-weight: 700; font-size: 15px; color: #ddd2c0; padding: 24px; }
+.endplay { margin-top: 22px; font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 11px 30px; border-radius: 13px; cursor: pointer; }
+.endplay:hover { background: var(--acc-dk); }
+.endscreen.won .eyebrow { color: var(--acc); }
+.endscreen.won .hstitle { color: #ffd98a; text-shadow: 0 0 28px rgba(255, 200, 110, 0.45); }
+.endscreen:not(.won) .eyebrow { color: var(--threat); }
+
 svg { width: 18px; height: 18px; }
 
 /* darker board (warm taupe): lighten the text + labels that sit directly on the

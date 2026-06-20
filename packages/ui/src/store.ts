@@ -4,7 +4,7 @@ import type { CardView } from './Card';
 import { sfx } from './sfx';
 
 /** How many heroes the pre-run picker offers (or all of them, if fewer exist). */
-const HERO_SELECT_COUNT = 3;
+const HERO_SELECT_COUNT = 2;
 
 /** A fresh shuffle of hero ids for the picker. UI-level randomness — the hero *choice* is a
  *  meta decision, not part of the seeded run, so Math.random is fine here (and not in the sim). */

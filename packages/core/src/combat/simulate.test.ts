@@ -67,6 +67,30 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
+  it("The Reclaimer resummons a marked minion with no Deathrattle when there is room", () => {
+    const p: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 1, health: 20, resummon: true }, // vanilla, marked
+      { cardId: 'sandbag', attack: 1, health: 20 },
+    ];
+    const r = run(p, [{ cardId: 'sandbag', attack: 0, health: 1 }], 1);
+    const copies = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'sandbag').length;
+    expect(copies).toBe(1); // the freed slot → an exact copy returns
+  });
+
+  it("The Reclaimer's copy yields to summoned tokens on a full board (no room → no copy)", () => {
+    // Full board (7): marked Pack Scrounger dies, a Pup takes the one freed slot, and there's no
+    // room left for the copy — tokens take precedence, exactly as specced.
+    const p: BoardMinion[] = [
+      { cardId: 'pack', attack: 1, health: 20, resummon: true },
+      ...Array.from({ length: 6 }, () => ({ cardId: 'sandbag', attack: 1, health: 20 })),
+    ];
+    const r = run(p, [{ cardId: 'sandbag', attack: 0, health: 1 }], 1);
+    const packCopies = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pack').length;
+    const pups = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup').length;
+    expect(packCopies).toBe(0); // no room for the copy
+    expect(pups).toBeGreaterThanOrEqual(1); // a Pup filled the freed slot
+  });
+
   it('a golden Arcane Weaver grants two Spirit Fires; an enemy Weaver grants the player none', () => {
     const golden = run([{ cardId: 'weaver', attack: 1, health: 1, golden: true }], [{ cardId: 'sandbag', attack: 5, health: 5 }], 5);
     expect(golden.playerHandGrants).toEqual(['spiritfire', 'spiritfire']);

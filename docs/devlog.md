@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### End-of-run screen (final board + W-L-W summary) + hero choices 3→2 + Sporen verified
+- **End screen.** `GameOver` + `Victory` are unified into one **`EndScreen`** styled like the hero
+  picker: the outcome title (gold "VICTORY" / red "FALLEN"), a round-by-round **W-L-W** pip strip, the
+  **final warband** (the real Cards, shrunk via `zoom`), and **Play Again** (→ picker). New
+  `RunState.history: CombatOutcome[]` records every combat's result in `advanceAfterCombat`; the pips
+  read it (green W / red L / grey D). Verified live both ways (FALLEN wave 8 with "WWLWWLWL"; VICTORY
+  "Survived all 20 waves", gold title).
+- **Hero picker offers 2** now (was 3) — `HERO_SELECT_COUNT`.
+- **Sporen ("Reclaim") — investigated, it works.** Confirmed end-to-end that the marked minion is
+  destroyed at start of combat (Deathrattle fires) and an **exact copy is resummoned when there's
+  room** — proven by a live combat (the resummoned Pack Scrounger 20/39 stood on the board beside its
+  2 Pups) and the sim across every board state. The one no-copy case is a **full board**: the freed
+  slot goes to a summoned token (precedence, as specced), so no room for the copy. Locked it with two
+  regression tests (vanilla-with-room → 1 copy; full-board → 0 copies, a Pup takes the slot). No sim
+  change was needed. *(The blank-screen / `<Recruit>` errors seen while probing were my forced
+  mid-combat `setState`, not a real bug.)*
+- Verified: `typecheck` + `lint` clean, `test` **168** pass (+2 Sporen regression). Live: end screen
+  both outcomes, 2-hero picker, clean normal flow.
+
 ### Echo Warden works for *any* summon (moved to the summon chokepoint) + per-unit "copy"
 - **Text:** "In combat, your summon effects **summon 1 more copy**" (golden: 2 more copies) — was
   "make 1 more **token**".

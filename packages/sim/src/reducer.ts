@@ -524,6 +524,8 @@ function offerDiscover(s: RunState, tripleTier: number): void {
 
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */
 function advanceAfterCombat(s: RunState, result: CombatResult): void {
+  // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
+  s.history.push(result.result);
   // Persist per-instance combat state (Kennelmaster's Avenge permanently improves its
   // summon buff for the rest of the run), keyed back to the originating board card.
   if (result.playerSummonBonus) {

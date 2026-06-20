@@ -1,8 +1,7 @@
 import './styles.css';
 import { useEffect, useState } from 'react';
 import { Recruit } from './Recruit';
-import { GameOver } from './GameOver';
-import { Victory } from './Victory';
+import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
@@ -47,8 +46,8 @@ export function Game() {
   return (
     <>
       <Recruit />
-      {phase === 'gameover' && <GameOver />}
-      {phase === 'victory' && <Victory />}
+      {phase === 'gameover' && <EndScreen won={false} />}
+      {phase === 'victory' && <EndScreen won={true} />}
       <StatusBar />
       <Inspect />
       <button className="gearbtn" onPointerDown={() => setMenuOpen(true)} title="Settings (Esc)" aria-label="Settings">

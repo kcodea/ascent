@@ -38,8 +38,8 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [],
-    text: '**In combat,** your summon effects make **1 more** token.',
-    goldenText: '**In combat,** your summon effects make **2 more** tokens.',
+    text: '**In combat,** your summon effects summon **1 more** copy.',
+    goldenText: '**In combat,** your summon effects summon **2 more** copies.',
   },
   {
     id: 'buddy',

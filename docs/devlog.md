@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Echo Warden works for *any* summon (moved to the summon chokepoint) + per-unit "copy"
+- **Text:** "In combat, your summon effects **summon 1 more copy**" (golden: 2 more copies) — was
+  "make 1 more **token**".
+- **Now general, not token-only.** The echo moved from being read inside specific token-summon
+  factories (`deathrattleSummon`, Brood Matron's `onFriendDeathSummon`) into the **single summon
+  chokepoint** — a new `summonMinion()` in `simulate()`. So *every* combat summon is echoed, including
+  non-token ones like `deathrattleFillTribe` (which summons real minions and was previously ignored),
+  and any future summon effect — automatically. Recursion-guarded by an `isEcho` flag so the copies
+  don't echo themselves; respects the board cap. Removed the now-unused `echoBonus` helper + the
+  per-factory coupling.
+- **Semantics: additive → per-unit.** Each summoned *unit* now gets one more copy per living Echo
+  Warden (golden = 2), rather than "+1 token per effect". So Pack Scrounger (2 Pups) + one Echo Warden
+  is now **4 Pups** (was 3), and **6** with a golden Echo (was 4) — i.e. "echo each summon", matching
+  "any unit summoned → 1 more copy". *Flag:* this is a real buff to Echo-Warden summon boards.
+- **Boundary:** this covers minion **summon effects** (the `ctx.summon` path). Sporen's hero-power
+  start-of-combat resummon uses a separate copy path and isn't echoed — a sensible line (it's a hero
+  power, not a summon effect), easy to include later if wanted.
+- Verified: `typecheck` + `lint` clean, `test` **166** pass (the two Echo tests updated to 4 / 6),
+  determinism harness OK; live a staged Pack Scrounger + Echo Warden produced **4 Pups** and the card
+  reads the new text.
+
 ### Heroes named + all six portraits wired
 The three placeholder heroes got real names and the full roster got art:
 - **Renames:** "The Warden" → **Warden**; the resummon/Deathrattle hero (`reclaimer`) → **Sporen**; the

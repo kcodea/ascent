@@ -444,7 +444,7 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
-  it('Echo Warden adds one extra summoned token (additive, not multiplicative)', () => {
+  it('Echo Warden echoes each summoned unit (one more copy per Echo Warden)', () => {
     const a = run(
       [
         { cardId: 'pack', attack: 2, health: 1 }, // Deathrattle: summon two 1/1 Pups
@@ -454,10 +454,10 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     const pups = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
-    expect(pups).toBe(3); // 2 Pups + 1 (one Echo Warden), not 2×2
+    expect(pups).toBe(4); // 2 Pups, each echoed once → 4
   });
 
-  it('a golden Echo Warden adds two extra summoned tokens', () => {
+  it('a golden Echo Warden echoes each summoned unit twice', () => {
     const a = run(
       [
         { cardId: 'pack', attack: 2, health: 1 }, // Deathrattle: summon two 1/1 Pups
@@ -467,7 +467,7 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     const pups = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
-    expect(pups).toBe(4); // 2 Pups + 2 (golden Echo Warden)
+    expect(pups).toBe(6); // 2 Pups, each echoed twice → 6 (board fills: Echo + 6 = 7)
   });
 
   it('Sylus the Reaper procs a Deathrattle one extra time', () => {

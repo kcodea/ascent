@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Echo Warden now echoes *any* summon.** "In combat, your summon effects summon 1 more copy" — it
+  works for every combat summon (not just token effects), and copies each summoned unit (so 2 Pups
+  become 4 with one Echo Warden).
 - **A win condition.** The PvE climb is now bounded at **20 waves** — survive wave 20 and you reach a
   **Victory** screen (Play Again restarts). "Start Over" is in the Esc menu, and the round clock no
   longer ticks until you've picked your hero.

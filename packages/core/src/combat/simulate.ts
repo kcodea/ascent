@@ -1,5 +1,6 @@
 import type {
   BoardMinion,
+  CardDef,
   CombatContext,
   CombatEvent,
   CombatOutcome,
@@ -91,31 +92,7 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
-    summon: (side, card, nearUid) => {
-      const minion = instantiate(
-        { cardId: card.id, attack: card.attack, health: card.health },
-        side,
-        cards,
-        mkUid,
-      );
-      // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
-      // on the wasted body (the combat half of its recruit overflow buff).
-      if (living(side).length >= 7) {
-        bus.emit('summonOverflow', { side });
-        return minion;
-      }
-      const arr = boards[side];
-      let index = arr.length;
-      if (nearUid) {
-        const near = arr.findIndex((x) => x.uid === nearUid);
-        if (near >= 0) index = near + 1;
-      }
-      arr.splice(index, 0, minion);
-      registerEffects(minion);
-      events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
-      bus.emit('onSummon', { minion, side });
-      return minion;
-    },
+    summon: (side, card, nearUid) => summonMinion(side, card, nearUid, false),
     grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
       // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a
@@ -126,6 +103,37 @@ export function simulate(
       }
     },
   };
+
+  /**
+   * Summon one minion (the single summon chokepoint). Echo Warden: each summoned unit gets one more
+   * copy per living Echo Warden (golden = 2) — recursion-guarded by `isEcho` so the copies don't echo
+   * themselves. Because this lives in the summon path, it applies to *any* summon (token Deathrattles,
+   * `deathrattleFillTribe`'s real minions, Brood Matron, future effects), not just token effects.
+   */
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, isEcho: boolean): Minion {
+    const minion = instantiate({ cardId: card.id, attack: card.attack, health: card.health }, side, cards, mkUid);
+    // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
+    // on the wasted body (the combat half of its recruit overflow buff).
+    if (living(side).length >= 7) {
+      bus.emit('summonOverflow', { side });
+      return minion;
+    }
+    const arr = boards[side];
+    let index = arr.length;
+    if (nearUid) {
+      const near = arr.findIndex((x) => x.uid === nearUid);
+      if (near >= 0) index = near + 1;
+    }
+    arr.splice(index, 0, minion);
+    registerEffects(minion);
+    events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
+    bus.emit('onSummon', { minion, side });
+    if (!isEcho) {
+      const echoes = living(side).reduce((n, m) => n + (m.cardId === 'echo' ? (m.golden ? 2 : 1) : 0), 0);
+      for (let i = 0; i < echoes && living(side).length < 7; i++) summonMinion(side, card, minion.uid, true);
+    }
+    return minion;
+  }
 
   function registerEffects(minion: Minion): void {
     for (const effect of minion.effects) {

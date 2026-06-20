@@ -57,10 +57,12 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       (+3/+3 to a friend), Ember Pouch (gain 1 Ember — *net-neutral as specced; revisit*), Bulwark
       (+0/+1 + Taunt to a friend). Hook usage:
   - `spellCast` event + `state.spellsCast` counter → used by Archmagus Guel (buff 2 others), and now
-    **Spirit Pup → Spirit Worgen** (transform after 10 spells; the Worgen scales +1/+1 per spell, all
-    game). New reusable primitives from it: `spellCastTransform` (threshold transform, keep stats +
-    retroactive per-spell buff), `spellCastBuffSelf`, `summonBuffSelfTribe` — and the first **transform**
-    mechanic (swap `cardId`, keep the instance's stats) + `BoardCard.spellProgress` + `transformProgressText`.
+    **Spirit Pup → Spirit Worgen** (transform after 10 spells; the Worgen gains +X/+X per Beast/Dragon
+    summoned, where X = 1 + spells cast this turn — `RunState.spellsThisTurn`). New reusable primitives:
+    `spellCastTransform` (threshold transform, keep stats, optional retroactive buff), `summonBuffSelfTribe`
+    (self-buff on tribe summon, scaling with spells-this-turn) — and the first **transform** mechanic
+    (swap `cardId`, keep the instance's stats) + `BoardCard.spellProgress` + the live-text helpers
+    (`transformProgressText`, `summonScalingText`).
   - `castSpell` factory → minions that cast a spell from an event (auto-targets the carry) — still unused.
   - `state.spellCostMod` → "your spells cost less" effects (subtracted at buy) — still unused.
   - **Spell-stat amplifiers are fully wired:** `spellStatBonus(state)` is the one source of truth for

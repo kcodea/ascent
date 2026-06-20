@@ -122,7 +122,7 @@ export const BEASTS: CardDef[] = [
     attack: 4,
     health: 6,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastTransform', params: { at: 10, into: 'spiritworgen', retroPerSpell: 1 } }],
+    effects: [{ on: 'spellCast', do: 'spellCastTransform', params: { at: 10, into: 'spiritworgen' } }],
     text: 'Cast **10 spells** with this on board to transform into **Spirit Worgen**.',
   },
   {
@@ -139,9 +139,8 @@ export const BEASTS: CardDef[] = [
     keywords: [],
     token: true,
     effects: [
-      { on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 1, health: 1 } },
       { on: 'onSummon', do: 'summonBuffSelfTribe', params: { tribes: ['beast', 'dragon'], attack: 1, health: 1 } },
     ],
-    text: 'Gains **+1/+1** whenever you summon a **Beast** or **Dragon**, and **+1/+1** for each spell cast this game.',
+    text: 'Gains **+1/+1** each time you summon a **Beast** or **Dragon** — improves per spell cast this turn.',
   },
 ];

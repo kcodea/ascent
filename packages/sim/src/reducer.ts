@@ -361,6 +361,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
+      // Mirror any End-of-Turn gains onto Corrupted Lifebinders *now*, before the combat snapshot —
+      // otherwise a Lifebinder bound to a minion the EoT just buffed (e.g. Combinator → a Mech) would
+      // enter the fight without the gain and only catch up at the next turn's reduce.
+      syncLifebinders(s);
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
       const enemy = buildEnemyBoard(s.threat, s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
@@ -575,6 +579,7 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
   // top of the cap (a deliberate economy card), recomputed each turn so selling it removes it.
   s.embers = s.maxEmbers + boardManaBonus(s);
   s.heroReady = true;
+  s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
   for (const c of s.board) c.resummon = false; // The Reclaimer's mark is a per-turn choice
   if (s.tier < CONFIG.maxTier) {
     s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - CONFIG.upgradeDiscountPerWave);

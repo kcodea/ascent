@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-19
 
+### Lifebinder mirrors End-of-Turn gains before combat + Spirit Worgen reworked to per-turn scaling
+Two fixes from playtest feedback:
+- **Corrupted Lifebinder timing bug.** A Lifebinder bound to a minion that an **End-of-Turn** effect
+  buffs (e.g. Combinator magnetizing onto a Demon/Mech) didn't mirror the gain until the *next* turn —
+  so it fought that combat without it. Root cause: `syncLifebinders` only ran in the reduce wrapper,
+  *after* `faceOmen` had already snapshotted the combat board. Fix: call `syncLifebinders(s)` inside
+  `faceOmen` right after `applyEndOfTurn`, before the snapshot. Now the mirrored gain is in the board
+  the Lifebinder fights with. (Regression test: Ritualist EoT buffs a linked Fred → the Lifebinder is
+  +1 in `lastCombat.initial`.)
+- **Spirit Worgen reworked: per-turn, not per-game** (the old all-game spell buff was too strong, per
+  the user). New text: **"Gains +X/+X each time you summon a Beast or Dragon — improves per spell cast
+  this turn,"** where **X = 1 + spells cast this turn**. So cast 4 spells then play an Alleycat (it +
+  its Stray = 2 Beast summons) → +10/+10. New `RunState.spellsThisTurn` (incremented on cast, reset each
+  wave) drives it; `summonBuffSelfTribe` now scales with it, the transform no longer applies a
+  retroactive buff (it just keeps the Pup's stats), and the card shows its **current** +X/+X live
+  (`summonScalingText`, green). The Pup's "10 spells → transform" countdown is unchanged.
+- Verified: `typecheck` + `lint` clean, `test` **174** pass (Worgen suite rewritten: scales with
+  spells-this-turn, the Alleycat+Stray = +10/+10 case, resets each wave, ignores neutrals; + the
+  Lifebinder timing test). Live: the Worgen reads "+1/+1" → "+5/+5" after 4 spells, and a played Dragon
+  took it 4/6 → 9/11.
+
 ### New minion: Spirit Pup → Spirit Worgen (a transform card + spell payoff)
 First **transform** card, and a meaty spell-synergy build-around (Beast pool 8→9).
 - **Spirit Pup** (T5 **Beast/Dragon**, 4/6): cast **10 spells with it on board** to transform into the

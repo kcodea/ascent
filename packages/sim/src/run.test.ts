@@ -1499,50 +1499,87 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
   const pup = (): BoardCard =>
     ({ uid: 'p', cardId: 'spiritpup', tribe: 'beast', attack: 4, health: 6, keywords: [], golden: false });
   const worgen = (): BoardCard =>
-    ({ uid: 'w', cardId: 'spiritworgen', tribe: 'beast', attack: 14, health: 16, keywords: [], golden: false });
+    ({ uid: 'w', cardId: 'spiritworgen', tribe: 'beast', attack: 4, health: 6, keywords: [], golden: false });
+  const whelp = (uid: string): BoardCard =>
+    ({ uid, cardId: 'whelp', tribe: 'dragon', attack: 1, health: 1, keywords: [], golden: false });
+  const worgenAtk = (s: RunState): number => s.board.find((c) => c.uid === 'w')!.attack;
 
-  it('transforms after 10 spells on board, keeping its stats + applying the retroactive spell buff', () => {
+  it('the Pup transforms after 10 spells on board, keeping its stats (no buff on transform)', () => {
     let s: RunState = { ...createRun(1), board: [pup()], hand: Array.from({ length: 10 }, (_, i) => pouch(i)) };
     for (let i = 0; i < 9; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
     expect(s.board[0]!.cardId).toBe('spiritpup'); // 9 spells — not yet
     expect(s.board[0]!.spellProgress).toBe(9);
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // 10th
-    expect(s.board[0]!.cardId).toBe('spiritworgen'); // transformed
-    expect(s.board[0]!.attack).toBe(14); // 4 kept + 10 retroactive (10 spells this game)
-    expect(s.board[0]!.health).toBe(16);
+    expect(s.board[0]!.cardId).toBe('spiritworgen'); // transformed, stats kept (no retroactive buff)
+    expect(s.board[0]!.attack).toBe(4);
+    expect(s.board[0]!.health).toBe(6);
   });
 
-  it("the Worgen's retroactive buff counts ALL spells this game, not just the 10 toward the transform", () => {
-    // 3 spells cast before the Pup is even on board, then 10 with it → transform → +13/+13 retroactive.
-    let s: RunState = { ...createRun(1), hand: Array.from({ length: 13 }, (_, i) => pouch(i)) };
-    for (let i = 0; i < 3; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // no Pup yet
-    s = { ...s, board: [pup()] };
-    for (let i = 0; i < 10; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    expect(s.board[0]!.cardId).toBe('spiritworgen');
-    expect(s.board[0]!.attack).toBe(4 + 13); // retroactive on the global 13-spell tally
+  it("the Worgen's per-summon gain scales with spells cast this turn (X = 1 + spellsThisTurn)", () => {
+    // No spells this turn → +1/+1 per Beast/Dragon.
+    let s: RunState = { ...createRun(1), board: [worgen()], hand: [whelp('d')] };
+    s = reduce(s, { type: 'play', uid: 'd' });
+    expect(worgenAtk(s)).toBe(5); // 4 + 1
+
+    // 4 spells this turn → +5/+5 per Beast/Dragon.
+    let s2: RunState = { ...createRun(1), board: [worgen()], hand: [...Array.from({ length: 4 }, (_, i) => pouch(i)), whelp('d')] };
+    for (let i = 0; i < 4; i++) s2 = reduce(s2, { type: 'play', uid: s2.hand[0]!.uid });
+    s2 = reduce(s2, { type: 'play', uid: 'd' });
+    expect(worgenAtk(s2)).toBe(4 + 5); // 4 + (1 + 4)
   });
 
-  it('the Worgen gains +1/+1 per spell cast', () => {
-    let s: RunState = { ...createRun(1), board: [worgen()], hand: [pouch(0)] };
-    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    expect(s.board[0]!.attack).toBe(15);
-    expect(s.board[0]!.health).toBe(17);
-  });
-
-  it('the Worgen grows when a Beast/Dragon is summoned, but not a neutral', () => {
-    // Play a Dragon (Ember Whelp) → +1/+1.
+  it('an Alleycat (it + its Stray, both Beasts) buffs the Worgen twice', () => {
+    // 4 spells → X = 5; Alleycat + its 1 Stray = 2 Beast summons → +10/+10 total.
     let s: RunState = {
       ...createRun(1), board: [worgen()],
-      hand: [{ uid: 'd', cardId: 'whelp', tribe: 'dragon', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [...Array.from({ length: 4 }, (_, i) => pouch(i)),
+        { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
     };
-    s = reduce(s, { type: 'play', uid: 'd' });
-    expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(15);
-    // Play a neutral → no change.
-    let n: RunState = {
+    for (let i = 0; i < 4; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    s = reduce(s, { type: 'play', uid: 'a' });
+    expect(worgenAtk(s)).toBe(4 + 10);
+  });
+
+  it('the Worgen ignores a summoned neutral', () => {
+    let s: RunState = {
       ...createRun(1), board: [worgen()],
       hand: [{ uid: 'x', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
     };
-    n = reduce(n, { type: 'play', uid: 'x' });
-    expect(n.board.find((c) => c.uid === 'w')!.attack).toBe(14);
+    s = reduce(s, { type: 'play', uid: 'x' });
+    expect(worgenAtk(s)).toBe(4); // unchanged
+  });
+
+  it('spellsThisTurn resets each wave', () => {
+    let s: RunState = { ...createRun(1), resolve: 100, maxResolve: 100, hand: [pouch(0), pouch(1)] };
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
+    expect(s.spellsThisTurn).toBe(2);
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.spellsThisTurn).toBe(0); // reset on advance to the next wave
+  });
+});
+
+describe('Corrupted Lifebinder End-of-Turn timing (@game/sim)', () => {
+  it("mirrors a linked minion's End-of-Turn gain before combat, not at the next turn", () => {
+    // Lifebinder bound to Fred (a Demon Fodder). A Ritualist's End of Turn buffs all Fodder +1/+1 →
+    // Fred gains; faceOmen must mirror it onto the Lifebinder *before* the combat snapshot so it fights
+    // with the gain (the bug: it only caught up at the next turn's reduce).
+    let s: RunState = {
+      ...createRun(1), resolve: 100, maxResolve: 100,
+      board: [
+        { uid: 'r', cardId: 'ritualist', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false },
+        { uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false },
+        {
+          uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false,
+          linkUid: 'f', linkBase: { attack: 1, health: 1 }, linkApplied: { attack: 0, health: 0 },
+        },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.board.find((c) => c.uid === 'f')!.attack).toBe(2); // Ritualist EoT: Fred 1→2
+    expect(s.board.find((c) => c.uid === 'lb')!.attack).toBe(4); // Lifebinder mirrored +1
+    // And the combat snapshot carried the mirrored Lifebinder (it fought with the gain).
+    expect(s.lastCombat!.initial.player.find((m) => m.cardId === 'lifebinder')?.attack).toBe(4);
   });
 });

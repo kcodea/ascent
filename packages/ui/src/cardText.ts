@@ -32,3 +32,18 @@ export function transformProgressText(cardId: string, spellProgress: number): st
   const at = Number((eff.params as { at?: number })?.at ?? 10);
   return `${def.text} {{${Math.max(0, at - spellProgress)} to go}}`;
 }
+
+/**
+ * Spirit Worgen's per-summon gain scales with spells cast this turn — the printed "+1/+1" is shown as
+ * its current "+X/+X" (X = base + spellsThisTurn), highlighted green, once a spell's been cast this
+ * turn. Returns null otherwise (so it falls back to the printed value).
+ */
+export function summonScalingText(cardId: string, spellsThisTurn: number): string | null {
+  if (spellsThisTurn <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'summonBuffSelfTribe');
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
+  const x = base + spellsThisTurn;
+  return def.text.replace(`+${base}/+${base}`, `{{+${x}/+${x}}}`);
+}

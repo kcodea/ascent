@@ -121,6 +121,8 @@ export interface RunState {
   spell: ShopCard | null;
   /** Spells cast this run — drives spell-tracking minions. */
   spellsCast: number;
+  /** Spells cast this turn (reset each wave) — scales Spirit Worgen's per-summon buff. */
+  spellsThisTurn: number;
   /** Flat reduction to spell purchase costs (min 0) — drives "your spells cost less". */
   spellCostMod: number;
   /** Cards bought but not yet played (Battlegrounds hand). */
@@ -212,6 +214,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     shop: [],
     spell: null,
     spellsCast: 0,
+    spellsThisTurn: 0,
     spellCostMod: 0,
     hand: [],
     board: [],

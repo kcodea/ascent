@@ -251,26 +251,29 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellCastTransform: (ctx, self, params) => {
     self.spellProgress = (self.spellProgress ?? 0) + 1;
     if (self.spellProgress < num(params.at, 10)) return;
-    self.cardId = str(params.into);
+    self.cardId = str(params.into); // swap form (new art + effects), keeping the instance's stats
     self.spellProgress = undefined;
-    const per = num(params.retroPerSpell, 1) * gold(self);
+    // Optional retroactive buff (+retroPerSpell per spell cast this game). Spirit Pup omits it → 0.
+    const per = num(params.retroPerSpell, 0) * gold(self);
     addBuff(self, nameOf(self), ctx.state.spellsCast * per, ctx.state.spellsCast * per);
   },
 
-  /** Spirit Worgen: +atk/+hp on each spell cast (the ongoing half of "+1/+1 per spell cast this
-   *  game" — the retroactive past spells are applied at transform). */
+  /** Available primitive: +atk/+hp on each spell cast (buff self). No card uses it currently. */
   spellCastBuffSelf: (_ctx, self, params) => {
     addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
   },
 
-  /** Spirit Worgen: +atk/+hp when a friendly minion of one of `tribes` is summoned (played or
-   *  token-summoned). Self-targeting; ignores its own arrival. */
-  summonBuffSelfTribe: (_ctx, self, params, { minion }) => {
+  /** Spirit Worgen: when a friendly minion of one of `tribes` is summoned (played or token-summoned),
+   *  gain +X/+X where X = base + spells cast THIS turn — so casting spells this turn improves the
+   *  per-summon gain. Self-targeting; ignores its own arrival. */
+  summonBuffSelfTribe: (ctx, self, params, { minion }) => {
     if (minion === self) return;
     const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
     const def = CARD_INDEX[minion.cardId];
     if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2))) return;
-    addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
+    const x = (num(params.attack, 1) + ctx.state.spellsThisTurn) * gold(self);
+    const y = (num(params.health, 1) + ctx.state.spellsThisTurn) * gold(self);
+    addBuff(self, nameOf(self), x, y);
   },
 
   /** Archmagus Guel: after a tavern spell is cast, give `count` *other* friendly minions +atk/+hp.
@@ -410,6 +413,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
     applyCastEffects(ctx, spellDef, target);
     ctx.state.spellsCast += 1;
+    ctx.state.spellsThisTurn += 1;
   },
 };
 
@@ -684,6 +688,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
     if (effect.on === 'cast' && effect.do === 'gainEmbers') state.embers += num(effect.params?.amount);
   }
   state.spellsCast += 1;
+  state.spellsThisTurn += 1;
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;

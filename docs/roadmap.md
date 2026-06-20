@@ -48,6 +48,30 @@ the order we ship it in. (Heroes/cards are data, so small ones can land continuo
 Shop/Hand/Board subcomponents if it grows past ~1.5k; split `run.test.ts` (~1.3k) into per-area suites
 as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions land. No urgent debt.
 
+## Next up — tabled 2026-06-19 (do these next session)
+
+- [ ] **Spirit Worgen procs in combat too** (temporary). Today its "+X/+X per Beast/Dragon summoned"
+      (X = 1 + spellsThisTurn) is **recruit-only** (`summonBuffSelfTribe` bakes into the run board). Make
+      it also fire when a friendly Beast/Dragon is summoned **during combat** (deathrattle tokens, Brood
+      Matron breeds, …). Combat gains should be **temporary** — reset at the start of the next shop
+      phase (which is automatic, since combat is a sim and the recruit board is untouched, *unless* the
+      new T6 below carries them back). Build: a combat-side `onSummon` factory in `@game/core` mirroring
+      the recruit one; thread the current X (1 + spellsThisTurn at faceOmen) into the combat snapshot so
+      it knows the magnitude. **Clarify with user:** they wrote "reset back to **1/1**" — confirm that
+      means "back to its recruit-phase stats" (my read) vs. literally 1/1 in combat.
+- [ ] **New T6 — "adjacent units keep combat buffs permanently."** A Tier-6 minion whose **board
+      neighbours** (left/right) keep the stat buffs they accrued **in combat** — i.e. combat gains carry
+      onto the recruit board after the fight (normally combat is a sim and gains are dropped). Precedent
+      for combat→recruit carry-back: `result.playerSummonBonus` (Kennelmaster's Avenge). Build a similar
+      carry-back in `advanceAfterCombat` for the T6's neighbours (capture each neighbour's combat-final
+      stat delta, apply to its run board card). Pairs with the Worgen combat proc above (a Worgen next to
+      it keeps its combat gains). Needs a **name + tribe + art** (placeholder ok).
+- [ ] **End-of-run screen: single-row layout + ~30% bigger.** The W/L pip strip should be **one row**
+      (no wrap — `.endpips` is `flex-wrap: wrap`; switch to nowrap, shrink/scale so 20 fit). The final
+      warband should be **one row** (no wrap — `.endboard` is `flex-wrap: wrap` + `zoom: 0.42`; switch to
+      nowrap and tune `zoom` so all 7 fit one row). Increase everything **~30%**. ("We'll expand this
+      later," so keep it flexible.)
+
 ## M2 — content + balance (in progress)
 
 - [ ] **Enemy-strength curve tool** (the way we'll actually balance — not the old mono-tribe matrix

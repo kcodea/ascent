@@ -18,6 +18,7 @@
     "harness": "tsx packages/tools/src/combat-harness.ts",
     "bot": "tsx packages/tools/src/run-harness.ts",
     "balance": "tsx packages/tools/src/balance.ts",
+    "audit": "tsx packages/tools/src/card-audit.ts",
     "dev": "npm run dev -w apps/web",
     "build:web": "npm run build -w apps/web",
     "package:itch": "npm run build:web && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-itch.ps1",

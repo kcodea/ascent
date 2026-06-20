@@ -50,15 +50,12 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Next up — tabled 2026-06-19 (do these next session)
 
-- [ ] **Spirit Worgen procs in combat too** (temporary). Today its "+X/+X per Beast/Dragon summoned"
-      (X = 1 + spellsThisTurn) is **recruit-only** (`summonBuffSelfTribe` bakes into the run board). Make
-      it also fire when a friendly Beast/Dragon is summoned **during combat** (deathrattle tokens, Brood
-      Matron breeds, …). Combat gains should be **temporary** — reset at the start of the next shop
-      phase (which is automatic, since combat is a sim and the recruit board is untouched, *unless* the
-      new T6 below carries them back). Build: a combat-side `onSummon` factory in `@game/core` mirroring
-      the recruit one; thread the current X (1 + spellsThisTurn at faceOmen) into the combat snapshot so
-      it knows the magnitude. **Clarify with user:** they wrote "reset back to **1/1**" — confirm that
-      means "back to its recruit-phase stats" (my read) vs. literally 1/1 in combat.
+- [x] **Spirit Worgen procs in combat too** (done 2026-06-20). A combat-side `summonBuffSelfTribe`
+      factory in `@game/core` now fires when a friendly Beast/Dragon is summoned mid-fight, +X/+X where
+      X = 1 + spellsThisTurn (threaded into `simulate` + `CombatContext`). Gains are temporary —
+      combat's a sim, so the run board is untouched and the Worgen is back to its recruit stats next
+      shop (until the T6 below carries them back). **Interpreted "reset back to 1/1" as "back to its
+      recruit-phase stats"** (combat gains drop) — confirm if you meant a literal 1/1 combat base.
 - [ ] **New T6 — "adjacent units keep combat buffs permanently."** A Tier-6 minion whose **board
       neighbours** (left/right) keep the stat buffs they accrued **in combat** — i.e. combat gains carry
       onto the recruit board after the fight (normally combat is a sim and gains are dropped). Precedent
@@ -77,9 +74,11 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 - [ ] **Enemy-strength curve tool** (the way we'll actually balance — not the old mono-tribe matrix
       runner, which is deprioritized per the user). Build a way to tune how fast enemy boards scale
       per wave so the climb's difficulty ramp feels right. Design TBD.
-- [ ] **More spells + spell-synergy cards.** Three T1 spells now rotate in the slot: Spirit Fire
-      (+3/+3 to a friend), Ember Pouch (gain 1 Ember — *net-neutral as specced; revisit*), Bulwark
-      (+0/+1 + Taunt to a friend). Hook usage:
+- [ ] **More spells + spell-synergy cards — target ~40 spells** (set 2026-06-20; spells are a core
+      pillar, only 3 exist so far). Spread across tiers; deepen the archetype (Spirit Pup→Worgen, the
+      Rohan/Spellbinder hero). Three T1 spells rotate in the slot today: Spirit Fire (+3/+3 to a friend),
+      Ember Pouch (gain 1 Ember — *net-neutral as specced; revisit*), Bulwark (+0/+1 + Taunt to a friend).
+      Hook usage:
   - `spellCast` event + `state.spellsCast` counter → used by Archmagus Guel (buff 2 others), and now
     **Spirit Pup → Spirit Worgen** (transform after 10 spells; the Worgen gains +X/+X per Beast/Dragon
     summoned, where X = 1 + spells cast this turn — `RunState.spellsThisTurn`). New reusable primitives:

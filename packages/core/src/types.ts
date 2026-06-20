@@ -273,6 +273,8 @@ export interface CombatContext {
   readonly bus: CombatBus;
   readonly boards: Record<Side, Minion[]>;
   readonly events: CombatEvent[];
+  /** Spells cast this turn (recruit), frozen at combat start — scales Spirit Worgen's in-combat buff. */
+  readonly spellsThisTurn: number;
   log(event: CombatEvent): void;
   living(side: Side): Minion[];
   getCard(id: string): CardDef;

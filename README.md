@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Spirit Worgen now procs in combat too.** Its **+X/+X per Beast/Dragon summoned** (X = 1 + spells
+  cast this turn) used to fire only in the shop; now a friendly Beast/Dragon summoned **mid-fight**
+  (deathrattle tokens, etc.) triggers it as well — those combat gains are temporary, resetting next shop.
+  (Spells are now a core pillar with a **~40-spell** pool target.)
 - **Spirit Pup → Spirit Worgen** (T5 Beast/Dragon) — the first **transform** card. Cast 10 spells with
   the Pup on board (a live "N to go" countdown) and it becomes the Worgen, which gains **+X/+X each time
   you summon a Beast or Dragon**, where X grows with **spells cast that turn** (cast 4, then an Alleycat

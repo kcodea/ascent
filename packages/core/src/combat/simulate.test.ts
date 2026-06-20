@@ -91,6 +91,21 @@ describe('simulate (handoff A.3)', () => {
     expect(pups).toBeGreaterThanOrEqual(1); // a Pup filled the freed slot
   });
 
+  it('Spirit Worgen procs in combat: +X/+X per Beast/Dragon summoned, X = 1 + spellsThisTurn', () => {
+    // spellsThisTurn = 4 → X = 5. Pack Scrounger (Deathrattle: 2 Beast Pups) dies → 2 summons → +5/+5 each.
+    const p: BoardMinion[] = [
+      { cardId: 'spiritworgen', attack: 4, health: 50 }, // tanky so it survives to receive both buffs
+      { cardId: 'pack', attack: 1, health: 1 }, // dies fast → 2 Pups (Beasts)
+    ];
+    const r = simulate(p, [{ cardId: 'sandbag', attack: 2, health: 10 }], makeRng(7), CARD_INDEX, 4);
+    const worgenBuffs = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen');
+    expect(worgenBuffs.length).toBe(2); // one per summoned Pup
+    expect(worgenBuffs.every((b) => b.type === 'buff' && b.attack === 5 && b.health === 5)).toBe(true);
+    // With no spells that turn, the same board gives +1/+1 each.
+    const base = simulate(p, [{ cardId: 'sandbag', attack: 2, health: 10 }], makeRng(7), CARD_INDEX);
+    expect(base.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen' && ev.attack === 1).length).toBe(2);
+  });
+
   it('a golden Arcane Weaver grants two Spirit Fires; an enemy Weaver grants the player none', () => {
     const golden = run([{ cardId: 'weaver', attack: 1, health: 1, golden: true }], [{ cardId: 'sandbag', attack: 5, health: 5 }], 5);
     expect(golden.playerHandGrants).toEqual(['spiritfire', 'spiritfire']);

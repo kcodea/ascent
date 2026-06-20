@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-20
+
+### Spirit Worgen procs in combat too + spell-pool target set to ~40
+- **Worgen combat proc.** The Worgen's "+X/+X per Beast/Dragon summoned" was **recruit-only**; now it
+  also fires **mid-fight** when a friendly Beast/Dragon is summoned (deathrattle tokens, etc.). Added a
+  **combat-side `summonBuffSelfTribe`** factory in `@game/core` (the same effect id already had a
+  recruit factory — so the one card def fires in both phases). X = `1 + spellsThisTurn`, threaded into
+  combat via a new optional `simulate(..., spellsThisTurn = 0)` param + `CombatContext.spellsThisTurn`
+  (frozen at combat start; faceOmen passes `s.spellsThisTurn`). The combat gains are **temporary** —
+  combat is a simulation, so they never touch the run board and the Worgen is back to its recruit stats
+  next shop. Interpreted the user's "reset back to 1/1" as "back to its recruit-phase stats" (flagged to
+  confirm). The eventual T6 ("adjacent units keep combat buffs") will be what carries these back.
+- **Spell-pool target: ~40** (was 3). Recorded in `card-audit` (a `need` column for spells) + the
+  roadmap — spells are a core pillar feeding the Pup/Worgen + Rohan archetype, so the pool wants depth
+  across tiers.
+- Verified: `typecheck` + `lint` clean, `test` **176** pass (+3: combat proc scales +5/+5 with 4 spells
+  / +1/+1 with none, and the gain is temporary — run board unchanged after combat); determinism harness
+  OK (existing callers default `spellsThisTurn` to 0). *(Live check skipped — it's a combat-internal
+  effect the buff-event tests cover directly; the dev server was down with the user away.)*
+
 ## 2026-06-19
 
 ### Lifebinder mirrors End-of-Turn gains before combat + Spirit Worgen reworked to per-turn scaling

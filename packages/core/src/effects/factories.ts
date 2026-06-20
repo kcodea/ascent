@@ -62,6 +62,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(minion, num(params.attack) + bonus, num(params.health) + bonus, self.uid);
   },
 
+  /** Spirit Worgen (combat half): when a friendly minion of one of `tribes` is summoned mid-fight,
+   *  gain +X/+X where X = base + spells cast this turn (frozen at combat start). Temporary — combat is
+   *  a simulation, so the gain doesn't touch the run board and the Worgen is back to its recruit stats
+   *  next shop. (The recruit half of the same effect id buffs permanently when you play a Beast/Dragon.) */
+  summonBuffSelfTribe: (ctx, self, params, payload) => {
+    const { minion, side } = payload as MinionPayload;
+    if (self.dead || side !== self.side || minion === self) return;
+    const tribes = Array.isArray(params.tribes) ? (params.tribes as Tribe[]) : [];
+    if (!tribes.includes(minion.tribe) && !(minion.tribe2 && tribes.includes(minion.tribe2))) return;
+    const x = (num(params.attack, 1) + ctx.spellsThisTurn) * mul(self);
+    const y = (num(params.health, 1) + ctx.spellsThisTurn) * mul(self);
+    ctx.buff(self, x, y, self.name);
+  },
+
   /** Deathrattle: buff all living friends of `tribe` (+atk/+hp). */
   deathrattleBuffTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;

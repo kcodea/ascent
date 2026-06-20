@@ -28,6 +28,7 @@ export function simulate(
   enemy: BoardMinion[],
   rng: Rng,
   cards: CardIndex,
+  spellsThisTurn = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -74,6 +75,7 @@ export function simulate(
     bus,
     boards,
     events,
+    spellsThisTurn,
     log: (event) => {
       events.push(event);
     },

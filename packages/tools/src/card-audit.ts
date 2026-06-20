@@ -33,13 +33,14 @@ for (const tribe of TRIBES) {
 const colTot = TIERS.map((t) => TRIBES.reduce((s, tribe) => s + (grid[tribe]![t] ?? 0), 0));
 console.log(pad('TOTAL', 7) + ' ' + colTot.map((n) => pad(n, 4)).join('') + '   ' + pad(colTot.reduce((a, b) => a + b, 0), 3));
 
-console.log('\nSPELLS — by tier\n');
+const SPELL_TARGET = 40;
+console.log('\nSPELLS — by tier (target ~' + SPELL_TARGET + ')\n');
 const spellByTier = Object.fromEntries(TIERS.map((n) => [n, 0]));
 for (const s of SPELL_CARDS) spellByTier[s.tier] = (spellByTier[s.tier] ?? 0) + 1;
-console.log('       ' + TIERS.map((t) => pad('T' + t, 4)).join('') + '   tot');
-console.log(pad('spells', 7) + ' ' + TIERS.map((t) => pad(spellByTier[t] ?? 0, 4)).join('') + '   ' + pad(SPELL_CARDS.length, 3));
+console.log('       ' + TIERS.map((t) => pad('T' + t, 4)).join('') + '   tot   need');
+console.log(pad('spells', 7) + ' ' + TIERS.map((t) => pad(spellByTier[t] ?? 0, 4)).join('') + '   ' + pad(SPELL_CARDS.length, 3) + '   ' + pad('+' + Math.max(0, SPELL_TARGET - SPELL_CARDS.length), 4));
 
 console.log(`\nDuals: ${duals.length ? duals.join(', ') : 'none'}`);
 console.log(`Sanity: buyable=${BUYABLE_CARDS.length}, spells=${SPELL_CARDS.length}, tokens=${TOKENS.length}, enemy=${ENEMY.length}`);
-console.log(`Target: ${TARGET_LO}-${TARGET_HI} minions per tribe (incl. neutral), weighted toward tiers 3-5.`);
+console.log(`Target: ${TARGET_LO}-${TARGET_HI} minions per tribe (incl. neutral) + ~${SPELL_TARGET} spells, weighted toward tiers 3-5.`);
 console.log('(Run-to-run variety comes from heroes + quests/trinkets, not pool size.)\n');

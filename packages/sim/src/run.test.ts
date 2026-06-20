@@ -1558,6 +1558,22 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.spellsThisTurn).toBe(0); // reset on advance to the next wave
   });
+
+  it("the Worgen's in-combat gains are temporary (run board unchanged next shop)", () => {
+    // Pack Scrounger's combat Deathrattle summons Beast Pups → the Worgen procs in combat, but combat
+    // is a sim, so the run-board Worgen returns to its stats next shop.
+    let s: RunState = {
+      ...createRun(1), wave: 15, resolve: 100, maxResolve: 100, spellsThisTurn: 4, // tanky wave → the Pack dies + summons
+      board: [
+        { uid: 'w', cardId: 'spiritworgen', tribe: 'beast', attack: 4, health: 50, keywords: [], golden: false },
+        { uid: 'pk', cardId: 'pack', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.source === 'Spirit Worgen')).toBe(true); // procced in combat
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(4); // …but the run board is unchanged
+  });
 });
 
 describe('Corrupted Lifebinder End-of-Turn timing (@game/sim)', () => {

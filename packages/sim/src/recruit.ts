@@ -59,7 +59,7 @@ function pickRandom<T>(state: RunState, arr: T[], n: number): T[] {
  * keyword grants (0/0) mutate nothing here and aren't listed. Base stats are never recorded.
  */
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
-  card.attack += attack;
+  card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
   if (attack === 0 && health === 0) return;
   card.buffs ??= [];
@@ -153,7 +153,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   battlecrySummon: (ctx, self, params) => {
     const token = CARD_INDEX[str(params.tokenId)];
     if (!token) return;
-    const count = num(params.count, 1);
+    const count = num(params.count, 1) * gold(self); // golden doubles the count (Alleycat 1 → 2, Shaper 2 → 4)
     for (let i = 0; i < count; i++) ctx.summon(token, self.uid);
   },
 
@@ -218,8 +218,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   // --- Demons (Consume, recruit-resolved: bakes into stats before combat) ---
 
-  /** Soulfeeder: Battlecry — queue Fodder (Fred) into the *next* tavern refresh (golden adds 2). */
-  battlecryAddTavernFodder: (ctx, self, params) => {
+  /** Queue Fodder (Fred) into the *next* tavern refresh (golden adds 2). Soulfeeder fires it on
+   *  Battlecry; Maw of the Pit fires it at End of Turn. */
+  addTavernFodder: (ctx, self, params) => {
     const count = num(params.count, 1) * gold(self);
     const id = str(params.tokenId) || 'fred';
     (ctx.state.pendingTavern ??= []).push(...Array(count).fill(id));
@@ -404,11 +405,44 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (kw && !self.keywords.includes(kw as Keyword)) self.keywords.push(kw as Keyword);
   },
 
+  /** Growth — cast: buff EVERY friendly minion on the board. Untargeted (runs without a picked target);
+   *  scales with spell power like every stat spell (folded through spellStatBonus). */
+  spellBuffAll: (ctx, _self, params) => {
+    let attack = num(params.attack);
+    let health = num(params.health);
+    if (attack > 0 || health > 0) {
+      const bonus = spellStatBonus(ctx.state);
+      attack += bonus;
+      health += bonus;
+    }
+    const source = str(params._source) || 'Growth';
+    for (const card of ctx.state.board) addBuff(card, source, attack, health);
+  },
+
+  /** Channeling the Devourer — cast: devour the targeted friendly minion (`self`, removed from the
+   *  board) and spit its stats onto a RANDOM other friend. It transfers existing stats, so it does NOT
+   *  scale with spell power; the `singleCast` flag on its card keeps spell-quantity multipliers from
+   *  devouring twice. Records `devourFx` so the UI can fling the stats over as a projectile. */
+  spellDevour: (ctx, self) => {
+    const board = ctx.state.board;
+    const idx = board.indexOf(self);
+    if (idx < 0) return;
+    const attack = self.attack;
+    const health = self.health;
+    board.splice(idx, 1); // devour the chosen minion
+    if (board.length === 0) return; // nothing left to feed
+    const rng = makeRng(ctx.state.rngCursor);
+    const recipient = board[rng.int(board.length)]!;
+    ctx.state.rngCursor = rng.state();
+    addBuff(recipient, 'Channeling the Devourer', attack, health);
+    ctx.state.devourFx = { toUid: recipient.uid, attack, health };
+  },
+
   /** A minion casts a named spell from an event, auto-targeting the carry (the
    *  highest-attack friend). Counts the cast but doesn't re-fire spellCast (no recursion). */
   castSpell: (ctx, self, params) => {
     const spellDef = CARD_INDEX[str(params.spellId)];
-    if (!spellDef) return;
+    if (!spellDef || spellDef.singleCast) return; // singleCast spells (Devourer) never multi-fire
     const friends = ctx.state.board.filter((c) => c !== self);
     const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
     applyCastEffects(ctx, spellDef, target);
@@ -438,7 +472,7 @@ export function spellDisplayText(cardId: string, bonus: number): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   if (bonus <= 0) return def.text;
-  const eff = def.effects.find((e) => e.do === 'spellBuffTarget');
+  const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');
   if (!eff) return def.text;
   const ba = Number((eff.params as { attack?: number } | undefined)?.attack ?? 0);
   const bh = Number((eff.params as { health?: number } | undefined)?.health ?? 0);
@@ -448,11 +482,12 @@ export function spellDisplayText(cardId: string, bonus: number): string {
 
 /** Apply a spell's `cast` effects to its chosen target. The spell's name is injected as `_source`
  *  so target buffs (Spirit Fire) record it for the inspect breakdown. */
-function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target: BoardCard): void {
+function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: BoardCard): void {
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
-    if (fn) fn(ctx, target, { ...(effect.params ?? {}), _source: spellDef.name }, { minion: target });
+    // Board-wide cast effects (Growth) ignore `self`; targeted ones (Spirit Fire) always get a target.
+    if (fn) fn(ctx, target as BoardCard, { ...(effect.params ?? {}), _source: spellDef.name }, { minion: target as BoardCard });
   }
 }
 
@@ -681,7 +716,7 @@ export function consumeTavernFodder(state: RunState): void {
  */
 export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {
   const ctx = makeContext(state);
-  if (target) applyCastEffects(ctx, spellDef, target);
+  applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target
   // Untargeted "run" cast effects (e.g. Ember Pouch) act on the run, not a minion.
   // Embers are uncapped within a turn (like selling), so no max-embers clamp here.
   for (const effect of spellDef.effects) {

@@ -3,6 +3,60 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-21
+
+### Content + combat + UX batch — spells, hero-power triples, juice, cursors, art (M2)
+A large multi-session batch, committed together. Highlights by area:
+
+**Spells & the cast system.** A spell-power-aware cast pipeline (`castSpell` → `applyCastEffects`
+iterating `cast` effects; `spellStatBonus` amplifies stat grants — e.g. the Spellbinder hero). Two new
+spells: **Growth** (T4 neutral, +3/+4 to your whole board, **scales with spell power**) and
+**Channeling the Devourer** (T5 neutral, `singleCast`: devour a targeted friendly minion and transfer
+its full stats to a random *other* friend, animated as a GSAP stat-projectile). The `singleCast` flag
+(schema + `CardDef` + the cast factory) blocks spell-quantity multipliers from double-firing the
+devour. **Spirit Fire** retuned to T2 +4/+4. Display text substitutes the spell-power-boosted "+A/+B"
+with a highlight (`spellBuffAll` now included alongside `spellBuffTarget`).
+
+**Triples after hero powers (bug fix).** Every card-adding path (`buy` / `play` / `chooseOne` /
+`battlecryTarget` / `discover`) ran `checkTriples`, but the `heroPower` case did not — so Myra's
+Encore summoning a 3rd Stray (a replayed Alleycat Battlecry) never combined into a golden. Added
+`checkTriples` to the heroPower case; safe because `replayBattlecry` / `replayEndOfTurn` resolve with
+an auto-target fallback and never leave a pending pick. Regression test added (`run.test.ts`).
+
+**Combat rules & juice.** 0-Attack units skip their attack (no dead swing) and Attack now clamps at 0
+(no negatives). **GSAP attack lunge** — wind-up → strike (`power3.in`) → defender knockback → elastic
+settle, with GSAP owning the attacker transform so React never fights it. **Flowing Monk's** mid-combat
++X/+X gifts are now permanent (carried back to the run board as a tracked buff). **Death reflow**
+reworked from a two-phase JS FLIP (death pop one beat, slide the next — read as janky) to a single
+synchronized CSS slot-collapse: the dying `.unit` collapses its own flex slot (width→0; a −22px end
+margin swallows one row-gap so the eventual unmount doesn't snap) *as* it plays the death pop, so the
+survivors glide into the gap in one phase. Verified smooth with an `offsetLeft` sampler (max ~21px /
+frame, zero >40px jumps; the old behaviour snapped ~125px). Reborn-safe — a reborning minion emits
+only `reborn`, never `death`, so it never gets the collapsing class.
+
+**UI/UX.** Round timer reworked: **18s on wave 1, +4s/round, cap 80**. End screen gained the **hero
+portrait** + right-click/hover board **inspect**. Cursor fixes: hero-select flicker, and the
+end-screen cards + Play-Again button now use the **gauntlet cursors** (they were pinned to the OS
+`default` / `pointer`). Top-UI **tooltip z-index** (tips no longer hide behind elements); the hero
+panel no longer shrinks on power-select (larger art); a more detailed **procs log** (Echo Warden impact
+attributed); the **warband holds its position shop→combat** (the rope no longer pushes it down; rope
+re-centered); hand cards sit a bit lower.
+
+**Maw of the Pit** reworked → "at the end of your turn, add a Fodder to the next refresh."
+
+**Content removals/renames.** Removed Ghastweaver, Plaguebringer, Bristleback Matron, Ravening
+Glutton; Pack Scrounger → **Mama Pup**.
+
+**Art wired.** Mama Pup, Omega Bulwark, Maw, **Gnasher** (`gnash`), **Karwind** re-pointed to the new
+**Karwind2**, Growth, Devourer (+ pup / pup2 / junk / selfless / pack variants).
+
+**Tooling.** Added **GSAP** (`gsap` 3.x) to `@game/ui`. Added **context7** as a project MCP server
+(`.mcp.json`, hosted HTTP transport) for up-to-date library docs.
+
+Verified: typecheck + lint clean; **183** tests pass (incl. the new hero-power-triple regression); live
+— end-screen cursors (computed-style), gnash + Karwind2 art rendering, the reflow `offsetLeft` sampler,
+and both new spells casting correctly.
+
 ## 2026-06-20
 
 ### Board snapshot + replay pipeline (M3 — difficulty learns from real boards · step 2)

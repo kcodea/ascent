@@ -6,6 +6,7 @@ import { summonBuffText, summonScalingText, transformProgressText } from './card
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
+import gsap from 'gsap';
 import { useGame } from './store';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
@@ -17,7 +18,7 @@ const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a d
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
-const TURN_SECONDS = 30; // base round timer (wave 1); grows +5s/wave, capped at 70 (see turnSeconds)
+const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
 const RING = 2 * Math.PI * 17; // countdown ring circumference
 
 /** Cards that reference another card → hovering shows it as a popup. The token a card summons /
@@ -25,7 +26,7 @@ const RING = 2 * Math.PI * 17; // countdown ring circumference
  *  *current* buffed Fodder for Ritualist & co). */
 const CARD_REFERENCES: Record<string, string[]> = {
   alley: ['stray'], shaper: ['stray'], pack: ['pup'], brood: ['impscrap'], combinator: ['cling'],
-  feed: ['fred'], imp: ['fred'], ritualist: ['fred'], maw: ['fred'], glut: ['fred'], pact: ['fred'],
+  feed: ['fred'], imp: ['fred'], ritualist: ['fred'], maw: ['fred'],
 };
 /** A referenced token's card view. Fodder ('fred') folds in Ritualist's persistent buff so the
  *  popup shows its current stats. */
@@ -130,9 +131,9 @@ export function Recruit() {
   // real value. One source of truth shared with the reducer's cast math.
   const spellBonus = spellStatBonus(run);
 
-  // Round timer grows +5s each wave, capped at 70s. (Recruit now stays mounted across
+  // Round timer grows +4s each wave, capped at 80s. (Recruit now stays mounted across
   // combat, so the per-wave reset is an effect keyed on the wave — see below.)
-  const turnSeconds = Math.min(70, TURN_SECONDS + (run.wave - 1) * 5);
+  const turnSeconds = Math.min(80, TURN_SECONDS + (run.wave - 1) * 4);
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
@@ -158,6 +159,41 @@ export function Recruit() {
   // A one-shot spark burst at a screen point, fired when a spell is cast.
   const [spark, setSpark] = useState<{ x: number; y: number; key: number } | null>(null);
   const sparkKeyRef = useRef(0);
+  // Channeling the Devourer: a stat "projectile" flung from the devoured minion to its random recipient.
+  const [devourBolt, setDevourBolt] = useState<
+    { fromX: number; fromY: number; toUid: string; attack: number; health: number; key: number } | null
+  >(null);
+  const devourBoltRef = useRef<HTMLDivElement>(null);
+  // Animate the Devourer bolt: the +A/+B mote arcs from the devoured minion to its recipient, then bursts
+  // (a spark on arrival). The recipient's stats already jumped on cast — the bolt sells the transfer.
+  useEffect(() => {
+    if (!devourBolt) return;
+    const el = devourBoltRef.current;
+    if (!el) return;
+    const recip = document.querySelector(`[data-zone="warband"] .row.warband .card[data-uid="${devourBolt.toUid}"]`);
+    const r = recip?.getBoundingClientRect();
+    const toX = r ? r.left + r.width / 2 : devourBolt.fromX;
+    const toY = r ? r.top + r.height / 2 : devourBolt.fromY;
+    const tl = gsap.timeline({
+      onComplete: () => {
+        sparkKeyRef.current += 1;
+        const k = sparkKeyRef.current;
+        setSpark({ x: toX, y: toY, key: k });
+        window.setTimeout(() => setSpark((s) => (s?.key === k ? null : s)), 600);
+        setDevourBolt(null);
+      },
+    });
+    tl.fromTo(
+      el,
+      { x: devourBolt.fromX, y: devourBolt.fromY, xPercent: -50, yPercent: -50, scale: 0.5, opacity: 0 },
+      { opacity: 1, scale: 1, duration: 0.12, ease: 'power2.out' },
+    )
+      .to(el, { x: toX, y: toY, duration: 0.32, ease: 'power2.in' })
+      .to(el, { scale: 1.5, opacity: 0, duration: 0.12, ease: 'power1.in' });
+    return () => {
+      tl.kill();
+    };
+  }, [devourBolt]);
   // A small dust puff where you click the empty board (not a card/control) — pure tactile feel.
   const [dust, setDust] = useState<{ x: number; y: number; key: number } | null>(null);
   const dustKeyRef = useRef(0);
@@ -651,7 +687,7 @@ export function Recruit() {
     for (const c of [...run.board, ...run.hand]) {
       const cur = c.attack + c.health;
       next.set(c.uid, cur);
-      if (prev.has(c.uid) && cur > (prev.get(c.uid) ?? 0)) newly.push(c.uid);
+      if (!inCombat && prev.has(c.uid) && cur > (prev.get(c.uid) ?? 0)) newly.push(c.uid);
     }
     // Tavern offers can be buffed too (the hero power can Fortify a shop minion) —
     // track their effective stats (base + the stored offer buff) so they flash as well.
@@ -660,20 +696,30 @@ export function Recruit() {
       if (!base) continue;
       const cur = base.attack + (o.atk ?? 0) + base.health + (o.hp ?? 0);
       next.set(o.uid, cur);
-      if (prev.has(o.uid) && cur > (prev.get(o.uid) ?? 0)) newly.push(o.uid);
+      if (!inCombat && prev.has(o.uid) && cur > (prev.get(o.uid) ?? 0)) newly.push(o.uid);
     }
     prevStatsRef.current = next;
+    // While the combat arena is up, keep the baseline synced (so re-entering recruit doesn't read a
+    // stale jump) but never flash — and wipe any flashes still pending from the End-of-Turn buff that
+    // fired at "Face the Omen", so they can't reappear as a phantom green glow next round.
+    if (inCombat) {
+      setBuffedUids((s) => (s.size ? new Set() : s));
+      return;
+    }
     if (newly.length === 0) return;
     setBuffedUids((s) => new Set([...s, ...newly]));
-    const t = window.setTimeout(() => {
+    // Self-clearing timer — deliberately NOT cancelled in cleanup. If it were, a buff quickly followed
+    // by another board change (a buy/play, or the phase flip into combat) would cancel the clear and
+    // leave the card stuck green. Letting each timer fire guarantees every flash ends on its own.
+    window.setTimeout(() => {
       setBuffedUids((s) => {
+        if (newly.every((u) => !s.has(u))) return s;
         const n = new Set(s);
         for (const u of newly) n.delete(u);
         return n;
       });
     }, 700);
-    return () => window.clearTimeout(t);
-  }, [run.board, run.hand, run.shop]);
+  }, [run.board, run.hand, run.shop, inCombat]);
 
   // A freshly-played minion with a Battlecry gets a one-shot flourish beneath it. Diff the
   // board's uids; a new card whose def has an onPlay effect (or Choose One) just fired its
@@ -972,6 +1018,20 @@ export function Recruit() {
       if (d.view.target === 'friendly') {
         const targetUid = boardUidAt(x, y) ?? (up ? carryUid() : undefined);
         if (!targetUid) return false; // no friendly minion to cast on
+        if (d.view.cardId === 'devour') {
+          // Capture the devoured minion's centre BEFORE the cast removes it, then fling its stats over.
+          const el = document.querySelector(`[data-zone="warband"] .row.warband .card[data-uid="${targetUid}"]`);
+          const r = el?.getBoundingClientRect();
+          const fromX = r ? r.left + r.width / 2 : x;
+          const fromY = r ? r.top + r.height / 2 : y;
+          dispatch({ type: 'play', uid: d.uid, targetUid });
+          const fx = useGame.getState().run.devourFx;
+          if (fx) {
+            sparkKeyRef.current += 1;
+            setDevourBolt({ fromX, fromY, toUid: fx.toUid, attack: fx.attack, health: fx.health, key: sparkKeyRef.current });
+          }
+          return true;
+        }
         dispatch({ type: 'play', uid: d.uid, targetUid });
         sparkAtUid(targetUid, x, y); // spark bursts on the minion it hit
         return true;
@@ -1007,49 +1067,54 @@ export function Recruit() {
     >
       <HudBar />
 
-      {!inCombat && (
-      <div className="rtimer" data-low={seconds <= 5} title="Time left this turn — at 0 your actions lock; hit End Turn to fight">
-        <svg viewBox="0 0 40 40">
-          <circle className="rt-bg" cx="20" cy="20" r="17" />
-          <circle
-            className="rt-fg"
-            cx="20"
-            cy="20"
-            r="17"
-            style={{ strokeDasharray: RING, strokeDashoffset: RING * (1 - Math.max(0, seconds) / turnSeconds) }}
-          />
-        </svg>
-        <span className="rt-n">{Math.max(0, seconds)}</span>
-      </div>
-      )}
-
       {!fighting ? (
-      <div className={`shopctl${inCombat ? ' closing' : ''}`}>
-        <span className="tavernbox">
-          <Icon name="house" />
-          Tavern · Tier <b>{run.tier}</b>
-        </span>
-        <button className="btn big" disabled={run.embers < CONFIG.refreshCost || timeUp} onClick={() => dispatch({ type: 'roll' })}>
-          <Icon name="refresh" />
-          Refresh <span className="c">{CONFIG.refreshCost}</span>
-        </button>
-        <button className={`btn big${run.frozen ? ' frozen' : ''}`} disabled={timeUp} onClick={() => dispatch({ type: 'freeze' })}>
-          <Icon name="freeze" />
-          Freeze
-        </button>
-        <button
-          className="btn big tavernup"
-          disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp}
-          onClick={() => dispatch({ type: 'upgrade' })}
-        >
-          <Icon name="house" />
-          {run.tier >= CONFIG.maxTier ? 'Tavern MAX' : (
-            <>
-              Tavern Up <span className="c"><Icon name="mana" />{run.upgradeCost}</span>
-            </>
-          )}
-        </button>
-        <button className={`btn big endturn${timeUp ? ' urgent' : ''}`} onClick={endTurn}>
+      <div className={`shopctl frame${inCombat ? ' closing' : ''}`}>
+        {/* left of the timer: current tavern tier (a slick number), with Tavern Up (↑ + cost) under it */}
+        <div className="ctl-col">
+          <span className="ctlbtn tier" data-tier={run.tier}>
+            <Icon name="house" />
+            {run.tier}
+            <span className="ctltip">Current tavern tier</span>
+          </span>
+          <button
+            className="ctlbtn up"
+            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp}
+            onClick={() => dispatch({ type: 'upgrade' })}
+          >
+            <Icon name="up" />
+            {run.tier < CONFIG.maxTier && <span className="c">{run.upgradeCost}</span>}
+            <span className="ctltip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : 'Tavern Up'}</span>
+          </button>
+        </div>
+        {!inCombat && (
+        <div className="rtimer" data-low={seconds <= 5} title="Time left this turn — at 0 your actions lock; hit End Turn to fight">
+          <svg viewBox="0 0 40 40">
+            <circle className="rt-bg" cx="20" cy="20" r="17" />
+            <circle
+              className="rt-fg"
+              cx="20"
+              cy="20"
+              r="17"
+              style={{ strokeDasharray: RING, strokeDashoffset: RING * (1 - Math.max(0, seconds) / turnSeconds) }}
+            />
+          </svg>
+          <span className="rt-n">{Math.max(0, seconds)}</span>
+        </div>
+        )}
+        {/* right of the timer: Refresh (↻ + cost), with Freeze (icon only) under it */}
+        <div className="ctl-col">
+          <button className="ctlbtn" disabled={run.embers < CONFIG.refreshCost || timeUp} onClick={() => dispatch({ type: 'roll' })}>
+            <Icon name="refresh" />
+            <span className="c">{CONFIG.refreshCost}</span>
+            <span className="ctltip">Refresh tavern</span>
+          </button>
+          <button className={`ctlbtn${run.frozen ? ' frozen' : ''}`} disabled={timeUp} onClick={() => dispatch({ type: 'freeze' })}>
+            <Icon name="freeze" />
+            <span className="ctltip">{run.frozen ? 'Frozen — click to unfreeze' : 'Freeze tavern'}</span>
+          </button>
+        </div>
+        {/* End Turn — the primary action, at the right of the control frame */}
+        <button className={`ctlbtn endturn-top${timeUp ? ' urgent' : ''}`} onClick={endTurn}>
           <Icon name="sword" />
           End Turn
         </button>
@@ -1098,7 +1163,6 @@ export function Recruit() {
                 side="foe"
                 anim={replay.anims[u.uid]}
                 floats={replay.floatsFor(u.uid)}
-                lunge={u.uid === replay.lungeUid ? replay.lungeTransform : undefined}
               />
             ))
           ) : (
@@ -1133,21 +1197,22 @@ export function Recruit() {
         </div>
       </div>
 
-      {!inCombat && seconds <= 15 && (
-        <div className="rope" title={`${seconds}s left`}>
-          <div className="rope-lit" style={{ width: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
-          <div className="rope-flame" style={{ left: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }}>
-            <span className="fl-glow" />
-            <span className="fl-body" />
-            <span className="fl-core" />
-            <span className="fl-ember" style={{ '--ex': '-6px', animationDelay: '0s' } as CSSProperties} />
-            <span className="fl-ember" style={{ '--ex': '5px', animationDelay: '0.33s' } as CSSProperties} />
-            <span className="fl-ember" style={{ '--ex': '-1px', animationDelay: '0.66s' } as CSSProperties} />
-          </div>
-        </div>
-      )}
-
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
+        {/* The burn-down rope floats over the top of the warband (position:absolute) so it never
+            shifts the row — the minions hold the same spot whether it's showing or not. */}
+        {!inCombat && seconds <= 15 && (
+          <div className="rope" title={`${seconds}s left`}>
+            <div className="rope-lit" style={{ width: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
+            <div className="rope-flame" style={{ left: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }}>
+              <span className="fl-glow" />
+              <span className="fl-body" />
+              <span className="fl-core" />
+              <span className="fl-ember" style={{ '--ex': '-6px', animationDelay: '0s' } as CSSProperties} />
+              <span className="fl-ember" style={{ '--ex': '5px', animationDelay: '0.33s' } as CSSProperties} />
+              <span className="fl-ember" style={{ '--ex': '-1px', animationDelay: '0.66s' } as CSSProperties} />
+            </div>
+          </div>
+        )}
         <div className="row warband">
           {inCombat ? (
             replay.frame.player.map((u) => (
@@ -1157,7 +1222,6 @@ export function Recruit() {
                 side="you"
                 anim={replay.anims[u.uid]}
                 floats={replay.floatsFor(u.uid)}
-                lunge={u.uid === replay.lungeUid ? replay.lungeTransform : undefined}
               />
             ))
           ) : (
@@ -1302,6 +1366,13 @@ export function Recruit() {
           {[18, 70, 128, 162, 215, 268, 305, 340].map((a) => (
             <span className="ss-ray" key={a} style={{ '--a': `${a}deg` } as CSSProperties} />
           ))}
+        </div>
+      )}
+
+      {/* Channeling the Devourer — the devoured minion's stats fly to a random friend as a glowing mote. */}
+      {devourBolt && (
+        <div className="devourbolt" key={devourBolt.key} ref={devourBoltRef} aria-hidden="true">
+          +{devourBolt.attack}/+{devourBolt.health}
         </div>
       )}
 

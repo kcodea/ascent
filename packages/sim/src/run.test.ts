@@ -684,44 +684,25 @@ describe('run loop (@game/sim)', () => {
     expect([imp?.attack, imp?.health]).toEqual([7, 7]); // 4/4 + 3×(1/1)
   });
 
-  it('on-consume Demons pay off when they eat tavern Fodder (Ravening Glutton)', () => {
+
+  it('Maw of the Pit queues a Fodder into the next tavern at End of Turn', () => {
     let s: RunState = {
       ...createRun(1),
-      embers: 3,
-      board: [{ uid: 'p', cardId: 'glut', tribe: 'demon', attack: 2, health: 3, keywords: [], golden: false }],
-      pendingTavern: ['fred'],
+      board: [{ uid: 'm', cardId: 'maw', tribe: 'demon', attack: 4, health: 5, keywords: ['T'], golden: false }],
+      pendingTavern: [],
     };
-    s = reduce(s, { type: 'roll' });
-    const glut = s.board.find((c) => c.cardId === 'glut');
-    expect([glut?.attack, glut?.health]).toEqual([5, 6]); // 2/3 +1/+1 (Fodder ×1) +2/+2 (on-consume)
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn fires → Maw queues a Fodder for the next tavern
+    expect(s.pendingTavern).toContain('fred');
   });
 
-  it('Maw of the Pit gains a Divine Shield eating tavern Fodder', () => {
+  it('a golden Maw of the Pit queues two Fodder at End of Turn', () => {
     let s: RunState = {
       ...createRun(1),
-      embers: 3,
-      board: [{ uid: 'm', cardId: 'maw', tribe: 'demon', attack: 4, health: 5, keywords: ['T'], golden: false }],
-      pendingTavern: ['fred'],
+      board: [{ uid: 'm', cardId: 'maw', tribe: 'demon', attack: 8, health: 10, keywords: ['T'], golden: true }],
+      pendingTavern: [],
     };
-    s = reduce(s, { type: 'roll' });
-    expect(s.board.find((c) => c.cardId === 'maw')?.keywords).toContain('DS');
-  });
-
-  it('Maw of the Pit Divine Shield is spent after one combat', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 3,
-      board: [{ uid: 'm', cardId: 'maw', tribe: 'demon', attack: 4, health: 5, keywords: ['T'], golden: false }],
-      pendingTavern: ['fred'],
-    };
-    s = reduce(s, { type: 'roll' }); // Maw eats Fodder → a one-combat Divine Shield
-    expect(s.board.find((c) => c.cardId === 'maw')?.keywords).toContain('DS');
-    expect(s.board.find((c) => c.cardId === 'maw')?.tempShield).toBe(true);
     s = reduce(s, { type: 'faceOmen' });
-    s = reduce(s, { type: 'resolveCombat' });
-    const maw = s.board.find((c) => c.cardId === 'maw');
-    expect(maw?.keywords).not.toContain('DS'); // spent — gone after the fight
-    expect(maw?.tempShield).toBeFalsy();
+    expect((s.pendingTavern ?? []).filter((c) => c === 'fred')).toHaveLength(2);
   });
 
   it('Archmagus Guel buffs 2 other friends when you cast a tavern spell', () => {
@@ -764,7 +745,7 @@ describe('run loop (@game/sim)', () => {
     let s: RunState = {
       ...createRun(1),
       hand: [{ uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false }],
-      board: [{ uid: 'd', cardId: 'glut', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false }],
+      board: [{ uid: 'd', cardId: 'imp', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'lb' }); // targeted Battlecry defers to a friendly-demon pick
     expect(s.pendingTarget?.uid).toBe('lb');
@@ -789,7 +770,7 @@ describe('run loop (@game/sim)', () => {
       heroReady: true,
       board: [
         { uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false, linkUid: 'd', linkBase: { attack: 5, health: 5 }, linkApplied: { attack: 0, health: 0 } },
-        { uid: 'd', cardId: 'glut', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false },
+        { uid: 'd', cardId: 'imp', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false },
       ],
     };
     s = reduce(s, { type: 'heroPower', uid: 'd' }); // Fortify the linked demon +1/+1
@@ -804,7 +785,7 @@ describe('run loop (@game/sim)', () => {
       heroReady: true,
       board: [
         { uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false, linkUid: 'd', linkBase: { attack: 5, health: 5 }, linkApplied: { attack: 2, health: 2 } },
-        { uid: 'd', cardId: 'glut', tribe: 'demon', attack: 7, health: 7, keywords: [], golden: false },
+        { uid: 'd', cardId: 'imp', tribe: 'demon', attack: 7, health: 7, keywords: [], golden: false },
       ],
     };
     s = reduce(s, { type: 'sell', uid: 'd' }); // the linked demon leaves
@@ -834,7 +815,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.spell).toBeNull(); // slot empties until the next roll
   });
 
-  it('Spirit Fire buffs the targeted friend +3/+3, is consumed, and counts as a cast', () => {
+  it('Spirit Fire buffs the targeted friend +4/+4, is consumed, and counts as a cast', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 5,
@@ -845,7 +826,7 @@ describe('run loop (@game/sim)', () => {
     const spell = s.hand.find((c) => c.cardId === 'spiritfire')!;
     s = reduce(s, { type: 'play', uid: spell.uid, targetUid: 'm' });
     const m = s.board.find((c) => c.uid === 'm')!;
-    expect([m.attack, m.health]).toEqual([4, 4]); // 1/1 + 3/3
+    expect([m.attack, m.health]).toEqual([5, 5]); // 1/1 + 4/4
     expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(false); // no board slot — consumed
     expect(s.spellsCast).toBe(1);
   });
@@ -857,6 +838,38 @@ describe('run loop (@game/sim)', () => {
     const after = reduce(s, { type: 'play', uid: spell.uid }); // no targetUid
     expect(after.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // stays in hand
     expect(after.spellsCast).toBe(0);
+  });
+
+  it('Growth buffs every friendly minion (+3/+4, untargeted)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'gnash', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' }); // no target — buffs the whole board
+    expect([s.board.find((c) => c.uid === 'a')!.attack, s.board.find((c) => c.uid === 'a')!.health]).toEqual([4, 5]);
+    expect([s.board.find((c) => c.uid === 'b')!.attack, s.board.find((c) => c.uid === 'b')!.health]).toEqual([5, 6]);
+    expect(s.hand.some((c) => c.cardId === 'growth')).toBe(false); // consumed
+    expect(s.spellsCast).toBe(1);
+  });
+
+  it('Channeling the Devourer removes the target and feeds its stats to a random other friend', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'eat', cardId: 'gnash', tribe: 'beast', attack: 6, health: 5, keywords: [], golden: false },
+        { uid: 'recip', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'd', cardId: 'devour', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'd', targetUid: 'eat' }); // devour the 6/5
+    expect(s.board.find((c) => c.uid === 'eat')).toBeUndefined(); // devoured
+    const recip = s.board.find((c) => c.uid === 'recip')!;
+    expect([recip.attack, recip.health]).toEqual([7, 6]); // 1/1 + the devoured 6/5
+    expect(s.devourFx).toEqual({ toUid: 'recip', attack: 6, health: 5 }); // projectile hint for the UI
   });
 
   it('Ember Pouch gains an Ember when cast (net-neutral after its 1 cost)', () => {
@@ -1028,21 +1041,6 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'big')?.keywords).toContain('V');
   });
 
-  it('Plaguebringer auto-grants Venomous + Windfury to the highest-attack friend that lacks it', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 0,
-      shop: [],
-      board: [
-        { uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: ['V', 'W'], golden: false },
-        { uid: 'mid', cardId: 'cleaver', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false },
-      ],
-      hand: [{ uid: 'p', cardId: 'plague', tribe: 'undead', attack: 5, health: 5, keywords: [], golden: false }],
-    };
-    s = reduce(s, { type: 'play', uid: 'p' });
-    expect(s.pendingTarget).toBeUndefined(); // Plaguebringer is untargeted (auto)
-    expect(s.board.find((c) => c.uid === 'mid')?.keywords).toEqual(expect.arrayContaining(['V', 'W']));
-  });
 
   it('tripling combines current stats (top two) and unions keywords', () => {
     const mk = (uid: string, attack: number, health: number, keywords: ('V' | 'T')[]): BoardCard => ({
@@ -1360,6 +1358,29 @@ describe('hero powers (@game/sim)', () => {
     expect(s3.heroReady).toBe(false);
   });
 
+  it("Myra's Encore can complete a triple — a replayed Battlecry's summon golden-combines", () => {
+    // Two Strays already down; replaying Alleycat's Battlecry summons the third → triple → a golden
+    // Stray lands in the hand. Regression: hero powers used to skip the triple check entirely, so a
+    // power-summoned third copy never combined.
+    const s: RunState = {
+      ...createRun(1, 'myra'),
+      wave: 3, // Encore unlocks turn 3
+      board: [
+        { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 's1', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 's2', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+    };
+    const after = reduce(s, { type: 'heroPower', uid: 'a' });
+    // The three Strays combined → none left loose on the board…
+    expect(after.board.filter((c) => c.cardId === 'stray' && !c.golden).length).toBe(0);
+    // …and a golden Stray (2/2 = top-two of three 1/1s) is now in the hand.
+    const golden = after.hand.find((c) => c.cardId === 'stray' && c.golden);
+    expect(golden).toBeDefined();
+    expect([golden!.attack, golden!.health]).toEqual([2, 2]);
+    expect(after.heroReady).toBe(false); // charge spent
+  });
+
   it("createRun seeds the run with the hero's Resolve (HP)", () => {
     for (const id of ['warden', 'oner', 'myra']) {
       const s = createRun(1, id);
@@ -1399,12 +1420,12 @@ describe('hero powers (@game/sim)', () => {
       s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
       return s.board[0]!;
     };
-    // Spirit Fire = +3/+3. Rohan adds +1 at turn 1 → +4/+4 (2/2 → 6/6).
-    expect(cast('rohan', 1).attack).toBe(6);
-    // Scales: +2 at turn 4 → +5/+5 (→ 7/7).
-    expect(cast('rohan', 4).attack).toBe(7);
-    // Hero-gated: a non-Rohan gets the base +3/+3 (→ 5/5).
-    expect(cast('warden', 1).attack).toBe(5);
+    // Spirit Fire = +4/+4. Rohan adds +1 at turn 1 → +5/+5 (2/2 → 7/7).
+    expect(cast('rohan', 1).attack).toBe(7);
+    // Scales: +2 at turn 4 → +6/+6 (→ 8/8).
+    expect(cast('rohan', 4).attack).toBe(8);
+    // Hero-gated: a non-Rohan gets the base +4/+4 (→ 6/6).
+    expect(cast('warden', 1).attack).toBe(6);
   });
 
   it('Sporen marks one minion for resummon (clearing any previous mark)', () => {
@@ -1470,9 +1491,9 @@ describe('spell stat bonus + display (@game/sim)', () => {
 
   it('spellDisplayText substitutes the effective value (green via {{…}}); base text otherwise', () => {
     // No bonus → unchanged base text.
-    expect(spellDisplayText('spiritfire', 0)).toBe('Give a friendly minion **+3/+3**.');
+    expect(spellDisplayText('spiritfire', 0)).toBe('Give a friendly minion **+4/+4**.');
     // +1 bonus → the value updates and is highlighted.
-    expect(spellDisplayText('spiritfire', 1)).toBe('Give a friendly minion **{{+4/+4}}**.');
+    expect(spellDisplayText('spiritfire', 1)).toBe('Give a friendly minion **{{+5/+5}}**.');
     expect(spellDisplayText('bulwark', 1)).toBe('Give a friendly minion **{{+1/+2}}** and **Taunt**.');
     // A non-stat spell (Mana Pouch) is untouched even with a bonus.
     expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Mana**.');
@@ -1481,15 +1502,15 @@ describe('spell stat bonus + display (@game/sim)', () => {
   it('the displayed value matches what a cast actually grants (Rohan, turn 1)', () => {
     const s = { ...createRun(1, 'rohan'), wave: 1 };
     const bonus = spellStatBonus(s);
-    // Spirit Fire's base is +3/+3; the card shows +4/+4 and a cast grants +4/+4 — same number.
-    expect(spellDisplayText('spiritfire', bonus)).toContain('+4/+4');
+    // Spirit Fire's base is +4/+4; with Rohan's turn-1 bonus the card shows +5/+5 and a cast grants +5/+5.
+    expect(spellDisplayText('spiritfire', bonus)).toContain('+5/+5');
     let r: RunState = {
       ...s, board: [{ uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
       hand: [{ uid: 'sf', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
     };
     r = reduce(r, { type: 'play', uid: 'sf', targetUid: 't' });
-    expect(r.board[0]!.attack).toBe(6); // 2 + 4
-    expect(r.board[0]!.health).toBe(6);
+    expect(r.board[0]!.attack).toBe(7); // 2 + (4 base + 1 Rohan bonus)
+    expect(r.board[0]!.health).toBe(7);
   });
 });
 

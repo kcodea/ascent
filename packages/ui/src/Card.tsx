@@ -223,6 +223,8 @@ export const Card = memo(function Card({
   useEffect(() => () => { if (refTimer.current) window.clearTimeout(refTimer.current); }, []);
   // While a card is being held/dragged, you're not "hovering" anything — drop any popup + don't open one.
   useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
+  // Illustrated art (if any). `uid` lets multi-variant cards (Pup) pick a stable per-instance image.
+  const artUrl = artFor(card.cardId, uid);
   return (
     <div
       className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}`}
@@ -275,8 +277,8 @@ export const Card = memo(function Card({
           square so the badges/medallion always ride the arch even when the text drawer drops below. */}
       <div className="archbox">
         <div className="art">
-          {artFor(card.cardId) ? (
-            <img className="artimg" src={artFor(card.cardId)} alt="" draggable={false} />
+          {artUrl ? (
+            <img className="artimg" src={artUrl} alt="" draggable={false} />
           ) : (
             <Sprite name={spriteForTribe(card.tribe)} scale={5} />
           )}

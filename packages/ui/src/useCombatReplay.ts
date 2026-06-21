@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { sfx } from './sfx';
@@ -132,6 +133,29 @@ const FLOAT_MS = 1450;
  * +6/+6, a Rally aura) fires them all together rather than one minion at a time.
  */
 const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'death']);
+
+/** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
+ *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
+ *  overshoot. `dx`/`dy` is the full attacker→defender vector; the strike covers ~55% of it so the
+ *  attacker taps the defender's edge rather than sliding over its badges. GSAP owns the attacker's
+ *  transform for the whole lunge — React renders no transform on combat units, so they never fight. */
+function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number): void {
+  gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
+  gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
+  gsap
+    .timeline({ onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }) })
+    .to(attacker, { x: -dx * 0.12, y: -dy * 0.12, rotation: -4, duration: 0.16, ease: 'power1.out' }) // wind up
+    .to(attacker, { x: dx * 0.55, y: dy * 0.55, rotation: 0, duration: 0.2, ease: 'power3.in' })       // strike
+    .add(() => {
+      if (!defender) return; // onHit: the struck minion knocks back along the blow, then recovers
+      gsap.killTweensOf(defender);
+      gsap.fromTo(defender, { x: 0, y: 0 }, {
+        x: dx * 0.09, y: dy * 0.09, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out',
+        onComplete: () => gsap.set(defender, { clearProps: 'transform' }),
+      });
+    })
+    .to(attacker, { x: 0, y: 0, rotation: 0, duration: 0.55, ease: 'elastic.out(1, 0.45)' });           // settle
+}
 interface Beat {
   start: number;
   end: number;
@@ -243,6 +267,8 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   const rally = new Map<string, number>();
   const generated = new Map<string, number>();
   const summoned = new Map<string, number>();
+  const echoed = new Map<string, number>(); // extra copies Echo Warden spun off your summons
+  const startCombat = new Map<string, number>(); // Start-of-Combat effects that fired (by source)
   const buffs = new Map<string, { n: number; atk: number; hp: number }>();
   for (const e of events) {
     if (e.type === 'attack') attacks++;
@@ -253,8 +279,12 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
     else if (e.type === 'shieldUp') shieldUp++;
     else if (e.type === 'shield') shieldBreak++;
     else if (e.type === 'rally') inc(rally, `${n(e.source)} → ${n(e.target)}'s Deathrattle`);
+    else if (e.type === 'sc') inc(startCombat, n(e.source));
     else if (e.type === 'toHand') inc(generated, e.source ? `${n(e.source)} → ${cardName(e.cardId)}` : cardName(e.cardId));
-    else if (e.type === 'summon') inc(summoned, e.source ? `${n(e.source)} → ${e.minion.name}` : e.minion.name);
+    else if (e.type === 'summon') {
+      if (e.echo) inc(echoed, e.minion.name); // Echo Warden's bonus copies — attributed to the engine, not the original
+      else inc(summoned, e.source ? `${n(e.source)} → ${e.minion.name}` : e.minion.name);
+    }
     else if (e.type === 'buff') {
       const k = n(e.source);
       const t = buffs.get(k) ?? { n: 0, atk: 0, hp: 0 };
@@ -270,9 +300,11 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   if (poison) kw.push(`${poison} poison kills`);
   if (reborn) kw.push(`${reborn} reborns`);
   if (kw.length) out.push({ text: kw.join(' · '), kind: 'total' });
+  if (startCombat.size) { out.push({ text: 'Start of Combat', kind: 'head' }); for (const [k, c] of startCombat) out.push({ text: c > 1 ? `${k} — ${c}×` : k, kind: 'sc' }); }
   if (rally.size) { out.push({ text: 'Rally', kind: 'head' }); for (const [k, c] of rally) out.push({ text: `${k} — ${c}×`, kind: 'rally' }); }
   if (generated.size) { out.push({ text: 'Cards generated', kind: 'head' }); for (const [k, c] of generated) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
   if (summoned.size) { out.push({ text: 'Summoned', kind: 'head' }); for (const [k, c] of summoned) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
+  if (echoed.size) { out.push({ text: 'Echoed · Echo Warden', kind: 'head' }); for (const [k, c] of echoed) out.push({ text: `${k} — +${c}×`, kind: 'summon' }); }
   if (buffs.size) { out.push({ text: 'Buffs', kind: 'head' }); for (const [k, t] of buffs) out.push({ text: `${k} — ${t.n}× (+${t.atk}/+${t.hp})`, kind: 'buff' }); }
   return out;
 }
@@ -281,7 +313,6 @@ export interface CombatReplay {
   frame: { player: UnitFrame[]; enemy: UnitFrame[] };
   anims: Record<string, string>;
   lungeUid: string | null;
-  lungeTransform: string | undefined;
   projectiles: { id: number; x: number; y: number; dx: number; dy: number }[];
   floatsFor: (uid: string) => Float[];
   log: string;
@@ -320,10 +351,9 @@ export function useCombatReplay(
   const [floats, setFloats] = useState<Float[]>([]);
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
-  const [lunge, setLunge] = useState<{ uid: string; transform: string } | null>(null);
-  // The current lunge's raw direction (set on the attack beat), so the following impact beat can
-  // recoil the attacker back along the same vector without re-measuring its (already-moved) element.
-  const lungeVec = useRef<{ uid: string; dx: number; dy: number } | null>(null);
+  // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
+  // imperatively by GSAP (see the layout effect below); React never sets a transform on a unit.
+  const [attackUid, setAttackUid] = useState<string | null>(null);
   const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number }[]>([]);
   // A card a combat effect just granted to the hand (Arcane Weaver → Spirit Fire) — shown flying to the
   // hand for the duration of its beat, so the player sees it happen instead of it just appearing later.
@@ -334,7 +364,8 @@ export function useCombatReplay(
   useEffect(() => {
     setBeatIdx(0);
     setFloats([]);
-    setLunge(null);
+    setAttackUid(null);
+    gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
     setProjectiles([]);
     setShake(0);
     setHandGrant(null);
@@ -430,7 +461,6 @@ export function useCombatReplay(
   // frame on screen (not the previous one). Runs synchronously before paint.
   useLayoutEffect(() => {
     const cur = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
-    const prev = beatIdx > 1 ? beats[beatIdx - 2] : undefined;
     const center = (uid: string): { x: number; y: number } | null => {
       const el = findEl(uid);
       if (!el) return null;
@@ -438,23 +468,18 @@ export function useCombatReplay(
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     };
 
-    // The attacker leans in on its attack beat — only ~40% of the way, so it taps the defender's edge
-    // instead of sliding over its stat badges. Then on the following impact beat it RECOILS back (along
-    // the same vector, from the stashed direction) so the struck defender + its dropping HP read clearly.
+    // On the attack beat the attacker is marked (the glow) and GSAP runs the whole lunge — wind up,
+    // strike toward the defender, recoil the defender, then an elastic settle (see playAttackLunge).
     if (cur?.primary.type === 'attack') {
+      const atkEl = findEl(cur.primary.attacker);
       const a = center(cur.primary.attacker);
       const d = center(cur.primary.defender);
-      if (a && d) {
-        const dx = Math.round((d.x - a.x) * 0.4);
-        const dy = Math.round((d.y - a.y) * 0.4);
-        lungeVec.current = { uid: cur.primary.attacker, dx, dy };
-        setLunge({ uid: cur.primary.attacker, transform: `translate(${dx}px, ${dy}px) scale(1.05)` });
+      if (atkEl && a && d) {
+        setAttackUid(cur.primary.attacker);
+        playAttackLunge(atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y);
       }
-    } else if (cur && RESULT_TYPES.has(cur.primary.type) && prev?.primary.type === 'attack' && lungeVec.current) {
-      const { uid, dx, dy } = lungeVec.current; // recoil: pull most of the way back off the defender
-      setLunge({ uid, transform: `translate(${Math.round(dx * 0.15)}px, ${Math.round(dy * 0.15)}px) scale(1)` });
     } else {
-      setLunge(null);
+      setAttackUid(null);
     }
 
     // Start-of-Combat bolts fly from the caster to each target its next-beat damage hits.
@@ -494,16 +519,19 @@ export function useCombatReplay(
     [combat, events, processedEnd, beatStart],
   );
 
+  // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit
+  // collapses its own flex slot AS it plays its death pop, so the survivors glide in simultaneously
+  // (one smooth phase) instead of waiting a beat and then sliding. CSS flex animates the neighbours for
+  // free, and — unlike a JS FLIP — it composes cleanly with the GSAP lunge (layout vs transform).
+
   const currentBeat = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
   const anims: Record<string, string> = {};
   if (currentBeat) {
     for (let i = currentBeat.start; i < currentBeat.end; i++) Object.assign(anims, animFor(events[i]));
   }
 
-  // The lunging attacker is measured in the layout effect above (correct, current
-  // positions); here we just apply its anim class.
-  const lungeUid = lunge?.uid ?? null;
-  const lungeTransform = lunge?.transform;
+  // The attacker's motion is run by GSAP in the layout effect above; here we just apply its glow class.
+  const lungeUid = attackUid;
   if (lungeUid) {
     const atk = frame.player.find((u) => u.uid === lungeUid) ?? frame.enemy.find((u) => u.uid === lungeUid);
     anims[lungeUid] = atk?.keywords.includes('C') ? 'attacking cleaving' : 'attacking';
@@ -529,7 +557,7 @@ export function useCombatReplay(
   }, [beatIdx, beats, events]);
 
   return {
-    frame, anims, lungeUid, lungeTransform, projectiles, floatsFor, log, fullLog, procs, handGrant, handGrantsShown,
+    frame, anims, lungeUid, projectiles, floatsFor, log, fullLog, procs, handGrant, handGrantsShown,
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, skip: () => setBeatIdx(beats.length),
   };

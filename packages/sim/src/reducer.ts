@@ -322,6 +322,9 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       if (power.oncePerGame) s.heroPowerSpent = true;
       else s.heroReady = false;
+      // A power that summons or generates a minion (Myra's Battlecry replay → an Alleycat's Stray,
+      // Dusk's End-of-Turn replay) can complete a triple — check now, like buy / play / discover do.
+      checkTriples(s);
       return s;
     }
 
@@ -536,6 +539,14 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
     for (const { sourceUid, bonus } of result.playerSummonBonus) {
       const card = s.board.find((c) => c.uid === sourceUid);
       if (card) card.summonBonus = bonus;
+    }
+  }
+  // Flowing Monk's mid-combat +X/+X gifts are permanent — apply them to the run board (recorded as a
+  // buff so the inspect view shows the source), win or lose.
+  if (result.playerPermaBuffs) {
+    for (const { sourceUid, attack, health } of result.playerPermaBuffs) {
+      const card = s.board.find((c) => c.uid === sourceUid);
+      if (card) addBuff(card, 'Flowing Monk', attack, health);
     }
   }
   // Deathrattle-granted cards (Arcane Weaver → a Spirit Fire copy) land in the hand for

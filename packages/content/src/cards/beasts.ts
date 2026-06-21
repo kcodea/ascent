@@ -20,10 +20,11 @@ export const BEASTS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'stray', count: 1 } }],
     text: '**Battlecry:** summon a 1/1 Stray next to it.',
+    goldenText: '**Battlecry:** summon two 1/1 Strays next to it.',
   },
   {
     id: 'pack',
-    name: 'Pack Scrounger',
+    name: 'Mama Pup',
     tribe: 'beast',
     tier: 2,
     attack: 2,
@@ -31,6 +32,7 @@ export const BEASTS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'pup', count: 2 } }],
     text: '**Deathrattle:** summon two 1/1 Pups.',
+    goldenText: '**Deathrattle:** summon four 1/1 Pups.',
   },
   {
     id: 'kennel',
@@ -56,17 +58,6 @@ export const BEASTS: CardDef[] = [
     keywords: ['C'],
     effects: [],
     text: '',
-  },
-  {
-    id: 'matron',
-    name: 'Bristleback Matron',
-    tribe: 'beast',
-    tier: 4,
-    attack: 4,
-    health: 4,
-    keywords: [],
-    effects: [{ on: 'onSummon', do: 'buffOnSummon', params: { tribe: 'beast', attack: 2, health: 2 } }],
-    text: 'Each Beast you summon gets **+2/+2**.',
   },
   {
     id: 'gnash',
@@ -112,6 +103,7 @@ export const BEASTS: CardDef[] = [
       },
     ],
     text: '**Choose One:** give your Beasts +1/+1; or summon two 1/1 Strays.',
+    goldenText: '**Choose One:** give your Beasts +2/+2; or summon four 1/1 Strays.',
   },
   {
     id: 'spiritpup',

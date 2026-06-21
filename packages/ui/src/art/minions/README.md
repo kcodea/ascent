@@ -14,35 +14,39 @@ the **first** files to a previously-empty folder while `npm run dev` is running,
 restart the dev server once — Vite compiles the glob to an empty map at startup.
 Subsequent additions hot-reload fine.
 
-## Card id ↔ name
+A card id can ship **multiple variants** (e.g. `pup.png` + `pup2.png`); `artFor()`
+picks one per instance, stable by uid (~50/50), for flavour.
+
+## Card id ↔ name (✅ = art wired)
 
 | id | name | id | name |
 |----|------|----|------|
 | **Beasts** | | **Mechs** | |
-| `alley` | Alleycur | `drone` | Spare Part Drone ✅ |
-| `pack` | Pack Scrounger | `cling` | Cling Drone |
-| `kennel` | Kennelmaster | `selfless` | Selfless Sentinel |
-| `cleaver` | Ravenous Cleaver | `cap` | Shield Capacitor |
-| `matron` | Bristleback Matron | `arc` | Arclight Reactor |
-| `gnash` | Gnasher, the Overrun | `junk` | Junkyard Titan |
-| | | `omega` | Omega Bulwark |
-| **Dragons** | | **Demons** | |
+| `alley` | Alleycat ✅ | `drone` | Spare Part Drone ✅ |
+| `pack` | Mama Pup ✅ | `cling` | Cling Drone ✅ |
+| `kennel` | Kennelmaster ✅ | `selfless` | Selfless Sentinel ✅ |
+| `cleaver` | Ravenous Cleaver | `moneybot` | Money Bot ✅ |
+| `gnash` | Gnasher, the Overrun | `arc` | Arclight Reactor |
+| `grim` | Grim ✅ | `junk` | Junkyard Titan ✅ |
+| `shaper` | Wildwood Shaper ✅ | `combinator` | Combinator ✅ |
+| `spiritpup` | Spirit Pup ✅ | `omega` | Omega Bulwark ✅ |
+| `spiritworgen` | Spirit Worgen ✅ | **Demons** | |
+| **Dragons** | | `feed` | Soulfeeder ✅ |
 | `whelp` | Ember Whelp ✅ | `imp` | Voracious Imp ✅ |
-| `cleric` | Hoard Cleric | `feed` | Soulfeeder |
-| `cinder` | Cinderwing Matron | `pact` | Pactstone Acolyte |
-| `razor` | Razorscale Warlord | `brood` | Brood Matron ✅ |
-| `chrom` | Chromatic Caller | `maw` | Maw of the Pit |
-| `nadir` | Nadir, Hoardlord | `glut` | Ravening Glutton |
-| `gale` | Galewing Apex | `sov` | Abyssal Sovereign |
-| **Undead** | | **Neutral** | |
-| `spore` | Sporeling | `sandbag` | Pocket Sandbag |
-| `toxin` | Toxin Tender | `broker` | Brightwing Broker |
-| `knit` | Grave Knit | `echo` | Echo Warden |
-| `rot` | Rot Weaver | `drummer` | Doublecast Drummer ✅ |
-| `maex` | Webspinner Matron | **Tokens** | |
-| `plague` | Plaguebringer | `pup` | Pup |
-| `ghast` | Ghastweaver | `stray` | Stray |
-| | | `impscrap` | Imp ✅ |
-| | | `discoverspell` | Glimpse Beyond |
-
-✅ = art added.
+| `cleric` | Hoard Cleric | `brood` | Brood Matron ✅ |
+| `cinder` | Cinderwing Matron | `heckbinder` | Heckbinder ✅ |
+| `razor` | Razorscale Warlord | `maw` | Maw of the Pit ✅ |
+| `weaver` | Arcane Weaver ✅ | `ritualist` | Ritualist ✅ |
+| `karwind` | Karwind ✅ | `lifebinder` | Corrupted Lifebinder ✅ |
+| **Undead** | | | |
+| `spore` | Sporeling ✅ | **Neutral** | |
+| `toxin` | Toxin Tender | `sandbag` | Target Dummy ✅ |
+| `knit` | Grave Knit | `broker` | Brightwing Broker ✅ |
+| `rot` | Rot Weaver | `echo` | Echo Warden ✅ |
+| `maex` | Webspinner Matron | `buddy` | Buddy Buddy ✅ |
+| `deathsayer` | Deathsayer ✅ | `guel` | Archmagus Guel ✅ |
+| **Tokens** | | `monk` | Flowing Monk ✅ |
+| `pup` | Pup ✅ (pup + pup2) | `drummer` | Drakko the Drummer ✅ |
+| `stray` | Stray ✅ | `sylus` | Sylus the Reaper ✅ |
+| `impscrap` | Imp ✅ | `chronos` | Chronos ✅ |
+| `discoverspell` | Triple Reward ✅ | `fred` | Fred (Fodder) ✅ |

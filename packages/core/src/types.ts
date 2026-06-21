@@ -85,13 +85,15 @@ export type EffectFactoryId =
   | 'endOfTurnMagnetizeMechs' // End of Turn: merge a token's stats into N friendly Mechs (Combinator)
   | 'buffFodderEverywhere' // End of Turn: buff the Fodder card type for the whole run (Ritualist)
   // Demons — Consume (recruit-resolved half)
-  | 'battlecryAddTavernFodder' // Soulfeeder: queue a Fodder into the next tavern
+  | 'addTavernFodder' // Soulfeeder (Battlecry) / Maw of the Pit (End of Turn): queue Fodder into the next tavern
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'onConsumeBuffSelf'
   | 'onConsumeGrantSelfKeyword'
   | 'onConsumeShieldNextCombat' // Maw of the Pit: on consume, gain a Divine Shield for the next combat only
   // Spells (recruit-resolved): a spell's own effect, and minions that cast spells
   | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (+ optional keyword: Spirit Fire, Bulwark)
+  | 'spellBuffAll' // cast: buff every friendly minion on the board (Growth) — scales with spell power
+  | 'spellDevour' // cast: devour the target, spit its stats onto a random friend (Channeling the Devourer)
   | 'castSpell' // a minion casts a named spell (auto-targets a friend)
   | 'gainEmbers' // cast: gain Embers (untargeted — Ember Pouch)
   | 'spellCastBuffOthers' // spellCast: give N other friendly minions +atk/+hp (Archmagus Guel)
@@ -131,6 +133,9 @@ export interface CardDef {
   token?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;
+  /** This spell resolves exactly once — spell-quantity multipliers can't make it fire twice
+   *  (Channeling the Devourer: devouring two minions would be absurd). */
+  singleCast?: boolean;
   /** Purchase cost. Minions omit this (they use CONFIG.minionCost); spells set it. */
   cost?: number;
   /** Requires the player to pick a friendly minion when played/cast (spells, targeted Battlecries). */
@@ -197,6 +202,9 @@ export interface Minion {
   summonBonus: number;
   /** The originating run board card's uid (if any), for per-instance carry-back. */
   sourceUid?: string;
+  /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
+   *  the run board afterwards, unlike ordinary combat-only buffs. */
+  permaGain?: { attack: number; health: number };
   /** Corrupted Lifebinder: the uid of the friendly minion this one mirrors — whenever that minion is
    *  buffed in combat, this minion gains the same stats. */
   linkUid?: string;
@@ -239,7 +247,7 @@ export type CombatEvent =
   | { type: 'death'; target: string }
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
-  | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string }
+  | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; echo?: boolean }
   | { type: 'buff'; target: string; attack: number; health: number; source: string }
   | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
@@ -257,6 +265,9 @@ export interface CombatResult {
   /** Per-instance state to persist on the run board after combat, keyed by the board
    *  card's uid (Kennelmaster's Avenge-improved summon bonus). Only entries that changed. */
   playerSummonBonus?: { sourceUid: string; bonus: number }[];
+  /** Permanent stats Flowing Monk handed out mid-combat (its overflow gift), keyed by the recipient's
+   *  board card uid — applied to the run board after combat, win or lose. */
+  playerPermaBuffs?: { sourceUid: string; attack: number; health: number }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards

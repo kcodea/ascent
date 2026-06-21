@@ -78,32 +78,4 @@ export const UNDEAD: CardDef[] = [
     text: '**Rally:** before this attacks, trigger your leftmost Deathrattle.',
     goldenText: '**Rally:** before this attacks, trigger your leftmost Deathrattle **twice**.',
   },
-  {
-    id: 'plague',
-    name: 'Plaguebringer',
-    tribe: 'undead',
-    tier: 5,
-    attack: 5,
-    health: 5,
-    keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['V', 'W'] } }],
-    text: '**Battlecry:** give a friend **Venomous and Windfury**.',
-  },
-  {
-    id: 'ghast',
-    name: 'Ghastweaver',
-    tribe: 'undead',
-    tier: 6,
-    attack: 5,
-    health: 5,
-    keywords: [],
-    effects: [
-      {
-        on: 'onDeath',
-        do: 'deathrattleFillTribe',
-        params: { pool: ['spore', 'toxin', 'knit', 'rot', 'maex', 'plague'] },
-      },
-    ],
-    text: '**Deathrattle:** fill your board with random Undead.',
-  },
 ];

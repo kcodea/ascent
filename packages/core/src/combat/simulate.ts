@@ -86,7 +86,7 @@ export function simulate(
       return card;
     },
     buff: (target, attack, health, source) => {
-      target.attack += attack;
+      target.attack = Math.max(0, target.attack + attack); // Attack never drops below 0
       target.health += health;
       if (health > 0) target.maxHealth += health;
       events.push({ type: 'buff', target: target.uid, attack, health, source });
@@ -128,7 +128,7 @@ export function simulate(
     }
     arr.splice(index, 0, minion);
     registerEffects(minion);
-    events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
+    events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid, ...(isEcho && { echo: true }) });
     bus.emit('onSummon', { minion, side });
     if (!isEcho) {
       const echoes = living(side).reduce((n, m) => n + (m.cardId === 'echo' ? (m.golden ? 2 : 1) : 0), 0);
@@ -203,6 +203,24 @@ export function simulate(
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
+  }
+
+  // The Reclaimer's pending resummons. A marked minion is destroyed at Start of Combat (its
+  // Deathrattle fires + overflows the board); the exact body waits here and "reclaims" its slot the
+  // next time the board has room — i.e. after a friend dies — never mid-summon-cascade. So its own
+  // tokens win the immediate scramble and the original returns later. `anchor` is the dead body it
+  // was killed from, so the copy comes back in (or next to) its original slot.
+  const pendingResummons: { anchor: Minion; board: BoardMinion }[] = [];
+  function flushResummons(): void {
+    while (pendingResummons.length > 0 && living('player').length < 7) {
+      const { anchor, board } = pendingResummons.shift()!;
+      const copy = instantiate(board, 'player', cards, mkUid);
+      const at = boards.player.indexOf(anchor);
+      boards.player.splice(at >= 0 ? at + 1 : boards.player.length, 0, copy);
+      registerEffects(copy);
+      events.push({ type: 'summon', minion: snapshot(copy), side: 'player', index: boards.player.indexOf(copy), source: anchor.uid });
+      bus.emit('onSummon', { minion: copy, side: 'player' });
+    }
   }
 
   function dealDamage(
@@ -295,9 +313,12 @@ export function simulate(
     }
   }
 
-  // --- The Reclaimer: a marked player minion is destroyed at the start of combat (firing its
-  //     Deathrattle) and an exact copy is resummoned if there's room. Runs before the normal Start
-  //     of Combat effects, so the copy + any Deathrattle tokens take part in them. ---
+  // --- The Reclaimer: a marked player minion is destroyed at the start of combat — its Deathrattle
+  //     fires NOW (tokens summon and may overflow a full board) — and the exact body is queued to be
+  //     resummoned in its slot the next time the board has room (a friend dies). It does NOT take
+  //     priority over its own tokens: they win the immediate scramble, and it reclaims its spot later.
+  //     If the board already has room after the Deathrattle, the flush right below brings it back at
+  //     once (so on a non-full board it still rejoins before the normal Start of Combat effects). ---
   for (const minion of [...boards.player]) {
     if (!minion.resummon || minion.dead || minion.health <= 0) continue;
     // Capture the full combat state for an exact copy (stats + granted keywords + golden + bonus).
@@ -310,17 +331,10 @@ export function simulate(
       summonBonus: minion.summonBonus,
     };
     minion.rebornAvailable = false; // force a true death (skip Reborn) so the Deathrattle fires
-    killOrReborn(minion);
-    // Bring back the exact copy if the deathrattle didn't already fill the board.
-    if (living('player').length < 7) {
-      const copy = instantiate(copyBoard, 'player', cards, mkUid);
-      const at = boards.player.indexOf(minion);
-      boards.player.splice(at >= 0 ? at + 1 : boards.player.length, 0, copy);
-      registerEffects(copy);
-      events.push({ type: 'summon', minion: snapshot(copy), side: 'player', index: boards.player.indexOf(copy), source: minion.uid });
-      bus.emit('onSummon', { minion: copy, side: 'player' });
-    }
+    killOrReborn(minion); // tokens summon now and may overflow the board
+    pendingResummons.push({ anchor: minion, board: copyBoard });
   }
+  flushResummons(); // non-full board → the original rejoins immediately; full board → it waits
 
   // --- Start of Combat: player minions left→right (A.3 step 1) ---
   for (const minion of [...boards.player]) {
@@ -357,18 +371,22 @@ export function simulate(
     const start = last ? arr.indexOf(last) + 1 : 0;
     for (let k = 0; k < arr.length; k++) {
       const m = arr[(start + k) % arr.length];
-      if (m && !m.dead && m.health > 0) {
+      if (m && !m.dead && m.health > 0 && m.attack > 0) {
         lastAttacker[side] = m;
         return m;
       }
     }
     return undefined;
   };
+  // A 0-Attack minion can't attack — it's skipped in the rotation (above). If neither side has a
+  // minion that can attack, the fight is a stalemate (a draw) rather than spinning the iteration guard.
+  const canAttack = (side: Side): boolean => living(side).some((m) => m.attack > 0);
   let guard = 0;
   while (living('player').length > 0 && living('enemy').length > 0 && guard++ < ITERATION_GUARD) {
     const defenderSide = OTHER[turn];
     const attacker = nextAttacker(turn);
     if (!attacker) {
+      if (!canAttack(defenderSide)) break; // neither side can attack → end the fight
       turn = defenderSide;
       continue;
     }
@@ -380,6 +398,9 @@ export function simulate(
       const arr = boards[turn];
       lastAttacker[turn] = arr[arr.indexOf(attacker) - 1] ?? null;
     }
+    // This attack's death cascade has fully settled — if it freed a player slot, a Reclaimer
+    // resummon waiting in the wings reclaims it now (never interleaved mid-summon).
+    flushResummons();
     turn = defenderSide;
   }
 
@@ -409,12 +430,19 @@ export function simulate(
     .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0)
     .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
 
+  // Flowing Monk's overflow gift is permanent: carry each recipient's accumulated gain back to its
+  // run board card (only real minions — summoned tokens have no sourceUid and are gone after combat).
+  const playerPermaBuffs = boards.player
+    .filter((m) => m.sourceUid !== undefined && m.permaGain && (m.permaGain.attack > 0 || m.permaGain.health > 0))
+    .map((m) => ({ sourceUid: m.sourceUid!, attack: m.permaGain!.attack, health: m.permaGain!.health }));
+
   return {
     events,
     result,
     playerDamage,
     initial,
     playerSummonBonus,
+    playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
   };
 }

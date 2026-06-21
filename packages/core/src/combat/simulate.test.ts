@@ -13,7 +13,7 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'gnash', attack: 6, health: 6 },
     ];
     const e: BoardMinion[] = [
-      { cardId: 'matron', attack: 4, health: 4 },
+      { cardId: 'razor', attack: 4, health: 4 },
       { cardId: 'pack', attack: 2, health: 2 },
       { cardId: 'alley', attack: 1, health: 1 },
     ];
@@ -77,9 +77,10 @@ describe('simulate (handoff A.3)', () => {
     expect(copies).toBe(1); // the freed slot → an exact copy returns
   });
 
-  it("The Reclaimer's copy yields to summoned tokens on a full board (no room → no copy)", () => {
-    // Full board (7): marked Pack Scrounger dies, a Pup takes the one freed slot, and there's no
-    // room left for the copy — tokens take precedence, exactly as specced.
+  it('The Reclaimer defers the resummon on a full board — tokens overflow, the copy waits for room', () => {
+    // Full board (7): the marked minion dies, its Deathrattle Pups summon (1 fits, the rest overflow),
+    // and the exact body is queued. The enemy has 0 Attack so no friendly ever dies — the board never
+    // drops below 7, so the deferred copy never gets a slot to reclaim. Tokens won the scramble.
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 1, health: 20, resummon: true },
       ...Array.from({ length: 6 }, () => ({ cardId: 'sandbag', attack: 1, health: 20 })),
@@ -87,8 +88,8 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, [{ cardId: 'sandbag', attack: 0, health: 1 }], 1);
     const packCopies = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pack').length;
     const pups = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup').length;
-    expect(packCopies).toBe(0); // no room for the copy
-    expect(pups).toBeGreaterThanOrEqual(1); // a Pup filled the freed slot
+    expect(pups).toBeGreaterThanOrEqual(1); // a Pup took the one freed slot; the rest overflowed
+    expect(packCopies).toBe(0); // board stayed full → the deferred copy never reclaims a slot
   });
 
   it('Spirit Worgen procs in combat: +X/+X per Beast/Dragon summoned, X = 1 + spellsThisTurn', () => {
@@ -351,17 +352,6 @@ describe('simulate (handoff A.3)', () => {
       5,
     );
     expect(a.events.some((e) => e.type === 'buff')).toBe(true);
-  });
-
-  it('Ghastweaver Deathrattle fills the board with Undead', () => {
-    const a = run(
-      [{ cardId: 'ghast', attack: 5, health: 5 }],
-      [{ cardId: 'omen', attack: 9, health: 9, keywords: [] }],
-      7,
-    );
-    const undead = new Set(['spore', 'toxin', 'knit', 'rot', 'maex', 'plague']);
-    const summons = a.events.filter((e) => e.type === 'summon' && undead.has(e.minion.cardId));
-    expect(summons.length).toBeGreaterThan(0);
   });
 
   it('Omega Bulwark Start of Combat shields every other friendly Mech', () => {
@@ -669,5 +659,63 @@ describe('simulate (handoff A.3)', () => {
         expect(Number.isFinite(ev.remainingHp)).toBe(true);
       }
     }
+  });
+
+  it('golden doubles Deathrattle summon + grant counts (Pack Scrounger 2→4 Pups, Arcane Weaver 1→2 Spirit Fires)', () => {
+    const killer: BoardMinion[] = [{ cardId: 'pack', attack: 12, health: 30 }]; // lethal enough to drop the carrier
+    const pups = (b: BoardMinion[]): number =>
+      run(b, killer, 5).events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
+    expect(pups([{ cardId: 'pack', attack: 4, health: 4, golden: true }])).toBe(4);
+    expect(pups([{ cardId: 'pack', attack: 2, health: 2 }])).toBe(2);
+    const grants = (b: BoardMinion[]): number => (run(b, killer, 5).playerHandGrants ?? []).filter((c) => c === 'spiritfire').length;
+    expect(grants([{ cardId: 'weaver', attack: 6, health: 8, golden: true }])).toBe(2);
+    expect(grants([{ cardId: 'weaver', attack: 3, health: 4 }])).toBe(1);
+  });
+
+  it('The Reclaimer reclaims its slot mid-combat: a full board overflows, then the copy returns once a friend dies', () => {
+    // Full board (7): the marked minion dies + overflows with Pups, copy queued. The enemy now trades
+    // with the fragile bodies, so the board drops below 7 during combat — and the deferred copy returns
+    // into its slot. The resummon must land AFTER combat starts (deferred), not at Start of Combat.
+    const fragile: BoardMinion[] = Array.from({ length: 6 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }));
+    const player: BoardMinion[] = [{ cardId: 'pack', attack: 1, health: 1, resummon: true }, ...fragile];
+    const r = run(player, [{ cardId: 'razor', attack: 3, health: 80 }], 4);
+    const firstAttackIdx = r.events.findIndex((e) => e.type === 'attack');
+    const packSummonIdx = r.events.findIndex((e) => e.type === 'summon' && e.minion.cardId === 'pack');
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length).toBeGreaterThanOrEqual(1);
+    expect(packSummonIdx).toBeGreaterThan(-1); // the exact body did reclaim its slot...
+    expect(packSummonIdx).toBeGreaterThan(firstAttackIdx); // ...but only after a mid-combat death opened one
+  });
+
+  it("Flowing Monk's overflow gift is permanent — simulate returns playerPermaBuffs to carry back", () => {
+    // Full board (7): Flowing Monk + a golden Mama Pup (Deathrattle → 4 Pups). The Pups that can't fit
+    // overflow, so the Monk hands a random friend +3/+3 each time — recorded for carry-back to the run
+    // board (only real minions, which carry a sourceUid; summoned Pup tokens are gone after combat).
+    const filler: BoardMinion[] = Array.from({ length: 5 }, (_, i) => ({ cardId: 'sandbag', attack: 1, health: 20, sourceUid: `f${i}` }));
+    const player: BoardMinion[] = [
+      { cardId: 'monk', attack: 1, health: 20, sourceUid: 'monk' },
+      { cardId: 'pack', attack: 8, health: 8, golden: true, sourceUid: 'pack' },
+      ...filler,
+    ];
+    const r = run(player, [{ cardId: 'razor', attack: 8, health: 80 }], 3);
+    expect(r.playerPermaBuffs).toBeDefined();
+    expect(r.playerPermaBuffs!.length).toBeGreaterThan(0);
+    for (const b of r.playerPermaBuffs!) {
+      expect(b.attack % 3).toBe(0); // each gift is +3/+3 (or a multiple if a minion was picked twice)
+      expect(b.health % 3).toBe(0);
+    }
+  });
+
+  it('a 0-Attack minion is skipped — it never attacks (and a 0-vs-0 board is a stalemate draw)', () => {
+    // Neither 0-Attack wall can swing — no attack events fire and the fight ends as a draw with both alive.
+    const r = run([{ cardId: 'sandbag', attack: 0, health: 20 }], [{ cardId: 'sandbag', attack: 0, health: 20 }], 5);
+    expect(r.events.filter((e) => e.type === 'attack').length).toBe(0);
+    expect(r.result).toBe('draw');
+    // A 0-Attack wall in front of a real attacker still never attacks, but its ally does the work.
+    const r2 = run(
+      [{ cardId: 'sandbag', attack: 0, health: 20 }, { cardId: 'gnash', attack: 6, health: 6 }],
+      [{ cardId: 'sandbag', attack: 0, health: 4 }],
+      5,
+    );
+    expect(r2.result).toBe('win'); // Gnasher clears the wall; the 0-Attack sandbag contributes nothing
   });
 });

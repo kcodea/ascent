@@ -46,7 +46,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummon: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const card = ctx.getCard(str(params.tokenId));
-    const total = num(params.count, 1);
+    const total = num(params.count, 1) * mul(self); // golden doubles the token count (e.g. Pack Scrounger 2 → 4)
     for (let i = 0; i < total; i++) ctx.summon(self.side, card, self.uid);
   },
 
@@ -206,12 +206,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Flowing Monk: when a summon on this minion's side can't fit the full board (a `summonOverflow`),
-   *  buff a random living friend (+3/+3; golden doubles). The combat half of its recruit overflow buff. */
+   *  buff a random living friend (+3/+3; golden doubles). The combat half of its recruit overflow buff —
+   *  and PERMANENT: the gift is recorded on the recipient (`permaGain`) so it carries back to the run
+   *  board after combat, not just for this fight. */
   overflowBuffRandom: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side?: Side }).side !== self.side) return;
     const friends = ctx.living(self.side);
     if (friends.length === 0) return;
-    ctx.buff(ctx.rng.pick(friends), num(params.attack, 3) * mul(self), num(params.health, 3) * mul(self), self.uid);
+    const recipient = ctx.rng.pick(friends);
+    const a = num(params.attack, 3) * mul(self);
+    const h = num(params.health, 3) * mul(self);
+    ctx.buff(recipient, a, h, self.uid);
+    recipient.permaGain = { attack: (recipient.permaGain?.attack ?? 0) + a, health: (recipient.permaGain?.health ?? 0) + h };
   },
 
   /** Avenge (X): after every `count` friendly deaths in combat, buff self (+atk/+hp). */

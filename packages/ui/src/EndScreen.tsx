@@ -1,6 +1,8 @@
 import { CARD_INDEX } from '@game/content';
-import type { BoardCard } from '@game/sim';
+import { getHero, type BoardCard } from '@game/sim';
 import { Card, type CardView } from './Card';
+import { heroArt } from './art';
+import { Icon } from './Icon';
 import { useGame } from './store';
 
 /** A read-only view of a board minion for the end-screen final-warband display. */
@@ -21,9 +23,20 @@ function boardView(m: BoardCard): CardView {
 export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
   const startHeroSelect = useGame((s) => s.startHeroSelect);
+  const hero = getHero(run.heroId);
   return (
     <div className={`heroselect endscreen${won ? ' won' : ''}`}>
       <div className="hsbox endbox">
+        <div className="endhero">
+          <div className="endhero-portrait">
+            {heroArt(hero.id) ? (
+              <img className="endhero-img" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
+            ) : (
+              <Icon name="anvil" />
+            )}
+          </div>
+          <div className="endhero-name">{hero.name}</div>
+        </div>
         <div className="eyebrow">{won ? 'The summit is yours' : 'The tide takes you'}</div>
         <h1 className="disp hstitle">{won ? 'VICTORY' : 'FALLEN'}</h1>
         <div className="endsub">{won ? `Survived all ${run.wave} waves` : `Reached wave ${run.wave}`}</div>

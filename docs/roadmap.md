@@ -37,7 +37,9 @@ The next 5 concrete steps:
   and deepen content toward the pool target: **13–15 minions per tribe** across the 6 tiers, weighted
   to T3–5 (run `npm run audit`). Today each tribe is +4 to +7 short (47 total, holes at Dragon T5 +
   Neutral T6); fill the mid tiers, fill the unused primitives (`castSpell`, `endOfTurnBuff`,
-  `spellCostMod`), and add **higher-tier spells** (only 3 T1 today). The pool stays deliberately
+  `spellCostMod`), and add **higher-tier spells** (Spirit Fire is now T2, **Growth** T4 and **Channeling
+the Devourer** T5 have landed alongside the original T1s — keep filling the mid/high tiers toward the
+~40-spell pool). The pool stays deliberately
   small — variety comes from the **meta layer** (heroes + quests/trinkets), not card volume. *Why
   first:* every later patch sits on combat feeling right.
 - **Patch 2 — Front Door & Hero Roster** *(M3; variety).* The run's entry + variety. Generalize the

@@ -125,6 +125,9 @@ export interface RunState {
   spellsThisTurn: number;
   /** Flat reduction to spell purchase costs (min 0) — drives "your spells cost less". */
   spellCostMod: number;
+  /** One-shot hint for the UI: Channeling the Devourer's stat projectile (who received it + how much).
+   *  Set by the cast, read + cleared by the recruit screen after it animates. */
+  devourFx?: { toUid: string; attack: number; health: number };
   /** Cards bought but not yet played (Battlegrounds hand). */
   hand: BoardCard[];
   board: BoardCard[];

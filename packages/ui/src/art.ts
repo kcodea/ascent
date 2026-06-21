@@ -18,8 +18,23 @@ for (const [path, url] of Object.entries(modules)) {
   if (id) MINION_ART[id] = url;
 }
 
-/** The illustrated art URL for a card id, or undefined if none has been added. */
-export const artFor = (cardId?: string): string | undefined => (cardId ? MINION_ART[cardId] : undefined);
+/** Small deterministic string hash — picks a stable art variant per minion instance. */
+const hashStr = (s: string): number => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+};
+
+/** The illustrated art URL for a card id, or undefined if none has been added. `uid` lets cards
+ *  with multiple art variants pick one per instance (stable across re-renders, ~50/50 split). */
+export const artFor = (cardId?: string, uid?: string): string | undefined => {
+  if (!cardId) return undefined;
+  // Pup ships two variants (pup / pup2) — flip a coin per spawn (by uid) for a little flavor.
+  if (cardId === 'pup' && MINION_ART.pup2 && uid) {
+    return hashStr(uid) % 2 === 0 ? MINION_ART.pup : MINION_ART.pup2;
+  }
+  return MINION_ART[cardId];
+};
 
 /** Keyword/effect overlay art (e.g. the Divine Shield bubble drawn over a shielded minion). */
 const fxModules = import.meta.glob('./art/effects/*.png', {

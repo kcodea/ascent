@@ -23,6 +23,18 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Two new spells + a spell-power cast system.** **Growth** (T4 — +3/+4 to your whole board) and
+  **Channeling the Devourer** (T5 — devour a friendly minion and fling its stats onto a random other
+  friend) join the pool, and every stat-granting spell now scales with **spell power**. The Devourer is
+  `singleCast`, so spell-quantity multipliers can't double it.
+- **Combat juice.** A GSAP **attack lunge** (wind-up → strike → knockback → elastic settle) and a smooth
+  **death reflow** — survivors glide into the gap as the fallen minion collapses, one synchronized phase
+  instead of a snap a beat later. 0-Attack units skip their swing (Attack can't go negative), and Flowing
+  Monk's mid-combat gifts are now permanent.
+- **Polish + fixes.** Hero powers now complete **triples** (Myra summoning a 3rd Stray combines it — it
+  didn't before); the end-screen cards + button use the game cursor; the round timer is **18s on wave 1,
+  +4s/round (cap 80)**; new art for **Gnasher**, **Karwind**, **Maw**, **Mama Pup**, **Omega Bulwark**.
+
 - **New card look — one arched frame, art-forward.** Cards are now a compact **arched tile** at rest
   (sprite + corner attack/health gems + tier pill + a **mechanic medallion**); the full card (hover,
   hand, right-click) drops a **text drawer** down from the frame. Golden/tripled minions get a gold

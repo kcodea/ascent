@@ -97,7 +97,7 @@ export function StatusBar() {
               <Icon name="anvil" />
             )}
           </div>
-          <div>
+          <div className="htxt">
             <div className="nm">{hero.name}</div>
             <div className="pw">{powerLine}</div>
           </div>

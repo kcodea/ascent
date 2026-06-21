@@ -1,13 +1,11 @@
 import type { CardDef } from '@game/core';
 
 /**
- * Demons (handoff A.7) — Consume Fodder to feed a carry + destroy. Answers
- * Undying (the Sovereign destroys a Reborn/Glass carry outright) and Venom
- * Swarm (a fat consumed body soaks Poison; Maw buys a Shield). The Consume
- * loop is recruit-time: Soulfeeder eats a friend and Voracious Imp eats Fodder
- * tokens, each firing `onConsume` — which Pactstone Acolyte (+1/+1), Maw of the
- * Pit (Divine Shield) and Ravening Glutton (+2/+2) all pay off. Brood Matron
- * (breeds Imps on death) and Abyssal Sovereign (destroy) resolve in combat.
+ * Demons (handoff A.7) — Consume Fodder to feed a carry. The Fodder supply is
+ * recruit-time: Soulfeeder (Battlecry) and Maw of the Pit (End of Turn) queue
+ * Fodder into the next tavern, and Voracious Imp eats it for 2× stats. Brood
+ * Matron (breeds Imps on death) resolves in combat; Corrupted Lifebinder mirrors
+ * a linked Demon's growth.
  */
 export const DEMONS: CardDef[] = [
   {
@@ -32,7 +30,7 @@ export const DEMONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryAddTavernFodder' }],
+    effects: [{ on: 'onPlay', do: 'addTavernFodder' }],
     text: '**Battlecry:** add Fodder to your next tavern.',
     goldenText: '**Battlecry:** add **2** Fodder to your next tavern.',
   },
@@ -82,19 +80,9 @@ export const DEMONS: CardDef[] = [
     attack: 4,
     health: 5,
     keywords: ['T'],
-    effects: [{ on: 'onConsume', do: 'onConsumeShieldNextCombat' }],
-    text: 'On consume, gain a **Divine Shield** for the next combat.',
-  },
-  {
-    id: 'glut',
-    name: 'Ravening Glutton',
-    tribe: 'demon',
-    tier: 5,
-    attack: 5,
-    health: 5,
-    keywords: ['C', 'CN'],
-    effects: [{ on: 'onConsume', do: 'onConsumeBuffSelf', params: { attack: 2, health: 2 } }],
-    text: 'On consume, gain **+2/+2**.',
+    effects: [{ on: 'endOfTurn', do: 'addTavernFodder' }],
+    text: '**End of Turn:** add a **Fodder** to your next tavern.',
+    goldenText: '**End of Turn:** add **2** Fodder to your next tavern.',
   },
   {
     id: 'ritualist',

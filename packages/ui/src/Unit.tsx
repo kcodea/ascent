@@ -9,14 +9,12 @@ const SYM_KINDS = new Set(['poison', 'shield', 'shieldup', 'reborn', 'rally']);
 
 /** A combat unit — the same Card as recruit, wrapped for animations, floats, and the DS ring. */
 export function Unit({
-  u, side, anim, floats, lunge,
+  u, side, anim, floats,
 }: {
   u: UnitFrame;
   side: 'foe' | 'you';
   anim?: string;
   floats?: { id: number; text: string; kind: string }[];
-  /** Inline transform that slides the attacker into its target. */
-  lunge?: string;
 }) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
@@ -36,7 +34,7 @@ export function Unit({
     floorAttack: u.baseAttack, floorHealth: u.baseHealth,
   };
   return (
-    <div className={cls} data-uid={u.uid} style={lunge ? { transform: lunge, zIndex: 10 } : undefined}>
+    <div className={cls} data-uid={u.uid}>
       <Card card={view} />
       {floats?.map((f) => (
         <span key={f.id} className={`float ${f.kind}${SYM_KINDS.has(f.kind) ? ' sym' : ''}`}>{f.text}</span>

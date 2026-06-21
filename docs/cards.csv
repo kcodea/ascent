@@ -19,13 +19,16 @@ monk,Flowing Monk,minion,neutral,4,1,4,,,"When you summon a minion that doesn't 
 drummer,Drakko the Drummer,minion,neutral,5,2,4,,,Your Battlecries fire 1 more time.,Battlecries fire +1 time (fire 2x total),Your Battlecries fire 2 more times.,Battlecries fire 3x; does NOT stack with other Drakkos,TRUE
 sylus,Sylus the Reaper,minion,neutral,5,4,5,,,"In combat, your Deathrattles proc 1 more time.",Deathrattles proc +1 time,"In combat, your Deathrattles proc 2 more times.",Deathrattles +2 procs; DOES stack with other Sylus,TRUE
 chronos,Chronos,minion,neutral,5,1,6,,,Your End of Turn effects trigger 1 more time.,End-of-Turn effects fire +1 time (no stack — best Chronos),Your End of Turn effects trigger 2 more times.,End-of-Turn fires 3x; does NOT stack with other Chronos,TRUE
+venom,Venom,minion,neutral,3,1,1,,Venomous,,,,2x stats -> 2/2; Venomous,TRUE
+blaster,Blaster,minion,neutral,4,6,3,,,"Deathrattle: deal 3 damage to ALL minions (yours too).",deathrattleDamageAll 3 (both sides),"Deathrattle: deal 6 damage to ALL minions (yours too).",2x stats; 6 damage,TRUE
+jenkins,Jenkins & Fi,minion,neutral,5,3,2,,,Deathrattle: destroy the minion that killed this.,deathrattleDestroyKiller,Deathrattle: destroy the minion that killed this.,2x stats; destroy unchanged,TRUE
 #
 # === BEASTS ===
 alley,Alleycat,minion,beast,1,1,1,,,Battlecry: summon a 1/1 Stray next to it.,battlecrySummon stray x1,Battlecry: summon two 1/1 Strays next to it.,summons 2 Strays (explicit golden_text; count x2),TRUE
 pack,Mama Pup,minion,beast,2,2,2,,,Deathrattle: summon two 1/1 Pups.,deathrattleSummon pup x2,Deathrattle: summon four 1/1 Pups.,summons 4 Pups (explicit golden_text; count x2),TRUE
 kennel,Kennelmaster,minion,beast,2,2,3,,,Each Beast you summon gains +1/+1. Avenge (3): Improve this.,buffOnSummon beast +1/+1 + avengeImproveSummon(3),Each Beast you summon gains +2/+2. Avenge (3): Improve this.,summon buff COMBINES on triple (sum of top-two); fresh golden = +2/+2,TRUE
 cleaver,Ravenous Cleaver,minion,beast,3,2,4,,Cleave,,,,2x stats -> 4/8; Cleave,FALSE
-gnash,"Gnasher, the Overrun",minion,beast,5,6,6,,,"When it kills a minion, it attacks again.",reAttackOnKill,"When it kills a minion, it attacks again.",2x stats -> 12/12; re-attack unchanged,FALSE
+gnash,"Gnasher, the Overrun",minion,beast,6,6,6,,Engraved,"When it kills a minion, it attacks again and gains +5/+5 (Engraved — kept after combat).",reAttackOnKill + onKillBuffSelf +5/+5,"When it kills a minion, it attacks again and gains +5/+5.",2x stats; +10/+10 per kill,TRUE
 grim,Grim,minion,beast,6,7,1,,,Deathrattle: give your Beasts +6/+6 for the rest of combat.,deathrattleBuffTribe beast +6/+6,Deathrattle: give your Beasts +12/+12 for the rest of combat.,board-wide +12/+12,TRUE
 shaper,Wildwood Shaper,minion,beast,2,2,3,,,Choose One: give your Beasts +1/+1; or summon two 1/1 Strays.,chooseOne [buffTribe beast +1/+1 | summon stray x2],Choose One: give your Beasts +2/+2; or summon four 1/1 Strays.,both doubled (Beasts +2/+2; or 4 Strays) via explicit golden_text,FALSE
 spiritpup,Spirit Pup,minion,beast,5,4,6,,,Cast 10 spells with this on board to transform into Spirit Worgen.,spellCastTransform at 10 -> spiritworgen (DUAL beast/dragon),Cast 10 spells with this on board to transform into Spirit Worgen.,2x stats -> 8/12; still transforms at 10 spells,TRUE
@@ -55,7 +58,7 @@ moneybot,Money Bot,minion,mech,3,3,3,,Magnetic,"While on your board, you have +1
 arc,Arclight Reactor,minion,mech,4,3,3,,,"When a friendly Mech Shield breaks, deal 3 to a random enemy.",onShieldBreakDamage 3,"When a friendly Mech Shield breaks, deal 6 to a random enemy.",deal 6 on break,FALSE
 junk,Junkyard Titan,minion,mech,5,4,4,,,"When any friendly Shield breaks, give your minions +1/+1.",onShieldBreakBuffAll +1/+1,"When any friendly Shield breaks, give your minions +2/+2.",+2/+2 on break,TRUE
 combinator,Combinator,minion,mech,5,6,7,,,End of Turn: magnetize a Cling Drone onto 2 friendly Mechs.,endOfTurnMagnetizeMechs cling x1 targets 2,End of Turn: magnetize two Cling Drones onto 2 friendly Mechs.,2 drones each (+4/+4 to 2 Mechs) via explicit golden_text,TRUE
-omega,Omega Bulwark,minion,mech,6,6,6,,Shield|Taunt,Start of Combat: give all your Mechs a Shield.,scGrantShieldTribe mech,Start of Combat: give all your Mechs a Shield.,2x stats; shields all Mechs (unchanged),TRUE
+beatboxer,Beatboxer,minion,mech,6,8,8,,,"Whenever a Magnetic attaches to another friendly minion, copy it onto this too.",magnetize-mimic (sim; mirrors every weld onto another unit),"Whenever a Magnetic attaches to another friendly minion, copy it twice onto this.",mimics each magnetization twice,TRUE
 #
 # === DEMON ===
 feed,Soulfeeder,minion,demon,1,2,2,,,Battlecry: add Fodder to your next tavern.,battlecryAddTavernFodder fred,Battlecry: add 2 Fodder to your next tavern.,2x stats; adds 2 Fodder (count x2),TRUE

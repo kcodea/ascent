@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral']);
 
-export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL']);
+export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'EG']);
 
 export const GameEventSchema = z.enum([
   'onPlay',
@@ -34,6 +34,9 @@ export const EffectFactoryIdSchema = z.enum([
   'buffOnSummon',
   'deathrattleBuffTribe',
   'reAttackOnKill',
+  'onKillBuffSelf',
+  'deathrattleDamageAll',
+  'deathrattleDestroyKiller',
   'scDamage',
   'scSplitDamage',
   'scAoePerTribe',

@@ -23,6 +23,11 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **New keyword "Engraved" + 4 new cards.** **Engraved** minions keep the stats they gain in combat
+  (carried back to your board) — **Gnasher** is now a T6 Engraved threat that gains a permanent **+5/+5**
+  on every kill. New: **Beatboxer** (T6 Mech — copies every magnetization onto itself), **Blaster** (T4 —
+  Deathrattle: 3 to all minions), **Jenkins & Fi** (T5 — Deathrattle: destroy its killer), and **Venom**
+  (T3 Venomous). Omega Bulwark retired; the spell slot now respects your tavern tier.
 - **Two new spells + a spell-power cast system.** **Growth** (T4 — +3/+4 to your whole board) and
   **Channeling the Devourer** (T5 — devour a friendly minion and fling its stats onto a random other
   friend) join the pool, and every stat-granting spell now scales with **spell power**. The Devourer is

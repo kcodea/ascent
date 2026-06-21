@@ -8,6 +8,7 @@ import type {
   Minion,
   MinionSnapshot,
   Side,
+  Tribe,
 } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
@@ -40,6 +41,10 @@ export function simulate(
     player: player.map((b) => instantiate(b, 'player', cards, mkUid)),
     enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
   };
+
+  // Persistent tribe buffs (Grim's Deathrattle): registered when it fires, then applied to every matching
+  // friend summoned for the *rest of combat*. Side-scoped; multiple Grims stack.
+  const tribeAuras: { side: Side; tribe: Tribe | 'any'; attack: number; health: number; source: string }[] = [];
 
   // Corrupted Lifebinder: `linkUid` arrives as the linked board card's uid — remap it to that minion's
   // fresh combat uid (matched via sourceUid) so mid-fight buffs on the demon can find their mirror.
@@ -94,7 +99,18 @@ export function simulate(
       target.health += health;
       if (health > 0) target.maxHealth += health;
       events.push({ type: 'buff', target: target.uid, attack, health, source });
+      // Engraved: a minion that keeps its combat gains accrues every buff into permaGain, which carries
+      // back to the run board after the fight (Flowing Monk records its gift directly for non-Engraved).
+      if (target.keywords.includes('EG')) {
+        target.permaGain = {
+          attack: (target.permaGain?.attack ?? 0) + attack,
+          health: (target.permaGain?.health ?? 0) + health,
+        };
+      }
       if (source !== 'Lifebinder') mirrorLink(target, attack, health); // Corrupted Lifebinder follows along
+    },
+    addTribeAura: (side, tribe, attack, health, source) => {
+      tribeAuras.push({ side, tribe, attack, health, source });
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
@@ -134,6 +150,12 @@ export function simulate(
     registerEffects(minion);
     events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid, ...(isEcho && { echo: true }) });
     bus.emit('onSummon', { minion, side });
+    // Persistent tribe auras (Grim) catch minions summoned after they were registered.
+    for (const aura of tribeAuras) {
+      if (aura.side === side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe)) {
+        ctx.buff(minion, aura.attack, aura.health, aura.source);
+      }
+    }
     if (!isEcho) {
       const echoes = living(side).reduce((n, m) => n + (m.cardId === 'echo' ? (m.golden ? 2 : 1) : 0), 0);
       for (let i = 0; i < echoes && living(side).length < 7; i++) summonMinion(side, card, minion.uid, true);
@@ -165,7 +187,7 @@ export function simulate(
   // Running death tally per side — drives Avenge (X) (A.4).
   const deaths: Record<Side, number> = { player: 0, enemy: 0 };
 
-  function killOrReborn(minion: Minion): void {
+  function killOrReborn(minion: Minion, killer?: Minion): void {
     // Reborn (A.3 step 6): the first death returns the minion at its *base* card stats — it sheds
     // every combat buff and granted keyword (Divine Shield, etc.), keeping only its printed keywords
     // (minus the spent Reborn). A golden minion returns at doubled base. So a 2/1 buffed to a 10/3
@@ -191,7 +213,7 @@ export function simulate(
     minion.dead = true;
     minion.health = 0;
     events.push({ type: 'death', target: minion.uid });
-    bus.emit('onDeath', { minion, side: minion.side });
+    bus.emit('onDeath', { minion, side: minion.side, killer });
     // Sylus the Reaper: the dying minion's own Deathrattle procs extra times (golden = +2;
     // multiple Sylus stack additively). Re-runs only this minion's onDeath effects.
     const reaperBonus = living(minion.side).reduce(
@@ -260,7 +282,7 @@ export function simulate(
         events.push({ type: 'venomLost', target: poisoner.uid });
       }
     }
-    if (target.health <= 0) killOrReborn(target);
+    if (target.health <= 0) killOrReborn(target, poisoner);
   }
 
   // Targeting: random among living enemies, Taunts first if any (A.3 step 4).

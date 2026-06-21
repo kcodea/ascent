@@ -4,7 +4,8 @@ import { CONFIG } from './config';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders } from './recruit';
+import { pickOpponent, opponentBoard } from './opponents';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
@@ -139,15 +140,18 @@ function reduceCore(state: RunState, action: Action): RunState {
         const target = s.board[action.toIndex];
         if (target && magnetizesTo(card.cardId, target.cardId)) {
           s.hand.splice(i, 1);
-          addBuff(target, CARD_INDEX[card.cardId]?.name ?? card.cardId, card.attack, card.health);
-          for (const k of card.keywords) {
-            if (k !== 'M' && !target.keywords.includes(k)) target.keywords.push(k);
-          }
-          // Money Bot magnetized in: its mana-per-turn rides along on the host Mech (and survives
-          // the host's triple); selling the host removes it.
+          // Money Bot magnetized in: its mana-per-turn rides along on the host Mech (and survives the
+          // host's triple); selling the host removes it.
           const mDef = CARD_INDEX[card.cardId];
           const mana = (mDef?.manaPerTurn ?? 0) * (card.golden ? 2 : 1) + (card.manaBonus ?? 0);
-          if (mana > 0) target.manaBonus = (target.manaBonus ?? 0) + mana;
+          // Weld the magnetic onto the host — stats, keywords, mana — and let any Beatboxer mimic it.
+          weldMagnetic(s, target, {
+            source: mDef?.name ?? card.cardId,
+            attack: card.attack,
+            health: card.health,
+            keywords: card.keywords,
+            mana,
+          });
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
           if (card.golden) grantGoldenDiscover(s);
           return s;
@@ -370,7 +374,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       syncLifebinders(s);
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
-      const enemy = buildEnemyBoard(s.threat, s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
+      // Serve a strength-matched real board from the opponent pool when one exists (M3 step 4 — getting
+      // off the procedural omen blobs); otherwise fall back to the procedural threat. pickOpponent consumes
+      // the rng only when it actually serves, so an empty / no-match pool keeps the fallback byte-identical.
+      const enemyRng = makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY));
+      const playerPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
+      const served = pickOpponent(s.wave, playerPower, enemyRng);
+      const enemy = served ? opponentBoard(served) : buildEnemyBoard(s.threat, s.wave, enemyRng);
       const player: BoardMinion[] = s.board.map((b) => ({
         cardId: b.cardId,
         attack: b.attack,
@@ -546,7 +556,8 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
   if (result.playerPermaBuffs) {
     for (const { sourceUid, attack, health } of result.playerPermaBuffs) {
       const card = s.board.find((c) => c.uid === sourceUid);
-      if (card) addBuff(card, 'Flowing Monk', attack, health);
+      // Engraved minions keep their own combat gains; a non-Engraved carrier got a permanent gift (Monk).
+      if (card) addBuff(card, card.keywords.includes('EG') ? 'Engraved' : 'Flowing Monk', attack, health);
     }
   }
   // Deathrattle-granted cards (Arcane Weaver → a Spirit Fire copy) land in the hand for

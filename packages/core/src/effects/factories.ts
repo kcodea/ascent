@@ -82,9 +82,38 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const tribe = str(params.tribe) as Tribe | 'any';
     const attack = num(params.attack) * mul(self);
     const health = num(params.health) * mul(self);
+    // "For the rest of combat": register a persistent aura so friends summoned *after* this gain it too…
+    ctx.addTribeAura(self.side, tribe, attack, health, self.uid);
+    // …then buff the friends already on the board.
     for (const m of ctx.living(self.side)) {
       if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe) ctx.buff(m, attack, health, self.uid);
     }
+  },
+
+  /** On kill (Gnasher): buff self by +atk/+hp. Pairs with Engraved so the gain is permanent. The onKill
+   *  payload carries the killer as `attacker`, so only the minion that scored the kill fires. */
+  onKillBuffSelf: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    ctx.buff(self, num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
+  },
+
+  /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
+   *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
+  deathrattleDamageAll: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const amount = num(params.amount, 3) * mul(self);
+    for (const side of ['player', 'enemy'] as Side[]) {
+      for (const m of [...ctx.living(side)]) ctx.damage(m, amount);
+    }
+  },
+
+  /** Deathrattle (Jenkins & Fi): destroy the minion that dealt the killing blow (`killer` on the onDeath
+   *  payload). Bypasses Divine Shield — it's a destroy, not a hit. No-op if the killer died too / is absent. */
+  deathrattleDestroyKiller: (ctx, self, _params, payload) => {
+    const p = payload as MinionPayload & { killer?: Minion };
+    if (p.minion !== self) return;
+    const killer = p.killer;
+    if (killer && !killer.dead && killer.health > 0) ctx.damage(killer, killer.health + 999, false, true);
   },
 
   /**
@@ -217,7 +246,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 3) * mul(self);
     const h = num(params.health, 3) * mul(self);
     ctx.buff(recipient, a, h, self.uid);
-    recipient.permaGain = { attack: (recipient.permaGain?.attack ?? 0) + a, health: (recipient.permaGain?.health ?? 0) + h };
+    // ctx.buff already accrues permaGain for an Engraved recipient; record it here for everyone else
+    // (Flowing Monk's gift is permanent regardless of the recipient's keywords).
+    if (!recipient.keywords.includes('EG')) {
+      recipient.permaGain = { attack: (recipient.permaGain?.attack ?? 0) + a, health: (recipient.permaGain?.health ?? 0) + h };
+    }
   },
 
   /** Avenge (X): after every `count` friendly deaths in combat, buff self (+atk/+hp). */
@@ -255,7 +288,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   // --- Mechs (Divine Shield walls + shield-break payoffs) ---
 
-  /** Omega Bulwark — Start of Combat: give all your Mechs a Divine Shield. */
+  /** Start of Combat: give every friendly minion of `tribe` a Divine Shield (a reusable shield-wall
+   *  primitive — currently unused after Omega Bulwark's removal, kept for a future Mech wall card). */
   scGrantShieldTribe: (ctx, self, params) => {
     const tribe = (str(params.tribe) || 'mech') as Tribe;
     const friends = ctx.living(self.side).filter((m) => m.tribe === tribe || m.tribe2 === tribe);

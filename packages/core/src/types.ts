@@ -17,7 +17,8 @@ export type Keyword =
   | 'FD' // Fodder — a cheap minion meant to be Consumed
   | 'IMM' // Immune — takes no damage
   | 'ST' // Stealth — can't be targeted by attacks; lost on attacking
-  | 'RL'; // Rally — triggers an effect each time this attacks
+  | 'RL' // Rally — triggers an effect each time this attacks
+  | 'EG'; // Engraved — stat gains during combat carry back to the run board (permanent)
 
 export type Tier = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -55,6 +56,9 @@ export type EffectFactoryId =
   | 'buffOnSummon'
   | 'deathrattleBuffTribe'
   | 'reAttackOnKill'
+  | 'onKillBuffSelf' // on kill: buff self (Gnasher) — permanent via Engraved
+  | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
+  | 'deathrattleDestroyKiller' // Deathrattle: destroy the minion that dealt the killing blow (Jenkins & Fi)
   | 'scDamage'
   | 'scSplitDamage'
   | 'scAoePerTribe'
@@ -290,6 +294,9 @@ export interface CombatContext {
   living(side: Side): Minion[];
   getCard(id: string): CardDef;
   buff(target: Minion, attack: number, health: number, source: string): void;
+  /** Register a tribe buff that persists for the rest of combat: a friend of `tribe` on `side`
+   *  summoned *after* this also gains +atk/+hp (Grim's Deathrattle). Current friends are buffed by the caller. */
+  addTribeAura(side: Side, tribe: Tribe | 'any', attack: number, health: number, source: string): void;
   summon(side: Side, card: CardDef, nearUid?: string): Minion;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;

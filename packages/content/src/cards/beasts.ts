@@ -63,12 +63,15 @@ export const BEASTS: CardDef[] = [
     id: 'gnash',
     name: 'Gnasher, the Overrun',
     tribe: 'beast',
-    tier: 5,
+    tier: 6,
     attack: 6,
     health: 6,
-    keywords: [],
-    effects: [{ on: 'onKill', do: 'reAttackOnKill' }],
-    text: 'When it kills a minion, it **attacks again**.',
+    keywords: ['EG'],
+    effects: [
+      { on: 'onKill', do: 'reAttackOnKill' },
+      { on: 'onKill', do: 'onKillBuffSelf', params: { attack: 5, health: 5 } },
+    ],
+    text: 'When it kills a minion, it **attacks again** and gains **+5/+5** (Engraved — kept after combat).',
   },
   {
     // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.

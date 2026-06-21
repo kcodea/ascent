@@ -128,7 +128,11 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       primitives available for future cards: `deathrattleGrantSpell` (combat death adds a card to hand),
       `cardBuffs` (persistent per-cardId run enchantment), `battlecryGainRandomMinion` (add a random
       minion of a tier to hand), `battlecryTriggered`/`onBattlecryBuffTribe` (react to any Battlecry),
-      and `CardDef.manaPerTurn` / `boardManaBonus` (board-derived max-mana economy — Money Bot).
+      and `CardDef.manaPerTurn` / `boardManaBonus` (board-derived max-mana economy — Money Bot). Added
+      this batch: the **Engraved** keyword (`EG` — combat gains carry back via `permaGain`), `onKillBuffSelf`
+      (buff self on kill — Gnasher), `deathrattleDamageAll` (board-wide Deathrattle — Blaster),
+      `deathrattleDestroyKiller` (destroy the killer, off the `onDeath` `killer` — Jenkins & Fi), and
+      `weldMagnetic` (the shared magnetize path; Beatboxer mimics every weld).
 
 ## M3 — meta
 

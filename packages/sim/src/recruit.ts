@@ -118,6 +118,40 @@ export function magnetizeTargets(
   return eligible.slice(0, count).map((c) => c.uid);
 }
 
+/** The contribution a magnetic welds onto a host: its stats, its non-Magnetic keywords, and any mana
+ *  income it carries (Money Bot). */
+export interface MagnetPayload {
+  source: string;
+  attack: number;
+  health: number;
+  keywords: Keyword[];
+  mana: number;
+}
+
+/** Apply a magnetic's contribution to one host (×mult): stats (as a tracked buff), keywords (minus
+ *  Magnetic), and mana income. */
+function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
+  addBuff(host, mag.source, mag.attack * mult, mag.health * mult);
+  for (const k of mag.keywords) {
+    if (k !== 'M' && !host.keywords.includes(k)) host.keywords.push(k);
+  }
+  if (mag.mana > 0) host.manaBonus = (host.manaBonus ?? 0) + mag.mana * mult;
+}
+
+/**
+ * Weld a magnetic onto `host`, then let any Beatboxer mimic it. Beatboxer copies every magnetization
+ * that lands on *another* unit (a magnetization onto a Beatboxer itself is just the `host` weld below,
+ * counted once); a golden Beatboxer mimics each one twice. Net: a Beatboxer ends up with every
+ * magnetization that happened on your board, once per event (twice if golden). Both magnetization paths
+ * — the player dropping a Magnetic on a Mech, and Combinator's End-of-Turn weld — route through here.
+ */
+export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload): void {
+  applyWeld(host, mag, 1);
+  for (const bb of state.board) {
+    if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) applyWeld(bb, mag, bb.golden ? 2 : 1);
+  }
+}
+
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
   buffOnBuy: (_ctx, self, params, { minion }) => {
@@ -324,7 +358,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     );
     for (const uid of uids) {
       const m = ctx.state.board.find((c) => c.uid === uid);
-      if (m) addBuff(m, nameOf(self), token.attack * drones, token.health * drones);
+      if (m) {
+        weldMagnetic(ctx.state, m, {
+          source: nameOf(self),
+          attack: token.attack * drones,
+          health: token.health * drones,
+          keywords: [...token.keywords],
+          mana: 0,
+        });
+      }
     }
   },
 

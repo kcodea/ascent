@@ -5,6 +5,48 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-21
 
+### Engraved keyword + 4 new cards + tier-gated spell offers (M2)
+- **Engraved (keyword `EG`)** — a minion with Engraved keeps the stat gains it accrues in combat: every
+  `ctx.buff` on it accumulates into `permaGain`, which the run loop carries back to the board after the
+  fight. Generalizes Flowing Monk's permanent gift (the Monk now records `permaGain` only for its
+  *non*-Engraved recipients, since `ctx.buff` already accrues it for Engraved ones). Carry-back is
+  labelled "Engraved" (vs "Flowing Monk" for the Monk's own gift). UI: pill + anvil glyph.
+- **Gnasher → T6**, now **Engraved** with an on-kill **+5/+5** (`onKillBuffSelf`, fired by the existing
+  `onKill` event) — it snowballs permanently as "the Overrun." (Side effect of Engraved: *all* of
+  Gnasher's combat gains persist, not only the on-kill — deliberate, easy to narrow later.)
+- **4 new cards** (+ art): **Beatboxer** (T6 Mech 8/8) mimics every magnetization that lands on another
+  unit — the player's magnetic-drop (reducer) and Combinator's weld (recruit) now both route through a
+  new `weldMagnetic(state, host, mag)` helper that also mirrors onto any Beatboxer (golden = 2×; a weld
+  directly onto a Beatboxer counts once). **Blaster** (T4 6/3) Deathrattle deals 3 to ALL minions on both
+  sides (`deathrattleDamageAll`). **Jenkins & Fi** (T5 3/2) Deathrattle destroys the killer — `killOrReborn`
+  + the `onDeath` event now thread the `killer` (the source of the lethal hit) → `deathrattleDestroyKiller`.
+  **Venom** (T3 1/1 Venomous).
+- **Omega Bulwark removed** (its `scGrantShieldTribe` primitive is kept but now unused — a future Mech
+  shield-wall card can reuse it). **Selfless Sentinel** art re-wired — the previous file was corrupt;
+  re-copied clean from source (renders correctly now).
+- **Spell offers respect the tavern tier** — `drawSpellId` filters `SPELL_CARDS` to `tier ≤ tavern tier`,
+  so a T2 shop no longer offers the T5 Devourer (now gated like minions).
+- Verified: typecheck + lint clean; **193** tests (added Engraved/Gnasher, Blaster, Jenkins, Beatboxer ×3,
+  spell tier-gate); live on a fresh build — all five arts render (incl. the Selfless fix), Engraved +
+  Venomous pills show, Gnasher/Beatboxer/Blaster/Jenkins read T6/T6/T4/T5.
+
+### Step 4 — serve real opponent boards + Grim persistent aura + board4 (M3 / M2)
+- **Serve real boards (M3 step 4)** — new `packages/sim/opponents.ts`: a STATIC, versioned `OPPONENT_POOL`
+  of `BoardSnapshot`s + `pickOpponent(wave, power, rng)` (matches by wave ±1, then closest power within a
+  tolerance; returns null → procedural fallback, so a thin pool degrades gracefully). `faceOmen` now serves
+  a strength-matched real board when one exists, else the procedural threat — getting us off the random
+  `omen` blobs for matched waves. The static pool keeps opponent selection deterministic / replay-faithful
+  (a live pool would break byte-identical replays); the board library grows it in batches. Seeded with
+  bootstrap real-card boards (waves 2–5). `pickOpponent` consumes the rng only when it serves, so an
+  empty/no-match pool leaves the procedural board byte-identical.
+- **Grim → persistent aura** — `deathrattleBuffTribe` registers a rest-of-combat tribe aura
+  (`ctx.addTribeAura`) that the summon path applies to every matching friend summoned *afterward*, so a
+  Beast summoned post-Grim also gains +6/+6 (Reborn-safe; multiple Grims stack). The card text already
+  said "for the rest of combat" — the code now matches it.
+- **board4** wired as the board background (`apps/web/public/board4.png` + the `.app` CSS), as a swap-test.
+- Verified: tests (Grim aura isolation — Pups summoned after Grim still get +6/+6; `pickOpponent` matching
+  + `faceOmen` serving real cards); live (board4 renders; the Grim/opponent logic is engine-tested).
+
 ### Golden Corrupted Lifebinder mirrors double its partner (M2)
 A golden (tripled / Gilded) Corrupted Lifebinder now gains **2×** its linked demon's stat gains, in
 both phases: recruit (`syncLifebinders` — `linkApplied` tracks the mirrored magnitude, so flipping to

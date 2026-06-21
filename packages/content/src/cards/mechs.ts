@@ -6,8 +6,8 @@ import type { CardDef } from '@game/core';
  * (a Shield eats the single big hit). The shield-break chain is the engine of
  * the tribe: every popped Shield can regrant a Shield (Capacitor), ping an
  * enemy (Reactor), or buff the board (Titan). Magnetic merges a Cling Drone's
- * stats onto a friendly Mech at recruit (resolved in `@game/sim`); Omega
- * Bulwark re-arms the whole wall at Start of Combat.
+ * stats onto a friendly Mech at recruit (resolved in `@game/sim`); Beatboxer
+ * mimics every magnetization that lands on another friendly unit.
  */
 export const MECHS: CardDef[] = [
   {
@@ -100,20 +100,17 @@ export const MECHS: CardDef[] = [
     goldenText: '**End of Turn:** magnetize **two** Cling Drones onto 2 friendly Mechs.',
   },
   {
-    id: 'omega',
-    name: 'Omega Bulwark',
+    // Passive (resolved in @game/sim's magnetize path): every magnetization that lands on another
+    // friendly minion is mirrored onto Beatboxer too. Golden mirrors each one twice.
+    id: 'beatboxer',
+    name: 'Beatboxer',
     tribe: 'mech',
     tier: 6,
-    attack: 6,
-    health: 6,
-    keywords: ['DS', 'T'],
-    effects: [
-      {
-        on: 'startOfCombat',
-        do: 'scGrantShieldTribe',
-        params: { tribe: 'mech', text: 'Omega Bulwark raises the shieldwall' },
-      },
-    ],
-    text: '**Start of Combat:** give all your Mechs a Shield.',
+    attack: 8,
+    health: 8,
+    keywords: [],
+    effects: [],
+    text: 'Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.',
+    goldenText: 'Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this.',
   },
 ];

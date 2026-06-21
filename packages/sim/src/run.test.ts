@@ -10,6 +10,8 @@ import {
   deserialize,
   selectThreat,
   buildEnemyBoard,
+  pickOpponent,
+  OPPONENT_POOL,
   boardManaBonus,
   THREAT_IDS,
   addBuff,
@@ -1632,5 +1634,92 @@ describe('Corrupted Lifebinder End-of-Turn timing (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'lb')!.attack).toBe(4); // Lifebinder mirrored +1
     // And the combat snapshot carried the mirrored Lifebinder (it fought with the gain).
     expect(s.lastCombat!.initial.player.find((m) => m.cardId === 'lifebinder')?.attack).toBe(4);
+  });
+});
+
+describe('opponent pool (M3 step 4 — serve real boards)', () => {
+  it('pickOpponent serves a wave+strength-matched board, else null (→ procedural fallback)', () => {
+    const wave3 = OPPONENT_POOL.find((s) => s.wave === 3)!;
+    const matched = pickOpponent(3, wave3.power, makeRng(7));
+    expect(matched).not.toBeNull();
+    expect(Math.abs(matched!.wave - 3)).toBeLessThanOrEqual(1); // a near-wave candidate
+    expect(pickOpponent(15, wave3.power, makeRng(7))).toBeNull(); // no board near wave 15 → fallback
+    expect(pickOpponent(3, 9999, makeRng(7))).toBeNull(); // power wildly off-curve → fallback (thin pool)
+  });
+
+  it('faceOmen serves a real board (not omen blobs) when the pool has a match', () => {
+    const s: RunState = {
+      ...createRun(1),
+      wave: 3,
+      board: [
+        { uid: 'a', cardId: 'kennel', tribe: 'beast', attack: 4, health: 5, keywords: [], golden: false },
+        { uid: 'b', cardId: 'whelp', tribe: 'dragon', attack: 5, health: 6, keywords: [], golden: false },
+      ],
+    };
+    const enemy = reduce(s, { type: 'faceOmen' }).lastCombat!.initial.enemy;
+    expect(enemy.length).toBeGreaterThan(0);
+    expect(enemy.every((m) => m.cardId !== 'omen')).toBe(true); // a real board, not procedural omen blobs
+    const poolSigs = OPPONENT_POOL.map((sn) => sn.minions.map((m) => m.cardId).sort().join(','));
+    expect(poolSigs).toContain(enemy.map((m) => m.cardId).sort().join(',')); // it's one of the pool boards
+  });
+});
+
+describe('Beatboxer — mimics magnetizations (M3 content)', () => {
+  const clingHand = (uid: string): BoardCard => ({ uid, cardId: 'cling', tribe: 'mech', attack: 2, health: 2, keywords: ['M'], golden: false });
+
+  it('mimics a magnetization onto another mech (Beatboxer gains the stats too)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'host', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+        { uid: 'bb', cardId: 'beatboxer', tribe: 'mech', attack: 8, health: 8, keywords: [], golden: false },
+      ],
+      hand: [clingHand('m')],
+    };
+    s = reduce(s, { type: 'play', uid: 'm', toIndex: 0 }); // magnetize the Cling onto the drone (index 0)
+    const host = s.board.find((c) => c.uid === 'host')!;
+    const bb = s.board.find((c) => c.uid === 'bb')!;
+    expect([host.attack, host.health]).toEqual([4, 3]); // host welded +2/+2
+    expect([bb.attack, bb.health]).toEqual([10, 10]); // Beatboxer mimicked it (8/8 +2/+2)
+  });
+
+  it('a golden Beatboxer mimics each magnetization twice', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'host', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+        { uid: 'bb', cardId: 'beatboxer', tribe: 'mech', attack: 8, health: 8, keywords: [], golden: true },
+      ],
+      hand: [clingHand('m')],
+    };
+    s = reduce(s, { type: 'play', uid: 'm', toIndex: 0 });
+    const bb = s.board.find((c) => c.uid === 'bb')!;
+    expect([bb.attack, bb.health]).toEqual([12, 12]); // golden → 8/8 + 2×(2/2)
+  });
+
+  it('magnetizing directly onto Beatboxer counts once (no self-mimic)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'bb', cardId: 'beatboxer', tribe: 'mech', attack: 8, health: 8, keywords: [], golden: false }],
+      hand: [clingHand('m')],
+    };
+    s = reduce(s, { type: 'play', uid: 'm', toIndex: 0 }); // weld onto Beatboxer itself
+    const bb = s.board.find((c) => c.uid === 'bb')!;
+    expect([bb.attack, bb.health]).toEqual([10, 10]); // 8/8 + 2/2 once, not doubled
+  });
+});
+
+describe('spell offers respect the tavern tier (M3 fix)', () => {
+  it('never offers a spell above the current tier', () => {
+    let s: RunState = { ...createRun(1), tier: 2, embers: 200 };
+    let sawSpell = false;
+    for (let i = 0; i < 40; i++) {
+      s = reduce(s, { type: 'roll' });
+      if (s.spell) {
+        sawSpell = true;
+        expect(CARD_INDEX[s.spell.cardId]!.tier).toBeLessThanOrEqual(2); // the T5 Devourer can't appear at T2
+      }
+    }
+    expect(sawSpell).toBe(true);
   });
 });

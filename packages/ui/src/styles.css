@@ -50,7 +50,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The stage box: centred in the window via absolute inset:0 + margin auto + a fixed --gw/--gh.
    By default it fills the window; the resolution scaler shrinks it. The illustrated board art +
    readability scrim live here (so letterbox bars stay the dark body frame). */
-.app { position: relative; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: linear-gradient(rgba(28, 22, 16, 0.34), rgba(28, 22, 16, 0.46)), url('/board.jpg') center / cover no-repeat, var(--bg); border-radius: 2px; }
+.app { position: relative; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: linear-gradient(rgba(28, 22, 16, 0.34), rgba(28, 22, 16, 0.46)), url('/board4.png') center / cover no-repeat, var(--bg); border-radius: 2px; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half

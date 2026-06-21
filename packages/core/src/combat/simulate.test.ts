@@ -142,8 +142,9 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(a.result).toBe('lose');
-    // The Gnasher survives ~6/5 → round((6 + 5) / 8) = 1 (min 1).
-    expect(a.playerDamage).toBe(1);
+    // Gnasher (going first) kills the Alleycat, and its on-kill +5/+5 grows it to ~11/10 — so it
+    // survives bigger: round((11 + 10) / 8) = 3.
+    expect(a.playerDamage).toBe(3);
   });
 
   it('fires Pack Scrounger Deathrattle — summons two Pups', () => {
@@ -328,20 +329,6 @@ describe('simulate (handoff A.3)', () => {
     expect(playerAttacks.slice(0, 2)).toEqual([knit, knit]);
   });
 
-  it('a dual-type Mech (Heckbinder) is counted by a Mech tribe buff', () => {
-    // Omega Bulwark's Start of Combat shields all Mechs — Heckbinder (Demon/Mech) must be included.
-    const a = run(
-      [
-        { cardId: 'omega', attack: 2, health: 6, keywords: ['T'] },
-        { cardId: 'heckbinder', attack: 3, health: 3, keywords: [] },
-      ],
-      [{ cardId: 'omen', attack: 2, health: 30, keywords: [] }],
-      4,
-    );
-    const heckUid = a.initial.player.find((m) => m.cardId === 'heckbinder')?.uid;
-    expect(a.events.some((e) => e.type === 'shieldUp' && e.target === heckUid)).toBe(true);
-  });
-
   it('Sporeling Deathrattle buffs a surviving friend', () => {
     const a = run(
       [
@@ -352,20 +339,6 @@ describe('simulate (handoff A.3)', () => {
       5,
     );
     expect(a.events.some((e) => e.type === 'buff')).toBe(true);
-  });
-
-  it('Omega Bulwark Start of Combat shields every other friendly Mech', () => {
-    const a = run(
-      [
-        { cardId: 'omega', attack: 6, health: 6, keywords: ['DS', 'T'] },
-        { cardId: 'arc', attack: 3, health: 3 },
-      ],
-      [{ cardId: 'omen', attack: 1, health: 1, keywords: [] }],
-      11,
-    );
-    expect(a.events[0]?.type).toBe('sc');
-    // Omega already has its own Shield, so only the unshielded Arclight gains one.
-    expect(a.events.filter((e) => e.type === 'shieldUp').length).toBe(1);
   });
 
   it('Selfless Sentinel Deathrattle grants a surviving friend a Shield', () => {
@@ -577,6 +550,73 @@ describe('simulate (handoff A.3)', () => {
     const a = run(p, e, 3);
     const mirror = a.events.filter((ev) => ev.type === 'buff' && ev.source === 'Lifebinder');
     expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 12 && ev.health === 12)).toBe(true);
+  });
+
+  it('Grim buffs Beasts summoned *after* it dies — a persistent aura, not a one-time buff', () => {
+    // Grim dies on its first swing (1 HP → retaliation) and registers a +6/+6 Beast aura for the rest of
+    // combat. Mama Pup outlives it, then dies and summons 2 Pups — and though they're summoned *after*
+    // Grim is gone, the aura still catches them. Isolates the aura: a one-time "buff living Beasts" could
+    // never reach a minion that didn't exist yet.
+    const p: BoardMinion[] = [
+      { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
+      { cardId: 'pack', attack: 2, health: 25, sourceUid: 'P' }, // Mama Pup: tanky, Deathrattle → 2 Pups
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 9, health: 100 }];
+    const a = run(p, e, 3);
+    const grimUid = a.initial.player.find((m) => m.cardId === 'grim')!.uid;
+    const grimDeath = a.events.findIndex((ev) => ev.type === 'death' && ev.target === grimUid);
+    expect(grimDeath).toBeGreaterThanOrEqual(0);
+    const latePups = a.events
+      .map((ev, i) => ({ ev, i }))
+      .filter(({ ev, i }) => i > grimDeath && ev.type === 'summon' && ev.minion.cardId === 'pup');
+    expect(latePups.length).toBeGreaterThan(0); // Pups summoned strictly after Grim died
+    for (const { ev } of latePups) {
+      const uid = ev.type === 'summon' ? ev.minion.uid : '';
+      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 6 && b.health === 6);
+      expect(gotAura).toBe(true);
+    }
+  });
+
+  it('Gnasher gains a permanent +5/+5 on kill (Engraved carries it back)', () => {
+    // Player Gnasher (wider board → goes first) kills the lone enemy; its on-kill +5/+5 is Engraved, so
+    // it's recorded as a permaGain the run loop applies to the board after the fight.
+    const a = run(
+      [
+        { cardId: 'gnash', attack: 6, health: 6, sourceUid: 'G' },
+        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 1 }],
+      3,
+    );
+    expect(a.result).toBe('win');
+    const perma = a.playerPermaBuffs?.find((p) => p.sourceUid === 'G');
+    expect(perma).toBeDefined();
+    expect([perma!.attack, perma!.health]).toEqual([5, 5]); // one kill → +5/+5 kept
+  });
+
+  it('Blaster Deathrattle deals 3 to every minion on both sides (friendly included)', () => {
+    const a = run(
+      [
+        { cardId: 'blaster', attack: 1, health: 1, sourceUid: 'B' },
+        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 5, health: 5 }],
+      3,
+    );
+    const sandbagUid = a.initial.player.find((m) => m.cardId === 'sandbag')!.uid;
+    const omenUid = a.initial.enemy.find((m) => m.cardId === 'omen')!.uid;
+    expect(a.events.some((e) => e.type === 'dmg' && e.target === sandbagUid && e.amount === 3)).toBe(true); // friendly hit
+    expect(a.events.some((e) => e.type === 'dmg' && e.target === omenUid && e.amount === 3)).toBe(true); // enemy hit
+  });
+
+  it('Jenkins & Fi Deathrattle destroys the minion that killed it', () => {
+    const a = run(
+      [{ cardId: 'jenkins', attack: 3, health: 2, sourceUid: 'J' }],
+      [{ cardId: 'omen', attack: 5, health: 20 }],
+      3,
+    );
+    const omenUid = a.initial.enemy.find((m) => m.cardId === 'omen')!.uid;
+    expect(a.events.some((e) => e.type === 'death' && e.target === omenUid)).toBe(true); // the killer is destroyed
   });
 
   it('Flowing Monk buffs a friend when a combat summon overflows the full board', () => {

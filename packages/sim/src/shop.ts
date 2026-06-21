@@ -55,8 +55,12 @@ function drawOfferId(rng: Rng, pool: CardDef[], tier: number): string | null {
   return (pool[k] ?? pool[0]!).id;
 }
 
-const drawSpellId = (rng: Rng): string | null =>
-  SPELL_CARDS.length > 0 ? SPELL_CARDS[rng.int(SPELL_CARDS.length)]!.id : null;
+/** A spell offer respects the tavern tier — like minions, a spell can only appear once you're at least
+ *  its tier. Uniform among the eligible spells. */
+const drawSpellId = (rng: Rng, tier: number): string | null => {
+  const eligible = SPELL_CARDS.filter((c) => c.tier <= tier);
+  return eligible.length > 0 ? eligible[rng.int(eligible.length)]!.id : null;
+};
 
 /**
  * Return a minion's copies to the shared pool (sell, or a discarded reroll offer). Tokens / Fodder /
@@ -89,8 +93,9 @@ export function rollShop(state: RunState): void {
     offers.push({ uid: `s${state.uidSeq++}`, cardId: id });
   }
   state.shop = offers;
-  // Always offer one spell on the right (handoff). Spells are unlimited — not part of the pool.
-  const spellId = drawSpellId(rng);
+  // Always offer one spell on the right (handoff). Spells are unlimited — not part of the pool — but
+  // still gated by tavern tier (a T5 spell can't appear at T2).
+  const spellId = drawSpellId(rng, state.tier);
   state.spell = spellId ? { uid: `s${state.uidSeq++}`, cardId: spellId } : null;
   state.rngCursor = rng.state();
 }
@@ -110,7 +115,7 @@ export function topUpTavern(state: RunState): void {
     state.shop.push({ uid: `s${state.uidSeq++}`, cardId: id });
   }
   if (!state.spell) {
-    const spellId = drawSpellId(rng);
+    const spellId = drawSpellId(rng, state.tier);
     if (spellId) state.spell = { uid: `s${state.uidSeq++}`, cardId: spellId };
   }
   state.rngCursor = rng.state();

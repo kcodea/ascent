@@ -10,6 +10,26 @@ Sequenced by dependency + player value: **foundation → variety → retention �
 Each patch is a release a player would notice. The detailed task queue per milestone is below; this is
 the order we ship it in. (Heroes/cards are data, so small ones can land continuously between patches.)
 
+### Active sequence (set 2026-06-20) — difficulty learns from real player boards
+
+North star: the game's enemy strength comes from **captured player boards**, feeding both PvE difficulty
+and **async PvP**. This sharpens Patch 1/2 and **demotes manual counter-matrix tuning** — captured boards
+drive difficulty; the `curve`/`player` tools become its validation harness, not a hand-tuning treadmill.
+The next 5 concrete steps:
+
+1. ✅ **Lock in the compact arched-card UI + balance tools** (`npm run curve` / `npm run player`). Done
+   2026-06-20.
+2. **Board snapshot + capture** (the replay tool) — a serializable `BoardSnapshot` (minions+stats+keywords,
+   wave, tribe-mix, heroId, Σpower, seed) captured each end-of-recruit; the atom the game learns from.
+   Record `(seed, action-log)` so any run replays headlessly.
+3. **Board library + strength index** — persist snapshots (local JSON → shared friend backend) keyed by
+   `(wave, power-band, tribe)`, with a `pickOpponent(wave, power)` query.
+4. **Serve real boards as enemies** (PvE first) — `buildEnemyBoard` can draw a strength-matched real
+   snapshot; procedural threats become the bootstrap/fallback when the pool is thin.
+5. **Async PvP mode + shared pool** — the `scene`/`MODES` registry → every wave a friend's snapshot;
+   win = 10–15 wins without dying; tiny shared backend (friend-group scale, no live opponent / anti-cheat).
+
+
 - **Patch 1 — Balance & Content Depth** *(finishes M2; foundation).* Make the climb fair before
   building on it. Tune the **counter matrix** (balance truth — the runner flags Mech dominant, Beast
   weak, Dragon/Undead flat; stat numbers are starting dials), build the **enemy-strength curve tool**,
@@ -63,11 +83,9 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       carry-back in `advanceAfterCombat` for the T6's neighbours (capture each neighbour's combat-final
       stat delta, apply to its run board card). Pairs with the Worgen combat proc above (a Worgen next to
       it keeps its combat gains). Needs a **name + tribe + art** (placeholder ok).
-- [ ] **End-of-run screen: single-row layout + ~30% bigger.** The W/L pip strip should be **one row**
-      (no wrap — `.endpips` is `flex-wrap: wrap`; switch to nowrap, shrink/scale so 20 fit). The final
-      warband should be **one row** (no wrap — `.endboard` is `flex-wrap: wrap` + `zoom: 0.42`; switch to
-      nowrap and tune `zoom` so all 7 fit one row). Increase everything **~30%**. ("We'll expand this
-      later," so keep it flexible.)
+- [x] **End-of-run screen: single-row layout + bigger** (done 2026-06-20). Pips + warband forced to one
+      row (`flex-wrap: nowrap`), everything scaled **~2.5×** (warband `zoom` 0.42 → 0.92; title/pips/sub/
+      button up). ("We'll expand this later," so kept flexible.)
 
 ## M2 — content + balance (in progress)
 

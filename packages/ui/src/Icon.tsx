@@ -6,6 +6,27 @@ const ICONS: Record<string, ReactNode> = {
   shield: <path fill="none" stroke="currentColor" strokeWidth="2.5" d="M12 3l7 2.5v6c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5v-6L12 3z" />,
   cleave: <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M4 6l16 12M20 6L4 18" />,
   sc: <path fill="currentColor" d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />,
+  windfury: <path fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" d="M4 6l6 6-6 6M12 6l6 6-6 6" />,
+  reborn: (
+    <>
+      <path fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" d="M18.4 8.5A7 7 0 1 0 19 12" />
+      <path fill="currentColor" d="M19.9 4.1l1 5.3-5-1.6z" />
+    </>
+  ),
+  magnetic: (
+    <>
+      <path fill="none" stroke="currentColor" strokeWidth="3" d="M6 4.5v6a6 6 0 0 0 12 0v-6" />
+      <path fill="currentColor" d="M4.5 4h3.4v3.5H4.5zM16.1 4h3.4v3.5h-3.4z" />
+    </>
+  ),
+  consume: <path fill="currentColor" d="M12 12l8.5-4.8A9.2 9.2 0 1 0 20.5 16.8z" />,
+  fodder: (
+    <>
+      <path fill="currentColor" d="M12 3l8 4-8 4-8-4z" />
+      <path fill="currentColor" opacity="0.65" d="M4 7.4l7.4 3.7v7.9L4 15.3z" />
+      <path fill="currentColor" opacity="0.85" d="M20 7.4l-7.4 3.7v7.9L20 15.3z" />
+    </>
+  ),
   battlecry: (
     <>
       <path fill="currentColor" d="M4 9.5v5h3l6 3.5v-12L7 9.5H4z" />
@@ -40,6 +61,12 @@ const ICONS: Record<string, ReactNode> = {
   skull: <path fill="currentColor" d="M12 3a7 7 0 017 7c0 2.2-1 4.1-2.6 5.3v2.2a1.5 1.5 0 01-1.5 1.5h-1v-2h-2v2H9.1a1.5 1.5 0 01-1.5-1.5v-2.2A7 7 0 015 10a7 7 0 017-7zm-3 7.5a1.6 1.6 0 100 3.2 1.6 1.6 0 000-3.2zm6 0a1.6 1.6 0 100 3.2 1.6 1.6 0 000-3.2z" />,
   eye: <path fill="currentColor" d="M2 12c3-4.5 7-6.5 10-6.5S19 7.5 22 12c-3 4.5-7 6.5-10 6.5S5 16.5 2 12zm10 3a3 3 0 100-6 3 3 0 000 6z" />,
   star: <path fill="currentColor" d="M12 2l2.3 7.2H22l-6.1 4.5 2.3 7.3-6.2-4.5-6.2 4.5 2.3-7.3L2 9.2h7.7z" />,
+  crown: (
+    <>
+      <path fill="currentColor" d="M4 9l3.4 3.3L12 6l4.6 6.3L20 9l-1.4 8.4H5.4L4 9z" />
+      <rect x="5.3" y="18.4" width="13.4" height="2.3" rx="0.7" fill="currentColor" />
+    </>
+  ),
   sound: (
     <>
       <path fill="currentColor" d="M3 9v6h4l5 4V5L7 9H3z" />

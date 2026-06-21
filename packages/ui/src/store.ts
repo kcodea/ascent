@@ -55,6 +55,10 @@ interface GameStore {
   inspect: CardView | null;
   /** Hero ids offered by the pre-run picker; non-null = the hero-select overlay is showing. */
   heroChoices: string[] | null;
+  /** UI: cards show compact (art + keyword glyphs, full text on hover) vs. always-on rules text. */
+  compactCards: boolean;
+  /** Flip the compact / full-text card display (Esc menu). */
+  toggleCompact: () => void;
   /** Apply an engine action — the only way run state changes. Pure reducer under the hood. */
   dispatch: (action: Action) => void;
   /** Toggle Hero Power targeting mode. */
@@ -79,6 +83,9 @@ export const useGame = create<GameStore>((set) => ({
   inspect: null,
   // Open on a fresh hero pick — the player chooses before the first wave loads.
   heroChoices: rollHeroChoices(),
+  // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
+  compactCards: true,
+  toggleCompact: () => set((s) => ({ compactCards: !s.compactCards })),
   dispatch: (action) =>
     set((s) => {
       const next = reduce(s.run, action);

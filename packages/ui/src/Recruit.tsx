@@ -119,6 +119,7 @@ export function Recruit() {
   const run = useGame((s) => s.run);
   const dispatch = useGame((s) => s.dispatch);
   const heroArmed = useGame((s) => s.heroArmed);
+  const compactCards = useGame((s) => s.compactCards);
   const armHero = useGame((s) => s.armHero);
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
@@ -135,6 +136,9 @@ export function Recruit() {
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
+  // Height (px) of the sell region = top of screen → top of the warband. Measured when a board-minion
+  // drag begins, so the whole upper screen can act as one big "drop to sell" zone.
+  const [sellTop, setSellTop] = useState(0);
   const [snapping, setSnapping] = useState(false);
   const [magSlide, setMagSlide] = useState(false); // a Magnetic card sliding into its Mech
   const [magTargetUid, setMagTargetUid] = useState<string | null>(null); // the Mech being merged into (crackles)
@@ -407,13 +411,18 @@ export function Recruit() {
 
   useEffect(() => {
     if (!drag) return;
+    // The sell region is the whole upper screen — everything above the warband. A board minion released
+    // anywhere up there sells (not just over the tavern box). `source`/`view` are fixed for the drag.
+    const warbandTop = (): number => document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0;
+    const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && y < warbandTop();
+    if (drag.source === 'board' && !drag.view.spell) setSellTop(warbandTop());
     const onMove = (e: PointerEvent): void => {
       setDrag((d) => {
         if (!d) return d;
         const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
         return { ...d, x: e.clientX, y: e.clientY, active };
       });
-      setOverZone(zoneAt(e.clientX, e.clientY));
+      setOverZone(inSellRegion(e.clientY) ? 'tavern' : zoneAt(e.clientX, e.clientY));
     };
     const onUp = (e: PointerEvent): void => {
       const d = dragRef.current;
@@ -426,7 +435,8 @@ export function Recruit() {
       }
       // Resolve the drop zone *before* clearing body.dragging, so the status bar (and
       // hero) stay click-through and a card can land on the hand tucked behind them.
-      const zone = zoneAt(e.clientX, e.clientY);
+      // A board minion released anywhere above the warband sells (the whole upper screen).
+      const zone = inSellRegion(e.clientY) ? 'tavern' : zoneAt(e.clientX, e.clientY);
       document.body.classList.remove('dragging'); // cursor reverts on release
 
       // Magnetic merge: a Magnetic minion dropped onto a friendly minion sharing one of its tribes
@@ -984,16 +994,13 @@ export function Recruit() {
     return false;
   };
 
-  // Gold sell-preview glow: a *board* minion hovered over the tavern (only board minions sell;
-  // a hand minion snaps back). Spells dragged up are *played*, not sold, so no sell glow.
-  const sellGlow = overZone === 'tavern' && drag?.source === 'board' && !drag?.view.spell;
   const isDragging = (uid: string): boolean => drag?.active === true && drag.uid === uid;
   // A shop card over the hand will buy it — glow the hand to confirm the drop target.
   const canDropHand = !!drag?.active && drag.source === 'shop' && overZone === 'hand';
 
   return (
     <div
-      className={`app${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${
+      className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }`}
       onPointerDown={puffBoard}
@@ -1072,7 +1079,15 @@ export function Recruit() {
         </div>
       )}
 
-      <div className={`zone${sellGlow ? ' sellglow' : ''}`} data-zone="tavern">
+      {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and
+          releasing anywhere in it sells (handled by inSellRegion in the drop handler). */}
+      {drag?.active && drag.source === 'board' && !drag.view.spell && (
+        <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: sellTop } as CSSProperties} aria-hidden="true">
+          <span className="sellzone-tag">Sell +1</span>
+        </div>
+      )}
+
+      <div className="zone" data-zone="tavern">
         {shopFlash > 0 && <div className="shopflash" key={shopFlash} aria-hidden="true" />}
         <div className="row">
           {fighting ? (
@@ -1188,12 +1203,13 @@ export function Recruit() {
               buffed={buffedUids.has(m.uid)}
               arrived={arrivedUids.has(m.uid)}
               onPointerDown={onCardPointerDown}
+              forceFull
             />
           ))}
           {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
               committed to the real hand at `resolveCombat`). */}
           {inCombat && replay.handGrantsShown.map((cardId, i) => (
-            <Card key={`grant-${i}`} card={tokenRefView(cardId, run.cardBuffs)} suppressPop />
+            <Card key={`grant-${i}`} card={tokenRefView(cardId, run.cardBuffs)} suppressPop forceFull />
           ))}
         </div>
       </div>
@@ -1251,7 +1267,7 @@ export function Recruit() {
             opacity: magSlide ? 0 : 1,
           }}
         >
-          <Card card={drag.view} />
+          <Card card={drag.view} forceFull={drag.source === 'hand'} />
         </div>
       )}
 

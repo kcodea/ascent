@@ -44,7 +44,7 @@ export function Inspect() {
             ))}
           </div>
         )}
-        <Card card={inspect} />
+        <Card card={inspect} forceFull />
       </div>
     </div>
   );

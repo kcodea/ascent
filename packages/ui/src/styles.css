@@ -18,6 +18,10 @@
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds */
   --ch: clamp(220px, calc(var(--gh) * 0.27), 384px); --cw: calc(var(--ch) * 0.752);
+  /* compact-card size: 15% smaller than the full card width, used at rest + in combat (kept in sync). */
+  --ccw: calc(var(--cw) * 0.85);
+  /* the compact card's arched silhouette — shared by the frame, the card box, and keyword overlays. */
+  --arch-radius: 48% 48% 20% 20% / 35% 35% 14% 14%;
   /* a scaled "px" for the chrome (HUD / tavern controls / status tray / timer): floor 1px so
      laptops + short windows read exactly as before, growing to ~+34% on tall monitors so the
      chrome stays proportional to the cards (which already scale with --ch). Use calc(N*--u). */
@@ -393,6 +397,87 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .chip.g:hover .emberproj { opacity: 1; transition-delay: 0.25s; }
 .tiprow + .tiprow { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
 
+/* --- Compact card: the universal arched frame. The arch (art + corner attack/health badges + the
+   mechanic medallion) lives in a fixed-square .archbox; on a "full" card (.showtext) a text drawer
+   drops down below it. The card itself is transparent — the frame is the art's border. --- */
+.card.compact { flex: 0 0 var(--ccw); width: var(--ccw); height: auto; background: transparent; border: none; box-shadow: none; border-radius: var(--arch-radius); }
+.app.compactui .unit { width: var(--ccw); height: var(--ccw); }            /* combat cards match shop size */
+.archbox { position: relative; flex: none; width: var(--ccw); height: var(--ccw); display: flex; }
+.card.compact .art {
+  flex: 1 1 auto; margin: 0;
+  border-radius: var(--arch-radius);                                      /* arched top, rounded base */
+  border: 4px solid var(--c);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)),   /* gold inner line */
+              inset 0 7px 18px rgba(0, 0, 0, 0.42), 0 6px 16px rgba(0, 0, 0, 0.42);
+}
+/* keyword glows ring the card box — give it the arch radius so they follow the silhouette, and
+   re-shape the rectangular Divine-Shield / Reborn washes to the arch too (no more squared-off top). */
+.card.compact.dscard::after, .card.compact.reborncard::after { border-radius: var(--arch-radius); }
+/* tier pill rides the arch top */
+.card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: 2px solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
+/* circular, gold-set attack / health badges in the arch's bottom corners (relative to .archbox) */
+.card.compact .atk, .card.compact .hp {
+  width: calc(var(--ccw) * 0.29); height: calc(var(--ccw) * 0.29); font-size: calc(var(--ccw) * 0.15);
+  border-radius: 50%; border: 3px solid #f6e3ad; bottom: calc(var(--ccw) * -0.065);
+  box-shadow: 0 0 0 2px #9c6f24, 0 3px 7px rgba(0, 0, 0, 0.4);
+}
+.card.compact .atk { left: calc(var(--ccw) * -0.02); }
+.card.compact .hp { right: calc(var(--ccw) * -0.02); }
+/* mechanic medallion — eclipses the arch's bottom-centre, between the attack/health badges */
+.card.compact .cgem {
+  position: absolute; bottom: calc(var(--ccw) * -0.10); left: 50%; z-index: 7;
+  width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21);
+  transform: translateX(-50%); border-radius: 50%;
+  background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--c) 55%, #2c2535), #1b1722);
+  border: 2px solid #f6e3ad; box-shadow: 0 2px 7px rgba(0, 0, 0, 0.5);
+  display: grid; place-items: center;
+}
+.card.compact .cgem svg { width: 62%; height: 62%; color: #f6e3ad; }
+/* spell label — a readable white banner over the arch base (spells have no stat badges) */
+.card.compact.spellcard .ctype.spell { position: absolute; bottom: calc(var(--ccw) * -0.05); left: 50%; transform: translateX(-50%); z-index: 6; background: color-mix(in srgb, var(--t-demon) 88%, #000); color: #fff; padding: calc(var(--ccw) * 0.02) calc(var(--ccw) * 0.08); border-radius: 999px; border: 2px solid #f6e3ad; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); font-size: calc(var(--ccw) * 0.075); white-space: nowrap; }
+
+/* --- Text drawer: drops down from the arch on a "full" card. Hidden on a resting tile. --- */
+.card.compact .drawer { display: none; }
+.card.compact.showtext .drawer {
+  display: flex; flex-direction: column; align-items: center;
+  margin: calc(var(--ccw) * -0.05) 0 0; position: relative; z-index: 4;
+  padding: calc(var(--ccw) * 0.14) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
+  background: var(--card); border: 2px solid color-mix(in srgb, var(--c) 40%, var(--line));
+  border-top: none; border-radius: 0 0 calc(16 * var(--u)) calc(16 * var(--u));
+  box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.4);
+}
+.card.compact.showtext .drawer .cn { font-family: 'Outfit'; font-weight: 800; font-size: calc(var(--ccw) * 0.088); color: var(--ink); background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
+.card.compact.showtext .drawer .kws { min-height: 0; margin: 0 0 calc(var(--ccw) * 0.035); }
+.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: 1.32; color: var(--ink2); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
+.card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: 'Outfit'; font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
+.card.compact.showtext .drawer .dtribe svg { width: calc(var(--ccw) * 0.075); height: calc(var(--ccw) * 0.075); color: var(--c); }
+.card.compact.showtext .drawer .dtribe svg:last-of-type { color: var(--c2); }   /* 2nd tribe in its own hue */
+
+/* Dual-type compact card: the arch frame splits tribe1 → tribe2 (a gradient border via the padding-/
+   border-box trick, which keeps the arch radius). The old squared rounded-rect split rim is dropped. */
+.card.compact.dual::before { display: none; }
+.card.compact.dual .art {
+  border-color: transparent;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--c) 20%, var(--card)) 0 47%, color-mix(in srgb, var(--c2) 20%, var(--card)) 53% 100%) padding-box,
+              linear-gradient(118deg, var(--c) 0 46%, var(--c2) 54% 100%) border-box;
+}
+
+/* Golden / tripled compact card: the arch frame goes gold (gradient border) + a soft gold glow + a
+   crown emblem in the corner — so a tripled minion is instantly findable in a row, without being loud. */
+.card.compact.golden { box-shadow: 0 0 16px -2px rgba(231, 181, 61, 0.75); }
+.card.compact.golden .art {
+  border-color: transparent;
+  background: linear-gradient(color-mix(in srgb, #f4cf6a 24%, var(--card)), color-mix(in srgb, #f4cf6a 24%, var(--card))) padding-box,
+              linear-gradient(135deg, #ffeaa3, #e3ad3e 52%, #b9822c) border-box;
+}
+.card.compact .goldcrown {
+  position: absolute; top: calc(var(--ccw) * -0.045); left: calc(var(--ccw) * -0.035); z-index: 8;
+  width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21); border-radius: 50%;
+  background: radial-gradient(circle at 50% 32%, #fff3cb, #e6ad3c 58%, #a9781f);
+  border: 2px solid #fff6db; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); display: grid; place-items: center;
+}
+.card.compact .goldcrown svg { width: 62%; height: 62%; color: #6a4d07; }
+
 /* golden (tripled) minion */
 .card.golden { border-color: #e7b53d; background: color-mix(in srgb, #f4cf6a 20%, var(--card)); box-shadow: 0 0 0 2px #f4cf6a, 0 3px 0 var(--shadow), 0 0 18px -2px rgba(231, 181, 61, 0.7); }
 .card.golden .art { background: color-mix(in srgb, #f4cf6a 32%, var(--card)); }
@@ -428,10 +513,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
    subtitle, and tier-coloured glows on the three cards. */
 .disc-panel {
   position: relative;
-  background: radial-gradient(120% 92% at 50% 0%, #fdf6e6, transparent 62%), linear-gradient(168deg, #f8efd9, #efe0bf);
-  border: 5px solid #d6a83e; border-radius: calc(24 * var(--u));
+  background: transparent; border: none; box-shadow: none;       /* transparent — just the title + cards float */
   padding: calc(46 * var(--u)) calc(40 * var(--u)) calc(34 * var(--u));
-  box-shadow: 0 0 0 2px #7c531a, inset 0 0 0 2px #f6dd9a, inset 0 0 0 6px #c8922e, inset 0 0 60px rgba(176, 130, 50, 0.18), 0 30px 80px -20px rgba(0, 0, 0, 0.7);
 }
 .disc-banner {
   position: absolute; top: calc(-22 * var(--u)); left: 50%; transform: translateX(-50%);
@@ -440,19 +523,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
   box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.45), inset 0 -3px 6px rgba(150, 100, 30, 0.2);
 }
 .disc-banner .disp { font-weight: 900; font-size: calc(30 * var(--u)); color: #5a3d12; letter-spacing: 0.03em; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
-.disc-gem {
-  position: absolute; left: 50%; width: calc(20 * var(--u)); height: calc(20 * var(--u)); transform: translateX(-50%) rotate(45deg);
-  background: linear-gradient(135deg, #a6ddff, #2f9fe0 58%, #1a6ba3); border: 2px solid #e3f1ff; border-radius: calc(5 * var(--u));
-  box-shadow: 0 0 16px 4px rgba(70, 170, 240, 0.85); z-index: 4;
-}
-.disc-gem-top { top: calc(-44 * var(--u)); }
-.disc-gem-bot { bottom: calc(-12 * var(--u)); }
+.disc-gem { display: none; }   /* panel decorations — dropped now the panel is transparent */
 .disc-sub { text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: calc(16 * var(--u)); color: #8a6a3a; letter-spacing: 0.04em; margin: calc(8 * var(--u)) 0 calc(24 * var(--u)); }
 .disc-sub::before, .disc-sub::after { content: '✦'; color: #d6a83e; }
 .disc-sub::before { margin-right: calc(10 * var(--u)); }
 .disc-sub::after { margin-left: calc(10 * var(--u)); }
 .disc-cards { display: flex; gap: calc(22 * var(--u)); justify-content: center; }
-.disc-slot { display: inline-flex; border-radius: 14px; animation: discpulse 2s ease-in-out infinite; }
+/* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline) */
+.disc-slot { display: inline-flex; border-radius: var(--arch-radius); animation: discpulse 2s ease-in-out infinite; }
 @keyframes discpulse {
   0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent), 0 0 26px 4px color-mix(in srgb, var(--c) 50%, transparent); }
   50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 68%, transparent), 0 0 40px 9px color-mix(in srgb, var(--c) 72%, transparent); }
@@ -466,14 +544,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
   filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
   animation: cardrefin 0.3s ease-out;
 }
-/* the popup minions sit at 80% size (baked into the float transform so it composes with the wobble) */
+/* the hover reveal sits at full size (it's the readable full card now) with a gentle bob */
 .cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; }
 @keyframes cardrefin { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes cardreffloat {
-  0%, 100% { transform: scale(0.8) translateY(0) rotate(-1.1deg); }
-  30% { transform: scale(0.8) translateY(-5px) rotate(0.9deg); }
-  60% { transform: scale(0.8) translateY(-2px) rotate(1.3deg); }
-  85% { transform: scale(0.8) translateY(-6px) rotate(-0.5deg); }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 /* Choose One — two big option buttons */
 .chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
@@ -716,6 +792,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card.dragsrc { opacity: 0.3; }
 .zone.sellglow .row { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: 0 0 0 3px var(--acc), 0 0 24px -2px color-mix(in srgb, var(--acc) 75%, transparent); border-radius: 16px; }
 .zone.sellglow .row::after { content: 'Sell +1'; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; color: var(--acc-dk); text-transform: uppercase; }
+/* Sell zone — the entire screen above the warband, lit while dragging a board minion. Releasing
+   anywhere in it sells (handled in JS). Sits below the floating drag card (z 100), above the board. */
+.sellzone { position: absolute; top: 0; left: 0; right: 0; z-index: 40; pointer-events: none; display: flex; align-items: flex-start; justify-content: center; padding-top: calc(34 * var(--u)); background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 20%, transparent), transparent 78%); border-bottom: 3px dashed color-mix(in srgb, var(--acc) 45%, transparent); opacity: 0.55; transition: opacity 0.12s, background 0.12s; }
+.sellzone.on { opacity: 1; background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 34%, transparent), transparent 82%); border-bottom-color: var(--acc); }
+.sellzone-tag { font-family: 'Outfit'; font-weight: 800; font-size: calc(20 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: var(--acc); padding: calc(7 * var(--u)) calc(22 * var(--u)); border-radius: calc(12 * var(--u)); box-shadow: 0 5px 16px rgba(0, 0, 0, 0.3); }
 .zone[data-zone='tavern'] .row { position: relative; transition: box-shadow 0.12s, background 0.12s; }
 /* valid drop target (buy onto hand, play/reorder onto warband) — a soft accent frame */
 .zone.dropok .row { background: color-mix(in srgb, var(--acc) 9%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent); border-radius: 16px; transition: box-shadow 0.12s, background 0.12s; }
@@ -1061,18 +1142,20 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* End-of-run screen — reuses the hero-picker overlay (.heroselect/.hsbox); shows the round
    W-L-W summary + the final warband. */
 .endbox { max-width: 96vw; }
-.endscreen .hstitle { margin: 4px 0 0; }
-.endsub { font-family: 'Outfit'; font-weight: 700; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: #ddd2c0; margin-top: 6px; }
-.endpips { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; max-width: 560px; margin: 14px 0 4px; }
-.endpip { width: 24px; height: 24px; border-radius: 6px; font-family: 'Outfit'; font-weight: 800; font-size: 13px; color: #fff; display: grid; place-items: center; }
+/* End screen sized up ~2.5× and forced to single rows (pips + warband never wrap). */
+.endscreen .eyebrow { font-size: 26px; letter-spacing: 0.32em; }
+.endscreen .hstitle { margin: 12px 0 0; font-size: 116px; }
+.endsub { font-family: 'Outfit'; font-weight: 700; font-size: 32px; letter-spacing: 0.12em; text-transform: uppercase; color: #ddd2c0; margin-top: 16px; }
+.endpips { display: flex; flex-wrap: nowrap; gap: 9px; justify-content: center; max-width: 96vw; margin: 34px 0 8px; }
+.endpip { flex: none; width: 44px; height: 44px; border-radius: 11px; font-family: 'Outfit'; font-weight: 800; font-size: 22px; color: #fff; display: grid; place-items: center; }
 .endpip.win { background: #3b9e57; }
 .endpip.lose { background: var(--threat); }
 .endpip.draw { background: var(--ink3); }
-.endboardlabel { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: #ddd2c0; margin: 22px 0 6px; }
-.endboard { display: flex; gap: 6px; justify-content: center; align-items: flex-start; flex-wrap: wrap; zoom: 0.42; max-width: 1600px; }
+.endboardlabel { font-family: 'Outfit'; font-weight: 700; font-size: 26px; letter-spacing: 0.2em; text-transform: uppercase; color: #ddd2c0; margin: 44px 0 14px; }
+.endboard { display: flex; gap: 14px; justify-content: center; align-items: flex-start; flex-wrap: nowrap; zoom: 0.92; max-width: 96vw; }
 .endboard .card { cursor: default; }
 .endempty { font-family: 'Outfit'; font-weight: 700; font-size: 15px; color: #ddd2c0; padding: 24px; }
-.endplay { margin-top: 22px; font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 11px 30px; border-radius: 13px; cursor: pointer; }
+.endplay { margin-top: 44px; font-family: 'Outfit'; font-weight: 800; font-size: 30px; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: var(--acc); border: 3px solid var(--acc-dk); box-shadow: 0 7px 0 var(--acc-dk); padding: 22px 60px; border-radius: 20px; cursor: pointer; }
 .endplay:hover { background: var(--acc-dk); }
 .endscreen.won .eyebrow { color: var(--acc); }
 .endscreen.won .hstitle { color: #ffd98a; text-shadow: 0 0 28px rgba(255, 200, 110, 0.45); }

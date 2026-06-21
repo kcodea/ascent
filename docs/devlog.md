@@ -5,6 +5,47 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-20
 
+### Compact "Pixel Arena" card overhaul — arched frame + text drawer (M1/M2 UI)
+A full pass on card presence (the player loved the direction; locked in). Every card is now one
+universal **arched frame** with a `density` model instead of the old always-on rectangle:
+- **Compact at rest** (shop / board / combat): a shrunk (`--ccw` = 0.85×`--cw`), arch-shaped art tile —
+  the sprite fills an arched frame (tribe-coloured border + gold inner line) in a fixed-square
+  `.archbox`, with gold-set circular attack/health badges in the corners, the tier pill on top, and a
+  **mechanic medallion** (the card's primary keyword/trigger glyph) eclipsing the arch base. Name,
+  pills, rules text and the flat minion cost are all gone at rest.
+- **Full = arch + drop-down text drawer**: on hover (the reveal popup), in hand, on right-click inspect,
+  or with the always-on-text setting, a text drawer (name → pills → rules text → tribe) drops down from
+  the frame. Right-click always shows the full card regardless of the compact setting. Combat cards are
+  the same size as the shop (the `.unit` wrapper was stretching them to full height — fixed).
+- **Glyph set completed** (all 13 keywords have an SVG) and consolidated; the hover reveal shows the
+  full card + any referenced cards trailing to its right. An Esc-menu **Compact / Full-text toggle**.
+- **Dual-type** frames now split tribe1→tribe2 as a gradient arch border (the old squared rim is gone).
+  **Spell** label is a readable white banner. **Golden/tripled** cards get a gold arch frame + crown
+  emblem (easy to pinpoint in a row, not loud). **Discover** panel is transparent with arched cards.
+- **End-of-run screen** scaled ~2.5× with single-row pips + warband (no wrap).
+- New **Spirit Pup / Worgen** art rewired.
+- Verified live across shop / hover / hand / inspect / combat / discover / end-screen; typecheck + lint
+  clean. (A few transient `<Card>` console errors during editing were intermediate-HMR / synthetic-test
+  artifacts — a clean reload renders with zero errors.)
+
+### Balance tooling — enemy + player difficulty curves (M2)
+Two headless analysis tools (deterministic, re-run after any tuning):
+- **`npm run curve`** (`enemy-curve.ts`) — per-wave enemy board power Σ(atk+hp), width, unit stats, the
+  narrow→wide threat-power spread, and a fixed reference board's win%. Found: power is ~linear (4→255
+  over w1–20), a sharp **wave-6 wall** (power 45→75, ref win% 56%→23%), discrete +1-unit steps at
+  w6/12/18, and ~4× threat variance (Glass ≫ Venom).
+- **`npm run player`** (`player-curve.ts`) — a competent-but-naive greedy bot (best buy, tavern-up,
+  sell-up, Hero Power; no synergy/triples) plays full runs × all heroes; snapshots the board it fought
+  each wave + outcome, printed against the enemy curve. Found: naive play floors at ~wave 9.3, bleeds
+  the early game (win% 7–31%, 0% at w6), and the late game is survivorship. A floor, not the ceiling —
+  motivates the replay tool for real human curves.
+
+### Direction set: PvE/PvP difficulty learns from real player boards
+North star recorded in the roadmap: capture player boards → a strength-indexed library → serve them as
+strength-matched enemies (procedural threats become the bootstrap/fallback) → **async PvP** (every wave
+a friend's snapshot; win = 10–15 wins without dying; tiny shared backend). This **demotes manual
+counter-matrix tuning** — captured boards drive difficulty; the curve tools become its validation harness.
+
 ### Spirit Worgen procs in combat too + spell-pool target set to ~40
 - **Worgen combat proc.** The Worgen's "+X/+X per Beast/Dragon summoned" was **recruit-only**; now it
   also fires **mid-fight** when a friendly Beast/Dragon is summoned (deathrattle tokens, etc.). Added a

@@ -18,10 +18,20 @@ export function EscMenu({
   onClose: () => void;
 }) {
   const startHeroSelect = useGame((s) => s.startHeroSelect);
+  const compactCards = useGame((s) => s.compactCards);
+  const toggleCompact = useGame((s) => s.toggleCompact);
   return (
     <div className="escov" onPointerDown={onClose}>
       <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
         <div className="esch disp">Settings</div>
+        <div className="escsec">Cards</div>
+        <button
+          className={`escbtn${compactCards ? ' on' : ''}`}
+          onPointerDown={toggleCompact}
+        >
+          <span className="ebl">{compactCards ? 'Compact' : 'Full text'}</span>
+          <span className="ebs">{compactCards ? 'Art + glyphs · details on hover' : 'Always-on rules text'}</span>
+        </button>
         <div className="escsec">Display Resolution</div>
         <div className="escres">
           {RES_OPTIONS.map((o) => (

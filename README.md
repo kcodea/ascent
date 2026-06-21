@@ -23,6 +23,14 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **New card look — one arched frame, art-forward.** Cards are now a compact **arched tile** at rest
+  (sprite + corner attack/health gems + tier pill + a **mechanic medallion**); the full card (hover,
+  hand, right-click) drops a **text drawer** down from the frame. Golden/tripled minions get a gold
+  frame + crown, dual-types split their frame, combat matches the shop size, the Discover panel is
+  transparent, and the end-of-run screen is ~2.5× bigger on one row.
+- **Balance tools** — `npm run curve` (enemy difficulty per wave) and `npm run player` (a bot's player
+  strength vs that curve). They flag a wave-6 wall and that naive play floors ~wave 9. Next: difficulty
+  that **learns from real player boards** (feeding async PvP).
 - **Spirit Worgen now procs in combat too.** Its **+X/+X per Beast/Dragon summoned** (X = 1 + spells
   cast this turn) used to fire only in the shop; now a friendly Beast/Dragon summoned **mid-fight**
   (deathrattle tokens, etc.) triggers it as well — those combat gains are temporary, resetting next shop.

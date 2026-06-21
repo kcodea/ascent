@@ -12,24 +12,9 @@ const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Shield', V: 'Venomous', W: 'Windfury', R: 'Reborn', C: 'Cleave', M: 'Magnetic', SC: 'Start', CN: 'Consume',
   FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally',
 };
-const KW_ICON: Partial<Record<Keyword, string>> = {
-  T: 'taunt', DS: 'shield', V: 'poison', C: 'cleave', SC: 'sc', IMM: 'shield', ST: 'eye', RL: 'sword',
-};
-/** Plain-language keyword meanings, revealed in the hover tooltip (handoff A.4). */
-const KW_DESC: Record<Keyword, string> = {
-  T: 'Taunt — Enemies must attack this minion first.',
-  DS: 'Divine Shield — Blocks the first hit it takes.',
-  V: 'Venomous — Destroys any minion it damages. Drops off after its first proc in combat.',
-  W: 'Windfury — Attacks twice each combat turn.',
-  R: 'Reborn — The first time it dies, it returns with 1 Health.',
-  C: 'Cleave — Also hits the minions beside its target.',
-  M: 'Magnetic — Drag onto a friendly Mech to merge its stats in.',
-  SC: 'Start of Combat — Triggers once, right before the fight begins.',
-  CN: 'Consume — Eats one of your minions to add its stats.',
-  FD: 'Fodder — A cheap minion your Demon cards can consume for its stats.',
-  IMM: 'Immune — Takes no damage.',
-  ST: 'Stealth — Can’t be attacked until it attacks.',
-  RL: 'Rally — Triggers each time this attacks.',
+const KW_ICON: Record<Keyword, string> = {
+  T: 'taunt', DS: 'shield', V: 'poison', W: 'windfury', R: 'reborn', C: 'cleave', M: 'magnetic', SC: 'sc',
+  CN: 'consume', FD: 'fodder', IMM: 'shield', ST: 'eye', RL: 'sword',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
@@ -146,6 +131,7 @@ export const Card = memo(function Card({
   onDrop,
   suppressPop,
   tripleReady,
+  forceFull,
 }: {
   card: CardView;
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
@@ -181,8 +167,14 @@ export const Card = memo(function Card({
   /** A tavern offer that would complete a triple if bought (you already hold 2 copies) — gets a
    *  gold glow + floating up-arrows to flag it. */
   tripleReady?: boolean;
+  /** Render the full-text card regardless of the global compact setting — used by the hover reveal. */
+  forceFull?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
+  // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
+  // card): on a force-full card (hover reveal / hand / right-click inspect) or when the player turns the
+  // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.
+  const showText = forceFull || !useGame((s) => s.compactCards);
   // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
   const [popin] = useState(() => !suppressPop);
   // Pills row: the trigger (Battlecry / Deathrattle, derived from the text) then any
@@ -193,31 +185,36 @@ export const Card = memo(function Card({
     ...(trigger ? [trigger] : []),
     ...card.keywords.map((k) => ({ label: KW_LABEL[k], icon: KW_ICON[k] })),
   ];
-  // Referenced-card hover popup: a card that names/creates another (Combinator → Cling Drone,
-  // Ritualist / Soulfeeder → current Fodder, Alleycat → Stray) shows it to the right on hover. The
-  // popup is portalled to <body> so it escapes the card's hover/drag transforms and sits on top.
-  const hasRefs = !!refCards?.length;
+  // The golden-aware rules text — doubled numbers (or explicit goldenText) when shown golden.
+  const shownText = card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text;
+  // The card's primary mechanic, shown as a glyph in the compact medallion: its trigger
+  // (Battlecry / Deathrattle / …) if any, else its first keyword, else the tribe symbol.
+  const mechIcon = trigger?.icon ?? (card.keywords[0] ? KW_ICON[card.keywords[0]] : TRIBE_ICON[card.tribe]);
+  // Hover reveal (portalled to <body> so it floats over neighbours). In compact mode, hovering shows
+  // the FULL card (art + name + rules text); any referenced cards (the token it summons / Fodder it
+  // buffs / its Stray) trail off to the right of it. In full-text mode the card already shows its text,
+  // so only the referenced cards appear. Rendered at full size with `forceFull` so it's readable.
+  const popupCards: CardView[] = [...(showText ? [] : [card]), ...(refCards ?? [])];
+  const hasPopup = popupCards.length > 0;
   const [refPos, setRefPos] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const refTimer = useRef<number | null>(null);
-  // Show after a ~0.5s hover (so it doesn't flash while you skim the board); position is measured
-  // when it actually opens, so it tracks the card even if it popped up (hand) in the meantime. The
-  // popup renders at 0.8 scale — we anchor the scale to the source-facing edge (transform-origin) and
-  // position so that *visible* edge sits a small gap from the hovered card (not the full-size box).
+  // Open after a short hover (so it doesn't flash while skimming the board); position is measured when
+  // it opens, so it tracks the card even if it popped up (hand) meanwhile. The full card is taller than
+  // a compact tile, so the top is clamped to keep the popup on-screen.
   const showRefTip = (el: HTMLElement): void => {
+    if (!hasPopup) return;
     if (refTimer.current) window.clearTimeout(refTimer.current);
     refTimer.current = window.setTimeout(() => {
       const r = el.getBoundingClientRect();
-      const n = refCards?.length ?? 1;
-      const gap = 8;
-      const tipW = r.width * n + (n - 1) * 8; // layout width (full-size cards)
-      const visW = tipW * 0.8; // rendered width after the 0.8 scale
-      const flip = r.right + gap + visW > window.innerWidth - 6; // off the right edge → show on the left
-      // right: origin left → visible left edge = box.left = r.right + gap.
-      // flip:  origin right → visible right edge = box.left + tipW = r.left - gap → box.left = r.left - gap - tipW.
+      const n = popupCards.length;
+      const gap = 10;
+      const tipW = r.width * n + (n - 1) * gap; // full-size cards, laid left→right
+      const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
-      const top = Math.max(6, Math.min(r.top, window.innerHeight - r.height - 6));
+      const estH = r.width * 1.34; // a full card is ~1.34× its width tall — clamp so it stays on-screen
+      const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
       setRefPos({ left, top, origin: flip ? 'right' : 'left' });
-    }, 500);
+    }, showText ? 450 : 220);
   };
   const hideRefTip = (): void => {
     if (refTimer.current) { window.clearTimeout(refTimer.current); refTimer.current = null; }
@@ -228,12 +225,12 @@ export const Card = memo(function Card({
   useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
   return (
     <div
-      className={`card${popin ? ' popin' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}
-      onMouseEnter={hasRefs && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
-      onMouseLeave={hasRefs ? hideRefTip : undefined}
+      onMouseEnter={hasPopup && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
+      onMouseLeave={hasPopup ? hideRefTip : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
         inspectCard(card);
@@ -258,8 +255,9 @@ export const Card = memo(function Card({
       onDrop={onDrop}
     >
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
-      {/* cost badge — a teal Mana circle overhanging the corner */}
-      {card.cost !== undefined && (
+      {/* cost badge — a teal Mana circle overhanging the corner. Minions are a flat 3, so their cost is
+          hidden (only shown if something has changed it off 3); spells always show their cost. */}
+      {card.cost !== undefined && (card.spell || card.cost !== 3) && (
         <span className="cost">
           <span className="costn">{card.cost}</span>
         </span>
@@ -273,61 +271,59 @@ export const Card = memo(function Card({
           <span className="ta" /><span className="ta" /><span className="ta" /><span className="ta" />
         </span>
       )}
-      <div className="art">
-        {artFor(card.cardId) ? (
-          <img className="artimg" src={artFor(card.cardId)} alt="" draggable={false} />
-        ) : (
-          <Sprite name={spriteForTribe(card.tribe)} scale={5} />
-        )}
-      </div>
-      <div className="cbody">
-        <div className="cn">{card.name}</div>
-        <div className="kws">
-          {pills.map((p, i) => (
-            <span className="kw" key={`${p.label}-${i}`}>
-              {p.icon && <Icon name={p.icon} />}
-              {p.label}
-            </span>
-          ))}
+      {/* The arched frame: the art, the corner attack/health badges, and the mechanic medallion. Fixed
+          square so the badges/medallion always ride the arch even when the text drawer drops below. */}
+      <div className="archbox">
+        <div className="art">
+          {artFor(card.cardId) ? (
+            <img className="artimg" src={artFor(card.cardId)} alt="" draggable={false} />
+          ) : (
+            <Sprite name={spriteForTribe(card.tribe)} scale={5} />
+          )}
         </div>
-        {card.text && (
-          <div className="desc">
-            <span
-              dangerouslySetInnerHTML={{ __html: descUp(mdBold(card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text)) }}
-            />
-          </div>
-        )}
-      </div>
-      <div className="cfoot">
+        {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled
+            minion is instantly findable in a row. */}
+        {card.golden && <span className="goldcrown" aria-hidden="true"><Icon name="crown" /></span>}
         {card.spell ? (
           <span className="ctype spell">✦ Spell</span>
         ) : (
           <>
             <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}`}>{card.attack}</span>
-            <span className="ctype">
-              <Icon name={TRIBE_ICON[card.tribe]} />
-              {card.tribe2 ? (
-                <>
-                  {TRIBE_LABEL[card.tribe]} <span className="ctype-sep">/</span> <Icon name={TRIBE_ICON[card.tribe2]} />
-                  {TRIBE_LABEL[card.tribe2]}
-                </>
-              ) : (
-                TRIBE_LABEL[card.tribe]
-              )}
-            </span>
             <span className={`hp${statCls(card.health, card.baseHealth, card.floorHealth)}`}>{card.health}</span>
+            {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
+            <span className="cgem" aria-hidden="true"><Icon name={mechIcon} /></span>
           </>
         )}
       </div>
-      {card.keywords.length > 0 && (
-        <div className="tip" role="tooltip">
-          {card.keywords.map((k) => (
-            <div className="tiprow" key={k}>
-              {KW_DESC[k]}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Text drawer — drops down from the arched frame on the "full" card (hover reveal, hand, right-
+          click inspect, or the always-on-text setting): name, keyword pills, rules text, tribe. Hidden
+          (display:none) on a resting compact tile. */}
+      <div className="drawer">
+        <div className="cn">{card.name}</div>
+        {pills.length > 0 && (
+          <div className="kws">
+            {pills.map((p, i) => (
+              <span className="kw" key={`${p.label}-${i}`}>
+                {p.icon && <Icon name={p.icon} />}
+                {p.label}
+              </span>
+            ))}
+          </div>
+        )}
+        {card.text && (
+          <div className="desc">
+            <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />
+          </div>
+        )}
+        {!card.spell && (
+          <div className="dtribe">
+            <Icon name={TRIBE_ICON[card.tribe]} /> {TRIBE_LABEL[card.tribe]}
+            {card.tribe2 && (
+              <> <span className="ctype-sep">/</span> <Icon name={TRIBE_ICON[card.tribe2]} /> {TRIBE_LABEL[card.tribe2]}</>
+            )}
+          </div>
+        )}
+      </div>
       {/* One-shot buff proc: an expanding ring + sparks burst over the card when a
           recruit-phase buff lands (hero power, spell, summon buff). Painted on top. */}
       {buffed && (
@@ -378,12 +374,13 @@ export const Card = memo(function Card({
           ))}
         </span>
       )}
-      {/* Referenced-card popup — portalled to <body> so it floats above neighbouring cards/spells. */}
-      {refPos && hasRefs && createPortal(
+      {/* Hover reveal — portalled to <body> so it floats above neighbouring cards. The full card first
+          (in compact mode), then any referenced cards trailing to its right. All forced full-size. */}
+      {refPos && hasPopup && createPortal(
         <div className="cardref" style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
-            {refCards!.map((rc, i) => (
-              <Card key={`${rc.cardId ?? i}`} card={rc} />
+            {popupCards.map((rc, i) => (
+              <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull />
             ))}
           </div>
         </div>,

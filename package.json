@@ -18,6 +18,8 @@
     "harness": "tsx packages/tools/src/combat-harness.ts",
     "bot": "tsx packages/tools/src/run-harness.ts",
     "balance": "tsx packages/tools/src/balance.ts",
+    "curve": "tsx packages/tools/src/enemy-curve.ts",
+    "player": "tsx packages/tools/src/player-curve.ts",
     "audit": "tsx packages/tools/src/card-audit.ts",
     "dev": "npm run dev -w apps/web",
     "build:web": "npm run build -w apps/web",

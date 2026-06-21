@@ -20,7 +20,7 @@ drummer,Drakko the Drummer,minion,neutral,5,2,4,,,Your Battlecries fire 1 more t
 sylus,Sylus the Reaper,minion,neutral,5,4,5,,,"In combat, your Deathrattles proc 1 more time.",Deathrattles proc +1 time,"In combat, your Deathrattles proc 2 more times.",Deathrattles +2 procs; DOES stack with other Sylus,TRUE
 chronos,Chronos,minion,neutral,5,1,6,,,Your End of Turn effects trigger 1 more time.,End-of-Turn effects fire +1 time (no stack — best Chronos),Your End of Turn effects trigger 2 more times.,End-of-Turn fires 3x; does NOT stack with other Chronos,TRUE
 venom,Venom,minion,neutral,3,1,1,,Venomous,,,,2x stats -> 2/2; Venomous,TRUE
-blaster,Blaster,minion,neutral,4,6,3,,,"Deathrattle: deal 3 damage to ALL minions (yours too).",deathrattleDamageAll 3 (both sides),"Deathrattle: deal 6 damage to ALL minions (yours too).",2x stats; 6 damage,TRUE
+blaster,Blaster,minion,neutral,4,6,3,,Taunt,"Deathrattle: deal 3 damage to ALL minions (yours too).",deathrattleDamageAll 3 (both sides; purple blast-bolt VFX),"Deathrattle: deal 6 damage to ALL minions (yours too).",2x stats; 6 damage,TRUE
 jenkins,Jenkins & Fi,minion,neutral,5,3,2,,,Deathrattle: destroy the minion that killed this.,deathrattleDestroyKiller,Deathrattle: destroy the minion that killed this.,2x stats; destroy unchanged,TRUE
 #
 # === BEASTS ===
@@ -52,7 +52,7 @@ deathsayer,Deathsayer,minion,undead,4,3,5,,Rally,"Rally: before this attacks, tr
 #
 # === MECH ===
 drone,Spare Part Drone,minion,mech,1,2,1,,Shield,,,,2x stats -> 4/2; Shield,TRUE
-cling,Cling Drone,minion,mech,2,2,2,,Magnetic,,,,2x stats -> 4/4; merges its (doubled) stats into a Mech,TRUE
+cling,Cling Drone,minion,mech,2,2,2,,Magnetic,"Each time a Cling Drone is magnetized, your Cling Drones get +1/+1.",magnetize + improveClingDrones (+1/+1 per weld; persists; scales w/ Combinator),,2x stats -> 4/4; merges doubled stats; improvement still applies,TRUE
 selfless,Selfless Sentinel,minion,mech,2,2,1,,,Deathrattle: give a friend a Divine Shield.,deathrattleGrantShield,Deathrattle: give a friend a Divine Shield.,2x stats; grants 1 Shield (unchanged),TRUE
 moneybot,Money Bot,minion,mech,3,3,3,,Magnetic,"While on your board, you have +1 max mana each turn.",manaPerTurn 1 (Magnetic — merges its income into a host Mech),"While on your board, you have +2 max mana each turn.","+2 max mana; income survives magnetize + triple, lost when sold",TRUE
 arc,Arclight Reactor,minion,mech,4,3,3,,,"When a friendly Mech Shield breaks, deal 3 to a random enemy.",onShieldBreakDamage 3,"When a friendly Mech Shield breaks, deal 6 to a random enemy.",deal 6 on break,FALSE

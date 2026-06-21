@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-21
 
+### Blaster blast VFX + Taunt, Cling Drone escalation, revert to procedural omens (M2 / M3)
+- **Blaster** gained **Taunt**, and its Deathrattle now fires **purple blast bolts** at everything it
+  hits: the replay detects a Blaster `death` event (via a uid→cardId map) and shoots a `.proj.blast`
+  bolt from the dying Blaster to each AOE-damaged target in that beat — parallel to the SC-bolt path,
+  styled purple (`kind: 'blast'`). Verified live: bolts render (up to 6 at once), no console errors.
+- **Cling Drones improve +1/+1 per magnetization** — a persistent `cling` run enchantment
+  (`improveClingDrones`, modeled on Ritualist's Fodder): each Cling welded bumps it +1/+1 and grows any
+  Clings already in hand / on board; future Clings (shop or Combinator) carry it. **Combinator** welds
+  Clings at their enchanted stats and scales the enchantment by however many it welds, so a Combinator
+  board ramps Clings fast (the "scales with Combinator procs").
+- **Reverted to procedural omens for every wave** — `OPPONENT_POOL` is now empty, so `pickOpponent`
+  returns null and `faceOmen` always falls back to `buildEnemyBoard`. The step-4 seam stays intact;
+  real boards return by populating the pool (the board library, soon).
+- Verified: typecheck + lint clean; **195** tests (added Cling enchantment ×2; updated the step-4 +
+  Gnasher-damage tests); live (blast bolts render).
+
 ### Engraved keyword + 4 new cards + tier-gated spell offers (M2)
 - **Engraved (keyword `EG`)** — a minion with Engraved keeps the stat gains it accrues in combat: every
   `ctx.buff` on it accumulates into `permaGain`, which the run loop carries back to the board after the

@@ -152,6 +152,23 @@ export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayloa
   }
 }
 
+/**
+ * Cling Drones improve +1/+1 per magnetization. `times` = how many Clings were just magnetized (the
+ * player drops one; Combinator welds several). It persists as a `cling` run enchantment (so future
+ * Clings — bought or Combinator-welded — are bigger) AND buffs any Clings already on the board / in hand
+ * right now, mirroring Ritualist's Fodder enchantment. Scales with Combinator, which welds Clings every turn.
+ */
+export function improveClingDrones(state: RunState, times: number): void {
+  if (times <= 0) return;
+  state.cardBuffs ??= {};
+  const cur = (state.cardBuffs.cling ??= { attack: 0, health: 0 });
+  cur.attack += times;
+  cur.health += times;
+  for (const c of [...state.board, ...state.hand]) {
+    if (c.cardId === 'cling') addBuff(c, 'Magnetized', times, times);
+  }
+}
+
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
   buffOnBuy: (_ctx, self, params, { minion }) => {
@@ -356,18 +373,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const uids = magnetizeTargets(
       ctx.state.board, self.uid, targets, ctx.state.seed, ctx.state.wave, slot, num(payload.proc, 0),
     );
+    const clingBuff = cardBuff(ctx.state, token.id); // Cling Drones' accrued +N/+N improvement
     for (const uid of uids) {
       const m = ctx.state.board.find((c) => c.uid === uid);
       if (m) {
         weldMagnetic(ctx.state, m, {
           source: nameOf(self),
-          attack: token.attack * drones,
-          health: token.health * drones,
+          attack: (token.attack + clingBuff.attack) * drones,
+          health: (token.health + clingBuff.health) * drones,
           keywords: [...token.keywords],
           mana: 0,
         });
       }
     }
+    // Each Cling welded is a magnetization → Cling Drones improve (this is the "scales with Combinator").
+    if (token.id === 'cling') improveClingDrones(ctx.state, uids.length * drones);
   },
 
   /** Ritualist — End of Turn: every Fodder card type gains a *persistent* +atk/+hp for the rest

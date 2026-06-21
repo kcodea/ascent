@@ -1283,7 +1283,7 @@ export function Recruit() {
         replay.projectiles.map((p) => (
           <span
             key={`proj-${p.id}`}
-            className="proj"
+            className={p.kind === 'blast' ? 'proj blast' : 'proj'}
             style={{ left: p.x, top: p.y, '--dx': `${p.dx}px`, '--dy': `${p.dy}px` } as CSSProperties}
           />
         ))}

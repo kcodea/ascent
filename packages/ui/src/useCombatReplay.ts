@@ -313,7 +313,7 @@ export interface CombatReplay {
   frame: { player: UnitFrame[]; enemy: UnitFrame[] };
   anims: Record<string, string>;
   lungeUid: string | null;
-  projectiles: { id: number; x: number; y: number; dx: number; dy: number }[];
+  projectiles: { id: number; x: number; y: number; dx: number; dy: number; kind?: string }[];
   floatsFor: (uid: string) => Float[];
   log: string;
   /** The whole fight narrated in detail (every attack, hit, shield, death…) for the
@@ -354,7 +354,7 @@ export function useCombatReplay(
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
   // imperatively by GSAP (see the layout effect below); React never sets a transform on a unit.
   const [attackUid, setAttackUid] = useState<string | null>(null);
-  const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number }[]>([]);
+  const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number; kind?: string }[]>([]);
   // A card a combat effect just granted to the hand (Arcane Weaver → Spirit Fire) — shown flying to the
   // hand for the duration of its beat, so the player sees it happen instead of it just appearing later.
   const [handGrant, setHandGrant] = useState<{ cardId: string; key: number } | null>(null);
@@ -457,6 +457,15 @@ export function useCombatReplay(
     else if (combat.result === 'lose') sfx.lose();
   }, [active, done, combat]);
 
+  // uid → cardId (for spotting which dying minion is a Blaster, to fire its purple blast bolts).
+  const cardIds = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!combat) return m;
+    for (const u of [...combat.initial.player, ...combat.initial.enemy]) m.set(u.uid, u.cardId);
+    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.minion.cardId);
+    return m;
+  }, [combat]);
+
   // Measure lunge + SC projectiles AFTER the beat commits, so positions reflect the
   // frame on screen (not the previous one). Runs synchronously before paint.
   useLayoutEffect(() => {
@@ -482,11 +491,12 @@ export function useCombatReplay(
       setAttackUid(null);
     }
 
-    // Start-of-Combat bolts fly from the caster to each target its next-beat damage hits.
+    // Projectiles: Start-of-Combat bolts (caster → its next-beat dmg targets), plus Blaster's Deathrattle
+    // — purple bolts from the dying Blaster to every minion its AOE hit (the dmg events in the same beat).
+    const ps: { id: number; x: number; y: number; dx: number; dy: number; kind?: string }[] = [];
     if (cur?.primary.type === 'sc') {
       const src = center(cur.primary.source);
       const next = beats[beatIdx];
-      const ps: { id: number; x: number; y: number; dx: number; dy: number }[] = [];
       if (src && next) {
         for (let i = next.start; i < next.end; i++) {
           const ev = events[i];
@@ -496,11 +506,24 @@ export function useCombatReplay(
           }
         }
       }
-      setProjectiles(ps);
-    } else {
-      setProjectiles([]);
     }
-  }, [beatIdx, beats, events, findEl]);
+    if (cur) {
+      for (let i = cur.start; i < cur.end; i++) {
+        const ev = events[i];
+        if (ev?.type !== 'death' || cardIds.get(ev.target) !== 'blaster') continue;
+        const src = center(ev.target); // the dying Blaster is kept this beat, so it's still measurable
+        if (!src) continue;
+        for (let j = i + 1; j < cur.end; j++) {
+          const d = events[j];
+          if (d?.type === 'dmg') {
+            const t = center(d.target);
+            if (t) ps.push({ id: 100000 + j, x: src.x, y: src.y, dx: t.x - src.x, dy: t.y - src.y, kind: 'blast' });
+          }
+        }
+      }
+    }
+    setProjectiles(ps);
+  }, [beatIdx, beats, events, findEl, cardIds]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();

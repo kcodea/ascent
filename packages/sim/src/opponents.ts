@@ -13,52 +13,17 @@
  */
 import type { BoardMinion, Rng } from '@game/core';
 import type { BoardSnapshot } from './snapshot';
-import type { ThreatId } from './threats';
-
-/** Build a bootstrap snapshot from a board (power computed). Placeholder shape until the real library fills in. */
-function boot(wave: number, threat: ThreatId, minions: BoardMinion[]): BoardSnapshot {
-  return {
-    v: 1,
-    wave,
-    heroId: 'warden',
-    tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
-    threat,
-    result: 'win',
-    power: minions.reduce((s, m) => s + m.attack + m.health, 0),
-    minions,
-    seed: 0,
-  };
-}
 
 /**
  * The served-opponent pool. STATIC + versioned so opponent selection stays deterministic / replay-faithful.
- * These are BOOTSTRAP boards (real cards, roughly on-curve per wave) so the seam works end-to-end today;
- * real captured/authored boards replace + grow them in batches (step 3 — the board library).
+ *
+ * INTENTIONALLY EMPTY right now — we serve the procedural omen threat for every wave (`pickOpponent`
+ * returns null on an empty pool, so `faceOmen` falls straight through to `buildEnemyBoard`). Real boards
+ * return soon: populate this from the board library (captured / authored `BoardSnapshot`s) and
+ * `pickOpponent` starts serving them with no other changes. The bootstrap examples that used to seed it
+ * live in git history (commit b799861).
  */
-export const OPPONENT_POOL: BoardSnapshot[] = [
-  boot(2, 'horde', [
-    { cardId: 'alley', attack: 2, health: 2, keywords: [] },
-    { cardId: 'stray', attack: 2, health: 3, keywords: [] },
-    { cardId: 'kennel', attack: 1, health: 2, keywords: [] },
-  ]),
-  boot(3, 'horde', [
-    { cardId: 'whelp', attack: 3, health: 3, keywords: [] },
-    { cardId: 'kennel', attack: 3, health: 4, keywords: [] },
-    { cardId: 'pack', attack: 3, health: 4, keywords: [] },
-  ]),
-  boot(4, 'iron', [
-    { cardId: 'imp', attack: 4, health: 5, keywords: [] },
-    { cardId: 'kennel', attack: 4, health: 5, keywords: [] },
-    { cardId: 'broker', attack: 5, health: 6, keywords: [] },
-    { cardId: 'whelp', attack: 2, health: 4, keywords: [] },
-  ]),
-  boot(5, 'glass', [
-    { cardId: 'grim', attack: 7, health: 4, keywords: [] },
-    { cardId: 'monk', attack: 6, health: 7, keywords: [] },
-    { cardId: 'kennel', attack: 6, health: 7, keywords: [] },
-    { cardId: 'pack', attack: 5, health: 6, keywords: [] },
-  ]),
-];
+export const OPPONENT_POOL: BoardSnapshot[] = [];
 
 /**
  * Pick a strength-matched opponent for a wave, or null to fall back to the procedural threat. Matches by

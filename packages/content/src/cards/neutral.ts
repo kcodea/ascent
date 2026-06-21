@@ -139,7 +139,7 @@ export const NEUTRAL: CardDef[] = [
     tier: 4,
     attack: 6,
     health: 3,
-    keywords: [],
+    keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleDamageAll', params: { amount: 3 } }],
     text: '**Deathrattle:** deal **3** damage to ALL minions (yours too).',
     goldenText: '**Deathrattle:** deal **6** damage to ALL minions (yours too).',

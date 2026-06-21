@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Blaster blast VFX + escalating Cling Drones.** Blaster now has **Taunt** and rains **purple bolts**
+  on every minion when its Deathrattle pops. **Cling Drones** improve **+1/+1 each time one is
+  magnetized** — a permanent enchantment that scales hard with Combinator. (Enemy boards are back to the
+  procedural threat for now; real player boards return soon.)
 - **New keyword "Engraved" + 4 new cards.** **Engraved** minions keep the stats they gain in combat
   (carried back to your board) — **Gnasher** is now a T6 Engraved threat that gains a permanent **+5/+5**
   on every kill. New: **Beatboxer** (T6 Mech — copies every magnetization onto itself), **Blaster** (T4 —

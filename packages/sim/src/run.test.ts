@@ -12,6 +12,7 @@ import {
   buildEnemyBoard,
   pickOpponent,
   OPPONENT_POOL,
+  type BoardSnapshot,
   boardManaBonus,
   THREAT_IDS,
   addBuff,
@@ -1637,30 +1638,27 @@ describe('Corrupted Lifebinder End-of-Turn timing (@game/sim)', () => {
   });
 });
 
-describe('opponent pool (M3 step 4 — serve real boards)', () => {
-  it('pickOpponent serves a wave+strength-matched board, else null (→ procedural fallback)', () => {
-    const wave3 = OPPONENT_POOL.find((s) => s.wave === 3)!;
-    const matched = pickOpponent(3, wave3.power, makeRng(7));
-    expect(matched).not.toBeNull();
-    expect(Math.abs(matched!.wave - 3)).toBeLessThanOrEqual(1); // a near-wave candidate
-    expect(pickOpponent(15, wave3.power, makeRng(7))).toBeNull(); // no board near wave 15 → fallback
-    expect(pickOpponent(3, 9999, makeRng(7))).toBeNull(); // power wildly off-curve → fallback (thin pool)
+describe('opponent pool (M3 step 4 — seam present; serving currently OFF → omens)', () => {
+  it('pickOpponent matches a board by wave + power from a pool, else null (→ procedural fallback)', () => {
+    const pool: BoardSnapshot[] = [
+      { v: 1, wave: 3, heroId: 'warden', tribes: [], threat: 'horde', power: 20,
+        minions: [{ cardId: 'whelp', attack: 10, health: 10, keywords: [] }], seed: 0 },
+    ];
+    expect(pickOpponent(3, 20, makeRng(7), pool)?.wave).toBe(3); // matched (same wave + power)
+    expect(pickOpponent(15, 20, makeRng(7), pool)).toBeNull(); // no board near wave 15
+    expect(pickOpponent(3, 9999, makeRng(7), pool)).toBeNull(); // power wildly off-curve
   });
 
-  it('faceOmen serves a real board (not omen blobs) when the pool has a match', () => {
+  it('OPPONENT_POOL is empty for now → every wave fights a procedural omen board', () => {
+    expect(OPPONENT_POOL.length).toBe(0);
     const s: RunState = {
       ...createRun(1),
       wave: 3,
-      board: [
-        { uid: 'a', cardId: 'kennel', tribe: 'beast', attack: 4, health: 5, keywords: [], golden: false },
-        { uid: 'b', cardId: 'whelp', tribe: 'dragon', attack: 5, health: 6, keywords: [], golden: false },
-      ],
+      board: [{ uid: 'a', cardId: 'kennel', tribe: 'beast', attack: 4, health: 5, keywords: [], golden: false }],
     };
     const enemy = reduce(s, { type: 'faceOmen' }).lastCombat!.initial.enemy;
     expect(enemy.length).toBeGreaterThan(0);
-    expect(enemy.every((m) => m.cardId !== 'omen')).toBe(true); // a real board, not procedural omen blobs
-    const poolSigs = OPPONENT_POOL.map((sn) => sn.minions.map((m) => m.cardId).sort().join(','));
-    expect(poolSigs).toContain(enemy.map((m) => m.cardId).sort().join(',')); // it's one of the pool boards
+    expect(enemy.every((m) => m.cardId === 'omen')).toBe(true); // procedural omens, not real boards
   });
 });
 
@@ -1721,5 +1719,35 @@ describe('spell offers respect the tavern tier (M3 fix)', () => {
       }
     }
     expect(sawSpell).toBe(true);
+  });
+});
+
+describe('Cling Drones improve per magnetization (M3 content)', () => {
+  it('a magnetized Cling improves Cling Drones +1/+1 (enchantment + clings already in hand grow)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'host', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false }],
+      hand: [
+        { uid: 'm1', cardId: 'cling', tribe: 'mech', attack: 2, health: 2, keywords: ['M'], golden: false },
+        { uid: 'm2', cardId: 'cling', tribe: 'mech', attack: 2, health: 2, keywords: ['M'], golden: false }, // stays in hand
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'm1', toIndex: 0 }); // magnetize m1 onto the drone
+    expect(s.cardBuffs?.cling).toEqual({ attack: 1, health: 1 }); // persistent enchantment grew
+    const m2 = s.hand.find((c) => c.uid === 'm2')!;
+    expect([m2.attack, m2.health]).toEqual([3, 3]); // the Cling still in hand grew too
+  });
+
+  it('Combinator scales the improvement — welding 2 Clings bumps the enchantment +2/+2', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'comb', cardId: 'combinator', tribe: 'mech', attack: 6, health: 7, keywords: [], golden: false },
+        { uid: 'd1', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+        { uid: 'd2', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Combinator → welds a Cling onto 2 Mechs
+    expect(s.cardBuffs?.cling).toEqual({ attack: 2, health: 2 }); // 2 Clings magnetized → +2/+2
   });
 });

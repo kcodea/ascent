@@ -30,7 +30,7 @@ export const MECHS: CardDef[] = [
     health: 2,
     keywords: ['M'],
     effects: [],
-    text: '',
+    text: 'Each time a Cling Drone is magnetized, your Cling Drones get **+1/+1**.',
   },
   {
     id: 'selfless',

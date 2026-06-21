@@ -5,7 +5,7 @@ import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, improveClingDrones, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
@@ -152,6 +152,8 @@ function reduceCore(state: RunState, action: Action): RunState {
             keywords: card.keywords,
             mana,
           });
+          // A magnetized Cling improves Cling Drones (the persistent +1/+1 enchantment).
+          if (card.cardId === 'cling') improveClingDrones(s, 1);
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
           if (card.golden) grantGoldenDiscover(s);
           return s;

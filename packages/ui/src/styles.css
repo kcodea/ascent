@@ -1041,6 +1041,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 @keyframes floatup { 0% { opacity: 0; transform: translateY(14px) scale(0.5); } 12% { opacity: 1; transform: translateY(0) scale(1.18); } 26% { transform: translateY(0) scale(1); } 70% { opacity: 1; transform: translateY(-7px) scale(1); } 100% { opacity: 0; transform: translateY(-28px) scale(0.96); } }
 /* Start-of-Combat bolt flying from the caster to its target */
 .proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
+/* Blaster's Deathrattle: purple blast bolts to every minion. */
+.proj.blast { width: 18px; height: 18px; margin: -9px 0 0 -9px; background: radial-gradient(circle, #f3d6ff 0%, #a020f0 58%, transparent 72%); box-shadow: 0 0 14px 5px rgba(168, 60, 240, 0.85); }
 @keyframes projfly { 0% { transform: translate(0, 0); opacity: 0.4; } 15% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 1; } }
 /* Death reflow, done in CSS: the dying unit collapses its own flex slot AS it plays the death pop, so
    the survivors glide in at the same moment (one smooth phase) instead of the old two-step "fade in

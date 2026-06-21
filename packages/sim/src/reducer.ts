@@ -514,6 +514,7 @@ function checkTriples(s: RunState): void {
       buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
       spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
     });
+    s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
     // The Discover isn't granted now — it comes from a spell when the golden is played.
   }
 }

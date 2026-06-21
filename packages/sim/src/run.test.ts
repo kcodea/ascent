@@ -1572,6 +1572,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     const golden = s.hand.find((c) => c.cardId === 'spiritpup' && c.golden);
     expect(golden).toBeDefined();
     expect(golden!.spellProgress).toBe(8); // max(8, 2, 5) — keeps the closest-to-evolving
+    expect(s.triplesMade).toBe(1); // run-wide triples tally bumped by the merge
   });
 
   it("the Worgen's per-summon gain scales with spells cast this turn (X = 1 + spellsThisTurn)", () => {
@@ -1662,7 +1663,7 @@ describe('Corrupted Lifebinder End-of-Turn timing (@game/sim)', () => {
 describe('opponent pool (M3 step 4 — seam present; serving currently OFF → omens)', () => {
   it('pickOpponent matches a board by wave + power from a pool, else null (→ procedural fallback)', () => {
     const pool: BoardSnapshot[] = [
-      { v: 1, wave: 3, heroId: 'warden', tribes: [], threat: 'horde', power: 20,
+      { v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 1, tribes: [], threat: 'horde', power: 20,
         minions: [{ cardId: 'whelp', attack: 10, health: 10, keywords: [] }], seed: 0 },
     ];
     expect(pickOpponent(3, 20, makeRng(7), pool)?.wave).toBe(3); // matched (same wave + power)

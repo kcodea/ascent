@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-21
 
+### Snapshot enrichment + run-wide triples counter (M3 — difficulty from real boards, step 1)
+First step of the real-player-board opponent arc: make `BoardSnapshot` a complete *opponent-intel* atom.
+- **Run-wide triples counter** — new `RunState.triplesMade` (init 0), incremented in `checkTriples` each
+  time a golden is formed (once per merge, including chained merges in the guard loop). It's plain run
+  state, so the full-state `serialize` persists it through save/resume + replays automatically.
+- **Enriched `BoardSnapshot`** (`snapshot.ts`) with the three fields the opponent frame needs that weren't
+  captured: `resolve` (the run's HP at capture — full pre-combat), `tier` (tavern tier at capture), and
+  `triples` (`triplesMade` at capture). `snapshotBoard` populates them; the schema stays `v: 1` (no
+  snapshots are persisted yet — they're regenerated from the replay, so there's nothing to migrate).
+- **`dominantTribe(snap)` helper** — the "5 undead" readout. Snapshot minions carry only `cardId`, so it
+  resolves tribes via `CARD_INDEX`, counts **dual-types for both** their tribes, and returns
+  `{ tribe, count }` (ties → first seen on the board) or null for an empty board. Exported via the package
+  index, so the frame can call it directly.
+- Verified: typecheck + lint clean; **200** tests — `triplesMade → 1` asserted on the Spirit-Pup triple
+  test, a new snapshot test checks resolve/tier/triples + `dominantTribe`, and the opponent-pool test's
+  hand-built snapshot literal updated for the new fields. No UI yet (the frame that reads these is step 3).
+- Next in the arc: step 2 — populate the (already-present) `OPPONENT_POOL` from seeded runs via `replayRun`
+  and wire `buildEnemyBoard`/`pickOpponent` to serve wave-matched real boards (procedural = thin-pool fallback).
+
 ### Remove Cleaver · Spirit-Pup triple keeps spell counter · demon-gated Fodder · buy-below-line + buy zone (M2)
 - **Removed Ravenous Cleaver** (the lone default **Cleave** minion). Gone from `beasts.ts` and
   `docs/cards.csv`; the ~7 test/harness spots that used it as a generic vanilla beast now use **Alleycat**

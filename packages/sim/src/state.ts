@@ -125,6 +125,8 @@ export interface RunState {
   spellsThisTurn: number;
   /** Player-side Deathrattles triggered across the whole run — Grim's buff scales with this. */
   deathrattlesTriggered: number;
+  /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */
+  triplesMade: number;
   /** Flat reduction to spell purchase costs (min 0) — drives "your spells cost less". */
   spellCostMod: number;
   /** One-shot hint for the UI: Channeling the Devourer's stat projectile (who received it + how much).
@@ -221,6 +223,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     spellsCast: 0,
     spellsThisTurn: 0,
     deathrattlesTriggered: 0,
+    triplesMade: 0,
     spellCostMod: 0,
     hand: [],
     board: [],

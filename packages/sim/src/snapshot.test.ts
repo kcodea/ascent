@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createRun, reduce, serialize, snapshotBoard, replayRun, type Action, type BoardSnapshot } from './index';
+import { createRun, reduce, serialize, snapshotBoard, replayRun, dominantTribe, type Action, type BoardSnapshot } from './index';
 
 /** A tiny greedy bot that plays a run while recording its action log + the live snapshot at each combat. */
 function recordRun(seed: number): { replay: { seed: number; heroId: string; actions: Action[] }; live: BoardSnapshot[] } {
@@ -55,5 +55,21 @@ describe('board snapshot + replay', () => {
     const { replay } = recordRun(7);
     expect(replay.actions.length).toBeGreaterThan(5);
     expect(JSON.stringify(replay).length).toBeLessThan(20000);
+  });
+
+  it('snapshots carry opponent intel — resolve, tier, triples, and a dominant tribe', () => {
+    const { live } = recordRun(7);
+    const snap = live[0]!; // wave 1 (the existing test confirms live[0].wave === 1)
+    expect(snap.tier).toBe(1); // wave 1 → tavern tier 1
+    expect(snap.resolve).toBe(30); // full HP at capture (combat not yet resolved)
+    expect(snap.triples).toBeGreaterThanOrEqual(0); // goldens made by this wave
+    const dom = dominantTribe(snap);
+    if (snap.minions.length > 0) {
+      expect(dom).not.toBeNull();
+      expect(dom!.count).toBeGreaterThan(0);
+      expect(dom!.count).toBeLessThanOrEqual(snap.minions.length); // a tribe can't exceed the board size
+    } else {
+      expect(dom).toBeNull();
+    }
   });
 });

@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Board snapshots now carry opponent intel.** Groundwork for difficulty-from-real-boards: a captured
+  board snapshot now records the run's **HP, tavern tier, and total triples**, plus a `dominantTribe`
+  readout (the "5 undead" line) — exactly what the upcoming opponent-info frame will show. A run-wide
+  triples counter feeds it.
 - **Buy like you sell + content/economy fixes.** You can now **buy by dropping a shop card anywhere below
   the warband line** (not just on the hand), with a **"BUY" zone box** that mirrors the "SELL +1" box.
   **Fodder** only enters the tavern if you have a Demon to eat it (otherwise it's wasted, not hoarded),
@@ -337,9 +341,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 _(Full queue in [docs/roadmap.md](docs/roadmap.md).)_
 
-- **Now — difficulty from real boards:** enrich board snapshots (HP/tier/triples) → serve wave-matched
-  real player boards as enemies (replacing procedural omens) → an opponent-intel frame → a damage-dealt
-  system. Counter-matrix hand-tuning is demoted; captured boards drive difficulty.
+- **Now — difficulty from real boards:** ✓ board snapshots carry HP/tier/triples + a dominant-tribe
+  readout → next: serve wave-matched real player boards as enemies (replacing procedural omens) → an
+  opponent-intel frame → a damage-dealt system. Counter-matrix hand-tuning is demoted; captured boards
+  drive difficulty.
 - **M3 (meta):** more heroes + the full Title→Mode→Hero menu flow (hero picker shipped), unlocks,
   ascension modifiers, daily seeds, save/replay; async PvP off the shared board pool.
 - **M4 (juice & onboarding):** audio/VFX, tutorial, full accessibility + touch.

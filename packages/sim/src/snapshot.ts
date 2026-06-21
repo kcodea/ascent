@@ -11,6 +11,7 @@
  * no need to store each board live. `replayRun` turns a replay into the per-wave snapshots.
  */
 import type { BoardMinion, CombatOutcome, Tribe } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { createRun, type Action, type RunState } from './state';
 import { reduce } from './reducer';
 import type { ThreatId } from './threats';
@@ -20,6 +21,12 @@ export interface BoardSnapshot {
   v: 1;
   wave: number;
   heroId: string;
+  /** The run's Resolve (HP) at capture — shown on the opponent frame. */
+  resolve: number;
+  /** Tavern tier at capture — opponent-frame intel. */
+  tier: number;
+  /** Triples (goldens) formed this run by capture — opponent-frame intel. */
+  triples: number;
   /** The run's 5 active tribes — context for matchmaking / filtering. */
   tribes: Tribe[];
   threat: ThreatId;
@@ -58,6 +65,9 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     v: 1,
     wave: s.wave,
     heroId: s.heroId,
+    resolve: s.resolve,
+    tier: s.tier,
+    triples: s.triplesMade,
     tribes: [...s.tribes],
     threat: s.threat,
     result: s.lastCombat?.result,
@@ -65,6 +75,27 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     minions,
     seed: s.seed,
   };
+}
+
+/**
+ * The most-represented tribe on a snapshot's board, with its count — the "5 undead" intel for the
+ * opponent frame. Dual-types count for both their tribes; ties resolve to the first seen on the board.
+ * Null for an empty board. Looks tribes up via CARD_INDEX (snapshot minions carry only cardId).
+ */
+export function dominantTribe(snap: BoardSnapshot): { tribe: Tribe; count: number } | null {
+  const counts = new Map<Tribe, number>();
+  for (const m of snap.minions) {
+    const def = CARD_INDEX[m.cardId];
+    if (!def) continue;
+    for (const t of [def.tribe, def.tribe2]) {
+      if (t) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+  }
+  let best: { tribe: Tribe; count: number } | null = null;
+  for (const [tribe, count] of counts) {
+    if (!best || count > best.count) best = { tribe, count };
+  }
+  return best;
 }
 
 export interface Replay {

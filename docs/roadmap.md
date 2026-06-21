@@ -23,6 +23,9 @@ The next 5 concrete steps:
    `snapshotBoard`, `Replay` = `(seed, heroId, action-log)` + `replayRun` (deterministic → per-wave
    snapshots). Store records the action log + `exportReplay()`; `npm run replay` proves the loop
    (byte-identical, ~1 KB/run). A snapshot is a `BoardMinion[]` that drops straight into `simulate`.
+   **Enriched 2026-06-21:** the snapshot now also carries `resolve` (HP), `tier`, and `triples` (run-wide
+   goldens, via a new `RunState.triplesMade` counter), plus `dominantTribe(snap)` for the top board tribe
+   — the opponent-frame intel set.
 3. **Board library + strength index** — persist snapshots (local JSON → shared friend backend) keyed by
    `(wave, power-band, tribe)`, with a `pickOpponent(wave, power)` query.
 4. **Serve real boards as enemies** (PvE first) — `buildEnemyBoard` can draw a strength-matched real

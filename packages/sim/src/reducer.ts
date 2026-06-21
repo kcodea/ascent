@@ -5,7 +5,7 @@ import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, improveClingDrones, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
@@ -151,9 +151,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             health: card.health,
             keywords: card.keywords,
             mana,
-          });
-          // A magnetized Cling improves Cling Drones (the persistent +1/+1 enchantment).
-          if (card.cardId === 'cling') improveClingDrones(s, 1);
+          }, card.cardId === 'cling' ? 1 : 0); // a magnetized Cling stacks the improvement (via weldMagnetic)
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
           if (card.golden) grantGoldenDiscover(s);
           return s;
@@ -394,7 +392,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         linkUid: b.linkUid, // Corrupted Lifebinder mirrors its linked demon in combat too
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
       }));
-      s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn);
+      s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered);
       // Outcome odds: re-simulate the same two boards on independent seeds for a win/draw/loss estimate.
       // Combat is a cheap pure function on ~14 units, so 1000 sims cost ~1ms warm (a few ms for a long
       // grindy fight) and run once per fight. Seeds are derived from the run seed (a separate ODDS
@@ -403,7 +401,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       let win = 0, draw = 0, lose = 0;
       const ODDS_SIMS = 1000;
       for (let i = 0; i < ODDS_SIMS; i++) {
-        const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn).result;
+        const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered).result;
         if (r === 'win') win++;
         else if (r === 'draw') draw++;
         else lose++;
@@ -545,6 +543,8 @@ function offerDiscover(s: RunState, tripleTier: number): void {
 function advanceAfterCombat(s: RunState, result: CombatResult): void {
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
+  // Accumulate this combat's player Deathrattles into the run-wide "this game" count (Grim scales off it).
+  s.deathrattlesTriggered += result.playerDeathrattles;
   // Persist per-instance combat state (Kennelmaster's Avenge permanently improves its
   // summon buff for the rest of the run), keyed back to the originating board card.
   if (result.playerSummonBonus) {

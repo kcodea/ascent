@@ -30,6 +30,7 @@ export function simulate(
   rng: Rng,
   cards: CardIndex,
   spellsThisTurn = 0,
+  deathrattlesBase = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -45,6 +46,10 @@ export function simulate(
   // Persistent tribe buffs (Grim's Deathrattle): registered when it fires, then applied to every matching
   // friend summoned for the *rest of combat*. Side-scoped; multiple Grims stack.
   const tribeAuras: { side: Side; tribe: Tribe | 'any'; attack: number; health: number; source: string }[] = [];
+
+  // Player-side Deathrattle firings this combat — feeds Grim's "+1/+1 per Deathrattle this game" tally
+  // (added to the run-wide base passed in), and is carried back to accumulate the run-wide count.
+  let playerDeathrattles = 0;
 
   // Corrupted Lifebinder: `linkUid` arrives as the linked board card's uid — remap it to that minion's
   // fresh combat uid (matched via sourceUid) so mid-fight buffs on the demon can find their mirror.
@@ -85,6 +90,7 @@ export function simulate(
     boards,
     events,
     spellsThisTurn,
+    deathrattleTally: () => deathrattlesBase + playerDeathrattles,
     log: (event) => {
       events.push(event);
     },
@@ -213,6 +219,8 @@ export function simulate(
     minion.dead = true;
     minion.health = 0;
     events.push({ type: 'death', target: minion.uid });
+    // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
+    if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles++;
     bus.emit('onDeath', { minion, side: minion.side, killer });
     // Sylus the Reaper: the dying minion's own Deathrattle procs extra times (golden = +2;
     // multiple Sylus stack additively). Re-runs only this minion's onDeath effects.
@@ -466,6 +474,7 @@ export function simulate(
     events,
     result,
     playerDamage,
+    playerDeathrattles,
     initial,
     playerSummonBonus,
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,

@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-21
 
+### Flowing Monk references Engraved · Beatboxer stacks Clings · Combinator nerf (M2)
+- **Flowing Monk** text now references **Engraved** ("…give a random friendly minion +3/+3 (Engraved —
+  kept after combat)"). Its gift was already permanent; the text just didn't say so.
+- **Beatboxer counts toward Cling stacking** — its mimicked Cling copies are magnetizations too, so each
+  bumps the Cling Drone improvement. Cling-stacking now routes through `weldMagnetic` (host weld + each
+  Beatboxer copy, ×golden) so it's counted in one place; the separate caller increments were removed. A
+  golden Beatboxer's two copies both stack.
+- **Combinator nerf** — golden now scales the **number of Mechs** (1 → 2), not Clings-per-Mech: non-golden
+  magnetizes 1 Cling onto 1 Mech, golden onto 2 (was: 1 Cling onto 2 Mechs, golden 2 Clings onto 2).
+- Verified: typecheck + lint clean; **198** tests (Combinator tests updated for the nerf + 2 new Beatboxer
+  cling-stacking tests); live (Flowing Monk renders the Engraved reference).
+
+### Grim → +1/+1 per Deathrattle triggered this game (M2)
+Grim's Deathrattle now scales: your Beasts get **+1/+1 for each Deathrattle triggered this game**
+(whole-run), instead of a flat +6/+6. A run-wide counter (`RunState.deathrattlesTriggered`) tallies your
+Deathrattles as they fire and persists across fights (accumulated in `advanceAfterCombat` from each
+combat's `playerDeathrattles`); it's threaded into `simulate` as a base, and Grim snapshots the live total
+(base + this fight's player Deathrattles, including its own death) when it dies, registering a +X/+X
+rest-of-combat aura. New factory `deathrattleBuffTribeByTally` + `ctx.deathrattleTally()`. Golden = +2/+2
+per Deathrattle. Verified: tests (run-wide base 5 + Grim → +6/+6; the 4 existing Grim-buff tests updated
+to the new scaling); live (base 4 + Grim → +5/+5). *Flag: scales hard late-run — tunable via `per`/a cap.*
+
 ### Blaster blast VFX + Taunt, Cling Drone escalation, revert to procedural omens (M2 / M3)
 - **Blaster** gained **Taunt**, and its Deathrattle now fires **purple blast bolts** at everything it
   hits: the replay detects a Blaster `death` event (via a uid→cardId map) and shoots a `.proj.blast`

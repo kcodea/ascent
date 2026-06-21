@@ -93,11 +93,11 @@ export const MECHS: CardDef[] = [
       {
         on: 'endOfTurn',
         do: 'endOfTurnMagnetizeMechs',
-        params: { tokenId: 'cling', targets: 2, count: 1 },
+        params: { tokenId: 'cling', targets: 1, count: 1 },
       },
     ],
-    text: '**End of Turn:** magnetize a Cling Drone onto 2 friendly Mechs.',
-    goldenText: '**End of Turn:** magnetize **two** Cling Drones onto 2 friendly Mechs.',
+    text: '**End of Turn:** magnetize a Cling Drone onto a friendly Mech.',
+    goldenText: '**End of Turn:** magnetize a Cling Drone onto **2** friendly Mechs.',
   },
   {
     // Passive (resolved in @game/sim's magnetize path): every magnetization that lands on another

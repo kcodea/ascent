@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Grim reworked + Combinator nerfed.** **Grim** now gives your Beasts **+1/+1 for each Deathrattle
+  triggered this game** (whole-run) — a scaling payoff instead of a flat buff. **Combinator** magnetizes a
+  Cling onto 1 Mech (golden: 2). **Flowing Monk's** gift now reads as **Engraved** (kept after combat), and
+  **Beatboxer's** mimicked Cling copies count toward the Cling improvement.
 - **Blaster blast VFX + escalating Cling Drones.** Blaster now has **Taunt** and rains **purple bolts**
   on every minion when its Deathrattle pops. **Cling Drones** improve **+1/+1 each time one is
   magnetized** — a permanent enchantment that scales hard with Combinator. (Enemy boards are back to the

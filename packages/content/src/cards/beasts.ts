@@ -82,8 +82,8 @@ export const BEASTS: CardDef[] = [
     attack: 7,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 6, health: 6 } }],
-    text: '**Deathrattle:** give your Beasts **+6/+6** for the rest of combat.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', per: 1 } }],
+    text: '**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.',
   },
   {
     // Sample Choose One card — picks one Battlecry when played (see CardDef.chooseOne).

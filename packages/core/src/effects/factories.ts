@@ -90,6 +90,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Deathrattle (Grim): buff your `tribe` by +`per`/+`per` per Deathrattle triggered this game (the
+   *  run-wide base + this combat's player Deathrattles, snapshotted now — Grim's own death is counted).
+   *  Registers a rest-of-combat aura at that magnitude, then buffs the friends already on the board.
+   *  Golden doubles `per`. */
+  deathrattleBuffTribeByTally: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const tribe = str(params.tribe) as Tribe | 'any';
+    const amount = ctx.deathrattleTally() * num(params.per, 1) * mul(self);
+    ctx.addTribeAura(self.side, tribe, amount, amount, self.uid);
+    for (const m of ctx.living(self.side)) {
+      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe) ctx.buff(m, amount, amount, self.uid);
+    }
+  },
+
   /** On kill (Gnasher): buff self by +atk/+hp. Pairs with Engraved so the gain is permanent. The onKill
    *  payload carries the killer as `attacker`, so only the minion that scored the kill fires. */
   onKillBuffSelf: (ctx, self, params, payload) => {

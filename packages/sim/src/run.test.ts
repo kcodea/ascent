@@ -217,6 +217,7 @@ describe('run loop (@game/sim)', () => {
         events: [],
         result: 'win',
         playerDamage: 0,
+        playerDeathrattles: 0,
         initial: { player: [], enemy: [] },
         playerSummonBonus: [{ sourceUid: 'k', bonus: 2 }],
       },
@@ -349,7 +350,7 @@ describe('run loop (@game/sim)', () => {
       board: [{ uid: 'imp', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
       cardBuffs: { fred: { attack: 2, health: 2 } },
       pendingTavern: ['fred'],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } },
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, initial: { player: [], enemy: [] } },
     };
     s = reduce(s, { type: 'resolveCombat' }); // advance → next tavern injects Fred → the Imp eats it
     const imp = s.board.find((c) => c.cardId === 'imp');
@@ -366,7 +367,7 @@ describe('run loop (@game/sim)', () => {
       frozen: true,
       shop: [{ uid: 'keep', cardId: 'alley' }], // one frozen offer; the rest were bought away
       spell: null, // …and the spell was bought
-      lastCombat: { events: [], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } },
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, initial: { player: [], enemy: [] } },
     };
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.phase).toBe('recruit');
@@ -383,7 +384,7 @@ describe('run loop (@game/sim)', () => {
       frozen: true,
       board: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
       pendingTavern: ['fred'], // queued by Soulfeeder's Battlecry last turn
-      lastCombat: { events: [], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } },
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, initial: { player: [], enemy: [] } },
     };
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.board.find((c) => c.cardId === 'feed')!.attack).toBe(3); // the demon ate the queued Fred (+1/+1)
@@ -476,7 +477,7 @@ describe('run loop (@game/sim)', () => {
       ...createRun(1),
       phase: 'combat',
       board: [{ uid: 'mb', cardId: 'moneybot', tribe: 'mech', attack: 3, health: 3, keywords: ['M'], golden: false }],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } },
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, initial: { player: [], enemy: [] } },
     };
     expect(boardManaBonus(s)).toBe(1);
     s = reduce(s, { type: 'resolveCombat' }); // advance a turn → start with base max + the bonus
@@ -498,7 +499,7 @@ describe('run loop (@game/sim)', () => {
     expect(boardManaBonus(s)).toBe(0); // income gone with it
   });
 
-  it('Combinator magnetizes a Cling Drone (+2/+2) onto 2 other friendly Mechs at end of turn', () => {
+  it('Combinator magnetizes a Cling Drone (+2/+2) onto 1 friendly Mech at end of turn (golden: 2)', () => {
     let s: RunState = {
       ...createRun(1),
       phase: 'recruit',
@@ -514,12 +515,13 @@ describe('run loop (@game/sim)', () => {
     const d1 = s.board.find((c) => c.uid === 'd1')!;
     const d2 = s.board.find((c) => c.uid === 'd2')!;
     const cmb = s.board.find((c) => c.uid === 'cmb')!;
-    expect([d1.attack, d1.health]).toEqual([4, 3]); // 2/1 + a Cling Drone (2/2)
-    expect([d2.attack, d2.health]).toEqual([4, 3]);
+    const welded = [d1, d2].filter((m) => m.attack > 2);
+    expect(welded.length).toBe(1); // non-golden hits exactly one Mech (golden would hit two)
+    expect([welded[0]!.attack, welded[0]!.health]).toEqual([4, 3]); // 2/1 + a Cling Drone (2/2)
     expect([cmb.attack, cmb.health]).toEqual([6, 7]); // self is not a target
   });
 
-  it('Combinator welds onto 2 RANDOM Mechs — the pair varies by seed, not the highest-Attack', () => {
+  it('a golden Combinator welds onto 2 RANDOM Mechs — the pair varies by seed, not the highest-Attack', () => {
     const everBuffed = new Set<string>();
     for (let seed = 1; seed <= 24; seed++) {
       let s: RunState = {
@@ -528,7 +530,7 @@ describe('run loop (@game/sim)', () => {
         embers: 0,
         shop: [],
         board: [
-          { uid: 'cmb', cardId: 'combinator', tribe: 'mech', attack: 6, health: 7, keywords: [], golden: false },
+          { uid: 'cmb', cardId: 'combinator', tribe: 'mech', attack: 6, health: 7, keywords: [], golden: true },
           { uid: 'm1', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false },
           { uid: 'm2', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false },
           { uid: 'm3', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false },
@@ -1705,6 +1707,32 @@ describe('Beatboxer — mimics magnetizations (M3 content)', () => {
     const bb = s.board.find((c) => c.uid === 'bb')!;
     expect([bb.attack, bb.health]).toEqual([10, 10]); // 8/8 + 2/2 once, not doubled
   });
+
+  it("a Beatboxer's mimicked Cling copy also stacks the Cling improvement", () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'host', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+        { uid: 'bb', cardId: 'beatboxer', tribe: 'mech', attack: 8, health: 8, keywords: [], golden: false },
+      ],
+      hand: [clingHand('m')],
+    };
+    s = reduce(s, { type: 'play', uid: 'm', toIndex: 0 }); // 1 Cling onto the drone; Beatboxer mimics a copy
+    expect(s.cardBuffs?.cling).toEqual({ attack: 2, health: 2 }); // host weld (1) + Beatboxer's copy (1)
+  });
+
+  it("a golden Beatboxer's two Cling copies both stack", () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'host', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+        { uid: 'bb', cardId: 'beatboxer', tribe: 'mech', attack: 8, health: 8, keywords: [], golden: true },
+      ],
+      hand: [clingHand('m')],
+    };
+    s = reduce(s, { type: 'play', uid: 'm', toIndex: 0 });
+    expect(s.cardBuffs?.cling).toEqual({ attack: 3, health: 3 }); // host (1) + golden Beatboxer's 2 copies
+  });
 });
 
 describe('spell offers respect the tavern tier (M3 fix)', () => {
@@ -1738,16 +1766,16 @@ describe('Cling Drones improve per magnetization (M3 content)', () => {
     expect([m2.attack, m2.health]).toEqual([3, 3]); // the Cling still in hand grew too
   });
 
-  it('Combinator scales the improvement — welding 2 Clings bumps the enchantment +2/+2', () => {
+  it('a golden Combinator scales the improvement — a Cling onto 2 Mechs bumps it +2/+2', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
-        { uid: 'comb', cardId: 'combinator', tribe: 'mech', attack: 6, health: 7, keywords: [], golden: false },
+        { uid: 'comb', cardId: 'combinator', tribe: 'mech', attack: 6, health: 7, keywords: [], golden: true },
         { uid: 'd1', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
         { uid: 'd2', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
       ],
     };
-    s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Combinator → welds a Cling onto 2 Mechs
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn: golden Combinator welds a Cling onto 2 Mechs
     expect(s.cardBuffs?.cling).toEqual({ attack: 2, health: 2 }); // 2 Clings magnetized → +2/+2
   });
 });

@@ -78,8 +78,8 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'summonOverflow', do: 'overflowBuffRandom', params: { attack: 3, health: 3 } }],
-    text: "When you summon a minion that doesn't fit, give a random friendly minion **+3/+3**.",
-    goldenText: "When you summon a minion that doesn't fit, give a random friendly minion **+6/+6**.",
+    text: "When you summon a minion that doesn't fit, give a random friendly minion **+3/+3** (Engraved — kept after combat).",
+    goldenText: "When you summon a minion that doesn't fit, give a random friendly minion **+6/+6** (Engraved — kept after combat).",
   },
   {
     // Battlecry doubler. Golden "triples" (fire 2 more times); multiple Drakkos do NOT stack.

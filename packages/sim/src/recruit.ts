@@ -141,15 +141,23 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
 /**
  * Weld a magnetic onto `host`, then let any Beatboxer mimic it. Beatboxer copies every magnetization
  * that lands on *another* unit (a magnetization onto a Beatboxer itself is just the `host` weld below,
- * counted once); a golden Beatboxer mimics each one twice. Net: a Beatboxer ends up with every
- * magnetization that happened on your board, once per event (twice if golden). Both magnetization paths
- * — the player dropping a Magnetic on a Mech, and Combinator's End-of-Turn weld — route through here.
+ * counted once); a golden Beatboxer mimics each one twice. Both magnetization paths — the player dropping
+ * a Magnetic on a Mech, and Combinator's End-of-Turn weld — route through here.
+ *
+ * `clings` = how many Cling Drones this weld represents (0 if the magnetic isn't a Cling). Each Cling
+ * magnetized — onto the host AND each copy Beatboxer mimics onto itself — stacks the Cling improvement.
  */
-export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload): void {
+export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0): void {
   applyWeld(host, mag, 1);
+  let totalClings = clings; // Clings welded onto the host
   for (const bb of state.board) {
-    if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) applyWeld(bb, mag, bb.golden ? 2 : 1);
+    if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
+      const mult = bb.golden ? 2 : 1;
+      applyWeld(bb, mag, mult);
+      totalClings += clings * mult; // Beatboxer magnetizes Cling copies onto itself — those stack too
+    }
   }
+  if (totalClings > 0) improveClingDrones(state, totalClings);
 }
 
 /**
@@ -367,13 +375,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   endOfTurnMagnetizeMechs: (ctx, self, params, payload) => {
     const token = CARD_INDEX[str(params.tokenId) || 'cling'];
     if (!token) return;
-    const targets = num(params.targets, 2);
-    const drones = num(params.count, 1) * gold(self);
+    const targets = num(params.targets, 1) * gold(self); // golden hits 2 Mechs instead of 1
+    const drones = num(params.count, 1); // one Cling per Mech (golden scales the number of Mechs, not this)
     const slot = ctx.state.board.indexOf(self);
     const uids = magnetizeTargets(
       ctx.state.board, self.uid, targets, ctx.state.seed, ctx.state.wave, slot, num(payload.proc, 0),
     );
     const clingBuff = cardBuff(ctx.state, token.id); // Cling Drones' accrued +N/+N improvement
+    const clings = token.id === 'cling' ? drones : 0; // Clings welded per Mech (stacks via weldMagnetic)
     for (const uid of uids) {
       const m = ctx.state.board.find((c) => c.uid === uid);
       if (m) {
@@ -383,11 +392,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
           health: (token.health + clingBuff.health) * drones,
           keywords: [...token.keywords],
           mana: 0,
-        });
+        }, clings);
       }
     }
-    // Each Cling welded is a magnetization → Cling Drones improve (this is the "scales with Combinator").
-    if (token.id === 'cling') improveClingDrones(ctx.state, uids.length * drones);
   },
 
   /** Ritualist — End of Turn: every Fodder card type gains a *persistent* +atk/+hp for the rest

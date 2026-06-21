@@ -59,6 +59,7 @@ export type EffectFactoryId =
   | 'onKillBuffSelf' // on kill: buff self (Gnasher) — permanent via Engraved
   | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
   | 'deathrattleDestroyKiller' // Deathrattle: destroy the minion that dealt the killing blow (Jenkins & Fi)
+  | 'deathrattleBuffTribeByTally' // Deathrattle: buff a tribe by +per per Deathrattle triggered this game (Grim)
   | 'scDamage'
   | 'scSplitDamage'
   | 'scAoePerTribe'
@@ -264,6 +265,9 @@ export interface CombatResult {
   result: CombatOutcome;
   /** Resolve the player loses on defeat (handoff A.3 step 9). 0 otherwise. */
   playerDamage: number;
+  /** Player-side Deathrattles that fired this combat — the run loop accumulates these into the run-wide
+   *  "this game" count Grim reads. */
+  playerDeathrattles: number;
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
   /** Per-instance state to persist on the run board after combat, keyed by the board
@@ -290,6 +294,9 @@ export interface CombatContext {
   readonly events: CombatEvent[];
   /** Spells cast this turn (recruit), frozen at combat start — scales Spirit Worgen's in-combat buff. */
   readonly spellsThisTurn: number;
+  /** Deathrattles triggered this game so far: the run-wide base (passed in) + this combat's player
+   *  Deathrattles. Grim scales its buff by this. */
+  deathrattleTally(): number;
   log(event: CombatEvent): void;
   living(side: Side): Minion[];
   getCard(id: string): CardDef;

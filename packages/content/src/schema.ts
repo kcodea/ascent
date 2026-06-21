@@ -37,6 +37,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onKillBuffSelf',
   'deathrattleDamageAll',
   'deathrattleDestroyKiller',
+  'deathrattleBuffTribeByTally',
   'scDamage',
   'scSplitDamage',
   'scAoePerTribe',

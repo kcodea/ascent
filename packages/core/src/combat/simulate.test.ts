@@ -486,13 +486,14 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('a golden Sylus procs a Deathrattle two extra times, and Sylus stacks', () => {
-    // Use a buff Deathrattle (Grim: all Beasts +6/+6) so the proc count is the number of +6 buff
-    // events — no board-cap interference. Only the Cleaver is a living Beast to buff.
+    // Use a buff Deathrattle (Grim: Beasts +1/+1 per Deathrattle this game — here just Grim itself, so
+    // +1) so the proc count is the number of buff events — no board-cap interference. Only the Cleaver
+    // is a living Beast to buff.
     const procs = (board: BoardMinion[]): number =>
       run(board, [{ cardId: 'omen', attack: 1, health: 200 }], 1).events.filter(
-        (e) => e.type === 'buff' && e.attack === 6,
+        (e) => e.type === 'buff' && e.attack === 1,
       ).length;
-    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Deathrattle: all Beasts +6/+6
+    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Deathrattle: Beasts +1/+1 per Deathrattle this game
     const carry = { cardId: 'cleaver', attack: 2, health: 50 }; // surviving Beast
     expect(procs([grim, carry, { cardId: 'sylus', attack: 1, health: 50, golden: true }])).toBe(3); // 1 + 2 golden
     expect(
@@ -526,8 +527,8 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Corrupted Lifebinder mirrors its linked minion\'s combat buffs', () => {
-    // Grim dies early → its Deathrattle buffs all living Beasts +6/+6 → the Stray gains +6/+6, and the
-    // Lifebinder linked to that Stray mirrors the same +6/+6 (a buff event tagged 'Lifebinder').
+    // Grim dies early → Deathrattle buffs living Beasts +1/+1 per Deathrattle this game (here just Grim
+    // itself = +1) → the Stray gains +1/+1, and the Lifebinder linked to it mirrors the same +1/+1.
     const p: BoardMinion[] = [
       { cardId: 'lifebinder', attack: 1, health: 50, sourceUid: 'LB', linkUid: 'B' },
       { cardId: 'stray', attack: 1, health: 50, sourceUid: 'B' },
@@ -536,11 +537,11 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 200 }];
     const a = run(p, e, 3);
     const mirror = a.events.filter((ev) => ev.type === 'buff' && ev.source === 'Lifebinder');
-    expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 6 && ev.health === 6)).toBe(true);
+    expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
   });
 
   it('a golden Corrupted Lifebinder mirrors double its linked minion\'s combat buffs', () => {
-    // Same setup, but the Lifebinder is golden → it mirrors the Stray's +6/+6 as +12/+12.
+    // Same setup, but the Lifebinder is golden → it mirrors the Stray's +1/+1 (Grim, tally 1) as +2/+2.
     const p: BoardMinion[] = [
       { cardId: 'lifebinder', attack: 2, health: 50, sourceUid: 'LB', linkUid: 'B', golden: true },
       { cardId: 'stray', attack: 1, health: 50, sourceUid: 'B' },
@@ -549,14 +550,14 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 200 }];
     const a = run(p, e, 3);
     const mirror = a.events.filter((ev) => ev.type === 'buff' && ev.source === 'Lifebinder');
-    expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 12 && ev.health === 12)).toBe(true);
+    expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
   });
 
   it('Grim buffs Beasts summoned *after* it dies — a persistent aura, not a one-time buff', () => {
-    // Grim dies on its first swing (1 HP → retaliation) and registers a +6/+6 Beast aura for the rest of
-    // combat. Mama Pup outlives it, then dies and summons 2 Pups — and though they're summoned *after*
-    // Grim is gone, the aura still catches them. Isolates the aura: a one-time "buff living Beasts" could
-    // never reach a minion that didn't exist yet.
+    // Grim dies on its first swing (1 HP → retaliation) and registers a Beast aura sized to its tally
+    // (here +1/+1: just Grim's own Deathrattle counts so far). Mama Pup outlives it, then dies and summons
+    // 2 Pups — and though they're summoned *after* Grim is gone, the aura still catches them. Isolates the
+    // aura: a one-time "buff living Beasts" could never reach a minion that didn't exist yet.
     const p: BoardMinion[] = [
       { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
       { cardId: 'pack', attack: 2, health: 25, sourceUid: 'P' }, // Mama Pup: tanky, Deathrattle → 2 Pups
@@ -572,9 +573,22 @@ describe('simulate (handoff A.3)', () => {
     expect(latePups.length).toBeGreaterThan(0); // Pups summoned strictly after Grim died
     for (const { ev } of latePups) {
       const uid = ev.type === 'summon' ? ev.minion.uid : '';
-      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 6 && b.health === 6);
+      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 1 && b.health === 1);
       expect(gotAura).toBe(true);
     }
+  });
+
+  it('Grim scales +1/+1 per Deathrattle triggered this game (run-wide base + this combat)', () => {
+    // A run that has already seen 5 Deathrattles (the run-wide base); this fight Grim dies (1 more) →
+    // tally 6 → the surviving Beast gets +6/+6.
+    const p: BoardMinion[] = [
+      { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
+      { cardId: 'cleaver', attack: 2, health: 80, sourceUid: 'C' }, // surviving Beast (no Deathrattle)
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 300 }];
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 5); // 6th arg = run-wide Deathrattle base
+    const cleaverUid = a.initial.player.find((m) => m.cardId === 'cleaver')!.uid;
+    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === cleaverUid && ev.attack === 6 && ev.health === 6)).toBe(true);
   });
 
   it('Gnasher gains a permanent +5/+5 on kill (Engraved carries it back)', () => {

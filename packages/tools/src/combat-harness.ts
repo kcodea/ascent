@@ -11,7 +11,7 @@ validateCards();
 const player: BoardMinion[] = [
   { cardId: 'kennel', attack: 2, health: 3 },
   { cardId: 'pack', attack: 2, health: 2 },
-  { cardId: 'cleaver', attack: 2, health: 4 },
+  { cardId: 'alley', attack: 2, health: 4 },
   { cardId: 'gnash', attack: 6, health: 6 },
 ];
 

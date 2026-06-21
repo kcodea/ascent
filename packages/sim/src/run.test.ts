@@ -813,10 +813,11 @@ describe('run loop (@game/sim)', () => {
     expect(lb?.linkUid).toBeUndefined(); // link ended
   });
 
-  it('Fodder with no Demon on board just sits in the tavern (buyable)', () => {
+  it('Fodder with no Demon on board is wasted — never enters the tavern, never stored', () => {
     let s: RunState = { ...createRun(1), embers: 3, board: [], pendingTavern: ['fred'] };
     s = reduce(s, { type: 'roll' });
-    expect(s.shop.some((o) => o.cardId === 'fred')).toBe(true); // not eaten — stays for you to buy
+    expect(s.shop.some((o) => o.cardId === 'fred')).toBe(false); // no Demon → wasted, doesn't clutter the shop
+    expect(s.pendingTavern).toEqual([]); // and not stored for later
   });
 
   it('always offers one spell on the right of the shop', () => {
@@ -1028,7 +1029,7 @@ describe('run loop (@game/sim)', () => {
       hand: [],
       board: [
         { uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false },
-        { uid: 'mid', cardId: 'cleaver', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false },
+        { uid: 'mid', cardId: 'alley', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false },
       ],
       shop: [{ uid: 'x', cardId: 'toxin' }],
     };
@@ -1257,7 +1258,7 @@ describe('run loop (@game/sim)', () => {
       shop: [],
       board: [
         { uid: 'a', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false },
-        { uid: 'b', cardId: 'cleaver', tribe: 'beast', attack: 2, health: 4, keywords: ['C'], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 2, health: 4, keywords: ['C'], golden: false },
       ],
     });
     const odds = reduce(setup(), { type: 'faceOmen' }).lastCombat!.odds!;
@@ -1553,6 +1554,24 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(s.board[0]!.cardId).toBe('spiritworgen'); // transformed, stats kept (no retroactive buff)
     expect(s.board[0]!.attack).toBe(4);
     expect(s.board[0]!.health).toBe(6);
+  });
+
+  it('tripling Spirit Pups keeps the highest spell progress (lowest spells-left)', () => {
+    // Three Pups at 8 / 2 / 5 progress → the golden inherits 8 (just 2 spells from evolving).
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'p1', cardId: 'spiritpup', tribe: 'beast', attack: 4, health: 6, keywords: [], golden: false, spellProgress: 8 },
+        { uid: 'p2', cardId: 'spiritpup', tribe: 'beast', attack: 4, health: 6, keywords: [], golden: false, spellProgress: 2 },
+      ],
+      hand: [
+        { uid: 'p3', cardId: 'spiritpup', tribe: 'beast', attack: 4, health: 6, keywords: [], golden: false, spellProgress: 5 },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'p3' }); // 3rd Pup → triple → golden in hand
+    const golden = s.hand.find((c) => c.cardId === 'spiritpup' && c.golden);
+    expect(golden).toBeDefined();
+    expect(golden!.spellProgress).toBe(8); // max(8, 2, 5) — keeps the closest-to-evolving
   });
 
   it("the Worgen's per-summon gain scales with spells cast this turn (X = 1 + spellsThisTurn)", () => {

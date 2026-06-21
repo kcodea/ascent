@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-21
 
+### Remove Cleaver · Spirit-Pup triple keeps spell counter · demon-gated Fodder · buy-below-line + buy zone (M2)
+- **Removed Ravenous Cleaver** (the lone default **Cleave** minion). Gone from `beasts.ts` and
+  `docs/cards.csv`; the ~7 test/harness spots that used it as a generic vanilla beast now use **Alleycat**
+  (its only effect is a recruit-time Battlecry — inert in combat), and the Cleave combat test keeps an
+  explicit `keywords: ['C']` so the keyword + cleave logic stay covered. *Flag: no card carries Cleave by
+  default now; the keyword still works on anything granted `['C']`.*
+- **Tripling Spirit Pups keeps the best spell counter.** `checkTriples` now gives the golden the
+  **highest `spellProgress`** of the three copies (= the lowest spells-left): a Pup 2-from-evolving merged
+  with one 8-from-evolving yields a golden 2-from-evolving. (`spellProgress` counts *up* to 10, so
+  max-progress = min-remaining — `Math.max(...combined.map(c => c.spellProgress ?? 0))`.) New test: 8/2/5
+  → golden 8.
+- **Fodder only enters the tavern with a Demon to eat it.** `injectPendingTavern` now gates on a Demon
+  being on board: with one, queued Fodder is injected and immediately consumed (as before); with none, the
+  Fodder is **wasted** — not added to the shop, and never stored (`pendingTavern` is always cleared). Stops
+  Fodder-spawning cards from cluttering a Demon-less tavern with un-buyable garbage. The no-Demon test
+  flipped to assert waste + empty `pendingTavern`.
+- **Buy by dropping anywhere below the warband line.** New `inBuyRegion` mirrors `inSellRegion`: a shop
+  card released *below* the warband line — the whole lower screen (warband row, the gap, or the hand) —
+  buys it, instead of only a pinpoint drop on the hand zone. It resolves to `zone: 'hand'`, so the existing
+  buy path (`source 'shop' && zone 'hand'`) fires and the hand glows as confirmation. Bounded by the screen
+  bottom (can't go too low), just as the sell region stops at the line.
+- **Buy zone box (mirror of the sell zone).** Added a `.buyzone` overlay — vertical mirror of `.sellzone`:
+  bottom-anchored (`top` set inline to the warband line, `bottom: 0`), accent tint strongest at the bottom,
+  dashed boundary at the **top** (the warband line), and a **"BUY" pill** at bottom-center; lights up
+  (`.on`) once a shop card crosses below the line. `buyTop` is measured on shop-drag start (like `sellTop`).
+- Verified: typecheck + lint clean; **199** tests (cleaver→alley swaps, fodder test flipped, +1 Spirit-Pup
+  triple test); live in the dev preview — a shop card dropped 60px below the warband line bought it (hand
+  `0→1`, shop `4→3`, hand glowed), and the buy-zone box renders mirroring the sell box, no console errors.
+
 ### Flowing Monk references Engraved · Beatboxer stacks Clings · Combinator nerf (M2)
 - **Flowing Monk** text now references **Engraved** ("…give a random friendly minion +3/+3 (Engraved —
   kept after combat)"). Its gift was already permanent; the text just didn't say so.

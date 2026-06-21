@@ -498,6 +498,9 @@ function checkTriples(s: RunState): void {
     // Absorbed mana-per-turn (a Money Bot magnetized into one of the copies) carries through the
     // triple so the income survives (the golden's own def.manaPerTurn handles the un-merged case).
     const absorbedMana = combined.reduce((sum, c) => sum + (c.manaBonus ?? 0), 0);
+    // Spirit Pup: the golden keeps the *highest* spell progress of the three (= the lowest spells-left),
+    // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve.
+    const goldenProgress = Math.max(...combined.map((c) => c.spellProgress ?? 0));
     s.hand.push({
       uid: `b${s.uidSeq++}`,
       cardId: def.id,
@@ -509,6 +512,7 @@ function checkTriples(s: RunState): void {
       summonBonus,
       manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
       buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
+      spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
     });
     // The Discover isn't granted now — it comes from a spell when the golden is played.
   }
@@ -641,10 +645,13 @@ function refreshTavern(s: RunState): void {
  */
 function injectPendingTavern(s: RunState): void {
   const pending = s.pendingTavern ?? [];
+  s.pendingTavern = []; // always cleared — Fodder is never stored; with no Demon to eat it, it's wasted
   if (pending.length === 0) return;
+  // Only bring queued Fodder out if a Demon is on the board to consume it — otherwise it would just
+  // clutter the tavern with un-buyable garbage, so it goes to waste instead (handoff: no Fodder storage).
+  if (!s.board.some((c) => c.tribe === 'demon')) return;
   for (const id of pending) {
     if (CARD_INDEX[id]) s.shop.push({ uid: `s${s.uidSeq++}`, cardId: id });
   }
-  s.pendingTavern = [];
-  consumeTavernFodder(s); // Demons present? they eat the Fodder that just arrived
+  consumeTavernFodder(s); // the Demons eat the Fodder that just arrived
 }

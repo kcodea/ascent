@@ -49,17 +49,6 @@ export const BEASTS: CardDef[] = [
     text: 'Each **Beast** you summon gains **+1/+1**. **Avenge (3):** Improve this.',
   },
   {
-    id: 'cleaver',
-    name: 'Ravenous Cleaver',
-    tribe: 'beast',
-    tier: 3,
-    attack: 2,
-    health: 4,
-    keywords: ['C'],
-    effects: [],
-    text: '',
-  },
-  {
     id: 'gnash',
     name: 'Gnasher, the Overrun',
     tribe: 'beast',

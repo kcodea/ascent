@@ -140,6 +140,8 @@ export function Recruit() {
   // Height (px) of the sell region = top of screen → top of the warband. Measured when a board-minion
   // drag begins, so the whole upper screen can act as one big "drop to sell" zone.
   const [sellTop, setSellTop] = useState(0);
+  // Same idea for the buy zone: top of the warband → bottom of screen, measured when a shop-card drag begins.
+  const [buyTop, setBuyTop] = useState(0);
   const [snapping, setSnapping] = useState(false);
   const [magSlide, setMagSlide] = useState(false); // a Magnetic card sliding into its Mech
   const [magTargetUid, setMagTargetUid] = useState<string | null>(null); // the Mech being merged into (crackles)
@@ -452,13 +454,18 @@ export function Recruit() {
     const warbandTop = (): number => document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0;
     const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && y < warbandTop();
     if (drag.source === 'board' && !drag.view.spell) setSellTop(warbandTop());
+    if (drag.source === 'shop') setBuyTop(warbandTop());
+    // Mirror for buying: a shop card released anywhere *below* the warband line — the whole lower screen
+    // (warband row, the gap, or the hand) — buys it, instead of only when dropped squarely on the hand.
+    // Bounded by the screen bottom, so it can't go too low (just as the sell region stops at the line).
+    const inBuyRegion = (y: number): boolean => drag.source === 'shop' && y > warbandTop();
     const onMove = (e: PointerEvent): void => {
       setDrag((d) => {
         if (!d) return d;
         const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
         return { ...d, x: e.clientX, y: e.clientY, active };
       });
-      setOverZone(inSellRegion(e.clientY) ? 'tavern' : zoneAt(e.clientX, e.clientY));
+      setOverZone(inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAt(e.clientX, e.clientY));
     };
     const onUp = (e: PointerEvent): void => {
       const d = dragRef.current;
@@ -471,8 +478,9 @@ export function Recruit() {
       }
       // Resolve the drop zone *before* clearing body.dragging, so the status bar (and
       // hero) stay click-through and a card can land on the hand tucked behind them.
-      // A board minion released anywhere above the warband sells (the whole upper screen).
-      const zone = inSellRegion(e.clientY) ? 'tavern' : zoneAt(e.clientX, e.clientY);
+      // A board minion released anywhere above the warband sells (the whole upper screen); a shop card
+      // released anywhere below the warband line buys (the whole lower screen).
+      const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAt(e.clientX, e.clientY);
       document.body.classList.remove('dragging'); // cursor reverts on release
 
       // Magnetic merge: a Magnetic minion dropped onto a friendly minion sharing one of its tribes
@@ -1149,6 +1157,14 @@ export function Recruit() {
       {drag?.active && drag.source === 'board' && !drag.view.spell && (
         <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: sellTop } as CSSProperties} aria-hidden="true">
           <span className="sellzone-tag">Sell +1</span>
+        </div>
+      )}
+
+      {/* Buy zone — mirror of the sell zone: the whole screen *below* the warband lights up while dragging
+          a shop card, and releasing anywhere in it buys (handled by inBuyRegion in the drop handler). */}
+      {drag?.active && drag.source === 'shop' && (
+        <div className={`buyzone${overZone === 'hand' ? ' on' : ''}`} style={{ top: buyTop } as CSSProperties} aria-hidden="true">
+          <span className="buyzone-tag">Buy</span>
         </div>
       )}
 

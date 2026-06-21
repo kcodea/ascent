@@ -228,6 +228,9 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 - [ ] **Hand-tuck tuning.** The hand now fans up from behind the status bar (pops on hover). The tuck
       depth / hover-lift / fan overlap are first-pass values — revisit once more cards are in play
       (and on shorter viewports) so the resting peek and the pop both feel right.
+- [ ] **Buy-zone polish (optional).** The buy drop-zone + "BUY" box now mirror the sell zone — drop a shop
+      card anywhere below the warband line to buy. Optional: show the dragged card's **cost** on the pill
+      ("BUY −3") for full "SELL +1" symmetry, and/or float the pill nearer the warband line.
 
 - [ ] **More single-target Battlecries** (e.g. "give a friendly minion +X/+X") — the full place-then-aim
       gesture now ships (Toxin Tender → Venomous). A stat version just needs a `battlecryBuffTarget`

@@ -23,6 +23,11 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Buy like you sell + content/economy fixes.** You can now **buy by dropping a shop card anywhere below
+  the warband line** (not just on the hand), with a **"BUY" zone box** that mirrors the "SELL +1" box.
+  **Fodder** only enters the tavern if you have a Demon to eat it (otherwise it's wasted, not hoarded),
+  **tripling Spirit Pups** keeps the *best* spell counter of the three copies, and **Ravenous Cleaver** was
+  removed.
 - **Grim reworked + Combinator nerfed.** **Grim** now gives your Beasts **+1/+1 for each Deathrattle
   triggered this game** (whole-run) — a scaling payoff instead of a flat buff. **Combinator** magnetizes a
   Cling onto 1 Mech (golden: 2). **Flowing Monk's** gift now reads as **Engraved** (kept after combat), and
@@ -332,9 +337,11 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 _(Full queue in [docs/roadmap.md](docs/roadmap.md).)_
 
-- **M2 (now):** counter-matrix tuning — Mech is too strong, Beast too weak, Dragon/Undead flat.
+- **Now — difficulty from real boards:** enrich board snapshots (HP/tier/triples) → serve wave-matched
+  real player boards as enemies (replacing procedural omens) → an opponent-intel frame → a damage-dealt
+  system. Counter-matrix hand-tuning is demoted; captured boards drive difficulty.
 - **M3 (meta):** more heroes + the full Title→Mode→Hero menu flow (hero picker shipped), unlocks,
-  ascension modifiers, daily seeds, save/replay.
+  ascension modifiers, daily seeds, save/replay; async PvP off the shared board pool.
 - **M4 (juice & onboarding):** audio/VFX, tutorial, full accessibility + touch.
 
 ## Layout

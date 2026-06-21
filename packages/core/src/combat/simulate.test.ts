@@ -9,7 +9,7 @@ describe('simulate (handoff A.3)', () => {
   it('is deterministic for the same seed', () => {
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 2, health: 2 },
-      { cardId: 'cleaver', attack: 2, health: 4 },
+      { cardId: 'alley', attack: 2, health: 4 },
       { cardId: 'gnash', attack: 6, health: 6 },
     ];
     const e: BoardMinion[] = [
@@ -174,11 +174,11 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Cleave hits the target and its neighbours in one swing', () => {
-    // Player outnumbers the enemy, so the Cleaver strikes first while two
+    // Player outnumbers the enemy, so the cleaving minion strikes first while two
     // adjacent enemies are present. A single attack should kill both.
     const a = run(
       [
-        { cardId: 'cleaver', attack: 3, health: 10 },
+        { cardId: 'alley', attack: 3, health: 10, keywords: ['C'] },
         { cardId: 'alley', attack: 1, health: 1 },
         { cardId: 'alley', attack: 1, health: 1 },
       ],
@@ -487,14 +487,14 @@ describe('simulate (handoff A.3)', () => {
 
   it('a golden Sylus procs a Deathrattle two extra times, and Sylus stacks', () => {
     // Use a buff Deathrattle (Grim: Beasts +1/+1 per Deathrattle this game — here just Grim itself, so
-    // +1) so the proc count is the number of buff events — no board-cap interference. Only the Cleaver
+    // +1) so the proc count is the number of buff events — no board-cap interference. Only the Alleycat
     // is a living Beast to buff.
     const procs = (board: BoardMinion[]): number =>
       run(board, [{ cardId: 'omen', attack: 1, health: 200 }], 1).events.filter(
         (e) => e.type === 'buff' && e.attack === 1,
       ).length;
     const grim = { cardId: 'grim', attack: 1, health: 1 }; // Deathrattle: Beasts +1/+1 per Deathrattle this game
-    const carry = { cardId: 'cleaver', attack: 2, health: 50 }; // surviving Beast
+    const carry = { cardId: 'alley', attack: 2, health: 50 }; // surviving Beast
     expect(procs([grim, carry, { cardId: 'sylus', attack: 1, health: 50, golden: true }])).toBe(3); // 1 + 2 golden
     expect(
       procs([grim, carry, { cardId: 'sylus', attack: 1, health: 50 }, { cardId: 'sylus', attack: 1, health: 50 }]),
@@ -583,12 +583,12 @@ describe('simulate (handoff A.3)', () => {
     // tally 6 → the surviving Beast gets +6/+6.
     const p: BoardMinion[] = [
       { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
-      { cardId: 'cleaver', attack: 2, health: 80, sourceUid: 'C' }, // surviving Beast (no Deathrattle)
+      { cardId: 'alley', attack: 2, health: 80, sourceUid: 'C' }, // surviving Beast (no Deathrattle)
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 300 }];
     const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 5); // 6th arg = run-wide Deathrattle base
-    const cleaverUid = a.initial.player.find((m) => m.cardId === 'cleaver')!.uid;
-    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === cleaverUid && ev.attack === 6 && ev.health === 6)).toBe(true);
+    const allyUid = a.initial.player.find((m) => m.cardId === 'alley')!.uid;
+    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 6 && ev.health === 6)).toBe(true);
   });
 
   it('Gnasher gains a permanent +5/+5 on kill (Engraved carries it back)', () => {

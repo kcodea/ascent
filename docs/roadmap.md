@@ -19,9 +19,10 @@ The next 5 concrete steps:
 
 1. ✅ **Lock in the compact arched-card UI + balance tools** (`npm run curve` / `npm run player`). Done
    2026-06-20.
-2. **Board snapshot + capture** (the replay tool) — a serializable `BoardSnapshot` (minions+stats+keywords,
-   wave, tribe-mix, heroId, Σpower, seed) captured each end-of-recruit; the atom the game learns from.
-   Record `(seed, action-log)` so any run replays headlessly.
+2. ✅ **Board snapshot + capture** (done 2026-06-20). `@game/sim/snapshot.ts`: `BoardSnapshot` +
+   `snapshotBoard`, `Replay` = `(seed, heroId, action-log)` + `replayRun` (deterministic → per-wave
+   snapshots). Store records the action log + `exportReplay()`; `npm run replay` proves the loop
+   (byte-identical, ~1 KB/run). A snapshot is a `BoardMinion[]` that drops straight into `simulate`.
 3. **Board library + strength index** — persist snapshots (local JSON → shared friend backend) keyed by
    `(wave, power-band, tribe)`, with a `pickOpponent(wave, power)` query.
 4. **Serve real boards as enemies** (PvE first) — `buildEnemyBoard` can draw a strength-matched real

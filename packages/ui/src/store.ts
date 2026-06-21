@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { HEROES, createRun, reduce, type Action, type RunState } from '@game/sim';
+import { HEROES, createRun, reduce, type Action, type Replay, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import { sfx } from './sfx';
 
@@ -59,6 +59,12 @@ interface GameStore {
   compactCards: boolean;
   /** Flip the compact / full-text card display (Esc menu). */
   toggleCompact: () => void;
+  /** The current run's action log (only state-changing actions), reset on a fresh run. With the run
+   *  seed it forms a deterministic replay — the basis for board capture + async-PvP snapshots. */
+  replayActions: Action[];
+  /** Export the current run as a tiny deterministic replay `{ seed, heroId, actions }` (DEV: grab it
+   *  via `useGame.getState().exportReplay()`; feed it to `replayRun` / the replay harness). */
+  exportReplay: () => Replay;
   /** Apply an engine action — the only way run state changes. Pure reducer under the hood. */
   dispatch: (action: Action) => void;
   /** Toggle Hero Power targeting mode. */
@@ -76,7 +82,7 @@ interface GameStore {
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
 
-export const useGame = create<GameStore>((set) => ({
+export const useGame = create<GameStore>((set, get) => ({
   run: createRun(randomSeed()),
   heroArmed: false,
   sellTick: 0,
@@ -86,6 +92,8 @@ export const useGame = create<GameStore>((set) => ({
   // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
   compactCards: true,
   toggleCompact: () => set((s) => ({ compactCards: !s.compactCards })),
+  replayActions: [],
+  exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, actions: get().replayActions }),
   dispatch: (action) =>
     set((s) => {
       const next = reduce(s.run, action);
@@ -95,6 +103,8 @@ export const useGame = create<GameStore>((set) => ({
         heroArmed: false, // any action clears targeting
         inspect: null, // …and closes the inspect overlay
         sellTick: action.type === 'sell' ? s.sellTick + 1 : s.sellTick,
+        // Record only state-changing actions — together with the seed they replay the run deterministically.
+        replayActions: next === s.run ? s.replayActions : [...s.replayActions, action],
       };
     }),
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
@@ -102,9 +112,9 @@ export const useGame = create<GameStore>((set) => ({
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
   pickHero: (heroId) =>
-    set({ run: createRun(randomSeed(), heroId), heroArmed: false, sellTick: 0, inspect: null, heroChoices: null }),
+    set({ run: createRun(randomSeed(), heroId), heroArmed: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
   newRun: (seed, heroId) =>
-    set({ run: createRun(seed ?? randomSeed(), heroId), heroArmed: false, sellTick: 0, inspect: null, heroChoices: null }),
+    set({ run: createRun(seed ?? randomSeed(), heroId), heroArmed: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

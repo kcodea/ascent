@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "harness": "tsx packages/tools/src/combat-harness.ts",
     "bot": "tsx packages/tools/src/run-harness.ts",
+    "replay": "tsx packages/tools/src/replay-harness.ts",
     "balance": "tsx packages/tools/src/balance.ts",
     "curve": "tsx packages/tools/src/enemy-curve.ts",
     "player": "tsx packages/tools/src/player-curve.ts",

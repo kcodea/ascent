@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-20
 
+### Board snapshot + replay pipeline (M3 — difficulty learns from real boards · step 2)
+The capture foundation for the player-board → async-PvP arc:
+- **`@game/sim/snapshot.ts`** — a serializable **`BoardSnapshot`** (the fought board as a clean
+  `BoardMinion[]` + wave / hero / tribes / threat / result / Σpower / seed; run-specific instance refs
+  dropped, so it drops straight into `simulate` as a strength-matched enemy), `snapshotBoard(run)` to
+  extract it, a **`Replay`** = `(seed, heroId, action-log)`, and **`replayRun(replay)`** which re-runs
+  the log deterministically and yields the per-wave snapshots. The engine is fully seeded, so a whole
+  run is **~1 KB** (not a board dump) and replays byte-identically.
+- **Store** — records the run's action log (`replayActions`, reset per run) + **`exportReplay()`**
+  (DEV: grab a real run via `useGame.getState().exportReplay()`). Verified live: 3 actions → a 117-byte
+  replay.
+- **`npm run replay`** (replay-harness.ts) — records a bot run → replays it → verifies it's
+  byte-identical → dumps the per-wave board snapshots. Faithful across seeds (1.1–1.6 KB replays).
+- Tests: `snapshot.test.ts` (round-trip fidelity + determinism). typecheck + lint clean; **179** pass.
+- *Next:* step 3 — the board library (persist + index by wave/power/tribe + a `pickOpponent` query).
+
 ### Compact "Pixel Arena" card overhaul — arched frame + text drawer (M1/M2 UI)
 A full pass on card presence (the player loved the direction; locked in). Every card is now one
 universal **arched frame** with a `density` model instead of the old always-on rectangle:

@@ -805,12 +805,17 @@ export function syncLifebinders(state: RunState): void {
       const base = lb.linkBase ?? { attack: 0, health: 0 };
       const gainedA = Math.max(0, demon.attack - base.attack);
       const gainedH = Math.max(0, demon.health - base.health);
+      // A golden (tripled / Gilded) Lifebinder mirrors *double* its partner's gains. `linkApplied`
+      // tracks the magnitude already mirrored, so flipping to golden mid-link tops it up to 2×.
+      const mul = lb.golden ? 2 : 1;
+      const targetA = gainedA * mul;
+      const targetH = gainedH * mul;
       const applied = lb.linkApplied ?? { attack: 0, health: 0 };
-      const dA = gainedA - applied.attack;
-      const dH = gainedH - applied.health;
+      const dA = targetA - applied.attack;
+      const dH = targetH - applied.health;
       if (dA !== 0 || dH !== 0) {
         addBuff(lb, 'Lifebinder', dA, dH);
-        lb.linkApplied = { attack: gainedA, health: gainedH };
+        lb.linkApplied = { attack: targetA, health: targetH };
         changed = true;
       }
     }

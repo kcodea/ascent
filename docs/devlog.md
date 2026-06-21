@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-21
 
+### Golden Corrupted Lifebinder mirrors double its partner (M2)
+A golden (tripled / Gilded) Corrupted Lifebinder now gains **2×** its linked demon's stat gains, in
+both phases: recruit (`syncLifebinders` — `linkApplied` tracks the mirrored magnitude, so flipping to
+golden mid-link tops it up to 2×) and combat (`mirrorLink` doubles the buff when the Lifebinder is
+golden). Tests: a golden Lifebinder mirrors a +1/+1 Fortify as +2/+2 (recruit) and Grim's +6/+6 as
++12/+12 (combat). **185** tests pass; typecheck + lint clean.
+
 ### Content + combat + UX batch — spells, hero-power triples, juice, cursors, art (M2)
 A large multi-session batch, committed together. Highlights by area:
 

@@ -779,6 +779,20 @@ describe('run loop (@game/sim)', () => {
     expect([lb?.attack, lb?.health]).toEqual([2, 2]); // mirrored the +1/+1
   });
 
+  it('a golden Corrupted Lifebinder mirrors double its linked demon\'s recruit gains', () => {
+    let s: RunState = {
+      ...createRun(1),
+      heroReady: true,
+      board: [
+        { uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: true, linkUid: 'd', linkBase: { attack: 5, health: 5 }, linkApplied: { attack: 0, health: 0 } },
+        { uid: 'd', cardId: 'imp', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'd' }); // Fortify the linked demon +1/+1
+    const lb = s.board.find((c) => c.uid === 'lb');
+    expect([lb?.attack, lb?.health]).toEqual([4, 4]); // golden → mirrored +2/+2 (double the demon's +1/+1)
+  });
+
   it('Corrupted Lifebinder keeps its stats but stops mirroring when the demon leaves', () => {
     let s: RunState = {
       ...createRun(1),

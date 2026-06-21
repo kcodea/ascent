@@ -566,6 +566,19 @@ describe('simulate (handoff A.3)', () => {
     expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 6 && ev.health === 6)).toBe(true);
   });
 
+  it('a golden Corrupted Lifebinder mirrors double its linked minion\'s combat buffs', () => {
+    // Same setup, but the Lifebinder is golden → it mirrors the Stray's +6/+6 as +12/+12.
+    const p: BoardMinion[] = [
+      { cardId: 'lifebinder', attack: 2, health: 50, sourceUid: 'LB', linkUid: 'B', golden: true },
+      { cardId: 'stray', attack: 1, health: 50, sourceUid: 'B' },
+      { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 200 }];
+    const a = run(p, e, 3);
+    const mirror = a.events.filter((ev) => ev.type === 'buff' && ev.source === 'Lifebinder');
+    expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 12 && ev.health === 12)).toBe(true);
+  });
+
   it('Flowing Monk buffs a friend when a combat summon overflows the full board', () => {
     // 7 living (Monk + golden Brood + 5 Taunt sandbags). The omen kills a sandbag → golden Brood
     // summons 2 Imps: the first fits (back to 7), the second overflows → Monk procs +3/+3.

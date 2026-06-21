@@ -52,7 +52,11 @@ export function simulate(
    *  buff doesn't itself re-mirror, and so the UI shows it as a distinct gain on the Lifebinder). */
   function mirrorLink(target: Minion, attack: number, health: number): void {
     for (const m of boards[target.side]) {
-      if (!m.dead && m.linkUid === target.uid) ctx.buff(m, attack, health, 'Lifebinder');
+      // A golden Lifebinder mirrors *double* its partner's mid-combat gains.
+      if (!m.dead && m.linkUid === target.uid) {
+        const mul = m.golden ? 2 : 1;
+        ctx.buff(m, attack * mul, health * mul, 'Lifebinder');
+      }
     }
   }
 

@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Drag perf — hit-test cached zone rects (drop the per-frame `elementFromPoint`)
+- During a drag, the zone under the pointer was found via `zoneAt` → `document.elementFromPoint`, and the
+  sell/buy line via `warbandTop()` → `getBoundingClientRect` — called on **every** pointermove. Both force
+  a synchronous layout, a per-frame cost behind the drag micro-stutter (worst when repositioning on the
+  board). The zone *containers* hold their position during a drag (only the cards inside shift), so we now
+  measure them once at drag-start and hit-test cached rects (pure arithmetic). Behaviour-equivalent — the
+  floating drag card is `pointer-events: none`, so `elementFromPoint` was already returning the zone behind it.
+- Remaining per-frame cost (honest): the live insertion-gap reflow (cards shifting *is* the visual feedback)
+  and the React re-render. The latter is heavily inflated in dev — **StrictMode double-renders every frame**
+  and the bundle is unminified — so a production build (`npm run build:web` → `npm run preview`) is the real
+  test. If it still stutters there, the next lever is taking the floating-card position fully imperative
+  (ref + direct transform) so a move doesn't re-render the recruit tree at all between gap/zone changes.
+
 ### Choose One is its own keyword — not a Battlecry (no Drakko / Karwind / Bane synergy)
 - Playing a Choose One minion (Wildwood Shaper) and picking an option used to run through the Battlecry
   machinery: `applyChooseOne` applied `drummerRepeats` (Drakko the Drummer **doubled** the chosen effect)

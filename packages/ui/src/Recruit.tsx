@@ -499,14 +499,27 @@ export function Recruit() {
     if (!drag) return;
     // The sell region is the whole upper screen — everything above the warband. A board minion released
     // anywhere up there sells (not just over the tavern box). `source`/`view` are fixed for the drag.
-    const warbandTop = (): number => document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0;
-    const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && y < warbandTop();
-    if (drag.source === 'board' && !drag.view.spell) setSellTop(warbandTop());
-    if (drag.source === 'shop') setBuyTop(warbandTop());
+    // Cache the zone geometry once per drag: the zone *containers* hold their position while dragging
+    // (only the cards inside them shift), so we can hit-test the pointer against cached rects instead of
+    // calling elementFromPoint / getBoundingClientRect every frame — both force a synchronous layout,
+    // the main source of drag micro-stutter.
+    const wbTop = document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0;
+    const zoneRects = [...document.querySelectorAll<HTMLElement>('[data-zone]')].map((el) => ({
+      zone: el.getAttribute('data-zone') as Zone,
+      r: el.getBoundingClientRect(),
+    }));
+    const zoneAtCached = (x: number, y: number): Zone | null => {
+      for (const { zone, r } of zoneRects) {
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return zone;
+      }
+      return null;
+    };
+    const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && y < wbTop;
+    if (drag.source === 'board' && !drag.view.spell) setSellTop(wbTop);
+    if (drag.source === 'shop') setBuyTop(wbTop);
     // Mirror for buying: a shop card released anywhere *below* the warband line — the whole lower screen
     // (warband row, the gap, or the hand) — buys it, instead of only when dropped squarely on the hand.
-    // Bounded by the screen bottom, so it can't go too low (just as the sell region stops at the line).
-    const inBuyRegion = (y: number): boolean => drag.source === 'shop' && y > warbandTop();
+    const inBuyRegion = (y: number): boolean => drag.source === 'shop' && y > wbTop;
     // rAF-throttle the move: a high-Hz pointer (120/144Hz mice, trackpads) fires pointermove far more
     // often than the screen repaints, and each event re-renders Recruit (the live insertion gap + spell
     // line read drag.x/y, so we can't ref them out). Coalesce — keep only the latest position and apply
@@ -523,7 +536,7 @@ export function Recruit() {
         const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
         return { ...d, x: e.clientX, y: e.clientY, active };
       });
-      setOverZone(inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAt(e.clientX, e.clientY));
+      setOverZone(inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY));
     };
     const onMove = (e: PointerEvent): void => {
       lastMove = e;

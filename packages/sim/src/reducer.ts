@@ -117,6 +117,25 @@ function reduceCore(state: RunState, action: Action): RunState {
       addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
+      // Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). The quest
+      // progresses only on Battlecry minions; the reward lands in the hand if there's room.
+      if (s.heroId === 'drakko' && !s.heroPowerSpent && hasBattlecry(card)) {
+        s.drakkoBuys += 1;
+        if (s.drakkoBuys >= 5) {
+          if (s.hand.length < CONFIG.handMax) {
+            s.hand.push({
+              uid: `b${s.uidSeq++}`,
+              cardId: 'drummer',
+              tribe: CARD_INDEX.drummer!.tribe,
+              attack: CARD_INDEX.drummer!.attack,
+              health: CARD_INDEX.drummer!.health,
+              keywords: [...CARD_INDEX.drummer!.keywords],
+              golden: false,
+            });
+          }
+          s.heroPowerSpent = true; // quest complete — stops counting + arms nothing further
+        }
+      }
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       return s;
     }
@@ -131,7 +150,21 @@ function reduceCore(state: RunState, action: Action): RunState {
       // tier up) and is consumed — no board slot.
       if (card.cardId === 'discoverspell') {
         s.hand.splice(i, 1);
-        offerDiscover(s, s.tier);
+        offerDiscover(s, s.tier + 1); // the triple reward peeks one tier above the current tavern tier
+        return s;
+      }
+
+      // Sprout: Discover a Tier 1 minion (fixed tier). Consumed — no board slot.
+      if (card.cardId === 'sprout') {
+        s.hand.splice(i, 1);
+        offerDiscover(s, 1, { tier: 1 });
+        return s;
+      }
+
+      // Help Wanted: Discover a Battlecry minion (up to the tavern tier). Consumed — no board slot.
+      if (card.cardId === 'helpwanted') {
+        s.hand.splice(i, 1);
+        offerDiscover(s, s.tier, { filter: hasBattlecry });
         return s;
       }
 
@@ -253,8 +286,13 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'roll': {
-      if (s.embers < CONFIG.refreshCost) return state;
-      s.embers -= CONFIG.refreshCost;
+      // Refreshing Texts bank free rerolls — spend one before charging Mana.
+      if (s.freeRolls > 0) {
+        s.freeRolls -= 1;
+      } else {
+        if (s.embers < CONFIG.refreshCost) return state;
+        s.embers -= CONFIG.refreshCost;
+      }
       s.frozen = false;
       refreshTavern(s);
       return s;
@@ -324,8 +362,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card) return state;
         for (const c of s.board) c.resummon = false;
         card.resummon = true;
-      } else if (power.kind === 'spellAmplify') {
-        // The Spellbinder's power is passive (no activation) — nothing to do on a heroPower action.
+      } else if (power.kind === 'spellAmplify' || power.kind === 'quest') {
+        // Passive powers (Spellbinder's amplify, Drakko's quest) have no activation — the work happens
+        // elsewhere (spell math / the buy case). Nothing to do on a heroPower action.
         return state;
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
@@ -412,7 +451,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         linkUid: b.linkUid, // Corrupted Lifebinder mirrors its linked demon in combat too
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
       }));
-      s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier);
+      s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus);
       s.lastCombat.playerDamage = Math.min(s.lastCombat.playerDamage, lossDamageCap(s.wave)); // round cap
       // Outcome odds: re-simulate the same two boards on independent seeds for a win/draw/loss estimate.
       // Combat is a cheap pure function on ~14 units, so 1000 sims cost ~1ms warm (a few ms for a long
@@ -422,7 +461,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       let win = 0, draw = 0, lose = 0;
       const ODDS_SIMS = 1000;
       for (let i = 0; i < ODDS_SIMS; i++) {
-        const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered).result;
+        const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus).result;
         if (r === 'win') win++;
         else if (r === 'draw') draw++;
         else lose++;
@@ -548,20 +587,46 @@ function checkTriples(s: RunState): void {
   }
 }
 
-/** A triple grants a Discover: 3 distinct cards from one tier up (capped at maxTier). */
-function offerDiscover(s: RunState, tripleTier: number): void {
-  const target = Math.min(CONFIG.maxTier, tripleTier + 1);
-  let floor = target;
+/**
+ * Offer a Discover (3 distinct, pool-filtered cards). Used by:
+ *   • the triple reward (a golden played → peek one tier up) — `discoverTier` = the *target* tier;
+ *     the pool walks the floor down until it finds 3, so a thin top tier still fills.
+ *   • spell Discovers (`opts`): a fixed `tier` (Sprout → 1, no floor-walk) and/or a card `filter`
+ *     (Help Wanted → Battlecry minions only). When `tier` is fixed the pool is just that tier (no
+ *     widening), so Sprout always shows Tier 1s and Help Wanted shows Battlecry cards of any eligible tier.
+ */
+function offerDiscover(
+  s: RunState,
+  discoverTier: number,
+  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean },
+): void {
+  const filter = opts?.filter ?? (() => true);
   let pool: typeof BUYABLE_CARDS = [];
-  while (pool.length < 3 && floor >= 1) {
+  if (opts?.tier !== undefined) {
+    // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
     pool = BUYABLE_CARDS.filter(
       (c) =>
-        c.tier <= target &&
-        c.tier >= floor &&
+        c.tier === opts.tier &&
         (c.tribe === 'neutral' || s.tribes.includes(c.tribe)) &&
-        (s.pool[c.id] ?? 0) > 0, // only offer cards with copies left — Discover draws from the finite pool
+        (s.pool[c.id] ?? 0) > 0 &&
+        filter(c),
     );
-    floor--;
+  } else {
+    // Tiered Discover (triple reward, or a filtered spell): up to the target tier, walking the floor
+    // down until at least 3 candidates are found.
+    const target = Math.min(CONFIG.maxTier, discoverTier);
+    let floor = target;
+    while (pool.length < 3 && floor >= 1) {
+      pool = BUYABLE_CARDS.filter(
+        (c) =>
+          c.tier <= target &&
+          c.tier >= floor &&
+          (c.tribe === 'neutral' || s.tribes.includes(c.tribe)) &&
+          (s.pool[c.id] ?? 0) > 0 && // only offer cards with copies left — Discover draws from the finite pool
+          filter(c),
+      );
+      floor--;
+    }
   }
   if (pool.length === 0) return;
   const rng = makeRng(s.rngCursor);
@@ -572,6 +637,11 @@ function offerDiscover(s: RunState, tripleTier: number): void {
   }
   s.rngCursor = rng.state();
   s.discover = picks;
+}
+
+/** Whether a card has a Battlecry (an onPlay effect or a Choose One) — Help Wanted's Discover filter. */
+function hasBattlecry(c: (typeof BUYABLE_CARDS)[number]): boolean {
+  return c.effects.some((e) => e.on === 'onPlay') || !!c.chooseOne;
 }
 
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */

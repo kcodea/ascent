@@ -39,7 +39,6 @@ export function HeroSelect() {
                 {power.unlockWave && power.unlockWave > 1 && (
                   <div className="hclock">Unlocks turn {power.unlockWave}</div>
                 )}
-                <div className="hcblurb">{hero.blurb}</div>
                 <div className="hcpick">Choose</div>
               </button>
             );

@@ -25,7 +25,9 @@ export function StatusBar() {
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
       ? `${power.name} · +${spellAmplifyBonus(run.wave)}/+${spellAmplifyBonus(run.wave)} spells`
-      : `${power.name} · passive`
+      : power.kind === 'quest'
+        ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.drakkoBuys}/5`}`
+        : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'
       : !unlocked

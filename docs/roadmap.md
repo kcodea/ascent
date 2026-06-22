@@ -104,7 +104,7 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       runner, which is deprioritized per the user). Build a way to tune how fast enemy boards scale
       per wave so the climb's difficulty ramp feels right. Design TBD.
 - [ ] **More spells + spell-synergy cards — target ~40 spells** (set 2026-06-20; spells are a core
-      pillar, only 3 exist so far). Spread across tiers; deepen the archetype (Spirit Pup→Worgen, the
+      pillar, **16 exist now** — 11 added 2026-06-21). Spread across tiers; deepen the archetype (Spirit Pup→Worgen, the
       Rohan/Spellbinder hero). Three T1 spells rotate in the slot today: Spirit Fire (+3/+3 to a friend),
       Ember Pouch (gain 1 Ember — *net-neutral as specced; revisit*), Bulwark (+0/+1 + Taunt to a friend).
       Hook usage:
@@ -155,8 +155,9 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       (`HeroPower.unlockWave`), and **passive powers** (`HeroPower.passive`). Power kinds now cover:
       recruit buffs (`fortify`/`gild`), recruit re-triggers (`replayBattlecry`/`replayEndOfTurn`),
       a passive (`spellAmplify`), and a **combat-driving** mark (`resummon` — reads in `simulate()`).
-      **Six heroes, all named + with portrait art:** Warden (Fortify), Oner (Gild), Myra (Encore),
-      Sporen (Reclaim), Rohan (Attunement, passive), Djinn (Cadence). Remaining:
+      **Seven heroes, all named + with portrait art:** Warden (Fortify), Oner (Gild), Myra (Encore),
+      Sporen (Reclaim), Rohan (Attunement, passive), Djinn (Cadence), Drakko (Drumline — the first **quest**
+      power: buy 5 Battlecry minions → a free Drakko the Drummer). Remaining:
   - **More heroes** — each is a `HeroDef` + (only if novel) a new power `kind`. Cheap kinds left: a
     one-shot gold/mana, a reroll discount, a token summon.
   - Consider always including a simple "starter" hero in the 3-of-N so a new player isn't forced into a

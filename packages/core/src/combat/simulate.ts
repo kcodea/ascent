@@ -32,6 +32,7 @@ export function simulate(
   spellsThisTurn = 0,
   deathrattlesBase = 0,
   enemyTier = 1,
+  undeadAttackBonus = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -39,10 +40,23 @@ export function simulate(
   const mkUid = (): string => `m${uidCounter++}`;
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
 
+  /**
+   * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus` Attack for the rest of the
+   * run, wherever it is. Baked straight into the minion's attack (no event — it's a baseline like the
+   * recruit buffs already folded into stats), so it applies at combat start AND to anything summoned or
+   * Reborn mid-fight (Reborn resets to base stats, dropping the bonus, so it's re-applied there too).
+   * Deterministic: a pure stat bump keyed only on the minion's side + tribe.
+   */
+  const applyUndeadBonus = (m: Minion): void => {
+    if (undeadAttackBonus <= 0 || m.side !== 'player') return;
+    if (m.tribe === 'undead' || m.tribe2 === 'undead') m.attack = Math.max(0, m.attack + undeadAttackBonus);
+  };
+
   const boards: Record<Side, Minion[]> = {
     player: player.map((b) => instantiate(b, 'player', cards, mkUid)),
     enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
   };
+  for (const m of boards.player) applyUndeadBonus(m); // bake the Lantern bonus into the starting Undead
 
   // Persistent tribe buffs (Grim's Deathrattle): registered when it fires, then applied to every matching
   // friend summoned for the *rest of combat*. Side-scoped; multiple Grims stack.
@@ -154,6 +168,7 @@ export function simulate(
       if (near >= 0) index = near + 1;
     }
     arr.splice(index, 0, minion);
+    applyUndeadBonus(minion); // Lantern of Souls — a summoned player Undead (token, filled minion) gets it too
     registerEffects(minion);
     events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid, ...(isEcho && { echo: true }) });
     bus.emit('onSummon', { minion, side });
@@ -214,6 +229,7 @@ export function simulate(
         minion.keywords = minion.keywords.filter((k) => k !== 'R');
         minion.health = 1;
       }
+      applyUndeadBonus(minion); // Reborn reset stats to base — re-apply Lantern of Souls to a player Undead
       events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords] });
       return;
     }

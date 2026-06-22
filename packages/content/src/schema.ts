@@ -80,6 +80,14 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastTransform',
   'spellCastBuffSelf',
   'summonBuffSelfTribe',
+  'spellBuffShop',
+  'gainMaxMana',
+  'grantFreeRolls',
+  'spellGainOfTargetTribe',
+  'spellGainRandomMinion',
+  'spellGildTarget',
+  'spellBuffTargetEscalating',
+  'spellGrantTribeAttack',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -115,6 +123,7 @@ export const CardDefSchema = z.object({
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly']).optional(),
   targetTribe: TribeSchema.optional(),
+  targetMaxTier: z.number().int().positive().optional(),
   fodderMult: z.number().int().positive().optional(),
   manaPerTurn: z.number().int().positive().optional(),
   chooseOne: z

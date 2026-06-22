@@ -13,7 +13,8 @@ export type HeroPowerKind =
   | 'replayBattlecry' // Myra: re-trigger a friendly minion's Battlecry
   | 'replayEndOfTurn' // Dusk: proc a friendly minion's End of Turn now
   | 'resummon' // The Reclaimer: at start of combat, destroy a marked minion (procs its Deathrattle) + resummon a copy
-  | 'spellAmplify'; // The Spellbinder (passive): stat-granting spells give +X/+X more, X scaling every 3 waves
+  | 'spellAmplify' // The Spellbinder (passive): stat-granting spells give +X/+X more, X scaling every 3 waves
+  | 'quest'; // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
 
 export interface HeroPower {
   name: string;
@@ -106,6 +107,19 @@ export const HEROES: HeroDef[] = [
       name: 'Cadence',
       kind: 'replayEndOfTurn',
       text: "Each turn: trigger a friendly minion's End of Turn effect now.",
+    },
+  },
+  {
+    id: 'drakko',
+    name: 'Drakko',
+    blurb: 'Every entrance is a downbeat — buy enough, and he joins the band.',
+    resolve: 30,
+    power: {
+      name: 'Drumline',
+      kind: 'quest',
+      passive: true, // a quest — the work happens in the buy case, nothing to arm
+      oncePerGame: true,
+      text: 'Quest: buy 5 Battlecry minions → get Drakko the Drummer.',
     },
   },
 ];

@@ -920,6 +920,174 @@ describe('run loop (@game/sim)', () => {
     expect(m.keywords).toContain('T'); // and Taunt
   });
 
+  // --- Spell batch -------------------------------------------------------------------------------
+
+  const castOnBoard = (spellId: string, board: BoardCard[], targetUid?: string, hero?: string): RunState => {
+    let s: RunState = {
+      ...createRun(1, hero), embers: 0, shop: [], board,
+      hand: [{ uid: 'sp', cardId: spellId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', ...(targetUid ? { targetUid } : {}) });
+    return s;
+  };
+  const oneNeutral = (uid = 'm', over: Partial<BoardCard> = {}): BoardCard => ({
+    uid, cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false, ...over,
+  });
+
+  it('Shatter gives +2/+4 and toggles Taunt (grant when absent, remove when present)', () => {
+    // No Taunt → Shatter grants it.
+    const grant = castOnBoard('shatter', [oneNeutral('m', { keywords: [] })], 'm');
+    const a = grant.board.find((c) => c.uid === 'm')!;
+    expect([a.attack, a.health]).toEqual([4, 6]); // 2/2 + 2/4
+    expect(a.keywords).toContain('T');
+    // Already Taunt → Shatter strips it (and still applies the stats).
+    const strip = castOnBoard('shatter', [oneNeutral('m', { keywords: ['T'] })], 'm');
+    const b = strip.board.find((c) => c.uid === 'm')!;
+    expect([b.attack, b.health]).toEqual([4, 6]);
+    expect(b.keywords).not.toContain('T');
+  });
+
+  it('Front to Back escalates linearly (+2/+2, then +4/+4, …) and the run tally climbs', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [oneNeutral('m', { attack: 0, health: 1 })],
+      hand: [
+        { uid: 's1', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+        { uid: 's2', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' }); // +2/+2
+    expect(s.frontToBackBonus).toBe(2);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2, 3]);
+    s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' }); // +(2+2) = +4/+4
+    expect(s.frontToBackBonus).toBe(4);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([6, 7]); // 2/3 + 4/4
+  });
+
+  it('Front to Back adds spell power (Rohan) on top of its escalation', () => {
+    // Rohan's amplify is +1 at wave 1 → first cast is +(2 + 0 + 1) = +3/+3.
+    const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
+    expect(s.frontToBackBonus).toBe(2); // the tally still climbs by exactly 2
+  });
+
+  it('Mana Font raises max Mana permanently and refills 1 now', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 2, maxEmbers: 4, shop: [],
+      hand: [{ uid: 'sp', cardId: 'manafont', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.maxEmbers).toBe(5); // +1 permanent
+    expect(s.embers).toBe(3); // +1 now
+  });
+
+  it('Mana Font respects the Mana cap', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, maxEmbers: CONFIG.embersCap, shop: [],
+      hand: [{ uid: 'sp', cardId: 'manafont', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.maxEmbers).toBe(CONFIG.embersCap); // already capped — no overflow
+  });
+
+  it('Refreshing Texts banks 2 free rerolls, spent before Mana on a roll', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, freeRolls: 0, shop: [],
+      hand: [{ uid: 'sp', cardId: 'refreshtexts', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.freeRolls).toBe(2);
+    s = reduce(s, { type: 'roll' }); // free — no Mana charged
+    expect(s.freeRolls).toBe(1);
+    expect(s.embers).toBe(0);
+    s = reduce(s, { type: 'roll' });
+    expect(s.freeRolls).toBe(0);
+    expect(s.embers).toBe(0); // still free
+    const before = s.embers;
+    const noMana = reduce(s, { type: 'roll' }); // no free rolls + 0 Mana → no-op
+    expect(noMana).toBe(s);
+    expect(noMana.embers).toBe(before);
+  });
+
+  it('Eyes of Aresmar gilds a Tier-4-or-lower minion, but no-ops above Tier 4', () => {
+    // Target Dummy is Tier 1 → gilds (stats double, golden flag set).
+    const ok = castOnBoard('aresmar', [oneNeutral('m', { attack: 0, health: 4, keywords: ['T'] })], 'm');
+    const low = ok.board.find((c) => c.uid === 'm')!;
+    expect(low.golden).toBe(true);
+    expect([low.attack, low.health]).toEqual([0, 8]); // 0/4 doubled
+    // Grim is Tier 6 → above the cap → the spell is consumed but does nothing.
+    const no = castOnBoard('aresmar', [{ uid: 'g', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false }], 'g');
+    const high = no.board.find((c) => c.uid === 'g')!;
+    expect(high.golden).toBe(false);
+    expect([high.attack, high.health]).toEqual([7, 1]); // untouched
+  });
+
+  it('Tribes Choice conjures a minion of the target’s tribe to hand', () => {
+    // Target a Beast → the conjured card must be a Beast (up to the tavern tier).
+    let s: RunState = {
+      ...createRun(1), tier: 6, embers: 0, shop: [],
+      board: [{ uid: 'b', cardId: 'gnash', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
+      hand: [{ uid: 'sp', cardId: 'tribeschoice', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'b' });
+    const conjured = s.hand.find((c) => c.cardId !== 'tribeschoice');
+    expect(conjured).toBeDefined();
+    const def = CARD_INDEX[conjured!.cardId]!;
+    expect(def.tribe === 'beast' || def.tribe2 === 'beast').toBe(true);
+    expect(def.tier).toBeLessThanOrEqual(6);
+  });
+
+  it('Summon Stone conjures a random Tier 1 minion to hand', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [],
+      hand: [{ uid: 'sp', cardId: 'summonstone', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    const conjured = s.hand.find((c) => c.cardId !== 'summonstone');
+    expect(conjured).toBeDefined();
+    expect(CARD_INDEX[conjured!.cardId]!.tier).toBe(1);
+  });
+
+  it('Staff of Guel gives every tavern offer +2/+2 (baked in when bought)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 3, board: [],
+      shop: [{ uid: 'x', cardId: 'alley' }, { uid: 'y', cardId: 'sandbag' }],
+      hand: [{ uid: 'sp', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect([s.shop[0]!.atk, s.shop[0]!.hp]).toEqual([2, 2]);
+    expect([s.shop[1]!.atk, s.shop[1]!.hp]).toEqual([2, 2]);
+    s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + the tavern buff
+    const bought = s.hand.find((c) => c.cardId === 'alley')!;
+    expect([bought.attack, bought.health]).toEqual([3, 3]);
+  });
+
+  it('Sprout Discovers a Tier 1 minion; Help Wanted Discovers a Battlecry minion', () => {
+    const sprout = castOnBoard('sprout', []);
+    expect(sprout.discover).toBeDefined();
+    for (const id of sprout.discover!) expect(CARD_INDEX[id]!.tier).toBe(1);
+    let s: RunState = {
+      ...createRun(1), tier: 6, embers: 0, shop: [], board: [],
+      hand: [{ uid: 'sp', cardId: 'helpwanted', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.discover).toBeDefined();
+    for (const id of s.discover!) {
+      const def = CARD_INDEX[id]!;
+      expect(def.effects.some((e) => e.on === 'onPlay') || !!def.chooseOne).toBe(true); // a Battlecry
+    }
+  });
+
+  it('Lantern of Souls raises the run-wide Undead attack bonus', () => {
+    const s = castOnBoard('lanternofsouls', []);
+    expect(s.undeadAttackBonus).toBe(3);
+    // A second cast stacks.
+    const s2 = castOnBoard('lanternofsouls', []);
+    let t: RunState = { ...s2, hand: [{ uid: 'sp2', cardId: 'lanternofsouls', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    t = reduce(t, { type: 'play', uid: 'sp2' });
+    expect(t.undeadAttackBonus).toBe(6);
+  });
+
   it('hero power can buff a tavern offer, and the buff is baked in when bought', () => {
     let s: RunState = {
       ...createRun(1),
@@ -1115,6 +1283,27 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'al' }); // two Drakkos → still 2x → 2 Strays
     expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
+  });
+
+  it('Drakko hero quest: buying 5 Battlecry minions grants Drakko the Drummer (once per game)', () => {
+    let s: RunState = { ...createRun(1, 'drakko'), embers: 99, board: [], hand: [], shop: [] };
+    const buyBattlecry = (n: number): void => {
+      const uid = `x${n}`;
+      s = { ...s, shop: [{ uid, cardId: 'alley' }] }; // Alleycat has a Battlecry
+      s = reduce(s, { type: 'buy', uid });
+    };
+    for (let i = 0; i < 4; i++) buyBattlecry(i);
+    expect(s.drakkoBuys).toBe(4);
+    expect(s.hand.some((c) => c.cardId === 'drummer')).toBe(false); // not yet
+    expect(s.heroPowerSpent).toBe(false);
+    buyBattlecry(4); // the 5th completes the quest
+    expect(s.drakkoBuys).toBe(5);
+    expect(s.hand.some((c) => c.cardId === 'drummer')).toBe(true); // Drakko the Drummer granted
+    expect(s.heroPowerSpent).toBe(true); // quest done — stops counting
+    // A non-Battlecry buy (Target Dummy) never advances the quest.
+    let t: RunState = { ...createRun(1, 'drakko'), embers: 99, board: [], hand: [], shop: [{ uid: 'd', cardId: 'sandbag' }] };
+    t = reduce(t, { type: 'buy', uid: 'd' });
+    expect(t.drakkoBuys).toBe(0);
   });
 
   it('a full scripted run is deterministic end to end', () => {

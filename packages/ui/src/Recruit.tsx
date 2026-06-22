@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellStatBonus, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { summonBuffText, summonScalingText, transformProgressText } from './cardText';
+import { summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -76,13 +76,14 @@ function instView(
   override?: { attack: number; health: number },
   spellBonus = 0,
   spellsThisTurn = 0,
+  deathrattlesTriggered = 0,
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
   // Triple Reward names the exact Tier it Discovers from (current Tier + 1, capped). A held spell
   // shows its bonus-adjusted value (Spellbinder); a transform card its "N to go" countdown; a
-  // spells-this-turn scaler (Spirit Worgen) or summon-buff card (Kennelmaster) its current magnitude.
-  // All green via {{…}}.
+  // spells-this-turn scaler (Spirit Worgen) or summon-buff card (Kennelmaster) its current magnitude;
+  // a tally-buff card (Grim) its current "+N/+N" from the run's Deathrattle count. All green via {{…}}.
   const text =
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
@@ -91,6 +92,7 @@ function instView(
         : transformProgressText(c.id, inst.spellProgress ?? 0) ??
           summonScalingText(c.id, spellsThisTurn) ??
           summonBuffText(c.id, inst.summonBonus ?? 0) ??
+          tallyBuffText(c.id, deathrattlesTriggered) ??
           c.text;
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
@@ -384,12 +386,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn)] as const)),
-    [run.board, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered)] as const)),
+    [run.board, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn)] as const)),
-    [run.hand, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered)] as const)),
+    [run.hand, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.

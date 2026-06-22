@@ -47,3 +47,18 @@ export function summonScalingText(cardId: string, spellsThisTurn: number): strin
   const x = base + spellsThisTurn;
   return def.text.replace(`+${base}/+${base}`, `{{+${x}/+${x}}}`);
 }
+
+/**
+ * Grim's Deathrattle ("+1/+1 per Deathrattle triggered this game") shows its *current* magnitude from
+ * the live run tally — the printed "+1/+1" becomes the real "+N/+N" (N = tally × per), highlighted
+ * green. Returns null for non-tally cards or a zero tally (falls back to the printed "+1/+1").
+ */
+export function tallyBuffText(cardId: string, deathrattlesTriggered: number): string | null {
+  if (deathrattlesTriggered <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'deathrattleBuffTribeByTally');
+  if (!def || !eff) return null;
+  const per = Number((eff.params as { per?: number })?.per ?? 1);
+  const n = deathrattlesTriggered * per;
+  return def.text.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${n}/+${n}}}`);
+}

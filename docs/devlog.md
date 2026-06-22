@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-21
 
+### 11 new spells + Drakko (7th hero) + UI polish (M2 content / M3 heroes)
+A big content drop — the spell pool more than triples (5 → 16) and a quest hero lands.
+- **Spells** (all art-wired): **Shatter** (T3, +2/+4 + Taunt toggle), **Tribes Choice** (T2, conjure a random
+  minion of the target's tribe ≤ tavern tier), **Refreshing Texts** (T2, 2 free rerolls), **Eyes of Aresmar**
+  (T6, gild a ≤T4 minion), **Mana Font** (T2, +1 max Mana permanently), **Sprout** (T1, Discover a T1), **Staff
+  of Guel** (T3, +2/+2 to the whole tavern), **Summon Stone** (T1, a random T1 to hand), **Front to Back** (T4,
+  +2/+2, +2/+2 more per cast this run, + spell power — linear), **Help Wanted** (T4, Discover a Battlecry
+  minion), **Lantern of Souls** (T4, your Undead get +3 Attack for the rest of the game — re-applied every
+  combat to current + summoned + reborn Undead).
+- New spell factories (`recruit.ts`): `spellBuffTarget` gains a `toggleKeyword`; + `spellGainOfTargetTribe`,
+  `spellGainRandomMinion`, `grantFreeRolls`, `gainMaxMana`, `spellBuffShop`, `spellGildTarget`,
+  `spellBuffTargetEscalating`, `spellGrantTribeAttack`. New `RunState`: `freeRolls`, `frontToBackBonus`,
+  `undeadAttackBonus`, `drakkoBuys`. `offerDiscover` generalized (fixed tier / card filter) for Sprout +
+  Help Wanted. Lantern threads `undeadAttackBonus` into `simulate` (baked into player Undead at start + on
+  summon/reborn). New `CardDef.targetMaxTier` gates Eyes' gild to ≤T4. (The core `EffectFactoryId`/`CardDef`
+  TS types are a second source of truth alongside the zod schema — both updated.)
+- **Drakko** (7th hero, 30 HP) — a new `quest` power: buy 5 Battlecry minions → a free **Drakko the Drummer**
+  (StatusBar shows N/5).
+- **UI:** removed the hero-select flavor text; **Grim** shows its *live* Deathrattle value (the printed
+  "+1/+1" becomes the current "+N/+N" from the run tally, via `tallyBuffText`).
+- Built by a subagent to a detailed spec, then reviewed + verified here. Verified: typecheck + lint clean;
+  **224** tests (+17 for the new mechanics: Front to Back escalation, Lantern combat bonus, free rolls, Mana
+  Font, Drakko quest, Eyes ≤T4 gate, Tribes Choice, Shatter toggle, Grim live text); live — app loads clean,
+  flavor gone, no console errors. Art for all 12 copied + downscaled to 640px (also shrank ~16 oversized
+  existing PNGs — minions art 87 → 55 MB).
+- Flags: Eyes of Aresmar's ≤T4 restriction is **factory-enforced** (a >T4 pick is consumed + no-ops), not yet
+  UI-gated. Tribes Choice on a neutral target conjures a neutral minion.
+
 ### Damage-dealt system + combat-flow fixes (M3 — difficulty from real boards, steps 4–5)
 Real boards now hit back, the combat flow is fixed, and a finite-pool hole is closed.
 - **Loss damage** = the opponent's **tavern tier + Σ(tiers of their surviving minions)** (`simulate`, new `enemyTier`

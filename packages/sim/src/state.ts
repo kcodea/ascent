@@ -130,6 +130,14 @@ export interface RunState {
   /** True once the just-fought combat's outcome (damage + carry-backs) has been applied, while still in the
    *  combat view — so the Resolve hit lands before returning to the shop. Reset when a combat starts. */
   combatSettled: boolean;
+  /** Free rerolls banked (Refreshing Texts) — a roll spends these before charging Mana. */
+  freeRolls: number;
+  /** Front to Back's accumulated escalation: each cast applies +(2 + this + spell power), then this += 2. */
+  frontToBackBonus: number;
+  /** Run-wide Undead attack bonus (Lantern of Souls), applied to every Undead in every combat. */
+  undeadAttackBonus: number;
+  /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
+  drakkoBuys: number;
   /** Flat reduction to spell purchase costs (min 0) — drives "your spells cost less". */
   spellCostMod: number;
   /** One-shot hint for the UI: Channeling the Devourer's stat projectile (who received it + how much).
@@ -229,6 +237,10 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     deathrattlesTriggered: 0,
     triplesMade: 0,
     combatSettled: false,
+    freeRolls: 0,
+    frontToBackBonus: 0,
+    undeadAttackBonus: 0,
+    drakkoBuys: 0,
     spellCostMod: 0,
     hand: [],
     board: [],

@@ -787,4 +787,30 @@ describe('simulate (handoff A.3)', () => {
     );
     expect(r2.result).toBe('win'); // Gnasher clears the wall; the 0-Attack sandbag contributes nothing
   });
+
+  it('Lantern of Souls: every player Undead enters combat with +N Attack (enemy Undead unaffected)', () => {
+    // Sporeling is Undead; Target Dummy is not. The +3 applies only to the player-side Undead.
+    const p: BoardMinion[] = [
+      { cardId: 'spore', attack: 1, health: 2, sourceUid: 'u' }, // Undead → +3 attack
+      { cardId: 'sandbag', attack: 0, health: 4 }, // not Undead → untouched
+    ];
+    const e: BoardMinion[] = [{ cardId: 'spore', attack: 1, health: 2 }]; // enemy Undead → no bonus
+    const a = simulate(p, e, makeRng(7), CARD_INDEX, 0, 0, 1, 3); // 8th arg = undeadAttackBonus
+    const pSpore = a.initial.player.find((m) => m.cardId === 'spore')!;
+    const pSandbag = a.initial.player.find((m) => m.cardId === 'sandbag')!;
+    const eSpore = a.initial.enemy.find((m) => m.cardId === 'spore')!;
+    expect(pSpore.attack).toBe(4); // 1 + 3
+    expect(pSandbag.attack).toBe(0); // non-Undead unaffected
+    expect(eSpore.attack).toBe(1); // enemy Undead unaffected (player-side only)
+  });
+
+  it('Lantern of Souls re-applies to a player Undead that Reborns mid-combat', () => {
+    // Grave Knit (Undead, Reborn, 2/2 base) enters at 2+3 = 5 Attack, dies to retaliation, and Reborns at
+    // base — where the Lantern bonus is re-applied, so the reborn body is back to 5 Attack (not the base 2).
+    const p: BoardMinion[] = [{ cardId: 'knit', attack: 2, health: 2 }];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 80 }]; // out-trades the Knit → forces the Reborn
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 3);
+    const reborn = a.events.find((ev) => ev.type === 'reborn');
+    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(5); // base 2 + Lantern 3, re-applied on rebirth
+  });
 });

@@ -23,6 +23,11 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **11 new spells + a new hero (Drakko).** The spell pool more than triples (5 → 16): Shatter, Tribes Choice,
+  Refreshing Texts, Eyes of Aresmar (gild a ≤T4 minion), Mana Font (+1 max Mana), Sprout, Staff of Guel,
+  Summon Stone, Front to Back (escalating buff), Help Wanted, and Lantern of Souls (your Undead get +3 Attack
+  for the rest of the run). **Drakko** is a quest hero — buy 5 Battlecry minions for a free Drakko the Drummer.
+  Hero-select flavor text is gone, and **Grim** now shows its live "+N/+N" Deathrattle value.
 - **Real boards hit back + combat-flow fixes.** A combat loss now costs **the opponent's tavern tier + the
   tiers of their surviving minions** (capped 5 / 10 / 15 by round), and the Resolve hit lands **at the end of
   combat** (you watch it drop) instead of on the shop return. Fixed: a combat-skip that restarted the replay,

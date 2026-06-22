@@ -177,6 +177,32 @@ export function improveClingDrones(state: RunState, times: number): void {
   }
 }
 
+/**
+ * Conjure up to `reps` random minions from `pool` into the hand (Summon Stone / Tribes Choice),
+ * advancing the run's seeded RNG cursor. Each conjured copy carries any persistent run buff
+ * (Ritualist), leaves the shared pool (`takeFromPool`), and respects the hand cap. No-op on an
+ * empty pool. Mirrors `battlecryGainRandomMinion`'s conjure path.
+ */
+function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
+  if (pool.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  for (let i = 0; i < reps && state.hand.length < CONFIG.handMax; i++) {
+    const def = pool[rng.int(pool.length)]!;
+    const cb = cardBuff(state, def.id);
+    state.hand.push({
+      uid: `b${state.uidSeq++}`,
+      cardId: def.id,
+      tribe: def.tribe,
+      attack: def.attack + cb.attack,
+      health: def.health + cb.health,
+      keywords: [...def.keywords],
+      golden: false,
+    });
+    takeFromPool(state, def.id);
+  }
+  state.rngCursor = rng.state();
+}
+
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
   buffOnBuy: (_ctx, self, params, { minion }) => {
@@ -457,8 +483,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   // --- Spells ---
 
-  /** Spirit Fire / Bulwark — cast: buff the chosen target +atk/+hp, and grant an optional
-   *  keyword (`self` is the target). */
+  /** Spirit Fire / Bulwark / Shatter — cast: buff the chosen target +atk/+hp, and either grant a
+   *  keyword (`keyword`) or *toggle* one (`toggleKeyword`: add if absent, remove if present). `self`
+   *  is the target. */
   spellBuffTarget: (ctx, self, params) => {
     let attack = num(params.attack);
     let health = num(params.health);
@@ -472,6 +499,92 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, str(params._source) || nameOf(self), attack, health);
     const kw = str(params.keyword);
     if (kw && !self.keywords.includes(kw as Keyword)) self.keywords.push(kw as Keyword);
+    // Shatter: toggle a keyword — strip it if present, grant it otherwise.
+    const toggle = str(params.toggleKeyword) as Keyword;
+    if (toggle) {
+      if (self.keywords.includes(toggle)) self.keywords = self.keywords.filter((k) => k !== toggle);
+      else self.keywords.push(toggle);
+    }
+  },
+
+  /** Front to Back — cast: linear escalation. +(2 + frontToBackBonus + spell power)/(same), then the
+   *  run's frontToBackBonus climbs by 2 so the next cast is bigger. `self` is the chosen target. */
+  spellBuffTargetEscalating: (ctx, self, params) => {
+    const base = num(params.attack, 2);
+    const amt = base + ctx.state.frontToBackBonus + spellStatBonus(ctx.state);
+    addBuff(self, str(params._source) || 'Front to Back', amt, amt);
+    ctx.state.frontToBackBonus += 2;
+  },
+
+  /** Eyes of Aresmar — cast: make the targeted minion Golden (like Oner's Gild), but only if its
+   *  card tier is ≤ the spell's `targetMaxTier`. Doubles current stats via a tracked 'Gild' buff +
+   *  flips golden. The cap is read from the spell def via `_maxTier` (injected by applyCastEffects). */
+  spellGildTarget: (ctx, self, params) => {
+    if (self.golden) return;
+    const limit = num(params._maxTier, CONFIG.maxTier);
+    const targetTier = CARD_INDEX[self.cardId]?.tier ?? 1;
+    if (targetTier > limit) return;
+    addBuff(self, 'Gild', self.attack, self.health);
+    self.golden = true;
+  },
+
+  /** Tribes Choice — cast: conjure a random buyable minion sharing the *target's* tribe, tier ≤ the
+   *  tavern tier, into the hand (drawn from the run's finite pool; honours the hand cap). */
+  spellGainOfTargetTribe: (ctx, self) => {
+    const tribe = self.tribe;
+    const pool = BUYABLE_CARDS.filter(
+      (c) =>
+        c.tier <= ctx.state.tier &&
+        (c.tribe === tribe || c.tribe2 === tribe) &&
+        (ctx.state.pool[c.id] ?? 0) > 0, // only offer cards with copies left
+    );
+    conjureToHand(ctx.state, pool, 1);
+  },
+
+  /** Summon Stone — cast: conjure a random buyable minion of `tier` (active tribes + neutral, copies
+   *  left) into the hand. */
+  spellGainRandomMinion: (ctx, _self, params) => {
+    const tier = num(params.tier, 1);
+    const pool = BUYABLE_CARDS.filter(
+      (c) =>
+        c.tier === tier &&
+        (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
+        (ctx.state.pool[c.id] ?? 0) > 0,
+    );
+    conjureToHand(ctx.state, pool, 1);
+  },
+
+  // --- Run-level spell effects (act on the run, no minion target). These run through
+  //     `applyCastEffects` with `self` undefined — they ignore it. ---
+
+  /** Refreshing Texts — cast: bank `count` free rerolls. */
+  grantFreeRolls: (ctx, _self, params) => {
+    ctx.state.freeRolls += num(params.count, 1);
+  },
+
+  /** Mana Font — cast: raise max Mana by `amount` (capped) and refill `amount` now. */
+  gainMaxMana: (ctx, _self, params) => {
+    const amount = num(params.amount, 1);
+    ctx.state.maxEmbers = Math.min(CONFIG.embersCap, ctx.state.maxEmbers + amount);
+    ctx.state.embers += amount;
+  },
+
+  /** Staff of Guel — cast: give every tavern offer +atk/+hp (baked onto each ShopCard, so it bakes
+   *  into the minion's stats when bought, mirroring the Fortify hero power). Spells aren't offers. */
+  spellBuffShop: (ctx, _self, params) => {
+    const a = num(params.attack, 2);
+    const h = num(params.health, 2);
+    for (const offer of ctx.state.shop) {
+      offer.atk = (offer.atk ?? 0) + a;
+      offer.hp = (offer.hp ?? 0) + h;
+    }
+  },
+
+  /** Lantern of Souls — cast: your Undead get +`amount` Attack for the rest of the run, wherever they
+   *  are (applied at combat start + on summon/reborn inside `simulate`). */
+  spellGrantTribeAttack: (ctx, _self, params) => {
+    // Today only Undead is wired (RunState.undeadAttackBonus); the param keeps the data honest.
+    if (str(params.tribe) === 'undead') ctx.state.undeadAttackBonus += num(params.amount, 1);
   },
 
   /** Growth — cast: buff EVERY friendly minion on the board. Untargeted (runs without a picked target);
@@ -556,7 +669,10 @@ function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: Board
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     // Board-wide cast effects (Growth) ignore `self`; targeted ones (Spirit Fire) always get a target.
-    if (fn) fn(ctx, target as BoardCard, { ...(effect.params ?? {}), _source: spellDef.name }, { minion: target as BoardCard });
+    // `_source` labels target buffs in the inspect breakdown; `_maxTier` carries the spell's gild cap
+    // (Eyes of Aresmar) down to the factory.
+    const params = { ...(effect.params ?? {}), _source: spellDef.name, _maxTier: spellDef.targetMaxTier };
+    if (fn) fn(ctx, target as BoardCard, params, { minion: target as BoardCard });
   }
 }
 

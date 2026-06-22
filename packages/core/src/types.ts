@@ -106,7 +106,16 @@ export type EffectFactoryId =
   | 'battlecryLinkDemon' // Battlecry: link to a chosen friendly demon, mirroring its stat gains (Lifebinder)
   | 'spellCastTransform' // spellCast: tick a per-instance counter; at the threshold, transform into another card (Spirit Pup → Worgen)
   | 'spellCastBuffSelf' // spellCast: buff self +atk/+hp per spell cast (Spirit Worgen)
-  | 'summonBuffSelfTribe'; // onSummon: buff self when a friendly minion of a given tribe is summoned (Spirit Worgen)
+  | 'summonBuffSelfTribe' // onSummon: buff self when a friendly minion of a given tribe is summoned (Spirit Worgen)
+  // Spells (batch): tavern + run-level effects
+  | 'spellBuffShop' // cast: buff every tavern offer +atk/+hp (Staff of Guel)
+  | 'gainMaxMana' // cast: raise max Mana permanently (Mana Font)
+  | 'grantFreeRolls' // cast: bank N free rerolls (Refreshing Texts)
+  | 'spellGainOfTargetTribe' // cast: conjure a random minion of the target's tribe to hand (Tribes Choice)
+  | 'spellGainRandomMinion' // cast: conjure a random buyable minion of a tier to hand (Summon Stone)
+  | 'spellGildTarget' // cast: make the target Golden if its tier ≤ targetMaxTier (Eyes of Aresmar)
+  | 'spellBuffTargetEscalating' // cast: +X/+X to the target, escalating per cast this run (Front to Back)
+  | 'spellGrantTribeAttack'; // cast: a tribe gets +Attack for the rest of the run (Lantern of Souls)
 
 export interface EffectDef {
   on: GameEvent;
@@ -148,6 +157,9 @@ export interface CardDef {
   /** Restricts a `target: 'friendly'` pick to one tribe and excludes self (Corrupted Lifebinder →
    *  a friendly Demon). Absent = any friendly minion may be chosen. */
   targetTribe?: Tribe;
+  /** Restricts a `target: 'friendly'` pick to minions of this tier or lower (Eyes of Aresmar → a
+   *  Tier 4 or lower minion). Absent = no tier cap on the pick. */
+  targetMaxTier?: number;
   /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
    *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
   fodderMult?: number;

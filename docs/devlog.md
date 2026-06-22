@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Fix: spell cards now reflect the per-stat spell power + wire Cinderwing art
+- The spell-power rework made the bonus per-stat (`spellAttackBonus`/`spellHealthBonus` = hero amplify +
+  `RunState.spellBonus`), and the cast *application* used it — but the Recruit UI still computed the spell
+  card **display** off `spellStatBonus` (hero-only) and called `spellDisplayText` with 3 args (symmetric).
+  So Cinderwing's +Health / Skullblade's +Attack never showed on the cards. Threaded
+  `spellAttackBonus`/`spellHealthBonus` through `shopView`/`instView` + `spellDisplayText`'s 4th `bonusH`
+  arg (and the useMemo deps, so the text updates when either bonus changes).
+- Wired **Cinderwing Matron** art (master now provided) → `cinder.webp`.
+- Verified: typecheck + lint + 271 tests; dev preview reloads clean.
+
 ### Minion batch — 4 reworks + Skullblade + 2 cuts + Bane dual-typing + a spell-power system
 - **Reworked 4 existing minions** (the user's message said "updates and additions"): **Hoard Cleric**
   (`cleric`) → Dragon T3 3/4, Battlecry **+2/+3** to Dragons (was T2 1/3, +1/+1); **Cinderwing Matron**

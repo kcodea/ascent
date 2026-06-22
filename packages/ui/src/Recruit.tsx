@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellStatBonus, spellCastMult, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCastMult, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
@@ -45,6 +45,7 @@ interface ShopViewOpts {
   spellCostMod?: number;
   cardBuffs?: Record<string, { attack: number; health: number }>;
   spellBonus?: number;
+  spellBonusH?: number;
   frontToBackBonus?: number;
   undeadAtk?: number;
   undeadHp?: number;
@@ -59,7 +60,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     // it'll actually grant right now.
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
-      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0),
+      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0),
       cost: Math.max(0, (c.cost ?? 0) - (opts.spellCostMod ?? 0)), spell: true,
       target: c.target, tier: c.tier,
     };
@@ -84,6 +85,7 @@ function instView(
   tier = 1,
   override?: { attack: number; health: number },
   spellBonus = 0,
+  spellBonusH = 0,
   spellsThisTurn = 0,
   deathrattlesTriggered = 0,
   undeadAtkBonus = 0,
@@ -101,7 +103,7 @@ function instView(
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
       : c.spell
-        ? spellDisplayText(c.id, spellBonus, frontToBackBonus)
+        ? spellDisplayText(c.id, spellBonus, frontToBackBonus, spellBonusH)
         : c.id === 'hoarder'
           ? `Sells for **+1 Mana** per turn you hold it. {{Sells for ${wave - (inst.boughtWave ?? wave) + 1} Mana now.}}`
           : transformProgressText(c.id, inst.spellProgress ?? 0) ??
@@ -160,7 +162,8 @@ export function Recruit() {
   const heroTargetsTavern = heroPowerKind === 'fortify';
   // The active +X/+X bonus to stat-granting spells (Spellbinder, etc.) — so spell cards show their
   // real value. One source of truth shared with the reducer's cast math.
-  const spellBonus = spellStatBonus(run);
+  const spellBonus = spellAttackBonus(run);
+  const spellBonusH = spellHealthBonus(run);
 
   // Round timer grows +4s each wave, capped at 80s. (Recruit now stays mounted across
   // combat, so the per-wave reset is an effect keyed on the wave — see below.)
@@ -419,8 +422,8 @@ export function Recruit() {
     [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus],
   );
   const spellView = useMemo(
-    () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, frontToBackBonus: run.frontToBackBonus }) : null),
-    [run.spell, run.spellCostMod, spellBonus, run.frontToBackBonus],
+    () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus }) : null),
+    [run.spell, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
@@ -438,12 +441,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave)] as const)),
-    [run.board, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave)] as const)),
+    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave)] as const)),
-    [run.hand, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave)] as const)),
+    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.

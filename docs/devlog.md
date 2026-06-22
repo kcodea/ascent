@@ -15,7 +15,11 @@ A follow-up pass on the spell batch + VFX, driven by live-playtest feedback.
   the Taunt ward slides left via `:has` when both are present). Verified live on a shielded Mech: gold frame
   (`rgb(255,210,58)`), 66px badge, and inner/outer glow all render. **Venomous** (the `V` keyword) gets the
   identical treatment in toxic **lime** — recoloured frame + inner glow + outer halo + a lime poison badge;
-  a 2nd ward (e.g. Venomous + Divine Shield) stacks below the first via the `~` sibling combinator.
+  a 2nd ward (e.g. Venomous + Divine Shield) stacks below the first via the `~` sibling combinator. When a
+  Venomous minion **spends** its venom in combat (the `venomLost` event, already emitted by `simulate`), it
+  now flashes lime + a ring puffs out, then sheds the green glow — a guarded impact-merge keeps the
+  same-beat retaliation `struck` from clobbering the flourish (a death still wins). Simpler than the
+  shield-break shatter.
 - **Lantern of Souls is now a true global Undead aura** — active in **shop offers, warband, hand, and
   combat** (was combat-only). It **scales with spell power**: base +3 Attack, with spell power folding
   +X/+X onto both stats (so +1/+1 spells → **+4/+1**). New `RunState.undeadHealthBonus`; the recruit

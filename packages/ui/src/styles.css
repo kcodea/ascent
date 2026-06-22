@@ -1023,6 +1023,13 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.shatter::after { content: ''; position: absolute; inset: -6px; border-radius: 19px; border: 3px solid #f4cf6a; pointer-events: none; z-index: 9; animation: shardburst 0.42s ease forwards; }
 @keyframes shardburst { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
 
+/* venom spent — when a Venomous minion uses its venom (its first poison proc), a quick lime ring puffs
+   out + a brief lime flash, then it sheds the green glow. Simpler than the shield-break shatter (no shards). */
+.unit.venomspent .card { animation: venomflash 0.5s ease; }
+.unit.venomspent::after { content: ''; position: absolute; inset: -6px; border-radius: 19px; border: 3px solid #a4e22a; pointer-events: none; z-index: 9; animation: venomburst 0.5s ease forwards; }
+@keyframes venomflash { 0%, 100% { filter: none; } 42% { filter: brightness(1.22) drop-shadow(0 0 13px rgba(150, 225, 60, 0.95)); } }
+@keyframes venomburst { 0% { opacity: 0.9; transform: scale(0.94); } 100% { opacity: 0; transform: scale(1.34); } }
+
 /* in-combat summon — the new minion pops in */
 .unit.summoned .card { animation: summonpop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes summonpop { 0% { transform: scale(0.2); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }

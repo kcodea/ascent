@@ -118,7 +118,7 @@ const DELAY: Record<string, number> = {
   attack: 340, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820,
   // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
-  dmg: 460, shield: 460, shieldUp: 460, poison: 500, death: 400,
+  dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
 };
 const FLOAT_MS = 1450;
 
@@ -132,7 +132,7 @@ const FLOAT_MS = 1450;
  * effect that buffs many minions at once (Grim's Deathrattle giving every Beast
  * +6/+6, a Rally aura) fires them all together rather than one minion at a time.
  */
-const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'death']);
+const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'venomLost', 'death']);
 
 /** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
  *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
@@ -187,6 +187,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'shield': return { [e.target]: 'shatter' };
     case 'shieldUp': return { [e.target]: 'shieldgain' };
     case 'poison': return { [e.target]: 'poisoned' };
+    case 'venomLost': return { [e.target]: 'venomspent' };
     case 'reborn': return { [e.target]: 'reborn' };
     case 'buff': return { [e.target]: 'buffed' };
     case 'improve': return { [e.target]: 'buffed' };
@@ -225,6 +226,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'shield': return { text: `${n(e.target)}'s Divine Shield absorbs the hit.`, kind: 'shield' };
     case 'shieldUp': return { text: `${n(e.target)} gains a Divine Shield.`, kind: 'shield' };
     case 'poison': return { text: `Poison destroys ${n(e.target)}.`, kind: 'poison' };
+    case 'venomLost': return { text: `${n(e.target)}'s Venomous is spent.`, kind: 'poison' };
     case 'reborn': return { text: `${n(e.target)} is Reborn at ${e.hp} HP.`, kind: 'reborn' };
     case 'reveal': return { text: `${n(e.target)} breaks Stealth.`, kind: 'reveal' };
     case 'death': return { text: `${n(e.target)} is destroyed.`, kind: 'death' };
@@ -550,7 +552,14 @@ export function useCombatReplay(
   const currentBeat = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
   const anims: Record<string, string> = {};
   if (currentBeat) {
-    for (let i = currentBeat.start; i < currentBeat.end; i++) Object.assign(anims, animFor(events[i]));
+    for (let i = currentBeat.start; i < currentBeat.end; i++) {
+      for (const [uid, cls] of Object.entries(animFor(events[i]))) {
+        // The venom-spent flourish lands first in its beat; don't let the poisoner's same-beat
+        // retaliation `struck` clobber it. A death still wins (the demise reads over the flourish).
+        if (anims[uid] === 'venomspent' && cls === 'struck') continue;
+        anims[uid] = cls;
+      }
+    }
   }
 
   // The attacker's motion is run by GSAP in the layout effect above; here we just apply its glow class.

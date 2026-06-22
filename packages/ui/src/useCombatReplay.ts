@@ -205,9 +205,9 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
   switch (e.type) {
     case 'dmg': return { uid: e.target, text: `−${e.amount}`, kind: 'dmg' };
     case 'poison': return { uid: e.target, text: '☠', kind: 'poison' };
-    case 'shield': return { uid: e.target, text: '◇', kind: 'shield' };
+    // Divine-Shield-break (◇) + Reborn (♻) floats removed — the break/reborn ring animation reads on its
+    // own, and the glyph popped up late + confusing. (shieldUp's ◇ stays — it marks gaining a shield.)
     case 'shieldUp': return { uid: e.target, text: '◇', kind: 'shieldup' };
-    case 'reborn': return { uid: e.target, text: '♻', kind: 'reborn' };
     case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
     case 'improve': return { uid: e.target, text: '✦', kind: 'buff' };
     case 'rally': return { uid: e.target, text: '☠', kind: 'rally' }; // marks whose Deathrattle is firing

@@ -19,7 +19,10 @@ A follow-up pass on the spell batch + VFX, driven by live-playtest feedback.
   Venomous minion **spends** its venom in combat (the `venomLost` event, already emitted by `simulate`), it
   now flashes lime + a ring puffs out, then sheds the green glow — a guarded impact-merge keeps the
   same-beat retaliation `struck` from clobbering the flourish (a death still wins). Simpler than the
-  shield-break shatter.
+  shield-break shatter. **Tuned 2026-06-22:** the pulsing halo on all three keywords is now a gentle,
+  slower breath (smaller range + lower intensity) — the recoloured frame + badge carry the at-a-glance
+  signal — and the late-popping `◇` (Divine-Shield break) + `♻` (Reborn) floats were removed (the
+  break/reborn ring already reads on its own).
 - **Lantern of Souls is now a true global Undead aura** — active in **shop offers, warband, hand, and
   combat** (was combat-only). It **scales with spell power**: base +3 Attack, with spell power folding
   +X/+X onto both stats (so +1/+1 spells → **+4/+1**). New `RunState.undeadHealthBonus`; the recruit

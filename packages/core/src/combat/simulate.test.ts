@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { simulate, makeRng, type BoardMinion } from '../index';
 import { CARD_INDEX } from '@game/content';
 
-const run = (p: BoardMinion[], e: BoardMinion[], seed: number) =>
-  simulate(p, e, makeRng(seed), CARD_INDEX);
+const run = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyTier = 1) =>
+  simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, enemyTier);
 
 describe('simulate (handoff A.3)', () => {
   it('is deterministic for the same seed', () => {
@@ -135,16 +135,18 @@ describe('simulate (handoff A.3)', () => {
     expect(playerAttackers[1]).toBe(pUids[1]); // the 2/5 swings next — NOT the 3/5
   });
 
-  it('applies the player-damage formula on a loss', () => {
+  it('applies the player-damage formula on a loss (opponent tier + sum of surviving tiers)', () => {
     const a = run(
       [{ cardId: 'alley', attack: 1, health: 1 }],
       [{ cardId: 'gnash', attack: 6, health: 6 }],
       1,
     );
     expect(a.result).toBe('lose');
-    // Gnasher (going first) kills the Alleycat, and its on-kill +5/+5 grows it to ~11/10 — so it
-    // survives bigger: round((11 + 10) / 8) = 3.
-    expect(a.playerDamage).toBe(3);
+    // Gnasher (a T6) survives + the default enemy tier 1 → 1 + 6 = 7.
+    expect(a.playerDamage).toBe(7);
+    // The opponent's tavern tier adds in: the same fight served from a tier-5 board → 5 + 6 = 11.
+    const t5 = run([{ cardId: 'alley', attack: 1, health: 1 }], [{ cardId: 'gnash', attack: 6, health: 6 }], 1, 5);
+    expect(t5.playerDamage).toBe(11);
   });
 
   it('fires Pack Scrounger Deathrattle — summons two Pups', () => {

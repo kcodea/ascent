@@ -23,6 +23,11 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Real boards hit back + combat-flow fixes.** A combat loss now costs **the opponent's tavern tier + the
+  tiers of their surviving minions** (capped 5 / 10 / 15 by round), and the Resolve hit lands **at the end of
+  combat** (you watch it drop) instead of on the shop return. Fixed: a combat-skip that restarted the replay,
+  the enemy death reflow (survivors now slide into the gap), and a Discover hole that let you exceed a card's
+  pool stock (the "8 Grim").
 - **Real boards fight you now.** Instead of procedural "omen" blobs, each wave serves a **real captured
   board** (a deterministic bootstrap pool of bot-played boards for now; your own + friends' later), and a
   top-right **opponent frame** telegraphs the next foe — hero portrait + HP, with tier / triples / top-tribe

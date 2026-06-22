@@ -283,6 +283,12 @@ export function Recruit() {
     };
   }, [inCombat, run.lastCombat]);
 
+  // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
+  // view — so the Resolve hit lands and is visible before the "End Combat" button returns you to the shop.
+  useEffect(() => {
+    if (fighting && replay.done && !run.combatSettled) dispatch({ type: 'settleCombat' });
+  }, [fighting, replay.done, run.combatSettled, dispatch]);
+
   // Returning to recruit after a fight. The warband re-mounts (it was combat Units) and re-enters
   // via the base `cardpop` — a single mount animation, so it can't re-fire from a class toggle (the
   // old `resetting`/`boardreset` toggle flashed twice: once on mount, again when the class cleared).

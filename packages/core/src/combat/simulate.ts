@@ -31,6 +31,7 @@ export function simulate(
   cards: CardIndex,
   spellsThisTurn = 0,
   deathrattlesBase = 0,
+  enemyTier = 1,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -450,12 +451,13 @@ export function simulate(
           ? 'draw'
           : 'lose';
 
-  // Player damage on loss (A.3 step 9): scaled by the size of the surviving
-  // enemy board, min 1. Stat-based (no flat per-survivor term) so a gentle early
-  // board costs ~1 Resolve while a fat late board bites — the climb still ends.
+  // Player damage on loss (A.3 step 9) — Battlegrounds-style: the opponent's tavern tier + the SUM of the
+  // tiers of their minions still standing (a tier-4 board surviving with a T4 + T3 → 4 + 4 + 3 = 11). The
+  // run loop caps this per round. `enemyTier` is the served board's tavern tier (or the player's tier for
+  // the procedural fallback); a token / unknown survivor counts as tier 1.
   const playerDamage =
     result === 'lose'
-      ? Math.max(1, Math.round(survivorsE.reduce((sum, m) => sum + (m.attack + m.health) / 8, 0)))
+      ? enemyTier + survivorsE.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
       : 0;
 
   // Per-instance state to carry back to the run board: a Kennelmaster whose Avenge

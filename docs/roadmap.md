@@ -31,8 +31,10 @@ The next 5 concrete steps:
    (static load-at-startup, replay-safe) → a shared friend backend keyed by `(wave, power-band, tribe)`.
 4. ✅ **Serve real boards as enemies** (done 2026-06-21). `faceOmen` draws a strength-matched real snapshot via
    `nextOpponent`/`pickOpponent` (procedural omen = thin-pool fallback), and the top-right **opponent-intel
-   frame** telegraphs the next foe (portrait/HP + tier/triples/top-tribe). **Next: the damage-dealt system** —
-   a loss costs Resolve scaled by the opponent's tier + surviving minions (today it's the wave-based on-ramp).
+   frame** telegraphs the next foe (portrait/HP + tier/triples/top-tribe). ✅ **Damage-dealt system (done
+   2026-06-21):** a loss costs the opponent's tavern tier + Σ(surviving minion tiers), capped 5 / 10 / 15 by round,
+   dealt at the *end of combat* (Resolve drops in the combat view, before the shop). **Next:** persist your own
+   finished-run boards into the pool (static load-at-startup, replay-safe).
 5. **Async PvP mode + shared pool** — the `scene`/`MODES` registry → every wave a friend's snapshot;
    win = 10–15 wins without dying; tiny shared backend (friend-group scale, no live opponent / anti-cheat).
 

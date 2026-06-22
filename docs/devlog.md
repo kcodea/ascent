@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-21
 
+### Damage-dealt system + combat-flow fixes (M3 — difficulty from real boards, steps 4–5)
+Real boards now hit back, the combat flow is fixed, and a finite-pool hole is closed.
+- **Loss damage** = the opponent's **tavern tier + Σ(tiers of their surviving minions)** (`simulate`, new `enemyTier`
+  param; a tier-4 board surviving with a T4 + T3 → 4 + 4 + 3 = 11). `faceOmen` passes the served board's tier (the
+  player's tier for the procedural fallback). **Round cap** (`lossDamageCap`, run-side): 5 through wave 3, 10 through
+  wave 6, 15 from wave 7.
+- **Damage is dealt at the end of combat, not on shop return.** Split the post-combat reducer into `settleCombat`
+  (outcome + damage, fires on `replay.done` — Resolve drops in the combat view) and `advanceCombat` (terminal check +
+  next wave, on "End Combat"). `resolveCombat` settles-then-advances, so skipping the replay still applies the hit.
+  New `RunState.combatSettled` + a phase-guard exception for `settleCombat`.
+- **Combat-skip restart fixed.** `settleCombat` runs through the reducer's `structuredClone`, minting a new
+  `lastCombat` reference; the replay hook + combat-stage effect key on it and reset → the combat replayed from the
+  top (damage applied once, since settle is idempotent — hence "no extra damage"). Fix: `settleCombat` preserves the
+  original `lastCombat` reference (it never changes its content).
+- **Enemy death reflow fixed.** The `enemyarrive` rule was more specific than `.unit.dying` / `.unit.summoned`, so it
+  overrode their collapse/expand on enemy units (the warband has no arrival rule, so it reflowed). Excluded
+  dying/summoned units from the arrival rule.
+- **Discover / finite-pool hole fixed (the "8 Grim").** `offerDiscover` offered cards regardless of remaining pool
+  copies; picking an exhausted one gave a *free* copy beyond the stock (`takeFromPool` floors at 0). It now offers
+  only cards with copies left — you can't exceed `POOL_QUANTITIES`.
+- Verified: typecheck + lint clean; **207** tests (formula, round cap, `lossDamageCap`, `settleCombat`-reference,
+  Discover-pool); live — Resolve drops in the combat view (30→28) with no restart (board combat: `fighting` stayed
+  stable), and an enemy `.unit.dying` now resolves to `dyingcollapse`.
+
 ### Serve real player boards + opponent-intel frame (M3 — difficulty from real boards, steps 2–3)
 The game now fights **real captured boards** instead of procedural omen blobs, with a telegraph of who's next.
 - **Bootstrap opponent pool** (`snapshot.ts`): `buildBootstrapPool()` greedily auto-plays a fixed set of

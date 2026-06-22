@@ -127,6 +127,9 @@ export interface RunState {
   deathrattlesTriggered: number;
   /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */
   triplesMade: number;
+  /** True once the just-fought combat's outcome (damage + carry-backs) has been applied, while still in the
+   *  combat view — so the Resolve hit lands before returning to the shop. Reset when a combat starts. */
+  combatSettled: boolean;
   /** Flat reduction to spell purchase costs (min 0) — drives "your spells cost less". */
   spellCostMod: number;
   /** One-shot hint for the UI: Channeling the Devourer's stat projectile (who received it + how much).
@@ -198,6 +201,7 @@ export type Action =
   | { type: 'chooseOne'; index: number }
   | { type: 'battlecryTarget'; targetUid: string }
   | { type: 'faceOmen' }
+  | { type: 'settleCombat' }
   | { type: 'resolveCombat' };
 
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
@@ -224,6 +228,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     spellsThisTurn: 0,
     deathrattlesTriggered: 0,
     triplesMade: 0,
+    combatSettled: false,
     spellCostMod: 0,
     hand: [],
     board: [],

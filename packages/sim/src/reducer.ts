@@ -19,6 +19,11 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
   return pickOpponent(s.wave, playerPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
 }
 
+/** Loss-damage cap by round (early-game protection): 5 through wave 3, 10 through wave 6, 15 from wave 7. */
+export function lossDamageCap(wave: number): number {
+  return wave <= 3 ? 5 : wave <= 6 ? 10 : 15;
+}
+
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
  *  breakdown through a triple. */
 function mergeBuffs(buffs: CardBuff[]): CardBuff[] {
@@ -65,8 +70,8 @@ function reduceCore(state: RunState, action: Action): RunState {
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   const s: RunState = structuredClone(state);
 
-  // Recruit actions apply only in the recruit phase; `resolveCombat` only in combat.
-  if (s.phase !== 'recruit' && action.type !== 'resolveCombat') return state;
+  // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
+  if (s.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
 
   switch (action.type) {
     case 'buy': {
@@ -393,6 +398,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       const enemy = served
         ? opponentBoard(served)
         : buildEnemyBoard(s.threat, s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
+      // Loss damage scales with the opponent's tavern tier; for the procedural fallback (no served board)
+      // use the player's own tier as the foe's stand-in.
+      const enemyTier = served?.tier ?? s.tier;
       const player: BoardMinion[] = s.board.map((b) => ({
         cardId: b.cardId,
         attack: b.attack,
@@ -404,7 +412,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         linkUid: b.linkUid, // Corrupted Lifebinder mirrors its linked demon in combat too
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
       }));
-      s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered);
+      s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier);
+      s.lastCombat.playerDamage = Math.min(s.lastCombat.playerDamage, lossDamageCap(s.wave)); // round cap
       // Outcome odds: re-simulate the same two boards on independent seeds for a win/draw/loss estimate.
       // Combat is a cheap pure function on ~14 units, so 1000 sims cost ~1ms warm (a few ms for a long
       // grindy fight) and run once per fight. Seeds are derived from the run seed (a separate ODDS
@@ -419,21 +428,29 @@ function reduceCore(state: RunState, action: Action): RunState {
         else lose++;
       }
       s.lastCombat.odds = { win: win / ODDS_SIMS, draw: draw / ODDS_SIMS, lose: lose / ODDS_SIMS };
+      s.combatSettled = false; // a fresh combat — its outcome hasn't been applied yet
       s.phase = 'combat';
       return s;
     }
 
+    case 'settleCombat': {
+      // Combat replay finished — apply the outcome (damage + carry-backs) now, in the combat view, so the
+      // Resolve hit lands before you return to the shop. Idempotent: only the first call settles.
+      if (s.phase !== 'combat' || !s.lastCombat || s.combatSettled) return state;
+      settleCombat(s, s.lastCombat);
+      // Keep the SAME lastCombat object reference — the UI's replay hook + combat-stage effect reset when
+      // it changes, so a fresh clone here would restart the just-finished combat. settleCombat applies the
+      // outcome to the board/resolve but never touches lastCombat's content, so the original is correct.
+      s.lastCombat = state.lastCombat;
+      return s;
+    }
+
     case 'resolveCombat': {
+      // Leave combat for the next wave. Settle first if the player skipped the replay (so the damage still
+      // applies), then advance past it (terminal check / next wave).
       if (s.phase !== 'combat' || !s.lastCombat) return state;
-      advanceAfterCombat(s, s.lastCombat);
-      // Maw of the Pit's one-combat Divine Shield is spent — strip the temp DS so it doesn't carry to
-      // the next fight (consuming again re-arms it).
-      for (const c of s.board) {
-        if (c.tempShield) {
-          c.keywords = c.keywords.filter((k) => k !== 'DS');
-          c.tempShield = false;
-        }
-      }
+      if (!s.combatSettled) settleCombat(s, s.lastCombat);
+      advanceCombat(s);
       return s;
     }
   }
@@ -541,7 +558,8 @@ function offerDiscover(s: RunState, tripleTier: number): void {
       (c) =>
         c.tier <= target &&
         c.tier >= floor &&
-        (c.tribe === 'neutral' || s.tribes.includes(c.tribe)),
+        (c.tribe === 'neutral' || s.tribes.includes(c.tribe)) &&
+        (s.pool[c.id] ?? 0) > 0, // only offer cards with copies left — Discover draws from the finite pool
     );
     floor--;
   }
@@ -557,7 +575,7 @@ function offerDiscover(s: RunState, tripleTier: number): void {
 }
 
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */
-function advanceAfterCombat(s: RunState, result: CombatResult): void {
+function settleCombat(s: RunState, result: CombatResult): void {
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
   // Accumulate this combat's player Deathrattles into the run-wide "this game" count (Grim scales off it).
@@ -597,7 +615,19 @@ function advanceAfterCombat(s: RunState, result: CombatResult): void {
     }
   }
   if (result.result === 'lose') s.resolve = Math.max(0, s.resolve - result.playerDamage);
+  // Maw of the Pit's one-combat Divine Shield is spent — strip the temp DS so it doesn't carry to the
+  // next fight (consuming again re-arms it).
+  for (const c of s.board) {
+    if (c.tempShield) {
+      c.keywords = c.keywords.filter((k) => k !== 'DS');
+      c.tempShield = false;
+    }
+  }
+  s.combatSettled = true;
+}
 
+/** Advance past a settled combat: the terminal check (gameover / victory), else roll the next wave. */
+function advanceCombat(s: RunState): void {
   if (s.resolve <= 0) {
     s.best = Math.max(s.best, s.wave);
     s.phase = 'gameover';

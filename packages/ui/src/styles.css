@@ -1176,7 +1176,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Enemies drop in at combat start. NB: no `both`/`forwards` fill — a held final transform would
    override the inline lunge transform, so enemy minions would never animate their attacks. The
    keyframe ends at the identity transform, so dropping the fill is seamless. */
-.app.fighting .zone[data-zone='tavern'] .unit { animation: enemyarrive 0.5s cubic-bezier(0.34, 1.4, 0.64, 1); }
+/* …but not while a unit is collapsing (death) or expanding (summon) — this rule is more specific than
+   `.unit.dying` / `.unit.summoned`, so without the exclusion it would override their reflow animation and
+   enemy survivors wouldn't slide into the gap (player survivors do, since the warband has no arrival rule). */
+.app.fighting .zone[data-zone='tavern'] .unit:not(.dying):not(.summoned) { animation: enemyarrive 0.5s cubic-bezier(0.34, 1.4, 0.64, 1); }
 @keyframes enemyarrive {
   0% { opacity: 0; transform: translateY(-64px) scale(0.9); }
   100% { opacity: 1; transform: translateY(0) scale(1); }

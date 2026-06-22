@@ -12,6 +12,7 @@ import {
   buildEnemyBoard,
   pickOpponent,
   buildBootstrapPool,
+  lossDamageCap,
   OPPONENT_POOL,
   type BoardSnapshot,
   boardManaBonus,
@@ -1195,6 +1196,18 @@ describe('run loop (@game/sim)', () => {
     expect(CONFIG.maxTier).toBe(6);
   });
 
+  it('Discover (Triple Reward) only offers cards with copies left — respects the finite pool', () => {
+    // Exhaust the pool to a single eligible card; a Discover then can't offer any 0-copy card — the bug
+    // that let you exceed a card's stock (e.g. an 8th Grim from a 6-copy pool).
+    let s: RunState = { ...createRun(1), tier: 6 };
+    const keep = Object.keys(s.pool).find((id) => (CARD_INDEX[id]?.tier ?? 0) >= 5) ?? Object.keys(s.pool)[0]!;
+    for (const id of Object.keys(s.pool)) s.pool[id] = id === keep ? 5 : 0;
+    s.hand = [{ uid: 'd', cardId: 'discoverspell', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'd' });
+    expect(s.discover).toBeDefined();
+    for (const id of s.discover!) expect(s.pool[id]).toBeGreaterThan(0); // never an exhausted (0-copy) card
+  });
+
   it('the finite pool conserves copies across buy / reroll / sell', () => {
     // Total pooled copies = remaining pool + pooled cards held in shop / hand / board (golden = 3).
     // Buying, rerolling and selling only move copies between those buckets — the total is invariant.
@@ -1701,6 +1714,55 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     } finally {
       OPPONENT_POOL.length = 0; // restore the empty default so the rest of the suite stays procedural
     }
+  });
+
+  it('loss damage = opponent tier + the SUM of surviving enemy tiers (procedural uses the player tier)', () => {
+    // An empty board guarantees a loss with the whole enemy surviving → damage = tier + Σ(survivor tiers).
+    const s: RunState = { ...createRun(1), wave: 4, tier: 3, board: [] };
+    const next = reduce(s, { type: 'faceOmen' });
+    expect(next.lastCombat!.result).toBe('lose');
+    const enemy = next.lastCombat!.initial.enemy;
+    const tierSum = enemy.reduce((sum, m) => sum + (CARD_INDEX[m.cardId]?.tier ?? 1), 0);
+    expect(tierSum).toBeGreaterThan(0);
+    expect(next.lastCombat!.playerDamage).toBe(Math.min(3 + tierSum, 10)); // s.tier + Σ tiers, capped (wave 4 → 10)
+  });
+
+  it('loss damage is capped by round — a low-power, high-tier board exceeds the early cap', () => {
+    // A 1/1 Gnasher (T6) board: low power (matches an empty board) but raw damage tier 6 + surviving T6 = 12.
+    const board: BoardSnapshot = {
+      v: 1, wave: 1, heroId: 'warden', resolve: 30, tier: 6, triples: 0, tribes: [], threat: 'horde', power: 2,
+      minions: [{ cardId: 'gnash', attack: 1, health: 1 }], seed: 0,
+    };
+    OPPONENT_POOL.push(board);
+    try {
+      const s: RunState = { ...createRun(1), wave: 1, board: [] };
+      const next = reduce(s, { type: 'faceOmen' });
+      expect(next.lastCombat!.result).toBe('lose');
+      expect(next.lastCombat!.playerDamage).toBe(5); // raw 12 capped to 5 at wave 1
+    } finally {
+      OPPONENT_POOL.length = 0;
+    }
+  });
+
+  it('lossDamageCap rises by round: 5 (≤3), 10 (4–6), 15 (7+)', () => {
+    expect([1, 2, 3].map(lossDamageCap)).toEqual([5, 5, 5]);
+    expect([4, 5, 6].map(lossDamageCap)).toEqual([10, 10, 10]);
+    expect([7, 12, 30].map(lossDamageCap)).toEqual([15, 15, 15]);
+  });
+
+  it('settleCombat keeps the same lastCombat reference (the UI replay must not restart)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      wave: 2,
+      board: [{ uid: 'a', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.phase).toBe('combat');
+    const ref = s.lastCombat;
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.combatSettled).toBe(true);
+    expect(s.phase).toBe('combat'); // settle stays in combat; advancing is the End Combat click
+    expect(s.lastCombat).toBe(ref); // SAME object → the replay hook (keyed on the reference) can't reset
   });
 });
 

@@ -813,4 +813,14 @@ describe('simulate (handoff A.3)', () => {
     const reborn = a.events.find((ev) => ev.type === 'reborn');
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(5); // base 2 + Lantern 3, re-applied on rebirth
   });
+
+  it('Lantern of Souls: the spell-power component also raises Undead Health', () => {
+    // +4 Attack / +1 Health (the spell-power scaling): a 1/2 Sporeling (Undead) enters combat at 5/3.
+    const p: BoardMinion[] = [{ cardId: 'spore', attack: 1, health: 2, sourceUid: 'u' }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 4 }];
+    const a = simulate(p, e, makeRng(7), CARD_INDEX, 0, 0, 1, 4, 1); // 8th arg = +Attack, 9th arg = +Health
+    const spore = a.initial.player.find((m) => m.cardId === 'spore')!;
+    expect(spore.attack).toBe(5); // 1 + 4
+    expect(spore.health).toBe(3); // 2 + 1
+  });
 });

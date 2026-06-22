@@ -134,8 +134,15 @@ export interface RunState {
   freeRolls: number;
   /** Front to Back's accumulated escalation: each cast applies +(2 + this + spell power), then this += 2. */
   frontToBackBonus: number;
-  /** Run-wide Undead attack bonus (Lantern of Souls), applied to every Undead in every combat. */
+  /** Run-wide Undead attack bonus (Lantern of Souls): your Undead get this much Attack everywhere —
+   *  on the board in the shop and in every combat (incl. summoned/Reborn ones). */
   undeadAttackBonus: number;
+  /** Run-wide Undead health bonus (Lantern of Souls' spell-power component). Paired with the attack
+   *  bonus above and applied to the same Undead in the same places. */
+  undeadHealthBonus: number;
+  /** Staff of Guel — a run-wide buff baked onto every minion BOUGHT from the tavern (not Discovered or
+   *  conjured). Persists for the rest of the run; stacks (and picks up spell power) if cast again. */
+  tavernBuyBonus: { atk: number; hp: number };
   /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
   drakkoBuys: number;
   /** Flat reduction to spell purchase costs (min 0) — drives "your spells cost less". */
@@ -240,6 +247,8 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     freeRolls: 0,
     frontToBackBonus: 0,
     undeadAttackBonus: 0,
+    undeadHealthBonus: 0,
+    tavernBuyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,
     spellCostMod: 0,
     hand: [],

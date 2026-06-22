@@ -33,6 +33,7 @@ export function simulate(
   deathrattlesBase = 0,
   enemyTier = 1,
   undeadAttackBonus = 0,
+  undeadHealthBonus = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -41,15 +42,20 @@ export function simulate(
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
 
   /**
-   * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus` Attack for the rest of the
-   * run, wherever it is. Baked straight into the minion's attack (no event — it's a baseline like the
-   * recruit buffs already folded into stats), so it applies at combat start AND to anything summoned or
-   * Reborn mid-fight (Reborn resets to base stats, dropping the bonus, so it's re-applied there too).
-   * Deterministic: a pure stat bump keyed only on the minion's side + tribe.
+   * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
+   * rest of the run, wherever it is — the recruit UI already shows the same bump on the board, so this
+   * just re-derives it for the combat instance (no event — a baseline like the recruit buffs folded
+   * into stats). Applies at combat start AND to anything summoned or Reborn mid-fight (Reborn resets to
+   * base stats, dropping the bonus, so it's re-applied there too). Pure: keyed only on side + tribe.
    */
   const applyUndeadBonus = (m: Minion): void => {
-    if (undeadAttackBonus <= 0 || m.side !== 'player') return;
-    if (m.tribe === 'undead' || m.tribe2 === 'undead') m.attack = Math.max(0, m.attack + undeadAttackBonus);
+    if (m.side !== 'player') return;
+    if (m.tribe !== 'undead' && m.tribe2 !== 'undead') return;
+    if (undeadAttackBonus > 0) m.attack = Math.max(0, m.attack + undeadAttackBonus);
+    if (undeadHealthBonus > 0) {
+      m.health += undeadHealthBonus;
+      m.maxHealth += undeadHealthBonus;
+    }
   };
 
   const boards: Record<Side, Minion[]> = {

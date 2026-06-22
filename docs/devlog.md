@@ -3,6 +3,39 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-22
+
+### Spell/UX polish: Lantern global aura, Staff buy-buff, DS glow, live spell values, drag fix (M2)
+A follow-up pass on the spell batch + VFX, driven by live-playtest feedback.
+- **Divine Shield / Reborn glow reworked.** The compact arched frame sets `box-shadow: none`, so the
+  card-level `.card.dscard` glow never rendered on resting tiles (and the old over-art wash muddied the
+  art). Now a clean, soft gold halo lives on `.card.compact.dscard` (beats `.compact`'s `none`, rides the
+  card's own arch-radius) — no hard ring, no wash. Reborn matches in blue. Verified live: a shielded Mech
+  now carries the gold box-shadow (it had `none` before).
+- **Lantern of Souls is now a true global Undead aura** — active in **shop offers, warband, hand, and
+  combat** (was combat-only). It **scales with spell power**: base +3 Attack, with spell power folding
+  +X/+X onto both stats (so +1/+1 spells → **+4/+1**). New `RunState.undeadHealthBonus`; the recruit
+  `shopView`/`instView` overlay it on Undead; `simulate` applies both atk + hp (+ maxHealth) at start /
+  on summon / on reborn. The card shows the live value.
+- **Staff of Guel → permanent tavern-buy buff.** Was a one-shot buff to the *current* offers; now every
+  minion you **buy** from the tavern (not Discovered/conjured) gets +2/+2 for the rest of the run,
+  stacking + scaling with spell power. New `RunState.tavernBuyBonus`; baked on buy via `addBuff`, shown
+  folded onto offers in `shopView`.
+- **Live card values everywhere.** `spellDisplayText` now also renders **Front to Back**'s escalating
+  grant (base + accumulated `frontToBackBonus` + spell power) and **Staff**'s spell-power-scaled value —
+  threaded through `instView`/`shopView` — so a card always reads its real current value.
+- **Mana Font:** raises *max* Mana only; current Mana is no longer topped up that turn.
+- **Refresh:** shows **0** (and stays enabled) while free rerolls are banked.
+- **Spell drag fix:** a targeted spell now only applies on an **explicit drop** onto a minion — the old
+  `carryUid` auto-target silently buffed a random minion when released in empty space.
+- **Hero-select** panels + the title/eyebrow above them sized up **~30%**.
+- **Art "not wired"** was a stale Vite `import.meta.glob` in the running dev process (a browser reload
+  doesn't re-run it) — a real process restart picks up the new spell/hero art; the build always had it.
+- Verified: typecheck + lint clean, **226 tests** (Mana-Font/Staff updated for the new behaviour; Lantern
+  health + spell-power scaling and Front-to-Back/Staff live display added).
+- **Still queued:** the friendly/**any** tavern-targeting rule — dropping a non-"friendly" spell (Shatter,
+  Front to Back) onto a tavern offer to buff it pre-buy. See roadmap.
+
 ## 2026-06-21
 
 ### 11 new spells + Drakko (7th hero) + UI polish (M2 content / M3 heroes)

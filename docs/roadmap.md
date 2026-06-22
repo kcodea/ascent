@@ -191,11 +191,14 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Backlog / ideas (unscheduled)
 
-- [ ] **Tavern-targeting for spells (and more cards).** The hero power (Fortify) can now buff a tavern
-      offer — `ShopCard` carries `atk`/`hp`/`keywords` and `buy` bakes them in. Extend this to *spells*:
-      add a target scope that includes the tavern (vs `target: 'friendly'`), and teach the cast path
-      (`spellBuffTarget`, which mutates a `BoardCard`) to also buff a `ShopCard` when the target is an
-      offer. Then a spell like a tavern-only buff could target the shop.
+- [ ] **Friendly/any spell targeting — let non-"friendly" spells hit tavern offers.** Convention (set
+      2026-06-22): a targeted spell whose text says "**friendly** minion" stays board-only; one that says
+      just "a minion" (**Shatter**, **Front to Back**) should also be droppable onto a **tavern offer** to
+      buff it pre-buy. The accidental-apply bug is already fixed (a targeted spell now only applies on an
+      explicit drop — no `carryUid` auto-target). Remaining: add a `target: 'any'` scope (vs `'friendly'`),
+      let the UI resolve a tavern offer as a drop target (a `shopUidAt` mirror of `boardUidAt`), and teach
+      the cast path to buff a `ShopCard` (offer `atk`/`hp`/`keywords`, which `buy` already bakes in — like
+      Fortify). Stat/keyword spells only; gild/devour/tribe-read stay friendly.
 - [ ] **Ember-gain modifiers feed the projection.** The Embers-chip popup projects the next two waves'
       starting Embers from the base `maxEmbers` curve. When cards modify Ember gain (per-wave income,
       one-shot ramp, etc.), fold their effect into the projection so it stays accurate.

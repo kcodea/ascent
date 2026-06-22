@@ -170,7 +170,7 @@ export const SPELLS: CardDef[] = [
     text: '**Discover** a Tier 1 minion.',
   },
   {
-    // Buff every minion currently in the tavern +2/+2 (baked into each offer's ShopCard).
+    // Permanent run-wide buff: every minion you buy from the tavern (not Discovered) gets +2/+2.
     id: 'staffofguel',
     name: 'Staff of Guel',
     tribe: 'neutral',
@@ -181,7 +181,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     effects: [{ on: 'cast', do: 'spellBuffShop', params: { attack: 2, health: 2 } }],
-    text: 'Give all minions in the tavern **+2/+2**.',
+    text: 'Every minion you **buy** gets **+2/+2** for the rest of the game.',
   },
   {
     // Conjure a random buyable Tier 1 minion (active tribes + neutral) into the hand.
@@ -227,7 +227,8 @@ export const SPELLS: CardDef[] = [
     text: '**Discover** a Battlecry minion.',
   },
   {
-    // Permanent run-wide buff: your Undead get +3 Attack everywhere (applied in combat).
+    // Permanent run-wide buff: your Undead get +3 Attack everywhere — on the board in the shop AND in
+    // combat — with spell power folding +X/+X onto both stats on top (so +1/+1 spells make it +4/+1).
     id: 'lanternofsouls',
     name: 'Lantern of Souls',
     tribe: 'neutral',
@@ -238,6 +239,6 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     effects: [{ on: 'cast', do: 'spellGrantTribeAttack', params: { tribe: 'undead', amount: 3 } }],
-    text: 'Your **Undead** get **+3 Attack** for the rest of the game, wherever they are.',
+    text: 'Your **Undead** get **+3 Attack** everywhere — even in the shop — for the rest of the game.',
   },
 ];

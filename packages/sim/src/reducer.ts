@@ -115,6 +115,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       };
       // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
       addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
+      // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
+      if (s.tavernBuyBonus.atk || s.tavernBuyBonus.hp) {
+        addBuff(bought, 'Staff of Guel', s.tavernBuyBonus.atk, s.tavernBuyBonus.hp);
+      }
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
       // Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). The quest
@@ -451,7 +455,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         linkUid: b.linkUid, // Corrupted Lifebinder mirrors its linked demon in combat too
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
       }));
-      s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus);
+      s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus);
       s.lastCombat.playerDamage = Math.min(s.lastCombat.playerDamage, lossDamageCap(s.wave)); // round cap
       // Outcome odds: re-simulate the same two boards on independent seeds for a win/draw/loss estimate.
       // Combat is a cheap pure function on ~14 units, so 1000 sims cost ~1ms warm (a few ms for a long
@@ -461,7 +465,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       let win = 0, draw = 0, lose = 0;
       const ODDS_SIMS = 1000;
       for (let i = 0; i < ODDS_SIMS; i++) {
-        const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus).result;
+        const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus).result;
         if (r === 'win') win++;
         else if (r === 'draw') draw++;
         else lose++;

@@ -562,29 +562,33 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.freeRolls += num(params.count, 1);
   },
 
-  /** Mana Font — cast: raise max Mana by `amount` (capped) and refill `amount` now. */
+  /** Mana Font — cast: raise MAX Mana by `amount` (capped). Current Mana is NOT topped up — you don't
+   *  gain the new Mana this turn, just a bigger pool from next turn on. */
   gainMaxMana: (ctx, _self, params) => {
     const amount = num(params.amount, 1);
     ctx.state.maxEmbers = Math.min(CONFIG.embersCap, ctx.state.maxEmbers + amount);
-    ctx.state.embers += amount;
   },
 
-  /** Staff of Guel — cast: give every tavern offer +atk/+hp (baked onto each ShopCard, so it bakes
-   *  into the minion's stats when bought, mirroring the Fortify hero power). Spells aren't offers. */
+  /** Staff of Guel — cast: a PERMANENT run-wide buff to every minion bought from the tavern from now
+   *  on (not Discovered/conjured cards). Stacks if recast and picks up spell power on both stats. The
+   *  shop UI folds it onto each offer; the buy bakes it into the minion. */
   spellBuffShop: (ctx, _self, params) => {
-    const a = num(params.attack, 2);
-    const h = num(params.health, 2);
-    for (const offer of ctx.state.shop) {
-      offer.atk = (offer.atk ?? 0) + a;
-      offer.hp = (offer.hp ?? 0) + h;
-    }
+    const sp = spellStatBonus(ctx.state);
+    ctx.state.tavernBuyBonus.atk += num(params.attack, 2) + sp;
+    ctx.state.tavernBuyBonus.hp += num(params.health, 2) + sp;
   },
 
-  /** Lantern of Souls — cast: your Undead get +`amount` Attack for the rest of the run, wherever they
-   *  are (applied at combat start + on summon/reborn inside `simulate`). */
+  /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)
+   *  for the rest of the run, wherever they are — shown on the board in the shop and re-derived at
+   *  combat start + on summon/reborn inside `simulate`. */
   spellGrantTribeAttack: (ctx, _self, params) => {
-    // Today only Undead is wired (RunState.undeadAttackBonus); the param keeps the data honest.
-    if (str(params.tribe) === 'undead') ctx.state.undeadAttackBonus += num(params.amount, 1);
+    // Today only Undead is wired (RunState.undead*Bonus); the param keeps the data honest. The base is
+    // an Attack buff; spell power folds in on top of BOTH stats (so +1/+1 spells turn +3 into +4/+1).
+    if (str(params.tribe) === 'undead') {
+      const sp = spellStatBonus(ctx.state);
+      ctx.state.undeadAttackBonus += num(params.amount, 1) + sp;
+      ctx.state.undeadHealthBonus += sp;
+    }
   },
 
   /** Growth — cast: buff EVERY friendly minion on the board. Untargeted (runs without a picked target);
@@ -650,10 +654,33 @@ export function spellStatBonus(state: RunState): number {
  * `{{…}}`). Returns the base text for non-stat spells or a zero bonus. Convention: a stat spell's
  * text shows its value as "+A/+B" matching its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonus: number): string {
+export function spellDisplayText(cardId: string, bonus: number, escalation = 0): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
+  // Front to Back (escalating): always show the live grant — base + accumulated escalation + spell
+  // power — highlighted (green) once it's actually above its printed base.
+  const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
+  if (esc) {
+    const base = Number((esc.params as { attack?: number } | undefined)?.attack ?? 2);
+    const extra = escalation + bonus;
+    if (extra <= 0) return def.text;
+    const v = base + extra;
+    return def.text.replace(`+${base}/+${base}`, `{{+${v}/+${v}}}`);
+  }
   if (bonus <= 0) return def.text;
+  // Lantern of Souls: base "+N Attack" → "+{N+bonus}/+{bonus}" (spell power folds onto both stats).
+  const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');
+  if (tribeBuff) {
+    const amt = Number((tribeBuff.params as { amount?: number } | undefined)?.amount ?? 0);
+    return def.text.replace(`+${amt} Attack`, `{{+${amt + bonus}/+${bonus}}}`);
+  }
+  // Staff of Guel: its "+A/+B" tavern-buy buff scales with spell power on both stats too.
+  const shopBuff = def.effects.find((e) => e.do === 'spellBuffShop');
+  if (shopBuff) {
+    const a = Number((shopBuff.params as { attack?: number } | undefined)?.attack ?? 2);
+    const h = Number((shopBuff.params as { health?: number } | undefined)?.health ?? 2);
+    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonus}/+${h + bonus}}}`);
+  }
   const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');
   if (!eff) return def.text;
   const ba = Number((eff.params as { attack?: number } | undefined)?.attack ?? 0);

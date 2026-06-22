@@ -969,16 +969,19 @@ describe('run loop (@game/sim)', () => {
     const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
     expect(s.frontToBackBonus).toBe(2); // the tally still climbs by exactly 2
+    // The card always shows its live grant: base 2 + accumulated escalation + spell power.
+    expect(spellDisplayText('fronttoback', 0, 0)).toContain('+2/+2'); // base — no boost yet
+    expect(spellDisplayText('fronttoback', 1, 2)).toContain('{{+5/+5}}'); // 2 + escalation 2 + spell power 1
   });
 
-  it('Mana Font raises max Mana permanently and refills 1 now', () => {
+  it('Mana Font raises max Mana permanently but does NOT refill current Mana', () => {
     let s: RunState = {
       ...createRun(1), embers: 2, maxEmbers: 4, shop: [],
       hand: [{ uid: 'sp', cardId: 'manafont', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
     expect(s.maxEmbers).toBe(5); // +1 permanent
-    expect(s.embers).toBe(3); // +1 now
+    expect(s.embers).toBe(2); // current Mana untouched — no top-up this turn
   });
 
   it('Mana Font respects the Mana cap', () => {
@@ -1048,18 +1051,22 @@ describe('run loop (@game/sim)', () => {
     expect(CARD_INDEX[conjured!.cardId]!.tier).toBe(1);
   });
 
-  it('Staff of Guel gives every tavern offer +2/+2 (baked in when bought)', () => {
+  it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {
     let s: RunState = {
-      ...createRun(1), embers: 3, board: [],
-      shop: [{ uid: 'x', cardId: 'alley' }, { uid: 'y', cardId: 'sandbag' }],
+      ...createRun(1), embers: 4, board: [],
+      shop: [{ uid: 'x', cardId: 'alley' }],
       hand: [{ uid: 'sp', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    expect([s.shop[0]!.atk, s.shop[0]!.hp]).toEqual([2, 2]);
-    expect([s.shop[1]!.atk, s.shop[1]!.hp]).toEqual([2, 2]);
-    s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + the tavern buff
+    expect(s.tavernBuyBonus).toEqual({ atk: 2, hp: 2 }); // run-wide buy buff, set on cast
+    expect(spellDisplayText('staffofguel', 1)).toContain('{{+3/+3}}'); // +2/+2 + 1 spell power, live
+    s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + the run-wide buy buff
     const bought = s.hand.find((c) => c.cardId === 'alley')!;
-    expect([bought.attack, bought.health]).toEqual([3, 3]);
+    expect([bought.attack, bought.health]).toEqual([3, 3]); // 1/1 + 2/2
+    // A Discovered minion does NOT get it (tavern purchases only).
+    s = reduce({ ...s, discover: ['sandbag'] }, { type: 'discover', index: 0 });
+    const disc = s.hand.find((c) => c.cardId === 'sandbag')!;
+    expect([disc.attack, disc.health]).toEqual([0, 4]); // Target Dummy base, unbuffed
   });
 
   it('Sprout Discovers a Tier 1 minion; Help Wanted Discovers a Battlecry minion', () => {
@@ -1081,11 +1088,22 @@ describe('run loop (@game/sim)', () => {
   it('Lantern of Souls raises the run-wide Undead attack bonus', () => {
     const s = castOnBoard('lanternofsouls', []);
     expect(s.undeadAttackBonus).toBe(3);
+    expect(s.undeadHealthBonus).toBe(0); // no spell power → a pure Attack buff
     // A second cast stacks.
     const s2 = castOnBoard('lanternofsouls', []);
     let t: RunState = { ...s2, hand: [{ uid: 'sp2', cardId: 'lanternofsouls', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     t = reduce(t, { type: 'play', uid: 'sp2' });
     expect(t.undeadAttackBonus).toBe(6);
+  });
+
+  it('Lantern of Souls scales with spell power (+4/+1 at +1) and the card shows it', () => {
+    // Rohan amplifies +1 at wave 1 → base +3 Attack becomes +4 Attack / +1 Health.
+    const s = castOnBoard('lanternofsouls', [], undefined, 'rohan');
+    expect(s.undeadAttackBonus).toBe(4);
+    expect(s.undeadHealthBonus).toBe(1);
+    // The card text reflects the live value (green {{…}}); the base shows just +3 Attack.
+    expect(spellDisplayText('lanternofsouls', 0)).toContain('+3 Attack');
+    expect(spellDisplayText('lanternofsouls', 1)).toContain('{{+4/+1}}');
   });
 
   it('hero power can buff a tavern offer, and the buff is baked in when bought', () => {

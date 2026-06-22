@@ -294,34 +294,22 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
-/* Divine Shield: an unmistakable soft-yellow glow — a bright halo + ring AROUND the card and
-   a glowing wash ON TOP of it (concentrated over the art so the text stays legible), pulsing.
-   Shown on any shielded card, recruit + combat, so DS reads at a glance across the board. */
-.card.dscard { z-index: 3; box-shadow: 0 0 0 4px var(--c), 0 0 26px 6px rgba(255, 221, 110, 0.82), 0 3px 0 var(--shadow); animation: dsglow 1.8s ease-in-out infinite; }
-.card.dscard::after {
-  content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; z-index: 8;
-  background: radial-gradient(110% 80% at 50% 32%, rgba(255, 236, 150, 0.5), rgba(255, 224, 120, 0.18) 50%, transparent 74%);
-  mix-blend-mode: screen; animation: dswash 1.8s ease-in-out infinite;
-}
+/* Divine Shield: a clean gold halo that hugs the card's arched silhouette, gently pulsing. The compact
+   frame zeroes the card's own box-shadow, so the glow lives on the more-specific `.card.compact.dscard`
+   and rides the arch (the card's own border-radius). No solid ring — just a soft bright bloom over the
+   tribe-coloured art border. Shown on any shielded card, recruit + combat, reads at a glance. */
+.card.compact.dscard { z-index: 3; box-shadow: 0 0 16px 4px rgba(255, 222, 110, 0.95), 0 0 40px 13px rgba(255, 200, 74, 0.5); animation: dsglow 2s ease-in-out infinite; }
 @keyframes dsglow {
-  0%, 100% { box-shadow: 0 0 0 4px var(--c), 0 0 20px 4px rgba(255, 221, 110, 0.62), 0 3px 0 var(--shadow); }
-  50% { box-shadow: 0 0 0 4px var(--c), 0 0 34px 9px rgba(255, 221, 110, 1), 0 3px 0 var(--shadow); }
+  0%, 100% { box-shadow: 0 0 13px 3px rgba(255, 222, 110, 0.74), 0 0 30px 9px rgba(255, 200, 74, 0.32); }
+  50% { box-shadow: 0 0 24px 6px rgba(255, 228, 120, 1), 0 0 52px 17px rgba(255, 204, 80, 0.6); }
 }
-@keyframes dswash { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
-/* Reborn — a pulsing blue aura AROUND the card plus a blue wash OVER the art (like Divine Shield),
-   recruit + combat. In combat both drop the moment the minion Reborns (it sheds the 'R' keyword),
-   so the effect marks "still has its one revival left". */
-.card.reborncard { z-index: 3; box-shadow: 0 0 0 4px var(--c), 0 0 24px 5px rgba(86, 150, 235, 0.78), 0 3px 0 var(--shadow); animation: rebornglow 1.8s ease-in-out infinite; }
-.card.reborncard::after {
-  content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; z-index: 8;
-  background: radial-gradient(120% 84% at 50% 30%, rgba(126, 184, 250, 0.46), rgba(92, 152, 236, 0.16) 52%, transparent 76%);
-  mix-blend-mode: screen; animation: rebornwash 1.8s ease-in-out infinite;
-}
+/* Reborn — the same clean halo in blue. In combat it drops the moment the minion Reborns (sheds the
+   'R' keyword), marking "still has its one revival left". The rising tears (.reborntears) layer on top. */
+.card.compact.reborncard { z-index: 3; box-shadow: 0 0 16px 4px rgba(104, 168, 246, 0.95), 0 0 40px 13px rgba(70, 140, 235, 0.5); animation: rebornglow 2s ease-in-out infinite; }
 @keyframes rebornglow {
-  0%, 100% { box-shadow: 0 0 0 4px var(--c), 0 0 18px 3px rgba(86, 150, 235, 0.58), 0 3px 0 var(--shadow); }
-  50% { box-shadow: 0 0 0 4px var(--c), 0 0 30px 8px rgba(86, 150, 235, 0.95), 0 3px 0 var(--shadow); }
+  0%, 100% { box-shadow: 0 0 13px 3px rgba(104, 168, 246, 0.74), 0 0 30px 9px rgba(70, 140, 235, 0.32); }
+  50% { box-shadow: 0 0 24px 6px rgba(120, 182, 250, 1), 0 0 52px 17px rgba(78, 150, 240, 0.6); }
 }
-@keyframes rebornwash { 0%, 100% { opacity: 0.62; } 50% { opacity: 1; } }
 
 /* Triple-ready: a tavern offer that completes a triple if bought — a bright gold pulsing glow (keeps
    the tribe ring) plus gold arrows floating up around it, so it shouts "buy me to combine". */
@@ -1215,22 +1203,23 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Pre-run hero picker — first slice of the Title→Mode→Hero flow (one store flag drives it). */
 .heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 96vw; }
-.heroselect .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
-.hstitle { font-family: 'Outfit'; font-weight: 900; font-size: 52px; letter-spacing: 0.06em; color: #f6efe2; margin: 6px 0 26px; }
-.hsrow { display: flex; gap: 22px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
-.herocard { width: 256px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 22px 18px 18px; border-radius: 20px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
-.herocard:hover { transform: translateY(-6px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
-.hcart { width: 116px; height: 116px; border-radius: 18px; background: var(--ink); display: grid; place-items: center; overflow: hidden; flex: none; }
+/* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
+.heroselect .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
+.hstitle { font-family: 'Outfit'; font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 34px; }
+.hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
+.herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
+.herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
+.hcart { width: 151px; height: 151px; border-radius: 23px; background: var(--ink); display: grid; place-items: center; overflow: hidden; flex: none; }
 .hcart img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
-.hcart svg { width: 54px; height: 54px; color: var(--acc); }
-.hcname { font-family: 'Outfit'; font-weight: 900; font-size: 24px; letter-spacing: 0.02em; }
-.hchp { display: inline-flex; align-items: center; gap: 5px; font-family: 'Outfit'; font-weight: 800; font-size: 18px; color: var(--ink); margin: -2px 0 2px; }
-.hchp svg { width: 17px; height: 17px; color: var(--hpc); }
-.hcpw { font-size: 13.5px; font-weight: 600; color: var(--ink2); line-height: 1.35; }
+.hcart svg { width: 70px; height: 70px; color: var(--acc); }
+.hcname { font-family: 'Outfit'; font-weight: 900; font-size: 31px; letter-spacing: 0.02em; }
+.hchp { display: inline-flex; align-items: center; gap: 6px; font-family: 'Outfit'; font-weight: 800; font-size: 23px; color: var(--ink); margin: -2px 0 2px; }
+.hchp svg { width: 22px; height: 22px; color: var(--hpc); }
+.hcpw { font-size: 17.5px; font-weight: 600; color: var(--ink2); line-height: 1.35; }
 .hcpw b { color: var(--acc-dk); font-weight: 800; }
-.hclock { font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 3px 10px; border-radius: 8px; }
+.hclock { font-family: 'Outfit'; font-weight: 800; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 4px 13px; border-radius: 8px; }
 .hcblurb { font-size: 13px; font-style: italic; color: var(--ink3); line-height: 1.4; margin-top: auto; padding-top: 6px; }
-.hcpick { margin-top: 12px; font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 8px 22px; border-radius: 12px; }
+.hcpick { margin-top: 16px; font-family: 'Outfit'; font-weight: 800; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 10px 29px; border-radius: 12px; }
 .herocard:hover .hcpick { background: var(--acc-dk); }
 
 /* End-of-run screen — reuses the hero-picker overlay (.heroselect/.hsbox); shows the round

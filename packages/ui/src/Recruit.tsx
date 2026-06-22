@@ -41,30 +41,39 @@ function tokenRefView(id: string, cardBuffs?: Record<string, { attack: number; h
   };
 }
 
-function shopView(
-  card: ShopCard,
-  spellCostMod = 0,
-  cardBuffs?: Record<string, { attack: number; health: number }>,
-  spellBonus = 0,
-): CardView {
+interface ShopViewOpts {
+  spellCostMod?: number;
+  cardBuffs?: Record<string, { attack: number; health: number }>;
+  spellBonus?: number;
+  frontToBackBonus?: number;
+  undeadAtk?: number;
+  undeadHp?: number;
+  tavernAtk?: number;
+  tavernHp?: number;
+}
+function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const c = CARD_INDEX[card.cardId];
   if (c.spell) {
     // A tavern spell: its own (modifiable) cost + a tier pill, no stat footer. Its value text
-    // reflects active spell bonuses (Spellbinder, etc.) so it shows what it'll actually grant.
+    // reflects active spell bonuses (Spellbinder + Front to Back's escalation) so it shows what
+    // it'll actually grant right now.
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
-      keywords: c.keywords, text: spellDisplayText(c.id, spellBonus),
-      cost: Math.max(0, (c.cost ?? 0) - spellCostMod), spell: true,
+      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0),
+      cost: Math.max(0, (c.cost ?? 0) - (opts.spellCostMod ?? 0)), spell: true,
       target: c.target, tier: c.tier,
     };
   }
-  // A minion offer — fold in any tavern buff (the hero power) plus any persistent run buff
-  // (Ritualist's Fodder enchantment) over its base stats, so a buffed offer reads its new
-  // stats (green) and carries them in when bought.
-  const cb = cardBuffs?.[c.id] ?? { attack: 0, health: 0 };
+  // A minion offer — fold in the per-offer buff (Fortify hero power), the persistent per-card run buff
+  // (Ritualist's Fodder), Staff of Guel's run-wide tavern-buy buff, and the Lantern of Souls aura on
+  // Undead — so a buffed offer reads its new stats (green) and carries the baked ones in when bought.
+  const cb = opts.cardBuffs?.[c.id] ?? { attack: 0, health: 0 };
+  const undead = c.tribe === 'undead' || c.tribe2 === 'undead';
+  const addAtk = (card.atk ?? 0) + cb.attack + (opts.tavernAtk ?? 0) + (undead ? opts.undeadAtk ?? 0 : 0);
+  const addHp = (card.hp ?? 0) + cb.health + (opts.tavernHp ?? 0) + (undead ? opts.undeadHp ?? 0 : 0);
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
-    attack: c.attack + (card.atk ?? 0) + cb.attack, health: c.health + (card.hp ?? 0) + cb.health,
+    attack: c.attack + addAtk, health: c.health + addHp,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     text: c.text, goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier,
     baseAttack: c.attack, baseHealth: c.health,
@@ -77,6 +86,9 @@ function instView(
   spellBonus = 0,
   spellsThisTurn = 0,
   deathrattlesTriggered = 0,
+  undeadAtkBonus = 0,
+  undeadHpBonus = 0,
+  frontToBackBonus = 0,
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -88,7 +100,7 @@ function instView(
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
       : c.spell
-        ? spellDisplayText(c.id, spellBonus)
+        ? spellDisplayText(c.id, spellBonus, frontToBackBonus)
         : transformProgressText(c.id, inst.spellProgress ?? 0) ??
           summonScalingText(c.id, spellsThisTurn) ??
           summonBuffText(c.id, inst.summonBonus ?? 0) ??
@@ -96,9 +108,14 @@ function instView(
           c.text;
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
+  // Lantern of Souls is a run-wide Undead aura — fold it on top of the shown stats for any Undead so
+  // the board/hand reflect it in the shop too (combat re-derives the same bump). Spells are never Undead.
+  const undead = !spell && (inst.tribe === 'undead' || c.tribe2 === 'undead');
+  const auraAtk = undead ? undeadAtkBonus : 0;
+  const auraHp = undead ? undeadHpBonus : 0;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
-    attack: override?.attack ?? inst.attack, health: override?.health ?? inst.health,
+    attack: (override?.attack ?? inst.attack) + auraAtk, health: (override?.health ?? inst.health) + auraHp,
     keywords: inst.keywords, text, goldenText: c.goldenText, golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
@@ -363,12 +380,12 @@ export function Recruit() {
   // changes — during a drag nothing dispatches, so `run.*` refs are stable and these stay
   // cached, which is what lets the memoized Card skip re-render on every pointermove.
   const shopViews = useMemo(
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, 0, run.cardBuffs)] as const)),
-    [run.shop, run.cardBuffs],
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus })] as const)),
+    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus],
   );
   const spellView = useMemo(
-    () => (run.spell ? shopView(run.spell, run.spellCostMod, undefined, spellBonus) : null),
-    [run.spell, run.spellCostMod, spellBonus],
+    () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, frontToBackBonus: run.frontToBackBonus }) : null),
+    [run.spell, run.spellCostMod, spellBonus, run.frontToBackBonus],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
@@ -386,12 +403,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered)] as const)),
-    [run.board, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus)] as const)),
+    [run.board, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered)] as const)),
-    [run.hand, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus)] as const)),
+    [run.hand, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.
@@ -994,9 +1011,6 @@ export function Recruit() {
     };
     playBeat(0);
   };
-  // The "carry" — your highest-Attack minion — auto-target for a targeted spell flung upward.
-  const carryUid = (): string | undefined =>
-    run.board.length ? run.board.reduce((a, b) => (b.attack > a.attack ? b : a)).uid : undefined;
   // Spark on a targeted minion's card centre (falls back to the drop point).
   const sparkAtUid = (uid: string, fx: number, fy: number): void => {
     const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${uid}"]`);
@@ -1032,8 +1046,10 @@ export function Recruit() {
     if (d.source === 'hand' && d.view.spell) {
       const up = zone === 'warband' || zone === 'tavern';
       if (d.view.target === 'friendly') {
-        const targetUid = boardUidAt(x, y) ?? (up ? carryUid() : undefined);
-        if (!targetUid) return false; // no friendly minion to cast on
+        // Explicit drop only: the spell must be released squarely over a friendly minion. No auto-target
+        // when let go in empty space (that silently buffed a random minion — felt broken).
+        const targetUid = boardUidAt(x, y);
+        if (!targetUid) return false; // not on a friendly minion → snap back to hand, no cast
         if (d.view.cardId === 'devour') {
           // Capture the devoured minion's centre BEFORE the cast removes it, then fling its stats over.
           const el = document.querySelector(`[data-zone="warband"] .row.warband .card[data-uid="${targetUid}"]`);
@@ -1119,10 +1135,10 @@ export function Recruit() {
         )}
         {/* right of the timer: Refresh (↻ + cost), with Freeze (icon only) under it */}
         <div className="ctl-col">
-          <button className="ctlbtn" disabled={run.embers < CONFIG.refreshCost || timeUp} onClick={() => dispatch({ type: 'roll' })}>
+          <button className="ctlbtn" disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp} onClick={() => dispatch({ type: 'roll' })}>
             <Icon name="refresh" />
-            <span className="c">{CONFIG.refreshCost}</span>
-            <span className="ctltip">Refresh tavern</span>
+            <span className="c">{run.freeRolls > 0 ? 0 : CONFIG.refreshCost}</span>
+            <span className="ctltip">{run.freeRolls > 0 ? `Refresh — free (${run.freeRolls} left)` : 'Refresh tavern'}</span>
           </button>
           <button className={`ctlbtn${run.frozen ? ' frozen' : ''}`} disabled={timeUp} onClick={() => dispatch({ type: 'freeze' })}>
             <Icon name="freeze" />

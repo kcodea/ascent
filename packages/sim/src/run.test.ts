@@ -289,6 +289,25 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
   });
 
+  it('Choose One is not a Battlecry — Drakko the Drummer does not double it', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      shop: [],
+      board: [
+        { uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sh' });
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // "give your Beasts +1/+1"
+    // Drakko the Drummer doubles Battlecries — but Choose One is its own keyword, not a Battlecry,
+    // so the buff lands once (+1/+1), not twice.
+    expect(s.board.find((c) => c.uid === 'b')?.attack).toBe(2); // 1 → 2 (would be 3 if doubled)
+    expect(s.board.find((c) => c.uid === 'sh')?.attack).toBe(3); // 2 → 3 (would be 4 if doubled)
+  });
+
   it('Dragon Battlecries bake into stats when played', () => {
     let s: RunState = {
       ...createRun(1),

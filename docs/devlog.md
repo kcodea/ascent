@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Choose One is its own keyword — not a Battlecry (no Drakko / Karwind / Bane synergy)
+- Playing a Choose One minion (Wildwood Shaper) and picking an option used to run through the Battlecry
+  machinery: `applyChooseOne` applied `drummerRepeats` (Drakko the Drummer **doubled** the chosen effect)
+  and fired `battlecryTriggered` (proccing Karwind / Bane). Choose One is its own keyword, **not** a
+  Battlecry — the chosen option now resolves exactly once, with no doubling and no battlecry-triggered procs.
+- `hasBattlecry` no longer counts a Choose One card, so a Choose One minion doesn't advance Drakko's quest
+  or appear in Help Wanted's Discover-a-Battlecry filter. (Wildwood Shaper already had `keywords: []`, no
+  Battlecry badge — so the card display was already correct.)
+- Test added: with Drakko the Drummer on board, a Choose One buff lands once (+1/+1), not doubled. 258 tests.
+
 ### Card-art → WebP: 71 MB → 4.3 MB (−94%)
 - The illustrated card/hero/spell art was **78 PNGs totaling 71.4 MB** (640×640 or 512×512 but poorly
   compressed — ~1 MB each). Converted all to **WebP** (downscaled to ≤512px — cards display at ~290px —

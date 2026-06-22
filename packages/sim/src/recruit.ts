@@ -781,9 +781,10 @@ export function offerSpellDiscover(state: RunState): void {
   if (picks.length > 0) state.discover = picks;
 }
 
-/** Whether a card has a Battlecry (an onPlay effect or a Choose One) — Help Wanted's Discover filter. */
+/** Whether a card has a Battlecry (an onPlay effect). Choose One is its OWN keyword, not a Battlecry —
+ *  so it doesn't count for Drakko's quest or Help Wanted's Discover-a-Battlecry filter. */
 export function hasBattlecry(c: (typeof BUYABLE_CARDS)[number]): boolean {
-  return c.effects.some((e) => e.on === 'onPlay') || !!c.chooseOne;
+  return c.effects.some((e) => e.on === 'onPlay');
 }
 
 /** Resolve a `DiscoverSpec`'s string filter id back to a card predicate (closures aren't serializable). */
@@ -1028,20 +1029,16 @@ function fireBattlecryTriggered(state: RunState): void {
   }
 }
 
-/** Resolve a chosen Choose One option's effects on the played card (its picked Battlecry).
- *  Honors Drakko the Drummer, like a normal Battlecry. */
+/** Resolve a chosen Choose One option's effects on the played card. Choose One is its own keyword,
+ *  NOT a Battlecry — it does not synergize with Drakko (no doubling) and does not notify
+ *  battlecry-triggered watchers (Karwind / Bane). The chosen option's effects resolve exactly once. */
 export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDef['effects']): void {
-  state.karwindFlash = [];
+  state.karwindFlash = []; // Choose One never procs Karwind; clear any stale flash from a prior play
   const ctx = makeContext(state);
-  const repeats = drummerRepeats(state);
   for (const effect of effects) {
     const fn = RECRUIT_FACTORIES[effect.do];
-    if (!fn) continue;
-    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card });
+    if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
   }
-  // a Choose One IS a Battlecry → notify Karwind, once per fire (Drakko repeats included)
-  for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state);
-  if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
 }
 
 /** Resolve a deferred *targeted* Battlecry (Toxin Tender) on the player-chosen friendly `target`.

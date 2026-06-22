@@ -331,6 +331,8 @@ export interface CombatReplay {
   result: CombatResult['result'] | null;
   shaking: boolean;
   beatCount: number;
+  /** Enemy minions killed so far in the replay (up to the current beat) — drives Cassen's live counter. */
+  enemyDeaths: number;
   skip: () => void;
 }
 
@@ -544,6 +546,20 @@ export function useCombatReplay(
     [combat, events, processedEnd, beatStart],
   );
 
+  // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
+  // up live in combat off this; settleCombat banks the same total at the end.
+  const enemyDeaths = useMemo(() => {
+    if (!combat) return 0;
+    const enemyUids = new Set(combat.initial.enemy.map((u) => u.uid));
+    for (const e of combat.events) if (e.type === 'summon' && e.side === 'enemy') enemyUids.add(e.minion.uid);
+    let n = 0;
+    for (let i = 0; i < processedEnd; i++) {
+      const e = events[i];
+      if (e?.type === 'death' && enemyUids.has(e.target)) n++;
+    }
+    return n;
+  }, [combat, events, processedEnd]);
+
   // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit
   // collapses its own flex slot AS it plays its death pop, so the survivors glide in simultaneously
   // (one smooth phase) instead of waiting a beat and then sliding. CSS flex animates the neighbours for
@@ -591,6 +607,6 @@ export function useCombatReplay(
   return {
     frame, anims, lungeUid, projectiles, floatsFor, log, fullLog, procs, handGrant, handGrantsShown,
     done, result: combat ? combat.result : null, shaking,
-    beatCount: beats.length, skip: () => setBeatIdx(beats.length),
+    beatCount: beats.length, enemyDeaths, skip: () => setBeatIdx(beats.length),
   };
 }

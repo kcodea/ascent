@@ -1017,13 +1017,13 @@ describe('run loop (@game/sim)', () => {
     expect(after.embers).toBe(2);
   });
 
-  it('Mana Font respects the Mana cap', () => {
+  it('Mana Font pushes max Mana PAST the cap (uncapped scaling)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, maxEmbers: CONFIG.embersCap, shop: [],
       hand: [{ uid: 'sp', cardId: 'manafont', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    expect(s.maxEmbers).toBe(CONFIG.embersCap); // already capped — no overflow
+    expect(s.maxEmbers).toBe(CONFIG.embersCap + 1); // no cap on Mana Font — it scales past the normal ceiling
   });
 
   it('Refreshing Texts banks 2 free rerolls, spent before Mana on a roll', () => {
@@ -1768,17 +1768,17 @@ describe('hero powers (@game/sim)', () => {
     expect(ev.some((e) => e.type === 'summon' && e.minion.cardId === 'pack')).toBe(true); // copy resummoned
   });
 
-  it("Nadja's Mana Font raises max Mana by 1 (capped), spending the once-per-turn charge", () => {
+  it("Nadja's Mana Font raises max Mana by 1 (uncapped), spending the once-per-turn charge", () => {
     let s: RunState = { ...createRun(1, 'nadja'), maxEmbers: 4, heroReady: true };
     s = reduce(s, { type: 'heroPower', uid: 'x' }); // untargeted — uid is ignored
     expect(s.maxEmbers).toBe(5); // +1 permanent
     expect(s.heroReady).toBe(false); // charge spent (not once-per-game)
     // A second use this turn is rejected (charge spent).
     expect(reduce(s, { type: 'heroPower', uid: 'x' })).toBe(s);
-    // Respects the Mana cap.
+    // Scales PAST the Mana cap — Nadja's Mana Font is uncapped.
     let capped: RunState = { ...createRun(1, 'nadja'), maxEmbers: CONFIG.embersCap, heroReady: true };
     capped = reduce(capped, { type: 'heroPower', uid: 'x' });
-    expect(capped.maxEmbers).toBe(CONFIG.embersCap); // no overflow
+    expect(capped.maxEmbers).toBe(CONFIG.embersCap + 1); // no cap — exceeds the normal ceiling
   });
 
   it("Cassen's Collision banks enemy kills and grants a top-type minion at 5 (neutral isn't a type)", () => {

@@ -15,8 +15,9 @@ import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState
  * frame previews it during recruit, and `faceOmen` resolves exactly this.
  */
 export function nextOpponent(s: RunState): BoardSnapshot | null {
-  const playerPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
-  return pickOpponent(s.wave, playerPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
+  // Match on the board power captured at TURN START (not the live board) so the telegraphed opponent
+  // stays fixed for the whole turn — buying, selling, or using a Hero Power can't re-roll the foe.
+  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
 }
 
 /** Loss-damage cap by round (early-game protection): 5 through wave 3, 10 through wave 6, 15 from wave 7. */
@@ -377,9 +378,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         // work happens elsewhere (spell math / the buy case / settleCombat). Nothing to do here.
         return state;
       } else if (power.kind === 'gainMaxMana') {
-        // Nadja: +1 max Mana permanently (capped). Untargeted — ignores action.uid. Doesn't return, so the
-        // shared spend logic below charges the once-per-turn charge normally.
-        s.maxEmbers = Math.min(CONFIG.embersCap, s.maxEmbers + 1);
+        // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
+        // action.uid. Doesn't return, so the shared spend logic below charges the once-per-turn charge.
+        s.maxEmbers += 1;
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
@@ -739,11 +740,15 @@ function advanceCombat(s: RunState): void {
   // Advance to the next wave (handoff A.1 step 5).
   s.wave += 1;
   s.best = Math.max(s.best, s.wave);
-  s.maxEmbers = Math.min(CONFIG.embersCap, s.maxEmbers + CONFIG.embersPerWave);
+  // Grow toward the cap (10) but never DROP maxEmbers — so Nadja / Mana Font bonuses that pushed it
+  // past the cap persist instead of being clamped away each wave.
+  s.maxEmbers = Math.max(s.maxEmbers, Math.min(CONFIG.embersCap, s.maxEmbers + CONFIG.embersPerWave));
   // Money Bot & co. raise the effective max above the base curve while on the board — added on
   // top of the cap (a deliberate economy card), recomputed each turn so selling it removes it.
   s.embers = s.maxEmbers + boardManaBonus(s);
   s.heroReady = true;
+  // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
+  s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
   for (const c of s.board) c.resummon = false; // The Reclaimer's mark is a per-turn choice
   if (s.tier < CONFIG.maxTier) {

@@ -272,7 +272,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
-.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26px); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-end; }
+/* Sit the hand ABOVE the status bar (which is pinned bottom-left at z-40). The arch is the card's whole
+   height now (the drawer is absolute), so without this lift the arches would tuck behind the status bar. */
+.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) + var(--ch) * 0.78); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-end; }
 .row.hand { gap: 0; align-items: flex-end; height: var(--ch); width: 100%; }
 .row.hand .card { position: relative; margin-left: -84px; transform: translateY(11%); transition: transform 0.08s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 /* Pin each hand card's text drawer below its arch (absolute) so a long drawer never shoves the arch
@@ -282,7 +284,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .row.hand .card:first-child { margin-left: 0; }
 /* hover lifts just enough to reveal the whole card + bring it forward — small so the card
    stays under the cursor (no bounce-out). */
-.row.hand .card:hover { transform: translateY(-5%); z-index: 45; }
+.row.hand .card:hover { transform: translateY(-8%) scale(1.07); z-index: 50; }
+/* On hover the text drawer flips ABOVE the arch (into the open space over the hand) so the full card —
+   art + every line of rules text — reads at once, instead of dropping behind the status bar. */
+.row.hand .card.compact.showtext:hover .drawer { top: auto; bottom: 100%; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }

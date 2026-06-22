@@ -625,11 +625,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.freeRolls += num(params.count, 1);
   },
 
-  /** Mana Font — cast: raise MAX Mana by `amount` (capped). Current Mana is NOT topped up — you don't
-   *  gain the new Mana this turn, just a bigger pool from next turn on. */
+  /** Mana Font — cast: raise MAX Mana by `amount`, UNCAPPED (may push past the normal cap). Current Mana
+   *  is NOT topped up — you don't gain the new Mana this turn, just a bigger pool from next turn on. */
   gainMaxMana: (ctx, _self, params) => {
     const amount = num(params.amount, 1);
-    ctx.state.maxEmbers = Math.min(CONFIG.embersCap, ctx.state.maxEmbers + amount);
+    ctx.state.maxEmbers += amount;
   },
 
   /** Mend — cast: heal the hero by `amount`, capped at the hero's max Resolve (no overheal). The hero's

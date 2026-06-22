@@ -148,6 +148,9 @@ export interface RunState {
   /** Cassen hero: enemy minions killed since the last Collision payoff — at 5 it grants a minion of the
    *  board's most common tribe (then subtracts 5). Banks across combats until a minion can be granted. */
   cassenKills: number;
+  /** Board power (Σ attack+health) captured at the START of the recruit turn — pins the telegraphed
+   *  opponent match for the whole turn, so buying / selling / Hero Power can't re-roll the foe. */
+  turnStartPower: number;
   /** Flat reduction to spell purchase costs (min 0) — drives "your spells cost less". */
   spellCostMod: number;
   /** One-shot hint for the UI: Channeling the Devourer's stat projectile (who received it + how much).
@@ -254,6 +257,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     tavernBuyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,
     cassenKills: 0,
+    turnStartPower: 0,
     spellCostMod: 0,
     hand: [],
     board: [],
@@ -283,5 +287,6 @@ export function deserialize(json: string): RunState {
   const state = JSON.parse(json) as RunState;
   if (!state.pool) state.pool = stockPool(state.tribes); // heal saves from before the finite pool
   state.cassenKills ??= 0; // heal saves from before Cassen's Collision tally
+  state.turnStartPower ??= 0; // heal saves from before the pinned-opponent power
   return state;
 }

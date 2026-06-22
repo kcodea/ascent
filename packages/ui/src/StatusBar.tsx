@@ -11,6 +11,7 @@ export function StatusBar() {
   const armHero = useGame((s) => s.armHero);
   const dispatch = useGame((s) => s.dispatch);
   const eotAnimating = useGame((s) => s.endTurnAnimating);
+  const combatEnemyDeaths = useGame((s) => s.combatEnemyDeaths);
   const sellTick = useGame((s) => s.sellTick);
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
   const hero = getHero(run.heroId);
@@ -35,7 +36,7 @@ export function StatusBar() {
       : power.kind === 'quest'
         ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.drakkoBuys}/5`}`
         : power.kind === 'collision'
-          ? `${power.name} · ${run.cassenKills}/5`
+          ? `${power.name} · ${(run.cassenKills + combatEnemyDeaths) % 5}/5`
           : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'
@@ -65,8 +66,8 @@ export function StatusBar() {
   // embersPerWave, capped), plus any board mana income (Money Bot) on top of the cap —
   // assuming the source stays on board.
   const manaBonus = boardManaBonus(run);
-  const nextEmbers = Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave) + manaBonus;
-  const afterEmbers = Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave) + manaBonus;
+  const nextEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + manaBonus;
+  const afterEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + manaBonus;
   const hpPct = Math.max(0, Math.min(100, (run.resolve / run.maxResolve) * 100));
 
   // When Resolve drops (a wave broke through), shake the chip + float the −X.

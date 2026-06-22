@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Bug fixes: Warden opponent-pin, uncapped Mana Font, hand fan position, Cassen live counter, missing spell art
+- **Next opponent no longer shifts mid-turn.** `nextOpponent` matched on the LIVE board power, so any board
+  change — buying, selling, or using a Hero Power (Warden's Fortify) — re-rolled the telegraphed foe. The match
+  power is now pinned at TURN START (`RunState.turnStartPower`, set in the wave advance + createRun + healed in
+  deserialize), so the opponent stays fixed for the whole turn.
+- **Mana Font + Nadja's Mana Font are uncapped.** Both clamped max Mana to the cap (10); now they raise it with
+  no ceiling. The per-wave growth uses `Math.max(maxEmbers, min(cap, …))` so an over-cap bonus persists instead
+  of being clamped away next wave; the StatusBar Mana projection got the same guard.
+- **Hand cards sit above the status bar again.** The previous entry's absolute drawer collapsed each card to its
+  arch height, so bottom-aligning dropped the arches behind the (z-40, bottom-pinned) status bar. Raised the hand
+  zone (`bottom: calc(var(--bar-y) + var(--ch) * 0.78)`); on hover a card lifts + scales and its text drawer flips
+  ABOVE the arch, so the full card reads at once.
+- **Cassen's Collision counter ticks live in combat.** `useCombatReplay` now exposes `enemyDeaths` (enemy deaths
+  landed up to the current beat); Recruit bridges it to the store (`combatEnemyDeaths`) and the StatusBar shows
+  `(cassenKills + combatEnemyDeaths) % 5`, so the counter climbs as kills happen (cleared out of combat —
+  settleCombat still banks the real total + fires the grants).
+- **Wired the missing spell art** — Undead Army, Lasso, Mend (copied from the masters, downscaled to 640px).
+- Verified: typecheck + lint + 236 tests (the Mana-cap tests flipped to assert the uncap); live — hand fan + the
+  hover reveal, the opponent stays put through a Hero Power, dimmed picker intact. (The Cassen live tick is
+  code-verified — combat wasn't driven live this pass.)
+
 ### UI/content polish: uniform hand height, Engraved text, Nadja active power, end-of-turn lock, picker backdrop
 A grab-bag pass from live playtest feedback.
 - **Hand cards now sit at a uniform height.** A forceFull card's text drawer was *in flow* below the fixed

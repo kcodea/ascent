@@ -144,6 +144,7 @@ export function Recruit() {
   const setEndTurnAnimating = useGame((s) => s.setEndTurnAnimating);
   // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
   const eotAnimating = useGame((s) => s.endTurnAnimating);
+  const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
@@ -282,6 +283,11 @@ export function Recruit() {
     [],
   );
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl });
+  // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
+  // replay; cleared out of combat (settleCombat banks the real total + fires any Collision grants).
+  useEffect(() => {
+    setCombatEnemyDeaths(inCombat ? replay.enemyDeaths : 0);
+  }, [inCombat, replay.enemyDeaths, setCombatEnemyDeaths]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
   // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just

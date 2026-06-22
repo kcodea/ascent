@@ -36,7 +36,7 @@ export function StatusBar() {
       : power.kind === 'quest'
         ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.drakkoBuys}/5`}`
         : power.kind === 'collision'
-          ? `${power.name} · ${(run.cassenKills + combatEnemyDeaths) % 5}/5`
+          ? `${power.name} · ${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`
           : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'

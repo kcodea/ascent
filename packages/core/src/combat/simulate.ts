@@ -245,7 +245,7 @@ export function simulate(
     }
     minion.dead = true;
     minion.health = 0;
-    events.push({ type: 'death', target: minion.uid });
+    events.push({ type: 'death', target: minion.uid, side: minion.side });
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff).
     if (minion.side === 'enemy') enemyDeaths++;
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).

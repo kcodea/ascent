@@ -269,7 +269,7 @@ export type CombatEvent =
   | { type: 'shieldUp'; target: string }
   | { type: 'poison'; target: string }
   | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[] } // returns at base stats
-  | { type: 'death'; target: string }
+  | { type: 'death'; target: string; side: Side } // `side` lets the UI count enemy kills (Cassen) without uid-matching
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; echo?: boolean }

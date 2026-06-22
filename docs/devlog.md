@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Fix Cassen's in-combat Collision counter (live count + display)
+- The live in-combat counter re-derived enemy kills from an enemy-uid set (initial.enemy + enemy summons),
+  which could diverge from simulate's authoritative `minion.side === 'enemy'` tally on uid/reborn/summon edge
+  cases. The `death` combat event now carries **`side`**, and `useCombatReplay.enemyDeaths` counts
+  `side === 'enemy'` deaths directly — so the live count matches the settled total exactly (no uid-matching).
+- The display used `(cassenKills + combatEnemyDeaths) % 5`, which rolled 4→0 mid-combat (the grant only fires
+  at settle) and read as "wrong." Now `min(5, cassenKills + combatEnemyDeaths)`: a clean climb to **5/5**
+  (grant ready), dropping to the post-grant value when settleCombat banks + grants.
+- Verified: typecheck + lint + 249 tests.
+
 ### Feel pass (round 1): drag card tracks the cursor 1:1; faster landing pop
 First, lowest-risk lever on the drag/buy/sell snappiness.
 - **Removed the deliberate 0.08s drag "float."** `.dragcard` had `transition: transform 0.08s ease-out` —

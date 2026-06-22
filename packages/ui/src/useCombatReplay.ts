@@ -549,16 +549,15 @@ export function useCombatReplay(
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.
   const enemyDeaths = useMemo(() => {
-    if (!combat) return 0;
-    const enemyUids = new Set(combat.initial.enemy.map((u) => u.uid));
-    for (const e of combat.events) if (e.type === 'summon' && e.side === 'enemy') enemyUids.add(e.minion.uid);
+    // Count enemy-side deaths landed up to the current beat — matches simulate's `minion.side === 'enemy'`
+    // tally exactly (the death event now carries `side`), so the live count agrees with the settled total.
     let n = 0;
     for (let i = 0; i < processedEnd; i++) {
       const e = events[i];
-      if (e?.type === 'death' && enemyUids.has(e.target)) n++;
+      if (e?.type === 'death' && e.side === 'enemy') n++;
     }
     return n;
-  }, [combat, events, processedEnd]);
+  }, [events, processedEnd]);
 
   // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit
   // collapses its own flex slot AS it plays its death pop, so the survivors glide in simultaneously

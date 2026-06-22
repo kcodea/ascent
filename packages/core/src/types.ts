@@ -115,7 +115,10 @@ export type EffectFactoryId =
   | 'spellGainRandomMinion' // cast: conjure a random buyable minion of a tier to hand (Summon Stone)
   | 'spellGildTarget' // cast: make the target Golden if its tier ≤ targetMaxTier (Eyes of Aresmar)
   | 'spellBuffTargetEscalating' // cast: +X/+X to the target, escalating per cast this run (Front to Back)
-  | 'spellGrantTribeAttack'; // cast: a tribe gets +Attack for the rest of the run (Lantern of Souls)
+  | 'spellGrantTribeAttack' // cast: a tribe gets +Attack for the rest of the run (Lantern of Souls)
+  | 'healHero' // cast: heal the hero (capped at max Resolve — Mend)
+  | 'conjureTribeArmy' // cast: conjure N copies of a random buyable minion of a tribe to hand (Undead Army)
+  | 'stealTavernMinion'; // cast: steal a random minion offer from the tavern into the hand (Lasso)
 
 export interface EffectDef {
   on: GameEvent;
@@ -282,6 +285,9 @@ export interface CombatResult {
   /** Player-side Deathrattles that fired this combat — the run loop accumulates these into the run-wide
    *  "this game" count Grim reads. */
   playerDeathrattles: number;
+  /** Enemy-side minions that died this combat — Cassen's Collision banks these toward "kill 5 enemy
+   *  minions → get a top-type minion" (the run loop accumulates them). */
+  enemyDeaths: number;
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
   /** Per-instance state to persist on the run board after combat, keyed by the board

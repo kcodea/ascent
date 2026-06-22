@@ -220,6 +220,7 @@ describe('run loop (@game/sim)', () => {
         result: 'win',
         playerDamage: 0,
         playerDeathrattles: 0,
+        enemyDeaths: 0,
         initial: { player: [], enemy: [] },
         playerSummonBonus: [{ sourceUid: 'k', bonus: 2 }],
       },
@@ -352,7 +353,7 @@ describe('run loop (@game/sim)', () => {
       board: [{ uid: 'imp', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
       cardBuffs: { fred: { attack: 2, health: 2 } },
       pendingTavern: ['fred'],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, initial: { player: [], enemy: [] } },
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
     s = reduce(s, { type: 'resolveCombat' }); // advance → next tavern injects Fred → the Imp eats it
     const imp = s.board.find((c) => c.cardId === 'imp');
@@ -369,7 +370,7 @@ describe('run loop (@game/sim)', () => {
       frozen: true,
       shop: [{ uid: 'keep', cardId: 'alley' }], // one frozen offer; the rest were bought away
       spell: null, // …and the spell was bought
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, initial: { player: [], enemy: [] } },
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.phase).toBe('recruit');
@@ -386,7 +387,7 @@ describe('run loop (@game/sim)', () => {
       frozen: true,
       board: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
       pendingTavern: ['fred'], // queued by Soulfeeder's Battlecry last turn
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, initial: { player: [], enemy: [] } },
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.board.find((c) => c.cardId === 'feed')!.attack).toBe(3); // the demon ate the queued Fred (+1/+1)
@@ -479,7 +480,7 @@ describe('run loop (@game/sim)', () => {
       ...createRun(1),
       phase: 'combat',
       board: [{ uid: 'mb', cardId: 'moneybot', tribe: 'mech', attack: 3, health: 3, keywords: ['M'], golden: false }],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, initial: { player: [], enemy: [] } },
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
     expect(boardManaBonus(s)).toBe(1);
     s = reduce(s, { type: 'resolveCombat' }); // advance a turn → start with base max + the bonus
@@ -1122,6 +1123,57 @@ describe('run loop (@game/sim)', () => {
     expect(spellDisplayText('lanternofsouls', 1)).toContain('{{+4/+1}}');
   });
 
+  it('Mend heals the hero 5 (capped at max Resolve, no overheal)', () => {
+    // Below max → heals 5.
+    let s: RunState = {
+      ...createRun(1), resolve: 20, shop: [], board: [],
+      hand: [{ uid: 'sp', cardId: 'mend', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' }); // untargeted
+    expect(s.resolve).toBe(25); // 20 + 5
+    expect(s.hand.some((c) => c.cardId === 'mend')).toBe(false); // consumed
+    // Near max → can't overheal past the hero's max Resolve (30).
+    let t: RunState = {
+      ...createRun(1), resolve: 28, shop: [], board: [],
+      hand: [{ uid: 'sp', cardId: 'mend', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    t = reduce(t, { type: 'play', uid: 'sp' });
+    expect(t.resolve).toBe(getHero(t.heroId).resolve); // clamped to 30, not 33
+  });
+
+  it('Undead Army conjures 2 copies of one random Undead to the hand', () => {
+    // A run always has all 5 tribes active today, so Undead is buyable.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [],
+      hand: [{ uid: 'sp', cardId: 'undeadarmy', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    const conjured = s.hand.filter((c) => c.cardId !== 'undeadarmy');
+    expect(conjured.length).toBe(2); // two copies
+    expect(conjured[0]!.cardId).toBe(conjured[1]!.cardId); // …of the SAME card
+    const def = CARD_INDEX[conjured[0]!.cardId]!;
+    expect(def.tribe === 'undead' || def.tribe2 === 'undead').toBe(true); // an Undead
+  });
+
+  it('Lasso steals a random minion from the tavern into the hand (fizzles on an empty shop)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, board: [],
+      shop: [{ uid: 'o1', cardId: 'alley' }, { uid: 'o2', cardId: 'alley' }],
+      hand: [{ uid: 'sp', cardId: 'lasso', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.shop.length).toBe(1); // one offer was removed from the tavern
+    expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true); // …and landed in the hand (free)
+    expect(s.hand.some((c) => c.cardId === 'lasso')).toBe(false); // the spell is consumed
+    // Empty shop → the spell fizzles gracefully (consumed, nothing stolen).
+    let empty: RunState = {
+      ...createRun(1), embers: 0, board: [], shop: [],
+      hand: [{ uid: 'sp', cardId: 'lasso', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    empty = reduce(empty, { type: 'play', uid: 'sp' });
+    expect(empty.hand.some((c) => c.cardId === 'lasso')).toBe(false); // consumed, no crash
+  });
+
   it('hero power can buff a tavern offer, and the buff is baked in when bought', () => {
     let s: RunState = {
       ...createRun(1),
@@ -1515,7 +1567,7 @@ describe('hero powers (@game/sim)', () => {
 
   it('createRun defaults to the Warden and accepts a chosen hero', () => {
     expect(createRun(1).heroId).toBe('warden');
-    expect(createRun(1, 'oner').heroId).toBe('oner');
+    expect(createRun(1, 'indy').heroId).toBe('indy');
     expect(createRun(1).heroPowerSpent).toBe(false);
   });
 
@@ -1539,8 +1591,8 @@ describe('hero powers (@game/sim)', () => {
     expect(offer.hp).toBe(2);
   });
 
-  it("Oner's Gild doubles a minion's stats, turns it golden, and is once per game", () => {
-    let s: RunState = { ...createRun(1, 'oner'), board: [mk('a', 3, 4), mk('b', 2, 2)] };
+  it("Indy's Gild doubles a minion's stats, turns it golden, and is once per game", () => {
+    let s: RunState = { ...createRun(1, 'indy'), board: [mk('a', 3, 4), mk('b', 2, 2)] };
     s = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(s.board[0]!.golden).toBe(true);
     expect(s.board[0]!.attack).toBe(6); // doubled
@@ -1552,19 +1604,19 @@ describe('hero powers (@game/sim)', () => {
     expect(reduce(s, { type: 'heroPower', uid: 'b' })).toBe(s);
   });
 
-  it("Oner's Gild no-ops (no charge spent) on an already-golden minion", () => {
-    const s: RunState = { ...createRun(1, 'oner'), board: [{ ...mk('a', 3, 4), golden: true }] };
+  it("Indy's Gild no-ops (no charge spent) on an already-golden minion", () => {
+    const s: RunState = { ...createRun(1, 'indy'), board: [{ ...mk('a', 3, 4), golden: true }] };
     const after = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(after).toBe(s); // rejected → same reference
     expect(after.heroPowerSpent).toBe(false); // charge preserved for a real target
   });
 
-  it("Myra's Encore re-fires a friendly minion's Battlecry, once per turn", () => {
+  it("Myra's Pulse re-fires a friendly minion's Battlecry, once per turn (from turn 1)", () => {
     // Hoard Cleric's Battlecry buffs all your Dragons +1/+1 (includes itself).
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
-    let s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] }; // Encore unlocks turn 3
+    let s: RunState = { ...createRun(1, 'myra'), board: [cleric()] }; // available from turn 1 (no gate)
     s = reduce(s, { type: 'heroPower', uid: 'c' });
     expect(s.board[0]!.attack).toBe(2); // 1 + 1
     expect(s.board[0]!.health).toBe(4); // 3 + 1
@@ -1574,10 +1626,9 @@ describe('hero powers (@game/sim)', () => {
     expect(reduce(s, { type: 'heroPower', uid: 'c' })).toBe(s);
   });
 
-  it("Myra's Encore auto-targets a targeted Battlecry (Toxin Tender → best friend gets Venomous)", () => {
+  it("Myra's Pulse auto-targets a targeted Battlecry (Toxin Tender → best friend gets Venomous)", () => {
     const s: RunState = {
       ...createRun(1, 'myra'),
-      wave: 3, // Encore unlocks turn 3
       board: [
         { uid: 't', cardId: 'toxin', tribe: 'undead', attack: 1, health: 3, keywords: [], golden: false },
         mk('f', 5, 5), // highest-attack friend → auto-picked
@@ -1588,40 +1639,30 @@ describe('hero powers (@game/sim)', () => {
     expect(after.heroReady).toBe(false);
   });
 
-  it("Myra's Encore no-ops (no charge spent) on a minion with no Battlecry", () => {
-    // wave 3 so it's unlocked — this tests the no-Battlecry path, not the turn lock.
-    const s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [mk('a', 2, 2)] }; // sandbag = vanilla
+  it("Myra's Pulse no-ops (no charge spent) on a minion with no Battlecry", () => {
+    const s: RunState = { ...createRun(1, 'myra'), board: [mk('a', 2, 2)] }; // sandbag = vanilla
     const after = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(after).toBe(s); // rejected → same reference
     expect(after.heroReady).toBe(true); // charge preserved
   });
 
-  it("Myra's Encore is locked until turn 3", () => {
+  it("Myra's Pulse is available from turn 1 (no turn gate)", () => {
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
-    // Turns 1 & 2: locked — rejected, the minion is untouched, the charge preserved.
-    for (const wave of [1, 2]) {
-      const s: RunState = { ...createRun(1, 'myra'), wave, board: [cleric()] };
-      const after = reduce(s, { type: 'heroPower', uid: 'c' });
-      expect(after).toBe(s);
-      expect(after.board[0]!.attack).toBe(1);
-      expect(after.heroReady).toBe(true);
-    }
-    // Turn 3: unlocked — the Battlecry fires.
-    let s3: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] };
-    s3 = reduce(s3, { type: 'heroPower', uid: 'c' });
-    expect(s3.board[0]!.attack).toBe(2);
-    expect(s3.heroReady).toBe(false);
+    // Turn 1: the Battlecry fires immediately — no unlock wave.
+    let s: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric()] };
+    s = reduce(s, { type: 'heroPower', uid: 'c' });
+    expect(s.board[0]!.attack).toBe(2); // +1/+1 from the replayed Battlecry
+    expect(s.heroReady).toBe(false);
   });
 
-  it("Myra's Encore can complete a triple — a replayed Battlecry's summon golden-combines", () => {
+  it("Myra's Pulse can complete a triple — a replayed Battlecry's summon golden-combines", () => {
     // Two Strays already down; replaying Alleycat's Battlecry summons the third → triple → a golden
     // Stray lands in the hand. Regression: hero powers used to skip the triple check entirely, so a
     // power-summoned third copy never combined.
     const s: RunState = {
       ...createRun(1, 'myra'),
-      wave: 3, // Encore unlocks turn 3
       board: [
         { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
         { uid: 's1', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
@@ -1639,7 +1680,7 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("createRun seeds the run with the hero's Resolve (HP)", () => {
-    for (const id of ['warden', 'oner', 'myra']) {
+    for (const id of ['warden', 'indy', 'myra']) {
       const s = createRun(1, id);
       expect(s.resolve).toBe(getHero(id).resolve);
       expect(s.maxResolve).toBe(getHero(id).resolve);
@@ -1685,18 +1726,18 @@ describe('hero powers (@game/sim)', () => {
     expect(cast('warden', 1).attack).toBe(6);
   });
 
-  it('Sporen marks one minion for resummon (clearing any previous mark)', () => {
-    let s: RunState = { ...createRun(1, 'sporen'), board: [mk('a', 2, 2), mk('b', 3, 3)] };
+  it('Soren marks one minion for resummon (clearing any previous mark)', () => {
+    let s: RunState = { ...createRun(1, 'soren'), board: [mk('a', 2, 2), mk('b', 3, 3)] };
     s = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(s.board.find((c) => c.uid === 'a')!.resummon).toBe(true);
     expect(s.board.find((c) => c.uid === 'b')!.resummon ?? false).toBe(false);
     expect(s.heroReady).toBe(false);
   });
 
-  it("Sporen's mark carries into combat (marked minion destroyed + resummoned)", () => {
+  it("Soren's mark carries into combat (marked minion destroyed + resummoned)", () => {
     // Pack Scrounger marked → at start of combat it dies (Deathrattle → 2 Pups) and a copy returns.
     let s: RunState = {
-      ...createRun(1, 'sporen'),
+      ...createRun(1, 'soren'),
       board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'heroPower', uid: 'p' });
@@ -1704,6 +1745,66 @@ describe('hero powers (@game/sim)', () => {
     const ev = s.lastCombat!.events;
     expect(ev.some((e) => e.type === 'summon' && e.minion.cardId === 'pup')).toBe(true); // Deathrattle fired
     expect(ev.some((e) => e.type === 'summon' && e.minion.cardId === 'pack')).toBe(true); // copy resummoned
+  });
+
+  it("Nadja's Mana Font raises max Mana by 1 (capped), spending the once-per-turn charge", () => {
+    let s: RunState = { ...createRun(1, 'nadja'), maxEmbers: 4, heroReady: true };
+    s = reduce(s, { type: 'heroPower', uid: 'x' }); // untargeted — uid is ignored
+    expect(s.maxEmbers).toBe(5); // +1 permanent
+    expect(s.heroReady).toBe(false); // charge spent (not once-per-game)
+    // A second use this turn is rejected (charge spent).
+    expect(reduce(s, { type: 'heroPower', uid: 'x' })).toBe(s);
+    // Respects the Mana cap.
+    let capped: RunState = { ...createRun(1, 'nadja'), maxEmbers: CONFIG.embersCap, heroReady: true };
+    capped = reduce(capped, { type: 'heroPower', uid: 'x' });
+    expect(capped.maxEmbers).toBe(CONFIG.embersCap); // no overflow
+  });
+
+  it("Cassen's Collision banks enemy kills and grants a top-type minion at 5", () => {
+    // A neutral-dominant board (Target Dummy = neutral, always buyable) → the grant is a neutral minion.
+    const neutral = (uid: string): BoardCard => ({
+      uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false,
+    });
+    // 3 banked + 2 this combat = 5 → one grant, kills back to 0.
+    let s: RunState = {
+      ...createRun(1, 'cassen'),
+      phase: 'combat',
+      cassenKills: 3,
+      board: [neutral('a'), neutral('b')],
+      hand: [],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 2, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.cassenKills).toBe(0); // 5 spent on the grant
+    expect(s.hand.length).toBe(1); // a minion was conjured to the hand
+    expect(CARD_INDEX[s.hand[0]!.cardId]!.tribe).toBe('neutral'); // …of the board's most common tribe
+
+    // Under 5 → no grant, kills simply bank.
+    let t: RunState = {
+      ...createRun(1, 'cassen'),
+      phase: 'combat',
+      cassenKills: 0,
+      board: [neutral('a')],
+      hand: [],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 3, initial: { player: [], enemy: [] } },
+    };
+    t = reduce(t, { type: 'resolveCombat' });
+    expect(t.cassenKills).toBe(3); // banked, not spent
+    expect(t.hand.length).toBe(0); // nothing granted yet
+  });
+
+  it("Cassen's Collision does nothing for other heroes", () => {
+    let s: RunState = {
+      ...createRun(1, 'warden'), // not Cassen
+      phase: 'combat',
+      cassenKills: 0,
+      board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false }],
+      hand: [],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 9, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.cassenKills).toBe(0); // never accrues for a non-Collision hero
+    expect(s.hand.length).toBe(0);
   });
 });
 

@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **9 heroes + 3 spells.** Two new heroes — **Nadja** (press for +1 max Mana) and **Cassen** (kill 5 enemy
+  minions → get a minion of your most common type) — plus fresh art for the roster and two renames (**Indy**,
+  **Soren**). New spells: **Mend** (heal 5), **Undead Army** (2 copies of a random Undead), **Lasso** (steal a
+  tavern minion). Tribes Choice can now also be cast on a tavern minion.
 - **Async-PvP groundwork + tavern-targeting.** Your finished runs' boards now **persist** (localStorage) and
   load back into the opponent pool at startup, so you face boards you actually built. And **Shatter** / **Front
   to Back** can be dropped onto a **tavern offer** to buff it before you buy it.

@@ -145,6 +145,9 @@ export interface RunState {
   tavernBuyBonus: { atk: number; hp: number };
   /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
   drakkoBuys: number;
+  /** Cassen hero: enemy minions killed since the last Collision payoff — at 5 it grants a minion of the
+   *  board's most common tribe (then subtracts 5). Banks across combats until a minion can be granted. */
+  cassenKills: number;
   /** Flat reduction to spell purchase costs (min 0) — drives "your spells cost less". */
   spellCostMod: number;
   /** One-shot hint for the UI: Channeling the Devourer's stat projectile (who received it + how much).
@@ -250,6 +253,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     undeadHealthBonus: 0,
     tavernBuyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,
+    cassenKills: 0,
     spellCostMod: 0,
     hand: [],
     board: [],
@@ -278,5 +282,6 @@ export function serialize(state: RunState): string {
 export function deserialize(json: string): RunState {
   const state = JSON.parse(json) as RunState;
   if (!state.pool) state.pool = stockPool(state.tribes); // heal saves from before the finite pool
+  state.cassenKills ??= 0; // heal saves from before Cassen's Collision tally
   return state;
 }

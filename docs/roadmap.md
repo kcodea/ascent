@@ -56,7 +56,7 @@ the Devourer** T5 have landed alongside the original T1s — keep filling the mi
   small overlays reusing `herocard`). Add a data-driven **MODES** registry — the two intended modes
   are **PvE** (the bounded climb; the 20-wave win condition + meta progression hang off it) and
   **async PvP** (fight *snapshots* of other players' boards — no live opponent). Expand the **hero
-  roster to ~6–8** so the 3-of-N picker is meaningful, and **seed the hero-choice roll** (for dailies).
+  roster** (now **9** — the ~6–8 goal is met) so the 3-of-N picker is meaningful, and **seed the hero-choice roll** (for dailies).
   *Why now:* heroes are an active thread and the game needs a proper front door. *Shipped already:* the
   PvE win condition (`CONFIG.maxWave` = 20 → Victory) + Start Over.
 - **Patch 3 — Meta Progression** *(M3; retention — **PvE side**).* The "why keep playing" loop, which
@@ -105,7 +105,7 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       runner, which is deprioritized per the user). Build a way to tune how fast enemy boards scale
       per wave so the climb's difficulty ramp feels right. Design TBD.
 - [ ] **More spells + spell-synergy cards — target ~40 spells** (set 2026-06-20; spells are a core
-      pillar, **16 exist now** — 11 added 2026-06-21). Spread across tiers; deepen the archetype (Spirit Pup→Worgen, the
+      pillar, **19 exist now** — 11 added 2026-06-21, +3 (Mend / Undead Army / Lasso) 2026-06-22). Spread across tiers; deepen the archetype (Spirit Pup→Worgen, the
       Rohan/Spellbinder hero). Three T1 spells rotate in the slot today: Spirit Fire (+3/+3 to a friend),
       Ember Pouch (gain 1 Ember — *net-neutral as specced; revisit*), Bulwark (+0/+1 + Taunt to a friend).
       Hook usage:
@@ -156,9 +156,10 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       (`HeroPower.unlockWave`), and **passive powers** (`HeroPower.passive`). Power kinds now cover:
       recruit buffs (`fortify`/`gild`), recruit re-triggers (`replayBattlecry`/`replayEndOfTurn`),
       a passive (`spellAmplify`), and a **combat-driving** mark (`resummon` — reads in `simulate()`).
-      **Seven heroes, all named + with portrait art:** Warden (Fortify), Oner (Gild), Myra (Encore),
-      Sporen (Reclaim), Rohan (Attunement, passive), Djinn (Cadence), Drakko (Drumline — the first **quest**
-      power: buy 5 Battlecry minions → a free Drakko the Drummer). Remaining:
+      **Nine heroes, all named + with portrait art:** Warden (Fortify), Indy (Gild), Myra (Pulse), Soren
+      (Reclaim), Rohan (Attunement, passive), Djinn (Cadence), Nadja (Mana Font — a `gainMaxMana` active),
+      Cassen (Collision — a `collision` carry-back: kill 5 enemies → a top-tribe minion), Drakko (Drumline —
+      the first **quest** power: buy 5 Battlecry minions → a free Drakko the Drummer). Remaining:
   - **More heroes** — each is a `HeroDef` + (only if novel) a new power `kind`. Cheap kinds left: a
     one-shot gold/mana, a reroll discount, a token summon.
   - Consider always including a simple "starter" hero in the 3-of-N so a new player isn't forced into a

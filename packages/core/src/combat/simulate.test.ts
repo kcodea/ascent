@@ -714,6 +714,31 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerHandGrants).toContain('spiritfire'); // still recorded for the post-combat hand add
   });
 
+  it('counts enemy-side deaths in enemyDeaths (Cassen Collision) — player losses excluded', () => {
+    // Gnasher (re-attacks on kill) clears two 1/1 enemies on its own turn; the player loses nothing.
+    const a = run(
+      [
+        { cardId: 'gnash', attack: 6, health: 6 },
+        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] }, // inert filler → Gnasher goes first
+      ],
+      [
+        { cardId: 'omen', attack: 1, health: 1 },
+        { cardId: 'omen', attack: 1, health: 1 },
+      ],
+      1,
+    );
+    expect(a.result).toBe('win');
+    expect(a.enemyDeaths).toBe(2); // both enemy minions died
+    // A fight where the player loses a minion must not inflate enemyDeaths with player deaths.
+    const b = run(
+      [{ cardId: 'alley', attack: 1, health: 1 }],
+      [{ cardId: 'gnash', attack: 6, health: 6 }],
+      1,
+    );
+    expect(b.result).toBe('lose');
+    expect(b.enemyDeaths).toBe(0); // only the player's Alleycat died — not counted
+  });
+
   it('produces a finite, well-formed event log', () => {
     const a = run(
       [{ cardId: 'pack', attack: 2, health: 2 }],

@@ -1,4 +1,4 @@
-import { makeRng, type CardDef, type Keyword } from '@game/core';
+import { makeRng, type CardDef, type Keyword, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
@@ -201,6 +201,49 @@ function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
     takeFromPool(state, def.id);
   }
   state.rngCursor = rng.state();
+}
+
+/**
+ * The player board's most common tribe — counting BOTH tribes of each card (dual-types count for both).
+ * Ties resolve to the first seen on the board (insertion order + strict `>`). Null for an empty / tribe-less
+ * board. The `s.board` analogue of snapshot.ts's `dominantTribe` (which takes a BoardSnapshot).
+ */
+function dominantBoardTribe(state: RunState): Tribe | null {
+  const counts = new Map<Tribe, number>();
+  for (const c of state.board) {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) continue;
+    for (const t of [def.tribe, def.tribe2]) {
+      if (t) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+  }
+  let best: { tribe: Tribe; count: number } | null = null;
+  for (const [tribe, count] of counts) {
+    if (!best || count > best.count) best = { tribe, count }; // strict `>` → first seen wins ties
+  }
+  return best?.tribe ?? null;
+}
+
+/**
+ * Cassen's Collision payoff: conjure ONE random buyable minion of the board's most common tribe (active
+ * tribes + the always-buyable neutral glue, copies left) into the hand. Returns whether a minion was
+ * added — false on an empty / tribe-less board, no eligible card, or a full hand, so the caller keeps the
+ * kills banked for next time. Reuses `conjureToHand` (seeded rng + pool draw), detecting success via the
+ * hand length so the banked count only spends on an actual grant.
+ */
+export function grantTopTypeMinion(state: RunState): boolean {
+  const tribe = dominantBoardTribe(state);
+  if (!tribe) return false;
+  const pool = BUYABLE_CARDS.filter(
+    (c) =>
+      (c.tribe === tribe || c.tribe2 === tribe) &&
+      (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
+      (state.pool[c.id] ?? 0) > 0,
+  );
+  if (pool.length === 0) return false;
+  const before = state.hand.length;
+  conjureToHand(state, pool, 1);
+  return state.hand.length > before; // false if the hand was full (no minion added)
 }
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
@@ -554,6 +597,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, pool, 1);
   },
 
+  /** Undead Army — cast: pick ONE random buyable minion of `tribe` (active tribes, copies left) and
+   *  conjure `count` copies of it into the hand. Fizzles gracefully on no option / no hand room. */
+  conjureTribeArmy: (ctx, _self, params) => {
+    const tribe = str(params.tribe);
+    const count = num(params.count, 2);
+    const pool = BUYABLE_CARDS.filter(
+      (c) =>
+        (c.tribe === tribe || c.tribe2 === tribe) &&
+        (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
+        (ctx.state.pool[c.id] ?? 0) > 0,
+    );
+    if (pool.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const pick = pool[rng.int(pool.length)]!; // one card, several copies
+    ctx.state.rngCursor = rng.state();
+    conjureToHand(ctx.state, Array(count).fill(pick), count); // conjureToHand honours the hand cap + pool
+  },
+
   // --- Run-level spell effects (act on the run, no minion target). These run through
   //     `applyCastEffects` with `self` undefined — they ignore it. ---
 
@@ -567,6 +628,38 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   gainMaxMana: (ctx, _self, params) => {
     const amount = num(params.amount, 1);
     ctx.state.maxEmbers = Math.min(CONFIG.embersCap, ctx.state.maxEmbers + amount);
+  },
+
+  /** Mend — cast: heal the hero by `amount`, capped at the hero's max Resolve (no overheal). The hero's
+   *  `resolve` field is the max HP. Untargeted (acts on the run). */
+  healHero: (ctx, _self, params) => {
+    const max = getHero(ctx.state.heroId).resolve;
+    ctx.state.resolve = Math.min(max, ctx.state.resolve + num(params.amount, 5));
+  },
+
+  /** Lasso — cast: steal a random MINION offer from the tavern into the hand (free). Picks via the
+   *  seeded rng, removes it from the shop, and adds it as a BoardCard (base + any offer buff bakes in,
+   *  mirroring a buy). Fizzles gracefully on an empty shop or a full hand. */
+  stealTavernMinion: (ctx, _self) => {
+    const state = ctx.state;
+    if (state.shop.length === 0 || state.hand.length >= CONFIG.handMax) return;
+    const rng = makeRng(state.rngCursor);
+    const idx = rng.int(state.shop.length);
+    state.rngCursor = rng.state();
+    const offer = state.shop[idx]!;
+    const card = CARD_INDEX[offer.cardId];
+    if (!card) return;
+    state.shop.splice(idx, 1); // stolen — leaves the tavern (the pooled copy travels with it to the hand)
+    const cb = cardBuff(state, card.id); // a stolen Fodder carries Ritualist's run buff, like a buy
+    state.hand.push({
+      uid: `b${state.uidSeq++}`,
+      cardId: card.id,
+      tribe: card.tribe,
+      attack: card.attack + cb.attack + (offer.atk ?? 0),
+      health: card.health + cb.health + (offer.hp ?? 0),
+      keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
+      golden: false,
+    });
   },
 
   /** Staff of Guel — cast: a PERMANENT run-wide buff to every minion bought from the tavern from now

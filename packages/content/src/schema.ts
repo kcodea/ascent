@@ -88,6 +88,9 @@ export const EffectFactoryIdSchema = z.enum([
   'spellGildTarget',
   'spellBuffTargetEscalating',
   'spellGrantTribeAttack',
+  'healHero',
+  'conjureTribeArmy',
+  'stealTavernMinion',
 ]);
 
 export const EffectDefSchema = z.object({

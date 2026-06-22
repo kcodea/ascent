@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Hero roster expansion + retheme + 3 spells (M2 content / M3 heroes)
+- **9 heroes now** (was 7). Fresh art for the whole returning roster; **Oner → Indy** and **Sporen → Soren**
+  (renamed id + name + art — every reference updated, no functional `oner`/`sporen` left). Two new heroes:
+  **Nadja** (active *Mana Font* — press for +1 max Mana; new `gainMaxMana` power kind) and **Cassen** (passive
+  *Collision* — new `collision` kind: `simulate` now returns `enemyDeaths`; `settleCombat` banks them on
+  `RunState.cassenKills` and every 5 conjures a minion of the board's most-common tribe via
+  `grantTopTypeMinion`, keeping the bank if the hand is full). All hero-power names/text reset to the
+  canonical wording; Myra's *Pulse* drops its old turn-3 gate (now once-per-turn from turn 1).
+- **Tribes Choice** is now `target: 'any'` — cast it on a tavern offer to conjure a minion of that offer's tribe.
+- **3 new spells:** **Mend** (T2/4 — heal the hero 5, no overheal; `healHero`), **Undead Army** (T4/4 — conjure
+  2 copies of a random Undead; `conjureTribeArmy`), **Lasso** (T3/2 — steal a random tavern minion to hand;
+  `stealTavernMinion`). Spell pool 16 → 19.
+- Verified: typecheck + lint + **234 tests** (new hero/spell coverage); live — every hero renders its new art
+  after a dev-server restart (the `import.meta.glob` re-resolves), and the picker shows Indy/Soren/Nadja/Cassen.
+  Built by a subagent to spec; lead reviewed the renames + Cassen carry-back + factories and re-ran the gate.
+
 ### Async-PvP groundwork: persist your own boards + friendly/any tavern targeting (M3)
 Two framework rigs (balance/content-depth running on the side).
 - **Persist your own finished-run boards into the opponent pool.** A finished run is `{ seed, heroId,

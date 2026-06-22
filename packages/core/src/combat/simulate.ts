@@ -72,6 +72,9 @@ export function simulate(
   // (added to the run-wide base passed in), and is carried back to accumulate the run-wide count.
   let playerDeathrattles = 0;
 
+  // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
+  let enemyDeaths = 0;
+
   // Corrupted Lifebinder: `linkUid` arrives as the linked board card's uid — remap it to that minion's
   // fresh combat uid (matched via sourceUid) so mid-fight buffs on the demon can find their mirror.
   for (const side of ['player', 'enemy'] as const) {
@@ -242,6 +245,8 @@ export function simulate(
     minion.dead = true;
     minion.health = 0;
     events.push({ type: 'death', target: minion.uid });
+    // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff).
+    if (minion.side === 'enemy') enemyDeaths++;
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
     if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles++;
     bus.emit('onDeath', { minion, side: minion.side, killer });
@@ -499,6 +504,7 @@ export function simulate(
     result,
     playerDamage,
     playerDeathrattles,
+    enemyDeaths,
     initial,
     playerSummonBonus,
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,

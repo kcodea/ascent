@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -370,10 +370,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card) return state;
         for (const c of s.board) c.resummon = false;
         card.resummon = true;
-      } else if (power.kind === 'spellAmplify' || power.kind === 'quest') {
-        // Passive powers (Spellbinder's amplify, Drakko's quest) have no activation — the work happens
-        // elsewhere (spell math / the buy case). Nothing to do on a heroPower action.
+      } else if (power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision') {
+        // Passive powers (Rohan's amplify, Drakko's quest, Cassen's Collision) have no activation — the
+        // work happens elsewhere (spell math / the buy case / settleCombat). Nothing to do here.
         return state;
+      } else if (power.kind === 'gainMaxMana') {
+        // Nadja: +1 max Mana permanently (capped). Untargeted — ignores action.uid. Doesn't return, so the
+        // shared spend logic below charges the once-per-turn charge normally.
+        s.maxEmbers = Math.min(CONFIG.embersCap, s.maxEmbers + 1);
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
@@ -690,6 +694,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
         keywords: [...def.keywords],
         golden: false,
       });
+    }
+  }
+  // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
+  // common tribe (then spends 5). A failed grant (full hand / no tribe) keeps the kills banked for later.
+  if (getHero(s.heroId).power.kind === 'collision') {
+    s.cassenKills += result.enemyDeaths;
+    while (s.cassenKills >= 5) {
+      if (!grantTopTypeMinion(s)) break;
+      s.cassenKills -= 5;
     }
   }
   if (result.result === 'lose') s.resolve = Math.max(0, s.resolve - result.playerDamage);

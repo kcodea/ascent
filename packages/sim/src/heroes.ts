@@ -9,11 +9,13 @@
 
 export type HeroPowerKind =
   | 'fortify' // Warden: give a minion +Tier/+Tier (scales with Tavern Tier)
-  | 'gild' // Oner: make a friendly minion Golden
+  | 'gild' // Indy: make a friendly minion Golden
   | 'replayBattlecry' // Myra: re-trigger a friendly minion's Battlecry
-  | 'replayEndOfTurn' // Dusk: proc a friendly minion's End of Turn now
-  | 'resummon' // The Reclaimer: at start of combat, destroy a marked minion (procs its Deathrattle) + resummon a copy
-  | 'spellAmplify' // The Spellbinder (passive): stat-granting spells give +X/+X more, X scaling every 3 waves
+  | 'replayEndOfTurn' // Djinn: proc a friendly minion's End of Turn now
+  | 'resummon' // Soren: at start of combat, destroy a marked minion (procs its Deathrattle) + resummon a copy
+  | 'spellAmplify' // Rohan (passive): stat-granting spells give +X/+X more, X scaling every 3 waves
+  | 'gainMaxMana' // Nadja: gain +1 max Mana permanently
+  | 'collision' // Cassen (passive): after killing 5 enemy minions, get a minion of your most common type (carry-back)
   | 'quest'; // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
 
 export interface HeroPower {
@@ -48,19 +50,19 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Fortify',
       kind: 'fortify',
-      text: 'Each wave: give a minion +X/+X, where X is your Tavern Tier.',
+      text: 'Give a minion +1/+1. Improve this when you tavern up.',
     },
   },
   {
-    id: 'oner',
-    name: 'Oner',
+    id: 'indy',
+    name: 'Indy',
     blurb: 'One perfect moment — gild a single minion and make it count.',
     resolve: 30,
     power: {
       name: 'Gild',
       kind: 'gild',
       oncePerGame: true,
-      text: 'Once per game: make a friendly minion Golden (doubles its base stats).',
+      text: 'Gild: Make a friendly minion golden. (Once per game)',
     },
   },
   {
@@ -69,21 +71,20 @@ export const HEROES: HeroDef[] = [
     blurb: 'A conductor of entrances — call a minion to take its bow again.',
     resolve: 30,
     power: {
-      name: 'Encore',
+      name: 'Pulse',
       kind: 'replayBattlecry',
-      unlockWave: 3,
-      text: "Each turn (from turn 3): trigger a friendly minion's Battlecry again.",
+      text: "Pulse: Trigger a friendly minion's Battlecry effect. (Once per turn)",
     },
   },
   {
-    id: 'sporen',
-    name: 'Sporen',
+    id: 'soren',
+    name: 'Soren',
     blurb: 'Death is a doorway — send a minion through it and it blooms back.',
     resolve: 30,
     power: {
       name: 'Reclaim',
       kind: 'resummon',
-      text: "Each turn: mark a minion. At the start of combat it's destroyed (its Deathrattle fires) and an exact copy returns if there's room.",
+      text: 'Reclaim: Mark a minion. At the start of combat, that minion is destroyed and returns when possible.',
     },
   },
   {
@@ -95,7 +96,7 @@ export const HEROES: HeroDef[] = [
       name: 'Attunement',
       kind: 'spellAmplify',
       passive: true,
-      text: 'Passive: your stat-granting spells give +X/+X more. X starts at 1 and rises every 3 turns.',
+      text: 'Attunement: Spells gain +1/+1. Improve this every 3 turns.',
     },
   },
   {
@@ -106,7 +107,30 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Cadence',
       kind: 'replayEndOfTurn',
-      text: "Each turn: trigger a friendly minion's End of Turn effect now.",
+      text: "Cadence: Trigger a friendly minion's End of Turn effect. (Once per turn)",
+    },
+  },
+  {
+    id: 'nadja',
+    name: 'Nadja',
+    blurb: 'The well runs deeper each turn — more Mana, more room to scheme.',
+    resolve: 30,
+    power: {
+      name: 'Mana Font',
+      kind: 'gainMaxMana',
+      text: 'Mana Font: Gain +1 max Mana permanently.',
+    },
+  },
+  {
+    id: 'cassen',
+    name: 'Cassen',
+    blurb: 'Every clash leaves a mark — break enough of them and the spoils find you.',
+    resolve: 30,
+    power: {
+      name: 'Collision',
+      kind: 'collision',
+      passive: true, // a carry-back — the work happens after combat (settleCombat), nothing to arm
+      text: 'Collision: After you kill 5 enemy minions, get a minion of your most common type.',
     },
   },
   {
@@ -119,7 +143,7 @@ export const HEROES: HeroDef[] = [
       kind: 'quest',
       passive: true, // a quest — the work happens in the buy case, nothing to arm
       oncePerGame: true,
-      text: 'Quest: buy 5 Battlecry minions → get Drakko the Drummer.',
+      text: 'Drumline: Buy 5 Battlecry minions to get Drakko the Drummer. (Once per game)',
     },
   },
 ];

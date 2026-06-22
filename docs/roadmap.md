@@ -193,13 +193,18 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Three neutral minions (requested, not yet built).** Hoarder (T1 1/1 — sells for +1 Mana per turn held,
+      golden +2), Black Belt Brian (T5 3/5 — Battlecry: Discover a spell, golden 2), Yazzus (T6 6/8 — your spells
+      cast twice / thrice when golden, animations procing per repeat). A subagent was queued for these but hit
+      the session limit before running; art masters exist (Hoarder.png, Yazzus.png; Brian TBD).
+- [ ] **Hand uniform-height + hover-pop (re-approach).** The absolute-drawer + raise attempt broke card
+      placement on short/wide viewports (the hand crowded the warband drop zone) and was reverted to the
+      original in-flow hand. Redo as a COMPACT-at-rest fan (arch only, like the warband) with the full card
+      revealed on hover — survives short viewports, is naturally uniform, and stays out of the play area.
 - [ ] **Cassen grant fly-to-hand animation.** Collision's granted minion is added to hand + the `N/5` counter
       ticks, but it should *fly out of the hero panel into the hand* (mirroring the mid-combat hand-grant
       flourish). The mid-combat fly is keyed to combat events; Cassen's grant lands post-combat in
       `settleCombat`, so it needs its own post-combat marker + a fly-from-hero-panel animation.
-- [ ] **Hand drawer readability (optional).** Hand cards now align by the arch with the text drawer pinned
-      below (absolute) — at rest the drawer can run past the viewport bottom. If full resting text matters,
-      nudge the hand up or grow the hover-lift so the drawer clears the edge.
 - [x] **Friendly/any spell targeting** (done 2026-06-22). `CardDef.target` gained `'any'` (vs `'friendly'`):
       **Shatter** + **Front to Back** (text says just "a minion") can be dropped onto a **tavern offer** to
       buff it pre-buy. `castSpellOnOffer` folds the buff onto the `ShopCard` (baked in on buy, like Fortify);

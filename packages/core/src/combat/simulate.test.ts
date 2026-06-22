@@ -356,22 +356,6 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'shieldUp')).toBe(true);
   });
 
-  it('Arclight Reactor pings an enemy when a friendly Mech Shield breaks', () => {
-    const a = run(
-      [
-        { cardId: 'drone', attack: 2, health: 1, keywords: ['DS'] },
-        { cardId: 'arc', attack: 3, health: 3 },
-      ],
-      [{ cardId: 'omen', attack: 2, health: 40, keywords: [] }],
-      8,
-    );
-    const i = a.events.findIndex((e) => e.type === 'shield');
-    expect(i).toBeGreaterThanOrEqual(0);
-    const ping = a.events[i + 1];
-    expect(ping?.type).toBe('dmg');
-    if (ping?.type === 'dmg') expect(ping.amount).toBe(3); // Reactor's 3, fired off the break
-  });
-
   it('Junkyard Titan buffs the whole board when a friendly Shield breaks', () => {
     const a = run(
       [

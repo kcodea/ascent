@@ -23,8 +23,12 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **UI/content polish.** Hand cards line up at a **uniform height** (arches align; longer text drops below).
-  **Nadja's Mana Font** is now an active power — click to fire (no target), costs **3 Mana**. **Gnasher** reads
+- **Stability + content fixes.** Reverted the hand-fan rework (it had pushed the hand into the play area on
+  short/wide screens, blocking card placement — the hand sits at the bottom again). Removed **Arclight
+  Reactor**; refreshed art for **Eyes of Aresmar**, **Growth**, **Staff of Guel**. Earlier this session: the
+  next opponent is pinned at turn start (Hero Power no longer re-rolls it), **Mana Font** + Nadja's power scale
+  max Mana past the cap, and **Cassen**'s Collision counter ticks live in combat.
+- **UI/content polish.** **Nadja's Mana Font** is now an active power — click to fire (no target), costs **3 Mana**. **Gnasher** reads
   "gains +5/+5 **Engraved**" (the keyword tooltip explains it). **Sporeling** now gives *all* friends +1 Attack
   or +1 Health (randomly decided). You can no longer act while the **end-of-turn effects animate**. The **hero
   picker** sits on the dimmed board art for some texture.

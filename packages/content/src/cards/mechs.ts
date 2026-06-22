@@ -4,8 +4,8 @@ import type { CardDef } from '@game/core';
  * Mechs (handoff A.7) — Divine Shield walls + Magnetic + shield-break payoffs.
  * Answers Venom Swarm (Shields soak the one-touch Venomous) and Glass Cannon
  * (a Shield eats the single big hit). The shield-break chain is the engine of
- * the tribe: every popped Shield can regrant a Shield (Capacitor), ping an
- * enemy (Reactor), or buff the board (Titan). Magnetic merges a Cling Drone's
+ * the tribe: every popped Shield can regrant a Shield (Capacitor) or buff the
+ * board (Titan). Magnetic merges a Cling Drone's
  * stats onto a friendly Mech at recruit (resolved in `@game/sim`); Beatboxer
  * mimics every magnetization that lands on another friendly unit.
  */
@@ -57,17 +57,6 @@ export const MECHS: CardDef[] = [
     effects: [],
     manaPerTurn: 1,
     text: 'While on your board, you have **+1 max mana** each turn.',
-  },
-  {
-    id: 'arc',
-    name: 'Arclight Reactor',
-    tribe: 'mech',
-    tier: 4,
-    attack: 3,
-    health: 3,
-    keywords: [],
-    effects: [{ on: 'onLoseDivineShield', do: 'onShieldBreakDamage', params: { amount: 3 } }],
-    text: 'When a friendly Mech Shield breaks, deal **3** to a random enemy.',
   },
   {
     id: 'junk',

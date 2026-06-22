@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Revert the hand layout (card placement broke), remove Arclight Reactor, rewire 3 spell arts
+- **Reverted the hand-fan rework.** The uniform-height change (absolute drawer) + this session's raise pushed
+  the hand UP into the warband drop zone on short/wide viewports — drops landed on the hand instead of the
+  board (couldn't play cards) and the hand crowded the centre of the screen. Restored the original, proven CSS
+  exactly (in-flow drawer, `bottom: calc(var(--bar-y) - 26px)`, hover `translateY(-5%)`): the hand sits at the
+  bottom below the warband again and placement works. **Uniform-height + hover-pop is shelved** — it needs a
+  compact-at-rest fan that survives a short viewport, not a raised full-text hand.
+- **Removed Arclight Reactor** (`arc`, Mech T4: "when a friendly Mech Shield breaks, deal 3"). Dropped the card
+  def (mechs.ts), its combat test (simulate.test.ts), and the stale tribe-blurb mention. The
+  `onShieldBreakDamage` factory stays as a reusable primitive (nothing references it now, but it's harmless).
+- **Rewired 3 spell arts to the v2 masters** — Eyes of Aresmar → `EyesOfAresmar2`, Growth → `Growth2`, Staff of
+  Guel → `StaffOfGuel2` (copied over the in-repo build copies + downscaled to 640px).
+- Verified: typecheck + lint + 235 tests (the Arclight test removed); live — hand sits at the bottom with the
+  warband clear (placement restored) at both 16:9 and a wide-short viewport.
+
 ### Bug fixes: Warden opponent-pin, uncapped Mana Font, hand fan position, Cassen live counter, missing spell art
 - **Next opponent no longer shifts mid-turn.** `nextOpponent` matched on the LIVE board power, so any board
   change — buying, selling, or using a Hero Power (Warden's Fortify) — re-rolled the telegraphed foe. The match

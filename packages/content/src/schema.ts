@@ -42,6 +42,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scSplitDamage',
   'scAoePerTribe',
   'deathrattleBuffRandom',
+  'deathrattleBuffAllRandomStat',
   'onFriendDeathBuffRandom',
   'rallyBuff',
   'rallyProcDeathrattle',

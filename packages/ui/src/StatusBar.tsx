@@ -9,6 +9,8 @@ export function StatusBar() {
   const run = useGame((s) => s.run);
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
+  const dispatch = useGame((s) => s.dispatch);
+  const eotAnimating = useGame((s) => s.endTurnAnimating);
   const sellTick = useGame((s) => s.sellTick);
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
   const hero = getHero(run.heroId);
@@ -20,7 +22,12 @@ export function StatusBar() {
   const isPassive = !!power.passive;
   // Once-per-game powers (Gild) gate on heroPowerSpent; the rest recharge each wave. Fortify can
   // target a warband minion OR a tavern offer, so it's usable whenever ready — no friend required.
-  const canHero = !isPassive && unlocked && (power.oncePerGame ? !run.heroPowerSpent : run.heroReady);
+  const canHero =
+    !isPassive &&
+    unlocked &&
+    !eotAnimating &&
+    (power.oncePerGame ? !run.heroPowerSpent : run.heroReady) &&
+    (!power.cost || run.embers >= power.cost);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
@@ -36,9 +43,11 @@ export function StatusBar() {
         ? `${power.name} · unlocks turn ${unlockWave}`
         : power.kind === 'fortify'
           ? `${power.name} · +${run.tier}/+${run.tier}`
-          : power.kind === 'gild'
-            ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
-            : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
+          : power.kind === 'gainMaxMana'
+            ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Mana` : `need ${power.cost} Mana`}`
+            : power.kind === 'gild'
+              ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
+              : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   const powerNote = isPassive
     ? ' Passive — always on.'
     : !unlocked
@@ -48,7 +57,9 @@ export function StatusBar() {
           ? ' Already used this game.'
           : ' Drag onto a friendly minion (or click, then click it). One use per game.'
         : run.heroReady
-          ? ' Drag onto a minion (or click, then click a minion).'
+          ? power.untargeted
+            ? ` Click to use.${power.cost ? ` Costs ${power.cost} Mana.` : ''}`
+            : ' Drag onto a minion (or click, then click a minion).'
           : ' Used this wave.';
   // Projected starting Embers for the next two waves (each wave grows maxEmbers by
   // embersPerWave, capped), plus any board mana income (Money Bot) on top of the cap —
@@ -92,7 +103,11 @@ export function StatusBar() {
 
         <div
           className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
-          onPointerDown={() => !isPassive && canHero && !heroArmed && armHero()}
+          onPointerDown={() => {
+            if (isPassive || !canHero || heroArmed) return;
+            if (power.untargeted) dispatch({ type: 'heroPower' });
+            else armHero();
+          }}
         >
           <div className="f">
             {heroArt(hero.id) ? (

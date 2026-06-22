@@ -214,7 +214,7 @@ export type Action =
   | { type: 'upgrade' }
   | { type: 'reposition'; uid: string; toIndex: number }
   | { type: 'reorderShop'; uid: string; toIndex: number }
-  | { type: 'heroPower'; uid: string }
+  | { type: 'heroPower'; uid?: string } // uid omitted for untargeted powers (Nadja's Mana Font)
   | { type: 'discover'; index: number }
   | { type: 'chooseOne'; index: number }
   | { type: 'battlecryTarget'; targetUid: string }

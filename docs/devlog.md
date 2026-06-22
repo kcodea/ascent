@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### UI/content polish: uniform hand height, Engraved text, Nadja active power, end-of-turn lock, picker backdrop
+A grab-bag pass from live playtest feedback.
+- **Hand cards now sit at a uniform height.** A forceFull card's text drawer was *in flow* below the fixed
+  arch, so a longer drawer (e.g. Gnasher) shoved its arch upward — the hand's arches were ragged. Fix: pin
+  the drawer absolutely below the arch **in the hand only** (`.row.hand .card.compact.showtext .drawer {
+  position: absolute; top: 100% }`, specificity (0,6,0) to beat the base `.card.compact.showtext .drawer {
+  position: relative }`). Every hand card collapses to the archbox height → arches align (verified live: both
+  archboxes at y=555, 141 px tall). Drawers hang below as before (full text on hover/inspect).
+- **Engraved keyword** no longer self-explains. Gnasher reads "…attacks again and gains **+5/+5**
+  **Engraved**." (was "(Engraved — kept after combat)"); the keyword tooltip carries the meaning.
+- **Nadja's Mana Font is a proper active power now.** It fires on click (**untargeted** — no minion to pick;
+  new `HeroPower.untargeted`) and **costs 3 Mana** (new `HeroPower.cost`; the reducer gates on `embers >= cost`
+  and spends it on use). StatusBar dispatches `{type:'heroPower'}` directly for untargeted powers and shows the
+  cost ("Mana Font · 3 Mana" / "need 3 Mana"); the `heroPower` action's `uid` is now optional. Verified live:
+  click → maxEmbers +1, embers −3, heroReady false, **no targeting line**.
+- **Myra** drops the "Locked until turn 3." sentence (the picker's **UNLOCKS TURN 3** chip already says it).
+- **Sporeling reworked.** Deathrattle was "+1/+1 a random friend"; now **"Give all friends +1 Attack or +1
+  Health (random)"** — a new combat factory `deathrattleBuffAllRandomStat` coin-flips a stat (one flip per
+  proc) and buffs every living friend by +amount of it (golden doubles the amount). The Deathsayer/Sylus/golden
+  rally tests (which used Sporeling as a 1-buff-per-proc probe) updated to **procs × friends**.
+- **End-of-turn action lock.** Rolling/buying/etc. was possible *while the EoT proc beats animated* before
+  combat. A new store flag `endTurnAnimating` (set around the beat sequence in `Recruit.endTurn`) disables
+  roll/upgrade/freeze, blocks card drags (the pick handler reads `useGame.getState().endTurnAnimating`), and
+  locks the hero panel (`canHero`); a stray armed Hero Power is disarmed before the beats. Verified live: with
+  the flag forced, all three controls `disabled` + the hero panel reads "spent".
+- **Hero picker backdrop** is now the **board art (`/board4.png`) heavily dimmed** instead of a flat tint —
+  some texture behind the panels (`.heroselect:not(.endscreen)`; the end screen keeps the flat tint, and the
+  now-redundant "show only the blank board" reveal rule was dropped).
+- Verified: typecheck + lint + **236 tests** (2 new Nadja hero-power tests: untargeted +1 max / −3 Mana, and a
+  can't-afford no-op); live (Nadja run) — hand arches aligned, Gnasher/Myra/Nadja text correct, Nadja click
+  fires, EoT controls lock, picker shows the dimmed board art.
+
 ### Hero/UI tuning: Cassen tier-cap + no-neutral + kill counter, Myra re-gated, hero-pick hides the chrome
 Follow-up tuning on the hero batch + a hero-select polish (from live playtest).
 - **Cassen (Collision)** — the grant is now **bound by your tavern tier** (`grantTopTypeMinion` filters

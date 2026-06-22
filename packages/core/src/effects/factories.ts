@@ -190,12 +190,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   // --- Undead (combat-time Deathrattle / on-death value) ---
 
-  /** Deathrattle (Sporeling): buff a random living friend. */
+  /** Deathrattle: buff a random living friend (both stats). */
   deathrattleBuffRandom: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const friends = ctx.living(self.side);
     if (friends.length === 0) return;
     ctx.buff(ctx.rng.pick(friends), num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
+  },
+
+  /** Deathrattle (Sporeling): coin-flip Attack vs Health, then buff EVERY living friend by +amount of it. */
+  deathrattleBuffAllRandomStat: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const friends = ctx.living(self.side);
+    if (friends.length === 0) return;
+    const amt = num(params.amount, 1) * mul(self);
+    const useAtk = ctx.rng.pick([true, false]);
+    for (const f of friends) ctx.buff(f, useAtk ? amt : 0, useAtk ? 0 : amt, self.uid);
   },
 
   /** Deathrattle (Arcane Weaver): add a copy of a spell to your hand after combat. Golden grants two. */

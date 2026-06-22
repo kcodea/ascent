@@ -346,6 +346,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Once-per-game powers (Gild) gate on heroPowerSpent; the rest recharge each wave.
       const available = power.oncePerGame ? !s.heroPowerSpent : s.heroReady;
       if (!available) return state;
+      // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
+      if (power.cost && s.embers < power.cost) return state;
       const card = s.board.find((c) => c.uid === action.uid);
 
       if (power.kind === 'gild') {
@@ -393,6 +395,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       if (power.oncePerGame) s.heroPowerSpent = true;
       else s.heroReady = false;
+      if (power.cost) s.embers = Math.max(0, s.embers - power.cost);
       // A power that summons or generates a minion (Myra's Battlecry replay → an Alleycat's Stray,
       // Dusk's End-of-Turn replay) can complete a triple — check now, like buy / play / discover do.
       checkTriples(s);

@@ -141,6 +141,9 @@ export function Recruit() {
   const heroArmed = useGame((s) => s.heroArmed);
   const compactCards = useGame((s) => s.compactCards);
   const armHero = useGame((s) => s.armHero);
+  const setEndTurnAnimating = useGame((s) => s.setEndTurnAnimating);
+  // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
+  const eotAnimating = useGame((s) => s.endTurnAnimating);
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
@@ -438,7 +441,7 @@ export function Recruit() {
   viewsRef.current = { shopViews, spellView, boardViews, handViews, spellUid: run.spell?.uid };
   const onCardPointerDown = useCallback(
     (e: ReactPointerEvent): void => {
-      if (e.button !== 0 || timeUp || inCombat) return; // no dragging once the turn timer is up / in combat
+      if (e.button !== 0 || timeUp || inCombat || useGame.getState().endTurnAnimating) return; // no dragging when the timer's up / in combat / mid end-of-turn
       const el = e.currentTarget as HTMLElement;
       const uid = el.dataset.uid;
       if (!uid) return;
@@ -981,7 +984,9 @@ export function Recruit() {
     const baseStats: Record<string, { attack: number; health: number }> = {};
     for (const c of [...run.board, ...run.hand]) baseStats[c.uid] = { attack: c.attack, health: c.health };
     const total = (s?: { attack: number; health: number }): number => (s ? s.attack + s.health : 0);
+    if (heroArmed) armHero(); // a stray armed Hero Power shouldn't fire mid-animation
     endTurnPendingRef.current = true;
+    setEndTurnAnimating(true); // lock the shop / board / hero power while the beats play
     const BEAT = 760;
     const GAP = 170;
     const playBeat = (i: number): void => {
@@ -989,6 +994,7 @@ export function Recruit() {
         setEotProcUids(new Set());
         setElectrifyUids(new Set());
         endTurnPendingRef.current = false;
+        setEndTurnAnimating(false);
         dispatch({ type: 'faceOmen' });
         return;
       }
@@ -1119,7 +1125,7 @@ export function Recruit() {
           </span>
           <button
             className="ctlbtn up"
-            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp}
+            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp || eotAnimating}
             onClick={() => dispatch({ type: 'upgrade' })}
           >
             <Icon name="up" />
@@ -1144,12 +1150,12 @@ export function Recruit() {
         )}
         {/* right of the timer: Refresh (↻ + cost), with Freeze (icon only) under it */}
         <div className="ctl-col">
-          <button className="ctlbtn" disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp} onClick={() => dispatch({ type: 'roll' })}>
+          <button className="ctlbtn" disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp || eotAnimating} onClick={() => dispatch({ type: 'roll' })}>
             <Icon name="refresh" />
             <span className="c">{run.freeRolls > 0 ? 0 : CONFIG.refreshCost}</span>
             <span className="ctltip">{run.freeRolls > 0 ? `Refresh — free (${run.freeRolls} left)` : 'Refresh tavern'}</span>
           </button>
-          <button className={`ctlbtn${run.frozen ? ' frozen' : ''}`} disabled={timeUp} onClick={() => dispatch({ type: 'freeze' })}>
+          <button className={`ctlbtn${run.frozen ? ' frozen' : ''}`} disabled={timeUp || eotAnimating} onClick={() => dispatch({ type: 'freeze' })}>
             <Icon name="freeze" />
             <span className="ctltip">{run.frozen ? 'Frozen — click to unfreeze' : 'Freeze tavern'}</span>
           </button>

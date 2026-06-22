@@ -64,6 +64,7 @@ export type EffectFactoryId =
   | 'scSplitDamage'
   | 'scAoePerTribe'
   | 'deathrattleBuffRandom'
+  | 'deathrattleBuffAllRandomStat' // Deathrattle: coin-flip a stat, buff every friend +amount of it (Sporeling)
   | 'onFriendDeathBuffRandom'
   | 'rallyBuff' // Rally: when this attacks, buff your other minions (combat)
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)

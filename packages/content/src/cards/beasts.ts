@@ -60,7 +60,7 @@ export const BEASTS: CardDef[] = [
       { on: 'onKill', do: 'reAttackOnKill' },
       { on: 'onKill', do: 'onKillBuffSelf', params: { attack: 5, health: 5 } },
     ],
-    text: 'When it kills a minion, it **attacks again** and gains **+5/+5** (Engraved — kept after combat).',
+    text: 'When it kills a minion, it **attacks again** and gains **+5/+5** **Engraved**.',
   },
   {
     // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.

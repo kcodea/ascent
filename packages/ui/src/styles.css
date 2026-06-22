@@ -274,7 +274,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
 .zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26px); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-end; }
 .row.hand { gap: 0; align-items: flex-end; height: var(--ch); width: 100%; }
-.row.hand .card { margin-left: -84px; transform: translateY(11%); transition: transform 0.08s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+.row.hand .card { position: relative; margin-left: -84px; transform: translateY(11%); transition: transform 0.08s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+/* Pin each hand card's text drawer below its arch (absolute) so a long drawer never shoves the arch
+   upward — every hand card is then the same archbox height, so the arches line up at a uniform height.
+   Specificity (0,6,0) to beat `.card.compact.showtext .drawer { position: relative }`. */
+.row.hand .card.compact.showtext .drawer { position: absolute; top: 100%; left: 0; width: 100%; }
 .row.hand .card:first-child { margin-left: 0; }
 /* hover lifts just enough to reveal the whole card + bring it forward — small so the card
    stays under the cursor (no bounce-out). */
@@ -1241,11 +1245,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 
 /* Pre-run hero picker — first slice of the Title→Mode→Hero flow (one store flag drives it). */
 .heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-/* While the pre-run picker is up, show ONLY the blank board behind it — hide the HUD, tavern, controls,
-   and the hero panel until a champion is chosen. Scoped to the picker (the end screen also uses .heroselect). */
+/* The pre-run picker uses the board art, heavily dimmed, as its textured backdrop (the end screen keeps the flat tint). */
+.heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), url('/board4.png') center / cover no-repeat, var(--bg); }
+/* While the pre-run picker is up, hide all the game chrome behind it (HUD, tavern, board, controls, hero
+   panel, status bar) — the dimmed board art above is the only backdrop until a champion is chosen. */
 body:has(.heroselect:not(.endscreen)) .app { visibility: hidden; }
-body:has(.heroselect:not(.endscreen)) .app [data-zone="warband"],
-body:has(.heroselect:not(.endscreen)) .app [data-zone="warband"] * { visibility: visible; }
 body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 .hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 96vw; }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */

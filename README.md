@@ -23,6 +23,11 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **UI/content polish.** Hand cards line up at a **uniform height** (arches align; longer text drops below).
+  **Nadja's Mana Font** is now an active power — click to fire (no target), costs **3 Mana**. **Gnasher** reads
+  "gains +5/+5 **Engraved**" (the keyword tooltip explains it). **Sporeling** now gives *all* friends +1 Attack
+  or +1 Health (randomly decided). You can no longer act while the **end-of-turn effects animate**. The **hero
+  picker** sits on the dimmed board art for some texture.
 - **9 heroes + 3 spells.** Two new heroes — **Nadja** (press for +1 max Mana) and **Cassen** (kill 5 enemy
   minions → get a minion of your most common type) — plus fresh art for the roster and two renames (**Indy**,
   **Soren**). New spells: **Mend** (heal 5), **Undead Army** (2 copies of a random Undead), **Lasso** (steal a

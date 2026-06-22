@@ -443,8 +443,9 @@ describe('simulate (handoff A.3)', () => {
     const buff = a.events.find((e) => e.type === 'buff');
     expect(buff).toBeDefined();
     if (buff?.type === 'buff') {
-      expect(buff.attack).toBe(2); // +1/+1 doubled to +2/+2
-      expect(buff.health).toBe(2);
+      // Golden doubles the amount (1 → 2); Sporeling now applies it to ONE random stat, so +2/+0 or +0/+2.
+      expect(buff.attack + buff.health).toBe(2);
+      expect(Math.min(buff.attack, buff.health)).toBe(0);
     }
   });
 
@@ -650,9 +651,9 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Deathsayer Rally fires the leftmost Deathrattle before its attack lands', () => {
-    // Deathsayer (no Deathrattle of its own) + a Sporeling (Deathrattle: +1/+1 a random friend). When
-    // Deathsayer attacks, its Rally fires the leftmost friendly Deathrattle (Sporeling's) first — so the
-    // buff event lands before that attack's damage.
+    // Deathsayer (no Deathrattle of its own) + a Sporeling (Deathrattle: buff all friends, random stat).
+    // When Deathsayer attacks, its Rally fires the leftmost friendly Deathrattle (Sporeling's) first — so
+    // the buff events land before that attack's damage.
     const p: BoardMinion[] = [
       { cardId: 'deathsayer', attack: 3, health: 8 },
       { cardId: 'spore', attack: 1, health: 6 },
@@ -668,9 +669,9 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Deathsayer Rally proc respects Sylus (extra Deathrattle procs)', () => {
-    // Deathsayer + a Sporeling (Deathrattle: +1/+1) + two Sylus (each: Deathrattles proc 1 more time).
-    // When Deathsayer attacks, the Rally-proc'd Deathrattle fires 1 + 2 = 3 times → 3 buff events
-    // before that attack's damage, just like a real death would with two Sylus out.
+    // Deathsayer + a Sporeling (Deathrattle: buff all friends) + two Sylus (each: Deathrattles proc 1 more
+    // time). When Deathsayer attacks, the Rally-proc'd Deathrattle fires 1 + 2 = 3 times, each buffing all
+    // 4 friends → 3 × 4 = 12 buff events before that attack's damage, like a real death would with two Sylus.
     const p: BoardMinion[] = [
       { cardId: 'deathsayer', attack: 3, health: 30 },
       { cardId: 'spore', attack: 1, health: 30 },
@@ -683,14 +684,14 @@ describe('simulate (handoff A.3)', () => {
     expect(rallyIdx).toBeGreaterThanOrEqual(0);
     const dmgAfter = a.events.findIndex((ev, i) => i > rallyIdx && ev.type === 'dmg');
     const buffs = a.events.filter((ev, i) => i > rallyIdx && i < dmgAfter && ev.type === 'buff').length;
-    expect(buffs).toBe(3); // 1 base proc + 2 Sylus extras, all before the attack lands
+    expect(buffs).toBe(3 * p.length); // (1 base proc + 2 Sylus extras) × all 4 friends buffed per proc
   });
 
   it('a golden Deathsayer procs the leftmost Deathrattle twice — and multiplies on top of Sylus', () => {
     const rallyBuffs = (golden: boolean, sylus: number, seed: number): number => {
       const p: BoardMinion[] = [
         { cardId: 'deathsayer', attack: 3, health: 40, golden },
-        { cardId: 'spore', attack: 1, health: 40 }, // Deathrattle: +1/+1 a random friend
+        { cardId: 'spore', attack: 1, health: 40 }, // Deathrattle: buff all friends (random stat) — 1 buff event each
         ...Array.from({ length: sylus }, (): BoardMinion => ({ cardId: 'sylus', attack: 4, health: 40 })),
       ];
       const a = run(p, [{ cardId: 'omen', attack: 1, health: 400 }], seed);
@@ -698,8 +699,9 @@ describe('simulate (handoff A.3)', () => {
       const dmg = a.events.findIndex((ev, i) => i > r && ev.type === 'dmg');
       return a.events.filter((ev, i) => i > r && i < dmg && ev.type === 'buff').length;
     };
-    expect(rallyBuffs(true, 0, 7)).toBe(2); // golden alone → twice
-    expect(rallyBuffs(true, 1, 7)).toBe(4); // (1 + 1 Sylus) × 2 = 4 — multiplicative, not 3
+    // Each proc buffs every friend, so buff events = procs × friends on board.
+    expect(rallyBuffs(true, 0, 7)).toBe(2 * 2); // golden → 2 procs, 2 friends
+    expect(rallyBuffs(true, 1, 7)).toBe(4 * 3); // (1 + 1 Sylus) × 2 golden = 4 procs, 3 friends
   });
 
   it('a combat card grant logs a toHand event (Arcane Weaver → Spirit Fire)', () => {

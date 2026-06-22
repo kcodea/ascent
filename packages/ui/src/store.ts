@@ -56,6 +56,10 @@ interface GameStore {
   run: RunState;
   /** UI flag: Hero Power is armed and waiting for a target minion. */
   heroArmed: boolean;
+  /** UI flag: the end-of-turn proc animation is playing — recruit actions stay locked until it ends. */
+  endTurnAnimating: boolean;
+  /** Set the end-of-turn animation lock (Recruit drives it around the proc beat sequence). */
+  setEndTurnAnimating: (v: boolean) => void;
   /** Increments on each sell — drives the gold "+1" flash on the Embers chip. */
   sellTick: number;
   /** The card being inspected (right-click) in a centred, enlarged overlay, or null. */
@@ -92,6 +96,7 @@ const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
 export const useGame = create<GameStore>((set, get) => ({
   run: createRun(randomSeed()),
   heroArmed: false,
+  endTurnAnimating: false,
   sellTick: 0,
   inspect: null,
   // Open on a fresh hero pick — the player chooses before the first wave loads.
@@ -125,13 +130,14 @@ export const useGame = create<GameStore>((set, get) => ({
       };
     }),
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
+  setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   inspectCard: (view) => set({ inspect: view }),
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
   pickHero: (heroId) =>
-    set({ run: createRun(randomSeed(), heroId), heroArmed: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
+    set({ run: createRun(randomSeed(), heroId), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
   newRun: (seed, heroId) =>
-    set({ run: createRun(seed ?? randomSeed(), heroId), heroArmed: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
+    set({ run: createRun(seed ?? randomSeed(), heroId), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

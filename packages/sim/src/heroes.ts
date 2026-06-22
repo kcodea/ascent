@@ -29,6 +29,10 @@ export interface HeroPower {
   unlockWave?: number;
   /** Passive powers are always-on (no activation/target) — the panel shows them, but you can't arm them. */
   passive?: boolean;
+  /** Active powers that need no target — they fire immediately on click (Nadja's Mana Font). */
+  untargeted?: boolean;
+  /** Mana cost to activate, spent on use (on top of the once-per-turn / -game gate). 0/undefined = free. */
+  cost?: number;
 }
 
 export interface HeroDef {
@@ -74,7 +78,7 @@ export const HEROES: HeroDef[] = [
       name: 'Pulse',
       kind: 'replayBattlecry',
       unlockWave: 3,
-      text: "Pulse: Trigger a friendly minion's Battlecry effect. (Once per turn) Locked until turn 3.",
+      text: "Pulse: Trigger a friendly minion's Battlecry effect. (Once per turn)",
     },
   },
   {
@@ -119,7 +123,9 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Mana Font',
       kind: 'gainMaxMana',
-      text: 'Mana Font: Gain +1 max Mana permanently.',
+      untargeted: true,
+      cost: 3,
+      text: 'Mana Font: Spend 3 Mana to gain +1 max Mana permanently.',
     },
   },
   {

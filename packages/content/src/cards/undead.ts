@@ -16,8 +16,8 @@ export const UNDEAD: CardDef[] = [
     attack: 1,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffRandom', params: { attack: 1, health: 1 } }],
-    text: '**Deathrattle:** give a random friend +1/+1.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffAllRandomStat', params: { amount: 1 } }],
+    text: '**Deathrattle:** Give all friends **+1 Attack** or **+1 Health** (random).',
   },
   {
     id: 'toxin',

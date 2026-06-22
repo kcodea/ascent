@@ -1001,6 +1001,22 @@ describe('run loop (@game/sim)', () => {
     expect(s.embers).toBe(2); // current Mana untouched — no top-up this turn
   });
 
+  it('Nadja Mana Font (hero power): untargeted, +1 max Mana, costs 3 Mana', () => {
+    let s: RunState = { ...createRun(1, 'nadja'), embers: 5, maxEmbers: 5 };
+    expect(s.heroReady).toBe(true);
+    s = reduce(s, { type: 'heroPower' }); // no uid — the power is untargeted
+    expect(s.maxEmbers).toBe(6); // +1 permanent max
+    expect(s.embers).toBe(2); // spent 3 to use it
+    expect(s.heroReady).toBe(false); // once per turn
+  });
+
+  it('Nadja Mana Font (hero power): no-op when you cannot afford 3 Mana', () => {
+    const s: RunState = { ...createRun(1, 'nadja'), embers: 2, maxEmbers: 5 };
+    const after = reduce(s, { type: 'heroPower' });
+    expect(after.maxEmbers).toBe(5); // unchanged — couldn't afford the cost
+    expect(after.embers).toBe(2);
+  });
+
   it('Mana Font respects the Mana cap', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, maxEmbers: CONFIG.embersCap, shop: [],

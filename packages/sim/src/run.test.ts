@@ -11,6 +11,7 @@ import {
   selectThreat,
   buildEnemyBoard,
   pickOpponent,
+  buildBootstrapPool,
   OPPONENT_POOL,
   type BoardSnapshot,
   boardManaBonus,
@@ -1660,7 +1661,7 @@ describe('Corrupted Lifebinder End-of-Turn timing (@game/sim)', () => {
   });
 });
 
-describe('opponent pool (M3 step 4 — seam present; serving currently OFF → omens)', () => {
+describe('opponent pool (M3 step 2 — serve real boards)', () => {
   it('pickOpponent matches a board by wave + power from a pool, else null (→ procedural fallback)', () => {
     const pool: BoardSnapshot[] = [
       { v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 1, tribes: [], threat: 'horde', power: 20,
@@ -1671,8 +1672,8 @@ describe('opponent pool (M3 step 4 — seam present; serving currently OFF → o
     expect(pickOpponent(3, 9999, makeRng(7), pool)).toBeNull(); // power wildly off-curve
   });
 
-  it('OPPONENT_POOL is empty for now → every wave fights a procedural omen board', () => {
-    expect(OPPONENT_POOL.length).toBe(0);
+  it('the sim default pool is empty → headless/tests fight procedural omens (the app injects the bootstrap)', () => {
+    expect(OPPONENT_POOL.length).toBe(0); // empty here keeps headless runs deterministic-procedural
     const s: RunState = {
       ...createRun(1),
       wave: 3,
@@ -1680,7 +1681,26 @@ describe('opponent pool (M3 step 4 — seam present; serving currently OFF → o
     };
     const enemy = reduce(s, { type: 'faceOmen' }).lastCombat!.initial.enemy;
     expect(enemy.length).toBeGreaterThan(0);
-    expect(enemy.every((m) => m.cardId === 'omen')).toBe(true); // procedural omens, not real boards
+    expect(enemy.every((m) => m.cardId === 'omen')).toBe(true); // empty pool → procedural omens
+  });
+
+  it('a populated pool serves a real captured board through faceOmen (not the procedural omen)', () => {
+    const boards = buildBootstrapPool([1, 2]); // generate while the pool is still empty (bot faces procedural)
+    OPPONENT_POOL.push(...boards);
+    try {
+      const target = boards.find((b) => b.minions.length > 0)!;
+      const half = Math.max(1, Math.round(target.power / 2));
+      const s: RunState = {
+        ...createRun(1),
+        wave: target.wave,
+        board: [{ uid: 'a', cardId: 'kennel', tribe: 'beast', attack: half, health: half, keywords: [], golden: false }],
+      };
+      const enemy = reduce(s, { type: 'faceOmen' }).lastCombat!.initial.enemy;
+      expect(enemy.length).toBeGreaterThan(0);
+      expect(enemy.some((m) => m.cardId !== 'omen')).toBe(true); // a real captured board, not procedural
+    } finally {
+      OPPONENT_POOL.length = 0; // restore the empty default so the rest of the suite stays procedural
+    }
   });
 });
 

@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-21
 
+### Serve real player boards + opponent-intel frame (M3 — difficulty from real boards, steps 2–3)
+The game now fights **real captured boards** instead of procedural omen blobs, with a telegraph of who's next.
+- **Bootstrap opponent pool** (`snapshot.ts`): `buildBootstrapPool()` greedily auto-plays a fixed set of
+  seeded bot runs (one per hero, for varied portraits) and captures the per-wave board each fought — real,
+  buildable `BoardSnapshot`s. Deterministic (fixed seeds + seeded engine), so the pool stays *static* the way
+  `OPPONENT_POOL` requires (replay-faithful). `registerOpponents()` appends to the pool, and the **store
+  injects the bootstrap once at startup** — the headless harnesses + tests leave the pool empty (procedural
+  baseline, zero test churn), so only the app serves real boards.
+- **Serving** was already wired in `faceOmen` (`pickOpponent` → `opponentBoard`, else procedural). Extracted
+  the pick into **`nextOpponent(s)`** (the board the next fight serves at the current board power, or null →
+  procedural) so the opponent frame previews exactly what the fight resolves; byte-identical fallback.
+- **Opponent-intel frame** (`OpponentFrame.tsx`, top-right under the tribes): the next opponent's **hero
+  portrait + HP**, with **tavern tier · triples · top tribe** (`dominantTribe`) on hover. A real captured
+  board when the pool matches; the threat name as a light telegraph on the procedural fallback. Recruit-phase
+  only, and it firms up as you build (the match is power-based).
+- Verified: typecheck + lint clean; **202** tests (a bootstrap-pool determinism test + an end-to-end
+  `faceOmen`-serves-a-real-board test; the old "pool empty → omens" test kept as the headless baseline); live
+  — the wave-1 enemy was a real Spare Part Drone (not an omen), and the frame showed "Oner — 30 HP, Tavern
+  tier 1, 0 triples, 1 mech".
+- Deferred: **persisting your own boards** into the pool — it must stay static (load-at-startup), not
+  live-accumulating, or replays stop being byte-identical. Next: the **damage-dealt system** (loss damage from
+  opponent tier + surviving minions) so the served boards become consequential.
+
 ### Snapshot enrichment + run-wide triples counter (M3 — difficulty from real boards, step 1)
 First step of the real-player-board opponent arc: make `BoardSnapshot` a complete *opponent-intel* atom.
 - **Run-wide triples counter** — new `RunState.triplesMade` (init 0), incremented in `checkTriples` each

@@ -59,3 +59,12 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     ...(m.summonBonus ? { summonBonus: m.summonBonus } : {}),
   }));
 }
+
+/**
+ * Append boards to the served pool. The app calls this ONCE at startup (with the deterministic bootstrap
+ * pool), and step 3's library will grow it in batches. Keep it static for a session — inject before any run
+ * faces combat and don't mutate mid-run, or replays stop being byte-identical.
+ */
+export function registerOpponents(snaps: BoardSnapshot[]): void {
+  OPPONENT_POOL.push(...snaps);
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createRun, reduce, serialize, snapshotBoard, replayRun, dominantTribe, type Action, type BoardSnapshot } from './index';
+import { createRun, reduce, serialize, snapshotBoard, replayRun, dominantTribe, buildBootstrapPool, type Action, type BoardSnapshot } from './index';
 
 /** A tiny greedy bot that plays a run while recording its action log + the live snapshot at each combat. */
 function recordRun(seed: number): { replay: { seed: number; heroId: string; actions: Action[] }; live: BoardSnapshot[] } {
@@ -71,5 +71,17 @@ describe('board snapshot + replay', () => {
     } else {
       expect(dom).toBeNull();
     }
+  });
+
+  it('buildBootstrapPool plays seeded runs into a deterministic pool of real boards', () => {
+    const pool = buildBootstrapPool([1, 2]);
+    expect(pool.length).toBeGreaterThan(0);
+    for (const snap of pool) {
+      expect(snap.minions.length).toBeGreaterThan(0); // real, non-empty boards
+      expect(snap.tier).toBeGreaterThanOrEqual(1);
+      expect(snap.resolve).toBeGreaterThan(0);
+      expect(snap.minions.every((m) => m.cardId !== 'omen')).toBe(true); // real cards, not procedural omens
+    }
+    expect(JSON.stringify(buildBootstrapPool([1, 2]))).toBe(JSON.stringify(pool)); // deterministic
   });
 });

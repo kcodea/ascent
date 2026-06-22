@@ -1,7 +1,13 @@
 import { create } from 'zustand';
-import { HEROES, createRun, reduce, type Action, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, buildBootstrapPool, registerOpponents, createRun, reduce, type Action, type Replay, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import { sfx } from './sfx';
+
+// Serve real, buildable boards as enemies (M3 step 2): inject a deterministic bootstrap pool — captured
+// per-wave boards from seeded bot runs — once at startup, while OPPONENT_POOL is still empty (so the bot
+// itself faces the procedural baseline). The headless harnesses + tests don't load this module, so they
+// keep their empty-pool procedural baseline. Step 3 (the board library) grows this with captured/friend boards.
+if (OPPONENT_POOL.length === 0) registerOpponents(buildBootstrapPool());
 
 /** How many heroes the pre-run picker offers (or all of them, if fewer exist). */
 const HERO_SELECT_COUNT = 2;

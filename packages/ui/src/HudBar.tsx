@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
 import { Icon } from './Icon';
+import { OpponentFrame } from './OpponentFrame';
 import { isMuted, toggleMute } from './sfx';
 import { useGame } from './store';
 
@@ -36,6 +37,7 @@ export function HudBar() {
       <button className="mutebtn" title={muted ? 'Unmute' : 'Mute'} onClick={() => setMuted(toggleMute())}>
         <Icon name={muted ? 'mute' : 'sound'} />
       </button>
+      <OpponentFrame />
     </div>
   );
 }

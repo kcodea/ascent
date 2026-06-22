@@ -26,10 +26,13 @@ The next 5 concrete steps:
    **Enriched 2026-06-21:** the snapshot now also carries `resolve` (HP), `tier`, and `triples` (run-wide
    goldens, via a new `RunState.triplesMade` counter), plus `dominantTribe(snap)` for the top board tribe
    — the opponent-frame intel set.
-3. **Board library + strength index** — persist snapshots (local JSON → shared friend backend) keyed by
-   `(wave, power-band, tribe)`, with a `pickOpponent(wave, power)` query.
-4. **Serve real boards as enemies** (PvE first) — `buildEnemyBoard` can draw a strength-matched real
-   snapshot; procedural threats become the bootstrap/fallback when the pool is thin.
+3. **Board library + strength index** — `pickOpponent(wave, power)` exists; a deterministic **bootstrap pool**
+   (seeded bot runs, one per hero) is injected at startup. Remaining: persist your *own* finished runs' boards
+   (static load-at-startup, replay-safe) → a shared friend backend keyed by `(wave, power-band, tribe)`.
+4. ✅ **Serve real boards as enemies** (done 2026-06-21). `faceOmen` draws a strength-matched real snapshot via
+   `nextOpponent`/`pickOpponent` (procedural omen = thin-pool fallback), and the top-right **opponent-intel
+   frame** telegraphs the next foe (portrait/HP + tier/triples/top-tribe). **Next: the damage-dealt system** —
+   a loss costs Resolve scaled by the opponent's tier + surviving minions (today it's the wave-based on-ramp).
 5. **Async PvP mode + shared pool** — the `scene`/`MODES` registry → every wave a friend's snapshot;
    win = 10–15 wins without dying; tiny shared backend (friend-group scale, no live opponent / anti-cheat).
 

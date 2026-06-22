@@ -60,7 +60,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); }
 
 /* HUD */
-.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; }
+.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; }
 .wm { font-family: 'Outfit'; font-weight: 800; font-size: calc(19 * var(--u)); letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: calc(7 * var(--u)) calc(15 * var(--u)); border-radius: calc(11 * var(--u)); }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); }
 .alt .w { font-family: 'Outfit'; font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
@@ -72,6 +72,19 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .tribes .tl { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; margin-right: 2px; }
 .tribes .tb { width: calc(24 * var(--u)); height: calc(24 * var(--u)); border-radius: calc(7 * var(--u)); display: grid; place-items: center; background: color-mix(in srgb, var(--c) 20%, var(--card)); }
 .tribes .tb svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--c); }
+/* Next-opponent intel frame — hangs under the top bar's right edge (below the tribes). Portrait + HP
+   visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
+.oppframe { position: absolute; top: calc(100% + 8 * var(--u)); right: 0; z-index: 60; display: flex; align-items: center; gap: calc(8 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(12 * var(--u)) calc(5 * var(--u)) calc(9 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: help; }
+.oppframe .opp-l { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
+.oppframe .opp-pic { width: calc(42 * var(--u)); height: calc(42 * var(--u)); border-radius: calc(10 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--threat); }
+.oppframe .opp-pic img { width: 100%; height: 100%; object-fit: cover; }
+.oppframe .opp-pic svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); color: var(--ink3); }
+.oppframe .opp-hp { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(17 * var(--u)); color: var(--threat-dk); }
+.oppframe .opp-hp svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--threat); }
+.oppframe.threat .opp-pic { border-color: var(--ink3); }
+.oppframe .opp-tip { position: absolute; top: calc(100% + 6 * var(--u)); right: 0; min-width: calc(160 * var(--u)); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 600; font-size: calc(12.5 * var(--u)); line-height: 1.55; padding: calc(9 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); opacity: 0; pointer-events: none; transform: translateY(calc(-4 * var(--u))); transition: opacity 0.12s, transform 0.12s; z-index: 90; white-space: nowrap; box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) rgba(0, 0, 0, 0.3); }
+.oppframe:hover .opp-tip { opacity: 1; transform: translateY(0); }
+.oppframe .opp-tip b { color: var(--acc); }
 /* round turn timer, top centre */
 .rtimer { position: relative; flex: none; width: calc(74 * var(--u)); height: calc(74 * var(--u)); z-index: 80; display: grid; place-items: center; }
 .rtimer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }

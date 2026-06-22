@@ -5,8 +5,19 @@ import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
+import type { BoardSnapshot } from './snapshot';
 import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
+
+/**
+ * The board the *next* combat will serve: a strength-matched real opponent from the pool for the current
+ * board power, or null when none matches (→ the procedural threat). Pure + deterministic — the opponent
+ * frame previews it during recruit, and `faceOmen` resolves exactly this.
+ */
+export function nextOpponent(s: RunState): BoardSnapshot | null {
+  const playerPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
+  return pickOpponent(s.wave, playerPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
+}
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
  *  breakdown through a triple. */
@@ -374,13 +385,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       syncLifebinders(s);
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
-      // Serve a strength-matched real board from the opponent pool when one exists (M3 step 4 — getting
-      // off the procedural omen blobs); otherwise fall back to the procedural threat. pickOpponent consumes
-      // the rng only when it actually serves, so an empty / no-match pool keeps the fallback byte-identical.
-      const enemyRng = makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY));
-      const playerPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
-      const served = pickOpponent(s.wave, playerPower, enemyRng);
-      const enemy = served ? opponentBoard(served) : buildEnemyBoard(s.threat, s.wave, enemyRng);
+      // Serve a strength-matched real board from the opponent pool when one exists (getting off the
+      // procedural omen blobs); otherwise fall back to the procedural threat. `nextOpponent` (which the
+      // recruit-phase opponent frame previewed) makes the pick; the fallback gets its own fresh rng, so an
+      // empty / no-match pool stays byte-identical to before the pool seam existed.
+      const served = nextOpponent(s);
+      const enemy = served
+        ? opponentBoard(served)
+        : buildEnemyBoard(s.threat, s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
       const player: BoardMinion[] = s.board.map((b) => ({
         cardId: b.cardId,
         attack: b.attack,

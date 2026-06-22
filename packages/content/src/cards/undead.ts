@@ -39,7 +39,7 @@ export const UNDEAD: CardDef[] = [
     tier: 2,
     attack: 3,
     health: 2,
-    keywords: ['R'],
+    keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffCardTypeRunWide', params: { cardId: 'knit', attack: 3, health: 2 } }],
     text: 'When a **Grave Knit** dies in combat, all Grave Knits gain **+3/+2** permanently.',
   },

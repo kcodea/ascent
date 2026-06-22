@@ -943,7 +943,7 @@ describe('simulate (handoff A.3)', () => {
   it('Lantern of Souls re-applies to a player Undead that Reborns mid-combat', () => {
     // Grave Knit (Undead, Reborn, 3/2 base) enters at 3+3 = 6 Attack, dies to retaliation, and Reborns at
     // base — where the Lantern bonus is re-applied, so the reborn body is back to 6 Attack (not the base 3).
-    const p: BoardMinion[] = [{ cardId: 'knit', attack: 2, health: 2 }];
+    const p: BoardMinion[] = [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }]; // R granted inline (knit is no longer Reborn by default)
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 80 }]; // out-trades the Knit → forces the Reborn
     const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 3);
     const reborn = a.events.find((ev) => ev.type === 'reborn');

@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Drop Reborn from Grave Knit
+- Per the user: Grave Knit (`knit`) is no longer Reborn by default (`keywords: []`); the global death-buff
+  stays. The Lantern-Reborn test now grants `['R']` inline (the other two Reborn tests already did). 271 tests.
+- **Queued (design call):** if a Grave Knit is ever *granted* Reborn, the reborn copy should carry the
+  accumulated death-stacks instead of resetting to printed base (current `killOrReborn` behaviour). Clean
+  plan: in `killOrReborn`, after the base reset, add the combat's accumulated `cardBuffGains[cardId]` to the
+  reborn copy for a death-buff card — doesn't disturb the generic "Reborn → base" path (no stacks ⇒ base).
+
 ### Fix: spell cards now reflect the per-stat spell power + wire Cinderwing art
 - The spell-power rework made the bonus per-stat (`spellAttackBonus`/`spellHealthBonus` = hero amplify +
   `RunState.spellBonus`), and the cast *application* used it — but the Recruit UI still computed the spell

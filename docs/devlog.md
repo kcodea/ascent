@@ -13,7 +13,9 @@ A follow-up pass on the spell batch + VFX, driven by live-playtest feedback.
   for Reborn) + an **inner edge-glow** over the art + a strong pulsing **outer halo** (`.card.compact.dscard`,
   riding the arch) + a big **status badge** (gold shield / blue reborn icon, top-right like the Taunt ward;
   the Taunt ward slides left via `:has` when both are present). Verified live on a shielded Mech: gold frame
-  (`rgb(255,210,58)`), 66px badge, and inner/outer glow all render.
+  (`rgb(255,210,58)`), 66px badge, and inner/outer glow all render. **Venomous** (the `V` keyword) gets the
+  identical treatment in toxic **lime** — recoloured frame + inner glow + outer halo + a lime poison badge;
+  a 2nd ward (e.g. Venomous + Divine Shield) stacks below the first via the `~` sibling combinator.
 - **Lantern of Souls is now a true global Undead aura** — active in **shop offers, warband, hand, and
   combat** (was combat-only). It **scales with spell power**: base +3 Attack, with spell power folding
   +X/+X onto both stats (so +1/+1 spells → **+4/+1**). New `RunState.undeadHealthBonus`; the recruit

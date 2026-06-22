@@ -320,6 +320,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
   0%, 100% { box-shadow: 0 0 15px 4px rgba(96, 170, 255, 0.85), 0 0 34px 11px rgba(64, 140, 240, 0.42); }
   50% { box-shadow: 0 0 30px 9px rgba(120, 190, 255, 1), 0 0 60px 21px rgba(78, 150, 245, 0.74); }
 }
+/* Venomous — the same unmistakable treatment in toxic LIME (the V keyword: any damage it deals kills). */
+.card.compact.venomcard { z-index: 4; box-shadow: 0 0 18px 5px rgba(150, 228, 52, 1), 0 0 46px 15px rgba(120, 200, 40, 0.6); animation: venomglow 1.6s ease-in-out infinite; }
+.card.compact.venomcard .art { border-color: #a4e22a; }
+.card.compact.venomcard .art::after {
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
+  box-shadow: inset 0 0 0 2px rgba(196, 245, 130, 0.9), inset 0 0 18px 4px rgba(140, 210, 40, 0.92);
+}
+@keyframes venomglow {
+  0%, 100% { box-shadow: 0 0 15px 4px rgba(150, 228, 52, 0.85), 0 0 34px 11px rgba(120, 200, 40, 0.42); }
+  50% { box-shadow: 0 0 30px 9px rgba(168, 238, 70, 1), 0 0 60px 21px rgba(128, 208, 46, 0.74); }
+}
 
 /* Triple-ready: a tavern offer that completes a triple if bought — a bright gold pulsing glow (keeps
    the tribe ring) plus gold arrows floating up around it, so it shouts "buy me to combine". */
@@ -390,6 +401,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .kwward svg { width: 40px; height: 40px; color: #fff; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 .kwward.ds { background: radial-gradient(circle at 38% 32%, #ffe089, #e7a528 72%, #c2871c); }
 .kwward.reborn { background: radial-gradient(circle at 38% 32%, #bfe6ff, #3aa0e6 72%, #1d7ccc); }
+.kwward.venom { background: radial-gradient(circle at 38% 32%, #dcf98e, #84c421 72%, #5e9a14); }
+/* Stack a 2nd ward (e.g. a Venomous + Divine-Shield unit) below the first instead of overlapping it. */
+.kwward ~ .kwward { top: 58px; }
 .card:has(.kwward) .tauntward { right: 58px; }
 /* the tribe label sits between the (now absolute, overhanging) atk/hp badges — pad it clear
    of them so the larger text never slips under a badge */

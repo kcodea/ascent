@@ -285,7 +285,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The mount-pop is opt-in via `popin` (frozen at mount in Card) so it fires for freshly bought/played
    cards but NOT when the warband re-mounts on the way back from combat (that re-mount looked like a
    random jiggle). Declared before .dscard/.reborncard/.unit so their persistent glows still win. */
-.card.popin { animation: cardpop 0.26s ease; }
+.card.popin { animation: cardpop 0.15s ease; }
 .card:hover { transform: translateY(-3px); z-index: 20; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 26px 2px color-mix(in srgb, var(--c) 90%, transparent); }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
@@ -642,10 +642,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .ib-amt { font-family: 'Outfit'; font-weight: 800; color: #1aa86f; flex: 0 0 auto; }
 @keyframes inspectpop { from { opacity: 0; transform: scale(1.45); } to { opacity: 1; transform: scale(1.9); } }
 
-/* custom drag: a solid card follows the cursor; the source dims; invalid drops snap back.
-   A whisper of lag (0.08s) so the card floats after the cursor instead of rigidly pinned;
-   .snap / .magslide below override with their own (longer) transitions. */
-.dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); transition: transform 0.08s ease-out; will-change: transform; }
+/* custom drag: a solid card pinned to the cursor; the source dims; invalid drops snap back.
+   No base transition — the card tracks the cursor 1:1 for a snappy feel (not floaty); .snap / .magslide
+   below add their own transitions for the release animations. */
+.dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
 .dragcard.snap { transition: transform 0.16s cubic-bezier(0.34, 1.2, 0.64, 1); }
 /* a Magnetic card shrinking straight into its Mech before it merges — snappy, so it reads as an
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */

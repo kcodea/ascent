@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Feel pass (round 1): drag card tracks the cursor 1:1; faster landing pop
+First, lowest-risk lever on the drag/buy/sell snappiness.
+- **Removed the deliberate 0.08s drag "float."** `.dragcard` had `transition: transform 0.08s ease-out` —
+  intentionally easing the card *after* the cursor ("floats instead of rigidly pinned"). That was the main
+  "not snappy" feel. Removed it so the card tracks the cursor 1:1 (the `.snap` invalid-drop + `.magslide`
+  release animations keep their own transitions, so those still animate).
+- **Faster landing pop.** `cardpop` (a freshly bought/played card popping in) 0.26s → 0.15s.
+- **Profiled the state-change path:** a `dispatch` is ~1.2ms (reducer + setState), so the React re-render
+  isn't the obvious bottleneck — the animation timing was. (The preview's rAF is background-throttled, so
+  a to-paint number isn't trustworthy there.) DRAG_THRESHOLD is already a tight 5px.
+- **Next levers (pending your feel-test):** if the drag/drop still feels heavy, cap per-frame re-renders
+  (rAF-throttle the move) and make a drop re-render only the changed cards (content-aware Card memo).
+
 ### Discover-queue (Yazzus → Help Wanted/Sprout, Drakko → Brian) + Hoarder triple keeps the oldest + Eyes targeting
 - **Discover queue.** Discovers now QUEUE behind the open one (`RunState.discoverQueue: DiscoverSpec[]`,
   serializable — `{kind:'spell'}` or `{kind:'minion',tier,exactTier?,filter?}`) instead of overwriting.

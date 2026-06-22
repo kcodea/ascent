@@ -214,6 +214,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
   },
 
+  /** Deathrattle (Junkyard Titan): add a random Magnetic minion to your hand after combat. Sibling of
+   *  Arcane Weaver's grant, but the card is chosen at random (via ctx.rng) from the Magnetic-keyword
+   *  minion pool (tokens/spells excluded) rather than a fixed id. Each pick is independent, so a golden's
+   *  two grants can differ. Emits the same `toHand` event so the replay flies it to the hand; golden → 2.
+   *  (Today the pool is Cling Drone / Money Bot / Heckbinder.) */
+  deathrattleGrantMagnetic: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
+    if (pool.length === 0) return;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+  },
+
   /** Rally — when *this* minion attacks, buff your other living minions (+atk/+hp). */
   rallyBuff: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;

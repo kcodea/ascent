@@ -6,4 +6,4 @@ export * from './state';
 export * from './reducer';
 export * from './snapshot';
 export * from './opponents';
-export { addBuff, boardManaBonus, cardBuff, chronosRepeats, magnetizeTargets, projectEndOfTurnSteps, spellDisplayText, spellStatBonus, syncLifebinders } from './recruit';
+export { addBuff, boardManaBonus, cardBuff, chronosRepeats, magnetizeTargets, projectEndOfTurnSteps, spellCastMult, spellDisplayText, spellStatBonus, syncLifebinders } from './recruit';

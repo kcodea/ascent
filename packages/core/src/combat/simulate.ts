@@ -124,6 +124,7 @@ export function simulate(
       if (!card) throw new Error(`Unknown card: ${id}`);
       return card;
     },
+    allCards: () => Object.values(cards),
     buff: (target, attack, health, source) => {
       target.attack = Math.max(0, target.attack + attack); // Attack never drops below 0
       target.health += health;

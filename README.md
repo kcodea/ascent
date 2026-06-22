@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Three new minions + a Junkyard Titan rework.** **Hoarder** (T1 — sells for +1 Mana per turn you hold it),
+  **Black Belt Brian** (T5 — Battlecry: Discover a spell), **Yazzus** (T6 — your spells cast twice; three times
+  when golden, spark and all), and **Junkyard Titan** now reads "**Deathrattle:** add a random Magnetic minion
+  to your hand."
 - **Stability + content fixes.** Reverted the hand-fan rework (it had pushed the hand into the play area on
   short/wide screens, blocking card placement — the hand sits at the bottom again). Removed **Arclight
   Reactor**; refreshed art for **Eyes of Aresmar**, **Growth**, **Staff of Guel**. Earlier this session: the

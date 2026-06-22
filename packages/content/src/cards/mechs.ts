@@ -4,10 +4,11 @@ import type { CardDef } from '@game/core';
  * Mechs (handoff A.7) — Divine Shield walls + Magnetic + shield-break payoffs.
  * Answers Venom Swarm (Shields soak the one-touch Venomous) and Glass Cannon
  * (a Shield eats the single big hit). The shield-break chain is the engine of
- * the tribe: every popped Shield can regrant a Shield (Capacitor) or buff the
- * board (Titan). Magnetic merges a Cling Drone's
+ * the tribe: every popped Shield can regrant a Shield (Capacitor) or deal damage
+ * (Arclight Reactor). Magnetic merges a Cling Drone's
  * stats onto a friendly Mech at recruit (resolved in `@game/sim`); Beatboxer
- * mimics every magnetization that lands on another friendly unit.
+ * mimics every magnetization that lands on another friendly unit; Junkyard Titan's
+ * Deathrattle refills your hand with a random Magnetic to keep the chain going.
  */
 export const MECHS: CardDef[] = [
   {
@@ -66,8 +67,9 @@ export const MECHS: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onLoseDivineShield', do: 'onShieldBreakBuffAll', params: { attack: 1, health: 1 } }],
-    text: 'When any friendly Shield breaks, give your minions **+1/+1**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantMagnetic' }],
+    text: '**Deathrattle:** Add a random Magnetic minion to your hand.',
+    goldenText: '**Deathrattle:** Add **two** random Magnetic minions to your hand.',
   },
   {
     // End of Turn: weld a Cling Drone's stats onto two friendly Mechs (golden: two each).

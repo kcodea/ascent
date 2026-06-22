@@ -69,6 +69,7 @@ export type EffectFactoryId =
   | 'rallyBuff' // Rally: when this attacks, buff your other minions (combat)
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
+  | 'deathrattleGrantMagnetic' // Deathrattle: add a random Magnetic minion to your hand after combat (Junkyard Titan)
   | 'deathrattleFillTribe'
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
@@ -86,6 +87,7 @@ export type EffectFactoryId =
   | 'buffOnBuy'
   | 'battlecryGrantKeyword'
   | 'battlecryGainRandomMinion' // Battlecry: add a random minion of a tier to your hand (Buddy Buddy)
+  | 'battlecryDiscoverSpell' // Battlecry: Discover a spell (golden: grants the pick + a second random spell) (Black Belt Brian)
   | 'onBattlecryBuffTribe' // when any Battlecry resolves, buff your tribe (Karwind)
   | 'endOfTurnBuff' // End of Turn: buff self (recruit)
   | 'endOfTurnMagnetizeMechs' // End of Turn: merge a token's stats into N friendly Mechs (Combinator)
@@ -321,6 +323,9 @@ export interface CombatContext {
   log(event: CombatEvent): void;
   living(side: Side): Minion[];
   getCard(id: string): CardDef;
+  /** Every card definition the run knows about — for effects that pick a random card matching a
+   *  property rather than a fixed id (Junkyard Titan → a random Magnetic minion). */
+  allCards(): CardDef[];
   buff(target: Minion, attack: number, health: number, source: string): void;
   /** Register a tribe buff that persists for the rest of combat: a friend of `tribe` on `side`
    *  summoned *after* this also gains +atk/+hp (Grim's Deathrattle). Current friends are buffed by the caller. */

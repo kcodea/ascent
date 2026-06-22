@@ -19,6 +19,20 @@ export const NEUTRAL: CardDef[] = [
     text: '',
   },
   {
+    // Sell-scaling glue: its sell value grows the longer you hold it (handled in @game/sim's reducer
+    // via the BoardCard's boughtWave). Plain stats / no effects — the value is purely the climbing sell.
+    id: 'hoarder',
+    name: 'Hoarder',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    text: 'Sells for **+1 Mana** per turn you hold it.',
+    goldenText: 'Sells for **+2 Mana** per turn you hold it.',
+  },
+  {
     id: 'broker',
     name: 'Brightwing Broker',
     tribe: 'neutral',
@@ -122,6 +136,22 @@ export const NEUTRAL: CardDef[] = [
     goldenText: 'Your **End of Turn** effects trigger **2 more** times.',
   },
   {
+    // Spell doubler (recruit). While on your board, each spell you play resolves its effect an extra
+    // time (golden: twice extra → ×3). Resolved in @game/sim (the reducer's spell-cast path reads
+    // `spellCastMult`). Discover-spells are exempt (one pending discover set). No combat factory → inert
+    // in combat; the body is just a sturdy 6/8.
+    id: 'yazzus',
+    name: 'Yazzus',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 6,
+    health: 8,
+    keywords: [],
+    effects: [],
+    text: 'Your spells cast **twice**.',
+    goldenText: 'Your spells cast **three times**.',
+  },
+  {
     id: 'venom',
     name: 'Venom',
     tribe: 'neutral',
@@ -143,6 +173,21 @@ export const NEUTRAL: CardDef[] = [
     effects: [{ on: 'onDeath', do: 'deathrattleDamageAll', params: { amount: 3 } }],
     text: '**Deathrattle:** deal **3** damage to ALL minions (yours too).',
     goldenText: '**Deathrattle:** deal **6** damage to ALL minions (yours too).',
+  },
+  {
+    // Spell-Discover Battlecry — opens a Discover of three random spells (the normal Discover only
+    // offers minions). Resolved in @game/sim's recruit factory `battlecryDiscoverSpell`. Golden grants
+    // the chosen spell PLUS a second random spell straight to hand (the discover state holds one set).
+    id: 'blackbelt',
+    name: 'Black Belt Brian',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 3,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryDiscoverSpell' }],
+    text: '**Battlecry:** Discover a spell.',
+    goldenText: '**Battlecry:** Discover a spell, and add another random spell to your hand.',
   },
   {
     id: 'jenkins',

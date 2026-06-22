@@ -1,5 +1,5 @@
 import { makeRng, type CardDef, type Keyword, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type BoardCard, type RunState, type ShopCard } from './state';
@@ -75,6 +75,18 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
  */
 export function cardBuff(state: RunState, cardId: string): { attack: number; health: number } {
   return state.cardBuffs?.[cardId] ?? { attack: 0, health: 0 };
+}
+
+/**
+ * How many times a spell's effect resolves when cast, given the board (Yazzus): 3 if any Yazzus on the
+ * board is golden, 2 if a non-golden Yazzus is present, else 1. Multiple Yazzus do NOT stack — the best
+ * single one wins (mirrors Drakko / Chronos). Read by the reducer's spell-cast path; Discover-spells are
+ * exempt (the discover state holds a single pending set), handled at the call site.
+ */
+export function spellCastMult(state: RunState): number {
+  const yazzus = state.board.filter((c) => c.cardId === 'yazzus');
+  if (yazzus.some((c) => c.golden)) return 3;
+  return yazzus.length > 0 ? 2 : 1;
 }
 
 /**
@@ -329,6 +341,38 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       takeFromPool(ctx.state, def.id); // a conjured copy leaves the shared pool
     }
     ctx.state.rngCursor = rng.state();
+  },
+
+  /** Black Belt Brian: Battlecry — Discover a spell. Opens a Discover of three random spells (the normal
+   *  Discover offers only minions), drawn from the tavern spell pool via the run's seeded rng cursor; the
+   *  player picks one into the hand (resolved by the reducer's `discover` case, which handles spell cards).
+   *  GOLDEN: since the discover state holds a single pending set, the golden grants the chosen spell PLUS a
+   *  second random spell added straight to the hand now (honoring the hand cap). */
+  battlecryDiscoverSpell: (ctx, self) => {
+    const state = ctx.state;
+    const rng = makeRng(state.rngCursor);
+    // Golden's bonus spell: drawn first so it can't duplicate-block the 3-card offer's RNG ordering, and
+    // added straight to hand if there's room.
+    if (self.golden && state.hand.length < CONFIG.handMax && SPELL_CARDS.length > 0) {
+      const bonus = SPELL_CARDS[rng.int(SPELL_CARDS.length)]!;
+      state.hand.push({
+        uid: `b${state.uidSeq++}`,
+        cardId: bonus.id,
+        tribe: bonus.tribe,
+        attack: bonus.attack,
+        health: bonus.health,
+        keywords: [...bonus.keywords],
+        golden: false,
+      });
+    }
+    // The Discover offer: up to 3 distinct random spells.
+    const avail = [...SPELL_CARDS];
+    const picks: string[] = [];
+    for (let i = 0; i < 3 && avail.length > 0; i++) {
+      picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
+    }
+    state.rngCursor = rng.state();
+    if (picks.length > 0) state.discover = picks;
   },
 
   /** Karwind: whenever a Battlecry resolves, buff your minions of `tribe` (+atk/+hp). Golden 2×.

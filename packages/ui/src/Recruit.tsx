@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, getHero, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellStatBonus, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, getHero, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellStatBonus, spellCastMult, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
@@ -1040,6 +1040,13 @@ export function Recruit() {
       fireSpark(r.left + r.width / 2, r.top + r.height / 2);
     } else fireSpark(fx, fy);
   };
+  // Yazzus replays the cast: fire the spell's spark once per resolution (2× / 3× when golden), staggered,
+  // so a doubled cast visibly procs more than once. Reads the live board (a Yazzus on it sets the count).
+  const castSparks = (fn: () => void): void => {
+    const n = spellCastMult(useGame.getState().run);
+    fn();
+    for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
+  };
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
     // Insertion uses the dragged card's centre (not the raw drop pointer), matching the live preview.
@@ -1086,12 +1093,12 @@ export function Recruit() {
           return true;
         }
         dispatch({ type: 'play', uid: d.uid, targetUid });
-        sparkAtUid(targetUid, x, y); // spark bursts on the minion it hit
+        castSparks(() => sparkAtUid(targetUid, x, y)); // spark bursts on the minion it hit — once per cast (Yazzus)
         return true;
       }
       if (up) {
         dispatch({ type: 'play', uid: d.uid });
-        fireSpark(x, y);
+        castSparks(() => fireSpark(x, y));
         return true;
       }
       return false;

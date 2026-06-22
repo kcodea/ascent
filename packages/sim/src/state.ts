@@ -96,6 +96,10 @@ export interface BoardCard {
   /** Spells cast while this card has been on the board — drives transform cards (Spirit Pup → Worgen
    *  at 10). Per-instance; ticks only while on the board (the spellCast trigger fires for the board). */
   spellProgress?: number;
+  /** The wave this card was bought on — drives Hoarder's climbing sell value (currentWave - boughtWave
+   *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that
+   *  wasn't bought sells for the base 1, since it has no held-since wave). */
+  boughtWave?: number;
 }
 
 export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';

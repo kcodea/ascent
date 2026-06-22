@@ -356,18 +356,29 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'shieldUp')).toBe(true);
   });
 
-  it('Junkyard Titan buffs the whole board when a friendly Shield breaks', () => {
-    const a = run(
-      [
-        { cardId: 'drone', attack: 2, health: 1, keywords: ['DS'] },
-        { cardId: 'junk', attack: 4, health: 4 },
-        { cardId: 'sandbag', attack: 0, health: 20, keywords: [] },
-      ],
-      [{ cardId: 'omen', attack: 2, health: 40, keywords: [] }],
-      8,
-    );
-    // The break buffs all three living friends +1/+1.
-    expect(a.events.filter((e) => e.type === 'buff').length).toBeGreaterThanOrEqual(3);
+  it('Junkyard Titan Deathrattle grants a random Magnetic minion to the hand (toHand event + carry-back)', () => {
+    // The Titan dies to retaliation; its Deathrattle queues a random Magnetic minion for the hand and
+    // logs a toHand event so the replay flies it over (mirrors Arcane Weaver). The grant is one of the
+    // Magnetic-keyword minions (cling / moneybot / heckbinder).
+    const a = run([{ cardId: 'junk', attack: 1, health: 1 }], [{ cardId: 'sandbag', attack: 5, health: 5 }], 5);
+    expect(a.result).toBe('lose');
+    const grant = a.events.find((ev) => ev.type === 'toHand');
+    expect(grant && grant.type === 'toHand').toBe(true);
+    if (grant && grant.type === 'toHand') {
+      expect(CARD_INDEX[grant.cardId]!.keywords).toContain('M'); // a Magnetic minion
+      expect(!!grant.source).toBe(true); // attributed to the Titan (for the Procs tab)
+    }
+    expect(a.playerHandGrants).toHaveLength(1);
+    expect(CARD_INDEX[a.playerHandGrants![0]!]!.keywords).toContain('M');
+  });
+
+  it('a golden Junkyard Titan grants two Magnetic minions; an enemy Titan grants the player none', () => {
+    const golden = run([{ cardId: 'junk', attack: 1, health: 1, golden: true }], [{ cardId: 'sandbag', attack: 5, health: 5 }], 5);
+    expect(golden.playerHandGrants).toHaveLength(2);
+    for (const id of golden.playerHandGrants!) expect(CARD_INDEX[id]!.keywords).toContain('M');
+    // An enemy Titan dying must not stuff the *player's* hand.
+    const enemySide = run([{ cardId: 'sandbag', attack: 5, health: 5 }], [{ cardId: 'junk', attack: 1, health: 1 }], 5);
+    expect(enemySide.playerHandGrants).toBeUndefined();
   });
 
   it('Brood Matron breeds an Imp each time a friend dies', () => {

@@ -1294,6 +1294,91 @@ describe('run loop (@game/sim)', () => {
     expect(s.embers).toBe(4); // +1, uncapped (previously capped at maxEmbers → bug)
   });
 
+  it('Hoarder sells for +1 Mana per turn held (wave - boughtWave + 1)', () => {
+    // Bought wave 1, sold wave 5 → 5 - 1 + 1 = 5 Mana.
+    let s: RunState = {
+      ...createRun(1), wave: 5, embers: 0,
+      board: [{ uid: 'h', cardId: 'hoarder', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false, boughtWave: 1 }],
+    };
+    s = reduce(s, { type: 'sell', uid: 'h' });
+    expect(s.embers).toBe(5);
+  });
+
+  it('a golden Hoarder sells for +2 Mana per turn held', () => {
+    let s: RunState = {
+      ...createRun(1), wave: 5, embers: 0,
+      board: [{ uid: 'h', cardId: 'hoarder', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: true, boughtWave: 1 }],
+    };
+    s = reduce(s, { type: 'sell', uid: 'h' });
+    expect(s.embers).toBe(10); // (5 - 1 + 1) × 2
+  });
+
+  it('a same-turn buy+sell Hoarder sells for 1 (the buy stamps boughtWave = current wave)', () => {
+    // Buy then immediately sell on the same wave → wave - boughtWave + 1 = 1. The buy must set boughtWave.
+    let s: RunState = { ...createRun(1), wave: 4, embers: 3, hand: [], board: [] };
+    s.shop = [{ uid: 'so', cardId: 'hoarder' }];
+    s.pool = { ...s.pool, hoarder: 1 };
+    s = reduce(s, { type: 'buy', uid: 'so' });
+    const bought = s.hand.find((c) => c.cardId === 'hoarder')!;
+    expect(bought.boughtWave).toBe(4); // stamped at buy
+    s = reduce(s, { type: 'sell', uid: bought.uid });
+    expect(s.embers).toBe(1); // 4 - 4 + 1 = 1 (embers were 0 after the buy)
+  });
+
+  it('Black Belt Brian Battlecry Discovers a spell — 3 spell ids offered', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [],
+      hand: [{ uid: 'bb', cardId: 'blackbelt', tribe: 'neutral', attack: 3, health: 5, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'bb' });
+    expect(s.discover?.length).toBe(3);
+    for (const id of s.discover!) expect(CARD_INDEX[id]!.spell).toBe(true); // every offer is a spell
+    expect(new Set(s.discover).size).toBe(3); // distinct
+  });
+
+  it('a golden Black Belt Brian Discovers a spell AND adds a second random spell to hand', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [],
+      hand: [{ uid: 'bb', cardId: 'blackbelt', tribe: 'neutral', attack: 6, health: 10, keywords: [], golden: true }],
+    };
+    s = reduce(s, { type: 'play', uid: 'bb' });
+    expect(s.discover?.length).toBe(3); // still a Discover offer
+    // The bonus spell landed straight in the hand (Brian itself is now on the board, not the hand).
+    const handSpells = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell);
+    expect(handSpells.length).toBe(1);
+  });
+
+  it('Yazzus makes a spell resolve twice (golden: three times)', () => {
+    // Growth (+3/+4 to your board) with a Yazzus present resolves 2× → +6/+8 on a sandbag.
+    const board = (yazzGolden?: boolean): BoardCard[] => [
+      { uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+      { uid: 'y', cardId: 'yazzus', tribe: 'neutral', attack: 6, health: 8, keywords: [], golden: !!yazzGolden },
+    ];
+    const cast = (yazzGolden?: boolean): RunState => {
+      let s: RunState = {
+        ...createRun(1), embers: 0, shop: [], board: board(yazzGolden),
+        hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      };
+      s = reduce(s, { type: 'play', uid: 'g' });
+      return s;
+    };
+    const two = cast(false).board.find((c) => c.uid === 'm')!;
+    expect([two.attack, two.health]).toEqual([7, 9]); // 1/1 + (3/4 × 2)
+    const three = cast(true).board.find((c) => c.uid === 'm')!;
+    expect([three.attack, three.health]).toEqual([10, 13]); // 1/1 + (3/4 × 3)
+    expect(cast(false).spellsCast).toBe(2); // the effect (and tally) repeats per Yazzus multiplier
+  });
+
+  it('without a Yazzus a spell resolves once', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([4, 5]); // 1/1 + 3/4 once
+  });
+
   it('Toxin Tender is player-targeted: its Battlecry waits, then grants Venomous to the chosen minion', () => {
     let s: RunState = {
       ...createRun(1),

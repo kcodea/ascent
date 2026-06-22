@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, playCard, replayBattlecry, replayEndOfTurn, spellCastMult, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -113,6 +113,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         health: card.health + cb.health,
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: false,
+        boughtWave: s.wave, // Hoarder's sell value climbs from the wave it was bought
       };
       // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
       addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
@@ -176,15 +177,22 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Other spells: cast on the chosen target, then consume — no board slot.
       const def = CARD_INDEX[card.cardId];
       if (def?.spell) {
+        // Yazzus: while it's on the board, the spell's effect resolves N times (2, or 3 if golden) — the
+        // card is still consumed once. `singleCast` spells (Channeling the Devourer) never multi-fire,
+        // exactly like the spell-quantity guard inside castSpell. The Discover-spells (discoverspell /
+        // sprout / helpwanted) returned early above, so they're exempt — the discover state holds a
+        // single pending set. A bad target still fizzles before any cast (no partial state change).
+        // TODO(ui): Yazzus — replay the spell-cast animation N times.
+        const casts = def.singleCast ? 1 : spellCastMult(s);
         if (def.target === 'friendly' || def.target === 'any') {
           const boardTarget = s.board.find((c) => c.uid === action.targetUid);
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
           const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : undefined;
-          if (boardTarget) castSpell(s, def, boardTarget);
-          else if (offer) castSpellOnOffer(s, def, offer);
+          if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);
+          else if (offer) for (let n = 0; n < casts; n++) castSpellOnOffer(s, def, offer);
           else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
         } else {
-          castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
+          for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
         s.hand.splice(i, 1);
         return s;
@@ -288,7 +296,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         sold = s.hand[hi];
         s.hand.splice(hi, 1);
       }
-      s.embers += CONFIG.sellValue; // embers are uncapped within a turn (no max-embers ceiling)
+      // Hoarder sells for +1 Mana per turn held (currentWave - boughtWave + 1; ×2 golden) instead of the
+      // flat sell value. Same-turn buy+sell = 1 (or 2 golden); a Hoarder with no boughtWave (not bought)
+      // falls back to wave - wave + 1 = 1. Embers are uncapped within a turn (no max-embers ceiling).
+      if (sold && sold.cardId === 'hoarder') {
+        s.embers += (s.wave - (sold.boughtWave ?? s.wave) + 1) * (sold.golden ? 2 : 1);
+      } else {
+        s.embers += CONFIG.sellValue;
+      }
       // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
       if (sold) returnToPool(s, sold.cardId, sold.golden ? 3 : 1);
       return s;

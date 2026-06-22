@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Three new neutral minions (Hoarder, Black Belt Brian, Yazzus) + Junkyard Titan rework
+- **Junkyard Titan** (Mech T5) reworked → **"Deathrattle: Add a random Magnetic minion to your hand"** (golden:
+  two). New combat factory `deathrattleGrantMagnetic` — mirrors Arcane Weaver's `deathrattleGrantSpell` (picks a
+  random Magnetic-keyword minion via `ctx.rng`, grants to hand + emits the `toHand` event so the replay flies it
+  over; golden grants 2 independent picks). Added a `ctx.allCards()` combat primitive so the factory enumerates
+  the card pool data-drivenly. Magnetic pool (`'M'` keyword) = Cling Drone, Money Bot, Heckbinder.
+- **Hoarder** (Neutral T1 1/1) — "Sells for **+1 Mana** per turn you hold it" (golden +2). `BoardCard.boughtWave`
+  is stamped in the buy case; the sell case pays `(wave − boughtWave + 1) × (golden ? 2 : 1)` for a Hoarder
+  instead of the flat sell value (same-turn buy+sell = 1).
+- **Black Belt Brian** (Neutral T5 3/5) — "**Battlecry:** Discover a spell" (golden: the picked spell **plus** a
+  second random one added to hand). New recruit factory `battlecryDiscoverSpell` — offers 3 distinct random
+  spells through the existing Discover flow (which resolves a spell card straight into the hand).
+- **Yazzus** (Neutral T6 6/8) — "Your spells cast **twice**" (golden: three times). New `spellCastMult(state)`
+  helper (3 if a golden Yazzus is on board, 2 if a non-golden, else 1); the reducer's play-spell path resolves
+  the cast that many times (the card is consumed once). Channeling the Devourer's `singleCast` is exempt (never
+  multi-fires), and the Discover-spells are exempt (single pending discover). The UI fires the cast spark once
+  per resolution (staggered 200 ms, via a `castSparks` helper reading `spellCastMult`) so a doubled cast visibly
+  procs more than once.
+- Both new factory ids registered in `EffectFactoryId` (core) + `EffectFactoryIdSchema` (content). Art wired for
+  all three (Hoarder / Yazzus / Black Belt Brian — the `BlackBeltBrian.png` master existed, no fallback needed).
+- Verified: typecheck + lint + **243 tests** (8 new — Hoarder sell math, Brian/golden discover, Yazzus 2×/3×,
+  Junkyard Titan grant/golden/enemy-side); live — all four render with art + correct text, hand reads clean.
+
 ### Revert the hand layout (card placement broke), remove Arclight Reactor, rewire 3 spell arts
 - **Reverted the hand-fan rework.** The uniform-height change (absolute drawer) + this session's raise pushed
   the hand UP into the warband drop zone on short/wide viewports — drops landed on the hand instead of the

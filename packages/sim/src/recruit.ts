@@ -349,30 +349,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  GOLDEN: since the discover state holds a single pending set, the golden grants the chosen spell PLUS a
    *  second random spell added straight to the hand now (honoring the hand cap). */
   battlecryDiscoverSpell: (ctx, self) => {
-    const state = ctx.state;
-    const rng = makeRng(state.rngCursor);
-    // Golden's bonus spell: drawn first so it can't duplicate-block the 3-card offer's RNG ordering, and
-    // added straight to hand if there's room.
-    if (self.golden && state.hand.length < CONFIG.handMax && SPELL_CARDS.length > 0) {
-      const bonus = SPELL_CARDS[rng.int(SPELL_CARDS.length)]!;
-      state.hand.push({
-        uid: `b${state.uidSeq++}`,
-        cardId: bonus.id,
-        tribe: bonus.tribe,
-        attack: bonus.attack,
-        health: bonus.health,
-        keywords: [...bonus.keywords],
-        golden: false,
-      });
-    }
-    // The Discover offer: up to 3 distinct random spells.
-    const avail = [...SPELL_CARDS];
-    const picks: string[] = [];
-    for (let i = 0; i < 3 && avail.length > 0; i++) {
-      picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
-    }
-    state.rngCursor = rng.state();
-    if (picks.length > 0) state.discover = picks;
+    offerSpellDiscover(ctx.state);
+    // Golden: a real SECOND Discover — queued, opened when the first pick resolves (reducer's discover case).
+    if (self.golden) ctx.state.pendingSpellDiscovers = (ctx.state.pendingSpellDiscovers ?? 0) + 1;
   },
 
   /** Karwind: whenever a Battlecry resolves, buff your minions of `tribe` (+atk/+hp). Golden 2×.
@@ -782,6 +761,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
  * applies it (`spellBuffTarget`) and the UI displays it (`spellDisplayText`), so a spell card always
  * shows its real value. New spell-buff effects should fold into this one function.
  */
+/** Open a Discover of up to 3 distinct random spells (Black Belt Brian). Sets `state.discover`; the reducer's
+ *  `discover` case resolves the pick into the hand and, while `pendingSpellDiscovers` remains, re-opens this. */
+export function offerSpellDiscover(state: RunState): void {
+  const rng = makeRng(state.rngCursor);
+  const avail = [...SPELL_CARDS];
+  const picks: string[] = [];
+  for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
+  state.rngCursor = rng.state();
+  if (picks.length > 0) state.discover = picks;
+}
+
 export function spellStatBonus(state: RunState): number {
   let bonus = 0;
   if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.wave);

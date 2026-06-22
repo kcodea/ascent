@@ -1336,16 +1336,21 @@ describe('run loop (@game/sim)', () => {
     expect(new Set(s.discover).size).toBe(3); // distinct
   });
 
-  it('a golden Black Belt Brian Discovers a spell AND adds a second random spell to hand', () => {
+  it('a golden Black Belt Brian Discovers TWICE — each pick re-opens a fresh spell Discover', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], board: [],
       hand: [{ uid: 'bb', cardId: 'blackbelt', tribe: 'neutral', attack: 6, health: 10, keywords: [], golden: true }],
     };
     s = reduce(s, { type: 'play', uid: 'bb' });
-    expect(s.discover?.length).toBe(3); // still a Discover offer
-    // The bonus spell landed straight in the hand (Brian itself is now on the board, not the hand).
+    expect(s.discover?.length).toBe(3); // the first Discover is open
+    expect(s.pendingSpellDiscovers).toBe(1); // a second Discover is queued
+    s = reduce(s, { type: 'discover', index: 0 }); // pick the first spell
+    expect(s.discover?.length).toBe(3); // the second Discover opened
+    expect(s.pendingSpellDiscovers).toBe(0);
+    s = reduce(s, { type: 'discover', index: 0 }); // pick the second spell
+    expect(s.discover).toBeUndefined(); // both done
     const handSpells = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell);
-    expect(handSpells.length).toBe(1);
+    expect(handSpells.length).toBe(2); // two spells Discovered into the hand
   });
 
   it('Yazzus makes a spell resolve twice (golden: three times)', () => {

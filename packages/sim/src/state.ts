@@ -201,6 +201,9 @@ export interface RunState {
   karwindFlashSeq: number;
   /** A pending Discover offer (3 card ids) granted by a triple — pick one to hand. */
   discover?: string[];
+  /** Spell-Discovers still queued after the current one resolves (golden Black Belt Brian → 1). Each pick
+   *  re-opens a fresh spell Discover until this reaches 0. */
+  pendingSpellDiscovers?: number;
   /** A pending Choose One — a played card waiting for the player to pick an option. The
    *  options live on the card def (`CARD_INDEX[cardId].chooseOne`). */
   chooseOne?: { uid: string; cardId: string };

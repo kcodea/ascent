@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Tuning: Junkyard Titan → T4; Black Belt Brian golden Discovers 2 spells (a real two-pick)
+- **Junkyard Titan** dropped tier 5 → **tier 4**.
+- **Golden Black Belt Brian now Discovers TWO spells for real** — was a shortcut (the pick + a random spell
+  added to hand). New `RunState.pendingSpellDiscovers` + an exported `offerSpellDiscover(state)` helper: golden
+  Brian opens the first spell-Discover and queues one more; the reducer's `discover` case re-opens a fresh
+  spell-Discover after each pick while the queue remains (base Brian still Discovers 1). goldenText →
+  "Discover **2** spells."
+- Verified: typecheck + lint + **243 tests** (the golden-Brian test rewritten to walk the two-pick chain).
+
 ### Three new neutral minions (Hoarder, Black Belt Brian, Yazzus) + Junkyard Titan rework
 - **Junkyard Titan** (Mech T5) reworked → **"Deathrattle: Add a random Magnetic minion to your hand"** (golden:
   two). New combat factory `deathrattleGrantMagnetic` — mirrors Arcane Weaver's `deathrattleGrantSpell` (picks a

@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, playCard, replayBattlecry, replayEndOfTurn, spellCastMult, syncLifebinders, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, offerSpellDiscover, playCard, replayBattlecry, replayEndOfTurn, spellCastMult, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -434,7 +434,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         golden: false,
       });
       takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
-      s.discover = undefined;
+      // A queued spell-Discover (golden Black Belt Brian) re-opens a fresh Discover instead of clearing.
+      if (s.pendingSpellDiscovers && s.pendingSpellDiscovers > 0) {
+        s.pendingSpellDiscovers -= 1;
+        offerSpellDiscover(s);
+      } else {
+        s.discover = undefined;
+      }
       checkTriples(s); // the discovered copy might itself complete a triple
       return s;
     }

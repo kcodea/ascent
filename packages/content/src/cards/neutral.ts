@@ -175,9 +175,9 @@ export const NEUTRAL: CardDef[] = [
     goldenText: '**Deathrattle:** deal **6** damage to ALL minions (yours too).',
   },
   {
-    // Spell-Discover Battlecry — opens a Discover of three random spells (the normal Discover only
-    // offers minions). Resolved in @game/sim's recruit factory `battlecryDiscoverSpell`. Golden grants
-    // the chosen spell PLUS a second random spell straight to hand (the discover state holds one set).
+    // Spell-Discover Battlecry — opens a Discover of three random spells (the normal Discover only offers
+    // minions). Resolved in @game/sim's recruit factory `battlecryDiscoverSpell`. Golden Discovers TWICE —
+    // the first pick re-opens a second spell Discover (via RunState.pendingSpellDiscovers).
     id: 'blackbelt',
     name: 'Black Belt Brian',
     tribe: 'neutral',
@@ -187,7 +187,7 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryDiscoverSpell' }],
     text: '**Battlecry:** Discover a spell.',
-    goldenText: '**Battlecry:** Discover a spell, and add another random spell to your hand.',
+    goldenText: '**Battlecry:** Discover **2** spells.',
   },
   {
     id: 'jenkins',

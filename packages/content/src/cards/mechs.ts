@@ -63,7 +63,7 @@ export const MECHS: CardDef[] = [
     id: 'junk',
     name: 'Junkyard Titan',
     tribe: 'mech',
-    tier: 5,
+    tier: 4,
     attack: 4,
     health: 4,
     keywords: [],

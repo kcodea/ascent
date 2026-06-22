@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, consumeTavernFodder, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, playCard, replayBattlecry, replayEndOfTurn, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -175,12 +175,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Other spells: cast on the chosen target, then consume — no board slot.
       const def = CARD_INDEX[card.cardId];
       if (def?.spell) {
-        let target: BoardCard | undefined;
-        if (def.target === 'friendly') {
-          target = s.board.find((c) => c.uid === action.targetUid);
-          if (!target) return state; // a friendly target is required to cast
+        if (def.target === 'friendly' || def.target === 'any') {
+          const boardTarget = s.board.find((c) => c.uid === action.targetUid);
+          // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
+          const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : undefined;
+          if (boardTarget) castSpell(s, def, boardTarget);
+          else if (offer) castSpellOnOffer(s, def, offer);
+          else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
+        } else {
+          castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
-        castSpell(s, def, target);
         s.hand.splice(i, 1);
         return s;
       }

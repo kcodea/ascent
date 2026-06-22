@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Async-PvP groundwork + tavern-targeting.** Your finished runs' boards now **persist** (localStorage) and
+  load back into the opponent pool at startup, so you face boards you actually built. And **Shatter** / **Front
+  to Back** can be dropped onto a **tavern offer** to buff it before you buy it.
 - **Spell + VFX polish.** **Lantern of Souls** is now a global Undead aura — active in the shop, warband,
   hand, and combat, scaling with spell power (+1/+1 spells make it +4/+1). **Staff of Guel** permanently
   buffs every minion you *buy* from the tavern (+2/+2, rest of run). Cards show their **live** values (Front

@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Async-PvP groundwork: persist your own boards + friendly/any tavern targeting (M3)
+Two framework rigs (balance/content-depth running on the side).
+- **Persist your own finished-run boards into the opponent pool.** A finished run is `{ seed, heroId,
+  actions }`; on game-over/victory the store re-derives its per-wave boards via `replayRun` (deterministic)
+  and appends the non-empty ones to `localStorage['ascent.boards']` (FIFO-capped at 300). At startup the
+  store loads them alongside the bootstrap pool (`registerOpponents([...bootstrap, ...stored])`), so future
+  runs face boards you actually built. Replay-safe by construction: loaded once at startup (a static session
+  pool), only *written* at run-end, never mutated mid-run. New `packages/ui/src/boardLibrary.ts`
+  (`loadStoredBoards` / `saveRunBoards`). Verified live: an empty-board run to wave 8 wrote 8 valid snapshots;
+  the load re-injects them next startup. This is the localStorage stand-in async-PvP later swaps for a backend.
+- **Friendly/any spell targeting — `target: 'any'` can hit tavern offers.** New scope on `CardDef.target`
+  (`'friendly' | 'any'`; zod + core types). **Shatter** and **Front to Back** (text says just "a minion", not
+  "a *friendly* minion") are now `'any'`: drop them on a **tavern offer** to buff it before you buy. New
+  `castSpellOnOffer` (recruit) runs the normal cast effects against a throwaway BoardCard built from the
+  offer, then folds the net stat + added-keyword change onto the `ShopCard` (so `buy` bakes it in, like the
+  Fortify hero power). UI: a `shopUidAt` drop-target helper (mirrors `boardUidAt`, excludes the pinned spell);
+  `castingSpell` / `castTargetUid` / the drop handler + the offer highlight all extended to `'any'`. Verified:
+  a unit test (Shatter on an offer → +2/+4 + Taunt → a 3/5 Taunt minion on buy) + the selector matches the 3
+  minion offers and excludes the spell. Stat/keyword spells only; gild/devour/tribe-read stay `'friendly'`. (A
+  spell that *removes* a base keyword can't subtract it from an offer — a rare edge that resolves once bought.)
+
 ### Spell/UX polish: Lantern global aura, Staff buy-buff, DS glow, live spell values, drag fix (M2)
 A follow-up pass on the spell batch + VFX, driven by live-playtest feedback.
 - **Divine Shield / Reborn made unmistakable.** The compact arched frame sets `box-shadow: none`, so the

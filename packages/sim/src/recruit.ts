@@ -2,7 +2,7 @@ import { makeRng, type CardDef, type Keyword } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { mixSeed, TAG, type BoardCard, type RunState } from './state';
+import { mixSeed, TAG, type BoardCard, type RunState, type ShopCard } from './state';
 import { takeFromPool } from './shop';
 
 /**
@@ -945,6 +945,31 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
       if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
     }
   }
+}
+
+/** Cast a stat/keyword spell onto a TAVERN OFFER (`target: 'any'` spells like Shatter, Front to Back).
+ *  Builds a throwaway BoardCard from the offer's current state, runs the normal cast effects on it, then
+ *  folds the net stat + added-keyword changes back onto the ShopCard so they bake in when bought (the way
+ *  the Fortify hero power's offer buff already does). The rest of `castSpell` (tally, spell power,
+ *  spellCast triggers) still runs on the run. NB: a spell that *removes* a base keyword can't subtract it
+ *  from an offer (offers only carry added keywords) — a rare edge that resolves once the minion is bought. */
+export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: ShopCard): void {
+  const card = CARD_INDEX[offer.cardId];
+  if (!card) return;
+  const base = card.keywords;
+  const temp: BoardCard = {
+    uid: offer.uid,
+    cardId: offer.cardId,
+    tribe: card.tribe,
+    attack: card.attack + (offer.atk ?? 0),
+    health: card.health + (offer.hp ?? 0),
+    keywords: [...base, ...(offer.keywords ?? []).filter((k) => !base.includes(k))],
+    golden: false,
+  };
+  castSpell(state, spellDef, temp);
+  offer.atk = temp.attack - card.attack;
+  offer.hp = temp.health - card.health;
+  offer.keywords = temp.keywords.filter((k) => !base.includes(k)); // keep only the keywords the spell added
 }
 
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),

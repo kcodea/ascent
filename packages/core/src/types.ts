@@ -152,8 +152,10 @@ export interface CardDef {
   singleCast?: boolean;
   /** Purchase cost. Minions omit this (they use CONFIG.minionCost); spells set it. */
   cost?: number;
-  /** Requires the player to pick a friendly minion when played/cast (spells, targeted Battlecries). */
-  target?: 'friendly';
+  /** Requires picking a target when played/cast. `'friendly'` = a friendly board minion only (spells
+   *  whose text says "a FRIENDLY minion", targeted Battlecries); `'any'` = a friendly minion OR a tavern
+   *  offer — buff it pre-buy (spells whose text says just "a minion", e.g. Shatter, Front to Back). */
+  target?: 'friendly' | 'any';
   /** Restricts a `target: 'friendly'` pick to one tribe and excludes self (Corrupted Lifebinder →
    *  a friendly Demon). Absent = any friendly minion may be chosen. */
   targetTribe?: Tribe;

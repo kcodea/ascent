@@ -947,6 +947,22 @@ describe('run loop (@game/sim)', () => {
     expect(b.keywords).not.toContain('T');
   });
 
+  it('Shatter (target: any) buffs a tavern offer, and the buff bakes in when bought', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 5, board: [],
+      shop: [{ uid: 'o', cardId: 'alley' }],
+      hand: [{ uid: 'sp', cardId: 'shatter', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'o' });
+    const offer = s.shop.find((o) => o.uid === 'o')!;
+    expect([offer.atk, offer.hp]).toEqual([2, 4]); // Shatter's +2/+4 folded onto the ShopCard
+    expect(offer.keywords).toContain('T'); // + Taunt
+    s = reduce(s, { type: 'buy', uid: 'o' }); // Alleycat 1/1 + the offer buff bakes in
+    const bought = s.hand.find((c) => c.cardId === 'alley')!;
+    expect([bought.attack, bought.health]).toEqual([3, 5]); // 1/1 + 2/4
+    expect(bought.keywords).toContain('T');
+  });
+
   it('Front to Back escalates linearly (+2/+2, then +4/+4, …) and the run tally climbs', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],

@@ -121,7 +121,7 @@ export const CardDefSchema = z.object({
   spell: z.boolean().optional(),
   singleCast: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),
-  target: z.enum(['friendly']).optional(),
+  target: z.enum(['friendly', 'any']).optional(),
   targetTribe: TribeSchema.optional(),
   targetMaxTier: z.number().int().positive().optional(),
   fodderMult: z.number().int().positive().optional(),

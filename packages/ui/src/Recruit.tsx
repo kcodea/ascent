@@ -349,6 +349,12 @@ export function Recruit() {
     const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
     return el?.getAttribute('data-uid') ?? null;
   };
+  /** The uid of the tavern minion offer under a point (for `any` spell targeting — e.g. Shatter onto an
+   *  offer to buff it pre-buy), or null. Excludes the pinned spell offer. */
+  const shopUidAt = (x: number, y: number): string | null => {
+    const el = document.elementFromPoint(x, y)?.closest('[data-zone="tavern"] .card[data-uid]:not(.spellcard)');
+    return el?.getAttribute('data-uid') ?? null;
+  };
   // Insertion index in the warband, from the pointer's x against the cards' centres.
   // `excludeUid` drops the dragged card from the count when *reordering* a board minion
   // (it's still in the DOM, so without this a rightward drag overshoots by one).
@@ -846,8 +852,11 @@ export function Recruit() {
     magnetizesTo(drag.view.cardId, magHoverTarget.cardId);
   // Casting a targeted spell from the hand: highlight the friendly minion under the
   // cursor (it's the target), and don't treat it as a board-insertion drag.
-  const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && drag.view.target === 'friendly';
-  const castTargetUid = castingSpell ? boardUidAt(drag!.x, drag!.y) : null;
+  const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && (drag.view.target === 'friendly' || drag.view.target === 'any');
+  // The target under the cursor — a board minion, or (for `any` spells) a tavern offer.
+  const castTargetUid = castingSpell
+    ? boardUidAt(drag!.x, drag!.y) ?? (drag!.view.target === 'any' ? shopUidAt(drag!.x, drag!.y) : null)
+    : null;
   const draggingBoard = !!drag?.active && drag.source === 'board';
   const overWarband =
     !!drag?.active &&
@@ -1045,11 +1054,11 @@ export function Recruit() {
     // flung up with no minion under it; an untargeted spell just resolves.
     if (d.source === 'hand' && d.view.spell) {
       const up = zone === 'warband' || zone === 'tavern';
-      if (d.view.target === 'friendly') {
-        // Explicit drop only: the spell must be released squarely over a friendly minion. No auto-target
-        // when let go in empty space (that silently buffed a random minion — felt broken).
-        const targetUid = boardUidAt(x, y);
-        if (!targetUid) return false; // not on a friendly minion → snap back to hand, no cast
+      if (d.view.target === 'friendly' || d.view.target === 'any') {
+        // Explicit drop only: release squarely over a friendly minion (or, for `any` spells like Shatter,
+        // a tavern offer). No auto-target in empty space (that silently buffed a random minion — felt broken).
+        const targetUid = boardUidAt(x, y) ?? (d.view.target === 'any' ? shopUidAt(x, y) : null);
+        if (!targetUid) return false; // not on a valid target → snap back to hand, no cast
         if (d.view.cardId === 'devour') {
           // Capture the devoured minion's centre BEFORE the cast removes it, then fling its stats over.
           const el = document.querySelector(`[data-zone="warband"] .row.warband .card[data-uid="${targetUid}"]`);
@@ -1215,8 +1224,8 @@ export function Recruit() {
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
                 dragging={!!drag?.active}
-                highlight={heroArmed && heroTargetsTavern}
-                targeted={heroArmed && heroTargetsTavern && aim?.targetUid === o.uid}
+                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && drag?.view.target === 'any')}
+                targeted={(heroArmed && heroTargetsTavern && aim?.targetUid === o.uid) || castTargetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 onPointerDown={heroArmed ? undefined : onCardPointerDown}

@@ -26,15 +26,16 @@ The next 5 concrete steps:
    **Enriched 2026-06-21:** the snapshot now also carries `resolve` (HP), `tier`, and `triples` (run-wide
    goldens, via a new `RunState.triplesMade` counter), plus `dominantTribe(snap)` for the top board tribe
    — the opponent-frame intel set.
-3. **Board library + strength index** — `pickOpponent(wave, power)` exists; a deterministic **bootstrap pool**
-   (seeded bot runs, one per hero) is injected at startup. Remaining: persist your *own* finished runs' boards
-   (static load-at-startup, replay-safe) → a shared friend backend keyed by `(wave, power-band, tribe)`.
+3. ✅ **Board library + strength index** — `pickOpponent(wave, power)` + a deterministic **bootstrap pool**
+   (seeded bot runs) injected at startup, and (done 2026-06-22) **your own finished-run boards persist** to
+   localStorage (`boardLibrary.ts`) and load into the pool at startup. Remaining: a shared **friend backend**
+   keyed by `(wave, power-band, tribe)` — the async-PvP track (step 5).
 4. ✅ **Serve real boards as enemies** (done 2026-06-21). `faceOmen` draws a strength-matched real snapshot via
    `nextOpponent`/`pickOpponent` (procedural omen = thin-pool fallback), and the top-right **opponent-intel
    frame** telegraphs the next foe (portrait/HP + tier/triples/top-tribe). ✅ **Damage-dealt system (done
    2026-06-21):** a loss costs the opponent's tavern tier + Σ(surviving minion tiers), capped 5 / 10 / 15 by round,
-   dealt at the *end of combat* (Resolve drops in the combat view, before the shop). **Next:** persist your own
-   finished-run boards into the pool (static load-at-startup, replay-safe).
+   dealt at the *end of combat* (Resolve drops in the combat view, before the shop). ✅ **Persist your own
+   finished-run boards into the pool** (done 2026-06-22 — see step 3).
 5. **Async PvP mode + shared pool** — the `scene`/`MODES` registry → every wave a friend's snapshot;
    win = 10–15 wins without dying; tiny shared backend (friend-group scale, no live opponent / anti-cheat).
 
@@ -191,14 +192,10 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Backlog / ideas (unscheduled)
 
-- [ ] **Friendly/any spell targeting — let non-"friendly" spells hit tavern offers.** Convention (set
-      2026-06-22): a targeted spell whose text says "**friendly** minion" stays board-only; one that says
-      just "a minion" (**Shatter**, **Front to Back**) should also be droppable onto a **tavern offer** to
-      buff it pre-buy. The accidental-apply bug is already fixed (a targeted spell now only applies on an
-      explicit drop — no `carryUid` auto-target). Remaining: add a `target: 'any'` scope (vs `'friendly'`),
-      let the UI resolve a tavern offer as a drop target (a `shopUidAt` mirror of `boardUidAt`), and teach
-      the cast path to buff a `ShopCard` (offer `atk`/`hp`/`keywords`, which `buy` already bakes in — like
-      Fortify). Stat/keyword spells only; gild/devour/tribe-read stay friendly.
+- [x] **Friendly/any spell targeting** (done 2026-06-22). `CardDef.target` gained `'any'` (vs `'friendly'`):
+      **Shatter** + **Front to Back** (text says just "a minion") can be dropped onto a **tavern offer** to
+      buff it pre-buy. `castSpellOnOffer` folds the buff onto the `ShopCard` (baked in on buy, like Fortify);
+      `shopUidAt` resolves the drop target. Stat/keyword spells only; gild/devour/tribe-read stay friendly.
 - [ ] **Ember-gain modifiers feed the projection.** The Embers-chip popup projects the next two waves'
       starting Embers from the base `maxEmbers` curve. When cards modify Ember gain (per-wave income,
       one-shot ramp, etc.), fold their effect into the projection so it stays accurate.

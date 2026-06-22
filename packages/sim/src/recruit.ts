@@ -78,6 +78,25 @@ export function cardBuff(state: RunState, cardId: string): { attack: number; hea
 }
 
 /**
+ * Permanently enchant the **Fodder** card type run-wide by +a/+h (Ritualist's End of Turn, Bane's
+ * battlecry trigger). Bumps the persistent per-cardId run buff for every Fodder def — so future copies
+ * from any source (tavern, summon, Discover, conjure) carry it — and applies it to the Fodder already on
+ * the board / in the hand right now. `source` labels the buff in the inspect breakdown.
+ */
+export function buffFodderRunWide(state: RunState, a: number, h: number, source: string): void {
+  state.cardBuffs ??= {};
+  for (const def of Object.values(CARD_INDEX)) {
+    if (!def.keywords.includes('FD')) continue;
+    const cur = (state.cardBuffs[def.id] ??= { attack: 0, health: 0 });
+    cur.attack += a;
+    cur.health += h;
+  }
+  for (const c of [...state.board, ...state.hand]) {
+    if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) addBuff(c, source, a, h);
+  }
+}
+
+/**
  * How many times a spell's effect resolves when cast, given the board (Yazzus): 3 if any Yazzus on the
  * board is golden, 2 if a non-golden Yazzus is present, else 1. Multiple Yazzus do NOT stack — the best
  * single one wins (mirrors Drakko / Chronos). Read by the reducer's spell-cast path; Discover-spells are
@@ -494,19 +513,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  of the run (so future copies from the tavern, summons, Discover etc. carry it), and the
    *  Fodder already on the board / in the hand gets it right now. Golden doubles; Ritualists stack. */
   buffFodderEverywhere: (ctx, self, params) => {
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 1) * gold(self);
-    const state = ctx.state;
-    state.cardBuffs ??= {};
-    for (const def of Object.values(CARD_INDEX)) {
-      if (!def.keywords.includes('FD')) continue;
-      const cur = (state.cardBuffs[def.id] ??= { attack: 0, health: 0 });
-      cur.attack += a;
-      cur.health += h;
-    }
-    for (const c of [...state.board, ...state.hand]) {
-      if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) addBuff(c, nameOf(self), a, h);
-    }
+    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+  },
+
+  /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*
+   *  +atk/+hp run-wide (same mechanism as Ritualist's End-of-Turn enchant). Golden doubles. Fires once
+   *  per Battlecry *fire* (so a Drakko-doubled Battlecry procs it twice — `fireBattlecryTriggered`
+   *  notifies per fire). Multiple Banes each react, so they stack additively. */
+  onBattlecryBuffFodder: (ctx, self, params) => {
+    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
   },
 
   // --- Deathrattles that can also resolve out of combat (e.g. when Consumed). The

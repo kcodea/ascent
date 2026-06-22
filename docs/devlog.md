@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Add Taurus the Ancient + Bane (T6 minions) + Engraved carry-back honors sc-granted EG
+- **Taurus the Ancient** (Neutral T6 6/8): new `scEngraveNeighbor` Start-of-Combat factory grants the
+  Engraved (EG) keyword to the minion on Taurus's **left** (golden: **both** adjacent). That neighbor then
+  keeps whatever stats *it* gains in the fight — e.g. a Beast next to Taurus keeps a Grim deathrattle buff.
+  The grant is combat-time (pushed onto the per-combat clone's keywords, never a `CardDef`), so it only
+  sticks for fights where Taurus is adjacent at the bell. No-op if the neighbor is absent/dead/already-EG.
+- **Engraved carry-back fix (the subtle part):** the EG carry-back labelled the run-board buff by
+  re-checking the run-board *card's* keywords (`card.keywords.includes('EG')`) — but a Taurus neighbor's
+  card has no EG (it's granted on the combat clone), so its gain was mislabelled "Flowing Monk".
+  `playerPermaBuffs` now carries an `engraved` flag read off the *combat* Minion's live keywords, and
+  `settleCombat` labels off that. The stats always carried back (the `if (card)` guard never gated on
+  keywords); this only fixes the label. Native EG (Gnasher) + Flowing Monk paths are unchanged.
+- **Bane** (Dragon/Demon dual-type T6 12/12): new `onBattlecryBuffFodder` recruit factory — every Battlecry
+  you trigger permanently enchants the **Fodder** card type +1/+1 run-wide (golden +2/+2), reusing
+  Ritualist's mechanism (extracted to a shared `buffFodderRunWide` helper). Fires per battlecry *fire* via
+  the existing `battlecryTriggered` hook (Karwind's path), so Drakko doubling double-procs; multiple Banes
+  stack. Bane has no battlecry of its own, so it never self-procs.
+- New factory ids `scEngraveNeighbor` + `onBattlecryBuffFodder` registered in both `EffectFactoryId`
+  (core/types.ts) and `EffectFactoryIdSchema` (content/schema.ts). Verified: typecheck + lint + 257 tests
+  (8 new — Taurus left-neighbor + golden-both + non-adjacent guard + native-EG regression carry-backs;
+  Bane +N/+N over N battlecries + golden + Drakko-doubled). Built by a subagent; carry-back path reviewed
+  line-by-line before commit.
+
 ### Fix Cassen's in-combat Collision counter (live count + display)
 - The live in-combat counter re-derived enemy kills from an enemy-uid set (initial.enemy + enemy summons),
   which could diverge from simulate's authoritative `minion.side === 'enemy'` tally on uid/reborn/summon edge

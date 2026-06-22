@@ -494,11 +494,20 @@ export function simulate(
     .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0)
     .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
 
-  // Flowing Monk's overflow gift is permanent: carry each recipient's accumulated gain back to its
-  // run board card (only real minions — summoned tokens have no sourceUid and are gone after combat).
+  // Permanent gains carry back to the run board (only real minions — summoned tokens have no sourceUid
+  // and are gone after combat). Two flavors, both recorded as `permaGain`: an Engraved minion keeps the
+  // stats it gained this fight (native EG, or EG granted at Start of Combat by Taurus), and Flowing Monk's
+  // overflow gift sticks to a non-EG recipient. The `engraved` flag is read off the *combat Minion's* live
+  // keywords (so a Taurus-granted EG counts), and only steers the run-board inspect label — never gates the
+  // carry-back, which the reducer applies regardless.
   const playerPermaBuffs = boards.player
     .filter((m) => m.sourceUid !== undefined && m.permaGain && (m.permaGain.attack > 0 || m.permaGain.health > 0))
-    .map((m) => ({ sourceUid: m.sourceUid!, attack: m.permaGain!.attack, health: m.permaGain!.health }));
+    .map((m) => ({
+      sourceUid: m.sourceUid!,
+      attack: m.permaGain!.attack,
+      health: m.permaGain!.health,
+      engraved: m.keywords.includes('EG'),
+    }));
 
   return {
     events,

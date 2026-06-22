@@ -647,13 +647,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
       if (card) card.summonBonus = bonus;
     }
   }
-  // Flowing Monk's mid-combat +X/+X gifts are permanent — apply them to the run board (recorded as a
-  // buff so the inspect view shows the source), win or lose.
+  // Permanent mid-combat gains carry back to the run board (recorded as a buff so the inspect view shows
+  // the source), win or lose. `engraved` comes from the *combat* minion's live keywords — so a minion
+  // Engraved only at Start of Combat (Taurus's neighbor) carries its gains back and is labelled "Engraved",
+  // even though its run-board card never had the EG keyword. A non-Engraved carrier got Flowing Monk's gift.
   if (result.playerPermaBuffs) {
-    for (const { sourceUid, attack, health } of result.playerPermaBuffs) {
+    for (const { sourceUid, attack, health, engraved } of result.playerPermaBuffs) {
       const card = s.board.find((c) => c.uid === sourceUid);
-      // Engraved minions keep their own combat gains; a non-Engraved carrier got a permanent gift (Monk).
-      if (card) addBuff(card, card.keywords.includes('EG') ? 'Engraved' : 'Flowing Monk', attack, health);
+      if (card) addBuff(card, engraved ? 'Engraved' : 'Flowing Monk', attack, health);
     }
   }
   // Deathrattle-granted cards (Arcane Weaver → a Spirit Fire copy) land in the hand for

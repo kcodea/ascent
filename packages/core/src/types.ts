@@ -63,6 +63,7 @@ export type EffectFactoryId =
   | 'scDamage'
   | 'scSplitDamage'
   | 'scAoePerTribe'
+  | 'scEngraveNeighbor' // Start of Combat: grant Engraved (EG) to the minion(s) adjacent to self (Taurus)
   | 'deathrattleBuffRandom'
   | 'deathrattleBuffAllRandomStat' // Deathrattle: coin-flip a stat, buff every friend +amount of it (Sporeling)
   | 'onFriendDeathBuffRandom'
@@ -89,6 +90,7 @@ export type EffectFactoryId =
   | 'battlecryGainRandomMinion' // Battlecry: add a random minion of a tier to your hand (Buddy Buddy)
   | 'battlecryDiscoverSpell' // Battlecry: Discover a spell (golden: grants the pick + a second random spell) (Black Belt Brian)
   | 'onBattlecryBuffTribe' // when any Battlecry resolves, buff your tribe (Karwind)
+  | 'onBattlecryBuffFodder' // when any Battlecry resolves, permanently buff the Fodder card type run-wide (Bane)
   | 'endOfTurnBuff' // End of Turn: buff self (recruit)
   | 'endOfTurnMagnetizeMechs' // End of Turn: merge a token's stats into N friendly Mechs (Combinator)
   | 'buffFodderEverywhere' // End of Turn: buff the Fodder card type for the whole run (Ritualist)
@@ -296,9 +298,12 @@ export interface CombatResult {
   /** Per-instance state to persist on the run board after combat, keyed by the board
    *  card's uid (Kennelmaster's Avenge-improved summon bonus). Only entries that changed. */
   playerSummonBonus?: { sourceUid: string; bonus: number }[];
-  /** Permanent stats Flowing Monk handed out mid-combat (its overflow gift), keyed by the recipient's
-   *  board card uid — applied to the run board after combat, win or lose. */
-  playerPermaBuffs?: { sourceUid: string; attack: number; health: number }[];
+  /** Permanent stats a minion keeps from this combat, keyed by the recipient's board card uid — applied
+   *  to the run board after combat, win or lose. Two sources: Flowing Monk's overflow gift (`engraved:
+   *  false` — a one-off gift to a non-EG carrier) and Engraved minions keeping their own combat gains
+   *  (`engraved: true` — native EG like Gnasher/Flowing-Monk-recipient, or EG granted at Start of Combat
+   *  by Taurus). `engraved` only drives the inspect-panel source label; the stats apply either way. */
+  playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards

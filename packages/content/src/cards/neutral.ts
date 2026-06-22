@@ -157,6 +157,22 @@ export const NEUTRAL: CardDef[] = [
     goldenText: 'Your spells cast **three times**.',
   },
   {
+    // Engraver. At Start of Combat it grants Engraved (EG) to the minion on its LEFT (golden: both
+    // neighbors) — that minion keeps whatever stats it gains in the fight. The grant is combat-time
+    // (a new EG on the per-combat clone), so it only sticks for fights where Taurus is adjacent at the
+    // bell; the carry-back path reads the *combat* minion's keywords, so the sc-granted EG carries back.
+    id: 'taurus',
+    name: 'Taurus the Ancient',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 6,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scEngraveNeighbor' }],
+    text: 'Start of Combat: the minion to your left is Engraved — it keeps the stats it gains in combat.',
+    goldenText: 'Start of Combat: the minions on both sides are Engraved — they keep the stats they gain in combat.',
+  },
+  {
     id: 'venom',
     name: 'Venom',
     tribe: 'neutral',

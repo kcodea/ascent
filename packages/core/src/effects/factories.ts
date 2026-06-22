@@ -188,6 +188,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Taurus — Start of Combat: grant Engraved (EG) to the adjacent minion(s) on self's own side, so they
+   *  keep whatever stats they gain this fight. Base engraves the minion to self's LEFT (the lower board
+   *  index); golden also engraves the one to its RIGHT. Granting EG to the *combat* Minion (not its run
+   *  board CardDef) is clone-safe: the keyword lasts only this fight, and `ctx.buff` then accrues that
+   *  minion's gains into `permaGain` → carried back by `playerPermaBuffs`. Taurus itself is not engraved.
+   *  No-op for a neighbor that already has EG, and for an absent neighbor (Taurus leftmost/rightmost). */
+  scEngraveNeighbor: (ctx, self, params) => {
+    const board = ctx.boards[self.side];
+    const i = board.indexOf(self);
+    if (i < 0) return;
+    const engrave = (m: Minion | undefined): boolean => {
+      if (!m || m.dead || m.health <= 0 || m.keywords.includes('EG')) return false;
+      m.keywords.push('EG'); // mutates the per-combat clone's keywords, never a shared CardDef
+      return true;
+    };
+    const did = [engrave(board[i - 1]), self.golden ? engrave(board[i + 1]) : false];
+    if (did.some(Boolean)) {
+      ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} engraves the line` });
+    }
+  },
+
   // --- Undead (combat-time Deathrattle / on-death value) ---
 
   /** Deathrattle: buff a random living friend (both stats). */

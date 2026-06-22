@@ -796,6 +796,89 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
+  it('Taurus engraves the minion to its LEFT — that minion keeps its combat gains (carry-back)', () => {
+    // Gnasher gains +5/+5 on kill, but here we strip its native EG (keywords: []) so the gain would NOT
+    // normally carry back. Taurus sits to its right and engraves it at Start of Combat → the +5/+5 is
+    // recorded as a permaGain (engraved: true) to carry back to the run board. Inert Taunt filler makes
+    // the player board wider so it attacks first; Gnasher one-shots the lone 1-hp enemy → on-kill +5/+5.
+    const a = run(
+      [
+        { cardId: 'gnash', attack: 6, health: 6, keywords: [], sourceUid: 'G' }, // EG stripped
+        { cardId: 'taurus', attack: 6, health: 8, sourceUid: 'T' },
+        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 1 }],
+      3,
+    );
+    expect(a.result).toBe('win');
+    const perma = a.playerPermaBuffs?.find((p) => p.sourceUid === 'G');
+    expect(perma).toBeDefined();
+    expect([perma!.attack, perma!.health]).toEqual([5, 5]); // Gnasher's kill gain carried back...
+    expect(perma!.engraved).toBe(true); // ...labelled Engraved (sc-granted EG on the combat minion)
+    // A Start-of-Combat `sc` event was logged for Taurus's engrave (source = Taurus's combat uid).
+    const taurusUid = a.initial.player.find((m) => m.cardId === 'taurus')!.uid;
+    expect(a.events.some((e) => e.type === 'sc' && e.source === taurusUid)).toBe(true);
+  });
+
+  it('Taurus does NOT carry back a non-adjacent friend (guard)', () => {
+    // Same Gnasher (EG stripped) but now an inert sandbag sits between it and Taurus, so Gnasher is two
+    // slots from Taurus — not its left neighbor. Its on-kill +5/+5 is combat-only and must NOT carry back.
+    const a = run(
+      [
+        { cardId: 'gnash', attack: 6, health: 6, keywords: [], sourceUid: 'G' }, // EG stripped, NOT adjacent
+        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] }, // wedge between Gnasher and Taurus
+        { cardId: 'taurus', attack: 6, health: 8, sourceUid: 'T' },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 1 }],
+      3,
+    );
+    expect(a.result).toBe('win');
+    expect(a.playerPermaBuffs?.find((p) => p.sourceUid === 'G')).toBeUndefined(); // gain dropped, as normal
+  });
+
+  it('a golden Taurus engraves BOTH neighbors — and a non-neighbor friend still does NOT carry back', () => {
+    // Golden Taurus at the center, a 0-Attack wall on EACH side (L, R) plus a NON-adjacent wall (X). A
+    // Sporeling dies and buffs every friend +1 of one stat (combat-only). Golden Taurus engraved both L
+    // and R at Start of Combat, so their +1 carries back; X got the same combat buff but isn't engraved,
+    // so it must NOT carry back. (Carry-back applies win or lose — here the tanky omen wins.)
+    const a = run(
+      [
+        { cardId: 'sandbag', attack: 0, health: 30, keywords: [], sourceUid: 'L' }, // left neighbor
+        { cardId: 'taurus', attack: 6, health: 40, golden: true, sourceUid: 'T' },
+        { cardId: 'sandbag', attack: 0, health: 30, keywords: [], sourceUid: 'R' }, // right neighbor
+        { cardId: 'spore', attack: 1, health: 2, sourceUid: 'S' }, // dies → buffs all friends +1 (random stat)
+        { cardId: 'sandbag', attack: 0, health: 30, sourceUid: 'X' }, // NON-adjacent friend (guard)
+      ],
+      [{ cardId: 'omen', attack: 3, health: 200 }],
+      3,
+    );
+    const left = a.playerPermaBuffs?.find((p) => p.sourceUid === 'L');
+    const right = a.playerPermaBuffs?.find((p) => p.sourceUid === 'R');
+    expect(left).toBeDefined();
+    expect(right).toBeDefined();
+    expect(left!.attack + left!.health).toBe(1); // exactly one +1 (Attack or Health) kept...
+    expect(right!.attack + right!.health).toBe(1);
+    expect(left!.engraved && right!.engraved).toBe(true); // ...labelled Engraved
+    expect(a.playerPermaBuffs?.find((p) => p.sourceUid === 'X')).toBeUndefined(); // non-neighbor: gain dropped
+  });
+
+  it('native Engraved (Flowing Monk gift recipient) still carries back labelled correctly', () => {
+    // Regression guard for the carry-back refactor: Gnasher WITH its native EG keeps working exactly as
+    // before — its on-kill +5/+5 carries back with engraved: true, no Taurus involved.
+    const a = run(
+      [
+        { cardId: 'gnash', attack: 6, health: 6, sourceUid: 'G' }, // native EG (keywords from the CardDef)
+        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 1 }],
+      3,
+    );
+    const perma = a.playerPermaBuffs?.find((p) => p.sourceUid === 'G');
+    expect(perma).toBeDefined();
+    expect([perma!.attack, perma!.health]).toEqual([5, 5]);
+    expect(perma!.engraved).toBe(true);
+  });
+
   it('a 0-Attack minion is skipped — it never attacks (and a 0-vs-0 board is a stalemate draw)', () => {
     // Neither 0-Attack wall can swing — no attack events fire and the fight ends as a draw with both alive.
     const r = run([{ cardId: 'sandbag', attack: 0, health: 20 }], [{ cardId: 'sandbag', attack: 0, health: 20 }], 5);

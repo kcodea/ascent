@@ -2183,6 +2183,93 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(4); // …but the run board is unchanged
   });
+
+  it("a Taurus-engraved neighbor's combat gains carry back to the run board (settleCombat)", () => {
+    // The carry-back the task flags: a minion whose run-board card has NO 'EG' keyword (Taurus granted EG
+    // only on its combat clone) must still keep its gains, labelled "Engraved". settleCombat applies
+    // playerPermaBuffs by the entry's own `engraved` flag — never re-checking the run-board card's keywords.
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      combatSettled: false,
+      board: [
+        { uid: 'n', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }, // no EG
+      ],
+      lastCombat: {
+        events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
+        initial: { player: [], enemy: [] },
+        playerPermaBuffs: [{ sourceUid: 'n', attack: 5, health: 5, engraved: true }],
+      },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    const card = s.board.find((c) => c.uid === 'n')!;
+    expect([card.attack, card.health]).toEqual([6, 6]); // base 1/1 + the carried-back +5/+5
+    expect(card.buffs?.some((b) => b.source === 'Engraved' && b.attack === 5 && b.health === 5)).toBe(true);
+  });
+
+  it('Flowing Monk gift (engraved: false) still labels the carry-back "Flowing Monk"', () => {
+    // Regression guard: a non-EG carrier that received Flowing Monk's overflow gift carries back labelled
+    // "Flowing Monk", exactly as before the refactor (the `engraved` flag steers only the label).
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      combatSettled: false,
+      board: [{ uid: 'm', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      lastCombat: {
+        events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
+        initial: { player: [], enemy: [] },
+        playerPermaBuffs: [{ sourceUid: 'm', attack: 3, health: 3, engraved: false }],
+      },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    const card = s.board.find((c) => c.uid === 'm')!;
+    expect(card.buffs?.some((b) => b.source === 'Flowing Monk' && b.attack === 3)).toBe(true);
+  });
+
+  it('Bane: each Battlecry you trigger gives Fodder +1/+1 run-wide (+2/+2 golden)', () => {
+    // Bane subscribes to `battlecryTriggered` (Karwind's hook). Playing Soulfeeder (a Battlecry) fires once
+    // → Bane enchants the Fodder card type +1/+1. A golden Bane does +2/+2.
+    const setup = (golden: boolean): RunState => ({
+      ...createRun(1), embers: 0, shop: [], pendingTavern: [],
+      board: [{ uid: 'b', cardId: 'bane', tribe: 'dragon', attack: 12, health: 12, keywords: [], golden }],
+      hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
+    });
+    const s = reduce(setup(false), { type: 'play', uid: 'sf' });
+    expect(s.cardBuffs.fred).toEqual({ attack: 1, health: 1 }); // one battlecry → +1/+1
+    const g = reduce(setup(true), { type: 'play', uid: 'sf' });
+    expect(g.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // golden → +2/+2
+  });
+
+  it('Bane: triggering N Battlecries buffs Fodder +N/+N (and respects Drakko doubling)', () => {
+    // Play three *distinct* Battlecry minions (distinct ids → no triple combine) → Bane procs three times
+    // → Fodder +3/+3. Then with a Drakko the Drummer on board, a single Battlecry fires twice → Bane procs
+    // per fire → +2/+2 from one play.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], pendingTavern: [],
+      board: [{ uid: 'b', cardId: 'bane', tribe: 'dragon', attack: 12, health: 12, keywords: [], golden: false }],
+      hand: [
+        { uid: 'f1', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }, // Battlecry: add Fodder
+        { uid: 'f2', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false }, // Battlecry: buff Dragons
+        { uid: 'f3', cardId: 'razor', tribe: 'dragon', attack: 4, health: 4, keywords: [], golden: false }, // Battlecry: buff Dragons
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'f1' });
+    s = reduce(s, { type: 'play', uid: 'f2' });
+    s = reduce(s, { type: 'play', uid: 'f3' });
+    expect(s.cardBuffs.fred).toEqual({ attack: 3, health: 3 }); // N=3 battlecries → +3/+3
+
+    // Drakko doubling: one Battlecry fire becomes two → Bane procs twice for a single play.
+    let d: RunState = {
+      ...createRun(1), embers: 0, shop: [], pendingTavern: [],
+      board: [
+        { uid: 'b', cardId: 'bane', tribe: 'dragon', attack: 12, health: 12, keywords: [], golden: false },
+        { uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
+    };
+    d = reduce(d, { type: 'play', uid: 'sf' });
+    expect(d.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // 1 play × 2 fires (Drakko) → +2/+2
+  });
 });
 
 describe('Corrupted Lifebinder End-of-Turn timing (@game/sim)', () => {

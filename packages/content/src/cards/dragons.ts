@@ -89,4 +89,21 @@ export const DRAGONS: CardDef[] = [
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 1, health: 2 } }],
     text: 'Whenever a **Battlecry** triggers, give your Dragons **+1/+2**.',
   },
+  {
+    // Dual-type Dragon/Demon payoff. Every Battlecry *fire* on your board permanently enchants the Fodder
+    // card type +1/+1 run-wide (Ritualist's mechanism, on a battlecry trigger instead of End of Turn). Fires
+    // per fire, so Drakko's doubling procs it twice; multiple Banes stack. Bridges Demon Fodder with a
+    // Battlecry-heavy build. No combat factory → inert in combat (just a 12/12 body).
+    id: 'bane',
+    name: 'Bane',
+    tribe: 'dragon',
+    tribe2: 'demon',
+    tier: 6,
+    attack: 12,
+    health: 12,
+    keywords: [],
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffFodder', params: { attack: 1, health: 1 } }],
+    text: 'After you trigger a Battlecry, give Fodder **+1/+1** this run.',
+    goldenText: 'After you trigger a Battlecry, give Fodder **+2/+2** this run.',
+  },
 ];

@@ -89,6 +89,7 @@ function instView(
   undeadAtkBonus = 0,
   undeadHpBonus = 0,
   frontToBackBonus = 0,
+  wave = 1,
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -101,11 +102,13 @@ function instView(
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
       : c.spell
         ? spellDisplayText(c.id, spellBonus, frontToBackBonus)
-        : transformProgressText(c.id, inst.spellProgress ?? 0) ??
-          summonScalingText(c.id, spellsThisTurn) ??
-          summonBuffText(c.id, inst.summonBonus ?? 0) ??
-          tallyBuffText(c.id, deathrattlesTriggered) ??
-          c.text;
+        : c.id === 'hoarder'
+          ? `Sells for **+1 Mana** per turn you hold it. {{Sells for ${wave - (inst.boughtWave ?? wave) + 1} Mana now.}}`
+          : transformProgressText(c.id, inst.spellProgress ?? 0) ??
+            summonScalingText(c.id, spellsThisTurn) ??
+            summonBuffText(c.id, inst.summonBonus ?? 0) ??
+            tallyBuffText(c.id, deathrattlesTriggered) ??
+            c.text;
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
   // Lantern of Souls is a run-wide Undead aura — fold it on top of the shown stats for any Undead so
@@ -116,7 +119,12 @@ function instView(
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     attack: (override?.attack ?? inst.attack) + auraAtk, health: (override?.health ?? inst.health) + auraHp,
-    keywords: inst.keywords, text, goldenText: c.goldenText, golden: inst.golden,
+    keywords: inst.keywords, text,
+    goldenText:
+      c.id === 'hoarder'
+        ? `Sells for **+2 Mana** per turn you hold it. {{Sells for ${(wave - (inst.boughtWave ?? wave) + 1) * 2} Mana now.}}`
+        : c.goldenText,
+    golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
@@ -418,12 +426,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus)] as const)),
-    [run.board, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave)] as const)),
+    [run.board, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus)] as const)),
-    [run.hand, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave)] as const)),
+    [run.hand, run.tier, eotAnimStats, spellBonus, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.
@@ -1340,7 +1348,7 @@ export function Recruit() {
           ))}
           {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
               committed to the real hand at `resolveCombat`). */}
-          {inCombat && replay.handGrantsShown.map((cardId, i) => (
+          {inCombat && !run.combatSettled && replay.handGrantsShown.map((cardId, i) => (
             <Card key={`grant-${i}`} card={tokenRefView(cardId, run.cardBuffs)} suppressPop forceFull />
           ))}
         </div>

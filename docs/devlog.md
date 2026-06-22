@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Fix Junkyard Titan grant doubling at combat-end + Hoarder live "Sells for X" line
+- **Junkyard Titan (and any Deathrattle hand-grant) doubled at combat-end.** The combat view renders the flying
+  `handGrantsShown` cards while `inCombat`, but settleCombat fires at replay-end and adds the grants to the REAL
+  hand while still in the combat view — so both the real-hand copies and the flying copies showed at once (e.g.
+  4 Magnetic minions read as 8). Gated the flying copies on `!run.combatSettled`, so they vanish exactly when
+  the real hand receives them. (Latent for Arcane Weaver too; fixed for every Deathrattle hand-grant.)
+- **Hoarder shows its live sell value.** `instView` now renders "Sells for **+N Mana** per turn you hold it.
+  {{Sells for X Mana now.}}" for Hoarder, where X = `(wave − boughtWave + 1) × (golden ? 2 : 1)` — the exact
+  value the sell case pays. Threaded `run.wave` into instView; golden uses an explicit `goldenText` (so the
+  naive golden-text doubler doesn't double the already-scaled value — it was showing +4/turn before).
+- Verified: typecheck + lint + **243 tests**; live — Hoarder reads +1/turn (non-golden) and +2/turn (golden)
+  with the live "Sells for X Mana now" value.
+
 ### Tuning: Junkyard Titan → T4; Black Belt Brian golden Discovers 2 spells (a real two-pick)
 - **Junkyard Titan** dropped tier 5 → **tier 4**.
 - **Golden Black Belt Brian now Discovers TWO spells for real** — was a shortcut (the pick + a random spell

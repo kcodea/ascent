@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, hasBattlecry, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCastMult, syncLifebinders, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCastMult, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -246,7 +246,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const playedDef = CARD_INDEX[card.cardId];
       if (playedDef?.target === 'friendly') {
         const hasTarget = playedDef.targetTribe
-          ? s.board.some((c) => c.uid !== card.uid && c.tribe === playedDef.targetTribe)
+          ? s.board.some((c) => c.uid !== card.uid && isTribe(c, playedDef.targetTribe!))
           : true;
         if (hasTarget) {
           s.pendingTarget = { uid: card.uid, cardId: card.cardId };
@@ -455,7 +455,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const def = src ? CARD_INDEX[src.cardId] : undefined;
         // A tribe-restricted pick (Lifebinder → a friendly Demon, never self) must respect it; otherwise
         // any friend works (Toxin Tender). No eligible target → the play resolves with no effect.
-        const pool = def?.targetTribe ? s.board.filter((c) => c !== src && c.tribe === def.targetTribe) : s.board;
+        const pool = def?.targetTribe ? s.board.filter((c) => c !== src && isTribe(c, def.targetTribe!)) : s.board;
         const carry = pool.length ? pool.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
         if (src && carry) applyBattlecryTarget(s, src, carry);
         s.pendingTarget = undefined;
@@ -674,6 +674,22 @@ function settleCombat(s: RunState, result: CombatResult): void {
       });
     }
   }
+  // Skullblade: permanent run-wide spell power gained from its combat Deathrattle (+Attack to your
+  // spells), win or lose. Folds into spellAttackBonus / spellHealthBonus from now on, so every future
+  // stat spell + its display picks it up. Stacks across combats.
+  if (result.playerSpellPower) {
+    s.spellBonus ??= { attack: 0, health: 0 };
+    s.spellBonus.attack += result.playerSpellPower.attack;
+    s.spellBonus.health += result.playerSpellPower.health;
+  }
+  // Grave Knit: a combat death permanently buffs the Grave Knit card type run-wide (+3/+2 to every
+  // Grave Knit — board, hand, and future copies), win or lose. Mirrors Ritualist's Fodder enchant;
+  // multiple deaths stack (each carried entry already sums this combat's firings).
+  if (result.playerCardBuffs) {
+    for (const { cardId, attack, health } of result.playerCardBuffs) {
+      buffCardTypeRunWide(s, cardId, attack, health, CARD_INDEX[cardId]?.name ?? cardId);
+    }
+  }
   // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
   // common tribe (then spends 5). A failed grant (full hand / no tribe) keeps the kills banked for later.
   if (getHero(s.heroId).power.kind === 'collision') {
@@ -765,7 +781,7 @@ function injectPendingTavern(s: RunState): void {
   if (pending.length === 0) return;
   // Only bring queued Fodder out if a Demon is on the board to consume it — otherwise it would just
   // clutter the tavern with un-buyable garbage, so it goes to waste instead (handoff: no Fodder storage).
-  if (!s.board.some((c) => c.tribe === 'demon')) return;
+  if (!s.board.some((c) => isTribe(c, 'demon'))) return; // dual-types (Bane = Dragon/Demon) count as Demons
   for (const id of pending) {
     if (CARD_INDEX[id]) s.shop.push({ uid: `s${s.uidSeq++}`, cardId: id });
   }

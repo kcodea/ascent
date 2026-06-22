@@ -235,6 +235,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
   },
 
+  /** Deathrattle (Skullblade): permanently raise the run-wide spell power by +atk/+hp (golden doubles).
+   *  Carried back via `CombatResult.playerSpellPower` (player-side only — `grantSpellPower` guards it),
+   *  then applied to the run's spell bonus in settleCombat. Each Skullblade death stacks another +atk/+hp. */
+  deathrattleBuffSpellPower: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side);
+  },
+
+  /** Deathrattle (Grave Knit): permanently buff a card type run-wide by +atk/+hp (golden doubles).
+   *  Carried back via `CombatResult.playerCardBuffs` (player-side only), then applied run-wide in
+   *  settleCombat (board / hand / future copies). Each death stacks; `cardId` defaults to self's. */
+  deathrattleBuffCardTypeRunWide: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const cardId = str(params.cardId) || self.cardId;
+    ctx.grantCardBuff(cardId, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+  },
+
   /** Deathrattle (Junkyard Titan): add a random Magnetic minion to your hand after combat. Sibling of
    *  Arcane Weaver's grant, but the card is chosen at random (via ctx.rng) from the Magnetic-keyword
    *  minion pool (tokens/spells excluded) rather than a fixed id. Each pick is independent, so a golden's

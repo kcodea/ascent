@@ -71,6 +71,8 @@ export type EffectFactoryId =
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'deathrattleGrantMagnetic' // Deathrattle: add a random Magnetic minion to your hand after combat (Junkyard Titan)
+  | 'deathrattleBuffSpellPower' // Deathrattle: permanently raise the run-wide spell power (+atk/+hp to spells), carried back (Skullblade)
+  | 'deathrattleBuffCardTypeRunWide' // Deathrattle: permanently buff a card type run-wide (board/hand/future), carried back (Grave Knit)
   | 'deathrattleFillTribe'
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
@@ -91,6 +93,7 @@ export type EffectFactoryId =
   | 'battlecryDiscoverSpell' // Battlecry: Discover a spell (golden: grants the pick + a second random spell) (Black Belt Brian)
   | 'onBattlecryBuffTribe' // when any Battlecry resolves, buff your tribe (Karwind)
   | 'onBattlecryBuffFodder' // when any Battlecry resolves, permanently buff the Fodder card type run-wide (Bane)
+  | 'battlecryBuffSpellPower' // Battlecry: permanently raise the run-wide spell power (+atk/+hp to spells) (Cinderwing Matron)
   | 'endOfTurnBuff' // End of Turn: buff self (recruit)
   | 'endOfTurnMagnetizeMechs' // End of Turn: merge a token's stats into N friendly Mechs (Combinator)
   | 'buffFodderEverywhere' // End of Turn: buff the Fodder card type for the whole run (Ritualist)
@@ -306,6 +309,12 @@ export interface CombatResult {
   playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
+  /** Permanent run-wide spell-power gain from this combat (Skullblade's Deathrattle: +Attack to your
+   *  spells). Summed across all firings; applied to the run's `spellBonus` in settleCombat. Absent if 0. */
+  playerSpellPower?: { attack: number; health: number };
+  /** Permanent run-wide card-type buffs from this combat (Grave Knit's death: all Grave Knits +3/+2).
+   *  One entry per (cardId) accrued; applied via the run loop's run-wide card-type buff in settleCombat. */
+  playerCardBuffs?: { cardId: string; attack: number; health: number }[];
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
   odds?: { win: number; draw: number; lose: number };
@@ -338,6 +347,12 @@ export interface CombatContext {
   summon(side: Side, card: CardDef, nearUid?: string): Minion;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
+  /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;
+   *  accumulated and carried back via `CombatResult.playerSpellPower`, applied in the run loop. */
+  grantSpellPower(attack: number, health: number, side: Side): void;
+  /** Permanently buff a card type run-wide by +atk/+hp (Grave Knit's combat death). Player-only;
+   *  accumulated and carried back via `CombatResult.playerCardBuffs`, applied in the run loop. */
+  grantCardBuff(cardId: string, attack: number, health: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

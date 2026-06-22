@@ -69,6 +69,16 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
 }
 
 /**
+ * Whether a board card belongs to `tribe`, counting BOTH its tribes — a dual-type matches on either
+ * (Bane is Dragon/Demon → `isTribe(bane, 'demon')` is true). `card.tribe` carries only the primary
+ * tribe; the second lives on the CardDef, so this consults `CARD_INDEX`. The DRY form of the
+ * `c.tribe === t || CARD_INDEX[c.cardId]?.tribe2 === t` check used across the dual-type systems.
+ */
+export function isTribe(card: BoardCard, tribe: Tribe): boolean {
+  return card.tribe === tribe || CARD_INDEX[card.cardId]?.tribe2 === tribe;
+}
+
+/**
  * The persistent per-cardId run buff (Ritualist enchants all Fodder). Applied to *every* new
  * instance of the card — bought, summoned, conjured, discovered — and read live by the tavern
  * display, so a copy from any source carries the accrued buff. Optional-chained for old saves.
@@ -93,6 +103,23 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
   }
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) addBuff(c, source, a, h);
+  }
+}
+
+/**
+ * Permanently enchant a single card type run-wide by +a/+h (Grave Knit's combat-death payoff). Like
+ * `buffFodderRunWide` but keyed to one `cardId` rather than the Fodder keyword: bumps the persistent
+ * per-cardId run buff (so future copies from any source carry it) and applies it to that card already
+ * on the board / in the hand. `source` labels the buff in the inspect breakdown. Mirrors the Cling Drone
+ * enchant (`improveClingDrones`) but with an explicit source + separate atk/hp.
+ */
+export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, h: number, source: string): void {
+  state.cardBuffs ??= {};
+  const cur = (state.cardBuffs[cardId] ??= { attack: 0, health: 0 });
+  cur.attack += a;
+  cur.health += h;
+  for (const c of [...state.board, ...state.hand]) {
+    if (c.cardId === cardId) addBuff(c, source, a, h);
   }
 }
 
@@ -318,18 +345,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Toxin Tender / Plaguebringer: grant keyword(s) to a friendly minion. Toxin Tender is
-   *  player-targeted (`payload.target` is the chosen minion); Plaguebringer auto-picks the
-   *  highest-attack friend that still lacks a granted keyword (never wasting it). */
+   *  player-targeted (`payload.target` is the chosen minion); the auto-pick fallback (Plaguebringer,
+   *  or a Myra/face-Omen re-fire with no explicit target) takes the highest-attack friend that still
+   *  lacks a granted keyword (never wasting it). A `targetTribe` on the card restricts the auto-pick to
+   *  that tribe too (Toxin Tender → friendly Undead only; dual-types count) — so a re-fire can't grant
+   *  Venomous off-tribe, and it simply no-ops when no eligible friend exists. */
   battlecryGrantKeyword: (ctx, self, params, payload) => {
     const kws = Array.isArray(params.keywords) ? (params.keywords as Keyword[]) : [];
     if (kws.length === 0) return;
     let target = payload.target;
     if (!target) {
-      // No explicit target → auto-pick: only minions missing a granted keyword, highest attack.
+      const restrict = CARD_INDEX[self.cardId]?.targetTribe; // Toxin Tender → 'undead'; undefined = any
       const lacks = (c: BoardCard): boolean => kws.some((k) => !c.keywords.includes(k));
-      const others = ctx.state.board.filter((c) => c !== self && lacks(c));
-      const pool = others.length > 0 ? others : lacks(self) ? [self] : [];
-      if (pool.length === 0) return; // everyone already has it
+      const ok = (c: BoardCard): boolean => lacks(c) && (!restrict || isTribe(c, restrict));
+      const others = ctx.state.board.filter((c) => c !== self && ok(c));
+      const pool = others.length > 0 ? others : ok(self) ? [self] : [];
+      if (pool.length === 0) return; // no eligible friend (or everyone already has it)
       target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
     }
     for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
@@ -371,6 +402,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   battlecryDiscoverSpell: (ctx, self) => {
     queueDiscover(ctx.state, { kind: 'spell' });
     if (self.golden) queueDiscover(ctx.state, { kind: 'spell' });
+  },
+
+  /** Cinderwing Matron — Battlecry: permanently raise the run-wide SPELL POWER by +atk/+hp (Cinderwing
+   *  grants +0/+1 → spells give +1 more Health from now on). Golden doubles. Folds into spellAttackBonus
+   *  / spellHealthBonus, so every future stat spell + its display picks it up. */
+  battlecryBuffSpellPower: (ctx, self, params) => {
+    ctx.state.spellBonus ??= { attack: 0, health: 0 };
+    ctx.state.spellBonus.attack += num(params.attack) * gold(self);
+    ctx.state.spellBonus.health += num(params.health) * gold(self);
   },
 
   /** Karwind: whenever a Battlecry resolves, buff your minions of `tribe` (+atk/+hp). Golden 2×.
@@ -470,7 +510,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  sync (`syncLifebinders`) + the combat simulator mirror that Demon's stat gains onto this card. */
   battlecryLinkDemon: (_ctx, self, _params, payload) => {
     const target = payload.target;
-    if (!target || target === self || target.tribe !== 'demon') return;
+    if (!target || target === self || !isTribe(target, 'demon')) return; // dual-types (Bane) are valid Demons
     self.linkUid = target.uid;
     self.linkBase = { attack: target.attack, health: target.health };
     self.linkApplied = { attack: 0, health: 0 };
@@ -571,12 +611,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffTarget: (ctx, self, params) => {
     let attack = num(params.attack);
     let health = num(params.health);
-    // Stat-granting spells pick up the run's spell bonus (Spellbinder hero now, cards later). The UI
-    // shows the same effective value via spellDisplayText — one source of truth (spellStatBonus).
+    // Stat-granting spells pick up the run's spell power (Spellbinder hero + cards: Cinderwing on
+    // Health, Skullblade on Attack). The UI shows the same effective value via spellDisplayText — one
+    // source of truth (spellAttackBonus / spellHealthBonus).
     if (attack > 0 || health > 0) {
-      const bonus = spellStatBonus(ctx.state);
-      attack += bonus;
-      health += bonus;
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
     }
     addBuff(self, str(params._source) || nameOf(self), attack, health);
     const kw = str(params.keyword);
@@ -592,9 +632,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Front to Back — cast: linear escalation. +(2 + frontToBackBonus + spell power)/(same), then the
    *  run's frontToBackBonus climbs by 2 so the next cast is bigger. `self` is the chosen target. */
   spellBuffTargetEscalating: (ctx, self, params) => {
-    const base = num(params.attack, 2);
-    const amt = base + ctx.state.frontToBackBonus + spellStatBonus(ctx.state);
-    addBuff(self, str(params._source) || 'Front to Back', amt, amt);
+    const base = num(params.attack, 2) + ctx.state.frontToBackBonus;
+    const a = base + spellAttackBonus(ctx.state);
+    const h = base + spellHealthBonus(ctx.state);
+    addBuff(self, str(params._source) || 'Front to Back', a, h);
     ctx.state.frontToBackBonus += 2;
   },
 
@@ -706,9 +747,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  on (not Discovered/conjured cards). Stacks if recast and picks up spell power on both stats. The
    *  shop UI folds it onto each offer; the buy bakes it into the minion. */
   spellBuffShop: (ctx, _self, params) => {
-    const sp = spellStatBonus(ctx.state);
-    ctx.state.tavernBuyBonus.atk += num(params.attack, 2) + sp;
-    ctx.state.tavernBuyBonus.hp += num(params.health, 2) + sp;
+    ctx.state.tavernBuyBonus.atk += num(params.attack, 2) + spellAttackBonus(ctx.state);
+    ctx.state.tavernBuyBonus.hp += num(params.health, 2) + spellHealthBonus(ctx.state);
   },
 
   /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)
@@ -718,9 +758,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Today only Undead is wired (RunState.undead*Bonus); the param keeps the data honest. The base is
     // an Attack buff; spell power folds in on top of BOTH stats (so +1/+1 spells turn +3 into +4/+1).
     if (str(params.tribe) === 'undead') {
-      const sp = spellStatBonus(ctx.state);
-      ctx.state.undeadAttackBonus += num(params.amount, 1) + sp;
-      ctx.state.undeadHealthBonus += sp;
+      ctx.state.undeadAttackBonus += num(params.amount, 1) + spellAttackBonus(ctx.state);
+      ctx.state.undeadHealthBonus += spellHealthBonus(ctx.state);
     }
   },
 
@@ -730,9 +769,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     let attack = num(params.attack);
     let health = num(params.health);
     if (attack > 0 || health > 0) {
-      const bonus = spellStatBonus(ctx.state);
-      attack += bonus;
-      health += bonus;
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
     }
     const source = str(params._source) || 'Growth';
     for (const card of ctx.state.board) addBuff(card, source, attack, health);
@@ -889,43 +927,64 @@ export function spellStatBonus(state: RunState): number {
 }
 
 /**
- * A spell's display text with its stat value updated to reflect `bonus` (and highlighted green via
- * `{{…}}`). Returns the base text for non-stat spells or a zero bonus. Convention: a stat spell's
- * text shows its value as "+A/+B" matching its `spellBuffTarget` params, so it can be substituted.
+ * The total +Attack a stat-granting spell gains: the hero's symmetric amplify (`spellStatBonus`) PLUS
+ * the run-wide card-driven spell ATTACK bonus (`spellBonus.attack` — Skullblade). The single source of
+ * truth for a spell's bonus Attack; the cast factories add this to the spell's Attack, and the display
+ * mirrors it. Optional-chained for old saves.
  */
-export function spellDisplayText(cardId: string, bonus: number, escalation = 0): string {
+export function spellAttackBonus(state: RunState): number {
+  return spellStatBonus(state) + (state.spellBonus?.attack ?? 0);
+}
+
+/**
+ * The total +Health a stat-granting spell gains: the hero's symmetric amplify PLUS the run-wide
+ * card-driven spell HEALTH bonus (`spellBonus.health` — Cinderwing Matron). Sibling of
+ * `spellAttackBonus` for the Health stat.
+ */
+export function spellHealthBonus(state: RunState): number {
+  return spellStatBonus(state) + (state.spellBonus?.health ?? 0);
+}
+
+/**
+ * A spell's display text with its stat value updated to reflect spell power (and highlighted green via
+ * `{{…}}`). `bonusA` is the +Attack bonus; `bonusH` the +Health bonus (defaults to `bonusA` so existing
+ * symmetric callers — and the hero amplify — read `spellDisplayText(id, bonus)` unchanged). Returns the
+ * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
+ * its `spellBuffTarget` params, so it can be substituted.
+ */
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Front to Back (escalating): always show the live grant — base + accumulated escalation + spell
-  // power — highlighted (green) once it's actually above its printed base.
+  // power (per stat) — highlighted (green) once it's actually above its printed base.
   const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
   if (esc) {
     const base = Number((esc.params as { attack?: number } | undefined)?.attack ?? 2);
-    const extra = escalation + bonus;
-    if (extra <= 0) return def.text;
-    const v = base + extra;
-    return def.text.replace(`+${base}/+${base}`, `{{+${v}/+${v}}}`);
+    if (escalation + bonusA <= 0 && escalation + bonusH <= 0) return def.text;
+    const va = base + escalation + bonusA;
+    const vh = base + escalation + bonusH;
+    return def.text.replace(`+${base}/+${base}`, `{{+${va}/+${vh}}}`);
   }
-  if (bonus <= 0) return def.text;
-  // Lantern of Souls: base "+N Attack" → "+{N+bonus}/+{bonus}" (spell power folds onto both stats).
+  if (bonusA <= 0 && bonusH <= 0) return def.text;
+  // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).
   const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');
   if (tribeBuff) {
     const amt = Number((tribeBuff.params as { amount?: number } | undefined)?.amount ?? 0);
-    return def.text.replace(`+${amt} Attack`, `{{+${amt + bonus}/+${bonus}}}`);
+    return def.text.replace(`+${amt} Attack`, `{{+${amt + bonusA}/+${bonusH}}}`);
   }
   // Staff of Guel: its "+A/+B" tavern-buy buff scales with spell power on both stats too.
   const shopBuff = def.effects.find((e) => e.do === 'spellBuffShop');
   if (shopBuff) {
     const a = Number((shopBuff.params as { attack?: number } | undefined)?.attack ?? 2);
     const h = Number((shopBuff.params as { health?: number } | undefined)?.health ?? 2);
-    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonus}/+${h + bonus}}}`);
+    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
   const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');
   if (!eff) return def.text;
   const ba = Number((eff.params as { attack?: number } | undefined)?.attack ?? 0);
   const bh = Number((eff.params as { health?: number } | undefined)?.health ?? 0);
   if (ba <= 0 && bh <= 0) return def.text;
-  return def.text.replace(`+${ba}/+${bh}`, `{{+${ba + bonus}/+${bh + bonus}}}`);
+  return def.text.replace(`+${ba}/+${bh}`, `{{+${ba + bonusA}/+${bh + bonusH}}}`);
 }
 
 /** Apply a spell's `cast` effects to its chosen target. The spell's name is injected as `_source`
@@ -1129,7 +1188,7 @@ function fodderMultiplier(consumer: BoardCard): number {
  */
 export function consumeTavernFodder(state: RunState): void {
   state.fodderEaten = [];
-  const demons = state.board.filter((c) => c.tribe === 'demon');
+  const demons = state.board.filter((c) => isTribe(c, 'demon')); // dual-types (Bane = Dragon/Demon) eat too
   if (demons.length === 0) return;
   const rng = makeRng(state.rngCursor);
   const ctx = makeContext(state);

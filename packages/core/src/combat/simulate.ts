@@ -40,6 +40,8 @@ export function simulate(
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
+  const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
+  const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
 
   /**
    * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
@@ -154,6 +156,19 @@ export function simulate(
         handGrants.push(cardId);
         events.push({ type: 'toHand', cardId, side, source: sourceUid });
       }
+    },
+    grantSpellPower: (attack, health, side) => {
+      // Player-only (enemies have no run state) — accumulate and carry back via playerSpellPower.
+      if (side !== 'player') return;
+      spellPowerGain.attack += attack;
+      spellPowerGain.health += health;
+    },
+    grantCardBuff: (cardId, attack, health, side) => {
+      // Player-only — accumulate per cardId and carry back via playerCardBuffs.
+      if (side !== 'player') return;
+      const e = cardBuffGains.find((g) => g.cardId === cardId);
+      if (e) { e.attack += attack; e.health += health; }
+      else cardBuffGains.push({ cardId, attack, health });
     },
   };
 
@@ -519,5 +534,7 @@ export function simulate(
     playerSummonBonus,
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
+    playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
+    playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
   };
 }

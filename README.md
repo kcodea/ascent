@@ -26,6 +26,14 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Card art → WebP (−94%).** The illustrated art was 78 PNGs at ~71 MB; converted to WebP (≤512px, q85)
   via the new `npm run optimize-art` → **4.3 MB**. Far less for the browser to hold in memory, and a much
   smaller itch build. Drop a PNG, run the script, it becomes an optimized `.webp`.
+- **Drag perf — the FLIP storm, fixed.** Dragging a card over the board was re-measuring *every* card and
+  restarting a slide animation each frame (the "card dancing" + stutter); the drop slot is now instant and
+  the FLIP only animates real plays. Spell targeting no longer hit-tests via `elementFromPoint` per frame.
+- **Choose One is its own keyword** — no longer doubled by Drakko or counted by Karwind/Bane.
+- **Minion batch.** Reworked **Hoard Cleric** (T3 3/4, +2/+3 Dragons), **Cinderwing Matron** (T4 5/5, +1 spell
+  Health), **Toxin Tender** (T5 3/1, friendly-Undead Venomous), **Grave Knit** (T2 3/2 + a global death-buff);
+  added **Skullblade** (spell-power Deathrattle); cut Rot Weaver + Webspinner Matron; **Bane** is now a true
+  Dragon/Demon (eats Fodder, Corrupted-Lifebinder-targetable). New run-wide spell-power system.
 - **Two T6 minions — Taurus & Bane.** **Taurus the Ancient** (Neutral 6/8) Engraves the minion to its left
   at Start of Combat (golden: both neighbours), so that minion keeps the stats it gains in the fight.
   **Bane** (Dragon/Demon 12/12) gives **Fodder +1/+1** for every Battlecry you trigger (golden +2/+2).

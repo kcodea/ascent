@@ -115,6 +115,37 @@ describe('simulate (handoff A.3)', () => {
     expect(enemySide.playerHandGrants).toBeUndefined();
   });
 
+  it("Skullblade's Deathrattle reports run-wide spell power to carry back (+1 Attack); golden = +2", () => {
+    // Skullblade (5/1) dies to retaliation against a wall; its Deathrattle records +1 Attack spell power.
+    const r = run([{ cardId: 'skullblade', attack: 5, health: 1 }], [{ cardId: 'sandbag', attack: 5, health: 30 }], 5);
+    expect(r.playerSpellPower).toEqual({ attack: 1, health: 0 });
+    // Golden doubles the gain.
+    const golden = run([{ cardId: 'skullblade', attack: 5, health: 1, golden: true }], [{ cardId: 'sandbag', attack: 5, health: 30 }], 5);
+    expect(golden.playerSpellPower).toEqual({ attack: 2, health: 0 });
+    // An enemy Skullblade dying gives the player no spell power (player-only carry-back).
+    const enemySide = run([{ cardId: 'sandbag', attack: 5, health: 30 }], [{ cardId: 'skullblade', attack: 5, health: 1 }], 5);
+    expect(enemySide.playerSpellPower).toBeUndefined();
+  });
+
+  it("Grave Knit's combat death reports a run-wide +3/+2 card-type buff; two deaths stack to +6/+4", () => {
+    // One Grave Knit dies → one carry-back entry of +3/+2 for the 'knit' card type.
+    const one = run([{ cardId: 'knit', attack: 3, health: 2 }], [{ cardId: 'sandbag', attack: 5, health: 30 }], 5);
+    expect(one.playerCardBuffs).toEqual([{ cardId: 'knit', attack: 3, health: 2 }]);
+    // Two Grave Knits both die → the entry sums to +6/+4 (each death stacks).
+    const two = run(
+      [
+        { cardId: 'knit', attack: 3, health: 2 },
+        { cardId: 'knit', attack: 3, health: 2 },
+      ],
+      [{ cardId: 'sandbag', attack: 9, health: 60 }],
+      5,
+    );
+    expect(two.playerCardBuffs).toEqual([{ cardId: 'knit', attack: 6, health: 4 }]);
+    // An enemy Grave Knit dying gives the player nothing.
+    const enemySide = run([{ cardId: 'sandbag', attack: 5, health: 30 }], [{ cardId: 'knit', attack: 3, health: 2 }], 5);
+    expect(enemySide.playerCardBuffs).toBeUndefined();
+  });
+
   it('attack order resumes after the front minion dies — does not skip the next', () => {
     // Player [1/1, 2/5, 3/5] vs a 1/20 wall: the 1/1 trades in and dies to retaliation,
     // then the SECOND minion (not the third) must swing next. Regression for the bug where
@@ -212,9 +243,9 @@ describe('simulate (handoff A.3)', () => {
     if (ping?.type === 'dmg') expect(ping.amount).toBe(1);
   });
 
-  it('Venomous (Webspinner Matron) destroys whatever it damages', () => {
+  it('Venomous destroys whatever it damages', () => {
     const a = run(
-      [{ cardId: 'maex', attack: 4, health: 4, keywords: ['V'] }],
+      [{ cardId: 'sandbag', attack: 4, health: 4, keywords: ['V'] }],
       [{ cardId: 'omen', attack: 2, health: 30, keywords: [] }],
       2,
     );
@@ -227,7 +258,7 @@ describe('simulate (handoff A.3)', () => {
     // should still finish the attacker, even though the attacker easily survives the raw 1 damage.
     const a = run(
       [{ cardId: 'omen', attack: 9, health: 30, keywords: [] }],
-      [{ cardId: 'maex', attack: 1, health: 1, keywords: ['V'] }],
+      [{ cardId: 'sandbag', attack: 1, health: 1, keywords: ['V'] }],
       2,
     );
     expect(a.events.some((e) => e.type === 'venomLost')).toBe(true);
@@ -235,7 +266,7 @@ describe('simulate (handoff A.3)', () => {
     // but a Divine Shield eats the venom — the attacker shrugs it off and wins.
     const b = run(
       [{ cardId: 'omen', attack: 9, health: 30, keywords: ['DS'] }],
-      [{ cardId: 'maex', attack: 1, health: 1, keywords: ['V'] }],
+      [{ cardId: 'sandbag', attack: 1, health: 1, keywords: ['V'] }],
       2,
     );
     expect(b.result).toBe('win');
@@ -250,7 +281,7 @@ describe('simulate (handoff A.3)', () => {
         { cardId: 'omen', attack: 1, health: 2, keywords: [] },
         { cardId: 'omen', attack: 1, health: 30, keywords: [] }, // filler → player attacks first
       ],
-      [{ cardId: 'maex', attack: 5, health: 40, keywords: ['V'] }],
+      [{ cardId: 'sandbag', attack: 5, health: 40, keywords: ['V'] }],
       2,
     );
     expect(a.events.some((e) => e.type === 'venomLost')).toBe(true);
@@ -261,7 +292,7 @@ describe('simulate (handoff A.3)', () => {
     // retaliation), spends its venom, then can only chip the second for 1 before it dies. Were
     // venom permanent it would poison the second wall too and win — so a loss proves the drop-off.
     const a = run(
-      [{ cardId: 'maex', attack: 1, health: 3, keywords: ['V'] }],
+      [{ cardId: 'sandbag', attack: 1, health: 3, keywords: ['V'] }],
       [
         { cardId: 'omen', attack: 1, health: 20, keywords: [] },
         { cardId: 'omen', attack: 1, health: 20, keywords: [] },
@@ -283,7 +314,7 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Reborn returns at BASE stats — sheds combat buffs + granted keywords (e.g. Divine Shield)', () => {
-    // A Grave Knit (base 2/2) that entered combat buffed to a 10/3 Divine-Shield body.
+    // A Grave Knit (base 3/2) that entered combat buffed to a 10/3 Divine-Shield body.
     const a = run(
       [{ cardId: 'knit', attack: 10, health: 3, keywords: ['R', 'DS'] }],
       [{ cardId: 'omen', attack: 4, health: 40, keywords: [] }],
@@ -292,7 +323,7 @@ describe('simulate (handoff A.3)', () => {
     const reborn = a.events.find((e) => e.type === 'reborn');
     expect(reborn).toBeDefined();
     if (reborn && reborn.type === 'reborn') {
-      expect(reborn.attack).toBe(2); // base attack, not the buffed 10
+      expect(reborn.attack).toBe(3); // base attack, not the buffed 10
       expect(reborn.hp).toBe(2); // base health, not 3 (and not Hearthstone's 1)
       expect(reborn.keywords).not.toContain('DS'); // granted Divine Shield is gone
       expect(reborn.keywords).not.toContain('R'); // Reborn itself is spent
@@ -306,7 +337,7 @@ describe('simulate (handoff A.3)', () => {
       3,
     );
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([4, 4]); // 2/2 base × 2
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([6, 4]); // 3/2 base × 2
   });
 
   it('a minion that Reborns from its own attack is next in line to attack again', () => {
@@ -910,13 +941,13 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Lantern of Souls re-applies to a player Undead that Reborns mid-combat', () => {
-    // Grave Knit (Undead, Reborn, 2/2 base) enters at 2+3 = 5 Attack, dies to retaliation, and Reborns at
-    // base — where the Lantern bonus is re-applied, so the reborn body is back to 5 Attack (not the base 2).
+    // Grave Knit (Undead, Reborn, 3/2 base) enters at 3+3 = 6 Attack, dies to retaliation, and Reborns at
+    // base — where the Lantern bonus is re-applied, so the reborn body is back to 6 Attack (not the base 3).
     const p: BoardMinion[] = [{ cardId: 'knit', attack: 2, health: 2 }];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 80 }]; // out-trades the Knit → forces the Reborn
     const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 3);
     const reborn = a.events.find((ev) => ev.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(5); // base 2 + Lantern 3, re-applied on rebirth
+    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(6); // base 3 + Lantern 3, re-applied on rebirth
   });
 
   it('Lantern of Souls: the spell-power component also raises Undead Health', () => {

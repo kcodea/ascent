@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, getHero, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellStatBonus, spellCastMult, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellStatBonus, spellCastMult, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
@@ -724,7 +724,8 @@ export function Recruit() {
     const def = CARD_INDEX[pendingTarget.cardId];
     if (!def?.targetTribe) return true;
     if (uid === pendingTarget.uid) return false;
-    return run.board.find((b) => b.uid === uid)?.tribe === def.targetTribe;
+    const c = run.board.find((b) => b.uid === uid);
+    return c ? isTribe(c, def.targetTribe) : false; // dual-types (Bane = Dragon/Demon) are valid picks
   };
   useEffect(() => {
     if (!pendingTarget || inCombat) {
@@ -737,7 +738,8 @@ export function Recruit() {
     const valid = (uid: string): boolean => {
       if (!def?.targetTribe) return true;
       if (uid === pendingTarget.uid) return false;
-      return run.board.find((b) => b.uid === uid)?.tribe === def.targetTribe;
+      const c = run.board.find((b) => b.uid === uid);
+      return c ? isTribe(c, def.targetTribe) : false; // dual-types (Bane) are valid picks
     };
     const minionAt = (x: number, y: number): { uid: string } | null => {
       const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');

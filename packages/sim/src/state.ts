@@ -158,6 +158,10 @@ export interface RunState {
   /** Run-wide Undead health bonus (Lantern of Souls' spell-power component). Paired with the attack
    *  bonus above and applied to the same Undead in the same places. */
   undeadHealthBonus: number;
+  /** Run-wide SPELL POWER: extra +atk/+hp every stat-granting spell grants, on top of the hero's
+   *  amplify (Spellbinder). Raised by cards — Cinderwing Matron (+1 Health on play), Skullblade
+   *  (+1 Attack per combat death, carried back). Folded into `spellAttackBonus` / `spellHealthBonus`. */
+  spellBonus: { attack: number; health: number };
   /** Staff of Guel — a run-wide buff baked onto every minion BOUGHT from the tavern (not Discovered or
    *  conjured). Persists for the rest of the run; stacks (and picks up spell power) if cast again. */
   tavernBuyBonus: { atk: number; hp: number };
@@ -277,6 +281,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     frontToBackBonus: 0,
     undeadAttackBonus: 0,
     undeadHealthBonus: 0,
+    spellBonus: { attack: 0, health: 0 },
     tavernBuyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,
     cassenKills: 0,
@@ -311,6 +316,7 @@ export function deserialize(json: string): RunState {
   if (!state.pool) state.pool = stockPool(state.tribes); // heal saves from before the finite pool
   state.cassenKills ??= 0; // heal saves from before Cassen's Collision tally
   state.turnStartPower ??= 0; // heal saves from before the pinned-opponent power
+  state.spellBonus ??= { attack: 0, health: 0 }; // heal saves from before card-driven spell power
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (state.pendingSpellDiscovers && state.pendingSpellDiscovers > 0) {

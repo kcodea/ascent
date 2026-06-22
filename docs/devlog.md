@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Minion batch — 4 reworks + Skullblade + 2 cuts + Bane dual-typing + a spell-power system
+- **Reworked 4 existing minions** (the user's message said "updates and additions"): **Hoard Cleric**
+  (`cleric`) → Dragon T3 3/4, Battlecry **+2/+3** to Dragons (was T2 1/3, +1/+1); **Cinderwing Matron**
+  (`cinder`) → Dragon T4 5/5, Battlecry **+1 spell Health** (was T3 tribe buff); **Toxin Tender** (`toxin`)
+  → T5 3/1, Battlecry grants Venomous to a friendly **Undead** (was any friendly); **Grave Knit** (`knit`)
+  → T2 3/2, **kept Reborn**, added a global death-buff. (A first delegation mistakenly added these as
+  duplicate *new* ids that collided on name with the existing cards — caught + repointed onto the originals.)
+- **New: Skullblade** (Undead T3 5/1) — Deathrattle: **+1 spell Attack** for the run.
+- **New spell-power channel.** There was no run-state spell power (only a hero-amplify scalar). Added
+  `RunState.spellBonus {attack, health}`; `spellAttackBonus`/`spellHealthBonus` = hero amplify **+** the
+  bonus; the 5 stat-granting spell factories now fold Attack/Health independently. Cinderwing bumps it at
+  recruit; **Skullblade carries it back from combat** (new `CombatResult.playerSpellPower` → `settleCombat`,
+  mirroring `playerHandGrants`).
+- **Grave Knit's run-wide death-buff** carries a combat death back as a card-type buff
+  (`CombatResult.playerCardBuffs` → `buffCardTypeRunWide('knit', +3/+2)`, a by-cardId sibling of
+  `buffFodderRunWide`). Stacks per death.
+- **Bane is now a proper Dragon/Demon dual-type.** A shared `isTribe(card, tribe)` (checks `tribe` +
+  `CARD_INDEX[id].tribe2`, matching the existing Mech convention) gates the Demon systems — so Bane eats
+  tavern Fodder (Consume) and is a valid **Corrupted Lifebinder** target (sim + the Recruit targeting UI).
+- **Cut:** Rot Weaver + Webspinner Matron (the `onFriendDeathBuffRandom` primitive is kept, content-unused).
+- **Art:** wired Bane + Taurus (last batch's two that were never copied into the build dir), plus Hoard
+  Cleric, Skullblade, Toxin Tender, Grave Knit — masters → WebP via `npm run optimize-art` (13.4 MB → 0.36 MB).
+  **Cinderwing Matron has no master** (`Ascent Art\Minions\CinderwingMatron.png` absent) → dragon sprite for now.
+- 3 new factory ids (`deathrattleBuffSpellPower`, `deathrattleBuffCardTypeRunWide`, `battlecryBuffSpellPower`)
+  registered in core + content. Updating the 4 cards broke 14 pre-existing tests (cleric was a heavy +1/+1
+  fixture; knit's base/Reborn; toxin's any-friendly target) — all repointed to the new specs. Verified:
+  typecheck + lint + **271 tests** + determinism harness.
+
 ### Drag perf, take 2 — kill the FLIP storm + cache spell-targeting hit-tests (the real fix)
 - **The FLIP storm was the actual culprit** (prod stuttered identically with the earlier zoneAt cache, which
   ruled out the re-render + dev tax). The FLIP effect re-measures every shop+warband card and restarts a 0.2s

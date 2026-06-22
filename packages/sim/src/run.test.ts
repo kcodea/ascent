@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makeRng } from '@game/core';
+import { makeRng, type CombatResult } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import {
   CONFIG,
@@ -20,6 +20,8 @@ import {
   addBuff,
   getHero,
   spellStatBonus,
+  spellAttackBonus,
+  spellHealthBonus,
   spellDisplayText,
   type BoardCard,
   type RunState,
@@ -318,10 +320,10 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    expect(s.board.find((c) => c.cardId === 'whelp')?.attack).toBe(3); // 2 + 1
+    expect(s.board.find((c) => c.cardId === 'whelp')?.attack).toBe(4); // 2 + 2
     const cleric = s.board.find((c) => c.cardId === 'cleric');
-    expect(cleric?.attack).toBe(2); // 1 + 1 (Battlecry includes self)
-    expect(cleric?.health).toBe(4);
+    expect(cleric?.attack).toBe(5); // 3 + 2 (Battlecry includes self)
+    expect(cleric?.health).toBe(7); // 4 + 3
   });
 
   it('Toxin Tender grants Venomous to the minion you target after playing it', () => {
@@ -329,13 +331,13 @@ describe('run loop (@game/sim)', () => {
       ...createRun(1),
       embers: 3,
       hand: [],
-      board: [{ uid: 'g', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
+      board: [{ uid: 'g', cardId: 'spore', tribe: 'undead', attack: 1, health: 2, keywords: [], golden: false }],
       shop: [{ uid: 'x', cardId: 'toxin' }],
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'g' }); // pick the target after playing
-    expect(s.board.find((c) => c.cardId === 'gnash')?.keywords).toContain('V');
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'g' }); // pick the friendly Undead target after playing
+    expect(s.board.find((c) => c.cardId === 'spore')?.keywords).toContain('V');
   });
 
   it("Ritualist's End of Turn buffs all Fodder — existing copies and the run-level card buff", () => {
@@ -463,8 +465,8 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('Karwind buffs your Dragons whenever a Battlecry triggers', () => {
-    // Play Hoard Cleric (Dragon Battlecry +1/+1 to dragons) with Karwind on board: the Cleric's
-    // Battlecry buffs Karwind +1/+1, then the battlecry-triggered proc gives Dragons +1/+2.
+    // Play Hoard Cleric (Dragon Battlecry +2/+3 to dragons) with Karwind on board: the Cleric's
+    // Battlecry buffs Karwind +2/+3, then the battlecry-triggered proc gives Dragons +1/+2.
     let s: RunState = {
       ...createRun(1),
       embers: 0,
@@ -474,7 +476,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    expect([k.attack, k.health]).toEqual([4, 15]); // 2/12 +1/+1 (Cleric) +1/+2 (Karwind proc)
+    expect([k.attack, k.health]).toEqual([5, 17]); // 2/12 +2/+3 (Cleric) +1/+2 (Karwind proc)
   });
 
   it('Karwind procs once per Battlecry fire — Drakko doubling triggers it twice', () => {
@@ -490,8 +492,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // Cleric Battlecry fires 2× (+2/+2) and Karwind procs 2× (+2/+4): 2/12 → 6/18
-    expect([k.attack, k.health]).toEqual([6, 18]);
+    // Cleric Battlecry fires 2× (+4/+6) and Karwind procs 2× (+2/+4): 2/12 → 8/22
+    expect([k.attack, k.health]).toEqual([8, 22]);
   });
 
   it('Money Bot raises max mana while on board; selling it removes the income', () => {
@@ -1288,9 +1290,9 @@ describe('run loop (@game/sim)', () => {
       board: [{ uid: 'w', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: ['SC'], golden: false }],
       hand: [{ uid: 'gc', cardId: 'cleric', tribe: 'dragon', attack: 2, health: 6, keywords: [], golden: true }],
     };
-    s = reduce(s, { type: 'play', uid: 'gc' }); // golden Hoard Cleric: Dragons +2/+2 (doubled)
-    expect(s.board.find((c) => c.cardId === 'whelp')?.attack).toBe(4); // 2 + 2
-    expect(s.board.find((c) => c.cardId === 'whelp')?.health).toBe(3); // 1 + 2
+    s = reduce(s, { type: 'play', uid: 'gc' }); // golden Hoard Cleric: Dragons +4/+6 (doubled)
+    expect(s.board.find((c) => c.cardId === 'whelp')?.attack).toBe(6); // 2 + 4
+    expect(s.board.find((c) => c.cardId === 'whelp')?.health).toBe(7); // 1 + 6
   });
 
   it('a run draws 5 distinct tribes and the shop only offers them (+ neutral)', () => {
@@ -1507,8 +1509,8 @@ describe('run loop (@game/sim)', () => {
       embers: 3,
       hand: [],
       board: [
-        { uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false },
-        { uid: 'mid', cardId: 'alley', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false },
+        { uid: 'big', cardId: 'skullblade', tribe: 'undead', attack: 6, health: 6, keywords: [], golden: false },
+        { uid: 'mid', cardId: 'spore', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false },
       ],
       shop: [{ uid: 'x', cardId: 'toxin' }],
     };
@@ -1529,13 +1531,13 @@ describe('run loop (@game/sim)', () => {
       ...createRun(1),
       embers: 3,
       hand: [],
-      board: [{ uid: 'big', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
+      board: [{ uid: 'big', cardId: 'skullblade', tribe: 'undead', attack: 6, health: 6, keywords: [], golden: false }],
       shop: [{ uid: 'x', cardId: 'toxin' }],
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
     expect(s.pendingTarget?.cardId).toBe('toxin');
-    s = reduce(s, { type: 'faceOmen' }); // end the turn without picking → grant lands on the carry (big)
+    s = reduce(s, { type: 'faceOmen' }); // end the turn without picking → grant lands on the carry (the eligible Undead)
     expect(s.pendingTarget).toBeUndefined();
     expect(s.board.find((c) => c.uid === 'big')?.keywords).toContain('V');
   });
@@ -1570,7 +1572,7 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('a golden Drakko triples Battlecries', () => {
-    // Hoard Cleric (+1/+1 to Dragons, incl. self) — avoids token triples. Golden Drakko fires it 3×.
+    // Hoard Cleric (+2/+3 to Dragons, incl. self) — avoids token triples. Golden Drakko fires it 3×.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: true }],
@@ -1578,7 +1580,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const cleric = s.board.find((c) => c.cardId === 'cleric');
-    expect([cleric?.attack, cleric?.health]).toEqual([4, 6]); // 1/3 + 3×(+1/+1)
+    expect([cleric?.attack, cleric?.health]).toEqual([7, 12]); // 1/3 + 3×(+2/+3)
   });
 
   it('multiple Drakkos do NOT stack (still fires twice)', () => {
@@ -1835,15 +1837,15 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("Myra's Pulse re-fires a friendly minion's Battlecry, once per turn (from turn 3)", () => {
-    // Hoard Cleric's Battlecry buffs all your Dragons +1/+1 (includes itself).
+    // Hoard Cleric's Battlecry buffs all your Dragons +2/+3 (includes itself).
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
     let s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] }; // Pulse unlocks turn 3
     s = reduce(s, { type: 'heroPower', uid: 'c' });
-    expect(s.board[0]!.attack).toBe(2); // 1 + 1
-    expect(s.board[0]!.health).toBe(4); // 3 + 1
-    expect(s.board[0]!.buffs).toEqual([{ source: 'Hoard Cleric', attack: 1, health: 1, count: 1 }]);
+    expect(s.board[0]!.attack).toBe(3); // 1 + 2
+    expect(s.board[0]!.health).toBe(6); // 3 + 3
+    expect(s.board[0]!.buffs).toEqual([{ source: 'Hoard Cleric', attack: 2, health: 3, count: 1 }]);
     expect(s.heroReady).toBe(false);
     // Once per turn: a second use this wave is rejected.
     expect(reduce(s, { type: 'heroPower', uid: 'c' })).toBe(s);
@@ -1855,7 +1857,7 @@ describe('hero powers (@game/sim)', () => {
       wave: 3,
       board: [
         { uid: 't', cardId: 'toxin', tribe: 'undead', attack: 1, health: 3, keywords: [], golden: false },
-        mk('f', 5, 5), // highest-attack friend → auto-picked
+        { uid: 'f', cardId: 'skullblade', tribe: 'undead', attack: 5, health: 5, keywords: [], golden: false }, // highest-attack Undead friend → auto-picked
       ],
     };
     const after = reduce(s, { type: 'heroPower', uid: 't' });
@@ -1877,10 +1879,10 @@ describe('hero powers (@game/sim)', () => {
     // Turn 1: locked — the power is rejected (no charge spent, no Battlecry replay).
     const w1: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric()] };
     expect(reduce(w1, { type: 'heroPower', uid: 'c' })).toBe(w1);
-    // Turn 3: unlocked — the Battlecry re-fires (+1/+1).
+    // Turn 3: unlocked — the Battlecry re-fires (+2/+3).
     let w3: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] };
     w3 = reduce(w3, { type: 'heroPower', uid: 'c' });
-    expect(w3.board[0]!.attack).toBe(2);
+    expect(w3.board[0]!.attack).toBe(3);
     expect(w3.heroReady).toBe(false);
   });
 
@@ -2520,5 +2522,188 @@ describe('Cling Drones improve per magnetization (M3 content)', () => {
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn: golden Combinator welds a Cling onto 2 Mechs
     expect(s.cardBuffs?.cling).toEqual({ attack: 2, health: 2 }); // 2 Clings magnetized → +2/+2
+  });
+});
+
+describe('content batch: new minions (@game/sim)', () => {
+  const card = (uid: string, cardId: string, tribe: BoardCard['tribe'], a: number, h: number, extra: Partial<BoardCard> = {}): BoardCard =>
+    ({ uid, cardId, tribe, attack: a, health: h, keywords: [], golden: false, ...extra });
+
+  // Minimal CombatResult shell for the carry-back settleCombat tests — only the fields settleCombat reads
+  // matter; the carry-back channels are layered per test.
+  const combatShell = (over: Partial<CombatResult>): CombatResult => ({
+    events: [],
+    result: 'win',
+    playerDamage: 0,
+    playerDeathrattles: 0,
+    enemyDeaths: 0,
+    initial: { player: [], enemy: [] },
+    ...over,
+  });
+
+  it('Hoard Cleric (cleric) Battlecry gives your Dragons +2/+3', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        card('d', 'whelp', 'dragon', 2, 1), // another Dragon on board
+        card('n', 'sandbag', 'neutral', 0, 4), // a non-Dragon: untouched
+      ],
+      hand: [card('hc', 'cleric', 'dragon', 3, 4)],
+    };
+    s = reduce(s, { type: 'play', uid: 'hc' });
+    const dragon = s.board.find((c) => c.uid === 'd')!;
+    expect([dragon.attack, dragon.health]).toEqual([4, 4]); // 2/1 → 4/4
+    const cleric = s.board.find((c) => c.uid === 'hc')!;
+    expect([cleric.attack, cleric.health]).toEqual([5, 7]); // includes self: 3/4 → 5/7
+    const neutral = s.board.find((c) => c.uid === 'n')!;
+    expect([neutral.attack, neutral.health]).toEqual([0, 4]); // non-Dragon untouched
+  });
+
+  it('Cinderwing Matron (cinder) Battlecry raises the run spell HEALTH bonus; a later Spirit Fire grants +4/+5', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [card('t', 'sandbag', 'neutral', 2, 2)],
+      hand: [card('cw', 'cinder', 'dragon', 5, 5), card('sf', 'spiritfire', 'neutral', 0, 0)],
+    };
+    s = reduce(s, { type: 'play', uid: 'cw' });
+    expect(s.spellBonus).toEqual({ attack: 0, health: 1 }); // +1 spell Health
+    expect(spellAttackBonus(s)).toBe(0); // Attack unchanged (warden hero amplify = 0)
+    expect(spellHealthBonus(s)).toBe(1);
+    // Spirit Fire (+4/+4) now grants +4/+5 (Health bonus folds onto Health only).
+    s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
+    const target = s.board.find((c) => c.uid === 't')!;
+    expect([target.attack, target.health]).toEqual([6, 7]); // 2/2 + 4/5
+    // And the card text shows the effective Health bump (Attack unchanged).
+    expect(spellDisplayText('spiritfire', spellAttackBonus(s), 0, spellHealthBonus(s))).toBe('Give a friendly minion **{{+4/+5}}**.');
+  });
+
+  it('a golden Cinderwing Matron grants +2 spell Health', () => {
+    let s: RunState = { ...createRun(1), board: [], hand: [card('cw', 'cinder', 'dragon', 10, 10, { golden: true })] };
+    s = reduce(s, { type: 'play', uid: 'cw' });
+    expect(s.spellBonus).toEqual({ attack: 0, health: 2 });
+  });
+
+  it("Skullblade's spell-power carry-back lands in settleCombat: spellBonus.attack += 1, next spell +5/+4", () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      combatSettled: false,
+      board: [card('t', 'sandbag', 'neutral', 2, 2)],
+      hand: [card('sf', 'spiritfire', 'neutral', 0, 0)],
+      lastCombat: combatShell({ playerSpellPower: { attack: 1, health: 0 } }),
+    };
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.spellBonus).toEqual({ attack: 1, health: 0 }); // carried back
+    // A Spirit Fire (+4/+4) now grants +5/+4 (Attack bonus folds onto Attack only).
+    s = { ...s, phase: 'recruit' };
+    s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
+    const target = s.board.find((c) => c.uid === 't')!;
+    expect([target.attack, target.health]).toEqual([7, 6]); // 2/2 + 5/4
+  });
+
+  it('Toxin Tender (toxin) grants Venomous to a friendly Undead you target', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [card('u', 'spore', 'undead', 1, 2)], // a friendly Undead
+      hand: [card('tt', 'toxin', 'undead', 3, 1)],
+    };
+    s = reduce(s, { type: 'play', uid: 'tt' });
+    expect(s.pendingTarget?.cardId).toBe('toxin'); // waits for a friendly-Undead pick
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'u' });
+    expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('V');
+  });
+
+  it('Toxin Tender with no friendly Undead plays without a prompt and grants nothing', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [card('b', 'stray', 'beast', 1, 1)], // no friendly Undead (self not yet on board)
+      hand: [card('tt', 'toxin', 'undead', 3, 1)],
+    };
+    s = reduce(s, { type: 'play', uid: 'tt' });
+    expect(s.pendingTarget).toBeUndefined(); // no viable Undead → no targeting prompt
+    expect(s.board.find((c) => c.uid === 'b')?.keywords ?? []).not.toContain('V'); // Beast never gets it
+  });
+
+  it("Toxin Tender's auto-pick (face-Omen carry) only grants Venomous to a friendly Undead", () => {
+    // Two Undead present + the played Toxin Tender; ending the turn mid-pick auto-resolves on the
+    // highest-attack *Undead* carry — never a higher-attack off-tribe minion.
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        card('big', 'gnash', 'beast', 9, 9), // highest attack, but NOT Undead → ineligible
+        card('u', 'spore', 'undead', 4, 4), // the eligible Undead carry
+        card('tt', 'toxin', 'undead', 3, 1), // the played Toxin Tender (pending target)
+      ],
+      pendingTarget: { uid: 'tt', cardId: 'toxin' },
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('V'); // Undead carry got it
+    expect(s.board.find((c) => c.uid === 'big')?.keywords ?? []).not.toContain('V'); // Beast did not
+  });
+
+  it('Grave Knit (knit) run-wide +3/+2 carry-back lands in settleCombat — board, hand, and future copies', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      combatSettled: false,
+      board: [card('k1', 'knit', 'undead', 3, 2)],
+      hand: [card('k2', 'knit', 'undead', 3, 2)],
+      lastCombat: combatShell({ playerCardBuffs: [{ cardId: 'knit', attack: 3, health: 2 }] }),
+    };
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.cardBuffs.knit).toEqual({ attack: 3, health: 2 }); // run-wide enchant recorded
+    expect([s.board.find((c) => c.uid === 'k1')!.attack, s.board.find((c) => c.uid === 'k1')!.health]).toEqual([6, 4]); // board copy
+    expect([s.hand.find((c) => c.uid === 'k2')!.attack, s.hand.find((c) => c.uid === 'k2')!.health]).toEqual([6, 4]); // hand copy
+    // A FUTURE copy bought from the tavern carries the enchant too. Use a clean board/hand (the two
+    // existing Grave Knits above would otherwise triple with the buy into a golden, doubling its stats).
+    let s2: RunState = { ...createRun(1), embers: 9, board: [], hand: [], cardBuffs: { knit: { attack: 3, health: 2 } }, shop: [{ uid: 'x', cardId: 'knit' }] };
+    s2 = reduce(s2, { type: 'buy', uid: 'x' });
+    const bought = s2.hand.find((c) => c.cardId === 'knit')!;
+    expect([bought.attack, bought.health]).toEqual([6, 4]); // 3/2 base + 3/2 run buff
+  });
+
+  it("Grave Knit's run-wide buff stacks across combat deaths (+3/+2 each)", () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      combatSettled: false,
+      board: [card('k1', 'knit', 'undead', 3, 2)],
+      hand: [],
+      // Two Grave Knits died this combat → the carried entry already sums to +6/+4.
+      lastCombat: combatShell({ playerCardBuffs: [{ cardId: 'knit', attack: 6, health: 4 }] }),
+    };
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.cardBuffs.knit).toEqual({ attack: 6, health: 4 });
+    expect([s.board.find((c) => c.uid === 'k1')!.attack, s.board.find((c) => c.uid === 'k1')!.health]).toEqual([9, 6]); // 3/2 + 6/4
+  });
+
+  it('Bane (Dragon/Demon) is consumed as a Demon — it eats Fodder from the tavern via tribe2', () => {
+    // Bane on the board (primary Dragon, tribe2 Demon). Fred queued for the next tavern must be brought
+    // out (injectPendingTavern's demon check) and devoured by Bane (consumeTavernFodder's demon check),
+    // both now recognizing tribe2 === 'demon'. resolveCombat advances → next tavern injects + consumes.
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      board: [card('bane', 'bane', 'dragon', 12, 12)],
+      pendingTavern: ['fred'],
+      lastCombat: combatShell({}),
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.shop.find((o) => o.cardId === 'fred')).toBeUndefined(); // Fred eaten — left the tavern
+    const bane = s.board.find((c) => c.uid === 'bane')!;
+    expect([bane.attack, bane.health]).toEqual([13, 13]); // 12/12 + Fred's 1/1
+    expect(s.fodderEaten?.[0]).toMatchObject({ eaterUid: 'bane', fodderId: 'fred' }); // Bane recorded as the eater
+  });
+
+  it('Bane (Dragon/Demon) is a valid Corrupted Lifebinder target (recognized as a Demon)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      hand: [card('lb', 'lifebinder', 'demon', 1, 1)],
+      board: [card('bane', 'bane', 'dragon', 12, 12)], // dual-type Demon — the only other friend
+    };
+    s = reduce(s, { type: 'play', uid: 'lb' });
+    expect(s.pendingTarget?.uid).toBe('lb'); // a viable Demon (Bane) exists → the prompt opens
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'bane' });
+    expect(s.board.find((c) => c.uid === 'lb')?.linkUid).toBe('bane'); // linked to the dual-type Demon
   });
 });

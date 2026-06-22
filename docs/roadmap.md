@@ -226,14 +226,15 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 - [ ] **Divine Shield indicator (re-add).** The `.dsfx` overlay was removed as too noisy. `effectArt()`
       + `art/effects/divineshield.png` are retained — re-add a *subtler* DS cue (small corner badge or a
       thin rim) when wanted, rather than the full-card aura.
-- [ ] **Recruit perf pass — further (if it still micro-stutters locally).** Done so far: `Card` is
-      memoized + its props stabilized (per-card view objects via `useMemo` maps, one shared
-      pointer-down handler), so during a drag the board's cards no longer re-render (measured: ~0 card
-      renders per pointermove vs. one-per-card before). If a local `npm run dev` build *still*
-      stutters, the next lever is to take the floating drag-card transform fully imperative (write it
-      to the node via a ref on pointermove) so the recruit tree doesn't re-render at all between
-      meaningful state changes (zone/insertion-index/magnetize). Also dropped `background-attachment:
-      fixed` earlier (a real repaint win).
+- [ ] **Recruit perf pass — further (if it still micro-stutters locally).** Done: `Card` is memoized + its
+      props stabilized (per-card view-object `useMemo` maps, one shared pointer-down handler), so the board's
+      cards don't re-render during a drag; and `onMove` is now **rAF-throttled** — the pointermove burst
+      coalesces into one `setDrag` per frame, capping the recruit-tree re-render at the refresh rate (high-Hz
+      pointers no longer over-render). If a local `npm run dev` build *still* stutters, the next lever is to
+      take the floating drag-card transform fully imperative (write it to the node via a ref on pointermove)
+      so the recruit tree doesn't re-render at all between meaningful state changes (zone/insertion-index/
+      magnetize). **Asset note:** card-art PNGs are ~1.2 MB each — downscale/WebP is a separate, real RAM/load
+      win. Also dropped `background-attachment: fixed` earlier (a real repaint win).
 - [ ] **Fodder keyword — more users.** `FD` is now a keyword (Fred carries it; consume keys off it).
       Give other cheap/token minions the keyword and/or add cards that interact with Fodder, now that
       it's a reusable marker rather than one card.

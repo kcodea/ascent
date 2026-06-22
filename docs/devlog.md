@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Perf round 2 — rAF-throttle the drag move + dev-vs-prod guidance
+- **rAF-throttle the drag:** a high-Hz pointer (120/144Hz) fires `pointermove` far more often than the
+  screen repaints, and each one re-rendered Recruit (the live insertion-gap + spell-targeting line read
+  `drag.x/y`, so they can't be ref'd out of React). `onMove` now stashes the latest position and schedules
+  a single `requestAnimationFrame` flush — coalescing the burst into one `setDrag` per frame, capping
+  re-renders at the refresh rate. The pending frame is cancelled on drag-end (effect cleanup). `onUp`
+  recomputes "did it move" from the up event (a flick finished inside one frame may not have flushed
+  `active` yet) so a fast drag still registers as a drop.
+- **Why this is the right knob (profiling):** the per-card `Sprite` canvas only redraws inside a
+  `useEffect` keyed on `[name, scale]`, so card re-renders don't repaint canvases — a drop is cheap React
+  reconciliation, not paint. So I did *not* add a content-aware Card comparator (its stale-render risk
+  outweighed the small gain). The remaining drag cost was purely re-render *frequency*, which the throttle caps.
+- **Dev vs prod:** StrictMode double-invokes renders in dev and Vite serves an unminified bundle; the
+  production build (`npm run build:web` → 135 KB gzip JS, <1s) strips both. Feel-test there (`npm run preview`
+  in apps/web).
+- **Flagged:** card-art PNGs are ~1.2 MB each (many) — a likely RAM/load contributor; downscale/WebP is a
+  worthwhile follow-up.
+- Verified: typecheck + lint clean; prod build green; Cassen counter display confirmed live ("Collision · 0/5").
+  The drag itself needs a real-pointer feel-test — synthetic pointer dispatch couldn't drive React's delegated
+  handler in the preview harness; the change is isolated to the move handler (drag-start untouched).
+
 ### Add Taurus the Ancient + Bane (T6 minions) + Engraved carry-back honors sc-granted EG
 - **Taurus the Ancient** (Neutral T6 6/8): new `scEngraveNeighbor` Start-of-Combat factory grants the
   Engraved (EG) keyword to the minion on Taurus's **left** (golden: **both** adjacent). That neighbor then

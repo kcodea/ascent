@@ -507,7 +507,17 @@ export function Recruit() {
     // (warband row, the gap, or the hand) — buys it, instead of only when dropped squarely on the hand.
     // Bounded by the screen bottom, so it can't go too low (just as the sell region stops at the line).
     const inBuyRegion = (y: number): boolean => drag.source === 'shop' && y > warbandTop();
-    const onMove = (e: PointerEvent): void => {
+    // rAF-throttle the move: a high-Hz pointer (120/144Hz mice, trackpads) fires pointermove far more
+    // often than the screen repaints, and each event re-renders Recruit (the live insertion gap + spell
+    // line read drag.x/y, so we can't ref them out). Coalesce — keep only the latest position and apply
+    // it once per frame, capping re-renders at the refresh rate.
+    let moveRaf = 0;
+    let lastMove: PointerEvent | null = null;
+    const flushMove = (): void => {
+      moveRaf = 0;
+      const e = lastMove;
+      if (!e) return;
+      lastMove = null;
       setDrag((d) => {
         if (!d) return d;
         const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
@@ -515,9 +525,16 @@ export function Recruit() {
       });
       setOverZone(inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAt(e.clientX, e.clientY));
     };
+    const onMove = (e: PointerEvent): void => {
+      lastMove = e;
+      if (!moveRaf) moveRaf = requestAnimationFrame(flushMove);
+    };
     const onUp = (e: PointerEvent): void => {
       const d = dragRef.current;
-      if (!d || !d.active) {
+      // Recompute "did it move" from the up event too: with the rAF-throttle a flick completed inside one
+      // frame may not have flushed `active` yet, but it's still a drag if the pointer cleared the threshold.
+      const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD);
+      if (!d || !moved) {
         document.body.classList.remove('dragging');
         // a click, not a drag — let onClick (hero targeting) handle it
         setDrag(null);
@@ -586,6 +603,7 @@ export function Recruit() {
     window.addEventListener('pointercancel', onUp);
     window.addEventListener('contextmenu', onCtx);
     return () => {
+      if (moveRaf) cancelAnimationFrame(moveRaf);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);

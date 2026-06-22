@@ -23,6 +23,13 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Two T6 minions — Taurus & Bane.** **Taurus the Ancient** (Neutral 6/8) Engraves the minion to its left
+  at Start of Combat (golden: both neighbours), so that minion keeps the stats it gains in the fight.
+  **Bane** (Dragon/Demon 12/12) gives **Fodder +1/+1** for every Battlecry you trigger (golden +2/+2).
+- **Cassen counter fix + drag perf.** Cassen's in-combat Collision tracker now counts enemy kills exactly
+  (death events are side-tagged) and shows a clean climb to 5/5 instead of a mid-combat rollover. Dragging is
+  rAF-throttled (one update per frame, so high-Hz pointers don't over-render); feel-test the production build
+  (`npm run build:web` → `npm run preview`), which strips the dev-mode double-render.
 - **Three new minions + a Junkyard Titan rework.** **Hoarder** (T1 — sells for +1 Mana per turn you hold it),
   **Black Belt Brian** (T5 — Battlecry: Discover a spell), **Yazzus** (T6 — your spells cast twice; three times
   when golden, spark and all), and **Junkyard Titan** now reads "**Deathrattle:** add a random Magnetic minion

@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Discover-queue (Yazzus → Help Wanted/Sprout, Drakko → Brian) + Hoarder triple keeps the oldest + Eyes targeting
+- **Discover queue.** Discovers now QUEUE behind the open one (`RunState.discoverQueue: DiscoverSpec[]`,
+  serializable — `{kind:'spell'}` or `{kind:'minion',tier,exactTier?,filter?}`) instead of overwriting.
+  `queueDiscover(state, spec)` opens it or queues; the `discover` case drains the queue after each pick.
+  Replaces the spell-only `pendingSpellDiscovers`. `offerDiscover`/`hasBattlecry` moved reducer→recruit so the
+  import direction stays clean. Backbone for the two below.
+- **Yazzus multiplies Help Wanted + Sprout** (the player-cast Discover spells) — casting them with a Yazzus out
+  opens 2 (3 if golden) sequential Discovers. **Triple Reward stays single** (it's not a player-cast spell).
+- **Drakko the Drummer → Black Belt Brian Discovers 2.** The drummer's Battlecry-doubling (`drummerRepeats`)
+  already fired Brian's Battlecry twice, but `battlecryDiscoverSpell` *overwrote* the open Discover on the 2nd
+  fire — now it queues, so Brian + Drakko opens 2 spell-Discovers (golden Brian + Drakko → 4). The drummer was
+  never actually inert; its stale "deferred / no factory" comment is corrected.
+- **Hoarder triple keeps the oldest copy.** `checkTriples` now sets the golden's `boughtWave` to the MIN
+  (earliest) of the merged copies, so a tripled Hoarder keeps the highest sell value as its starting point.
+- **Eyes of Aresmar targeting (UI).** A tier-gated spell (`targetMaxTier`) snaps back without casting if dropped
+  on a >T4 minion or a tavern offer — only a valid-tier friendly *board* minion is a legal target.
+- Verified: typecheck + lint + **249 tests** (7 new: Yazzus×Help-Wanted/Triple-Reward, Drakko×Brian, golden
+  Brian×Drakko=4, Battlecry-fires-twice-via-drummer, Hoarder-triple-min-boughtWave).
+
 ### Fix Junkyard Titan grant doubling at combat-end + Hoarder live "Sells for X" line
 - **Junkyard Titan (and any Deathrattle hand-grant) doubled at combat-end.** The combat view renders the flying
   `handGrantsShown` cards while `inCombat`, but settleCombat fires at replay-end and adds the grants to the REAL

@@ -1,12 +1,12 @@
 import { makeRng, simulate, type BoardMinion, type CombatResult, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
+import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, offerSpellDiscover, playCard, replayBattlecry, replayEndOfTurn, spellCastMult, syncLifebinders, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, hasBattlecry, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCastMult, syncLifebinders, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -152,25 +152,26 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (i < 0) return state;
       const card = s.hand[i]!;
 
-      // A Discover spell isn't a minion: playing it opens the Discover (a peek one
-      // tier up) and is consumed — no board slot.
+      // A Discover spell isn't a minion: playing it opens the Discover (a peek one tier up) and is
+      // consumed — no board slot. Triple Reward is NOT a player-cast spell (it's a golden's reward), so
+      // Yazzus does NOT multiply it — exactly one Discover.
       if (card.cardId === 'discoverspell') {
         s.hand.splice(i, 1);
-        offerDiscover(s, s.tier + 1); // the triple reward peeks one tier above the current tavern tier
+        queueDiscover(s, { kind: 'minion', tier: s.tier + 1 }); // peek one tier above the current tavern tier
         return s;
       }
 
-      // Sprout: Discover a Tier 1 minion (fixed tier). Consumed — no board slot.
+      // Sprout: Discover a Tier 1 minion (fixed tier). Help Wanted: Discover a Battlecry minion (up to the
+      // tavern tier). Both are player-cast spells, so a Yazzus on board multiplies them — casting one opens
+      // `spellCastMult` sequential Discovers (2, or 3 with a golden Yazzus) via the queue. Consumed — no slot.
       if (card.cardId === 'sprout') {
         s.hand.splice(i, 1);
-        offerDiscover(s, 1, { tier: 1 });
+        for (let n = 0; n < spellCastMult(s); n++) queueDiscover(s, { kind: 'minion', tier: 1, exactTier: 1 });
         return s;
       }
-
-      // Help Wanted: Discover a Battlecry minion (up to the tavern tier). Consumed — no board slot.
       if (card.cardId === 'helpwanted') {
         s.hand.splice(i, 1);
-        offerDiscover(s, s.tier, { filter: hasBattlecry });
+        for (let n = 0; n < spellCastMult(s); n++) queueDiscover(s, { kind: 'minion', tier: s.tier, filter: 'battlecry' });
         return s;
       }
 
@@ -434,12 +435,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         golden: false,
       });
       takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
-      // A queued spell-Discover (golden Black Belt Brian) re-opens a fresh Discover instead of clearing.
-      if (s.pendingSpellDiscovers && s.pendingSpellDiscovers > 0) {
-        s.pendingSpellDiscovers -= 1;
-        offerSpellDiscover(s);
-      } else {
-        s.discover = undefined;
+      // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
+      // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
+      // (offerDiscover/offerSpellDiscover leave `discover` unset) — keep draining the rest so the queue
+      // never strands behind a closed Discover.
+      s.discover = undefined;
+      while (!s.discover && s.discoverQueue && s.discoverQueue.length > 0) {
+        openDiscover(s, s.discoverQueue.shift()!);
       }
       checkTriples(s); // the discovered copy might itself complete a triple
       return s;
@@ -606,6 +608,12 @@ function checkTriples(s: RunState): void {
     // Spirit Pup: the golden keeps the *highest* spell progress of the three (= the lowest spells-left),
     // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve.
     const goldenProgress = Math.max(...combined.map((c) => c.spellProgress ?? 0));
+    // Hoarder: the golden keeps the EARLIEST (minimum) boughtWave of the three, so a golden Hoarder
+    // inherits the oldest copy's age → its highest sell value as the starting point (sell =
+    // (wave - boughtWave + 1) × 2 golden). Generic — harmless on cards that don't read it — but Hoarder
+    // is the one that matters. Copies with no boughtWave (not from a buy) are ignored; undefined if none had one.
+    const boughtWaves = combined.map((c) => c.boughtWave).filter((w): w is number => w !== undefined);
+    const goldenBoughtWave = boughtWaves.length > 0 ? Math.min(...boughtWaves) : undefined;
     s.hand.push({
       uid: `b${s.uidSeq++}`,
       cardId: def.id,
@@ -618,67 +626,11 @@ function checkTriples(s: RunState): void {
       manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
       buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
       spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
+      boughtWave: goldenBoughtWave,
     });
     s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
     // The Discover isn't granted now — it comes from a spell when the golden is played.
   }
-}
-
-/**
- * Offer a Discover (3 distinct, pool-filtered cards). Used by:
- *   • the triple reward (a golden played → peek one tier up) — `discoverTier` = the *target* tier;
- *     the pool walks the floor down until it finds 3, so a thin top tier still fills.
- *   • spell Discovers (`opts`): a fixed `tier` (Sprout → 1, no floor-walk) and/or a card `filter`
- *     (Help Wanted → Battlecry minions only). When `tier` is fixed the pool is just that tier (no
- *     widening), so Sprout always shows Tier 1s and Help Wanted shows Battlecry cards of any eligible tier.
- */
-function offerDiscover(
-  s: RunState,
-  discoverTier: number,
-  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean },
-): void {
-  const filter = opts?.filter ?? (() => true);
-  let pool: typeof BUYABLE_CARDS = [];
-  if (opts?.tier !== undefined) {
-    // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
-    pool = BUYABLE_CARDS.filter(
-      (c) =>
-        c.tier === opts.tier &&
-        (c.tribe === 'neutral' || s.tribes.includes(c.tribe)) &&
-        (s.pool[c.id] ?? 0) > 0 &&
-        filter(c),
-    );
-  } else {
-    // Tiered Discover (triple reward, or a filtered spell): up to the target tier, walking the floor
-    // down until at least 3 candidates are found.
-    const target = Math.min(CONFIG.maxTier, discoverTier);
-    let floor = target;
-    while (pool.length < 3 && floor >= 1) {
-      pool = BUYABLE_CARDS.filter(
-        (c) =>
-          c.tier <= target &&
-          c.tier >= floor &&
-          (c.tribe === 'neutral' || s.tribes.includes(c.tribe)) &&
-          (s.pool[c.id] ?? 0) > 0 && // only offer cards with copies left — Discover draws from the finite pool
-          filter(c),
-      );
-      floor--;
-    }
-  }
-  if (pool.length === 0) return;
-  const rng = makeRng(s.rngCursor);
-  const avail = [...pool];
-  const picks: string[] = [];
-  for (let i = 0; i < 3 && avail.length > 0; i++) {
-    picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
-  }
-  s.rngCursor = rng.state();
-  s.discover = picks;
-}
-
-/** Whether a card has a Battlecry (an onPlay effect or a Choose One) — Help Wanted's Discover filter. */
-function hasBattlecry(c: (typeof BUYABLE_CARDS)[number]): boolean {
-  return c.effects.some((e) => e.on === 'onPlay') || !!c.chooseOne;
 }
 
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */

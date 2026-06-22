@@ -104,6 +104,20 @@ export interface BoardCard {
 
 export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
 
+/**
+ * A serializable descriptor for one pending Discover, queued behind the currently-open offer
+ * (`RunState.discover`). When the open Discover resolves, the next spec is shifted off
+ * `RunState.discoverQueue` and opened. Kept as plain data (not a closure) so it survives save/load:
+ * the `filter` is a string id resolved back to a predicate (`discoverFilter`) when the offer opens.
+ *   • `{ kind: 'spell' }`            → a 3-random-spell Discover (offerSpellDiscover).
+ *   • `{ kind: 'minion'; tier; filter? }` → a minion Discover (offerDiscover) at `tier`, with an
+ *      optional fixed `exactTier` (Sprout: only that tier, no floor-walk) and a card `filter`
+ *      (Help Wanted: Battlecry minions only).
+ */
+export type DiscoverSpec =
+  | { kind: 'spell' }
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' };
+
 export interface RunState {
   seed: number;
   /** Current wave (Altitude). Score = waves survived. */
@@ -199,11 +213,13 @@ export interface RunState {
   karwindFlash?: string[];
   /** Bumps each time Karwind flame-buffs — the UI keys its flame animation off this. */
   karwindFlashSeq: number;
-  /** A pending Discover offer (3 card ids) granted by a triple — pick one to hand. */
+  /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
-  /** Spell-Discovers still queued after the current one resolves (golden Black Belt Brian → 1). Each pick
-   *  re-opens a fresh spell Discover until this reaches 0. */
-  pendingSpellDiscovers?: number;
+  /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted
+   *  off and opened; `discover` only clears when this is empty. Fed by `queueDiscover` — e.g. a golden
+   *  Black Belt Brian queues a 2nd spell Discover, Yazzus multiplies Help Wanted / Sprout, and a
+   *  Drakko-doubled Brian queues one spell Discover per Battlecry fire. */
+  discoverQueue?: DiscoverSpec[];
   /** A pending Choose One — a played card waiting for the player to pick an option. The
    *  options live on the card def (`CARD_INDEX[cardId].chooseOne`). */
   chooseOne?: { uid: string; cardId: string };
@@ -291,9 +307,18 @@ export function serialize(state: RunState): string {
 }
 
 export function deserialize(json: string): RunState {
-  const state = JSON.parse(json) as RunState;
+  const state = JSON.parse(json) as RunState & { pendingSpellDiscovers?: number };
   if (!state.pool) state.pool = stockPool(state.tribes); // heal saves from before the finite pool
   state.cassenKills ??= 0; // heal saves from before Cassen's Collision tally
   state.turnStartPower ??= 0; // heal saves from before the pinned-opponent power
+  // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
+  // (golden Black Belt Brian) into the new queue as that many spell specs.
+  if (state.pendingSpellDiscovers && state.pendingSpellDiscovers > 0) {
+    state.discoverQueue = [
+      ...(state.discoverQueue ?? []),
+      ...Array.from({ length: state.pendingSpellDiscovers }, () => ({ kind: 'spell' as const })),
+    ];
+  }
+  delete state.pendingSpellDiscovers;
   return state;
 }

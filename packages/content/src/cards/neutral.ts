@@ -1,10 +1,12 @@
 import type { CardDef } from '@game/core';
 
 /**
- * Neutral glue (handoff A.7). `broker` is a recruit-phase buff-on-buy (baked in
- * by `@game/sim`). `echo` (extra summons) and `drummer` (double Battlecries) are
- * global modifiers deferred to a later pass; they ship with text but no factory
- * yet. None carry combat factories, so all are inert during `simulate()`.
+ * Neutral glue (handoff A.7). `broker` is a recruit-phase buff-on-buy (baked in by `@game/sim`).
+ * `drummer` (Drakko the Drummer — double Battlecries) is a recruit-phase global modifier with no
+ * `effects` entry: like Chronos / Yazzus, its behavior is read directly at the relevant call site
+ * (`drummerRepeats` in `@game/sim`'s recruit.ts, which `playCard` and the Battlecry-replay paths
+ * honor), not via a card factory. `echo` (extra combat summons) is still deferred — it ships with
+ * text but no factory. None carry combat factories, so they're inert during `simulate()`.
  */
 export const NEUTRAL: CardDef[] = [
   {
@@ -96,7 +98,10 @@ export const NEUTRAL: CardDef[] = [
     goldenText: "When you summon a minion that doesn't fit, give a random friendly minion **+6/+6** (Engraved — kept after combat).",
   },
   {
-    // Battlecry doubler. Golden "triples" (fire 2 more times); multiple Drakkos do NOT stack.
+    // Battlecry doubler (recruit). While on your board, each Battlecry minion you play fires its
+    // Battlecry 1 extra time (golden: 2 extra → ×3); multiple Drakkos do NOT stack (best one counts).
+    // A Battlecry that opens a Discover (Black Belt Brian) opens one per fire — Brian + Drakko → 2 spells.
+    // Resolved in @game/sim via `drummerRepeats`. No combat factory → inert in combat (just a 2/4 body).
     id: 'drummer',
     name: 'Drakko the Drummer',
     tribe: 'neutral',
@@ -176,8 +181,9 @@ export const NEUTRAL: CardDef[] = [
   },
   {
     // Spell-Discover Battlecry — opens a Discover of three random spells (the normal Discover only offers
-    // minions). Resolved in @game/sim's recruit factory `battlecryDiscoverSpell`. Golden Discovers TWICE —
-    // the first pick re-opens a second spell Discover (via RunState.pendingSpellDiscovers).
+    // minions). Resolved in @game/sim's recruit factory `battlecryDiscoverSpell`, which queues the
+    // Discover(s) via `queueDiscover` (RunState.discoverQueue). Golden Discovers TWICE; with a Drakko the
+    // Drummer out it fires per Battlecry repeat, so Brian + Drakko → 2 spells, golden Brian + Drakko → 4.
     id: 'blackbelt',
     name: 'Black Belt Brian',
     tribe: 'neutral',

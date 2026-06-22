@@ -1086,6 +1086,14 @@ export function Recruit() {
         // a tavern offer). No auto-target in empty space (that silently buffed a random minion — felt broken).
         const targetUid = boardUidAt(x, y) ?? (d.view.target === 'any' ? shopUidAt(x, y) : null);
         if (!targetUid) return false; // not on a valid target → snap back to hand, no cast
+        // Tier-gated spells (Eyes of Aresmar: ≤T4) only land on a valid-tier friendly BOARD minion —
+        // otherwise snap back WITHOUT consuming the spell (a >T4 minion, or a tavern offer, isn't legal).
+        const maxTier = CARD_INDEX[d.view.cardId]?.targetMaxTier;
+        if (maxTier !== undefined) {
+          const tCard = run.board.find((c) => c.uid === targetUid);
+          const tTier = tCard ? CARD_INDEX[tCard.cardId]?.tier : undefined;
+          if (tTier === undefined || tTier > maxTier) return false; // invalid target → snap back, no cast
+        }
         if (d.view.cardId === 'devour') {
           // Capture the devoured minion's centre BEFORE the cast removes it, then fling its stats over.
           const el = document.querySelector(`[data-zone="warband"] .row.warband .card[data-uid="${targetUid}"]`);

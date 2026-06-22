@@ -2,7 +2,7 @@ import { makeRng, type CardDef, type Keyword, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { mixSeed, TAG, type BoardCard, type RunState, type ShopCard } from './state';
+import { mixSeed, TAG, type BoardCard, type DiscoverSpec, type RunState, type ShopCard } from './state';
 import { takeFromPool } from './shop';
 
 /**
@@ -343,15 +343,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.rngCursor = rng.state();
   },
 
-  /** Black Belt Brian: Battlecry — Discover a spell. Opens a Discover of three random spells (the normal
-   *  Discover offers only minions), drawn from the tavern spell pool via the run's seeded rng cursor; the
-   *  player picks one into the hand (resolved by the reducer's `discover` case, which handles spell cards).
-   *  GOLDEN: since the discover state holds a single pending set, the golden grants the chosen spell PLUS a
-   *  second random spell added straight to the hand now (honoring the hand cap). */
+  /** Black Belt Brian: Battlecry — Discover a spell. Queues a spell Discover (3 random spells, drawn from
+   *  the tavern spell pool); the player picks one into the hand (resolved by the reducer's `discover` case).
+   *  GOLDEN: queues a SECOND spell Discover, opened when the first pick resolves. Routing through
+   *  `queueDiscover` is what lets this compose with Drakko the Drummer — `playCard` fires this factory once
+   *  per Battlecry repeat, so each fire stacks its Discover(s) onto the queue (Brian + Drakko → 2 spells;
+   *  golden Brian + Drakko → 4). */
   battlecryDiscoverSpell: (ctx, self) => {
-    offerSpellDiscover(ctx.state);
-    // Golden: a real SECOND Discover — queued, opened when the first pick resolves (reducer's discover case).
-    if (self.golden) ctx.state.pendingSpellDiscovers = (ctx.state.pendingSpellDiscovers ?? 0) + 1;
+    queueDiscover(ctx.state, { kind: 'spell' });
+    if (self.golden) queueDiscover(ctx.state, { kind: 'spell' });
   },
 
   /** Karwind: whenever a Battlecry resolves, buff your minions of `tribe` (+atk/+hp). Golden 2×.
@@ -755,14 +755,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 };
 
-/**
- * Total +X/+X bonus applied to stat-granting spells, from every active source (the Spellbinder hero
- * now; spell-buffing cards later just add here). This is the SINGLE source of truth — the reducer
- * applies it (`spellBuffTarget`) and the UI displays it (`spellDisplayText`), so a spell card always
- * shows its real value. New spell-buff effects should fold into this one function.
- */
-/** Open a Discover of up to 3 distinct random spells (Black Belt Brian). Sets `state.discover`; the reducer's
- *  `discover` case resolves the pick into the hand and, while `pendingSpellDiscovers` remains, re-opens this. */
+/** Open a Discover of up to 3 distinct random spells (Black Belt Brian). Sets `state.discover`; the
+ *  reducer's `discover` case resolves the pick into the hand and opens the next queued spec, if any. */
 export function offerSpellDiscover(state: RunState): void {
   const rng = makeRng(state.rngCursor);
   const avail = [...SPELL_CARDS];
@@ -772,6 +766,106 @@ export function offerSpellDiscover(state: RunState): void {
   if (picks.length > 0) state.discover = picks;
 }
 
+/** Whether a card has a Battlecry (an onPlay effect or a Choose One) — Help Wanted's Discover filter. */
+export function hasBattlecry(c: (typeof BUYABLE_CARDS)[number]): boolean {
+  return c.effects.some((e) => e.on === 'onPlay') || !!c.chooseOne;
+}
+
+/** Resolve a `DiscoverSpec`'s string filter id back to a card predicate (closures aren't serializable). */
+function discoverFilter(id: 'battlecry'): (c: (typeof BUYABLE_CARDS)[number]) => boolean {
+  return id === 'battlecry' ? hasBattlecry : () => true;
+}
+
+/**
+ * Offer a Discover (3 distinct, pool-filtered cards). Used by:
+ *   • the triple reward (a golden played → peek one tier up) — `discoverTier` = the *target* tier;
+ *     the pool walks the floor down until it finds 3, so a thin top tier still fills.
+ *   • spell Discovers (`opts`): a fixed `tier` (Sprout → 1, no floor-walk) and/or a card `filter`
+ *     (Help Wanted → Battlecry minions only). When `tier` is fixed the pool is just that tier (no
+ *     widening), so Sprout always shows Tier 1s and Help Wanted shows Battlecry cards of any eligible tier.
+ */
+export function offerDiscover(
+  state: RunState,
+  discoverTier: number,
+  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean },
+): void {
+  const filter = opts?.filter ?? (() => true);
+  let pool: typeof BUYABLE_CARDS = [];
+  if (opts?.tier !== undefined) {
+    // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
+    pool = BUYABLE_CARDS.filter(
+      (c) =>
+        c.tier === opts.tier &&
+        (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
+        (state.pool[c.id] ?? 0) > 0 &&
+        filter(c),
+    );
+  } else {
+    // Tiered Discover (triple reward, or a filtered spell): up to the target tier, walking the floor
+    // down until at least 3 candidates are found.
+    const target = Math.min(CONFIG.maxTier, discoverTier);
+    let floor = target;
+    while (pool.length < 3 && floor >= 1) {
+      pool = BUYABLE_CARDS.filter(
+        (c) =>
+          c.tier <= target &&
+          c.tier >= floor &&
+          (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
+          (state.pool[c.id] ?? 0) > 0 && // only offer cards with copies left — Discover draws from the finite pool
+          filter(c),
+      );
+      floor--;
+    }
+  }
+  if (pool.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  const avail = [...pool];
+  const picks: string[] = [];
+  for (let i = 0; i < 3 && avail.length > 0; i++) {
+    picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
+  }
+  state.rngCursor = rng.state();
+  state.discover = picks;
+}
+
+/** Open one Discover described by `spec` — a spell Discover or a (tiered / fixed-tier / filtered) minion
+ *  Discover. The single place a `DiscoverSpec` becomes a live `state.discover` offer. */
+export function openDiscover(state: RunState, spec: DiscoverSpec): void {
+  if (spec.kind === 'spell') {
+    offerSpellDiscover(state);
+  } else {
+    offerDiscover(state, spec.tier, {
+      tier: spec.exactTier,
+      filter: spec.filter ? discoverFilter(spec.filter) : undefined,
+    });
+  }
+}
+
+/**
+ * Open a Discover for `spec` now, or queue it if one is already open. The backbone for stacking
+ * Discovers: a Drakko-doubled Black Belt Brian, a golden Brian, and Yazzus-multiplied Help Wanted /
+ * Sprout all route every extra Discover through here. The `discover` case shifts the queue forward
+ * as each pick resolves, so the offers appear one at a time in order.
+ */
+export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
+  if (state.discover) {
+    (state.discoverQueue ??= []).push(spec);
+  } else {
+    openDiscover(state, spec);
+    // Defensive: if the offer couldn't open (empty pool), don't strand a queue behind a closed Discover.
+    if (!state.discover && state.discoverQueue && state.discoverQueue.length > 0) {
+      const nextSpec = state.discoverQueue.shift()!;
+      queueDiscover(state, nextSpec);
+    }
+  }
+}
+
+/**
+ * Total +X/+X bonus applied to stat-granting spells, from every active source (the Spellbinder hero
+ * now; spell-buffing cards later just add here). This is the SINGLE source of truth — the reducer
+ * applies it (`spellBuffTarget`) and the UI displays it (`spellDisplayText`), so a spell card always
+ * shows its real value. New spell-buff effects should fold into this one function.
+ */
 export function spellStatBonus(state: RunState): number {
   let bonus = 0;
   if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.wave);

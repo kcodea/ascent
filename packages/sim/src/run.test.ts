@@ -1343,14 +1343,112 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'bb' });
     expect(s.discover?.length).toBe(3); // the first Discover is open
-    expect(s.pendingSpellDiscovers).toBe(1); // a second Discover is queued
+    expect(s.discoverQueue).toEqual([{ kind: 'spell' }]); // a second spell Discover is queued
     s = reduce(s, { type: 'discover', index: 0 }); // pick the first spell
-    expect(s.discover?.length).toBe(3); // the second Discover opened
-    expect(s.pendingSpellDiscovers).toBe(0);
+    expect(s.discover?.length).toBe(3); // the second Discover opened from the queue
+    expect(s.discoverQueue).toEqual([]); // queue drained
     s = reduce(s, { type: 'discover', index: 0 }); // pick the second spell
     expect(s.discover).toBeUndefined(); // both done
     const handSpells = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell);
     expect(handSpells.length).toBe(2); // two spells Discovered into the hand
+  });
+
+  it('Drakko the Drummer makes a played Black Belt Brian Discover 2 spells (sequential, via the queue)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false }],
+      hand: [{ uid: 'bb', cardId: 'blackbelt', tribe: 'neutral', attack: 3, health: 5, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'bb' }); // Brian's Battlecry fires twice (Drakko) → 2 spell Discovers
+    expect(s.discover?.length).toBe(3); // first Discover open
+    expect(s.discoverQueue).toEqual([{ kind: 'spell' }]); // second Discover queued by the doubled Battlecry
+    s = reduce(s, { type: 'discover', index: 0 });
+    expect(s.discover?.length).toBe(3); // second Discover opened from the queue
+    s = reduce(s, { type: 'discover', index: 0 });
+    expect(s.discover).toBeUndefined(); // both resolved
+    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).length).toBe(2); // two spells in hand
+  });
+
+  it('a golden Black Belt Brian + Drakko the Drummer Discovers 4 spells', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false }],
+      hand: [{ uid: 'bb', cardId: 'blackbelt', tribe: 'neutral', attack: 6, health: 10, keywords: [], golden: true }],
+    };
+    // Fires twice (Drakko); each fire queues 1 base + 1 golden spell Discover → 4 total (1 open, 3 queued).
+    s = reduce(s, { type: 'play', uid: 'bb' });
+    expect(s.discover?.length).toBe(3);
+    expect(s.discoverQueue?.length).toBe(3);
+    for (let i = 0; i < 4 && s.discover; i++) s = reduce(s, { type: 'discover', index: 0 });
+    expect(s.discover).toBeUndefined();
+    expect(s.discoverQueue).toEqual([]);
+    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).length).toBe(4);
+  });
+
+  it('a Battlecry minion fires twice with a Drummer — observable via Soulfeeder queuing 2 Fodder', () => {
+    // Soulfeeder's Battlecry queues 1 Fodder; with a Drakko the Drummer out it fires twice → 2 Fodder.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false }],
+      hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
+      pendingTavern: [],
+    };
+    s = reduce(s, { type: 'play', uid: 'sf' });
+    expect((s.pendingTavern ?? []).filter((id) => id === 'fred')).toHaveLength(2);
+  });
+
+  it('Yazzus multiplies Help Wanted — casting it opens 2 sequential Discovers (3 with a golden Yazzus)', () => {
+    const cast = (yazzGolden?: boolean): RunState => {
+      const s: RunState = {
+        ...createRun(1), embers: 0, shop: [], tier: 4,
+        board: [{ uid: 'y', cardId: 'yazzus', tribe: 'neutral', attack: 6, health: 8, keywords: [], golden: !!yazzGolden }],
+        hand: [{ uid: 'hw', cardId: 'helpwanted', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      };
+      return reduce(s, { type: 'play', uid: 'hw' });
+    };
+    // Non-golden Yazzus → ×2: one Discover open, one queued.
+    let two = cast(false);
+    expect(two.discover?.length).toBe(3);
+    expect(two.discoverQueue?.length).toBe(1);
+    two = reduce(two, { type: 'discover', index: 0 }); // resolve the first → the queued one opens
+    expect(two.discover?.length).toBe(3);
+    two = reduce(two, { type: 'discover', index: 0 });
+    expect(two.discover).toBeUndefined(); // both done
+    // Golden Yazzus → ×3: one open, two queued.
+    const three = cast(true);
+    expect(three.discover?.length).toBe(3);
+    expect(three.discoverQueue?.length).toBe(2);
+  });
+
+  it('Yazzus does NOT multiply Triple Reward — it opens only one Discover', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], tier: 3,
+      board: [{ uid: 'y', cardId: 'yazzus', tribe: 'neutral', attack: 6, health: 8, keywords: [], golden: true }],
+      hand: [{ uid: 'tr', cardId: 'discoverspell', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'tr' });
+    expect(s.discover?.length).toBe(3); // a single Discover opens
+    expect(s.discoverQueue ?? []).toEqual([]); // nothing queued — Triple Reward isn't a player-cast spell
+  });
+
+  it('a Hoarder triple keeps the earliest (minimum) boughtWave → highest golden sell value', () => {
+    // Buy a Hoarder on wave 1, then get two more later; the triple's golden inherits boughtWave 1.
+    let s: RunState = {
+      ...createRun(1), wave: 1, embers: 0, shop: [],
+      // two copies already in hand bought on later waves, plus an early one bought wave 1
+      hand: [
+        { uid: 'h1', cardId: 'hoarder', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false, boughtWave: 1 },
+        { uid: 'h2', cardId: 'hoarder', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false, boughtWave: 3 },
+        { uid: 'h3', cardId: 'hoarder', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false, boughtWave: 4 },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'h1' }); // playing the 3rd-from-hand completes the triple
+    const golden = [...s.board, ...s.hand].find((c) => c.cardId === 'hoarder' && c.golden)!;
+    expect(golden.boughtWave).toBe(1); // earliest of {1,3,4}
+    // …and that earliest age drives the golden's sell value: at wave 5, (5 - 1 + 1) × 2 = 10.
+    const sold = { ...s, wave: 5, embers: 0 };
+    const after = reduce(sold, { type: 'sell', uid: golden.uid });
+    expect(after.embers).toBe(10);
   });
 
   it('Yazzus makes a spell resolve twice (golden: three times)', () => {

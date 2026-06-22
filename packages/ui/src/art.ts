@@ -2,21 +2,31 @@
 
 /**
  * Per-card illustrated art. Drop a PNG named by the card id into
- * `packages/ui/src/art/minions/<id>.png` (e.g. `whelp.png`) and it's picked up
- * at build time — the Card renders it in place of the pixel sprite. Recommended:
- * 512×512, transparent background, subject centred with a little margin.
+ * `packages/ui/src/art/minions/<id>.png` (e.g. `whelp.png`) and it's picked up at build time — the
+ * Card renders it in place of the pixel sprite. Recommended master: 512×512+, transparent background,
+ * subject centred with a little margin. Run `npm run optimize-art` to downscale + convert to WebP
+ * (the in-repo build copy becomes `<id>.webp`; the high-res master stays under `C:\Game Assets\Ascent Art\`).
+ * The globs below accept both `.png` and `.webp`, preferring WebP — so a freshly-dropped PNG shows up
+ * immediately, and the optimizer can convert it later without any rewiring.
+ *
+ * NB: `import.meta.glob`'s options MUST be an inline object literal — Vite analyses the call statically,
+ * so a shared/hoisted options variable fails the build with "Invalid glob import syntax".
  */
-const modules = import.meta.glob('./art/minions/*.png', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-}) as Record<string, string>;
+type ArtModules = Record<string, string>;
 
-const MINION_ART: Record<string, string> = {};
-for (const [path, url] of Object.entries(modules)) {
-  const id = path.split('/').pop()?.replace(/\.png$/, '') ?? '';
-  if (id) MINION_ART[id] = url;
+/** Build an id → url map from a glob, preferring the `.webp` build copy when both formats exist. */
+function indexArt(modules: ArtModules): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [path, url] of Object.entries(modules)) {
+    const id = path.split('/').pop()?.replace(/\.(png|webp)$/, '') ?? '';
+    if (id && (!out[id] || path.endsWith('.webp'))) out[id] = url;
+  }
+  return out;
 }
+
+const MINION_ART = indexArt(
+  import.meta.glob('./art/minions/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
 
 /** Small deterministic string hash — picks a stable art variant per minion instance. */
 const hashStr = (s: string): number => {
@@ -37,27 +47,13 @@ export const artFor = (cardId?: string, uid?: string): string | undefined => {
 };
 
 /** Keyword/effect overlay art (e.g. the Divine Shield bubble drawn over a shielded minion). */
-const fxModules = import.meta.glob('./art/effects/*.png', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-}) as Record<string, string>;
-const FX_ART: Record<string, string> = {};
-for (const [path, url] of Object.entries(fxModules)) {
-  const id = path.split('/').pop()?.replace(/\.png$/, '') ?? '';
-  if (id) FX_ART[id] = url;
-}
+const FX_ART = indexArt(
+  import.meta.glob('./art/effects/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
 export const effectArt = (name: string): string | undefined => FX_ART[name];
 
 /** Hero portraits — drop a PNG into `packages/ui/src/art/heroes/<id>.png` (e.g. `warden.png`). */
-const heroModules = import.meta.glob('./art/heroes/*.png', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-}) as Record<string, string>;
-const HERO_ART: Record<string, string> = {};
-for (const [path, url] of Object.entries(heroModules)) {
-  const id = path.split('/').pop()?.replace(/\.png$/, '') ?? '';
-  if (id) HERO_ART[id] = url;
-}
+const HERO_ART = indexArt(
+  import.meta.glob('./art/heroes/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
 export const heroArt = (name: string): string | undefined => HERO_ART[name];

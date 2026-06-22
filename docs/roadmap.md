@@ -233,8 +233,9 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       pointers no longer over-render). If a local `npm run dev` build *still* stutters, the next lever is to
       take the floating drag-card transform fully imperative (write it to the node via a ref on pointermove)
       so the recruit tree doesn't re-render at all between meaningful state changes (zone/insertion-index/
-      magnetize). **Asset note:** card-art PNGs are ~1.2 MB each — downscale/WebP is a separate, real RAM/load
-      win. Also dropped `background-attachment: fixed` earlier (a real repaint win).
+      magnetize). **Asset note:** ✓ card-art is now **WebP** (≤512px, q85, via `npm run optimize-art`) — 71 MB → 4.3 MB
+      (−94%); the high-res masters stay out-of-repo. Also dropped `background-attachment: fixed` earlier
+      (a real repaint win).
 - [ ] **Fodder keyword — more users.** `FD` is now a keyword (Fred carries it; consume keys off it).
       Give other cheap/token minions the keyword and/or add cards that interact with Fodder, now that
       it's a reusable marker rather than one card.

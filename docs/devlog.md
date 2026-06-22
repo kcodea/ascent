@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Card-art → WebP: 71 MB → 4.3 MB (−94%)
+- The illustrated card/hero/spell art was **78 PNGs totaling 71.4 MB** (640×640 or 512×512 but poorly
+  compressed — ~1 MB each). Converted all to **WebP** (downscaled to ≤512px — cards display at ~290px —
+  quality 85, alpha preserved) via a new sharp-based `npm run optimize-art` (`scripts/optimize-art.mjs`):
+  **71.4 MB → 4.33 MB, −93.9%** (each card ~1 MB → ~40–90 KB). The high-res masters under
+  `C:\Game Assets\Ascent Art\` are untouched; the in-repo build copies are now `<id>.webp`.
+- `art.ts` globs now match `*.{png,webp}` and prefer the WebP copy, so a freshly-dropped PNG still shows
+  immediately and the optimizer converts it later with no rewiring. **Gotcha logged in the file:**
+  `import.meta.glob`'s options must be an *inline literal* — a hoisted const fails Vite's static glob
+  analysis with "Invalid glob import syntax"; `tsc` doesn't catch it (the dev server / build does), which
+  the live restart-and-check surfaced.
+- Verified live: dev server restarted (the eager glob re-resolves only on restart, not reload), hero-select
+  renders all portraits as loaded 512×512 `.webp`, crisp at display size, no console errors. This is the
+  likely fix for the "RAM feels bogged down" symptom — the browser now holds ~4 MB of art, not ~71 MB.
+
 ### Perf round 2 — rAF-throttle the drag move + dev-vs-prod guidance
 - **rAF-throttle the drag:** a high-Hz pointer (120/144Hz) fires `pointermove` far more often than the
   screen repaints, and each one re-rendered Recruit (the live insertion-gap + spell-targeting line read

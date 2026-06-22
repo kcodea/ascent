@@ -26,8 +26,8 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Spell + VFX polish.** **Lantern of Souls** is now a global Undead aura — active in the shop, warband,
   hand, and combat, scaling with spell power (+1/+1 spells make it +4/+1). **Staff of Guel** permanently
   buffs every minion you *buy* from the tavern (+2/+2, rest of run). Cards show their **live** values (Front
-  to Back's escalating grant, Staff's scaled buff). **Divine Shield / Reborn** glows are now a clean halo
-  that hugs the card's arch. **Mana Font** raises max Mana only (no top-up); **Refresh** reads 0 with free
+  to Back's escalating grant, Staff's scaled buff). **Divine Shield / Reborn** now recolour the whole card
+  frame (gold / electric-blue) and add a bold status badge, so a shielded or reborn unit is unmistakable. **Mana Font** raises max Mana only (no top-up); **Refresh** reads 0 with free
   rerolls; a targeted spell only applies on an **explicit drop** (no stray auto-target); hero-select panels
   + title are ~30% bigger.
 - **11 new spells + a new hero (Drakko).** The spell pool more than triples (5 → 16): Shatter, Tribes Choice,

@@ -294,21 +294,31 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
-/* Divine Shield: a clean gold halo that hugs the card's arched silhouette, gently pulsing. The compact
-   frame zeroes the card's own box-shadow, so the glow lives on the more-specific `.card.compact.dscard`
-   and rides the arch (the card's own border-radius). No solid ring — just a soft bright bloom over the
-   tribe-coloured art border. Shown on any shielded card, recruit + combat, reads at a glance. */
-.card.compact.dscard { z-index: 3; box-shadow: 0 0 16px 4px rgba(255, 222, 110, 0.95), 0 0 40px 13px rgba(255, 200, 74, 0.5); animation: dsglow 2s ease-in-out infinite; }
-@keyframes dsglow {
-  0%, 100% { box-shadow: 0 0 13px 3px rgba(255, 222, 110, 0.74), 0 0 30px 9px rgba(255, 200, 74, 0.32); }
-  50% { box-shadow: 0 0 24px 6px rgba(255, 228, 120, 1), 0 0 52px 17px rgba(255, 204, 80, 0.6); }
+/* Divine Shield: the whole frame turns bright GOLD — a recoloured art border + an inner gold edge-glow
+   over the art + a strong, fairly fast pulsing outer halo — so a shielded unit is unmistakable on a busy
+   board, not just softly lit. The card-level glow rides the arch (the compact card's own border-radius);
+   the art border + inner glow give an always-on in-card signal that an outer glow alone lacked. */
+.card.compact.dscard { z-index: 4; box-shadow: 0 0 18px 5px rgba(255, 216, 96, 1), 0 0 46px 15px rgba(255, 196, 64, 0.6); animation: dsglow 1.6s ease-in-out infinite; }
+.card.compact.dscard .art { border-color: #ffd23a; }
+.card.compact.dscard .art::after {
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
+  box-shadow: inset 0 0 0 2px rgba(255, 232, 150, 0.9), inset 0 0 18px 4px rgba(255, 196, 56, 0.92);
 }
-/* Reborn — the same clean halo in blue. In combat it drops the moment the minion Reborns (sheds the
-   'R' keyword), marking "still has its one revival left". The rising tears (.reborntears) layer on top. */
-.card.compact.reborncard { z-index: 3; box-shadow: 0 0 16px 4px rgba(104, 168, 246, 0.95), 0 0 40px 13px rgba(70, 140, 235, 0.5); animation: rebornglow 2s ease-in-out infinite; }
+@keyframes dsglow {
+  0%, 100% { box-shadow: 0 0 15px 4px rgba(255, 216, 96, 0.85), 0 0 34px 11px rgba(255, 196, 64, 0.42); }
+  50% { box-shadow: 0 0 30px 9px rgba(255, 230, 120, 1), 0 0 60px 21px rgba(255, 200, 70, 0.74); }
+}
+/* Reborn — the same unmistakable treatment in electric BLUE; in combat it drops the moment the minion
+   Reborns (sheds the 'R' keyword), marking "still has its one revival left". The rising tears layer on top. */
+.card.compact.reborncard { z-index: 4; box-shadow: 0 0 18px 5px rgba(96, 170, 255, 1), 0 0 46px 15px rgba(64, 140, 240, 0.6); animation: rebornglow 1.6s ease-in-out infinite; }
+.card.compact.reborncard .art { border-color: #5cc8ff; }
+.card.compact.reborncard .art::after {
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
+  box-shadow: inset 0 0 0 2px rgba(165, 220, 255, 0.9), inset 0 0 18px 4px rgba(80, 170, 255, 0.92);
+}
 @keyframes rebornglow {
-  0%, 100% { box-shadow: 0 0 13px 3px rgba(104, 168, 246, 0.74), 0 0 30px 9px rgba(70, 140, 235, 0.32); }
-  50% { box-shadow: 0 0 24px 6px rgba(120, 182, 250, 1), 0 0 52px 17px rgba(78, 150, 240, 0.6); }
+  0%, 100% { box-shadow: 0 0 15px 4px rgba(96, 170, 255, 0.85), 0 0 34px 11px rgba(64, 140, 240, 0.42); }
+  50% { box-shadow: 0 0 30px 9px rgba(120, 190, 255, 1), 0 0 60px 21px rgba(78, 150, 245, 0.74); }
 }
 
 /* Triple-ready: a tavern offer that completes a triple if bought — a bright gold pulsing glow (keeps
@@ -374,6 +384,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .card.stealth { opacity: 0.8; }
 .tauntward { position: absolute; top: -14px; right: -14px; width: 66px; height: 66px; border-radius: 50%; background: #5f6a8a; border: 4px solid var(--card); display: grid; place-items: center; z-index: 6; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
 .tauntward svg { width: 38px; height: 38px; color: #fff; }
+/* Divine Shield / Reborn ward — a bold status badge top-right (sibling to the Taunt ward): gold = a live
+   shield, blue = a pending Reborn. If the unit also has Taunt, the Taunt ward slides left so both read. */
+.kwward { position: absolute; top: -14px; right: -14px; width: 66px; height: 66px; border-radius: 50%; border: 4px solid var(--card); display: grid; place-items: center; z-index: 9; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4); }
+.kwward svg { width: 40px; height: 40px; color: #fff; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
+.kwward.ds { background: radial-gradient(circle at 38% 32%, #ffe089, #e7a528 72%, #c2871c); }
+.kwward.reborn { background: radial-gradient(circle at 38% 32%, #bfe6ff, #3aa0e6 72%, #1d7ccc); }
+.card:has(.kwward) .tauntward { right: 58px; }
 /* the tribe label sits between the (now absolute, overhanging) atk/hp badges — pad it clear
    of them so the larger text never slips under a badge */
 .cfoot { display: flex; align-items: center; justify-content: center; padding: 5px 52px; background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 0 0 11px 11px; }

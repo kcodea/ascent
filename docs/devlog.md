@@ -7,11 +7,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ### Spell/UX polish: Lantern global aura, Staff buy-buff, DS glow, live spell values, drag fix (M2)
 A follow-up pass on the spell batch + VFX, driven by live-playtest feedback.
-- **Divine Shield / Reborn glow reworked.** The compact arched frame sets `box-shadow: none`, so the
-  card-level `.card.dscard` glow never rendered on resting tiles (and the old over-art wash muddied the
-  art). Now a clean, soft gold halo lives on `.card.compact.dscard` (beats `.compact`'s `none`, rides the
-  card's own arch-radius) — no hard ring, no wash. Reborn matches in blue. Verified live: a shielded Mech
-  now carries the gold box-shadow (it had `none` before).
+- **Divine Shield / Reborn made unmistakable.** The compact arched frame sets `box-shadow: none`, so the
+  old card-level glow never rendered on resting tiles — and even fixed, a soft halo was too subtle. So a
+  shielded unit now gets the full treatment: a **recoloured frame** (bright-gold art border, electric-blue
+  for Reborn) + an **inner edge-glow** over the art + a strong pulsing **outer halo** (`.card.compact.dscard`,
+  riding the arch) + a big **status badge** (gold shield / blue reborn icon, top-right like the Taunt ward;
+  the Taunt ward slides left via `:has` when both are present). Verified live on a shielded Mech: gold frame
+  (`rgb(255,210,58)`), 66px badge, and inner/outer glow all render.
 - **Lantern of Souls is now a true global Undead aura** — active in **shop offers, warband, hand, and
   combat** (was combat-only). It **scales with spell power**: base +3 Attack, with spell power folding
   +X/+X onto both stats (so +1/+1 spells → **+4/+1**). New `RunState.undeadHealthBonus`; the recruit

@@ -267,6 +267,13 @@ export const Card = memo(function Card({
       {card.keywords.includes('T') && (
         <span className="tauntward" aria-hidden="true"><Icon name="taunt" /></span>
       )}
+      {/* Divine Shield / Reborn ward — a bold gold/blue status badge so the keyword is obvious at a glance. */}
+      {card.keywords.includes('DS') && (
+        <span className="kwward ds" aria-hidden="true"><Icon name="shield" /></span>
+      )}
+      {card.keywords.includes('R') && (
+        <span className="kwward reborn" aria-hidden="true"><Icon name="reborn" /></span>
+      )}
       {/* Triple-ready: this tavern offer completes a triple if bought — gold arrows float up around it. */}
       {tripleReady && (
         <span className="triparrows" aria-hidden="true">

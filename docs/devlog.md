@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Drag perf, take 2 — kill the FLIP storm + cache spell-targeting hit-tests (the real fix)
+- **The FLIP storm was the actual culprit** (prod stuttered identically with the earlier zoneAt cache, which
+  ruled out the re-render + dev tax). The FLIP effect re-measures every shop+warband card and restarts a 0.2s
+  slide on each `flipKey` change — and `flipKey` included the live drop-slot index. So dragging a card over
+  the board re-ran the entire FLIP every time the gap moved, each frame interrupting the previous animation:
+  this *was* the "card dancing" + the hand→board sluggishness. `flipKey` now tracks only row composition+order
+  (uids); the drop slot moves **instantly** (snappy), and the FLIP animates only discrete changes
+  (buy / play / sell / reposition / lift-out).
+- **Spell targeting** (`boardUidAt` / `shopUidAt`) called `elementFromPoint` every frame while aiming. The
+  board/shop don't shift during a spell drag (a spell opens no insertion gap), so the candidate card rects are
+  cached at drag-start and hit-tested arithmetically — no per-frame layout-forcing while aiming a spell.
+- Verified: typecheck + lint clean, no console errors. Combined with the earlier zoneAt-rect cache, the
+  per-frame drag path no longer forces a synchronous layout (only the occasional gap-change reflow remains).
+
 ### Drag perf — hit-test cached zone rects (drop the per-frame `elementFromPoint`)
 - During a drag, the zone under the pointer was found via `zoneAt` → `document.elementFromPoint`, and the
   sell/buy line via `warbandTop()` → `getBoundingClientRect` — called on **every** pointermove. Both force

@@ -355,20 +355,32 @@ export function Recruit() {
   const flipRef = useRef<Map<string, number>>(new Map());
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
+  // Cached board/shop card rects for spell targeting — populated at drag-start (the board is static
+  // during a spell drag: a spell doesn't open an insertion gap), so boardUidAt/shopUidAt hit-test
+  // arithmetic instead of calling elementFromPoint every frame. Null outside a spell drag.
+  const targetRectsRef = useRef<{ board: { uid: string; r: DOMRect }[]; shop: { uid: string; r: DOMRect }[] } | null>(null);
   const timeUp = seconds <= 0; // turn timer expired: lock everything but End Turn
 
   const zoneAt = (x: number, y: number): Zone | null => {
     const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
     return (el?.getAttribute('data-zone') as Zone) ?? null;
   };
+  const hitCachedUid = (cards: { uid: string; r: DOMRect }[], x: number, y: number): string | null => {
+    for (const { uid, r } of cards) if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return uid;
+    return null;
+  };
   /** The uid of the board minion under a point (for spell / battlecry targeting), or null. */
   const boardUidAt = (x: number, y: number): string | null => {
+    const cached = targetRectsRef.current;
+    if (cached) return hitCachedUid(cached.board, x, y);
     const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
     return el?.getAttribute('data-uid') ?? null;
   };
   /** The uid of the tavern minion offer under a point (for `any` spell targeting — e.g. Shatter onto an
    *  offer to buff it pre-buy), or null. Excludes the pinned spell offer. */
   const shopUidAt = (x: number, y: number): string | null => {
+    const cached = targetRectsRef.current;
+    if (cached) return hitCachedUid(cached.shop, x, y);
     const el = document.elementFromPoint(x, y)?.closest('[data-zone="tavern"] .card[data-uid]:not(.spellcard)');
     return el?.getAttribute('data-uid') ?? null;
   };
@@ -514,6 +526,19 @@ export function Recruit() {
       }
       return null;
     };
+    // For a spell drag (targeting a friendly minion / any offer), cache the candidate card rects up front:
+    // the board/shop don't shift during a spell drag, so targeting hit-tests these instead of elementFromPoint.
+    const measureCards = (sel: string): { uid: string; r: DOMRect }[] =>
+      [...document.querySelectorAll<HTMLElement>(sel)]
+        .map((el) => ({ uid: el.getAttribute('data-uid') ?? '', r: el.getBoundingClientRect() }))
+        .filter((c) => c.uid);
+    targetRectsRef.current =
+      drag.view.spell && (drag.view.target === 'friendly' || drag.view.target === 'any')
+        ? {
+            board: measureCards('[data-zone="warband"] .row .card[data-uid]'),
+            shop: drag.view.target === 'any' ? measureCards('[data-zone="tavern"] .card[data-uid]:not(.spellcard)') : [],
+          }
+        : null;
     const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && y < wbTop;
     if (drag.source === 'board' && !drag.view.spell) setSellTop(wbTop);
     if (drag.source === 'shop') setBuyTop(wbTop);
@@ -617,6 +642,7 @@ export function Recruit() {
     window.addEventListener('contextmenu', onCtx);
     return () => {
       if (moveRaf) cancelAnimationFrame(moveRaf);
+      targetRectsRef.current = null;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
@@ -929,13 +955,17 @@ export function Recruit() {
       ? warbandIndexAt(dragCx, drag!.source === 'board' ? drag!.uid : undefined)
       : -1;
   const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
+  // FLIP key tracks only row *composition + order* (uids), NOT the live drop-slot index. Sliding every
+  // card on each gap move during a drag re-measured the whole row and restarted a 0.2s animation per
+  // frame — that read as "card dancing" and stuttered. The drop slot now moves instantly (snappy); the
+  // FLIP animates only discrete changes: buy / play / sell / summon / reposition / lift-out.
   const flipKey =
-    displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
-    displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
+    displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' +
+    displayBoard.map((m) => m.uid).join(',');
 
-  // FLIP: slide shop + warband cards from their old spots to new ones — live as the drop
-  // slot moves during a drag, and when either row changes (buy / play / sell / summon /
-  // reposition / lift-out). Both rows are tracked so a lifted-out card closes the gap.
+  // FLIP: slide shop + warband cards from their old spots to new ones when either row changes
+  // (buy / play / sell / summon / reposition / lift-out). Both rows are tracked so a lifted-out
+  // card closes the gap.
   useLayoutEffect(() => {
     const cards = [
       ...document.querySelectorAll<HTMLElement>(

@@ -214,7 +214,7 @@ function dominantBoardTribe(state: RunState): Tribe | null {
     const def = CARD_INDEX[c.cardId];
     if (!def) continue;
     for (const t of [def.tribe, def.tribe2]) {
-      if (t) counts.set(t, (counts.get(t) ?? 0) + 1);
+      if (t && t !== 'neutral') counts.set(t, (counts.get(t) ?? 0) + 1); // neutral isn't a "type"
     }
   }
   let best: { tribe: Tribe; count: number } | null = null;
@@ -238,6 +238,7 @@ export function grantTopTypeMinion(state: RunState): boolean {
     (c) =>
       (c.tribe === tribe || c.tribe2 === tribe) &&
       (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
+      c.tier <= state.tier && // bound by your tavern tier — no T6 grant at T2
       (state.pool[c.id] ?? 0) > 0,
   );
   if (pool.length === 0) return false;
@@ -606,6 +607,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       (c) =>
         (c.tribe === tribe || c.tribe2 === tribe) &&
         (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
+        c.tier <= ctx.state.tier && // bound by your tavern tier
         (ctx.state.pool[c.id] ?? 0) > 0,
     );
     if (pool.length === 0) return;

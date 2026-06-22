@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Hero/UI tuning: Cassen tier-cap + no-neutral + kill counter, Myra re-gated, hero-pick hides the chrome
+Follow-up tuning on the hero batch + a hero-select polish (from live playtest).
+- **Cassen (Collision)** — the grant is now **bound by your tavern tier** (`grantTopTypeMinion` filters
+  `c.tier <= state.tier`; no T6 minion at T2 — the same cap was added to **Undead Army**'s conjure); **neutral
+  no longer counts as a "type"** (`dominantBoardTribe` skips it, so a neutral-only board grants nothing); and
+  the StatusBar shows the live **kills-to-go counter** (`Collision · N/5`).
+- **Myra (Pulse)** re-gated to **turn 3** (`unlockWave: 3` restored); the description reads "Locked until turn 3."
+- **Hero pick** now shows ONLY the blank board behind the picker — the HUD, tavern, timer, and hero panel are
+  hidden until a champion is chosen (`body:has(.heroselect:not(.endscreen)) .app { visibility: hidden }` +
+  reveal `[data-zone="warband"]`; the end screen, which reuses `.heroselect`, is excluded).
+- Verified: typecheck + lint + **234 tests** (Myra tests moved to turn 3 + a gate test; the Cassen test now
+  uses a Beast board + asserts the tier cap); live — the picker hides the chrome, board visible.
+- **Still queued:** the Cassen grant should fly out of the hero panel into the hand (mirroring the mid-combat
+  hand-grant flourish). The card is added + the `N/5` counter shows; the fly animation is a follow-up.
+
 ### Hero roster expansion + retheme + 3 spells (M2 content / M3 heroes)
 - **9 heroes now** (was 7). Fresh art for the whole returning roster; **Oner → Indy** and **Sporen → Soren**
   (renamed id + name + art — every reference updated, no functional `oner`/`sporen` left). Two new heroes:

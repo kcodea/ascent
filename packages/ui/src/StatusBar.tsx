@@ -27,7 +27,9 @@ export function StatusBar() {
       ? `${power.name} · +${spellAmplifyBonus(run.wave)}/+${spellAmplifyBonus(run.wave)} spells`
       : power.kind === 'quest'
         ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.drakkoBuys}/5`}`
-        : `${power.name} · passive`
+        : power.kind === 'collision'
+          ? `${power.name} · ${run.cassenKills}/5`
+          : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'
       : !unlocked

@@ -73,7 +73,8 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Pulse',
       kind: 'replayBattlecry',
-      text: "Pulse: Trigger a friendly minion's Battlecry effect. (Once per turn)",
+      unlockWave: 3,
+      text: "Pulse: Trigger a friendly minion's Battlecry effect. (Once per turn) Locked until turn 3.",
     },
   },
   {

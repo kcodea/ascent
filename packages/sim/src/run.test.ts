@@ -1611,12 +1611,12 @@ describe('hero powers (@game/sim)', () => {
     expect(after.heroPowerSpent).toBe(false); // charge preserved for a real target
   });
 
-  it("Myra's Pulse re-fires a friendly minion's Battlecry, once per turn (from turn 1)", () => {
+  it("Myra's Pulse re-fires a friendly minion's Battlecry, once per turn (from turn 3)", () => {
     // Hoard Cleric's Battlecry buffs all your Dragons +1/+1 (includes itself).
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
-    let s: RunState = { ...createRun(1, 'myra'), board: [cleric()] }; // available from turn 1 (no gate)
+    let s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] }; // Pulse unlocks turn 3
     s = reduce(s, { type: 'heroPower', uid: 'c' });
     expect(s.board[0]!.attack).toBe(2); // 1 + 1
     expect(s.board[0]!.health).toBe(4); // 3 + 1
@@ -1629,6 +1629,7 @@ describe('hero powers (@game/sim)', () => {
   it("Myra's Pulse auto-targets a targeted Battlecry (Toxin Tender → best friend gets Venomous)", () => {
     const s: RunState = {
       ...createRun(1, 'myra'),
+      wave: 3,
       board: [
         { uid: 't', cardId: 'toxin', tribe: 'undead', attack: 1, health: 3, keywords: [], golden: false },
         mk('f', 5, 5), // highest-attack friend → auto-picked
@@ -1640,21 +1641,24 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("Myra's Pulse no-ops (no charge spent) on a minion with no Battlecry", () => {
-    const s: RunState = { ...createRun(1, 'myra'), board: [mk('a', 2, 2)] }; // sandbag = vanilla
+    const s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [mk('a', 2, 2)] }; // sandbag = vanilla
     const after = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(after).toBe(s); // rejected → same reference
     expect(after.heroReady).toBe(true); // charge preserved
   });
 
-  it("Myra's Pulse is available from turn 1 (no turn gate)", () => {
+  it("Myra's Pulse is locked until turn 3", () => {
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
-    // Turn 1: the Battlecry fires immediately — no unlock wave.
-    let s: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric()] };
-    s = reduce(s, { type: 'heroPower', uid: 'c' });
-    expect(s.board[0]!.attack).toBe(2); // +1/+1 from the replayed Battlecry
-    expect(s.heroReady).toBe(false);
+    // Turn 1: locked — the power is rejected (no charge spent, no Battlecry replay).
+    const w1: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric()] };
+    expect(reduce(w1, { type: 'heroPower', uid: 'c' })).toBe(w1);
+    // Turn 3: unlocked — the Battlecry re-fires (+1/+1).
+    let w3: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] };
+    w3 = reduce(w3, { type: 'heroPower', uid: 'c' });
+    expect(w3.board[0]!.attack).toBe(2);
+    expect(w3.heroReady).toBe(false);
   });
 
   it("Myra's Pulse can complete a triple — a replayed Battlecry's summon golden-combines", () => {
@@ -1663,6 +1667,7 @@ describe('hero powers (@game/sim)', () => {
     // power-summoned third copy never combined.
     const s: RunState = {
       ...createRun(1, 'myra'),
+      wave: 3,
       board: [
         { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
         { uid: 's1', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
@@ -1760,31 +1765,33 @@ describe('hero powers (@game/sim)', () => {
     expect(capped.maxEmbers).toBe(CONFIG.embersCap); // no overflow
   });
 
-  it("Cassen's Collision banks enemy kills and grants a top-type minion at 5", () => {
-    // A neutral-dominant board (Target Dummy = neutral, always buyable) → the grant is a neutral minion.
-    const neutral = (uid: string): BoardCard => ({
-      uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false,
+  it("Cassen's Collision banks enemy kills and grants a top-type minion at 5 (neutral isn't a type)", () => {
+    // A Beast-dominant board → the grant is a Beast of your tavern tier. Neutral is NOT counted as a type.
+    const beast = (uid: string): BoardCard => ({
+      uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false,
     });
     // 3 banked + 2 this combat = 5 → one grant, kills back to 0.
     let s: RunState = {
       ...createRun(1, 'cassen'),
       phase: 'combat',
       cassenKills: 3,
-      board: [neutral('a'), neutral('b')],
+      board: [beast('a'), beast('b')],
       hand: [],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 2, initial: { player: [], enemy: [] } },
     };
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.cassenKills).toBe(0); // 5 spent on the grant
     expect(s.hand.length).toBe(1); // a minion was conjured to the hand
-    expect(CARD_INDEX[s.hand[0]!.cardId]!.tribe).toBe('neutral'); // …of the board's most common tribe
+    const granted = CARD_INDEX[s.hand[0]!.cardId]!;
+    expect([granted.tribe, granted.tribe2]).toContain('beast'); // of the board's most common (non-neutral) tribe
+    expect(granted.tier).toBeLessThanOrEqual(s.tier); // bound by your tavern tier
 
     // Under 5 → no grant, kills simply bank.
     let t: RunState = {
       ...createRun(1, 'cassen'),
       phase: 'combat',
       cassenKills: 0,
-      board: [neutral('a')],
+      board: [beast('a')],
       hand: [],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 3, initial: { player: [], enemy: [] } },
     };

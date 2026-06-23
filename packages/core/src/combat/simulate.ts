@@ -52,7 +52,9 @@ export function simulate(
    * into stats). Applies at combat start AND to anything summoned or Reborn mid-fight (Reborn resets to
    * base stats, dropping the bonus, so it's re-applied there too). Pure: keyed only on side + tribe.
    */
+  const hasUndeadBonus = undeadAttackBonus > 0 || undeadHealthBonus > 0; // Lantern of Souls active?
   const applyUndeadBonus = (m: Minion): void => {
+    if (!hasUndeadBonus) return; // common case: no Lantern → skip the side/tribe checks entirely
     if (m.side !== 'player') return;
     if (m.tribe !== 'undead' && m.tribe2 !== 'undead') return;
     if (undeadAttackBonus > 0) m.attack = Math.max(0, m.attack + undeadAttackBonus);
@@ -92,6 +94,13 @@ export function simulate(
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
+  // Non-allocating count of living minions on a side. The main loop guard checks this twice per iteration
+  // (up to ~600×/sim); using this instead of `living(side).length` avoids building a throwaway array each time.
+  const countLiving = (side: Side): number => {
+    let n = 0;
+    for (const m of boards[side]) if (!m.dead && m.health > 0) n++;
+    return n;
+  };
 
   const ctx: CombatContext = {
     rng,
@@ -194,8 +203,9 @@ export function simulate(
       }
     }
     if (!isEcho) {
-      const echoes = living(side).reduce((n, m) => n + (m.cardId === 'echo' ? (m.golden ? 2 : 1) : 0), 0);
-      for (let i = 0; i < echoes && living(side).length < 7; i++) summonMinion(side, card, minion.uid, true);
+      let echoes = 0; // count Echo Wardens without allocating a living() array on every summon
+      for (const m of boards[side]) if (!m.dead && m.health > 0 && m.cardId === 'echo') echoes += m.golden ? 2 : 1;
+      for (let i = 0; i < echoes && countLiving(side) < 7; i++) summonMinion(side, card, minion.uid, true);
     }
     return minion;
   }
@@ -258,10 +268,8 @@ export function simulate(
     bus.emit('onDeath', { minion, side: minion.side, killer });
     // Sylus the Reaper: the dying minion's own Deathrattle procs extra times (golden = +2;
     // multiple Sylus stack additively). Re-runs only this minion's onDeath effects.
-    const reaperBonus = living(minion.side).reduce(
-      (n, m) => n + (m.cardId === 'sylus' ? (m.golden ? 2 : 1) : 0),
-      0,
-    );
+    let reaperBonus = 0; // count Sylus without allocating a living() array on every death
+    for (const m of boards[minion.side]) if (!m.dead && m.health > 0 && m.cardId === 'sylus') reaperBonus += m.golden ? 2 : 1;
     for (let r = 0; r < reaperBonus; r++) {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
@@ -345,21 +353,22 @@ export function simulate(
       events.push({ type: 'reveal', target: attacker.uid });
     }
     const swings = attacker.keywords.includes('W') ? 2 : 1; // Windfury (A.3 step 5)
-    // Better Bot (Rally): when this attacks, give your OTHER Mechs +N Attack (N = its accrued rallyMechAtk,
-    // which stacks via magnetize). Fires once per attack turn, only when there's an enemy to attack.
-    if (attacker.rallyMechAtk && attacker.rallyMechAtk > 0 && living(defenderSide).length > 0) {
-      for (const m of living(attacker.side)) {
-        if (m !== attacker && (m.tribe === 'mech' || m.tribe2 === 'mech')) {
-          ctx.buff(m, attacker.rallyMechAtk, 0, 'Better Bot');
-        }
-      }
-    }
     for (let s = 0; s < swings; s++) {
       if (attacker.dead || attacker.health <= 0) break;
       const target = chooseTarget(defenderSide);
       if (!target) break;
       events.push({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s });
       bus.emit('onAttack', { minion: attacker, side: attacker.side }); // Rally + on-attack effects
+      // Better Bot (Rally): each time this attacks — once per swing, so a Windfury body rallies TWICE if it
+      // survives the first swing — give your OTHER Mechs +N Attack (N = accrued rallyMechAtk, stacks via
+      // magnetize). Fires per hit alongside the onAttack rallies (rallyBuff / rallyProcDeathrattle) above.
+      if (attacker.rallyMechAtk && attacker.rallyMechAtk > 0) {
+        for (const m of boards[attacker.side]) { // iterate the board directly — no living() array per swing
+          if (!m.dead && m.health > 0 && m !== attacker && (m.tribe === 'mech' || m.tribe2 === 'mech')) {
+            ctx.buff(m, attacker.rallyMechAtk, 0, 'Better Bot');
+          }
+        }
+      }
 
       const targetWasAlive = !target.dead && target.health > 0;
       const targetCouldReborn = target.rebornAvailable; // a Reborn target that "dies" returns to life
@@ -457,9 +466,9 @@ export function simulate(
   };
   // A 0-Attack minion can't attack — it's skipped in the rotation (above). If neither side has a
   // minion that can attack, the fight is a stalemate (a draw) rather than spinning the iteration guard.
-  const canAttack = (side: Side): boolean => living(side).some((m) => m.attack > 0);
+  const canAttack = (side: Side): boolean => boards[side].some((m) => !m.dead && m.health > 0 && m.attack > 0);
   let guard = 0;
-  while (living('player').length > 0 && living('enemy').length > 0 && guard++ < ITERATION_GUARD) {
+  while (countLiving('player') > 0 && countLiving('enemy') > 0 && guard++ < ITERATION_GUARD) {
     const defenderSide = OTHER[turn];
     const attacker = nextAttacker(turn);
     if (!attacker) {

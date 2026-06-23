@@ -49,6 +49,18 @@ export function summonScalingText(cardId: string, spellsThisTurn: number): strin
 }
 
 /**
+ * Cling Drone grows +1/+1 every time a Cling is magnetized (the run-wide `cling` enchant). Surface its
+ * *current* accumulated bonus (green) so the player can see it climbing — the printed rule alone doesn't
+ * show how big your Clings have become. Returns null with no accumulated buff (falls back to printed text).
+ */
+export function clingProgressText(cardId: string, enchant: { attack: number; health: number } | undefined): string | null {
+  if (cardId !== 'cling' || !enchant || (enchant.attack <= 0 && enchant.health <= 0)) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  return `${def.text} {{Now +${enchant.attack}/+${enchant.health}.}}`;
+}
+
+/**
  * Archmagus Guel scales with spells cast this run: the grant he hands out is +X/+X where X = base +
  * floor(spellsCast / 4) (×2 golden), stepping up every 4 spells. Show the live current grant AND the
  * countdown to the next step — both green ({{…}}) — so the player can read the progress, plus the per-step

@@ -23,6 +23,11 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Bug fixes + a codebase audit.** Rally now fires **per hit** (a Windfury body rallies twice); Cling Drones show
+  their accumulated bonus on the card; and a Demon eating Fodder now floats its **+X/+X** like other buffs. Plus a
+  6-agent audit drove a cleanup pass: deleted dead files/assets (**−87 KB** off the web build), trimmed dead events
+  + data, and cut ~600k throwaway allocations per End-Turn from the combat hot path (non-allocating loop counts,
+  memoized derivations) — combat stays byte-identical (determinism tests green).
 - **Live tooltips + readable buffs.** Scaling minions now show live progress on the card — **Archmagus Guel**
   reads his current grant and the countdown to his next step. Recruit-phase buffs **float the +X/+X** above the
   minion just like combat, and a **Combinator** weld is credited to the magnetic it attached ("Harry Botter ×2"),

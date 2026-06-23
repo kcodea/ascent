@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { guelProgressText, summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
+import { clingProgressText, guelProgressText, summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -104,6 +104,7 @@ function instView(
   frontToBackBonus = 0,
   wave = 1,
   spellsCast = 0,
+  clingEnchant?: { attack: number; health: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -124,6 +125,7 @@ function instView(
             summonBuffText(c.id, inst.summonBonus ?? 0) ??
             tallyBuffText(c.id, deathrattlesTriggered) ??
             guelProgressText(c.id, !!inst.golden, spellsCast) ??
+            clingProgressText(c.id, clingEnchant) ??
             c.text;
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
@@ -461,12 +463,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast)] as const)),
-    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling)] as const)),
+    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast)] as const)),
-    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling)] as const)),
+    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.
@@ -949,8 +951,32 @@ export function Recruit() {
       return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0: gx - w / 2, y0: cy - h / 2, w, h, dx, dy };
     });
     setFodderAnim({ key: run.fodderEatenSeq, ghosts });
+    // Float the eater's actual +X/+X gain as the ghost swirls in — the shop-phase buff float, the same one
+    // spells/hero-power show — summed per eater (one Demon can eat several Fodder this proc).
+    const gains = new Map<string, { a: number; h: number }>();
+    for (const ev of events) {
+      const g = gains.get(ev.eaterUid) ?? { a: 0, h: 0 };
+      g.a += ev.gainA;
+      g.h += ev.gainH;
+      gains.set(ev.eaterUid, g);
+    }
+    const keyed = [...gains].map(([uid, g]) => ({ uid, attack: g.a, health: g.h, key: ++statFloatKey.current }));
+    const floatT = window.setTimeout(() => {
+      setStatFloats((m) => {
+        const n = { ...m };
+        for (const k of keyed) n[k.uid] = { attack: k.attack, health: k.health, key: k.key };
+        return n;
+      });
+      window.setTimeout(() => {
+        setStatFloats((m) => {
+          const n = { ...m };
+          for (const k of keyed) if (n[k.uid]?.key === k.key) delete n[k.uid];
+          return n;
+        });
+      }, 1500);
+    }, 1450); // ~when the ghost reaches the eater
     const t = window.setTimeout(() => setFodderAnim(null), 2300); // slower: hold, then swirl in
-    return () => window.clearTimeout(t);
+    return () => { window.clearTimeout(t); window.clearTimeout(floatT); };
     // Keyed on the seq ONLY: `run.fodderEaten` gets a fresh array ref every action, so including it
     // would re-run this effect (and its cleanup → clearTimeout) on unrelated actions, stranding the
     // ghost forever — which then re-mounts + replays every time we come back from combat. The seq only

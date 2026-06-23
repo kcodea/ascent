@@ -621,6 +621,20 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.source === 'Better Bot' && e.attack === 5)).toBe(true);
   });
 
+  it('Better Bot (Rally) fires PER SWING — a Windfury body rallies twice in one attack turn', () => {
+    const a = run(
+      [
+        { cardId: 'betterbot', attack: 6, health: 50, keywords: ['M', 'RL', 'W'] }, // Windfury → two swings
+        { cardId: 'drone', attack: 2, health: 50 }, // the buff target (a Mech)
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }, // width → player attacks first
+      ],
+      [{ cardId: 'omen', attack: 0, health: 11 }], // dies to the Better Bot's two 6-damage swings (12 ≥ 11)
+      3,
+    );
+    const rallies = a.events.filter((e) => e.type === 'buff' && e.source === 'Better Bot' && e.attack === 5).length;
+    expect(rallies).toBe(2); // two swings → two rallies (the old once-per-attack code fired only one)
+  });
+
   it('Burial Imp: its Deathrattle queues Fodder for the next tavern (carried back)', () => {
     const a = run(
       [{ cardId: 'burialimp', attack: 3, health: 1 }],

@@ -2,6 +2,18 @@ import type { BoardMinion, CardDef, Minion, Side } from '../types';
 
 export type CardIndex = Record<string, CardDef>;
 
+/** Whether a card re-attacks on kill (Gnasher) — a constant per CardDef, memoized so `instantiate` (run
+ *  for every minion in every one of the ~1001 sims per faceOmen) doesn't re-scan `effects` on each clone. */
+const reAttackCache = new Map<string, boolean>();
+function cardReAttacksOnKill(card: CardDef): boolean {
+  let v = reAttackCache.get(card.id);
+  if (v === undefined) {
+    v = card.effects.some((e) => e.do === 'reAttackOnKill');
+    reAttackCache.set(card.id, v);
+  }
+  return v;
+}
+
 /**
  * Clone a board minion into a live combat instance. Pulls identity/effects from
  * the (immutable) CardDef and current stats from the BoardMinion. The CardDef
@@ -32,7 +44,7 @@ export function instantiate(
     divineShield: keywords.includes('DS'),
     rebornAvailable: keywords.includes('R'),
     golden: board.golden ?? false,
-    reAttackOnKill: card.effects.some((e) => e.do === 'reAttackOnKill'),
+    reAttackOnKill: cardReAttacksOnKill(card),
     summonBonus: board.summonBonus ?? 0,
     sourceUid: board.sourceUid,
     rallyMechAtk: rallyMechAtk > 0 ? rallyMechAtk : undefined,

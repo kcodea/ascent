@@ -95,8 +95,6 @@ export const sfx = {
   lose: () => chord([392, 311, 233], { dur: 0.24, type: 'sawtooth', vol: 0.13 }, 0.12),
 } as const;
 
-export type SfxName = keyof typeof sfx;
-
 export function isMuted(): boolean {
   return muted;
 }

@@ -30,14 +30,12 @@ export type GameEvent =
   | 'onSummon'
   | 'onDeath'
   | 'onAttack'
-  | 'onDamaged'
   | 'onLoseDivineShield'
   | 'onConsume'
   | 'onKill'
   | 'startOfCombat'
   | 'avenge' // after X friendly minions have died in combat
   | 'onBuy'
-  | 'onSell'
   | 'endOfTurn' // recruit phase: the turn ends (End Turn / timer hits 0)
   | 'battlecryTriggered' // recruit phase: a Battlecry just resolved (fires per Drakko repeat) — Karwind
   | 'cast' // a spell's own effect resolves (its chosen target is in the payload)

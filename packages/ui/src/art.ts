@@ -60,12 +60,6 @@ export const artFor = (cardId?: string, uid?: string): string | undefined => {
   return MINION_ART[cardId];
 };
 
-/** Keyword/effect overlay art (e.g. the Divine Shield bubble drawn over a shielded minion). */
-const FX_ART = indexArt(
-  import.meta.glob('./art/effects/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
-);
-export const effectArt = (name: string): string | undefined => FX_ART[name];
-
 /** Hero portraits — drop a PNG into `packages/ui/src/art/heroes/<id>.png` (e.g. `warden.png`). */
 const HERO_ART = indexArt(
   import.meta.glob('./art/heroes/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,

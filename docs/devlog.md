@@ -5,6 +5,47 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Bug fixes (rally per-hit · cling legibility · fodder float) + codebase audit (dead code · redundancy · perf)
+
+**Three reported bugs:**
+- **Rally fires per hit.** Better Bot's `rallyMechAtk` fired once per attack-*turn* (before the swings loop);
+  moved it inside the loop so it fires per swing — a Windfury body now rallies twice if it survives the first
+  swing, matching Deathsayer's `onAttack` rallies. New test: a Windfury Better Bot → exactly 2 rallies.
+- **Cling Drones legibility.** The cling +1/+1-per-magnetization growth was *correct* (manual magnetize / buy /
+  conjure all verified) — but with the new random Combinator it rarely rolls a Cling, so growth was invisible.
+  Per the live-text rule, the Cling Drone card now shows its current accumulated bonus ("Now +3/+3").
+- **Fodder-consume float.** A Demon eating Fodder buffs itself, but the +X/+X float was masked when it fired at
+  wave-start. The consume record now carries the eater's actual gain (× multiplier) and floats it as the Fodder
+  swirls in — verified live (Voracious Imp ate 2 Fodder → "+4/+4").
+
+**Codebase audit** (driven by a 6-agent analysis — 45 findings). Applied the safe, high-confidence wins:
+- **Dead code removed:** `Legend.tsx` + `Omen.tsx` (superseded by OpponentFrame; −74 lines), the orphaned
+  `effectArt`/`FX_ART` glob + `divineshield.webp` (drawn via `<Icon>` now; −5 lines + **−87 KB** off the web
+  build), `Threat.punishes` (dead data), `SfxName` (zero refs), and the dead `onSell` + `onDamaged` GameEvents.
+- **Performance (combat hot path — `simulate()` runs ~1001×/faceOmen):** the main attack-loop guard now uses a
+  non-allocating `countLiving()` instead of `living(side).length` (the guard ran up to ~600×/sim → ~**600k
+  fewer throwaway-array allocations per faceOmen**); the Sylus reaper count, Echo-Warden count, and Better Bot's
+  per-swing rally now iterate the board directly instead of allocating a `living()` array each death/summon/swing;
+  `applyUndeadBonus` early-outs when no Lantern is active (the common case); and `reAttackOnKill` is memoized per
+  CardDef instead of re-scanning `effects` on every minion clone (tens of thousands of scans/faceOmen). These cut
+  GC churn (most visible on death-heavy late-game boards); faceOmen stays well under 100 ms (~33 ms measured).
+  All guarded by the determinism golden tests — combat outcomes are byte-identical.
+- **Redundancy:** `drummerRepeats`/`chronosRepeats` collapsed onto one `bestCopyRepeats` helper (the
+  "best-single-copy, golden=+2, no-stacking" rule); `magnetizeTargets` now uses the existing `isTribe` helper
+  instead of an inline dual-tribe check.
+- **Verified:** 278 tests, typecheck + lint clean; app loads + combat resolves live with no console errors.
+
+**Deferred (documented for a focused follow-up — all inert or higher-risk):** removing the **20 dead effect-factory
+ids** + bodies (`avengeBuff`, `rallyBuff`, the `onShieldBreak*` trio, `scSplitDamage`/`scAoePerTribe`/`scDestroyHighestAttack`/
+`scGrantShieldTribe`, `deathrattleBuffTribe`/`deathrattleBuffRandom`/`deathrattleFillTribe`, the `onConsume*` trio,
+`onKillBuffSelf`, `onFriendDeathBuffRandom`, `endOfTurnBuff`, `castSpell`-factory, `spellCastBuffSelf` — ~190 lines,
+never dispatched so zero runtime cost) + the now-dead `onConsume`/`onLoseDivineShield` events they hung off; the
+**`quiet`/odds-only `simulate()` flag** (skip the event log + snapshots + carry-backs for the 1000 odds sims — the
+single biggest allocation win, but invasive); shared `num`/`str`/`highestAttack`/`makeHandCard`/`dominantTribe`
+helpers (cross-package/multi-site); the `instView` 13-param → options-object refactor (no test coverage → risky);
+and a drag-frame rect cache for `warbandIndexAt`/`shopIndexAt`. (The event-bus `[...list]` snapshot was flagged but
+is **intentional** — a minion summoned mid-emit must not handle the in-flight event — so left as-is.)
+
 ### Live card text (Guel) · shop buff floats · Combinator attribution · hero-button cursor
 
 Refinements on the two batches below (same day):

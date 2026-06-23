@@ -175,9 +175,7 @@ export function magnetizeTargets(
   slot: number,
   proc: number,
 ): string[] {
-  const eligible = board.filter(
-    (c) => c.uid !== selfUid && (c.tribe === 'mech' || CARD_INDEX[c.cardId]?.tribe2 === 'mech'),
-  );
+  const eligible = board.filter((c) => c.uid !== selfUid && isTribe(c, 'mech'));
   const rng = makeRng(mixSeed(seed, wave, TAG.MAGNET, slot, proc));
   for (let i = eligible.length - 1; i > 0; i--) {
     const j = rng.int(i + 1); // Fisher-Yates with the seeded RNG
@@ -1087,22 +1085,22 @@ function makeContext(state: RunState): RecruitContext {
   return ctx;
 }
 
-/** Drakko the Drummer: your Battlecries fire extra times. A golden Drakko adds 2 (triples);
- *  multiple Drakkos do NOT stack — only the best single one counts. Returns the total fire count. */
-function drummerRepeats(state: RunState): number {
-  const drummers = state.board.filter((c) => c.cardId === 'drummer');
-  const bonus = drummers.some((d) => d.golden) ? 2 : drummers.length > 0 ? 1 : 0;
-  return 1 + bonus;
+/** "Best single copy, no stacking, golden = +2" repeat count, shared by Drakko (Battlecries) and Chronos
+ *  (End-of-Turn). Returns 1 + (2 if any golden copy of `cardId`, else 1 if any copy, else 0). */
+function bestCopyRepeats(state: RunState, cardId: string): number {
+  const copies = state.board.filter((c) => c.cardId === cardId);
+  return 1 + (copies.some((c) => c.golden) ? 2 : copies.length > 0 ? 1 : 0);
 }
 
-/** Chronos: your End-of-Turn effects trigger extra times. A golden Chronos adds 2; multiple
- *  Chronos do NOT stack (only the best single one counts) — mirrors Drakko. Returns the count. */
-/** How many times End-of-Turn effects fire this turn: 1, +1 per Chronos (best one only — golden
- *  Chronos adds 2, no stacking). Exported so the UI can replay each proc the matching number of times. */
+/** Drakko the Drummer: your Battlecries fire extra times (golden Drakko +2; best one only, no stacking). */
+function drummerRepeats(state: RunState): number {
+  return bestCopyRepeats(state, 'drummer');
+}
+
+/** How many times End-of-Turn effects fire this turn: 1, +1 per Chronos (best one only — golden Chronos
+ *  adds 2, no stacking). Exported so the UI can replay each proc the matching number of times. */
 export function chronosRepeats(state: RunState): number {
-  const chronos = state.board.filter((c) => c.cardId === 'chronos');
-  const bonus = chronos.some((c) => c.golden) ? 2 : chronos.length > 0 ? 1 : 0;
-  return 1 + bonus;
+  return bestCopyRepeats(state, 'chronos');
 }
 
 /** Notify Battlecry-triggered watchers (Karwind) that a Battlecry just resolved. Call once per
@@ -1224,7 +1222,7 @@ export function consumeTavernFodder(state: RunState): void {
   if (demons.length === 0) return;
   const rng = makeRng(state.rngCursor);
   const ctx = makeContext(state);
-  const eaten: { eaterUid: string; fodderId: string; attack: number; health: number }[] = [];
+  const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
   for (let i = state.shop.length - 1; i >= 0; i--) {
     const offer = state.shop[i]!;
     const fodder = CARD_INDEX[offer.cardId];
@@ -1237,8 +1235,9 @@ export function consumeTavernFodder(state: RunState): void {
     const fh = fodder.health + buff.health;
     addBuff(eater, 'Consume', fa * mult, fh * mult);
     fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off
-    // Record the Fodder's *effective* (buffed) stats so the eat animation shows them, not 1/1.
-    eaten.push({ eaterUid: eater.uid, fodderId: fodder.id, attack: fa, health: fh });
+    // Record the Fodder's *effective* (buffed) stats for the ghost, and the eater's actual gain (× mult)
+    // so the UI can float the +X/+X on the eater (the shop-phase buff float).
+    eaten.push({ eaterUid: eater.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
   }
   state.rngCursor = rng.state();
   // Record the consume for the UI to replay (show the Fodder, swirl it into the eater).

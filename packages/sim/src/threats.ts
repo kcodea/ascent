@@ -10,8 +10,6 @@ export interface Threat {
   name: string;
   /** Plain-language telegraph (handoff A.5) — what it is and how to answer it. */
   description: string;
-  /** What this archetype punishes. */
-  punishes: string;
   /** Tribes that answer it well (handoff A.6 counter matrix). */
   answeredBy: Tribe[];
 }
@@ -22,7 +20,6 @@ export const THREATS: Record<ThreatId, Threat> = {
     name: 'Venom Swarm',
     description:
       'Many small minions, several with Venomous — one touch kills your biggest minion. Bring Divine Shields or cheap bodies to soak it.',
-    punishes: 'Single big carries; low body count',
     answeredBy: ['mech', 'demon'],
   },
   iron: {
@@ -30,7 +27,6 @@ export const THREATS: Record<ThreatId, Threat> = {
     name: 'Ironwall',
     description:
       'A few enormous Taunt + Shield minions. Chip damage bounces off — use Venomous to kill them in one hit.',
-    punishes: 'Wide chip; low burst',
     answeredBy: ['undead', 'dragon'],
   },
   horde: {
@@ -38,7 +34,6 @@ export const THREATS: Record<ThreatId, Threat> = {
     name: 'Horde',
     description:
       'A very wide board of medium minions that overwhelms slow, tall boards. Answer with Cleave or your own wide board.',
-    punishes: 'Slow/tall boards; few attackers',
     answeredBy: ['beast', 'dragon'],
   },
   glass: {
@@ -46,7 +41,6 @@ export const THREATS: Record<ThreatId, Threat> = {
     name: 'Glass Cannon',
     description:
       'One or two giant-Attack minions, fragile underneath. They one-shot unguarded boards. Absorb the blow or kill the carry first.',
-    punishes: 'Passive boards that get one-shot',
     answeredBy: ['undead', 'mech'],
   },
   undying: {
@@ -54,7 +48,6 @@ export const THREATS: Record<ThreatId, Threat> = {
     name: 'Undying',
     description:
       'Minions that keep coming back (Reborn). Tempo alone can’t close. Bring Venomous, destroy-effects, or a flood of bodies.',
-    punishes: 'Tempo boards that can’t close',
     answeredBy: ['beast', 'demon'],
   },
 };

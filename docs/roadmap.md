@@ -72,6 +72,11 @@ the Devourer** T5 have landed alongside the original T1s — keep filling the mi
     shows current grant + countdown via `cardText.ts`); **shop buff floats** (+X/+X above a buffed minion,
     like combat); Combinator welds credited to the **magnetic** ("Harry Botter ×2"), not Combinator;
     disabled hero-power button keeps the game cursor.
+  - **Fixes + audit (2026-06-23, shipped → devlog):** rally fires **per hit** (Windfury → 2×); Cling Drone
+    shows its accumulated bonus; Fodder-consume floats +X/+X. Plus a 6-agent audit cleanup: dead files/assets
+    removed (−87 KB web build), dead events/data trimmed, combat hot-path allocations cut (~600k/faceOmen),
+    `bestCopyRepeats`/`isTribe` dedup. **Deferred (documented in devlog):** removing 20 inert dead effect-factory
+    ids (~190 lines), the `quiet`/odds-only `simulate()` flag (biggest alloc win), and several shared helpers.
 - **Patch 2 — Front Door & Hero Roster** *(M3; variety).* The run's entry + variety. Generalize the
   `heroChoices` flag into a `scene` enum and build **Title → Play → Mode → Hero → run** (no router;
   small overlays reusing `herocard`). Add a data-driven **MODES** registry — the two intended modes

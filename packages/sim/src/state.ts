@@ -204,10 +204,10 @@ export interface RunState {
    *  Fodder this way). Baked in at every instantiation; the tavern display reads it live. */
   cardBuffs: Record<string, { attack: number; health: number }>;
   /** The most recent tavern-Fodder auto-consume, for the UI to replay (show the Fodder
-   *  then swirl it into the eater). Carries the Fodder's *effective* stats (base + any
-   *  Ritualist run buff) so the ghost shows what was actually eaten, not the 1/1 base.
-   *  Transient. */
-  fodderEaten?: { eaterUid: string; fodderId: string; attack: number; health: number }[];
+   *  then swirl it into the eater). `attack`/`health` are the Fodder's *effective* stats (base + any
+   *  Ritualist run buff) so the ghost shows what was eaten, not the 1/1 base; `gainA`/`gainH` are what the
+   *  eater actually GAINED (× its consume multiplier), so the UI can float the +X/+X on it. Transient. */
+  fodderEaten?: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[];
   /** Bumps each time Fodder is auto-eaten — the UI keys its swirl animation off this. */
   fodderEatenSeq: number;
   /** Dragon uids Karwind just flame-buffed on the most recent Battlecry — the UI flashes flames

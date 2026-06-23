@@ -279,6 +279,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* hover lifts just enough to reveal the whole card + bring it forward — small so the card
    stays under the cursor (no bounce-out). */
 .row.hand .card:hover { transform: translateY(-5%); z-index: 45; }
+/* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
+   pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
+body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }
@@ -646,7 +649,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    No base transition — the card tracks the cursor 1:1 for a snappy feel (not floaty); .snap / .magslide
    below add their own transitions for the release animations. */
 .dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
-.dragcard.snap { transition: transform 0.16s cubic-bezier(0.34, 1.2, 0.64, 1); }
+.dragcard.snap { transition: transform 0.16s cubic-bezier(0.4, 0, 0.2, 1); }
 /* a Magnetic card shrinking straight into its Mech before it merges — snappy, so it reads as an
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */
 .dragcard.magslide { transition: transform 0.28s cubic-bezier(0.5, 0, 0.85, 0.4), opacity 0.28s cubic-bezier(0.7, 0, 1, 1); }

@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Drag feel: clean the snap-back + stop the hand bobbing mid-drag
+- **Snap-back** (an invalid drop returning the card to the hand) dropped the `cubic-bezier(0.34, 1.2, …)`
+  overshoot — that `1.2` bounce was the "slow/janky" feel. Now `cubic-bezier(0.4, 0, 0.2, 1)` (clean ease-out).
+- **Hand stops reacting mid-drag:** `.dragcard` is `pointer-events:none`, so while dragging, the cursor still
+  "hovered" the hand cards underneath → they bobbed (the `:hover` `translateY` lift). `body.dragging
+  .row.hand .card:hover` now holds them at rest — no bob/jitter while dragging.
+- Diagnosis note: the grabbed card's slot was already fully reserved (`dragsrc` = `opacity: 0.3`, same
+  size), so there was no real horizontal shift on pick-up — the "takes more space" is the lifted card going
+  full-size vs its fanned/overlapped slot. Flagged for the user to confirm.
+
 ### Drag FLIP: split the easing — gentle glide while dragging, snappy settle on drop
 - The during-drag side-to-side felt janky sharing one ease with the landing. `Flip.from` now branches on
   `dragRef.current?.active`: a **live drag** uses `0.25s / power2.out` (smooth side-to-side tracking under the

@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Perf: the per-second turn timer no longer re-renders the whole board (heavy-board frame drops fixed)
+
+Follow-up to the perf pass — the user still felt frame drops on a full wave-14 board (golden + Divine-Shield
+Mechs) on the dev server. **Measured it in-browser** (injected a 17-card heavy board via `window.useGame`,
+sampled `requestAnimationFrame` deltas): at rest the board was fine, but a **full Recruit re-render cost
+~8–17ms** (p95 16.7ms — at the 60fps budget), **doubled by StrictMode in dev**. The culprit: `seconds` (the
+round timer) lived in `useState` **inside Recruit**, so its tick re-rendered the entire recruit tree — board +
+hand + shop, ~17 cards — **once per second**. On a slower machine that ~17ms doubles to a dropped frame every
+second: the "frame droppy" feel.
+
+- **Fix — external turn clock.** Moved the countdown to a tiny external store (`turnClock.ts`, via
+  `useSyncExternalStore`). Now only the two small displays subscribe to live seconds (`useTurnSeconds` → a new
+  `<TurnRing>` + `<TurnRope>`); Recruit subscribes only to the derived `timeUp` boolean (`useTurnTimeUp`), which
+  flips once per turn. The per-second tick reads/writes the store directly (no React state), so it never touches
+  the card tree. The countdown is a self-scheduling loop (no longer keyed on `seconds`); the reset is a
+  `useLayoutEffect` so the clock is full before first paint (no "0"-flash).
+- **Verified live** (same heavy 17-card board, timer actively ticking 65→62 over 3s): **avg 4.17ms, max 4.3ms,
+  zero frames over 16.7ms** — vs. before, avg 8.3ms with periodic ~12.5ms spikes from the per-second re-render.
+  Timer still counts down, the ring/rope update, and `timeUp` still locks actions at 0. 279 tests pass,
+  typecheck + lint clean.
+- **Context:** the dev server (5173) is the worst case (StrictMode double-render + unminified Vite); the packed
+  build is materially smoother. This fix helps both, and removes the periodic dev hitch outright.
+- Documented the pattern in `docs/performance.md` (isolate high-frequency state from large trees). Left as
+  documented low-pri (measured negligible — 0 dropped frames even on the heavy board): `endpulse`'s small
+  no-blur box-shadow pulse + the rope's `drop-shadow` loops.
+
 ### Performance north star: glow repaint fix + render-cost audit + `npm run perf` · win = 15 WON combats · Front to Back improve scales
 
 **Performance is now the project's stated north star** (CLAUDE.md + new `docs/performance.md`): the game must

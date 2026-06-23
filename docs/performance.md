@@ -105,6 +105,11 @@ These are the rules the audits surfaced; the codebase already follows them — k
 - **Memoize list items rendered every beat/frame.** `Unit` is `React.memo`'d with a *value* comparator (the
   combat frame rebuilds fresh objects each beat, so reference compare misses). Keep props referentially stable
   (e.g. the shared `EMPTY_FLOATS`) so the memo can actually skip.
+- **Don't put high-frequency state (a ticking clock) in a component that renders a large tree.** The recruit
+  timer's `seconds` used to live in `useState` inside `Recruit`, so it re-rendered all ~17 cards once per
+  second. It now lives in an external store (`turnClock.ts`); only the tiny ring/rope subscribe to live seconds,
+  while the big tree subscribes to the derived `timeUp` boolean (changes once per turn). Pattern: isolate a
+  frequently-changing value into its own store/subscriber so only what *displays* it re-renders.
 - **Don't deep-clone large read-only state.** The reducer shares `lastCombat` (the whole event log) by
   reference instead of `structuredClone`-ing it every dispatch.
 - **Respect `prefers-reduced-motion`.** The global rule in `styles.css` near-instants every animation; new

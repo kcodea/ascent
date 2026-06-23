@@ -11,6 +11,7 @@ import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
+import { turnClock, useTurnSeconds, useTurnTimeUp } from './turnClock';
 
 gsap.registerPlugin(Flip);
 
@@ -26,6 +27,42 @@ const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a d
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
 const RING = 2 * Math.PI * 17; // countdown ring circumference
+
+/** The countdown ring — subscribes to the turn clock so ONLY this tiny SVG re-renders each second
+ *  (not the whole recruit tree). See turnClock.ts. */
+function TurnRing({ turnSeconds }: { turnSeconds: number }) {
+  const seconds = useTurnSeconds();
+  return (
+    <div className="rtimer" data-low={seconds <= 5} title="Time left this turn — at 0 your actions lock; hit End Turn to fight">
+      <svg viewBox="0 0 40 40">
+        <circle className="rt-bg" cx="20" cy="20" r="17" />
+        <circle className="rt-fg" cx="20" cy="20" r="17" style={{ strokeDasharray: RING, strokeDashoffset: RING * (1 - Math.max(0, seconds) / turnSeconds) }} />
+      </svg>
+      <span className="rt-n">{Math.max(0, seconds)}</span>
+    </div>
+  );
+}
+
+/** The burn-down rope (last 15s) — also a clock subscriber, so its per-second update doesn't re-render
+ *  the board it floats over. */
+function TurnRope() {
+  const seconds = useTurnSeconds();
+  if (seconds > 15) return null;
+  const pct = ((15 - Math.max(0, seconds)) / 15) * 100;
+  return (
+    <div className="rope" title={`${seconds}s left`}>
+      <div className="rope-lit" style={{ width: `${pct}%` }} />
+      <div className="rope-flame" style={{ left: `${pct}%` }}>
+        <span className="fl-glow" />
+        <span className="fl-body" />
+        <span className="fl-core" />
+        <span className="fl-ember" style={{ '--ex': '-6px', animationDelay: '0s' } as CSSProperties} />
+        <span className="fl-ember" style={{ '--ex': '5px', animationDelay: '0.33s' } as CSSProperties} />
+        <span className="fl-ember" style={{ '--ex': '-1px', animationDelay: '0.66s' } as CSSProperties} />
+      </div>
+    </div>
+  );
+}
 
 /** Cards that reference another card → hovering shows it as a popup. The token a card summons /
  *  creates, or the Fodder it buffs / consumes (so the player can read what it does, and see the
@@ -198,7 +235,6 @@ export function Recruit() {
   const [magSlide, setMagSlide] = useState(false); // a Magnetic card sliding into its Mech
   const [magTargetUid, setMagTargetUid] = useState<string | null>(null); // the Mech being merged into (crackles)
   const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean; targetUid: string | null } | null>(null);
-  const [seconds, setSeconds] = useState(turnSeconds);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
   // Fire the green buff-burst on a specific card for ~0.7s. Used to guarantee the Hero Power (Fortify)
   // always animates its target, independent of the passive stat-diff flash.
@@ -392,7 +428,7 @@ export function Recruit() {
   // every frame. That live read was the last drag path still forcing a synchronous reflow per frame (a
   // read-after-Flip-write thrash); arithmetic against the cache removes it. Null outside a drag.
   const insertRectsRef = useRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[] } | null>(null);
-  const timeUp = seconds <= 0; // turn timer expired: lock everything but End Turn
+  const timeUp = useTurnTimeUp(); // turn timer expired: lock everything but End Turn (flips once/turn — see turnClock)
 
   const zoneAt = (x: number, y: number): Zone | null => {
     const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
@@ -837,23 +873,33 @@ export function Recruit() {
   // Reset the round clock at the start of each recruit wave, and whenever the hero picker opens or
   // closes (so wave 1 always begins at full time the moment a hero is chosen — even on a fresh run
   // that died on wave 1, where run.wave doesn't change). Recruit stays mounted across combat now.
-  useEffect(() => {
-    setSeconds(turnSeconds);
+  // The clock lives in an external store (turnClock), NOT React state, so its per-second tick
+  // re-renders only the tiny ring/rope subscribers — never the heavy card tree. See turnClock.ts.
+  // Layout effect so the clock is full BEFORE the first paint (the store starts at 0 — without this the
+  // first frame would flash "0" / a locked board until a passive effect ran).
+  useLayoutEffect(() => {
+    turnClock.set(turnSeconds);
   }, [run.wave, turnSeconds, heroSelecting]);
 
-  // Round timer: count down each recruit turn; at 0 the player is forced into
-  // combat (paused while a Discover pick is open, and frozen while the hero picker is open).
-  // UI-only — the engine is untimed.
+  // Round timer: count down each recruit turn; at 0 the player is forced into combat (paused while a
+  // Discover pick is open, and frozen while the hero picker is open). UI-only — the engine is untimed.
+  // A self-scheduling loop (not keyed on `seconds`, which no longer lives in React state): it reads/
+  // writes turnClock directly, so ticking never re-renders Recruit. The reset effect above runs first
+  // on a new turn (effect order), so the clock is back at full time before this re-schedules.
   useEffect(() => {
-    // At 0 the timer just stops — actions lock (except End Turn); no auto-combat.
-    if (run.phase !== 'recruit' || seconds <= 0 || run.discover || heroSelecting) return;
-    const id = window.setTimeout(() => {
-      // Tick out the last five seconds (the next displayed value is 5…1).
-      if (seconds - 1 <= 5 && seconds - 1 > 0) sfx.tick();
-      setSeconds((s) => s - 1);
-    }, 1000);
+    if (run.phase !== 'recruit' || run.discover || heroSelecting) return;
+    let id = 0;
+    const tick = (): void => {
+      const cur = turnClock.get();
+      if (cur <= 0) return; // at 0 the timer just stops — actions lock (except End Turn); no auto-combat
+      const next = cur - 1;
+      if (next <= 5 && next > 0) sfx.tick(); // tick out the last five seconds
+      turnClock.set(next);
+      id = window.setTimeout(tick, 1000);
+    };
+    id = window.setTimeout(tick, 1000);
     return () => window.clearTimeout(id);
-  }, [seconds, run.phase, run.discover, heroSelecting]);
+  }, [run.phase, run.discover, heroSelecting, run.wave]);
 
   // Flash a card green AND float its +X/+X when its stats jump in the recruit phase (a buff landed).
   useEffect(() => {
@@ -1312,21 +1358,7 @@ export function Recruit() {
             <span className="ctltip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : 'Tavern Up'}</span>
           </button>
         </div>
-        {!inCombat && (
-        <div className="rtimer" data-low={seconds <= 5} title="Time left this turn — at 0 your actions lock; hit End Turn to fight">
-          <svg viewBox="0 0 40 40">
-            <circle className="rt-bg" cx="20" cy="20" r="17" />
-            <circle
-              className="rt-fg"
-              cx="20"
-              cy="20"
-              r="17"
-              style={{ strokeDasharray: RING, strokeDashoffset: RING * (1 - Math.max(0, seconds) / turnSeconds) }}
-            />
-          </svg>
-          <span className="rt-n">{Math.max(0, seconds)}</span>
-        </div>
-        )}
+        {!inCombat && <TurnRing turnSeconds={turnSeconds} />}
         {/* right of the timer: Refresh (↻ + cost), with Freeze (icon only) under it */}
         <div className="ctl-col">
           <button className="ctlbtn" disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp || eotAnimating} onClick={() => dispatch({ type: 'roll' })}>
@@ -1434,19 +1466,7 @@ export function Recruit() {
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
         {/* The burn-down rope floats over the top of the warband (position:absolute) so it never
             shifts the row — the minions hold the same spot whether it's showing or not. */}
-        {!inCombat && seconds <= 15 && (
-          <div className="rope" title={`${seconds}s left`}>
-            <div className="rope-lit" style={{ width: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }} />
-            <div className="rope-flame" style={{ left: `${((15 - Math.max(0, seconds)) / 15) * 100}%` }}>
-              <span className="fl-glow" />
-              <span className="fl-body" />
-              <span className="fl-core" />
-              <span className="fl-ember" style={{ '--ex': '-6px', animationDelay: '0s' } as CSSProperties} />
-              <span className="fl-ember" style={{ '--ex': '5px', animationDelay: '0.33s' } as CSSProperties} />
-              <span className="fl-ember" style={{ '--ex': '-1px', animationDelay: '0.66s' } as CSSProperties} />
-            </div>
-          </div>
-        )}
+        {!inCombat && <TurnRope />}
         <div className="row warband">
           {inCombat ? (
             replay.frame.player.map((u) => (

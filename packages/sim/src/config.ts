@@ -12,9 +12,13 @@ export const CONFIG = {
   // Resolve (HP)
   startResolve: 30,
 
-  // PvE win condition: win the run by clearing this many rounds (a perfect run wins every one). A
-  // bounded climb. Was 20; shortened to 15 so the endgame doesn't drag. The per-wave stat scaling
-  // (`curve.statScalePerWave` below) is the *difficulty* dial — tune it by feel for the new length.
+  // PvE win condition: WIN this many combats to clear the run. A loss costs Resolve but the climb
+  // continues, so wins ≤ waves fought — you only win the run on the 15th *won* combat, not on reaching
+  // wave 15 (the old bug ended a non-perfect run at wave 15 regardless of record). The natural failure
+  // is Resolve hitting 0; the per-wave stat scaling (`curve.statScalePerWave`) is the difficulty dial.
+  winsToWin: 15,
+  // Wave horizon for the balance/curve tools (`npm run curve`) — the difficulty curve is reported over
+  // this many waves. NOT the win condition (see `winsToWin`); runs that lose some combats run longer.
   maxWave: 15,
 
   // Shop

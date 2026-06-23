@@ -324,48 +324,45 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    over the art + a strong, fairly fast pulsing outer halo — so a shielded unit is unmistakable on a busy
    board, not just softly lit. The card-level glow rides the arch (the compact card's own border-radius);
    the art border + inner glow give an always-on in-card signal that an outer glow alone lacked. */
-.card.compact.dscard { z-index: 4; box-shadow: 0 0 12px 3px rgba(255, 216, 96, 0.78), 0 0 24px 6px rgba(255, 196, 64, 0.38); animation: dsglow 2.6s ease-in-out infinite; }
+/* PERF: a STATIC halo lives on the card; the breathing PULSE is an opacity-only ::before overlay. The old
+   dsglow/rebornglow/venomglow keyframes animated box-shadow blur+spread, which forces a full repaint of the
+   card's bounding box + blur radius EVERY frame, on EVERY keyworded card — and Divine Shield is the canonical
+   Mech magnetic, so a magnetic-heavy board ran ~14 of these perpetual repaints at once, in combat too. Opacity
+   is compositor-only: the ::before (the bright halo) just fades in/out over the card's static dim halo. Zero
+   per-frame paint. (The recoloured .art frame + ward badge carry the keyword signal; the halo only breathes.) */
+.card.compact.dscard { z-index: 4; box-shadow: 0 0 10px 3px rgba(255, 216, 96, 0.58), 0 0 20px 5px rgba(255, 196, 64, 0.26); }
+.card.compact.dscard::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 14px 4px rgba(255, 222, 104, 0.8), 0 0 27px 7px rgba(255, 200, 70, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
 .card.compact.dscard .art { border-color: #ffd23a; }
 .card.compact.dscard .art::after {
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
   box-shadow: inset 0 0 0 2px rgba(255, 232, 150, 0.9), inset 0 0 18px 4px rgba(255, 196, 56, 0.92);
 }
-/* Gentle pulse — the recoloured frame + badge carry the signal; the halo just breathes a little. */
-@keyframes dsglow {
-  0%, 100% { box-shadow: 0 0 10px 3px rgba(255, 216, 96, 0.58), 0 0 20px 5px rgba(255, 196, 64, 0.26); }
-  50% { box-shadow: 0 0 14px 4px rgba(255, 222, 104, 0.8), 0 0 27px 7px rgba(255, 200, 70, 0.4); }
-}
 /* Reborn — the same unmistakable treatment in electric BLUE; in combat it drops the moment the minion
    Reborns (sheds the 'R' keyword), marking "still has its one revival left". The rising tears layer on top. */
-.card.compact.reborncard { z-index: 4; box-shadow: 0 0 12px 3px rgba(96, 170, 255, 0.78), 0 0 24px 6px rgba(64, 140, 240, 0.38); animation: rebornglow 2.6s ease-in-out infinite; }
+.card.compact.reborncard { z-index: 4; box-shadow: 0 0 10px 3px rgba(96, 170, 255, 0.58), 0 0 20px 5px rgba(64, 140, 240, 0.26); }
+.card.compact.reborncard::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 14px 4px rgba(110, 180, 255, 0.8), 0 0 27px 7px rgba(78, 150, 245, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
 .card.compact.reborncard .art { border-color: #5cc8ff; }
 .card.compact.reborncard .art::after {
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
   box-shadow: inset 0 0 0 2px rgba(165, 220, 255, 0.9), inset 0 0 18px 4px rgba(80, 170, 255, 0.92);
 }
-@keyframes rebornglow {
-  0%, 100% { box-shadow: 0 0 10px 3px rgba(96, 170, 255, 0.58), 0 0 20px 5px rgba(64, 140, 240, 0.26); }
-  50% { box-shadow: 0 0 14px 4px rgba(110, 180, 255, 0.8), 0 0 27px 7px rgba(78, 150, 245, 0.4); }
-}
 /* Venomous — the same unmistakable treatment in toxic LIME (the V keyword: any damage it deals kills). */
-.card.compact.venomcard { z-index: 4; box-shadow: 0 0 12px 3px rgba(150, 228, 52, 0.78), 0 0 24px 6px rgba(120, 200, 40, 0.38); animation: venomglow 2.6s ease-in-out infinite; }
+.card.compact.venomcard { z-index: 4; box-shadow: 0 0 10px 3px rgba(150, 228, 52, 0.58), 0 0 20px 5px rgba(120, 200, 40, 0.26); }
+.card.compact.venomcard::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 14px 4px rgba(168, 238, 70, 0.8), 0 0 27px 7px rgba(128, 208, 46, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
 .card.compact.venomcard .art { border-color: #a4e22a; }
 .card.compact.venomcard .art::after {
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
   box-shadow: inset 0 0 0 2px rgba(196, 245, 130, 0.9), inset 0 0 18px 4px rgba(140, 210, 40, 0.92);
 }
-@keyframes venomglow {
-  0%, 100% { box-shadow: 0 0 10px 3px rgba(150, 228, 52, 0.58), 0 0 20px 5px rgba(120, 200, 40, 0.26); }
-  50% { box-shadow: 0 0 14px 4px rgba(168, 238, 70, 0.8), 0 0 27px 7px rgba(128, 208, 46, 0.4); }
-}
+/* One shared opacity-only pulse for every keyword/triple glow ::before layer (compositor-only — no repaint). */
+@keyframes kwglow { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 
 /* Triple-ready: a tavern offer that completes a triple if bought — a bright gold pulsing glow (keeps
    the tribe ring) plus gold arrows floating up around it, so it shouts "buy me to combine". */
-.card.tripready { z-index: 5; box-shadow: 0 0 0 4px var(--c), 0 0 24px 6px rgba(255, 180, 40, 0.85), 0 3px 0 var(--shadow); animation: tripglow 1.15s ease-in-out infinite; }
-@keyframes tripglow {
-  0%, 100% { box-shadow: 0 0 0 4px var(--c), 0 0 20px 4px rgba(255, 178, 40, 0.62), 0 3px 0 var(--shadow); }
-  50% { box-shadow: 0 0 0 4px var(--c), 0 0 40px 12px rgba(255, 198, 80, 1), 0 3px 0 var(--shadow); }
-}
+/* Triple-ready: tribe ring + 3d edge stay static on the card; only the gold halo breathes, via an
+   opacity-only ::before (was an animated box-shadow → per-frame repaint). */
+.card.tripready { z-index: 5; box-shadow: 0 0 0 4px var(--c), 0 0 20px 4px rgba(255, 178, 40, 0.62), 0 3px 0 var(--shadow); }
+.card.tripready::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 40px 12px rgba(255, 198, 80, 1); animation: kwglow 1.15s ease-in-out infinite; will-change: opacity; }
 .triparrows { position: absolute; inset: 0; pointer-events: none; z-index: 26; overflow: visible; }
 .triparrows .ta { position: absolute; bottom: 7%; width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 14px solid #ffc23c; filter: drop-shadow(0 0 6px rgba(255, 185, 50, 0.95)); opacity: 0; animation: triparrow 1.3s ease-in-out infinite; }
 .triparrows .ta:nth-child(1) { left: 12%; animation-delay: 0s; }
@@ -587,15 +584,12 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .card.spellcard .ctype.spell { color: var(--t-demon); font-weight: 800; }
 /* Triple Reward — the triple/golden reward spell wears the golden frame + text box (like a tripled
    minion) and a bright, vibrant orange glow that pulses. Overrides the generic spell (purple) look. */
-.card.triplecard { z-index: 5; border-color: #e7b53d; background: color-mix(in srgb, #f4cf6a 22%, var(--card)); box-shadow: 0 0 0 2px #f4cf6a, 0 0 26px 6px rgba(255, 138, 30, 0.9), 0 3px 0 var(--shadow); animation: tripleglow 1.5s ease-in-out infinite; }
+.card.triplecard { z-index: 5; border-color: #e7b53d; background: color-mix(in srgb, #f4cf6a 22%, var(--card)); box-shadow: 0 0 0 2px #f4cf6a, 0 0 20px 4px rgba(255, 138, 30, 0.72), 0 3px 0 var(--shadow); }
+.card.triplecard::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 42px 13px rgba(255, 150, 42, 1); animation: kwglow 1.5s ease-in-out infinite; will-change: opacity; }
 .card.triplecard .art { background: color-mix(in srgb, #f4cf6a 34%, var(--card)); border-radius: 11px 11px 0 0; }
 .card.triplecard .cn { background: linear-gradient(180deg, #ffe9a6, #f1cb5e); color: #6e5008; box-shadow: 0 1px 3px rgba(120, 80, 10, 0.32); }
 .card.triplecard .cfoot { background: color-mix(in srgb, #f4cf6a 30%, var(--card)); }
 .card.triplecard .ctype.spell { color: var(--acc-dk); }
-@keyframes tripleglow {
-  0%, 100% { box-shadow: 0 0 0 2px #f4cf6a, 0 0 20px 4px rgba(255, 138, 30, 0.72), 0 3px 0 var(--shadow); }
-  50% { box-shadow: 0 0 0 2px #ffd87a, 0 0 42px 13px rgba(255, 150, 42, 1), 0 3px 0 var(--shadow); }
-}
 
 /* Discover overlay (triple reward) */
 .discover-ov { position: fixed; inset: 0; background: rgba(34, 22, 9, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 50; animation: fadein 0.2s ease; }
@@ -1103,7 +1097,20 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   72% { opacity: 1; transform: translate(-50%, calc(-50% + 22vh)) scale(0.78); }
   100% { opacity: 0; transform: translate(-50%, calc(-50% + 52vh)) scale(0.42); }
 }
-@media (prefers-reduced-motion: reduce) { .unit, .card, .sellfx { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  /* Honor the OS setting EVERYWHERE: near-instant durations (not `animation: none`, so end-states of
+     `forwards` animations + transforms still settle) on every element + pseudo. This catches the keyword
+     glow ::before layers AND every perpetual particle/pulse loop (Reborn tears, Venom drips, triple arrows,
+     orbiting orbs, button pulses) that the old three-selector rule missed — an accessibility win and a
+     paint-cost win on low-power machines. */
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  /* The glow ::before's pulse ends at opacity 0; pin it visible so a shielded/triple card still reads. */
+  .card::before { opacity: 1 !important; }
+}
 
 /* polish: keyboard focus, floating combat numbers, death pop */
 .card:focus-visible, .btn:focus-visible, .hero:focus-visible, .over .btn:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }

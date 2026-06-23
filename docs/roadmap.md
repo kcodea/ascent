@@ -197,9 +197,11 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       bounded climb (the win condition below + the meta-progression items here hang off it). **Async PvP**
       fights *snapshots* of other players' submitted boards (no live opponent); its progression is a
       ladder/rating, a separate track from the PvE unlock economy — design alongside, don't conflate.
-- [x] **PvE win condition.** `CONFIG.maxWave` (20): surviving the final wave → a `victory` phase + a
-      Victory screen ("Play Again" → picker); losing (Resolve 0) is still gameover. Bounds the old
-      "endless" framing for this iteration; `maxWave` will likely move to per-mode config.
+- [x] **PvE win condition — WIN 15 combats.** `CONFIG.winsToWin` (15): the run is won by *winning* 15
+      combats → a `victory` phase + screen; losing (Resolve 0) is gameover. A loss costs Resolve but the
+      climb continues, so wins ≤ waves fought. **Fixed 2026-06-23:** was `wave >= maxWave`, which wrongly
+      declared victory on *reaching* wave 15 regardless of record; `maxWave` is now just the balance-tools'
+      wave-reporting horizon. (Will likely move to per-mode config.)
 - [ ] Unlocks — cards / heroes gated by progression (heroes are now data, ready to gate). *(PvE)*
 - [ ] Ascension modifiers — escalating run-difficulty tiers. *(PvE)*
 - [ ] Daily seeds — shareable, deterministic runs (the engine already threads one seed everywhere).
@@ -220,6 +222,15 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 - [ ] **Fuller SFX coverage.** Sourced clips exist for sell + combat impact; the priority gaps (per
       `docs/sfx-events.md`) are still synth placeholders: Divine-Shield break, Start-of-Combat cast, poison
       kill, reborn, Fodder eat/chomp, magnetic weld.
+- [x] **Performance is the north star (2026-06-23 → devlog).** Two adversarial audit passes; fixed the
+      magnetic-board frame drop (animated `box-shadow` glows → opacity-only `::before` pulses), memoized
+      `Unit`, stopped deep-cloning `lastCombat`, killed the per-frame drag reflow, `decoding="async"` +
+      global `prefers-reduced-motion`. Added **`npm run perf`** (regression-tripwire harness) +
+      `docs/performance.md` (the headless + DevTools playbook). **Ongoing:** run `npm run perf` before/after
+      any engine/render-loop change; keep to the anti-patterns in `docs/performance.md`.
+- [ ] **Remaining low-pri perf cleanups** (audited, negligible today — do opportunistically): drop live
+      `drop-shadow`/animated `border-radius` from the Venom/triple-arrow/rope-flame particle loops; the dead
+      Reborn-particle block (no R-keyword card exists); narrow `StatusBar`'s whole-`run` subscription.
 - [ ] Tutorial / first-run onboarding.
 - [ ] Full accessibility + touch support.
 

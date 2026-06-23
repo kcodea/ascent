@@ -386,6 +386,12 @@ export function Recruit() {
   // during a spell drag: a spell doesn't open an insertion gap), so boardUidAt/shopUidAt hit-test
   // arithmetic instead of calling elementFromPoint every frame. Null outside a spell drag.
   const targetRectsRef = useRef<{ board: { uid: string; r: DOMRect }[]; shop: { uid: string; r: DOMRect }[] } | null>(null);
+  // Cached warband/shop insertion slots (resting left + width per card), populated at drag-start. The row
+  // CONTAINERS don't move during a drag — only the cards shift (via GSAP Flip) — so the insertion index can
+  // be counted against the cached resting midpoints instead of calling getBoundingClientRect on every card
+  // every frame. That live read was the last drag path still forcing a synchronous reflow per frame (a
+  // read-after-Flip-write thrash); arithmetic against the cache removes it. Null outside a drag.
+  const insertRectsRef = useRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[] } | null>(null);
   const timeUp = seconds <= 0; // turn timer expired: lock everything but End Turn
 
   const zoneAt = (x: number, y: number): Zone | null => {
@@ -414,7 +420,18 @@ export function Recruit() {
   // Insertion index in the warband, from the pointer's x against the cards' centres.
   // `excludeUid` drops the dragged card from the count when *reordering* a board minion
   // (it's still in the DOM, so without this a rightward drag overshoots by one).
+  // Count how many cached slot-midpoints the pointer x has passed (the insertion index).
+  const indexFromSlots = (slots: { uid: string; left: number; width: number }[], x: number, excludeUid?: string): number => {
+    let i = 0;
+    for (const c of slots) {
+      if (c.uid === excludeUid) continue;
+      if (x > c.left + c.width * INSERT_FRAC) i++;
+    }
+    return i;
+  };
   const warbandIndexAt = (x: number, excludeUid?: string): number => {
+    const cached = insertRectsRef.current;
+    if (cached) return indexFromSlots(cached.warband, x, excludeUid);
     const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]')];
     let i = 0;
     for (const c of cards) {
@@ -426,6 +443,8 @@ export function Recruit() {
   };
   // Insertion index among the shop's *minion* offers (the spell stays pinned at the end).
   const shopIndexAt = (x: number, excludeUid?: string): number => {
+    const cached = insertRectsRef.current;
+    if (cached) return indexFromSlots(cached.shop, x, excludeUid);
     const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .row .card[data-uid]')].filter(
       (c) => c.getAttribute('data-uid') !== run.spell?.uid,
     );
@@ -566,6 +585,19 @@ export function Recruit() {
             shop: drag.view.target === 'any' ? measureCards('[data-zone="tavern"] .card[data-uid]:not(.spellcard)') : [],
           }
         : null;
+    // Cache the resting insertion slots (left + width) for the reorder/magnetize gap, so warbandIndexAt/
+    // shopIndexAt count cached midpoints instead of forcing a getBoundingClientRect reflow every frame.
+    const measureSlots = (sel: string): { uid: string; left: number; width: number }[] =>
+      [...document.querySelectorAll<HTMLElement>(sel)]
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          return { uid: el.getAttribute('data-uid') ?? '', left: r.left, width: r.width };
+        })
+        .filter((c) => c.uid);
+    insertRectsRef.current = {
+      warband: measureSlots('[data-zone="warband"] .row .card[data-uid]'),
+      shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
+    };
     const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && y < wbTop;
     if (drag.source === 'board' && !drag.view.spell) setSellTop(wbTop);
     if (drag.source === 'shop') setBuyTop(wbTop);
@@ -670,6 +702,7 @@ export function Recruit() {
     return () => {
       if (moveRaf) cancelAnimationFrame(moveRaf);
       targetRectsRef.current = null;
+      insertRectsRef.current = null;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);

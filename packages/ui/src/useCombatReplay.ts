@@ -37,6 +37,10 @@ interface Float {
   kind: string;
 }
 
+/** Shared empty array for float-less units, so their `floats` prop keeps a stable reference across
+ *  beats and the memoized Unit can skip re-rendering them (a fresh `[]` each render would defeat it). */
+const EMPTY_FLOATS: Float[] = [];
+
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
@@ -603,7 +607,19 @@ export function useCombatReplay(
     const line = narrate(events[i]!, names);
     if (line) { log = line; break; }
   }
-  const floatsFor = (uid: string): Float[] => floats.filter((f) => f.uid === uid);
+  // Bucket the current floats by uid ONCE (memoized on `floats`), handing each unit a stable array
+  // reference — float-less units share EMPTY_FLOATS — so the memoized Unit only re-renders the units
+  // whose floats actually changed this beat, instead of all ~14 on every render.
+  const floatsByUid = useMemo(() => {
+    const m = new Map<string, Float[]>();
+    for (const f of floats) {
+      const arr = m.get(f.uid);
+      if (arr) arr.push(f);
+      else m.set(f.uid, [f]);
+    }
+    return m;
+  }, [floats]);
+  const floatsFor = (uid: string): Float[] => floatsByUid.get(uid) ?? EMPTY_FLOATS;
   const fullLog = useMemo(
     () => events.map((e) => narrateLog(e, names)).filter((l): l is { text: string; kind: string } => l !== null),
     [events, names],

@@ -5,6 +5,56 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Performance north star: glow repaint fix + render-cost audit + `npm run perf` · win = 15 WON combats · Front to Back improve scales
+
+**Performance is now the project's stated north star** (CLAUDE.md + new `docs/performance.md`): the game must
+feel snappy at all times; a frame drop is a defect. Two adversarially-verified audit passes (a UI-render pass
+and a cross-app pass — ~40 candidate findings, 19 confirmed) drove the fixes below.
+
+- **The frame-drop culprit (magnetic-heavy boards): animated `box-shadow` glows.** `dsglow`/`rebornglow`/
+  `venomglow`/`tripglow`/`tripleglow` animated box-shadow **blur+spread** on an infinite loop, forcing a full
+  repaint of each glowing card every frame. Divine Shield is the canonical Mech magnetic, so "tons of magnetics"
+  = a board of `.dscard` cards each repainting 60×/sec, *during the combat replay too* (shared `.card`). Fix:
+  the card keeps a **static** halo; the breathing pulse moved to an **opacity-only `::before`** layer
+  (`@keyframes kwglow`, `will-change: opacity`) — compositor-only, zero per-frame repaint. Verified live: a
+  shielded card's `::before` runs `kwglow` and no longer paint-flashes at rest.
+- **Combat re-render: memoized `Unit`.** `Unit` wasn't `React.memo`'d and rebuilt a fresh `view` object each
+  render, so all ~14 units reconciled every beat. Now `React.memo` with a **value** comparator (the combat
+  frame rebuilds fresh `UnitFrame`s each beat, so reference compare misses), and `floatsFor` hands out a shared
+  `EMPTY_FLOATS` for float-less units so their prop stays referentially stable. Only changed units re-render.
+- **Reducer: stop deep-cloning the event log.** `reduce()` `structuredClone`d the whole `RunState` — including
+  `lastCombat` (the entire prior fight's event log) — on every dispatch, though the reducer never mutates it.
+  Now `lastCombat` is shared by reference; the per-dispatch clone drops ~80–90%. `npm run perf` confirms a
+  populated-`lastCombat` dispatch stays ~0.014ms.
+- **Drag: killed the last per-frame reflow.** `warbandIndexAt`/`shopIndexAt` called `getBoundingClientRect` in
+  the render body every drag frame (a read-after-Flip-write thrash) — the one drag path not yet on the cached-
+  rect pattern. Now the resting slot left/width are cached once per drag in `insertRectsRef` (live-DOM fallback
+  kept).
+- **Cheap wins:** `decoding="async"` on card art (off-frame webp decode on rerolls); global
+  `prefers-reduced-motion` rule (was 3 selectors → now `*` near-instants every loop, incl. the glow `::before`
+  and particle layers — accessibility + paint win). Confirmed false positives left alone (backdrop-filter
+  re-blur, `computeFrame` O(events²) measured at ~0.01ms, stable Zustand selectors).
+- **Monitoring: `npm run perf`** (`packages/tools/src/perf.ts`) — times `simulate()` across board archetypes
+  (incl. a keyword-heavy 7v7 "tons of magnetics"), `reduce()` per dispatch with a populated `lastCombat`, and
+  full greedy-bot runs, each with a regression-tripwire budget; exits non-zero on an algorithmic regression.
+  `docs/performance.md` documents the harness + the manual DevTools render-profiling routine (Performance panel,
+  Paint flashing, Layers, FPS) we run together, + the anti-patterns.
+
+- **Win condition fixed: 15 WON combats, not 15 waves reached.** Victory checked `s.wave >= CONFIG.maxWave`, so
+  a non-perfect run (some losses — a loss costs Resolve but the climb continues) wrongly ended in victory at
+  wave 15. Now it counts wins in `history` against new `CONFIG.winsToWin` (15); `maxWave` is repurposed as the
+  balance-tools' wave-reporting horizon. The natural failure is Resolve hitting 0. Rewrote the PvE-win tests to
+  be wins-based (victory decoupled from wave; reaching the horizon with fewer wins keeps climbing).
+- **Front to Back: "Improve this by" now scales with spell power.** The card shows both the live grant (base 2 +
+  accumulated escalation + spell power) **and** the per-cast improvement (base step 2 + spell power) — both
+  greened when boosted; only the grant takes escalation. With +1 spell power the card reads
+  "Give a minion +3/+3. Improve this by +3/+3" (matching the in-game screenshot). `spellDisplayText` now
+  substitutes both `+N/+N` slots via a counted regex; tests exact-match both.
+
+- Verified: `typecheck` + `lint` clean, **279** tests pass, `npm run perf` all within budget; live in the
+  preview (recruit + combat render, units animate, glow `::before` pulses, combat→recruit advance after a loss,
+  no console errors).
+
 ### Smack on contact (frame-accurate) · lunge 1.15 · volume slider + level pass
 
 - **The smack now lands exactly on connection.** Root cause: the impact sound fired from a React beat-effect

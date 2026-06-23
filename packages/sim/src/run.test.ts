@@ -994,9 +994,16 @@ describe('run loop (@game/sim)', () => {
     const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
     expect(s.frontToBackBonus).toBe(2); // the tally still climbs by exactly 2
-    // The card always shows its live grant: base 2 + accumulated escalation + spell power.
-    expect(spellDisplayText('fronttoback', 0, 0)).toContain('+2/+2'); // base — no boost yet
-    expect(spellDisplayText('fronttoback', 1, 2)).toContain('{{+5/+5}}'); // 2 + escalation 2 + spell power 1
+    // The card shows BOTH the live grant (base 2 + accumulated escalation + spell power) AND the per-cast
+    // improvement (base step 2 + spell power). Both slots scale with spell power; only the grant scales
+    // with escalation. A slot is greened only when it's actually above its printed base.
+    expect(spellDisplayText('fronttoback', 0, 0)).toBe('Give a minion **+2/+2**. Improve this by **+2/+2**.'); // base — no boost
+    // +1 spell power, no escalation (the in-game screenshot): grant 2+0+1=3, improve 2+1=3 — both green.
+    expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **{{+3/+3}}**.');
+    // Escalated (+2) AND +1 power: grant 2+2+1=5; improve does NOT take escalation, only power → 2+1=3.
+    expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **{{+3/+3}}**.');
+    // Escalated only (+4), no power: grant 2+4=6 green; improve stays the printed +2/+2 (power-only).
+    expect(spellDisplayText('fronttoback', 0, 4)).toBe('Give a minion **{{+6/+6}}**. Improve this by **+2/+2**.');
   });
 
   it('Mana Font raises max Mana permanently but does NOT refill current Mana', () => {
@@ -2072,33 +2079,35 @@ describe('hero powers (@game/sim)', () => {
 });
 
 describe('PvE win condition (@game/sim)', () => {
-  // High Resolve so the player survives whatever the wave throws (isolates the wave-cap logic
-  // from the combat outcome) — then fight one combat and check where the run lands.
-  const fightOnce = (wave: number): RunState => {
-    let s: RunState = { ...createRun(1), wave, resolve: 100, maxResolve: 100 };
-    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid });
-    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    s = reduce(s, { type: 'faceOmen' });
-    return reduce(s, { type: 'resolveCombat' });
-  };
+  // The run is won by WINNING `winsToWin` combats — not by reaching a wave cap. Drive a settled combat
+  // of a known result without simulating: craft lastCombat + dispatch resolveCombat (which settles +
+  // runs the terminal check). High Resolve so a loss survives and the run keeps climbing.
+  const winShell: CombatResult = { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+  const loseShell: CombatResult = { ...winShell, result: 'lose', playerDamage: 3 };
+  const resolveWith = (over: Partial<RunState>, last: CombatResult): RunState =>
+    reduce({ ...createRun(1), resolve: 100, maxResolve: 100, phase: 'combat', combatSettled: false, lastCombat: last, ...over }, { type: 'resolveCombat' });
 
-  it('surviving the final wave (maxWave) ends the run in victory', () => {
-    const s = fightOnce(CONFIG.maxWave);
+  it('victory triggers on the Nth WON combat, decoupled from the wave', () => {
+    // 14 prior wins banked; the 15th win ends the run in victory — even at an early wave.
+    const s = resolveWith({ wave: 6, history: Array(CONFIG.winsToWin - 1).fill('win') }, winShell);
     expect(s.phase).toBe('victory');
-    expect(s.wave).toBe(CONFIG.maxWave); // did not advance past the cap
   });
 
-  it('does not declare victory before the final wave', () => {
-    const s = fightOnce(CONFIG.maxWave - 1);
-    expect(s.phase).toBe('recruit'); // survived → advance, not victory
-    expect(s.wave).toBe(CONFIG.maxWave);
+  it('does NOT win the run by merely reaching the wave horizon with fewer wins (the bug)', () => {
+    // At the wave horizon with only a few wins: a loss here survives (Resolve > 0) and the climb
+    // continues PAST the horizon — it is NOT a wave-cap victory.
+    const s = resolveWith({ wave: CONFIG.maxWave, history: ['win', 'lose', 'win'] }, loseShell);
+    expect(s.phase).toBe('recruit');
+    expect(s.wave).toBe(CONFIG.maxWave + 1); // climbs past the horizon, no auto-win
   });
 
-  it('losing the final wave (Resolve to 0) is a game over, not a victory', () => {
-    // 1 Resolve + an empty board at the cap → the wave breaks through → game over.
-    let s: RunState = { ...createRun(1), wave: CONFIG.maxWave, resolve: 1, maxResolve: 1 };
-    s = reduce(s, { type: 'faceOmen' });
-    s = reduce(s, { type: 'resolveCombat' });
+  it('the 14th win advances to the next wave, not yet victory', () => {
+    const s = resolveWith({ wave: 14, history: Array(CONFIG.winsToWin - 2).fill('win') }, winShell);
+    expect(s.phase).toBe('recruit');
+  });
+
+  it('losing with Resolve to 0 is a game over, regardless of wins so far', () => {
+    const s = resolveWith({ wave: 8, resolve: 1, maxResolve: 1, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 5 });
     expect(s.phase).toBe('gameover');
   });
 });

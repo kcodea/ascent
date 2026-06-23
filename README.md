@@ -23,6 +23,15 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Performance pass (the north star).** Fixed the frame drops on magnetic-heavy boards — the keyword glows
+  (Divine Shield / Reborn / Venom / triple) were animating `box-shadow`, repainting every card every frame;
+  they now pulse an opacity-only layer (compositor-only). Plus a memoized combat unit, no more deep-cloning the
+  combat log each click, and a drag-reflow fix. New **`npm run perf`** harness + [docs/performance.md](docs/performance.md)
+  to catch regressions. Performance is now a stated project north star.
+- **Win the run by winning 15 combats** (not by reaching wave 15) — a loss costs Resolve but the climb
+  continues, so a non-perfect run keeps going until it banks 15 wins or runs out of Resolve.
+- **Front to Back** now shows its per-cast improvement scaling with spell power too (e.g. "+3/+3. Improve this
+  by +3/+3" at +1 spell power).
 - **Smack on contact + a volume slider.** The combat impact now sounds off **exactly when the attacker
   connects** — it's fired from the attack lunge's animation timeline (frame-accurate) instead of the beat
   clock, which had it trailing the visual. The lunge also overdrives further into the target. Settings → Audio

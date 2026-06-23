@@ -5,6 +5,25 @@ ever-rising curve of **threat-typed** enemy boards. Survive as long as you can; 
 survived. Endless ascension, **bounded engine** (6 tiers, gold cap 10, board 7), threat telegraph
 before each shop.
 
+## Performance is the north star
+
+**The game must feel snappy at ALL times — this is fundamental to the feel of play, above all else.**
+Treat a frame drop, a shop hitch, or drag stutter as a *defect*, not a polish item. When a change could
+cost performance, **measure it before shipping** (`npm run perf` for engine/logic; Chrome DevTools for
+render/paint). The full playbook — the headless harness, the manual render-profiling routine we run
+together, and the established anti-patterns — lives in [`docs/performance.md`](docs/performance.md). The
+load-bearing rules:
+
+- **Never animate paint properties in a loop** (`box-shadow`, `filter`, `drop-shadow`, `background`,
+  `border-radius`) — they repaint every frame. Animate `transform`/`opacity` only (compositor-only). For a
+  breathing glow, animate the **opacity** of a `::before` with a *static* shadow (see `kwglow` in `styles.css`).
+- **Don't read layout (`getBoundingClientRect`) per frame** — cache it once per drag (see `insertRectsRef`).
+- **Memoize per-beat/per-frame list items** (`Unit` is `React.memo`'d with a value comparator) and keep their
+  props referentially stable.
+- **Don't deep-clone large read-only state** (the reducer shares `lastCombat` by reference).
+- Always confirm a "slow" report against the **prod build**, not `npm run dev` (StrictMode + Vite dev are
+  much slower than what players run).
+
 ## Working with the user
 
 **Ask clarifying questions whenever a direction is confusing or you're unsure what's wanted for a

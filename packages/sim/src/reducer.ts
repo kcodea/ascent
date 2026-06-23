@@ -61,7 +61,13 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
 export function reduce(state: RunState, action: Action): RunState {
   // A finished run (loss or victory) takes no more actions — restart goes through the store.
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
-  const s: RunState = structuredClone(state);
+  // PERF: `lastCombat` is a large read-only result (the whole prior fight's event log + initial board
+  // snapshots) that the reducer never mutates in place — it only ever REPLACES the reference (faceOmen).
+  // So deep-clone everything ELSE and share lastCombat by reference, dropping ~80–90% of the per-dispatch
+  // clone cost (otherwise every recruit click re-cloned the entire event graph for nothing).
+  const { lastCombat, ...rest } = state;
+  const s = structuredClone(rest) as RunState;
+  s.lastCombat = lastCombat;
 
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
   if (s.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
@@ -741,9 +747,12 @@ function advanceCombat(s: RunState): void {
     return;
   }
 
-  // PvE win condition (current iteration): survive the final wave → the run ends in victory
-  // (don't advance past it). `s.wave` is still the wave just fought here.
-  if (s.wave >= CONFIG.maxWave) {
+  // PvE win condition: WIN `winsToWin` combats. `settleCombat` already pushed this combat's result to
+  // history, so the just-fought win is counted here — the run ends in victory the moment the 15th win
+  // lands, at whatever wave that is. (A loss costs Resolve but keeps climbing, so you can reach wave 15
+  // with fewer than 15 wins and must keep going; the old `wave >= maxWave` check wrongly ended there.)
+  const wins = s.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0);
+  if (wins >= CONFIG.winsToWin) {
     s.best = Math.max(s.best, s.wave);
     s.phase = 'victory';
     return;

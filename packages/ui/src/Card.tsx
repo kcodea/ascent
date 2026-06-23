@@ -297,7 +297,7 @@ export const Card = memo(function Card({
       <div className="archbox">
         <div className="art">
           {artUrl ? (
-            <img className="artimg" src={artUrl} alt="" draggable={false} />
+            <img className="artimg" src={artUrl} alt="" draggable={false} decoding="async" />
           ) : (
             <Sprite name={spriteForTribe(card.tribe)} scale={5} />
           )}

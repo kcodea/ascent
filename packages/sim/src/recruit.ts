@@ -985,15 +985,25 @@ export function spellHealthBonus(state: RunState): number {
 export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
-  // Front to Back (escalating): always show the live grant — base + accumulated escalation + spell
-  // power (per stat) — highlighted (green) once it's actually above its printed base.
+  // Front to Back (escalating): the printed text carries TWO "+B/+B" groups — the GRANT (slot 0) and the
+  // per-cast IMPROVEMENT (slot 1). The grant = base + accumulated escalation + spell power. The improvement
+  // is the escalation step (= base) and ALSO picks up spell power, so both numbers scale together and read
+  // consistently. Each slot is highlighted (green) only once it's actually above its printed base.
   const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
   if (esc) {
-    const base = Number((esc.params as { attack?: number } | undefined)?.attack ?? 2);
-    if (escalation + bonusA <= 0 && escalation + bonusH <= 0) return def.text;
-    const va = base + escalation + bonusA;
-    const vh = base + escalation + bonusH;
-    return def.text.replace(`+${base}/+${base}`, `{{+${va}/+${vh}}}`);
+    let slot = 0;
+    return def.text.replace(/\+(\d+)\/\+(\d+)/g, (m, a: string, h: string) => {
+      const na = Number(a);
+      const nh = Number(h);
+      if (slot++ === 0) {
+        const va = na + escalation + bonusA;
+        const vh = nh + escalation + bonusH;
+        return escalation + bonusA > 0 || escalation + bonusH > 0 ? `{{+${va}/+${vh}}}` : m;
+      }
+      const ia = na + bonusA;
+      const ih = nh + bonusH;
+      return bonusA > 0 || bonusH > 0 ? `{{+${ia}/+${ih}}}` : m;
+    });
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
   // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).

@@ -80,7 +80,7 @@ tribeschoice,Tribes Choice,2,,,2,,Get a random minion of the targeted minion's t
 lasso,Lasso,3,,,2,,Steal a random minion from the tavern.,
 shatter,Shatter,3,,,1,,"Give a minion **+2/+4** and **Taunt**. If it already has Taunt, remove it instead.",
 staffofguel,Staff of Guel,3,,,2,,Every minion you **buy** gets **+2/+2** for the rest of the game.,
-fronttoback,Front to Back,4,,,1,,Give a minion **+2/+2**.,
+fronttoback,Front to Back,4,,,1,,Give a minion **+2/+2**. Improve this by **+2/+2**.,
 growth,Growth,4,,,2,,Give your minions **+3/+4**.,
 helpwanted,Help Wanted,4,,,3,,**Discover** a Battlecry minion.,
 lanternofsouls,Lantern of Souls,4,,,2,,Your **Undead** get **+3 Attack** everywhere — even in the shop — for the rest of the game.,

@@ -209,11 +209,17 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## M4 — juice & onboarding
 
-- [ ] Pacing polish, audio, VFX. _(Ongoing — recently: referenced-card hover popups (see the token a
-      card creates / your current Fodder), sequenced per-card End-of-Turn telegraph with Chronos repeats
-      + per-card FX (Ritualist shop wash, Combinator electrify), ornate Discover frame, Reborn/Venomous
-      particle FX, Triple Reward glow, tribe-coloured card frames — body wash + outlined art + white
-      text box (dual = split frame/edge).)_
+- [ ] Pacing polish, audio, VFX. _(Ongoing — recently: first **sourced SFX** (random sell1–4 + combat
+      smack, Web-Audio sample player + synth fallback), a **master-volume slider** + mute in Settings →
+      Audio (persisted, scales every sound), the combat **smack fired frame-accurately from the attack
+      lunge** (lands on contact, not the beat clock) with a longer/overdriven lunge; referenced-card hover
+      popups (see the token a card creates / your current Fodder), sequenced per-card End-of-Turn telegraph
+      with Chronos repeats + per-card FX (Ritualist shop wash, Combinator electrify), ornate Discover frame,
+      Reborn/Venomous particle FX, Triple Reward glow, tribe-coloured card frames — body wash + outlined art
+      + white text box (dual = split frame/edge).)_
+- [ ] **Fuller SFX coverage.** Sourced clips exist for sell + combat impact; the priority gaps (per
+      `docs/sfx-events.md`) are still synth placeholders: Divine-Shield break, Start-of-Combat cast, poison
+      kill, reborn, Fodder eat/chomp, magnetic weld.
 - [ ] Tutorial / first-run onboarding.
 - [ ] Full accessibility + touch support.
 

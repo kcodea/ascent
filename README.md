@@ -23,6 +23,13 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Smack on contact + a volume slider.** The combat impact now sounds off **exactly when the attacker
+  connects** — it's fired from the attack lunge's animation timeline (frame-accurate) instead of the beat
+  clock, which had it trailing the visual. The lunge also overdrives further into the target. Settings → Audio
+  now has a **master-volume slider** + mute (persisted, scales every sound); the combat smack and sell clips
+  were dialed down.
+- **First sourced sound effects.** Real audio clips now play for **selling a minion** (one of four at random)
+  and the **combat impact** (a "smack"), via a Web-Audio sample player (synth blips remain the fallback).
 - **Combat feel + hero-power UI.** Attacks are punchier (longer wind-up, faster strike); the hero-power button
   is bigger and the hero frame's golden outline is gone (the button is the highlight now), with a hero-power
   art pipeline ready (`art/powers/`). Hovering the hero shows your current spell buff. Fixed a cosmetic Cassen

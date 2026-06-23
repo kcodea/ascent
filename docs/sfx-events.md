@@ -5,7 +5,9 @@ it **currently has SFX**. Most SFX are still tiny synthesized Web-Audio blips (`
 placeholders to be replaced — **except sourced clips now wired**: `sell` (one of `sell1–4` at random) and the
 combat `hit`/impact (`smack`), loaded from `packages/ui/src/audio/*.mp3` (decoded to AudioBuffers; the synth is
 the fallback until decode completes). To add more: drop an mp3 in `audio/` and call `playSample('<name>')` at
-the event site (synth fallback optional). Muting persists; one sound per notable event per beat.
+the event site (synth fallback optional). Muting + a **master volume** (Settings → Audio slider, persisted to
+`ascent.vol`, scales every sound) both persist; one sound per notable event per beat. The combat `hit`/smack is
+fired frame-accurately from the attack lunge's GSAP timeline (so it lands on contact), not from the beat clock.
 
 Combat plays as a **beat replay** (`packages/ui/src/useCombatReplay.ts`): each beat is an action (or a run of
 result events) shown for a fixed length, then the next beat. Durations below are the beat length = base `DELAY` ×

@@ -13,6 +13,26 @@ let muted = (() => {
     return false;
   }
 })();
+// Master volume (0–1) — a global multiplier on every sound, set by the Settings slider, persisted.
+let masterVol = (() => {
+  try {
+    const v = parseFloat(localStorage.getItem('ascent.vol') ?? '1');
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1;
+  } catch {
+    return 1;
+  }
+})();
+export function getVolume(): number {
+  return masterVol;
+}
+export function setVolume(v: number): void {
+  masterVol = Math.min(1, Math.max(0, v));
+  try {
+    localStorage.setItem('ascent.vol', String(masterVol));
+  } catch {
+    /* ignore */
+  }
+}
 
 function audio(): AudioContext | null {
   try {
@@ -61,7 +81,7 @@ function playSample(name: string, vol = 0.6): boolean {
   const src = a.createBufferSource();
   src.buffer = buf;
   const g = a.createGain();
-  g.gain.value = vol;
+  g.gain.value = vol * masterVol;
   src.connect(g).connect(a.destination);
   src.start();
   return true;
@@ -86,7 +106,7 @@ function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0 }: Tone
   osc.frequency.setValueAtTime(freq, t0);
   if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t0 + dur);
   gain.gain.setValueAtTime(0, t0);
-  gain.gain.linearRampToValueAtTime(vol, t0 + 0.008);
+  gain.gain.linearRampToValueAtTime(Math.max(0.0001, vol * masterVol), t0 + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   osc.connect(gain).connect(a.destination);
   osc.start(t0);
@@ -110,7 +130,7 @@ export const sfx = {
   play: () => tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150 }),
   sell: () => {
     // One of the 4 sourced sell clips at random (sell1–sell4); synth blip until they finish decoding.
-    if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, 0.6)) return;
+    if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, 0.51)) return;
     tone({ freq: 700, dur: 0.07, type: 'square', vol: 0.09 });
     tone({ freq: 1040, dur: 0.11, type: 'square', vol: 0.07, delay: 0.06 });
   },
@@ -123,9 +143,10 @@ export const sfx = {
   tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09 }),
   combatStart: () => tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90 }),
   attack: () => tone({ freq: 320, dur: 0.08, type: 'sawtooth', vol: 0.1, slideTo: 130 }),
-  // Impact in combat — the sourced "Smack" clip; synth thud until it finishes decoding.
+  // Impact in combat — the sourced "Smack" clip (dialed down across passes); synth thud until it decodes.
+  // Fired frame-accurately from the lunge's GSAP timeline (see playAttackLunge) so it lands on contact.
   hit: () => {
-    if (playSample('smack', 0.7)) return;
+    if (playSample('smack', 0.39)) return;
     tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80 });
   },
   death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48 }),

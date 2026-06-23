@@ -114,8 +114,9 @@ function computeFrame(
 // (higher = slower; 1.5 is ~25% slower than the previous 1.2).
 const SPEED = 1.5;
 const DELAY: Record<string, number> = {
-  // action beats (the wind-up / cast)
-  attack: 340, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820,
+  // action beats (the wind-up / cast). `attack` is tuned so the RESULT beat (smack sound + damage floats +
+  // recoil) lands right at the lunge's connection (~330ms = windup 0.2s + strike 0.13s, × SPEED), not after.
+  attack: 220, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820,
   // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
@@ -136,8 +137,8 @@ const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'venomLost'
 
 /** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
  *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
- *  overshoot. `dx`/`dy` is the full attacker→defender vector; the strike covers ~90% of it so the
- *  attacker drives INTO the defender and they visibly overlap/connect on contact. GSAP owns the attacker's
+ *  overshoot. `dx`/`dy` is the full attacker→defender vector; the strike covers ~100% of it so the
+ *  attacker drives all the way into the defender — a full connecting hit. GSAP owns the attacker's
  *  transform for the whole lunge — React renders no transform on combat units, so they never fight. */
 function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number): void {
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
@@ -145,8 +146,12 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
   gsap
     .timeline({ onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }) })
     .to(attacker, { x: -dx * 0.14, y: -dy * 0.14, rotation: -5, duration: 0.2, ease: 'power1.out' })  // wind up (slightly longer + a touch deeper → more anticipation)
-    .to(attacker, { x: dx * 0.9, y: dy * 0.9, rotation: 0, duration: 0.13, ease: 'power3.in' })        // strike (drives into the target → they overlap/connect on the smack)
+    .to(attacker, { x: dx * 1.15, y: dy * 1.15, rotation: 0, duration: 0.13, ease: 'power3.in' })       // strike (overdrives into the target → a full, overlapping connecting hit)
     .add(() => {
+      // Smack lands HERE — frame-accurate at the moment of contact. The beat-driven sfx (a React
+      // effect ~2 frames behind setBeatIdx) ran late and drifted further as the lunge grew; firing
+      // from GSAP's timeline closes that gap so the impact sounds off exactly on connection.
+      sfx.hit();
       if (!defender) return; // onHit: the struck minion knocks back harder along the blow, then recovers
       gsap.killTweensOf(defender);
       gsap.fromTo(defender, { x: 0, y: 0 }, {
@@ -405,7 +410,7 @@ export function useCombatReplay(
   // Buff events are *summed per target* so a multi-proc deathrattle (e.g. Grim re-procced by
   // Sylus for +18/+18) shows one correct "+18/+18" per minion, not three "+6/+6".
   useEffect(() => {
-    if (beatIdx === 0) return;
+    if (!active || beatIdx === 0) return; // only during the live replay — not on a stale beat at a phase swap
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     const spawned: Float[] = [];
@@ -430,13 +435,17 @@ export function useCombatReplay(
     const ids = new Set(spawned.map((s) => s.id));
     const t = window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS);
     return () => window.clearTimeout(t);
-  }, [beatIdx, beats, events]);
+  }, [active, beatIdx, beats, events]);
 
   // Combat SFX — one sound per notable event type in the beat just resolved.
   useEffect(() => {
-    if (beatIdx === 0) return;
-    const beat = beats[beatIdx - 1];
+    if (!active || beatIdx === 0) return; // only during the live replay — fixes a phantom "smack" at the next
+    const beat = beats[beatIdx - 1];      // shop phase, when new beats swap in while beatIdx is briefly stale
     if (!beat) return;
+    // If this result beat was caused by an attack, the lunge's GSAP timeline already fired the smack
+    // at the exact contact frame — skip the (later) beat-driven one here so attacks don't double-hit.
+    // Non-attack damage (SC AOE, poison, deathrattle) has no lunge, so it still gets its smack below.
+    const fromAttack = beats[beatIdx - 2]?.primary.type === 'attack';
     const done2 = new Set<string>();
     const once = (k: string, fn: () => void): void => {
       if (!done2.has(k)) { done2.add(k); fn(); }
@@ -446,13 +455,13 @@ export function useCombatReplay(
       const e = events[i];
       if (!e) continue;
       if (e.type === 'attack') once('attack', sfx.attack);
-      else if (e.type === 'dmg') once('hit', sfx.hit);
+      else if (e.type === 'dmg') { if (!fromAttack) once('hit', sfx.hit); }
       else if (e.type === 'death') { once('death', sfx.death); kill = true; }
       else if (e.type === 'shieldUp') once('shield', sfx.shield);
       else if (e.type === 'buff') once('buff', sfx.buff);
     }
     if (kill) setShake((n) => n + 1); // a death shakes the board (hit-stop feel)
-  }, [beatIdx, beats, events]);
+  }, [active, beatIdx, beats, events]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {

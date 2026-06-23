@@ -1368,6 +1368,14 @@ svg { width: 18px; height: 18px; }
 .escpanel .esch { font-weight: 800; font-size: 28px; color: var(--ink); text-align: center; }
 .escsec { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
 .escres { display: grid; gap: 8px; }
+/* Audio: a labeled master-volume slider above the mute toggle. */
+.escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
+.escvol .evl { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }
+.escvol .evv { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.escvol input[type='range'] { flex: 1; height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
+.escvol input[type='range']:disabled { opacity: 0.4; cursor: default; }
+.escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
 .escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); cursor: pointer; text-align: left; }
 .escbtn:hover { border-color: var(--acc); }
 .escbtn.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); box-shadow: inset 0 0 0 1px var(--acc); }

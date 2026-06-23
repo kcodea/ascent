@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Smack on contact (frame-accurate) · lunge 1.15 · volume slider + level pass
+
+- **The smack now lands exactly on connection.** Root cause: the impact sound fired from a React beat-effect
+  that runs ~2 frames *behind* `setBeatIdx`, while the lunge is frame-accurate GSAP — so the smack always
+  trailed the visual, and the gap widened as the lunge grew longer. Moved `sfx.hit()` into the lunge's GSAP
+  timeline (`playAttackLunge`'s impact `.add()` callback in `useCombatReplay.ts`), so it's emitted on the exact
+  contact frame. To avoid a double-hit, the beat-driven smack is now **skipped when the damage came from an
+  attack** (`fromAttack = beats[beatIdx-2]?.primary.type === 'attack'`) but still fires for non-attack damage
+  (Start-of-Combat AOE, poison, deathrattle) — which has no lunge of its own.
+- **Lunge strike 0.9 → 1.15** of the attacker→defender gap: the attacker now overdrives all the way into the
+  target for a fuller, overlapping connect. `DELAY.attack` 340 → **220** so the result beat (damage floats +
+  recoil) keeps landing in step with the (now earlier) GSAP contact.
+- **Master volume slider** (was never present — the only audio control was the HUD mute speaker, which sits
+  behind the enemy "NEXT" frame top-right). Added `masterVol` to `sfx.ts` (0–1, persisted to `ascent.vol`,
+  multiplies every sound — both the synth `tone()` gain and the sourced `playSample()` gain) with
+  `getVolume`/`setVolume` exports, and an **Audio** section at the top of the Settings (Esc) modal: a styled
+  range slider + a mute toggle that disables the slider and reads "Off". A modal nothing can obscure.
+- **Levels dialed down:** combat smack 0.7 → **0.39**, sell clips 0.6 → **0.51**.
+- **Phantom-smack guard.** Gated the combat float + SFX beat-effects on `active` (live replay only), so a stale
+  beat at the recruit↔combat phase swap can no longer fire a ghost smack/float.
+- Verified: 278 tests, typecheck + lint clean; live in the preview — the slider drives volume and persists
+  (`ascent.vol`), muting disables the slider + shows "Off", Settings modal renders the Audio section above
+  Cards/Display, no console errors.
+
 ### Sourced SFX (sell + combat smack) + attacks overlap on contact
 
 - **First sourced sound effects wired.** Added a Web-Audio sample player to `sfx.ts` (`import.meta.glob`'d

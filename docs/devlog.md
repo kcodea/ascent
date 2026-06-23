@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Drag/reorder FLIP → GSAP Flip plugin (slide *during* the drag, not after the drop)
+- Replaced the hand-rolled FLIP (~35 lines of manual measure/invert/CSS-transition in a `useLayoutEffect`)
+  with GSAP's **Flip** plugin (already on gsap 3.15; `gsap/Flip` is free + bundled, registered once at module
+  scope). `flipStateRef` holds the layout state captured before each change; `Flip.from` animates every card
+  from there to its freshly-committed spot — batched reads, GPU transforms, native interruption handling.
+- **Re-enabled the during-drag gap animation** (`flipKey` carries the drop-slot index again), so cards slide
+  as the gap moves and a reposition resolves *while dragging* instead of snapping then animating after the
+  drop (the reported "swap happens after I drop it"). The hand-rolled FLIP couldn't do this — it stormed on
+  rapid gap moves (the "card dancing"); GSAP blends interruptions, so it stays smooth.
+- Freshly bought/played cards pop in (cardpop) rather than sliding from nowhere (not in the prior state);
+  sold cards just leave. Verified: typecheck + lint clean; `gsap/Flip` resolves at runtime (Flip.js present);
+  recruit renders clean; a shop reroll runs `Flip.from` with no error or displacement. Drag *feel* is the
+  user's call to confirm.
+
 ### Drop Reborn from Grave Knit
 - Per the user: Grave Knit (`knit`) is no longer Reborn by default (`keywords: []`); the global death-buff
   stays. The Lantern-Reborn test now grants `['R']` inline (the other two Reborn tests already did). 271 tests.

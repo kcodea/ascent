@@ -7,9 +7,15 @@ import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import gsap from 'gsap';
+import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
+
+gsap.registerPlugin(Flip);
+
+// Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
+const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]';
 
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
@@ -355,7 +361,7 @@ export function Recruit() {
     }
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
-  const flipRef = useRef<Map<string, number>>(new Map());
+  const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   // Cached board/shop card rects for spell targeting — populated at drag-start (the board is static
@@ -960,52 +966,24 @@ export function Recruit() {
       ? warbandIndexAt(dragCx, drag!.source === 'board' ? drag!.uid : undefined)
       : -1;
   const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
-  // FLIP key tracks only row *composition + order* (uids), NOT the live drop-slot index. Sliding every
-  // card on each gap move during a drag re-measured the whole row and restarted a 0.2s animation per
-  // frame — that read as "card dancing" and stuttered. The drop slot now moves instantly (snappy); the
-  // FLIP animates only discrete changes: buy / play / sell / summon / reposition / lift-out.
+  // FLIP key tracks row composition + order AND the live drop-slot index, so cards slide smoothly *as the
+  // gap moves during a drag* (not just on drop). GSAP Flip animates this robustly — it reads in a batch,
+  // uses GPU transforms, and blends interruptions natively, so rapid gap moves don't storm the way the old
+  // hand-rolled FLIP did (which is why that one had to be limited to discrete changes).
   const flipKey =
-    displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' +
-    displayBoard.map((m) => m.uid).join(',');
+    displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
+    displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
 
-  // FLIP: slide shop + warband cards from their old spots to new ones when either row changes
-  // (buy / play / sell / summon / reposition / lift-out). Both rows are tracked so a lifted-out
-  // card closes the gap.
+  // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* run (the
+  // cards' old spots); after React commits the new order, `Flip.from` animates each card from there to its
+  // fresh spot. Newly-mounted cards (a freshly bought/played card) aren't in the prior state, so they pop
+  // in (cardpop) instead of sliding from nowhere; removed cards (sold) just leave. GSAP clears its own
+  // transforms on complete and manages interruptions, so a fast drag blends rather than flinging cards.
   useLayoutEffect(() => {
-    const cards = [
-      ...document.querySelectorAll<HTMLElement>(
-        '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]',
-      ),
-    ];
-    // Drop any in-flight FLIP first, so we measure each card's *true* layout position
-    // and not an interpolated transform — otherwise rapid drags compound the deltas and
-    // fling cards off-screen.
-    for (const el of cards) {
-      el.style.transition = 'none';
-      el.style.transform = '';
+    if (flipStateRef.current) {
+      Flip.from(flipStateRef.current, { duration: 0.28, ease: 'power2.out' });
     }
-    const next = new Map<string, number>();
-    const moved: HTMLElement[] = [];
-    for (const el of cards) {
-      const id = el.getAttribute('data-uid');
-      if (!id) continue;
-      const left = el.getBoundingClientRect().left; // natural left (transform cleared above)
-      next.set(id, left);
-      const prev = flipRef.current.get(id);
-      if (prev !== undefined && Math.abs(prev - left) > 1) {
-        el.style.transform = `translateX(${prev - left}px)`; // invert to the old spot
-        moved.push(el);
-      }
-    }
-    flipRef.current = next;
-    if (moved.length > 0) {
-      requestAnimationFrame(() => {
-        for (const el of moved) {
-          el.style.transition = 'transform 0.2s ease';
-          el.style.transform = '';
-        }
-      });
-    }
+    flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).

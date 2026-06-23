@@ -136,21 +136,21 @@ const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'venomLost'
 
 /** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
  *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
- *  overshoot. `dx`/`dy` is the full attacker→defender vector; the strike covers ~55% of it so the
- *  attacker taps the defender's edge rather than sliding over its badges. GSAP owns the attacker's
- *  transform for the whole lunge — React renders no transform on combat units, so they never fight. */
+ *  overshoot. `dx`/`dy` is the full attacker→defender vector; the strike covers ~75% of it so the
+ *  attacker drives INTO the defender (a real "smack") rather than stopping short at its edge. GSAP owns the
+ *  attacker's transform for the whole lunge — React renders no transform on combat units, so they never fight. */
 function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number): void {
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
   gsap
     .timeline({ onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }) })
     .to(attacker, { x: -dx * 0.14, y: -dy * 0.14, rotation: -5, duration: 0.2, ease: 'power1.out' })  // wind up (slightly longer + a touch deeper → more anticipation)
-    .to(attacker, { x: dx * 0.55, y: dy * 0.55, rotation: 0, duration: 0.13, ease: 'power3.in' })      // strike (faster → punchier snap)
+    .to(attacker, { x: dx * 0.75, y: dy * 0.75, rotation: 0, duration: 0.13, ease: 'power3.in' })      // strike (drives into the target → punchy smack)
     .add(() => {
-      if (!defender) return; // onHit: the struck minion knocks back along the blow, then recovers
+      if (!defender) return; // onHit: the struck minion knocks back harder along the blow, then recovers
       gsap.killTweensOf(defender);
       gsap.fromTo(defender, { x: 0, y: 0 }, {
-        x: dx * 0.09, y: dy * 0.09, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out',
+        x: dx * 0.14, y: dy * 0.14, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out',
         onComplete: () => gsap.set(defender, { clearProps: 'transform' }),
       });
     })

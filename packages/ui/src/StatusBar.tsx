@@ -120,24 +120,23 @@ export function StatusBar() {
             <div className="nm">{hero.name}</div>
             <div className="pw">{powerLine}</div>
           </div>
-          {/* Hero-power button — the ONLY trigger for the power (clicking the frame does nothing). Placeholder
-              glyph for now; an untargeted power fires on click, a targeted one arms (then aim on the board). */}
-          {!isPassive && (
-            <button
-              type="button"
-              className={`heropowerbtn${heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
-              disabled={!canHero && !heroArmed}
-              aria-label={`${power.name} — ${power.text}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!canHero || heroArmed) return;
-                if (power.untargeted) dispatch({ type: 'heroPower' });
-                else armHero();
-              }}
-            >
-              {heroPowerArt(hero.id) ? <img src={heroPowerArt(hero.id)} alt="" draggable={false} /> : <Icon name="sc" />}
-            </button>
-          )}
+          {/* Hero-power button — the ONLY trigger for an active power (clicking the frame does nothing). A PASSIVE
+              hero still gets the button (so every hero shows its power art) but it doesn't glow + isn't clickable.
+              Placeholder glyph for now; an untargeted power fires on click, a targeted one arms (then aim). */}
+          <button
+            type="button"
+            className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
+            disabled={isPassive || (!canHero && !heroArmed)}
+            aria-label={`${power.name} — ${power.text}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isPassive || !canHero || heroArmed) return;
+              if (power.untargeted) dispatch({ type: 'heroPower' });
+              else armHero();
+            }}
+          >
+            {heroPowerArt(hero.id) ? <img src={heroPowerArt(hero.id)} alt="" draggable={false} /> : <Icon name="sc" />}
+          </button>
           <div className="herotip" role="tooltip">
             <b>{power.name}</b> — {power.text}
             {powerNote}

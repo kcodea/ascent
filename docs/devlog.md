@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Attack "smack" + passive-hero power button
+
+- **Attacks drive into the target.** The lunge strike covered ~55% of the attacker→defender gap (it stopped
+  short at the edge); bumped to **~75%** so the attacker drives into the defender for a real smack, and the
+  defender knockback on impact 0.09 → **0.14** so the hit reads harder.
+- **Passive heroes get a power button too.** Rohan / Cassen / Drakko now show the hero-power button (so every
+  hero displays its power art slot) — but it's **disabled and never glows** (no ready pulse / armed glow), with
+  the game's non-action cursor, since there's nothing to activate. Active powers still pulse when ready; an
+  active power on cooldown still dims (passive stays full opacity — it's always on, just not clickable).
+- Verified live (passive button renders static + disabled; combat smack plays; no console errors).
+
 ### Combat feel + hero-power UI: punchier attacks · Cassen counter fix · spell-buff tooltip · bigger power button · SFX inventory
 
 - **Punchier attacks.** `playAttackLunge` windup 0.16s → **0.20s** (more anticipation, a touch deeper pull-back)

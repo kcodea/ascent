@@ -199,7 +199,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .heropowerbtn svg { width: 52%; height: 52%; color: #fff; }
 .heropowerbtn.ready { animation: endpulse 0.9s ease-in-out infinite; box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 18px -2px var(--acc); }
 .heropowerbtn.armed { box-shadow: 0 0 0 4px var(--acc), 0 0 22px 2px var(--acc); }
-.heropowerbtn:not(.ready):not(.armed) { opacity: 0.5; filter: saturate(0.75); }
+/* An ACTIVE power that's on cooldown / unaffordable dims; a PASSIVE hero's button stays full (it's always on,
+   just not clickable) but never glows — so every hero shows its power art, only active ones pulse. */
+.heropowerbtn:not(.ready):not(.armed):not(.passive) { opacity: 0.5; filter: saturate(0.75); }
+.heropowerbtn.passive { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */
 .tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }

@@ -17,7 +17,7 @@ const player: BoardMinion[] = [
 
 const enemy: BoardMinion[] = [
   { cardId: 'sandbag', attack: 0, health: 4 },
-  { cardId: 'razor', attack: 4, health: 4 },
+  { cardId: 'cleric', attack: 4, health: 4 },
   { cardId: 'pack', attack: 2, health: 2 },
   { cardId: 'alley', attack: 1, health: 1 },
 ];

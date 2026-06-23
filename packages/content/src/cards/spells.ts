@@ -210,7 +210,7 @@ export const SPELLS: CardDef[] = [
     cost: 1,
     target: 'any',
     effects: [{ on: 'cast', do: 'spellBuffTargetEscalating' }],
-    text: 'Give a minion **+2/+2**. Each **Front to Back** you cast gives **+2/+2 more**.',
+    text: 'Give a minion **+2/+2**.',
   },
   {
     // Discover a Battlecry minion (filtered Discover via the reducer's play path).

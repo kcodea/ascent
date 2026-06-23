@@ -49,17 +49,6 @@ export const DRAGONS: CardDef[] = [
     goldenText: '**Battlecry:** give your spells **+2 Health**.',
   },
   {
-    id: 'razor',
-    name: 'Razorscale Warlord',
-    tribe: 'dragon',
-    tier: 4,
-    attack: 4,
-    health: 4,
-    keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 1 } }],
-    text: '**Battlecry:** give your Dragons +2/+1.',
-  },
-  {
     id: 'weaver',
     name: 'Arcane Weaver',
     tribe: 'dragon',

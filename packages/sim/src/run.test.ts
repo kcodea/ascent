@@ -1276,7 +1276,7 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('Discover adds the chosen card to the hand and clears the offer', () => {
-    let s: RunState = { ...createRun(1), hand: [], discover: ['whelp', 'cleric', 'razor'] };
+    let s: RunState = { ...createRun(1), hand: [], discover: ['whelp', 'cleric', 'weaver'] };
     s = reduce(s, { type: 'discover', index: 1 });
     expect(s.hand.some((c) => c.cardId === 'cleric')).toBe(true);
     expect(s.discover).toBeUndefined();
@@ -2271,7 +2271,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
       hand: [
         { uid: 'f1', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }, // Battlecry: add Fodder
         { uid: 'f2', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false }, // Battlecry: buff Dragons
-        { uid: 'f3', cardId: 'razor', tribe: 'dragon', attack: 4, health: 4, keywords: [], golden: false }, // Battlecry: buff Dragons
+        { uid: 'f3', cardId: 'cleric', tribe: 'dragon', attack: 4, health: 4, keywords: [], golden: false }, // Battlecry: buff Dragons (2nd cleric)
       ],
     };
     s = reduce(s, { type: 'play', uid: 'f1' });

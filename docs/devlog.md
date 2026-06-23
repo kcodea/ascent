@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Front to Back text + remove Razorscale Warlord + ease the drag FLIP
+- **Front to Back** dropped the redundant "Each Front to Back you cast gives +2/+2 more" note — the grant
+  already renders the live scaled value (base + escalation + per-stat spell power) in green, so the sentence
+  was noise. Text is now just "Give a minion **+2/+2**" (which `spellDisplayText` substitutes with the scaled
+  `{{+A/+B}}`).
+- **Removed Razorscale Warlord** (`razor`, Dragon T4). Repointed its generic references: the combat tests +
+  harness used it as a vanilla 4/4 → `sandbag`/`cleric`; the discover-filler → `weaver`; the Bane test's 3rd
+  Battlecry minion → a 2nd `cleric` (keeps 3 battlecries → Fodder +3/+3). (The user wrote "Warden"; the card
+  was "Warlord" — flagged.)
+- **Eased the GSAP Flip** drag/reorder animation: `0.28s power2.out` → **`0.42s power3.out`** — gentler, less
+  aggressive landing as a card settles onto the board. A one-line knob to tune further.
+- 271 tests + determinism harness green; dev preview clean on HMR.
+
 ### Drag/reorder FLIP → GSAP Flip plugin (slide *during* the drag, not after the drop)
 - Replaced the hand-rolled FLIP (~35 lines of manual measure/invert/CSS-transition in a `useLayoutEffect`)
   with GSAP's **Flip** plugin (already on gsap 3.15; `gsap/Flip` is free + bundled, registered once at module

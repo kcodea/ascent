@@ -981,7 +981,7 @@ export function Recruit() {
   // transforms on complete and manages interruptions, so a fast drag blends rather than flinging cards.
   useLayoutEffect(() => {
     if (flipStateRef.current) {
-      Flip.from(flipStateRef.current, { duration: 0.28, ease: 'power2.out' });
+      Flip.from(flipStateRef.current, { duration: 0.42, ease: 'power3.out' });
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);

@@ -13,7 +13,7 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'gnash', attack: 6, health: 6 },
     ];
     const e: BoardMinion[] = [
-      { cardId: 'razor', attack: 4, health: 4 },
+      { cardId: 'sandbag', attack: 4, health: 4 },
       { cardId: 'pack', attack: 2, health: 2 },
       { cardId: 'alley', attack: 1, health: 1 },
     ];
@@ -800,7 +800,7 @@ describe('simulate (handoff A.3)', () => {
     // into its slot. The resummon must land AFTER combat starts (deferred), not at Start of Combat.
     const fragile: BoardMinion[] = Array.from({ length: 6 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }));
     const player: BoardMinion[] = [{ cardId: 'pack', attack: 1, health: 1, resummon: true }, ...fragile];
-    const r = run(player, [{ cardId: 'razor', attack: 3, health: 80 }], 4);
+    const r = run(player, [{ cardId: 'sandbag', attack: 3, health: 80 }], 4);
     const firstAttackIdx = r.events.findIndex((e) => e.type === 'attack');
     const packSummonIdx = r.events.findIndex((e) => e.type === 'summon' && e.minion.cardId === 'pack');
     expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length).toBeGreaterThanOrEqual(1);
@@ -818,7 +818,7 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'pack', attack: 8, health: 8, golden: true, sourceUid: 'pack' },
       ...filler,
     ];
-    const r = run(player, [{ cardId: 'razor', attack: 8, health: 80 }], 3);
+    const r = run(player, [{ cardId: 'sandbag', attack: 8, health: 80 }], 3);
     expect(r.playerPermaBuffs).toBeDefined();
     expect(r.playerPermaBuffs!.length).toBeGreaterThan(0);
     for (const b of r.playerPermaBuffs!) {

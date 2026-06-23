@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Two gameplay fixes: tavern buffs feed Fodder (Staff of Guel) + conjure spells check for triples
+- **Staff of Guel now also buffs Fodder.** Its effect (`spellBuffShop`) set the run-wide tavern-buy bonus
+  (`tavernBuyBonus`) but skipped Fodder — which is never *bought*, it's *eaten* — so a Demon engine got nothing
+  from it. Now `spellBuffShop` also enchants the Fodder card type run-wide via `buffFodderRunWide` (same +A/+B,
+  spell power folded in), exactly like Ritualist's End-of-Turn enchant: every Fodder from any source (tavern,
+  Soulfeeder, conjure) carries it, Fodder already out gets it immediately, and Demons eat the bigger stats.
+  To avoid double-applying on the rare *directly-bought* Fodder (cardBuff already holds the Staff buff), the
+  reducer's buy path and `shopView`'s offer display both skip the `tavernBuyBonus` fold for `FD` cards. (Staff
+  of Guel is the only run-wide tavern buff; Ritualist already fed Fodder — so "tavern buffs feed Fodder" holds.)
+- **Conjure spells now complete triples.** The reducer's spell-cast branch returned without calling
+  `checkTriples`, so a spell that *hands you minions* — Undead Army (2 copies of a random Undead), Summon Stone —
+  could give you a 3rd copy that never combined into a golden. Added `checkTriples(s)` after the cast resolves
+  (a no-op when there's no triple), so conjured copies combine just like a buy / play / Discover does.
+- Tests: +2 (Staff of Guel → Fodder enchant + no-double-on-buy; Undead Army completing a triple). **273 green**,
+  typecheck + lint clean.
+
 ### Drag feel: real "size pop" cause found (drop-slot width) + hand lift-out + quicker snap + EOT banner
 - **The "cards take more space" on pick-up was real — and the cause was the drop-slot, not the lifted card.**
   Rendered shop/warband/hand cards are `.card.compact` sized to `--ccw` (`= --cw * 0.85`), but `.dropslot`

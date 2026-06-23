@@ -1123,6 +1123,42 @@ describe('run loop (@game/sim)', () => {
     expect([disc.attack, disc.health]).toEqual([0, 4]); // Target Dummy base, unbuffed
   });
 
+  it('Staff of Guel also enchants Fodder run-wide (Demons eat bigger Fodder); no double on a bought Fodder', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 4,
+      board: [{ uid: 'bf', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false }],
+      shop: [{ uid: 'f', cardId: 'fred' }],
+      hand: [{ uid: 'sp', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    // The Fodder type is enchanted run-wide (+2/+2), like Ritualist's End-of-Turn buff…
+    expect(s.cardBuffs?.fred).toEqual({ attack: 2, health: 2 });
+    // …and Fodder already on the board gets it immediately.
+    const onBoard = s.board.find((c) => c.cardId === 'fred')!;
+    expect([onBoard.attack, onBoard.health]).toEqual([3, 3]);
+    // Buying a Fodder applies the Staff buff ONCE (via the enchant), not twice.
+    s = reduce(s, { type: 'buy', uid: 'f' });
+    const bought = s.hand.find((c) => c.cardId === 'fred')!;
+    expect([bought.attack, bought.health]).toEqual([3, 3]); // 1/1 + 2/2, not +4/+4
+  });
+
+  it('Undead Army completes a triple (its conjured copies are checked, not just minion plays)', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 3, embers: 0, board: [],
+      tribes: ['undead'],
+      pool: { skullblade: 5 }, // the only buyable Undead → Undead Army deterministically conjures 2 Skullblades
+      hand: [
+        { uid: 'k', cardId: 'skullblade', tribe: 'undead', attack: 5, health: 1, keywords: [], golden: false },
+        { uid: 'sp', cardId: 'undeadarmy', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    // 1 in hand + 2 conjured = 3 → combine into one golden Skullblade, no stragglers left.
+    const all = [...s.hand, ...s.board];
+    expect(all.find((c) => c.cardId === 'skullblade' && c.golden)).toBeDefined();
+    expect(all.filter((c) => c.cardId === 'skullblade' && !c.golden)).toHaveLength(0);
+  });
+
   it('Sprout Discovers a Tier 1 minion; Help Wanted Discovers a Battlecry minion', () => {
     const sprout = castOnBoard('sprout', []);
     expect(sprout.discover).toBeDefined();

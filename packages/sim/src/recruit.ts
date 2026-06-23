@@ -747,8 +747,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  on (not Discovered/conjured cards). Stacks if recast and picks up spell power on both stats. The
    *  shop UI folds it onto each offer; the buy bakes it into the minion. */
   spellBuffShop: (ctx, _self, params) => {
-    ctx.state.tavernBuyBonus.atk += num(params.attack, 2) + spellAttackBonus(ctx.state);
-    ctx.state.tavernBuyBonus.hp += num(params.health, 2) + spellHealthBonus(ctx.state);
+    const a = num(params.attack, 2) + spellAttackBonus(ctx.state);
+    const h = num(params.health, 2) + spellHealthBonus(ctx.state);
+    ctx.state.tavernBuyBonus.atk += a;
+    ctx.state.tavernBuyBonus.hp += h;
+    // Tavern buffs feed Fodder too — enchant the Fodder type run-wide (like Ritualist), so Demons
+    // eating Fodder, and any Fodder you take, carry the Staff's buff. A directly-bought Fodder gets it
+    // through this enchant, not the buy-buff (the buy path + shop view skip FD to avoid double-applying).
+    buffFodderRunWide(ctx.state, a, h, 'Staff of Guel');
   },
 
   /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)

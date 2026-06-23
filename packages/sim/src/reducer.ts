@@ -118,7 +118,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
       addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
       // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
-      if (s.tavernBuyBonus.atk || s.tavernBuyBonus.hp) {
+      // Fodder is excluded: it already carries the Staff buff via its run-wide enchant (cardBuff above),
+      // so applying it again here would double it on the rare directly-bought Fodder.
+      if ((s.tavernBuyBonus.atk || s.tavernBuyBonus.hp) && !card.keywords.includes('FD')) {
         addBuff(bought, 'Staff of Guel', s.tavernBuyBonus.atk, s.tavernBuyBonus.hp);
       }
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
@@ -196,6 +198,8 @@ function reduceCore(state: RunState, action: Action): RunState {
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
         s.hand.splice(i, 1);
+        // A spell that conjures minions (Undead Army, Summon Stone) can hand you a 3rd copy — combine it.
+        checkTriples(s);
         return s;
       }
 

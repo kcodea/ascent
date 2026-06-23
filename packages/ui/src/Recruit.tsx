@@ -76,8 +76,13 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   // Undead — so a buffed offer reads its new stats (green) and carries the baked ones in when bought.
   const cb = opts.cardBuffs?.[c.id] ?? { attack: 0, health: 0 };
   const undead = c.tribe === 'undead' || c.tribe2 === 'undead';
-  const addAtk = (card.atk ?? 0) + cb.attack + (opts.tavernAtk ?? 0) + (undead ? opts.undeadAtk ?? 0 : 0);
-  const addHp = (card.hp ?? 0) + cb.health + (opts.tavernHp ?? 0) + (undead ? opts.undeadHp ?? 0 : 0);
+  // Fodder carries Staff of Guel through its run-wide enchant (cb), not the buy-buff, so don't fold the
+  // tavern-buy bonus onto a Fodder offer too (the reducer's buy path skips it the same way).
+  const fodder = c.keywords.includes('FD');
+  const tavernAtk = fodder ? 0 : opts.tavernAtk ?? 0;
+  const tavernHp = fodder ? 0 : opts.tavernHp ?? 0;
+  const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + (undead ? opts.undeadAtk ?? 0 : 0);
+  const addHp = (card.hp ?? 0) + cb.health + tavernHp + (undead ? opts.undeadHp ?? 0 : 0);
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: c.attack + addAtk, health: c.health + addHp,

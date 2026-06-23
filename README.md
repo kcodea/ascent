@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Tavern buffs feed Fodder + conjure spells triple.** Staff of Guel now also enchants your Fodder run-wide
+  (so Demons eat bigger Fodder), matching Ritualist. And a spell that hands you minions (Undead Army, Summon
+  Stone) now checks for a triple — a conjured 3rd copy combines into a golden like a buy/play does.
 - **Drag feel — the "size pop" fixed.** Picking a card up shoved its neighbours because the live drop-slot
   was sized to the *base* card width (`--cw`), 17.6% wider than the actual compact cards (`--ccw`); the slot is
   now the card's exact box, so nothing shifts. The dragged hand card is fully lifted out (no faint "ghost"

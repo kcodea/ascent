@@ -5,6 +5,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Drag FLIP: split the easing — gentle glide while dragging, snappy settle on drop
+- The during-drag side-to-side felt janky sharing one ease with the landing. `Flip.from` now branches on
+  `dragRef.current?.active`: a **live drag** uses `0.25s / power2.out` (smooth side-to-side tracking under the
+  cursor); a **committed change** (drop / play / buy / sell) uses `0.18s / power2.out` (snappy settle).
+
 ### Front to Back text + remove Razorscale Warlord + ease the drag FLIP
 - **Front to Back** dropped the redundant "Each Front to Back you cast gives +2/+2 more" note — the grant
   already renders the live scaled value (base + escalation + per-stat spell power) in green, so the sentence

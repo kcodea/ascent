@@ -981,7 +981,13 @@ export function Recruit() {
   // transforms on complete and manages interruptions, so a fast drag blends rather than flinging cards.
   useLayoutEffect(() => {
     if (flipStateRef.current) {
-      Flip.from(flipStateRef.current, { duration: 0.42, ease: 'power3.out' });
+      // Two feels: while a drag is live, the warband cards slide aside under the cursor — a slightly-eased
+      // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
+      // settles snappy.
+      Flip.from(
+        flipStateRef.current,
+        dragRef.current?.active ? { duration: 0.25, ease: 'power2.out' } : { duration: 0.18, ease: 'power2.out' },
+      );
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);

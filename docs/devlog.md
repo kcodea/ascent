@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Balance patch v1: Yazzus targeted-only · remove Corrupted Lifebinder · 15-round win
+First pass on the owner's balance list (the "tractable trio"; the deeper T1–4 + decision-diversity work is
+deferred — see `docs/balance-handoff.md` §9).
+- **Yazzus → aimed spells only.** It doubled *every* spell, including economy/utility/Discover — degenerate.
+  A new `spellCasts(state, def)` gates the multiplier on `def.target` being set: only spells you aim at a
+  minion (Spirit Fire, Shatter, Front to Back, Aresmar, Tribes Choice…) cast twice (3× golden); untargeted
+  spells (Growth, Mana Pouch, Sprout, Help Wanted…) always cast once. Wired through the reducer cast path,
+  the Sprout/Help Wanted Discover paths (no longer Yazzus-multiplied), and the UI cast-spark replay. Card
+  text → "Your **targeted** spells cast twice."
+- **Removed Corrupted Lifebinder + the entire linked-mirror system.** Cut the card (content + zod schema)
+  and every trace of the mirror: `linkUid`/`linkBase`/`linkApplied` (core `BoardMinion`/`Minion`/
+  `MinionSnapshot` + sim `BoardCard`), the combat `mirrorLink` + the start-of-combat linkUid remap
+  (`simulate.ts`), the `battlecryLinkDemon` factory + `syncLifebinders` (`recruit.ts`) and its two reducer
+  calls, and `minion.ts`'s linkUid pass-through. The `reduce()` wrapper (whose only job was the post-action
+  sync) collapsed into `reduceCore`. Swingy payoff + a fragile system (the same machinery that sat next to
+  the recent crash hunt). (Art asset + README art-table row left in place, harmless.)
+- **Curve → 15-round win.** `CONFIG.maxWave` 20 → 15: you win the run by clearing round 15 (a perfect run
+  wins all 15). Cuts the drag, and the shorter arc lowers the finale's stat peak. Left `curve.statScalePerWave`
+  (0.16) as the difficulty dial to tune by feel for the new length.
+- Tests: rewrote the Yazzus tests (Help Wanted no longer multiplied; the resolve-twice test now uses Spirit
+  Fire; added an untargeted-Growth exclusion) and removed the 9 Lifebinder tests. **265 green**, typecheck +
+  lint clean.
+
 ### Fix the End-Turn hard lock (stale combat-replay beat index) + add a render error boundary
 - **Symptom:** late-game (waves 7 & 10, two consecutive runs) the game hard-locked — End Turn did nothing,
   the board frozen. **Root cause:** `useCombatReplay`'s `processedEnd = beats[beatIdx - 1]!.end`. `beatIdx`

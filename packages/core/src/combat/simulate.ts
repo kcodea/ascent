@@ -77,25 +77,6 @@ export function simulate(
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
   let enemyDeaths = 0;
 
-  // Corrupted Lifebinder: `linkUid` arrives as the linked board card's uid — remap it to that minion's
-  // fresh combat uid (matched via sourceUid) so mid-fight buffs on the demon can find their mirror.
-  for (const side of ['player', 'enemy'] as const) {
-    for (const m of boards[side]) {
-      if (m.linkUid) m.linkUid = boards[side].find((x) => x.sourceUid === m.linkUid)?.uid;
-    }
-  }
-  /** Lifebinder mirror: anyone linked to `target` gains the same buff (source-guarded so the mirror
-   *  buff doesn't itself re-mirror, and so the UI shows it as a distinct gain on the Lifebinder). */
-  function mirrorLink(target: Minion, attack: number, health: number): void {
-    for (const m of boards[target.side]) {
-      // A golden Lifebinder mirrors *double* its partner's mid-combat gains.
-      if (!m.dead && m.linkUid === target.uid) {
-        const mul = m.golden ? 2 : 1;
-        ctx.buff(m, attack * mul, health * mul, 'Lifebinder');
-      }
-    }
-  }
-
   const snapshot = (m: Minion): MinionSnapshot => ({
     uid: m.uid,
     cardId: m.cardId,
@@ -140,7 +121,6 @@ export function simulate(
           health: (target.permaGain?.health ?? 0) + health,
         };
       }
-      if (source !== 'Lifebinder') mirrorLink(target, attack, health); // Corrupted Lifebinder follows along
     },
     addTribeAura: (side, tribe, attack, health, source) => {
       tribeAuras.push({ side, tribe, attack, health, source });

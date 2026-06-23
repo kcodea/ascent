@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCastMult, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
@@ -732,7 +732,8 @@ export function Recruit() {
   // auto-resolves on the carry in the reducer, so the play is never stranded.
   const pendingTarget = run.pendingTarget;
   // Which board minions are valid picks for the pending targeted Battlecry — all friends for an
-  // unrestricted pick (Toxin Tender), or only the required tribe (and never self) for Lifebinder.
+  // unrestricted pick (no targetTribe), or only the required tribe (never self) for a restricted one
+  // (Toxin Tender → Undead).
   const isPendingTarget = (uid: string): boolean => {
     if (!pendingTarget) return false;
     const def = CARD_INDEX[pendingTarget.cardId];
@@ -746,8 +747,8 @@ export function Recruit() {
       setAim(null);
       return;
     }
-    // A tribe-restricted Battlecry (Lifebinder → a friendly Demon, never self) only accepts matching
-    // targets; an unrestricted one (Toxin Tender) accepts any friendly minion.
+    // A tribe-restricted Battlecry (Toxin Tender → a friendly Undead, never self) only accepts matching
+    // targets; an unrestricted one (no targetTribe) accepts any friendly minion.
     const def = CARD_INDEX[pendingTarget.cardId];
     const valid = (uid: string): boolean => {
       if (!def?.targetTribe) return true;
@@ -1103,10 +1104,11 @@ export function Recruit() {
       fireSpark(r.left + r.width / 2, r.top + r.height / 2);
     } else fireSpark(fx, fy);
   };
-  // Yazzus replays the cast: fire the spell's spark once per resolution (2× / 3× when golden), staggered,
-  // so a doubled cast visibly procs more than once. Reads the live board (a Yazzus on it sets the count).
-  const castSparks = (fn: () => void): void => {
-    const n = spellCastMult(useGame.getState().run);
+  // Yazzus replays the cast: fire the spell's spark once per resolution (2× / 3× when golden — AIMED
+  // spells only, matching `spellCasts`), staggered, so a doubled cast visibly procs more than once.
+  const castSparks = (fn: () => void, cardId: string): void => {
+    const def = CARD_INDEX[cardId];
+    const n = def ? spellCasts(useGame.getState().run, def) : 1;
     fn();
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
@@ -1164,12 +1166,12 @@ export function Recruit() {
           return true;
         }
         dispatch({ type: 'play', uid: d.uid, targetUid });
-        castSparks(() => sparkAtUid(targetUid, x, y)); // spark bursts on the minion it hit — once per cast (Yazzus)
+        castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId); // spark per cast (Yazzus, aimed)
         return true;
       }
       if (up) {
         dispatch({ type: 'play', uid: d.uid });
-        castSparks(() => fireSpark(x, y));
+        castSparks(() => fireSpark(x, y), d.view.cardId);
         return true;
       }
       return false;

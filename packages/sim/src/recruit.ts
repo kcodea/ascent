@@ -136,6 +136,18 @@ export function spellCastMult(state: RunState): number {
 }
 
 /**
+ * How many times a spell's effect resolves on cast. Yazzus (2, or 3 if golden) multiplies ONLY
+ * *aimed* spells — those with a `target` (Spirit Fire, Shatter, Front to Back, Aresmar, Tribes
+ * Choice…). Untargeted economy/utility/Discover spells (Growth, Mana Pouch, Sprout, Help Wanted…)
+ * always resolve once. `singleCast` spells (Channeling the Devourer) never multiply. Read by the
+ * reducer's cast path and the UI's cast-spark replay.
+ */
+export function spellCasts(state: RunState, def: CardDef): number {
+  if (def.singleCast || !def.target) return 1;
+  return spellCastMult(state);
+}
+
+/**
  * Total bonus max-mana-per-turn the board currently grants (Money Bot, or a Mech it magnetized
  * into). Each card contributes its def's `manaPerTurn` (×2 if golden) plus any absorbed `manaBonus`.
  * Summed fresh from the board each turn, so selling the source removes its income.
@@ -504,16 +516,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack, 3) * gold(self);
     const h = num(params.health, 3) * gold(self);
     for (const m of picks) addBuff(m, nameOf(self), a, h);
-  },
-
-  /** Corrupted Lifebinder: bind to the chosen friendly Demon (never self). From then on the recruit
-   *  sync (`syncLifebinders`) + the combat simulator mirror that Demon's stat gains onto this card. */
-  battlecryLinkDemon: (_ctx, self, _params, payload) => {
-    const target = payload.target;
-    if (!target || target === self || !isTribe(target, 'demon')) return; // dual-types (Bane) are valid Demons
-    self.linkUid = target.uid;
-    self.linkBase = { attack: target.attack, health: target.health };
-    self.linkApplied = { attack: 0, health: 0 };
   },
 
   /** End of Turn: buff self (+atk/+hp) when the recruit turn ends. */
@@ -1128,7 +1130,7 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
  * Myra's hero power: re-fire a friendly minion's Battlecry (its `onPlay` effects) right now —
  * honoring Drakko repeats + Karwind, exactly as a fresh play would. Targeted Battlecries re-fire
  * with no explicit target, so their auto-pick fallback chooses (Toxin Tender → the best friend);
- * a Battlecry that strictly needs a player target (Corrupted Lifebinder) simply no-ops, and a
+ * a targeted Battlecry with no eligible friend simply no-ops, and a
  * Choose One minion has no `onPlay` effects so it isn't a valid target. Returns whether a Battlecry
  * fired — the hero charge is only spent when it did.
  */
@@ -1318,46 +1320,6 @@ export function projectEndOfTurnSteps(state: RunState): Array<Record<string, { a
     }
   }
   return steps;
-}
-
-/**
- * Corrupted Lifebinder: keep each linked card in step with its demon's *recruit-phase* stat gains.
- * Run after every reducer action — it applies only the new delta since last sync (tracked in
- * `linkApplied`), so it's idempotent when nothing changed. If the linked demon is gone (sold / died /
- * tripled into a new uid) the link simply ends and the Lifebinder keeps what it has. (Combat-time
- * gains are mirrored separately, inside `simulate`.) The pass loop settles chained links.
- */
-export function syncLifebinders(state: RunState): void {
-  for (let pass = 0; pass < 6; pass++) {
-    let changed = false;
-    for (const lb of state.board) {
-      if (!lb.linkUid) continue;
-      const demon = state.board.find((c) => c.uid === lb.linkUid);
-      if (!demon) {
-        lb.linkUid = undefined;
-        lb.linkBase = undefined;
-        lb.linkApplied = undefined;
-        continue;
-      }
-      const base = lb.linkBase ?? { attack: 0, health: 0 };
-      const gainedA = Math.max(0, demon.attack - base.attack);
-      const gainedH = Math.max(0, demon.health - base.health);
-      // A golden (tripled / Gilded) Lifebinder mirrors *double* its partner's gains. `linkApplied`
-      // tracks the magnitude already mirrored, so flipping to golden mid-link tops it up to 2×.
-      const mul = lb.golden ? 2 : 1;
-      const targetA = gainedA * mul;
-      const targetH = gainedH * mul;
-      const applied = lb.linkApplied ?? { attack: 0, health: 0 };
-      const dA = targetA - applied.attack;
-      const dH = targetH - applied.health;
-      if (dA !== 0 || dH !== 0) {
-        addBuff(lb, 'Lifebinder', dA, dH);
-        lb.linkApplied = { attack: targetA, health: targetH };
-        changed = true;
-      }
-    }
-    if (!changed) break;
-  }
 }
 
 /**

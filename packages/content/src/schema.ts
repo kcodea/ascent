@@ -84,7 +84,6 @@ export const EffectFactoryIdSchema = z.enum([
   'gainEmbers',
   'spellCastBuffOthers',
   'overflowBuffRandom',
-  'battlecryLinkDemon',
   'spellCastTransform',
   'spellCastBuffSelf',
   'summonBuffSelfTribe',

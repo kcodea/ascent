@@ -770,73 +770,6 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.some((c) => c.buffs?.some((b) => b.source === 'Flowing Monk'))).toBe(true);
   });
 
-  it('Corrupted Lifebinder Battlecry links to the chosen friendly demon', () => {
-    let s: RunState = {
-      ...createRun(1),
-      hand: [{ uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false }],
-      board: [{ uid: 'd', cardId: 'imp', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false }],
-    };
-    s = reduce(s, { type: 'play', uid: 'lb' }); // targeted Battlecry defers to a friendly-demon pick
-    expect(s.pendingTarget?.uid).toBe('lb');
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'd' });
-    expect(s.board.find((c) => c.uid === 'lb')?.linkUid).toBe('d');
-  });
-
-  it('Corrupted Lifebinder with no other friendly Demon plays without a prompt or link', () => {
-    let s: RunState = {
-      ...createRun(1),
-      hand: [{ uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false }],
-      board: [{ uid: 'b', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
-    };
-    s = reduce(s, { type: 'play', uid: 'lb' });
-    expect(s.pendingTarget).toBeUndefined(); // no viable Demon → no targeting prompt
-    expect(s.board.find((c) => c.uid === 'lb')?.linkUid).toBeUndefined(); // played without effect
-  });
-
-  it('Corrupted Lifebinder mirrors its linked demon\'s recruit gains', () => {
-    let s: RunState = {
-      ...createRun(1),
-      heroReady: true,
-      board: [
-        { uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false, linkUid: 'd', linkBase: { attack: 5, health: 5 }, linkApplied: { attack: 0, health: 0 } },
-        { uid: 'd', cardId: 'imp', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false },
-      ],
-    };
-    s = reduce(s, { type: 'heroPower', uid: 'd' }); // Fortify the linked demon +1/+1
-    const lb = s.board.find((c) => c.uid === 'lb');
-    expect([s.board.find((c) => c.uid === 'd')?.attack, s.board.find((c) => c.uid === 'd')?.health]).toEqual([6, 6]);
-    expect([lb?.attack, lb?.health]).toEqual([2, 2]); // mirrored the +1/+1
-  });
-
-  it('a golden Corrupted Lifebinder mirrors double its linked demon\'s recruit gains', () => {
-    let s: RunState = {
-      ...createRun(1),
-      heroReady: true,
-      board: [
-        { uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: true, linkUid: 'd', linkBase: { attack: 5, health: 5 }, linkApplied: { attack: 0, health: 0 } },
-        { uid: 'd', cardId: 'imp', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false },
-      ],
-    };
-    s = reduce(s, { type: 'heroPower', uid: 'd' }); // Fortify the linked demon +1/+1
-    const lb = s.board.find((c) => c.uid === 'lb');
-    expect([lb?.attack, lb?.health]).toEqual([4, 4]); // golden → mirrored +2/+2 (double the demon's +1/+1)
-  });
-
-  it('Corrupted Lifebinder keeps its stats but stops mirroring when the demon leaves', () => {
-    let s: RunState = {
-      ...createRun(1),
-      heroReady: true,
-      board: [
-        { uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false, linkUid: 'd', linkBase: { attack: 5, health: 5 }, linkApplied: { attack: 2, health: 2 } },
-        { uid: 'd', cardId: 'imp', tribe: 'demon', attack: 7, health: 7, keywords: [], golden: false },
-      ],
-    };
-    s = reduce(s, { type: 'sell', uid: 'd' }); // the linked demon leaves
-    const lb = s.board.find((c) => c.uid === 'lb');
-    expect([lb?.attack, lb?.health]).toEqual([3, 3]); // keeps what it had
-    expect(lb?.linkUid).toBeUndefined(); // link ended
-  });
-
   it('Fodder with no Demon on board is wasted — never enters the tavern, never stored', () => {
     let s: RunState = { ...createRun(1), embers: 3, board: [], pendingTavern: ['fred'] };
     s = reduce(s, { type: 'roll' });
@@ -1454,7 +1387,7 @@ describe('run loop (@game/sim)', () => {
     expect((s.pendingTavern ?? []).filter((id) => id === 'fred')).toHaveLength(2);
   });
 
-  it('Yazzus multiplies Help Wanted — casting it opens 2 sequential Discovers (3 with a golden Yazzus)', () => {
+  it('Yazzus does NOT multiply Help Wanted — Discover spells are untargeted (one Discover, nothing queued)', () => {
     const cast = (yazzGolden?: boolean): RunState => {
       const s: RunState = {
         ...createRun(1), embers: 0, shop: [], tier: 4,
@@ -1463,18 +1396,11 @@ describe('run loop (@game/sim)', () => {
       };
       return reduce(s, { type: 'play', uid: 'hw' });
     };
-    // Non-golden Yazzus → ×2: one Discover open, one queued.
-    let two = cast(false);
-    expect(two.discover?.length).toBe(3);
-    expect(two.discoverQueue?.length).toBe(1);
-    two = reduce(two, { type: 'discover', index: 0 }); // resolve the first → the queued one opens
-    expect(two.discover?.length).toBe(3);
-    two = reduce(two, { type: 'discover', index: 0 });
-    expect(two.discover).toBeUndefined(); // both done
-    // Golden Yazzus → ×3: one open, two queued.
-    const three = cast(true);
-    expect(three.discover?.length).toBe(3);
-    expect(three.discoverQueue?.length).toBe(2);
+    for (const golden of [false, true]) {
+      const s = cast(golden);
+      expect(s.discover?.length).toBe(3); // a single Discover opens
+      expect(s.discoverQueue ?? []).toEqual([]); // nothing queued — Yazzus only multiplies aimed spells
+    }
   });
 
   it('Yazzus does NOT multiply Triple Reward — it opens only one Discover', () => {
@@ -1508,8 +1434,8 @@ describe('run loop (@game/sim)', () => {
     expect(after.embers).toBe(10);
   });
 
-  it('Yazzus makes a spell resolve twice (golden: three times)', () => {
-    // Growth (+3/+4 to your board) with a Yazzus present resolves 2× → +6/+8 on a sandbag.
+  it('Yazzus makes an aimed spell resolve twice (golden: three times)', () => {
+    // Spirit Fire (+4/+4, targeted) with a Yazzus present resolves 2× → +8/+8 on the target.
     const board = (yazzGolden?: boolean): BoardCard[] => [
       { uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
       { uid: 'y', cardId: 'yazzus', tribe: 'neutral', attack: 6, health: 8, keywords: [], golden: !!yazzGolden },
@@ -1517,16 +1443,31 @@ describe('run loop (@game/sim)', () => {
     const cast = (yazzGolden?: boolean): RunState => {
       let s: RunState = {
         ...createRun(1), embers: 0, shop: [], board: board(yazzGolden),
-        hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+        hand: [{ uid: 'sf', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
       };
-      s = reduce(s, { type: 'play', uid: 'g' });
+      s = reduce(s, { type: 'play', uid: 'sf', targetUid: 'm' });
       return s;
     };
     const two = cast(false).board.find((c) => c.uid === 'm')!;
-    expect([two.attack, two.health]).toEqual([7, 9]); // 1/1 + (3/4 × 2)
+    expect([two.attack, two.health]).toEqual([9, 9]); // 1/1 + (4/4 × 2)
     const three = cast(true).board.find((c) => c.uid === 'm')!;
-    expect([three.attack, three.health]).toEqual([10, 13]); // 1/1 + (3/4 × 3)
+    expect([three.attack, three.health]).toEqual([13, 13]); // 1/1 + (4/4 × 3)
     expect(cast(false).spellsCast).toBe(2); // the effect (and tally) repeats per Yazzus multiplier
+  });
+
+  it('Yazzus does NOT multiply an untargeted board spell (Growth resolves once)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [
+        { uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'y', cardId: 'yazzus', tribe: 'neutral', attack: 6, health: 8, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([4, 5]); // 1/1 + 3/4 ONCE — Yazzus ignores untargeted spells
+    expect(s.spellsCast).toBe(1);
   });
 
   it('without a Yazzus a spell resolves once', () => {
@@ -2329,30 +2270,6 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
   });
 });
 
-describe('Corrupted Lifebinder End-of-Turn timing (@game/sim)', () => {
-  it("mirrors a linked minion's End-of-Turn gain before combat, not at the next turn", () => {
-    // Lifebinder bound to Fred (a Demon Fodder). A Ritualist's End of Turn buffs all Fodder +1/+1 →
-    // Fred gains; faceOmen must mirror it onto the Lifebinder *before* the combat snapshot so it fights
-    // with the gain (the bug: it only caught up at the next turn's reduce).
-    let s: RunState = {
-      ...createRun(1), resolve: 100, maxResolve: 100,
-      board: [
-        { uid: 'r', cardId: 'ritualist', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false },
-        { uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false },
-        {
-          uid: 'lb', cardId: 'lifebinder', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false,
-          linkUid: 'f', linkBase: { attack: 1, health: 1 }, linkApplied: { attack: 0, health: 0 },
-        },
-      ],
-    };
-    s = reduce(s, { type: 'faceOmen' });
-    expect(s.board.find((c) => c.uid === 'f')!.attack).toBe(2); // Ritualist EoT: Fred 1→2
-    expect(s.board.find((c) => c.uid === 'lb')!.attack).toBe(4); // Lifebinder mirrored +1
-    // And the combat snapshot carried the mirrored Lifebinder (it fought with the gain).
-    expect(s.lastCombat!.initial.player.find((m) => m.cardId === 'lifebinder')?.attack).toBe(4);
-  });
-});
-
 describe('opponent pool (M3 step 2 — serve real boards)', () => {
   it('pickOpponent matches a board by wave + power from a pool, else null (→ procedural fallback)', () => {
     const pool: BoardSnapshot[] = [
@@ -2731,15 +2648,4 @@ describe('content batch: new minions (@game/sim)', () => {
     expect(s.fodderEaten?.[0]).toMatchObject({ eaterUid: 'bane', fodderId: 'fred' }); // Bane recorded as the eater
   });
 
-  it('Bane (Dragon/Demon) is a valid Corrupted Lifebinder target (recognized as a Demon)', () => {
-    let s: RunState = {
-      ...createRun(1),
-      hand: [card('lb', 'lifebinder', 'demon', 1, 1)],
-      board: [card('bane', 'bane', 'dragon', 12, 12)], // dual-type Demon — the only other friend
-    };
-    s = reduce(s, { type: 'play', uid: 'lb' });
-    expect(s.pendingTarget?.uid).toBe('lb'); // a viable Demon (Bane) exists → the prompt opens
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'bane' });
-    expect(s.board.find((c) => c.uid === 'lb')?.linkUid).toBe('bane'); // linked to the dual-type Demon
-  });
 });

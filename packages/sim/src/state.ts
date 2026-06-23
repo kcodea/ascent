@@ -82,14 +82,6 @@ export interface BoardCard {
    *  display + the snapshot; this flag marks it temporary so `resolveCombat` strips it after the next
    *  fight (gain it again by consuming again). */
   tempShield?: boolean;
-  /** Corrupted Lifebinder: the uid of the friendly demon it's linked to ("also gains the stats
-   *  whenever that minion does"). Carried into combat so the simulator mirrors mid-fight gains too. */
-  linkUid?: string;
-  /** The linked demon's stats at link time — Lifebinder mirrors gains *beyond* this (recruit sync). */
-  linkBase?: { attack: number; health: number };
-  /** How much of the linked demon's recruit gain Lifebinder has already mirrored, so each sync applies
-   *  only the new delta. */
-  linkApplied?: { attack: number; health: number };
   /** The Reclaimer's mark: at the start of the next combat this minion is destroyed (its Deathrattle
    *  fires) and an exact copy is resummoned if there's room. Cleared each turn (re-choose). */
   resummon?: boolean;

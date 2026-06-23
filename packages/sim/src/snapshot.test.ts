@@ -39,7 +39,7 @@ describe('board snapshot + replay', () => {
     expect(snap.wave).toBe(1);
     expect(snap.power).toBe(snap.minions.reduce((s, m) => s + m.attack + m.health, 0));
     // transferable board only — no run-specific instance refs leak into the snapshot
-    expect(snap.minions.every((m) => m.linkUid === undefined && m.sourceUid === undefined)).toBe(true);
+    expect(snap.minions.every((m) => m.sourceUid === undefined)).toBe(true);
   });
 
   it('replayRun reproduces the run byte-identically and yields the same per-wave snapshots', () => {

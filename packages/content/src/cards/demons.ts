@@ -4,8 +4,7 @@ import type { CardDef } from '@game/core';
  * Demons (handoff A.7) — Consume Fodder to feed a carry. The Fodder supply is
  * recruit-time: Soulfeeder (Battlecry) and Maw of the Pit (End of Turn) queue
  * Fodder into the next tavern, and Voracious Imp eats it for 2× stats. Brood
- * Matron (breeds Imps on death) resolves in combat; Corrupted Lifebinder mirrors
- * a linked Demon's growth.
+ * Matron (breeds Imps on death) resolves in combat.
  */
 export const DEMONS: CardDef[] = [
   {
@@ -94,21 +93,5 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'buffFodderEverywhere', params: { attack: 1, health: 1 } }],
     text: '**End of Turn:** all Fodder gets **+1/+1**, wherever it is.',
-  },
-  {
-    // Targeted Battlecry: bind to a chosen friendly Demon. From then on it mirrors that Demon's stat
-    // gains — recruit buffs sync via `syncLifebinders`, and the combat simulator mirrors mid-fight
-    // gains too. If the linked Demon leaves (sold / dies / triples into a new uid) the link just ends.
-    id: 'lifebinder',
-    name: 'Corrupted Lifebinder',
-    tribe: 'demon',
-    tier: 6,
-    attack: 1,
-    health: 1,
-    keywords: [],
-    target: 'friendly',
-    targetTribe: 'demon',
-    effects: [{ on: 'onPlay', do: 'battlecryLinkDemon' }],
-    text: '**Battlecry:** bind to a friendly Demon. It also gains the stats whenever that minion does.',
   },
 ];

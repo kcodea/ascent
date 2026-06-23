@@ -36,7 +36,7 @@ export interface BoardSnapshot {
   /** Σ(attack + health) over the board — the strength index used to match opponents by wave + power. */
   power: number;
   /** The board it fought: cardId + final (recruit-buffed) stats + keywords (+ golden / summonBonus).
-   *  Run-specific instance refs (linkUid, sourceUid, resummon) are dropped — they don't transfer. */
+   *  Run-specific instance refs (sourceUid, resummon) are dropped — they don't transfer. */
   minions: BoardMinion[];
   /** Run seed — provenance, and (with the action log) lets the exact run be replayed. */
   seed: number;

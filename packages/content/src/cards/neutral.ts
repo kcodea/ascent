@@ -141,10 +141,10 @@ export const NEUTRAL: CardDef[] = [
     goldenText: 'Your **End of Turn** effects trigger **2 more** times.',
   },
   {
-    // Spell doubler (recruit). While on your board, each spell you play resolves its effect an extra
-    // time (golden: twice extra → ×3). Resolved in @game/sim (the reducer's spell-cast path reads
-    // `spellCastMult`). Discover-spells are exempt (one pending discover set). No combat factory → inert
-    // in combat; the body is just a sturdy 6/8.
+    // Spell doubler (recruit) — AIMED spells only. While on your board, each spell you *aim at a minion*
+    // (target: friendly/any) resolves its effect an extra time (golden: twice extra → ×3). Untargeted
+    // economy/utility/Discover spells are NOT multiplied. Resolved in @game/sim via `spellCasts(def)`.
+    // No combat factory → inert in combat; the body is just a sturdy 6/8.
     id: 'yazzus',
     name: 'Yazzus',
     tribe: 'neutral',
@@ -153,8 +153,8 @@ export const NEUTRAL: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [],
-    text: 'Your spells cast **twice**.',
-    goldenText: 'Your spells cast **three times**.',
+    text: 'Your **targeted** spells cast **twice**.',
+    goldenText: 'Your **targeted** spells cast **three times**.',
   },
   {
     // Engraver. At Start of Combat it grants Engraved (EG) to the minion on its LEFT (golden: both

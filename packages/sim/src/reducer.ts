@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCastMult, syncLifebinders, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCasts, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -59,14 +59,6 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
  * the combat-time effect system already works (see `@game/core`).
  */
 export function reduce(state: RunState, action: Action): RunState {
-  const next = reduceCore(state, action);
-  // Corrupted Lifebinder mirrors its linked demon's recruit gains — re-sync after any state change
-  // (idempotent when nothing moved). Combat-time mirroring happens inside `simulate`.
-  if (next !== state) syncLifebinders(next);
-  return next;
-}
-
-function reduceCore(state: RunState, action: Action): RunState {
   // A finished run (loss or victory) takes no more actions — restart goes through the store.
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   const s: RunState = structuredClone(state);
@@ -164,29 +156,27 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
 
       // Sprout: Discover a Tier 1 minion (fixed tier). Help Wanted: Discover a Battlecry minion (up to the
-      // tavern tier). Both are player-cast spells, so a Yazzus on board multiplies them — casting one opens
-      // `spellCastMult` sequential Discovers (2, or 3 with a golden Yazzus) via the queue. Consumed — no slot.
+      // tavern tier). Both are untargeted Discover spells, so Yazzus does NOT multiply them — one Discover
+      // each. Consumed — no board slot.
       if (card.cardId === 'sprout') {
         s.hand.splice(i, 1);
-        for (let n = 0; n < spellCastMult(s); n++) queueDiscover(s, { kind: 'minion', tier: 1, exactTier: 1 });
+        queueDiscover(s, { kind: 'minion', tier: 1, exactTier: 1 });
         return s;
       }
       if (card.cardId === 'helpwanted') {
         s.hand.splice(i, 1);
-        for (let n = 0; n < spellCastMult(s); n++) queueDiscover(s, { kind: 'minion', tier: s.tier, filter: 'battlecry' });
+        queueDiscover(s, { kind: 'minion', tier: s.tier, filter: 'battlecry' });
         return s;
       }
 
       // Other spells: cast on the chosen target, then consume — no board slot.
       const def = CARD_INDEX[card.cardId];
       if (def?.spell) {
-        // Yazzus: while it's on the board, the spell's effect resolves N times (2, or 3 if golden) — the
-        // card is still consumed once. `singleCast` spells (Channeling the Devourer) never multi-fire,
-        // exactly like the spell-quantity guard inside castSpell. The Discover-spells (discoverspell /
-        // sprout / helpwanted) returned early above, so they're exempt — the discover state holds a
-        // single pending set. A bad target still fizzles before any cast (no partial state change).
-        // TODO(ui): Yazzus — replay the spell-cast animation N times.
-        const casts = def.singleCast ? 1 : spellCastMult(s);
+        // Yazzus: while it's on the board, an *aimed* spell's effect resolves N times (2, or 3 if golden)
+        // — the card is still consumed once. Untargeted economy/utility spells and `singleCast` spells
+        // (Channeling the Devourer) never multi-fire (see `spellCasts`). The Discover-spells returned early
+        // above. A bad target still fizzles before any cast (no partial state change).
+        const casts = spellCasts(s, def);
         if (def.target === 'friendly' || def.target === 'any') {
           const boardTarget = s.board.find((c) => c.uid === action.targetUid);
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
@@ -242,11 +232,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.chooseOne = { uid: card.uid, cardId: card.cardId };
         return s;
       }
-      // Targeted Battlecry (Toxin Tender / Lifebinder): pause for the player to pick the friendly target
-      // (resolved in `battlecryTarget`) — but only if a *viable* target exists. A tribe-restricted pick
-      // (Lifebinder → a friendly Demon, never self) needs a matching friend; with none, the Battlecry
-      // simply doesn't fire and the minion plays as-is (no prompt). An unrestricted pick (Toxin Tender)
-      // can always target a friend (itself included), so it always has one.
+      // Targeted Battlecry (Toxin Tender → a friendly Undead): pause for the player to pick the target
+      // (resolved in `battlecryTarget`) — but only if a *viable* target exists. The tribe-restricted pick
+      // needs another matching friend; with none, the Battlecry simply doesn't fire and the minion plays
+      // as-is (no prompt).
       const playedDef = CARD_INDEX[card.cardId];
       if (playedDef?.target === 'friendly') {
         const hasTarget = playedDef.targetTribe
@@ -457,8 +446,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.pendingTarget) {
         const src = s.board.find((c) => c.uid === s.pendingTarget!.uid);
         const def = src ? CARD_INDEX[src.cardId] : undefined;
-        // A tribe-restricted pick (Lifebinder → a friendly Demon, never self) must respect it; otherwise
-        // any friend works (Toxin Tender). No eligible target → the play resolves with no effect.
+        // A tribe-restricted pick (Toxin Tender → another friendly Undead, never self) must respect it;
+        // otherwise any friend works. No eligible target → the play resolves with no effect.
         const pool = def?.targetTribe ? s.board.filter((c) => c !== src && isTribe(c, def.targetTribe!)) : s.board;
         const carry = pool.length ? pool.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
         if (src && carry) applyBattlecryTarget(s, src, carry);
@@ -466,10 +455,6 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
-      // Mirror any End-of-Turn gains onto Corrupted Lifebinders *now*, before the combat snapshot —
-      // otherwise a Lifebinder bound to a minion the EoT just buffed (e.g. Combinator → a Mech) would
-      // enter the fight without the gain and only catch up at the next turn's reduce.
-      syncLifebinders(s);
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
       // Serve a strength-matched real board from the opponent pool when one exists (getting off the
@@ -491,7 +476,6 @@ function reduceCore(state: RunState, action: Action): RunState {
         golden: b.golden,
         summonBonus: b.summonBonus ?? 0,
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
-        linkUid: b.linkUid, // Corrupted Lifebinder mirrors its linked demon in combat too
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
       }));
       s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus);

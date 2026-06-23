@@ -555,33 +555,6 @@ describe('simulate (handoff A.3)', () => {
     expect(attackedWhileStealthed).toBe(false); // never hit while Stealthed
   });
 
-  it('Corrupted Lifebinder mirrors its linked minion\'s combat buffs', () => {
-    // Grim dies early → Deathrattle buffs living Beasts +1/+1 per Deathrattle this game (here just Grim
-    // itself = +1) → the Stray gains +1/+1, and the Lifebinder linked to it mirrors the same +1/+1.
-    const p: BoardMinion[] = [
-      { cardId: 'lifebinder', attack: 1, health: 50, sourceUid: 'LB', linkUid: 'B' },
-      { cardId: 'stray', attack: 1, health: 50, sourceUid: 'B' },
-      { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
-    ];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 200 }];
-    const a = run(p, e, 3);
-    const mirror = a.events.filter((ev) => ev.type === 'buff' && ev.source === 'Lifebinder');
-    expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
-  });
-
-  it('a golden Corrupted Lifebinder mirrors double its linked minion\'s combat buffs', () => {
-    // Same setup, but the Lifebinder is golden → it mirrors the Stray's +1/+1 (Grim, tally 1) as +2/+2.
-    const p: BoardMinion[] = [
-      { cardId: 'lifebinder', attack: 2, health: 50, sourceUid: 'LB', linkUid: 'B', golden: true },
-      { cardId: 'stray', attack: 1, health: 50, sourceUid: 'B' },
-      { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
-    ];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 200 }];
-    const a = run(p, e, 3);
-    const mirror = a.events.filter((ev) => ev.type === 'buff' && ev.source === 'Lifebinder');
-    expect(mirror.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
-  });
-
   it('Grim buffs Beasts summoned *after* it dies — a persistent aura, not a one-time buff', () => {
     // Grim dies on its first swing (1 HP → retaliation) and registers a Beast aura sized to its tally
     // (here +1/+1: just Grim's own Deathrattle counts so far). Mama Pup outlives it, then dies and summons

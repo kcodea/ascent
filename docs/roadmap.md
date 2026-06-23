@@ -51,6 +51,11 @@ the Devourer** T5 have landed alongside the original T1s — keep filling the mi
 ~40-spell pool). The pool stays deliberately
   small — variety comes from the **meta layer** (heroes + quests/trinkets), not card volume. *Why
   first:* every later patch sits on combat feeling right.
+  - **Balance pass v1 (2026-06-22, shipped → devlog):** Yazzus → targeted-only; removed Corrupted
+    Lifebinder + its mirror system; curve → 15-round win. **Queued next (deeper design):** (a) make **T1–4
+    cards stay relevant** past the mid-game (scaling payoffs / recombination / triples), and (b) **decision
+    diversity** — shake up *how/why* you reach destination builds (partly the thin pool, partly cross-tribe
+    value engines washing out tribe identity). See `docs/balance-handoff.md` §9 for the full direction.
 - **Patch 2 — Front Door & Hero Roster** *(M3; variety).* The run's entry + variety. Generalize the
   `heroChoices` flag into a `scene` enum and build **Title → Play → Mode → Hero → run** (no router;
   small overlays reusing `herocard`). Add a data-driven **MODES** registry — the two intended modes

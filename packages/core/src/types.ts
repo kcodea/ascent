@@ -111,7 +111,6 @@ export type EffectFactoryId =
   | 'gainEmbers' // cast: gain Embers (untargeted — Ember Pouch)
   | 'spellCastBuffOthers' // spellCast: give N other friendly minions +atk/+hp (Archmagus Guel)
   | 'overflowBuffRandom' // summonOverflow: buff a random friendly minion (Flowing Monk)
-  | 'battlecryLinkDemon' // Battlecry: link to a chosen friendly demon, mirroring its stat gains (Lifebinder)
   | 'spellCastTransform' // spellCast: tick a per-instance counter; at the threshold, transform into another card (Spirit Pup → Worgen)
   | 'spellCastBuffSelf' // spellCast: buff self +atk/+hp per spell cast (Spirit Worgen)
   | 'summonBuffSelfTribe' // onSummon: buff self when a friendly minion of a given tribe is summoned (Spirit Worgen)
@@ -167,8 +166,8 @@ export interface CardDef {
    *  whose text says "a FRIENDLY minion", targeted Battlecries); `'any'` = a friendly minion OR a tavern
    *  offer — buff it pre-buy (spells whose text says just "a minion", e.g. Shatter, Front to Back). */
   target?: 'friendly' | 'any';
-  /** Restricts a `target: 'friendly'` pick to one tribe and excludes self (Corrupted Lifebinder →
-   *  a friendly Demon). Absent = any friendly minion may be chosen. */
+  /** Restricts a `target: 'friendly'` pick to one tribe and excludes self (Toxin Tender →
+   *  another friendly Undead). Absent = any friendly minion may be chosen. */
   targetTribe?: Tribe;
   /** Restricts a `target: 'friendly'` pick to minions of this tier or lower (Eyes of Aresmar → a
    *  Tier 4 or lower minion). Absent = no tier cap on the pick. */
@@ -196,8 +195,6 @@ export interface BoardMinion {
   /** Overrides the card's keywords if present (e.g. a granted Poison). */
   keywords?: Keyword[];
   golden?: boolean;
-  /** Corrupted Lifebinder: the uid of the friendly minion it mirrors in combat. */
-  linkUid?: string;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -235,9 +232,6 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
-  /** Corrupted Lifebinder: the uid of the friendly minion this one mirrors — whenever that minion is
-   *  buffed in combat, this minion gains the same stats. */
-  linkUid?: string;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   side: Side;
@@ -257,8 +251,6 @@ export interface MinionSnapshot {
   golden?: boolean;
   /** Current summon-buff bonus (Kennelmaster) — for the live combat card text. */
   summonBonus?: number;
-  /** Corrupted Lifebinder: the uid of the friendly minion it mirrors in combat. */
-  linkUid?: string;
 }
 
 /**

@@ -32,7 +32,6 @@ export function instantiate(
     reAttackOnKill: card.effects.some((e) => e.do === 'reAttackOnKill'),
     summonBonus: board.summonBonus ?? 0,
     sourceUid: board.sourceUid,
-    linkUid: board.linkUid, // remapped from the linked board card's uid to its combat uid in simulate
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
     side,
     effects: card.effects,

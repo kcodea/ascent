@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Balance patch v1.** Yazzus now only doubles **targeted** spells (not economy/Discover); **Corrupted
+  Lifebinder** removed along with its linked-mirror system; the run is now a **15-round** win (a perfect run
+  wins all 15). Deeper work — keeping T1–4 cards relevant + more build diversity — is queued.
 - **Fixed a late-game End-Turn hard lock.** The combat replay could read a stale beat index when a long fight
   was followed by a shorter one, throwing during render and (with no error boundary) freezing the whole app.
   Guarded the lookup, and added an error boundary so any render crash now shows a recoverable screen.

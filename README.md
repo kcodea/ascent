@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Drag feel — the "size pop" fixed.** Picking a card up shoved its neighbours because the live drop-slot
+  was sized to the *base* card width (`--cw`), 17.6% wider than the actual compact cards (`--ccw`); the slot is
+  now the card's exact box, so nothing shifts. The dragged hand card is fully lifted out (no faint "ghost"
+  copy), the invalid-drop snap-back is quicker, and the "End of Turn" banner sits above the warband.
 - **Card art → WebP (−94%).** The illustrated art was 78 PNGs at ~71 MB; converted to WebP (≤512px, q85)
   via the new `npm run optimize-art` → **4.3 MB**. Far less for the browser to hold in memory, and a much
   smaller itch build. Drop a PNG, run the script, it becomes an optimized `.webp`.

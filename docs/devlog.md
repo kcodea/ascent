@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Drag feel: real "size pop" cause found (drop-slot width) + hand lift-out + quicker snap + EOT banner
+- **The "cards take more space" on pick-up was real — and the cause was the drop-slot, not the lifted card.**
+  Rendered shop/warband/hand cards are `.card.compact` sized to `--ccw` (`= --cw * 0.85`), but `.dropslot`
+  was sized to `--cw` — i.e. **17.6% wider** (and `--ch` tall vs the card's `--ccw`-square box). So the gap that
+  opens when you lift a card was a 274.5px slot replacing a 233.3px card → the center-justified row shoved the
+  neighbours outward. Fixed: `.dropslot` is now `--ccw × --ccw` (`flex-basis`, `width`, `height`) with the card's
+  `--arch-radius`. Verified in-page: an injected slot beside cloned compact cards now measures **233.3×233.3 ==
+  the cards** (was 233.3 vs 274.5). Supersedes the prior (wrong) "no real horizontal shift" diagnosis note below.
+- **Hand "ghost" gone — lifted out like shop/warband.** The dragged hand card kept a faint `dragsrc`
+  `opacity: 0.3` copy in the fan, so during a hand→board drag (and especially the snap-back) you saw a dim
+  "copy" *plus* the floating `.dragcard`. Now `.card.dragsrc { opacity: 0 }` — the source is fully hidden (no
+  ghost) while its slot stays reserved, so the fan never reflows and the floating card is the only visible copy.
+- **Snap-back is quicker.** Invalid-drop return: `.dragcard.snap` transition `0.16s → 0.1s` and the JS
+  cleanup timeout `150ms → 110ms` — snappier "rejected" feedback (the delay read as sluggish).
+- **"End of Turn" banner moved up off the warband.** It was `place-items: center` on a full-screen overlay →
+  dead-centre, eclipsing the player's warband as end-of-turn effects resolved. Now anchored to the top `62vh`
+  and centred within it, so the text lands over the shop / enemy-board region (which is closing during the
+  transition anyway) and clears the warband below. Verified: text bottom 460 < warband top 630 (1352-tall vp).
+- Typecheck green; verified live on the dev server (computed-style measurements + screenshots).
+
 ### Drag feel: clean the snap-back + stop the hand bobbing mid-drag
 - **Snap-back** (an invalid drop returning the card to the hand) dropped the `cubic-bezier(0.34, 1.2, …)`
   overshoot — that `1.2` bounce was the "slow/janky" feel. Now `cubic-bezier(0.4, 0, 0.2, 1)` (clean ease-out).

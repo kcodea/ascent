@@ -627,14 +627,14 @@ export function Recruit() {
         setDrag(null);
         setOverZone(null);
       } else {
-        // invalid drop — snap the card cleanly back to where it came from
+        // invalid drop — snap the card cleanly + quickly back to where it came from
         setSnapping(true);
         setDrag((cur) => (cur ? { ...cur, x: cur.startX, y: cur.startY } : cur));
         window.setTimeout(() => {
           setSnapping(false);
           setDrag(null);
           setOverZone(null);
-        }, 150);
+        }, 110);
       }
     };
     // Right-click while aiming a spell cancels it (snaps back to the hand).

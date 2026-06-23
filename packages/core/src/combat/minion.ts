@@ -16,6 +16,9 @@ export function instantiate(
   const card = cards[board.cardId];
   if (!card) throw new Error(`Unknown card: ${board.cardId}`);
   const keywords = board.keywords ? [...board.keywords] : [...card.keywords];
+  // Better Bot: own base Rally (×golden for a standalone Better Bot) + any welded onto it (already
+  // golden-baked at weld time, stored on board.rallyMechAtk).
+  const rallyMechAtk = (board.rallyMechAtk ?? 0) + (card.rallyMechAtk ?? 0) * (board.golden ? 2 : 1);
   return {
     uid: mkUid(),
     cardId: card.id,
@@ -32,6 +35,7 @@ export function instantiate(
     reAttackOnKill: card.effects.some((e) => e.do === 'reAttackOnKill'),
     summonBonus: board.summonBonus ?? 0,
     sourceUid: board.sourceUid,
+    rallyMechAtk: rallyMechAtk > 0 ? rallyMechAtk : undefined,
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
     side,
     effects: card.effects,

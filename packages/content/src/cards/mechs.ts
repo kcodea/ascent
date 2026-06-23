@@ -46,7 +46,7 @@ export const MECHS: CardDef[] = [
   },
   {
     // Magnetic mech whose value is passive economy: while it (or a Mech it merged into) is on
-    // the board, the player's max mana per turn is raised. Magnetize it onto Spare Part Drone to
+    // the board, the player's max Gold per turn is raised. Magnetize it onto Spare Part Drone to
     // carry the income on a sturdier body (and through a triple); selling that body removes it.
     id: 'moneybot',
     name: 'Money Bot',
@@ -57,7 +57,7 @@ export const MECHS: CardDef[] = [
     keywords: ['M'],
     effects: [],
     manaPerTurn: 1,
-    text: 'While on your board, you have **+1 max mana** each turn.',
+    text: 'While on your board, you have **+1 max Gold** each turn.',
   },
   {
     id: 'junk',
@@ -72,7 +72,8 @@ export const MECHS: CardDef[] = [
     goldenText: '**Deathrattle:** Add **two** random Magnetic minions to your hand.',
   },
   {
-    // End of Turn: weld a Cling Drone's stats onto two friendly Mechs (golden: two each).
+    // End of Turn: magnetize a RANDOM Magnetic Mech (Cling / Money Bot / Better Bot…) onto a friendly
+    // Mech (golden: 2). The bot rolls fresh each turn, so the welds vary — a Cling, an income, a Rally.
     id: 'combinator',
     name: 'Combinator',
     tribe: 'mech',
@@ -84,11 +85,11 @@ export const MECHS: CardDef[] = [
       {
         on: 'endOfTurn',
         do: 'endOfTurnMagnetizeMechs',
-        params: { tokenId: 'cling', targets: 1, count: 1 },
+        params: { targets: 1 },
       },
     ],
-    text: '**End of Turn:** magnetize a Cling Drone onto a friendly Mech.',
-    goldenText: '**End of Turn:** magnetize a Cling Drone onto **2** friendly Mechs.',
+    text: '**End of Turn:** magnetize a random **Magnetic** Mech onto a friendly Mech.',
+    goldenText: '**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.',
   },
   {
     // Passive (resolved in @game/sim's magnetize path): every magnetization that lands on another
@@ -103,5 +104,57 @@ export const MECHS: CardDef[] = [
     effects: [],
     text: 'Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.',
     goldenText: 'Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this.',
+  },
+  {
+    id: 'sheldon',
+    name: 'Sheldon',
+    tribe: 'mech',
+    tier: 3,
+    attack: 2,
+    health: 4,
+    keywords: ['DS'],
+    effects: [],
+    text: '',
+  },
+  {
+    id: 'speedy',
+    name: 'Speedy',
+    tribe: 'mech',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: ['W'],
+    effects: [],
+    text: '',
+  },
+  {
+    // Passive spell-power aura (resolved in @game/sim's `spellStatBonus`): while Harry Botter is on the
+    // board, every stat-granting spell gets +1/+1 (golden +2/+2). Live — sell it and the bonus goes; two
+    // of them stack. No combat factory → inert in combat (just a 1/5 body).
+    id: 'harrybotter',
+    name: 'Harry Botter',
+    tribe: 'mech',
+    tier: 4,
+    attack: 1,
+    health: 5,
+    keywords: [],
+    effects: [],
+    text: 'Your spells get **+1/+1** while this is in play.',
+    goldenText: 'Your spells get **+2/+2** while this is in play.',
+  },
+  {
+    // Rally + Magnetic. Standalone: when it attacks, your OTHER Mechs get +5 Attack (built-in combat
+    // behavior off `rallyMechAtk`, not a factory). Magnetic: welds the Rally onto a host Mech (applyWeld
+    // adds `rallyMechAtk`), and it STACKS — 5 welded onto one Mech → that Mech grants +25 on attack.
+    id: 'betterbot',
+    name: 'Better Bot',
+    tribe: 'mech',
+    tier: 5,
+    attack: 6,
+    health: 4,
+    keywords: ['M', 'RL'],
+    rallyMechAtk: 5,
+    effects: [],
+    text: '**Rally:** give your other Mechs **+5 Attack**. **Magnetic** — welds onto a Mech, which then grants the buff (stacks).',
   },
 ];

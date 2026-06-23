@@ -23,6 +23,15 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Fixed the End-Turn freeze + a content batch.** The real cause of the late-game "froze on End of Turn":
+  a board captured by an older build (with the since-removed **Corrupted Lifebinder**) loaded out of
+  localStorage into the opponent pool and crashed combat when served — the throw stranded the turn in recruit.
+  The pool now drops boards referencing removed cards on load, and `faceOmen` falls back to the procedural
+  enemy on any serve failure, so End Turn can never hard-lock on a bad opponent. Also: **6 new minions**
+  (Better Bot, Sheldon, Speedy, Harry Botter, Burial Imp, Soulsman), Gnasher reworked (attacks again on kill
+  + permanently buffs your spells), Maw of the Pit → Tier 3, and **Combinator** now magnetizes a *random*
+  Magnetic Mech each turn. **Mana is now Gold** everywhere (names, text, a gold coin icon). The hero power is
+  now a button on the right of the hero frame.
 - **Balance patch v1.** Yazzus now only doubles **targeted** spells (not economy/Discover); **Corrupted
   Lifebinder** removed along with its linked-mirror system; the run is now a **15-round** win (a perfect run
   wins all 15). Deeper work — keeping T1–4 cards relevant + more build diversity — is queued.

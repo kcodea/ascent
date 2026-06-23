@@ -212,6 +212,8 @@ export function reduce(state: RunState, action: Action): RunState {
             health: card.health,
             keywords: card.keywords,
             mana,
+            // Better Bot: weld its Rally (+5 Attack to other Mechs on attack, golden ×2) onto the host — stacks.
+            rallyMechAtk: (mDef?.rallyMechAtk ?? 0) * (card.golden ? 2 : 1) || undefined,
           }, card.cardId === 'cling' ? 1 : 0); // a magnetized Cling stacks the improvement (via weldMagnetic)
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
           if (card.golden) grantGoldenDiscover(s);
@@ -462,12 +464,6 @@ export function reduce(state: RunState, action: Action): RunState {
       // recruit-phase opponent frame previewed) makes the pick; the fallback gets its own fresh rng, so an
       // empty / no-match pool stays byte-identical to before the pool seam existed.
       const served = nextOpponent(s);
-      const enemy = served
-        ? opponentBoard(served)
-        : buildEnemyBoard(s.threat, s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
-      // Loss damage scales with the opponent's tavern tier; for the procedural fallback (no served board)
-      // use the player's own tier as the foe's stand-in.
-      const enemyTier = served?.tier ?? s.tier;
       const player: BoardMinion[] = s.board.map((b) => ({
         cardId: b.cardId,
         attack: b.attack,
@@ -476,24 +472,45 @@ export function reduce(state: RunState, action: Action): RunState {
         golden: b.golden,
         summonBonus: b.summonBonus ?? 0,
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
+        rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
       }));
-      s.lastCombat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus);
-      s.lastCombat.playerDamage = Math.min(s.lastCombat.playerDamage, lossDamageCap(s.wave)); // round cap
-      // Outcome odds: re-simulate the same two boards on independent seeds for a win/draw/loss estimate.
-      // Combat is a cheap pure function on ~14 units, so 1000 sims cost ~1ms warm (a few ms for a long
-      // grindy fight) and run once per fight. Seeds are derived from the run seed (a separate ODDS
-      // stream), so the odds are reproducible and don't disturb the real combat RNG. ~1000 sims keeps
-      // the margin of error to ~±1.5%; the actual result above is one such roll.
-      let win = 0, draw = 0, lose = 0;
-      const ODDS_SIMS = 1000;
-      for (let i = 0; i < ODDS_SIMS; i++) {
-        const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus).result;
-        if (r === 'win') win++;
-        else if (r === 'draw') draw++;
-        else lose++;
+      // The procedural threat board for this wave — the always-fightable fallback (built from current
+      // cards, so it can never throw). `enemyTier` (loss-damage scaling) is the served board's tavern tier,
+      // or the player's own tier as the foe's stand-in for the procedural board.
+      const proceduralEnemy = (): { enemy: BoardMinion[]; tier: number } => ({
+        enemy: buildEnemyBoard(s.threat, s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY))),
+        tier: s.tier,
+      });
+      // Resolve the real combat + its win/draw/loss odds against one enemy board. Throws only if that board
+      // is unfightable (a served board referencing a card this build removed → `instantiate` throws) — caught
+      // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
+      // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
+      const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus);
+        combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
+        let win = 0, draw = 0, lose = 0;
+        const ODDS_SIMS = 1000;
+        for (let i = 0; i < ODDS_SIMS; i++) {
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus).result;
+          if (r === 'win') win++;
+          else if (r === 'draw') draw++;
+          else lose++;
+        }
+        combat.odds = { win: win / ODDS_SIMS, draw: draw / ODDS_SIMS, lose: lose / ODDS_SIMS };
+        return combat;
+      };
+      // Belt-and-suspenders: a stale served board is filtered at load (`registerOpponents`), but if one ever
+      // slips through, serving it must NEVER hard-lock End Turn (the old "froze on End of Turn" bug — the
+      // throw escaped into the UI's end-of-turn timer and the phase never flipped to combat). So fall back to
+      // the procedural threat on any serve-time failure: combat ALWAYS resolves.
+      try {
+        const e = served ? { enemy: opponentBoard(served), tier: served.tier ?? s.tier } : proceduralEnemy();
+        s.lastCombat = resolveCombatVs(e.enemy, e.tier);
+      } catch {
+        const e = proceduralEnemy();
+        s.lastCombat = resolveCombatVs(e.enemy, e.tier);
       }
-      s.lastCombat.odds = { win: win / ODDS_SIMS, draw: draw / ODDS_SIMS, lose: lose / ODDS_SIMS };
       s.combatSettled = false; // a fresh combat — its outcome hasn't been applied yet
       s.phase = 'combat';
       return s;
@@ -677,6 +694,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const { cardId, attack, health } of result.playerCardBuffs) {
       buffCardTypeRunWide(s, cardId, attack, health, CARD_INDEX[cardId]?.name ?? cardId);
     }
+  }
+  // Burial Imp: Fodder queued by its combat Deathrattle drops into the next tavern (a Demon eats it there).
+  if (result.playerFodderGrants) {
+    (s.pendingTavern ??= []).push(...Array(result.playerFodderGrants).fill('fred'));
+  }
+  // Soulsman: permanent max-Gold gained from its Avenge in combat (uncapped, like Nadja's Gold Font).
+  if (result.playerMaxGoldGain) {
+    s.maxEmbers += result.playerMaxGoldGain;
   }
   // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
   // common tribe (then spends 5). A failed grant (full hand / no tribe) keeps the kills banked for later.

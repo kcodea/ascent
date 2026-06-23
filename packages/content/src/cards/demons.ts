@@ -75,7 +75,7 @@ export const DEMONS: CardDef[] = [
     id: 'maw',
     name: 'Maw of the Pit',
     tribe: 'demon',
-    tier: 4,
+    tier: 3,
     attack: 4,
     health: 5,
     keywords: ['T'],
@@ -93,5 +93,19 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'buffFodderEverywhere', params: { attack: 1, health: 1 } }],
     text: '**End of Turn:** all Fodder gets **+1/+1**, wherever it is.',
+  },
+  {
+    // Deathrattle feeds the Fodder engine from combat: a death queues Fodder into your next tavern (carried
+    // back via CombatResult.playerFodderGrants → settleCombat). Golden queues 2.
+    id: 'burialimp',
+    name: 'Burial Imp',
+    tribe: 'demon',
+    tier: 2,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleAddFodder', params: { count: 1 } }],
+    text: '**Deathrattle:** add a Fodder to your next tavern.',
+    goldenText: '**Deathrattle:** add **2** Fodder to your next tavern.',
   },
 ];

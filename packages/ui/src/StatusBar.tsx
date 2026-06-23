@@ -45,7 +45,7 @@ export function StatusBar() {
         : power.kind === 'fortify'
           ? `${power.name} · +${run.tier}/+${run.tier}`
           : power.kind === 'gainMaxMana'
-            ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Mana` : `need ${power.cost} Mana`}`
+            ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
             : power.kind === 'gild'
               ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
               : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
@@ -59,7 +59,7 @@ export function StatusBar() {
           : ' Drag onto a friendly minion (or click, then click it). One use per game.'
         : run.heroReady
           ? power.untargeted
-            ? ` Click to use.${power.cost ? ` Costs ${power.cost} Mana.` : ''}`
+            ? ` Click to use.${power.cost ? ` Costs ${power.cost} Gold.` : ''}`
             : ' Drag onto a minion (or click, then click a minion).'
           : ' Used this wave.';
   // Projected starting Embers for the next two waves (each wave grows maxEmbers by
@@ -91,12 +91,12 @@ export function StatusBar() {
           <span className="ic"><Icon name="mana" /></span>
           <div>
             <div className="v">{run.embers}</div>
-            <div className="l">Mana</div>
+            <div className="l">Gold</div>
           </div>
           {sellTick > 0 && <span className="sellfx" key={sellTick}>+1</span>}
-          {/* hover: how much Mana you'll start the next two waves with (cascading up) */}
+          {/* hover: how much Gold you'll start the next two waves with (cascading up) */}
           <div className="emberproj" role="tooltip">
-            <div className="ept">Mana · coming up</div>
+            <div className="ept">Gold · coming up</div>
             <div className="epr"><span>Wave {run.wave + 2}</span><b><Icon name="mana" />{afterEmbers}</b></div>
             <div className="epr"><span>Wave {run.wave + 1}</span><b><Icon name="mana" />{nextEmbers}</b></div>
           </div>
@@ -121,6 +121,16 @@ export function StatusBar() {
             <div className="nm">{hero.name}</div>
             <div className="pw">{powerLine}</div>
           </div>
+          {/* Hero-power button — a circle on the RIGHT of the hero frame. Placeholder glyph for now
+              (dedicated hero-power artwork to come); clicking it bubbles to the frame's arm/fire handler. */}
+          {!isPassive && (
+            <span
+              className={`heropowerbtn${heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
+              aria-hidden="true"
+            >
+              <Icon name="sc" />
+            </span>
+          )}
           <div className="herotip" role="tooltip">
             <b>{power.name}</b> — {power.text}
             {powerNote}

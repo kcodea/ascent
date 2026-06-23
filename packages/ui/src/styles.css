@@ -9,7 +9,7 @@
   --bg: #8c857a; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
   --acc: #f0902e; --acc-dk: #c46f17; --threat: #e5446b; --threat-dk: #b32c50; --shadow: rgba(90, 66, 30, 0.16);
-  --mana: #30d2ff; --mana-dk: #1592c2; /* the Mana economy (was Embers) — teal blue */
+  --mana: #f4be35; --mana-dk: #a8780f; /* Gold (the economy / cost color). --mana var kept internally */
   /* the game renders into a centred "stage" box. By default it fills the window; the Esc-menu
      resolution scaler shrinks it to a fixed aspect/size, letterboxing the rest (see [data-res]).
      All sizing keys off the box (--gw/--gh), not the raw viewport, so the board scales inside it. */
@@ -180,6 +180,21 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .ctlbtn.endturn-top svg { width: calc(27 * var(--u)); height: calc(27 * var(--u)); color: #fff; }
 .ctlbtn.endturn-top:not(:disabled):hover { filter: brightness(1.05); border-color: var(--acc-dk); }
 .ctlbtn.endturn-top.urgent { animation: endpulse 0.9s ease-in-out infinite; }
+/* Hero-power button — a circle attached to the RIGHT side of the hero frame (in the status bar). It sits
+   as the frame's right-most flex child (parent gap spaces it off the text); clicking it bubbles to the
+   .hero arm/fire handler. Placeholder glyph for now; dedicated hero-power artwork to come. */
+.heropowerbtn {
+  flex: none; margin-left: auto;
+  width: calc(58 * var(--u)); height: calc(58 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
+  border: 3px solid var(--acc-dk); display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.45), transparent 55%), var(--acc);
+  box-shadow: 0 4px 0 var(--acc-dk);
+}
+.heropowerbtn img { width: 100%; height: 100%; object-fit: cover; }
+.heropowerbtn svg { width: 52%; height: 52%; color: #fff; }
+.heropowerbtn.ready { animation: endpulse 0.9s ease-in-out infinite; box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 18px -2px var(--acc); }
+.heropowerbtn.armed { box-shadow: 0 0 0 4px var(--acc), 0 0 22px 2px var(--acc); }
+.heropowerbtn:not(.ready):not(.armed) { opacity: 0.5; filter: saturate(0.75); }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */
 .tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }

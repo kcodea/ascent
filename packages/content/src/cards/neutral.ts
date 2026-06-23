@@ -31,8 +31,8 @@ export const NEUTRAL: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [],
-    text: 'Sells for **+1 Mana** per turn you hold it.',
-    goldenText: 'Sells for **+2 Mana** per turn you hold it.',
+    text: 'Sells for **+1 Gold** per turn you hold it.',
+    goldenText: 'Sells for **+2 Gold** per turn you hold it.',
   },
   {
     id: 'broker',

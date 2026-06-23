@@ -28,7 +28,10 @@ The next 5 concrete steps:
    — the opponent-frame intel set.
 3. ✅ **Board library + strength index** — `pickOpponent(wave, power)` + a deterministic **bootstrap pool**
    (seeded bot runs) injected at startup, and (done 2026-06-22) **your own finished-run boards persist** to
-   localStorage (`boardLibrary.ts`) and load into the pool at startup. Remaining: a shared **friend backend**
+   localStorage (`boardLibrary.ts`) and load into the pool at startup. **Hardened 2026-06-23:**
+   `registerOpponents` now drops boards referencing a removed/renamed card (`isServableBoard`) and `faceOmen`
+   falls back to the procedural threat on any serve-time failure — a stale capture can no longer hard-lock
+   End Turn (it did: a pre-removal Lifebinder board crashed combat). Remaining: a shared **friend backend**
    keyed by `(wave, power-band, tribe)` — the async-PvP track (step 5).
 4. ✅ **Serve real boards as enemies** (done 2026-06-21). `faceOmen` draws a strength-matched real snapshot via
    `nextOpponent`/`pickOpponent` (procedural omen = thin-pool fallback), and the top-right **opponent-intel
@@ -56,6 +59,11 @@ the Devourer** T5 have landed alongside the original T1s — keep filling the mi
     cards stay relevant** past the mid-game (scaling payoffs / recombination / triples), and (b) **decision
     diversity** — shake up *how/why* you reach destination builds (partly the thin pool, partly cross-tribe
     value engines washing out tribe identity). See `docs/balance-handoff.md` §9 for the full direction.
+  - **Content batch (2026-06-23, shipped → devlog):** +6 minions (Better Bot, Sheldon, Speedy, Harry Botter,
+    Burial Imp, Soulsman — Mech pool now 11, near the 13–15 target); Gnasher rework (re-attack + run-wide
+    spell power); Maw → T3; Combinator now magnetizes a *random* Magnetic Mech. Mana→Gold rename (text +
+    names + gold coin icon). Hero-power button on the hero frame (placeholder art). Two new carry-back
+    channels (`playerFodderGrants`, `playerMaxGoldGain`).
 - **Patch 2 — Front Door & Hero Roster** *(M3; variety).* The run's entry + variety. Generalize the
   `heroChoices` flag into a `scene` enum and build **Title → Play → Mode → Hero → run** (no router;
   small overlays reusing `herocard`). Add a data-driven **MODES** registry — the two intended modes

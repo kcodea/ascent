@@ -3,6 +3,77 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-23
+
+### Content batch (6 minions + reworks) · Mana→Gold · Combinator rework · hero-power button · **End-Turn freeze fix**
+
+**The End-Turn freeze (the headline fix).** The owner reported two consecutive late-game runs (wave 6 vs
+Drakko, wave 10 vs Cassen) that "hung up and froze on End of Turn" — the recruit screen stuck with the shop
+visible and the button dead. Ruled out every loop first: `simulate` is fully bounded (iteration guard 300,
+re-attack guard 50, summon cap 7, echo bounded — a hand-built 300-iteration stalemate is 900 events and 1000
+odds sims run in **100ms**); `faceOmen`/the odds loop are fast; the End-Turn beat telegraph + the combat
+replay are bounded `setTimeout` chains that can't synchronously freeze a tab. **Root cause:** the previous
+balance patch *removed* Corrupted Lifebinder, but the opponent pool is hydrated at startup from the player's
+**localStorage board library** (`loadStoredBoards`), which validated snapshot *shape* but never that each
+minion's `cardId` still exists. A board captured by an older build (containing `lifebinder`) loaded into
+`OPPONENT_POOL`; when `faceOmen` served it, `instantiate` threw `Unknown card: lifebinder`. That throw lands
+inside the End-Turn beat chain's `setTimeout`, so it's uncaught — the phase never flips to `combat`, the turn
+stays stuck in recruit, and the bad board **persists across runs** in localStorage (why it hit two runs in a
+row, only at deep waves where captured boards are served). Fixed at two layers:
+- **`registerOpponents` now filters out unservable boards** (`isServableBoard`: every minion's `cardId` must
+  exist in the current `CARD_INDEX`). Both sources — the bootstrap pool and the persisted player boards —
+  route through it, so a stale capture can never enter the pool. On the owner's next load this clears their
+  poisoned localStorage entry automatically.
+- **`faceOmen` got a belt-and-suspenders fallback:** the served-board combat (+ its odds) is wrapped in
+  `try/catch`; on *any* serve-time failure it re-resolves against the procedural threat board, so combat
+  **always** resolves and End Turn can never hard-lock on a bad opponent again. Refactored the enemy build
+  into `proceduralEnemy()` + `resolveCombatVs(enemy, tier)` to share the path cleanly.
+- Tests: `isServableBoard` accept/reject, `registerOpponents` drops a stale board, and a `faceOmen` test that
+  force-pushes a `lifebinder` board past the filter and asserts it does **not** throw, reaches `combat`, and
+  falls back to a fightable enemy with odds. **273 green.**
+
+**6 new minions + carry-back plumbing.** Better Bot (T5 Mech 6/4, `Magnetic`+`Rally`: on attack gives your
+other Mechs +5 Attack via a new `rallyMechAtk` field that *stacks* when welded — `applyWeld` accrues it, so 5
+welded onto one Mech → +25; combat applies it in `performAttack`); Sheldon (T3 Mech 2/4 Divine Shield);
+Speedy (T4 Mech 4/4 Windfury); Harry Botter (T4 Mech 1/5, passive aura — `spellStatBonus` adds +1/+1 to
+stat-granting spells while it's on board, golden +2/+2); Burial Imp (T2 Demon 3/3, Deathrattle queues a
+Fodder to the next tavern via new `deathrattleAddFodder` → `CombatResult.playerFodderGrants` → `settleCombat`,
+golden 2); Soulsman (T3 Undead 2/5, `Avenge (4)` raises max Gold by 1 via new `avengeMaxGold` →
+`playerMaxGoldGain` → `settleCombat` bumps `maxEmbers`, golden 2). Two new combat carry-back channels +
+factories (`grantTavernFodder`, `grantMaxGold` on `CombatContext`).
+
+**Gnasher rework + Maw → T3.** Gnasher, the Overrun is now "when it kills a minion it **attacks again** and
+your spells permanently gain **+1/+1**" (`reAttackOnKill` + a new `onKillBuffSpellPower` factory — separate
+from `deathrattleBuffSpellPower` because `onKill` carries `attacker`, not `minion`). Maw of the Pit moved T4→T3.
+
+**Combinator → random Magnetic Mech.** Instead of always welding a Cling Drone token, Combinator's End of
+Turn now magnetizes a **random Magnetic Mech** (Cling / Money Bot / Better Bot…, rolled on its own seeded
+stream) onto a random friendly Mech — so the welds vary turn to turn (a Cling stacks the Cling enchant, a
+Money Bot welds income, a Better Bot welds stacking Rally). The host selection is unchanged (still seeded via
+`magnetizeTargets`, matching the UI's electrify telegraph). Card text + the hover reference popup updated
+(now shows all three magnetic mechs). Rewrote the two cling-specific Combinator tests to the random-fork
+behavior; cling-improvement stays covered by the play-path tests.
+
+**Mana → Gold, once and for all.** All user-facing "Mana" → "Gold" (card text, spell names — Mana Pouch →
+**Gold Pouch**, Mana Font → **Gold Font** — Nadja's power, StatusBar labels + tooltips, live card text). Card
+ids are unchanged (`emberpouch`, `manafont`, power kind `gainMaxMana`). The cost color (`--mana`) is now gold,
+and the `mana` Icon glyph was redrawn from a teal droplet to a **gold coin** (disc + stamped rim/sparkle +
+shine) — shows in the Gold chip, the projected-gold rows, and the coin cost badges.
+
+**Hero-power button.** Added a circular hero-power button **attached to the right side of the hero frame** (in
+the StatusBar), with a placeholder glyph (dedicated artwork to come) and ready/armed states; clicking it
+bubbles to the frame's existing arm/fire handler. (Replaces the earlier placement off the control frame.)
+
+**Art.** Wired the 6 new minions + new art for Heckbinder (`heckbinder2`) and Combinator (`combinator2`) via
+the `ART_ALIAS` map, plus the owner's new Gold Font / Gold Pouch art (alias `manafont`→`goldfont`,
+`emberpouch`→`goldpouch`). Optimized 10 masters (21.8MB → 0.56MB). Verified live (fresh dev server — new art
+needs a restart, not a reload): all 10 art files resolve, the coin + hero circle render, and End Turn →
+combat resolves cleanly with zero console errors.
+
+**Docs.** `docs/cards.csv` regenerated from `@game/content` via `npm run dump-cards` (53 minions, 19 spells,
+7 tokens). Per the owner, `docs/balance-handoff.md` is intentionally **not** updated (inaccurate / not a
+priority).
+
 ## 2026-06-22
 
 ### Balance patch v1: Yazzus targeted-only · remove Corrupted Lifebinder · 15-round win

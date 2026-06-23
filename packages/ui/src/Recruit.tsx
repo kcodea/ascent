@@ -31,7 +31,7 @@ const RING = 2 * Math.PI * 17; // countdown ring circumference
  *  creates, or the Fodder it buffs / consumes (so the player can read what it does, and see the
  *  *current* buffed Fodder for Ritualist & co). */
 const CARD_REFERENCES: Record<string, string[]> = {
-  alley: ['stray'], shaper: ['stray'], pack: ['pup'], brood: ['impscrap'], combinator: ['cling'],
+  alley: ['stray'], shaper: ['stray'], pack: ['pup'], brood: ['impscrap'], combinator: ['cling', 'moneybot', 'betterbot'],
   feed: ['fred'], imp: ['fred'], ritualist: ['fred'], maw: ['fred'],
 };
 /** A referenced token's card view. Fodder ('fred') folds in Ritualist's persistent buff so the
@@ -116,7 +116,7 @@ function instView(
       : c.spell
         ? spellDisplayText(c.id, spellBonus, frontToBackBonus, spellBonusH)
         : c.id === 'hoarder'
-          ? `Sells for **+1 Mana** per turn you hold it. {{Sells for ${wave - (inst.boughtWave ?? wave) + 1} Mana now.}}`
+          ? `Sells for **+1 Gold** per turn you hold it. {{Sells for ${wave - (inst.boughtWave ?? wave) + 1} Gold now.}}`
           : transformProgressText(c.id, inst.spellProgress ?? 0) ??
             summonScalingText(c.id, spellsThisTurn) ??
             summonBuffText(c.id, inst.summonBonus ?? 0) ??
@@ -135,7 +135,7 @@ function instView(
     keywords: inst.keywords, text,
     goldenText:
       c.id === 'hoarder'
-        ? `Sells for **+2 Mana** per turn you hold it. {{Sells for ${(wave - (inst.boughtWave ?? wave) + 1) * 2} Mana now.}}`
+        ? `Sells for **+2 Gold** per turn you hold it. {{Sells for ${(wave - (inst.boughtWave ?? wave) + 1) * 2} Gold now.}}`
         : c.goldenText,
     golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,

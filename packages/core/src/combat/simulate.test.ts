@@ -593,21 +593,53 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 6 && ev.health === 6)).toBe(true);
   });
 
-  it('Gnasher gains a permanent +5/+5 on kill (Engraved carries it back)', () => {
-    // Player Gnasher (wider board → goes first) kills the lone enemy; its on-kill +5/+5 is Engraved, so
-    // it's recorded as a permaGain the run loop applies to the board after the fight.
+  it('Gnasher: each kill permanently raises run-wide spell power (+1/+1)', () => {
+    // Player Gnasher (wider board → goes first) kills the lone enemy → +1/+1 to your spells, carried back.
     const a = run(
       [
-        { cardId: 'gnash', attack: 6, health: 6, sourceUid: 'G' },
+        { cardId: 'gnash', attack: 6, health: 6 },
         { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] },
       ],
       [{ cardId: 'omen', attack: 1, health: 1 }],
       3,
     );
     expect(a.result).toBe('win');
-    const perma = a.playerPermaBuffs?.find((p) => p.sourceUid === 'G');
-    expect(perma).toBeDefined();
-    expect([perma!.attack, perma!.health]).toEqual([5, 5]); // one kill → +5/+5 kept
+    expect(a.playerSpellPower).toEqual({ attack: 1, health: 1 }); // one kill → +1/+1 spell power
+  });
+
+  it('Better Bot (Rally): when it attacks, your other Mechs get +5 Attack', () => {
+    const a = run(
+      [
+        { cardId: 'betterbot', attack: 6, health: 50 }, // rallyMechAtk derived from the CardDef (5)
+        { cardId: 'drone', attack: 2, health: 50 }, // a friendly Mech — the buff target
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }, // wide board → player goes first
+      ],
+      [{ cardId: 'omen', attack: 1, health: 200 }],
+      3,
+    );
+    // Better Bot attacked → a +5 Attack buff landed on the Drone (the other Mech), source "Better Bot".
+    expect(a.events.some((e) => e.type === 'buff' && e.source === 'Better Bot' && e.attack === 5)).toBe(true);
+  });
+
+  it('Burial Imp: its Deathrattle queues Fodder for the next tavern (carried back)', () => {
+    const a = run(
+      [{ cardId: 'burialimp', attack: 3, health: 1 }],
+      [{ cardId: 'omen', attack: 5, health: 50 }],
+      3,
+    );
+    expect(a.playerFodderGrants).toBe(1); // one Burial Imp died → 1 Fodder queued for the next tavern
+  });
+
+  it('Soulsman: Avenge (4) permanently raises your max Gold (carried back)', () => {
+    const a = run(
+      [
+        { cardId: 'soulsman', attack: 0, health: 300 }, // 0-Attack: never swings, just counts friendly deaths
+        ...Array.from({ length: 8 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 })),
+      ],
+      [{ cardId: 'omen', attack: 5, health: 300 }],
+      3,
+    );
+    expect(a.playerMaxGoldGain).toBe(2); // 8 friendly deaths / Avenge 4 = 2 procs (+1 Gold each)
   });
 
   it('Blaster Deathrattle deals 3 to every minion on both sides (friendly included)', () => {
@@ -801,23 +833,21 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Taurus engraves the minion to its LEFT — that minion keeps its combat gains (carry-back)', () => {
-    // Gnasher gains +5/+5 on kill, but here we strip its native EG (keywords: []) so the gain would NOT
-    // normally carry back. Taurus sits to its right and engraves it at Start of Combat → the +5/+5 is
-    // recorded as a permaGain (engraved: true) to carry back to the run board. Inert Taunt filler makes
-    // the player board wider so it attacks first; Gnasher one-shots the lone 1-hp enemy → on-kill +5/+5.
+    // A Sporeling dies and buffs every friend +1 of one stat (combat-only). The target wall has its keywords
+    // stripped, so its +1 would NOT normally carry back; Taurus sits to its right and engraves it at Start of
+    // Combat → the +1 is recorded as a permaGain (engraved: true), carried back even though it later dies.
     const a = run(
       [
-        { cardId: 'gnash', attack: 6, health: 6, keywords: [], sourceUid: 'G' }, // EG stripped
-        { cardId: 'taurus', attack: 6, health: 8, sourceUid: 'T' },
-        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] },
+        { cardId: 'sandbag', attack: 0, health: 30, keywords: [], sourceUid: 'G' }, // engraved target (Taurus's left)
+        { cardId: 'taurus', attack: 6, health: 30, sourceUid: 'T' },
+        { cardId: 'spore', attack: 1, health: 1, sourceUid: 'S' }, // dies → buffs all friends +1 (random stat)
       ],
-      [{ cardId: 'omen', attack: 1, health: 1 }],
+      [{ cardId: 'omen', attack: 3, health: 200 }],
       3,
     );
-    expect(a.result).toBe('win');
     const perma = a.playerPermaBuffs?.find((p) => p.sourceUid === 'G');
     expect(perma).toBeDefined();
-    expect([perma!.attack, perma!.health]).toEqual([5, 5]); // Gnasher's kill gain carried back...
+    expect(perma!.attack + perma!.health).toBe(1); // the +1 (Attack or Health) carried back...
     expect(perma!.engraved).toBe(true); // ...labelled Engraved (sc-granted EG on the combat minion)
     // A Start-of-Combat `sc` event was logged for Taurus's engrave (source = Taurus's combat uid).
     const taurusUid = a.initial.player.find((m) => m.cardId === 'taurus')!.uid;
@@ -825,18 +855,18 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Taurus does NOT carry back a non-adjacent friend (guard)', () => {
-    // Same Gnasher (EG stripped) but now an inert sandbag sits between it and Taurus, so Gnasher is two
-    // slots from Taurus — not its left neighbor. Its on-kill +5/+5 is combat-only and must NOT carry back.
+    // Same Sporeling buff, but a wedge sits between the target wall and Taurus, so the wall is NOT Taurus's
+    // left neighbor — its +1 is combat-only and must NOT carry back.
     const a = run(
       [
-        { cardId: 'gnash', attack: 6, health: 6, keywords: [], sourceUid: 'G' }, // EG stripped, NOT adjacent
-        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] }, // wedge between Gnasher and Taurus
-        { cardId: 'taurus', attack: 6, health: 8, sourceUid: 'T' },
+        { cardId: 'sandbag', attack: 0, health: 30, keywords: [], sourceUid: 'G' }, // NOT adjacent to Taurus
+        { cardId: 'sandbag', attack: 0, health: 30, keywords: ['T'] }, // wedge between the target and Taurus
+        { cardId: 'taurus', attack: 6, health: 30, sourceUid: 'T' },
+        { cardId: 'spore', attack: 1, health: 1, sourceUid: 'S' },
       ],
-      [{ cardId: 'omen', attack: 1, health: 1 }],
+      [{ cardId: 'omen', attack: 3, health: 200 }],
       3,
     );
-    expect(a.result).toBe('win');
     expect(a.playerPermaBuffs?.find((p) => p.sourceUid === 'G')).toBeUndefined(); // gain dropped, as normal
   });
 
@@ -866,20 +896,21 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerPermaBuffs?.find((p) => p.sourceUid === 'X')).toBeUndefined(); // non-neighbor: gain dropped
   });
 
-  it('native Engraved (Flowing Monk gift recipient) still carries back labelled correctly', () => {
-    // Regression guard for the carry-back refactor: Gnasher WITH its native EG keeps working exactly as
-    // before — its on-kill +5/+5 carries back with engraved: true, no Taurus involved.
+  it('native Engraved keeps a minion combat gain (carry-back, no Taurus)', () => {
+    // Regression guard for the carry-back refactor: a wall with the native EG keyword keeps whatever it
+    // gains — a Sporeling dies and buffs all friends +1 of one stat; the EG wall's +1 carries back with
+    // engraved: true, no Taurus involved.
     const a = run(
       [
-        { cardId: 'gnash', attack: 6, health: 6, sourceUid: 'G' }, // native EG (keywords from the CardDef)
-        { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] },
+        { cardId: 'sandbag', attack: 0, health: 30, keywords: ['EG'], sourceUid: 'G' },
+        { cardId: 'spore', attack: 1, health: 1, sourceUid: 'S' },
       ],
-      [{ cardId: 'omen', attack: 1, health: 1 }],
+      [{ cardId: 'omen', attack: 3, health: 200 }],
       3,
     );
     const perma = a.playerPermaBuffs?.find((p) => p.sourceUid === 'G');
     expect(perma).toBeDefined();
-    expect([perma!.attack, perma!.health]).toEqual([5, 5]);
+    expect(perma!.attack + perma!.health).toBe(1);
     expect(perma!.engraved).toBe(true);
   });
 

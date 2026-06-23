@@ -78,6 +78,9 @@ export interface BoardCard {
    *  The card's own `manaPerTurn` is read from its def; this holds only the absorbed bonus,
    *  so it survives the magnetize-merge + triple and is lost when the card is sold. */
   manaBonus?: number;
+  /** Better Bot: accrued Rally-Mech Attack welded onto this card (5 per Better Bot magnetized, golden ×2).
+   *  Carried into combat where, when this attacks, your other Mechs get +this Attack. */
+  rallyMechAtk?: number;
   /** Maw of the Pit: a one-combat Divine Shield earned by consuming. The 'DS' keyword is added for
    *  display + the snapshot; this flag marks it temporary so `resolveCombat` strips it after the next
    *  fight (gain it again by consuming again). */

@@ -23,7 +23,7 @@ export const SPELLS: CardDef[] = [
   },
   {
     id: 'emberpouch',
-    name: 'Mana Pouch',
+    name: 'Gold Pouch',
     tribe: 'neutral',
     tier: 1,
     attack: 0,
@@ -32,7 +32,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 1,
     effects: [{ on: 'cast', do: 'gainEmbers', params: { amount: 1 } }],
-    text: 'Gain **1 Mana**.',
+    text: 'Gain **1 Gold**.',
   },
   {
     id: 'bulwark',
@@ -142,9 +142,9 @@ export const SPELLS: CardDef[] = [
     text: 'Make a **Tier 4 or lower** minion **Golden**.',
   },
   {
-    // Permanently raise max Mana by 1 (and refill 1 now).
+    // Permanently raise max Gold by 1 (and refill 1 now). (id stays `manafont` — the art file matches it.)
     id: 'manafont',
-    name: 'Mana Font',
+    name: 'Gold Font',
     tribe: 'neutral',
     tier: 2,
     attack: 0,
@@ -153,7 +153,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 3,
     effects: [{ on: 'cast', do: 'gainMaxMana', params: { amount: 1 } }],
-    text: 'Gain **+1 max Mana** permanently.',
+    text: 'Gain **+1 max Gold** permanently.',
   },
   {
     // Discover a Tier 1 minion (fixed-tier Discover via the reducer's play path).

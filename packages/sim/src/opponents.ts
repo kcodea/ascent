@@ -12,6 +12,7 @@
  * non-deterministic track.
  */
 import type { BoardMinion, Rng } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import type { BoardSnapshot } from './snapshot';
 
 /**
@@ -60,11 +61,23 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
   }));
 }
 
+/** A snapshot is servable only if EVERY minion's cardId still exists in the current build. A board captured
+ *  by an older version can reference a card a later patch removed/renamed (e.g. Corrupted Lifebinder); serving
+ *  it would throw `Unknown card` in `instantiate` and hard-lock combat (the End-Turn freeze). Drop such boards
+ *  at the door so the pool only ever holds boards this build can actually fight. */
+export function isServableBoard(snap: BoardSnapshot): boolean {
+  return snap.minions.every((m) => CARD_INDEX[m.cardId] !== undefined);
+}
+
 /**
  * Append boards to the served pool. The app calls this ONCE at startup (with the deterministic bootstrap
  * pool), and step 3's library will grow it in batches. Keep it static for a session — inject before any run
  * faces combat and don't mutate mid-run, or replays stop being byte-identical.
+ *
+ * Stale boards (referencing a card this build no longer has) are filtered out here — they'd otherwise crash
+ * combat when served. Both sources (bootstrap pool + persisted player boards) route through this, so neither
+ * can poison the pool with an unfightable board.
  */
 export function registerOpponents(snaps: BoardSnapshot[]): void {
-  OPPONENT_POOL.push(...snaps);
+  OPPONENT_POOL.push(...snaps.filter(isServableBoard));
 }

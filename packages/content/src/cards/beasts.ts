@@ -55,12 +55,12 @@ export const BEASTS: CardDef[] = [
     tier: 6,
     attack: 6,
     health: 6,
-    keywords: ['EG'],
+    keywords: [],
     effects: [
       { on: 'onKill', do: 'reAttackOnKill' },
-      { on: 'onKill', do: 'onKillBuffSelf', params: { attack: 5, health: 5 } },
+      { on: 'onKill', do: 'onKillBuffSpellPower', params: { attack: 1, health: 1 } },
     ],
-    text: 'When it kills a minion, it **attacks again** and gains **+5/+5** **Engraved**.',
+    text: 'When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.',
   },
   {
     // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.

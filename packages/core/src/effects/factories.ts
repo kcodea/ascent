@@ -111,6 +111,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(self, num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
 
+  /** On kill (Gnasher): each kill permanently raises run-wide spell power +atk/+hp (golden doubles).
+   *  Player carry-back via `CombatResult.playerSpellPower` → applied in settleCombat. Same attacker-guard
+   *  as onKillBuffSelf (the onKill payload carries the killer as `attacker`). */
+  onKillBuffSpellPower: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side);
+  },
+
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
    *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
   deathrattleDamageAll: (ctx, self, params, payload) => {
@@ -252,6 +260,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantCardBuff(cardId, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
   },
 
+  /** Deathrattle (Burial Imp): queue `count` Fodder (golden doubles) into your next tavern. Player-side
+   *  carry-back via `CombatResult.playerFodderGrants` → pushed onto pendingTavern in settleCombat. */
+  deathrattleAddFodder: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.grantTavernFodder(num(params.count, 1) * mul(self), self.side);
+  },
+
   /** Deathrattle (Junkyard Titan): add a random Magnetic minion to your hand after combat. Sibling of
    *  Arcane Weaver's grant, but the card is chosen at random (via ctx.rng) from the Magnetic-keyword
    *  minion pool (tokens/spells excluded) rather than a fixed id. Each pick is independent, so a golden's
@@ -347,6 +362,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (count % x !== 0) return;
     self.summonBonus += 1;
     ctx.log({ type: 'improve', target: self.uid, amount: 1 });
+  },
+
+  /** Avenge (Soulsman): every X friendly deaths, permanently raise your max Gold by 1 (golden +2).
+   *  Player-side carry-back via `CombatResult.playerMaxGoldGain` → applied to maxEmbers in settleCombat. */
+  avengeMaxGold: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 4));
+    if (count % x !== 0) return;
+    ctx.grantMaxGold(mul(self), self.side);
   },
 
   /** Deathrattle (Ghastweaver): fill the board with random cards from `pool`. */

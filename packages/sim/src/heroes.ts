@@ -14,7 +14,7 @@ export type HeroPowerKind =
   | 'replayEndOfTurn' // Djinn: proc a friendly minion's End of Turn now
   | 'resummon' // Soren: at start of combat, destroy a marked minion (procs its Deathrattle) + resummon a copy
   | 'spellAmplify' // Rohan (passive): stat-granting spells give +X/+X more, X scaling every 3 waves
-  | 'gainMaxMana' // Nadja: gain +1 max Mana permanently
+  | 'gainMaxMana' // Nadja: gain +1 max Gold permanently (id stays `gainMaxMana`)
   | 'collision' // Cassen (passive): after killing 5 enemy minions, get a minion of your most common type (carry-back)
   | 'quest'; // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
 
@@ -29,9 +29,9 @@ export interface HeroPower {
   unlockWave?: number;
   /** Passive powers are always-on (no activation/target) — the panel shows them, but you can't arm them. */
   passive?: boolean;
-  /** Active powers that need no target — they fire immediately on click (Nadja's Mana Font). */
+  /** Active powers that need no target — they fire immediately on click (Nadja's Gold Font). */
   untargeted?: boolean;
-  /** Mana cost to activate, spent on use (on top of the once-per-turn / -game gate). 0/undefined = free. */
+  /** Gold cost to activate, spent on use (on top of the once-per-turn / -game gate). 0/undefined = free. */
   cost?: number;
 }
 
@@ -118,14 +118,14 @@ export const HEROES: HeroDef[] = [
   {
     id: 'nadja',
     name: 'Nadja',
-    blurb: 'The well runs deeper each turn — more Mana, more room to scheme.',
+    blurb: 'The well runs deeper each turn — more Gold, more room to scheme.',
     resolve: 30,
     power: {
-      name: 'Mana Font',
+      name: 'Gold Font',
       kind: 'gainMaxMana',
       untargeted: true,
       cost: 3,
-      text: 'Mana Font: Spend 3 Mana to gain +1 max Mana permanently.',
+      text: 'Gold Font: Spend 3 Gold to gain +1 max Gold permanently.',
     },
   },
   {

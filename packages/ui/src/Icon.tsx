@@ -34,10 +34,14 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   ember: <path fill="currentColor" d="M12 2s5 6 5 11a5 5 0 11-10 0c0-2 1-4 2-5 0 2 1 3 2 3 1-3-1-6 1-9z" />,
+  // Gold coin (the currency was renamed Mana → Gold; the icon key stays `mana`). A gold disc with a
+  // stamped rim + sparkle and a top-left shine — reads as a coin at badge size.
   mana: (
     <>
-      <path fill="currentColor" d="M12 2.5C12 2.5 5 10 5 14.5a7 7 0 0014 0C19 10 12 2.5 12 2.5z" />
-      <path fill="rgba(255,255,255,0.5)" d="M9.3 13.4c.3-1.7 1.4-3.4 2.7-4.9-2 .8-3.6 2.6-3.9 4.7-.1.6.3 1.1.9.9.2-.1.3-.4.3-.7z" />
+      <circle cx="12" cy="12" r="9" fill="currentColor" />
+      <circle cx="12" cy="12" r="6.3" fill="none" stroke="rgba(0,0,0,0.22)" strokeWidth="1.3" />
+      <path fill="rgba(0,0,0,0.22)" d="M12 7.5C12.3 10.3 13.7 11.7 16.5 12 13.7 12.3 12.3 13.7 12 16.5 11.7 13.7 10.3 12.3 7.5 12 10.3 11.7 11.7 10.3 12 7.5Z" />
+      <path fill="rgba(255,255,255,0.45)" d="M7.7 8.2A6.6 6.6 0 0 1 11 5.7c-2.1.3-3.9 1.6-4.6 3.4-.2.5.3 1 .8.7.2-.1.4-.3.5-.6z" />
     </>
   ),
   heart: <path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z" />,

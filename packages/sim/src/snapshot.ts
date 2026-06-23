@@ -53,6 +53,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     keywords: [...c.keywords],
     ...(c.golden ? { golden: true } : {}),
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
+    ...(c.rallyMechAtk ? { rallyMechAtk: c.rallyMechAtk } : {}),
   }));
 }
 

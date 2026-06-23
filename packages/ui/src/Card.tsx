@@ -257,8 +257,8 @@ export const Card = memo(function Card({
       onDrop={onDrop}
     >
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
-      {/* cost badge — a teal Mana circle overhanging the corner. Minions are a flat 3, so their cost is
-          hidden (only shown if something has changed it off 3); spells always show their cost. */}
+      {/* cost badge — a gold coin overhanging the corner (the cost in Gold). Minions are a flat 3, so their
+          cost is hidden (only shown if something has changed it off 3); spells always show their cost. */}
       {card.cost !== undefined && (card.spell || card.cost !== 3) && (
         <span className="cost">
           <span className="costn">{card.cost}</span>

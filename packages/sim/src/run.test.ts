@@ -11,6 +11,8 @@ import {
   selectThreat,
   buildEnemyBoard,
   pickOpponent,
+  isServableBoard,
+  registerOpponents,
   buildBootstrapPool,
   lossDamageCap,
   OPPONENT_POOL,
@@ -523,7 +525,23 @@ describe('run loop (@game/sim)', () => {
     expect(boardManaBonus(s)).toBe(0); // income gone with it
   });
 
-  it('Combinator magnetizes a Cling Drone (+2/+2) onto 1 friendly Mech at end of turn (golden: 2)', () => {
+  it('Better Bot magnetizes its Rally onto a Mech, and it stacks (+5 each)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      hand: [
+        { uid: 'bb1', cardId: 'betterbot', tribe: 'mech', attack: 6, health: 4, keywords: ['M', 'RL'], golden: false },
+        { uid: 'bb2', cardId: 'betterbot', tribe: 'mech', attack: 6, health: 4, keywords: ['M', 'RL'], golden: false },
+      ],
+      board: [{ uid: 'd', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'bb1', toIndex: 0 }); // weld onto the Drone
+    expect(s.board.length).toBe(1); // merged, not a new slot
+    expect(s.board[0]!.rallyMechAtk).toBe(5); // host now grants +5 to other Mechs on attack
+    s = reduce(s, { type: 'play', uid: 'bb2', toIndex: 0 }); // weld a 2nd Better Bot → stacks
+    expect(s.board[0]!.rallyMechAtk).toBe(10); // +5 each → +10
+  });
+
+  it('Combinator magnetizes a random Magnetic Mech onto 1 friendly Mech at end of turn (golden: 2)', () => {
     let s: RunState = {
       ...createRun(1),
       phase: 'recruit',
@@ -540,8 +558,10 @@ describe('run loop (@game/sim)', () => {
     const d2 = s.board.find((c) => c.uid === 'd2')!;
     const cmb = s.board.find((c) => c.uid === 'cmb')!;
     const welded = [d1, d2].filter((m) => m.attack > 2);
-    expect(welded.length).toBe(1); // non-golden hits exactly one Mech (golden would hit two)
-    expect([welded[0]!.attack, welded[0]!.health]).toEqual([4, 3]); // 2/1 + a Cling Drone (2/2)
+    expect(welded.length).toBe(1); // non-golden welds exactly one Mech (golden would weld two)
+    // The host (2/1) gained a random Magnetic Mech's body: Cling (2/2), Money Bot (3/3) or Better Bot (6/4).
+    const profiles = [[2 + 2, 1 + 2], [2 + 3, 1 + 3], [2 + 6, 1 + 4]];
+    expect(profiles).toContainEqual([welded[0]!.attack, welded[0]!.health]);
     expect([cmb.attack, cmb.health]).toEqual([6, 7]); // self is not a target
   });
 
@@ -2062,8 +2082,24 @@ describe('spell stat bonus + display (@game/sim)', () => {
     // +1 bonus → the value updates and is highlighted.
     expect(spellDisplayText('spiritfire', 1)).toBe('Give a friendly minion **{{+5/+5}}**.');
     expect(spellDisplayText('bulwark', 1)).toBe('Give a friendly minion **{{+1/+2}}** and **Taunt**.');
-    // A non-stat spell (Mana Pouch) is untouched even with a bonus.
-    expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Mana**.');
+    // A non-stat spell (Gold Pouch) is untouched even with a bonus.
+    expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Gold**.');
+  });
+
+  it('Harry Botter is a passive spell-power aura (+1/+1 to spells while on board; golden +2/+2)', () => {
+    expect(spellStatBonus({ ...createRun(1), board: [] })).toBe(0);
+    const one: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'h', cardId: 'harrybotter', tribe: 'mech', attack: 1, health: 5, keywords: [], golden: false }],
+    };
+    expect(spellStatBonus(one)).toBe(1);
+    expect(spellAttackBonus(one)).toBe(1);
+    expect(spellHealthBonus(one)).toBe(1);
+    const golden: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'h', cardId: 'harrybotter', tribe: 'mech', attack: 2, health: 10, keywords: [], golden: true }],
+    };
+    expect(spellStatBonus(golden)).toBe(2); // golden Harry Botter → +2/+2
   });
 
   it('the displayed value matches what a cast actually grants (Rohan, turn 1)', () => {
@@ -2312,6 +2348,59 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     }
   });
 
+  it('isServableBoard rejects boards referencing a card this build no longer has (stale capture)', () => {
+    const known: BoardSnapshot = {
+      v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
+      minions: [{ cardId: 'whelp', attack: 5, health: 5, keywords: [] }], seed: 0,
+    };
+    const stale: BoardSnapshot = { ...known, minions: [{ cardId: 'lifebinder', attack: 9, health: 9, keywords: [] }] };
+    expect(isServableBoard(known)).toBe(true);
+    expect(isServableBoard(stale)).toBe(false); // 'lifebinder' was removed → unfightable
+  });
+
+  it('registerOpponents drops stale boards so they never enter the served pool', () => {
+    const known: BoardSnapshot = {
+      v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
+      minions: [{ cardId: 'whelp', attack: 5, health: 5, keywords: [] }], seed: 0,
+    };
+    const stale: BoardSnapshot = { ...known, minions: [{ cardId: 'lifebinder', attack: 9, health: 9, keywords: [] }] };
+    try {
+      registerOpponents([known, stale]);
+      expect(OPPONENT_POOL).toHaveLength(1);
+      expect(OPPONENT_POOL[0]!.minions[0]!.cardId).toBe('whelp'); // only the fightable board got through
+    } finally {
+      OPPONENT_POOL.length = 0;
+    }
+  });
+
+  it('faceOmen never hard-locks on a stale served board — it falls back to the procedural threat', () => {
+    // Bypass registerOpponents' filter to force the worst case: a stale board IS in the live pool. Serving it
+    // would throw `Unknown card` in instantiate (the old "froze on End of Turn" bug); the fallback must catch
+    // it and resolve combat anyway. (This is the belt-and-suspenders behind the load-time filter.)
+    const stale: BoardSnapshot = {
+      v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
+      minions: [{ cardId: 'lifebinder', attack: 9, health: 9, keywords: [] }], seed: 0,
+    };
+    OPPONENT_POOL.push(stale); // raw push — skips the filter on purpose
+    try {
+      const s: RunState = {
+        ...createRun(1),
+        wave: 3,
+        turnStartPower: 20,
+        board: [{ uid: 'a', cardId: 'kennel', tribe: 'beast', attack: 10, health: 10, keywords: [], golden: false }],
+      };
+      let next!: RunState;
+      expect(() => { next = reduce(s, { type: 'faceOmen' }); }).not.toThrow();
+      expect(next.phase).toBe('combat'); // combat resolved (didn't strand the turn in recruit)
+      const enemy = next.lastCombat!.initial.enemy;
+      expect(enemy.length).toBeGreaterThan(0);
+      expect(enemy.every((m) => m.cardId !== 'lifebinder')).toBe(true); // fell back to a fightable board
+      expect(next.lastCombat!.odds).toBeDefined(); // odds computed on the fallback board too
+    } finally {
+      OPPONENT_POOL.length = 0;
+    }
+  });
+
   it('loss damage = opponent tier + the SUM of surviving enemy tiers (procedural uses the player tier)', () => {
     // An empty board guarantees a loss with the whole enemy surviving → damage = tier + Σ(survivor tiers).
     const s: RunState = { ...createRun(1), wave: 4, tier: 3, board: [] };
@@ -2464,17 +2553,29 @@ describe('Cling Drones improve per magnetization (M3 content)', () => {
     expect([m2.attack, m2.health]).toEqual([3, 3]); // the Cling still in hand grew too
   });
 
-  it('a golden Combinator scales the improvement — a Cling onto 2 Mechs bumps it +2/+2', () => {
-    let s: RunState = {
-      ...createRun(1),
-      board: [
-        { uid: 'comb', cardId: 'combinator', tribe: 'mech', attack: 6, health: 7, keywords: [], golden: true },
-        { uid: 'd1', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
-        { uid: 'd2', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
-      ],
-    };
-    s = reduce(s, { type: 'faceOmen' }); // End of Turn: golden Combinator welds a Cling onto 2 Mechs
-    expect(s.cardBuffs?.cling).toEqual({ attack: 2, health: 2 }); // 2 Clings magnetized → +2/+2
+  it('Combinator forks into different Magnetic Mechs across seeds (random Cling / Money Bot / Better Bot)', () => {
+    // Host (2/1) gains the rolled magnetic mech's body: Cling (+2/+2), Money Bot (+3/+3) or Better Bot (+6/+4).
+    const deltaAtk = new Set<number>();
+    let sawClingEnchant = false;
+    for (let seed = 1; seed <= 30; seed++) {
+      let s: RunState = {
+        ...createRun(seed),
+        board: [
+          { uid: 'comb', cardId: 'combinator', tribe: 'mech', attack: 6, health: 7, keywords: [], golden: false },
+          { uid: 'd1', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+          { uid: 'd2', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: ['DS'], golden: false },
+        ],
+      };
+      s = reduce(s, { type: 'faceOmen' });
+      const welded = s.board.filter((c) => c.uid.startsWith('d') && c.attack > 2);
+      expect(welded.length).toBe(1); // non-golden welds exactly one host
+      const da = welded[0]!.attack - 2;
+      expect([2, 3, 6]).toContain(da); // Cling / Money Bot / Better Bot only
+      deltaAtk.add(da);
+      if (da === 2) sawClingEnchant ||= s.cardBuffs?.cling?.attack === 1; // a welded Cling still stacks the enchant
+    }
+    expect(deltaAtk.size).toBeGreaterThan(1); // it's RANDOM — not always the same bot
+    expect(sawClingEnchant).toBe(true); // and a Cling pick still improves Cling Drones (the enchant path holds)
   });
 });
 

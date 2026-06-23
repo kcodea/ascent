@@ -72,4 +72,18 @@ export const UNDEAD: CardDef[] = [
     text: '**Rally:** before this attacks, trigger your leftmost Deathrattle.',
     goldenText: '**Rally:** before this attacks, trigger your leftmost Deathrattle **twice**.',
   },
+  {
+    // Avenge: every 4 friendly deaths in combat, permanently raise your max Gold by 1 (golden +2).
+    // Carried back via CombatResult.playerMaxGoldGain → settleCombat bumps maxEmbers.
+    id: 'soulsman',
+    name: 'Soulsman',
+    tribe: 'undead',
+    tier: 3,
+    attack: 2,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeMaxGold', params: { count: 4 } }],
+    text: '**Avenge (4):** raise your maximum Gold by **1**.',
+    goldenText: '**Avenge (4):** raise your maximum Gold by **2**.',
+  },
 ];

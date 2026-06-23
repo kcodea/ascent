@@ -35,6 +35,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffTribe',
   'reAttackOnKill',
   'onKillBuffSelf',
+  'onKillBuffSpellPower',
   'deathrattleDamageAll',
   'deathrattleDestroyKiller',
   'deathrattleBuffTribeByTally',
@@ -73,7 +74,9 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnBuff',
   'endOfTurnMagnetizeMechs',
   'addTavernFodder',
+  'deathrattleAddFodder',
   'avengeImproveSummon',
+  'avengeMaxGold',
   'onConsumeBuffSelf',
   'onConsumeGrantSelfKeyword',
   'onConsumeShieldNextCombat',
@@ -136,6 +139,7 @@ export const CardDefSchema = z.object({
   targetMaxTier: z.number().int().positive().optional(),
   fodderMult: z.number().int().positive().optional(),
   manaPerTurn: z.number().int().positive().optional(),
+  rallyMechAtk: z.number().int().positive().optional(),
   chooseOne: z
     .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }))
     .min(2)

@@ -56,7 +56,8 @@ export type EffectFactoryId =
   | 'buffOnSummon'
   | 'deathrattleBuffTribe'
   | 'reAttackOnKill'
-  | 'onKillBuffSelf' // on kill: buff self (Gnasher) — permanent via Engraved
+  | 'onKillBuffSelf' // on kill: buff self — permanent via Engraved
+  | 'onKillBuffSpellPower' // on kill: permanently raise run-wide spell power +atk/+hp, carried back (Gnasher)
   | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
   | 'deathrattleDestroyKiller' // Deathrattle: destroy the minion that dealt the killing blow (Jenkins & Fi)
   | 'deathrattleBuffTribeByTally' // Deathrattle: buff a tribe by +per per Deathrattle triggered this game (Grim)
@@ -99,7 +100,9 @@ export type EffectFactoryId =
   | 'buffFodderEverywhere' // End of Turn: buff the Fodder card type for the whole run (Ritualist)
   // Demons — Consume (recruit-resolved half)
   | 'addTavernFodder' // Soulfeeder (Battlecry) / Maw of the Pit (End of Turn): queue Fodder into the next tavern
+  | 'deathrattleAddFodder' // Burial Imp: Deathrattle queues Fodder into your next tavern, carried back (Demon)
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
+  | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
   | 'onConsumeBuffSelf'
   | 'onConsumeGrantSelfKeyword'
   | 'onConsumeShieldNextCombat' // Maw of the Pit: on consume, gain a Divine Shield for the next combat only
@@ -178,6 +181,9 @@ export interface CardDef {
   /** Money Bot: while this (or a Mech it magnetized into) is on the board, the player's max mana
    *  per turn is raised by this much (golden doubles). Recruit-only; lost when the card leaves. */
   manaPerTurn?: number;
+  /** Better Bot: base Rally amount — when this (or a Mech it's magnetized onto) attacks, your OTHER
+   *  Mechs get +this Attack. Stacks: each Better Bot magnetized onto a host adds its amount to the host. */
+  rallyMechAtk?: number;
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; effects: EffectDef[] }[];
@@ -195,6 +201,9 @@ export interface BoardMinion {
   /** Overrides the card's keywords if present (e.g. a granted Poison). */
   keywords?: Keyword[];
   golden?: boolean;
+  /** Better Bot: accrued Rally-Mech Attack this minion grants on attack (its own base + every Better Bot
+   *  magnetized onto it). Combat reads it to buff other Mechs when this attacks. */
+  rallyMechAtk?: number;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -229,6 +238,8 @@ export interface Minion {
   summonBonus: number;
   /** The originating run board card's uid (if any), for per-instance carry-back. */
   sourceUid?: string;
+  /** Better Bot: total Rally-Mech Attack granted to other Mechs when this attacks (own base + welds). */
+  rallyMechAtk?: number;
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
@@ -307,6 +318,12 @@ export interface CombatResult {
   /** Permanent run-wide card-type buffs from this combat (Grave Knit's death: all Grave Knits +3/+2).
    *  One entry per (cardId) accrued; applied via the run loop's run-wide card-type buff in settleCombat. */
   playerCardBuffs?: { cardId: string; attack: number; health: number }[];
+  /** Fodder to queue into the next tavern from this combat (Burial Imp's Deathrattle). A count of
+   *  `fred` tokens; pushed onto `pendingTavern` in settleCombat. Absent if 0. */
+  playerFodderGrants?: number;
+  /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
+   *  settleCombat. Absent if 0. */
+  playerMaxGoldGain?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
   odds?: { win: number; draw: number; lose: number };
@@ -345,6 +362,12 @@ export interface CombatContext {
   /** Permanently buff a card type run-wide by +atk/+hp (Grave Knit's combat death). Player-only;
    *  accumulated and carried back via `CombatResult.playerCardBuffs`, applied in the run loop. */
   grantCardBuff(cardId: string, attack: number, health: number, side: Side): void;
+  /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
+   *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
+  grantTavernFodder(count: number, side: Side): void;
+  /** Permanently raise the player's max Gold by `amount` (Soulsman's Avenge). Player-only; carried
+   *  back via `CombatResult.playerMaxGoldGain`, applied to maxEmbers in settleCombat. */
+  grantMaxGold(amount: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

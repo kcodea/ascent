@@ -196,6 +196,8 @@ export interface MagnetPayload {
   health: number;
   keywords: Keyword[];
   mana: number;
+  /** Better Bot: Rally-Mech Attack this magnetic carries onto its host (already golden-baked). */
+  rallyMechAtk?: number;
 }
 
 /** Apply a magnetic's contribution to one host (×mult): stats (as a tracked buff), keywords (minus
@@ -206,6 +208,7 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
     if (k !== 'M' && !host.keywords.includes(k)) host.keywords.push(k);
   }
   if (mag.mana > 0) host.manaBonus = (host.manaBonus ?? 0) + mag.mana * mult;
+  if (mag.rallyMechAtk) host.rallyMechAtk = (host.rallyMechAtk ?? 0) + mag.rallyMechAtk * mult;
 }
 
 /**
@@ -523,31 +526,37 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
 
-  /** Combinator — End of Turn: weld a token's (Cling Drone's) stats onto `targets` *random* other
-   *  friendly Mechs, `count` drones each (golden doubles the drone count). The targets are picked
-   *  fresh each proc (seeded), so the welds spread unpredictably — not always the highest-Attack Mechs. */
+  /** Combinator — End of Turn: magnetize a RANDOM Magnetic Mech (Cling Drone / Money Bot / Better Bot…)
+   *  onto `targets` *random* other friendly Mechs (golden hits 2). Hosts are picked fresh each proc (seeded),
+   *  so the welds spread unpredictably — not always the highest-Attack Mechs. The magnetic mech is rolled on
+   *  its own seeded stream, so each turn can fork in a different bot: a Cling stacks the Cling improvement, a
+   *  Money Bot welds income onto the host, a Better Bot welds (stacking) Rally. The full contribution rides
+   *  in — stats, keywords (minus Magnetic), Money Bot's mana, Better Bot's `rallyMechAtk`. */
   endOfTurnMagnetizeMechs: (ctx, self, params, payload) => {
-    const token = CARD_INDEX[str(params.tokenId) || 'cling'];
-    if (!token) return;
-    const targets = num(params.targets, 1) * gold(self); // golden hits 2 Mechs instead of 1
-    const drones = num(params.count, 1); // one Cling per Mech (golden scales the number of Mechs, not this)
+    const targets = num(params.targets, 1) * gold(self); // golden welds onto 2 Mechs instead of 1
     const slot = ctx.state.board.indexOf(self);
-    const uids = magnetizeTargets(
-      ctx.state.board, self.uid, targets, ctx.state.seed, ctx.state.wave, slot, num(payload.proc, 0),
-    );
-    const clingBuff = cardBuff(ctx.state, token.id); // Cling Drones' accrued +N/+N improvement
-    const clings = token.id === 'cling' ? drones : 0; // Clings welded per Mech (stacks via weldMagnetic)
+    const proc = num(payload.proc, 0);
+    // The build's Magnetic Mechs (Cling, Money Bot, Better Bot…), sorted by id so the pick is deterministic.
+    const magnetics = Object.values(CARD_INDEX)
+      .filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M'))
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    if (magnetics.length === 0) return;
+    // Roll the magnetic mech on a distinct stream (the trailing tag separates it from the host shuffle).
+    const pick = magnetics[makeRng(mixSeed(ctx.state.seed, ctx.state.wave, TAG.MAGNET, slot, proc, 99)).int(magnetics.length)]!;
+    const uids = magnetizeTargets(ctx.state.board, self.uid, targets, ctx.state.seed, ctx.state.wave, slot, proc);
+    const pickBuff = cardBuff(ctx.state, pick.id); // a Cling pick carries its accrued +N/+N improvement
+    const clings = pick.id === 'cling' ? 1 : 0; // a welded Cling stacks the Cling improvement (via weldMagnetic)
     for (const uid of uids) {
       const m = ctx.state.board.find((c) => c.uid === uid);
-      if (m) {
-        weldMagnetic(ctx.state, m, {
-          source: nameOf(self),
-          attack: (token.attack + clingBuff.attack) * drones,
-          health: (token.health + clingBuff.health) * drones,
-          keywords: [...token.keywords],
-          mana: 0,
-        }, clings);
-      }
+      if (!m) continue;
+      weldMagnetic(ctx.state, m, {
+        source: nameOf(self),
+        attack: pick.attack + pickBuff.attack,
+        health: pick.health + pickBuff.health,
+        keywords: [...pick.keywords],
+        mana: pick.manaPerTurn ?? 0,
+        rallyMechAtk: pick.rallyMechAtk,
+      }, clings);
     }
   },
 
@@ -931,6 +940,8 @@ export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
 export function spellStatBonus(state: RunState): number {
   let bonus = 0;
   if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.wave);
+  // Harry Botter (Mech) — a passive aura: your spells get +1/+1 per Harry Botter on the board (golden +2/+2).
+  for (const c of state.board) if (c.cardId === 'harrybotter') bonus += c.golden ? 2 : 1;
   return bonus;
 }
 

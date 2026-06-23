@@ -42,6 +42,8 @@ export function simulate(
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
+  let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
+  let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
 
   /**
    * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
@@ -149,6 +151,14 @@ export function simulate(
       const e = cardBuffGains.find((g) => g.cardId === cardId);
       if (e) { e.attack += attack; e.health += health; }
       else cardBuffGains.push({ cardId, attack, health });
+    },
+    grantTavernFodder: (count, side) => {
+      if (side !== 'player') return; // enemies have no tavern
+      fodderGrants += count;
+    },
+    grantMaxGold: (amount, side) => {
+      if (side !== 'player') return; // enemies have no economy
+      maxGoldGain += amount;
     },
   };
 
@@ -335,6 +345,15 @@ export function simulate(
       events.push({ type: 'reveal', target: attacker.uid });
     }
     const swings = attacker.keywords.includes('W') ? 2 : 1; // Windfury (A.3 step 5)
+    // Better Bot (Rally): when this attacks, give your OTHER Mechs +N Attack (N = its accrued rallyMechAtk,
+    // which stacks via magnetize). Fires once per attack turn, only when there's an enemy to attack.
+    if (attacker.rallyMechAtk && attacker.rallyMechAtk > 0 && living(defenderSide).length > 0) {
+      for (const m of living(attacker.side)) {
+        if (m !== attacker && (m.tribe === 'mech' || m.tribe2 === 'mech')) {
+          ctx.buff(m, attacker.rallyMechAtk, 0, 'Better Bot');
+        }
+      }
+    }
     for (let s = 0; s < swings; s++) {
       if (attacker.dead || attacker.health <= 0) break;
       const target = chooseTarget(defenderSide);
@@ -516,5 +535,7 @@ export function simulate(
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
+    playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
+    playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
   };
 }

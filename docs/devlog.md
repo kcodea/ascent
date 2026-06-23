@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Combat feel + hero-power UI: punchier attacks · Cassen counter fix · spell-buff tooltip · bigger power button · SFX inventory
+
+- **Punchier attacks.** `playAttackLunge` windup 0.16s → **0.20s** (more anticipation, a touch deeper pull-back)
+  and strike 0.20s → **0.13s** (faster snap into the hit), so attacks read as wind-up-then-crack rather than a
+  uniform slide.
+- **Cassen counter double-count fixed.** The live in-combat Collision counter briefly showed 2/5 for 1 kill on
+  the End-Combat screen: once combat *settled*, the kills were banked into `run.cassenKills` but the live
+  `combatEnemyDeaths` bridge wasn't cleared until you left combat, so the HUD added both. Now the bridge zeroes
+  the instant `combatSettled` flips — reads 1/5 consistently (verified live).
+- **Hero spell-buff tooltip.** Hovering the hero now shows a "Your spells get +X/+Y" line (hero amplify + Harry
+  Botter auras + Skullblade), green, hidden when zero — like the gold-next-turn tooltip.
+- **Hero-power button +30%** (58u → 75u, ~86px) and the **hero frame's golden outline removed** (the ready
+  pulse, armed glow, and hover accent border) — the ready/armed cue now lives entirely on the button, which is
+  the click target. **Wired a hero-power art pipeline:** `heroPowerArt(heroId)` from `art/powers/<heroId>.{png,webp}`
+  (added to `optimize-art`), rendered in the button with the glyph as fallback. Art spec: **512×512 square,
+  transparent, subject centred** (the button is a circle / `object-fit: cover`) — see `art/powers/README.md`.
+- **SFX inventory** → new `docs/sfx-events.md`: every combat + recruit event/animation, its on-screen length,
+  and whether it currently has SFX (all current sounds are synthesized placeholders) — a reference for sourcing
+  audio, with the priority gaps flagged (DS break, Start-of-Combat cast, poison, reborn, Fodder eat, magnet weld).
+- Verified: 278 tests, typecheck + lint clean; live (bigger button, neutral frame, spell tooltip, Cassen 1/5,
+  no console errors).
+
 ### Bug fixes (rally per-hit · cling legibility · fodder float) + codebase audit (dead code · redundancy · perf)
 
 **Three reported bugs:**

@@ -110,7 +110,6 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .chip .v { font-family: 'Outfit'; font-weight: 800; font-size: calc(20 * var(--u)); line-height: 1; }
 .chip .l { font-family: 'Outfit'; font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
 .hero { display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(4 * var(--u)) calc(14 * var(--u)) calc(4 * var(--u)) calc(5 * var(--u)); }
-.hero:hover:not(.spent):not(.passive) { border-color: var(--acc); }
 /* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
    arrow) so moving onto a spent/passive hero doesn't visibly switch/flicker the cursor */
 .hero.spent, .hero.passive { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
@@ -191,7 +190,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    .hero arm/fire handler. Placeholder glyph for now; dedicated hero-power artwork to come. */
 .heropowerbtn {
   flex: none; margin-left: auto;
-  width: calc(58 * var(--u)); height: calc(58 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
+  width: calc(75 * var(--u)); height: calc(75 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
   border: 3px solid var(--acc-dk); display: grid; place-items: center;
   background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.45), transparent 55%), var(--acc);
   box-shadow: 0 4px 0 var(--acc-dk);
@@ -476,6 +475,9 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* hero-power tooltip — same dark pill as the keyword tip, popping above the corner tray */
 .herotip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: 248px; background: var(--ink); color: #fff; border-radius: 12px; padding: 11px 14px; font-size: 12px; line-height: 1.45; font-weight: 600; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .herotip b { color: var(--acc); }
+/* Spell-buff line in the hero tooltip — separated rule above it, the +X/+X in green. */
+.herotip-spell { margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(255, 255, 255, 0.16); }
+.herotip-spell b { color: #46d98a; }
 .hero:hover .herotip { opacity: 1; transition-delay: 0.35s; }
 /* embers projection — hover the Embers chip to see the next two waves' starting Embers */
 .emberproj { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); min-width: 158px; background: var(--ink); color: #fff; border-radius: 12px; padding: 9px 12px; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
@@ -971,9 +973,8 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .statusbar .chip.g { pointer-events: auto; }
 /* mid-drag, even the hero/Embers let the drop fall through to a hand that reaches the corner */
 body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-events: none; }
-/* hero power available + unused — a gentle pulse so the player notices it */
-.hero.ready { border-color: var(--acc); animation: heroready 1.5s ease-in-out infinite; }
-@keyframes heroready { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 38%, transparent); } }
+/* The hero-power READY/ARMED cue now lives entirely on the power button (.heropowerbtn) — the frame no longer
+   gets a golden outline/pulse (it's not the click target anymore). */
 /* resolve took a hit */
 .hprow.hit { animation: hitshake 0.5s ease; }
 @keyframes hitshake { 0%, 100% { transform: none; } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
@@ -1004,7 +1005,6 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .card.targeted { box-shadow: 0 0 0 4px var(--c), 0 0 32px 5px color-mix(in srgb, var(--c) 95%, transparent), 0 3px 0 var(--shadow); transform: translateY(-4px) scale(1.03); z-index: 22; }
 .card[draggable='true'] { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; }
 .card[draggable='true']:active { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
-.hero.armed { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 35%, transparent); }
 
 /* LEGEND */
 .legend { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

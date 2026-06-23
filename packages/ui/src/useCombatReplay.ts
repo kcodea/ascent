@@ -144,8 +144,8 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
   gsap
     .timeline({ onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }) })
-    .to(attacker, { x: -dx * 0.12, y: -dy * 0.12, rotation: -4, duration: 0.16, ease: 'power1.out' }) // wind up
-    .to(attacker, { x: dx * 0.55, y: dy * 0.55, rotation: 0, duration: 0.2, ease: 'power3.in' })       // strike
+    .to(attacker, { x: -dx * 0.14, y: -dy * 0.14, rotation: -5, duration: 0.2, ease: 'power1.out' })  // wind up (slightly longer + a touch deeper → more anticipation)
+    .to(attacker, { x: dx * 0.55, y: dy * 0.55, rotation: 0, duration: 0.13, ease: 'power3.in' })      // strike (faster → punchier snap)
     .add(() => {
       if (!defender) return; // onHit: the struck minion knocks back along the blow, then recovers
       gsap.killTweensOf(defender);

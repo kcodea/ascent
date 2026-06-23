@@ -317,10 +317,12 @@ export function Recruit() {
   );
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl });
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
-  // replay; cleared out of combat (settleCombat banks the real total + fires any Collision grants).
+  // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
+  // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them
+  // (e.g. 1 kill briefly reading 2/5 on the End-Combat screen).
   useEffect(() => {
-    setCombatEnemyDeaths(inCombat ? replay.enemyDeaths : 0);
-  }, [inCombat, replay.enemyDeaths, setCombatEnemyDeaths]);
+    setCombatEnemyDeaths(inCombat && !run.combatSettled ? replay.enemyDeaths : 0);
+  }, [inCombat, run.combatSettled, replay.enemyDeaths, setCombatEnemyDeaths]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
   // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just

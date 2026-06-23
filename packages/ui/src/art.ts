@@ -65,3 +65,11 @@ const HERO_ART = indexArt(
   import.meta.glob('./art/heroes/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
 );
 export const heroArt = (name: string): string | undefined => HERO_ART[name];
+
+/** Hero-POWER button art — drop a PNG into `packages/ui/src/art/powers/<heroId>.png` (e.g. `warden.png`).
+ *  The button is a circle (object-fit: cover), so use a square master with the subject centred. Falls back
+ *  to the placeholder glyph when absent. */
+const POWER_ART = indexArt(
+  import.meta.glob('./art/powers/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+export const heroPowerArt = (heroId: string): string | undefined => POWER_ART[heroId];

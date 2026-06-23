@@ -104,11 +104,6 @@ export function StatusBar() {
 
         <div
           className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
-          onPointerDown={() => {
-            if (isPassive || !canHero || heroArmed) return;
-            if (power.untargeted) dispatch({ type: 'heroPower' });
-            else armHero();
-          }}
         >
           <div className="f">
             {heroArt(hero.id) ? (
@@ -121,15 +116,23 @@ export function StatusBar() {
             <div className="nm">{hero.name}</div>
             <div className="pw">{powerLine}</div>
           </div>
-          {/* Hero-power button — a circle on the RIGHT of the hero frame. Placeholder glyph for now
-              (dedicated hero-power artwork to come); clicking it bubbles to the frame's arm/fire handler. */}
+          {/* Hero-power button — the ONLY trigger for the power (clicking the frame does nothing). Placeholder
+              glyph for now; an untargeted power fires on click, a targeted one arms (then aim on the board). */}
           {!isPassive && (
-            <span
+            <button
+              type="button"
               className={`heropowerbtn${heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
-              aria-hidden="true"
+              disabled={!canHero && !heroArmed}
+              aria-label={`${power.name} — ${power.text}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!canHero || heroArmed) return;
+                if (power.untargeted) dispatch({ type: 'heroPower' });
+                else armHero();
+              }}
             >
               <Icon name="sc" />
-            </span>
+            </button>
           )}
           <div className="herotip" role="tooltip">
             <b>{power.name}</b> — {power.text}

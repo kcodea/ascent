@@ -64,6 +64,14 @@ the Devourer** T5 have landed alongside the original T1s — keep filling the mi
     spell power); Maw → T3; Combinator now magnetizes a *random* Magnetic Mech. Mana→Gold rename (text +
     names + gold coin icon). Hero-power button on the hero frame (placeholder art). Two new carry-back
     channels (`playerFodderGrants`, `playerMaxGoldGain`).
+  - **Follow-up (2026-06-23, shipped → devlog):** Sheldon/Speedy/Harry Botter made **Magnetic** (+ `spellAura`
+    weld plumbing so the aura survives a weld); **triples now keep welded fields** (`rallyMechAtk`/aura, not
+    just `manaBonus`); **Archmagus Guel scales** +1/+1 per 4 spells cast (a "T1–4 stay relevant" win);
+    **HUD win counter**; hero power **fires from its button only**; Spirit Worgen + Guel2 art.
+  - **Polish (2026-06-23, shipped → devlog):** **live card text** convention for scaling minions (Guel now
+    shows current grant + countdown via `cardText.ts`); **shop buff floats** (+X/+X above a buffed minion,
+    like combat); Combinator welds credited to the **magnetic** ("Harry Botter ×2"), not Combinator;
+    disabled hero-power button keeps the game cursor.
 - **Patch 2 — Front Door & Hero Roster** *(M3; variety).* The run's entry + variety. Generalize the
   `heroChoices` flag into a `scene` enum and build **Title → Play → Mode → Hero → run** (no router;
   small overlays reusing `herocard`). Add a data-driven **MODES** registry — the two intended modes

@@ -5,6 +5,54 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Live card text (Guel) · shop buff floats · Combinator attribution · hero-button cursor
+
+Refinements on the two batches below (same day):
+- **Live card text rule + Archmagus Guel progress.** Established the convention (saved to memory) that scaling
+  "quest/ascension" minions keep their tooltips **live + accurate**. Applied it to Guel: a new
+  `guelProgressText` (cardText.ts) shows his *current* grant (+X/+X, golden-aware) and the **countdown to the
+  next step** (4→3→2→1), both green via `{{…}}`; wired into `instView` (board + hand) with `run.spellsCast`
+  threaded through, including the golden path (Card shows `goldenText`, so the helper output is set there too).
+- **Buff floats in the shop.** Recruit-phase buffs now float the actual **+X/+X** above the minion, exactly
+  like combat (`.float.buff`), in addition to the green flash. The buff-detect effect now tracks per-card
+  attack+health (not just the total) to derive the delta; `Card` gained a `buffFloat` prop (keyed so a repeat
+  buff remounts the rise). Shows the *net* gain per action — e.g. casting Spirit Fire next to Guel reads
+  "+6/+6" (the +4/+4 spell plus Guel's +2/+2 reaction), matching how combat collapses a beat's buffs.
+- **Combinator buff attribution.** A Combinator weld is now credited to the **welded magnetic** in the inspect
+  breakdown ("Harry Botter ×2"), not to "Combinator" — its weld `source` is the picked mech's name, and
+  `addBuff`'s `count` + Inspect.tsx's `{source} ×{count}` render handle the rest (matches a manual magnetize).
+- **Hero-power button cursor.** A *disabled* power button showed the bare OS arrow (my `:disabled { cursor:
+  default }`); now it uses the game's custom `gauntlet_default` cursor like the other control buttons.
+- Tests: +1 (`guelProgressText` grant/countdown/golden). **279 green**, typecheck + lint clean; verified live
+  (Guel reads "+2/+2 … 3 to go"; a cast floats "+6/+6"; disabled button cursor is the custom default; a
+  Combinator weld inspects as "Harry Botter"). No console errors.
+
+### Magnetic mechs · triple keeps welds · Guel scaling · win counter · button-only hero power · art
+
+A follow-up pass on the content batch below (same day):
+- **Sheldon / Speedy / Harry Botter are now Magnetic.** Sheldon welds Divine Shield, Speedy welds Windfury,
+  Harry Botter welds its spell-power aura. Keywords + stats weld through the existing path; the *aura* needed
+  new plumbing so it survives being welded into a host: a new `CardDef.spellAura` (Harry Botter = 1) +
+  `BoardCard.spellAuraBonus`, threaded through `MagnetPayload`/`applyWeld`, the magnetic-play payload, the
+  Combinator weld, and `spellStatBonus` (now generic over `def.spellAura` + welded `spellAuraBonus`, so the
+  old hard-coded Harry Botter special-case is gone and future aura cards fold in for free). Combinator's random
+  magnetic pool now naturally includes all three.
+- **Triple keeps welded magnetic attachments.** `checkTriples` absorbed `manaBonus` (Money Bot) but dropped
+  `rallyMechAtk` (Better Bot) and the new `spellAuraBonus` — so a tripled host lost its welded Rally/aura.
+  Now it sums all three welded fields into the golden (matching the Money Bot path the owner confirmed works).
+- **Archmagus Guel scales.** His +atk/+hp grant now improves by **+1/+1 per 4 spells cast this run** (golden
+  **+2/+2** per 4) — `step = floor(spellsCast / 4)` added to the base before the golden multiplier. Card text
+  updated. Makes a T4 a build-around spell payoff that stays relevant late (a balance-direction goal).
+- **Win counter in the HUD.** A gold crown + count of combats won this run, read straight off `run.history`
+  (the per-combat W/L/D log) — no new state, always agrees with the end-screen summary.
+- **Hero power fires from its button only.** Clicking the hero *frame* no longer arms/fires — the power circle
+  on the frame's right is now the sole trigger (a real `<button>`, disabled when unusable, keyboard-focusable);
+  the frame's action cursor was removed so it no longer reads as clickable.
+- **Art.** Wired Spirit Worgen (`spiritworgen`) + Archmagus Guel's new art (`guel`→`guel2` alias).
+- Tests: +3 (magnetic welds for the three mechs, triple-keeps-welds, Guel scaling); updated the Combinator-fork
+  test to derive valid welds from the live magnetic pool. **276 green**, typecheck + lint clean; verified live
+  (new art renders, win counter reads, frame-click inert / button-click arms, no console errors).
+
 ### Content batch (6 minions + reworks) · Mana→Gold · Combinator rework · hero-power button · **End-Turn freeze fix**
 
 **The End-Turn freeze (the headline fix).** The owner reported two consecutive late-game runs (wave 6 vs

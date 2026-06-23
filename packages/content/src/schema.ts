@@ -140,6 +140,7 @@ export const CardDefSchema = z.object({
   fodderMult: z.number().int().positive().optional(),
   manaPerTurn: z.number().int().positive().optional(),
   rallyMechAtk: z.number().int().positive().optional(),
+  spellAura: z.number().int().positive().optional(),
   chooseOne: z
     .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }))
     .min(2)

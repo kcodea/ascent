@@ -32,10 +32,10 @@ drone,Spare Part Drone,1,2,1,,Divine Shield,,
 cling,Cling Drone,2,2,2,,Magnetic,"Each time a Cling Drone is magnetized, your Cling Drones get **+1/+1**.",
 selfless,Selfless Sentinel,2,2,1,,,**Deathrattle:** give a friend a **Divine Shield**.,
 moneybot,Money Bot,3,3,3,,Magnetic,"While on your board, you have **+1 max Gold** each turn.",
-sheldon,Sheldon,3,2,4,,Divine Shield,,
-harrybotter,Harry Botter,4,1,5,,,Your spells get **+1/+1** while this is in play.,Your spells get **+2/+2** while this is in play.
+sheldon,Sheldon,3,2,4,,Divine Shield | Magnetic,,
+harrybotter,Harry Botter,4,1,5,,Magnetic,Your spells get **+1/+1** while this is in play.,Your spells get **+2/+2** while this is in play.
 junk,Junkyard Titan,4,4,4,,,**Deathrattle:** Add a random Magnetic minion to your hand.,**Deathrattle:** Add **two** random Magnetic minions to your hand.
-speedy,Speedy,4,4,4,,Windfury,,
+speedy,Speedy,4,4,4,,Windfury | Magnetic,,
 betterbot,Better Bot,5,6,4,,Magnetic | Rally,"**Rally:** give your other Mechs **+5 Attack**. **Magnetic** — welds onto a Mech, which then grants the buff (stacks).",
 combinator,Combinator,5,6,7,,,**End of Turn:** magnetize a random **Magnetic** Mech onto a friendly Mech.,**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.
 beatboxer,Beatboxer,6,8,8,,,"Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.","Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this."
@@ -56,7 +56,7 @@ broker,Brightwing Broker,2,2,3,,,Every minion you buy gets **+1/+1**.,
 buddy,Buddy Buddy,3,3,4,,,**Battlecry:** add a random **Tier 1** minion to your hand.,**Battlecry:** add **two** random **Tier 1** minions to your hand.
 echo,Echo Warden,3,2,4,,,"**In combat,** your summon effects summon **1 more** copy.","**In combat,** your summon effects summon **2 more** copies."
 venom,Venom,3,1,1,,Venomous,,
-guel,Archmagus Guel,4,2,3,,,"After you cast a tavern spell, give 2 other friendly minions **+1/+1**.","After you cast a tavern spell, give 2 other friendly minions **+2/+2**."
+guel,Archmagus Guel,4,2,3,,,"After you cast a tavern spell, give 2 other friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast.","After you cast a tavern spell, give 2 other friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast."
 blaster,Blaster,4,6,3,,Taunt,**Deathrattle:** deal **3** damage to ALL minions (yours too).,**Deathrattle:** deal **6** damage to ALL minions (yours too).
 monk,Flowing Monk,4,1,4,,,"When you summon a minion that doesn't fit, give a random friendly minion **+3/+3** (Engraved — kept after combat).","When you summon a minion that doesn't fit, give a random friendly minion **+6/+6** (Engraved — kept after combat)."
 blackbelt,Black Belt Brian,5,3,5,,,**Battlecry:** Discover a spell.,**Battlecry:** Discover **2** spells.

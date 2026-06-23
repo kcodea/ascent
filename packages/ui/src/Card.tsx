@@ -118,6 +118,7 @@ export const Card = memo(function Card({
   targeted,
   dimmed,
   buffed,
+  buffFloat,
   battlecry,
   arrived,
   electrify,
@@ -144,6 +145,9 @@ export const Card = memo(function Card({
   dimmed?: boolean;
   /** Play a one-shot green buff flash (a recruit-phase stat buff just landed). */
   buffed?: boolean;
+  /** A recruit-phase stat buff just landed — float its `+atk/+hp` above the card (like combat). `key`
+   *  changes per buff so the float remounts and re-runs its rise animation. */
+  buffFloat?: { attack: number; health: number; key: number } | null;
   /** One-shot flourish beneath a just-played minion whose Battlecry fired. */
   battlecry?: boolean;
   /** One-shot pop-in when a card is added to the hand mid-flow (combat Deathrattle grant). */
@@ -256,6 +260,11 @@ export const Card = memo(function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      {/* Recruit-phase buff: float the +atk/+hp above the card, exactly like a combat buff (`.float.buff`).
+          Keyed so a fresh buff remounts it and replays the rise. */}
+      {buffFloat && (
+        <span key={buffFloat.key} className="float buff cardfloat">+{buffFloat.attack}/+{buffFloat.health}</span>
+      )}
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
       {/* cost badge — a gold coin overhanging the corner (the cost in Gold). Minions are a flat 3, so their
           cost is hidden (only shown if something has changed it off 3); spells always show their cost. */}

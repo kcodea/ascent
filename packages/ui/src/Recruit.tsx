@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
+import { guelProgressText, summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -103,13 +103,15 @@ function instView(
   undeadHpBonus = 0,
   frontToBackBonus = 0,
   wave = 1,
+  spellsCast = 0,
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
   // Triple Reward names the exact Tier it Discovers from (current Tier + 1, capped). A held spell
   // shows its bonus-adjusted value (Spellbinder); a transform card its "N to go" countdown; a
   // spells-this-turn scaler (Spirit Worgen) or summon-buff card (Kennelmaster) its current magnitude;
-  // a tally-buff card (Grim) its current "+N/+N" from the run's Deathrattle count. All green via {{…}}.
+  // a tally-buff card (Grim) its current "+N/+N"; a spell-scaler (Guel) its current grant + countdown.
+  // All live values green via {{…}}.
   const text =
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
@@ -121,6 +123,7 @@ function instView(
             summonScalingText(c.id, spellsThisTurn) ??
             summonBuffText(c.id, inst.summonBonus ?? 0) ??
             tallyBuffText(c.id, deathrattlesTriggered) ??
+            guelProgressText(c.id, !!inst.golden, spellsCast) ??
             c.text;
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
@@ -136,7 +139,9 @@ function instView(
     goldenText:
       c.id === 'hoarder'
         ? `Sells for **+2 Gold** per turn you hold it. {{Sells for ${(wave - (inst.boughtWave ?? wave) + 1) * 2} Gold now.}}`
-        : c.goldenText,
+        : c.id === 'guel'
+          ? guelProgressText(c.id, true, spellsCast) ?? c.goldenText // golden Guel shows its live (×2) grant + countdown
+          : c.goldenText,
     golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
@@ -289,10 +294,14 @@ export function Recruit() {
   const fighting = inCombat && combatStage === 'fighting';
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Log overlay
   const [logTab, setLogTab] = useState<'procs' | 'log'>('procs'); // Procs summary vs the blow-by-blow log
-  // Per-card stat snapshot for the recruit-phase green buff flash (declared up here so the
-  // combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
-  const prevStatsRef = useRef<Map<string, number>>(new Map());
+  // Per-card stat snapshot (attack + health) for the recruit-phase buff flash + the +X/+X float (declared
+  // up here so the combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
+  const prevStatsRef = useRef<Map<string, { a: number; h: number }>>(new Map());
   const prevPhaseRef = useRef(run.phase);
+  // Recruit-phase +X/+X buff floats, keyed by card uid (latest wins; `key` bumps each buff so it remounts +
+  // replays its rise). Mirrors the combat buff float — the player reads the actual stat gain in the shop.
+  const [statFloats, setStatFloats] = useState<Record<string, { attack: number; health: number; key: number }>>({});
+  const statFloatKey = useRef(0);
   // True on the single render where we flip combat → recruit (prevPhaseRef is updated later, in the
   // layout effect). The warband cards mount on exactly this render, so passing it as `suppressPop`
   // makes them skip the mount-pop (no jiggle) while cards played later still pop normally.
@@ -348,8 +357,8 @@ export function Recruit() {
   useLayoutEffect(() => {
     if (prevPhaseRef.current === 'combat' && run.phase === 'recruit') {
       prevPhaseRef.current = run.phase;
-      const snap = new Map<string, number>();
-      for (const c of [...run.board, ...run.hand]) snap.set(c.uid, c.attack + c.health);
+      const snap = new Map<string, { a: number; h: number }>();
+      for (const c of [...run.board, ...run.hand]) snap.set(c.uid, { a: c.attack, h: c.health });
       prevStatsRef.current = snap;
       const before = handBeforeCombatRef.current;
       const granted = run.hand.filter((c) => !before.has(c.uid)).map((c) => c.uid);
@@ -452,12 +461,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave)] as const)),
-    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast)] as const)),
+    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave)] as const)),
-    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast)] as const)),
+    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.
@@ -809,24 +818,31 @@ export function Recruit() {
     return () => window.clearTimeout(id);
   }, [seconds, run.phase, run.discover, heroSelecting]);
 
-  // Flash a card green when its stats jump in the recruit phase (a buff landed).
+  // Flash a card green AND float its +X/+X when its stats jump in the recruit phase (a buff landed).
   useEffect(() => {
     const prev = prevStatsRef.current;
-    const next = new Map<string, number>();
+    const next = new Map<string, { a: number; h: number }>();
     const newly: string[] = [];
+    // Cards that gained stats, with the exact delta — drives the +X/+X float (board + hand minions).
+    const gained: { uid: string; attack: number; health: number }[] = [];
     for (const c of [...run.board, ...run.hand]) {
-      const cur = c.attack + c.health;
+      const cur = { a: c.attack, h: c.health };
       next.set(c.uid, cur);
-      if (!inCombat && prev.has(c.uid) && cur > (prev.get(c.uid) ?? 0)) newly.push(c.uid);
+      const p = prev.get(c.uid);
+      if (!inCombat && p && cur.a + cur.h > p.a + p.h) {
+        newly.push(c.uid);
+        gained.push({ uid: c.uid, attack: cur.a - p.a, health: cur.h - p.h });
+      }
     }
     // Tavern offers can be buffed too (the hero power can Fortify a shop minion) —
     // track their effective stats (base + the stored offer buff) so they flash as well.
     for (const o of run.shop) {
       const base = CARD_INDEX[o.cardId];
       if (!base) continue;
-      const cur = base.attack + (o.atk ?? 0) + base.health + (o.hp ?? 0);
+      const cur = { a: base.attack + (o.atk ?? 0), h: base.health + (o.hp ?? 0) };
       next.set(o.uid, cur);
-      if (!inCombat && prev.has(o.uid) && cur > (prev.get(o.uid) ?? 0)) newly.push(o.uid);
+      const p = prev.get(o.uid);
+      if (!inCombat && p && cur.a + cur.h > p.a + p.h) newly.push(o.uid);
     }
     prevStatsRef.current = next;
     // While the combat arena is up, keep the baseline synced (so re-entering recruit doesn't read a
@@ -838,6 +854,22 @@ export function Recruit() {
     }
     if (newly.length === 0) return;
     setBuffedUids((s) => new Set([...s, ...newly]));
+    // Float the +X/+X over the buffed board/hand minions (like combat). Keyed so a repeat buff remounts.
+    if (gained.length > 0) {
+      const keyed = gained.map((g) => ({ ...g, key: ++statFloatKey.current }));
+      setStatFloats((m) => {
+        const n = { ...m };
+        for (const g of keyed) n[g.uid] = { attack: g.attack, health: g.health, key: g.key };
+        return n;
+      });
+      window.setTimeout(() => {
+        setStatFloats((m) => {
+          const n = { ...m };
+          for (const g of keyed) if (n[g.uid]?.key === g.key) delete n[g.uid];
+          return n;
+        });
+      }, 1500);
+    }
     // Self-clearing timer — deliberately NOT cancelled in cleanup. If it were, a buff quickly followed
     // by another board change (a buy/play, or the phase flip into combat) would cancel the clear and
     // leave the card stuck green. Letting each timer fire guarantees every flash ends on its own.
@@ -1385,6 +1417,7 @@ export function Recruit() {
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid)}
                     suppressPop={returningFromCombat}
+                    buffFloat={statFloats[m.uid] ?? null}
                     onPointerDown={heroArmed || pendingTarget ? undefined : onCardPointerDown}
                   />
                 </Fragment>
@@ -1406,6 +1439,7 @@ export function Recruit() {
               dragging={!!drag?.active}
               dimmed={isDragging(m.uid)}
               buffed={buffedUids.has(m.uid)}
+              buffFloat={statFloats[m.uid] ?? null}
               arrived={arrivedUids.has(m.uid)}
               onPointerDown={onCardPointerDown}
               forceFull

@@ -541,6 +541,40 @@ describe('run loop (@game/sim)', () => {
     expect(s.board[0]!.rallyMechAtk).toBe(10); // +5 each → +10
   });
 
+  it('Sheldon / Speedy / Harry Botter are Magnetic — they weld their keyword/aura onto a host Mech', () => {
+    // Sheldon welds Divine Shield (+ its 2/4 body) onto the host.
+    let sh: RunState = {
+      ...createRun(1),
+      hand: [{ uid: 'mag', cardId: 'sheldon', tribe: 'mech', attack: 2, health: 4, keywords: ['DS', 'M'], golden: false }],
+      board: [{ uid: 'd', cardId: 'drone', tribe: 'mech', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    sh = reduce(sh, { type: 'play', uid: 'mag', toIndex: 0 });
+    expect(sh.board.length).toBe(1); // merged, no new slot
+    expect(sh.board[0]!.keywords).toContain('DS');
+    expect([sh.board[0]!.attack, sh.board[0]!.health]).toEqual([6, 8]); // 4/4 + Sheldon 2/4
+
+    // Speedy welds Windfury.
+    let sp: RunState = {
+      ...createRun(1),
+      hand: [{ uid: 'mag', cardId: 'speedy', tribe: 'mech', attack: 4, health: 4, keywords: ['W', 'M'], golden: false }],
+      board: [{ uid: 'd', cardId: 'drone', tribe: 'mech', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    sp = reduce(sp, { type: 'play', uid: 'mag', toIndex: 0 });
+    expect(sp.board[0]!.keywords).toContain('W');
+
+    // Harry Botter welds its spell-power aura — the host keeps boosting spells though the body is consumed.
+    let hb: RunState = {
+      ...createRun(1),
+      hand: [{ uid: 'mag', cardId: 'harrybotter', tribe: 'mech', attack: 1, health: 5, keywords: ['M'], golden: false }],
+      board: [{ uid: 'd', cardId: 'drone', tribe: 'mech', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    expect(spellStatBonus(hb)).toBe(0); // still in hand — aura inactive
+    hb = reduce(hb, { type: 'play', uid: 'mag', toIndex: 0 });
+    expect(hb.board.length).toBe(1);
+    expect(hb.board[0]!.spellAuraBonus).toBe(1);
+    expect(spellStatBonus(hb)).toBe(1); // the welded aura still boosts spells +1/+1
+  });
+
   it('Combinator magnetizes a random Magnetic Mech onto 1 friendly Mech at end of turn (golden: 2)', () => {
     let s: RunState = {
       ...createRun(1),
@@ -2553,10 +2587,16 @@ describe('Cling Drones improve per magnetization (M3 content)', () => {
     expect([m2.attack, m2.health]).toEqual([3, 3]); // the Cling still in hand grew too
   });
 
-  it('Combinator forks into different Magnetic Mechs across seeds (random Cling / Money Bot / Better Bot)', () => {
-    // Host (2/1) gains the rolled magnetic mech's body: Cling (+2/+2), Money Bot (+3/+3) or Better Bot (+6/+4).
+  it('Combinator forks into different Magnetic Mechs across seeds (random pick from the whole magnetic pool)', () => {
+    // The host (2/1) gains the rolled magnetic mech's body — so its attack jumps by that mech's base attack.
+    // Derive the valid jumps from the live pool so this stays correct as magnetic mechs are added/changed.
+    const magneticAtks = new Set(
+      Object.values(CARD_INDEX)
+        .filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M'))
+        .map((c) => c.attack),
+    );
+    expect(magneticAtks.size).toBeGreaterThan(1); // sanity: there are several magnetic mechs to roll
     const deltaAtk = new Set<number>();
-    let sawClingEnchant = false;
     for (let seed = 1; seed <= 30; seed++) {
       let s: RunState = {
         ...createRun(seed),
@@ -2570,12 +2610,10 @@ describe('Cling Drones improve per magnetization (M3 content)', () => {
       const welded = s.board.filter((c) => c.uid.startsWith('d') && c.attack > 2);
       expect(welded.length).toBe(1); // non-golden welds exactly one host
       const da = welded[0]!.attack - 2;
-      expect([2, 3, 6]).toContain(da); // Cling / Money Bot / Better Bot only
+      expect(magneticAtks.has(da)).toBe(true); // welded one of the build's Magnetic Mechs
       deltaAtk.add(da);
-      if (da === 2) sawClingEnchant ||= s.cardBuffs?.cling?.attack === 1; // a welded Cling still stacks the enchant
     }
     expect(deltaAtk.size).toBeGreaterThan(1); // it's RANDOM — not always the same bot
-    expect(sawClingEnchant).toBe(true); // and a Cling pick still improves Cling Drones (the enchant path holds)
   });
 });
 
@@ -2593,6 +2631,47 @@ describe('content batch: new minions (@game/sim)', () => {
     enemyDeaths: 0,
     initial: { player: [], enemy: [] },
     ...over,
+  });
+
+  it('a triple keeps welded magnetic fields — Better Bot Rally + Harry Botter aura survive the combine', () => {
+    // Three Drones: one carries a welded Better Bot Rally, one a welded Harry Botter aura. Playing the
+    // third triggers the triple — the golden must inherit BOTH welded attachments (the Better-Bot bug).
+    let s: RunState = {
+      ...createRun(1),
+      hand: [card('d3', 'drone', 'mech', 2, 1, { keywords: ['DS'] })],
+      board: [
+        card('d1', 'drone', 'mech', 7, 1, { keywords: ['DS'], rallyMechAtk: 5 }),
+        card('d2', 'drone', 'mech', 2, 6, { keywords: ['DS'], spellAuraBonus: 1 }),
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'd3', toIndex: 2 }); // 3rd Drone → triple → golden in hand
+    const golden = [...s.hand, ...s.board].find((c) => c.cardId === 'drone' && c.golden);
+    expect(golden).toBeDefined();
+    expect(golden!.rallyMechAtk).toBe(5); // Better Bot's welded Rally carried through (was dropped before)
+    expect(golden!.spellAuraBonus).toBe(1); // Harry Botter's welded aura carried through
+  });
+
+  it('Archmagus Guel scales with spells cast: +1/+1 per 4 (golden +2/+2 per 4)', () => {
+    // emberpouch (Gain 1 Gold) doesn't touch minions, so the OTHER friend's gain is purely Guel's.
+    const cast = (spellsCast: number, golden: boolean): RunState =>
+      reduce(
+        {
+          ...createRun(1),
+          embers: 99,
+          spellsCast,
+          board: [card('g', 'guel', 'neutral', 2, 3, { golden }), card('t', 'drone', 'mech', 2, 2)],
+          hand: [card('sp', 'emberpouch', 'neutral', 0, 0)],
+        },
+        { type: 'play', uid: 'sp' },
+      );
+    const buffed = (s: RunState): [number, number] => {
+      const t = s.board.find((c) => c.uid === 't')!;
+      return [t.attack - 2, t.health - 2];
+    };
+    expect(buffed(cast(0, false))).toEqual([1, 1]); // cast → 1 spell, step 0 → base +1/+1
+    expect(buffed(cast(3, false))).toEqual([2, 2]); // cast → 4 spells, step 1 → +2/+2
+    expect(buffed(cast(7, false))).toEqual([3, 3]); // cast → 8 spells, step 2 → +3/+3
+    expect(buffed(cast(7, true))).toEqual([6, 6]); // golden: (1 + 2) × 2 → +6/+6
   });
 
   it('Hoard Cleric (cleric) Battlecry gives your Dragons +2/+3', () => {

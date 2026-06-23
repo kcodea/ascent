@@ -23,6 +23,16 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Live tooltips + readable buffs.** Scaling minions now show live progress on the card — **Archmagus Guel**
+  reads his current grant and the countdown to his next step. Recruit-phase buffs **float the +X/+X** above the
+  minion just like combat, and a **Combinator** weld is credited to the magnetic it attached ("Harry Botter ×2"),
+  not to Combinator. Small fix: the hero-power button keeps the game cursor when it's on cooldown.
+- **Magnetic mechs, scaling Guel, a win counter + tweaks.** Sheldon, Speedy, and Harry Botter are now
+  **Magnetic** (they weld their Divine Shield / Windfury / spell aura onto a host Mech), and welded
+  attachments — Better Bot's Rally, Money Bot's income, Harry Botter's aura — now **survive a triple**.
+  **Archmagus Guel** scales: his buff grows **+1/+1 per 4 spells cast** (golden +2/+2). The HUD now shows a
+  **win counter**, the **hero power fires only from its button** (not the whole frame), and Spirit Worgen +
+  Archmagus Guel got new art.
 - **Fixed the End-Turn freeze + a content batch.** The real cause of the late-game "froze on End of Turn":
   a board captured by an older build (with the since-removed **Corrupted Lifebinder**) loaded out of
   localStorage into the opponent pool and crashed combat when served — the throw stranded the turn in recruit.

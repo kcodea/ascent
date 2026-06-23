@@ -81,6 +81,9 @@ export interface BoardCard {
   /** Better Bot: accrued Rally-Mech Attack welded onto this card (5 per Better Bot magnetized, golden ×2).
    *  Carried into combat where, when this attacks, your other Mechs get +this Attack. */
   rallyMechAtk?: number;
+  /** Harry Botter: accrued spell-power aura welded onto this card (1 per Harry Botter magnetized, golden ×2).
+   *  Read by `spellStatBonus` alongside the card's own `spellAura`, so a welded host keeps boosting spells. */
+  spellAuraBonus?: number;
   /** Maw of the Pit: a one-combat Divine Shield earned by consuming. The 'DS' keyword is added for
    *  display + the snapshot; this flag marks it temporary so `resolveCombat` strips it after the next
    *  fight (gain it again by consuming again). */

@@ -41,7 +41,10 @@ body { font-family: 'Nunito Sans', sans-serif; color: var(--ink); background: va
    resolution scaler shrinks the stage below the window (otherwise the stage covers it). */
 body { background: #160f08; }
 /* gauntlet opens over anything grabbable/clickable */
-.card, .btn, button, .hero:not(.spent), .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.card, .btn, button, .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* The hero frame is no longer clickable (the power fires from its button only) — don't show the action cursor on it.
+   A disabled power button keeps the game's custom default cursor (not the bare OS arrow), like the other ctl buttons. */
+.heropowerbtn:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 /* closed fist while a card is being dragged */
 body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing !important; }
 .disp { font-family: 'Outfit', sans-serif; }
@@ -65,6 +68,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); }
 .alt .w { font-family: 'Outfit'; font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
 .alt .lbl { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
+/* Win counter — gold-accented with a small crown, so the run's wins read at a glance. */
+.alt .lbl.wins { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--acc-dk); font-size: calc(14 * var(--u)); }
+.alt .lbl.wins svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
 .tribes { margin-left: auto; display: flex; align-items: center; gap: calc(6 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(12 * var(--u)); }
 .mutebtn { width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: var(--card); color: var(--ink2); display: grid; place-items: center; cursor: pointer; flex: none; }
 .mutebtn:hover { border-color: var(--acc); color: var(--ink); }
@@ -1108,6 +1114,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }
 .float.buff { color: #fff; background: #1aa86f; padding: 3px 12px; border-radius: 12px; font-size: 34px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
+/* Recruit-phase buff float on a (smaller, viewport-scaled) compact card — size it to the card, not the fixed combat px. */
+.float.buff.cardfloat { font-size: calc(24 * var(--u)); padding: calc(2 * var(--u)) calc(9 * var(--u)); border-radius: calc(9 * var(--u)); right: calc(7 * var(--u)); }
 /* Keyword procs (poison ☠ / divine shield ◇ / reborn ♻) bloom BIG in the card centre, a beat AFTER
    the −N damage number (0.26s delay), so the two never collide and the proc reads as its own dramatic
    moment. Total (delay + 1.15s) stays under FLOAT_MS so it finishes before the float is cleared. */

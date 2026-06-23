@@ -49,6 +49,26 @@ export function summonScalingText(cardId: string, spellsThisTurn: number): strin
 }
 
 /**
+ * Archmagus Guel scales with spells cast this run: the grant he hands out is +X/+X where X = base +
+ * floor(spellsCast / 4) (×2 golden), stepping up every 4 spells. Show the live current grant AND the
+ * countdown to the next step — both green ({{…}}) — so the player can read the progress, plus the per-step
+ * size (golden-aware). Returns null for non-Guel cards so callers fall back to the printed text.
+ */
+export function guelProgressText(cardId: string, golden: boolean, spellsCast: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'spellCastBuffOthers');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; count?: number } | undefined;
+  const base = Number(p?.attack ?? 1);
+  const count = Number(p?.count ?? 2);
+  const mult = golden ? 2 : 1;
+  const cur = (base + Math.floor(spellsCast / 4)) * mult; // the current grant size
+  const per = base * mult; // the per-4-spells improvement size (golden ×2)
+  const toNext = 4 - (spellsCast % 4); // spells until the next step
+  return `After you cast a tavern spell, give ${count} other friendly minions {{+${cur}/+${cur}}} (improves **+${per}/+${per}** per 4 spells — {{${toNext} to go}}).`;
+}
+
+/**
  * Grim's Deathrattle ("+1/+1 per Deathrattle triggered this game") shows its *current* magnitude from
  * the live run tally — the printed "+1/+1" becomes the real "+N/+N" (N = tally × per), highlighted
  * green. Returns null for non-tally cards or a zero tally (falls back to the printed "+1/+1").

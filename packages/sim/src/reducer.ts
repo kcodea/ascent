@@ -214,6 +214,8 @@ export function reduce(state: RunState, action: Action): RunState {
             mana,
             // Better Bot: weld its Rally (+5 Attack to other Mechs on attack, golden ×2) onto the host — stacks.
             rallyMechAtk: (mDef?.rallyMechAtk ?? 0) * (card.golden ? 2 : 1) || undefined,
+            // Harry Botter: weld its spell-power aura (+1/+1 to spells, golden ×2) onto the host — stacks.
+            spellAura: (mDef?.spellAura ?? 0) * (card.golden ? 2 : 1) + (card.spellAuraBonus ?? 0) || undefined,
           }, card.cardId === 'cling' ? 1 : 0); // a magnetized Cling stacks the improvement (via weldMagnetic)
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
           if (card.golden) grantGoldenDiscover(s);
@@ -610,6 +612,11 @@ function checkTriples(s: RunState): void {
     // Absorbed mana-per-turn (a Money Bot magnetized into one of the copies) carries through the
     // triple so the income survives (the golden's own def.manaPerTurn handles the un-merged case).
     const absorbedMana = combined.reduce((sum, c) => sum + (c.manaBonus ?? 0), 0);
+    // Same for the other welded magnetic fields: Better Bot's Rally (`rallyMechAtk`) and Harry Botter's
+    // spell aura (`spellAuraBonus`) — sum them across the copies so a magnetized host keeps its attachments
+    // through a triple (the golden's own def handles a standalone Better Bot's Rally at instantiate time).
+    const absorbedRally = combined.reduce((sum, c) => sum + (c.rallyMechAtk ?? 0), 0);
+    const absorbedSpellAura = combined.reduce((sum, c) => sum + (c.spellAuraBonus ?? 0), 0);
     // Spirit Pup: the golden keeps the *highest* spell progress of the three (= the lowest spells-left),
     // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve.
     const goldenProgress = Math.max(...combined.map((c) => c.spellProgress ?? 0));
@@ -629,6 +636,8 @@ function checkTriples(s: RunState): void {
       golden: true,
       summonBonus,
       manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
+      rallyMechAtk: absorbedRally > 0 ? absorbedRally : undefined,
+      spellAuraBonus: absorbedSpellAura > 0 ? absorbedSpellAura : undefined,
       buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
       spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
       boughtWave: goldenBoughtWave,

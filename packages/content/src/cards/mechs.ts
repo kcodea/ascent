@@ -106,39 +106,43 @@ export const MECHS: CardDef[] = [
     goldenText: 'Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this.',
   },
   {
+    // Magnetic — welds its Divine Shield (+ 2/4 body) onto a host Mech.
     id: 'sheldon',
     name: 'Sheldon',
     tribe: 'mech',
     tier: 3,
     attack: 2,
     health: 4,
-    keywords: ['DS'],
+    keywords: ['DS', 'M'],
     effects: [],
     text: '',
   },
   {
+    // Magnetic — welds its Windfury (+ 4/4 body) onto a host Mech.
     id: 'speedy',
     name: 'Speedy',
     tribe: 'mech',
     tier: 4,
     attack: 4,
     health: 4,
-    keywords: ['W'],
+    keywords: ['W', 'M'],
     effects: [],
     text: '',
   },
   {
-    // Passive spell-power aura (resolved in @game/sim's `spellStatBonus`): while Harry Botter is on the
-    // board, every stat-granting spell gets +1/+1 (golden +2/+2). Live — sell it and the bonus goes; two
-    // of them stack. No combat factory → inert in combat (just a 1/5 body).
+    // Passive spell-power aura (resolved in @game/sim's `spellStatBonus` via `spellAura`): while Harry Botter
+    // (or a Mech it magnetized into) is on the board, every stat-granting spell gets +1/+1 (golden +2/+2).
+    // Live — sell the body and the bonus goes; two stack. Magnetic — welds the aura onto a host Mech (the
+    // host carries it via `spellAuraBonus`). No combat factory → inert in combat (just a 1/5 body).
     id: 'harrybotter',
     name: 'Harry Botter',
     tribe: 'mech',
     tier: 4,
     attack: 1,
     health: 5,
-    keywords: [],
+    keywords: ['M'],
     effects: [],
+    spellAura: 1,
     text: 'Your spells get **+1/+1** while this is in play.',
     goldenText: 'Your spells get **+2/+2** while this is in play.',
   },

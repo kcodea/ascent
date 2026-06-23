@@ -184,6 +184,9 @@ export interface CardDef {
   /** Better Bot: base Rally amount — when this (or a Mech it's magnetized onto) attacks, your OTHER
    *  Mechs get +this Attack. Stacks: each Better Bot magnetized onto a host adds its amount to the host. */
   rallyMechAtk?: number;
+  /** Harry Botter: passive spell-power aura — while this (or a Mech it magnetized into) is on the board,
+   *  stat-granting spells get +this/+this (golden doubles). Recruit-only; read by `spellStatBonus`. */
+  spellAura?: number;
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; effects: EffectDef[] }[];

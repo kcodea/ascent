@@ -198,6 +198,8 @@ export interface MagnetPayload {
   mana: number;
   /** Better Bot: Rally-Mech Attack this magnetic carries onto its host (already golden-baked). */
   rallyMechAtk?: number;
+  /** Harry Botter: spell-power aura this magnetic carries onto its host (already golden-baked). */
+  spellAura?: number;
 }
 
 /** Apply a magnetic's contribution to one host (×mult): stats (as a tracked buff), keywords (minus
@@ -209,6 +211,7 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
   }
   if (mag.mana > 0) host.manaBonus = (host.manaBonus ?? 0) + mag.mana * mult;
   if (mag.rallyMechAtk) host.rallyMechAtk = (host.rallyMechAtk ?? 0) + mag.rallyMechAtk * mult;
+  if (mag.spellAura) host.spellAuraBonus = (host.spellAuraBonus ?? 0) + mag.spellAura * mult;
 }
 
 /**
@@ -508,8 +511,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellCastBuffOthers: (ctx, self, params) => {
     const others = ctx.state.board.filter((c) => c !== self);
     const picks = pickRandom(ctx.state, others, num(params.count, 2));
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 1) * gold(self);
+    // Scales with the run: the granted +atk/+hp grows by +1/+1 (golden +2/+2) per 4 spells cast this run.
+    // `spellsCast` already counts the spell that just triggered this, so the 4th cast gives the first step.
+    const step = Math.floor(ctx.state.spellsCast / 4);
+    const a = (num(params.attack, 1) + step) * gold(self);
+    const h = (num(params.health, 1) + step) * gold(self);
     for (const m of picks) addBuff(m, nameOf(self), a, h);
   },
 
@@ -550,12 +556,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const m = ctx.state.board.find((c) => c.uid === uid);
       if (!m) continue;
       weldMagnetic(ctx.state, m, {
-        source: nameOf(self),
+        // Attribute the buff to the welded magnetic (e.g. "Harry Botter ×2" in the inspect breakdown), not
+        // to Combinator — so the player sees what's actually attached, matching a manual magnetize.
+        source: pick.name,
         attack: pick.attack + pickBuff.attack,
         health: pick.health + pickBuff.health,
         keywords: [...pick.keywords],
         mana: pick.manaPerTurn ?? 0,
         rallyMechAtk: pick.rallyMechAtk,
+        spellAura: pick.spellAura,
       }, clings);
     }
   },
@@ -940,8 +949,12 @@ export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
 export function spellStatBonus(state: RunState): number {
   let bonus = 0;
   if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.wave);
-  // Harry Botter (Mech) — a passive aura: your spells get +1/+1 per Harry Botter on the board (golden +2/+2).
-  for (const c of state.board) if (c.cardId === 'harrybotter') bonus += c.golden ? 2 : 1;
+  // Harry Botter (Mech) — a passive aura: your spells get +1/+1 (golden +2/+2) per Harry Botter on the
+  // board, PLUS any aura welded onto a host Mech (`spellAuraBonus`, set by `applyWeld`). Generic over
+  // `def.spellAura` so future aura cards fold in automatically.
+  for (const c of state.board) {
+    bonus += (CARD_INDEX[c.cardId]?.spellAura ?? 0) * (c.golden ? 2 : 1) + (c.spellAuraBonus ?? 0);
+  }
   return bonus;
 }
 

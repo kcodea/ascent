@@ -537,10 +537,15 @@ export function useCombatReplay(
     return m;
   }, [combat]);
 
-  const processedEnd = beatIdx === 0 ? 0 : beats[beatIdx - 1]!.end;
+  // `beatIdx` can briefly outlive its beats: when a new (often shorter) combat's event log replaces the
+  // previous one, this render runs with the OLD, larger beatIdx for one render *before* the reset effect
+  // (`setBeatIdx(0)` on `[combat]`) fires. Guard the lookup so that stale render shows the final frame
+  // instead of reading `.end`/`.start` off an out-of-range (undefined) beat — which threw, and with no
+  // error boundary crash-looped the whole app into a hard lock (a long fight followed by a shorter one).
+  const processedEnd = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   // Mid-replay, keep the current beat's dying minions one beat; once done, drop
   // every dead minion so the result shows only survivors.
-  const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : beats[beatIdx - 1]!.start;
+  const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.start ?? 0);
   const frame = useMemo(
     () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart) : { player: [], enemy: [] }),
     [combat, events, processedEnd, beatStart],

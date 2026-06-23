@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-22
 
+### Fix the End-Turn hard lock (stale combat-replay beat index) + add a render error boundary
+- **Symptom:** late-game (waves 7 & 10, two consecutive runs) the game hard-locked — End Turn did nothing,
+  the board frozen. **Root cause:** `useCombatReplay`'s `processedEnd = beats[beatIdx - 1]!.end`. `beatIdx`
+  can outlive its beats: when a new (often **shorter**) combat's event log replaces the previous one, the
+  component renders once with the **old, larger `beatIdx`** *before* the `setBeatIdx(0)` reset effect fires.
+  `beats[beatIdx - 1]` is then `undefined`, `.end` throws **during render**, and — with **no error boundary** —
+  React unmounts the tree and the app freezes on its last frame. It triggers specifically when **a long fight
+  is followed by a shorter one** (common late game), which is why it looked random and hit deep runs.
+- **How it was found:** ruled out every sim path first — fuzzed combat 120k matchups (caps ~500 events, the
+  iteration guard bounds it), timed the 1000-sim odds loop (126ms even grindy), confirmed end-of-turn
+  projection + `chronosRepeats` (≤3) are bounded, and `useCombatReplay` is timer-driven (no sync loop). Then
+  drove the live store (`window.useGame`) to reproduce: injecting a board + End Turn surfaced the exact
+  `TypeError: Cannot read properties of undefined (reading 'end')` at `useCombatReplay.ts:540`.
+- **Fix:** guard the stale lookup — `beats[beatIdx - 1]?.end ?? events.length` (and the matching `?.start ?? 0`).
+  The transient stale render now shows the final frame for one tick, then the reset effect lands `beatIdx = 0`
+  and it re-renders cleanly. Verified live: the exact pre-fix crash sequence now logs **zero** render errors.
+- **Defense in depth:** added an `ErrorBoundary` (wraps the game in `Game.tsx`). A render crash now shows a calm,
+  recoverable fallback ("Try to continue" / "Reload") instead of a silently frozen app — the console had been
+  explicitly flagging the missing boundary. Verified it catches a forced render error and renders the fallback.
+- Typecheck + lint + 273 tests green.
+
 ### Two gameplay fixes: tavern buffs feed Fodder (Staff of Guel) + conjure spells check for triples
 - **Staff of Guel now also buffs Fodder.** Its effect (`spellBuffShop`) set the run-wide tavern-buy bonus
   (`tavernBuyBonus`) but skipped Fodder — which is never *bought*, it's *eaten* — so a Demon engine got nothing

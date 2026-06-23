@@ -781,6 +781,27 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
   100% { opacity: 0; transform: scale(1.07) translateY(-8px); }
 }
 
+/* Render-crash fallback (ErrorBoundary) — a calm, centred recovery card instead of a frozen app. */
+.crashscreen {
+  position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 40px;
+  background: var(--card); color: var(--ink); font-family: 'Outfit', sans-serif;
+}
+.crashscreen h1 { font-size: 30px; font-weight: 900; letter-spacing: 0.02em; color: var(--acc-dk); }
+.crashscreen p { max-width: 460px; font-size: 15px; line-height: 1.5; color: var(--ink3); }
+.crashscreen pre {
+  max-width: 70vw; overflow-x: auto; padding: 10px 14px; border-radius: 10px; font-size: 12px;
+  background: color-mix(in srgb, var(--threat) 12%, var(--card)); border: 2px solid var(--line); color: var(--ink);
+}
+.crashbtns { display: flex; gap: 12px; margin-top: 6px; }
+.crashbtns button {
+  font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 15px; padding: 10px 22px;
+  border-radius: 12px; border: 2px solid var(--acc-dk); background: var(--acc); color: #fff;
+  box-shadow: 0 4px 0 var(--acc-dk); cursor: pointer;
+}
+.crashbtns button:last-child { background: var(--card); color: var(--ink); border-color: var(--line); box-shadow: 0 4px 0 var(--line); }
+.crashbtns button:hover { filter: brightness(1.05); }
+
 /* Battlecry flourish — a tribe-tinted sigil swelling from *under* a just-played minion, with
    a few sparks fanning down from its base. Renders behind the card so it reads as "underneath". */
 .bcryfx { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: visible; }

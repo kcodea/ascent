@@ -7,6 +7,7 @@ import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { EscMenu } from './EscMenu';
 import { Icon } from './Icon';
+import { ErrorBoundary } from './ErrorBoundary';
 import { useGame } from './store';
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
@@ -44,7 +45,7 @@ export function Game() {
   }, []);
 
   return (
-    <>
+    <ErrorBoundary>
       <Recruit />
       {phase === 'gameover' && <EndScreen won={false} />}
       {phase === 'victory' && <EndScreen won={true} />}
@@ -56,6 +57,6 @@ export function Game() {
       {menuOpen && <EscMenu res={res} onRes={setRes} onClose={() => setMenuOpen(false)} />}
       {/* Topmost layer: the pre-run hero picker (self-gates on heroChoices). */}
       <HeroSelect />
-    </>
+    </ErrorBoundary>
   );
 }

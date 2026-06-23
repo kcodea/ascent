@@ -23,6 +23,9 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Fixed a late-game End-Turn hard lock.** The combat replay could read a stale beat index when a long fight
+  was followed by a shorter one, throwing during render and (with no error boundary) freezing the whole app.
+  Guarded the lookup, and added an error boundary so any render crash now shows a recoverable screen.
 - **Tavern buffs feed Fodder + conjure spells triple.** Staff of Guel now also enchants your Fodder run-wide
   (so Demons eat bigger Fodder), matching Ritualist. And a spell that hands you minions (Undead Army, Summon
   Stone) now checks for a triple — a conjured 3rd copy combines into a golden like a buy/play does.

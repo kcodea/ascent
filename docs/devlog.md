@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Sourced SFX (sell + combat smack) + attacks overlap on contact
+
+- **First sourced sound effects wired.** Added a Web-Audio sample player to `sfx.ts` (`import.meta.glob`'d
+  `./audio/*.mp3` → decoded AudioBuffers, played via fresh BufferSources so they overlap cleanly; synth blip is
+  the fallback until a clip decodes). **Sell** now plays one of `sell1–4`.mp3 at random; the **combat impact**
+  (`hit`) now plays `smack`.mp3. Files live in `packages/ui/src/audio/`. Verified: all 5 mp3s resolve via the
+  glob + fetch 200, decode on the first audio gesture, no console errors.
+- **Attacks overlap on contact.** Lunge strike 0.75 → **0.9** of the attacker→defender gap, so the attacker
+  drives into the defender and they visibly connect right as the `smack` lands.
+
 ### Attack "smack" + passive-hero power button
 
 - **Attacks drive into the target.** The lunge strike covered ~55% of the attacker→defender gap (it stopped

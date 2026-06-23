@@ -16,12 +16,55 @@ let muted = (() => {
 
 function audio(): AudioContext | null {
   try {
+    const isNew = !ctx;
     ctx ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     if (ctx.state === 'suspended') void ctx.resume();
+    if (isNew) prefetchSamples(); // decode the mp3 SFX once the context exists (first user gesture)
     return ctx;
   } catch {
     return null;
   }
+}
+
+// --- Sampled SFX (mp3 files in ./audio) — decoded into AudioBuffers and played through the same context, so
+//     they overlap cleanly (each play is a fresh BufferSource) and sit alongside the synth blips. Decoded
+//     lazily; the synth blip is the fallback until a sample's buffer is ready (or if decoding fails). ---
+const SAMPLE_URLS = import.meta.glob('./audio/*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const buffers = new Map<string, AudioBuffer>();
+const loadingSamples = new Set<string>();
+const sampleName = (path: string): string => path.split('/').pop()?.replace(/\.mp3$/, '') ?? '';
+
+function loadSample(name: string): void {
+  const a = audio();
+  if (!a || buffers.has(name) || loadingSamples.has(name)) return;
+  const entry = Object.entries(SAMPLE_URLS).find(([p]) => sampleName(p) === name);
+  if (!entry) return;
+  loadingSamples.add(name);
+  fetch(entry[1])
+    .then((r) => r.arrayBuffer())
+    .then((ab) => a.decodeAudioData(ab))
+    .then((buf) => { buffers.set(name, buf); loadingSamples.delete(name); })
+    .catch(() => loadingSamples.delete(name));
+}
+
+function prefetchSamples(): void {
+  for (const path of Object.keys(SAMPLE_URLS)) loadSample(sampleName(path));
+}
+
+/** Play a decoded sample (fresh BufferSource → overlaps fine). Returns false if its buffer isn't ready yet,
+ *  so the caller can fall back to a synth blip while the sample finishes decoding. */
+function playSample(name: string, vol = 0.6): boolean {
+  const a = audio();
+  if (!a || muted) return false;
+  const buf = buffers.get(name);
+  if (!buf) { loadSample(name); return false; }
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  const g = a.createGain();
+  g.gain.value = vol;
+  src.connect(g).connect(a.destination);
+  src.start();
+  return true;
 }
 
 interface ToneOpts {
@@ -66,6 +109,8 @@ export const sfx = {
   },
   play: () => tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150 }),
   sell: () => {
+    // One of the 4 sourced sell clips at random (sell1–sell4); synth blip until they finish decoding.
+    if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, 0.6)) return;
     tone({ freq: 700, dur: 0.07, type: 'square', vol: 0.09 });
     tone({ freq: 1040, dur: 0.11, type: 'square', vol: 0.07, delay: 0.06 });
   },
@@ -78,7 +123,11 @@ export const sfx = {
   tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09 }),
   combatStart: () => tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90 }),
   attack: () => tone({ freq: 320, dur: 0.08, type: 'sawtooth', vol: 0.1, slideTo: 130 }),
-  hit: () => tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80 }),
+  // Impact in combat — the sourced "Smack" clip; synth thud until it finishes decoding.
+  hit: () => {
+    if (playSample('smack', 0.7)) return;
+    tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80 });
+  },
   death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48 }),
   shield: () => tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300 }),
   buff: () => {

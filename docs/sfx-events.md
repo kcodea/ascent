@@ -1,8 +1,11 @@
 # ASCENT — SFX & animation event inventory
 
 A reference for sourcing new sound effects. Lists every event/animation, its **on-screen length**, and whether
-it **currently has SFX**. Today all SFX are tiny synthesized Web-Audio blips (`packages/ui/src/sfx.ts`) — these
-are placeholders to be replaced with sourced audio. Muting persists; one sound per notable event per beat.
+it **currently has SFX**. Most SFX are still tiny synthesized Web-Audio blips (`packages/ui/src/sfx.ts`),
+placeholders to be replaced — **except sourced clips now wired**: `sell` (one of `sell1–4` at random) and the
+combat `hit`/impact (`smack`), loaded from `packages/ui/src/audio/*.mp3` (decoded to AudioBuffers; the synth is
+the fallback until decode completes). To add more: drop an mp3 in `audio/` and call `playSample('<name>')` at
+the event site (synth fallback optional). Muting persists; one sound per notable event per beat.
 
 Combat plays as a **beat replay** (`packages/ui/src/useCombatReplay.ts`): each beat is an action (or a run of
 result events) shown for a fixed length, then the next beat. Durations below are the beat length = base `DELAY` ×
@@ -17,14 +20,14 @@ result events) shown for a fixed length, then the next beat. Durations below are
 | `buy` | buy a minion; Discover pick | square blip up |
 | `deny` | rejected action (can't afford / full / timer up) | descending dissonant buzz |
 | `play` | play a card to the board; cast a spell | triangle down-slide |
-| `sell` | sell a board minion | square blip up (brighter) |
+| `sell` | sell a board minion | **sourced** — random of `sell1–4`.mp3 |
 | `roll` | refresh / freeze the tavern | 3-step square sweep |
 | `upgrade` | Tavern Up | rising triad |
 | `temper` | use the Hero Power | bright two-note ping |
 | `tick` | each of the last 5 turn-timer seconds | short square click |
 | `combatStart` | End Turn → Face the Omen | low sawtooth down-slide |
 | `attack` | each attack swing (per hit) | sawtooth down-slide |
-| `hit` | damage lands | low square thud |
+| `hit` | damage lands (combat impact) | **sourced** — `smack`.mp3 |
 | `death` | a minion dies | low sine drop |
 | `shield` | a Divine Shield is **gained** (shieldUp) | sine up-slide shimmer |
 | `buff` | a combat buff lands | two-note triangle |

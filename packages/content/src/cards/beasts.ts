@@ -171,4 +171,48 @@ export const BEASTS: CardDef[] = [
     text: '**Battlecry:** Discover a Beast.',
     goldenText: '**Battlecry:** Discover **2** Beasts.',
   },
+
+  // --- Final beasts (2026-06-24) — combat→run carry-backs (Sporebat, Gryphon) + a dual-surface summon
+  //     engine (Mama Bear). ---
+  {
+    // Defensive value engine: a Taunt body that, on death, hands you a random tavern-tier spell. Golden → 2.
+    id: 'sporebat',
+    name: 'Sporebat',
+    tribe: 'beast',
+    tier: 4,
+    attack: 2,
+    health: 6,
+    keywords: ['T'],
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
+    text: '**Taunt. Deathrattle:** add a random tavern-tier spell to your hand.',
+    goldenText: '**Taunt. Deathrattle:** add **2** random tavern-tier spells to your hand.',
+  },
+  {
+    // Economy Taunt: the first time it takes damage each combat, bank a free shop reroll. Golden → 2. (Once
+    // per combat — a Taunt soaks many hits, so per-hit would be runaway; a 1-line change to per-hit if wanted.)
+    id: 'gryphon',
+    name: 'Gryphon',
+    tribe: 'beast',
+    tier: 3,
+    attack: 3,
+    health: 6,
+    keywords: ['T'],
+    effects: [{ on: 'onDamaged', do: 'onDamagedGrantRefresh', params: { count: 1 } }],
+    text: '**Taunt.** When this takes damage, gain a **free refresh** (once per combat).',
+    goldenText: '**Taunt.** When this takes damage, gain **2 free refreshes** (once per combat).',
+  },
+  {
+    // Summon-payoff that snowballs: each Beast you summon (in OR out of combat) gets buffed, and the buff
+    // grows by +3/+3 every time. Pairs with token-summoners (Manasaber, Mama Pup). Golden doubles.
+    id: 'mamabear',
+    name: 'Mama Bear',
+    tribe: 'beast',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onSummon', do: 'summonBuffTribeImprove', params: { tribe: 'beast', attack: 3, health: 3 } }],
+    text: 'When you summon a **Beast**, give it **+3/+3** — and improve this by **+3/+3**.',
+    goldenText: 'When you summon a **Beast**, give it **+6/+6** — and improve this by **+6/+6**.',
+  },
 ];

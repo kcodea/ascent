@@ -744,6 +744,31 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerFodderGrants).toBe(1); // one Burial Imp died → 1 Fodder queued for the next tavern
   });
 
+  it('Sporebat Deathrattle banks a random tavern-tier spell (carried back); golden banks two', () => {
+    const grants = (golden: boolean): number | undefined =>
+      run([{ cardId: 'sporebat', attack: 2, health: 1, golden }], [{ cardId: 'omen', attack: 5, health: 5 }], 3).playerSpellGrants;
+    expect(grants(false)).toBe(1);
+    expect(grants(true)).toBe(2);
+  });
+
+  it('Gryphon banks ONE free refresh per combat when it takes damage (not per hit)', () => {
+    const a = run(
+      [{ cardId: 'gryphon', attack: 3, health: 40, keywords: ['T'] }], // soaks many hits over the fight
+      [{ cardId: 'omen', attack: 2, health: 40 }],
+      3,
+    );
+    expect(a.playerFreeRolls).toBe(1); // once per combat, despite repeated damage
+  });
+
+  it('a golden Gryphon banks two free refreshes', () => {
+    const a = run(
+      [{ cardId: 'gryphon', attack: 3, health: 40, keywords: ['T'], golden: true }],
+      [{ cardId: 'omen', attack: 2, health: 40 }],
+      3,
+    );
+    expect(a.playerFreeRolls).toBe(2);
+  });
+
   it('Soulsman: Avenge (4) permanently raises your max Gold (carried back)', () => {
     const a = run(
       [

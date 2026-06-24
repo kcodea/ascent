@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **+3 Beasts (Sporebat, Gryphon, Mama Bear).** Sporebat (Deathrattle → a random tavern spell), Gryphon
+  (Taunt; a free refresh when damaged, once per combat), Mama Bear (each Beast you summon gets buffed, the buff
+  improving each time, in and out of combat). New `onDamaged` trigger + two combat→run carry-back channels.
 - **Content batch — +5 minions, +1 token, +5 spells.** Beasts: Manasaber, Raptor, Sea Urchin (+ a Saber Cub
   token). Spells: Tribe Portal, Corpse Board, Perfect Vision, Fleeting Vigor, Apples. Reactive Dragons: Hunter
   + Crypt Drake (a new `onGainAttack` trigger — they combo, one pumps Attack, the other answers with Health).

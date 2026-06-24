@@ -2,14 +2,17 @@
 # atk/hp are blank for spells (they use cost). Dual-type minions show both tribes. golden_text = the tripled text.
 id,name,tier,atk,hp,cost,keywords,text,golden_text
 
-# === BEAST (10) ===
+# === BEAST (13) ===
 alley,Alleycat,1,1,1,,,**Battlecry:** summon a 1/1 Stray next to it.,**Battlecry:** summon two 1/1 Strays next to it.
 manasaber,Manasaber,1,4,1,,,**Deathrattle:** summon a 0/2 Saber Cub with **Taunt**.,**Deathrattle:** summon two 0/2 Saber Cubs with **Taunt**.
 kennel,Kennelmaster,2,2,3,,,Each **Beast** you summon gains **+1/+1**. **Avenge (3):** Improve this.,
 pack,Mama Pup,2,2,2,,,**Deathrattle:** summon two 1/1 Pups.,**Deathrattle:** summon four 1/1 Pups.
 shaper,Wildwood Shaper,2,2,3,,,**Choose One:** give your Beasts +1/+1; or summon two 1/1 Strays.,**Choose One:** give your Beasts +2/+2; or summon four 1/1 Strays.
+gryphon,Gryphon,3,3,6,,Taunt,"**Taunt.** When this takes damage, gain a **free refresh** (once per combat).","**Taunt.** When this takes damage, gain **2 free refreshes** (once per combat)."
 raptor,Raptor,3,2,8,,,"When a friendly **Beast** attacks, give it **+3/+1**.","When a friendly **Beast** attacks, give it **+6/+2**."
 seaurchin,Sea Urchin,4,4,4,,,**Battlecry:** Discover a Beast.,**Battlecry:** Discover **2** Beasts.
+sporebat,Sporebat,4,2,6,,Taunt,**Taunt. Deathrattle:** add a random tavern-tier spell to your hand.,**Taunt. Deathrattle:** add **2** random tavern-tier spells to your hand.
+mamabear,Mama Bear,5,6,6,,,"When you summon a **Beast**, give it **+3/+3** — and improve this by **+3/+3**.","When you summon a **Beast**, give it **+6/+6** — and improve this by **+6/+6**."
 spiritpup,Spirit Pup (beast/dragon),5,4,6,,,Cast **10 spells** with this on board to transform into **Spirit Worgen**.,
 gnash,"Gnasher, the Overrun",6,6,6,,,"When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.",
 grim,Grim,6,7,1,,,**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.,

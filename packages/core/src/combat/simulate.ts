@@ -44,6 +44,8 @@ export function simulate(
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
+  let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
+  let spellGrants = 0; // random tavern-tier spells granted to the hand after combat (Sporebat's Deathrattle)
 
   /**
    * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
@@ -172,6 +174,14 @@ export function simulate(
     grantMaxGold: (amount, side) => {
       if (side !== 'player') return; // enemies have no economy
       maxGoldGain += amount;
+    },
+    grantFreeRolls: (count, side) => {
+      if (side !== 'player') return; // enemies have no shop
+      freeRollGrants += count;
+    },
+    grantRandomSpell: (count, side) => {
+      if (side !== 'player') return; // enemies have no hand
+      spellGrants += count;
     },
   };
 
@@ -323,6 +333,8 @@ export function simulate(
     }
     target.health -= amount;
     events.push({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health) });
+    // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
+    if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side });
     // Venomous: reaching here means the hit actually landed (Immune + Divine Shield already returned
     // above), so any damage from a Venomous source destroys the target — even if the raw hit was
     // already lethal. So attacking a Venomous minion is fatal *unless you were shielded from the
@@ -550,5 +562,7 @@ export function simulate(
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
+    playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
+    playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
   };
 }

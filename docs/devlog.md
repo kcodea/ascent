@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Power framework — simulate-derived board rating (Stage 3 foundation)
+
+The basis for true-strength matchmaking + power-band synthesis. `power = Σ(attack+health)` ignores keywords
+and synergy; the new rating is a real fight.
+
+- **`rateBoard(board, tier)` → 0..1** (`packages/sim/src/rating.ts`): the fraction of a fixed 8-rung
+  CALIBRATION GAUNTLET (weak 2×1/2 → strong 7×9/16 DS+Windfury) the board beats in `simulate()` (draw =
+  0.5). Keyword/synergy-aware (DS, Windfury, Venomous, Reborn, deathrattles, golden ×2 all move it),
+  deterministic (fixed gauntlet + seed), ~8 sims/board. `ratingBand(r)` buckets it into `BAND_COUNT` (8)
+  bands for matchmaking + synthesis targeting.
+- **Baked into the committed pool.** `BoardSnapshot` gains optional `rating`; `npm run pool` computes it for
+  every board and reports the band distribution. First bake: the bot pool (waves 1–9) spreads across bands
+  0–3 — the gauntlet's top rungs are calibrated for much stronger boards, so high bands await real player
+  boards from deep runs. Optional + back-compat (runtime/legacy boards lack it → fall back to `power`).
+- Tests: rating is monotonic in strength, deterministic, 0 for empty, and **DS+Windfury rate higher than the
+  same raw stats** (proving it captures what Σ power can't). 199 sim tests pass.
+- **Queued next (the rest of the power framework):** (a) flip matchmaking to rating-based (rate the player's
+  start-of-turn board, serve the closest-rating opponent within the wave) — balance-affecting, so it gets a
+  focused validation pass; (b) **synthesize boards within a band** (`origin:'synthetic'` — mutate/recombine
+  real boards, keep those whose `rateBoard` lands in the target band) to fill sparse bands/high waves; (c)
+  in-game friend export/import UX.
+
 ### Committed opponent pool + board attribution (`npm run pool`) — real boards ship with the game
 
 Until now, captured boards lived ONLY in browser `localStorage` (`ascent.boards`, written when a run ends);

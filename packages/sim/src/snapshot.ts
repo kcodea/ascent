@@ -53,6 +53,10 @@ export interface BoardSnapshot {
   /** ISO date (YYYY-MM-DD) the board was captured or generated. Wall-clock, so it's stamped by the UI/tool
    *  layer (never inside the pure `snapshotBoard`, which must stay deterministic). */
   capturedAt?: string;
+  /** Simulate-derived strength rating (0..1) — fraction of the calibration gauntlet this board beats (see
+   *  `rateBoard`). Keyword/synergy-aware, unlike `power`. Baked by `npm run pool`; the basis for true-strength
+   *  matchmaking + power-band bucketing. Optional (legacy/runtime boards may lack it → fall back to `power`). */
+  rating?: number;
 }
 
 const sumPower = (b: BoardMinion[]): number => b.reduce((s, m) => s + m.attack + m.health, 0);

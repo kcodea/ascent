@@ -25,9 +25,13 @@ import {
   spellAttackBonus,
   spellHealthBonus,
   spellDisplayText,
+  rateBoard,
+  ratingBand,
+  BAND_COUNT,
   type BoardCard,
   type RunState,
 } from './index';
+import type { BoardMinion } from '@game/core';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
 function playToEnd(seed: number): RunState {
@@ -2837,4 +2841,33 @@ describe('content batch: new minions (@game/sim)', () => {
     expect(s.fodderEaten?.[0]).toMatchObject({ eaterUid: 'bane', fodderId: 'fred' }); // Bane recorded as the eater
   });
 
+});
+
+describe('board strength rating (@game/sim)', () => {
+  const vanilla = (n: number, atk: number, hp: number, kw?: BoardMinion['keywords']): BoardMinion[] =>
+    Array.from({ length: n }, () => (kw ? { cardId: 'alley', attack: atk, health: hp, keywords: kw } : { cardId: 'alley', attack: atk, health: hp }));
+
+  it('rates 0..1, monotonic in strength, deterministic, and 0 for an empty board', () => {
+    expect(rateBoard([])).toBe(0);
+    const weak = rateBoard(vanilla(2, 1, 1));
+    const mid = rateBoard(vanilla(5, 5, 7));
+    const strong = rateBoard(vanilla(7, 10, 18, ['DS', 'W']));
+    expect(weak).toBeGreaterThanOrEqual(0);
+    expect(strong).toBeLessThanOrEqual(1);
+    expect(weak).toBeLessThan(mid);
+    expect(mid).toBeLessThan(strong);
+    expect(rateBoard(vanilla(5, 5, 7))).toBe(mid); // deterministic — same board, same rating
+  });
+
+  it('Divine Shield + Windfury raise the rating over the same raw stats (keyword-aware, unlike Σ power)', () => {
+    const plain = rateBoard(vanilla(5, 5, 8));
+    const keyworded = rateBoard(vanilla(5, 5, 8, ['DS', 'W']));
+    expect(keyworded).toBeGreaterThan(plain);
+  });
+
+  it('ratingBand buckets 0..1 into BAND_COUNT bands', () => {
+    expect(ratingBand(0)).toBe(0);
+    expect(ratingBand(0.999)).toBe(BAND_COUNT - 1);
+    expect(ratingBand(1)).toBe(BAND_COUNT - 1); // clamped, never out of range
+  });
 });

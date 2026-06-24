@@ -53,6 +53,7 @@ export type GameEvent =
 export type EffectFactoryId =
   // combat-time (resolved inside simulate)
   | 'deathrattleSummon'
+  | 'deathrattleSummonOverflowBuff' // Nanon: Deathrattle — summon tokens; overflow buffs a tribe (Mech)
   | 'buffOnSummon'
   | 'deathrattleBuffTribe'
   | 'reAttackOnKill'

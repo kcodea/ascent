@@ -24,6 +24,19 @@ Combat can now **cast spells** — Taragosa's Growth is a *real* spell cast, not
 - Tests: Guel fires off Taragosa's combat cast (+1/+1) and carries back (`playerSpellsCast`); Guel scales with the
   passed-in `spellsCast` (start 4 → +2/+2 grant); `settleCombat` bumps the run's `spellsCast` (5 + 3 = 8).
   Verified: typecheck + lint + **322 tests** + `build:web`.
+### Content: Nanon (T6 Mech) — a flood-or-pump Deathrattle
+
+- **Nanon** (T6 Mech 6/6) — *Deathrattle: summon 6 Nanobots. For each one that can't fit, give your Mechs
+  **+2/+2*** (golden +4/+4). New combat factory `deathrattleSummonOverflowBuff`: it attempts all 6 summons,
+  counts the ones a full board rejects (reusing the existing `summonOverflow` path), then buffs every friendly
+  Mech by `per-overflow × overflow-count`. **Golden doubles the buff, NOT the summon count** (per the card's
+  "+4/+4" note) — so a packed board converts the wasted bodies into a bigger board-wide pump rather than more
+  1/1s. The gift lasts the combat (it's a normal combat buff, not carried back).
+- **Nanobot** — a 1/1 Mech token (not buyable). Art wired for both; Nanon uses the **`Nanon2`** master (the v1
+  sits in the artist's `Unused/` folder).
+- Tests: no-overflow (all 6 land, no buff), full-board overflow (5 overflow → +10/+10 to each Mech), golden
+  (+20/+20, summon count unchanged). Verified: typecheck + lint + **312 tests** + `build:web`; cards.csv = 67
+  minions / 24 spells / 10 tokens.
 
 ### Batch fixes: hero-power art + the card-tweaks pass (Hoarder / Sea Urchin / Gryphon / Frontdrake / Mama Bear)
 

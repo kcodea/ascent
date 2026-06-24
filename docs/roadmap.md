@@ -142,6 +142,15 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
   path. Taragosa's Growth is a real spell cast that fires Guel mid-fight (temporary buff) and **permanently**
   counts toward his improvement (carried back to the run's `spellsCast`). `simulate` takes the run `spellsCast`
   (Guel's grant scales) + returns `playerSpellsCast`. Opens the door to more in-combat spell-casters.
+- **Nanon (T6 Mech, shipped 2026-06-24 → devlog):** Deathrattle floods 6 Nanobots; each one a full board can't
+  fit pumps your Mechs +2/+2 (golden +4/+4). New `deathrattleSummonOverflowBuff` factory; Nanobot 1/1 token.
+  **Mech pool → 12** (toward the 13–15 target).
+- [ ] **Big content batch — ~16 new minions + 6 spells (Beast/Dragon push)** (specced 2026-06-24, landing
+      in phased PRs). Beasts: Manasaber (+Saber Cub token), Gryphon, Raptor, Sporebat, Sea Urchin, Mama Bear.
+      Dragons: Twilight Whelp (+Whelp token), Frontdrake, Tara→Taragosa (combat transform), Supporter, Bronze
+      Warden, Twilight Broodmother, Hunter, Stuntdrake, Crypt Drake (Undead/Dragon dual). Spells: Apples,
+      Fleeting Vigor, Tribe Portal, Corpse Board, Cupcakes, Perfect Vision. **Needs ~15 new effect
+      primitives**, several touching the combat side (the shared `types.ts` boundary): new combat triggers
 - [~] **Big content batch — ~16 new minions + 6 spells (Beast/Dragon push)** (specced 2026-06-24, landed in
       phased PRs). Beasts: Manasaber (+Saber Cub token), Gryphon, Raptor, Sporebat, Sea Urchin, Mama Bear.
       Dragons: Twilight Whelp (+Whelp token), Frontdrake, Tara→Taragosa, Supporter, Bronze Warden, Twilight

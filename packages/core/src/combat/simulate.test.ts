@@ -228,19 +228,25 @@ describe('simulate (handoff A.3)', () => {
     expect(a.result).toBe('win');
   });
 
-  it('Start of Combat fires first — Ember Whelp pings the leftmost enemy', () => {
-    const a = run(
-      [{ cardId: 'whelp', attack: 2, health: 1 }],
-      [
-        { cardId: 'omen', attack: 4, health: 4, keywords: [] },
-        { cardId: 'omen', attack: 1, health: 1, keywords: [] },
-      ],
-      2,
-    );
-    expect(a.events[0]?.type).toBe('sc');
-    const ping = a.events[1];
-    expect(ping?.type).toBe('dmg');
-    if (ping?.type === 'dmg') expect(ping.amount).toBe(1);
+  it('Twilight Whelp Deathrattle summons a 3/3 Whelp that attacks immediately (out of turn order)', () => {
+    // The 1/1 trades into the enemy and dies → its Deathrattle summons a 3/3 Whelp that strikes RIGHT AWAY.
+    const a = run([{ cardId: 'twilightwhelp', attack: 1, health: 1 }], [{ cardId: 'omen', attack: 1, health: 12 }], 3);
+    const summonIdx = a.events.findIndex((e) => e.type === 'summon' && e.minion.cardId === 'whelpling');
+    expect(summonIdx).toBeGreaterThanOrEqual(0); // a Whelp was summoned
+    const whelpUid = a.events[summonIdx]!.type === 'summon' ? (a.events[summonIdx] as { minion: { uid: string } }).minion.uid : '';
+    // …and it attacked, right after spawning (before the normal rotation would have reached it).
+    expect(a.events.slice(summonIdx + 1).some((e) => e.type === 'attack' && e.attacker === whelpUid)).toBe(true);
+  });
+
+  it('a golden Twilight Whelp summons two immediate-attack Whelps', () => {
+    const a = run([{ cardId: 'twilightwhelp', attack: 1, health: 1, golden: true }], [{ cardId: 'omen', attack: 1, health: 30 }], 3);
+    expect(a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'whelpling').length).toBe(2);
+  });
+
+  it('Twilight Broodmother Deathrattle leaves 2 Twilight Whelps that chain into 3/3 Whelps', () => {
+    const a = run([{ cardId: 'broodmother', attack: 2, health: 1 }], [{ cardId: 'omen', attack: 5, health: 40 }], 3);
+    expect(a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'twilightwhelp').length).toBe(2);
+    expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'whelpling')).toBe(true); // the Whelps chain in
   });
 
   it('Venomous destroys whatever it damages', () => {

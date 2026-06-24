@@ -628,7 +628,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   deathrattleSummon: (ctx, self, params) => {
     const token = CARD_INDEX[str(params.tokenId)];
     if (!token) return;
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) ctx.summon(token, self.uid);
+    const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
+      const m = ctx.summon(token, self.uid);
+      if (kw && m && !m.keywords.includes(kw)) m.keywords.push(kw);
+    }
   },
 
   /** Deathrattle: buff all friends of `tribe` (+atk/+hp). */

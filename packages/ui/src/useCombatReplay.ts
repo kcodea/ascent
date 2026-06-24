@@ -4,6 +4,7 @@ import type { CombatEvent, CombatResult, Keyword, MinionSnapshot, Tribe } from '
 import { CARD_INDEX } from '@game/content';
 import { sfx } from './sfx';
 import { getLungeConfig } from './lungeConfig';
+import { buildBeats, RESULT_TYPES } from './combatBeats';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -128,18 +129,6 @@ const DELAY: Record<string, number> = {
 };
 const FLOAT_MS = 1450;
 
-/**
- * Combat beats. An action (attack / SC / summon / reborn) is its own beat — the
- * wind-up — and the run of result events it caused (damage, shields, poison,
- * deaths) is the *next* beat, where everything lands at once. So an attacker lunges
- * in (beat 1), then it and its target take damage together (beat 2).
- *
- * A run of consecutive `buff` events is *also* collapsed into one beat: a single
- * effect that buffs many minions at once (Grim's Deathrattle giving every Beast
- * +6/+6, a Rally aura) fires them all together rather than one minion at a time.
- */
-const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'venomLost', 'death']);
-
 /** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
  *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
  *  overshoot. `dx`/`dy` is the full attacker→defender vector; the strike covers ~100% of it so the
@@ -166,28 +155,6 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
       });
     }, `-=${c.smackLead}`)                                                                                 // …fired smackLead seconds BEFORE the strike completes
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });       // settle
-}
-interface Beat {
-  start: number;
-  end: number;
-  primary: CombatEvent;
-}
-function buildBeats(events: CombatEvent[]): Beat[] {
-  const beats: Beat[] = [];
-  let i = 0;
-  while (i < events.length) {
-    const start = i;
-    const t = events[i]!.type;
-    if (RESULT_TYPES.has(t)) {
-      while (i < events.length && RESULT_TYPES.has(events[i]!.type)) i++; // group the impact
-    } else if (t === 'buff') {
-      while (i < events.length && events[i]!.type === 'buff') i++; // a multi-target buff lands at once
-    } else {
-      i++; // a single action
-    }
-    beats.push({ start, end: i, primary: events[start]! });
-  }
-  return beats;
 }
 /** The transient animation class for the unit the active event acts on. */
 function animFor(e: CombatEvent | undefined): Record<string, string> {

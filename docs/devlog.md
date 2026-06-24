@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Damage lands at the lunge connection (combat-feel) — first PR through branch protection
+
+- **The hit now reads on contact.** When a minion attacks, the sim emits the `attack`, then its on-attack
+  effects (Better Bot's mech-buff, a Rally pulse / rally-summoned token), *then* the damage. The replay used
+  to make a separate beat out of those buffs, so the damage number/recoil landed a beat **after** the buff
+  animation — disconnected from the lunge that already connected. Now an `attack` beat **absorbs** its
+  on-attack flash events (`buff`/`rally`/`summon`/`reveal`/`improve`) into the **wind-up**, so they animate
+  while the attacker leans in and the **damage beat is the very next one — landing right at the lunge's
+  contact frame** (where the smack already fires). Pairs with the earlier audio fix (smack only from the
+  lunge), so sound + number now hit together.
+- **How (safe by construction):** extracted the beat builder into a pure, tested module
+  (`packages/ui/src/combatBeats.ts` — `buildBeats` + `RESULT_TYPES`). The change only alters how events are
+  **grouped into beats**, never their order — so `computeFrame` (which folds the log in order to derive HP)
+  is unaffected; final and intermediate state are identical, only the beat boundaries (and thus timing)
+  move. 5 unit tests (`combatBeats.test.ts`) lock the grouping: plain attack, attack+buff, a rally+summon+buff
+  run, a standalone buff run, and an SC cast.
+- Verified: typecheck + lint clean, **287 tests** (5 new), app boots clean (no console errors). The *feel*
+  across rally/cleave/windfury/deathrattle is for live review on this PR.
+- **Process first:** this is the **first change through the new branch-protection flow** —
+  `feat/damage-at-connection` → PR → CI gate → review, no direct push to `main`.
+
 ### Two-dev setup (CI + collaboration rules) · combat damage audio (SC zap, no default smack)
 
 - **CI gate for two-dev work.** Added `.github/workflows/ci.yml` — on every PR (and pushes to `main` as a

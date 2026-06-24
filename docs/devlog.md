@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Stop honoring `prefers-reduced-motion` (it made the game unreadable)
+
+- **The game now animates the same regardless of the OS "reduce motion" setting.** Removed the global
+  `@media (prefers-reduced-motion: reduce)` rule in `styles.css` that near-instant'd (`animation-duration:
+  0.001ms !important`) *every* animation. The problem: ASCENT's animations carry essential **information** —
+  damage numbers, death pops, the Fodder-consume swirl, buff flashes — not just decoration. With reduce-motion
+  on, all of that flashed-and-vanished, so the game looked broken ("no animations, fodder doesn't work, dmg
+  numbers don't show"). This was the cause of a co-dev's "nothing works" report — he had the OS setting on; it
+  reproduced on dev + itch for him, but not for anyone without the setting. Replaced the rule with a comment
+  documenting the decision (and how to revisit it properly: calm *motion*, never suppress the informational
+  floats). Perf on low-power machines stays handled the right way — compositor-only transform/opacity, no
+  paint-property loops (see `docs/performance.md`, updated). Verified: rule gone from the loaded CSS (0
+  matches), app boots clean.
+
 ### Version badge (bottom-right, above the gear)
 
 - **In-game build badge.** A small `v{version} · {sha}` label sits just above the settings gear (bottom-right,

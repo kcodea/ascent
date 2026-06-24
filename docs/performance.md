@@ -112,8 +112,11 @@ These are the rules the audits surfaced; the codebase already follows them — k
   frequently-changing value into its own store/subscriber so only what *displays* it re-renders.
 - **Don't deep-clone large read-only state.** The reducer shares `lastCombat` (the whole event log) by
   reference instead of `structuredClone`-ing it every dispatch.
-- **Respect `prefers-reduced-motion`.** The global rule in `styles.css` near-instants every animation; new
-  looping animations are covered automatically, but don't `!important` your way around it.
+- **We do NOT gate on `prefers-reduced-motion`.** ASCENT's animations carry essential gameplay info (damage
+  numbers, death pops, the Fodder swirl, buff flashes), so the old global near-instant rule made the game
+  unreadable for anyone with that OS setting on. Perf for low-power machines comes from being compositor-only
+  (transform/opacity, no paint-property loops), not from disabling motion. If reduced-motion is ever
+  revisited, calm the *motion* (lunges, perpetual loops) without suppressing the informational floats.
 - **`Math.random` is banned in `core`/`content`/`sim`** (determinism + replay). Tools (`perf.ts`) may use
   `performance.now()` for timing.
 

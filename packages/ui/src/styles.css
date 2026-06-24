@@ -1146,20 +1146,14 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   72% { opacity: 1; transform: translate(-50%, calc(-50% + 22vh)) scale(0.78); }
   100% { opacity: 0; transform: translate(-50%, calc(-50% + 52vh)) scale(0.42); }
 }
-@media (prefers-reduced-motion: reduce) {
-  /* Honor the OS setting EVERYWHERE: near-instant durations (not `animation: none`, so end-states of
-     `forwards` animations + transforms still settle) on every element + pseudo. This catches the keyword
-     glow ::before layers AND every perpetual particle/pulse loop (Reborn tears, Venom drips, triple arrows,
-     orbiting orbs, button pulses) that the old three-selector rule missed — an accessibility win and a
-     paint-cost win on low-power machines. */
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-  }
-  /* The glow ::before's pulse ends at opacity 0; pin it visible so a shielded/triple card still reads. */
-  .card::before { opacity: 1 !important; }
-}
+/* NOTE: we intentionally do NOT gate animations on `prefers-reduced-motion`. ASCENT's animations carry
+   essential gameplay INFORMATION — damage numbers, death pops, the Fodder-consume swirl, buff flashes — not
+   just decoration. The old `@media (prefers-reduced-motion: reduce)` rule near-instant'd every animation,
+   which made the game unreadable (no visible damage / feedback) for anyone with that OS setting on. So the
+   game animates the same regardless of the setting. (Perf for low-power machines is handled the right way —
+   compositor-only transform/opacity, no paint-property loops — see docs/performance.md, not via this gate.)
+   If reduced-motion support is revisited, reduce *motion* (lunges, perpetual loops) WITHOUT suppressing the
+   informational floats/numbers. */
 
 /* polish: keyboard focus, floating combat numbers, death pop */
 .card:focus-visible, .btn:focus-visible, .hero:focus-visible, .over .btn:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }

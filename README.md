@@ -19,6 +19,8 @@ npm run typecheck && npm run lint
 npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in browser")
 ```
 
+New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → verify → the collaboration rules).
+
 ## Recent changes
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_

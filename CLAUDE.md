@@ -85,6 +85,8 @@ means the boundary leaked.
 
 ## Collaboration (2 devs — Kevin + Mike, both using Claude Code)
 
+> New to the repo? Start with [`ONBOARDING.md`](ONBOARDING.md) (clone → install → verify → the rules).
+
 Two people don't go 2× by typing faster (Claude already removed typing as the bottleneck) — the new
 bottleneck is **coordination and integration**. The win comes from parallelizing along clean seams and
 keeping `main` always-playable so neither dev ever blocks or breaks the other.

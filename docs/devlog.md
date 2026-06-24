@@ -13,7 +13,10 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   `core`/`content`/`sim`/`tools`, Mike owns `ui`/`apps/web`; shared boundary = `core/types.ts` + package
   entrypoints), plus the hot-file list to serialize. NOTE: GitHub **branch protection isn't available on this
   private repo without Pro** (or making it public) — until then "never commit to main" is a convention CI +
-  review back up, not a hard gate. Owner action items in the session summary.
+  review back up, not a hard gate. Owner action items in the session summary. **Update:** owner invited the
+  2nd dev (Mike) + is upgrading to GitHub Pro to enable branch protection. Added **`ONBOARDING.md`** (repo
+  root) — a step-by-step clone → install → verify → rules guide written for Mike's Claude Code to execute;
+  linked from `CLAUDE.md` (Collaboration) + the README.
 - **Combat damage audio reworked (notes 1 + 2, audio half).** The physical "smack" now comes ONLY from the
   attack lunge's GSAP timeline (at the contact frame) — the beat-driven `dmg` smack was removed entirely. So
   (a) **Start-of-Combat damage no longer smacks** — Ember Whelp & co. play a new `sfx.cast` zap on the `sc`

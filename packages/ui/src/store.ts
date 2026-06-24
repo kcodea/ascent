@@ -52,12 +52,20 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
     }
     case 'sell': sfx.sell(); break;
     case 'roll': case 'freeze': sfx.roll(); break;
+    case 'reposition': case 'reorderShop': sfx.reorder(); break;
     case 'upgrade': sfx.upgrade(); break;
     case 'heroPower': sfx.temper(); break;
     case 'discover': sfx.buy(); break;
     case 'faceOmen': sfx.combatStart(); break;
     default: break;
   }
+  // A Discover choice just OPENED (any action that set run.discover — playing a Discover spell, a golden's
+  // reward, etc.): play the discover cue, on top of the triggering action's own sound.
+  if (!prev.discover && next.discover) sfx.discover();
+  // A friendly minion was just GIVEN Taunt — it existed on the board WITHOUT Taunt and now has it (so this
+  // skips minions bought/played already-Taunt; only granted Taunt, e.g. Bulwark/a hero power, fires it).
+  const wasTaunt = new Map(prev.board.map((m) => [m.uid, m.keywords.includes('T')]));
+  if (next.board.some((m) => m.keywords.includes('T') && wasTaunt.get(m.uid) === false)) sfx.taunt();
   if (countGolden(next) > countGolden(prev)) sfx.triple();
 }
 

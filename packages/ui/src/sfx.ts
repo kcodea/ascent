@@ -46,6 +46,20 @@ function audio(): AudioContext | null {
   }
 }
 
+// Warm the audio context + start decoding the mp3 SFX on the FIRST user gesture anywhere (a click/keypress),
+// not lazily on the first SOUND. Without this, the first real sound (e.g. the first buy) was a silent/synth
+// fallback while the context resumed + samples decoded — so sourced clips only "kicked in" after a later
+// action (a hero power, etc.) happened to warm things up. Now they're ready by the first buy/play.
+if (typeof window !== 'undefined') {
+  const warm = (): void => {
+    audio();
+    window.removeEventListener('pointerdown', warm);
+    window.removeEventListener('keydown', warm);
+  };
+  window.addEventListener('pointerdown', warm);
+  window.addEventListener('keydown', warm);
+}
+
 // --- Sampled SFX (mp3 files in ./audio) — decoded into AudioBuffers and played through the same context, so
 //     they overlap cleanly (each play is a fresh BufferSource) and sit alongside the synth blips. Decoded
 //     lazily; the synth blip is the fallback until a sample's buffer is ready (or if decoding fails). ---
@@ -148,6 +162,21 @@ export const sfx = {
     tone({ freq: 1040, dur: 0.11, type: 'square', vol: 0.07, delay: 0.06 });
   },
   roll: () => [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d })),
+  // A Discover choice opens — the sourced "discover" clip; synth shimmer until it decodes / if absent.
+  discover: () => {
+    if (playSample('discover', 0.5)) return;
+    chord([523, 784, 1046], { dur: 0.16, type: 'triangle', vol: 0.1 }, 0.05);
+  },
+  // A friendly minion is GIVEN Taunt — the sourced "taunt" clip; synth thunk until it decodes / if absent.
+  taunt: () => {
+    if (playSample('taunt', 0.5)) return;
+    tone({ freq: 220, dur: 0.14, type: 'square', vol: 0.12, slideTo: 160 });
+  },
+  // A card is repositioned (warband / shop reorder) — the sourced "reordercard" clip; synth tick fallback.
+  reorder: () => {
+    if (playSample('reordercard', 0.5)) return;
+    tone({ freq: 440, dur: 0.05, type: 'square', vol: 0.07 });
+  },
   upgrade: () => chord([392, 523, 659], { dur: 0.14, type: 'triangle', vol: 0.12 }, 0.07),
   temper: () => {
     tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1 });

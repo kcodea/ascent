@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Audio: warm-up fix + sourced buy/cardlanding/discover/taunt/reorder cues
+
+- **Fixed "sourced SFX only kick in after a hero power."** The audio context + sample decoding only started on
+  the first SOUND, so the first buy/play was a silent/synth fallback while things warmed up. Now a one-time
+  first-gesture listener (any click/keypress) creates + resumes the context and prefetches every mp3, so clips
+  are decoded and ready by the first buy. Verified live: a single pointerdown prefetches all 11 samples.
+- **New sourced cues wired:** `buy` → random `buy1`/`buy2`; a MINION landing → `cardlanding` (distinct from a
+  SPELL cast — `castSpell`, its own sound, per-spell later); a **Discover** opening → `discover` (fires when an
+  action sets `run.discover`); a friendly minion **GIVEN Taunt** → `taunt` (a board minion that gains the `T`
+  keyword it didn't have — skips minions bought/played already-Taunt); a card **reordered** (warband/shop) →
+  `reordercard`. All with synth fallbacks. (SFX live in `packages/ui/src/audio/`, lowercase — the only folder
+  the glob reads; adding files needs a dev-server restart.)
+- Verified: typecheck + lint clean, 282 tests pass, no console errors.
+
 ### Win-based matchmaking + friend board import/export + player name in the HUD + audio
 
 The "real player boards" loop, end to end: name yourself, face boards by win count (real ones preferred),

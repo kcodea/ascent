@@ -27,13 +27,15 @@ export interface LungeConfig {
 }
 
 const DEFAULTS: LungeConfig = {
-  windupDur: 0.22,   // slightly longer wind-up (was 0.2)
-  windupDepth: 0.14,
-  strikeDur: 0.11,   // slightly faster strike (was 0.13)
-  strikeDist: 1.22,  // slightly further lunge (was 1.15)
-  smackLead: 0.03,   // smack slightly earlier — 30ms before the strike lands (was 0 = on completion)
-  settleDur: 0.55,
-  attackGap: 0.56,   // breather after an impact before the next swing (the inter-attack pause) — tuned by ear
+  windupDur: 0.37,   // longer, weightier wind-up (tuned by eye in the DEV Lunge tuner)
+  windupDepth: 0.1,
+  strikeDur: 0.16,   // a heavier drive into the target
+  strikeDist: 1.44,  // a deeper lunge that punches further into the defender
+  smackLead: 0.005,  // smack ~5ms before the strike lands (near-on-contact)
+  settleDur: 1.06,   // a slower, springier elastic return to rest
+  attackGap: 0.22,   // shorter breather between swings (the inter-attack pause)
+  // NOTE: windupDur + strikeDur = 0.53s = the lunge's connection time. `DELAY.attack` in
+  // useCombatReplay.ts is kept at 353 (×SPEED 1.5 ≈ 530ms) so the damage float + recoil land ON contact.
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

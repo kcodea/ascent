@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Lunge feel retune.** New shipped attack-lunge defaults — a longer, heavier wind-up driving a deeper lunge,
+  a springier settle, and a shorter breather between swings. The damage number/recoil is kept landing on the
+  lunge's contact frame (the result-beat schedule was moved to match the slower swing).
 - **Feel + HUD pass.** The Hero-Power targeting line now draws from the power button; Bane's Fodder enchant
   shows a purple haze under the card; the attack lunge got a tuning pass (smack a touch earlier, snappier
   strike, a bit further) — with a **DEV lunge tuner** to dial it by feel. The player name moved to its own

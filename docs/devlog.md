@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Lunge feel retune — weightier swing, damage beat kept on contact
+
+- **New shipped lunge defaults** (`packages/ui/src/lungeConfig.ts`), tuned by eye in the DEV Lunge tuner:
+  `windupDur 0.22→0.37`, `windupDepth 0.14→0.1`, `strikeDur 0.11→0.16`, `strikeDist 1.22→1.44`,
+  `smackLead 0.03→0.005`, `settleDur 0.55→1.06`, `attackGap 0.56→0.22`. Net feel: a longer, heavier
+  wind-up driving a deeper lunge into the target, a slower springy settle, and a shorter breather between
+  swings.
+- **Kept the damage number/recoil ON contact.** The lunge now connects at `windupDur + strikeDur = 0.53s`
+  (was 0.33s), so the result-beat schedule had to move with it or the damage would pop ~0.2s early (the
+  regression PR #2 just fixed). Bumped `DELAY.attack` 220→353 in `useCombatReplay.ts` (353 × SPEED 1.5 ≈
+  530ms = the new connection time). Added cross-references in both files so the two stay locked when retuned.
+- **Tradeoff:** each attack beat is ~60% longer, so combat pacing is slightly slower — intentional, matches
+  the heavier swing.
+- **Verified:** typecheck + lint clean, **287 tests** pass, `build:web` succeeds, app boots clean (no console
+  errors); feel confirmed live in the arena. localStorage tuner overrides still win for a dev who has saved
+  values (hit Reset in the panel to fall back to these new defaults).
+
 ### Damage lands at the lunge connection (combat-feel) — first PR through branch protection
 
 - **The hit now reads on contact.** When a minion attacks, the sim emits the `attack`, then its on-attack

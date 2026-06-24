@@ -177,6 +177,7 @@ export const DRAGONS: CardDef[] = [
     ascendAt: 20,
     ascendInto: 'taragosa',
     text: 'All stats are **Engraved**. Granted stats **20 times** in combat → ascend to **Taragosa**.',
+  },
 
   // --- Twilight Whelp line (2026-06-24) — the immediate-attack mechanic; replaces Ember Whelp at T1. ---
   {

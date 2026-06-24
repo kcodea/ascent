@@ -13,12 +13,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   (a buff-count map → `CombatResult.playerAscendCount`), and `settleCombat` accumulates onto
   `BoardCard.ascendProgress`, swapping the cardId at the threshold (golden → golden Taragosa; the counting
   needs no combat factory).
-- **Taragosa** (token, Engraved) — *When a minion attacks, cast Growth (+3/+4 to your minions)* — explosive on
-  a wide board (new combat factory `onAllyAttackCastGrowth`; golden casts it twice). *Flagged:* the in-combat
-  Growth does **not** inherit the run's spell power (combat has no access to it — a follow-up needing spell
-  power passed into `simulate`).
-- **Art** wired (Tara / Taragosa). Verified: typecheck + lint + **307 tests** + `build:web` all green;
-  `cards.csv` = 63 minions / 24 spells / 9 tokens.
+- **Taragosa** (token, Engraved) — *All stats are **Engraved**. When a minion attacks, cast Growth (+3/+4 to
+  your minions)* — explosive on a wide board (new combat factory `onAllyAttackCastGrowth`; golden casts it
+  twice). Its card text leads with the **Engraved** line (it keeps the `EG` keyword, so it restates it like
+  Tara). *Flagged:* the in-combat Growth does **not** inherit the run's spell power (combat has no access to it
+  — a follow-up needing spell power passed into `simulate`).
+- **Art** wired (Tara / Taragosa). Verified: typecheck + lint + **314 tests** + `build:web` all green.
+- **Merge repair:** a prior `main`→branch merge had dropped the closing `},` on both **Tara** (dragons.ts) and
+  **Taragosa** (tokens.ts), collapsing each into the next card (typecheck failed; the Tara/Taragosa combat
+  tests failed because `taragosa` no longer existed as a card). Restored both braces.
 - **Last card of the 2026-06-24 batch** — the whole set is now built across the session's PRs.
 ### Content: Cupcakes (Demon consume-the-tavern spell)
 

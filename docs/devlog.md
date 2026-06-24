@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Content: 3 new Beasts (Manasaber, Raptor, Sea Urchin) + Saber Cub token
+
+- **+3 Beasts** (Beast pool 7 → 10) + the **Saber Cub** token — additive, all on existing triggers (no new
+  combat triggers / carry-backs). Stacked on the Dragons PR.
+  - **Manasaber** (T1 4/1) — *Deathrattle: summon a 0/2 Saber Cub with Taunt* (golden → 2). Data only
+    (`deathrattleSummon` + the new **Saber Cub** token — a 0/2 Taunt body, not in the shop).
+  - **Raptor** (T3 2/8) — *When a friendly Beast attacks, give it +3/+1* (golden +6/+2). New combat factory
+    **`onFriendlyAttackBuffTribe`** on the broadcast `onAttack` trigger; the buff lands pre-hit (so the Beast
+    swings buffed) and Raptor does **not** buff itself (a support body, not a self-ramp — a flagged judgement
+    call, trivially flipped).
+  - **Sea Urchin** (T4 4/4) — *Battlecry: Discover a Beast* (golden → Discover twice). New recruit factory
+    **`battlecryDiscoverMinion`** + a `tribe` field on the minion `DiscoverSpec`; `offerDiscover` now ANDs a
+    tribe check into its card filter (covering both pool branches), so the Discover shows only Beasts
+    (dual-types count).
+- **Art** wired for all four (Manasaber/SaberCub/Raptor/SeaUrchin → webp; confirmed bundled by `build:web`).
+- **Shared types/schema:** `EffectFactoryId` (core) + the zod enum (content) gain `onFriendlyAttackBuffTribe`
+  + `battlecryDiscoverMinion`; the minion `DiscoverSpec` gains `tribe?`.
+- **Deferred to the combat-machinery PR** (they need new combat triggers / carry-backs / scaling — not a
+  clean additive PR): **Gryphon** (`onDamaged` → free refresh), **Sporebat** (Deathrattle → a random
+  tavern-tier spell), **Mama Bear** (a summon-buff that improves *in and out of* combat — collides with the
+  golden/triple `summonBonus`-combine logic that's hardcoded to `buffOnSummon`).
+- **Tests:** Manasaber cub-summon (+golden) and Raptor's pre-hit buff / no-self-buff (`simulate.test.ts`);
+  Sea Urchin's Beast-only Discover (`run.test.ts`). `cards.csv` regenerated (Beast 7 → 10; 60 minions, 8
+  tokens). Verified: typecheck + lint + **295 tests** + `build:web` all green.
+
 ### Content: 4 new Dragons (Frontdrake, Supporter, Bronze Warden, Stuntdrake)
 
 - **+4 Dragons** (Dragon pool 6 → 10) — purely additive. *Ember Whelp stays for now;* its removal was

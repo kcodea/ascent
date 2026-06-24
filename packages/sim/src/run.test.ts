@@ -1119,6 +1119,22 @@ describe('run loop (@game/sim)', () => {
     expect(frontdrake.eotTick).toBe(3);
   });
 
+  it('Sea Urchin Battlecry offers a Discover of Beasts only (up to tavern tier)', () => {
+    // Pool mixes Beasts + a Dragon (cleric); the Discover must offer only Beasts.
+    let s: RunState = {
+      ...createRun(1), tier: 4, embers: 0, shop: [], board: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      pool: { alley: 5, pack: 5, kennel: 5, raptor: 5, cleric: 5 },
+      hand: [{ uid: 'u', cardId: 'seaurchin', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'u' });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) {
+      const def = CARD_INDEX[id]!;
+      expect(def.tribe === 'beast' || def.tribe2 === 'beast').toBe(true); // cleric (Dragon) is never offered
+    }
+  });
+
   it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {
     let s: RunState = {
       ...createRun(1), embers: 4, board: [],

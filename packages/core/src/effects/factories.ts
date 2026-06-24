@@ -302,6 +302,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) ctx.buff(m, attack, health, self.uid);
   },
 
+  /** Raptor — when ANOTHER friendly minion of `tribe` attacks, buff it (+atk/+hp) before its hit lands
+   *  (onAttack is broadcast pre-damage). Excludes self — a support body, not a self-ramp. Golden doubles. */
+  onFriendlyAttackBuffTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion === self || minion.side !== self.side) return;
+    const tribe = str(params.tribe) as Tribe | 'any';
+    if (tribe !== 'any' && minion.tribe !== tribe && minion.tribe2 !== tribe) return;
+    ctx.buff(minion, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
   /** Deathsayer's Rally — when *this* attacks, fire your leftmost living minion's Deathrattle *first*
    *  (before the hit lands; `onAttack` is emitted before damage). Logs a `rally` event (source =
    *  Deathsayer, target = that minion) so the UI pauses + shows whose Deathrattle goes off, then runs

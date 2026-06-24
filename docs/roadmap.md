@@ -53,9 +53,10 @@ The next 5 concrete steps:
   building on it. Tune the **counter matrix** (balance truth — the runner flags Mech dominant, Beast
   weak, Dragon/Undead flat; stat numbers are starting dials), build the **enemy-strength curve tool**,
   and deepen content toward the pool target: **13–15 minions per tribe** across the 6 tiers, weighted
-  to T3–5 (run `npm run audit`). Most tribes are still short of the target — but **Dragon reached 10** with the
-  2026-06-24 batch (Frontdrake/Supporter/Bronze Warden/Stuntdrake, filling the old Dragon T5 hole; Neutral T6
-  remains); fill the mid tiers, fill the unused primitives (`castSpell`, `endOfTurnBuff`,
+  to T3–5 (run `npm run audit`). Most tribes are still short of the target — but **Dragon and Beast both
+  reached 10** with the 2026-06-24 batch (Dragons: Frontdrake/Supporter/Bronze Warden/Stuntdrake, filling the
+  old Dragon T5 hole; Beasts: Manasaber/Raptor/Sea Urchin; Neutral T6 remains); fill the mid tiers, fill the
+  unused primitives (`castSpell`, `endOfTurnBuff`,
   `spellCostMod`), and add **higher-tier spells** (Spirit Fire is now T2, **Growth** T4 and **Channeling
 the Devourer** T5 have landed alongside the original T1s — keep filling the mid/high tiers toward the
 ~40-spell pool). The pool stays deliberately

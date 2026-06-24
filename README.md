@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **+3 Beasts (pool 7 → 10) + a Saber Cub token.** **Manasaber** (Deathrattle: summon a 0/2 Taunt cub),
+  **Raptor** (buffs another friendly Beast +3/+1 when it attacks), and **Sea Urchin** (Battlecry: Discover a
+  Beast). New primitives for the friendly-attack buff and tribe-filtered Discover; all wired with art.
 - **+4 Dragons (pool 6 → 10).** **Frontdrake** (every 3 turns, get a random Dragon — with a live "next in N
   turns" countdown on the card), **Supporter** (Rally: pump 2 friendly Dragons), **Bronze Warden** (a
   Divine-Shield wall), and **Stuntdrake** (Avenge 3: hand its Attack to 2 friends). New effect primitives for

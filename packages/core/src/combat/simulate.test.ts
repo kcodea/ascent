@@ -681,6 +681,33 @@ describe('simulate (handoff A.3)', () => {
     expect(gifts.length).toBe(2);
   });
 
+  it('Manasaber Deathrattle summons a Saber Cub; golden summons two', () => {
+    const cubs = (golden: boolean): number =>
+      run(
+        [{ cardId: 'manasaber', attack: 4, health: 1, golden }],
+        [{ cardId: 'omen', attack: 5, health: 30 }],
+        3,
+      ).events.filter((e) => e.type === 'summon' && e.minion.cardId === 'sabercub').length;
+    expect(cubs(false)).toBe(1);
+    expect(cubs(true)).toBe(2);
+  });
+
+  it('Raptor buffs another friendly Beast +3/+1 when it attacks — but never itself', () => {
+    const a = run(
+      [
+        { cardId: 'alley', attack: 2, health: 50 }, // a friendly Beast → gets +3/+1 each time it swings
+        { cardId: 'raptor', attack: 2, health: 50 },
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }, // width → player attacks first
+      ],
+      [{ cardId: 'omen', attack: 0, health: 40 }],
+      3,
+    );
+    const beastBuffs = a.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 1);
+    expect(beastBuffs.length).toBeGreaterThanOrEqual(1); // the Alleycat got pumped on its attacks
+    const raptorUid = a.initial.player.find((m) => m.cardId === 'raptor')!.uid;
+    expect(a.events.some((e) => e.type === 'buff' && e.target === raptorUid)).toBe(false); // Raptor never self-buffs
+  });
+
   it('Burial Imp: its Deathrattle queues Fodder for the next tavern (carried back)', () => {
     const a = run(
       [{ cardId: 'burialimp', attack: 3, health: 1 }],

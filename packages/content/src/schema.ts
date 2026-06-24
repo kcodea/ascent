@@ -15,6 +15,7 @@ export const GameEventSchema = z.enum([
   'onDeath',
   'onAttack',
   'onGainAttack',
+  'onDamaged',
   'onLoseDivineShield',
   'onConsume',
   'onKill',
@@ -110,6 +111,9 @@ export const EffectFactoryIdSchema = z.enum([
   'spellBuffTavern',
   'spellPendingSCBuff',
   'spellDemonConsumeTavern',
+  'deathrattleGrantRandomSpell',
+  'onDamagedGrantRefresh',
+  'summonBuffTribeImprove',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -140,6 +144,7 @@ export const CardDefSchema = z.object({
   text: z.string(),
   goldenText: z.string().optional(),
   token: z.boolean().optional(),
+  attackOnSummon: z.boolean().optional(),
   spell: z.boolean().optional(),
   singleCast: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),

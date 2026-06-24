@@ -1,4 +1,4 @@
-import type { CombatContext, EffectFactoryId, Minion, Side, Tribe } from '../types';
+import type { CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 
 /**
  * An effect primitive. Bound to a `self` minion and invoked when its subscribed
@@ -47,7 +47,40 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if ((payload as MinionPayload).minion !== self) return;
     const card = ctx.getCard(str(params.tokenId));
     const total = num(params.count, 1) * mul(self); // golden doubles the token count (e.g. Pack Scrounger 2 → 4)
-    for (let i = 0; i < total; i++) ctx.summon(self.side, card, self.uid);
+    const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
+    for (let i = 0; i < total; i++) {
+      const m = ctx.summon(self.side, card, self.uid);
+      if (kw && !m.keywords.includes(kw)) m.keywords.push(kw);
+    }
+  },
+
+  /** Sporebat — Deathrattle: grant N random tavern-tier spells to your hand after combat (golden 2). The
+   *  tier-bounded pick happens at settle (where the tavern tier is known); combat just banks the count. */
+  deathrattleGrantRandomSpell: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side);
+  },
+
+  /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once per combat (the
+   *  `grantedRefresh` flag), so a Taunt soaking many hits still grants only one. Golden grants 2. */
+  onDamagedGrantRefresh: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self || self.grantedRefresh) return;
+    self.grantedRefresh = true;
+    ctx.grantFreeRolls(num(params.count, 1) * mul(self), self.side);
+  },
+
+  /** Mama Bear (combat half) — when a friendly minion of `tribe` is summoned, buff it +M/+M where M =
+   *  (base + accrued) × golden, then the accrued (`summonBonus`, carried back) climbs by `base`. Mirrors the
+   *  recruit half so the improve persists in AND out of combat. */
+  summonBuffTribeImprove: (ctx, self, params, payload) => {
+    const { minion, side } = payload as MinionPayload;
+    if (self.dead || side !== self.side || minion === self) return;
+    const tribe = str(params.tribe) as Tribe | '';
+    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe) return;
+    const base = num(params.attack, 3);
+    const mag = (base + self.summonBonus) * mul(self);
+    ctx.buff(minion, mag, mag, self.uid);
+    self.summonBonus += base;
   },
 
   /** When a friendly minion of `tribe` is summoned, buff it. The per-stat magnitude is the

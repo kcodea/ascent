@@ -31,6 +31,7 @@ export type GameEvent =
   | 'onDeath'
   | 'onAttack'
   | 'onGainAttack' // a minion's Attack rose mid-combat (emitted by ctx.buff when the delta > 0) — Hunter
+  | 'onDamaged' // a minion took damage that landed (emitted by dealDamage) — Gryphon
   | 'onLoseDivineShield'
   | 'onConsume'
   | 'onKill'
@@ -118,6 +119,9 @@ export type EffectFactoryId =
   | 'spellBuffTavern' // Apples: cast — buff every current tavern offer (lost on refresh, kept on freeze)
   | 'spellPendingSCBuff' // Fleeting Vigor: cast — bank a one-shot Start-of-Combat buff for the next combat
   | 'spellDemonConsumeTavern' // Cupcakes: cast — a chosen Demon consumes N random tavern minions
+  | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
+  | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)
+  | 'summonBuffTribeImprove' // Mama Bear: on summoning a beast, buff it + improve the buff in/out of combat (Beast)
   | 'spellDevour' // cast: devour the target, spit its stats onto a random friend (Channeling the Devourer)
   | 'castSpell' // a minion casts a named spell (auto-targets a friend)
   | 'gainEmbers' // cast: gain Embers (untargeted — Ember Pouch)
@@ -167,6 +171,9 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** Combat: this minion attacks immediately when summoned mid-fight, out of turn order — then joins the
+   *  normal rotation (Twilight Whelp's 3/3 Whelp). Drained by the immediate-attack queue in `simulate`. */
+  attackOnSummon?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;
   /** This spell resolves exactly once — spell-quantity multipliers can't make it fire twice
@@ -258,6 +265,8 @@ export interface Minion {
   /** Crypt Drake: how many ally attacks this minion has seen this combat — drives its "improve every N
    *  attacks" buff. Per-combat (reset each fight); absent = 0. */
   attackSeen?: number;
+  /** Gryphon: set once it has banked its free refresh this combat (so it grants only once per fight). */
+  grantedRefresh?: boolean;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   side: Side;
@@ -337,6 +346,11 @@ export interface CombatResult {
   /** Fodder to queue into the next tavern from this combat (Burial Imp's Deathrattle). A count of
    *  `fred` tokens; pushed onto `pendingTavern` in settleCombat. Absent if 0. */
   playerFodderGrants?: number;
+  /** Free shop rerolls banked from this combat (Gryphon's on-damaged). Added to `freeRolls` in settleCombat. */
+  playerFreeRolls?: number;
+  /** Random tavern-tier spells to grant to the hand after this combat (Sporebat's Deathrattle) — a count;
+   *  settleCombat picks that many random spells (tier ≤ tavern tier). Absent if 0. */
+  playerSpellGrants?: number;
   /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
    *  settleCombat. Absent if 0. */
   playerMaxGoldGain?: number;
@@ -384,6 +398,12 @@ export interface CombatContext {
   /** Permanently raise the player's max Gold by `amount` (Soulsman's Avenge). Player-only; carried
    *  back via `CombatResult.playerMaxGoldGain`, applied to maxEmbers in settleCombat. */
   grantMaxGold(amount: number, side: Side): void;
+  /** Bank `count` free shop rerolls for the player from combat (Gryphon). Player-only; carried back via
+   *  CombatResult.playerFreeRolls. */
+  grantFreeRolls(count: number, side: Side): void;
+  /** Grant `count` random tavern-tier spells to the player's hand after combat (Sporebat). Player-only;
+   *  carried back via CombatResult.playerSpellGrants (picked at settle, where the tavern tier is known). */
+  grantRandomSpell(count: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

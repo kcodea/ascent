@@ -339,6 +339,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(minion, nameOf(self), num(params.attack) + bonus, num(params.health) + bonus);
   },
 
+  /** Mama Bear (recruit half) — when a beast is summoned (played / token), buff it +M/+M where M = (base +
+   *  accrued `summonBonus`) × golden, then summonBonus climbs by `base`. The improve persists across combat
+   *  via the summonBonus carry-back (the combat half mirrors this). A triple resets the accrual (the
+   *  summonBonus-combine in checkTriples is keyed to buffOnSummon, not this factory). */
+  summonBuffTribeImprove: (_ctx, self, params, { minion }) => {
+    if (minion === self) return;
+    const tribe = str(params.tribe);
+    if (tribe && minion.tribe !== tribe && CARD_INDEX[minion.cardId]?.tribe2 !== tribe) return;
+    const base = num(params.attack, 3);
+    const mag = (base + (self.summonBonus ?? 0)) * gold(self);
+    addBuff(minion, nameOf(self), mag, mag);
+    self.summonBonus = (self.summonBonus ?? 0) + base;
+  },
+
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
   battlecryBuffTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
@@ -628,7 +642,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   deathrattleSummon: (ctx, self, params) => {
     const token = CARD_INDEX[str(params.tokenId)];
     if (!token) return;
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) ctx.summon(token, self.uid);
+    const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
+      const m = ctx.summon(token, self.uid);
+      if (kw && m && !m.keywords.includes(kw)) m.keywords.push(kw);
+    }
   },
 
   /** Deathrattle: buff all friends of `tribe` (+atk/+hp). */

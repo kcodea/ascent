@@ -140,6 +140,7 @@ const DELAY: Record<string, number> = {
 };
 const FLOAT_MS = 1500; // how long a combat float lingers before it's cleared (kept ≥ the floatup CSS anim)
 const DEATH_FLOAT_MS = 1000; // a killing-blow float clears faster — a lone number over a vanished unit shouldn't hang
+const FINAL_HOLD_MS = 900; // hold on the last beat (death anim + damage float) before the replay reports `done`
 
 /** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
  *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
@@ -368,19 +369,36 @@ export function useCombatReplay(
   // A card a combat effect just granted to the hand (Arcane Weaver → Spirit Fire) — shown flying to the
   // hand for the duration of its beat, so the player sees it happen instead of it just appearing later.
   const [handGrant, setHandGrant] = useState<{ cardId: string; key: number } | null>(null);
-  const done = beatIdx >= beats.length;
+  // `finished` lags `replayComplete` by a short hold (see below) so the FINAL beat's death animation +
+  // damage float fully play before the replay reports `done` (which cleans up the dead + triggers the
+  // round-end UI). Without it, the last kill was cut off mid-pop with no number.
+  const [finished, setFinished] = useState(false);
+  // Tab visibility — pause the beat clock while backgrounded so beats/lunges don't pile up and then fire
+  // all at once (a loud burst of sounds) when you tab back in.
+  const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
+  const replayComplete = beatIdx >= beats.length;
+  const done = finished;
 
   // A fresh combat resets the replay to the top (the hook persists across fights).
   useEffect(() => {
     setBeatIdx(0);
     setFloats([]);
     setDeathFloats([]);
+    setFinished(false);
     setAttackUid(null);
     gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
     setProjectiles([]);
     setShake(0);
     setHandGrant(null);
   }, [combat]);
+
+  // Track tab visibility (drives the pause-while-hidden gate on the beat clock).
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onVis = (): void => setHidden(document.hidden);
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
 
   // Show the flying "→ hand" card only while its `toHand` beat is current; clear on any other beat.
   useEffect(() => {
@@ -396,10 +414,11 @@ export function useCombatReplay(
     return () => window.clearTimeout(t);
   }, [shake]);
 
-  // Advance one beat at a time (a beat = an action + all its result events) — only
-  // once `active` (the intro animation has finished and the fight is on).
+  // Advance one beat at a time (a beat = an action + all its result events) — only once `active` (the intro
+  // animation has finished and the fight is on), and NOT while the tab is hidden (so beats + GSAP lunges
+  // don't pile up in the background and fire as one loud burst on tab-in; the clock resumes on return).
   useEffect(() => {
-    if (!active || beatIdx >= beats.length) return;
+    if (!active || hidden || beatIdx >= beats.length) return;
     const beat = beats[beatIdx]!;
     let d = (DELAY[beat.primary.type] ?? 300) * SPEED;
     // The beat on screen is beats[beatIdx-1]; the scheduler controls how long it stays before beats[beatIdx]
@@ -417,7 +436,15 @@ export function useCombatReplay(
     }
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
-  }, [active, beatIdx, beats]);
+  }, [active, hidden, beatIdx, beats]);
+
+  // Hold on the final beat: once the clock reaches the end, wait FINAL_HOLD_MS before reporting `done` — so
+  // the last kill's death collapse + damage float fully play before cleanup + the round-end UI take over.
+  useEffect(() => {
+    if (!active || !replayComplete) return;
+    const t = window.setTimeout(() => setFinished(true), FINAL_HOLD_MS);
+    return () => window.clearTimeout(t);
+  }, [active, replayComplete]);
 
   // Spawn floats for every damage/poison/shield in the beat just resolved — all at once.
   // Buff events are *summed per target* so a multi-proc deathrattle (e.g. Grim re-procced by

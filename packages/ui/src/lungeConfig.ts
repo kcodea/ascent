@@ -33,7 +33,7 @@ const DEFAULTS: LungeConfig = {
   strikeDist: 1.22,  // slightly further lunge (was 1.15)
   smackLead: 0.03,   // smack slightly earlier — 30ms before the strike lands (was 0 = on completion)
   settleDur: 0.55,
-  attackGap: 0.25,   // breather after an impact before the next swing (the inter-attack pause)
+  attackGap: 0.56,   // breather after an impact before the next swing (the inter-attack pause) — tuned by ear
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

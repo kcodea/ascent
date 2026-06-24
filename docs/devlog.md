@@ -43,6 +43,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   knob in the lunge config + DEV Lunge tuner (default 0.25s) so the cadence is dialable by feel. (b) **Linger
   trimmed:** `FLOAT_MS` 1950→1500 + `floatup` 1.8→1.4s; **death floats clear faster** (`DEATH_FLOAT_MS` 1000,
   `.deathfloat .float` ≈0.9s) so a lone killing-blow number over a vanished unit doesn't hang.
+- **Follow-up 3 (review feedback):** (a) **`attackGap` default → 0.56s** (tuned by ear — a clear beat between
+  swings). (b) **Audio burst on tab-in fixed:** the beat clock now **pauses while the tab is hidden**
+  (`visibilitychange` → a `hidden` gate on the scheduler) so beats + GSAP lunges don't pile up in the
+  background and fire as one loud burst on return; `sfx` playback is also suppressed while hidden as a
+  backstop. (c) **Final kill no longer cut off:** the replay reports `done` only after a short hold
+  (`FINAL_HOLD_MS` 900ms) on the last beat (`done` now lags a `finished` flag) — so the killing blow's death
+  collapse + damage float fully play before cleanup + the round-end UI (Climb On / settleCombat) take over.
+  Verified: typecheck + lint + 287 tests + clean boot; combat feel for live review.
 
 ### Two-dev setup (CI + collaboration rules) · combat damage audio (SC zap, no default smack)
 

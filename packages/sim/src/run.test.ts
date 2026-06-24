@@ -1135,6 +1135,54 @@ describe('run loop (@game/sim)', () => {
     }
   });
 
+  it('Tribe Portal Discovers a minion of your most common board tribe', () => {
+    // Board is Beast-dominant (2 Beasts vs 1 Dragon) → the Discover offers only Beasts.
+    let s: RunState = {
+      ...createRun(1), tier: 4, embers: 0, shop: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      pool: { alley: 5, pack: 5, cleric: 5, knit: 5 },
+      board: [
+        { uid: 'b1', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'b2', cardId: 'pack', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false },
+        { uid: 'd1', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 4, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'sp', cardId: 'tribeportal', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) {
+      const def = CARD_INDEX[id]!;
+      expect(def.tribe === 'beast' || def.tribe2 === 'beast').toBe(true);
+    }
+  });
+
+  it('Corpse Board Discovers a Deathrattle minion only', () => {
+    // Pool mixes Deathrattle minions (pack, manasaber) with non-Deathrattle ones (alley, cleric).
+    let s: RunState = {
+      ...createRun(1), tier: 5, embers: 0, shop: [], board: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      pool: { pack: 5, manasaber: 5, alley: 5, cleric: 5 },
+      hand: [{ uid: 'sp', cardId: 'corpseboard', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) {
+      const def = CARD_INDEX[id]!;
+      expect(def.effects.some((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle'))).toBe(true);
+    }
+  });
+
+  it('Perfect Vision sets a friendly minion to 20/20', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 4, keywords: ['T'], golden: false }],
+      hand: [{ uid: 'sp', cardId: 'perfectvision', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm' });
+    const t = s.board.find((c) => c.uid === 'm')!;
+    expect([t.attack, t.health]).toEqual([20, 20]);
+  });
+
   it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {
     let s: RunState = {
       ...createRun(1), embers: 4, board: [],

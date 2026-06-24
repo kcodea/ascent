@@ -283,4 +283,52 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'stealTavernMinion' }],
     text: 'Steal a random minion from the tavern.',
   },
+
+  // --- New spells (2026-06-24 content batch, part 1). Tribe Portal + Corpse Board are reducer-driven
+  //     Discover spells (like Sprout / Help Wanted — empty effects); Perfect Vision uses a new cast factory. ---
+  {
+    // Discover a minion of your most common board tribe (neutral isn't a type → never offered). Reducer
+    // resolves the dominant tribe at play time (empty effects, like Sprout / Help Wanted).
+    id: 'tribeportal',
+    name: 'Tribe Portal',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 4,
+    effects: [],
+    text: '**Discover** a minion from your most common type.',
+  },
+  {
+    // Discover a Deathrattle minion (up to your tavern tier). Reducer-driven filtered Discover.
+    id: 'corpseboard',
+    name: 'Corpse Board',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [],
+    text: '**Discover** a **Deathrattle** minion.',
+  },
+  {
+    // Set a friendly minion's stats to 20/20 — an absolute SET (not a grant), so it does NOT scale with
+    // spell power. Targets a friend; the player won't aim it at a bigger minion (a literal set can lower).
+    id: 'perfectvision',
+    name: 'Perfect Vision',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellSetStats', params: { attack: 20, health: 20 } }],
+    text: "Set a friendly minion's stats to **20/20**.",
+  },
 ];

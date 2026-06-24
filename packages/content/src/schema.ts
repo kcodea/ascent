@@ -103,6 +103,7 @@ export const EffectFactoryIdSchema = z.enum([
   'avengeGiveAttack',
   'onFriendlyAttackBuffTribe',
   'battlecryDiscoverMinion',
+  'spellSetStats',
 ]);
 
 export const EffectDefSchema = z.object({

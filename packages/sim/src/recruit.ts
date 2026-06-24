@@ -282,7 +282,7 @@ function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
  * Ties resolve to the first seen on the board (insertion order + strict `>`). Null for an empty / tribe-less
  * board. The `s.board` analogue of snapshot.ts's `dominantTribe` (which takes a BoardSnapshot).
  */
-function dominantBoardTribe(state: RunState): Tribe | null {
+export function dominantBoardTribe(state: RunState): Tribe | null {
   const counts = new Map<Tribe, number>();
   for (const c of state.board) {
     const def = CARD_INDEX[c.cardId];
@@ -838,6 +838,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const card of ctx.state.board) addBuff(card, source, attack, health);
   },
 
+  /** Perfect Vision — cast: SET the target's stats to a/h (absolute, not additive). Records the delta as a
+   *  tracked buff so the inspect breakdown shows it and the stats land exactly at a/h. No spell-power scaling
+   *  (it's a set, not a grant); a repeat cast (Yazzus) is a harmless no-op once the target is already there. */
+  spellSetStats: (_ctx, self, params) => {
+    const a = num(params.attack, 20);
+    const h = num(params.health, 20);
+    addBuff(self, str(params._source) || 'Perfect Vision', a - self.attack, h - self.health);
+  },
+
   /** Channeling the Devourer — cast: devour the targeted friendly minion (`self`, removed from the
    *  board) and spit its stats onto a RANDOM other friend. It transfers existing stats, so it does NOT
    *  scale with spell power; the `singleCast` flag on its card keeps spell-quantity multipliers from
@@ -887,9 +896,17 @@ export function hasBattlecry(c: (typeof BUYABLE_CARDS)[number]): boolean {
   return c.effects.some((e) => e.on === 'onPlay');
 }
 
+/** Whether a card has a Deathrattle (an `onDeath` effect whose factory is a `deathrattle*`). Mirrors the
+ *  combat-side check — friend-death watchers (Brood Matron) don't count as Deathrattles. */
+export function hasDeathrattle(c: (typeof BUYABLE_CARDS)[number]): boolean {
+  return c.effects.some((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle'));
+}
+
 /** Resolve a `DiscoverSpec`'s string filter id back to a card predicate (closures aren't serializable). */
-function discoverFilter(id: 'battlecry'): (c: (typeof BUYABLE_CARDS)[number]) => boolean {
-  return id === 'battlecry' ? hasBattlecry : () => true;
+function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: (typeof BUYABLE_CARDS)[number]) => boolean {
+  if (id === 'battlecry') return hasBattlecry;
+  if (id === 'deathrattle') return hasDeathrattle;
+  return () => true;
 }
 
 /**

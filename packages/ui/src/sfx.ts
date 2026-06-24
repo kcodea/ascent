@@ -116,6 +116,10 @@ function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0 }: Tone
 const chord = (freqs: number[], opts: Omit<ToneOpts, 'freq' | 'delay'>, step = 0.06): void =>
   freqs.forEach((f, i) => tone({ ...opts, freq: f, delay: i * step }));
 
+// Shared gain for the combat smack AND the card-landing clip, so "same level as smack" stays true if either
+// is retuned. Smack was 0.39; −60% → 0.156.
+const SMACK_VOL = 0.156;
+
 export const sfx = {
   buy: () => {
     tone({ freq: 540, dur: 0.07, type: 'square', vol: 0.1 });
@@ -127,7 +131,12 @@ export const sfx = {
     tone({ freq: 200, dur: 0.12, type: 'square', vol: 0.13, slideTo: 150 });
     tone({ freq: 150, dur: 0.17, type: 'square', vol: 0.12, slideTo: 96, delay: 0.085 });
   },
-  play: () => tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150 }),
+  // Card lands on the board (or a spell is cast) — the sourced "land" clip at the smack level; synth slide
+  // until it decodes / if the file isn't present yet. Drop the clip at `packages/ui/src/audio/land.mp3`.
+  play: () => {
+    if (playSample('land', SMACK_VOL)) return;
+    tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150 });
+  },
   sell: () => {
     // One of the 4 sourced sell clips at random (sell1–sell4); synth blip until they finish decoding.
     if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, 0.51)) return;
@@ -146,7 +155,7 @@ export const sfx = {
   // Impact in combat — the sourced "Smack" clip (dialed down across passes); synth thud until it decodes.
   // Fired frame-accurately from the lunge's GSAP timeline (see playAttackLunge) so it lands on contact.
   hit: () => {
-    if (playSample('smack', 0.39)) return;
+    if (playSample('smack', SMACK_VOL)) return;
     tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80 });
   },
   death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48 }),

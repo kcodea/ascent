@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { clingProgressText, guelProgressText, summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
@@ -328,6 +328,10 @@ export function Recruit() {
   // `combatStage` sequences the intro (close → fight); the replay engine runs once
   // the enemies have arrived. After the fight, the warband plays a reset animation. ---
   const inCombat = run.phase === 'combat';
+  // The real board the pool serves for this fight (null = procedural threat). Deterministic, so memoize on
+  // the inputs `pickOpponent` uses — recomputing per combat beat would needlessly scan the pool. Carries the
+  // author/date when it's a captured player/friend board, surfaced as the enemy's name during combat.
+  const servedOpp = useMemo(() => nextOpponent(run), [run.wave, run.turnStartPower, run.seed]);
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Log overlay
@@ -1379,7 +1383,12 @@ export function Recruit() {
       </div>
       ) : (
         <div className="combatctl">
-          <span className="cbanner">{THREATS[run.threat].name}</span>
+          {/* When the pool serves a real captured board, name the foe by its author + run date; else the
+              wave's procedural-threat flavor name. */}
+          <span className="cbanner">
+            {servedOpp?.author ?? THREATS[run.threat].name}
+            {servedOpp?.author && servedOpp.capturedAt && <span className="cbanner-date">{servedOpp.capturedAt}</span>}
+          </span>
           <div className="cbtns">
             {replay.done ? (
               <>

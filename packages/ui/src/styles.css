@@ -332,7 +332,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    is compositor-only: the ::before (the bright halo) just fades in/out over the card's static dim halo. Zero
    per-frame paint. (The recoloured .art frame + ward badge carry the keyword signal; the halo only breathes.) */
 .card.compact.dscard { z-index: 4; box-shadow: 0 0 10px 3px rgba(255, 216, 96, 0.58), 0 0 20px 5px rgba(255, 196, 64, 0.26); }
-.card.compact.dscard::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 14px 4px rgba(255, 222, 104, 0.8), 0 0 27px 7px rgba(255, 200, 70, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
+.card.compact.dscard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 14px 4px rgba(255, 222, 104, 0.8), 0 0 27px 7px rgba(255, 200, 70, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
 .card.compact.dscard .art { border-color: #ffd23a; }
 .card.compact.dscard .art::after {
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
@@ -341,7 +341,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* Reborn — the same unmistakable treatment in electric BLUE; in combat it drops the moment the minion
    Reborns (sheds the 'R' keyword), marking "still has its one revival left". The rising tears layer on top. */
 .card.compact.reborncard { z-index: 4; box-shadow: 0 0 10px 3px rgba(96, 170, 255, 0.58), 0 0 20px 5px rgba(64, 140, 240, 0.26); }
-.card.compact.reborncard::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 14px 4px rgba(110, 180, 255, 0.8), 0 0 27px 7px rgba(78, 150, 245, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
+.card.compact.reborncard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 14px 4px rgba(110, 180, 255, 0.8), 0 0 27px 7px rgba(78, 150, 245, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
 .card.compact.reborncard .art { border-color: #5cc8ff; }
 .card.compact.reborncard .art::after {
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
@@ -349,7 +349,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 }
 /* Venomous — the same unmistakable treatment in toxic LIME (the V keyword: any damage it deals kills). */
 .card.compact.venomcard { z-index: 4; box-shadow: 0 0 10px 3px rgba(150, 228, 52, 0.58), 0 0 20px 5px rgba(120, 200, 40, 0.26); }
-.card.compact.venomcard::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 14px 4px rgba(168, 238, 70, 0.8), 0 0 27px 7px rgba(128, 208, 46, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
+.card.compact.venomcard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 14px 4px rgba(168, 238, 70, 0.8), 0 0 27px 7px rgba(128, 208, 46, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
 .card.compact.venomcard .art { border-color: #a4e22a; }
 .card.compact.venomcard .art::after {
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
@@ -363,7 +363,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* Triple-ready: tribe ring + 3d edge stay static on the card; only the gold halo breathes, via an
    opacity-only ::before (was an animated box-shadow → per-frame repaint). */
 .card.tripready { z-index: 5; box-shadow: 0 0 0 4px var(--c), 0 0 20px 4px rgba(255, 178, 40, 0.62), 0 3px 0 var(--shadow); }
-.card.tripready::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 40px 12px rgba(255, 198, 80, 1); animation: kwglow 1.15s ease-in-out infinite; will-change: opacity; }
+.card.tripready::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 40px 12px rgba(255, 198, 80, 1); animation: kwglow 1.15s ease-in-out infinite; will-change: opacity; }
 .triparrows { position: absolute; inset: 0; pointer-events: none; z-index: 26; overflow: visible; }
 .triparrows .ta { position: absolute; bottom: 7%; width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 14px solid #ffc23c; filter: drop-shadow(0 0 6px rgba(255, 185, 50, 0.95)); opacity: 0; animation: triparrow 1.3s ease-in-out infinite; }
 .triparrows .ta:nth-child(1) { left: 12%; animation-delay: 0s; }
@@ -586,7 +586,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* Triple Reward — the triple/golden reward spell wears the golden frame + text box (like a tripled
    minion) and a bright, vibrant orange glow that pulses. Overrides the generic spell (purple) look. */
 .card.triplecard { z-index: 5; border-color: #e7b53d; background: color-mix(in srgb, #f4cf6a 22%, var(--card)); box-shadow: 0 0 0 2px #f4cf6a, 0 0 20px 4px rgba(255, 138, 30, 0.72), 0 3px 0 var(--shadow); }
-.card.triplecard::before { content: ''; position: absolute; inset: 0; border-radius: 13px; pointer-events: none; box-shadow: 0 0 42px 13px rgba(255, 150, 42, 1); animation: kwglow 1.5s ease-in-out infinite; will-change: opacity; }
+.card.triplecard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 42px 13px rgba(255, 150, 42, 1); animation: kwglow 1.5s ease-in-out infinite; will-change: opacity; }
 .card.triplecard .art { background: color-mix(in srgb, #f4cf6a 34%, var(--card)); border-radius: 11px 11px 0 0; }
 .card.triplecard .cn { background: linear-gradient(180deg, #ffe9a6, #f1cb5e); color: #6e5008; box-shadow: 0 1px 3px rgba(120, 80, 10, 0.32); }
 .card.triplecard .cfoot { background: color-mix(in srgb, #f4cf6a 30%, var(--card)); }
@@ -1204,7 +1204,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    combat as in recruit — the board never jumps when the top bar swaps. */
 .combatctl { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: calc(10 * var(--u)); flex: none; min-height: calc(121 * var(--u)); animation: combatctlin 0.4s ease both; }
 /* the threat (opponent) label sits out of flow on the left, so the buttons stay centred */
-.cbanner { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--threat-dk); background: color-mix(in srgb, var(--card) 82%, transparent); border: 2px solid color-mix(in srgb, var(--threat) 32%, var(--line)); padding: 7px 16px; border-radius: 12px; }
+.cbanner { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--threat-dk); background: color-mix(in srgb, var(--card) 82%, transparent); border: 2px solid color-mix(in srgb, var(--threat) 32%, var(--line)); padding: 7px 16px; border-radius: 12px; }
+.cbanner .cbanner-date { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: none; color: var(--ink3); }
 /* the post-combat / Skip buttons are ~2x the shop controls (scoped to .cbtns so the
    tavern controls keep their size); extra gap so they never crowd each other */
 .cbtns { display: flex; align-items: center; gap: 28px; }
@@ -1312,7 +1313,12 @@ body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 .hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 96vw; }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
 .heroselect .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
-.hstitle { font-family: 'Outfit'; font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 34px; }
+.hstitle { font-family: 'Outfit'; font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
+.hsname { display: flex; align-items: center; gap: 12px; margin: 0 0 30px; }
+.hsname > span { font-family: 'Outfit'; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #d9cdb8; }
+.hsname input { font-family: 'Outfit'; font-weight: 800; font-size: 18px; color: #f6efe2; background: rgba(0, 0, 0, 0.28); border: 2px solid rgba(255, 255, 255, 0.22); border-radius: 11px; padding: 9px 15px; width: 230px; max-width: 60vw; outline: none; text-align: center; }
+.hsname input:focus { border-color: var(--acc); }
+.hsname input::placeholder { color: rgba(246, 239, 226, 0.42); }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }

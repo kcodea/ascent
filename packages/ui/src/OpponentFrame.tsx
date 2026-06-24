@@ -34,7 +34,8 @@ export function OpponentFrame() {
   const art = heroArt(snap.heroId);
   return (
     <div className="oppframe">
-      <span className="opp-l">Next</span>
+      {/* A captured player/friend board names its author here (the "enemy name"); house boards keep "Next". */}
+      <span className="opp-l">{snap.author ?? 'Next'}</span>
       <div className="opp-pic">
         {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
       </div>

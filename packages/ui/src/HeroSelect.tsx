@@ -11,6 +11,8 @@ import { useGame } from './store';
 export function HeroSelect() {
   const choices = useGame((s) => s.heroChoices);
   const pickHero = useGame((s) => s.pickHero);
+  const playerName = useGame((s) => s.playerName);
+  const setPlayerName = useGame((s) => s.setPlayerName);
   if (!choices) return null;
 
   return (
@@ -18,6 +20,19 @@ export function HeroSelect() {
       <div className="hsbox">
         <div className="eyebrow">Choose your champion</div>
         <h1 className="disp hstitle">THE ASCENT</h1>
+        {/* Name yourself at run start — stamped on every board you build this run, so friends who face it
+            see who made it (and when). Persisted, so it's pre-filled next time. */}
+        <label className="hsname">
+          <span>Your name</span>
+          <input
+            type="text"
+            value={playerName}
+            maxLength={24}
+            placeholder="Anonymous"
+            aria-label="Your name"
+            onChange={(e) => setPlayerName(e.target.value)}
+          />
+        </label>
         <div className="hsrow">
           {choices.map((id) => {
             const hero = getHero(id);

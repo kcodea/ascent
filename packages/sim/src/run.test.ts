@@ -1092,6 +1092,17 @@ describe('run loop (@game/sim)', () => {
     expect(def.tier).toBeLessThanOrEqual(6);
   });
 
+  it('Tribes Choice fizzles on a neutral target (neutral is no longer a type)', () => {
+    // Target a neutral minion → no type to roll, so nothing is conjured (the spell still casts + leaves hand).
+    let s: RunState = {
+      ...createRun(1), tier: 6, embers: 0, shop: [],
+      board: [{ uid: 'n', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false }],
+      hand: [{ uid: 'sp', cardId: 'tribeschoice', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'n' });
+    expect(s.hand.find((c) => c.cardId !== 'tribeschoice')).toBeUndefined(); // no neutral handed out
+  });
+
   it('Summon Stone conjures a random Tier 1 minion to hand', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], board: [],

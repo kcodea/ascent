@@ -5,8 +5,9 @@
  * `getLungeConfig()` at call time, so changes apply to the next attack.
  *
  * Note the windup + strike durations are GSAP seconds (NOT scaled by the beat-clock SPEED). The attack
- * RESULT beat (damage floats / recoil) is timed to land at the lunge's connection — windup+strike ≈ 0.33s
- * ≈ the 220ms×1.5 attack beat — so keep that sum near 0.33s unless you also retune `DELAY.attack`.
+ * RESULT beat (damage floats / recoil) is timed to land at the lunge's connection — the scheduler derives
+ * that hold live from `windupDur + strikeDur - smackLead` (see useCombatReplay.ts), so the damage always
+ * lands on contact however you dial these; the sum is no longer pinned to any fixed value.
  */
 export interface LungeConfig {
   /** Wind-up duration (s) — the lean-back before the strike. */
@@ -27,13 +28,13 @@ export interface LungeConfig {
 }
 
 const DEFAULTS: LungeConfig = {
-  windupDur: 0.22,   // slightly longer wind-up (was 0.2)
-  windupDepth: 0.14,
-  strikeDur: 0.11,   // slightly faster strike (was 0.13)
-  strikeDist: 1.22,  // slightly further lunge (was 1.15)
-  smackLead: 0.03,   // smack slightly earlier — 30ms before the strike lands (was 0 = on completion)
-  settleDur: 0.55,
-  attackGap: 0.56,   // breather after an impact before the next swing (the inter-attack pause) — tuned by ear
+  windupDur: 0.37,    // longer, weightier wind-up
+  windupDepth: 0.1,
+  strikeDur: 0.16,    // deliberate strike
+  strikeDist: 1.44,   // drives well into the target
+  smackLead: 0.005,   // smack fires ~5ms before the strike lands
+  settleDur: 1.06,    // slow elastic settle
+  attackGap: 0.22,    // shorter breather between back-to-back swings
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

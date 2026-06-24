@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Lunge feel re-tune + neutral isn't a "type" for type-rolls.** The combat attack lunge got new shipped
+  defaults (weightier wind-up, slower settle, snappier back-to-back swings), committed from the DEV lunge
+  tuner. And **Tribes Choice** cast on a neutral minion now fizzles instead of handing out a random neutral —
+  neutral cards stay as shop glue but no longer count as a rollable "type" (matching the dominant-tribe logic
+  Cassen / Tribe Portal use).
 - **Feel + HUD pass.** The Hero-Power targeting line now draws from the power button; Bane's Fodder enchant
   shows a purple haze under the card; the attack lunge got a tuning pass (smack a touch earlier, snappier
   strike, a bit further) — with a **DEV lunge tuner** to dial it by feel. The player name moved to its own

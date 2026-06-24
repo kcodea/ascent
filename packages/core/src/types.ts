@@ -111,6 +111,7 @@ export type EffectFactoryId =
   // Spells (recruit-resolved): a spell's own effect, and minions that cast spells
   | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (+ optional keyword: Spirit Fire, Bulwark)
   | 'spellBuffAll' // cast: buff every friendly minion on the board (Growth) — scales with spell power
+  | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
   | 'spellDevour' // cast: devour the target, spit its stats onto a random friend (Channeling the Devourer)
   | 'castSpell' // a minion casts a named spell (auto-targets a friend)
   | 'gainEmbers' // cast: gain Embers (untargeted — Ember Pouch)

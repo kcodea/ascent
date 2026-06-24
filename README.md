@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **+3 Spells (pool 19 → 22).** **Tribe Portal** (Discover a minion of your most common type), **Corpse
+  Board** (Discover a Deathrattle minion), and **Perfect Vision** (set a friendly minion to 20/20). Reuses the
+  tribe-filtered Discover from the Beasts batch; adds a Deathrattle Discover filter + a stat-set spell op.
 - **+3 Beasts (pool 7 → 10) + a Saber Cub token.** **Manasaber** (Deathrattle: summon a 0/2 Taunt cub),
   **Raptor** (buffs another friendly Beast +3/+1 when it attacks), and **Sea Urchin** (Battlecry: Discover a
   Beast). New primitives for the friendly-attack buff and tribe-filtered Discover; all wired with art.

@@ -57,9 +57,10 @@ The next 5 concrete steps:
   reached 10** with the 2026-06-24 batch (Dragons: Frontdrake/Supporter/Bronze Warden/Stuntdrake, filling the
   old Dragon T5 hole; Beasts: Manasaber/Raptor/Sea Urchin; Neutral T6 remains); fill the mid tiers, fill the
   unused primitives (`castSpell`, `endOfTurnBuff`,
-  `spellCostMod`), and add **higher-tier spells** (Spirit Fire is now T2, **Growth** T4 and **Channeling
-the Devourer** T5 have landed alongside the original T1s — keep filling the mid/high tiers toward the
-~40-spell pool). The pool stays deliberately
+  `spellCostMod`), and add **higher-tier spells** (Spirit Fire is now T2; **Growth** T4, **Channeling the
+Devourer** T5, and the 2026-06-24 trio **Tribe Portal** T3 / **Corpse Board** T5 / **Perfect Vision** T6 have
+landed alongside the original T1s — **22 spells** now; keep filling toward the ~40-spell pool). The pool stays
+deliberately
   small — variety comes from the **meta layer** (heroes + quests/trinkets), not card volume. *Why
   first:* every later patch sits on combat feeling right.
   - **Balance pass v1 (2026-06-22, shipped → devlog):** Yazzus → targeted-only; removed Corrupted

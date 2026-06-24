@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Content: 3 new Spells (Tribe Portal, Corpse Board, Perfect Vision)
+
+- **+3 Spells** (spell pool 19 → 22) — the "clean" trio that needs no new combat/economy systems. Stacked
+  on the Beasts PR.
+  - **Tribe Portal** (T3, 4g) — *Discover a minion from your most common type*. Reducer-driven (empty
+    effects, like Sprout / Help Wanted): exported `dominantBoardTribe` and routed it through the
+    tribe-filtered Discover added for Sea Urchin. Neutral isn't a type; a tribe-less board falls back to an
+    unfiltered Discover.
+  - **Corpse Board** (T5, 3g) — *Discover a Deathrattle minion* (up to tavern tier). New `'deathrattle'`
+    Discover filter (`hasDeathrattle` — an `onDeath` + `deathrattle*` effect; friend-death watchers like
+    Brood Matron don't count).
+  - **Perfect Vision** (T6, 2g) — *Set a friendly minion's stats to 20/20*. New cast factory
+    **`spellSetStats`** — an absolute SET (records the delta as a tracked buff), so no spell-power scaling and
+    a Yazzus repeat is a harmless no-op. Literal set (can lower a bigger minion — flagged; the player controls
+    the target).
+- **Art** wired for all three (TribePortal/CorpseBoard/PerfectVision → webp; bundled by `build:web`).
+- **Shared types/schema:** `EffectFactoryId` + the zod enum gain `spellSetStats`; the minion `DiscoverSpec`
+  `filter` gains `'deathrattle'`.
+- **Deferred** (need new systems — shop-state / consume / start-of-combat scheduling): **Apples** (buff this
+  tavern, lost on refresh / kept if frozen), **Cupcakes** (a chosen Demon consumes 3 tavern minions),
+  **Fleeting Vigor** (a pending Start-of-Combat buff for next combat).
+- **Tests:** Tribe Portal's dominant-tribe Discover, Corpse Board's Deathrattle-only Discover, and Perfect
+  Vision's set-to-20/20 (`run.test.ts`). `cards.csv` regenerated (19 → 22 spells). Verified: typecheck + lint
+  + **298 tests** + `build:web` all green.
+
 ### Content: 3 new Beasts (Manasaber, Raptor, Sea Urchin) + Saber Cub token
 
 - **+3 Beasts** (Beast pool 7 → 10) + the **Saber Cub** token — additive, all on existing triggers (no new

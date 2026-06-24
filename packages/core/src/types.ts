@@ -117,6 +117,7 @@ export type EffectFactoryId =
   | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
   | 'spellBuffTavern' // Apples: cast — buff every current tavern offer (lost on refresh, kept on freeze)
   | 'spellPendingSCBuff' // Fleeting Vigor: cast — bank a one-shot Start-of-Combat buff for the next combat
+  | 'spellDemonConsumeTavern' // Cupcakes: cast — a chosen Demon consumes N random tavern minions
   | 'spellDevour' // cast: devour the target, spit its stats onto a random friend (Channeling the Devourer)
   | 'castSpell' // a minion casts a named spell (auto-targets a friend)
   | 'gainEmbers' // cast: gain Embers (untargeted — Ember Pouch)

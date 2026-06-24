@@ -109,6 +109,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onGainAttackBuffAll',
   'spellBuffTavern',
   'spellPendingSCBuff',
+  'spellDemonConsumeTavern',
 ]);
 
 export const EffectDefSchema = z.object({

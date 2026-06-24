@@ -59,7 +59,7 @@ The next 5 concrete steps:
   unused primitives (`castSpell`, `endOfTurnBuff`,
   `spellCostMod`), and add **higher-tier spells** (Spirit Fire is now T2; **Growth** T4, **Channeling the
 Devourer** T5, plus the 2026-06-24 batch — Tribe Portal/Corpse Board/Perfect Vision + Fleeting Vigor/Apples —
-landed alongside the original T1s — **24 spells** now; keep filling toward the ~40-spell pool). The pool stays
+landed alongside the original T1s — **25 spells** now; keep filling toward the ~40-spell pool). The pool stays
 deliberately
   small — variety comes from the **meta layer** (heroes + quests/trinkets), not card volume. *Why
   first:* every later patch sits on combat feeling right.

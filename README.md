@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Cupcakes** — a spell that points a friendly **Demon** at the tavern: it consumes 3 random minions there
+  (real Consume — stats × the Demon's multiplier + its on-consume effects).
 - **Content batch — +5 minions, +1 token, +5 spells.** Beasts: Manasaber, Raptor, Sea Urchin (+ a Saber Cub
   token). Spells: Tribe Portal, Corpse Board, Perfect Vision, Fleeting Vigor, Apples. Reactive Dragons: Hunter
   + Crypt Drake (a new `onGainAttack` trigger — they combo, one pumps Attack, the other answers with Health).

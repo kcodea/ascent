@@ -361,4 +361,20 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 2, health: 3 } }],
     text: 'Give minions in this tavern **+2/+3** (lost on refresh; kept if frozen).',
   },
+  {
+    // Targeted at a friendly Demon — it devours 3 random tavern minions (the real Consume pipeline: stats ×
+    // the Demon's multiplier + its on-consume effects). Fizzles on a non-Demon target.
+    id: 'cupcakes',
+    name: 'Cupcakes',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 4,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellDemonConsumeTavern', params: { count: 3 } }],
+    text: 'Choose a **Demon** — it consumes **3** minions in the tavern.',
+  },
 ];

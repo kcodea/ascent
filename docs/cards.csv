@@ -80,7 +80,7 @@ sylus,Sylus the Reaper,5,4,5,,,"**In combat,** your Deathrattles proc **1 more**
 taurus,Taurus the Ancient,6,6,8,,,Start of Combat: the minion to your left is Engraved — it keeps the stats it gains in combat.,Start of Combat: the minions on both sides are Engraved — they keep the stats they gain in combat.
 yazzus,Yazzus,6,6,8,,,Your **targeted** spells cast **twice**.,Your **targeted** spells cast **three times**.
 
-# === SPELLS (24) — cost, not stats ===
+# === SPELLS (25) — cost, not stats ===
 apples,Apples,1,,,1,,Give minions in this tavern **+2/+3** (lost on refresh; kept if frozen).,
 bulwark,Bulwark,1,,,1,,Give a friendly minion **+0/+1** and **Taunt**.,
 emberpouch,Gold Pouch,1,,,1,,Gain **1 Gold**.,
@@ -103,6 +103,7 @@ lanternofsouls,Lantern of Souls,4,,,2,,Your **Undead** get **+3 Attack** everywh
 undeadarmy,Undead Army,4,,,4,,Get **2 copies** of a random **Undead**.,
 devour,Channeling the Devourer,5,,,3,,Devour a friendly minion and spit its stats onto a random other friend.,
 corpseboard,Corpse Board,5,,,3,,**Discover** a **Deathrattle** minion.,
+cupcakes,Cupcakes,5,,,4,,Choose a **Demon** — it consumes **3** minions in the tavern.,
 aresmar,Eyes of Aresmar,6,,,5,,Make a **Tier 4 or lower** minion **Golden**.,
 perfectvision,Perfect Vision,6,,,2,,Set a friendly minion's stats to **20/20**.,
 

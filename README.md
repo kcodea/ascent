@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Cupcakes** — a spell that points a friendly **Demon** at the tavern: it consumes 3 random minions there
+  (real Consume — stats × the Demon's multiplier + its on-consume effects).
 - **Twilight Whelp line + an attack-on-summon mechanic.** **Twilight Whelp** (Deathrattle: a 3/3 Whelp that
   attacks immediately, out of turn order) replaces Ember Whelp; **Twilight Broodmother** (Deathrattle: 2 Taunt
   Twilight Whelps that chain into Whelps). New `attackOnSummon` combat primitive.

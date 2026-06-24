@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Content: Cupcakes (Demon consume-the-tavern spell)
+
+- **Cupcakes** (T5, 4g) — *Choose a Demon — it consumes 3 minions in the tavern.* A targeted spell whose
+  chosen friendly **Demon** devours 3 *random* tavern minions through the real **Consume pipeline**: each
+  meal feeds the Demon its stats × the Demon's fodder multiplier (Voracious Imp ×2) and fires its on-consume
+  effects (Maw's shield, etc.), plus the UI consume-swirl. New cast factory `spellDemonConsumeTavern`
+  (mirrors `consumeTavernFodder`, but eats any 3 tavern minions via the *chosen* Demon, not just Fodder via a
+  random one). Fizzles on a non-Demon target (flagged).
+- **Art** wired. Verified: typecheck + lint + **304 tests** + `build:web` all green; `cards.csv` = 25 spells.
+- **Last one remaining:** Tara→Taragosa (the mid-combat Growth cast + combat transform).
 ### Content: final 3 Beasts (Sporebat, Gryphon, Mama Bear) — combat→run carry-backs + a summon engine
 
 - **Two new combat→run carry-back channels** (`CombatResult.playerFreeRolls` / `playerSpellGrants`, mirroring

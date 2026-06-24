@@ -118,6 +118,7 @@ export type EffectFactoryId =
   | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
   | 'spellBuffTavern' // Apples: cast — buff every current tavern offer (lost on refresh, kept on freeze)
   | 'spellPendingSCBuff' // Fleeting Vigor: cast — bank a one-shot Start-of-Combat buff for the next combat
+  | 'spellDemonConsumeTavern' // Cupcakes: cast — a chosen Demon consumes N random tavern minions
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)
   | 'summonBuffTribeImprove' // Mama Bear: on summoning a beast, buff it + improve the buff in/out of combat (Beast)

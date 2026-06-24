@@ -1209,6 +1209,18 @@ describe('run loop (@game/sim)', () => {
     expect([t.attack, t.health]).toEqual([20, 20]);
   });
 
+  it('Cupcakes — the chosen Demon consumes 3 random tavern minions (gains stats; tavern shrinks by 3)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0,
+      board: [{ uid: 'd', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }], // Voracious Imp (2× consume)
+      shop: [{ uid: 'a', cardId: 'alley' }, { uid: 'b', cardId: 'pack' }, { uid: 'c', cardId: 'kennel' }, { uid: 'e', cardId: 'gnash' }],
+      hand: [{ uid: 'sp', cardId: 'cupcakes', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'd' });
+    expect(s.shop.length).toBe(1); // 4 − 3 consumed
+    expect(s.board.find((c) => c.uid === 'd')!.attack).toBeGreaterThan(2); // the Demon grew from eating
+  });
+
   it('Apples buffs the current tavern offers +2/+3, and a buy bakes it in', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, frozen: false,

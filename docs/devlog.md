@@ -25,6 +25,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   across rally/cleave/windfury/deathrattle is for live review on this PR.
 - **Process first:** this is the **first change through the new branch-protection flow** —
   `feat/damage-at-connection` → PR → CI gate → review, no direct push to `main`.
+- **Follow-up (review feedback — same PR):** grouping wasn't enough; the damage was still late and dying
+  units showed no number. Three fixes: **(1)** the replay clock now hands the wind-up beat off to its impact
+  **the moment the lunge connects** — the scheduler holds an `attack` beat only for `windup+strike−smackLead`
+  (read live from the lunge config) instead of the next beat's DELAY, so the damage number/recoil land on
+  contact (was ~360ms late, because the wind-up beat had been held for the *dmg* beat's DELAY ≈ 690ms while
+  the lunge connected at ~330ms). **(2)** floats **linger longer** (`FLOAT_MS` 1450→1950, `floatup` 1.4→1.8s,
+  longer readable plateau). **(3)** **killing-blow damage now shows on death** — an in-unit float was clipped
+  as the dying unit collapses (`.unit.dying` width→0); damage floats on units that die this beat are now
+  captured at the unit's screen position and rendered in a **board-level overlay** (`DeathFloat` →
+  `.deathfloat`) that outlives the unit and lingers. Verified: typecheck + lint + 287 tests + clean boot;
+  feel is for live review.
 
 ### Two-dev setup (CI + collaboration rules) · combat damage audio (SC zap, no default smack)
 

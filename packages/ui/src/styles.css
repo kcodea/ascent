@@ -1166,7 +1166,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Damage/heal numbers pop up *over each card's own stat corner* (near the HP), so the attacker's
    and the target's hits are both readable at the same instant — they spawn together (one impact beat).
    Bigger and lingering longer than before, and they stay on the card instead of flying off the top. */
-.float { position: absolute; bottom: 15%; right: 7px; font-family: 'Outfit'; font-weight: 900; font-size: 34px; pointer-events: none; z-index: 25; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); animation: floatup 1.4s cubic-bezier(0.2, 0.85, 0.3, 1) forwards; }
+.float { position: absolute; bottom: 15%; right: 7px; font-family: 'Outfit'; font-weight: 900; font-size: 34px; pointer-events: none; z-index: 25; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); animation: floatup 1.8s cubic-bezier(0.2, 0.85, 0.3, 1) forwards; }
+/* Killing-blow damage number for a dying unit — anchored in a board overlay at the minion's last spot
+   (the unit itself collapses), centred there; the inner .float rides the floatup rise from the anchor. */
+.deathfloat { position: fixed; z-index: 26; pointer-events: none; transform: translate(-50%, -50%); }
+.deathfloat .float { position: static; right: auto; bottom: auto; display: inline-block; }
 .float.dmg { color: #fff; background: var(--threat); padding: 3px 13px; border-radius: 12px; font-size: 42px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38); }
 .float.poison { color: var(--poison); }
 .float.shield { color: var(--acc-dk); }
@@ -1195,7 +1199,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* the struck minion's HP badge flares when it takes damage */
 .unit.struck .hp { animation: hpflash 0.45s ease; }
 @keyframes hpflash { 0%, 100% { transform: none; box-shadow: none; } 40% { transform: scale(1.45); box-shadow: 0 0 14px 3px var(--threat); filter: brightness(1.25); } }
-@keyframes floatup { 0% { opacity: 0; transform: translateY(14px) scale(0.5); } 12% { opacity: 1; transform: translateY(0) scale(1.18); } 26% { transform: translateY(0) scale(1); } 70% { opacity: 1; transform: translateY(-7px) scale(1); } 100% { opacity: 0; transform: translateY(-28px) scale(0.96); } }
+@keyframes floatup { 0% { opacity: 0; transform: translateY(14px) scale(0.5); } 10% { opacity: 1; transform: translateY(0) scale(1.18); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(-8px) scale(1); } 100% { opacity: 0; transform: translateY(-30px) scale(0.96); } }
 /* Start-of-Combat bolt flying from the caster to its target */
 .proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
 /* Blaster's Deathrattle: purple blast bolts to every minion. */

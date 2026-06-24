@@ -39,6 +39,17 @@ interface Float {
   kind: string;
 }
 
+/** A damage float for a minion that DIES this beat. Its unit collapses (`.unit.dying`, width→0) and is
+ *  removed next beat, which would clip an in-unit float — so the killing-blow number is rendered in a
+ *  board-level overlay at the unit's captured screen position instead, where it survives + lingers. */
+export interface DeathFloat {
+  id: number;
+  x: number;
+  y: number;
+  text: string;
+  kind: string;
+}
+
 /** Shared empty array for float-less units, so their `floats` prop keeps a stable reference across
  *  beats and the memoized Unit can skip re-rendering them (a fresh `[]` each render would defeat it). */
 const EMPTY_FLOATS: Float[] = [];
@@ -127,7 +138,7 @@ const DELAY: Record<string, number> = {
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
 };
-const FLOAT_MS = 1450;
+const FLOAT_MS = 1950; // how long a combat float lingers before it's cleared (kept ≥ the floatup CSS anim)
 
 /** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
  *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
@@ -307,6 +318,9 @@ export interface CombatReplay {
   lungeUid: string | null;
   projectiles: { id: number; x: number; y: number; dx: number; dy: number; kind?: string }[];
   floatsFor: (uid: string) => Float[];
+  /** Damage floats for units that died this beat — rendered in a board-level overlay (their unit collapses
+   *  + is removed), positioned at the captured screen coords so the killing-blow number reads + lingers. */
+  deathFloats: DeathFloat[];
   log: string;
   /** The whole fight narrated in detail (every attack, hit, shield, death…) for the
    *  post-combat Combat Log — each line tagged with its kind for styling. */
@@ -343,6 +357,7 @@ export function useCombatReplay(
   const beats = useMemo(() => buildBeats(events), [events]);
   const [beatIdx, setBeatIdx] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
+  const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
@@ -358,6 +373,7 @@ export function useCombatReplay(
   useEffect(() => {
     setBeatIdx(0);
     setFloats([]);
+    setDeathFloats([]);
     setAttackUid(null);
     gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
     setProjectiles([]);
@@ -387,6 +403,15 @@ export function useCombatReplay(
     let d = (DELAY[beat.primary.type] ?? 300) * SPEED;
     // A short breath after an impact before the next swing, so attacks don't blur into each other.
     if (RESULT_TYPES.has(beat.primary.type) && beats[beatIdx + 1]?.primary.type === 'attack') d += 200;
+    // The beat on screen is beats[beatIdx-1]. If it's the ATTACK (the lunge), hand off to its impact the
+    // instant the lunge CONNECTS — not after the attacker has settled. The lunge connects at windup+strike
+    // (GSAP seconds, NOT ×SPEED) and the smack fires `smackLead` before that; hold the wind-up only until
+    // the smack lands, then advance → the damage beat (and its floats) lands right on contact.
+    const shown = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
+    if (shown?.primary.type === 'attack') {
+      const c = getLungeConfig();
+      d = Math.max(120, (c.windupDur + c.strikeDur - c.smackLead) * 1000);
+    }
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
   }, [active, beatIdx, beats]);
@@ -398,7 +423,13 @@ export function useCombatReplay(
     if (!active || beatIdx === 0) return; // only during the live replay — not on a stale beat at a phase swap
     const beat = beats[beatIdx - 1];
     if (!beat) return;
+    // Units that DIE this beat — their unit collapses (width→0) and is gone next beat, which would clip an
+    // in-unit float. So their killing-blow damage number is captured at the unit's screen position and
+    // rendered in a board overlay instead (it survives the unit + lingers).
+    const dying = new Set<string>();
+    for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'death') dying.add(e.target); }
     const spawned: Float[] = [];
+    const deaths: DeathFloat[] = [];
     const buffByTarget = new Map<string, { a: number; h: number; id: number }>();
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
@@ -410,17 +441,31 @@ export function useCombatReplay(
         continue;
       }
       const f = floatFor(e);
-      if (f) spawned.push({ id: i, ...f });
+      if (!f) continue;
+      // A damage number on a dying unit → the board overlay, anchored where the unit is right now.
+      if (f.kind === 'dmg' && dying.has(f.uid)) {
+        const r = findEl(f.uid)?.getBoundingClientRect();
+        if (r) { deaths.push({ id: i, x: r.left + r.width / 2, y: r.top + r.height * 0.32, text: f.text, kind: f.kind }); continue; }
+      }
+      spawned.push({ id: i, ...f });
     }
     for (const [uid, { a, h, id }] of buffByTarget) {
       spawned.push({ id, uid, text: `+${a}/+${h}`, kind: 'buff' });
     }
-    if (spawned.length === 0) return;
-    setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
-    const ids = new Set(spawned.map((s) => s.id));
-    const t = window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS);
-    return () => window.clearTimeout(t);
-  }, [active, beatIdx, beats, events]);
+    if (spawned.length === 0 && deaths.length === 0) return;
+    const timers: number[] = [];
+    if (spawned.length) {
+      setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
+      const ids = new Set(spawned.map((s) => s.id));
+      timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS));
+    }
+    if (deaths.length) {
+      setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
+      const ids = new Set(deaths.map((s) => s.id));
+      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS));
+    }
+    return () => timers.forEach((id) => window.clearTimeout(id));
+  }, [active, beatIdx, beats, events, findEl]);
 
   // Combat SFX — one sound per notable event type in the beat just resolved.
   useEffect(() => {
@@ -616,7 +661,7 @@ export function useCombatReplay(
   }, [beatIdx, beats, events]);
 
   return {
-    frame, anims, lungeUid, projectiles, floatsFor, log, fullLog, procs, handGrant, handGrantsShown,
+    frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, enemyDeaths, skip: () => setBeatIdx(beats.length),
   };

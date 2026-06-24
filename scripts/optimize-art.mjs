@@ -5,7 +5,7 @@
 // Workflow: drop <id>.png into art/{minions,heroes,effects}, then `npm run optimize-art`.
 // Idempotent — only .png files are processed, so a re-run on an all-WebP dir is a no-op.
 import sharp from 'sharp';
-import { readdirSync, statSync, unlinkSync } from 'node:fs';
+import { existsSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,6 +18,7 @@ let before = 0;
 let after = 0;
 let n = 0;
 for (const dir of DIRS) {
+  if (!existsSync(dir)) continue; // a sub-dir (e.g. effects/) may not exist in every checkout — skip it
   for (const f of readdirSync(dir)) {
     if (!f.endsWith('.png')) continue;
     const png = join(dir, f);

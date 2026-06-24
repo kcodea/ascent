@@ -34,6 +34,20 @@ export function transformProgressText(cardId: string, spellProgress: number): st
 }
 
 /**
+ * Frontdrake's cadence ("Every N turns, get a Dragon") appends a live "next in M turns" countdown
+ * (green), where M = every − (eotTick mod every) and `eotTick` advances once per End of Turn. Returns
+ * null for non-cadence cards so callers fall back to the printed text.
+ */
+export function cadenceProgressText(cardId: string, eotTick: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnGrantTribe');
+  if (!def || !eff) return null;
+  const every = Math.max(1, Number((eff.params as { every?: number })?.every ?? 3));
+  const toNext = every - (eotTick % every);
+  return `${def.text} {{Next in ${toNext} ${toNext === 1 ? 'turn' : 'turns'}.}}`;
+}
+
+/**
  * Spirit Worgen's per-summon gain scales with spells cast this turn — the printed "+1/+1" is shown as
  * its current "+X/+X" (X = base + spellsThisTurn), highlighted green, once a spell's been cast this
  * turn. Returns null otherwise (so it falls back to the printed value).

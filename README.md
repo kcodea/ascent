@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Tara → Taragosa** — a quest dragon (Engraved) that **ascends to Taragosa** after being granted stats 20
+  times in combat; **Taragosa** casts **Growth** (+3/+4 to your board) on every attack. Completes the batch.
 - **Cupcakes** — a spell that points a friendly **Demon** at the tavern: it consumes 3 random minions there
   (real Consume — stats × the Demon's multiplier + its on-consume effects).
 - **Twilight Whelp line + an attack-on-summon mechanic.** **Twilight Whelp** (Deathrattle: a 3/3 Whelp that

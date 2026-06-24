@@ -67,6 +67,22 @@ export const TOKENS: CardDef[] = [
     token: true,
   },
   {
+    // Tara's ascend form (obtained only via Tara, so `token: true` keeps it out of the shop). Engraved; on
+    // EVERY ally attack it casts Growth (+3/+4 to your minions) — explosive on a wide board. Golden casts it
+    // twice. Keeps Tara's accumulated stats at ascension; its 3/3 base is only the schema floor.
+    id: 'taragosa',
+    name: 'Taragosa',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 3,
+    health: 3,
+    keywords: ['EG'],
+    token: true,
+    effects: [{ on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { attack: 3, health: 4 } }],
+    text: 'All stats are **Engraved**. When a minion attacks, cast **Growth** (+3/+4 to your minions).',
+    goldenText: 'All stats are **Engraved**. When a minion attacks, cast **Growth twice** (+6/+8 to your minions).',
+  },
+  {
     // Twilight Whelp's Deathrattle cub — a 3/3 Dragon that ATTACKS IMMEDIATELY when summoned (out of turn
     // order), then joins the rotation. Not in the shop. (Broodmother → Twilight Whelps → these.)
     id: 'whelpling',

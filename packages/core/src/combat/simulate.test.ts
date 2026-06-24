@@ -727,6 +727,32 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true); // improved after 3
   });
 
+  it('Taragosa casts Growth (+3/+4 to all your minions) on each ally attack', () => {
+    const a = run(
+      [
+        { cardId: 'taragosa', attack: 4, health: 50 },
+        { cardId: 'sandbag', attack: 1, health: 50, keywords: [] }, // a second attacker
+      ],
+      [{ cardId: 'omen', attack: 0, health: 60 }],
+      3,
+    );
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // Growth +3/+4
+  });
+
+  it('Tara tallies its in-combat stat-grants (reported via playerAscendCount)', () => {
+    const a = run(
+      [
+        { cardId: 'tara', attack: 3, health: 80, keywords: ['EG'], sourceUid: 'T' },
+        { cardId: 'taragosa', attack: 3, health: 80 }, // Growth (+3/+4 to all) each ally attack → grants Tara stats
+        { cardId: 'sandbag', attack: 1, health: 80, keywords: [] },
+      ],
+      [{ cardId: 'omen', attack: 0, health: 200 }],
+      3,
+    );
+    const tara = a.playerAscendCount?.find((x) => x.sourceUid === 'T');
+    expect(tara?.count).toBeGreaterThan(0); // Tara was granted stats and counted them toward ascension
+  });
+
   it('Hunter grants Health to your board whenever its Attack rises (driven here by Crypt Drake)', () => {
     const a = run(
       [

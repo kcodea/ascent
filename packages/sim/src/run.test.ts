@@ -1183,6 +1183,34 @@ describe('run loop (@game/sim)', () => {
     expect([t.attack, t.health]).toEqual([20, 20]);
   });
 
+  it('Apples buffs the current tavern offers +2/+3, and a buy bakes it in', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, frozen: false,
+      shop: [{ uid: 'x', cardId: 'alley' }, { uid: 'y', cardId: 'pack' }],
+      hand: [{ uid: 'sp', cardId: 'apples', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.shop.every((o) => o.atk === 2 && o.hp === 3)).toBe(true); // both offers buffed
+    s = { ...s, embers: 10 };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + Apples
+    const bought = s.hand.find((c) => c.cardId === 'alley')!;
+    expect([bought.attack, bought.health]).toEqual([3, 4]);
+  });
+
+  it('Fleeting Vigor banks a Start-of-Combat buff applied to the next combat, then spent', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0,
+      hand: [{ uid: 'sp', cardId: 'fleetingvigor', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.fleetingVigor).toEqual({ attack: 2, health: 1 }); // banked
+    s = reduce(s, { type: 'faceOmen' }); // combat: the buff lands on the combat board, then is spent
+    const startSandbag = s.lastCombat?.initial.player.find((m) => m.cardId === 'sandbag');
+    expect([startSandbag?.attack, startSandbag?.health]).toEqual([3, 2]); // 1/1 + Fleeting Vigor 2/1
+    expect(s.fleetingVigor).toEqual({ attack: 0, health: 0 }); // spent after the fight
+  });
+
   it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {
     let s: RunState = {
       ...createRun(1), embers: 4, board: [],

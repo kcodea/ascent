@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Content: 2 system-spells (Fleeting Vigor, Apples)
+
+- **+2 Spells** (spell pool 22 → 24), each a small new economy/combat-edge system. Stacked on the reactive
+  Dragons PR.
+  - **Fleeting Vigor** (T3, 1g) — *Start of combat: give your minions +2/+1 (next combat only)*. Banks a
+    one-shot buff in `RunState.fleetingVigor` (new cast factory `spellPendingSCBuff`); `faceOmen` applies it
+    to the player's *combat* board (not the run board) before the odds sims, then spends it — win or lose.
+    Flat (no spell-power scaling). *Note:* applied pre-simulate (the minions enter combat already bigger), so
+    there's no separate SC animation yet — a follow-up could make it a true animated Start-of-Combat proc.
+  - **Apples** (T1, 1g) — *Give minions in this tavern +2/+3 (lost on refresh; kept if frozen)*. New cast
+    factory `spellBuffTavern` adds to each current offer's `atk`/`hp` (the same channel a buy already bakes
+    in), so the refresh-loses-it / freeze-keeps-it behavior falls out for free.
+- **Art** wired for both (FleetingVigor/Apples → webp; bundled by `build:web`).
+- **Shared types/schema:** `EffectFactoryId` + the zod enum gain `spellBuffTavern` + `spellPendingSCBuff`;
+  `RunState` gains `fleetingVigor?`.
+- **Tests:** Apples buffing offers + a buy baking it in, and Fleeting Vigor landing on the next combat board
+  then clearing (`run.test.ts`). `cards.csv` regenerated (22 → 24 spells). Verified: typecheck + lint + **302
+  tests** + `build:web` all green.
+
 ### Content: 2 reactive Dragons (Hunter, Crypt Drake) + a new `onGainAttack` trigger
 
 - **+2 Dragons** (Dragon pool 10 → 12) — the first **combat-machinery** PR of the hard bucket. Stacked on

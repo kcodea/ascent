@@ -58,8 +58,8 @@ The next 5 concrete steps:
   Hunter/Crypt Drake; Beasts: Manasaber/Raptor/Sea Urchin; Neutral T6 remains); fill the mid tiers, fill the
   unused primitives (`castSpell`, `endOfTurnBuff`,
   `spellCostMod`), and add **higher-tier spells** (Spirit Fire is now T2; **Growth** T4, **Channeling the
-Devourer** T5, and the 2026-06-24 trio **Tribe Portal** T3 / **Corpse Board** T5 / **Perfect Vision** T6 have
-landed alongside the original T1s — **22 spells** now; keep filling toward the ~40-spell pool). The pool stays
+Devourer** T5, plus the 2026-06-24 batch — Tribe Portal/Corpse Board/Perfect Vision + Fleeting Vigor/Apples —
+landed alongside the original T1s — **24 spells** now; keep filling toward the ~40-spell pool). The pool stays
 deliberately
   small — variety comes from the **meta layer** (heroes + quests/trinkets), not card volume. *Why
   first:* every later patch sits on combat feeling right.

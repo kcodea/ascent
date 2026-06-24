@@ -708,9 +708,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Tribes Choice — cast: conjure a random buyable minion sharing the *target's* tribe, tier ≤ the
-   *  tavern tier, into the hand (drawn from the run's finite pool; honours the hand cap). */
+   *  tavern tier, into the hand (drawn from the run's finite pool; honours the hand cap). Neutral is no
+   *  longer a "type": targeting a neutral minion yields nothing (the spell fizzles), so type-rolls never
+   *  hand out neutral glue (mirrors `dominantBoardTribe`, which already ignores neutral). */
   spellGainOfTargetTribe: (ctx, self) => {
     const tribe = self.tribe;
+    if (tribe === 'neutral') return; // neutral isn't a type — no type-roll result
     const pool = BUYABLE_CARDS.filter(
       (c) =>
         c.tier <= ctx.state.tier &&

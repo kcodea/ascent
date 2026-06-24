@@ -5,34 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
-### Content batch: +5 minions, +1 token, +5 spells (Beasts · Spells · reactive Dragons · system-spells)
+### Lunge feel re-tune + Tribes Choice no longer hands out neutral glue
 
-- **Re-landed as one branch after a stacked-merge stranded them.** The Dragons PR (#6) merged to `main`, but
-  the beasts/spells PRs (#7/#8) merged only into their dead-end stack bases and never reached `main`. This
-  re-applies #7/#8/#10/#11's content cleanly onto current `main` via cherry-pick (the code auto-merged; the
-  docs are consolidated into this entry).
-- **Beasts (+3, pool 7→10) + Saber Cub token:** Manasaber (Deathrattle → a 0/2 Taunt cub), Raptor (buffs
-  another friendly Beast +3/+1 when it attacks — `onFriendlyAttackBuffTribe` on the broadcast `onAttack`),
-  Sea Urchin (Battlecry: Discover a Beast — `battlecryDiscoverMinion` + a `tribe` filter on `DiscoverSpec`).
-- **Spells (+3, pool 19→22):** Tribe Portal (Discover from your most common type — exported
-  `dominantBoardTribe`), Corpse Board (Discover a Deathrattle minion — new `'deathrattle'` Discover filter),
-  Perfect Vision (set a friendly minion to 20/20 — `spellSetStats`, an absolute set, no spell-power scaling).
-- **Reactive Dragons (+2, pool 10→12):** Hunter (when its Attack rises, your minions gain Health — a new
-  **`onGainAttack`** bus trigger emitted by `ctx.buff` on a positive delta; the bus snapshots handlers so it's
-  re-entrant-safe, and Hunter grants Health only so it can't loop), Crypt Drake (Dragon/Undead; every ally
-  attack buffs your whole board, improving every 3 attacks via a per-combat `Minion.attackSeen`). They combo —
-  Crypt Drake pumps Attack, Hunter answers with Health.
-- **System-spells (+2, pool 22→24):** Fleeting Vigor (banks a one-shot Start-of-Combat +2/+1 in
-  `RunState.fleetingVigor`, applied to the player's combat board in `faceOmen`, then spent), Apples (buff the
-  current tavern +2/+3 via each offer's `atk`/`hp` — lost on refresh, kept if frozen).
-- **All art wired** (15 webps). **New vocab:** `GameEvent`/`EffectFactoryId` (+ the zod enums) gain
-  `onGainAttack` and the new factories; `Minion.attackSeen`, `RunState.fleetingVigor`, and `DiscoverSpec`'s
-  `tribe`/`'deathrattle'`. Verified: typecheck + lint + **302 tests** + `build:web` all green; `cards.csv`
-  regenerated (62 minions / 24 spells / 8 tokens).
-- **Still open:** #5's *neutral-isn't-a-type* change (its lunge half was superseded by #9 — needs re-landing
-  on its own). **Not yet built (hard tail):** Sporebat, Twilight Whelp + Broodmother (+ Ember Whelp removal),
-  Tara→Taragosa, and the gated Gryphon/Cupcakes/Mama Bear.
-
+- **Combat lunge defaults re-tuned (shipped from the live tuner).** New `DEFAULTS` in `lungeConfig.ts`:
+  `windupDur 0.37`, `windupDepth 0.1`, `strikeDur 0.16`, `strikeDist 1.44`, `smackLead 0.005`,
+  `settleDur 1.06`, `attackGap 0.22` — a weightier, more deliberate swing (longer wind-up + slow elastic
+  settle, shorter inter-swing breather). These came from dialing the DEV Lunge tuner by eye, then committing
+  the values as the new shipped defaults. **Stale-comment fix:** the file header warned to "keep
+  windup+strike near 0.33s or retune `DELAY.attack`" — no longer true. Since the "damage lands at the lunge
+  connection" change, the scheduler derives the attack-beat hold *live* from `windupDur + strikeDur -
+  smackLead` (`useCombatReplay.ts`), so the damage float always lands on contact however these are dialed
+  (the new sum is 0.53s and still connects correctly). Updated the comment to match.
+- **Neutral is no longer a minion "type" for type-rolls.** Neutral cards still appear in shops/Discover as
+  glue, but effects that "give a card of a type" no longer hand out neutrals. Concretely: **Tribes Choice**
+  cast on a *neutral* target now fizzles (no conjure) instead of rolling a random neutral — `tribe ===
+  'neutral'` short-circuits `spellGainOfTargetTribe` in `recruit.ts`. This mirrors `dominantBoardTribe`
+  (Cassen / the upcoming Tribe Portal), which already excluded neutral. Audited the other type-rolls
+  (Undead Army, Cassen's top-type grant) — they key off a fixed/dominant non-neutral tribe, so no neutral
+  could leak there. Added a `run.test.ts` case asserting the neutral-target fizzle. Verified: typecheck +
+  lint clean, 288 tests pass (run.test 199 → 200), `build:web` green.
+- *(Note: "remove Ember Whelp" was deferred from this batch into the upcoming Dragons PR — `whelp` is a
+  generic dragon test fixture in ~12 spots + baked into the generated opponent pool, and there's no other
+  T1 dragon to repoint to until Twilight Whelp / Frontdrake exist. Cleaner to remove it there.)*
 ### Lunge feel retune — weightier swing, damage beat kept on contact
 
 - **New shipped lunge defaults** (`packages/ui/src/lungeConfig.ts`), tuned by eye in the DEV Lunge tuner:

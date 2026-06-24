@@ -5,8 +5,9 @@
  * `getLungeConfig()` at call time, so changes apply to the next attack.
  *
  * Note the windup + strike durations are GSAP seconds (NOT scaled by the beat-clock SPEED). The attack
- * RESULT beat (damage floats / recoil) is timed to land at the lunge's connection — windup+strike ≈ 0.33s
- * ≈ the 220ms×1.5 attack beat — so keep that sum near 0.33s unless you also retune `DELAY.attack`.
+ * RESULT beat (damage floats / recoil) is timed to land at the lunge's connection — the scheduler derives
+ * that hold live from `windupDur + strikeDur - smackLead` (see useCombatReplay.ts), so the damage always
+ * lands on contact however you dial these; the sum is no longer pinned to any fixed value.
  */
 export interface LungeConfig {
   /** Wind-up duration (s) — the lean-back before the strike. */

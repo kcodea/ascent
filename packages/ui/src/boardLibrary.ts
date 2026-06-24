@@ -48,10 +48,15 @@ export function loadStoredBoards(): BoardSnapshot[] {
  *  Best-effort — board capture never blocks the game. */
 export function saveRunBoards(replay: Replay, author?: string): void {
   try {
+    const { final, snapshots } = replayRun(replay);
+    // ONLY persist a run that actually FINISHED — won (victory) or lost (gameover). The caller already gates
+    // on the gameover/victory transition; this guard makes it impossible for an in-progress / abandoned run
+    // to be snapshotted even if anything ever calls this wrongly.
+    if (final.phase !== 'gameover' && final.phase !== 'victory') return;
     // Only keep boards with minions — an empty board (power 0) is never a useful opponent.
     const capturedAt = new Date().toISOString().slice(0, 10);
-    const fresh = replayRun(replay)
-      .snapshots.filter((s) => s.minions.length > 0)
+    const fresh = snapshots
+      .filter((s) => s.minions.length > 0)
       .map((s) => ({ ...s, origin: 'self' as const, ...(author ? { author } : {}), capturedAt }));
     if (fresh.length === 0) return;
     const all = dedupe([...loadStoredBoards(), ...fresh]).slice(-CAP);

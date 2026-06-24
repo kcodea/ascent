@@ -132,8 +132,9 @@ function computeFrame(
 const SPEED = 1.5;
 const DELAY: Record<string, number> = {
   // action beats (the wind-up / cast). `attack` is tuned so the RESULT beat (smack sound + damage floats +
-  // recoil) lands right at the lunge's connection (~330ms = windup 0.2s + strike 0.13s, × SPEED), not after.
-  attack: 220, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820, maxGold: 560,
+  // recoil) lands right at the lunge's connection (~530ms = windup 0.37s + strike 0.16s; 353 × SPEED 1.5),
+  // not after. Keep `attack` × SPEED ≈ (windupDur + strikeDur) from lungeConfig.ts when retuning the lunge.
+  attack: 353, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820, maxGold: 560,
   // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,

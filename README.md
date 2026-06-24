@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Lunge feel retune.** New shipped attack-lunge defaults — a longer, heavier wind-up driving a deeper lunge,
+  a springier settle, and a shorter breather between swings. The damage number/recoil is kept landing on the
+  lunge's contact frame (the result-beat schedule was moved to match the slower swing).
 - **+4 Dragons (pool 6 → 10).** **Frontdrake** (every 3 turns, get a random Dragon — with a live "next in N
   turns" countdown on the card), **Supporter** (Rally: pump 2 friendly Dragons), **Bronze Warden** (a
   Divine-Shield wall), and **Stuntdrake** (Avenge 3: hand its Attack to 2 friends). New effect primitives for

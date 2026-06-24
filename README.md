@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Feel + HUD pass.** The Hero-Power targeting line now draws from the power button; Bane's Fodder enchant
+  shows a purple haze under the card; the attack lunge got a tuning pass (smack a touch earlier, snappier
+  strike, a bit further) — with a **DEV lunge tuner** to dial it by feel. The player name moved to its own
+  pill below the Ascent/Wave boxes, and the dev SFX mixer joined a bottom-right tool cluster by the gear.
 - **Art preloads (no more pop-in) + three proc fixes.** All card/hero art now warms on idle at the title
   screen, so cards render with art already cached (no cold-load "pop-in", incl. the itch CDN — 157 webps
   preloaded). **Soulsman**'s Avenge → max-Gold now shows in combat (gold pulse + float + sound + Procs line);

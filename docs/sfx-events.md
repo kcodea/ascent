@@ -53,6 +53,7 @@ files in `packages/ui/src/audio/`.
 | `tick` | each of the last 5 turn-timer seconds | synth | — | — | short square click |
 | `proc` | an End-of-Turn effect fires (per proc) | synth | — | — | triangle shimmer |
 | `triple` | a golden is formed | synth | — | — | rising 4-note arpeggio |
+| `maxGold` | Soulsman's Avenge raises max Gold (combat) | synth | — | — | rising coin shimmer |
 | `combatStart` | End Turn → Face the Omen | synth | — | — | low sawtooth down-slide |
 | `attack` | each attack swing (per hit; Windfury = 2) | synth | — | — | sawtooth down-slide |
 | `death` | a minion dies | synth | — | — | low sine drop |

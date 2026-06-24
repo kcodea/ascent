@@ -7,6 +7,7 @@ import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { EscMenu } from './EscMenu';
 import { SfxMixer } from './SfxMixer';
+import { LungeTuner } from './LungeTuner';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { warmArt } from './art';
@@ -61,8 +62,9 @@ export function Game() {
         <Icon name="gear" />
       </button>
       {menuOpen && <EscMenu res={res} onRes={setRes} onClose={() => setMenuOpen(false)} />}
-      {/* DEV-only live SFX mixer (stripped from production via the static env check). */}
+      {/* DEV-only live tuners (stripped from production via the static env check). */}
       {import.meta.env.DEV && <SfxMixer />}
+      {import.meta.env.DEV && <LungeTuner />}
       {/* Topmost layer: the pre-run hero picker (self-gates on heroChoices). */}
       <HeroSelect />
     </ErrorBoundary>

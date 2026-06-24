@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### UX pass: hero-power line from the button · Bane purple haze · lunge dev tuner · player-name pill · dev cluster
+
+- **Hero-Power aim line now starts at the button.** The targeting line was anchored to the hero *frame*
+  (`.statusbar .hero .f`); it now anchors to the hero-power *button* (`.statusbar .heropowerbtn`, frame
+  fallback), so the line draws from the thing you pressed. Verified the selector resolves live.
+- **Bane's proc is a purple haze (not the orange flame).** The battlecry-trigger flash now renders per card:
+  Karwind's Dragons keep the orange `karwindflame`; Bane + the board Fodder it enchants get a soft purple
+  `fodderhaze` (one-shot opacity/transform glow swelling from under the card — the Fodder/Demon colour,
+  matching the consume swirl & Ritualist wash). The `karwind` Card prop became `'flame' | 'haze' | false`.
+- **Combat lunge dev tuner + slight default tweaks.** Extracted the lunge tunables into
+  `lungeConfig.ts` (persisted to `localStorage['ascent.lunge']`); `playAttackLunge` reads it at call time.
+  A DEV `LungeTuner.tsx` panel (🗡️, bottom-right) sliders wind-up dur/depth, strike dur, lunge distance,
+  smack lead, settle — Copy/Reset; applies to the next attack. Shipped defaults nudged per the ask: **smack
+  ~30ms earlier** (`smackLead 0→0.03`, fired before the strike completes), **wind-up longer** (0.2→0.22),
+  **strike faster** (0.13→0.11), **lunge further** (1.15→1.22). Wind-up+strike still sums to ~0.33s, so the
+  result beat still lands on contact (no `DELAY.attack` retune needed).
+- **Player name moved to its own pill** below the ASCENT/Wave boxes (left), mirroring the opponent frame
+  (below-right) — out of the ASCENT wordmark box. Absolutely positioned so it never reflows the top row.
+- **DEV tool buttons clustered bottom-right** next to the settings gear: `[🗡️ lunge][🔊 sfx][⚙ gear]`
+  (the SFX mixer moved from bottom-left). Panels open above, anchored right.
+- Verified: typecheck + lint clean, 282 tests pass, live — no console errors, player pill + dev cluster
+  positions confirmed, hero-power button + lunge-tuner sliders (new defaults) present.
+
 ### Art preload (itch pop-in) · Soulsman combat proc · Bane proc flash · Fodder consume never lost
 
 - **Art preload kills the cold-load pop-in.** Card/hero/power webps were only fetched when an `<img>` first

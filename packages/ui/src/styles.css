@@ -65,7 +65,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* HUD */
 .bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; }
 .wm { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; font-family: 'Outfit'; font-weight: 800; font-size: calc(19 * var(--u)); letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: calc(7 * var(--u)) calc(15 * var(--u)); border-radius: calc(11 * var(--u)); }
-.wm .wmplayer { font-size: calc(10 * var(--u)); font-weight: 700; letter-spacing: 0.05em; color: var(--acc); text-transform: none; margin-top: calc(2 * var(--u)); max-width: calc(160 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The player's name on its own pill, hanging below the ASCENT/Wave row (left), mirroring the opponent
+   frame on the right. Absolutely positioned off `.bar` so it never reflows the top row. */
+.barplayer { position: absolute; top: calc(100% + 8 * var(--u)); left: 0; z-index: 60; font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; color: var(--acc); background: var(--ink); padding: calc(5 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); max-width: calc(220 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); }
 .alt .w { font-family: 'Outfit'; font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
 .alt .lbl { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
@@ -765,6 +767,20 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
   38% { opacity: 1; transform: translateX(-50%) translateY(0) scaleY(1.05); }
   100% { opacity: 0; transform: translateX(-50%) translateY(-34%) scaleY(0.82); }
 }
+/* Bane's Fodder enchant — a soft purple haze swells from under the card (the Fodder/Demon colour), a
+   quieter sibling of Karwind's flame flash. One-shot; opacity/transform only (compositor-friendly). */
+.fodderhaze { position: absolute; inset: 0; border-radius: 13px; overflow: hidden; pointer-events: none; z-index: 9; }
+.fh-glow {
+  position: absolute; left: -10%; right: -10%; bottom: -12%; height: 72%; opacity: 0;
+  background: radial-gradient(62% 100% at 50% 100%, rgba(177, 92, 240, 0.85), rgba(140, 70, 230, 0.34) 50%, transparent 76%);
+  mix-blend-mode: screen; animation: fhglow 0.85s ease-out forwards;
+}
+@keyframes fhglow {
+  0% { opacity: 0; transform: translateY(12%) scaleY(0.7); }
+  35% { opacity: 1; transform: translateY(0) scaleY(1); }
+  100% { opacity: 0; transform: translateY(-6%) scaleY(1.05); }
+}
+
 /* the buff burst overlay: an expanding ring + radiating spark shards, painted on top */
 .buffburst { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
 .bb-ring {
@@ -1418,9 +1434,9 @@ svg { width: 18px; height: 18px; }
 .escres { display: grid; gap: 8px; }
 .escboards { display: grid; gap: 8px; }
 .escboards-msg { font-family: 'Outfit'; font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
-/* DEV SFX mixer — a floating panel for tuning sourced-clip volumes live (dev only). */
-.sfxmix-btn { position: fixed; left: 14px; bottom: 14px; z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
-.sfxmix { position: fixed; left: 14px; bottom: 62px; z-index: 200; width: 290px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: 'Outfit'; }
+/* DEV dev-tool buttons — bottom-right cluster, left of the settings gear: [lunge][sfx][gear]. */
+.sfxmix-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.sfxmix { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200; width: 290px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: 'Outfit'; }
 .sfxmix-h { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 8px; }
 .sfxmix-h span { font-size: 10px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; }
 .sfxmix-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
@@ -1430,6 +1446,12 @@ svg { width: 18px; height: 18px; }
 .sfxmix-val { flex: 0 0 26px; text-align: right; font-size: 12px; font-weight: 800; color: var(--acc-dk); font-variant-numeric: tabular-nums; }
 .sfxmix-play { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg2); cursor: pointer; font-size: 10px; color: var(--ink); }
 .sfxmix-copy { width: 100%; margin-top: 10px; padding: 7px; border-radius: 9px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); font-family: 'Outfit'; font-weight: 800; font-size: 13px; cursor: pointer; }
+/* DEV lunge tuner — third button in the bottom-right cluster, left of the SFX mixer. */
+.lunge-btn { position: fixed; right: calc(var(--bar-x) + 112px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
+.sfxmix.lunge .sfxmix-val { flex-basis: 42px; }
+.lunge-btns { display: flex; gap: 8px; }
+.lunge-btns .sfxmix-copy { flex: 1; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
 .escvol .evl { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }

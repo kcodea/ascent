@@ -781,7 +781,8 @@ export function Recruit() {
     };
     const move = (e: PointerEvent): void => {
       moved = true;
-      const f = document.querySelector('.statusbar .hero .f');
+      // Anchor the aim line at the hero-power BUTTON (the thing you pressed to arm), not the hero frame.
+      const f = document.querySelector('.statusbar .heropowerbtn') ?? document.querySelector('.statusbar .hero .f');
       if (!f) return;
       const r = f.getBoundingClientRect();
       // The aim point follows the cursor exactly — you can target anywhere on a
@@ -1519,7 +1520,7 @@ export function Recruit() {
                     buffed={buffedUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
-                    karwind={karwindFlameUids.has(m.uid)}
+                    karwind={karwindFlameUids.has(m.uid) ? (m.cardId === 'bane' || CARD_INDEX[m.cardId]?.keywords.includes('FD') ? 'haze' : 'flame') : false}
                     suppressPop={returningFromCombat}
                     buffFloat={statFloats[m.uid] ?? null}
                     onPointerDown={heroArmed || pendingTarget ? undefined : onCardPointerDown}

@@ -154,8 +154,9 @@ export const Card = memo(function Card({
   arrived?: boolean;
   /** Electric flash — a Mech being magnetized onto by Combinator's End-of-Turn. */
   electrify?: boolean;
-  /** Flame flash — a Dragon just buffed by Karwind (on top of the normal buff flash). */
-  karwind?: boolean;
+  /** Battlecry-trigger proc flash: `'flame'` = a Dragon just buffed by Karwind (orange); `'haze'` = Bane
+   *  just enchanted Fodder (purple). On top of the normal buff flash. */
+  karwind?: 'flame' | 'haze' | false;
   /** Cards this card references (the token it summons / Fodder it buffs) — shown as a hover popup. */
   refCards?: CardView[];
   /** A drag is in progress somewhere — suppress the referenced-card hover popup (you're holding a card). */
@@ -359,7 +360,7 @@ export const Card = memo(function Card({
       )}
       {/* Karwind — a Dragon just got Karwind's battlecry-triggered buff: flames sweep up the card
           (on top of the normal green buff flash), marking it as Karwind's doing. */}
-      {karwind && (
+      {karwind === 'flame' && (
         <span className="karwindflame" aria-hidden="true">
           <span className="kf-glow" />
           <span className="kf-tongue" style={{ '--kx': '14%', '--kd': '0.02s' } as CSSProperties} />
@@ -368,6 +369,11 @@ export const Card = memo(function Card({
           <span className="kf-tongue" style={{ '--kx': '68%', '--kd': '0.04s' } as CSSProperties} />
           <span className="kf-tongue" style={{ '--kx': '86%', '--kd': '0.02s' } as CSSProperties} />
         </span>
+      )}
+      {/* Bane — a battlecry just enchanted the Fodder card type run-wide: a soft purple haze swells from
+          under the card (Bane itself + any Fodder on the board it buffed), matching the other Fodder FX. */}
+      {karwind === 'haze' && (
+        <span className="fodderhaze" aria-hidden="true"><span className="fh-glow" /></span>
       )}
       {/* Battlecry flourish — a glowing sigil swells from *under* the card (tribe-tinted),
           with motes rising up its face, when its Battlecry fires on play. */}

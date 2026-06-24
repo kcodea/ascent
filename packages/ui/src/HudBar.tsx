@@ -22,7 +22,7 @@ export function HudBar() {
   const wins = run.history.filter((r) => r === 'win').length;
   return (
     <div className="bar">
-      <div className="wm disp">ASCENT{playerName && <span className="wmplayer">{playerName}</span>}</div>
+      <div className="wm disp">ASCENT</div>
       <div className="alt">
         <span className="w">WAVE {run.wave}</span>
         <span className="meter">
@@ -42,6 +42,9 @@ export function HudBar() {
       <button className="mutebtn" title={muted ? 'Unmute' : 'Mute'} onClick={() => setMuted(toggleMute())}>
         <Icon name={muted ? 'mute' : 'sound'} />
       </button>
+      {/* The player's name on its own line, below the ASCENT/Wave boxes — mirrors the opponent frame
+          (below-right). Absolutely positioned so it never reflows the bar. */}
+      {playerName && <div className="barplayer" title="You">{playerName}</div>}
       <OpponentFrame />
     </div>
   );

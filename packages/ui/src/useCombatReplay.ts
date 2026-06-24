@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { sfx } from './sfx';
+import { getLungeConfig } from './lungeConfig';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -145,12 +146,13 @@ const RESULT_TYPES = new Set(['dmg', 'shield', 'shieldUp', 'poison', 'venomLost'
  *  attacker drives all the way into the defender — a full connecting hit. GSAP owns the attacker's
  *  transform for the whole lunge — React renders no transform on combat units, so they never fight. */
 function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number): void {
+  const c = getLungeConfig(); // live-tunable (DEV Lunge tuner) → applies to the next attack
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
   gsap
     .timeline({ onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }) })
-    .to(attacker, { x: -dx * 0.14, y: -dy * 0.14, rotation: -5, duration: 0.2, ease: 'power1.out' })  // wind up (slightly longer + a touch deeper → more anticipation)
-    .to(attacker, { x: dx * 1.15, y: dy * 1.15, rotation: 0, duration: 0.13, ease: 'power3.in' })       // strike (overdrives into the target → a full, overlapping connecting hit)
+    .to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: -5, duration: c.windupDur, ease: 'power1.out' })  // wind up (anticipation lean-back)
+    .to(attacker, { x: dx * c.strikeDist, y: dy * c.strikeDist, rotation: 0, duration: c.strikeDur, ease: 'power3.in' })          // strike (overdrives into the target → a full, overlapping connecting hit)
     .add(() => {
       // Smack lands HERE — frame-accurate at the moment of contact. The beat-driven sfx (a React
       // effect ~2 frames behind setBeatIdx) ran late and drifted further as the lunge grew; firing
@@ -162,8 +164,8 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
         x: dx * 0.14, y: dy * 0.14, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out',
         onComplete: () => gsap.set(defender, { clearProps: 'transform' }),
       });
-    })
-    .to(attacker, { x: 0, y: 0, rotation: 0, duration: 0.55, ease: 'elastic.out(1, 0.45)' });           // settle
+    }, `-=${c.smackLead}`)                                                                                 // …fired smackLead seconds BEFORE the strike completes
+    .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });       // settle
 }
 interface Beat {
   start: number;

@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Content: 2 reactive Dragons (Hunter, Crypt Drake) + a new `onGainAttack` trigger
+
+- **+2 Dragons** (Dragon pool 10 → 12) — the first **combat-machinery** PR of the hard bucket. Stacked on
+  the Spells PR.
+  - **Hunter** (T5 5/7) — *When this gains Attack, give your minions +2 Health* (golden +4). Needed a
+    brand-new **`onGainAttack`** bus trigger: `ctx.buff` now emits it on a positive Attack delta (the bus
+    snapshots its handlers, so the nested buff→onGainAttack→buff emit is safe; Hunter grants Health only so it
+    can't loop; a Map-miss when nobody subscribes, so the common combat path is unaffected). Factory
+    `onGainAttackBuffAll`.
+  - **Crypt Drake** (T6 4/10, **Dragon/Undead** dual) — *When an ally attacks, give your minions +2/+2; improve
+    every 3 attacks* (golden +4/+4). Reacts to the broadcast `onAttack` (no new trigger) and scales via a
+    per-combat **`Minion.attackSeen`** counter (attacks 1–3: +2/+2, 4–6: +4/+4, …). Factory `onAllyAttackBuffAll`.
+    The two combo: Crypt Drake pumps Attack → Hunter answers with Health.
+- **Art** wired for both (Hunter/CryptDrake → webp; bundled by `build:web`).
+- **Shared vocab:** `GameEvent` + the zod `GameEventSchema` gain `onGainAttack`; `EffectFactoryId` + the zod
+  enum gain `onGainAttackBuffAll` + `onAllyAttackBuffAll`; `Minion` gains `attackSeen?`.
+- **Tests:** Crypt Drake's per-attack buff + the improve-after-3 step, and Hunter's Health grant driven by
+  Crypt Drake (`simulate.test.ts`). `cards.csv` regenerated (Dragon 10 → 12; 62 minions). Verified: typecheck
+  + lint + **300 tests** + `build:web` all green.
+- **Still in the hard bucket:** Gryphon, Sporebat, Mama Bear, Twilight Whelp + Broodmother, Tara→Taragosa
+  (explosive, per the owner) + Ember Whelp removal, and the system-spells (Apples, Cupcakes, Fleeting Vigor).
+
 ### Content: 3 new Spells (Tribe Portal, Corpse Board, Perfect Vision)
 
 - **+3 Spells** (spell pool 19 → 22) — the "clean" trio that needs no new combat/economy systems. Stacked

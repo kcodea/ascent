@@ -146,4 +146,36 @@ export const DRAGONS: CardDef[] = [
     effects: [{ on: 'avenge', do: 'avengeGiveAttack', params: { count: 3, targets: 2 } }],
     text: "**Avenge (3):** give this minion's Attack to 2 friendly minions.",
   },
+
+  // --- Reactive-buff dragons (2026-06-24 batch, combat-machinery). Hunter uses a new `onGainAttack` trigger;
+  //     Crypt Drake reacts to the broadcast `onAttack` and scales via a per-combat counter. ---
+  {
+    // Reactive Health engine: every time Hunter's Attack rises (rally, Raptor, Crypt Drake, any buff), all
+    // your minions gain Health. Pairs with Attack-pumpers. Golden → +4 Health.
+    id: 'hunter',
+    name: 'Hunter',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 5,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffAll', params: { health: 2 } }],
+    text: 'When this gains Attack, give your minions **+2 Health**.',
+    goldenText: 'When this gains Attack, give your minions **+4 Health**.',
+  },
+  {
+    // Undead/Dragon snowball: every ally attack buffs your whole board, and the buff grows every 3 attacks.
+    // Explosive on a wide board. Golden doubles the per-step buff.
+    id: 'cryptdrake',
+    name: 'Crypt Drake',
+    tribe: 'dragon',
+    tribe2: 'undead',
+    tier: 6,
+    attack: 4,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onAllyAttackBuffAll', params: { step: 2, every: 3 } }],
+    text: 'When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.',
+    goldenText: 'When an ally attacks, give your minions **+4/+4**. Improve this every **3** attacks.',
+  },
 ];

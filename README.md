@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **+2 reactive Dragons (pool 10 → 12).** **Hunter** (when its Attack rises, your minions gain Health — via a
+  new `onGainAttack` combat trigger) and **Crypt Drake** (Dragon/Undead; every ally attack buffs your board,
+  improving every 3 attacks). They combo: Crypt Drake pumps Attack, Hunter answers with Health.
 - **+3 Spells (pool 19 → 22).** **Tribe Portal** (Discover a minion of your most common type), **Corpse
   Board** (Discover a Deathrattle minion), and **Perfect Vision** (set a friendly minion to 20/20). Reuses the
   tribe-filtered Discover from the Beasts batch; adds a Deathrattle Discover filter + a stat-set spell op.

@@ -708,6 +708,33 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.target === raptorUid)).toBe(false); // Raptor never self-buffs
   });
 
+  it('Crypt Drake buffs your whole board +2/+2 per ally attack, improving to +4/+4 after 3', () => {
+    const a = run(
+      [
+        { cardId: 'cryptdrake', attack: 4, health: 80 },
+        { cardId: 'sandbag', attack: 1, health: 80, keywords: [] }, // a second attacker → more ally attacks
+      ],
+      [{ cardId: 'omen', attack: 0, health: 200 }], // 0-atk wall → the fight runs long enough to improve
+      3,
+    );
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // attacks 1–3
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true); // improved after 3
+  });
+
+  it('Hunter grants Health to your board whenever its Attack rises (driven here by Crypt Drake)', () => {
+    const a = run(
+      [
+        { cardId: 'hunter', attack: 5, health: 60 },
+        { cardId: 'cryptdrake', attack: 4, health: 60 }, // raises Hunter's Attack each ally attack
+        { cardId: 'sandbag', attack: 1, health: 60, keywords: [] },
+      ],
+      [{ cardId: 'omen', attack: 0, health: 200 }],
+      3,
+    );
+    // Hunter's reaction is a Health-only +0/+2 to the board — uniquely distinguishable from Crypt Drake's +X/+X.
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 0 && e.health === 2)).toBe(true);
+  });
+
   it('Burial Imp: its Deathrattle queues Fodder for the next tavern (carried back)', () => {
     const a = run(
       [{ cardId: 'burialimp', attack: 3, health: 1 }],

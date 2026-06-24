@@ -14,7 +14,7 @@ spiritpup,Spirit Pup (beast/dragon),5,4,6,,,Cast **10 spells** with this on boar
 gnash,"Gnasher, the Overrun",6,6,6,,,"When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.",
 grim,Grim,6,7,1,,,**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.,
 
-# === DRAGON (10) ===
+# === DRAGON (12) ===
 whelp,Ember Whelp,1,2,1,,Start of Combat,**Start of Combat:** deal 1 to the enemy on the far left.,
 frontdrake,Frontdrake,1,2,1,,,"**Every 3 turns,** get a random Dragon.","**Every 3 turns,** get **2** random Dragons."
 supporter,Supporter,2,2,3,,Rally,**Rally:** give 2 friendly Dragons **+1/+2**.,**Rally:** give 2 friendly Dragons **+2/+4**.
@@ -22,8 +22,10 @@ bronzewarden,Bronze Warden,3,3,3,,Divine Shield,,
 cleric,Hoard Cleric,3,3,4,,,**Battlecry:** give your Dragons **+2/+3**.,
 weaver,Arcane Weaver,4,3,4,,,**Deathrattle:** add a copy of **Spirit Fire** to your hand.,**Deathrattle:** add two copies of **Spirit Fire** to your hand.
 cinder,Cinderwing Matron,4,5,5,,,**Battlecry:** give your spells **+1 Health**.,**Battlecry:** give your spells **+2 Health**.
+hunter,Hunter,5,5,7,,,"When this gains Attack, give your minions **+2 Health**.","When this gains Attack, give your minions **+4 Health**."
 stuntdrake,Stuntdrake,5,3,7,,,**Avenge (3):** give this minion's Attack to 2 friendly minions.,
 bane,Bane (dragon/demon),6,12,12,,,"After you trigger a Battlecry, give Fodder **+1/+1** this run.","After you trigger a Battlecry, give Fodder **+2/+2** this run."
+cryptdrake,Crypt Drake (dragon/undead),6,4,10,,,"When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.","When an ally attacks, give your minions **+4/+4**. Improve this every **3** attacks."
 karwind,Karwind,6,2,12,,,"Whenever a **Battlecry** triggers, give your Dragons **+1/+2**.",
 
 # === UNDEAD (6) ===

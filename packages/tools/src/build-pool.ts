@@ -17,12 +17,14 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildBootstrapPool, isServableBoard, opponentBoard, rateBoard, ratingBand, BAND_COUNT, type BoardSnapshot } from '@game/sim';
+import { buildBootstrapPool, dominantTribe, isServableBoard, opponentBoard, rateBoard, ratingBand, BAND_COUNT, type BoardSnapshot, type BotOptions } from '@game/sim';
+import type { Tribe } from '@game/core';
 
 const EXPORTS_DIR = join(process.cwd(), 'docs', 'board-exports');
 const OUT_FILE = join(process.cwd(), 'packages', 'sim', 'src', 'opponentPool.data.ts');
 const CAP_PER_WAVE = 24; // keep up to N boards per wave, spread across the power range
-const HOUSE_SEEDS = Array.from({ length: 60 }, (_, i) => 1 + i * 1337); // 60 deterministic seeds × every hero
+const HOUSE_SEEDS = Array.from({ length: 60 }, (_, i) => 1 + i * 1337);
+const TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
 const TODAY = new Date().toISOString().slice(0, 10);
 
 /** A stable identity for a board, so identical captures (same wave/hero/minions) collapse to one. */
@@ -79,9 +81,55 @@ function loadImported(): BoardSnapshot[] {
 }
 
 console.log('Building committed opponent pool…');
-const house: BoardSnapshot[] = buildBootstrapPool(HOUSE_SEEDS).map((s) => ({ ...s, origin: 'house' as const, capturedAt: TODAY }));
-console.log(`  house: ${house.length} boards from ${HOUSE_SEEDS.length} seeded bot runs`);
 const imported = loadImported();
+
+// ── Frequency analysis: what do GOOD boards of each tribe look like at each wave? ──────────────
+// Builds a (wave, tribe) → (cardId → total rating weight) table from real imported boards so the
+// smart bot can imitate proven synergies instead of buying the first card it sees.
+type FreqMap = Map<string, number>;
+const analysis = new Map<string, FreqMap>();
+for (const board of imported) {
+  const dt = dominantTribe(board);
+  if (!dt) continue;
+  const w = board.rating ?? 0.5; // higher-rated boards contribute more
+  const key = `${board.wave}|${dt.tribe}`;
+  if (!analysis.has(key)) analysis.set(key, new Map());
+  const fm = analysis.get(key)!;
+  for (const m of board.minions) fm.set(m.cardId, (fm.get(m.cardId) ?? 0) + w);
+}
+
+/** Returns a card-weight function for a committed tribe. Falls back one wave when data is sparse. */
+function cardWeightFor(tribe: Tribe): (cardId: string, wave: number) => number {
+  return (cardId, wave) =>
+    analysis.get(`${wave}|${tribe}`)?.get(cardId) ??
+    analysis.get(`${Math.max(1, wave - 1)}|${tribe}`)?.get(cardId) ??
+    0;
+}
+
+// ── House plan: 60 seeds with varying tribe commitment + fidelity ────────────────────────────
+// First 10: pure greedy (no tribe, no fidelity) — produce weak, varied boards that fill early
+// wave slots. Remaining 50: commit to a cycling tribe with fidelity rising 0.25 → 1.0, so the
+// pool naturally spans weak (low-synergy drafts) through strong (near-optimal tribe boards).
+// The existing rateBoard + spreadByPower/curateWave already sorts these into even bands.
+const HOUSE_PLAN = HOUSE_SEEDS.map((seed, i) => {
+  if (i < 10) return { seed, tribe: undefined as Tribe | undefined, fidelity: 0 };
+  const tribe = TRIBES[(i - 10) % TRIBES.length]!;
+  const fidelity = +(0.25 + ((i - 10) / (HOUSE_SEEDS.length - 10)) * 0.75).toFixed(2);
+  return { seed, tribe, fidelity };
+});
+
+const house: BoardSnapshot[] = buildBootstrapPool(
+  HOUSE_PLAN.map((p) => p.seed),
+  (_, i): BotOptions => {
+    const { tribe, fidelity } = HOUSE_PLAN[i]!;
+    if (!tribe) return {};
+    return { preferTribe: tribe, fidelity, cardWeight: cardWeightFor(tribe) };
+  },
+).map((s) => ({ ...s, origin: 'house' as const, capturedAt: TODAY }));
+console.log(
+  `  house: ${house.length} boards from ${HOUSE_PLAN.length} runs` +
+  ` (10 greedy + 50 tribe-committed, fidelity 0.25–1.0)`,
+);
 
 // Merge → keep only servable, non-empty boards → dedupe → cap per wave (even power spread) → stable sort.
 const merged = [...imported, ...house].filter((s) => s.minions.length > 0 && isServableBoard(s));

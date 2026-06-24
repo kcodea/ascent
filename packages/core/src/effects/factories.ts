@@ -1,4 +1,4 @@
-import type { CombatContext, EffectFactoryId, Minion, Side, Tribe } from '../types';
+import type { CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 
 /**
  * An effect primitive. Bound to a `self` minion and invoked when its subscribed
@@ -47,7 +47,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if ((payload as MinionPayload).minion !== self) return;
     const card = ctx.getCard(str(params.tokenId));
     const total = num(params.count, 1) * mul(self); // golden doubles the token count (e.g. Pack Scrounger 2 → 4)
-    for (let i = 0; i < total; i++) ctx.summon(self.side, card, self.uid);
+    const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
+    for (let i = 0; i < total; i++) {
+      const m = ctx.summon(self.side, card, self.uid);
+      if (kw && !m.keywords.includes(kw)) m.keywords.push(kw);
+    }
   },
 
   /** When a friendly minion of `tribe` is summoned, buff it. The per-stat magnitude is the

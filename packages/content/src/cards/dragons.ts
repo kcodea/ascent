@@ -9,23 +9,6 @@ import type { CardDef } from '@game/core';
  */
 export const DRAGONS: CardDef[] = [
   {
-    id: 'whelp',
-    name: 'Ember Whelp',
-    tribe: 'dragon',
-    tier: 1,
-    attack: 2,
-    health: 1,
-    keywords: ['SC'],
-    effects: [
-      {
-        on: 'startOfCombat',
-        do: 'scDamage',
-        params: { amount: 1, target: 'leftmost', text: 'Ember Whelp scorches the front line' },
-      },
-    ],
-    text: '**Start of Combat:** deal 1 to the enemy on the far left.',
-  },
-  {
     id: 'cleric',
     name: 'Hoard Cleric',
     tribe: 'dragon',
@@ -177,5 +160,35 @@ export const DRAGONS: CardDef[] = [
     effects: [{ on: 'onAttack', do: 'onAllyAttackBuffAll', params: { step: 2, every: 3 } }],
     text: 'When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.',
     goldenText: 'When an ally attacks, give your minions **+4/+4**. Improve this every **3** attacks.',
+  },
+
+  // --- Twilight Whelp line (2026-06-24) — the immediate-attack mechanic; replaces Ember Whelp at T1. ---
+  {
+    // Fragile T1 that leaves a 3/3 Whelp behind — and the Whelp ATTACKS IMMEDIATELY on spawn (the
+    // `whelpling` token's `attackOnSummon`, drained by simulate's immediate-attack queue). Golden → 2 Whelps.
+    id: 'twilightwhelp',
+    name: 'Twilight Whelp',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'whelpling', count: 1 } }],
+    text: '**Deathrattle:** summon a 3/3 Whelp that attacks immediately.',
+    goldenText: '**Deathrattle:** summon two 3/3 Whelps that attack immediately.',
+  },
+  {
+    // Deathrattle factory for the Whelp line: leaves 2 Twilight Whelps WITH Taunt (each leaves a 3/3
+    // immediate Whelp when it dies). Golden → 4. Uses deathrattleSummon's optional `keyword` grant.
+    id: 'broodmother',
+    name: 'Twilight Broodmother',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 2,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'twilightwhelp', count: 2, keyword: 'T' } }],
+    text: '**Deathrattle:** summon 2 **Twilight Whelps** with **Taunt**.',
+    goldenText: '**Deathrattle:** summon 4 **Twilight Whelps** with **Taunt**.',
   },
 ];

@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Content: Twilight Whelp line + a new attack-on-summon combat mechanic (replaces Ember Whelp)
+
+- **New mechanic — attack-on-summon.** A `CardDef.attackOnSummon` flag (+ schema); when a flagged minion is
+  summoned mid-combat, `simulate` queues it (`pendingAttackOnSummon`) and `flushImmediateAttacks()` has it
+  strike once, **out of turn order**, right after the spawning attack's death cascade settles — modeled on the
+  existing `flushResummons()` drain (also run once pre-rotation for SC/Reclaimer summons). A Whelp's hit can
+  spawn the enemy's Whelps (a chain), bounded by `IMMEDIATE_ATTACK_GUARD`; combat stays deterministic.
+- **Twilight Whelp** (T1 1/1, replaces Ember Whelp) — *Deathrattle: summon a 3/3 Whelp that attacks
+  immediately* (golden → 2). The **Whelp** (`whelpling`, a 3/3 Dragon token with `attackOnSummon`) is the payoff.
+- **Twilight Broodmother** (T4 2/5) — *Deathrattle: summon 2 Twilight Whelps with Taunt* (golden → 4). Extended
+  `deathrattleSummon` (combat + recruit) with an optional `keyword` grant for the Taunt. *(Minor: the Taunt is
+  applied post-summon, so it works in combat but isn't on the summon-event snapshot — a cosmetic follow-up.)*
+- **Ember Whelp removed** — it was the only `scDamage` user (the primitive stays available, untested-by-a-card
+  now). Regenerated the opponent pool (`npm run pool` → 0 stale `whelp` boards, new cards included), repointed
+  ~15 generic `whelp` test fixtures → `frontdrake`, dropped the SC-scorch test, deleted the orphaned `whelp.webp`.
+- **Art** wired (twilightwhelp / whelpling / broodmother). Verified: typecheck + lint + **305 tests** +
+  `build:web` all green; `cards.csv` = 63 minions / 24 spells / 9 tokens.
+- **Hard tail remaining:** Sporebat (tier-aware spell carry-back), Tara→Taragosa (mid-combat Growth cast), and
+  the gated Gryphon / Cupcakes / Mama Bear.
+
 ### Lunge feel re-tune + Tribes Choice no longer hands out neutral glue
 
 - **Combat lunge defaults re-tuned (shipped from the live tuner).** New `DEFAULTS` in `lungeConfig.ts`:

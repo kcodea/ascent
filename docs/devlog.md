@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Content: final 3 Beasts (Sporebat, Gryphon, Mama Bear) — combat→run carry-backs + a summon engine
+
+- **Two new combat→run carry-back channels** (`CombatResult.playerFreeRolls` / `playerSpellGrants`, mirroring
+  the `fodderGrants`/`maxGoldGain` pattern) + a new **`onDamaged`** bus trigger (emitted by `dealDamage` on a
+  hit that lands; a Map-miss when unsubscribed, so the hot path is unaffected).
+- **Sporebat** (T4 2/6 Taunt) — *Deathrattle: add a random tavern-tier spell to your hand* (golden 2). The
+  tier-bounded pick happens at settle (where the tavern tier is known); combat just banks the count.
+- **Gryphon** (T3 3/6 Taunt) — *When it takes damage, gain a free refresh* — **once per combat** (a
+  `grantedRefresh` flag; a Taunt soaks many hits, so per-hit would be runaway — flagged, a 1-line change to
+  per-hit if wanted). Golden 2.
+- **Mama Bear** (T5 6/6) — *When you summon a Beast, give it +3/+3 and improve this by +3/+3* — works **in and
+  out of combat** (a `summonBuffTribeImprove` factory on both surfaces; the improve accrues in `summonBonus`,
+  carried back; golden doubles; a triple resets the accrual — documented). Live card text TBD (follow-up).
+- **Art** wired. Verified: typecheck + lint + **307 tests** + `build:web` all green; `cards.csv` = 65 minions.
+- **Remaining (the last 2):** Cupcakes (a chosen Demon consumes 3 tavern minions) and Tara→Taragosa (the
+  mid-combat Growth cast).
 ### Content: Twilight Whelp line + a new attack-on-summon combat mechanic (replaces Ember Whelp)
 
 - **New mechanic — attack-on-summon.** A `CardDef.attackOnSummon` flag (+ schema); when a flagged minion is

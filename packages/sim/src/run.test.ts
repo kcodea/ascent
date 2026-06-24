@@ -1130,6 +1130,21 @@ describe('run loop (@game/sim)', () => {
     expect(frontdrake.eotTick).toBe(3);
   });
 
+  it('Mama Bear buffs each summoned Beast, improving the buff by +3/+3 each time (recruit)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
+      hand: [
+        { uid: 'b1', cardId: 'pack', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }, // Deathrattle only — no summon on play
+        { uid: 'b2', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'b1' }); // first Beast summoned → +3/+3
+    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 3); // 5
+    s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +6/+6
+    expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 6); // 13
+  });
+
   it('Sea Urchin Battlecry offers a Discover of Beasts only (up to tavern tier)', () => {
     // Pool mixes Beasts + a Dragon (cleric); the Discover must offer only Beasts.
     let s: RunState = {

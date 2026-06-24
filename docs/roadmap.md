@@ -53,6 +53,8 @@ The next 5 concrete steps:
   building on it. Tune the **counter matrix** (balance truth — the runner flags Mech dominant, Beast
   weak, Dragon/Undead flat; stat numbers are starting dials), build the **enemy-strength curve tool**,
   and deepen content toward the pool target: **13–15 minions per tribe** across the 6 tiers, weighted
+  to T3–5 (run `npm run audit`). Most tribes are still short of the target — but **Dragon reached 12 and Beast
+  13** with the 2026-06-24 batch (Dragons: Frontdrake/Supporter/Bronze Warden/Stuntdrake + the reactive
   to T3–5 (run `npm run audit`). Most tribes are still short of the target — but **Dragon reached 13 and Beast
   10** with the 2026-06-24 batch (Dragons: Frontdrake/Supporter/Bronze Warden/Stuntdrake + the reactive
   Hunter/Crypt Drake; Beasts: Manasaber/Raptor/Sea Urchin; Neutral T6 remains); fill the mid tiers, fill the

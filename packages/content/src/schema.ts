@@ -15,6 +15,7 @@ export const GameEventSchema = z.enum([
   'onDeath',
   'onAttack',
   'onGainAttack',
+  'onDamaged',
   'onLoseDivineShield',
   'onConsume',
   'onKill',
@@ -109,6 +110,9 @@ export const EffectFactoryIdSchema = z.enum([
   'onGainAttackBuffAll',
   'spellBuffTavern',
   'spellPendingSCBuff',
+  'deathrattleGrantRandomSpell',
+  'onDamagedGrantRefresh',
+  'summonBuffTribeImprove',
 ]);
 
 export const EffectDefSchema = z.object({

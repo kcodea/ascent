@@ -141,6 +141,8 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   discover: 0.5,
   taunt: 0.5,
   reorder: 0.225, // smack-pass −55% from 0.5
+  deny: 0.5,
+  freeze: 0.5,
 };
 let sampleVol: Record<string, number> = (() => {
   try {
@@ -171,11 +173,17 @@ export const sfx = {
     tone({ freq: 540, dur: 0.07, type: 'square', vol: 0.1 });
     tone({ freq: 820, dur: 0.09, type: 'square', vol: 0.08, delay: 0.05 });
   },
-  // Rejected action (can't afford, board/hand full, timer up) — a low, dissonant "wrong"
-  // double-buzz that descends, so it reads as a clear no, not a success blip.
+  // Rejected action (can't afford, board/hand full, timer up) — the sourced "deny" clip; synth "wrong"
+  // double-buzz fallback until it decodes / if absent.
   deny: () => {
+    if (playSample('deny', sampleVol.deny)) return;
     tone({ freq: 200, dur: 0.12, type: 'square', vol: 0.13, slideTo: 150 });
     tone({ freq: 150, dur: 0.17, type: 'square', vol: 0.12, slideTo: 96, delay: 0.085 });
+  },
+  // Freeze the tavern — the sourced "freezetavern" clip; falls back to the roll sweep until it decodes.
+  freeze: () => {
+    if (playSample('freezetavern', sampleVol.freeze)) return;
+    [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d }));
   },
   // A MINION lands on the board — the sourced "cardlanding" clip at the smack level; synth slide until it
   // decodes / if absent. Drop the clip at `packages/ui/src/audio/cardlanding.mp3`.
@@ -240,7 +248,7 @@ export const sfx = {
 /** Play a sourced clip by its mixer key (for the dev SFX mixer's preview button). */
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
-  discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder,
+  discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();

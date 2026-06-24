@@ -51,7 +51,8 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
       break;
     }
     case 'sell': sfx.sell(); break;
-    case 'roll': case 'freeze': sfx.roll(); break;
+    case 'roll': sfx.roll(); break;
+    case 'freeze': sfx.freeze(); break;
     case 'reposition': case 'reorderShop': sfx.reorder(); break;
     case 'upgrade': sfx.upgrade(); break;
     case 'heroPower': sfx.temper(); break;

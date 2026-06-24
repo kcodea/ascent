@@ -31,6 +31,7 @@ export const GameEventSchema = z.enum([
 
 export const EffectFactoryIdSchema = z.enum([
   'deathrattleSummon',
+  'deathrattleSummonOverflowBuff',
   'buffOnSummon',
   'deathrattleBuffTribe',
   'reAttackOnKill',

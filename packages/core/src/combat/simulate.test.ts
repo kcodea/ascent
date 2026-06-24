@@ -92,6 +92,40 @@ describe('simulate (handoff A.3)', () => {
     expect(packCopies).toBe(0); // board stayed full → the deferred copy never reclaims a slot
   });
 
+  it('Nanon Deathrattle: with room, all 6 Nanobots summon and no overflow buff fires', () => {
+    // Nanon alone → its death leaves an empty board, so all 6 Nanobots fit (0 overflow → no buff).
+    const p: BoardMinion[] = [{ cardId: 'nanon', attack: 1, health: 1 }];
+    const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 50 }], 1);
+    expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(6);
+    expect(r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Nanon').length).toBe(0);
+  });
+
+  it('Nanon Deathrattle: on a full board the overflow Nanobots pump your Mechs (+2/+2 each)', () => {
+    // Nanon (front, 1 hp) dies first; 6 tanky Mechs remain → only 1 Nanobot fits the freed slot, the other
+    // 5 overflow → every Mech gets +10/+10 (5 overflow × +2/+2).
+    const p: BoardMinion[] = [
+      { cardId: 'nanon', attack: 1, health: 1 },
+      ...Array.from({ length: 6 }, () => ({ cardId: 'drone', attack: 1, health: 50 })),
+    ];
+    const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
+    expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
+    // 5 overflow × +2/+2 = +10/+10 to each Mech (the only buffs this fight).
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 10 && ev.health === 10);
+    expect(buffs.length).toBeGreaterThan(0);
+  });
+
+  it('a golden Nanon doubles the overflow buff (+4/+4 each), summon count unchanged', () => {
+    // Same full board → still 5 overflow (golden does NOT summon more), but each Mech gets +20/+20 (5 × +4/+4).
+    const p: BoardMinion[] = [
+      { cardId: 'nanon', attack: 1, health: 1, golden: true },
+      ...Array.from({ length: 6 }, () => ({ cardId: 'drone', attack: 1, health: 50 })),
+    ];
+    const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
+    expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 20 && ev.health === 20);
+    expect(buffs.length).toBeGreaterThan(0); // +20/+20 confirms golden keeps 6 summons (5 overflow × +4/+4)
+  });
+
   it('Spirit Worgen procs in combat: +X/+X per Beast/Dragon summoned, X = 1 + spellsThisTurn', () => {
     // spellsThisTurn = 4 → X = 5. Pack Scrounger (Deathrattle: 2 Beast Pups) dies → 2 summons → +5/+5 each.
     const p: BoardMinion[] = [

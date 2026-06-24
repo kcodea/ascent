@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Nanon (T6 Mech).** Deathrattle floods 6 Nanobots; every one that can't fit a full board instead pumps your
+  Mechs **+2/+2** (golden +4/+4) — a packed board turns the overflow into a board-wide buff. Nanobot is a 1/1 token.
 - **Twilight Whelp line + an attack-on-summon mechanic.** **Twilight Whelp** (Deathrattle: a 3/3 Whelp that
   attacks immediately, out of turn order) replaces Ember Whelp; **Twilight Broodmother** (Deathrattle: 2 Taunt
   Twilight Whelps that chain into Whelps). New `attackOnSummon` combat primitive.

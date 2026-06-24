@@ -161,4 +161,19 @@ export const MECHS: CardDef[] = [
     effects: [],
     text: '**Rally:** give your other Mechs **+5 Attack**. **Magnetic** — welds onto a Mech, which then grants the buff (stacks).',
   },
+  {
+    // T6 flood-or-pump finisher: its Deathrattle dumps 6 Nanobots, and any that can't fit a full board are
+    // converted into a board-wide Mech buff (+2/+2 each, golden +4/+4 — the count stays 6, so a packed board
+    // turns the wasted bodies into a big pump instead). Pairs with go-wide Mech boards. Nanobot is a 1/1 token.
+    id: 'nanon',
+    name: 'Nanon',
+    tribe: 'mech',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonOverflowBuff', params: { tokenId: 'nanobot', count: 6, tribe: 'mech', attack: 2, health: 2 } }],
+    text: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.",
+    goldenText: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**.",
+  },
 ];

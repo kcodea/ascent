@@ -5,6 +5,53 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Damage lands at the lunge connection (combat-feel) — first PR through branch protection
+
+- **The hit now reads on contact.** When a minion attacks, the sim emits the `attack`, then its on-attack
+  effects (Better Bot's mech-buff, a Rally pulse / rally-summoned token), *then* the damage. The replay used
+  to make a separate beat out of those buffs, so the damage number/recoil landed a beat **after** the buff
+  animation — disconnected from the lunge that already connected. Now an `attack` beat **absorbs** its
+  on-attack flash events (`buff`/`rally`/`summon`/`reveal`/`improve`) into the **wind-up**, so they animate
+  while the attacker leans in and the **damage beat is the very next one — landing right at the lunge's
+  contact frame** (where the smack already fires). Pairs with the earlier audio fix (smack only from the
+  lunge), so sound + number now hit together.
+- **How (safe by construction):** extracted the beat builder into a pure, tested module
+  (`packages/ui/src/combatBeats.ts` — `buildBeats` + `RESULT_TYPES`). The change only alters how events are
+  **grouped into beats**, never their order — so `computeFrame` (which folds the log in order to derive HP)
+  is unaffected; final and intermediate state are identical, only the beat boundaries (and thus timing)
+  move. 5 unit tests (`combatBeats.test.ts`) lock the grouping: plain attack, attack+buff, a rally+summon+buff
+  run, a standalone buff run, and an SC cast.
+- Verified: typecheck + lint clean, **287 tests** (5 new), app boots clean (no console errors). The *feel*
+  across rally/cleave/windfury/deathrattle is for live review on this PR.
+- **Process first:** this is the **first change through the new branch-protection flow** —
+  `feat/damage-at-connection` → PR → CI gate → review, no direct push to `main`.
+- **Follow-up (review feedback — same PR):** grouping wasn't enough; the damage was still late and dying
+  units showed no number. Three fixes: **(1)** the replay clock now hands the wind-up beat off to its impact
+  **the moment the lunge connects** — the scheduler holds an `attack` beat only for `windup+strike−smackLead`
+  (read live from the lunge config) instead of the next beat's DELAY, so the damage number/recoil land on
+  contact (was ~360ms late, because the wind-up beat had been held for the *dmg* beat's DELAY ≈ 690ms while
+  the lunge connected at ~330ms). **(2)** floats **linger longer** (`FLOAT_MS` 1450→1950, `floatup` 1.4→1.8s,
+  longer readable plateau). **(3)** **killing-blow damage now shows on death** — an in-unit float was clipped
+  as the dying unit collapses (`.unit.dying` width→0); damage floats on units that die this beat are now
+  captured at the unit's screen position and rendered in a **board-level overlay** (`DeathFloat` →
+  `.deathfloat`) that outlives the unit and lingers. Verified: typecheck + lint + 287 tests + clean boot;
+  feel is for live review.
+- **Follow-up 2 (review feedback):** with damage now on contact, attacks fired too quickly and floats
+  lingered too long. (a) **Inter-attack breather restored, correctly + tunable.** The old `+200` breath was
+  applied to the wrong beat (off-by-one) and the connection fix dropped it; now, when an impact beat is
+  followed by an attack, the scheduler adds a real pause before the next swing. It's a new **`attackGap`**
+  knob in the lunge config + DEV Lunge tuner (default 0.25s) so the cadence is dialable by feel. (b) **Linger
+  trimmed:** `FLOAT_MS` 1950→1500 + `floatup` 1.8→1.4s; **death floats clear faster** (`DEATH_FLOAT_MS` 1000,
+  `.deathfloat .float` ≈0.9s) so a lone killing-blow number over a vanished unit doesn't hang.
+- **Follow-up 3 (review feedback):** (a) **`attackGap` default → 0.56s** (tuned by ear — a clear beat between
+  swings). (b) **Audio burst on tab-in fixed:** the beat clock now **pauses while the tab is hidden**
+  (`visibilitychange` → a `hidden` gate on the scheduler) so beats + GSAP lunges don't pile up in the
+  background and fire as one loud burst on return; `sfx` playback is also suppressed while hidden as a
+  backstop. (c) **Final kill no longer cut off:** the replay reports `done` only after a short hold
+  (`FINAL_HOLD_MS` 900ms) on the last beat (`done` now lags a `finished` flag) — so the killing blow's death
+  collapse + damage float fully play before cleanup + the round-end UI (Climb On / settleCombat) take over.
+  Verified: typecheck + lint + 287 tests + clean boot; combat feel for live review.
+
 ### Two-dev setup (CI + collaboration rules) · combat damage audio (SC zap, no default smack)
 
 - **CI gate for two-dev work.** Added `.github/workflows/ci.yml` — on every PR (and pushes to `main` as a

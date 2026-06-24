@@ -15,6 +15,7 @@ const LABELS: Record<keyof LungeConfig, string> = {
   strikeDist: 'lunge dist',
   smackLead: 'smack lead',
   settleDur: 'settle dur',
+  attackGap: 'attack gap',
 };
 
 export function LungeTuner() {

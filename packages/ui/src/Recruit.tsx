@@ -1568,6 +1568,15 @@ export function Recruit() {
           />
         ))}
 
+      {/* Killing-blow damage numbers for units that died this beat — rendered here, not inside the unit
+          (which collapses + is removed), so the number reads + lingers at the spot the minion fell. */}
+      {fighting &&
+        replay.deathFloats.map((f) => (
+          <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
+            <span className={`float ${f.kind}`}>{f.text}</span>
+          </div>
+        ))}
+
       {/* A card a combat effect just granted (Arcane Weaver → Spirit Fire) flies into your hand. */}
       {fighting && replay.handGrant && (() => {
         const def = CARD_INDEX[replay.handGrant.cardId];

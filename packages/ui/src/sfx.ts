@@ -34,6 +34,9 @@ export function setVolume(v: number): void {
   }
 }
 
+/** True while the tab is backgrounded — we suppress sound then, so a pile-up doesn't blast on tab-in. */
+const isHidden = (): boolean => typeof document !== 'undefined' && document.hidden;
+
 function audio(): AudioContext | null {
   try {
     const isNew = !ctx;
@@ -88,6 +91,7 @@ function prefetchSamples(): void {
 /** Play a decoded sample (fresh BufferSource → overlaps fine). Returns false if its buffer isn't ready yet,
  *  so the caller can fall back to a synth blip while the sample finishes decoding. */
 function playSample(name: string, vol = 0.6): boolean {
+  if (isHidden()) return false; // don't play while the tab is backgrounded (avoids a burst on tab-in)
   const a = audio();
   if (!a || muted) return false;
   const buf = buffers.get(name);
@@ -111,6 +115,7 @@ interface ToneOpts {
 }
 
 function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0 }: ToneOpts): void {
+  if (isHidden()) return; // don't play while the tab is backgrounded (avoids a burst on tab-in)
   const a = audio();
   if (!a || muted) return;
   const t0 = a.currentTime + delay;

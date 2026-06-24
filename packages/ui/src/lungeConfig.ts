@@ -21,6 +21,9 @@ export interface LungeConfig {
   smackLead: number;
   /** Settle duration (s) — the elastic return to rest. */
   settleDur: number;
+  /** Attack gap (s) — a breather held AFTER an impact, before the next swing, so back-to-back attacks
+   *  don't blur together (the damage lands on contact, then this pause, then the next lunge). */
+  attackGap: number;
 }
 
 const DEFAULTS: LungeConfig = {
@@ -30,6 +33,7 @@ const DEFAULTS: LungeConfig = {
   strikeDist: 1.22,  // slightly further lunge (was 1.15)
   smackLead: 0.03,   // smack slightly earlier — 30ms before the strike lands (was 0 = on completion)
   settleDur: 0.55,
+  attackGap: 0.56,   // breather after an impact before the next swing (the inter-attack pause) — tuned by ear
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -40,6 +44,7 @@ export const LUNGE_RANGES: Record<keyof LungeConfig, [number, number, number]> =
   strikeDist: [0.8, 1.8, 0.01],
   smackLead: [0, 0.12, 0.005],
   settleDur: [0.2, 1.2, 0.01],
+  attackGap: [0, 0.7, 0.02],
 };
 export const LUNGE_KEYS = Object.keys(DEFAULTS) as (keyof LungeConfig)[];
 

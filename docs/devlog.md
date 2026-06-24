@@ -21,6 +21,57 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 - **Verified:** typecheck + lint clean, **287 tests** pass, `build:web` succeeds, app boots clean (no console
   errors); feel confirmed live in the arena. localStorage tuner overrides still win for a dev who has saved
   values (hit Reset in the panel to fall back to these new defaults).
+### Content: 4 new Dragons (Frontdrake, Supporter, Bronze Warden, Stuntdrake)
+
+- **+4 Dragons** (Dragon pool 6 → 10) — purely additive. *Ember Whelp stays for now;* its removal was
+  pulled out of this PR and folded into the upcoming Twilight Whelp PR, where the new "whelp" token replaces
+  it as the generic T1-dragon test fixture (it's used in ~12 spots + baked into the opponent pool) and the
+  pool regenerates once. The four cards:
+  - **Frontdrake** (T1 2/1) — *Every 3 turns, get a random Dragon* (tier ≤ tavern, golden → 2). New recruit
+    primitive **`endOfTurnGrantTribe`** + a per-card **`BoardCard.eotTick`** counter that advances once per
+    turn (on Chronos proc 0, so Chronos adds extra grants on the cadence turn without speeding the count up).
+    The card shows a live green **"Next in N turns"** countdown (`cadenceProgressText`, wired into Recruit's
+    text chain).
+  - **Supporter** (T2 2/3, Rally) — *Rally: give 2 friendly Dragons +1/+2* (golden +2/+4). Extended the
+    previously-unused combat **`rallyBuff`** factory with an optional `tribe` filter + `count` cap (random
+    pick among eligible). Backward-compatible (no params = buff all friends, the old behavior).
+  - **Bronze Warden** (T3 3/3) — a vanilla **Divine Shield** wall (data only, keyword-only text).
+  - **Stuntdrake** (T5 3/7) — *Avenge (3): give this minion's Attack to 2 friendly minions*. New combat
+    primitive **`avengeGiveAttack`** (hands self's *current* Attack to N random friends; a golden's bigger
+    Attack flows through automatically).
+- **Art** wired for all four (masters → `npm run optimize-art` → webp; confirmed bundled by `build:web`).
+  Also hardened the optimizer to skip a missing sub-dir — it crashed on an absent `art/effects/`, which the
+  next art-wiring step in this content batch would have hit too (one-line `existsSync` guard).
+- **Shared types/schema:** `EffectFactoryId` (core) + the zod `EffectFactoryIdSchema` (content) gain
+  `endOfTurnGrantTribe` + `avengeGiveAttack`; `BoardCard` gains `eotTick?`.
+- **Tests:** Supporter rally + golden rally and Stuntdrake's attack-gift (combat, `simulate.test.ts`);
+  Frontdrake's 3-turn cadence (`run.test.ts`, driving `applyEndOfTurn` directly); `cadenceProgressText`
+  countdown (`cardText.test.ts`). `cards.csv` regenerated (Dragon 6 → 10; 57 minions). Verified: typecheck +
+  lint + **292 tests** + `build:web` all green.
+
+### Stop honoring `prefers-reduced-motion` (it made the game unreadable)
+
+- **The game now animates the same regardless of the OS "reduce motion" setting.** Removed the global
+  `@media (prefers-reduced-motion: reduce)` rule in `styles.css` that near-instant'd (`animation-duration:
+  0.001ms !important`) *every* animation. The problem: ASCENT's animations carry essential **information** —
+  damage numbers, death pops, the Fodder-consume swirl, buff flashes — not just decoration. With reduce-motion
+  on, all of that flashed-and-vanished, so the game looked broken ("no animations, fodder doesn't work, dmg
+  numbers don't show"). This was the cause of a co-dev's "nothing works" report — he had the OS setting on; it
+  reproduced on dev + itch for him, but not for anyone without the setting. Replaced the rule with a comment
+  documenting the decision (and how to revisit it properly: calm *motion*, never suppress the informational
+  floats). Perf on low-power machines stays handled the right way — compositor-only transform/opacity, no
+  paint-property loops (see `docs/performance.md`, updated). Verified: rule gone from the loaded CSS (0
+  matches), app boots clean.
+
+### Version badge (bottom-right, above the gear)
+
+- **In-game build badge.** A small `v{version} · {sha}` label sits just above the settings gear (bottom-right,
+  scales with `--u` so it always clears the gear). Sources: the package version (bumped `0.0.0 → 0.1.0`) and
+  the **short git SHA**, both injected at Vite config load via `define` (`__APP_VERSION__` / `__BUILD_SHA__`;
+  SHA falls back to `dev` if git's absent). Hover shows the full `ASCENT v0.1.0 · build <sha>`. The SHA makes
+  it unambiguous *which* build is live — directly addresses the "is this last night's version?" confusion.
+  Ambient types in `packages/ui/src/buildinfo.d.ts`. Verified live: badge reads `v0.1.0 d2c8bf5`, above +
+  right-aligned to the gear, no console errors.
 
 ### Damage lands at the lunge connection (combat-feel) — first PR through branch protection
 

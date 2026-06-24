@@ -530,6 +530,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
 
+  /** Frontdrake — End of Turn: every `every` turns on the board, conjure `count` random minions of
+   *  `tribe` into the hand (tier ≤ tavern tier, active tribes, copies left — "abides by tavern rules").
+   *  Golden doubles the count. The per-card `eotTick` advances ONCE per turn (on proc 0), so Chronos
+   *  repeats fire extra grants on the cadence turn without speeding the count up. */
+  endOfTurnGrantTribe: (ctx, self, params, payload) => {
+    const every = Math.max(1, num(params.every, 3));
+    if (num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1; // count the turn once
+    if ((self.eotTick ?? 0) % every !== 0) return;
+    const tribe = str(params.tribe) as Tribe;
+    const count = num(params.count, 1) * gold(self);
+    const pool = BUYABLE_CARDS.filter(
+      (c) =>
+        (c.tribe === tribe || c.tribe2 === tribe) &&
+        (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
+        c.tier <= ctx.state.tier &&
+        (ctx.state.pool[c.id] ?? 0) > 0,
+    );
+    conjureToHand(ctx.state, pool, count);
+  },
+
   /** Combinator — End of Turn: magnetize a RANDOM Magnetic Mech (Cling Drone / Money Bot / Better Bot…)
    *  onto `targets` *random* other friendly Mechs (golden hits 2). Hosts are picked fresh each proc (seeded),
    *  so the welds spread unpredictably — not always the highest-Attack Mechs. The magnetic mech is rolled on

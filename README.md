@@ -28,6 +28,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Lunge feel retune.** New shipped attack-lunge defaults — a longer, heavier wind-up driving a deeper lunge,
   a springier settle, and a shorter breather between swings. The damage number/recoil is kept landing on the
   lunge's contact frame (the result-beat schedule was moved to match the slower swing).
+- **+4 Dragons (pool 6 → 10).** **Frontdrake** (every 3 turns, get a random Dragon — with a live "next in N
+  turns" countdown on the card), **Supporter** (Rally: pump 2 friendly Dragons), **Bronze Warden** (a
+  Divine-Shield wall), and **Stuntdrake** (Avenge 3: hand its Attack to 2 friends). New effect primitives for
+  the cadence grant, tribe-filtered Rally, and the Avenge attack-gift; all four have art.
 - **Feel + HUD pass.** The Hero-Power targeting line now draws from the power button; Bane's Fodder enchant
   shows a purple haze under the card; the attack lunge got a tuning pass (smack a touch earlier, snappier
   strike, a bit further) — with a **DEV lunge tuner** to dial it by feel. The player name moved to its own

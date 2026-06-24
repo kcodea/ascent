@@ -1,6 +1,6 @@
 {
   "name": "ascent",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "ASCENT — single-player roguelike auto-battler. Deterministic engine + DOM UI.",

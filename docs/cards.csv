@@ -8,7 +8,7 @@ manasaber,Manasaber,1,4,1,,,**Deathrattle:** summon a 0/2 Saber Cub with **Taunt
 kennel,Kennelmaster,2,2,3,,,Each **Beast** you summon gains **+1/+1**. **Avenge (3):** Improve this.,
 pack,Mama Pup,2,2,2,,,**Deathrattle:** summon two 1/1 Pups.,**Deathrattle:** summon four 1/1 Pups.
 shaper,Wildwood Shaper,2,2,3,,,**Choose One:** give your Beasts +1/+1; or summon two 1/1 Strays.,**Choose One:** give your Beasts +2/+2; or summon four 1/1 Strays.
-gryphon,Gryphon,3,3,6,,Taunt,"**Taunt.** When this takes damage, gain a **free refresh** (once per combat).","**Taunt.** When this takes damage, gain **2 free refreshes** (once per combat)."
+gryphon,Gryphon,3,3,6,,Taunt,"**Taunt.** Each time this takes damage, gain a **free refresh** — up to **4 hits** a combat.","**Taunt.** Each time this takes damage, gain **2 free refreshes** — up to **4 hits** a combat."
 raptor,Raptor,3,2,8,,,"When a friendly **Beast** attacks, give it **+3/+1**.","When a friendly **Beast** attacks, give it **+6/+2**."
 seaurchin,Sea Urchin,4,4,4,,,**Battlecry:** Discover a Beast.,**Battlecry:** Discover **2** Beasts.
 sporebat,Sporebat,4,2,6,,Taunt,**Taunt. Deathrattle:** add a random tavern-tier spell to your hand.,**Taunt. Deathrattle:** add **2** random tavern-tier spells to your hand.
@@ -64,9 +64,9 @@ heckbinder,Heckbinder (demon/mech),4,3,3,,Magnetic,Magnetize onto a friendly **M
 ritualist,Ritualist,5,2,5,,,"**End of Turn:** all Fodder gets **+1/+1**, wherever it is.",
 
 # === NEUTRAL (16) ===
-hoarder,Hoarder,1,1,1,,,Sells for **+1 Gold** per turn you hold it.,Sells for **+2 Gold** per turn you hold it.
 sandbag,Target Dummy,1,0,4,,Taunt,,
 broker,Brightwing Broker,2,2,3,,,Every minion you buy gets **+1/+1**.,
+hoarder,Hoarder,2,2,2,,,Sells for **+1 Gold** per turn you hold it.,Sells for **+2 Gold** per turn you hold it.
 buddy,Buddy Buddy,3,3,4,,,**Battlecry:** add a random **Tier 1** minion to your hand.,**Battlecry:** add **two** random **Tier 1** minions to your hand.
 echo,Echo Warden,3,2,4,,,"**In combat,** your summon effects summon **1 more** copy.","**In combat,** your summon effects summon **2 more** copies."
 venom,Venom,3,1,1,,Venomous,,

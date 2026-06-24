@@ -783,22 +783,22 @@ describe('simulate (handoff A.3)', () => {
     expect(grants(true)).toBe(2);
   });
 
-  it('Gryphon banks ONE free refresh per combat when it takes damage (not per hit)', () => {
+  it('Gryphon banks a free refresh PER HIT, capped at 4 a combat', () => {
     const a = run(
-      [{ cardId: 'gryphon', attack: 3, health: 40, keywords: ['T'] }], // soaks many hits over the fight
+      [{ cardId: 'gryphon', attack: 3, health: 40, keywords: ['T'] }], // soaks ~13 hits over the fight
       [{ cardId: 'omen', attack: 2, health: 40 }],
       3,
     );
-    expect(a.playerFreeRolls).toBe(1); // once per combat, despite repeated damage
+    expect(a.playerFreeRolls).toBe(4); // 1 per hit, capped at 4 despite many more hits landing
   });
 
-  it('a golden Gryphon banks two free refreshes', () => {
+  it('a golden Gryphon banks two refreshes per hit (still capped at 4 hits → 8)', () => {
     const a = run(
       [{ cardId: 'gryphon', attack: 3, health: 40, keywords: ['T'], golden: true }],
       [{ cardId: 'omen', attack: 2, health: 40 }],
       3,
     );
-    expect(a.playerFreeRolls).toBe(2);
+    expect(a.playerFreeRolls).toBe(8); // 2 per hit × the 4-hit cap
   });
 
   it('Soulsman: Avenge (4) permanently raises your max Gold (carried back)', () => {

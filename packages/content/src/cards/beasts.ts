@@ -188,8 +188,8 @@ export const BEASTS: CardDef[] = [
     goldenText: '**Taunt. Deathrattle:** add **2** random tavern-tier spells to your hand.',
   },
   {
-    // Economy Taunt: the first time it takes damage each combat, bank a free shop reroll. Golden → 2. (Once
-    // per combat — a Taunt soaks many hits, so per-hit would be runaway; a 1-line change to per-hit if wanted.)
+    // Economy Taunt: each time it takes damage, bank a free shop reroll — up to 4 hits a combat (the cap
+    // keeps a Taunt that soaks a whole board from rolling unlimited refreshes). Golden banks 2 per hit.
     id: 'gryphon',
     name: 'Gryphon',
     tribe: 'beast',
@@ -197,9 +197,9 @@ export const BEASTS: CardDef[] = [
     attack: 3,
     health: 6,
     keywords: ['T'],
-    effects: [{ on: 'onDamaged', do: 'onDamagedGrantRefresh', params: { count: 1 } }],
-    text: '**Taunt.** When this takes damage, gain a **free refresh** (once per combat).',
-    goldenText: '**Taunt.** When this takes damage, gain **2 free refreshes** (once per combat).',
+    effects: [{ on: 'onDamaged', do: 'onDamagedGrantRefresh', params: { count: 1, max: 4 } }],
+    text: '**Taunt.** Each time this takes damage, gain a **free refresh** — up to **4 hits** a combat.',
+    goldenText: '**Taunt.** Each time this takes damage, gain **2 free refreshes** — up to **4 hits** a combat.',
   },
   {
     // Summon-payoff that snowballs: each Beast you summon (in OR out of combat) gets buffed, and the buff

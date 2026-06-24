@@ -30,8 +30,9 @@ type RecruitFn = (
   params: Record<string, unknown>,
   /** `proc` is the repeat index of this End-of-Turn trigger (0-based; Chronos drives extras) — used
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
-   *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard },
+   *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
+   *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -439,7 +440,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  offer onto the queue). */
   battlecryDiscoverMinion: (ctx, self, params) => {
     const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
-    const spec: DiscoverSpec = { kind: 'minion', tier: ctx.state.tier, tribe };
+    // Exclude the source itself — Sea Urchin shouldn't be able to Discover another Sea Urchin.
+    const spec: DiscoverSpec = { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId };
     queueDiscover(ctx.state, spec);
     if (self.golden) queueDiscover(ctx.state, spec);
   },
@@ -560,8 +562,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  repeats fire extra grants on the cadence turn without speeding the count up. */
   endOfTurnGrantTribe: (ctx, self, params, payload) => {
     const every = Math.max(1, num(params.every, 3));
-    if (num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1; // count the turn once
-    if ((self.eotTick ?? 0) % every !== 0) return;
+    // A Djinn replay must NOT advance the count (the user's rule). It still pays off "on the turn it
+    // would proc": the natural EOT this turn lands the cadence exactly when (tick + 1) % every === 0,
+    // so a replay grants on that condition. The natural EOT counts the turn once (on proc 0) and grants
+    // when the just-incremented count hits the cadence; Chronos repeats (proc > 0) ride along the same tick.
+    const replay = payload.replay === true;
+    if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1; // count the turn once
+    const tick = self.eotTick ?? 0;
+    const due = replay ? (tick + 1) % every === 0 : tick % every === 0;
+    if (!due) return;
     const tribe = str(params.tribe) as Tribe;
     const count = num(params.count, 1) * gold(self);
     const pool = BUYABLE_CARDS.filter(
@@ -989,14 +998,16 @@ function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: (typeof BUYABLE_CA
 export function offerDiscover(
   state: RunState,
   discoverTier: number,
-  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe },
+  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe; exclude?: string },
 ): void {
   const baseFilter = opts?.filter ?? (() => true);
   const tribe = opts?.tribe;
+  const exclude = opts?.exclude;
   // Tribe-filtered Discover (Sea Urchin → Beasts only): AND the tribe check into the card filter so both
-  // the fixed-tier and tiered pool branches below pick it up (dual-types count).
+  // the fixed-tier and tiered pool branches below pick it up (dual-types count). `exclude` drops the source
+  // card (Sea Urchin can't Discover itself).
   const filter = (c: (typeof BUYABLE_CARDS)[number]): boolean =>
-    baseFilter(c) && (!tribe || c.tribe === tribe || c.tribe2 === tribe);
+    baseFilter(c) && c.id !== exclude && (!tribe || c.tribe === tribe || c.tribe2 === tribe);
   let pool: typeof BUYABLE_CARDS = [];
   if (opts?.tier !== undefined) {
     // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
@@ -1044,6 +1055,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
       tribe: spec.tribe,
+      exclude: spec.exclude,
       filter: spec.filter ? discoverFilter(spec.filter) : undefined,
     });
   }
@@ -1329,7 +1341,7 @@ export function replayEndOfTurn(state: RunState, card: BoardCard): boolean {
   for (const effect of eot) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
-    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
+    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r, replay: true });
   }
   return true;
 }

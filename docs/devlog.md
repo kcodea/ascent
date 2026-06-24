@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Version badge (bottom-right, above the gear)
+
+- **In-game build badge.** A small `v{version} · {sha}` label sits just above the settings gear (bottom-right,
+  scales with `--u` so it always clears the gear). Sources: the package version (bumped `0.0.0 → 0.1.0`) and
+  the **short git SHA**, both injected at Vite config load via `define` (`__APP_VERSION__` / `__BUILD_SHA__`;
+  SHA falls back to `dev` if git's absent). Hover shows the full `ASCENT v0.1.0 · build <sha>`. The SHA makes
+  it unambiguous *which* build is live — directly addresses the "is this last night's version?" confusion.
+  Ambient types in `packages/ui/src/buildinfo.d.ts`. Verified live: badge reads `v0.1.0 d2c8bf5`, above +
+  right-aligned to the gear, no console errors.
+
 ### Damage lands at the lunge connection (combat-feel) — first PR through branch protection
 
 - **The hit now reads on contact.** When a minion attacks, the sim emits the `attack`, then its on-attack

@@ -127,4 +127,48 @@ export const BEASTS: CardDef[] = [
     ],
     text: 'Gains **+1/+1** each time you summon a **Beast** or **Dragon** — improves per spell cast this turn.',
   },
+
+  // --- New beasts (2026-06-24 content batch). Manasaber is a token-summoner (data only); Raptor and Sea
+  //     Urchin use new effect factories on existing triggers (broadcast onAttack / a tribe-filtered Discover). ---
+  {
+    // Deathrattle cub-summoner — a fragile 4/1 that leaves a 0/2 Taunt body behind. Golden → 2 cubs.
+    id: 'manasaber',
+    name: 'Manasaber',
+    tribe: 'beast',
+    tier: 1,
+    attack: 4,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'sabercub', count: 1 } }],
+    text: '**Deathrattle:** summon a 0/2 Saber Cub with **Taunt**.',
+    goldenText: '**Deathrattle:** summon two 0/2 Saber Cubs with **Taunt**.',
+  },
+  {
+    // Combat support: when ANOTHER friendly Beast attacks, pump it +3/+1 before the hit lands (onAttack
+    // is emitted pre-damage). A tanky 2/8 enabler for a go-wide Beast board — does NOT buff itself (a
+    // support body, not a self-ramp). Golden → +6/+2.
+    id: 'raptor',
+    name: 'Raptor',
+    tribe: 'beast',
+    tier: 3,
+    attack: 2,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onFriendlyAttackBuffTribe', params: { tribe: 'beast', attack: 3, health: 1 } }],
+    text: 'When a friendly **Beast** attacks, give it **+3/+1**.',
+    goldenText: 'When a friendly **Beast** attacks, give it **+6/+2**.',
+  },
+  {
+    // Battlecry tribe-Discover: peek 3 Beasts (up to your tavern tier), pick one. Golden → Discover twice.
+    id: 'seaurchin',
+    name: 'Sea Urchin',
+    tribe: 'beast',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion', params: { tribe: 'beast' } }],
+    text: '**Battlecry:** Discover a Beast.',
+    goldenText: '**Battlecry:** Discover **2** Beasts.',
+  },
 ];

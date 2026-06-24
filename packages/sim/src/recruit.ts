@@ -282,7 +282,7 @@ function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
  * Ties resolve to the first seen on the board (insertion order + strict `>`). Null for an empty / tribe-less
  * board. The `s.board` analogue of snapshot.ts's `dominantTribe` (which takes a BoardSnapshot).
  */
-function dominantBoardTribe(state: RunState): Tribe | null {
+export function dominantBoardTribe(state: RunState): Tribe | null {
   const counts = new Map<Tribe, number>();
   for (const c of state.board) {
     const def = CARD_INDEX[c.cardId];
@@ -418,6 +418,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   battlecryDiscoverSpell: (ctx, self) => {
     queueDiscover(ctx.state, { kind: 'spell' });
     if (self.golden) queueDiscover(ctx.state, { kind: 'spell' });
+  },
+
+  /** Sea Urchin — Battlecry: Discover a minion of `tribe` (up to your tavern tier). Golden Discovers
+   *  twice. Routes through queueDiscover so it composes with Drakko (each extra Battlecry fire stacks an
+   *  offer onto the queue). */
+  battlecryDiscoverMinion: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    const spec: DiscoverSpec = { kind: 'minion', tier: ctx.state.tier, tribe };
+    queueDiscover(ctx.state, spec);
+    if (self.golden) queueDiscover(ctx.state, spec);
   },
 
   /** Cinderwing Matron — Battlecry: permanently raise the run-wide SPELL POWER by +atk/+hp (Cinderwing
@@ -831,6 +841,34 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const card of ctx.state.board) addBuff(card, source, attack, health);
   },
 
+  /** Perfect Vision — cast: SET the target's stats to a/h (absolute, not additive). Records the delta as a
+   *  tracked buff so the inspect breakdown shows it and the stats land exactly at a/h. No spell-power scaling
+   *  (it's a set, not a grant); a repeat cast (Yazzus) is a harmless no-op once the target is already there. */
+  spellSetStats: (_ctx, self, params) => {
+    const a = num(params.attack, 20);
+    const h = num(params.health, 20);
+    addBuff(self, str(params._source) || 'Perfect Vision', a - self.attack, h - self.health);
+  },
+
+  /** Apples — cast: buff every minion currently in the tavern by +atk/+hp (rides on each offer's `atk`/`hp`,
+   *  so a buy bakes it in). Lost on a refresh (fresh offers), kept on a freeze (same offers). Flat. */
+  spellBuffTavern: (ctx, _self, params) => {
+    const a = num(params.attack, 2);
+    const h = num(params.health, 3);
+    for (const offer of ctx.state.shop) {
+      offer.atk = (offer.atk ?? 0) + a;
+      offer.hp = (offer.hp ?? 0) + h;
+    }
+  },
+
+  /** Fleeting Vigor — cast: bank a one-shot Start-of-Combat buff for the NEXT combat (your minions enter
+   *  that fight at +atk/+hp, then it's spent — applied in `faceOmen`). Stacks if cast twice. Flat. */
+  spellPendingSCBuff: (ctx, _self, params) => {
+    ctx.state.fleetingVigor ??= { attack: 0, health: 0 };
+    ctx.state.fleetingVigor.attack += num(params.attack, 2);
+    ctx.state.fleetingVigor.health += num(params.health, 1);
+  },
+
   /** Channeling the Devourer — cast: devour the targeted friendly minion (`self`, removed from the
    *  board) and spit its stats onto a RANDOM other friend. It transfers existing stats, so it does NOT
    *  scale with spell power; the `singleCast` flag on its card keeps spell-quantity multipliers from
@@ -880,9 +918,17 @@ export function hasBattlecry(c: (typeof BUYABLE_CARDS)[number]): boolean {
   return c.effects.some((e) => e.on === 'onPlay');
 }
 
+/** Whether a card has a Deathrattle (an `onDeath` effect whose factory is a `deathrattle*`). Mirrors the
+ *  combat-side check — friend-death watchers (Brood Matron) don't count as Deathrattles. */
+export function hasDeathrattle(c: (typeof BUYABLE_CARDS)[number]): boolean {
+  return c.effects.some((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle'));
+}
+
 /** Resolve a `DiscoverSpec`'s string filter id back to a card predicate (closures aren't serializable). */
-function discoverFilter(id: 'battlecry'): (c: (typeof BUYABLE_CARDS)[number]) => boolean {
-  return id === 'battlecry' ? hasBattlecry : () => true;
+function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: (typeof BUYABLE_CARDS)[number]) => boolean {
+  if (id === 'battlecry') return hasBattlecry;
+  if (id === 'deathrattle') return hasDeathrattle;
+  return () => true;
 }
 
 /**
@@ -896,9 +942,14 @@ function discoverFilter(id: 'battlecry'): (c: (typeof BUYABLE_CARDS)[number]) =>
 export function offerDiscover(
   state: RunState,
   discoverTier: number,
-  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean },
+  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe },
 ): void {
-  const filter = opts?.filter ?? (() => true);
+  const baseFilter = opts?.filter ?? (() => true);
+  const tribe = opts?.tribe;
+  // Tribe-filtered Discover (Sea Urchin → Beasts only): AND the tribe check into the card filter so both
+  // the fixed-tier and tiered pool branches below pick it up (dual-types count).
+  const filter = (c: (typeof BUYABLE_CARDS)[number]): boolean =>
+    baseFilter(c) && (!tribe || c.tribe === tribe || c.tribe2 === tribe);
   let pool: typeof BUYABLE_CARDS = [];
   if (opts?.tier !== undefined) {
     // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
@@ -945,6 +996,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
   } else {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
+      tribe: spec.tribe,
       filter: spec.filter ? discoverFilter(spec.filter) : undefined,
     });
   }

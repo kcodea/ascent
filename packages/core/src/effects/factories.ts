@@ -302,6 +302,38 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) ctx.buff(m, attack, health, self.uid);
   },
 
+  /** Raptor — when ANOTHER friendly minion of `tribe` attacks, buff it (+atk/+hp) before its hit lands
+   *  (onAttack is broadcast pre-damage). Excludes self — a support body, not a self-ramp. Golden doubles. */
+  onFriendlyAttackBuffTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion === self || minion.side !== self.side) return;
+    const tribe = str(params.tribe) as Tribe | 'any';
+    if (tribe !== 'any' && minion.tribe !== tribe && minion.tribe2 !== tribe) return;
+    ctx.buff(minion, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
+  /** Crypt Drake — when ANY ally attacks (itself included), buff every living friend +mag/+mag, where mag
+   *  starts at `step` and improves by `step` every `every` ally attacks this combat (1–3: +2/+2, 4–6: +4/+4,
+   *  …). Per-combat counter on `self.attackSeen`. Golden doubles `step`. */
+  onAllyAttackBuffAll: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion.side !== self.side) return; // any ally's attack (self included)
+    self.attackSeen = (self.attackSeen ?? 0) + 1;
+    const every = Math.max(1, num(params.every, 3));
+    const improvements = Math.floor((self.attackSeen - 1) / every);
+    const mag = num(params.step, 2) * (1 + improvements) * mul(self);
+    for (const m of ctx.living(self.side)) ctx.buff(m, mag, mag, self.uid);
+  },
+
+  /** Hunter — when THIS minion's Attack rises (onGainAttack), give every living friend +`health` Health.
+   *  Health-only, so it never re-triggers onGainAttack (no loop). Golden doubles. */
+  onGainAttackBuffAll: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only when self gains Attack
+    const h = num(params.health, 2) * mul(self);
+    for (const m of ctx.living(self.side)) ctx.buff(m, 0, h, self.uid);
+  },
+
   /** Deathsayer's Rally — when *this* attacks, fire your leftmost living minion's Deathrattle *first*
    *  (before the hit lands; `onAttack` is emitted before damage). Logs a `rally` event (source =
    *  Deathsayer, target = that minion) so the UI pauses + shows whose Deathrattle goes off, then runs

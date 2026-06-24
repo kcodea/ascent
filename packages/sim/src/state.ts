@@ -117,7 +117,7 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  */
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' };
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe };
 
 export interface RunState {
   seed: number;
@@ -153,6 +153,9 @@ export interface RunState {
   freeRolls: number;
   /** Front to Back's accumulated escalation: each cast applies +(2 + this + spell power), then this += 2. */
   frontToBackBonus: number;
+  /** Fleeting Vigor — a one-shot Start-of-Combat buff banked for the NEXT combat only (your minions enter
+   *  that fight at +this; spent in `faceOmen`, win or lose). Absent = none. */
+  fleetingVigor?: { attack: number; health: number };
   /** Run-wide Undead attack bonus (Lantern of Souls): your Undead get this much Attack everywhere —
    *  on the board in the shop and in every combat (incl. summoned/Reborn ones). */
   undeadAttackBonus: number;

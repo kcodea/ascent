@@ -14,6 +14,7 @@ export const GameEventSchema = z.enum([
   'onSummon',
   'onDeath',
   'onAttack',
+  'onGainAttack',
   'onLoseDivineShield',
   'onConsume',
   'onKill',
@@ -101,6 +102,13 @@ export const EffectFactoryIdSchema = z.enum([
   'stealTavernMinion',
   'endOfTurnGrantTribe',
   'avengeGiveAttack',
+  'onFriendlyAttackBuffTribe',
+  'battlecryDiscoverMinion',
+  'spellSetStats',
+  'onAllyAttackBuffAll',
+  'onGainAttackBuffAll',
+  'spellBuffTavern',
+  'spellPendingSCBuff',
 ]);
 
 export const EffectDefSchema = z.object({

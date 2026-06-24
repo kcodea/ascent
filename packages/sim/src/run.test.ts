@@ -1130,6 +1130,98 @@ describe('run loop (@game/sim)', () => {
     expect(frontdrake.eotTick).toBe(3);
   });
 
+  it('Sea Urchin Battlecry offers a Discover of Beasts only (up to tavern tier)', () => {
+    // Pool mixes Beasts + a Dragon (cleric); the Discover must offer only Beasts.
+    let s: RunState = {
+      ...createRun(1), tier: 4, embers: 0, shop: [], board: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      pool: { alley: 5, pack: 5, kennel: 5, raptor: 5, cleric: 5 },
+      hand: [{ uid: 'u', cardId: 'seaurchin', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'u' });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) {
+      const def = CARD_INDEX[id]!;
+      expect(def.tribe === 'beast' || def.tribe2 === 'beast').toBe(true); // cleric (Dragon) is never offered
+    }
+  });
+
+  it('Tribe Portal Discovers a minion of your most common board tribe', () => {
+    // Board is Beast-dominant (2 Beasts vs 1 Dragon) → the Discover offers only Beasts.
+    let s: RunState = {
+      ...createRun(1), tier: 4, embers: 0, shop: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      pool: { alley: 5, pack: 5, cleric: 5, knit: 5 },
+      board: [
+        { uid: 'b1', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'b2', cardId: 'pack', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false },
+        { uid: 'd1', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 4, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'sp', cardId: 'tribeportal', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) {
+      const def = CARD_INDEX[id]!;
+      expect(def.tribe === 'beast' || def.tribe2 === 'beast').toBe(true);
+    }
+  });
+
+  it('Corpse Board Discovers a Deathrattle minion only', () => {
+    // Pool mixes Deathrattle minions (pack, manasaber) with non-Deathrattle ones (alley, cleric).
+    let s: RunState = {
+      ...createRun(1), tier: 5, embers: 0, shop: [], board: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      pool: { pack: 5, manasaber: 5, alley: 5, cleric: 5 },
+      hand: [{ uid: 'sp', cardId: 'corpseboard', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) {
+      const def = CARD_INDEX[id]!;
+      expect(def.effects.some((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle'))).toBe(true);
+    }
+  });
+
+  it('Perfect Vision sets a friendly minion to 20/20', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 4, keywords: ['T'], golden: false }],
+      hand: [{ uid: 'sp', cardId: 'perfectvision', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm' });
+    const t = s.board.find((c) => c.uid === 'm')!;
+    expect([t.attack, t.health]).toEqual([20, 20]);
+  });
+
+  it('Apples buffs the current tavern offers +2/+3, and a buy bakes it in', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, frozen: false,
+      shop: [{ uid: 'x', cardId: 'alley' }, { uid: 'y', cardId: 'pack' }],
+      hand: [{ uid: 'sp', cardId: 'apples', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.shop.every((o) => o.atk === 2 && o.hp === 3)).toBe(true); // both offers buffed
+    s = { ...s, embers: 10 };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + Apples
+    const bought = s.hand.find((c) => c.cardId === 'alley')!;
+    expect([bought.attack, bought.health]).toEqual([3, 4]);
+  });
+
+  it('Fleeting Vigor banks a Start-of-Combat buff applied to the next combat, then spent', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0,
+      hand: [{ uid: 'sp', cardId: 'fleetingvigor', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.fleetingVigor).toEqual({ attack: 2, health: 1 }); // banked
+    s = reduce(s, { type: 'faceOmen' }); // combat: the buff lands on the combat board, then is spent
+    const startSandbag = s.lastCombat?.initial.player.find((m) => m.cardId === 'sandbag');
+    expect([startSandbag?.attack, startSandbag?.health]).toEqual([3, 2]); // 1/1 + Fleeting Vigor 2/1
+    expect(s.fleetingVigor).toEqual({ attack: 0, health: 0 }); // spent after the fight
+  });
+
   it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {
     let s: RunState = {
       ...createRun(1), embers: 4, board: [],

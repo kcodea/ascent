@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCasts, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCasts, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -172,6 +172,19 @@ export function reduce(state: RunState, action: Action): RunState {
       if (card.cardId === 'helpwanted') {
         s.hand.splice(i, 1);
         queueDiscover(s, { kind: 'minion', tier: s.tier, filter: 'battlecry' });
+        return s;
+      }
+      // Tribe Portal: Discover a minion of your most common board tribe (neutral isn't a type → falls back
+      // to an unfiltered Discover on a tribe-less board). Corpse Board: Discover a Deathrattle minion (up to
+      // the tavern tier). Both untargeted Discover spells → Yazzus doesn't multiply them. Consumed, no slot.
+      if (card.cardId === 'tribeportal') {
+        s.hand.splice(i, 1);
+        queueDiscover(s, { kind: 'minion', tier: s.tier, tribe: dominantBoardTribe(s) ?? undefined });
+        return s;
+      }
+      if (card.cardId === 'corpseboard') {
+        s.hand.splice(i, 1);
+        queueDiscover(s, { kind: 'minion', tier: s.tier, filter: 'deathrattle' });
         return s;
       }
 
@@ -483,6 +496,13 @@ export function reduce(state: RunState, action: Action): RunState {
         rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
       }));
+      // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board
+      // (not the run board, so it's gone after this fight), then spend it. Applied before the odds sims so
+      // every simulation sees the same buffed board.
+      if (s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)) {
+        for (const m of player) { m.attack += s.fleetingVigor.attack; m.health += s.fleetingVigor.health; }
+        s.fleetingVigor = { attack: 0, health: 0 };
+      }
       // The procedural threat board for this wave — the always-fightable fallback (built from current
       // cards, so it can never throw). `enemyTier` (loss-damage scaling) is the served board's tavern tier,
       // or the player's own tier as the foe's stand-in for the procedural board.

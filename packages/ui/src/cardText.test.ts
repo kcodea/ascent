@@ -29,11 +29,13 @@ describe('cardText helpers', () => {
     expect(tallyBuffText('sandbag', 5)).toBeNull(); // not a tally-buff card
   });
 
-  it('cadenceProgressText shows Frontdrake’s live countdown to its next Dragon', () => {
-    // every:3 — eotTick 0 → 3 turns; 1 → 2; 2 → 1 (singular); 3 → just granted, 3 again.
+  it('cadenceProgressText shows Frontdrake’s live countdown, reading “End of this turn.” on the proc turn', () => {
+    // every:3 — eotTick 0 → 3 turns; 1 → 2; 2 → THIS turn's End of Turn lands it (one shy of a multiple);
+    // 3 → just granted, 3 again.
     expect(cadenceProgressText('frontdrake', 0)).toContain('{{Next in 3 turns.}}');
     expect(cadenceProgressText('frontdrake', 1)).toContain('{{Next in 2 turns.}}');
-    expect(cadenceProgressText('frontdrake', 2)).toContain('{{Next in 1 turn.}}'); // singular
+    expect(cadenceProgressText('frontdrake', 2)).toContain('{{End of this turn.}}'); // procs at this turn's EOT
+    expect(cadenceProgressText('frontdrake', 5)).toContain('{{End of this turn.}}'); // also one shy (5 % 3 === 2)
     expect(cadenceProgressText('frontdrake', 3)).toContain('{{Next in 3 turns.}}');
     expect(cadenceProgressText('sandbag', 1)).toBeNull(); // not a cadence card
   });

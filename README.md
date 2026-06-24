@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Batch fixes + hero-power art.** Wired **8 hero-power button arts** + rewired Cling/Stuntdrake/Sea Urchin.
+  **Hoarder** → T2 2/2; **Sea Urchin** can’t Discover itself; **Gryphon**’s free refresh is now per-hit (cap 4);
+  **Frontdrake** plays nice with Djinn (no cadence skip, but works on the proc turn), shows a live
+  “End of this turn.” countdown, and keeps its timing through a triple; **Mama Bear** triple no longer
+  resets/doubles its accrual. Card-text pass so the live values read true.
 - **Twilight Whelp line + an attack-on-summon mechanic.** **Twilight Whelp** (Deathrattle: a 3/3 Whelp that
   attacks immediately, out of turn order) replaces Ember Whelp; **Twilight Broodmother** (Deathrattle: 2 Taunt
   Twilight Whelps that chain into Whelps). New `attackOnSummon` combat primitive.

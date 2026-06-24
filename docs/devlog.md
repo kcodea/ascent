@@ -5,6 +5,43 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Batch fixes: hero-power art + the card-tweaks pass (Hoarder / Sea Urchin / Gryphon / Frontdrake / Mama Bear)
+
+A grab-bag of follow-ups on the 2026-06-24 content, all on `main`-resident cards.
+
+**Art**
+- Rewired **Cling Drone / Stuntdrake / Sea Urchin** from updated masters.
+- Wired **8 hero-power button arts** (Cassen, Djinn, Drakko, Indy, Myra, Rohan, Soren, Warden →
+  `packages/ui/src/art/powers/<heroId>.webp`). *`TitanHP.png` matches no hero (ids are warden/indy/myra/
+  soren/rohan/djinn/nadja/cassen/drakko) and Nadja has no power master — both left unwired (flagged).*
+- Audited art coverage: **all 99 card ids have art**; the prod build loads with every image intact (no broken
+  images, the power webps fetch via the warm-art preloader).
+
+**Content / rules**
+- **Hoarder** → **Tier 2, 2/2** (was T1 1/1).
+- **Sea Urchin** can no longer Discover **itself** — threaded an `exclude` id through the Discover plumbing
+  (`DiscoverSpec.exclude` → `offerDiscover`), set to the source card.
+- **Gryphon** now banks a free refresh **per hit, capped at 4 a combat** (was once-per-combat): `grantedRefresh`
+  became a counter; golden banks 2 per hit. Text + a `max` param updated to match.
+- **Frontdrake** (three interlocking changes):
+  - **Djinn** (its replay End-of-Turn) no longer advances the cadence counter, but still pays off **on the turn
+    it would proc** — a `replay` flag on the EOT payload skips the increment; the grant fires when
+    `(eotTick + 1) % every === 0`.
+  - Live text reads **“End of this turn.”** on the proc turn (else “Next in N turns.”).
+  - A **triple** keeps the **furthest-along** cadence position (a copy about to proc keeps the “procs this turn”
+    timing) — only the cycle position (mod `every`) is carried onto the golden.
+- **Mama Bear** triple now **picks up the accrual at its current value** (the highest copy) — no reset, no
+  Kennelmaster-style doubling; the bigger +6/+6 per-summon step just falls out of being golden.
+
+**Card-text pass** — Mama Bear shows its live, golden-aware current grant (new `summonImproveText` helper, wired
+into the recruit board for both the base and golden text); Frontdrake’s countdown reads naturally; Gryphon’s text
+matches the new cap.
+
+Verified: `typecheck` + `lint` + **314 tests** (+5 new: Frontdrake triple, Mama Bear triple, Sea Urchin no-self,
+Djinn×Frontdrake on/off the proc turn; Gryphon + cadence-text tests updated) + `build:web` — all green. `cards.csv`
+and the opponent pool regenerated (Hoarder’s tier shift moved two pool rows). *Follow-up: Taragosa should also keep
+its “all stats are Engraved” line — that card lives on the open Tara PR (#16), so the text tweak goes there.*
+
 ### Content: final 3 Beasts (Sporebat, Gryphon, Mama Bear) — combat→run carry-backs + a summon engine
 
 - **Two new combat→run carry-back channels** (`CombatResult.playerFreeRolls` / `playerSpellGrants`, mirroring

@@ -61,11 +61,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side);
   },
 
-  /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once per combat (the
-   *  `grantedRefresh` flag), so a Taunt soaking many hits still grants only one. Golden grants 2. */
+  /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once PER HIT, capped at
+   *  `max` (default 4) banks per combat (the `grantedRefresh` counter), so a Taunt soaking a whole board
+   *  tops out at the cap instead of rolling unlimited refreshes. Golden grants 2 per hit. */
   onDamagedGrantRefresh: (ctx, self, params, payload) => {
-    if (self.dead || (payload as MinionPayload).minion !== self || self.grantedRefresh) return;
-    self.grantedRefresh = true;
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const cap = num(params.max, 4);
+    const got = self.grantedRefresh ?? 0;
+    if (got >= cap) return;
+    self.grantedRefresh = got + 1;
     ctx.grantFreeRolls(num(params.count, 1) * mul(self), self.side);
   },
 

@@ -21,6 +21,24 @@ export function summonBuffText(cardId: string, summonBonus: number): string | nu
 }
 
 /**
+ * Mama Bear (`summonBuffTribeImprove`) hands out a buff that GROWS: the grant is (base + accrued) × golden,
+ * and the accrued (`summonBonus`) climbs by base each summon. Surface the *current* grant magnitude (green)
+ * in place of the printed "+N/+N" — the first number (the grant) only; the second (the per-summon improve
+ * step) stays printed. Golden reads from goldenText and doubles the live grant. Returns null with no accrual
+ * (falls back to the printed text), matching `summonBuffText`'s contract.
+ */
+export function summonImproveText(cardId: string, summonBonus: number, golden: boolean): string | null {
+  if (summonBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'summonBuffTribeImprove');
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { attack?: number })?.attack ?? 3);
+  const m = (base + summonBonus) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${m}}}`);
+}
+
+/**
  * A transform card (Spirit Pup) appends its live "N to go" countdown (highlighted green) so the
  * player sees how many spells remain before it transforms. `spellProgress` is the per-instance
  * tally; returns null for non-transform cards so callers fall back to the printed text.
@@ -34,9 +52,10 @@ export function transformProgressText(cardId: string, spellProgress: number): st
 }
 
 /**
- * Frontdrake's cadence ("Every N turns, get a Dragon") appends a live "next in M turns" countdown
- * (green), where M = every − (eotTick mod every) and `eotTick` advances once per End of Turn. Returns
- * null for non-cadence cards so callers fall back to the printed text.
+ * Frontdrake's cadence ("Every N turns, get a Dragon") appends a live countdown (green), where
+ * M = every − (eotTick mod every) and `eotTick` advances once per End of Turn. When M === 1 the cadence
+ * lands at THIS turn's End of Turn (eotTick is one shy of a multiple), so it reads "End of this turn."
+ * instead of a count. Returns null for non-cadence cards so callers fall back to the printed text.
  */
 export function cadenceProgressText(cardId: string, eotTick: number): string | null {
   const def = CARD_INDEX[cardId];
@@ -44,7 +63,8 @@ export function cadenceProgressText(cardId: string, eotTick: number): string | n
   if (!def || !eff) return null;
   const every = Math.max(1, Number((eff.params as { every?: number })?.every ?? 3));
   const toNext = every - (eotTick % every);
-  return `${def.text} {{Next in ${toNext} ${toNext === 1 ? 'turn' : 'turns'}.}}`;
+  const note = toNext === 1 ? 'End of this turn.' : `Next in ${toNext} turns.`;
+  return `${def.text} {{${note}}}`;
 }
 
 /**

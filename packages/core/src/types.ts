@@ -264,8 +264,9 @@ export interface Minion {
   /** Crypt Drake: how many ally attacks this minion has seen this combat — drives its "improve every N
    *  attacks" buff. Per-combat (reset each fight); absent = 0. */
   attackSeen?: number;
-  /** Gryphon: set once it has banked its free refresh this combat (so it grants only once per fight). */
-  grantedRefresh?: boolean;
+  /** Gryphon: how many free refreshes it has banked this combat — it grants one per hit up to a cap
+   *  (so a Taunt soaking many hits doesn't roll unlimited refreshes). Absent = 0. */
+  grantedRefresh?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   side: Side;

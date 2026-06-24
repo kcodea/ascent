@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Content batch — +5 minions, +1 token, +5 spells.** Beasts: Manasaber, Raptor, Sea Urchin (+ a Saber Cub
+  token). Spells: Tribe Portal, Corpse Board, Perfect Vision, Fleeting Vigor, Apples. Reactive Dragons: Hunter
+  + Crypt Drake (a new `onGainAttack` trigger — they combo, one pumps Attack, the other answers with Health).
+  Beast pool 7→10, Dragon 10→12, spells 19→24.
 - **Lunge feel retune.** New shipped attack-lunge defaults — a longer, heavier wind-up driving a deeper lunge,
   a springier settle, and a shorter breather between swings. The damage number/recoil is kept landing on the
   lunge's contact frame (the result-beat schedule was moved to match the slower swing).

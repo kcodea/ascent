@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Content batch: +5 minions, +1 token, +5 spells (Beasts · Spells · reactive Dragons · system-spells)
+
+- **Re-landed as one branch after a stacked-merge stranded them.** The Dragons PR (#6) merged to `main`, but
+  the beasts/spells PRs (#7/#8) merged only into their dead-end stack bases and never reached `main`. This
+  re-applies #7/#8/#10/#11's content cleanly onto current `main` via cherry-pick (the code auto-merged; the
+  docs are consolidated into this entry).
+- **Beasts (+3, pool 7→10) + Saber Cub token:** Manasaber (Deathrattle → a 0/2 Taunt cub), Raptor (buffs
+  another friendly Beast +3/+1 when it attacks — `onFriendlyAttackBuffTribe` on the broadcast `onAttack`),
+  Sea Urchin (Battlecry: Discover a Beast — `battlecryDiscoverMinion` + a `tribe` filter on `DiscoverSpec`).
+- **Spells (+3, pool 19→22):** Tribe Portal (Discover from your most common type — exported
+  `dominantBoardTribe`), Corpse Board (Discover a Deathrattle minion — new `'deathrattle'` Discover filter),
+  Perfect Vision (set a friendly minion to 20/20 — `spellSetStats`, an absolute set, no spell-power scaling).
+- **Reactive Dragons (+2, pool 10→12):** Hunter (when its Attack rises, your minions gain Health — a new
+  **`onGainAttack`** bus trigger emitted by `ctx.buff` on a positive delta; the bus snapshots handlers so it's
+  re-entrant-safe, and Hunter grants Health only so it can't loop), Crypt Drake (Dragon/Undead; every ally
+  attack buffs your whole board, improving every 3 attacks via a per-combat `Minion.attackSeen`). They combo —
+  Crypt Drake pumps Attack, Hunter answers with Health.
+- **System-spells (+2, pool 22→24):** Fleeting Vigor (banks a one-shot Start-of-Combat +2/+1 in
+  `RunState.fleetingVigor`, applied to the player's combat board in `faceOmen`, then spent), Apples (buff the
+  current tavern +2/+3 via each offer's `atk`/`hp` — lost on refresh, kept if frozen).
+- **All art wired** (15 webps). **New vocab:** `GameEvent`/`EffectFactoryId` (+ the zod enums) gain
+  `onGainAttack` and the new factories; `Minion.attackSeen`, `RunState.fleetingVigor`, and `DiscoverSpec`'s
+  `tribe`/`'deathrattle'`. Verified: typecheck + lint + **302 tests** + `build:web` all green; `cards.csv`
+  regenerated (62 minions / 24 spells / 8 tokens).
+- **Still open:** #5's *neutral-isn't-a-type* change (its lunge half was superseded by #9 — needs re-landing
+  on its own). **Not yet built (hard tail):** Sporebat, Twilight Whelp + Broodmother (+ Ember Whelp removal),
+  Tara→Taragosa, and the gated Gryphon/Cupcakes/Mama Bear.
+
 ### Lunge feel retune — weightier swing, damage beat kept on contact
 
 - **New shipped lunge defaults** (`packages/ui/src/lungeConfig.ts`), tuned by eye in the DEV Lunge tuner:

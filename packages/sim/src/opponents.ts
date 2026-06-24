@@ -27,28 +27,27 @@ import type { BoardSnapshot } from './snapshot';
 export const OPPONENT_POOL: BoardSnapshot[] = [];
 
 /**
- * Pick an opponent by WIN COUNT — you face a board whose owner was at the same point in their climb (the
- * same number of combats won), not the same wave. Then: prefer REAL player/friend boards over house/synthetic
- * (face people, not bots, when we can), and among those bias toward a similar-power board for a fair fight,
- * randomizing among the closest few for variety. Returns null only on an empty pool (→ procedural fallback,
- * rng untouched); otherwise it always serves the closest-win board available. Consumes `rng` only when it
- * returns a board.
+ * Pick an opponent by WAVE — you face a board at the same development stage (same amount of shopping). This
+ * matters: matching by win count instead served over-developed boards to early players (a wave-5 board with
+ * 0 wins — a struggling run — landed on a turn-1 player as Tier-2 units). Then: prefer REAL player/friend
+ * boards over house/synthetic, and bias toward a similar-power board for a fair fight, randomizing among the
+ * closest few for variety. Widens to the closest wave if none match exactly; null only on an empty pool
+ * (→ procedural fallback, rng untouched). Consumes `rng` only when it returns a board.
  */
 export function pickOpponent(
-  wins: number,
+  wave: number,
   power: number,
   rng: Rng,
   pool: BoardSnapshot[] = OPPONENT_POOL,
 ): BoardSnapshot | null {
   if (pool.length === 0) return null;
-  const winsOf = (s: BoardSnapshot): number => s.wins ?? s.wave; // legacy boards without `wins` → use wave
-  // 1) Same number of wins (the climb milestone); widen to the closest available count if none match exactly.
-  let candidates = pool.filter((s) => winsOf(s) === wins);
+  // 1) Same WAVE (same development stage); widen to the closest available wave if none match exactly.
+  let candidates = pool.filter((s) => s.wave === wave);
   if (candidates.length === 0) {
-    const minDist = Math.min(...pool.map((s) => Math.abs(winsOf(s) - wins)));
-    candidates = pool.filter((s) => Math.abs(winsOf(s) - wins) === minDist);
+    const minDist = Math.min(...pool.map((s) => Math.abs(s.wave - wave)));
+    candidates = pool.filter((s) => Math.abs(s.wave - wave) === minDist);
   }
-  // 2) Prefer real player/friend boards over house/synthetic at this win level.
+  // 2) Prefer real player/friend boards over house/synthetic at this wave.
   const real = candidates.filter((s) => s.origin === 'self' || s.origin === 'friend');
   const pref = real.length ? real : candidates;
   // 3) Bias toward similar power (fair fight), randomize among the closest few.

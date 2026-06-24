@@ -1385,6 +1385,18 @@ svg { width: 18px; height: 18px; }
 .escres { display: grid; gap: 8px; }
 .escboards { display: grid; gap: 8px; }
 .escboards-msg { font-family: 'Outfit'; font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
+/* DEV SFX mixer — a floating panel for tuning sourced-clip volumes live (dev only). */
+.sfxmix-btn { position: fixed; left: 14px; bottom: 14px; z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.sfxmix { position: fixed; left: 14px; bottom: 62px; z-index: 200; width: 290px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: 'Outfit'; }
+.sfxmix-h { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 8px; }
+.sfxmix-h span { font-size: 10px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; }
+.sfxmix-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.sfxmix-name { flex: 0 0 86px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.sfxmix-row input[type='range'] { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; outline: none; cursor: pointer; }
+.sfxmix-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--acc); cursor: pointer; }
+.sfxmix-val { flex: 0 0 26px; text-align: right; font-size: 12px; font-weight: 800; color: var(--acc-dk); font-variant-numeric: tabular-nums; }
+.sfxmix-play { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg2); cursor: pointer; font-size: 10px; color: var(--ink); }
+.sfxmix-copy { width: 100%; margin-top: 10px; padding: 7px; border-radius: 9px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); font-family: 'Outfit'; font-weight: 800; font-size: 13px; cursor: pointer; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
 .escvol .evl { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }

@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Matchmaking back to WAVE-based + dev SFX mixer + tunable clip volumes
+
+- **Reverted matchmaking from wins → WAVE.** Win count isn't development stage: a player at wave 5 with 0 wins
+  (a losing run) has a developed Tier-2+ board but still "0 wins", so win-matching dropped that board on a
+  turn-1 player (faced T2 units on wave 1). `pickOpponent` matches by **wave** again (same amount of shopping),
+  still preferring real player/friend boards and using power as the fairness tiebreak. `nextOpponent` passes
+  `s.wave`. (`wins` stays on the snapshot as harmless metadata.) Verified live: at wave 1 the pool serves a
+  Tavern-tier-1 board, not an over-developed one.
+- **Tunable sourced-clip volumes + a dev SFX mixer.** Per-clip gains moved into a registry (`sampleVol`,
+  persisted to `ascent.sfxvol`); `SfxMixer.tsx` is a DEV-only floating panel (🔊 button, bottom-left) with a
+  slider + ▶ preview per clip and a **Copy values** button (grab the JSON → paste back → it becomes the shipped
+  default in `SAMPLE_VOL_DEFAULTS`). Stripped from production. So audio levels can be dialed in by ear without
+  code round-trips.
+- **reorder clip −55%** (0.5 → 0.225, the shipped default).
+- Verified: typecheck + lint clean, 282 tests pass (pickOpponent test now asserts wave-matching), no console
+  errors; live (mixer renders all 7 clips, wave-1 serves a tier-1 board).
+
 ### Audio: warm-up fix + sourced buy/cardlanding/discover/taunt/reorder cues
 
 - **Fixed "sourced SFX only kick in after a hero power."** The audio context + sample decoding only started on

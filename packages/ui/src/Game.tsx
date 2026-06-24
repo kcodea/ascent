@@ -6,6 +6,7 @@ import { HeroSelect } from './HeroSelect';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { EscMenu } from './EscMenu';
+import { SfxMixer } from './SfxMixer';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useGame } from './store';
@@ -55,6 +56,8 @@ export function Game() {
         <Icon name="gear" />
       </button>
       {menuOpen && <EscMenu res={res} onRes={setRes} onClose={() => setMenuOpen(false)} />}
+      {/* DEV-only live SFX mixer (stripped from production via the static env check). */}
+      {import.meta.env.DEV && <SfxMixer />}
       {/* Topmost layer: the pre-run hero picker (self-gates on heroChoices). */}
       <HeroSelect />
     </ErrorBoundary>

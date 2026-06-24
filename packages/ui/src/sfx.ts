@@ -130,14 +130,44 @@ function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0 }: Tone
 const chord = (freqs: number[], opts: Omit<ToneOpts, 'freq' | 'delay'>, step = 0.06): void =>
   freqs.forEach((f, i) => tone({ ...opts, freq: f, delay: i * step }));
 
-// Shared gain for the combat smack AND the card-landing clip, so "same level as smack" stays true if either
-// is retuned. Smack was 0.39; −60% → 0.156.
-const SMACK_VOL = 0.156;
+// Per-sourced-clip gain (0..1), keyed by logical sound name. Tunable LIVE via the dev SFX mixer (DEV only)
+// + persisted, so audio levels can be dialed in by ear without a code change — set the value here as the
+// shipped default. (Synth fallbacks keep their own inline gains.)
+const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
+  buy: 0.5,
+  sell: 0.51,
+  smack: 0.156,
+  cardlanding: 0.156,
+  discover: 0.5,
+  taunt: 0.5,
+  reorder: 0.225, // smack-pass −55% from 0.5
+};
+let sampleVol: Record<string, number> = (() => {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem('ascent.sfxvol') ?? '{}');
+    return { ...SAMPLE_VOL_DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Record<string, number>) : {}) };
+  } catch {
+    return { ...SAMPLE_VOL_DEFAULTS };
+  }
+})();
+/** The sourced-clip names, in mixer order. */
+export const SFX_KEYS = Object.keys(SAMPLE_VOL_DEFAULTS);
+export function getSampleVolumes(): Record<string, number> {
+  return { ...sampleVol };
+}
+export function setSampleVolume(key: string, v: number): void {
+  sampleVol = { ...sampleVol, [key]: Math.min(1, Math.max(0, v)) };
+  try {
+    localStorage.setItem('ascent.sfxvol', JSON.stringify(sampleVol));
+  } catch {
+    /* ignore */
+  }
+}
 
 export const sfx = {
   buy: () => {
     // One of the 2 sourced buy clips at random (buy1/buy2); synth blip until they decode / if absent.
-    if (playSample(`buy${1 + Math.floor(Math.random() * 2)}`, 0.5)) return;
+    if (playSample(`buy${1 + Math.floor(Math.random() * 2)}`, sampleVol.buy)) return;
     tone({ freq: 540, dur: 0.07, type: 'square', vol: 0.1 });
     tone({ freq: 820, dur: 0.09, type: 'square', vol: 0.08, delay: 0.05 });
   },
@@ -150,31 +180,31 @@ export const sfx = {
   // A MINION lands on the board — the sourced "cardlanding" clip at the smack level; synth slide until it
   // decodes / if absent. Drop the clip at `packages/ui/src/audio/cardlanding.mp3`.
   play: () => {
-    if (playSample('cardlanding', SMACK_VOL)) return;
+    if (playSample('cardlanding', sampleVol.cardlanding)) return;
     tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150 });
   },
   // A SPELL is cast — kept distinct from a minion landing (spells get per-spell sounds later). Synth for now.
   castSpell: () => tone({ freq: 300, dur: 0.13, type: 'triangle', vol: 0.18, slideTo: 170 }),
   sell: () => {
     // One of the 4 sourced sell clips at random (sell1–sell4); synth blip until they finish decoding.
-    if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, 0.51)) return;
+    if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, sampleVol.sell)) return;
     tone({ freq: 700, dur: 0.07, type: 'square', vol: 0.09 });
     tone({ freq: 1040, dur: 0.11, type: 'square', vol: 0.07, delay: 0.06 });
   },
   roll: () => [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d })),
   // A Discover choice opens — the sourced "discover" clip; synth shimmer until it decodes / if absent.
   discover: () => {
-    if (playSample('discover', 0.5)) return;
+    if (playSample('discover', sampleVol.discover)) return;
     chord([523, 784, 1046], { dur: 0.16, type: 'triangle', vol: 0.1 }, 0.05);
   },
   // A friendly minion is GIVEN Taunt — the sourced "taunt" clip; synth thunk until it decodes / if absent.
   taunt: () => {
-    if (playSample('taunt', 0.5)) return;
+    if (playSample('taunt', sampleVol.taunt)) return;
     tone({ freq: 220, dur: 0.14, type: 'square', vol: 0.12, slideTo: 160 });
   },
   // A card is repositioned (warband / shop reorder) — the sourced "reordercard" clip; synth tick fallback.
   reorder: () => {
-    if (playSample('reordercard', 0.5)) return;
+    if (playSample('reordercard', sampleVol.reorder)) return;
     tone({ freq: 440, dur: 0.05, type: 'square', vol: 0.07 });
   },
   upgrade: () => chord([392, 523, 659], { dur: 0.14, type: 'triangle', vol: 0.12 }, 0.07),
@@ -188,7 +218,7 @@ export const sfx = {
   // Impact in combat — the sourced "Smack" clip (dialed down across passes); synth thud until it decodes.
   // Fired frame-accurately from the lunge's GSAP timeline (see playAttackLunge) so it lands on contact.
   hit: () => {
-    if (playSample('smack', SMACK_VOL)) return;
+    if (playSample('smack', sampleVol.smack)) return;
     tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80 });
   },
   death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48 }),
@@ -206,6 +236,15 @@ export const sfx = {
   win: () => chord([523, 659, 784, 1046], { dur: 0.2, type: 'triangle', vol: 0.14 }, 0.1),
   lose: () => chord([392, 311, 233], { dur: 0.24, type: 'sawtooth', vol: 0.13 }, 0.12),
 } as const;
+
+/** Play a sourced clip by its mixer key (for the dev SFX mixer's preview button). */
+const SFX_PREVIEW: Record<string, () => void> = {
+  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
+  discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder,
+};
+export function previewSfx(key: string): void {
+  SFX_PREVIEW[key]?.();
+}
 
 export function isMuted(): boolean {
   return muted;

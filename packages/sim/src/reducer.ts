@@ -10,15 +10,14 @@ import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnB
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
- * The board the *next* combat will serve: a win-matched real opponent from the pool (same number of combats
- * won), or null when the pool is empty (→ the procedural threat). Pure + deterministic — the opponent frame
- * previews it during recruit, and `faceOmen` resolves exactly this.
+ * The board the *next* combat will serve: a wave-matched real opponent from the pool (same development stage),
+ * or null when the pool is empty (→ the procedural threat). Pure + deterministic — the opponent frame previews
+ * it during recruit, and `faceOmen` resolves exactly this.
  */
 export function nextOpponent(s: RunState): BoardSnapshot | null {
-  // Match on WINS so far (you face a board at the same point in its climb). Power (captured at TURN START, so
-  // the telegraphed foe stays fixed as you shop) is only the fairness tiebreak among same-win boards.
-  const wins = s.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0);
-  return pickOpponent(wins, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
+  // Match on WAVE (same development stage — see pickOpponent). Power (captured at TURN START, so the
+  // telegraphed foe stays fixed as you shop) is the fairness tiebreak among same-wave boards.
+  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
 }
 
 /** Loss-damage cap by round (early-game protection): 5 through wave 3, 10 through wave 6, 15 from wave 7. */

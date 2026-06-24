@@ -2354,20 +2354,20 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
 });
 
 describe('opponent pool (M3 step 2 — serve real boards)', () => {
-  it('pickOpponent matches by WINS, prefers real boards, widens to the closest, null only on an empty pool', () => {
+  it('pickOpponent matches by WAVE, prefers real boards, widens to the closest, null only on an empty pool', () => {
     const mk = (over: Partial<BoardSnapshot>): BoardSnapshot => ({
-      v: 1, wave: 3, wins: 2, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
+      v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
       minions: [{ cardId: 'whelp', attack: 10, health: 10, keywords: [] }], seed: 0, ...over,
     });
-    const house2 = mk({ wins: 2, origin: 'house', power: 20 });
-    const self2 = mk({ wins: 2, origin: 'self', author: 'Sam', power: 20 });
-    const house5 = mk({ wins: 5, origin: 'house', power: 50 });
-    // Same win count → prefers the REAL (self) board over the house board.
-    expect(pickOpponent(2, 20, makeRng(7), [house2, self2])?.author).toBe('Sam');
-    // No board at 4 wins → widens to the closest available win count (the 5-win board), never null on a pool.
-    expect(pickOpponent(4, 50, makeRng(7), [house2, house5])?.wins).toBe(5);
+    const house3 = mk({ wave: 3, origin: 'house', power: 20 });
+    const self3 = mk({ wave: 3, origin: 'self', author: 'Sam', power: 20 });
+    const house6 = mk({ wave: 6, origin: 'house', power: 50 });
+    // Same wave (development stage) → prefers the REAL (self) board over the house board.
+    expect(pickOpponent(3, 20, makeRng(7), [house3, self3])?.author).toBe('Sam');
+    // No board at wave 5 → widens to the closest available wave (6), never null on a non-empty pool.
+    expect(pickOpponent(5, 50, makeRng(7), [house3, house6])?.wave).toBe(6);
     // Empty pool → null (the caller falls back to the procedural threat).
-    expect(pickOpponent(2, 20, makeRng(7), [])).toBeNull();
+    expect(pickOpponent(3, 20, makeRng(7), [])).toBeNull();
   });
 
   it('the sim default pool is empty → headless/tests fight procedural omens (the app injects the bootstrap)', () => {

@@ -61,6 +61,10 @@ export function Game() {
       <button className="gearbtn" onPointerDown={() => setMenuOpen(true)} title="Settings (Esc)" aria-label="Settings">
         <Icon name="gear" />
       </button>
+      {/* Build badge above the gear — version + short git SHA, so you can tell at a glance which build is live. */}
+      <div className="version" title={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
+        v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
+      </div>
       {menuOpen && <EscMenu res={res} onRes={setRes} onClose={() => setMenuOpen(false)} />}
       {/* DEV-only live tuners (stripped from production via the static env check). */}
       {import.meta.env.DEV && <SfxMixer />}

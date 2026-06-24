@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { guelProgressText, tallyBuffText } from './cardText';
+import { cadenceProgressText, guelProgressText, tallyBuffText } from './cardText';
 
 describe('cardText helpers', () => {
   it('guelProgressText shows Guel’s live grant + countdown to the next step (golden-aware)', () => {
@@ -27,5 +27,14 @@ describe('cardText helpers', () => {
   it('tallyBuffText falls back (null) at a zero tally or on a non-tally card', () => {
     expect(tallyBuffText('grim', 0)).toBeNull(); // nothing triggered yet → printed text
     expect(tallyBuffText('sandbag', 5)).toBeNull(); // not a tally-buff card
+  });
+
+  it('cadenceProgressText shows Frontdrake’s live countdown to its next Dragon', () => {
+    // every:3 — eotTick 0 → 3 turns; 1 → 2; 2 → 1 (singular); 3 → just granted, 3 again.
+    expect(cadenceProgressText('frontdrake', 0)).toContain('{{Next in 3 turns.}}');
+    expect(cadenceProgressText('frontdrake', 1)).toContain('{{Next in 2 turns.}}');
+    expect(cadenceProgressText('frontdrake', 2)).toContain('{{Next in 1 turn.}}'); // singular
+    expect(cadenceProgressText('frontdrake', 3)).toContain('{{Next in 3 turns.}}');
+    expect(cadenceProgressText('sandbag', 1)).toBeNull(); // not a cadence card
   });
 });

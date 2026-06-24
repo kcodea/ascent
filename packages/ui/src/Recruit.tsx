@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { clingProgressText, guelProgressText, summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
+import { cadenceProgressText, clingProgressText, guelProgressText, summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -163,6 +163,7 @@ function instView(
             tallyBuffText(c.id, deathrattlesTriggered) ??
             guelProgressText(c.id, !!inst.golden, spellsCast) ??
             clingProgressText(c.id, clingEnchant) ??
+            cadenceProgressText(c.id, inst.eotTick ?? 0) ??
             c.text;
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

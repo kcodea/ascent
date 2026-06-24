@@ -99,6 +99,8 @@ export const EffectFactoryIdSchema = z.enum([
   'healHero',
   'conjureTribeArmy',
   'stealTavernMinion',
+  'endOfTurnGrantTribe',
+  'avengeGiveAttack',
 ]);
 
 export const EffectDefSchema = z.object({

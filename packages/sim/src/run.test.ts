@@ -32,6 +32,7 @@ import {
   type RunState,
 } from './index';
 import type { BoardMinion } from '@game/core';
+import { applyEndOfTurn } from './recruit';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
 function playToEnd(seed: number): RunState {
@@ -1112,6 +1113,21 @@ describe('run loop (@game/sim)', () => {
     const conjured = s.hand.find((c) => c.cardId !== 'summonstone');
     expect(conjured).toBeDefined();
     expect(CARD_INDEX[conjured!.cardId]!.tier).toBe(1);
+  });
+
+  it('Frontdrake conjures a Dragon every 3 turns (End-of-Turn counter)', () => {
+    // Pool seeded with one Dragon (Hoard Cleric) + dragon active, so the cadence grant has a draw.
+    const frontdrake: BoardCard = { uid: 'f', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false };
+    const s: RunState = {
+      ...createRun(1), tier: 6, hand: [], board: [frontdrake],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'], pool: { cleric: 5 },
+    };
+    applyEndOfTurn(s); // turn 1 — counts, no grant
+    applyEndOfTurn(s); // turn 2 — counts, no grant
+    expect(s.hand.length).toBe(0);
+    applyEndOfTurn(s); // turn 3 — cadence hits → conjure a Dragon
+    expect(s.hand.map((c) => c.cardId)).toEqual(['cleric']);
+    expect(frontdrake.eotTick).toBe(3);
   });
 
   it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {

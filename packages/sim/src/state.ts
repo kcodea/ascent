@@ -98,6 +98,9 @@ export interface BoardCard {
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that
    *  wasn't bought sells for the base 1, since it has no held-since wave). */
   boughtWave?: number;
+  /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
+   *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
+  eotTick?: number;
 }
 
 export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';

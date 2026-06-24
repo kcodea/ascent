@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Lunge feel re-tune + Tribes Choice no longer hands out neutral glue
+
+- **Combat lunge defaults re-tuned (shipped from the live tuner).** New `DEFAULTS` in `lungeConfig.ts`:
+  `windupDur 0.37`, `windupDepth 0.1`, `strikeDur 0.16`, `strikeDist 1.44`, `smackLead 0.005`,
+  `settleDur 1.06`, `attackGap 0.22` — a weightier, more deliberate swing (longer wind-up + slow elastic
+  settle, shorter inter-swing breather). These came from dialing the DEV Lunge tuner by eye, then committing
+  the values as the new shipped defaults. **Stale-comment fix:** the file header warned to "keep
+  windup+strike near 0.33s or retune `DELAY.attack`" — no longer true. Since the "damage lands at the lunge
+  connection" change, the scheduler derives the attack-beat hold *live* from `windupDur + strikeDur -
+  smackLead` (`useCombatReplay.ts`), so the damage float always lands on contact however these are dialed
+  (the new sum is 0.53s and still connects correctly). Updated the comment to match.
+- **Neutral is no longer a minion "type" for type-rolls.** Neutral cards still appear in shops/Discover as
+  glue, but effects that "give a card of a type" no longer hand out neutrals. Concretely: **Tribes Choice**
+  cast on a *neutral* target now fizzles (no conjure) instead of rolling a random neutral — `tribe ===
+  'neutral'` short-circuits `spellGainOfTargetTribe` in `recruit.ts`. This mirrors `dominantBoardTribe`
+  (Cassen / the upcoming Tribe Portal), which already excluded neutral. Audited the other type-rolls
+  (Undead Army, Cassen's top-type grant) — they key off a fixed/dominant non-neutral tribe, so no neutral
+  could leak there. Added a `run.test.ts` case asserting the neutral-target fizzle. Verified: typecheck +
+  lint clean, 288 tests pass (run.test 199 → 200), `build:web` green.
+- *(Note: "remove Ember Whelp" was deferred from this batch into the upcoming Dragons PR — `whelp` is a
+  generic dragon test fixture in ~12 spots + baked into the generated opponent pool, and there's no other
+  T1 dragon to repoint to until Twilight Whelp / Frontdrake exist. Cleaner to remove it there.)*
 ### Lunge feel retune — weightier swing, damage beat kept on contact
 
 - **New shipped lunge defaults** (`packages/ui/src/lungeConfig.ts`), tuned by eye in the DEV Lunge tuner:

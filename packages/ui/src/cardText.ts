@@ -111,7 +111,7 @@ export function guelProgressText(cardId: string, golden: boolean, spellsCast: nu
   const cur = (base + Math.floor(spellsCast / 4)) * mult; // the current grant size
   const per = base * mult; // the per-4-spells improvement size (golden ×2)
   const toNext = 4 - (spellsCast % 4); // spells until the next step
-  return `After you cast a tavern spell, give ${count} other friendly minions {{+${cur}/+${cur}}} (improves **+${per}/+${per}** per 4 spells — {{${toNext} to go}}).`;
+  return `After a spell is cast (shop or combat), give ${count} other friendly minions {{+${cur}/+${cur}}} (improves **+${per}/+${per}** per 4 spells — {{${toNext} to go}}).`;
 }
 
 /**

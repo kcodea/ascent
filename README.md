@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Spells cast in combat now trigger Guel.** Taragosa's Growth is a real spell cast — it fires **Archmagus
+  Guel** mid-fight (a temporary buff) and **permanently** counts toward his improvement (combat casts bump the
+  run's spell tally). Combat gained a real `castSpell` path for this.
 - **Batch fixes + hero-power art.** Wired **8 hero-power button arts** + rewired Cling/Stuntdrake/Sea Urchin.
   **Hoarder** → T2 2/2; **Sea Urchin** can’t Discover itself; **Gryphon**’s free refresh is now per-hit (cap 4);
   **Frontdrake** plays nice with Djinn (no cadence skip, but works on the proc turn), shows a live

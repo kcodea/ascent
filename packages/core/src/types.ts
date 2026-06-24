@@ -363,6 +363,9 @@ export interface CombatResult {
   /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
    *  settleCombat. Absent if 0. */
   playerMaxGoldGain?: number;
+  /** Spells the player cast IN this combat (Taragosa's Growth). Added to the run's `spellsCast` in
+   *  settleCombat — so combat casts permanently improve spell-count payoffs (Archmagus Guel). Absent if 0. */
+  playerSpellsCast?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
   odds?: { win: number; draw: number; lose: number };
@@ -413,6 +416,11 @@ export interface CombatContext {
   /** Grant `count` random tavern-tier spells to the player's hand after combat (Sporebat). Player-only;
    *  carried back via CombatResult.playerSpellGrants (picked at settle, where the tavern tier is known). */
   grantRandomSpell(count: number, side: Side): void;
+  /** A minion casts a spell mid-combat (Taragosa's Growth). Tallies the cast (the running per-side count
+   *  is reported in the `spellCast` event payload so Guel scales) and, for the player, carries it back via
+   *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
+   *  (the buff/damage) is applied by the caller — this just fires the `spellCast` trigger + counts it. */
+  castSpell(side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

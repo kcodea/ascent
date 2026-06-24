@@ -371,7 +371,28 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 3);
     const h = num(params.health, 4);
     for (let r = 0; r < mul(self); r++) {
+      ctx.castSpell(self.side); // Growth is a REAL spell cast — fires Guel + counts toward his (permanent) improvement
       for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
+  /** Archmagus Guel (combat half) — when a friendly spell is cast mid-fight (Taragosa's Growth), give
+   *  `count` other random friendly minions +atk/+hp, scaling +1/+1 per 4 spells cast so far (the running
+   *  per-side tally rides in the `spellCast` payload; the triggering cast is already counted, matching the
+   *  recruit half). Golden doubles. The grant is a normal combat buff (temporary) — the PERMANENT
+   *  improvement comes from the cast being carried back to the run's `spellsCast` (see `ctx.castSpell`). */
+  spellCastBuffOthers: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const pickable = ctx.living(self.side).filter((m) => m !== self);
+    const step = Math.floor(count / 4);
+    const a = (num(params.attack, 1) + step) * mul(self);
+    const h = (num(params.health, 1) + step) * mul(self);
+    const targets = num(params.count, 2);
+    for (let i = 0; i < targets && pickable.length > 0; i++) {
+      const m = ctx.rng.pick(pickable);
+      pickable.splice(pickable.indexOf(m), 1);
+      ctx.buff(m, a, h, self.uid);
     }
   },
 

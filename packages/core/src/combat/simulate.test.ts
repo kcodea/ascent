@@ -739,6 +739,35 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // Growth +3/+4
   });
 
+  it('Taragosa casts a REAL spell in combat → triggers Guel and carries the cast back to the run', () => {
+    const a = run(
+      [
+        { cardId: 'taragosa', attack: 3, health: 50 },
+        { cardId: 'guel', attack: 2, health: 50 }, // After a spell is cast, buffs 2 others +1/+1 (+step)
+        { cardId: 'sandbag', attack: 1, health: 50, keywords: [] }, // an attacker to drive ally attacks
+      ],
+      [{ cardId: 'omen', attack: 0, health: 80 }], // 0-attack → the player just keeps swinging
+      3,
+    );
+    // Each Growth cast is a real spell cast → carried back to bump the run's spellsCast…
+    expect(a.playerSpellsCast).toBeGreaterThan(0);
+    // …and it fires Guel mid-combat: its +1/+1 grant (distinct from Growth's +3/+4) lands on the early casts.
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 1)).toBe(true);
+  });
+
+  it('Guel scales in combat with the run spellsCast passed in (start at 4 → +2/+2 grant)', () => {
+    // spellsCast = 4 at combat start → step = floor((4+1)/4) = 1 on the first cast → Guel grants +2/+2.
+    const a = simulate(
+      [
+        { cardId: 'taragosa', attack: 3, health: 50 },
+        { cardId: 'guel', attack: 2, health: 50 },
+      ],
+      [{ cardId: 'omen', attack: 0, health: 80 }],
+      makeRng(3), CARD_INDEX, 0, 0, 1, 0, 0, 4, // …, spellsCast = 4
+    );
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+  });
+
   it('Tara tallies its in-combat stat-grants (reported via playerAscendCount)', () => {
     const a = run(
       [

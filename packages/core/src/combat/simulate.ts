@@ -35,6 +35,7 @@ export function simulate(
   enemyTier = 1,
   undeadAttackBonus = 0,
   undeadHealthBonus = 0,
+  spellsCast = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -48,6 +49,10 @@ export function simulate(
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
   let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
   let spellGrants = 0; // random tavern-tier spells granted to the hand after combat (Sporebat's Deathrattle)
+  // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
+  // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
+  const spellTotals: Record<Side, number> = { player: spellsCast, enemy: 0 };
+  let playerCombatSpells = 0; // spells the player cast THIS combat → added to the run's spellsCast at settle
 
   /**
    * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
@@ -189,6 +194,11 @@ export function simulate(
     grantRandomSpell: (count, side) => {
       if (side !== 'player') return; // enemies have no hand
       spellGrants += count;
+    },
+    castSpell: (side) => {
+      spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
+      if (side === 'player') playerCombatSpells += 1; // carried back → permanently bumps the run's spellsCast
+      bus.emit('spellCast', { side, count: spellTotals[side] });
     },
   };
 
@@ -598,5 +608,6 @@ export function simulate(
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
     playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
+    playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
   };
 }

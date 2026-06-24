@@ -238,6 +238,15 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'k')?.summonBonus).toBe(2); // carried back from combat
   });
 
+  it('spells cast in combat (Taragosa) permanently bump the run spellsCast at settle', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'combat', spellsCast: 5,
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerSpellsCast: 3 },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.spellsCast).toBe(8); // 5 (run) + 3 (cast in combat) — permanent, so Guel keeps improving
+  });
+
   it('Tara ascends to Taragosa once granted stats 20 times in combat (at settle), keeping its stats', () => {
     let s: RunState = {
       ...createRun(1), phase: 'combat',

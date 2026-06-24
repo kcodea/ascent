@@ -138,6 +138,10 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## M2 — content + balance (in progress)
 
+- **Combat spell-casts → Archmagus Guel (shipped 2026-06-24 → devlog):** combat now has a real `ctx.castSpell`
+  path. Taragosa's Growth is a real spell cast that fires Guel mid-fight (temporary buff) and **permanently**
+  counts toward his improvement (carried back to the run's `spellsCast`). `simulate` takes the run `spellsCast`
+  (Guel's grant scales) + returns `playerSpellsCast`. Opens the door to more in-combat spell-casters.
 - [~] **Big content batch — ~16 new minions + 6 spells (Beast/Dragon push)** (specced 2026-06-24, landed in
       phased PRs). Beasts: Manasaber (+Saber Cub token), Gryphon, Raptor, Sporebat, Sea Urchin, Mama Bear.
       Dragons: Twilight Whelp (+Whelp token), Frontdrake, Tara→Taragosa, Supporter, Bronze Warden, Twilight

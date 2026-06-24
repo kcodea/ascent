@@ -41,7 +41,7 @@ soulsman,Soulsman,3,2,5,,,**Avenge (4):** raise your maximum Gold by **1**.,**Av
 deathsayer,Deathsayer,4,3,5,,Rally,"**Rally:** before this attacks, trigger your leftmost Deathrattle.","**Rally:** before this attacks, trigger your leftmost Deathrattle **twice**."
 toxin,Toxin Tender,5,3,1,,,**Battlecry:** give a friendly **Undead** **Venomous**.,
 
-# === MECH (11) ===
+# === MECH (12) ===
 drone,Spare Part Drone,1,2,1,,Divine Shield,,
 cling,Cling Drone,2,2,2,,Magnetic,"Each time a Cling Drone is magnetized, your Cling Drones get **+1/+1**.",
 selfless,Selfless Sentinel,2,2,1,,,**Deathrattle:** give a friend a **Divine Shield**.,
@@ -53,6 +53,7 @@ speedy,Speedy,4,4,4,,Windfury | Magnetic,,
 betterbot,Better Bot,5,6,4,,Magnetic | Rally,"**Rally:** give your other Mechs **+5 Attack**. **Magnetic** — welds onto a Mech, which then grants the buff (stacks).",
 combinator,Combinator,5,6,7,,,**End of Turn:** magnetize a random **Magnetic** Mech onto a friendly Mech.,**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.
 beatboxer,Beatboxer,6,8,8,,,"Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.","Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this."
+nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.","**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**."
 
 # === DEMON (7) ===
 feed,Soulfeeder,1,2,2,,,**Battlecry:** add Fodder to your next tavern.,**Battlecry:** add **2** Fodder to your next tavern.
@@ -111,6 +112,7 @@ perfectvision,Perfect Vision,6,,,2,,Set a friendly minion's stats to **20/20**.,
 # === TOKENS (10) — not rollable ===
 fred,Fred,1,1,1,,Fodder,A 1/1 Demon **Fodder** — your Demons devour it from the tavern.,
 impscrap,Imp,1,1,1,,,,
+nanobot,Nanobot,1,1,1,,,A 1/1 Mech.,
 omen,Omen Minion,1,1,1,,,,
 pup,Pup,1,1,1,,,A 1/1 Beast token.,
 sabercub,Saber Cub,1,0,2,,Taunt,A 0/2 Beast with **Taunt**.,

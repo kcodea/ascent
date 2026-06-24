@@ -15,6 +15,19 @@ export const TOKENS: CardDef[] = [
     token: true,
   },
   {
+    // Nanon's Deathrattle swarm — a plain 1/1 Mech body. Not in the shop.
+    id: 'nanobot',
+    name: 'Nanobot',
+    tribe: 'mech',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    text: 'A 1/1 Mech.',
+    token: true,
+  },
+  {
     id: 'stray',
     name: 'Stray',
     tribe: 'beast',

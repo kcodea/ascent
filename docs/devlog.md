@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Orangez's real boards baked into the pool · frozen-tavern ice effect · pulse cue
+
+- **First real friend boards shipped.** Imported Orangez's export (300 boards / 22 runs), **filtered out the
+  one test run** (a single injected board at wave 20 — kept only multi-board runs that terminated in a
+  win/lose), retagged as `origin:'friend'`/author Orangez → `docs/board-exports/orangez.json`. `npm run pool`
+  now bakes **323 boards across waves 1–20** (was 196, waves 1–9) — Orangez's runs fill the high waves the bot
+  can't reach. Also taught the pool tool to **prefer real boards** when capping per wave (`curateWave`: real
+  first, then house). Verified live: at wave 12 the pool serves an "Orangez" board.
+- **Frozen-tavern ice effect.** When you freeze the tavern, each held shop card ices over — an icy-blue
+  frosted overlay (`[data-zone="tavern"].frozen .card::after`) that **ramps up** from the top edge down
+  (clip-path reveal) with a slight per-card stagger so the freeze sweeps across the row. One-shot (not a
+  loop → cheap); recruit-only so combat units never frost. Verified live (computed `::after` = the frost +
+  `frostin` animation).
+- **`pulse` cue wired** — choosing a hero (the Choose button) and pressing the hero-power button both play
+  `pulse` (replacing the old `temper` placeholder; the button press is the cue, so no per-action sound). Added
+  to the tunable registry + dev mixer.
+
 ### Matchmaking back to WAVE-based + dev SFX mixer + tunable clip volumes
 
 - **Reverted matchmaking from wins → WAVE.** Win count isn't development stage: a player at wave 5 with 0 wins

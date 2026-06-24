@@ -52,10 +52,10 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
     }
     case 'sell': sfx.sell(); break;
     case 'roll': sfx.roll(); break;
-    case 'freeze': sfx.freeze(); break;
+    case 'freeze': (next.frozen ? sfx.freeze : sfx.unfreeze)(); break; // toggle → freeze vs unfreeze cue
     case 'reposition': case 'reorderShop': sfx.reorder(); break;
     case 'upgrade': sfx.upgrade(); break;
-    case 'heroPower': sfx.temper(); break;
+    // hero power: the "pulse" cue plays on the button press (StatusBar), so no per-action sound here.
     case 'discover': sfx.buy(); break;
     case 'faceOmen': sfx.combatStart(); break;
     default: break;
@@ -170,7 +170,7 @@ export const useGame = create<GameStore>((set, get) => ({
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   setCombatEnemyDeaths: (n) => set({ combatEnemyDeaths: n }),
-  inspectCard: (view) => set({ inspect: view }),
+  inspectCard: (view) => { sfx.inspect(); set({ inspect: view }); },
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
   pickHero: (heroId) =>

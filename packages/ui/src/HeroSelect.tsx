@@ -1,6 +1,7 @@
 import { getHero } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
+import { sfx } from './sfx';
 import { useGame } from './store';
 
 /**
@@ -39,7 +40,7 @@ export function HeroSelect() {
             const power = hero.power;
             const art = heroArt(hero.id);
             return (
-              <button key={id} className="herocard" onClick={() => pickHero(id)}>
+              <button key={id} className="herocard" onClick={() => { sfx.pulse(); pickHero(id); }}>
                 <div className="hcart">
                   {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
                 </div>

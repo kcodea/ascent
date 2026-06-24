@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CONFIG, boardManaBonus, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
+import { sfx } from './sfx';
 import { useGame } from './store';
 
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
@@ -131,6 +132,7 @@ export function StatusBar() {
             onClick={(e) => {
               e.stopPropagation();
               if (isPassive || !canHero || heroArmed) return;
+              sfx.pulse(); // the hero-power "pulse" cue, on pressing the button (fire or arm)
               if (power.untargeted) dispatch({ type: 'heroPower' });
               else armHero();
             }}

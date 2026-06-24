@@ -143,6 +143,9 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   reorder: 0.225, // smack-pass −55% from 0.5
   deny: 0.5,
   freeze: 0.5,
+  unfreeze: 0.5,
+  pulse: 0.5,
+  inspect: 0.5,
 };
 let sampleVol: Record<string, number> = (() => {
   try {
@@ -185,6 +188,16 @@ export const sfx = {
     if (playSample('freezetavern', sampleVol.freeze)) return;
     [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d }));
   },
+  // Unfreeze the tavern — the sourced "unfreezetavern" clip; synth descending sweep fallback.
+  unfreeze: () => {
+    if (playSample('unfreezetavern', sampleVol.unfreeze)) return;
+    [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 560 - i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d }));
+  },
+  // Inspect a card (right-click → enlarged overlay) — the sourced "inspect" clip; soft synth ping fallback.
+  inspect: () => {
+    if (playSample('inspect', sampleVol.inspect)) return;
+    tone({ freq: 880, dur: 0.07, type: 'sine', vol: 0.08, slideTo: 1100 });
+  },
   // A MINION lands on the board — the sourced "cardlanding" clip at the smack level; synth slide until it
   // decodes / if absent. Drop the clip at `packages/ui/src/audio/cardlanding.mp3`.
   play: () => {
@@ -216,6 +229,11 @@ export const sfx = {
     tone({ freq: 440, dur: 0.05, type: 'square', vol: 0.07 });
   },
   upgrade: () => chord([392, 523, 659], { dur: 0.14, type: 'triangle', vol: 0.12 }, 0.07),
+  // Choosing a hero / pressing the hero-power button — the sourced "pulse" clip; synth ping fallback.
+  pulse: () => {
+    if (playSample('pulse', sampleVol.pulse)) return;
+    tone({ freq: 1400, dur: 0.1, type: 'sine', vol: 0.12, slideTo: 1900 });
+  },
   temper: () => {
     tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1 });
     tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04 });
@@ -249,6 +267,7 @@ export const sfx = {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, inspect: sfx.inspect,
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();

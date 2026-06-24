@@ -1427,7 +1427,7 @@ export function Recruit() {
         </div>
       )}
 
-      <div className="zone" data-zone="tavern">
+      <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
         {shopFlash > 0 && <div className="shopflash" key={shopFlash} aria-hidden="true" />}
         <div className="row">
           {fighting ? (

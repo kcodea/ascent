@@ -42,6 +42,16 @@ function spreadByPower(list: BoardSnapshot[], cap: number): BoardSnapshot[] {
   return out;
 }
 
+/** Keep up to `cap` boards for a wave, PREFERRING real (player/friend) boards over house — fill with all the
+ *  real ones first (power-spread if they overflow), then top up with house boards. So the shipped pool is
+ *  real-heavy wherever player data exists, and matchmaking faces people, not bots. */
+function curateWave(boards: BoardSnapshot[], cap: number): BoardSnapshot[] {
+  const real = boards.filter((s) => s.origin === 'self' || s.origin === 'friend');
+  const house = boards.filter((s) => s.origin !== 'self' && s.origin !== 'friend');
+  if (real.length >= cap) return spreadByPower(real, cap);
+  return [...real, ...spreadByPower(house, cap - real.length)];
+}
+
 /** Read the optional imported-board exports (yours + friends'), stamping origin/author/date. */
 function loadImported(): BoardSnapshot[] {
   if (!existsSync(EXPORTS_DIR)) return [];
@@ -86,7 +96,7 @@ const byWave = new Map<number, BoardSnapshot[]>();
 for (const s of deduped) (byWave.get(s.wave) ?? byWave.set(s.wave, []).get(s.wave)!).push(s);
 const pool = [...byWave.keys()]
   .sort((a, b) => a - b)
-  .flatMap((w) => spreadByPower(byWave.get(w)!, CAP_PER_WAVE).sort((a, b) => a.power - b.power));
+  .flatMap((w) => curateWave(byWave.get(w)!, CAP_PER_WAVE).sort((a, b) => a.power - b.power));
 
 // Bake a simulate-derived strength rating (0..1) into every board — keyword/synergy-aware, the basis for
 // true-strength matchmaking + band synthesis. Deterministic, so the committed data is stable across runs.

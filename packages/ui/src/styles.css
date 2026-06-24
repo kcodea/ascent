@@ -506,6 +506,33 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* keyword glows ring the card box — give it the arch radius so they follow the silhouette, and
    re-shape the rectangular Divine-Shield / Reborn washes to the arch too (no more squared-off top). */
 .card.compact.dscard::after, .card.compact.reborncard::after { border-radius: var(--arch-radius); }
+/* Frozen tavern — each held shop card ices over, the frost RAMPING UP from the top edge down (a quick
+   one-shot clip-path reveal, not a continuous loop → cheap). The `frozen` class is recruit-only, so combat
+   enemy units never frost. */
+[data-zone="tavern"].frozen .card::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--arch-radius);
+  pointer-events: none;
+  z-index: 9;
+  background: linear-gradient(158deg, rgba(192, 231, 255, 0.5), rgba(135, 198, 242, 0.26) 48%, rgba(216, 245, 255, 0.55));
+  border: 2px solid rgba(228, 248, 255, 0.82);
+  box-shadow: inset 0 0 18px 3px rgba(205, 238, 255, 0.7), 0 0 12px rgba(165, 218, 255, 0.5);
+  animation: frostin 0.45s ease-out both;
+}
+/* slight per-card stagger so the freeze sweeps across the row instead of all at once */
+[data-zone="tavern"].frozen .card:nth-child(2)::after { animation-delay: 0.05s; }
+[data-zone="tavern"].frozen .card:nth-child(3)::after { animation-delay: 0.1s; }
+[data-zone="tavern"].frozen .card:nth-child(4)::after { animation-delay: 0.15s; }
+[data-zone="tavern"].frozen .card:nth-child(5)::after { animation-delay: 0.2s; }
+[data-zone="tavern"].frozen .card:nth-child(6)::after { animation-delay: 0.25s; }
+[data-zone="tavern"].frozen .card:nth-child(7)::after { animation-delay: 0.3s; }
+@keyframes frostin {
+  0% { opacity: 0; clip-path: inset(0 0 100% 0); }
+  55% { opacity: 1; }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+}
 /* tier pill rides the arch top */
 .card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: 2px solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
 /* circular, gold-set attack / health badges in the arch's bottom corners (relative to .archbox) */

@@ -339,6 +339,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(minion, nameOf(self), num(params.attack) + bonus, num(params.health) + bonus);
   },
 
+  /** Mama Bear (recruit half) — when a beast is summoned (played / token), buff it +M/+M where M = (base +
+   *  accrued `summonBonus`) × golden, then summonBonus climbs by `base`. The improve persists across combat
+   *  via the summonBonus carry-back (the combat half mirrors this). A triple resets the accrual (the
+   *  summonBonus-combine in checkTriples is keyed to buffOnSummon, not this factory). */
+  summonBuffTribeImprove: (_ctx, self, params, { minion }) => {
+    if (minion === self) return;
+    const tribe = str(params.tribe);
+    if (tribe && minion.tribe !== tribe && CARD_INDEX[minion.cardId]?.tribe2 !== tribe) return;
+    const base = num(params.attack, 3);
+    const mag = (base + (self.summonBonus ?? 0)) * gold(self);
+    addBuff(minion, nameOf(self), mag, mag);
+    self.summonBonus = (self.summonBonus ?? 0) + base;
+  },
+
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
   battlecryBuffTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
@@ -628,7 +642,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   deathrattleSummon: (ctx, self, params) => {
     const token = CARD_INDEX[str(params.tokenId)];
     if (!token) return;
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) ctx.summon(token, self.uid);
+    const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
+      const m = ctx.summon(token, self.uid);
+      if (kw && m && !m.keywords.includes(kw)) m.keywords.push(kw);
+    }
   },
 
   /** Deathrattle: buff all friends of `tribe` (+atk/+hp). */
@@ -839,6 +857,35 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
     const source = str(params._source) || 'Growth';
     for (const card of ctx.state.board) addBuff(card, source, attack, health);
+  },
+
+  /** Cupcakes — cast: the chosen Demon (`self`) consumes `count` random tavern minions. Each feeds the Demon
+   *  its stats × the Demon's fodder multiplier (Voracious Imp ×2) and fires its on-consume effects (Maw's
+   *  shield, etc.) — the normal Consume pipeline + the UI swirl. No-op if the target isn't a Demon. */
+  spellDemonConsumeTavern: (ctx, self, params) => {
+    if (!self || !isTribe(self, 'demon')) return;
+    const count = num(params.count, 3);
+    const rng = makeRng(ctx.state.rngCursor);
+    const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
+    for (let i = 0; i < count && ctx.state.shop.length > 0; i++) {
+      const idx = rng.int(ctx.state.shop.length);
+      const offer = ctx.state.shop[idx]!;
+      const meal = CARD_INDEX[offer.cardId];
+      ctx.state.shop.splice(idx, 1);
+      if (!meal) continue;
+      const mult = fodderMultiplier(self);
+      const cb = cardBuff(ctx.state, meal.id);
+      const ma = meal.attack + cb.attack + (offer.atk ?? 0);
+      const mh = meal.health + cb.health + (offer.hp ?? 0);
+      addBuff(self, 'Consume', ma * mult, mh * mult);
+      fire(ctx, 'onConsume', { minion: self });
+      eaten.push({ eaterUid: self.uid, fodderId: meal.id, attack: ma, health: mh, gainA: ma * mult, gainH: mh * mult });
+    }
+    ctx.state.rngCursor = rng.state();
+    if (eaten.length > 0) {
+      ctx.state.fodderEaten = eaten;
+      ctx.state.fodderEatenSeq += 1;
+    }
   },
 
   /** Perfect Vision — cast: SET the target's stats to a/h (absolute, not additive). Records the delta as a

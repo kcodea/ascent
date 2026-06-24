@@ -90,7 +90,7 @@ describe('run loop (@game/sim)', () => {
     const mk = (uid: string, cardId: string): BoardCard => ({
       uid, cardId, tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false,
     });
-    let s: RunState = { ...createRun(1), board: [mk('a', 'sandbag'), mk('b', 'alley'), mk('c', 'whelp')] };
+    let s: RunState = { ...createRun(1), board: [mk('a', 'sandbag'), mk('b', 'alley'), mk('c', 'frontdrake')] };
     s = reduce(s, { type: 'reposition', uid: 'c', toIndex: 0 });
     expect(s.board.map((m) => m.uid)).toEqual(['c', 'a', 'b']);
   });
@@ -345,12 +345,12 @@ describe('run loop (@game/sim)', () => {
       ...createRun(1),
       embers: 3,
       hand: [],
-      board: [{ uid: 'w', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: ['SC'], golden: false }],
+      board: [{ uid: 'w', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: ['SC'], golden: false }],
       shop: [{ uid: 'x', cardId: 'cleric' }],
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    expect(s.board.find((c) => c.cardId === 'whelp')?.attack).toBe(4); // 2 + 2
+    expect(s.board.find((c) => c.cardId === 'frontdrake')?.attack).toBe(4); // 2 + 2
     const cleric = s.board.find((c) => c.cardId === 'cleric');
     expect(cleric?.attack).toBe(5); // 3 + 2 (Battlecry includes self)
     expect(cleric?.health).toBe(7); // 4 + 3
@@ -1153,6 +1153,21 @@ describe('run loop (@game/sim)', () => {
     expect(frontdrake.eotTick).toBe(3);
   });
 
+  it('Mama Bear buffs each summoned Beast, improving the buff by +3/+3 each time (recruit)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
+      hand: [
+        { uid: 'b1', cardId: 'pack', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }, // Deathrattle only — no summon on play
+        { uid: 'b2', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'b1' }); // first Beast summoned → +3/+3
+    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 3); // 5
+    s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +6/+6
+    expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 6); // 13
+  });
+
   it('Sea Urchin Battlecry offers a Discover of Beasts only (up to tavern tier)', () => {
     // Pool mixes Beasts + a Dragon (cleric); the Discover must offer only Beasts.
     let s: RunState = {
@@ -1215,6 +1230,18 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm' });
     const t = s.board.find((c) => c.uid === 'm')!;
     expect([t.attack, t.health]).toEqual([20, 20]);
+  });
+
+  it('Cupcakes — the chosen Demon consumes 3 random tavern minions (gains stats; tavern shrinks by 3)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0,
+      board: [{ uid: 'd', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }], // Voracious Imp (2× consume)
+      shop: [{ uid: 'a', cardId: 'alley' }, { uid: 'b', cardId: 'pack' }, { uid: 'c', cardId: 'kennel' }, { uid: 'e', cardId: 'gnash' }],
+      hand: [{ uid: 'sp', cardId: 'cupcakes', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'd' });
+    expect(s.shop.length).toBe(1); // 4 − 3 consumed
+    expect(s.board.find((c) => c.uid === 'd')!.attack).toBeGreaterThan(2); // the Demon grew from eating
   });
 
   it('Apples buffs the current tavern offers +2/+3, and a buy bakes it in', () => {
@@ -1452,7 +1479,7 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('Discover adds the chosen card to the hand and clears the offer', () => {
-    let s: RunState = { ...createRun(1), hand: [], discover: ['whelp', 'cleric', 'weaver'] };
+    let s: RunState = { ...createRun(1), hand: [], discover: ['frontdrake', 'cleric', 'weaver'] };
     s = reduce(s, { type: 'discover', index: 1 });
     expect(s.hand.some((c) => c.cardId === 'cleric')).toBe(true);
     expect(s.discover).toBeUndefined();
@@ -1463,12 +1490,12 @@ describe('run loop (@game/sim)', () => {
       ...createRun(1),
       embers: 0,
       shop: [],
-      board: [{ uid: 'w', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: ['SC'], golden: false }],
+      board: [{ uid: 'w', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: ['SC'], golden: false }],
       hand: [{ uid: 'gc', cardId: 'cleric', tribe: 'dragon', attack: 2, health: 6, keywords: [], golden: true }],
     };
     s = reduce(s, { type: 'play', uid: 'gc' }); // golden Hoard Cleric: Dragons +4/+6 (doubled)
-    expect(s.board.find((c) => c.cardId === 'whelp')?.attack).toBe(6); // 2 + 4
-    expect(s.board.find((c) => c.cardId === 'whelp')?.health).toBe(7); // 1 + 6
+    expect(s.board.find((c) => c.cardId === 'frontdrake')?.attack).toBe(6); // 2 + 4
+    expect(s.board.find((c) => c.cardId === 'frontdrake')?.health).toBe(7); // 1 + 6
   });
 
   it('a run draws 5 distinct tribes and the shop only offers them (+ neutral)', () => {
@@ -1818,7 +1845,7 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('addBuff accumulates per source with a count, and ignores keyword-only (0/0) grants', () => {
-    const card: BoardCard = { uid: 'x', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false };
+    const card: BoardCard = { uid: 'x', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false };
     addBuff(card, 'Spirit Fire', 3, 3);
     addBuff(card, 'Spirit Fire', 3, 3);
     addBuff(card, 'Karwind', 1, 2);
@@ -1834,7 +1861,7 @@ describe('run loop (@game/sim)', () => {
     let s: RunState = {
       ...createRun(7),
       heroReady: true,
-      board: [{ uid: 'd', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false }],
+      board: [{ uid: 'd', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'heroPower', uid: 'd' });
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 2]);
@@ -1847,7 +1874,7 @@ describe('run loop (@game/sim)', () => {
       embers: 99,
       board: [
         { uid: 'k', cardId: 'karwind', tribe: 'dragon', attack: 2, health: 12, keywords: [], golden: false },
-        { uid: 'd', cardId: 'whelp', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false },
+        { uid: 'd', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false },
       ],
       hand: [{ uid: 'p', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false }],
     };
@@ -2314,7 +2341,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
   const worgen = (): BoardCard =>
     ({ uid: 'w', cardId: 'spiritworgen', tribe: 'beast', attack: 4, health: 6, keywords: [], golden: false });
   const whelp = (uid: string): BoardCard =>
-    ({ uid, cardId: 'whelp', tribe: 'dragon', attack: 1, health: 1, keywords: [], golden: false });
+    ({ uid, cardId: 'frontdrake', tribe: 'dragon', attack: 1, health: 1, keywords: [], golden: false });
   const worgenAtk = (s: RunState): number => s.board.find((c) => c.uid === 'w')!.attack;
 
   it('the Pup transforms after 10 spells on board, keeping its stats (no buff on transform)', () => {
@@ -2500,7 +2527,7 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
   it('pickOpponent matches by WAVE, prefers real boards, widens to the closest, null only on an empty pool', () => {
     const mk = (over: Partial<BoardSnapshot>): BoardSnapshot => ({
       v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
-      minions: [{ cardId: 'whelp', attack: 10, health: 10, keywords: [] }], seed: 0, ...over,
+      minions: [{ cardId: 'frontdrake', attack: 10, health: 10, keywords: [] }], seed: 0, ...over,
     });
     const house3 = mk({ wave: 3, origin: 'house', power: 20 });
     const self3 = mk({ wave: 3, origin: 'self', author: 'Sam', power: 20 });
@@ -2547,7 +2574,7 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
   it('isServableBoard rejects boards referencing a card this build no longer has (stale capture)', () => {
     const known: BoardSnapshot = {
       v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
-      minions: [{ cardId: 'whelp', attack: 5, health: 5, keywords: [] }], seed: 0,
+      minions: [{ cardId: 'frontdrake', attack: 5, health: 5, keywords: [] }], seed: 0,
     };
     const stale: BoardSnapshot = { ...known, minions: [{ cardId: 'lifebinder', attack: 9, health: 9, keywords: [] }] };
     expect(isServableBoard(known)).toBe(true);
@@ -2557,13 +2584,13 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
   it('registerOpponents drops stale boards so they never enter the served pool', () => {
     const known: BoardSnapshot = {
       v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
-      minions: [{ cardId: 'whelp', attack: 5, health: 5, keywords: [] }], seed: 0,
+      minions: [{ cardId: 'frontdrake', attack: 5, health: 5, keywords: [] }], seed: 0,
     };
     const stale: BoardSnapshot = { ...known, minions: [{ cardId: 'lifebinder', attack: 9, health: 9, keywords: [] }] };
     try {
       registerOpponents([known, stale]);
       expect(OPPONENT_POOL).toHaveLength(1);
-      expect(OPPONENT_POOL[0]!.minions[0]!.cardId).toBe('whelp'); // only the fightable board got through
+      expect(OPPONENT_POOL[0]!.minions[0]!.cardId).toBe('frontdrake'); // only the fightable board got through
     } finally {
       OPPONENT_POOL.length = 0;
     }
@@ -2840,7 +2867,7 @@ describe('content batch: new minions (@game/sim)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
-        card('d', 'whelp', 'dragon', 2, 1), // another Dragon on board
+        card('d', 'frontdrake', 'dragon', 2, 1), // another Dragon on board
         card('n', 'sandbag', 'neutral', 0, 4), // a non-Dragon: untouched
       ],
       hand: [card('hc', 'cleric', 'dragon', 3, 4)],

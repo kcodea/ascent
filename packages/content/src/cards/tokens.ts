@@ -81,5 +81,18 @@ export const TOKENS: CardDef[] = [
     effects: [{ on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { attack: 3, health: 4 } }],
     text: 'When a minion attacks, cast **Growth** (+3/+4 to your minions).',
     goldenText: 'When a minion attacks, cast **Growth twice** (+6/+8 to your minions).',
+    // Twilight Whelp's Deathrattle cub — a 3/3 Dragon that ATTACKS IMMEDIATELY when summoned (out of turn
+    // order), then joins the rotation. Not in the shop. (Broodmother → Twilight Whelps → these.)
+    id: 'whelpling',
+    name: 'Whelp',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [],
+    attackOnSummon: true,
+    text: 'A 3/3 Dragon that attacks immediately when summoned.',
+    token: true,
   },
 ];

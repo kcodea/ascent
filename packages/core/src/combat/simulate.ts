@@ -18,6 +18,7 @@ import { instantiate, type CardIndex } from './minion';
 const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 const ITERATION_GUARD = 300;
 const REATTACK_GUARD = 50;
+const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps (each kill can spawn another)
 
 /**
  * Resolve a combat deterministically (handoff A.3) and return an event log the
@@ -45,6 +46,8 @@ export function simulate(
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
+  let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
+  let spellGrants = 0; // random tavern-tier spells granted to the hand after combat (Sporebat's Deathrattle)
 
   /**
    * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
@@ -179,6 +182,14 @@ export function simulate(
       if (side !== 'player') return; // enemies have no economy
       maxGoldGain += amount;
     },
+    grantFreeRolls: (count, side) => {
+      if (side !== 'player') return; // enemies have no shop
+      freeRollGrants += count;
+    },
+    grantRandomSpell: (count, side) => {
+      if (side !== 'player') return; // enemies have no hand
+      spellGrants += count;
+    },
   };
 
   /**
@@ -217,6 +228,9 @@ export function simulate(
       for (const m of boards[side]) if (!m.dead && m.health > 0 && m.cardId === 'echo') echoes += m.golden ? 2 : 1;
       for (let i = 0; i < echoes && countLiving(side) < 7; i++) summonMinion(side, card, minion.uid, true);
     }
+    // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
+    // already returned above, so only minions actually placed on the board reach here.
+    if (card.attackOnSummon && !minion.dead && minion.health > 0) pendingAttackOnSummon.push(minion);
     return minion;
   }
 
@@ -243,6 +257,9 @@ export function simulate(
 
   // Running death tally per side — drives Avenge (X) (A.4).
   const deaths: Record<Side, number> = { player: 0, enemy: 0 };
+  // Minions summoned mid-combat that strike immediately, out of turn order (Twilight Whelp's 3/3 Whelp) —
+  // filled in summonMinion, drained by flushImmediateAttacks after each attack's death cascade settles.
+  const pendingAttackOnSummon: Minion[] = [];
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
     // Reborn (A.3 step 6): the first death returns the minion at its *base* card stats — it sheds
@@ -329,6 +346,8 @@ export function simulate(
     }
     target.health -= amount;
     events.push({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health) });
+    // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
+    if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side });
     // Venomous: reaching here means the hit actually landed (Immune + Divine Shield already returned
     // above), so any damage from a Venomous source destroys the target — even if the raw hit was
     // already lethal. So attacking a Venomous minion is fatal *unless you were shielded from the
@@ -409,6 +428,19 @@ export function simulate(
     }
   }
 
+  // Drain the attack-on-summon queue (Twilight Whelp's 3/3 Whelps): each strikes once, out of turn order,
+  // right after the attack that spawned it settles. A Whelp's hit can spawn the enemy's Whelps (a chain),
+  // bounded by IMMEDIATE_ATTACK_GUARD. A Whelp with no living foe is skipped (combat may be ending).
+  function flushImmediateAttacks(): void {
+    let guard = 0;
+    while (pendingAttackOnSummon.length > 0 && guard++ < IMMEDIATE_ATTACK_GUARD) {
+      const m = pendingAttackOnSummon.shift()!;
+      if (m.dead || m.health <= 0 || m.attack <= 0) continue;
+      if (countLiving(OTHER[m.side]) === 0) continue;
+      performAttack(m, OTHER[m.side], 0);
+    }
+  }
+
   // --- The Reclaimer: a marked player minion is destroyed at the start of combat — its Deathrattle
   //     fires NOW (tokens summon and may overflow a full board) — and the exact body is queued to be
   //     resummoned in its slot the next time the board has room (a friend dies). It does NOT take
@@ -477,6 +509,7 @@ export function simulate(
   // A 0-Attack minion can't attack — it's skipped in the rotation (above). If neither side has a
   // minion that can attack, the fight is a stalemate (a draw) rather than spinning the iteration guard.
   const canAttack = (side: Side): boolean => boards[side].some((m) => !m.dead && m.health > 0 && m.attack > 0);
+  flushImmediateAttacks(); // Whelps summoned during Start-of-Combat / Reclaimer strike before the rotation begins
   let guard = 0;
   while (countLiving('player') > 0 && countLiving('enemy') > 0 && guard++ < ITERATION_GUARD) {
     const defenderSide = OTHER[turn];
@@ -494,6 +527,8 @@ export function simulate(
       const arr = boards[turn];
       lastAttacker[turn] = arr[arr.indexOf(attacker) - 1] ?? null;
     }
+    // Whelps summoned by this attack's death cascade strike immediately, out of turn order.
+    flushImmediateAttacks();
     // This attack's death cascade has fully settled — if it freed a player slot, a Reclaimer
     // resummon waiting in the wings reclaims it now (never interleaved mid-summon).
     flushResummons();
@@ -561,5 +596,7 @@ export function simulate(
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
+    playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
+    playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
   };
 }

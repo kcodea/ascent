@@ -20,6 +20,51 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 - **Art** wired (Tara / Taragosa). Verified: typecheck + lint + **307 tests** + `build:web` all green;
   `cards.csv` = 63 minions / 24 spells / 9 tokens.
 - **Last card of the 2026-06-24 batch** — the whole set is now built across the session's PRs.
+### Content: Cupcakes (Demon consume-the-tavern spell)
+
+- **Cupcakes** (T5, 4g) — *Choose a Demon — it consumes 3 minions in the tavern.* A targeted spell whose
+  chosen friendly **Demon** devours 3 *random* tavern minions through the real **Consume pipeline**: each
+  meal feeds the Demon its stats × the Demon's fodder multiplier (Voracious Imp ×2) and fires its on-consume
+  effects (Maw's shield, etc.), plus the UI consume-swirl. New cast factory `spellDemonConsumeTavern`
+  (mirrors `consumeTavernFodder`, but eats any 3 tavern minions via the *chosen* Demon, not just Fodder via a
+  random one). Fizzles on a non-Demon target (flagged).
+- **Art** wired. Verified: typecheck + lint + **304 tests** + `build:web` all green; `cards.csv` = 25 spells.
+- **Last one remaining:** Tara→Taragosa (the mid-combat Growth cast + combat transform).
+### Content: final 3 Beasts (Sporebat, Gryphon, Mama Bear) — combat→run carry-backs + a summon engine
+
+- **Two new combat→run carry-back channels** (`CombatResult.playerFreeRolls` / `playerSpellGrants`, mirroring
+  the `fodderGrants`/`maxGoldGain` pattern) + a new **`onDamaged`** bus trigger (emitted by `dealDamage` on a
+  hit that lands; a Map-miss when unsubscribed, so the hot path is unaffected).
+- **Sporebat** (T4 2/6 Taunt) — *Deathrattle: add a random tavern-tier spell to your hand* (golden 2). The
+  tier-bounded pick happens at settle (where the tavern tier is known); combat just banks the count.
+- **Gryphon** (T3 3/6 Taunt) — *When it takes damage, gain a free refresh* — **once per combat** (a
+  `grantedRefresh` flag; a Taunt soaks many hits, so per-hit would be runaway — flagged, a 1-line change to
+  per-hit if wanted). Golden 2.
+- **Mama Bear** (T5 6/6) — *When you summon a Beast, give it +3/+3 and improve this by +3/+3* — works **in and
+  out of combat** (a `summonBuffTribeImprove` factory on both surfaces; the improve accrues in `summonBonus`,
+  carried back; golden doubles; a triple resets the accrual — documented). Live card text TBD (follow-up).
+- **Art** wired. Verified: typecheck + lint + **307 tests** + `build:web` all green; `cards.csv` = 65 minions.
+- **Remaining (the last 2):** Cupcakes (a chosen Demon consumes 3 tavern minions) and Tara→Taragosa (the
+  mid-combat Growth cast).
+### Content: Twilight Whelp line + a new attack-on-summon combat mechanic (replaces Ember Whelp)
+
+- **New mechanic — attack-on-summon.** A `CardDef.attackOnSummon` flag (+ schema); when a flagged minion is
+  summoned mid-combat, `simulate` queues it (`pendingAttackOnSummon`) and `flushImmediateAttacks()` has it
+  strike once, **out of turn order**, right after the spawning attack's death cascade settles — modeled on the
+  existing `flushResummons()` drain (also run once pre-rotation for SC/Reclaimer summons). A Whelp's hit can
+  spawn the enemy's Whelps (a chain), bounded by `IMMEDIATE_ATTACK_GUARD`; combat stays deterministic.
+- **Twilight Whelp** (T1 1/1, replaces Ember Whelp) — *Deathrattle: summon a 3/3 Whelp that attacks
+  immediately* (golden → 2). The **Whelp** (`whelpling`, a 3/3 Dragon token with `attackOnSummon`) is the payoff.
+- **Twilight Broodmother** (T4 2/5) — *Deathrattle: summon 2 Twilight Whelps with Taunt* (golden → 4). Extended
+  `deathrattleSummon` (combat + recruit) with an optional `keyword` grant for the Taunt. *(Minor: the Taunt is
+  applied post-summon, so it works in combat but isn't on the summon-event snapshot — a cosmetic follow-up.)*
+- **Ember Whelp removed** — it was the only `scDamage` user (the primitive stays available, untested-by-a-card
+  now). Regenerated the opponent pool (`npm run pool` → 0 stale `whelp` boards, new cards included), repointed
+  ~15 generic `whelp` test fixtures → `frontdrake`, dropped the SC-scorch test, deleted the orphaned `whelp.webp`.
+- **Art** wired (twilightwhelp / whelpling / broodmother). Verified: typecheck + lint + **305 tests** +
+  `build:web` all green; `cards.csv` = 63 minions / 24 spells / 9 tokens.
+- **Hard tail remaining:** Sporebat (tier-aware spell carry-back), Tara→Taragosa (mid-combat Growth cast), and
+  the gated Gryphon / Cupcakes / Mama Bear.
 
 ### Lunge feel re-tune + Tribes Choice no longer hands out neutral glue
 

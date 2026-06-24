@@ -27,6 +27,11 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 - **Tara → Taragosa** — a quest dragon (Engraved) that **ascends to Taragosa** after being granted stats 20
   times in combat; **Taragosa** casts **Growth** (+3/+4 to your board) on every attack. Completes the batch.
+- **Cupcakes** — a spell that points a friendly **Demon** at the tavern: it consumes 3 random minions there
+  (real Consume — stats × the Demon's multiplier + its on-consume effects).
+- **Twilight Whelp line + an attack-on-summon mechanic.** **Twilight Whelp** (Deathrattle: a 3/3 Whelp that
+  attacks immediately, out of turn order) replaces Ember Whelp; **Twilight Broodmother** (Deathrattle: 2 Taunt
+  Twilight Whelps that chain into Whelps). New `attackOnSummon` combat primitive.
 - **Content batch — +5 minions, +1 token, +5 spells.** Beasts: Manasaber, Raptor, Sea Urchin (+ a Saber Cub
   token). Spells: Tribe Portal, Corpse Board, Perfect Vision, Fleeting Vigor, Apples. Reactive Dragons: Hunter
   + Crypt Drake (a new `onGainAttack` trigger — they combo, one pumps Attack, the other answers with Health).

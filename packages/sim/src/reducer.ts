@@ -1,5 +1,5 @@
 import { makeRng, simulate, type BoardMinion, type CombatResult, type Tribe } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
@@ -751,6 +751,23 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Soulsman: permanent max-Gold gained from its Avenge in combat (uncapped, like Nadja's Gold Font).
   if (result.playerMaxGoldGain) {
     s.maxEmbers += result.playerMaxGoldGain;
+  }
+  // Gryphon: free shop rerolls banked from taking damage in combat.
+  if (result.playerFreeRolls) {
+    s.freeRolls += result.playerFreeRolls;
+  }
+  // Sporebat: grant N random tavern-tier spells to the hand (the tavern tier is known here; honours the cap).
+  if (result.playerSpellGrants) {
+    const rng = makeRng(s.rngCursor);
+    const pool = SPELL_CARDS.filter((c) => c.tier <= s.tier);
+    for (let i = 0; i < result.playerSpellGrants && s.hand.length < CONFIG.handMax && pool.length > 0; i++) {
+      const def = pool[rng.int(pool.length)]!;
+      s.hand.push({
+        uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe,
+        attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false,
+      });
+    }
+    s.rngCursor = rng.state();
   }
   // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
   // common tribe (then spends 5). A failed grant (full hand / no tribe) keeps the kills banked for later.

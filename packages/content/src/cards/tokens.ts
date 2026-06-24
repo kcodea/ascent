@@ -53,4 +53,17 @@ export const TOKENS: CardDef[] = [
     text: '**Discover** a minion from one Tier up.',
     token: true,
   },
+  {
+    // Manasaber's Deathrattle cub — a 0/2 Taunt body that screens the line. Not in the shop.
+    id: 'sabercub',
+    name: 'Saber Cub',
+    tribe: 'beast',
+    tier: 1,
+    attack: 0,
+    health: 2,
+    keywords: ['T'],
+    effects: [],
+    text: 'A 0/2 Beast with **Taunt**.',
+    token: true,
+  },
 ];

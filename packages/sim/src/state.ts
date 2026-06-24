@@ -117,7 +117,7 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  */
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' };
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry'; tribe?: Tribe };
 
 export interface RunState {
   seed: number;

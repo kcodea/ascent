@@ -420,6 +420,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (self.golden) queueDiscover(ctx.state, { kind: 'spell' });
   },
 
+  /** Sea Urchin — Battlecry: Discover a minion of `tribe` (up to your tavern tier). Golden Discovers
+   *  twice. Routes through queueDiscover so it composes with Drakko (each extra Battlecry fire stacks an
+   *  offer onto the queue). */
+  battlecryDiscoverMinion: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    const spec: DiscoverSpec = { kind: 'minion', tier: ctx.state.tier, tribe };
+    queueDiscover(ctx.state, spec);
+    if (self.golden) queueDiscover(ctx.state, spec);
+  },
+
   /** Cinderwing Matron — Battlecry: permanently raise the run-wide SPELL POWER by +atk/+hp (Cinderwing
    *  grants +0/+1 → spells give +1 more Health from now on). Golden doubles. Folds into spellAttackBonus
    *  / spellHealthBonus, so every future stat spell + its display picks it up. */
@@ -893,9 +903,14 @@ function discoverFilter(id: 'battlecry'): (c: (typeof BUYABLE_CARDS)[number]) =>
 export function offerDiscover(
   state: RunState,
   discoverTier: number,
-  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean },
+  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe },
 ): void {
-  const filter = opts?.filter ?? (() => true);
+  const baseFilter = opts?.filter ?? (() => true);
+  const tribe = opts?.tribe;
+  // Tribe-filtered Discover (Sea Urchin → Beasts only): AND the tribe check into the card filter so both
+  // the fixed-tier and tiered pool branches below pick it up (dual-types count).
+  const filter = (c: (typeof BUYABLE_CARDS)[number]): boolean =>
+    baseFilter(c) && (!tribe || c.tribe === tribe || c.tribe2 === tribe);
   let pool: typeof BUYABLE_CARDS = [];
   if (opts?.tier !== undefined) {
     // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
@@ -942,6 +957,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
   } else {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
+      tribe: spec.tribe,
       filter: spec.filter ? discoverFilter(spec.filter) : undefined,
     });
   }

@@ -2,11 +2,14 @@
 # atk/hp are blank for spells (they use cost). Dual-type minions show both tribes. golden_text = the tripled text.
 id,name,tier,atk,hp,cost,keywords,text,golden_text
 
-# === BEAST (7) ===
+# === BEAST (10) ===
 alley,Alleycat,1,1,1,,,**Battlecry:** summon a 1/1 Stray next to it.,**Battlecry:** summon two 1/1 Strays next to it.
+manasaber,Manasaber,1,4,1,,,**Deathrattle:** summon a 0/2 Saber Cub with **Taunt**.,**Deathrattle:** summon two 0/2 Saber Cubs with **Taunt**.
 kennel,Kennelmaster,2,2,3,,,Each **Beast** you summon gains **+1/+1**. **Avenge (3):** Improve this.,
 pack,Mama Pup,2,2,2,,,**Deathrattle:** summon two 1/1 Pups.,**Deathrattle:** summon four 1/1 Pups.
 shaper,Wildwood Shaper,2,2,3,,,**Choose One:** give your Beasts +1/+1; or summon two 1/1 Strays.,**Choose One:** give your Beasts +2/+2; or summon four 1/1 Strays.
+raptor,Raptor,3,2,8,,,"When a friendly **Beast** attacks, give it **+3/+1**.","When a friendly **Beast** attacks, give it **+6/+2**."
+seaurchin,Sea Urchin,4,4,4,,,**Battlecry:** Discover a Beast.,**Battlecry:** Discover **2** Beasts.
 spiritpup,Spirit Pup (beast/dragon),5,4,6,,,Cast **10 spells** with this on board to transform into **Spirit Worgen**.,
 gnash,"Gnasher, the Overrun",6,6,6,,,"When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.",
 grim,Grim,6,7,1,,,**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.,
@@ -92,11 +95,12 @@ undeadarmy,Undead Army,4,,,4,,Get **2 copies** of a random **Undead**.,
 devour,Channeling the Devourer,5,,,3,,Devour a friendly minion and spit its stats onto a random other friend.,
 aresmar,Eyes of Aresmar,6,,,5,,Make a **Tier 4 or lower** minion **Golden**.,
 
-# === TOKENS (7) — not rollable ===
+# === TOKENS (8) — not rollable ===
 fred,Fred,1,1,1,,Fodder,A 1/1 Demon **Fodder** — your Demons devour it from the tavern.,
 impscrap,Imp,1,1,1,,,,
 omen,Omen Minion,1,1,1,,,,
 pup,Pup,1,1,1,,,A 1/1 Beast token.,
+sabercub,Saber Cub,1,0,2,,Taunt,A 0/2 Beast with **Taunt**.,
 stray,Stray,1,1,1,,,A 1/1 Beast token.,
 discoverspell,Triple Reward,1,0,1,,,**Discover** a minion from one Tier up.,
 spiritworgen,Spirit Worgen (beast/dragon),5,4,6,,,Gains **+1/+1** each time you summon a **Beast** or **Dragon** — improves per spell cast this turn.,

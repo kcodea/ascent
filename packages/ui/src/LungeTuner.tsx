@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { LUNGE_KEYS, LUNGE_RANGES, getLungeConfig, resetLungeConfig, setLungeValue, type LungeConfig } from './lungeConfig';
+import { useDraggablePanel } from './useDraggablePanel';
 
 /**
  * DEV-only floating tuner for the combat attack lunge. Drag each slider to dial wind-up / strike / lunge
@@ -20,6 +21,7 @@ export function LungeTuner() {
   const [open, setOpen] = useState(false);
   const [cfg, setCfg] = useState<LungeConfig>(getLungeConfig());
   const [copied, setCopied] = useState(false);
+  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('lunge');
 
   const set = (k: keyof LungeConfig, v: number): void => {
     setLungeValue(k, v);
@@ -36,8 +38,8 @@ export function LungeTuner() {
     <>
       <button className="lunge-btn" onClick={() => setOpen((o) => !o)} title="Lunge tuner (dev)">🗡️</button>
       {open && (
-        <div className="sfxmix lunge">
-          <div className="sfxmix-h">Lunge Tuner <span>dev · next attack</span></div>
+        <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
+          <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Lunge Tuner <span>dev · next attack · drag</span></div>
           {LUNGE_KEYS.map((k) => {
             const [min, max, step] = LUNGE_RANGES[k];
             return (

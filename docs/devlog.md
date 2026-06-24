@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### DEV panels draggable + resizable
+
+- **The SFX mixer + Lunge tuner can be moved and resized.** New shared `useDraggablePanel` hook: drag by the
+  header (persists `left/top`), and the browser's native `resize: both` corner grip (persists `width/height`
+  via a ResizeObserver). Position is React-controlled; size is owned by the browser and only *recorded* (never
+  re-applied by React), so the resize grip and React never fight. Both persist to
+  `localStorage['ascent.devpanel.<sfx|lunge>']` and restore when the panel re-opens (off-screen positions are
+  clamped back in). DEV-only, so it ships nowhere. Verified live: a simulated header drag moves the panel by
+  the exact delta and persists; `resize: both` active on both panels; no console errors.
+
 ### UX pass: hero-power line from the button · Bane purple haze · lunge dev tuner · player-name pill · dev cluster
 
 - **Hero-Power aim line now starts at the button.** The targeting line was anchored to the hero *frame*

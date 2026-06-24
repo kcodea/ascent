@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SFX_KEYS, getSampleVolumes, previewSfx, setSampleVolume } from './sfx';
+import { useDraggablePanel } from './useDraggablePanel';
 
 /**
  * DEV-only floating SFX mixer. Tweak each sourced clip's volume live (it persists to localStorage so it
@@ -11,6 +12,7 @@ export function SfxMixer() {
   const [open, setOpen] = useState(false);
   const [vols, setVols] = useState(getSampleVolumes());
   const [copied, setCopied] = useState(false);
+  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('sfx');
 
   const set = (k: string, v: number): void => {
     setSampleVolume(k, v);
@@ -26,8 +28,8 @@ export function SfxMixer() {
     <>
       <button className="sfxmix-btn" onClick={() => setOpen((o) => !o)} title="SFX mixer (dev)">🔊</button>
       {open && (
-        <div className="sfxmix">
-          <div className="sfxmix-h">SFX Mixer <span>dev</span></div>
+        <div className="sfxmix" ref={panelRef} style={panelStyle}>
+          <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>SFX Mixer <span>dev · drag</span></div>
           {SFX_KEYS.map((k) => {
             const pct = Math.round((vols[k] ?? 0) * 100);
             return (

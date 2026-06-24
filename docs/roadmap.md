@@ -55,6 +55,8 @@ The next 5 concrete steps:
   and deepen content toward the pool target: **13–15 minions per tribe** across the 6 tiers, weighted
   to T3–5 (run `npm run audit`). Most tribes are still short of the target — but **Dragon reached 12 and Beast
   13** with the 2026-06-24 batch (Dragons: Frontdrake/Supporter/Bronze Warden/Stuntdrake + the reactive
+  to T3–5 (run `npm run audit`). Most tribes are still short of the target — but **Dragon reached 13 and Beast
+  10** with the 2026-06-24 batch (Dragons: Frontdrake/Supporter/Bronze Warden/Stuntdrake + the reactive
   Hunter/Crypt Drake; Beasts: Manasaber/Raptor/Sea Urchin; Neutral T6 remains); fill the mid tiers, fill the
   unused primitives (`castSpell`, `endOfTurnBuff`,
   `spellCostMod`), and add **higher-tier spells** (Spirit Fire is now T2; **Growth** T4, **Channeling the

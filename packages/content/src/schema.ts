@@ -143,6 +143,7 @@ export const CardDefSchema = z.object({
   text: z.string(),
   goldenText: z.string().optional(),
   token: z.boolean().optional(),
+  attackOnSummon: z.boolean().optional(),
   spell: z.boolean().optional(),
   singleCast: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),

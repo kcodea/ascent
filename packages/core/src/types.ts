@@ -170,6 +170,9 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** Combat: this minion attacks immediately when summoned mid-fight, out of turn order — then joins the
+   *  normal rotation (Twilight Whelp's 3/3 Whelp). Drained by the immediate-attack queue in `simulate`. */
+  attackOnSummon?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;
   /** This spell resolves exactly once — spell-quantity multipliers can't make it fire twice

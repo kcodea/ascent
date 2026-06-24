@@ -122,6 +122,8 @@ const SMACK_VOL = 0.156;
 
 export const sfx = {
   buy: () => {
+    // One of the 2 sourced buy clips at random (buy1/buy2); synth blip until they decode / if absent.
+    if (playSample(`buy${1 + Math.floor(Math.random() * 2)}`, 0.5)) return;
     tone({ freq: 540, dur: 0.07, type: 'square', vol: 0.1 });
     tone({ freq: 820, dur: 0.09, type: 'square', vol: 0.08, delay: 0.05 });
   },
@@ -131,12 +133,14 @@ export const sfx = {
     tone({ freq: 200, dur: 0.12, type: 'square', vol: 0.13, slideTo: 150 });
     tone({ freq: 150, dur: 0.17, type: 'square', vol: 0.12, slideTo: 96, delay: 0.085 });
   },
-  // Card lands on the board (or a spell is cast) — the sourced "land" clip at the smack level; synth slide
-  // until it decodes / if the file isn't present yet. Drop the clip at `packages/ui/src/audio/land.mp3`.
+  // A MINION lands on the board — the sourced "cardlanding" clip at the smack level; synth slide until it
+  // decodes / if absent. Drop the clip at `packages/ui/src/audio/cardlanding.mp3`.
   play: () => {
-    if (playSample('land', SMACK_VOL)) return;
+    if (playSample('cardlanding', SMACK_VOL)) return;
     tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150 });
   },
+  // A SPELL is cast — kept distinct from a minion landing (spells get per-spell sounds later). Synth for now.
+  castSpell: () => tone({ freq: 300, dur: 0.13, type: 'triangle', vol: 0.18, slideTo: 170 }),
   sell: () => {
     // One of the 4 sourced sell clips at random (sell1–sell4); synth blip until they finish decoding.
     if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, 0.51)) return;

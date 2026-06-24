@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Win-based matchmaking + friend board import/export + player name in the HUD + audio
+
+The "real player boards" loop, end to end: name yourself, face boards by win count (real ones preferred),
+and share boards with friends via a file.
+
+- **Win-based matchmaking.** `BoardSnapshot` gains `wins` (combats won before that board fought); `pickOpponent`
+  now matches by WIN COUNT (you face a board at the same point in its climb, not the same wave), then **prefers
+  real player/friend boards** over house/synthetic, then biases toward similar power for a fair fight. Widens
+  to the closest win count if none match; null only on an empty pool. `nextOpponent` passes the player's wins.
+  Verified live: at 1 win, the pool serves the captured player board ("by TestPlayer · date") over 24 house
+  boards. Pool regenerated so committed boards carry `wins`; legacy boards fall back to `wave`.
+- **Friend import/export** (Settings → Shared Boards). Export downloads a shareable `{author, exportedAt,
+  boards}` file; Import reads a friend's file, tags the boards `origin:'friend'` (+ their name/date), merges
+  into your library (deduped) AND registers them live — you face them immediately, no reload. Same shape works
+  in `docs/board-exports/` for `npm run pool`. Verified live: a friend file imports, tags `friend`, persists.
+- **Player name in the top-left** HUD (under the ASCENT wordmark), in the accent colour.
+- **Audio.** `buy` → random sourced `buy1`/`buy2`; a MINION landing → `cardlanding` (at the smack level), kept
+  distinct from a SPELL cast (`castSpell`, its own sound — per-spell sounds later). All synth-fallback until the
+  clips are dropped in `packages/ui/src/audio/` (`cardlanding.mp3`, `buy1.mp3`, `buy2.mp3` — not yet present).
+- Verified: typecheck + lint clean, 282 tests pass (win-matchmaking test: matches by wins, prefers real,
+  widens, null on empty pool); live (name top-left, win-matched real board served, import round-trip).
+
 ### Power framework — simulate-derived board rating (Stage 3 foundation)
 
 The basis for true-strength matchmaking + power-band synthesis. `power = Σ(attack+health)` ignores keywords

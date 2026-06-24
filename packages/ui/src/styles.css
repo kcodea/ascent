@@ -64,7 +64,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 
 /* HUD */
 .bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; }
-.wm { font-family: 'Outfit'; font-weight: 800; font-size: calc(19 * var(--u)); letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: calc(7 * var(--u)) calc(15 * var(--u)); border-radius: calc(11 * var(--u)); }
+.wm { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; font-family: 'Outfit'; font-weight: 800; font-size: calc(19 * var(--u)); letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: calc(7 * var(--u)) calc(15 * var(--u)); border-radius: calc(11 * var(--u)); }
+.wm .wmplayer { font-size: calc(10 * var(--u)); font-weight: 700; letter-spacing: 0.05em; color: var(--acc); text-transform: none; margin-top: calc(2 * var(--u)); max-width: calc(160 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); }
 .alt .w { font-family: 'Outfit'; font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
 .alt .lbl { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
@@ -1382,6 +1383,8 @@ svg { width: 18px; height: 18px; }
 .escpanel .esch { font-weight: 800; font-size: 28px; color: var(--ink); text-align: center; }
 .escsec { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
 .escres { display: grid; gap: 8px; }
+.escboards { display: grid; gap: 8px; }
+.escboards-msg { font-family: 'Outfit'; font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
 .escvol .evl { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }

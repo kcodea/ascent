@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { CARD_INDEX } from '@game/content';
 import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, reduce, type Action, type Replay, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import { sfx } from './sfx';
@@ -41,7 +42,14 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
   }
   switch (action.type) {
     case 'buy': sfx.buy(); break;
-    case 'play': sfx.play(); break;
+    case 'play': {
+      // A minion landing on the board vs a spell being cast get different sounds (spells get per-spell
+      // sounds later). Look up the played card in the pre-dispatch hand.
+      const card = prev.hand.find((c) => c.uid === action.uid);
+      if (card && CARD_INDEX[card.cardId]?.spell) sfx.castSpell();
+      else sfx.play();
+      break;
+    }
     case 'sell': sfx.sell(); break;
     case 'roll': case 'freeze': sfx.roll(); break;
     case 'upgrade': sfx.upgrade(); break;

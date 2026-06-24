@@ -27,25 +27,32 @@ import type { BoardSnapshot } from './snapshot';
 export const OPPONENT_POOL: BoardSnapshot[] = [];
 
 /**
- * Pick a strength-matched opponent for a wave, or null to fall back to the procedural threat. Matches by
- * wave (±1), then by closest power within a tolerance (so a thin pool degrades to procedural rather than
- * serving a wildly off-curve board), and randomizes among the closest few for variety. Consumes `rng` ONLY
- * when it returns a board, so an empty / no-match pool leaves the caller's procedural rng untouched
- * (the fallback board stays byte-identical to before this seam existed).
+ * Pick an opponent by WIN COUNT — you face a board whose owner was at the same point in their climb (the
+ * same number of combats won), not the same wave. Then: prefer REAL player/friend boards over house/synthetic
+ * (face people, not bots, when we can), and among those bias toward a similar-power board for a fair fight,
+ * randomizing among the closest few for variety. Returns null only on an empty pool (→ procedural fallback,
+ * rng untouched); otherwise it always serves the closest-win board available. Consumes `rng` only when it
+ * returns a board.
  */
 export function pickOpponent(
-  wave: number,
+  wins: number,
   power: number,
   rng: Rng,
   pool: BoardSnapshot[] = OPPONENT_POOL,
 ): BoardSnapshot | null {
-  const candidates = pool.filter((s) => Math.abs(s.wave - wave) <= 1);
-  if (candidates.length === 0) return null;
-  const tolerance = Math.max(10, power * 0.5);
-  const close = candidates
-    .filter((s) => Math.abs(s.power - power) <= tolerance)
-    .sort((a, b) => Math.abs(a.power - power) - Math.abs(b.power - power));
-  if (close.length === 0) return null;
+  if (pool.length === 0) return null;
+  const winsOf = (s: BoardSnapshot): number => s.wins ?? s.wave; // legacy boards without `wins` → use wave
+  // 1) Same number of wins (the climb milestone); widen to the closest available count if none match exactly.
+  let candidates = pool.filter((s) => winsOf(s) === wins);
+  if (candidates.length === 0) {
+    const minDist = Math.min(...pool.map((s) => Math.abs(winsOf(s) - wins)));
+    candidates = pool.filter((s) => Math.abs(winsOf(s) - wins) === minDist);
+  }
+  // 2) Prefer real player/friend boards over house/synthetic at this win level.
+  const real = candidates.filter((s) => s.origin === 'self' || s.origin === 'friend');
+  const pref = real.length ? real : candidates;
+  // 3) Bias toward similar power (fair fight), randomize among the closest few.
+  const close = [...pref].sort((a, b) => Math.abs(a.power - power) - Math.abs(b.power - power));
   return close[rng.int(Math.min(3, close.length))] ?? null;
 }
 

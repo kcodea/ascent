@@ -3,7 +3,8 @@
  *  and Start Over. The HUD's quick-mute button sits behind the enemy frame, so the dependable audio
  *  controls live here, in a modal nothing can obscure. */
 
-import { useState } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
+import { exportBoardsJson, importBoardsJson, loadStoredBoards } from './boardLibrary';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
 
@@ -30,6 +31,36 @@ export function EscMenu({
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
   const [muted, setMuted] = useState(isMuted());
+  // Shared boards: count of this browser's captured boards + a status line after export/import.
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [boardCount, setBoardCount] = useState(() => loadStoredBoards().length);
+  const [boardMsg, setBoardMsg] = useState<string | null>(null);
+
+  const exportBoards = (): void => {
+    const blob = new Blob([exportBoardsJson(playerName)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ascent-boards-${(playerName || 'me').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setBoardMsg(boardCount ? `Exported ${boardCount} board${boardCount === 1 ? '' : 's'} — send the file to a friend.` : 'No boards yet — finish a run first.');
+  };
+  const onImportFile = (e: ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-importing the same file
+    if (!file) return;
+    file.text().then((text) => {
+      const res = importBoardsJson(text);
+      if (res) {
+        setBoardCount(res.total);
+        setBoardMsg(`Imported ${res.imported} board${res.imported === 1 ? '' : 's'} — you'll face them now.`);
+      } else {
+        setBoardMsg("Couldn't read that file — is it an Ascent board export?");
+      }
+    });
+  };
+
   return (
     <div className="escov" onPointerDown={onClose}>
       <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
@@ -94,6 +125,19 @@ export function EscMenu({
               <span className="ebs">{o.sub}</span>
             </button>
           ))}
+        </div>
+        <div className="escsec">Shared Boards</div>
+        <div className="escboards">
+          <button className="escbtn" onPointerDown={exportBoards}>
+            <span className="ebl">Export my boards</span>
+            <span className="ebs">{boardCount} saved · download a file to share</span>
+          </button>
+          <button className="escbtn" onPointerDown={() => fileRef.current?.click()}>
+            <span className="ebl">Import a friend's boards</span>
+            <span className="ebs">Load their file — face their builds</span>
+          </button>
+          <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={onImportFile} />
+          {boardMsg && <div className="escboards-msg">{boardMsg}</div>}
         </div>
         <div className="escsec">Run</div>
         <button

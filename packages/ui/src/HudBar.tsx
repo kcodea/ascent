@@ -15,13 +15,14 @@ const TRIBE_LABEL: Record<Tribe, string> = {
 /** Top bar: wordmark + altitude (wave) meter + the tribes in play this run. */
 export function HudBar() {
   const run = useGame((s) => s.run);
+  const playerName = useGame((s) => s.playerName);
   const [muted, setMuted] = useState(isMuted());
   // Combat wins this run — read straight off the per-combat history (W/L/D), so it always agrees with the
   // end-screen summary. (A win = a combat won; you can climb a wave on a loss, so wins ≤ waves fought.)
   const wins = run.history.filter((r) => r === 'win').length;
   return (
     <div className="bar">
-      <div className="wm disp">ASCENT</div>
+      <div className="wm disp">ASCENT{playerName && <span className="wmplayer">{playerName}</span>}</div>
       <div className="alt">
         <span className="w">WAVE {run.wave}</span>
         <span className="meter">

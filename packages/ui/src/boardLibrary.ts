@@ -8,10 +8,25 @@
  * deterministic: a finished run is `{ seed, heroId, actions }`, and `replayRun` re-derives its per-wave
  * boards byte-identically, so we store the replay's snapshots rather than capturing live.
  */
-import { replayRun, type BoardSnapshot, type Replay } from '@game/sim';
+import { registerOpponents, replayRun, type BoardSnapshot, type Replay } from '@game/sim';
 
 const KEY = 'ascent.boards';
 const CAP = 300; // keep the most recent N captured boards (≈ 15–30 runs); FIFO so the pool stays fresh
+const EXPORT_FORMAT = 1;
+
+/** A stable identity for a board, so re-imports / duplicate captures collapse to one. */
+const signature = (s: BoardSnapshot): string =>
+  `${s.wave}|${s.heroId}|${s.minions.map((m) => `${m.cardId}:${m.attack}/${m.health}:${(m.keywords ?? []).slice().sort().join('')}${m.golden ? 'g' : ''}`).sort().join(',')}`;
+
+const dedupe = (boards: BoardSnapshot[]): BoardSnapshot[] => {
+  const seen = new Set<string>();
+  return boards.filter((s) => {
+    const k = signature(s);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
 
 /** Load the player's persisted boards. Best-effort: returns [] on any missing/parse/shape problem. */
 export function loadStoredBoards(): BoardSnapshot[] {
@@ -39,9 +54,51 @@ export function saveRunBoards(replay: Replay, author?: string): void {
       .snapshots.filter((s) => s.minions.length > 0)
       .map((s) => ({ ...s, origin: 'self' as const, ...(author ? { author } : {}), capturedAt }));
     if (fresh.length === 0) return;
-    const all = [...loadStoredBoards(), ...fresh].slice(-CAP);
+    const all = dedupe([...loadStoredBoards(), ...fresh]).slice(-CAP);
     localStorage.setItem(KEY, JSON.stringify(all));
   } catch {
     /* ignore — capture is best-effort, never fatal */
+  }
+}
+
+/**
+ * Serialize this browser's captured boards into a shareable file payload (your name + date + the boards).
+ * Send the file to a friend; they Import it and start facing your boards. The same shape can be dropped into
+ * `docs/board-exports/` and baked into the committed pool with `npm run pool`.
+ */
+export function exportBoardsJson(author: string): string {
+  return JSON.stringify({
+    app: 'ascent',
+    format: EXPORT_FORMAT,
+    author: author || undefined,
+    exportedAt: new Date().toISOString().slice(0, 10),
+    boards: loadStoredBoards(),
+  });
+}
+
+/**
+ * Import a friend's exported boards: tag them `origin:'friend'` (with the file's author + date), merge into
+ * the stored library (deduped, capped) AND register them live this session — so you face them immediately and
+ * next launch. Accepts the wrapped `{author, boards}` shape or a raw `BoardSnapshot[]`. Returns how many were
+ * added (and the new total), or null on a malformed / empty file.
+ */
+export function importBoardsJson(text: string): { imported: number; total: number } | null {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    const wrapped = !!parsed && typeof parsed === 'object' && Array.isArray((parsed as { boards?: unknown }).boards);
+    const raw = (wrapped ? (parsed as { boards: BoardSnapshot[] }).boards : (parsed as BoardSnapshot[])) ?? [];
+    if (!Array.isArray(raw)) return null;
+    const meta = wrapped ? (parsed as { author?: string; exportedAt?: string }) : {};
+    const date = meta.exportedAt || new Date().toISOString().slice(0, 10);
+    const fresh = raw
+      .filter((s) => s && s.v === 1 && Array.isArray(s.minions) && s.minions.length > 0)
+      .map((s) => ({ ...s, origin: 'friend' as const, author: s.author ?? meta.author, capturedAt: s.capturedAt ?? date }));
+    if (fresh.length === 0) return null;
+    const merged = dedupe([...loadStoredBoards(), ...fresh]).slice(-CAP);
+    localStorage.setItem(KEY, JSON.stringify(merged));
+    registerOpponents(fresh); // live this session too — no reload needed to start facing them
+    return { imported: fresh.length, total: merged.length };
+  } catch {
+    return null;
   }
 }

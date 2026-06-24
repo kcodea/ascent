@@ -26,6 +26,9 @@ export interface BoardSnapshot {
   /** Schema version — bump on a breaking shape change so stored snapshots can be migrated or dropped. */
   v: 1;
   wave: number;
+  /** Combats WON before this board fought — the matchmaking key. You face a board with the same win count
+   *  (the same point in its owner's climb), not the same wave. Optional for back-compat (missing → wave). */
+  wins?: number;
   heroId: string;
   /** The run's Resolve (HP) at capture — shown on the opponent frame. */
   resolve: number;
@@ -83,6 +86,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   return {
     v: 1,
     wave: s.wave,
+    wins: s.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0),
     heroId: s.heroId,
     resolve: s.resolve,
     tier: s.tier,

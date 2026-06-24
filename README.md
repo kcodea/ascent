@@ -23,6 +23,10 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **More sourced audio + safer board sharing.** The Tavern Up button now plays a real `tavernupgrade` clip
+  (14 logical sourced sounds / 17 mp3s wired). **Export my boards** is hardened for itch's sandboxed iframe
+  (reliable download + a fullscreen hint when downloads are blocked); a friend imports the file from any
+  context. The full audio map (current + still-needed sounds) lives in [docs/sfx-events.md](docs/sfx-events.md).
 - **Real opponent boards ship with the game.** `npm run pool` bakes a curated, committed pool of real
   buildable boards (house bot boards + any board exports you/friends drop in `docs/board-exports/`), loaded at
   startup — instead of procedural blobs. Boards now carry **attribution** (`origin` + author name + date): set

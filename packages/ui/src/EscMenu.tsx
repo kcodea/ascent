@@ -37,14 +37,26 @@ export function EscMenu({
   const [boardMsg, setBoardMsg] = useState<string | null>(null);
 
   const exportBoards = (): void => {
-    const blob = new Blob([exportBoardsJson(playerName)], { type: 'application/json' });
+    if (!boardCount) { setBoardMsg('No boards yet — finish a run first.'); return; }
+    const json = exportBoardsJson(playerName);
+    const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `ascent-boards-${(playerName || 'me').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.json`;
+    // Append before click + revoke on a delay: a detached <a> or an immediately-revoked URL gets the
+    // download dropped in some browsers (and in itch's sandboxed iframe).
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
-    setBoardMsg(boardCount ? `Exported ${boardCount} board${boardCount === 1 ? '' : 's'} — send the file to a friend.` : 'No boards yet — finish a run first.');
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    // itch embeds the game in a sandboxed iframe that can silently block file downloads — if we're framed,
+    // tell the friend to use itch's fullscreen button (loads first-party, where downloads work).
+    const framed = (() => { try { return window.self !== window.top; } catch { return true; } })();
+    const sent = `Exported ${boardCount} board${boardCount === 1 ? '' : 's'}`;
+    setBoardMsg(framed
+      ? `${sent}. If no file downloaded, open the game fullscreen (the ⛶ button on itch) and export again.`
+      : `${sent} — send the file to a friend.`);
   };
   const onImportFile = (e: ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];

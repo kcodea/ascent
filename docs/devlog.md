@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Tavern Up sourced clip · hardened board export for the itch iframe · SFX reference refresh
+
+- **`tavernupgrade` clip wired.** The Tavern Up action now plays the sourced `tavernupgrade.mp3`
+  (`packages/ui/src/audio/`), with the old rising-triad synth chord kept as the decode/missing fallback —
+  same pattern as every other sourced clip. Registered in `SAMPLE_VOL_DEFAULTS` (vol 0.50) + `SFX_PREVIEW`,
+  so it's tunable in the dev mixer. The `upgrade` action already dispatched `sfx.upgrade()` (store.ts), so no
+  trigger change. Verified live (fresh server → the dev mixer lists `upgrade` as the 13th sourced key; no
+  console errors). That's **14 logical sourced sounds / 17 mp3 files** now wired.
+- **Board export hardened for itch's iframe.** itch embeds HTML games in a sandboxed iframe that can silently
+  block file downloads. The Export-my-boards button now (a) appends the `<a>` to the DOM before `click()` and
+  delays `revokeObjectURL` (a detached anchor or immediately-revoked URL drops the download in some browsers /
+  the sandbox), and (b) detects an iframe (`window.self !== window.top`) and, when framed, tells the friend to
+  **open the game fullscreen on itch** (the ⛶ button — loads first-party, where downloads work) if no file
+  appeared. Import (file picker) already works inside the iframe. Empty-library guard moved up so "no boards
+  yet" no longer triggers a junk download.
+- **`docs/sfx-events.md` rewritten** to denote **all current + potential SFX**: a full per-key table (sourced
+  vs synth, file(s), default vol, trigger), the 17 sourced files on disk, the synth keys that want a real
+  sample (prioritized), and the still-silent combat/recruit events (with the top "missing sound" gaps). The old
+  doc predated most of the wired clips (it still called everything "synthesized placeholders").
+
 ### Orangez's real boards baked into the pool · frozen-tavern ice effect · pulse cue
 
 - **First real friend boards shipped.** Imported Orangez's export (300 boards / 22 runs), **filtered out the

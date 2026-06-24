@@ -146,6 +146,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   unfreeze: 0.5,
   pulse: 0.5,
   inspect: 0.5,
+  upgrade: 0.5,
 };
 let sampleVol: Record<string, number> = (() => {
   try {
@@ -228,7 +229,11 @@ export const sfx = {
     if (playSample('reordercard', sampleVol.reorder)) return;
     tone({ freq: 440, dur: 0.05, type: 'square', vol: 0.07 });
   },
-  upgrade: () => chord([392, 523, 659], { dur: 0.14, type: 'triangle', vol: 0.12 }, 0.07),
+  // Tavern Up — the sourced "tavernupgrade" clip; synth rising triad fallback until it decodes / if absent.
+  upgrade: () => {
+    if (playSample('tavernupgrade', sampleVol.upgrade)) return;
+    chord([392, 523, 659], { dur: 0.14, type: 'triangle', vol: 0.12 }, 0.07);
+  },
   // Choosing a hero / pressing the hero-power button — the sourced "pulse" clip; synth ping fallback.
   pulse: () => {
     if (playSample('pulse', sampleVol.pulse)) return;
@@ -267,7 +272,7 @@ export const sfx = {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
-  unfreeze: sfx.unfreeze, pulse: sfx.pulse, inspect: sfx.inspect,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, inspect: sfx.inspect, upgrade: sfx.upgrade,
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();

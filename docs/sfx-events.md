@@ -1,104 +1,132 @@
 # ASCENT — SFX & animation event inventory
 
-A reference for sourcing new sound effects. Lists every event/animation, its **on-screen length**, and whether
-it **currently has SFX**. Most SFX are still tiny synthesized Web-Audio blips (`packages/ui/src/sfx.ts`),
-placeholders to be replaced — **except sourced clips now wired**: `sell` (one of `sell1–4` at random) and the
-combat `hit`/impact (`smack`), loaded from `packages/ui/src/audio/*.mp3` (decoded to AudioBuffers; the synth is
-the fallback until decode completes). To add more: drop an mp3 in `audio/` and call `playSample('<name>')` at
-the event site (synth fallback optional). Muting + a **master volume** (Settings → Audio slider, persisted to
-`ascent.vol`, scales every sound) both persist; one sound per notable event per beat. The combat `hit`/smack is
-fired frame-accurately from the attack lunge's GSAP timeline (so it lands on contact), not from the beat clock.
+The complete map of every sound the game makes (and every notable event that is still **silent**), so new
+audio can be sourced against a single list. Audio lives in `packages/ui/src/sfx.ts`; sourced clips are mp3
+files in `packages/ui/src/audio/`.
 
-Combat plays as a **beat replay** (`packages/ui/src/useCombatReplay.ts`): each beat is an action (or a run of
-result events) shown for a fixed length, then the next beat. Durations below are the beat length = base `DELAY` ×
-`SPEED` (SPEED = **1.5**). The attack LUNGE is a separate GSAP motion that overlaps the beat clock.
+## How audio works (read this first)
 
----
-
-## 1. Current SFX bank (`sfx.ts`) — 18 sounds, all synthesized placeholders
-
-| key | where it fires | character (current) |
-|---|---|---|
-| `buy` | buy a minion; Discover pick | square blip up |
-| `deny` | rejected action (can't afford / full / timer up) | descending dissonant buzz |
-| `play` | play a card to the board; cast a spell | triangle down-slide |
-| `sell` | sell a board minion | **sourced** — random of `sell1–4`.mp3 |
-| `roll` | refresh / freeze the tavern | 3-step square sweep |
-| `upgrade` | Tavern Up | rising triad |
-| `temper` | use the Hero Power | bright two-note ping |
-| `tick` | each of the last 5 turn-timer seconds | short square click |
-| `combatStart` | End Turn → Face the Omen | low sawtooth down-slide |
-| `attack` | each attack swing (per hit) | sawtooth down-slide |
-| `hit` | damage lands (combat impact) | **sourced** — `smack`.mp3 |
-| `death` | a minion dies | low sine drop |
-| `shield` | a Divine Shield is **gained** (shieldUp) | sine up-slide shimmer |
-| `buff` | a combat buff lands | two-note triangle |
-| `proc` | an End-of-Turn effect fires (per proc) | triangle shimmer |
-| `triple` | a golden is formed | rising 4-note arpeggio |
-| `win` | combat won (verdict) | major 4-note arpeggio |
-| `lose` | combat lost (verdict) | minor descending arpeggio |
+- **Two kinds of sound.** Every effect is either a tiny **synthesized** Web-Audio blip (oscillator + gain
+  envelope, generated on the fly) or a **sourced** mp3 sample decoded to an AudioBuffer. A sourced sound
+  always keeps its synth as a **fallback**: `playSample('<name>', vol)` returns `false` until the buffer is
+  decoded (or if the file is missing), and the caller falls through to the blip. So the game is never silent
+  while a clip loads.
+- **To add/replace a sourced clip:** drop `name.mp3` into `packages/ui/src/audio/` (lowercase — the lookup
+  and the itch Linux host are case-sensitive) and make sure the event calls `playSample('name', …)`. A new
+  file needs a **dev-server restart** (the file list is an eager `import.meta.glob`, not hot-reloaded).
+- **Per-clip volume.** Each sourced clip has a tunable gain in `SAMPLE_VOL_DEFAULTS` (sfx.ts), adjustable
+  live with the **DEV SFX mixer** (🔊 button, bottom-left — slider + ▶ preview per clip + "Copy values" to
+  paste the dialed-in numbers back as the shipped defaults). Persisted to `localStorage['ascent.sfxvol']`.
+- **Master volume + mute** (Settings → Audio) scale/silence every sound; both persist (`ascent.vol`,
+  `ascent.muted`). One sound per notable event per beat.
+- **Warm-up.** The audio context + sample decode kick off on the **first user gesture** anywhere (pointer or
+  key), so the first real action's clip is ready (no silent first-buy).
+- **Combat is a beat replay** (`useCombatReplay.ts`): each beat shows for `DELAY × SPEED` (SPEED = **1.5**),
+  then the next. The attack **lunge** is a separate GSAP motion overlapping the beat clock, and the impact
+  `hit`/`smack` is fired **frame-accurately from the lunge timeline** (lands on contact), not off the clock.
 
 ---
 
-## 2. Combat events (the beat replay)
+## 1. Current SFX bank — every key in `sfx.ts`
 
-### Has SFX
+**Sourced** = a real mp3 is wired (file listed). **Synth** = procedurally generated placeholder, no file yet
+(these are the prime candidates for sourcing — see §3). Default vol is the sourced-clip gain in
+`SAMPLE_VOL_DEFAULTS`.
 
-| event | length | animation | SFX |
-|---|---|---|---|
-| **attack (windup + strike)** | beat **510 ms**; lunge: **windup 200 ms → strike 130 ms → defender knockback ~200 ms → settle 550 ms** | attacker leans back, snaps forward, defender recoils, elastic settle | `attack` (once per swing — Windfury = 2) |
-| **damage lands (dmg)** | 690 ms | target `struck` recoil + floating `−N` | `hit` |
-| **gain Divine Shield (shieldUp)** | 690 ms | `shieldgain` flash + floating `◇` | `shield` |
-| **buff** | 630 ms | `buffed` flash + floating `+A/+H` | `buff` |
-| **death** | 600 ms | `dying` death-pop + board shake (hit-stop) | `death` |
-| **verdict** | on replay end | board win/lose state | `win` / `lose` |
-| **combat intro** | 480 ms (shop closes → enemies arrive) | shop slides away, enemy team arrives | `combatStart` (fired at End Turn) |
+| key | fires when | sourced? | file(s) | vol | synth character |
+|---|---|---|---|---|---|
+| `buy` | buy a minion; Discover pick resolves | **sourced** | `buy1`,`buy2` (random) | 0.50 | square blip up |
+| `sell` | sell a board minion | **sourced** | `sell1`–`sell4` (random) | 0.51 | square down-blip |
+| `play` (cardlanding) | a **minion** lands on the board | **sourced** | `cardlanding` | 0.156 | triangle down-slide |
+| `upgrade` | Tavern Up | **sourced** ✨new | `tavernupgrade` | 0.50 | rising triad |
+| `freeze` | Freeze the tavern | **sourced** | `freezetavern` | 0.50 | 3-step square sweep up |
+| `unfreeze` | Unfreeze the tavern (toggle off) | **sourced** | `unfreezetavern` | 0.50 | 3-step square sweep down |
+| `reorder` | reposition a warband / shop card | **sourced** | `reordercard` | 0.225 | short square tick |
+| `discover` | a Discover choice opens | **sourced** | `discover` | 0.50 | triangle shimmer chord |
+| `taunt` | a friendly minion is **granted** Taunt | **sourced** | `taunt` | 0.50 | square thunk |
+| `deny` | rejected action (can't afford / full / timer up) | **sourced** | `deny` | 0.50 | descending dissonant buzz |
+| `inspect` | right-click a minion → enlarged overlay | **sourced** | `inspect` | 0.50 | soft sine ping |
+| `pulse` | choose a hero; press the Hero-Power button | **sourced** | `pulse` | 0.50 | sine up-ping |
+| `hit` (smack) | damage lands in combat (impact) | **sourced** | `smack` | 0.156 | square thud |
+| `castSpell` | a **spell** is cast (vs a minion landing) | synth | — | — | triangle down-slide |
+| `roll` | refresh the tavern | synth | — | — | 3-step square sweep |
+| `tick` | each of the last 5 turn-timer seconds | synth | — | — | short square click |
+| `proc` | an End-of-Turn effect fires (per proc) | synth | — | — | triangle shimmer |
+| `triple` | a golden is formed | synth | — | — | rising 4-note arpeggio |
+| `combatStart` | End Turn → Face the Omen | synth | — | — | low sawtooth down-slide |
+| `attack` | each attack swing (per hit; Windfury = 2) | synth | — | — | sawtooth down-slide |
+| `death` | a minion dies | synth | — | — | low sine drop |
+| `shield` | a Divine Shield is **gained** (shieldUp) | synth | — | — | sine up-slide shimmer |
+| `buff` | a combat buff lands | synth | — | — | two-note triangle |
+| `win` | combat won (verdict) | synth | — | — | major 4-note arpeggio |
+| `lose` | combat lost (verdict) | synth | — | — | minor descending arpeggio |
+| `temper` | *(legacy — unused; `pulse` replaced it as the Hero-Power cue)* | synth | — | — | bright two-note ping |
 
-### NO SFX (silent today)
+**Sourced files on disk (17):** `buy1` `buy2` · `sell1` `sell2` `sell3` `sell4` · `cardlanding` ·
+`tavernupgrade` · `freezetavern` · `unfreezetavern` · `reordercard` · `discover` · `taunt` · `deny` ·
+`inspect` · `pulse` · `smack`.
+
+---
+
+## 2. Where each sound fires (trigger sites)
+
+- **Recruit / shop actions** (`store.ts` → `actionSfx`, fired on dispatch): `buy`, `sell`, `play`/`castSpell`
+  (minion vs spell), `roll`, `freeze`/`unfreeze` (toggle), `reorder` (reposition / reorderShop), `upgrade`,
+  `discover` (on the action that opens a Discover), `taunt` (board minion gains Taunt), `triple` (golden
+  formed), `deny` (any rejected buy/play/roll/upgrade), `combatStart` (faceOmen). Discover **pick** plays
+  `buy`. Inspect (`inspectCard`) plays `inspect`.
+- **Hero Power button** (`StatusBar.tsx`) and **hero choose** (`HeroSelect.tsx`): `pulse`.
+- **Timer** (`Recruit.tsx`): `tick` (last 5 s). **End-of-Turn procs** (`Recruit.tsx`): `proc` per proc.
+- **Combat beat replay** (`useCombatReplay.ts`): `attack` (on `attack`), `hit` (on `dmg`, and frame-accurate
+  from the lunge), `death` (on `death`), `shield` (on `shieldUp`), `buff` (on `buff`), `win`/`lose` (verdict).
+
+---
+
+## 3. Potential sourced clips — **synth keys that want a real sample**
+
+These already have a trigger + a synth placeholder; sourcing them is just dropping an mp3 and swapping the
+call to `playSample(...)` (with the synth as fallback). Rough priority:
+
+1. **`castSpell`** — spells currently share the minion-landing feel; a distinct "whoosh/cast" reads great
+   (and is very frequent).
+2. **`death`** — every combat has deaths; a real "thud/crumble" lands hard.
+3. **`attack`** — the swing itself (paired with the existing `smack` impact).
+4. **`triple`** — the golden combine is a celebration moment; a real sparkle/chime sells it.
+5. **`win` / `lose`** — the verdict stingers; a short fanfare / sad-trombone beats the synth arpeggios.
+6. **`shield`** — Divine Shield gained (a metallic "ting").
+7. **`buff`** — a combat stat buff lands.
+8. **`proc`** — the End-of-Turn shimmer (heard a lot during the EOT sequence).
+9. **`roll`** — the tavern refresh sweep.
+10. **`combatStart`** — the "Face the Omen" transition (a war-horn/drum hit).
+11. **`tick`** — the final-5-seconds countdown click.
+
+---
+
+## 4. Silent events — **no `sfx.*` key at all** (new sounds, new wiring)
+
+### Combat beats with no audio (`useCombatReplay.ts`)
 
 | event | length | animation | note |
 |---|---|---|---|
-| **Start-of-Combat cast (sc)** | **1080 ms** | caster `sccast` pulse + projectile bolts to targets | e.g. Ember Whelp, Blaster — a cast/zap sound would help |
-| **summon** | 660 ms | `summoned` pop-in | tokens, Deathrattle summons, Reborn-adjacent |
-| **Divine Shield BREAK (shield)** | 690 ms | `shatter` flash | distinct from gaining a shield; a glass-break would read great |
-| **poison kill** | 750 ms | `poisoned` + big `☠` bloom | Venomous |
-| **Venomous spent (venomLost)** | 750 ms | `venomspent` flash | the venom drops off after its hit |
-| **reborn** | 960 ms | `reborn` ring | a minion returns to life |
+| **Start-of-Combat cast (sc)** | **1080 ms** | caster `sccast` pulse + projectile bolts | Ember Whelp / Blaster opening zaps — a cast/zap would help |
+| **summon** | 660 ms | `summoned` pop-in | tokens, Deathrattle summons |
+| **Divine Shield BREAK (shield)** | 690 ms | `shatter` flash | distinct from *gaining* a shield — a glass-break would read great |
+| **poison kill** | 750 ms | `poisoned` + big `☠` bloom | Venomous — a hiss/dissolve |
+| **Venomous spent (venomLost)** | 750 ms | `venomspent` flash | venom drops off after its hit |
+| **reborn** | 960 ms | `reborn` ring | a "phoenix" return cue |
 | **improve** | 780 ms | `buffed` flash + `✦` | Kennelmaster aura climbing mid-fight |
 | **rally** | 1080 ms | source pulse + target `flare` + `☠` | Deathsayer triggering a Deathrattle |
 | **toHand** | 1230 ms | card flies to your hand | Arcane Weaver → Spirit Fire |
-| **reveal (Stealth lost)** | 450 ms (default) | minion becomes targetable | |
+| **reveal (Stealth lost)** | 450 ms | minion becomes targetable | minor |
 
----
-
-## 3. Recruit / shop actions — all have SFX (fired on dispatch, `store.ts`)
-
-| action | SFX | visible animation + length |
-|---|---|---|
-| buy a minion | `buy` | card pops into hand (cardpop) |
-| play a minion | `play` | card lands on board |
-| cast a spell | `play` | spell spark at target (~600 ms); Yazzus replays the spark per cast |
-| sell a minion | `sell` | card leaves + gold glow |
-| refresh / freeze | `roll` | shop cards swap |
-| Tavern Up | `upgrade` | tier number bumps |
-| Hero Power | `temper` | targeted buff flash, etc. |
-| Discover pick | `buy` | pick resolves into hand |
-| End Turn → Omen | `combatStart` | shop closes (480 ms) |
-| rejected action | `deny` | (no animation) |
-| golden formed (triple) | `triple` | golden combine |
-| timer last 5 s | `tick` (×1/sec) | countdown ring pulses |
-| End-of-Turn proc | `proc` (per proc) | proc flourish + stat climb, **930 ms/proc** (760 beat + 170 gap), ×Chronos repeats |
-
----
-
-## 4. Recruit-phase animations with **NO SFX** (silent — candidates for new sounds)
+### Recruit-phase animations with no audio
 
 | animation | length | trigger |
 |---|---|---|
 | **stat buff flash** (green) | 700 ms | any recruit buff lands on a card |
-| **+X/+X buff float** | ~1450 ms | any recruit buff (spell, hero power, Guel, etc.) |
-| **Fodder consume swirl** | ~2300 ms (hold, then swirl into the Demon; +X/+X float at ~1450 ms) | a Demon eats tavern Fodder — **an "eat/chomp" sound is a notable gap** |
-| **Magnetic weld** (slide + crackle) | ~280 ms slide + ~120 ms settle | a Magnetic minion merges into a Mech — **a "clamp/magnet" sound is a notable gap** |
+| **+X/+X buff float** | ~1450 ms | any recruit buff (spell, hero power, Guel, …) |
+| **Fodder consume swirl** | ~2300 ms | a Demon eats tavern Fodder — **an "eat/chomp" is a notable gap** |
+| **Magnetic weld** (slide + crackle) | ~280 ms + ~120 ms settle | a Magnetic minion merges into a Mech — **a "clamp/magnet" is a notable gap** |
 | **Battlecry flourish** | 760 ms | a played minion's Battlecry fires |
 | **Karwind flame flash** | 520 ms | Karwind flame-buffs Dragons |
 | **Devour bolt** (stat projectile) | ~560 ms arc + 600 ms spark | Channeling the Devourer |
@@ -108,17 +136,18 @@ result events) shown for a fixed length, then the next beat. Durations below are
 
 ---
 
-## 5. Suggested priority gaps (events that read as "missing a sound")
+## 5. Top "missing sound" gaps (silent events worth a clip)
 
-1. **Divine Shield break** (`shield`) — currently silent; only *gaining* a shield has audio.
-2. **Start-of-Combat cast** (`sc`) — the opening zaps (Ember Whelp / Blaster) are silent.
-3. **Poison kill** — the big `☠` bloom deserves a hiss/dissolve.
-4. **Reborn** — a "phoenix" return cue.
-5. **Fodder consume** (recruit) — an eat/chomp; very visible, very silent.
-6. **Magnetic weld** (recruit) — a metallic clamp.
+1. **Divine Shield break** — only *gaining* a shield has audio; the shatter is silent.
+2. **Start-of-Combat cast (`sc`)** — the opening zaps (Ember Whelp / Blaster).
+3. **Fodder consume** (recruit) — an eat/chomp; very visible, very silent.
+4. **Magnetic weld** (recruit) — a metallic clamp.
+5. **Poison kill** — the big `☠` bloom wants a hiss/dissolve.
+6. **Reborn** — a "phoenix" return cue.
 7. **summon / toHand / rally / improve** — minor, but each is a distinct beat with no audio.
 
-> Mapping: each row in §2/§3 names the `sfx.*` key (or "NO SFX"). To wire a sourced clip, replace the
-> synthesized function in `packages/ui/src/sfx.ts` (or add a new key + call it at the listed site). The
-> combat-beat SFX are dispatched in `useCombatReplay.ts` (the "sfx per beat" effect); recruit actions in
-> `store.ts`; the EOT proc + timer tick in `Recruit.tsx`.
+> To wire a sourced clip: add `name.mp3` to `packages/ui/src/audio/` and either swap a §1 synth key to
+> `playSample('name', sampleVol.name)` (keep the synth as fallback) or, for a §4 silent event, add a new
+> `sfx.<key>` and call it at the listed site. Combat beats are dispatched in `useCombatReplay.ts`; recruit
+> actions in `store.ts`; the EOT proc + timer tick in `Recruit.tsx`; the Hero-Power cue in `StatusBar.tsx`.
+> Register a new sourced key in `SAMPLE_VOL_DEFAULTS` + `SFX_PREVIEW` so it appears in the dev mixer.

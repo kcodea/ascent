@@ -138,6 +138,10 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## M2 — content + balance (in progress)
 
+- **Combat spell-casts → Archmagus Guel (shipped 2026-06-24 → devlog):** combat now has a real `ctx.castSpell`
+  path. Taragosa's Growth is a real spell cast that fires Guel mid-fight (temporary buff) and **permanently**
+  counts toward his improvement (carried back to the run's `spellsCast`). `simulate` takes the run `spellsCast`
+  (Guel's grant scales) + returns `playerSpellsCast`. Opens the door to more in-combat spell-casters.
 - **Nanon (T6 Mech, shipped 2026-06-24 → devlog):** Deathrattle floods 6 Nanobots; each one a full board can't
   fit pumps your Mechs +2/+2 (golden +4/+4). New `deathrattleSummonOverflowBuff` factory; Nanobot 1/1 token.
   **Mech pool → 12** (toward the 13–15 target).

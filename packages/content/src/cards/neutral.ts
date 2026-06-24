@@ -80,8 +80,8 @@ export const NEUTRAL: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastBuffOthers', params: { attack: 1, health: 1, count: 2 } }],
-    text: 'After you cast a tavern spell, give 2 other friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast.',
-    goldenText: 'After you cast a tavern spell, give 2 other friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast.',
+    text: 'After **a spell is cast** (shop or combat), give 2 other friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast.',
+    goldenText: 'After **a spell is cast** (shop or combat), give 2 other friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast.',
   },
   {
     // Overflow payoff. When a summon can't fit your full board, a random friend gets the wasted body's

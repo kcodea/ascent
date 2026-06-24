@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Spells cast in combat now trigger Guel.** Taragosa's Growth is a real spell cast — it fires **Archmagus
+  Guel** mid-fight (a temporary buff) and **permanently** counts toward his improvement (combat casts bump the
+  run's spell tally). Combat gained a real `castSpell` path for this.
 - **Nanon (T6 Mech).** Deathrattle floods 6 Nanobots; every one that can't fit a full board instead pumps your
   Mechs **+2/+2** (golden +4/+4) — a packed board turns the overflow into a board-wide buff. Nanobot is a 1/1 token.
 - **Batch fixes + hero-power art.** Wired **8 hero-power button arts** + rewired Cling/Stuntdrake/Sea Urchin.

@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Feature: spells cast in combat now trigger Archmagus Guel (and count permanently)
+
+Combat can now **cast spells** — Taragosa's Growth is a *real* spell cast, not just a buff:
+
+- New **`ctx.castSpell(side)`** fires the `spellCast` trigger mid-combat (so any combat `spellCast` subscriber
+  reacts) and tallies the cast on a running per-side counter. `simulate` now takes the run's **`spellsCast`**
+  (seeding the player's counter so Guel's grant scales correctly) and reports the player's in-combat casts via
+  **`CombatResult.playerSpellsCast`**.
+- **Archmagus Guel** gained a combat half (`spellCastBuffOthers` in core `FACTORIES`, mirroring the recruit
+  half): on a friendly combat spell-cast he buffs 2 other random friends +X/+X (X scales +1/+1 per 4 spells, via
+  the running tally in the event payload), as a **temporary combat buff**. His existing `{on:'spellCast'}`
+  effect auto-registers in combat now that the factory exists — no card change needed.
+- **The counter is permanent:** `settleCombat` adds `playerSpellsCast` to the run's `spellsCast`, so spells cast
+  in combat improve Guel (and every spell-count payoff) for the rest of the run.
+- **Taragosa** now calls `ctx.castSpell` when it casts Growth (golden casts twice → 2 casts). Guel's card text
+  updated to *"After a spell is cast (shop or combat)…"* + the live `guelProgressText` to match.
+- Tests: Guel fires off Taragosa's combat cast (+1/+1) and carries back (`playerSpellsCast`); Guel scales with the
+  passed-in `spellsCast` (start 4 → +2/+2 grant); `settleCombat` bumps the run's `spellsCast` (5 + 3 = 8).
+  Verified: typecheck + lint + **322 tests** + `build:web`.
 ### Content: Nanon (T6 Mech) — a flood-or-pump Deathrattle
 
 - **Nanon** (T6 Mech 6/6) — *Deathrattle: summon 6 Nanobots. For each one that can't fit, give your Mechs

@@ -71,7 +71,7 @@ hoarder,Hoarder,2,2,2,,,Sells for **+1 Gold** per turn you hold it.,Sells for **
 buddy,Buddy Buddy,3,3,4,,,**Battlecry:** add a random **Tier 1** minion to your hand.,**Battlecry:** add **two** random **Tier 1** minions to your hand.
 echo,Echo Warden,3,2,4,,,"**In combat,** your summon effects summon **1 more** copy.","**In combat,** your summon effects summon **2 more** copies."
 venom,Venom,3,1,1,,Venomous,,
-guel,Archmagus Guel,4,2,3,,,"After you cast a tavern spell, give 2 other friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast.","After you cast a tavern spell, give 2 other friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast."
+guel,Archmagus Guel,4,2,3,,,"After **a spell is cast** (shop or combat), give 2 other friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast.","After **a spell is cast** (shop or combat), give 2 other friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast."
 blaster,Blaster,4,6,3,,Taunt,**Deathrattle:** deal **3** damage to ALL minions (yours too).,**Deathrattle:** deal **6** damage to ALL minions (yours too).
 monk,Flowing Monk,4,1,4,,,"When you summon a minion that doesn't fit, give a random friendly minion **+3/+3** (Engraved — kept after combat).","When you summon a minion that doesn't fit, give a random friendly minion **+6/+6** (Engraved — kept after combat)."
 blackbelt,Black Belt Brian,5,3,5,,,**Battlecry:** Discover a spell.,**Battlecry:** Discover **2** spells.

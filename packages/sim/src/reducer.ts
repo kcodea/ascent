@@ -515,12 +515,12 @@ export function reduce(state: RunState, action: Action): RunState {
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus);
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0;
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus).result;
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast).result;
           if (r === 'win') win++;
           else if (r === 'draw') draw++;
           else lose++;
@@ -773,6 +773,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Gryphon: free shop rerolls banked from taking damage in combat.
   if (result.playerFreeRolls) {
     s.freeRolls += result.playerFreeRolls;
+  }
+  // Taragosa: spells cast IN combat permanently bump the run's spellsCast — so they count toward
+  // spell-count payoffs (Archmagus Guel's improvement) just like tavern spells.
+  if (result.playerSpellsCast) {
+    s.spellsCast += result.playerSpellsCast;
   }
   // Sporebat: grant N random tavern-tier spells to the hand (the tavern tier is known here; honours the cap).
   if (result.playerSpellGrants) {

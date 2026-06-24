@@ -460,10 +460,10 @@ export function useCombatReplay(
     if (!active || beatIdx === 0) return; // only during the live replay — fixes a phantom "smack" at the next
     const beat = beats[beatIdx - 1];      // shop phase, when new beats swap in while beatIdx is briefly stale
     if (!beat) return;
-    // If this result beat was caused by an attack, the lunge's GSAP timeline already fired the smack
-    // at the exact contact frame — skip the (later) beat-driven one here so attacks don't double-hit.
-    // Non-attack damage (SC AOE, poison, deathrattle) has no lunge, so it still gets its smack below.
-    const fromAttack = beats[beatIdx - 2]?.primary.type === 'attack';
+    // The physical "smack" is fired ONLY from the attack lunge's GSAP timeline, at the exact contact frame
+    // (see playAttackLunge) — never from a `dmg` beat. So we don't double-hit, and non-attack damage (SC
+    // bolts, deathrattle AOE, poison) no longer borrows the melee smack — those effects get their own cues
+    // (e.g. Start-of-Combat → `cast`). Add a dedicated sound here when one's available, not a default smack.
     const done2 = new Set<string>();
     const once = (k: string, fn: () => void): void => {
       if (!done2.has(k)) { done2.add(k); fn(); }
@@ -473,7 +473,7 @@ export function useCombatReplay(
       const e = events[i];
       if (!e) continue;
       if (e.type === 'attack') once('attack', sfx.attack);
-      else if (e.type === 'dmg') { if (!fromAttack) once('hit', sfx.hit); }
+      else if (e.type === 'sc') once('cast', sfx.cast); // Start-of-Combat zap (distinct from the melee smack)
       else if (e.type === 'death') { once('death', sfx.death); kill = true; }
       else if (e.type === 'shieldUp') once('shield', sfx.shield);
       else if (e.type === 'buff') once('buff', sfx.buff);

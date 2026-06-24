@@ -83,6 +83,38 @@ means the boundary leaked.
 - `npm run harness` — headless combat: prints a narrated event log + proves determinism
 - `npm run lint` — ESLint (incl. the Math.random ban)
 
+## Collaboration (2 devs — Kevin + Mike, both using Claude Code)
+
+Two people don't go 2× by typing faster (Claude already removed typing as the bottleneck) — the new
+bottleneck is **coordination and integration**. The win comes from parallelizing along clean seams and
+keeping `main` always-playable so neither dev ever blocks or breaks the other.
+
+- **`main` is always playable + protected.** Never commit straight to `main` — open a PR. Every merge has
+  passed CI (`.github/workflows/ci.yml`: typecheck + lint + test + build:web) and a quick review from the
+  other person. Squash-merge (one clean, revertable commit per feature).
+- **GitHub Flow, short branches.** One feature/fix = one branch = one PR, lived in hours-to-~2-days. Branch
+  off latest `main`; rebase on `origin/main` at the start of a session and before pushing. Name by risk:
+  `feat/…`, `fix/…`, `chore/…`, `refactor/…`.
+- **Prove the checks ran.** Before claiming done: `npm run typecheck && npm run lint && npm test && npm run
+  build:web` all green — report the result. CI re-checks, but don't make the other person wait on a red PR.
+- **Scope discipline.** Stay inside the feature's files. No "while I was in there" refactors — propose those
+  as their own PR. Read the diff before committing; never blind-commit Claude's output.
+- **Serialize the hot files.** Don't have both devs/agents editing the same chokepoint at once. Announce
+  ("taking `store.ts` for an hour") and rebase frequently. The most expensive conflicts live in:
+  `packages/sim/src/state.ts` + `reducer.ts` (run state), `packages/core/src/types.ts` (shared types),
+  `packages/ui/src/store.ts` (Zustand), `packages/sim/src/opponentPool.data.ts` (generated — never hand-edit;
+  re-run `npm run pool`).
+- **Keep the docs current** (devlog / roadmap / README) per the section below — same rule, both devs.
+
+### Ownership map (the cheapest collision-avoidance — update as work shifts)
+
+Split along the **simulation ↔ presentation** seam; meet only at the package entrypoints + shared types.
+- **Kevin** — engine + content + run loop: `packages/core/**`, `packages/content/**`, `packages/sim/**`,
+  balance tools (`packages/tools/**`).
+- **Mike** — presentation: `packages/ui/**`, `apps/web/**` (React, GSAP, styles, audio).
+- **Shared boundary (coordinate before changing):** `packages/core/src/types.ts` (combat event vocab,
+  `CombatEvent`/`CombatResult`), the package public entrypoints, and any new card-data ↔ UI contract.
+
 ## Milestones
 
 - **M0 — walking skeleton** ✓: core types + seeded RNG + event bus; Beasts + neutral glue;

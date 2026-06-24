@@ -227,7 +227,14 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       + white text box (dual = split frame/edge).)_
 - [ ] **Fuller SFX coverage.** Sourced clips exist for sell + combat impact; the priority gaps (per
       `docs/sfx-events.md`) are still synth placeholders: Divine-Shield break, Start-of-Combat cast, poison
-      kill, reborn, Fodder eat/chomp, magnetic weld.
+      kill, reborn, Fodder eat/chomp, magnetic weld. **Now also silent (no default smack any more):**
+      non-attack damage — deathrattle AOE (Blaster), poison kills — want their own cues.
+- [ ] **Damage lands at the lunge connection (combat-feel).** Today an on-attack buff (Better Bot/rally)
+      emits a `buff` event between an `attack` and its `dmg`, so the damage number/recoil shows a beat late
+      (after the buff animation) instead of at contact. Fix = reorder the replay event stream so an attack's
+      result events sit right after the attack (hoist interleaved pure-`buff` events around them), keeping
+      `computeFrame`'s order==beat-order invariant. Needs live verification across rally/cleave/windfury/
+      deathrattle. (Audio half already done — smack only fires from the lunge, at contact.)
 - [x] **Art preload / warm pass (done 2026-06-24 → devlog).** `art.ts` `warmArt()` preloads every card/hero
       webp on idle from `Game`'s mount, so the first shop renders with art cached — no cold-load pop-in (incl.
       the itch CDN). Verified: 157 webps fetched on the title screen.

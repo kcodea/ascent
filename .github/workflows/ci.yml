@@ -1,0 +1,26 @@
+name: CI
+
+# The gate that keeps `main` always-playable for two-dev work: every PR must typecheck, lint,
+# build, and pass tests before it can merge. The build step is the closest proxy for "the game
+# compiles + boots". See CLAUDE.md → Collaboration for the full flow.
+on:
+  pull_request:
+    branches: [main]
+  # Also run on direct pushes to main as a safety net (until branch protection is enabled).
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck   # tsc --noEmit across all packages — the highest-value Claude-break catcher
+      - run: npm run lint        # eslint (incl. the Math.random ban in core/content/sim)
+      - run: npm test            # vitest: determinism + golden + effect tests
+      - run: npm run build:web   # vite build MUST succeed = the game compiles

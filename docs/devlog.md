@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Two-dev setup (CI + collaboration rules) · combat damage audio (SC zap, no default smack)
+
+- **CI gate for two-dev work.** Added `.github/workflows/ci.yml` — on every PR (and pushes to `main` as a
+  safety net) it runs typecheck + lint + test + `build:web`, so a broken build is unmergeable. Added a
+  **Collaboration (2 devs)** section + **ownership map** to `CLAUDE.md` (the sim↔presentation seam: Kevin owns
+  `core`/`content`/`sim`/`tools`, Mike owns `ui`/`apps/web`; shared boundary = `core/types.ts` + package
+  entrypoints), plus the hot-file list to serialize. NOTE: GitHub **branch protection isn't available on this
+  private repo without Pro** (or making it public) — until then "never commit to main" is a convention CI +
+  review back up, not a hard gate. Owner action items in the session summary.
+- **Combat damage audio reworked (notes 1 + 2, audio half).** The physical "smack" now comes ONLY from the
+  attack lunge's GSAP timeline (at the contact frame) — the beat-driven `dmg` smack was removed entirely. So
+  (a) **Start-of-Combat damage no longer smacks** — Ember Whelp & co. play a new `sfx.cast` zap on the `sc`
+  beat instead; (b) the **double-smack is gone** — when an on-attack buff (Better Bot/rally) emitted a `buff`
+  event between the `attack` and its `dmg`, the old positional guard (`beats[beatIdx-2]`) missed and the dmg
+  beat fired a second, late smack; with no beat-driven smack at all, the lunge is the sole, on-contact smack.
+  Non-attack damage (deathrattle AOE, poison) is briefly silent until it gets its own cue (tracked in
+  `docs/sfx-events.md` gaps) — deliberately not defaulting to smack, per the note.
+- **Deferred (note 2, visual half):** making the damage *number/recoil* land at the lunge contact (not a beat
+  later when on-attack buffs interleave) is a replay-pipeline reorder — `computeFrame` derives HP by event
+  order == beat order, so it needs an event-level reorder + live verification across rally/cleave/windfury/
+  deathrattle. Queued as a focused next pass.
+- Verified: typecheck + lint clean, 282 tests pass, live load clean (no console errors).
+
 ### DEV panels draggable + resizable
 
 - **The SFX mixer + Lunge tuner can be moved and resized.** New shared `useDraggablePanel` hook: drag by the

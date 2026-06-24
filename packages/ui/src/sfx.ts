@@ -246,6 +246,12 @@ export const sfx = {
   tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09 }),
   combatStart: () => tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90 }),
   attack: () => tone({ freq: 320, dur: 0.08, type: 'sawtooth', vol: 0.1, slideTo: 130 }),
+  // A Start-of-Combat effect firing (Ember Whelp's scorch, Blaster, etc.) — a quick magic "zap", distinct
+  // from the physical smack so SC damage doesn't read as a melee hit. Synth for now (gets its own clip later).
+  cast: () => {
+    tone({ freq: 1040, dur: 0.14, type: 'sawtooth', vol: 0.085, slideTo: 360 });
+    tone({ freq: 1500, dur: 0.1, type: 'triangle', vol: 0.05, delay: 0.02, slideTo: 900 });
+  },
   // Impact in combat — the sourced "Smack" clip (dialed down across passes); synth thud until it decodes.
   // Fired frame-accurately from the lunge's GSAP timeline (see playAttackLunge) so it lands on contact.
   hit: () => {

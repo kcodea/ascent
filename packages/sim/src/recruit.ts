@@ -847,6 +847,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, str(params._source) || 'Perfect Vision', a - self.attack, h - self.health);
   },
 
+  /** Apples — cast: buff every minion currently in the tavern by +atk/+hp (rides on each offer's `atk`/`hp`,
+   *  so a buy bakes it in). Lost on a refresh (fresh offers), kept on a freeze (same offers). Flat. */
+  spellBuffTavern: (ctx, _self, params) => {
+    const a = num(params.attack, 2);
+    const h = num(params.health, 3);
+    for (const offer of ctx.state.shop) {
+      offer.atk = (offer.atk ?? 0) + a;
+      offer.hp = (offer.hp ?? 0) + h;
+    }
+  },
+
+  /** Fleeting Vigor — cast: bank a one-shot Start-of-Combat buff for the NEXT combat (your minions enter
+   *  that fight at +atk/+hp, then it's spent — applied in `faceOmen`). Stacks if cast twice. Flat. */
+  spellPendingSCBuff: (ctx, _self, params) => {
+    ctx.state.fleetingVigor ??= { attack: 0, health: 0 };
+    ctx.state.fleetingVigor.attack += num(params.attack, 2);
+    ctx.state.fleetingVigor.health += num(params.health, 1);
+  },
+
   /** Channeling the Devourer — cast: devour the targeted friendly minion (`self`, removed from the
    *  board) and spit its stats onto a RANDOM other friend. It transfers existing stats, so it does NOT
    *  scale with spell power; the `singleCast` flag on its card keeps spell-quantity multipliers from

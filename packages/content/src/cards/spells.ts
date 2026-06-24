@@ -331,4 +331,34 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellSetStats', params: { attack: 20, health: 20 } }],
     text: "Set a friendly minion's stats to **20/20**.",
   },
+  {
+    // Bank a one-shot Start-of-Combat buff: your minions enter the NEXT combat at +2/+1, spent after that
+    // fight (win or lose). Flat — no spell-power scaling. (Applied to the combat board in `faceOmen`.)
+    id: 'fleetingvigor',
+    name: 'Fleeting Vigor',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    effects: [{ on: 'cast', do: 'spellPendingSCBuff', params: { attack: 2, health: 1 } }],
+    text: '**Start of combat:** give your minions **+2/+1** (next combat only).',
+  },
+  {
+    // Buff every minion currently in the tavern by +2/+3 — rides on each offer, so a buy bakes it in. Lost
+    // on a refresh (new offers), kept if you freeze (same offers). Flat — no spell-power scaling.
+    id: 'apples',
+    name: 'Apples',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 2, health: 3 } }],
+    text: 'Give minions in this tavern **+2/+3** (lost on refresh; kept if frozen).',
+  },
 ];

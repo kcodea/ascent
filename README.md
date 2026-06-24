@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **+2 system-spells (pool 22 → 24).** **Fleeting Vigor** (banks a Start-of-Combat +2/+1 for your next fight)
+  and **Apples** (buff the current tavern +2/+3 — lost on refresh, kept if you freeze).
 - **+2 reactive Dragons (pool 10 → 12).** **Hunter** (when its Attack rises, your minions gain Health — via a
   new `onGainAttack` combat trigger) and **Crypt Drake** (Dragon/Undead; every ally attack buffs your board,
   improving every 3 attacks). They combo: Crypt Drake pumps Attack, Hunter answers with Health.

@@ -228,6 +228,19 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 - [ ] **Fuller SFX coverage.** Sourced clips exist for sell + combat impact; the priority gaps (per
       `docs/sfx-events.md`) are still synth placeholders: Divine-Shield break, Start-of-Combat cast, poison
       kill, reborn, Fodder eat/chomp, magnetic weld.
+- [ ] **Art preload / warm pass (fixes itch art pop-in).** Card/hero webps are only fetched when an `<img>`
+      first renders, so on a cold itch-CDN load the art "pops in" a beat after the card frame. Warm every art
+      URL (`new Image().src` / `img.decode()`) during the title / hero-select screen so the shop opens with art
+      cached. Platform-independent — fixes the web + itch-embed build, not just a future Electron/desktop wrap
+      (which only removes the *network* half). ~5 MB of small webps; cheap to warm. `art.ts` already has every
+      URL via the eager glob — just export the list + add a `warmArt()` call from the app entry.
+- [ ] **Notes (2026-06-23, from play): three animation/combat gaps.**
+      - **Fodder consume animation can get lost** — make the swirl/eat animation robust so it never silently
+        drops (audit the Demon-eats-Fodder path in Recruit; ensure the FX always fires even on fast input /
+        re-renders).
+      - **Bane needs an animation** — its effect currently fires with no visible cue.
+      - **Soulsman needs a proc animation + sound AND to be tracked in combat** — it isn't surfaced in the
+        combat replay/log today; give it a proc beat (FX + `sfx`) and make its trigger show up in the event log.
 - [x] **Performance is the north star (2026-06-23 → devlog).** Two adversarial audit passes; fixed the
       magnetic-board frame drop (animated `box-shadow` glows → opacity-only `::before` pulses), memoized
       `Unit`, stopped deep-cloning `lastCombat`, killed the per-frame drag reflow, `decoding="async"` +

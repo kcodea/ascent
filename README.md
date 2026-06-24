@@ -23,6 +23,11 @@ npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in b
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Real opponent boards ship with the game.** `npm run pool` bakes a curated, committed pool of real
+  buildable boards (house bot boards + any board exports you/friends drop in `docs/board-exports/`), loaded at
+  startup — instead of procedural blobs. Boards now carry **attribution** (`origin` + author name + date): set
+  your name in Settings → Player, and boards you build get captured "by you"; the opponent frame shows who made
+  the board you're about to fight. Foundation for the you → friends → computer-built (power-banded) opponent pool.
 - **Performance pass (the north star).** Fixed the frame drops on magnetic-heavy boards — the keyword glows
   (Divine Shield / Reborn / Venom / triple) were animating `box-shadow`, repainting every card every frame;
   they now pulse an opacity-only layer (compositor-only). The **round timer no longer re-renders the whole

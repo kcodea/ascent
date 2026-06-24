@@ -31,8 +31,14 @@ The next 5 concrete steps:
    localStorage (`boardLibrary.ts`) and load into the pool at startup. **Hardened 2026-06-23:**
    `registerOpponents` now drops boards referencing a removed/renamed card (`isServableBoard`) and `faceOmen`
    falls back to the procedural threat on any serve-time failure — a stale capture can no longer hard-lock
-   End Turn (it did: a pre-removal Lifebinder board crashed combat). Remaining: a shared **friend backend**
-   keyed by `(wave, power-band, tribe)` — the async-PvP track (step 5).
+   End Turn (it did: a pre-removal Lifebinder board crashed combat). **Committed pool + attribution (done
+   2026-06-23):** `npm run pool` bakes a curated `OPPONENT_POOL_DATA` (house bot boards + `docs/board-exports/`
+   imports) shipped in the repo + loaded at startup; `BoardSnapshot` carries `origin/author/capturedAt`; the
+   opponent frame shows "by {name}" / "House board". **Queued next:** (a) **simulate-derived strength rating**
+   (win-rate vs a calibration ladder, cached) + **power-band indexing** so matchmaking is even/on-curve; (b)
+   **synthesized boards within a band** (`origin:'synthetic'` — mutate/recombine real boards, validate via
+   `simulate`) to fill sparse bands (esp. high waves the bot can't reach); (c) **in-game friend export/import
+   UX**; (d) a shared **friend backend** keyed by `(wave, power-band, tribe)` — the async-PvP track (step 5).
 4. ✅ **Serve real boards as enemies** (done 2026-06-21). `faceOmen` draws a strength-matched real snapshot via
    `nextOpponent`/`pickOpponent` (procedural omen = thin-pool fallback), and the top-right **opponent-intel
    frame** telegraphs the next foe (portrait/HP + tier/triples/top-tribe). ✅ **Damage-dealt system (done

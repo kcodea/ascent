@@ -28,11 +28,16 @@ export function loadStoredBoards(): BoardSnapshot[] {
 }
 
 /** Capture a finished run's per-wave boards (deterministically, via `replayRun`) and append them to the
- *  stored library, capped to the most recent CAP. Best-effort — board capture never blocks the game. */
-export function saveRunBoards(replay: Replay): void {
+ *  stored library, capped to the most recent CAP. Stamps your attribution (origin:'self' + name + date) so
+ *  these boards carry "by you" when served — and so they can be exported with provenance for a friend's pool.
+ *  Best-effort — board capture never blocks the game. */
+export function saveRunBoards(replay: Replay, author?: string): void {
   try {
     // Only keep boards with minions — an empty board (power 0) is never a useful opponent.
-    const fresh = replayRun(replay).snapshots.filter((s) => s.minions.length > 0);
+    const capturedAt = new Date().toISOString().slice(0, 10);
+    const fresh = replayRun(replay)
+      .snapshots.filter((s) => s.minions.length > 0)
+      .map((s) => ({ ...s, origin: 'self' as const, ...(author ? { author } : {}), capturedAt }));
     if (fresh.length === 0) return;
     const all = [...loadStoredBoards(), ...fresh].slice(-CAP);
     localStorage.setItem(KEY, JSON.stringify(all));

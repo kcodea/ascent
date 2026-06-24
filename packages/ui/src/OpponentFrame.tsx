@@ -46,6 +46,14 @@ export function OpponentFrame() {
           {snap.triples} triple{snap.triples === 1 ? '' : 's'}
           {dom ? `, ${dom.count} ${dom.tribe}` : ''}
         </div>
+        <div className="opp-by">
+          {snap.author
+            ? `by ${snap.author}`
+            : snap.origin === 'synthetic'
+              ? 'Forged board'
+              : 'House board'}
+          {snap.capturedAt ? ` · ${snap.capturedAt}` : ''}
+        </div>
       </div>
     </div>
   );

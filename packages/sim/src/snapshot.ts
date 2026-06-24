@@ -17,6 +17,11 @@ import { createRun, type Action, type RunState } from './state';
 import { reduce } from './reducer';
 import type { ThreatId } from './threats';
 
+/** Where a pool board came from. 'self' = your own captured run; 'friend' = a friend's imported board;
+ *  'house' = a board shipped with the game (seeded bot runs); 'synthetic' = computer-generated within a
+ *  power band. Missing on a legacy snapshot → treat as 'house'. */
+export type BoardOrigin = 'self' | 'friend' | 'house' | 'synthetic';
+
 export interface BoardSnapshot {
   /** Schema version — bump on a breaking shape change so stored snapshots can be migrated or dropped. */
   v: 1;
@@ -40,6 +45,14 @@ export interface BoardSnapshot {
   minions: BoardMinion[];
   /** Run seed — provenance, and (with the action log) lets the exact run be replayed. */
   seed: number;
+  /** Provenance of this board in the opponent pool (self / friend / house / synthetic). Optional for
+   *  back-compat with legacy captures; missing → treated as 'house'. Stamped by the capture/build layer. */
+  origin?: BoardOrigin;
+  /** Display name of the board's author — you or a friend. Shown on the opponent frame ("by Sam"). */
+  author?: string;
+  /** ISO date (YYYY-MM-DD) the board was captured or generated. Wall-clock, so it's stamped by the UI/tool
+   *  layer (never inside the pure `snapshotBoard`, which must stay deterministic). */
+  capturedAt?: string;
 }
 
 const sumPower = (b: BoardMinion[]): number => b.reduce((s, m) => s + m.attack + m.health, 0);

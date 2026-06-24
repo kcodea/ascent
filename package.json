@@ -23,6 +23,7 @@
     "player": "tsx packages/tools/src/player-curve.ts",
     "audit": "tsx packages/tools/src/card-audit.ts",
     "perf": "tsx packages/tools/src/perf.ts",
+    "pool": "tsx packages/tools/src/build-pool.ts",
     "dump-cards": "tsx packages/tools/src/dump-cards.ts",
     "optimize-art": "node scripts/optimize-art.mjs",
     "dev": "npm run dev -w apps/web",

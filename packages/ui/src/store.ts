@@ -1,14 +1,15 @@
 import { create } from 'zustand';
-import { HEROES, OPPONENT_POOL, buildBootstrapPool, registerOpponents, createRun, reduce, type Action, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, reduce, type Action, type Replay, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 
-// Serve real, buildable boards as enemies (M3 step 2): inject a deterministic bootstrap pool — captured
-// per-wave boards from seeded bot runs — once at startup, while OPPONENT_POOL is still empty (so the bot
-// itself faces the procedural baseline). The headless harnesses + tests don't load this module, so they
-// keep their empty-pool procedural baseline. Step 3 (the board library) grows this with captured/friend boards.
-if (OPPONENT_POOL.length === 0) registerOpponents([...buildBootstrapPool(), ...loadStoredBoards()]);
+// Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
+// `npm run pool` from seeded bot runs + any imported you/friend board exports) plus this browser's own
+// captured boards, once at startup while OPPONENT_POOL is still empty. The headless harnesses + tests don't
+// load this module, so they keep their empty-pool procedural baseline. `registerOpponents` drops any board
+// referencing a card this build no longer has, so a stale committed/stored board can never crash combat.
+if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA, ...loadStoredBoards()]);
 
 /** How many heroes the pre-run picker offers (or all of them, if fewer exist). */
 const HERO_SELECT_COUNT = 2;
@@ -73,6 +74,10 @@ interface GameStore {
   compactCards: boolean;
   /** Flip the compact / full-text card display (Esc menu). */
   toggleCompact: () => void;
+  /** Your display name — stamped onto boards you capture (origin:'self') so they carry "by you" when served
+   *  and when exported for a friend's pool. Persisted; set in Settings. Empty = anonymous. */
+  playerName: string;
+  setPlayerName: (name: string) => void;
   /** The current run's action log (only state-changing actions), reset on a fresh run. With the run
    *  seed it forms a deterministic replay — the basis for board capture + async-PvP snapshots. */
   replayActions: Action[];
@@ -96,6 +101,11 @@ interface GameStore {
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
 
+/** Your persisted display name (empty if unset). Best-effort — localStorage may be unavailable. */
+function loadPlayerName(): string {
+  try { return localStorage.getItem('ascent.playername') ?? ''; } catch { return ''; }
+}
+
 export const useGame = create<GameStore>((set, get) => ({
   run: createRun(randomSeed()),
   heroArmed: false,
@@ -108,6 +118,12 @@ export const useGame = create<GameStore>((set, get) => ({
   // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
   compactCards: true,
   toggleCompact: () => set((s) => ({ compactCards: !s.compactCards })),
+  playerName: loadPlayerName(),
+  setPlayerName: (name) => {
+    const playerName = name.slice(0, 24).trim();
+    try { localStorage.setItem('ascent.playername', playerName); } catch { /* ignore */ }
+    set({ playerName });
+  },
   replayActions: [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, actions: get().replayActions }),
   dispatch: (action) =>
@@ -122,7 +138,8 @@ export const useGame = create<GameStore>((set, get) => ({
         s.run.phase !== 'victory'
       ) {
         const replay = { seed: next.seed, heroId: next.heroId, actions: [...s.replayActions, action] };
-        setTimeout(() => saveRunBoards(replay), 0);
+        const author = s.playerName || undefined;
+        setTimeout(() => saveRunBoards(replay, author), 0);
       }
       return {
         run: next,

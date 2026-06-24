@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-23
 
+### Committed opponent pool + board attribution (`npm run pool`) — real boards ship with the game
+
+Until now, captured boards lived ONLY in browser `localStorage` (`ascent.boards`, written when a run ends);
+the committed `OPPONENT_POOL` was empty and the app loaded a bootstrap pool recomputed from seeded bot runs at
+every launch. So no real boards shipped, and nothing carried provenance. This lays the foundation for the
+intended "you → friends → computer-built" opponent pool with attribution.
+
+- **Schema — provenance.** `BoardSnapshot` gains `origin` (`'self' | 'friend' | 'house' | 'synthetic'`),
+  `author` (display name), `capturedAt` (ISO date). All optional + back-compat (missing → 'house'); the
+  wall-clock date is stamped by the UI/tool layer, never inside the pure `snapshotBoard`.
+- **`npm run pool`** (`packages/tools/src/build-pool.ts`) bakes a curated `BoardSnapshot[]` into
+  `packages/sim/src/opponentPool.data.ts` (loaded at startup via `OPPONENT_POOL_DATA`). Sources: house bot
+  boards (60 seeded runs × every hero, deterministic, tagged `origin:'house'`) + any board exports dropped in
+  `docs/board-exports/*.json` (your localStorage export and friends' boards, with name/date). Curation: drop
+  empty/unservable, dedupe, cap per wave with an even power spread. First bake: **196 boards, waves 1–9** (the
+  greedy bot rarely survives past 9 — high waves still fall back to procedural until real player boards +
+  synthesis fill them). `docs/board-exports/README.md` documents the export/contribute flow.
+- **Attribution wired end to end.** A persisted player **Name** (Settings → Player, `ascent.playername`);
+  `saveRunBoards` stamps your runs `origin:'self'` + name + date; the opponent frame shows "by {author}" (self/
+  friend) or "House board" / "Forged board", with the date. Verified live: the committed pool serves a real
+  board at wave 1 ("Djinn … House board · {date}"), and a finished run stores `origin:'self', author, capturedAt`.
+- Replaced the runtime `buildBootstrapPool()` startup call with the committed `OPPONENT_POOL_DATA` (+ this
+  browser's own captured boards); `registerOpponents` still drops any board referencing a removed card.
+- Verified: typecheck + lint clean, 279 tests pass; live (pool serves attributed boards, name persists, self-
+  capture stamps provenance). **Next stages (queued):** simulate-derived strength rating + power bands, then
+  computer-built boards synthesized within a band, then in-game friend export/import UX.
+
 ### Perf: the per-second turn timer no longer re-renders the whole board (heavy-board frame drops fixed)
 
 Follow-up to the perf pass — the user still felt frame drops on a full wave-14 board (golden + Divine-Shield

@@ -24,6 +24,8 @@ export function EscMenu({
   const startHeroSelect = useGame((s) => s.startHeroSelect);
   const compactCards = useGame((s) => s.compactCards);
   const toggleCompact = useGame((s) => s.toggleCompact);
+  const playerName = useGame((s) => s.playerName);
+  const setPlayerName = useGame((s) => s.setPlayerName);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -32,6 +34,19 @@ export function EscMenu({
     <div className="escov" onPointerDown={onClose}>
       <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
         <div className="esch disp">Settings</div>
+        <div className="escsec">Player</div>
+        <div className="escvol">
+          <span className="evl">Name</span>
+          <input
+            type="text"
+            className="escname"
+            value={playerName}
+            maxLength={24}
+            placeholder="Anonymous"
+            aria-label="Player name"
+            onChange={(e) => setPlayerName(e.target.value)}
+          />
+        </div>
         <div className="escsec">Audio</div>
         <div className="escvol">
           <span className="evl">Volume</span>

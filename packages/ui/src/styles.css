@@ -91,6 +91,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .oppframe .opp-tip { position: absolute; top: calc(100% + 6 * var(--u)); right: 0; min-width: calc(160 * var(--u)); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 600; font-size: calc(12.5 * var(--u)); line-height: 1.55; padding: calc(9 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); opacity: 0; pointer-events: none; transform: translateY(calc(-4 * var(--u))); transition: opacity 0.12s, transform 0.12s; z-index: 90; white-space: nowrap; box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) rgba(0, 0, 0, 0.3); }
 .oppframe:hover .opp-tip { opacity: 1; transform: translateY(0); }
 .oppframe .opp-tip b { color: var(--acc); }
+.oppframe .opp-by { margin-top: 3px; font-size: 11px; font-style: italic; color: var(--ink3); }
 /* round turn timer, top centre */
 .rtimer { position: relative; flex: none; width: calc(74 * var(--u)); height: calc(74 * var(--u)); z-index: 80; display: grid; place-items: center; }
 .rtimer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
@@ -1380,6 +1381,9 @@ svg { width: 18px; height: 18px; }
 .escvol .evl { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }
 .escvol .evv { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 .escvol input[type='range'] { flex: 1; height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
+.escname { flex: 1; min-width: 0; font-family: 'Outfit'; font-weight: 700; font-size: 15px; color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 7px 11px; outline: none; }
+.escname:focus { border-color: var(--acc); }
+.escname::placeholder { color: var(--ink3); }
 .escvol input[type='range']:disabled { opacity: 0.4; cursor: default; }
 .escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
 .escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }

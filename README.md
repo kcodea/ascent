@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **More human opponent boards.** Added Mike's 32 captured boards (a Drakko run, waves 1–18) to the committed
+  pool via `npm run pool` — players now face more real builds across the early-to-mid curve.
 - **Spells cast in combat now trigger Guel.** Taragosa's Growth is a real spell cast — it fires **Archmagus
   Guel** mid-fight (a temporary buff) and **permanently** counts toward his improvement (combat casts bump the
   run's spell tally). Combat gained a real `castSpell` path for this.

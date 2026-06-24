@@ -61,7 +61,7 @@ The next 5 concrete steps:
   unused primitives (`castSpell`, `endOfTurnBuff`,
   `spellCostMod`), and add **higher-tier spells** (Spirit Fire is now T2; **Growth** T4, **Channeling the
 Devourer** T5, plus the 2026-06-24 batch — Tribe Portal/Corpse Board/Perfect Vision + Fleeting Vigor/Apples —
-landed alongside the original T1s — **24 spells** now; keep filling toward the ~40-spell pool). The pool stays
+landed alongside the original T1s — **25 spells** now; keep filling toward the ~40-spell pool). The pool stays
 deliberately
   small — variety comes from the **meta layer** (heroes + quests/trinkets), not card volume. *Why
   first:* every later patch sits on combat feeling right.
@@ -147,13 +147,22 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       Warden, Twilight Broodmother, Hunter, Stuntdrake, Crypt Drake (Undead/Dragon dual). Spells: Apples,
       Fleeting Vigor, Tribe Portal, Corpse Board, Cupcakes, Perfect Vision. **Needs ~15 new effect
       primitives**, several touching the combat side (the shared `types.ts` boundary): new combat triggers
+- [~] **Big content batch — ~16 new minions + 6 spells (Beast/Dragon push)** (specced 2026-06-24, landed in
+      phased PRs). Beasts: Manasaber (+Saber Cub token), Gryphon, Raptor, Sporebat, Sea Urchin, Mama Bear.
+      Dragons: Twilight Whelp (+Whelp token), Frontdrake, Tara→Taragosa, Supporter, Bronze Warden, Twilight
+      Broodmother, Hunter, Stuntdrake, Crypt Drake (Undead/Dragon dual). Spells: Apples, Fleeting Vigor, Tribe
+      Portal, Corpse Board, Cupcakes, Perfect Vision. Shipped ~15 new effect primitives incl. new combat triggers
       (on-damaged → Gryphon, friendly-attack → Raptor, ally-attack → Crypt Drake, on-gain-attack → Hunter),
-      immediate-attack-on-summon (Twilight Whelp), a mid-combat **spell cast** (Taragosa casts Growth on
-      attack — combat doesn't cast spells today), and in-combat stat-grant-count transform (Tara). Art
-      masters exist for all except **Twilight Broodmother**; all need `npm run optimize-art`. **PR1 (shipped
-      2026-06-24):** lunge re-tune + neutral-not-a-type. **Folded in:** remove Ember Whelp rides the Dragons
-      PR (it's a generic dragon test fixture in ~12 spots + in the baked pool; repoint to Twilight Whelp
-      there). Open design Qs: Taragosa Growth-cast scaling (explosive per-attack), Tribes-Choice-on-neutral UX.
+      immediate-attack-on-summon (Twilight Whelp), the recruit-ascend Tara→Taragosa (combat tally → settle
+      transform), and Taragosa's on-attack Growth cast. **Almost all merged to `main`; only Cupcakes (#15) and
+      Tara→Taragosa (#16) PRs remain open.**
+  - **Fixes pass + hero-power art (shipped 2026-06-24 → devlog):** wired **8 hero-power button arts** + rewired
+    Cling/Stuntdrake/Sea Urchin; Hoarder → T2 2/2; Sea Urchin can't Discover itself; Gryphon refresh is per-hit
+    (cap 4); Frontdrake handles Djinn (no cadence skip, works on the proc turn) + live "End of this turn." text +
+    triple keeps its timing; Mama Bear triple no longer resets/doubles its accrual; live-text pass.
+  - **Remaining threads:** **TitanHP** hero-power master matches no hero + **Nadja** has no power master (both
+    unwired — need a hero/asset decision); **Taragosa** should keep its "all stats are Engraved" line (goes on
+    the #16 branch); open design Qs: Taragosa Growth-cast scaling, Tribes-Choice-on-neutral UX.
 - [ ] **Enemy-strength curve tool** (the way we'll actually balance — not the old mono-tribe matrix
       runner, which is deprioritized per the user). Build a way to tune how fast enemy boards scale
       per wave so the climb's difficulty ramp feels right. Design TBD.

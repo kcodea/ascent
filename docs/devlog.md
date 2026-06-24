@@ -19,6 +19,71 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   (+20/+20, summon count unchanged). Verified: typecheck + lint + **312 tests** + `build:web`; cards.csv = 67
   minions / 24 spells / 10 tokens.
 
+### Batch fixes: hero-power art + the card-tweaks pass (Hoarder / Sea Urchin / Gryphon / Frontdrake / Mama Bear)
+
+A grab-bag of follow-ups on the 2026-06-24 content, all on `main`-resident cards.
+
+**Art**
+- Rewired **Cling Drone / Stuntdrake / Sea Urchin** from updated masters.
+- Wired **8 hero-power button arts** (Cassen, Djinn, Drakko, Indy, Myra, Rohan, Soren, Warden →
+  `packages/ui/src/art/powers/<heroId>.webp`). *`TitanHP.png` matches no hero (ids are warden/indy/myra/
+  soren/rohan/djinn/nadja/cassen/drakko) and Nadja has no power master — both left unwired (flagged).*
+- Audited art coverage: **all 99 card ids have art**; the prod build loads with every image intact (no broken
+  images, the power webps fetch via the warm-art preloader).
+
+**Content / rules**
+- **Hoarder** → **Tier 2, 2/2** (was T1 1/1).
+- **Sea Urchin** can no longer Discover **itself** — threaded an `exclude` id through the Discover plumbing
+  (`DiscoverSpec.exclude` → `offerDiscover`), set to the source card.
+- **Gryphon** now banks a free refresh **per hit, capped at 4 a combat** (was once-per-combat): `grantedRefresh`
+  became a counter; golden banks 2 per hit. Text + a `max` param updated to match.
+- **Frontdrake** (three interlocking changes):
+  - **Djinn** (its replay End-of-Turn) no longer advances the cadence counter, but still pays off **on the turn
+    it would proc** — a `replay` flag on the EOT payload skips the increment; the grant fires when
+    `(eotTick + 1) % every === 0`.
+  - Live text reads **“End of this turn.”** on the proc turn (else “Next in N turns.”).
+  - A **triple** keeps the **furthest-along** cadence position (a copy about to proc keeps the “procs this turn”
+    timing) — only the cycle position (mod `every`) is carried onto the golden.
+- **Mama Bear** triple now **picks up the accrual at its current value** (the highest copy) — no reset, no
+  Kennelmaster-style doubling; the bigger +6/+6 per-summon step just falls out of being golden.
+
+**Card-text pass** — Mama Bear shows its live, golden-aware current grant (new `summonImproveText` helper, wired
+into the recruit board for both the base and golden text); Frontdrake’s countdown reads naturally; Gryphon’s text
+matches the new cap.
+
+Verified: `typecheck` + `lint` + **314 tests** (+5 new: Frontdrake triple, Mama Bear triple, Sea Urchin no-self,
+Djinn×Frontdrake on/off the proc turn; Gryphon + cadence-text tests updated) + `build:web` — all green. `cards.csv`
+and the opponent pool regenerated (Hoarder’s tier shift moved two pool rows). *Follow-up: Taragosa should also keep
+its “all stats are Engraved” line — that card lives on the open Tara PR (#16), so the text tweak goes there.*
+
+### Content: Tara → Taragosa (the ascend dragon) — completes the 2026-06-24 batch
+
+- **Tara** (T2 3/3, Engraved) — counts the stat-grants it's given in combat; after **20**, it **ascends to
+  Taragosa** at the next settle, keeping its accumulated stats (like Spirit Pup). Built from **patterns
+  already in the engine** — no mid-combat transform: `simulate` tallies grants for any card with `ascendAt`
+  (a buff-count map → `CombatResult.playerAscendCount`), and `settleCombat` accumulates onto
+  `BoardCard.ascendProgress`, swapping the cardId at the threshold (golden → golden Taragosa; the counting
+  needs no combat factory).
+- **Taragosa** (token, Engraved) — *All stats are **Engraved**. When a minion attacks, cast Growth (+3/+4 to
+  your minions)* — explosive on a wide board (new combat factory `onAllyAttackCastGrowth`; golden casts it
+  twice). Its card text leads with the **Engraved** line (it keeps the `EG` keyword, so it restates it like
+  Tara). *Flagged:* the in-combat Growth does **not** inherit the run's spell power (combat has no access to it
+  — a follow-up needing spell power passed into `simulate`).
+- **Art** wired (Tara / Taragosa). Verified: typecheck + lint + **314 tests** + `build:web` all green.
+- **Merge repair:** a prior `main`→branch merge had dropped the closing `},` on both **Tara** (dragons.ts) and
+  **Taragosa** (tokens.ts), collapsing each into the next card (typecheck failed; the Tara/Taragosa combat
+  tests failed because `taragosa` no longer existed as a card). Restored both braces.
+- **Last card of the 2026-06-24 batch** — the whole set is now built across the session's PRs.
+### Content: Cupcakes (Demon consume-the-tavern spell)
+
+- **Cupcakes** (T5, 4g) — *Choose a Demon — it consumes 3 minions in the tavern.* A targeted spell whose
+  chosen friendly **Demon** devours 3 *random* tavern minions through the real **Consume pipeline**: each
+  meal feeds the Demon its stats × the Demon's fodder multiplier (Voracious Imp ×2) and fires its on-consume
+  effects (Maw's shield, etc.), plus the UI consume-swirl. New cast factory `spellDemonConsumeTavern`
+  (mirrors `consumeTavernFodder`, but eats any 3 tavern minions via the *chosen* Demon, not just Fodder via a
+  random one). Fizzles on a non-Demon target (flagged).
+- **Art** wired. Verified: typecheck + lint + **304 tests** + `build:web` all green; `cards.csv` = 25 spells.
+- **Last one remaining:** Tara→Taragosa (the mid-combat Growth cast + combat transform).
 ### Content: final 3 Beasts (Sporebat, Gryphon, Mama Bear) — combat→run carry-backs + a summon engine
 
 - **Two new combat→run carry-back channels** (`CombatResult.playerFreeRolls` / `playerSpellGrants`, mirroring

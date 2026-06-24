@@ -238,6 +238,29 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'k')?.summonBonus).toBe(2); // carried back from combat
   });
 
+  it('Tara ascends to Taragosa once granted stats 20 times in combat (at settle), keeping its stats', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'combat',
+      board: [{ uid: 't', cardId: 'tara', tribe: 'dragon', attack: 9, health: 9, keywords: ['EG'], golden: false }],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerAscendCount: [{ sourceUid: 't', count: 20 }] },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    const t = s.board.find((c) => c.uid === 't');
+    expect(t?.cardId).toBe('taragosa'); // ascended…
+    expect([t?.attack, t?.health]).toEqual([9, 9]); // …keeping its accumulated stats
+  });
+
+  it('Tara banks ascend progress across combats — under 20 it stays Tara', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'combat',
+      board: [{ uid: 't', cardId: 'tara', tribe: 'dragon', attack: 3, health: 3, keywords: ['EG'], golden: false }],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerAscendCount: [{ sourceUid: 't', count: 12 }] },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.find((c) => c.uid === 't')?.cardId).toBe('tara'); // 12 < 20
+    expect(s.board.find((c) => c.uid === 't')?.ascendProgress).toBe(12); // progress banked toward next time
+  });
+
   it('tripling a Kennelmaster combines its accrued Avenge buffs', () => {
     // Two Kennelmasters at +6/+6 (summonBonus 5) and +4/+4 (summonBonus 3) + a fresh one →
     // the golden's buff is the combined +10/+10 (summonBonus 9 = base 1 + top-two 5 + 3).
@@ -1130,6 +1153,28 @@ describe('run loop (@game/sim)', () => {
     expect(frontdrake.eotTick).toBe(3);
   });
 
+  it('a Frontdrake triple keeps the furthest-along cadence (a copy about to proc keeps that timing)', () => {
+    // Three Frontdrakes at eotTick 2 / 1 / 0 → the golden inherits the cadence POSITION of the furthest
+    // (2, one shy of every:3), so this turn's End of Turn still lands the cadence.
+    let s: RunState = {
+      ...createRun(1), tier: 6, embers: 3, board: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'], pool: { cleric: 5 },
+      hand: [
+        { uid: 'f1', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false, eotTick: 2 },
+        { uid: 'f2', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false, eotTick: 1 },
+      ],
+      shop: [{ uid: 'x', cardId: 'frontdrake' }], // fresh — eotTick 0
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
+    const golden = s.hand.find((c) => c.cardId === 'frontdrake' && c.golden)!;
+    expect(golden.eotTick).toBe(2); // furthest-along position kept (not reset, not the absolute max-of-something-else)
+    // And this turn's End of Turn lands the cadence (2 → 3 → conjure a Dragon).
+    s = { ...s, board: [golden], hand: [] };
+    applyEndOfTurn(s);
+    expect(golden.eotTick).toBe(3);
+    expect(s.hand.map((c) => c.cardId)).toContain('cleric');
+  });
+
   it('Mama Bear buffs each summoned Beast, improving the buff by +3/+3 each time (recruit)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
@@ -1143,6 +1188,27 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 3); // 5
     s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +6/+6
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 6); // 13
+  });
+
+  it('a Mama Bear triple picks up the accrual at its current value — no reset, no double', () => {
+    // Two Mama Bears at summonBonus 6 and 3 + a fresh one → the golden keeps the HIGHEST (6), NOT the
+    // Kennelmaster-style sum (which would be 9) and NOT 0. Its bigger +6/+6 step comes from being golden.
+    let s: RunState = {
+      ...createRun(1), embers: 3,
+      hand: [
+        { uid: 'm1', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false, summonBonus: 6 },
+        { uid: 'm2', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false, summonBonus: 3 },
+      ],
+      shop: [{ uid: 'x', cardId: 'mamabear' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
+    const golden = s.hand.find((c) => c.cardId === 'mamabear' && c.golden)!;
+    expect(golden.summonBonus).toBe(6); // current value preserved, not 9 (sum) or 0 (reset)
+    // Played, it grants (base 3 + accrual 6) × 2 golden = +18/+18 to the next Beast summoned.
+    s = reduce(s, { type: 'play', uid: golden.uid }); // golden Mama Bear → board
+    s = { ...s, hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'a' });
+    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(1 + 18);
   });
 
   it('Sea Urchin Battlecry offers a Discover of Beasts only (up to tavern tier)', () => {
@@ -1159,6 +1225,19 @@ describe('run loop (@game/sim)', () => {
       const def = CARD_INDEX[id]!;
       expect(def.tribe === 'beast' || def.tribe2 === 'beast').toBe(true); // cleric (Dragon) is never offered
     }
+  });
+
+  it('Sea Urchin cannot Discover itself', () => {
+    // Pool is all Beasts INCLUDING Sea Urchin — the Discover must still never offer another Sea Urchin.
+    let s: RunState = {
+      ...createRun(1), tier: 4, embers: 0, shop: [], board: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      pool: { seaurchin: 5, raptor: 5, gryphon: 5, alley: 5, pack: 5 },
+      hand: [{ uid: 'u', cardId: 'seaurchin', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'u' });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    expect(s.discover).not.toContain('seaurchin'); // the source is excluded from its own Discover
   });
 
   it('Tribe Portal Discovers a minion of your most common board tribe', () => {
@@ -1207,6 +1286,18 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm' });
     const t = s.board.find((c) => c.uid === 'm')!;
     expect([t.attack, t.health]).toEqual([20, 20]);
+  });
+
+  it('Cupcakes — the chosen Demon consumes 3 random tavern minions (gains stats; tavern shrinks by 3)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0,
+      board: [{ uid: 'd', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }], // Voracious Imp (2× consume)
+      shop: [{ uid: 'a', cardId: 'alley' }, { uid: 'b', cardId: 'pack' }, { uid: 'c', cardId: 'kennel' }, { uid: 'e', cardId: 'gnash' }],
+      hand: [{ uid: 'sp', cardId: 'cupcakes', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'd' });
+    expect(s.shop.length).toBe(1); // 4 − 3 consumed
+    expect(s.board.find((c) => c.uid === 'd')!.attack).toBeGreaterThan(2); // the Demon grew from eating
   });
 
   it('Apples buffs the current tavern offers +2/+3, and a buy bakes it in', () => {
@@ -2113,6 +2204,31 @@ describe('hero powers (@game/sim)', () => {
     const after = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(after).toBe(s);
     expect(after.heroReady).toBe(true);
+  });
+
+  it("Djinn proccing Frontdrake pays off on the proc turn WITHOUT advancing its cadence", () => {
+    // eotTick 2 = one shy of every:3, so THIS turn's End of Turn would proc. Djinn fires it now: it conjures
+    // a Dragon but must NOT advance the counter (it stays 2, so the natural End of Turn still procs too).
+    const f: BoardCard = { uid: 'f', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false, eotTick: 2 };
+    let s: RunState = {
+      ...createRun(1, 'djinn'), tier: 6, hand: [], board: [f],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'], pool: { cleric: 5 },
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'f' });
+    expect(s.hand.map((c) => c.cardId)).toEqual(['cleric']); // granted on the proc turn
+    expect(s.board.find((c) => c.uid === 'f')!.eotTick).toBe(2); // cadence NOT advanced by the Djinn replay
+  });
+
+  it("Djinn proccing Frontdrake off its proc turn grants nothing (and still doesn't advance the cadence)", () => {
+    // eotTick 1 → not the proc turn. The replay grants no Dragon and leaves the counter at 1.
+    const f: BoardCard = { uid: 'f', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false, eotTick: 1 };
+    let s: RunState = {
+      ...createRun(1, 'djinn'), tier: 6, hand: [], board: [f],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'], pool: { cleric: 5 },
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'f' });
+    expect(s.hand.length).toBe(0); // off-cadence → no Dragon
+    expect(s.board.find((c) => c.uid === 'f')!.eotTick).toBe(1); // unchanged
   });
 
   it('Rohan amplifies stat-granting spells (+1 at turn 1, scaling), hero-gated', () => {

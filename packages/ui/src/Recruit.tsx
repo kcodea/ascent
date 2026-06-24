@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { cadenceProgressText, clingProgressText, guelProgressText, summonBuffText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
+import { cadenceProgressText, clingProgressText, guelProgressText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -160,6 +160,7 @@ function instView(
           : transformProgressText(c.id, inst.spellProgress ?? 0) ??
             summonScalingText(c.id, spellsThisTurn) ??
             summonBuffText(c.id, inst.summonBonus ?? 0) ??
+            summonImproveText(c.id, inst.summonBonus ?? 0, !!inst.golden) ??
             tallyBuffText(c.id, deathrattlesTriggered) ??
             guelProgressText(c.id, !!inst.golden, spellsCast) ??
             clingProgressText(c.id, clingEnchant) ??
@@ -181,7 +182,9 @@ function instView(
         ? `Sells for **+2 Gold** per turn you hold it. {{Sells for ${(wave - (inst.boughtWave ?? wave) + 1) * 2} Gold now.}}`
         : c.id === 'guel'
           ? guelProgressText(c.id, true, spellsCast) ?? c.goldenText // golden Guel shows its live (×2) grant + countdown
-          : c.goldenText,
+          : c.id === 'mamabear'
+            ? summonImproveText(c.id, inst.summonBonus ?? 0, true) ?? c.goldenText // golden Mama Bear: live (×2) grant
+            : c.goldenText,
     golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,

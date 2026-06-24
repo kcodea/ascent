@@ -108,6 +108,7 @@ export type EffectFactoryId =
   | 'endOfTurnGrantTribe' // Frontdrake: every N End-of-Turns, conjure a random minion of a tribe to hand (Dragon)
   | 'onFriendlyAttackBuffTribe' // Raptor: when another friendly minion of a tribe attacks, buff it (Beast)
   | 'onAllyAttackBuffAll' // Crypt Drake: when any ally attacks, buff your minions — improving every N attacks
+  | 'onAllyAttackCastGrowth' // Taragosa: when any ally attacks, cast Growth (+atk/+hp to all friends); golden ×2
   | 'onGainAttackBuffAll' // Hunter: when this minion's Attack rises, buff your minions' Health
   | 'battlecryDiscoverMinion' // Sea Urchin: Battlecry — Discover a minion of a tribe (Beast)
   | 'onConsumeBuffSelf'
@@ -119,6 +120,7 @@ export type EffectFactoryId =
   | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
   | 'spellBuffTavern' // Apples: cast — buff every current tavern offer (lost on refresh, kept on freeze)
   | 'spellPendingSCBuff' // Fleeting Vigor: cast — bank a one-shot Start-of-Combat buff for the next combat
+  | 'spellDemonConsumeTavern' // Cupcakes: cast — a chosen Demon consumes N random tavern minions
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)
   | 'summonBuffTribeImprove' // Mama Bear: on summoning a beast, buff it + improve the buff in/out of combat (Beast)
@@ -171,6 +173,10 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** Tara → Taragosa: after being granted stats `ascendAt` times in combat, this card ascends to
+   *  `ascendInto` at settle — keeping its accumulated (Engraved) stats, like Spirit Pup's transform. */
+  ascendAt?: number;
+  ascendInto?: string;
   /** Combat: this minion attacks immediately when summoned mid-fight, out of turn order — then joins the
    *  normal rotation (Twilight Whelp's 3/3 Whelp). Drained by the immediate-attack queue in `simulate`. */
   attackOnSummon?: boolean;
@@ -265,8 +271,9 @@ export interface Minion {
   /** Crypt Drake: how many ally attacks this minion has seen this combat — drives its "improve every N
    *  attacks" buff. Per-combat (reset each fight); absent = 0. */
   attackSeen?: number;
-  /** Gryphon: set once it has banked its free refresh this combat (so it grants only once per fight). */
-  grantedRefresh?: boolean;
+  /** Gryphon: how many free refreshes it has banked this combat — it grants one per hit up to a cap
+   *  (so a Taunt soaking many hits doesn't roll unlimited refreshes). Absent = 0. */
+  grantedRefresh?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   side: Side;
@@ -329,6 +336,9 @@ export interface CombatResult {
   /** Per-instance state to persist on the run board after combat, keyed by the board
    *  card's uid (Kennelmaster's Avenge-improved summon bonus). Only entries that changed. */
   playerSummonBonus?: { sourceUid: string; bonus: number }[];
+  /** Tara's stat-grant tally this combat, per board card uid — accumulated onto `ascendProgress` and, at the
+   *  threshold, transformed to its ascend form in settleCombat. */
+  playerAscendCount?: { sourceUid: string; count: number }[];
   /** Permanent stats a minion keeps from this combat, keyed by the recipient's board card uid — applied
    *  to the run board after combat, win or lose. Two sources: Flowing Monk's overflow gift (`engraved:
    *  false` — a one-off gift to a non-EG carrier) and Engraved minions keeping their own combat gains

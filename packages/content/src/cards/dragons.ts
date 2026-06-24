@@ -161,6 +161,23 @@ export const DRAGONS: CardDef[] = [
     text: 'When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.',
     goldenText: 'When an ally attacks, give your minions **+4/+4**. Improve this every **3** attacks.',
   },
+  {
+    // Quest dragon: Engraved (keeps combat stat gains), and after being GRANTED STATS 20 times in combat it
+    // ascends to Taragosa at the next settle (keeping its accumulated stats, like Spirit Pup). The counting
+    // is automatic (simulate tallies grants for any `ascendAt` card); no combat factory needed. Golden →
+    // golden Taragosa.
+    id: 'tara',
+    name: 'Tara',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 3,
+    health: 3,
+    keywords: ['EG'],
+    effects: [],
+    ascendAt: 20,
+    ascendInto: 'taragosa',
+    text: 'All stats are **Engraved**. Granted stats **20 times** in combat → ascend to **Taragosa**.',
+  },
 
   // --- Twilight Whelp line (2026-06-24) — the immediate-attack mechanic; replaces Ember Whelp at T1. ---
   {

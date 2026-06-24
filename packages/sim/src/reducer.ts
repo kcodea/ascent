@@ -629,11 +629,28 @@ function checkTriples(s: RunState): void {
     // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
     // a fresh triple just doubles the base (the golden doubling falls out of the combine).
     const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon');
+    const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove');
     let summonBonus: number | undefined;
     if (summonEffect) {
       const base = Number((summonEffect.params as { attack?: number })?.attack ?? 0);
       const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
       summonBonus = base + (sbs[0] ?? 0) + (sbs[1] ?? 0);
+    } else if (improveEffect) {
+      // Mama Bear: the golden picks up the accrual at its CURRENT value (the highest of the three copies) —
+      // not reset, not summed/doubled. The bigger per-summon step (+6/+6) comes from gold(self) in the
+      // factory, so all the triple must do is preserve where the accrual already is.
+      const maxBonus = Math.max(...combined.map((c) => c.summonBonus ?? 0));
+      summonBonus = maxBonus > 0 ? maxBonus : undefined;
+    }
+    // Frontdrake: keep the copy furthest into its cadence (closest to the next Dragon) — tripling a Frontdrake
+    // that's about to proc keeps the "procs this turn" timing. Only the cycle position (mod every) matters,
+    // so the golden inherits the max position; a fresh/just-procced set (all 0) starts a clean cycle.
+    const cadenceEffect = def.effects.find((e) => e.on === 'endOfTurn' && e.do === 'endOfTurnGrantTribe');
+    let goldenEotTick: number | undefined;
+    if (cadenceEffect) {
+      const every = Math.max(1, Number((cadenceEffect.params as { every?: number })?.every ?? 3));
+      const pos = Math.max(...combined.map((c) => (c.eotTick ?? 0) % every));
+      goldenEotTick = pos > 0 ? pos : undefined;
     }
     // Absorbed mana-per-turn (a Money Bot magnetized into one of the copies) carries through the
     // triple so the income survives (the golden's own def.manaPerTurn handles the un-merged case).
@@ -667,6 +684,7 @@ function checkTriples(s: RunState): void {
       buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
       spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
       boughtWave: goldenBoughtWave,
+      eotTick: goldenEotTick,
     });
     s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
     // The Discover isn't granted now — it comes from a spell when the golden is played.
@@ -685,6 +703,20 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const { sourceUid, bonus } of result.playerSummonBonus) {
       const card = s.board.find((c) => c.uid === sourceUid);
       if (card) card.summonBonus = bonus;
+    }
+  }
+  // Tara → Taragosa: accumulate this combat's stat-grants; at the `ascendAt` threshold, ascend the board card
+  // to its `ascendInto` form (keeping its stats / golden / buffs — only the identity changes, like Spirit Pup).
+  if (result.playerAscendCount) {
+    for (const { sourceUid, count } of result.playerAscendCount) {
+      const card = s.board.find((c) => c.uid === sourceUid);
+      if (!card) continue;
+      card.ascendProgress = (card.ascendProgress ?? 0) + count;
+      const def = CARD_INDEX[card.cardId];
+      if (def?.ascendAt && def.ascendInto && card.ascendProgress >= def.ascendAt && card.cardId !== def.ascendInto) {
+        card.cardId = def.ascendInto;
+        card.tribe = CARD_INDEX[def.ascendInto]?.tribe ?? card.tribe;
+      }
     }
   }
   // Permanent mid-combat gains carry back to the run board (recorded as a buff so the inspect view shows

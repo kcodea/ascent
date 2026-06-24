@@ -83,11 +83,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side);
   },
 
-  /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once per combat (the
-   *  `grantedRefresh` flag), so a Taunt soaking many hits still grants only one. Golden grants 2. */
+  /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once PER HIT, capped at
+   *  `max` (default 4) banks per combat (the `grantedRefresh` counter), so a Taunt soaking a whole board
+   *  tops out at the cap instead of rolling unlimited refreshes. Golden grants 2 per hit. */
   onDamagedGrantRefresh: (ctx, self, params, payload) => {
-    if (self.dead || (payload as MinionPayload).minion !== self || self.grantedRefresh) return;
-    self.grantedRefresh = true;
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const cap = num(params.max, 4);
+    const got = self.grantedRefresh ?? 0;
+    if (got >= cap) return;
+    self.grantedRefresh = got + 1;
     ctx.grantFreeRolls(num(params.count, 1) * mul(self), self.side);
   },
 
@@ -378,6 +382,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const improvements = Math.floor((self.attackSeen - 1) / every);
     const mag = num(params.step, 2) * (1 + improvements) * mul(self);
     for (const m of ctx.living(self.side)) ctx.buff(m, mag, mag, self.uid);
+  },
+
+  /** Taragosa — when any ally attacks, "cast Growth": buff every living friend +atk/+hp (golden casts it
+   *  twice). Explosive on a wide board. Combat-only — it does NOT inherit the run's spell power (combat has
+   *  no access to it; flagged as a follow-up). */
+  onAllyAttackCastGrowth: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion.side !== self.side) return; // any ally's attack
+    const a = num(params.attack, 3);
+    const h = num(params.health, 4);
+    for (let r = 0; r < mul(self); r++) {
+      for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
+    }
   },
 
   /** Hunter — when THIS minion's Attack rises (onGainAttack), give every living friend +`health` Health.

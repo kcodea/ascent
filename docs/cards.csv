@@ -17,10 +17,11 @@ spiritpup,Spirit Pup (beast/dragon),5,4,6,,,Cast **10 spells** with this on boar
 gnash,"Gnasher, the Overrun",6,6,6,,,"When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.",
 grim,Grim,6,7,1,,,**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.,
 
-# === DRAGON (13) ===
+# === DRAGON (14) ===
 frontdrake,Frontdrake,1,2,1,,,"**Every 3 turns,** get a random Dragon.","**Every 3 turns,** get **2** random Dragons."
 twilightwhelp,Twilight Whelp,1,1,1,,,**Deathrattle:** summon a 3/3 Whelp that attacks immediately.,**Deathrattle:** summon two 3/3 Whelps that attack immediately.
 supporter,Supporter,2,2,3,,Rally,**Rally:** give 2 friendly Dragons **+1/+2**.,**Rally:** give 2 friendly Dragons **+2/+4**.
+tara,Tara,2,3,3,,Engraved,All stats are **Engraved**. Granted stats **20 times** in combat → ascend to **Taragosa**.,
 bronzewarden,Bronze Warden,3,3,3,,Divine Shield,,
 cleric,Hoard Cleric,3,3,4,,,**Battlecry:** give your Dragons **+2/+3**.,
 weaver,Arcane Weaver,4,3,4,,,**Deathrattle:** add a copy of **Spirit Fire** to your hand.,**Deathrattle:** add two copies of **Spirit Fire** to your hand.
@@ -80,7 +81,7 @@ sylus,Sylus the Reaper,5,4,5,,,"**In combat,** your Deathrattles proc **1 more**
 taurus,Taurus the Ancient,6,6,8,,,Start of Combat: the minion to your left is Engraved — it keeps the stats it gains in combat.,Start of Combat: the minions on both sides are Engraved — they keep the stats they gain in combat.
 yazzus,Yazzus,6,6,8,,,Your **targeted** spells cast **twice**.,Your **targeted** spells cast **three times**.
 
-# === SPELLS (24) — cost, not stats ===
+# === SPELLS (25) — cost, not stats ===
 apples,Apples,1,,,1,,Give minions in this tavern **+2/+3** (lost on refresh; kept if frozen).,
 bulwark,Bulwark,1,,,1,,Give a friendly minion **+0/+1** and **Taunt**.,
 emberpouch,Gold Pouch,1,,,1,,Gain **1 Gold**.,
@@ -103,10 +104,11 @@ lanternofsouls,Lantern of Souls,4,,,2,,Your **Undead** get **+3 Attack** everywh
 undeadarmy,Undead Army,4,,,4,,Get **2 copies** of a random **Undead**.,
 devour,Channeling the Devourer,5,,,3,,Devour a friendly minion and spit its stats onto a random other friend.,
 corpseboard,Corpse Board,5,,,3,,**Discover** a **Deathrattle** minion.,
+cupcakes,Cupcakes,5,,,4,,Choose a **Demon** — it consumes **3** minions in the tavern.,
 aresmar,Eyes of Aresmar,6,,,5,,Make a **Tier 4 or lower** minion **Golden**.,
 perfectvision,Perfect Vision,6,,,2,,Set a friendly minion's stats to **20/20**.,
 
-# === TOKENS (9) — not rollable ===
+# === TOKENS (10) — not rollable ===
 fred,Fred,1,1,1,,Fodder,A 1/1 Demon **Fodder** — your Demons devour it from the tavern.,
 impscrap,Imp,1,1,1,,,,
 omen,Omen Minion,1,1,1,,,,
@@ -115,4 +117,5 @@ sabercub,Saber Cub,1,0,2,,Taunt,A 0/2 Beast with **Taunt**.,
 stray,Stray,1,1,1,,,A 1/1 Beast token.,
 discoverspell,Triple Reward,1,0,1,,,**Discover** a minion from one Tier up.,
 whelpling,Whelp,1,3,3,,,A 3/3 Dragon that attacks immediately when summoned.,
+taragosa,Taragosa,2,3,3,,Engraved,"All stats are **Engraved**. When a minion attacks, cast **Growth** (+3/+4 to your minions).","All stats are **Engraved**. When a minion attacks, cast **Growth twice** (+6/+8 to your minions)."
 spiritworgen,Spirit Worgen (beast/dragon),5,4,6,,,Gains **+1/+1** each time you summon a **Beast** or **Dragon** — improves per spell cast this turn.,

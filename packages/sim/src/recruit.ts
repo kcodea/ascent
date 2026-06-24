@@ -868,6 +868,35 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const card of ctx.state.board) addBuff(card, source, attack, health);
   },
 
+  /** Cupcakes — cast: the chosen Demon (`self`) consumes `count` random tavern minions. Each feeds the Demon
+   *  its stats × the Demon's fodder multiplier (Voracious Imp ×2) and fires its on-consume effects (Maw's
+   *  shield, etc.) — the normal Consume pipeline + the UI swirl. No-op if the target isn't a Demon. */
+  spellDemonConsumeTavern: (ctx, self, params) => {
+    if (!self || !isTribe(self, 'demon')) return;
+    const count = num(params.count, 3);
+    const rng = makeRng(ctx.state.rngCursor);
+    const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
+    for (let i = 0; i < count && ctx.state.shop.length > 0; i++) {
+      const idx = rng.int(ctx.state.shop.length);
+      const offer = ctx.state.shop[idx]!;
+      const meal = CARD_INDEX[offer.cardId];
+      ctx.state.shop.splice(idx, 1);
+      if (!meal) continue;
+      const mult = fodderMultiplier(self);
+      const cb = cardBuff(ctx.state, meal.id);
+      const ma = meal.attack + cb.attack + (offer.atk ?? 0);
+      const mh = meal.health + cb.health + (offer.hp ?? 0);
+      addBuff(self, 'Consume', ma * mult, mh * mult);
+      fire(ctx, 'onConsume', { minion: self });
+      eaten.push({ eaterUid: self.uid, fodderId: meal.id, attack: ma, health: mh, gainA: ma * mult, gainH: mh * mult });
+    }
+    ctx.state.rngCursor = rng.state();
+    if (eaten.length > 0) {
+      ctx.state.fodderEaten = eaten;
+      ctx.state.fodderEatenSeq += 1;
+    }
+  },
+
   /** Perfect Vision — cast: SET the target's stats to a/h (absolute, not additive). Records the delta as a
    *  tracked buff so the inspect breakdown shows it and the stats land exactly at a/h. No spell-power scaling
    *  (it's a set, not a grant); a repeat cast (Yazzus) is a harmless no-op once the target is already there. */

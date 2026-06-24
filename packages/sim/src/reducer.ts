@@ -705,6 +705,20 @@ function settleCombat(s: RunState, result: CombatResult): void {
       if (card) card.summonBonus = bonus;
     }
   }
+  // Tara → Taragosa: accumulate this combat's stat-grants; at the `ascendAt` threshold, ascend the board card
+  // to its `ascendInto` form (keeping its stats / golden / buffs — only the identity changes, like Spirit Pup).
+  if (result.playerAscendCount) {
+    for (const { sourceUid, count } of result.playerAscendCount) {
+      const card = s.board.find((c) => c.uid === sourceUid);
+      if (!card) continue;
+      card.ascendProgress = (card.ascendProgress ?? 0) + count;
+      const def = CARD_INDEX[card.cardId];
+      if (def?.ascendAt && def.ascendInto && card.ascendProgress >= def.ascendAt && card.cardId !== def.ascendInto) {
+        card.cardId = def.ascendInto;
+        card.tribe = CARD_INDEX[def.ascendInto]?.tribe ?? card.tribe;
+      }
+    }
+  }
   // Permanent mid-combat gains carry back to the run board (recorded as a buff so the inspect view shows
   // the source), win or lose. `engraved` comes from the *combat* minion's live keywords — so a minion
   // Engraved only at Start of Combat (Taurus's neighbor) carries its gains back and is labelled "Engraved",

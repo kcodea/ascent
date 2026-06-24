@@ -238,6 +238,29 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'k')?.summonBonus).toBe(2); // carried back from combat
   });
 
+  it('Tara ascends to Taragosa once granted stats 20 times in combat (at settle), keeping its stats', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'combat',
+      board: [{ uid: 't', cardId: 'tara', tribe: 'dragon', attack: 9, health: 9, keywords: ['EG'], golden: false }],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerAscendCount: [{ sourceUid: 't', count: 20 }] },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    const t = s.board.find((c) => c.uid === 't');
+    expect(t?.cardId).toBe('taragosa'); // ascended…
+    expect([t?.attack, t?.health]).toEqual([9, 9]); // …keeping its accumulated stats
+  });
+
+  it('Tara banks ascend progress across combats — under 20 it stays Tara', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'combat',
+      board: [{ uid: 't', cardId: 'tara', tribe: 'dragon', attack: 3, health: 3, keywords: ['EG'], golden: false }],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerAscendCount: [{ sourceUid: 't', count: 12 }] },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.find((c) => c.uid === 't')?.cardId).toBe('tara'); // 12 < 20
+    expect(s.board.find((c) => c.uid === 't')?.ascendProgress).toBe(12); // progress banked toward next time
+  });
+
   it('tripling a Kennelmaster combines its accrued Avenge buffs', () => {
     // Two Kennelmasters at +6/+6 (summonBonus 5) and +4/+4 (summonBonus 3) + a fresh one →
     // the golden's buff is the combined +10/+10 (summonBonus 9 = base 1 + top-two 5 + 3).
@@ -1263,6 +1286,18 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm' });
     const t = s.board.find((c) => c.uid === 'm')!;
     expect([t.attack, t.health]).toEqual([20, 20]);
+  });
+
+  it('Cupcakes — the chosen Demon consumes 3 random tavern minions (gains stats; tavern shrinks by 3)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0,
+      board: [{ uid: 'd', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }], // Voracious Imp (2× consume)
+      shop: [{ uid: 'a', cardId: 'alley' }, { uid: 'b', cardId: 'pack' }, { uid: 'c', cardId: 'kennel' }, { uid: 'e', cardId: 'gnash' }],
+      hand: [{ uid: 'sp', cardId: 'cupcakes', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'd' });
+    expect(s.shop.length).toBe(1); // 4 − 3 consumed
+    expect(s.board.find((c) => c.uid === 'd')!.attack).toBeGreaterThan(2); // the Demon grew from eating
   });
 
   it('Apples buffs the current tavern offers +2/+3, and a buy bakes it in', () => {

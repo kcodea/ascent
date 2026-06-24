@@ -101,6 +101,9 @@ export interface BoardCard {
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
    *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
   eotTick?: number;
+  /** Tara: accumulated stat-grants across combats (from `CombatResult.playerAscendCount`). At the card's
+   *  `ascendAt` threshold it ascends to `ascendInto` in settleCombat, keeping its stats. */
+  ascendProgress?: number;
 }
 
 export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';

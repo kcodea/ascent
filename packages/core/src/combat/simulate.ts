@@ -44,6 +44,7 @@ export function simulate(
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
+  const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
 
   /**
    * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
@@ -131,6 +132,11 @@ export function simulate(
           attack: (target.permaGain?.attack ?? 0) + attack,
           health: (target.permaGain?.health ?? 0) + health,
         };
+      }
+      // Tara: tally each stat-grant on a minion that ascends after N grants (`cards[id].ascendAt`). Carried
+      // back via playerAscendCount and accumulated + transformed at settle — no mid-combat transform/UI.
+      if ((attack !== 0 || health !== 0) && cards[target.cardId]?.ascendAt) {
+        buffCounts.set(target.uid, (buffCounts.get(target.uid) ?? 0) + 1);
       }
       // Hunter watches its own Attack rising: emit onGainAttack on a positive delta. The bus snapshots its
       // handlers, so this nested emit is safe; health-only buffs (the common case) skip it, and onGainAttack
@@ -520,6 +526,10 @@ export function simulate(
   const playerSummonBonus = boards.player
     .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0)
     .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
+  // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
+  const playerAscendCount = boards.player
+    .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)
+    .map((m) => ({ sourceUid: m.sourceUid!, count: buffCounts.get(m.uid)! }));
 
   // Permanent gains carry back to the run board (only real minions — summoned tokens have no sourceUid
   // and are gone after combat). Two flavors, both recorded as `permaGain`: an Engraved minion keeps the
@@ -544,6 +554,7 @@ export function simulate(
     enemyDeaths,
     initial,
     playerSummonBonus,
+    playerAscendCount: playerAscendCount.length > 0 ? playerAscendCount : undefined,
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,

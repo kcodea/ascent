@@ -325,6 +325,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) ctx.buff(m, mag, mag, self.uid);
   },
 
+  /** Taragosa — when any ally attacks, "cast Growth": buff every living friend +atk/+hp (golden casts it
+   *  twice). Explosive on a wide board. Combat-only — it does NOT inherit the run's spell power (combat has
+   *  no access to it; flagged as a follow-up). */
+  onAllyAttackCastGrowth: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion.side !== self.side) return; // any ally's attack
+    const a = num(params.attack, 3);
+    const h = num(params.health, 4);
+    for (let r = 0; r < mul(self); r++) {
+      for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
   /** Hunter — when THIS minion's Attack rises (onGainAttack), give every living friend +`health` Health.
    *  Health-only, so it never re-triggers onGainAttack (no loop). Golden doubles. */
   onGainAttackBuffAll: (ctx, self, params, payload) => {

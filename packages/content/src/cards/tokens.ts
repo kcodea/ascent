@@ -66,4 +66,20 @@ export const TOKENS: CardDef[] = [
     text: 'A 0/2 Beast with **Taunt**.',
     token: true,
   },
+  {
+    // Tara's ascend form (obtained only via Tara, so `token: true` keeps it out of the shop). Engraved; on
+    // EVERY ally attack it casts Growth (+3/+4 to your minions) — explosive on a wide board. Golden casts it
+    // twice. Keeps Tara's accumulated stats at ascension; its 3/3 base is only the schema floor.
+    id: 'taragosa',
+    name: 'Taragosa',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 3,
+    health: 3,
+    keywords: ['EG'],
+    token: true,
+    effects: [{ on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { attack: 3, health: 4 } }],
+    text: 'When a minion attacks, cast **Growth** (+3/+4 to your minions).',
+    goldenText: 'When a minion attacks, cast **Growth twice** (+6/+8 to your minions).',
+  },
 ];

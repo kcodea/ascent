@@ -109,6 +109,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onGainAttackBuffAll',
   'spellBuffTavern',
   'spellPendingSCBuff',
+  'onAllyAttackCastGrowth',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -139,6 +140,8 @@ export const CardDefSchema = z.object({
   text: z.string(),
   goldenText: z.string().optional(),
   token: z.boolean().optional(),
+  ascendAt: z.number().int().positive().optional(),
+  ascendInto: z.string().optional(),
   spell: z.boolean().optional(),
   singleCast: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),

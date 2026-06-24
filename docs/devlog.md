@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Content: Tara → Taragosa (the ascend dragon) — completes the 2026-06-24 batch
+
+- **Tara** (T2 3/3, Engraved) — counts the stat-grants it's given in combat; after **20**, it **ascends to
+  Taragosa** at the next settle, keeping its accumulated stats (like Spirit Pup). Built from **patterns
+  already in the engine** — no mid-combat transform: `simulate` tallies grants for any card with `ascendAt`
+  (a buff-count map → `CombatResult.playerAscendCount`), and `settleCombat` accumulates onto
+  `BoardCard.ascendProgress`, swapping the cardId at the threshold (golden → golden Taragosa; the counting
+  needs no combat factory).
+- **Taragosa** (token, Engraved) — *When a minion attacks, cast Growth (+3/+4 to your minions)* — explosive on
+  a wide board (new combat factory `onAllyAttackCastGrowth`; golden casts it twice). *Flagged:* the in-combat
+  Growth does **not** inherit the run's spell power (combat has no access to it — a follow-up needing spell
+  power passed into `simulate`).
+- **Art** wired (Tara / Taragosa). Verified: typecheck + lint + **307 tests** + `build:web` all green;
+  `cards.csv` = 63 minions / 24 spells / 9 tokens.
+- **Last card of the 2026-06-24 batch** — the whole set is now built across the session's PRs.
+
 ### Lunge feel re-tune + Tribes Choice no longer hands out neutral glue
 
 - **Combat lunge defaults re-tuned (shipped from the live tuner).** New `DEFAULTS` in `lungeConfig.ts`:

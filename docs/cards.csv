@@ -14,10 +14,11 @@ spiritpup,Spirit Pup (beast/dragon),5,4,6,,,Cast **10 spells** with this on boar
 gnash,"Gnasher, the Overrun",6,6,6,,,"When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.",
 grim,Grim,6,7,1,,,**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.,
 
-# === DRAGON (12) ===
+# === DRAGON (13) ===
 whelp,Ember Whelp,1,2,1,,Start of Combat,**Start of Combat:** deal 1 to the enemy on the far left.,
 frontdrake,Frontdrake,1,2,1,,,"**Every 3 turns,** get a random Dragon.","**Every 3 turns,** get **2** random Dragons."
 supporter,Supporter,2,2,3,,Rally,**Rally:** give 2 friendly Dragons **+1/+2**.,**Rally:** give 2 friendly Dragons **+2/+4**.
+tara,Tara,2,3,3,,Engraved,All stats are **Engraved**. Granted stats **20 times** in combat → ascend to **Taragosa**.,
 bronzewarden,Bronze Warden,3,3,3,,Divine Shield,,
 cleric,Hoard Cleric,3,3,4,,,**Battlecry:** give your Dragons **+2/+3**.,
 weaver,Arcane Weaver,4,3,4,,,**Deathrattle:** add a copy of **Spirit Fire** to your hand.,**Deathrattle:** add two copies of **Spirit Fire** to your hand.
@@ -102,7 +103,7 @@ corpseboard,Corpse Board,5,,,3,,**Discover** a **Deathrattle** minion.,
 aresmar,Eyes of Aresmar,6,,,5,,Make a **Tier 4 or lower** minion **Golden**.,
 perfectvision,Perfect Vision,6,,,2,,Set a friendly minion's stats to **20/20**.,
 
-# === TOKENS (8) — not rollable ===
+# === TOKENS (9) — not rollable ===
 fred,Fred,1,1,1,,Fodder,A 1/1 Demon **Fodder** — your Demons devour it from the tavern.,
 impscrap,Imp,1,1,1,,,,
 omen,Omen Minion,1,1,1,,,,
@@ -110,4 +111,5 @@ pup,Pup,1,1,1,,,A 1/1 Beast token.,
 sabercub,Saber Cub,1,0,2,,Taunt,A 0/2 Beast with **Taunt**.,
 stray,Stray,1,1,1,,,A 1/1 Beast token.,
 discoverspell,Triple Reward,1,0,1,,,**Discover** a minion from one Tier up.,
+taragosa,Taragosa,2,3,3,,Engraved,"When a minion attacks, cast **Growth** (+3/+4 to your minions).","When a minion attacks, cast **Growth twice** (+6/+8 to your minions)."
 spiritworgen,Spirit Worgen (beast/dragon),5,4,6,,,Gains **+1/+1** each time you summon a **Beast** or **Dragon** — improves per spell cast this turn.,

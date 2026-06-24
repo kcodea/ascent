@@ -106,6 +106,7 @@ export type EffectFactoryId =
   | 'endOfTurnGrantTribe' // Frontdrake: every N End-of-Turns, conjure a random minion of a tribe to hand (Dragon)
   | 'onFriendlyAttackBuffTribe' // Raptor: when another friendly minion of a tribe attacks, buff it (Beast)
   | 'onAllyAttackBuffAll' // Crypt Drake: when any ally attacks, buff your minions — improving every N attacks
+  | 'onAllyAttackCastGrowth' // Taragosa: when any ally attacks, cast Growth (+atk/+hp to all friends); golden ×2
   | 'onGainAttackBuffAll' // Hunter: when this minion's Attack rises, buff your minions' Health
   | 'battlecryDiscoverMinion' // Sea Urchin: Battlecry — Discover a minion of a tribe (Beast)
   | 'onConsumeBuffSelf'
@@ -166,6 +167,10 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** Tara → Taragosa: after being granted stats `ascendAt` times in combat, this card ascends to
+   *  `ascendInto` at settle — keeping its accumulated (Engraved) stats, like Spirit Pup's transform. */
+  ascendAt?: number;
+  ascendInto?: string;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;
   /** This spell resolves exactly once — spell-quantity multipliers can't make it fire twice
@@ -319,6 +324,9 @@ export interface CombatResult {
   /** Per-instance state to persist on the run board after combat, keyed by the board
    *  card's uid (Kennelmaster's Avenge-improved summon bonus). Only entries that changed. */
   playerSummonBonus?: { sourceUid: string; bonus: number }[];
+  /** Tara's stat-grant tally this combat, per board card uid — accumulated onto `ascendProgress` and, at the
+   *  threshold, transformed to its ascend form in settleCombat. */
+  playerAscendCount?: { sourceUid: string; count: number }[];
   /** Permanent stats a minion keeps from this combat, keyed by the recipient's board card uid — applied
    *  to the run board after combat, win or lose. Two sources: Flowing Monk's overflow gift (`engraved:
    *  false` — a one-off gift to a non-EG carrier) and Engraved minions keeping their own combat gains

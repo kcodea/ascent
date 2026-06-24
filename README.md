@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Tara → Taragosa** — a quest dragon (Engraved) that **ascends to Taragosa** after being granted stats 20
+  times in combat; **Taragosa** casts **Growth** (+3/+4 to your board) on every attack. Completes the batch.
 - **Content batch — +5 minions, +1 token, +5 spells.** Beasts: Manasaber, Raptor, Sea Urchin (+ a Saber Cub
   token). Spells: Tribe Portal, Corpse Board, Perfect Vision, Fleeting Vigor, Apples. Reactive Dragons: Hunter
   + Crypt Drake (a new `onGainAttack` trigger — they combo, one pumps Attack, the other answers with Health).

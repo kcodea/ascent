@@ -36,6 +36,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   captured at the unit's screen position and rendered in a **board-level overlay** (`DeathFloat` →
   `.deathfloat`) that outlives the unit and lingers. Verified: typecheck + lint + 287 tests + clean boot;
   feel is for live review.
+- **Follow-up 2 (review feedback):** with damage now on contact, attacks fired too quickly and floats
+  lingered too long. (a) **Inter-attack breather restored, correctly + tunable.** The old `+200` breath was
+  applied to the wrong beat (off-by-one) and the connection fix dropped it; now, when an impact beat is
+  followed by an attack, the scheduler adds a real pause before the next swing. It's a new **`attackGap`**
+  knob in the lunge config + DEV Lunge tuner (default 0.25s) so the cadence is dialable by feel. (b) **Linger
+  trimmed:** `FLOAT_MS` 1950→1500 + `floatup` 1.8→1.4s; **death floats clear faster** (`DEATH_FLOAT_MS` 1000,
+  `.deathfloat .float` ≈0.9s) so a lone killing-blow number over a vanished unit doesn't hang.
 
 ### Two-dev setup (CI + collaboration rules) · combat damage audio (SC zap, no default smack)
 

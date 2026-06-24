@@ -138,7 +138,8 @@ const DELAY: Record<string, number> = {
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
 };
-const FLOAT_MS = 1950; // how long a combat float lingers before it's cleared (kept ≥ the floatup CSS anim)
+const FLOAT_MS = 1500; // how long a combat float lingers before it's cleared (kept ≥ the floatup CSS anim)
+const DEATH_FLOAT_MS = 1000; // a killing-blow float clears faster — a lone number over a vanished unit shouldn't hang
 
 /** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
  *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
@@ -401,16 +402,18 @@ export function useCombatReplay(
     if (!active || beatIdx >= beats.length) return;
     const beat = beats[beatIdx]!;
     let d = (DELAY[beat.primary.type] ?? 300) * SPEED;
-    // A short breath after an impact before the next swing, so attacks don't blur into each other.
-    if (RESULT_TYPES.has(beat.primary.type) && beats[beatIdx + 1]?.primary.type === 'attack') d += 200;
-    // The beat on screen is beats[beatIdx-1]. If it's the ATTACK (the lunge), hand off to its impact the
-    // instant the lunge CONNECTS — not after the attacker has settled. The lunge connects at windup+strike
-    // (GSAP seconds, NOT ×SPEED) and the smack fires `smackLead` before that; hold the wind-up only until
-    // the smack lands, then advance → the damage beat (and its floats) lands right on contact.
+    // The beat on screen is beats[beatIdx-1]; the scheduler controls how long it stays before beats[beatIdx]
+    // shows. The lunge config tunes two combat-feel beats (live via the DEV Lunge tuner):
     const shown = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
+    const c = getLungeConfig();
     if (shown?.primary.type === 'attack') {
-      const c = getLungeConfig();
+      // The ATTACK (wind-up) hands off to its impact the instant the lunge CONNECTS — not after the attacker
+      // settles. Connection = windup+strike (GSAP seconds, NOT ×SPEED); the smack fires `smackLead` before
+      // that. Hold the wind-up only until the smack, then advance → the damage beat lands right on contact.
       d = Math.max(120, (c.windupDur + c.strikeDur - c.smackLead) * 1000);
+    } else if (shown && RESULT_TYPES.has(shown.primary.type) && beat.primary.type === 'attack') {
+      // A breather AFTER an impact, before the next swing, so back-to-back attacks don't blur together.
+      d += c.attackGap * 1000;
     }
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
@@ -462,7 +465,7 @@ export function useCombatReplay(
     if (deaths.length) {
       setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
       const ids = new Set(deaths.map((s) => s.id));
-      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS));
+      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), DEATH_FLOAT_MS));
     }
     return () => timers.forEach((id) => window.clearTimeout(id));
   }, [active, beatIdx, beats, events, findEl]);

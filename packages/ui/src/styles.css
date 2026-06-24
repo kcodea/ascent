@@ -1090,6 +1090,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.buffed .card { animation: buffpulse 0.6s ease; }
 @keyframes buffpulse { 0%, 100% { box-shadow: 0 3px 0 var(--shadow); transform: none; } 45% { box-shadow: 0 0 0 3px #22be86, 0 0 22px 3px rgba(34, 190, 134, 0.7); transform: scale(1.04); } }
 
+/* Soulsman's Avenge → max Gold: a gold pulse (one-shot, like buffpulse) so the proc is felt + seen */
+.unit.goldproc .card { animation: goldpulse 0.62s ease; }
+@keyframes goldpulse { 0%, 100% { box-shadow: 0 3px 0 var(--shadow); transform: none; } 45% { box-shadow: 0 0 0 3px #f0c040, 0 0 24px 4px rgba(240, 192, 64, 0.8); transform: scale(1.05); } }
+
 /* Cleave: a slash sweeping across the attacker */
 .unit.cleaving::before { content: ''; position: absolute; inset: -4px; z-index: 9; pointer-events: none; background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.92) 50%, transparent 58%); animation: cleaveswipe 0.45s ease; }
 @keyframes cleaveswipe { 0% { opacity: 0; transform: translateX(-28%); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateX(28%); } }
@@ -1153,6 +1157,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }
 .float.buff { color: #fff; background: #1aa86f; padding: 3px 12px; border-radius: 12px; font-size: 34px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
+/* Soulsman's max-Gold gain — a gold pill (combat-only; smaller so "+N max gold" fits the unit) */
+.float.gold { color: #3a2700; background: #f4c542; padding: 3px 11px; border-radius: 12px; font-size: 26px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
 /* Recruit-phase buff float on a (smaller, viewport-scaled) compact card — size it to the card, not the fixed combat px. */
 .float.buff.cardfloat { font-size: calc(24 * var(--u)); padding: calc(2 * var(--u)) calc(9 * var(--u)); border-radius: calc(9 * var(--u)); right: calc(7 * var(--u)); }
 /* Keyword procs (poison ☠ / divine shield ◇ / reborn ♻) bloom BIG in the card centre, a beat AFTER

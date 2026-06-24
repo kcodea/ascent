@@ -654,6 +654,10 @@ describe('simulate (handoff A.3)', () => {
       3,
     );
     expect(a.playerMaxGoldGain).toBe(2); // 8 friendly deaths / Avenge 4 = 2 procs (+1 Gold each)
+    // Each proc logs a `maxGold` event (player side) so the UI can pulse Soulsman + float the gain.
+    const goldEvents = a.events.filter((ev) => ev.type === 'maxGold');
+    expect(goldEvents.length).toBe(2);
+    expect(goldEvents.every((ev) => ev.type === 'maxGold' && ev.side === 'player' && ev.amount === 1)).toBe(true);
   });
 
   it('Blaster Deathrattle deals 3 to every minion on both sides (friendly included)', () => {

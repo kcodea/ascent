@@ -1016,55 +1016,69 @@ export function Recruit() {
     if (run.fodderEatenSeq === prevFodderSeq.current) return;
     prevFodderSeq.current = run.fodderEatenSeq;
     const events = run.fodderEaten ?? [];
-    const rowEl = document.querySelector('[data-zone="tavern"] .row');
-    if (events.length === 0 || !rowEl) return;
-    const rr = rowEl.getBoundingClientRect();
-    const sample = rowEl.querySelector('.card')?.getBoundingClientRect();
-    const w = sample?.width ?? rr.height * 0.752;
-    const h = sample?.height ?? rr.height;
-    const cy = rr.top + rr.height / 2;
-    const ghosts = events.map((ev, i) => {
-      const gx = rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72);
-      const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${ev.eaterUid}"]`);
-      let dx = 0;
-      let dy = 220; // fallback: drift down if the eater isn't on screen
-      if (eaterEl) {
-        const er = eaterEl.getBoundingClientRect();
-        dx = er.left + er.width / 2 - gx;
-        dy = er.top + er.height / 2 - cy;
+    if (events.length === 0) return;
+    const seq = run.fodderEatenSeq;
+    let raf = 0;
+    let tries = 0;
+    let t = 0;
+    let floatT = 0;
+    // Measure + play once the tavern row is actually in the DOM. If it isn't yet (a consume that procs
+    // before the shop has laid out / mid-transition), RETRY on the next frames instead of bailing — the
+    // old code marked the seq seen and returned, so that consume's swirl was lost forever (never replays).
+    const tryShow = (): void => {
+      const rowEl = document.querySelector('[data-zone="tavern"] .row');
+      if (!rowEl || !rowEl.getClientRects().length) {
+        if (tries++ < 40) raf = requestAnimationFrame(tryShow); // ~0.65s of frames for the tavern to mount
+        return;
       }
-      return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0: gx - w / 2, y0: cy - h / 2, w, h, dx, dy };
-    });
-    setFodderAnim({ key: run.fodderEatenSeq, ghosts });
-    // Float the eater's actual +X/+X gain as the ghost swirls in — the shop-phase buff float, the same one
-    // spells/hero-power show — summed per eater (one Demon can eat several Fodder this proc).
-    const gains = new Map<string, { a: number; h: number }>();
-    for (const ev of events) {
-      const g = gains.get(ev.eaterUid) ?? { a: 0, h: 0 };
-      g.a += ev.gainA;
-      g.h += ev.gainH;
-      gains.set(ev.eaterUid, g);
-    }
-    const keyed = [...gains].map(([uid, g]) => ({ uid, attack: g.a, health: g.h, key: ++statFloatKey.current }));
-    const floatT = window.setTimeout(() => {
-      setStatFloats((m) => {
-        const n = { ...m };
-        for (const k of keyed) n[k.uid] = { attack: k.attack, health: k.health, key: k.key };
-        return n;
+      const rr = rowEl.getBoundingClientRect();
+      const sample = rowEl.querySelector('.card')?.getBoundingClientRect();
+      const w = sample?.width ?? rr.height * 0.752;
+      const h = sample?.height ?? rr.height;
+      const cy = rr.top + rr.height / 2;
+      const ghosts = events.map((ev, i) => {
+        const gx = rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72);
+        const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${ev.eaterUid}"]`);
+        let dx = 0;
+        let dy = 220; // fallback: drift down if the eater isn't on screen
+        if (eaterEl) {
+          const er = eaterEl.getBoundingClientRect();
+          dx = er.left + er.width / 2 - gx;
+          dy = er.top + er.height / 2 - cy;
+        }
+        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0: gx - w / 2, y0: cy - h / 2, w, h, dx, dy };
       });
-      window.setTimeout(() => {
+      setFodderAnim({ key: seq, ghosts });
+      // Float the eater's actual +X/+X gain as the ghost swirls in — the shop-phase buff float, the same one
+      // spells/hero-power show — summed per eater (one Demon can eat several Fodder this proc).
+      const gains = new Map<string, { a: number; h: number }>();
+      for (const ev of events) {
+        const g = gains.get(ev.eaterUid) ?? { a: 0, h: 0 };
+        g.a += ev.gainA;
+        g.h += ev.gainH;
+        gains.set(ev.eaterUid, g);
+      }
+      const keyed = [...gains].map(([uid, g]) => ({ uid, attack: g.a, health: g.h, key: ++statFloatKey.current }));
+      floatT = window.setTimeout(() => {
         setStatFloats((m) => {
           const n = { ...m };
-          for (const k of keyed) if (n[k.uid]?.key === k.key) delete n[k.uid];
+          for (const k of keyed) n[k.uid] = { attack: k.attack, health: k.health, key: k.key };
           return n;
         });
-      }, 1500);
-    }, 1450); // ~when the ghost reaches the eater
-    const t = window.setTimeout(() => setFodderAnim(null), 2300); // slower: hold, then swirl in
-    return () => { window.clearTimeout(t); window.clearTimeout(floatT); };
+        window.setTimeout(() => {
+          setStatFloats((m) => {
+            const n = { ...m };
+            for (const k of keyed) if (n[k.uid]?.key === k.key) delete n[k.uid];
+            return n;
+          });
+        }, 1500);
+      }, 1450); // ~when the ghost reaches the eater
+      t = window.setTimeout(() => setFodderAnim(null), 2300); // slower: hold, then swirl in
+    };
+    tryShow();
+    return () => { if (raf) cancelAnimationFrame(raf); window.clearTimeout(t); window.clearTimeout(floatT); };
     // Keyed on the seq ONLY: `run.fodderEaten` gets a fresh array ref every action, so including it
-    // would re-run this effect (and its cleanup → clearTimeout) on unrelated actions, stranding the
-    // ghost forever — which then re-mounts + replays every time we come back from combat. The seq only
+    // would re-run this effect (and its cleanup) on unrelated actions, stranding the ghost. The seq only
     // changes when Fodder is actually eaten, so the snapshot read of `run.fodderEaten` here is current.
   }, [run.fodderEatenSeq]);
 

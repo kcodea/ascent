@@ -580,6 +580,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  notifies per fire). Multiple Banes each react, so they stack additively. */
   onBattlecryBuffFodder: (ctx, self, params) => {
     buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+    // Flash Bane itself + any Fodder on the board it just enchanted, so the proc is visible even when no
+    // Fodder is out (its enchant is run-wide, to the card *type*). Reuses the battlecry-trigger flame flash:
+    // the seq bump happens in `fireBattlecryTriggered`'s callers once this list is non-empty.
+    const flash = (ctx.state.karwindFlash ??= []);
+    if (!flash.includes(self.uid)) flash.push(self.uid);
+    for (const c of ctx.state.board) {
+      if (CARD_INDEX[c.cardId]?.keywords.includes('FD') && !flash.includes(c.uid)) flash.push(c.uid);
+    }
   },
 
   // --- Deathrattles that can also resolve out of combat (e.g. when Consumed). The

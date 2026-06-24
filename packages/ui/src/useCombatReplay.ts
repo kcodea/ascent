@@ -120,7 +120,7 @@ const SPEED = 1.5;
 const DELAY: Record<string, number> = {
   // action beats (the wind-up / cast). `attack` is tuned so the RESULT beat (smack sound + damage floats +
   // recoil) lands right at the lunge's connection (~330ms = windup 0.2s + strike 0.13s, × SPEED), not after.
-  attack: 220, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820,
+  attack: 220, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820, maxGold: 560,
   // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
@@ -200,6 +200,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'reborn': return { [e.target]: 'reborn' };
     case 'buff': return { [e.target]: 'buffed' };
     case 'improve': return { [e.target]: 'buffed' };
+    case 'maxGold': return { [e.target]: 'goldproc' };
     case 'sc': return { [e.source]: 'sccast' };
     case 'death': return { [e.target]: 'dying' };
     case 'summon': return { [e.minion.uid]: 'summoned' };
@@ -219,6 +220,7 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
     case 'shieldUp': return { uid: e.target, text: '◇', kind: 'shieldup' };
     case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
     case 'improve': return { uid: e.target, text: '✦', kind: 'buff' };
+    case 'maxGold': return { uid: e.target, text: `+${e.amount} max gold`, kind: 'gold' };
     case 'rally': return { uid: e.target, text: '☠', kind: 'rally' }; // marks whose Deathrattle is firing
     default: return null;
   }
@@ -242,6 +244,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'improve': return { text: `${n(e.target)}'s summon aura strengthens by +${e.amount}/+${e.amount}.`, kind: 'buff' };
+    case 'maxGold': return { text: `${n(e.target)}'s Avenge raises your max Gold by ${e.amount}.`, kind: 'buff' };
     case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Deathrattle.`, kind: 'sc' };
     case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
     default: return null;
@@ -261,6 +264,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'summon': return `${e.minion.name} joins the fray.`;
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
     case 'improve': return `${n(e.target)}'s aura strengthens (+${e.amount}/+${e.amount}).`;
+    case 'maxGold': return `${n(e.target)} raises your max Gold by ${e.amount}!`;
     case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Deathrattle!`;
     case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;
     default: return null;
@@ -281,6 +285,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   const echoed = new Map<string, number>(); // extra copies Echo Warden spun off your summons
   const startCombat = new Map<string, number>(); // Start-of-Combat effects that fired (by source)
   const buffs = new Map<string, { n: number; atk: number; hp: number }>();
+  const maxGold = new Map<string, { n: number; total: number }>(); // Soulsman's Avenge → max Gold raised
   for (const e of events) {
     if (e.type === 'attack') attacks++;
     else if (e.type === 'dmg') dmg += e.amount;
@@ -302,6 +307,12 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
       t.n++; t.atk += e.attack; t.hp += e.health;
       buffs.set(k, t);
     }
+    else if (e.type === 'maxGold') {
+      const k = n(e.target);
+      const t = maxGold.get(k) ?? { n: 0, total: 0 };
+      t.n++; t.total += e.amount;
+      maxGold.set(k, t);
+    }
   }
   const out: { text: string; kind: string }[] = [];
   out.push({ text: `${attacks} attacks · ${dmg} damage dealt · ${deaths} deaths`, kind: 'total' });
@@ -317,6 +328,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   if (summoned.size) { out.push({ text: 'Summoned', kind: 'head' }); for (const [k, c] of summoned) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
   if (echoed.size) { out.push({ text: 'Echoed · Echo Warden', kind: 'head' }); for (const [k, c] of echoed) out.push({ text: `${k} — +${c}×`, kind: 'summon' }); }
   if (buffs.size) { out.push({ text: 'Buffs', kind: 'head' }); for (const [k, t] of buffs) out.push({ text: `${k} — ${t.n}× (+${t.atk}/+${t.hp})`, kind: 'buff' }); }
+  if (maxGold.size) { out.push({ text: 'Max Gold', kind: 'head' }); for (const [k, t] of maxGold) out.push({ text: `${k} — +${t.total} (${t.n}×)`, kind: 'buff' }); }
   return out;
 }
 
@@ -463,6 +475,7 @@ export function useCombatReplay(
       else if (e.type === 'death') { once('death', sfx.death); kill = true; }
       else if (e.type === 'shieldUp') once('shield', sfx.shield);
       else if (e.type === 'buff') once('buff', sfx.buff);
+      else if (e.type === 'maxGold') once('maxgold', sfx.maxGold);
     }
     if (kill) setShake((n) => n + 1); // a death shakes the board (hit-stop feel)
   }, [active, beatIdx, beats, events]);

@@ -73,3 +73,34 @@ const POWER_ART = indexArt(
   import.meta.glob('./art/powers/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
 );
 export const heroPowerArt = (heroId: string): string | undefined => POWER_ART[heroId];
+
+/** Every bundled art URL (minions + heroes + powers), deduped — the warm-up set. */
+const ALL_ART_URLS: string[] = [
+  ...new Set([...Object.values(MINION_ART), ...Object.values(HERO_ART), ...Object.values(POWER_ART)]),
+];
+
+let warmed = false;
+/**
+ * Preload (fetch + decode) every bundled art file so cards render with their art already cached — no
+ * "pop-in" a beat after the card frame on a cold load (the itch CDN especially: each webp is a separate
+ * round-trip the first time its card appears). Idempotent and non-blocking: it kicks off detached `Image`
+ * loads on idle (the browser fetches + decodes off the render path), so it never competes with first paint.
+ * Call once the title / hero-select screen is up. Platform-independent — fixes the web + itch-embed build,
+ * not just a future local/desktop wrap (which only removes the network half).
+ */
+export function warmArt(): void {
+  if (warmed || typeof Image === 'undefined') return;
+  warmed = true;
+  const run = (): void => {
+    for (const url of ALL_ART_URLS) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = url;
+      // decode() pre-decodes off the main thread where supported; best-effort (ignore failures / abort).
+      void img.decode?.().catch(() => {});
+    }
+  };
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
+  if (typeof ric === 'function') ric(run);
+  else setTimeout(run, 200);
+}

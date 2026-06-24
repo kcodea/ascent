@@ -2317,6 +2317,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     });
     const s = reduce(setup(false), { type: 'play', uid: 'sf' });
     expect(s.cardBuffs.fred).toEqual({ attack: 1, health: 1 }); // one battlecry → +1/+1
+    expect(s.karwindFlash).toContain('b'); // Bane flashes itself so the proc reads even with no Fodder out
     const g = reduce(setup(true), { type: 'play', uid: 'sf' });
     expect(g.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // golden → +2/+2
   });

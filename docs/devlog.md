@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-24
+
+### Art preload (itch pop-in) · Soulsman combat proc · Bane proc flash · Fodder consume never lost
+
+- **Art preload kills the cold-load pop-in.** Card/hero/power webps were only fetched when an `<img>` first
+  rendered, so on a cold load (esp. the itch CDN) each card's art "popped in" a beat after its frame.
+  `art.ts` now exports `warmArt()` — on idle (`requestIdleCallback`), it kicks off a fetch + `decode()` of
+  every bundled art URL into a detached `Image`, so the cache is warm before the first shop. Called once from
+  `Game`'s mount effect; idempotent + non-blocking (never competes with first paint). Platform-independent —
+  fixes the web + itch-embed build, not just a future desktop wrap. Verified live: **157 webps fetched on the
+  title screen** (the whole set), no console errors.
+- **Soulsman is now tracked + felt in combat.** Its Avenge (every 4 friendly deaths → +1 max Gold, golden
+  +2) raised max Gold silently — no event, no cue. Added a `maxGold` combat event (core: emitted from
+  `avengeMaxGold`, player-side only — enemies have no economy) so the UI replay can show it: a gold pulse
+  (`goldproc`) on Soulsman, a "+N max gold" gold float, a rising coin-shimmer `sfx.maxGold`, a narration line,
+  and a **Max Gold** section in the per-fight Procs report. Determinism preserved (it only adds log entries;
+  run state was already counting the gain). Test extended: the 8-deaths case now asserts 2 `maxGold` events
+  (player, +1 each).
+- **Bane shows a proc.** Bane (a Battlecry trigger → enchant the Fodder card type run-wide) had no visible
+  cue — with no Fodder on the board, nothing happened on screen. `onBattlecryBuffFodder` now flashes Bane
+  itself (and any board Fodder it just buffed) via the existing battlecry-trigger flame flash. Test asserts
+  `karwindFlash` includes Bane after a Battlecry resolves.
+- **Fodder consume animation never gets lost.** The swirl effect marked its sequence "seen" and then bailed
+  if the tavern row wasn't in the DOM yet — so a consume that procced before layout was lost forever (the seq
+  never replays). It now **retries across frames** (`requestAnimationFrame`, up to ~40) until the tavern is
+  measurable, then plays; cleanup cancels the rAF + timers. No more dropped swirls.
+- Verified: typecheck + lint clean, **282 tests pass** (Soulsman + Bane assertions added), `npm run perf`
+  within budget, live load clean (no console errors, full art set preloaded).
+
 ## 2026-06-23
 
 ### Tavern Up sourced clip · hardened board export for the itch iframe · SFX reference refresh

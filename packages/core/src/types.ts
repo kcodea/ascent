@@ -285,6 +285,7 @@ export type CombatEvent =
   | { type: 'buff'; target: string; attack: number; health: number; source: string }
   | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
+  | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
   | { type: 'toHand'; cardId: string; side: Side; source?: string }; // a combat effect adds a card to your hand (Arcane Weaver)
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';

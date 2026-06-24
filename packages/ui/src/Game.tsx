@@ -9,6 +9,7 @@ import { EscMenu } from './EscMenu';
 import { SfxMixer } from './SfxMixer';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
+import { warmArt } from './art';
 import { useGame } from './store';
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
@@ -21,6 +22,10 @@ export function Game() {
   const [res, setRes] = useState<string>(() => {
     try { return localStorage.getItem('ascent-res') || 'fit'; } catch { return 'fit'; }
   });
+
+  // Preload all card/hero art once, on idle, so the first shop renders with art already cached — kills the
+  // cold-load "pop-in" (esp. the itch CDN, where each webp is a separate first-appearance round-trip).
+  useEffect(() => { warmArt(); }, []);
 
   // Apply the resolution box (a [data-res] attribute drives the --gw/--gh letterbox) + persist it.
   useEffect(() => {

@@ -365,13 +365,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Avenge (Soulsman): every X friendly deaths, permanently raise your max Gold by 1 (golden +2).
-   *  Player-side carry-back via `CombatResult.playerMaxGoldGain` → applied to maxEmbers in settleCombat. */
+   *  Player-side carry-back via `CombatResult.playerMaxGoldGain` → applied to maxEmbers in settleCombat.
+   *  Logs a `maxGold` event (player only — enemies have no economy, so it'd be a phantom proc) so the UI
+   *  can pulse Soulsman + float the gain when it triggers. */
   avengeMaxGold: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 4));
     if (count % x !== 0) return;
-    ctx.grantMaxGold(mul(self), self.side);
+    const gain = mul(self);
+    ctx.grantMaxGold(gain, self.side);
+    if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });
   },
 
   /** Deathrattle (Ghastweaver): fill the board with random cards from `pool`. */

@@ -62,6 +62,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ↑ ${n(ev.target)} +${ev.attack}/+${ev.health}`;
     case 'improve':
       return `   ✦ ${n(ev.target)} aura +${ev.amount}/+${ev.amount}`;
+    case 'maxGold':
+      return `   ◉ ${n(ev.target)}'s Avenge raises max Gold +${ev.amount}`;
     case 'rally':
       return `   ☠ ${n(ev.source)}'s Rally fires ${n(ev.target)}'s Deathrattle`;
     case 'toHand':

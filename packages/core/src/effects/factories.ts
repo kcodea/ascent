@@ -279,13 +279,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
 
-  /** Rally — when *this* minion attacks, buff your other living minions (+atk/+hp). */
+  /** Rally — when *this* minion attacks, buff friendly minions (+atk/+hp). With no extra params it buffs
+   *  every other living friend; `tribe` restricts to that tribe (dual-types count) and `count` caps how many
+   *  are hit (a random pick when there are more eligible) — Supporter: 2 friendly Dragons. */
   rallyBuff: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // only on this minion's own attack
     const attack = num(params.attack, 1) * mul(self);
     const health = num(params.health, 1) * mul(self);
-    for (const m of ctx.living(self.side)) if (m !== self) ctx.buff(m, attack, health, self.uid);
+    const tribe = str(params.tribe) as Tribe | '';
+    let friends = ctx.living(self.side).filter((m) => m !== self && (!tribe || m.tribe === tribe || m.tribe2 === tribe));
+    const cap = num(params.count, 0); // 0 = all eligible friends
+    if (cap > 0 && friends.length > cap) {
+      const pickable = [...friends];
+      friends = [];
+      for (let i = 0; i < cap && pickable.length > 0; i++) {
+        const m = ctx.rng.pick(pickable);
+        pickable.splice(pickable.indexOf(m), 1);
+        friends.push(m);
+      }
+    }
+    for (const m of friends) ctx.buff(m, attack, health, self.uid);
   },
 
   /** Deathsayer's Rally — when *this* attacks, fire your leftmost living minion's Deathrattle *first*
@@ -376,6 +390,25 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const gain = mul(self);
     ctx.grantMaxGold(gain, self.side);
     if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });
+  },
+
+  /** Avenge (X) — Stuntdrake: after every `count` friendly deaths, hand `targets` other living friends a
+   *  copy of THIS minion's current Attack (+atk only). A golden's bigger Attack flows through automatically;
+   *  the threshold + target count are unchanged. Recipients are a random pick when more than `targets` live. */
+  avengeGiveAttack: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    if (count % x !== 0) return;
+    const amount = self.attack;
+    if (amount <= 0) return;
+    const pickable = ctx.living(self.side).filter((m) => m !== self);
+    const targets = num(params.targets, 2);
+    for (let i = 0; i < targets && pickable.length > 0; i++) {
+      const m = ctx.rng.pick(pickable);
+      pickable.splice(pickable.indexOf(m), 1);
+      ctx.buff(m, amount, 0, self.uid);
+    }
   },
 
   /** Deathrattle (Ghastweaver): fill the board with random cards from `pool`. */

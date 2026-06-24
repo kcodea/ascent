@@ -635,6 +635,52 @@ describe('simulate (handoff A.3)', () => {
     expect(rallies).toBe(2); // two swings → two rallies (the old once-per-attack code fired only one)
   });
 
+  it('Supporter (Rally): when it attacks, 2 friendly Dragons get +1/+2', () => {
+    const a = run(
+      [
+        { cardId: 'supporter', attack: 2, health: 50 }, // wide board → attacks first; 0-atk wall → never dies
+        { cardId: 'bronzewarden', attack: 3, health: 50 }, // friendly Dragon (rally target)
+        { cardId: 'cleric', attack: 3, health: 50 }, // friendly Dragon (rally target)
+      ],
+      [{ cardId: 'omen', attack: 0, health: 60 }],
+      3,
+    );
+    // Each Supporter swing rallies its 2 fellow Dragons +1/+2 — at least one full rally (2 buffs) lands.
+    const rallies = a.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 2);
+    expect(rallies.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('a golden Supporter rallies for +2/+4', () => {
+    const a = run(
+      [
+        { cardId: 'supporter', attack: 2, health: 50, golden: true },
+        { cardId: 'bronzewarden', attack: 3, health: 50 },
+        { cardId: 'cleric', attack: 3, health: 50 },
+      ],
+      [{ cardId: 'omen', attack: 0, health: 60 }],
+      3,
+    );
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 4)).toBe(true);
+  });
+
+  it('Stuntdrake (Avenge 3): after 3 friendly deaths, hands its Attack to 2 friends', () => {
+    const a = run(
+      [
+        { cardId: 'stuntdrake', attack: 3, health: 50 }, // survives; gifts its Attack on Avenge
+        { cardId: 'bronzewarden', attack: 1, health: 50 }, // a surviving recipient (Dragon)
+        { cardId: 'cleric', attack: 1, health: 50 }, // a surviving recipient (Dragon)
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] }, // 3 Taunts die first → Avenge counts to 3
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 2, health: 80 }],
+      4,
+    );
+    // Avenge(3) fires once → Stuntdrake's Attack (3) goes to its 2 surviving friends (+3/+0 each).
+    const gifts = a.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 0);
+    expect(gifts.length).toBe(2);
+  });
+
   it('Burial Imp: its Deathrattle queues Fodder for the next tavern (carried back)', () => {
     const a = run(
       [{ cardId: 'burialimp', attack: 3, health: 1 }],

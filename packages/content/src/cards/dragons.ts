@@ -90,4 +90,60 @@ export const DRAGONS: CardDef[] = [
     text: 'After you trigger a Battlecry, give Fodder **+1/+1** this run.',
     goldenText: 'After you trigger a Battlecry, give Fodder **+2/+2** this run.',
   },
+
+  // --- New dragons (2026-06-24 content batch). Frontdrake's cadence grant, Supporter's tribe Rally, and
+  //     Stuntdrake's Avenge use new effect primitives; Bronze Warden is a vanilla Divine-Shield wall. ---
+  {
+    // Recruit cadence faucet: every 3rd End of Turn it survives, conjure a random Dragon (tavern-tier
+    // bound). Rewards keeping a fragile 2/1 alive across shops. Golden → 2 Dragons.
+    id: 'frontdrake',
+    name: 'Frontdrake',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 2,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnGrantTribe', params: { tribe: 'dragon', every: 3, count: 1 } }],
+    text: '**Every 3 turns,** get a random Dragon.',
+    goldenText: '**Every 3 turns,** get **2** random Dragons.',
+  },
+  {
+    // Tribe Rally — when it attacks in combat, pump up to 2 other friendly Dragons. The combat half of the
+    // Dragon go-wide plan; extra attacks (Windfury) rally repeatedly. Golden doubles the buff.
+    id: 'supporter',
+    name: 'Supporter',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 2,
+    health: 3,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyBuff', params: { tribe: 'dragon', count: 2, attack: 1, health: 2 } }],
+    text: '**Rally:** give 2 friendly Dragons **+1/+2**.',
+    goldenText: '**Rally:** give 2 friendly Dragons **+2/+4**.',
+  },
+  {
+    // A plain Divine-Shield wall — soaks the first hit. Keyword-only (the DS badge carries the meaning).
+    id: 'bronzewarden',
+    name: 'Bronze Warden',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 3,
+    health: 3,
+    keywords: ['DS'],
+    effects: [],
+    text: '',
+  },
+  {
+    // Avenge payoff: after 3 friendly deaths in combat, hand this minion's Attack to 2 other friends — a
+    // burst that rewards a sacrificial front line. Uses the new `avengeGiveAttack` combat primitive.
+    id: 'stuntdrake',
+    name: 'Stuntdrake',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 3,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeGiveAttack', params: { count: 3, targets: 2 } }],
+    text: "**Avenge (3):** give this minion's Attack to 2 friendly minions.",
+  },
 ];

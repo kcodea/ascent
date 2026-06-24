@@ -30,6 +30,7 @@ export type GameEvent =
   | 'onSummon'
   | 'onDeath'
   | 'onAttack'
+  | 'onGainAttack' // a minion's Attack rose mid-combat (emitted by ctx.buff when the delta > 0) — Hunter
   | 'onLoseDivineShield'
   | 'onConsume'
   | 'onKill'
@@ -104,6 +105,8 @@ export type EffectFactoryId =
   | 'avengeGiveAttack' // Stuntdrake: Avenge (X) hands this minion's Attack to N friends (Dragon)
   | 'endOfTurnGrantTribe' // Frontdrake: every N End-of-Turns, conjure a random minion of a tribe to hand (Dragon)
   | 'onFriendlyAttackBuffTribe' // Raptor: when another friendly minion of a tribe attacks, buff it (Beast)
+  | 'onAllyAttackBuffAll' // Crypt Drake: when any ally attacks, buff your minions — improving every N attacks
+  | 'onGainAttackBuffAll' // Hunter: when this minion's Attack rises, buff your minions' Health
   | 'battlecryDiscoverMinion' // Sea Urchin: Battlecry — Discover a minion of a tribe (Beast)
   | 'onConsumeBuffSelf'
   | 'onConsumeGrantSelfKeyword'
@@ -249,6 +252,9 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** Crypt Drake: how many ally attacks this minion has seen this combat — drives its "improve every N
+   *  attacks" buff. Per-combat (reset each fight); absent = 0. */
+  attackSeen?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   side: Side;

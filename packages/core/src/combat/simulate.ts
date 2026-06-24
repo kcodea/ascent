@@ -132,6 +132,10 @@ export function simulate(
           health: (target.permaGain?.health ?? 0) + health,
         };
       }
+      // Hunter watches its own Attack rising: emit onGainAttack on a positive delta. The bus snapshots its
+      // handlers, so this nested emit is safe; health-only buffs (the common case) skip it, and onGainAttack
+      // handlers grant Health only (no further Attack gain) so it can't loop. Cheap when unsubscribed (a Map miss).
+      if (attack > 0) bus.emit('onGainAttack', { minion: target, side: target.side });
     },
     addTribeAura: (side, tribe, attack, health, source) => {
       tribeAuras.push({ side, tribe, attack, health, source });

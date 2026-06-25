@@ -31,6 +31,26 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   Battlecry, aura, Avenge…), its centre medallion flares then releases a slow ring of energy with a sound,
   so you can see which unit acted. Multi-turn cadence cards (e.g. Frontdrake) just *glow* as they tick and
   *pulse* on the turn they pay off. (Simultaneous pulses share one sound.)
+- **Ryme re-fires every Battlecry + magnetize triggers summon-buffs.** **Ryme** now re-fires *economy*
+  Battlecries too (Soulfeeder's Fodder, Hoarder's Gold, …) — they replay through their real recruit factory at
+  settle, so the synergy actually pays out. And **magnetizing** a minion onto a host now fires summon-buffs on
+  it first (a Symbiotic Attachment counts as a Beast → Mama Bear's +X/+X lands, then welds onto the host).
+- **Buffs window ticks up live in combat.** Spell power and max Gold now **climb in the Buffs window as the
+  fight plays** (folded from the per-beat combat telegraphs, in sync with the replay), instead of only updating
+  when the shop reopens. The redundant "Your spells get +X/+Y" hero-tooltip line is gone — the window owns it.
+- **Buffs-window fixes + opponent frame stays put in combat.** The Buffs window now lists **Eternal Knight**
+  enchants, **totals every Mama Bear** on board (not just the first), and shows the **real Max Gold gained**
+  (was off by the natural per-wave curve). The next-enemy frame now stays **pinned top-right during combat**
+  (no more jumping to a left-side banner), with a normal cursor.
+- **Generated cards show the real card mid-combat.** A card generated in combat (Sporebat, Ryme re-firing Sea
+  Urchin / Black Belt Brian) is now **picked during the fight** and flies to your hand as the actual card
+  (`toHand`), instead of resolving invisibly at settle — wiring the specific-card-grant tech for future events.
+- **Combat feedback telegraphs.** Effects that used to apply silently until the shop now show **during** the
+  fight: **spell-power gains** ("+A/+B Spell Power") and **generated cards** ("Generated a spell/minion") emit a
+  Start-of-Combat-style narration from the minion that caused them. Taragosa's combat text reflects spell power.
+- **Run-buffs window + Symbiote timing.** A collapsible **Buffs** window (top-right, under the next-enemy frame)
+  surfaces your active permanent buffs at a glance — spell power, Undead-everywhere, Fodder, Imps, Mama Bear,
+  Guel. **Symbiote** now grants its token at the **start of every 5th turn** (was end of every 4).
 - **Dust puff on board placement.** Placing or moving a minion on the board kicks up a ring of dry-dirt
   dust that escapes out from under the card on every side — like a flat stone dropped in dust.
 - **Gold-coin sprinkle on sell.** Selling a minion now bursts a sprinkle of gold coins out of the Gold

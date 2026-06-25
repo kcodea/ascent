@@ -1,7 +1,9 @@
 import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
+import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, cryptDrakeText, engraveTallyText, sergeantText, summonBuffText } from './cardText';
+import { ascendProgressText, cryptDrakeText, engraveTallyText, sergeantText, summonBuffText, taragosaText } from './cardText';
+import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
 /** Keyword-proc floats (poison/shield/reborn) that bloom big in the card centre, staggered after the
@@ -26,11 +28,16 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
+  // The run's spell power (frozen during combat — the fight hasn't settled) so Taragosa's Growth text reflects
+  // the same value the combat used. Primitive selectors → the memoized Unit only re-renders if they change.
+  const spA = useGame((s) => spellAttackBonus(s.run));
+  const spH = useGame((s) => spellHealthBonus(s.run));
   // Combat live text — show current values for minions whose effects scale mid-fight.
   const liveText = summonBuffText(u.cardId, u.summonBonus)
     ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
     ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
     ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
+    ?? taragosaText(u.cardId, u.golden, spA, spH)
     ?? engraveTallyText(u.cardId, u.permaGain)
     ?? def?.text ?? '';
   const view: CardView = {

@@ -6,8 +6,9 @@ import { CARD_INDEX } from '@game/content';
 const buffHealths = (events: CombatEvent[]): number[] =>
   events.flatMap((ev) => (ev.type === 'buff' ? [ev.health] : []));
 
-const run = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyTier = 1) =>
-  simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, enemyTier);
+const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon'];
+const run = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyTier = 1, playerTier = 6, playerTribes: string[] = ALL_TRIBES) =>
+  simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, enemyTier, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, playerTier, playerTribes);
 
 describe('simulate (handoff A.3)', () => {
   it('is deterministic for the same seed', () => {
@@ -599,17 +600,25 @@ describe('simulate (handoff A.3)', () => {
     expect(run(board(true), omen, 1).playerFodderBuffGain).toEqual({ attack: 4, health: 4 }); // golden Bane doubles
   });
 
-  it('Ryme re-firing a Discover Battlecry in combat grants a random pool card (Sea Urchin → minion, Brian → spell)', () => {
+  it('Ryme re-firing a Discover Battlecry grants the ACTUAL card — a toHand event + a playerHandGrant', () => {
     const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
-    // Sea Urchin = Discover-MINION (tribe beast). Re-fired in combat it can't open the peek, so it queues a
-    // random-minion grant (resolved at settle): tribe carried, source excluded. Golden → 2.
+    const toHandIds = (r: ReturnType<typeof run>) =>
+      r.events.flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
+    // Sea Urchin = Discover-MINION (tribe beast). Re-fired in combat it picks a real beast NOW (≤ tier, active
+    // tribes), emits a toHand event so it animates in, and carries the cardId back via playerHandGrants.
     const urchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100 }], omen, 1);
-    expect(urchin.playerMinionGrants).toEqual([{ tribe: 'beast', exclude: 'seaurchin' }]);
+    expect(toHandIds(urchin)).toHaveLength(1);
+    const pickedId = toHandIds(urchin)[0]!;
+    const def = CARD_INDEX[pickedId]!;
+    expect(def.tribe === 'beast' || def.tribe2 === 'beast' || def.universalTribe).toBe(true); // a beast
+    expect(pickedId).not.toBe('seaurchin'); // source excluded
+    expect(urchin.playerHandGrants).toContain(pickedId);
     const goldUrchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100, golden: true }], omen, 1);
-    expect(goldUrchin.playerMinionGrants).toHaveLength(2); // golden Discovers twice
-    // Black Belt Brian = Discover-SPELL → routes through the existing random-spell carry-back.
+    expect(toHandIds(goldUrchin)).toHaveLength(2); // golden Discovers twice
+    // Black Belt Brian = Discover-SPELL → picks a real spell, same toHand + handGrant path.
     const brian = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'blackbelt', attack: 0, health: 100 }], omen, 1);
-    expect(brian.playerSpellGrants).toBe(1);
+    expect(toHandIds(brian)).toHaveLength(1);
+    expect(CARD_INDEX[toHandIds(brian)[0]!]?.spell).toBe(true); // a spell
   });
 
   it('Ryme re-firing Cinderwing Matron in combat grants the run-wide spell power', () => {
@@ -619,6 +628,34 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSpellPower).toEqual({ attack: 0, health: 1 });
     const gold = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'cinder', attack: 0, health: 100, golden: true }], omen, 1);
     expect(gold.playerSpellPower).toEqual({ attack: 0, health: 2 }); // golden Cinderwing doubles
+  });
+
+  it("Ryme re-firing an ECONOMY Battlecry records it for settle (Soulfeeder, Hoarder) — not the combat ones", () => {
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    // Soulfeeder = addTavernFodder (economy) — can't touch the tavern in pure combat, so it's recorded on
+    // playerDeferredBattlecries for the run loop to replay at settle (and the golden state rides along).
+    const feed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100 }], omen, 1);
+    expect(feed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: false }]);
+    const goldFeed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(goldFeed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: true }]);
+    // Hoarder = battlecryBonusGoldNextTurn (economy) → also deferred.
+    const hoard = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'hoarder', attack: 0, health: 100 }], omen, 1);
+    expect(hoard.playerDeferredBattlecries).toEqual([{ cardId: 'hoarder', golden: false }]);
+    // A combat-meaningful Battlecry (Sea Urchin's Discover) resolves IN the fight — never deferred.
+    const urchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100 }], omen, 1);
+    expect(urchin.playerDeferredBattlecries).toBeUndefined();
+  });
+
+  it('combat carry-backs are shown mid-fight (spell power → sc; a generated card → toHand)', () => {
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    const r = run([
+      { cardId: 'skullblade', attack: 5, health: 1 }, // Deathrattle → +1/+0 spell power (otherwise silent until settle)
+      { cardId: 'sporebat', attack: 2, health: 1 },   // Deathrattle → generates a real spell → a toHand event
+    ], omen, 1);
+    expect(r.events.some((e) => e.type === 'sc' && /Spell Power/.test(e.text))).toBe(true);
+    const grant = r.events.find((e) => e.type === 'toHand');
+    expect(grant).toBeDefined();
+    expect(CARD_INDEX[(grant as { cardId: string }).cardId]?.spell).toBe(true); // the actual spell that was generated
   });
 
   it("Taragosa's Growth scales with the run's spell power", () => {
@@ -994,11 +1031,16 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerFodderGrants).toBe(1); // one Burial Imp died → 1 Fodder queued for the next tavern
   });
 
-  it('Sporebat Deathrattle banks a random tavern-tier spell (carried back); golden banks two', () => {
-    const grants = (golden: boolean): number | undefined =>
-      run([{ cardId: 'sporebat', attack: 2, health: 1, golden }], [{ cardId: 'omen', attack: 5, health: 5 }], 3).playerSpellGrants;
-    expect(grants(false)).toBe(1);
-    expect(grants(true)).toBe(2);
+  it('Sporebat Deathrattle generates a real tavern-tier spell (toHand + handGrant); golden generates two', () => {
+    const spellGrants = (golden: boolean): string[] => {
+      const r = run([{ cardId: 'sporebat', attack: 2, health: 1, golden }], [{ cardId: 'omen', attack: 5, health: 5 }], 3);
+      const ids = r.events.flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
+      expect(ids.every((id) => CARD_INDEX[id]?.spell)).toBe(true); // each is an actual spell
+      expect(r.playerHandGrants ?? []).toEqual(ids); // carried back to add at settle
+      return ids;
+    };
+    expect(spellGrants(false)).toHaveLength(1);
+    expect(spellGrants(true)).toHaveLength(2);
   });
 
   it('Gryphon banks a free refresh PER HIT, capped at 4 a combat', () => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CONFIG, boardManaBonus, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { CONFIG, boardManaBonus, getHero, spellAmplifyBonus } from '@game/sim';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -70,10 +70,6 @@ export function StatusBar() {
   const nextEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + manaBonus + (run.bonusEmbersNextTurn ?? 0);
   const afterEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + manaBonus;
   const hpPct = Math.max(0, Math.min(100, (run.resolve / run.maxResolve) * 100));
-  // Your current spell buff — the +Attack/+Health every stat-granting spell gains right now (hero amplify +
-  // Harry Botter auras + Skullblade's run buff). Surfaced on hero hover so the player can read their scaling.
-  const spellA = spellAttackBonus(run);
-  const spellH = spellHealthBonus(run);
 
   // When Resolve drops (a wave broke through), shake the chip + float the −X.
   const prevResolve = useRef(run.resolve);
@@ -145,9 +141,6 @@ export function StatusBar() {
           <div className="herotip" role="tooltip">
             <b>{power.name}</b> — {power.text}
             {powerNote}
-            {(spellA > 0 || spellH > 0) && (
-              <div className="herotip-spell">Your spells get <b>+{spellA}/+{spellH}</b></div>
-            )}
           </div>
         </div>
       </div>

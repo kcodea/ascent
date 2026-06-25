@@ -44,6 +44,8 @@ export function simulate(
   impHpBonus = 0,
   spellPowerAtk = 0,
   spellPowerHp = 0,
+  playerTier = 1,
+  playerTribes: string[] = [],
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -59,12 +61,13 @@ export function simulate(
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
   let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
-  let spellGrants = 0; // random tavern-tier spells granted to the hand after combat (Sporebat's Deathrattle)
-  const minionGrants: { tribe?: string; exclude?: string }[] = []; // random pool minions to grant (Ryme re-firing a Discover Battlecry)
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: spellsCast, enemy: 0 };
   let playerCombatSpells = 0; // spells the player cast THIS combat → added to the run's spellsCast at settle
+  // Economy battlecries Ryme re-fired in combat (Fodder / Gold / shop / gain-minion) — can't run in pure combat,
+  // so they're recorded here and replayed through their real recruit factory at settle (full RunState access).
+  const deferredBattlecries: { cardId: string; golden: boolean }[] = [];
 
   /**
    * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
@@ -205,11 +208,13 @@ export function simulate(
         events.push({ type: 'toHand', cardId, side, source: sourceUid });
       }
     },
-    grantSpellPower: (attack, health, side) => {
+    grantSpellPower: (attack, health, side, sourceUid) => {
       // Player-only (enemies have no run state) — accumulate and carry back via playerSpellPower.
       if (side !== 'player') return;
       spellPowerGain.attack += attack;
       spellPowerGain.health += health;
+      // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain.
+      if (sourceUid && (attack !== 0 || health !== 0)) events.push({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Spell Power` });
     },
     grantCardBuff: (cardId, attack, health, side) => {
       // Player-only — accumulate per cardId and carry back via playerCardBuffs.
@@ -222,6 +227,10 @@ export function simulate(
       if (side !== 'player') return; // enemies have no tavern
       fodderGrants += count;
     },
+    deferBattlecry: (cardId, golden, side) => {
+      if (side !== 'player') return; // enemies have no run state to carry economy battlecries back to
+      deferredBattlecries.push({ cardId, golden });
+    },
     grantMaxGold: (amount, side) => {
       if (side !== 'player') return; // enemies have no economy
       maxGoldGain += amount;
@@ -230,13 +239,31 @@ export function simulate(
       if (side !== 'player') return; // enemies have no shop
       freeRollGrants += count;
     },
-    grantRandomSpell: (count, side) => {
+    grantRandomSpell: (count, side, sourceUid) => {
       if (side !== 'player') return; // enemies have no hand
-      spellGrants += count;
+      // Pick the ACTUAL spell now (tavern tier passed in) and route it through grantToHand — so the replay
+      // shows the real card flying to your hand (a `toHand` event), and settle just adds the carried cardId.
+      const pool = Object.values(cards).filter((c) => c.spell && c.tier <= playerTier);
+      for (let i = 0; i < count && pool.length > 0; i++) {
+        const pick = pool[Math.floor(rng.next() * pool.length)]!;
+        handGrants.push(pick.id);
+        events.push({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+      }
     },
-    grantRandomMinion: (count, tribe, side, exclude) => {
+    grantRandomMinion: (count, tribe, side, exclude, sourceUid) => {
       if (side !== 'player') return; // enemies have no hand
-      for (let i = 0; i < count; i++) minionGrants.push({ tribe, exclude });
+      // Same as spells but for the buyable-minion pool (tribe-filtered, ≤ tavern tier, active tribes only).
+      const pool = Object.values(cards).filter(
+        (c) =>
+          !c.token && !c.spell && c.tier <= playerTier && c.id !== exclude &&
+          (c.tribe === 'neutral' || playerTribes.includes(c.tribe)) &&
+          (!tribe || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe),
+      );
+      for (let i = 0; i < count && pool.length > 0; i++) {
+        const pick = pool[Math.floor(rng.next() * pool.length)]!;
+        handGrants.push(pick.id);
+        events.push({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+      }
     },
     grantImpBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
@@ -680,10 +707,9 @@ export function simulate(
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
+    playerDeferredBattlecries: deferredBattlecries.length > 0 ? deferredBattlecries : undefined,
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
-    playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
-    playerMinionGrants: minionGrants.length > 0 ? minionGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,

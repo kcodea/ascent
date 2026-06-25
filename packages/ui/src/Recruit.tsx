@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText } from './cardText';
 import { HudBar } from './HudBar';
@@ -105,6 +105,8 @@ interface ShopViewOpts {
   undeadBuyAtk?: number;
   tavernAtk?: number;
   tavernHp?: number;
+  /** Run-wide Deathrattles triggered this game — so a tavern Grim offer shows its live scaling buff. */
+  deathrattlesTriggered?: number;
 }
 function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const c = CARD_INDEX[card.cardId];
@@ -136,7 +138,9 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: c.attack + addAtk, health: c.health + addHp,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
-    text: c.text, goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier,
+    // Grim (and other Deathrattle-tally cards) show their live scaling buff in the tavern too, not just on board.
+    text: tallyBuffText(c.id, opts.deathrattlesTriggered ?? 0) ?? c.text,
+    goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier,
     baseAttack: c.attack, baseHealth: c.health,
   };
 }
@@ -237,8 +241,8 @@ export function Recruit() {
   // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
-  const combatSpeed = useGame((s) => s.combatSpeed);
-  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
+  const setCombatBuffs = useGame((s) => s.setCombatBuffs);
+  const combatSpeed = useGame((s) => s.combatSpeed); // still threaded into the replay; the slider UI lives in HudBar now
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
@@ -361,10 +365,6 @@ export function Recruit() {
   // `combatStage` sequences the intro (close → fight); the replay engine runs once
   // the enemies have arrived. After the fight, the warband plays a reset animation. ---
   const inCombat = run.phase === 'combat';
-  // The real board the pool serves for this fight (null = procedural threat). Deterministic, so memoize on
-  // the inputs `pickOpponent` uses — recomputing per combat beat would needlessly scan the pool. Carries the
-  // author/date when it's a captured player/friend board, surfaced as the enemy's name during combat.
-  const servedOpp = useMemo(() => nextOpponent(run), [run.wave, run.turnStartPower, run.seed]);
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Log overlay
@@ -399,6 +399,13 @@ export function Recruit() {
   useEffect(() => {
     setCombatEnemyDeaths(inCombat && !run.combatSettled ? replay.enemyDeaths : 0);
   }, [inCombat, run.combatSettled, replay.enemyDeaths, setCombatEnemyDeaths]);
+  // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
+  // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
+  // run state, so the row then reads them from there (adding the live delta too would briefly double-count).
+  const { spellAttack: cbA, spellHealth: cbH, gold: cbGold } = replay.combatBuffs;
+  useEffect(() => {
+    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, gold: cbGold } : null);
+  }, [inCombat, run.combatSettled, cbA, cbH, cbGold, setCombatBuffs]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
   // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just
@@ -537,8 +544,8 @@ export function Recruit() {
   // changes — during a drag nothing dispatches, so `run.*` refs are stable and these stay
   // cached, which is what lets the memoized Card skip re-render on every pointermove.
   const shopViews = useMemo(
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk })] as const)),
-    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk],
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered })] as const)),
+    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.deathrattlesTriggered],
   );
   const spellView = useMemo(
     () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus }) : null),
@@ -1495,26 +1502,8 @@ export function Recruit() {
       </div>
       ) : (
         <div className="combatctl">
-          {/* When the pool serves a real captured board, name the foe by its author + run date; else the
-              wave's procedural-threat flavor name. */}
-          <span className="cbanner">
-            {servedOpp?.author ?? THREATS[run.threat].name}
-            {servedOpp?.author && servedOpp.capturedAt && <span className="cbanner-date">{servedOpp.capturedAt}</span>}
-          </span>
-          {/* Replay speed — 0.5×–5×, persisted. Scales every beat delay + lunge so the fight reads fast or slow. */}
-          <div className="combatspeed" title="Combat replay speed">
-            <span className="csl">Speed</span>
-            <input
-              type="range"
-              min={0.5}
-              max={5}
-              step={0.1}
-              value={combatSpeed}
-              onChange={(e) => setCombatSpeed(Number(e.target.value))}
-              aria-label="Combat replay speed"
-            />
-            <span className="combatspeed-val">{combatSpeed.toFixed(1)}×</span>
-          </div>
+          {/* The foe is named top-right by the OpponentFrame (pinned in both recruit + combat); no left-side
+              banner here, so the post-combat buttons stay centred. */}
           <div className="cbtns">
             {replay.done ? (
               <>

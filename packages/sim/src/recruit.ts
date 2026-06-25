@@ -1,4 +1,4 @@
-import { makeRng, type CardDef, type Keyword, type Tribe } from '@game/core';
+import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type Keyword, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
@@ -113,42 +113,6 @@ export function undeadBuyBonus(state: RunState, def: CardDef): number {
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
 export function sellValueOf(card: BoardCard): number {
   return card.cardId === 'hoarder' ? 2 * (card.golden ? 2 : 1) : CONFIG.sellValue;
-}
-
-/**
- * Resolve combat Discover-minion Battlecry re-fires (Ryme re-firing Sea Urchin). A Discover can't open its
- * interactive 1-of-3 peek mid-combat, so each carried-back request grants ONE random pool minion of its
- * `tribe`, up to the tavern tier, drawn from the run's active tribes (tavern rules) — with the run buffs the
- * normal grant path bakes in (per-card run buff + Undead bond) and a pool draw, honoring the hand cap. The
- * seeded RNG keeps it replayable. Called by `settleCombat`.
- */
-export function grantRandomDiscoverMinions(state: RunState, grants: { tribe?: string; exclude?: string }[]): void {
-  if (grants.length === 0) return;
-  const rng = makeRng(state.rngCursor);
-  for (const { tribe, exclude } of grants) {
-    if (state.hand.length >= CONFIG.handMax) break;
-    const pool = BUYABLE_CARDS.filter(
-      (c) =>
-        c.tier <= state.tier &&
-        c.id !== exclude &&
-        (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
-        (!tribe || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe),
-    );
-    if (pool.length === 0) continue;
-    const def = pool[rng.int(pool.length)]!;
-    const cb = cardBuff(state, def.id);
-    state.hand.push({
-      uid: `b${state.uidSeq++}`,
-      cardId: def.id,
-      tribe: def.tribe,
-      attack: def.attack + cb.attack + undeadBuyBonus(state, def),
-      health: def.health + cb.health,
-      keywords: [...def.keywords],
-      golden: false,
-    });
-    takeFromPool(state, def.id); // a conjured copy leaves the shared pool
-  }
-  state.rngCursor = rng.state();
 }
 
 /**
@@ -1370,6 +1334,16 @@ function fire(
   }
 }
 
+/**
+ * Fire the on-summon buffs (Mama Bear, Kennelmaster, Spirit Worgen, …) for a minion entering play — the same
+ * trigger `playCard` fires. Exposed so the magnetize path can run it on a Magnetic minion BEFORE it welds: the
+ * absorbed body picks up any tribe summon-buff (Symbiotic Attachment counts as a Beast → Mama Bear) and then
+ * carries those stats into the host. The minion need not be on the board — board handlers buff the payload.
+ */
+export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
+  fire(makeContext(state), 'onSummon', { minion });
+}
+
 function makeContext(state: RunState): RecruitContext {
   const ctx: RecruitContext = {
     state,
@@ -1511,6 +1485,30 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // a Battlecry → procs Karwind
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
   return true;
+}
+
+/**
+ * Replay ONE economy Battlecry that Ryme re-fired in combat, at SETTLE. The combat-meaningful battlecries
+ * (summon / buff / discover / grant-keyword / spell-power — `COMBAT_REPLAYABLE_BATTLECRIES`) already resolved
+ * IN the fight; this runs the REST (Soulfeeder's Fodder, Hoarder's Gold, Demonic Anomaly's shop buff, a
+ * gain-a-minion) through their real recruit factory, which needs the RunState (tavern / Gold / hand) the pure
+ * combat sim doesn't have. Called once per recorded re-fire — Drakko's doubling is already baked into the
+ * count, so NO extra repeats here. `golden` mirrors the re-fired minion so the factory's golden doubling is
+ * correct. Karwind/Bane already procced in combat (the `battlecryTriggered` event), so no re-proc here.
+ */
+export function replayEconomyBattlecry(state: RunState, cardId: string, golden: boolean): void {
+  const def = CARD_INDEX[cardId];
+  if (!def) return;
+  const economy = def.effects.filter((e) => e.on === 'onPlay' && !COMBAT_REPLAYABLE_BATTLECRIES.has(e.do));
+  if (economy.length === 0) return;
+  const self: BoardCard = {
+    uid: 'ryme-bc', cardId, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden,
+  };
+  const ctx = makeContext(state);
+  for (const effect of economy) {
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (fn) fn(ctx, self, effect.params ?? {}, { minion: self });
+  }
 }
 
 /**

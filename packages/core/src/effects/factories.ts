@@ -47,12 +47,22 @@ const drakkoRepeats = (ctx: CombatContext, side: Side): number => {
   return 1 + bonus;
 };
 
-/** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Only the
- *  combat-meaningful battlecries do anything here; others no-op. Magnitude respects the source's own golden. */
+/** The Battlecry `do` ids `replayCombatBattlecry` runs IN COMBAT (they affect the live fight). Every other
+ *  onPlay `do` is an economy/recruit battlecry — deferred to settle and replayed through its recruit factory.
+ *  Kept in sync with the explicit branches below; `settleCombat` reads it to skip the combat ones at settle. */
+export const COMBAT_REPLAYABLE_BATTLECRIES: ReadonlySet<string> = new Set([
+  'battlecrySummon', 'battlecryBuffTribe', 'battlecryBuffUndeadAttack', 'battlecryGrantKeyword',
+  'battlecryDiscoverSpell', 'battlecryDiscoverMinion', 'battlecryBuffSpellPower',
+]);
+
+/** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Combat-meaningful
+ *  battlecries resolve here; economy ones (Fodder/Gold/shop/gain-minion) are recorded via `ctx.deferBattlecry`
+ *  and replayed through their recruit factory at settle. Magnitude respects the source's own golden. */
 function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   const g = m.golden ? 2 : 1;
   const tribeOf = (t: Minion, tribe: string): boolean =>
     !tribe || tribe === 'any' || t.tribe === tribe || t.tribe2 === tribe || !!ctx.getCard(t.cardId)?.universalTribe;
+  let economy = false; // saw an onPlay effect not handled in combat → defer the card to settle
   for (const eff of m.effects) {
     if (eff.on !== 'onPlay') continue;
     const p = eff.params ?? {};
@@ -79,15 +89,21 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
     } else if (eff.do === 'battlecryDiscoverSpell') {
       // A Discover Battlecry can't open the interactive 1-of-3 peek mid-combat — grant a random pool card
       // instead (resolved at settle, respecting the tavern tier). Golden Discovers twice → grant ×2.
-      ctx.grantRandomSpell(g, m.side);
+      ctx.grantRandomSpell(g, m.side, m.uid);
     } else if (eff.do === 'battlecryDiscoverMinion') {
-      ctx.grantRandomMinion(g, str(p.tribe) || undefined, m.side, m.cardId); // …a random minion of the tribe, ≤ tavern tier
+      ctx.grantRandomMinion(g, str(p.tribe) || undefined, m.side, m.cardId, m.uid); // …a random minion of the tribe, ≤ tavern tier
     } else if (eff.do === 'battlecryBuffSpellPower') {
       // Cinderwing Matron — permanently raise run-wide spell power; carried back via playerSpellPower (the
       // same channel Skullblade/Gnasher use), so re-firing it in combat actually grants the spell power.
-      ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side);
+      ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side, m.uid);
+    } else {
+      economy = true; // Fodder / Gold / shop / gain-minion — no combat surface; replayed at settle
     }
   }
+  // Economy battlecries can't run in pure combat (no tavern/Gold/hand on the run state). Record the card so
+  // settleCombat re-fires its economy onPlay effects through the real recruit factory. Player-only (gated in
+  // ctx.deferBattlecry). Recorded once per re-fire, so Drakko's doubling carries through to the settle replay.
+  if (economy) ctx.deferBattlecry(m.cardId, m.golden, m.side);
 }
 
 /**
@@ -141,7 +157,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  tier-bounded pick happens at settle (where the tavern tier is known); combat just banks the count. */
   deathrattleGrantRandomSpell: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side);
+    ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side, self.uid);
   },
 
   /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once PER HIT, capped at
@@ -236,7 +252,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  as onKillBuffSelf (the onKill payload carries the killer as `attacker`). */
   onKillBuffSpellPower: (ctx, self, params, payload) => {
     if ((payload as { attacker?: Minion }).attacker !== self) return;
-    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side);
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side, self.uid);
   },
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
@@ -368,7 +384,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  then applied to the run's spell bonus in settleCombat. Each Skullblade death stacks another +atk/+hp. */
   deathrattleBuffSpellPower: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side);
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side, self.uid);
   },
 
   /** Deathrattle (Grave Knit): permanently buff a card type run-wide by +atk/+hp (golden doubles).

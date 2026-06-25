@@ -76,6 +76,82 @@ moving effect + sound are owner-verified in a real fight/shop.)
 (Full combat playback is GSAP-driven and can't run in the headless preview; owner to eyeball in a real
 fight.)
 
+### fix: Ryme re-fires EVERY Battlecry (economy ones replay at settle) + magnetizing now triggers summon-buffs
+
+Two owner-reported interaction gaps, both "the feature didn't extend to this case":
+
+**1. Ryme + economy Battlecries (Soulfeeder, Hoarder, …).** Ryme's combat re-fire (`replayCombatBattlecry`) only handled the *combat-meaningful* Battlecries (summon / tribe-buff / undead-attack / grant-keyword / discover / spell-power); economy ones (Soulfeeder's `addTavernFodder`, Hoarder's `battlecryBonusGoldNextTurn`, Demonic Anomaly's shop buff, a gain-a-minion) silently no-op'd — so Ryme produced **0 Fodder**. Now the owner wants Ryme to re-fire *every* Battlecry. Rather than reimplement each economy effect in pure combat (and invent carry-backs for Gold-next-turn + the shop buff), the split is cleaner: **combat-meaningful Battlecries still resolve in the fight; economy ones are recorded and replayed through their REAL recruit factory at settle** (full RunState access). New `ctx.deferBattlecry(cardId, golden, side)` (player-only) → `CombatResult.playerDeferredBattlecries` → `settleCombat` calls `replayEconomyBattlecry(s, cardId, golden)`, which runs the card's non-combat onPlay effects via `RECRUIT_FACTORIES`. Recorded once per re-fire, so **Drakko's doubling and golden Ryme's both-neighbors carry through**; golden state rides along so the factory doubles correctly. The combat-meaningful set is exported (`COMBAT_REPLAYABLE_BATTLECRIES`) as the single source of truth the settle path reads to skip the in-combat ones. This auto-covers future economy Battlecries — no new carry-back per card.
+
+**2. Magnetize skipped summon-buffs.** Playing a Magnetic minion onto a host welded its in-hand stats and **returned before `playCard`**, so `onSummon` never fired — Mama Bear (and every summon-buff) was skipped. Only a standalone play triggered them. The owner wants playing-a-Magnetic to count as a summon: new exported `fireSummonBuffs(state, minion)` runs the board's `onSummon` handlers on the magnetic minion **before** the weld, so a Symbiotic Attachment (universalTribe → counts as a Beast) picks up Mama Bear's +2/+2 and carries it into the host. Applies to all magnetic plays (consistent with "playing = summoning").
+
+**Files:** `simulate.ts` (`deferredBattlecries` accumulator + `ctx.deferBattlecry` + result field), `types.ts` (`CombatResult.playerDeferredBattlecries` + `CombatContext.deferBattlecry`), `factories.ts` (export `COMBAT_REPLAYABLE_BATTLECRIES`; `replayCombatBattlecry` defers economy battlecries), `recruit.ts` (`replayEconomyBattlecry` + `fireSummonBuffs`), `reducer.ts` (settle replays deferred battlecries; magnetize path fires summon-buffs before welding), `simulate.test.ts` (+1: Ryme defers Soulfeeder/Hoarder, not Sea Urchin), `run.test.ts` (+2: settle replays deferred → 3 Fred + 1 Gold; magnetize → Attachment + Mama Bear → host 8/8).
+
+**Verification:** `typecheck + lint + test (368, +3) + harness (determinism) + build:web` green. Confirmed **live in-preview**: Ryme dying next to Soulfeeder records `{feed,false}` and settle queues a Fred into the next tavern; a Symbiotic Attachment played onto a Gnasher (5/5) with a Mama Bear on board welds at **8/8** (Attachment 1/1 + Mama Bear +2/+2).
+
+### feat: Buffs window ticks up LIVE in combat (spell power + max Gold) + drop the redundant hero-tooltip spell line
+
+Two linked asks. The hero-power tooltip carried a "Your spells get +X/+Y" line; now that the Buffs window tracks spell power, that's redundant — **removed** it (and the now-unused `spellAttackBonus`/`spellHealthBonus` reads + the `.herotip-spell` rule). Then: the Buffs window was frozen at its pre-combat values during a fight (run-buff carry-backs apply at *settle*), so a spell-power build saw nothing change mid-combat. It now **ticks up live as the replay plays**, for the buffs that are cleanly telegraphed per-beat:
+
+- **Spell power** — folded from the `+A/+B Spell Power` Start-of-Combat narrations (Ghastly Bladesmith / Gnasher / Cinderwing-via-Ryme) as their beats land.
+- **Max Gold** — folded from Soulsman's Avenge `maxGold` events (player side only).
+
+Other run buffs (Undead / Fodder / Imp / Guel / Mama Bear) have no clean per-beat signal, so they still resolve at settle (a follow-up could event them).
+
+Mechanism mirrors the existing Cassen live-kill counter exactly: `useCombatReplay` computes the delta **up to the current beat** (`combatBuffDelta(events, processedEnd)`, memoized), `Recruit` bridges it to the store (gated on the values; **cleared to `null` at settle** so the row then reads the now-updated run state instead of double-counting), and `BuffsFrame` folds it via `gatherRunBuffs(run, combat?)`. The delta logic is pure + unit-tested; spell power is parsed from the sc text (the only run-buff signal that isn't a structured event).
+
+**Files:** `runBuffs.ts` (`CombatBuffDelta` + `combatBuffDelta` + `gatherRunBuffs` 2nd arg folds spell/gold), `useCombatReplay.ts` (expose `combatBuffs`), `store.ts` (`combatBuffs` slice + setter), `Recruit.tsx` (bridge effect, mirrors `combatEnemyDeaths`), `BuffsFrame.tsx` (read + fold), `StatusBar.tsx` (drop the spell line + unused imports), `styles.css` (drop `.herotip-spell`), `BuffsFrame.test.ts` (+4: `combatBuffDelta` parse/enemy-skip, `gatherRunBuffs` fold + zero-base reveal).
+
+**Verification:** `typecheck + lint + test (365, +4) + build:web` green. Confirmed **live in-preview**: the hero tooltip no longer has the spell line; a forced 3× Ghastly Bladesmith combat carries +3/+0 spell power and the Buffs window shows `Spell power +3/+0` at settle; the bridge nulls `combatBuffs` at settle (no double-count); and the store→window fold is reactive (pushing a `+2/+1` delta over a `+3/+0` base renders `+5/+1`). The per-beat animation itself can't be filmed headless (the replay clock pauses while the tab is backgrounded), but the bridge is identical to the live Cassen counter.
+
+### fix: buffs-window polish (Eternal Knight + Mama Bear total + real Max Gold) + opponent frame stays top-right in combat
+
+Five owner-reported fixes to the buffs window and the combat opponent frame:
+
+- **Eternal Knight row** added to the buffs window — the run-wide enchant (`cardBuffs.knit`, each Eternal Knight death buffs all Eternal Knights +3/+2) now surfaces as `Eternal Knights +A/+B`, like the Fodder/Cling rows.
+- **Mama Bear totals every copy on board.** The row used `board.find` (first Mama Bear only); with multiple Bears, *each* buffs every summon, so it now sums all `mamabear` on board — two Bears (one +2 accrued, one golden) read `+8/+8` instead of `+4/+4`.
+- **Max Gold shows the real value.** It computed `maxEmbers − naturalPerWaveCurve`, which undercounts (early gains below the cap get absorbed by the natural curve) — the owner's golden Soulsman gained +2 but the row showed +1. Now reads `run.soulsmanGold` (the tracked actual Gold gained, golden-aware — the same number the card shows). The old formula needed `CONFIG`, now dropped from `runBuffs.ts`.
+- **Opponent frame stays pinned top-right during combat.** It was recruit-only (`OpponentFrame` returned null off-recruit), so combat showed the foe in a separate left-side `.cbanner`. Now it renders in **recruit AND combat** (the box never jumps), and the redundant `.cbanner` (JSX + CSS + the `servedOpp`/`THREATS`/`nextOpponent` it used in `Recruit.tsx`) is removed. `nextOpponent(run)` has no phase guard, so during combat it returns the exact board being fought.
+- **Opponent frame cursor → `default`** (was `help`), matching the buffs panel.
+
+**Files:** `runBuffs.ts` (Eternal Knight row; Mama Bear `filter`+sum; Max Gold via `soulsmanGold`; dropped `CONFIG` import), `OpponentFrame.tsx` (render in combat too), `Recruit.tsx` (removed `.cbanner` + now-unused `servedOpp`/imports), `styles.css` (`.oppframe` cursor `default`; removed dead `.cbanner` rules; fixed stale `.combatspeed` comment), `BuffsFrame.test.ts` (knit assertion; Max Gold via `soulsmanGold`; +1 test for the Mama Bear sum).
+
+**Verification:** `typecheck + lint + test (361, +1) + build:web` green. Confirmed **live in-preview**: buffs window shows `Eternal Knights +6/+4`, `Max Gold +2`, `Mama Bear · per summon +8/+8` (two Bears summed), `.oppframe` cursor `default`; and in combat the opponent frame renders **top-right** (`by Orangez · Djinn — 30 HP`) inside `.topright` with **no** `.cbanner` on the left.
+
+### feat: generated cards now show the ACTUAL card mid-combat (real `toHand` event) — wires specific-card grant tech
+
+Owner-prioritised: a card generated in combat must show the real card as it's generated (and this tech will back future grant animations). Combat was carrying back a *count/request* and picking the card at **settle**, so the replay couldn't show it. Now combat **picks the actual card** and routes it through the existing `grantToHand` path:
+
+- The run's **tavern tier + active tribes** are threaded into `simulate` (two new params). `grantRandomSpell` / `grantRandomMinion` now filter the live pool (`Object.values(cards)`: spells, or `!token && !spell` minions ≤ tier, tribe-matched, active tribes, excluding the source), pick with the combat RNG, **emit a `toHand` event** with the real `cardId` (the same event Arcane Weaver uses — the card animates flying to your hand), and carry the cardId back.
+- **Unified the grant settle:** every in-combat card grant (Arcane Weaver's specific card AND the now-picked random cards) flows through `CombatResult.playerHandGrants`. `settleCombat` adds each carried card with the run's per-card enchant + Undead bond and `takeFromPool` (both no-ops for spells) — so a granted minion keeps its run buffs, matching a conjure. Removed the old `playerSpellGrants` (count) / `playerMinionGrants` (request) carry-backs, their settle blocks, and `grantRandomDiscoverMinions`.
+- Replaces the interim "Generated a spell/minion" `sc` telegraph (added earlier this session) with the real card flying in. Spell-power gains keep their `+A/+B Spell Power` `sc`.
+
+**Files:** `simulate.ts` (tier/tribes params + pick-and-grantToHand in the two methods; removed accumulators), `types.ts` (dropped 2 CombatResult fields; updated ctx docs), `reducer.ts` (unified `playerHandGrants` settle with run buffs + `takeFromPool`; pass `s.tier`/`s.tribes`; removed dead blocks/import), `recruit.ts` (removed `grantRandomDiscoverMinions`), `simulate.test.ts` (run helper threads tier/tribes; 3 tests now assert `toHand` + the actual card), `run.test.ts` (settle test asserts the carried card lands with run buffs).
+
+**Verification:** `typecheck + lint + test (360) + harness (determinism) + build:web` green. Confirmed **live in-preview**: a lost combat with a Sporebat emitted a `toHand` for the real spell (`growth`), and that same `growth` landed in the hand at settle.
+
+### feat: combat feedback — telegraph spell-power gains + generated cards mid-fight; Taragosa combat text
+
+Combat is a pure function whose carry-backs apply at **settle**, so several effects were invisible during the replay. Added mid-combat telegraphs (the run loop still applies them at settle — these are display-only events):
+
+- **Spell-power gains** (Ghastly Bladesmith, Gnasher, Cinderwing via Ryme) now emit an `sc` narration **+A/+B Spell Power** sourced from the granting minion — previously silent until the shop.
+- **Generated cards** (Sporebat, and the Discover battlecries Ryme re-fires — Sea Urchin / Black Belt Brian) now emit an `sc` **"Generated a spell/minion"** as they fire. The *specific* card is still chosen at settle (the pool/tier live in the run loop, not in pure combat), so this is a "card generated" telegraph rather than the exact card flying to hand — a follow-up could thread the pool into combat for the precise card.
+- **Taragosa's combat card text** now reflects the run's spell power (its Growth scales with it), reading the combat-frozen value from the store. (The golden-card live-text fix shipped earlier already corrected the bulk of "combat descriptions don't show the true value".)
+
+Implemented by adding an optional `sourceUid` to `grantSpellPower` / `grantRandomSpell` / `grantRandomMinion` (the ctx methods emit the `sc` when given one); the factory call sites pass `self.uid` / the re-fired minion's uid. Determinism is preserved (the events are deterministic and the odds sims discard them).
+
+**Files:** `types.ts` (3 ctx signatures), `simulate.ts` (emit `sc` in the 3 grant methods), `factories.ts` (6 call sites pass the uid), `Unit.tsx` (Taragosa combat text + spell power from the store), `simulate.test.ts` (+1).
+
+**Verification:** `typecheck + lint + test (359, +1) + harness (determinism) + build:web` green. Confirmed **live in-preview**: a lost combat with a Ghastly Bladesmith + Sporebat emits `+1/+0 Spell Power` and `Generated a spell` `sc` narrations.
+
+### feat: run-buffs window (top-right) + Symbiote timing → start of every 5th turn
+
+- **Symbiote** hero power now grants its Symbiotic Attachment token at the **START of every 5th turn** (waves 5/10/15…) instead of the end of every 4. Moved the grant from `faceOmen` (end of turn) to `advanceCombat` (the wave's shop opening), wave-keyed (`s.wave % 5 === 0`) — the shop-start `checkTriples` still combines a granted token. `heroPowerTick` is now unused (kept on `RunState` for save compat). Hero text + tests updated.
+- **Buffs window** — a collapsible panel in the top-right, stacked **under the next-enemy frame** (`HudBar` now wraps both in a `.topright` column). Open by default, and only rendered when ≥1 tracked buff is active. Tracks the run's live permanent buffs: **spell power** (hero amplify + card-driven), **Undead · everywhere** (`undeadBuyAtk` + Lantern aura), **Fodder** (`cardBuffs.fred`), **Imps** (`impBuff`), **Clings** (`cardBuffs.cling`), and — only while on board — **Mama Bear** (current per-summon grant) and **Archmagus Guel** (current per-spell grant). The pure gather logic lives in `runBuffs.ts` (JSX-free, unit-tested); `BuffsFrame.tsx` is the view.
+
+**Files:** `reducer.ts` (Symbiote move), `heroes.ts` (text), `run.test.ts` (+1 Symbiote, rewrote 1), `runBuffs.ts` + `BuffsFrame.tsx` (new), `BuffsFrame.test.ts` (new, +3), `HudBar.tsx` + `styles.css` (top-right column + window).
+
+**Verification:** `typecheck + lint + test (358, +4) + harness + build:web` green. Buffs window confirmed **live in-preview** — renders under the opponent frame with all rows (spell power, undead, fodder, imps, Mama Bear, Guel) at correct live values, collapses to `Buffs N ▸`, and Mama Bear/Guel rows drop when off board.
+
 ### feat: dry-dirt dust ringing a unit placed on / moved across the board
 
 A "flat stone dropped in dust" flourish on the Pixi FX layer: placing a minion from hand onto the

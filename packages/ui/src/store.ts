@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
 import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, reduce, type Action, type Replay, type RunState } from '@game/sim';
 import type { CardView } from './Card';
+import type { CombatBuffDelta } from './runBuffs';
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 
@@ -91,6 +92,10 @@ interface GameStore {
   /** Enemy minions killed in the live combat replay — bridges useCombatReplay → Cassen's StatusBar counter. */
   combatEnemyDeaths: number;
   setCombatEnemyDeaths: (n: number) => void;
+  /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — bridges useCombatReplay → the live
+   *  Buffs window so it ticks up in sync with the replay. `null` outside combat (the row reads the run state). */
+  combatBuffs: CombatBuffDelta | null;
+  setCombatBuffs: (b: CombatBuffDelta | null) => void;
   /** Increments on each sell — drives the gold "+1" flash on the Embers chip. */
   sellTick: number;
   /** The card being inspected (right-click) in a centred, enlarged overlay, or null. */
@@ -149,6 +154,7 @@ export const useGame = create<GameStore>((set, get) => ({
   heroArmed: false,
   endTurnAnimating: false,
   combatEnemyDeaths: 0,
+  combatBuffs: null,
   sellTick: 0,
   inspect: null,
   // Open on a fresh hero pick — the player chooses before the first wave loads.
@@ -197,6 +203,7 @@ export const useGame = create<GameStore>((set, get) => ({
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   setCombatEnemyDeaths: (n) => set({ combatEnemyDeaths: n }),
+  setCombatBuffs: (b) => set({ combatBuffs: b }),
   inspectCard: (view) => { sfx.inspect(); set({ inspect: view }); },
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),

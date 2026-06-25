@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Symbiotic Attachment is Magnetic Reborn — grants Reborn to whatever it welds onto
+
+Symbiote's hero-power token (`symbioticattachment`) now carries **Reborn** (`R`) on top of Magnetic — so magnetizing it onto a host grants that host Reborn. Its keywords ride along on the weld via `applyWeld` (which already transfers every non-`M` keyword), so no new plumbing. Played standalone it's a 1/1 Reborn body. A flat power bump to the Symbiote hero: every magnetize now also makes the target come back once.
+
+**Files:** `tokens.ts` (Symbiotic Attachment → `keywords: ['M', 'R']` + text), `run.test.ts` (+1: welding grants the host `R`, not `M`). **Verification:** `typecheck + lint + test (370, +1) + build:web` green.
+
 ### feat: wave-relative board power banding + patch stamping + prune/populate pool lifecycle
 
 The game's mechanics shifted a lot this week, so captured/house boards (esp. high-wave) re-simulate weaker than their stored strength implied — and the old banding couldn't see it. `rateBoard` fought every board against ONE fixed gauntlet (top rung 7/9/16) and **saturated** to `1.0` by ~wave 8, so it couldn't tell a weak high-wave board from a strong one. Redefined power banding as **wave-relative** (curation/QA only — live matchmaking still uses `Σ(atk+hp)`, owner's call), and built the maintenance lifecycle around it.

@@ -805,6 +805,21 @@ describe('run loop (@game/sim)', () => {
     expect([host.attack, host.health]).toEqual([8, 8]);
   });
 
+  it('Symbiotic Attachment is Magnetic Reborn — welding it grants the host Reborn', () => {
+    expect(CARD_INDEX.symbioticattachment!.keywords).toContain('R'); // the token itself carries Reborn
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'host', cardId: 'gnash', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false }],
+      // The real token (from the Symbiote hero power) carries M + R.
+      hand: [{ uid: 'sym', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M', 'R'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sym', toIndex: 0 }); // weld onto the host
+    const host = s.board.find((c) => c.uid === 'host')!;
+    expect(host.keywords).toContain('R'); // Reborn rides along on the weld (applyWeld transfers non-M keywords)
+    expect(host.keywords).not.toContain('M'); // Magnetic itself isn't transferred
+    expect([host.attack, host.health]).toEqual([6, 6]); // 5/5 host + the Attachment's 1/1
+  });
+
   it('Heckbinder (Demon/Mech) magnetizes onto a Demon or a Mech, but not other tribes', () => {
     const heck = (): BoardCard => ({ uid: 'h', cardId: 'heckbinder', tribe: 'demon', attack: 3, health: 3, keywords: ['M'], golden: false });
     // onto a Demon → merges (+3/+3)

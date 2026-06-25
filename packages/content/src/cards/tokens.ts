@@ -97,18 +97,19 @@ export const TOKENS: CardDef[] = [
     goldenText: 'All stats are **Engraved**. When a minion attacks, cast **Growth twice** (+6/+8 to your minions).',
   },
   {
-    // Symbiote hero power token — a 1/1 Magnetic that counts as every tribe. Magnetizes onto ANY
-    // non-neutral minion (all-type magnetic targeting handled in magnetizesTo). Gives the welder
-    // +1/+1 regardless of tribe and counts for all tribe-buff effects on the board / in hand.
+    // Symbiote hero power token — a 1/1 Magnetic Reborn that counts as every tribe. Magnetizes onto ANY
+    // non-neutral minion (all-type magnetic targeting handled in magnetizesTo). Gives the welder +1/+1 AND
+    // grants it Reborn (its keywords ride along on the weld via applyWeld), regardless of tribe, and counts
+    // for all tribe-buff effects on the board / in hand.
     id: 'symbioticattachment',
     name: 'Symbiotic Attachment',
     tribe: 'neutral',
     tier: 1,
     attack: 1,
     health: 1,
-    keywords: ['M'],
+    keywords: ['M', 'R'],
     effects: [],
-    text: '**Magnetic**. Counts as all tribes.',
+    text: '**Magnetic**, **Reborn**. Counts as all tribes.',
     token: true,
     universalTribe: true,
   },

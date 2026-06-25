@@ -5,6 +5,55 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: PixiJS WebGL effects layer + combat hit-impact (sparks · shockwave · smoke)
+
+Introduces **PixiJS v8** to the project as a **transparent WebGL effects overlay** — additive, not a
+rewrite. The React 3-row board, drag, and card DOM are untouched; Pixi only draws the *juice* that
+DOM/CSS does poorly (GPU particles), composited over the board. This is deliberately the foundation a
+future Pixi combat arena can grow out of (same `Application`/`stage` is reused, not re-bootstrapped):
+effects → combat sprites → full arena, each step shippable.
+
+- **New dep:** `pixi.js@^8` in `@game/ui` (auto code-splits into separate renderer chunks; the main
+  bundle gzips to ~251 KB).
+- **`pixiFx.ts`** — a singleton `FxController` owning a lazily-created `Application` (`resizeTo: window`,
+  `backgroundAlpha: 0`, high-DPI), with a **pooled-sprite particle system** on the Pixi ticker
+  (frame-rate-independent decay via `deltaMS`, recycle to a free-list — no GC churn, no leaks). Public
+  API: `impact(x, y, dx, dy)`. Particle textures are generated once from `Graphics`
+  (`generateTexture`): a soft glow, and two **jagged shard** shapes (an 18×4 rectangle + a triangle).
+- **`PixiFxLayer.tsx`** — a thin mount component (in `Game.tsx`); `.pixifx` CSS is a fixed full-viewport
+  `pointer-events:none` overlay at `z-index 24` (above the board, below the floating damage numbers).
+- **Wiring** (`useCombatReplay.ts`) — `pixiFx.impact()` fires from the GSAP lunge's **smack callback**
+  (the exact contact frame where `sfx.hit()` already plays), using the defender's `getBoundingClientRect`
+  center + the attacker→defender vector for spray direction. Hooks the existing `findEl(uid)` seam, so
+  effects land 1:1 on units with no new coordinate plumbing.
+- **The impact effect:** an additive white-hot **core flash** + a **normal-blend saturated-orange
+  shockwave**, **16 jagged shards** (rectangles + triangles, oriented along their travel like flung
+  debris, +20% size), and **4 wispy grey smoke puffs** that rise, expand, and linger after the sparks
+  burn out. Particles gained an optional `peakAlpha` (born semi-transparent → fade) and initial
+  `rotation`; blend mode is per-particle.
+
+**Why the colour/blend choices:** the first cut used a small, brief, **additive-white** burst — which
+washes out on the light "Sunward" cream board (additive only brightens toward white). Root-caused live
+by reading the framebuffer (extract showed the particles rendered opaque, fired on-screen, `ready:true`
+— so it was a *contrast/size* problem, not a render/wiring/coordinate one). Fix: saturated colours on
+**normal** blend (which actually paint over cream) for the shockwave + shards, additive kept only for
+the hot core glow.
+
+**DEV affordances (stripped from prod by the static env check):** a `window.__pixiFx` handle for
+console tuning, and a **"Test FX"** button (next to the SFX/Lunge dev tools) that fires an unmissable
+burst at screen center + logs diagnostics.
+
+**Files:** `packages/ui/package.json` (pixi.js dep), `packages/ui/src/pixiFx.ts` (new),
+`packages/ui/src/PixiFxLayer.tsx` (new), `Game.tsx` (mount + dev button), `useCombatReplay.ts` (impact
+wiring), `styles.css` (`.pixifx`, `.fxtest-btn`).
+
+**Verification:** `typecheck + lint + test (344) + build:web` all green. Render path verified live via
+the running dev server — Pixi mounts cleanly (single canvas/app, StrictMode-safe, no console errors);
+framebuffer `extract` confirmed the burst rasterizes 22 particles in both blend modes with saturated
+orange pixels (424 strongly-orange) and 4 rising semi-transparent grey puffs; the particle lifecycle
+was proven to decay + fully recycle (no leak) by pumping synthetic frames. Owner confirmed the effect
+reads clearly in real combat.
+
 ### Audio: bake full SFX mixer levels as shipped defaults
 
 - Whole-bank mix dialed in by ear via the DEV SFX mixer, pasted into `SAMPLE_VOL_DEFAULTS` (sfx.ts). Notable

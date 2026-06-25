@@ -1198,6 +1198,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.struck .hp { animation: hpflash 0.45s ease; }
 @keyframes hpflash { 0%, 100% { transform: none; box-shadow: none; } 40% { transform: scale(1.45); box-shadow: 0 0 14px 3px var(--threat); filter: brightness(1.25); } }
 @keyframes floatup { 0% { opacity: 0; transform: translateY(14px) scale(0.5); } 10% { opacity: 1; transform: translateY(0) scale(1.18); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(-8px) scale(1); } 100% { opacity: 0; transform: translateY(-30px) scale(0.96); } }
+/* The PixiJS WebGL effects overlay (particle impacts, flashes) — a transparent full-viewport
+   canvas drawn over the board, never intercepting input. Sits above the board/projectiles but
+   below the hand + floating damage numbers so those stay readable on top. */
+.pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 24; }
 /* Start-of-Combat bolt flying from the caster to its target */
 .proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
 /* Blaster's Deathrattle: purple blast bolts to every minion. */
@@ -1454,6 +1458,8 @@ svg { width: 18px; height: 18px; }
 .sfxmix-copy { width: 100%; margin-top: 10px; padding: 7px; border-radius: 9px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); font-family: 'Outfit'; font-weight: 800; font-size: 13px; cursor: pointer; }
 /* DEV lunge tuner — third button in the bottom-right cluster, left of the SFX mixer. */
 .lunge-btn { position: fixed; right: calc(var(--bar-x) + 112px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+/* DEV: Pixi FX test trigger — fires an unmissable burst at screen center. */
+.fxtest-btn { position: fixed; right: calc(var(--bar-x) + 160px); bottom: calc(var(--bar-y) + 16px); z-index: 200; height: 40px; padding: 0 14px; border-radius: 20px; border: 2px solid var(--line); background: var(--card); font-family: 'Outfit'; font-weight: 800; font-size: 13px; color: var(--ink); cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
 .sfxmix.lunge .sfxmix-val { flex-basis: 42px; }
 .lunge-btns { display: flex; gap: 8px; }

@@ -563,10 +563,13 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    Compositor-only: only opacity/transform animate; each pseudo's glow (radial bg + box-shadow) is
    STATIC, so it never repaints per frame (per the perf rules in CLAUDE.md).
    ::before = the quick glow flash (fires first); ::after = the expanding ring (delayed until the flash). */
+.card.compact .cgem.glowing::before,
 .card.compact .cgem.pulsing::before,
 .card.compact .cgem.pulsing::after {
   content: ''; position: absolute; border-radius: 50%; pointer-events: none; z-index: 8; opacity: 0;
 }
+/* the brief glow flash — shared by a progress glow (.glowing) and the full pulse (.pulsing) */
+.card.compact .cgem.glowing::before,
 .card.compact .cgem.pulsing::before {
   inset: -3px; will-change: opacity;
   background: radial-gradient(circle, color-mix(in srgb, var(--c) 60%, #fff8e0) 0%, transparent 72%);

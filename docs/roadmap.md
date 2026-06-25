@@ -274,7 +274,8 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       (additive hot core + normal-blend orange shockwave + jagged shards + rising smoke) fired on the
       lunge's contact frame, a **gold-coin sprinkle** out of the Gold counter on sell (gravity arc), and a
       low **dry-dirt dust puff** under a unit placed/moved on the board, and a **trigger-medallion pulse**
-      (a ring of energy off a unit's mechanic badge when its effect fires in combat — CSS, compositor-only)
+      (glow→ring + a deduped `triggerpulse` sound off a unit's mechanic badge when its effect fires in
+      combat or shop; cadence cards like Frontdrake glow per tick + pulse on payoff — CSS, compositor-only)
       — the additive foundation for a future Pixi combat arena (effects → sprites →
       arena, each shippable). **Next FX candidates:** death burst, Pixi-rendered Start-of-Combat/Blaster
       projectiles (replacing the SVG bolts), Divine-Shield-break shimmer; first **sourced SFX** (random sell1–4 + combat

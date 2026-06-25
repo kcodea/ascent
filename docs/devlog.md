@@ -19,20 +19,35 @@ replay, so you can read *which* unit just did something.
   fixed ~950 ms (independent of combat speed, so the ring always completes) then cleared; a re-trigger
   restarts it. Exposed as `triggerUids: Set<string>`. (The `cardIds` uid→cardId memo was hoisted above
   the effects so the Deathrattle lookup can use it.)
-- **Out of combat too**: the recruit warband also pulses the medallion on `battlecryUids` /
-  `eotProcUids` (Battlecry on play, End-of-Turn procs) via the same `pulse` prop.
-- **Plumbing**: combat — `Recruit` passes `triggered={replay.triggerUids.has(uid)}` → `Unit` → `Card`'s
-  new `pulse` prop (adds `.cgem.pulsing`); recruit — the board `Card` sets `pulse` directly.
-- **The pulse** (`styles.css`): a `.cgem.pulsing::after` ring scales 0.6→2.7 and fades, tinted with the
-  unit's tribe colour over a warm-white core. **Compositor-only** — only `transform`/`opacity` animate;
-  the glow (radial bg + box-shadow) is static, so no per-frame repaint (per the perf rules).
+- **Out of combat too**: the recruit warband pulses the medallion on Battlecry (on-play) and
+  officially-firing End-of-Turn effects.
+- **Progress glow vs official pulse** (owner ask, Frontdrake example): multi-turn *cadence* cards
+  (`endOfTurn` effect with an `every: N` param, e.g. Frontdrake's every-3-turns Dragon) only **glow**
+  on the turns they tick toward the trigger, and **pulse** (glow + ring) on the turn they actually pay
+  off. `Recruit`'s end-of-turn beat builder computes `completes = ((eotTick+1) % every === 0)` (non-
+  cadence EOT effects complete every turn); the warband `Card` gets `glow` (every proc) + `pulse` (only
+  completions / Battlecries). New `glow` prop → `.cgem.glowing` (the brief glow flash, no ring).
+- **Glow-then-pulse**: the medallion flares a very brief glow (`::before`, `cgemglow` 0.22s) and the ring
+  (`::after`, `cgempulse`, delayed 0.15s) releases *after* it. Both **compositor-only** (only
+  `transform`/`opacity` animate; the glow's radial bg + box-shadow are static — no per-frame repaint).
+  Tribe-colour-tinted over a warm-white core. The trigger tag is held ~1.15s so the full sequence runs.
+- **Sound** (`sfx.ts`): a new sourced **`triggerpulse`** clip (synth swell fallback) plays whenever the
+  *pulse* fires (not the progress glow). **Deduped** — a ~70 ms throttle collapses simultaneous pulses
+  (many units triggering on one combat beat / EOT step) into a single play so the audio never stacks; in
+  combat it's also fired once per beat. Added to the dev SFX mixer.
+- **Plumbing**: combat — `Recruit` → `Unit` → `Card`'s `pulse`/`glow` props; recruit — the board `Card`
+  sets them directly off the proc sets.
 
-**Files:** `useCombatReplay.ts` (trigger set + per-beat pass + reset + export), `Unit.tsx` (`triggered`
-prop + memo), `Card.tsx` (`pulse` prop → `.cgem` class), `Recruit.tsx` (both Unit renders), `styles.css`
-(`.cgem.pulsing::after` + `cgempulse`).
+**Files:** `useCombatReplay.ts` (trigger set + per-beat pass + `sfx.triggerPulse` + reset + export),
+`Unit.tsx` (`triggered` prop + memo), `Card.tsx` (`pulse`/`glow` props → `.cgem` class), `Recruit.tsx`
+(combat Units + recruit board: cadence `completes`, glow/pulse sets, Battlecry pulse + sound),
+`styles.css` (`.cgem.glowing`/`.pulsing` ::before glow + ::after ring), `sfx.ts` (`triggerPulse` + dedupe
++ mixer key), `audio/triggerpulse.mp3` (new).
 
-**Verification:** `typecheck + lint + test (354) + build:web` all green. CSS wiring confirmed live —
-toggling `pulsing` on a medallion resolves its `::after` to `animation: cgempulse 0.85s` over the badge.
+**Verification:** `typecheck + lint + test (354) + build:web` all green. CSS distinction confirmed live —
+`.glowing` resolves `::before cgemglow` with **no** `::after` ring; `.pulsing` resolves both the glow and
+the `::after cgempulse` ring. (CSS animations + GSAP combat can't run in the headless preview, so the
+moving effect + sound are owner-verified in a real fight/shop.)
 (Full combat playback is GSAP-driven and can't run in the headless preview; owner to eyeball in a real
 fight.)
 

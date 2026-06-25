@@ -579,6 +579,7 @@ export function useCombatReplay(
       }
     }
     if (trig.size === 0) return;
+    sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)
     setTriggers((prev) => new Set([...prev, ...trig]));
     const t = window.setTimeout(() => setTriggers((prev) => {
       const next = new Set(prev);

@@ -25,8 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Trigger-medallion pulse.** When a unit's effect fires in combat (Start-of-Combat, Deathrattle, aura,
-  Avenge, Reborn…), its centre medallion releases a slow ring of energy, so you can see which unit acted.
+- **Trigger-medallion pulse.** When a unit's effect fires (combat *or* shop — Start-of-Combat, Deathrattle,
+  Battlecry, aura, Avenge…), its centre medallion flares then releases a slow ring of energy with a sound,
+  so you can see which unit acted. Multi-turn cadence cards (e.g. Frontdrake) just *glow* as they tick and
+  *pulse* on the turn they pay off. (Simultaneous pulses share one sound.)
 - **Dust puff on board placement.** Placing or moving a minion on the board kicks up a ring of dry-dirt
   dust that escapes out from under the card on every side — like a flat stone dropped in dust.
 - **Gold-coin sprinkle on sell.** Selling a minion now bursts a sprinkle of gold coins out of the Gold

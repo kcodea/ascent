@@ -192,8 +192,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Hero-power button — a circle attached to the RIGHT side of the hero frame (in the status bar). It sits
    as the frame's right-most flex child (parent gap spaces it off the text); clicking it bubbles to the
    .hero arm/fire handler. Placeholder glyph for now; dedicated hero-power artwork to come. */
+/* Wrapper so the gold-cost badge can overhang below the circle without being clipped by overflow:hidden. */
+.hpwrap { flex: none; margin-left: auto; position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--u)); }
+.hpcost { display: flex; align-items: center; gap: calc(2 * var(--u)); background: var(--mana); color: var(--mana-dk); border-radius: calc(10 * var(--u)); padding: calc(1 * var(--u)) calc(6 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(11 * var(--u)); line-height: 1.4; border: 2px solid var(--card); pointer-events: none; white-space: nowrap; }
+.hpcost svg { width: calc(10 * var(--u)); height: calc(10 * var(--u)); color: var(--mana-dk); }
 .heropowerbtn {
-  flex: none; margin-left: auto;
   width: calc(75 * var(--u)); height: calc(75 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
   border: 3px solid var(--acc-dk); display: grid; place-items: center;
   background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.45), transparent 55%), var(--acc);

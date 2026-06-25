@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { cadenceProgressText, clingProgressText, guelProgressText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
+import { ascendProgressText, cadenceProgressText, clingProgressText, guelProgressText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -158,6 +158,7 @@ function instView(
         : c.id === 'hoarder'
           ? `Sells for **+1 Gold** per turn you hold it. {{Sells for ${wave - (inst.boughtWave ?? wave) + 1} Gold now.}}`
           : transformProgressText(c.id, inst.spellProgress ?? 0) ??
+            ascendProgressText(c.id, inst.ascendProgress ?? 0) ??
             summonScalingText(c.id, spellsThisTurn) ??
             summonBuffText(c.id, inst.summonBonus ?? 0) ??
             summonImproveText(c.id, inst.summonBonus ?? 0, !!inst.golden) ??

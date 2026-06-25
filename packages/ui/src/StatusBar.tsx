@@ -123,22 +123,26 @@ export function StatusBar() {
           </div>
           {/* Hero-power button — the ONLY trigger for an active power (clicking the frame does nothing). A PASSIVE
               hero still gets the button (so every hero shows its power art) but it doesn't glow + isn't clickable.
-              Placeholder glyph for now; an untargeted power fires on click, a targeted one arms (then aim). */}
-          <button
-            type="button"
-            className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
-            disabled={isPassive || (!canHero && !heroArmed)}
-            aria-label={`${power.name} — ${power.text}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isPassive || !canHero || heroArmed) return;
-              sfx.pulse(); // the hero-power "pulse" cue, on pressing the button (fire or arm)
-              if (power.untargeted) dispatch({ type: 'heroPower' });
-              else armHero();
-            }}
-          >
-            {heroPowerArt(hero.id) ? <img src={heroPowerArt(hero.id)} alt="" draggable={false} /> : <Icon name="sc" />}
-          </button>
+              Placeholder glyph for now; an untargeted power fires on click, a targeted one arms (then aim).
+              Wrapped in .hpwrap so the gold-cost badge can sit below the circle without being clipped. */}
+          <div className="hpwrap">
+            <button
+              type="button"
+              className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
+              disabled={isPassive || (!canHero && !heroArmed)}
+              aria-label={`${power.name} — ${power.text}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isPassive || !canHero || heroArmed) return;
+                sfx.pulse(); // the hero-power "pulse" cue, on pressing the button (fire or arm)
+                if (power.untargeted) dispatch({ type: 'heroPower' });
+                else armHero();
+              }}
+            >
+              {heroPowerArt(hero.id) ? <img src={heroPowerArt(hero.id)} alt="" draggable={false} /> : <Icon name="sc" />}
+            </button>
+            {power.cost ? <span className="hpcost"><Icon name="mana" />{power.cost}</span> : null}
+          </div>
           <div className="herotip" role="tooltip">
             <b>{power.name}</b> — {power.text}
             {powerNote}

@@ -10,10 +10,10 @@
  * replay re-runs byte-identically — so every round's board is reconstructable headlessly from a few KB,
  * no need to store each board live. `replayRun` turns a replay into the per-wave snapshots.
  */
-import type { BoardMinion, CombatOutcome, Tribe } from '@game/core';
+import { makeRng, type BoardMinion, type CombatOutcome, type Rng, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
-import { createRun, type Action, type RunState } from './state';
+import { createRun, type Action, type RunState, type ShopCard } from './state';
 import { reduce } from './reducer';
 import type { ThreatId } from './threats';
 
@@ -60,6 +60,52 @@ export interface BoardSnapshot {
    *  `rateBoard`). Keyword/synergy-aware, unlike `power`. Baked by `npm run pool`; the basis for true-strength
    *  matchmaking + power-band bucketing. Optional (legacy/runtime boards may lack it → fall back to `power`). */
   rating?: number;
+}
+
+/**
+ * Controls the smart bot's card-picking behaviour in `autoplayRun`. All fields optional so callers
+ * can mix-and-match: tribe commitment alone already produces far better boards than the pure greedy
+ * bot; layering in `cardWeight` (from real-board frequency analysis) and `fidelity` lets you dial the
+ * output anywhere from "weak early board" to "peak tribe synergy".
+ */
+export interface BotOptions {
+  /** Commit to this tribe: tribe-matching cards score +3, neutrals +1, off-tribe +0. */
+  preferTribe?: Tribe;
+  /**
+   * Per-card frequency weight derived from real board analysis — higher = more preferred.
+   * Called with `(cardId, wave)` so the bot can prefer different cards as the run progresses.
+   */
+  cardWeight?: (cardId: string, wave: number) => number;
+  /**
+   * 0..1 — how often the bot takes the highest-scored shop card instead of a random one.
+   * 1.0 = always optimal (peak power); 0.0 = always random (current greedy baseline).
+   * Values in between spread output across the power spectrum without any extra logic.
+   */
+  fidelity?: number;
+}
+
+function scoreCard(cardId: string, wave: number, opts: BotOptions): number {
+  const def = CARD_INDEX[cardId];
+  if (!def) return 0;
+  let score = 0;
+  if (opts.preferTribe) {
+    score += def.tribe === opts.preferTribe || def.tribe2 === opts.preferTribe ? 3
+      : def.tribe === 'neutral' ? 1
+      : 0;
+  }
+  if (opts.cardWeight) score += opts.cardWeight(cardId, wave);
+  return score;
+}
+
+function pickBuyTarget(shop: ShopCard[], wave: number, opts: BotOptions, rng: Rng): string {
+  const fidelity = opts.fidelity ?? 1;
+  if (fidelity <= 0) return shop[0]!.uid; // no preference — greedy first-card
+  const scored = [...shop]
+    .map((c) => ({ uid: c.uid, score: scoreCard(c.cardId, wave, opts) }))
+    .sort((a, b) => b.score - a.score);
+  // With probability `fidelity` take the best-scored card; otherwise pick uniformly at random.
+  if (rng.int(100) < Math.round(fidelity * 100)) return scored[0]!.uid;
+  return scored[rng.int(scored.length)]!.uid;
 }
 
 const sumPower = (b: BoardMinion[]): number => b.reduce((s, m) => s + m.attack + m.health, 0);
@@ -156,21 +202,38 @@ const BOOTSTRAP_SEEDS = [1, 2, 3, 7, 11, 42, 101, 777, 1000, 2024, 31337, 90210]
 const BOOTSTRAP_HEROES = HEROES.map((h) => h.id); // vary the hero per seed → varied boards + opponent portraits
 
 /** Greedily auto-play one seeded run as a given hero, capturing the board snapshot at each combat. Deterministic. */
-function autoplayRun(seed: number, heroId?: string): BoardSnapshot[] {
+function autoplayRun(seed: number, heroId?: string, opts?: BotOptions): BoardSnapshot[] {
   let s = createRun(seed, heroId);
+  // Separate RNG for bot pick decisions — doesn't touch the game's own seeded stream.
+  const botRng: Rng | null = opts?.preferTribe || opts?.cardWeight ? makeRng(seed ^ 0xb07b07) : null;
   const snaps: BoardSnapshot[] = [];
   let steps = 0;
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 5000) {
-    if (s.discover) { s = reduce(s, { type: 'discover', index: 0 }); continue; }
+    if (s.discover) {
+      let idx = 0;
+      if (opts?.preferTribe) {
+        // Pick the first discover option that matches the committed tribe; default to 0.
+        for (let i = 0; i < s.discover.length; i++) {
+          const def = CARD_INDEX[s.discover[i]!];
+          if (def?.tribe === opts.preferTribe || def?.tribe2 === opts.preferTribe) { idx = i; break; }
+        }
+      }
+      s = reduce(s, { type: 'discover', index: idx });
+      continue;
+    }
     if (s.chooseOne) { s = reduce(s, { type: 'chooseOne', index: 0 }); continue; }
     if (s.pendingTarget) { s = reduce(s, { type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid }); continue; }
     if (s.phase === 'combat') { s = reduce(s, { type: 'resolveCombat' }); continue; }
     if (s.hand.length > 0 && s.board.length < 7) { s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); continue; }
-    if (s.embers >= 3 && s.board.length + s.hand.length < 7 && s.shop[0]) { s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); continue; }
+    if (s.embers >= 3 && s.board.length + s.hand.length < 7 && s.shop.length > 0) {
+      const uid = opts && botRng ? pickBuyTarget(s.shop, s.wave, opts, botRng) : s.shop[0]!.uid;
+      s = reduce(s, { type: 'buy', uid });
+      continue;
+    }
     if (s.tier < 6 && s.embers >= s.upgradeCost) { s = reduce(s, { type: 'upgrade' }); continue; }
     const before = s;
     s = reduce(s, { type: 'faceOmen' });
-    if (s === before) break; // no progress (e.g. a blocked state) — bail rather than spin
+    if (s === before) break; // no progress — bail rather than spin
     if (s.lastCombat) snaps.push(snapshotBoard(s));
   }
   return snaps;
@@ -179,7 +242,16 @@ function autoplayRun(seed: number, heroId?: string): BoardSnapshot[] {
 /**
  * Build the bootstrap opponent pool: every per-wave board from the greedy bot's seeded runs. Deterministic
  * — same seeds → an identical pool. Call this once at startup, while `OPPONENT_POOL` is still empty.
+ *
+ * `optsFor` is optional: when provided, it returns per-run `BotOptions` (tribe commitment, frequency
+ * weights, fidelity) so `build-pool.ts` can produce boards across the full power spectrum instead of
+ * pure greedy output. Omitting it (or returning `{}`) preserves the original greedy behaviour.
  */
-export function buildBootstrapPool(seeds: number[] = BOOTSTRAP_SEEDS): BoardSnapshot[] {
-  return seeds.flatMap((seed, i) => autoplayRun(seed, BOOTSTRAP_HEROES[i % BOOTSTRAP_HEROES.length]));
+export function buildBootstrapPool(
+  seeds: number[] = BOOTSTRAP_SEEDS,
+  optsFor?: (seed: number, idx: number) => BotOptions,
+): BoardSnapshot[] {
+  return seeds.flatMap((seed, i) =>
+    autoplayRun(seed, BOOTSTRAP_HEROES[i % BOOTSTRAP_HEROES.length], optsFor?.(seed, i)),
+  );
 }

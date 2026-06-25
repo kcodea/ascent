@@ -43,8 +43,11 @@ Frontdrake's per-turn countdown before it supplies a Dragon) — gets its own so
   fallback, registered in `SAMPLE_VOL_DEFAULTS` (`triggerglow: 0.5`) + the dev SFX-mixer preview. **Deduped
   like the pulse**: a 70 ms throttle (`lastTriggerGlow`) collapses simultaneous glows on the same EOT step
   into one play, so stacked cadence cards never blast.
-- **`Recruit.tsx`** (EOT telegraph): the per-beat cue now branches — `b.completes` → `triggerPulse` (as
-  before); otherwise → `triggerGlow`. This is the only glow-only site (combat units only ever `pulse`).
+- **`Recruit.tsx`** (EOT telegraph): the per-beat medallion cue branches — `b.completes` → `triggerPulse`;
+  otherwise → `triggerGlow` (the only glow-only site; combat units only ever `pulse`). **`triggerGlow` also
+  doubles as the End-of-Turn proc cue** — it now fires on *every* EOT beat, replacing the old `sfx.proc()`
+  shimmer. On a glow-only beat the medallion branch and the EOT-cue line both call `triggerGlow` for the
+  same card on the same tick; the dedup collapses them to one play (a completing beat is thus pulse + glow).
 - **Docs**: `sfx-events.md` gains rows + a trigger-site note for both `triggerPulse` and `triggerGlow`
   (neither was previously listed).
 - **Verified**: `npm run typecheck && npm run lint && npm run build:web` all green; the new mp3 bundles via

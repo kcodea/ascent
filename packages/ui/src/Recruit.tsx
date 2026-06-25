@@ -1298,8 +1298,8 @@ export function Recruit() {
       const b = beats[i]!;
       setEotProcUids(new Set([b.uid]));
       setEotPulseUids(b.completes ? new Set([b.uid]) : new Set()); // pulse only when it officially fires
-      // Officially firing → the energy-release pulse cue; progress-only (cadence ticked but didn't fire,
-      // e.g. Frontdrake's countdown) → the softer glow cue. Both deduped across simultaneous procs.
+      // Medallion cue: officially firing → the energy-release pulse; progress-only (cadence ticked but
+      // didn't fire, e.g. Frontdrake's countdown) → the softer glow cue.
       if (b.completes) sfx.triggerPulse();
       else sfx.triggerGlow();
       if (b.kind === 'ritualist') setShopFlash((k) => k + 1);
@@ -1319,7 +1319,9 @@ export function Recruit() {
           }), BEAT);
         }
       }
-      sfx.proc();
+      // End-of-turn cue: every proc plays the glow sound. For a glow-only beat this is the SAME sound the
+      // medallion cue above just fired for the same card — the built-in dedup collapses them to one play.
+      sfx.triggerGlow();
       window.setTimeout(() => {
         setEotProcUids(new Set());
         setEotPulseUids(new Set());

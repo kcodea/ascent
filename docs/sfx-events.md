@@ -57,12 +57,12 @@ files in `packages/ui/src/audio/`.
 | `inspect` | right-click a minion → enlarged overlay | **sourced** | `inspect` | 0.50 | soft sine ping |
 | `pulse` | choose a hero; press the Hero-Power button | **sourced** | `pulse` | 0.50 | sine up-ping |
 | `triggerPulse` | a trigger medallion **pulses** (effect officially fires) | **sourced** | `triggerpulse` | 0.50 | triangle swell (deduped) |
-| `triggerGlow` | a trigger medallion **glows** (cadence ticks toward firing, e.g. Frontdrake) | **sourced** | `triggerglow` | 0.50 | soft triangle tick (deduped) |
+| `triggerGlow` | a trigger medallion **glows** (cadence ticks toward firing, e.g. Frontdrake) **and** every End-of-Turn proc | **sourced** | `triggerglow` | 0.50 | soft triangle tick (deduped) |
 | `hit` (smack) | damage lands in combat (impact) | **sourced** | `smack` | 0.156 | square thud |
 | `castSpell` | a **spell** is cast (vs a minion landing) | synth | — | — | triangle down-slide |
 | `roll` | refresh / reroll the tavern | **sourced** | `roll` | 0.50 | (synth 3-step sweep fallback) |
 | `tick` | each of the last 5 turn-timer seconds | synth | — | — | short square click |
-| `proc` | an End-of-Turn effect fires (per proc) | synth | — | — | triangle shimmer |
+| `proc` | *(legacy — unused; `triggerGlow` replaced it as the End-of-Turn proc cue)* | synth | — | — | triangle shimmer |
 | `triple` | a golden is formed | synth | — | — | rising 4-note arpeggio |
 | `maxGold` | Soulsman's Avenge raises max Gold (combat) | synth | — | — | rising coin shimmer |
 | `combatStart` | End Turn → Face the Omen | **sourced** | `combatStart` | 0.50 | (synth low sawtooth down-slide fallback) |
@@ -88,9 +88,11 @@ files in `packages/ui/src/audio/`.
   formed), `deny` (any rejected buy/play/roll/upgrade), `combatStart` (faceOmen). Discover **pick** plays
   `buy`. Inspect (`inspectCard`) plays `inspect`.
 - **Hero Power button** (`StatusBar.tsx`) and **hero choose** (`HeroSelect.tsx`): `pulse`.
-- **Timer** (`Recruit.tsx`): `tick` (last 5 s). **End-of-Turn procs** (`Recruit.tsx`): `proc` per proc, plus
-  per beat the medallion cue — `triggerPulse` when the effect officially fires, `triggerGlow` when a cadence
-  card only ticks toward firing (e.g. Frontdrake's countdown). Both deduped so simultaneous procs play once.
+- **Timer** (`Recruit.tsx`): `tick` (last 5 s). **End-of-Turn procs** (`Recruit.tsx`): every proc plays
+  `triggerGlow` (the EOT cue), plus the medallion cue per beat — `triggerPulse` when the effect officially
+  fires (so a completing beat is pulse **+** glow), or `triggerGlow` when a cadence card only ticks toward
+  firing (e.g. Frontdrake's countdown). On that glow-only beat both code paths call `triggerGlow` for the
+  same card at the same instant; the built-in dedup collapses them to a single play.
 - **Combat beat replay** (`useCombatReplay.ts`): `attack` (on `attack`), `hit` (on `dmg`, and frame-accurate
   from the lunge), `death` (on `death`), `shield` (on `shieldUp`), `buff` (on `buff`), `win`/`lose` (verdict).
 

@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: Undead "+Attack wherever they are" reaches Discovered/conjured copies + Symbiote token triples on grant
+
+**Bug 1 — Discovered/conjured Undead missed `undeadBuyAtk`.** The run-wide "+Attack to your Undead wherever they are" (Deathswarmer / Forsaken Weaver / Karthus) was baked in only on **tavern buy** — a Discovered or conjured Undead came in without it. New shared helper `undeadBuyBonus(state, def)` (recruit.ts) returns the bonus for any Undead/`universalTribe` def, now applied at **every** minion-creation source: the `discover` reducer case, `conjureToHand` (Summon Stone / Tribes Choice / Undead Army / Cassen's grant), `battlecryGainRandomMinion` (Buddy Buddy), and the Lasso steal. (The buy path + the Symbiote token grant already applied it.) Lantern of Souls needs no change — it's re-derived live at combat/display for any Undead, so conjured copies already get it.
+
+**Bug 2 — Symbiote's token didn't triple on grant.** The hero power grants a Symbiotic Attachment every 4 turns (in `faceOmen`) but never called `checkTriples`, so a 3rd copy sat un-combined until the next buy/play/Discover happened to trigger the check. Added `checkTriples(s)` right after the grant — the golden forms immediately. (`checkTriples` already counts tokens, so no other change was needed.)
+
+**Files changed:** `packages/sim/src/recruit.ts` (helper + 3 conjure sites), `packages/sim/src/reducer.ts` (discover case + Symbiote grant), `packages/sim/src/index.ts` (export the helper), tests in `run.test.ts`.
+
+**Verification:** 3 new tests — `undeadBuyBonus` returns the bonus for Undead/`universalTribe` and 0 for a Beast; a Discovered Sporeling gains +3 Attack with `undeadBuyAtk` 3; the Symbiote hero power triples the 3rd token immediately via `faceOmen` (3 tokens → 1 golden, 0 plain). `npm run typecheck && npm run lint && npm test` (**334/334**) + `build:web` all green.
+
 ### fix: Sergeant's Deathrattle improves on EVERY Attack-gain, permanently (shop + combat)
 
 **Bug:** Sergeant ("Deathrattle: give your minions +2 Health, improves each time Sergeant gains Attack") only improved its grant from **combat** Attack-gains, and only for that one fight. Attack gained in the **shop** (Forsaken Weaver on a spell cast, Deathswarmer, Karthus, Fortify, undead buy-bonus, …) did nothing, and combat improvements reset next fight. So two Forsaken Weavers + a spell improved it **zero** times in the shop instead of twice.

@@ -98,6 +98,18 @@ export function cardBuff(state: RunState, cardId: string): { attack: number; hea
 }
 
 /**
+ * The baked-on-creation Undead Attack bonus (Deathswarmer / Forsaken Weaver / Karthus — "+Attack to your
+ * Undead **wherever they are**") for a freshly-created minion of `def`. Applied at EVERY creation source —
+ * tavern buy, Discover, conjure (Summon Stone / Tribes Choice / Undead Army / Buddy Buddy / Cassen), and
+ * Lasso steal — so the run-wide bonus follows your Undead everywhere, not only tavern purchases. 0 for
+ * non-Undead; `universalTribe` counts (Symbiotic Attachment), matching the buy path's `isUndead`.
+ */
+export function undeadBuyBonus(state: RunState, def: CardDef): number {
+  const undead = def.tribe === 'undead' || def.tribe2 === 'undead' || !!def.universalTribe;
+  return undead ? (state.undeadBuyAtk ?? 0) : 0;
+}
+
+/**
  * Permanently enchant the **Fodder** card type run-wide by +a/+h (Ritualist's End of Turn, Bane's
  * battlecry trigger). Bumps the persistent per-cardId run buff for every Fodder def — so future copies
  * from any source (tavern, summon, Discover, conjure) carry it — and applies it to the Fodder already on
@@ -277,7 +289,7 @@ function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
       uid: `b${state.uidSeq++}`,
       cardId: def.id,
       tribe: def.tribe,
-      attack: def.attack + cb.attack,
+      attack: def.attack + cb.attack + undeadBuyBonus(state, def),
       health: def.health + cb.health,
       keywords: [...def.keywords],
       golden: false,
@@ -423,7 +435,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         uid: `b${ctx.state.uidSeq++}`,
         cardId: def.id,
         tribe: def.tribe,
-        attack: def.attack + cb.attack,
+        attack: def.attack + cb.attack + undeadBuyBonus(ctx.state, def),
         health: def.health + cb.health,
         keywords: [...def.keywords],
         golden: false,
@@ -831,7 +843,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       uid: `b${state.uidSeq++}`,
       cardId: card.id,
       tribe: card.tribe,
-      attack: card.attack + cb.attack + (offer.atk ?? 0),
+      // Stolen like a buy → also carries the run-wide Undead Attack bonus (undeadBuyAtk).
+      attack: card.attack + cb.attack + (offer.atk ?? 0) + undeadBuyBonus(state, card),
       health: card.health + cb.health + (offer.hp ?? 0),
       keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
       golden: false,

@@ -8,4 +8,4 @@ export * from './snapshot';
 export * from './opponents';
 export * from './rating';
 export * from './opponentPool.data';
-export { addBuff, boardManaBonus, cardBuff, chronosRepeats, isTribe, magnetizeTargets, projectEndOfTurnSteps, spellCastMult, spellCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus } from './recruit';
+export { addBuff, boardManaBonus, cardBuff, chronosRepeats, isTribe, magnetizeTargets, projectEndOfTurnSteps, spellCastMult, spellCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus } from './recruit';

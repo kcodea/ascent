@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Discover/conjure + Symbiote triple fixes.** The Undead "+Attack wherever they are" (Deathswarmer /
+  Forsaken Weaver / Karthus) now reaches **Discovered and conjured** Undead too — not just tavern buys.
+  And the **Symbiote** hero power now **triples** its token the moment the 3rd is granted, instead of waiting
+  for your next buy.
 - **Sourced End Turn sound.** Hitting End Turn (Face the Omen) now plays a real audio clip instead of the synth
   down-slide, tunable in the DEV SFX mixer.
 - **Sergeant fix.** Sergeant's Deathrattle now improves on **every** Attack-gain — in the shop too (each

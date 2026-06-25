@@ -20,6 +20,7 @@ import {
   boardManaBonus,
   THREAT_IDS,
   addBuff,
+  undeadBuyBonus,
   getHero,
   spellStatBonus,
   spellAttackBonus,
@@ -1356,6 +1357,36 @@ describe('run loop (@game/sim)', () => {
     const startSandbag = s.lastCombat?.initial.player.find((m) => m.cardId === 'sandbag');
     expect([startSandbag?.attack, startSandbag?.health]).toEqual([3, 2]); // 1/1 + Fleeting Vigor 2/1
     expect(s.fleetingVigor).toEqual({ attack: 0, health: 0 }); // spent after the fight
+  });
+
+  it('undeadBuyBonus applies the run-wide undead Attack bonus to any new Undead (universalTribe counts)', () => {
+    const s = { ...createRun(1), undeadBuyAtk: 3 };
+    expect(undeadBuyBonus(s, CARD_INDEX.spore!)).toBe(3); // Undead
+    expect(undeadBuyBonus(s, CARD_INDEX.symbioticattachment!)).toBe(3); // universalTribe counts as Undead
+    expect(undeadBuyBonus(s, CARD_INDEX.kennel!)).toBe(0); // Beast — not Undead
+  });
+
+  it('a Discovered Undead carries the run-wide undead Attack bonus (undeadBuyAtk), like a buy', () => {
+    let s: RunState = { ...createRun(1), undeadBuyAtk: 3, discover: ['spore'] };
+    s = reduce(s, { type: 'discover', index: 0 });
+    const got = s.hand.find((c) => c.cardId === 'spore')!;
+    expect(got.attack).toBe(1 + 3); // Sporeling base 1 + undeadBuyAtk 3
+    expect(got.health).toBe(2); // Health unaffected
+  });
+
+  it('Symbiote hero power triples the token the moment the 3rd is granted (not waiting for a buy)', () => {
+    let s: RunState = {
+      ...createRun(1, 'symbiote'),
+      heroPowerTick: 3, // next faceOmen → tick 4 → grants the 3rd token
+      board: [],
+      hand: [
+        { uid: 't1', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
+        { uid: 't2', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && c.golden)).toHaveLength(1); // 3 → 1 golden, now
+    expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && !c.golden)).toHaveLength(0);
   });
 
   it('Sergeant: every recruit Attack-gain improves its Deathrattle HP grant (+2 per event, golden +4)', () => {

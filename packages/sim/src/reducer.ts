@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCasts, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -451,7 +451,8 @@ export function reduce(state: RunState, action: Action): RunState {
         uid: `b${s.uidSeq++}`,
         cardId: def.id,
         tribe: def.tribe,
-        attack: def.attack + dcb.attack,
+        // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
+        attack: def.attack + dcb.attack + undeadBuyBonus(s, def),
         health: def.health + dcb.health,
         keywords: [...def.keywords],
         golden: false,
@@ -499,6 +500,7 @@ export function reduce(state: RunState, action: Action): RunState {
               keywords: [...def.keywords],
               golden: false,
             });
+            checkTriples(s); // the 3rd granted token combines into a golden NOW (not only on the next buy)
           }
         }
       }

@@ -109,6 +109,12 @@ export function undeadBuyBonus(state: RunState, def: CardDef): number {
   return undead ? (state.undeadBuyAtk ?? 0) : 0;
 }
 
+/** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
+ *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
+export function sellValueOf(card: BoardCard): number {
+  return card.cardId === 'hoarder' ? 2 * (card.golden ? 2 : 1) : CONFIG.sellValue;
+}
+
 /**
  * Permanently enchant the **Fodder** card type run-wide by +a/+h (Ritualist's End of Turn, Bane's
  * battlecry trigger). Bumps the persistent per-cardId run buff for every Fodder def — so future copies

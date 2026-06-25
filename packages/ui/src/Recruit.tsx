@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText, undeadBuyAtkText } from './cardText';
 import { HudBar } from './HudBar';
@@ -69,13 +69,20 @@ function TurnRope() {
  *  *current* buffed Fodder for Ritualist & co). */
 const CARD_REFERENCES: Record<string, string[]> = {
   alley: ['stray'], shaper: ['stray'], pack: ['pup'], brood: ['impscrap'], combinator: ['cling', 'moneybot', 'betterbot'],
-  feed: ['fred'], imp: ['fred'], ritualist: ['fred'], maw: ['fred'],
+  feed: ['fred'], imp: ['fred'], ritualist: ['fred', 'impscrap'], maw: ['fred'],
+  // Imp summoners / buffers — the popup shows the Imp token at its current buffed stats. Cards that touch
+  // both Fodder and Imps (Ritualist, Bane, Fodder Feeder) reference both.
+  impking: ['impscrap'], fodderfeeder: ['fred', 'impscrap'], bane: ['fred', 'impscrap'],
 };
-/** A referenced token's card view. Fodder ('fred') folds in Ritualist's persistent buff so the
- *  popup shows its current stats. */
-function tokenRefView(id: string, cardBuffs?: Record<string, { attack: number; health: number }>): CardView {
+/** A referenced token's card view. Fodder ('fred') folds in Ritualist's persistent buff, and the Imp token
+ *  ('impscrap') folds in the run-wide `impBuff`, so each popup shows the token's current stats. */
+function tokenRefView(
+  id: string,
+  cardBuffs?: Record<string, { attack: number; health: number }>,
+  impBuff?: { attack: number; health: number },
+): CardView {
   const c = CARD_INDEX[id];
-  const cb = cardBuffs?.[id] ?? { attack: 0, health: 0 };
+  const cb = id === 'impscrap' ? (impBuff ?? { attack: 0, health: 0 }) : (cardBuffs?.[id] ?? { attack: 0, health: 0 });
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: c.attack + cb.attack, health: c.health + cb.health,
@@ -358,6 +365,9 @@ export function Recruit() {
   // up here so the combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
   const prevStatsRef = useRef<Map<string, { a: number; h: number }>>(new Map());
   const prevPhaseRef = useRef(run.phase);
+  // Gold floats at the spot a minion was sold (the actual sell value) — fixed-screen, auto-cleared.
+  const [sellFloats, setSellFloats] = useState<{ id: number; x: number; y: number; amount: number }[]>([]);
+  const sellFloatId = useRef(0);
   // Recruit-phase +X/+X buff floats, keyed by card uid (latest wins; `key` bumps each buff so it remounts +
   // replays its rise). Mirrors the combat buff float — the player reads the actual stat gain in the shop.
   const [statFloats, setStatFloats] = useState<Record<string, { attack: number; health: number; key: number }>>({});
@@ -532,13 +542,13 @@ export function Recruit() {
     const m = new Map<string, CardView[]>();
     const add = (uid: string, cardId: string): void => {
       const refs = CARD_REFERENCES[cardId];
-      if (refs) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs)));
+      if (refs) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs, run.impBuff)));
     };
     for (const c of run.board) add(c.uid, c.cardId);
     for (const c of run.hand) add(c.uid, c.cardId);
     for (const o of run.shop) add(o.uid, o.cardId);
     return m;
-  }, [run.board, run.hand, run.shop, run.cardBuffs]);
+  }, [run.board, run.hand, run.shop, run.cardBuffs, run.impBuff]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
@@ -1310,6 +1320,14 @@ export function Recruit() {
     // before it can be sold — a hand minion flung up to the tavern just snaps back to the hand (it
     // falls through to the invalid-drop snap-back below). Spells are never sold (cast/play gesture).
     if (d.source === 'board' && zone === 'tavern' && !d.view.spell) {
+      // Float the actual Gold gained at the spot the minion was released (not over the Gold counter).
+      const card = run.board.find((c) => c.uid === d.uid);
+      if (card) {
+        const id = ++sellFloatId.current;
+        const fx = x - d.ox + d.w / 2, fy = y - d.oy + d.h / 2;
+        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card) }]);
+        window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
+      }
       dispatch({ type: 'sell', uid: d.uid });
       return true;
     }
@@ -1575,7 +1593,7 @@ export function Recruit() {
           {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
               committed to the real hand at `resolveCombat`). */}
           {inCombat && !run.combatSettled && replay.handGrantsShown.map((cardId, i) => (
-            <Card key={`grant-${i}`} card={tokenRefView(cardId, run.cardBuffs)} suppressPop forceFull />
+            <Card key={`grant-${i}`} card={tokenRefView(cardId, run.cardBuffs, run.impBuff)} suppressPop forceFull />
           ))}
         </div>
       </div>
@@ -1598,6 +1616,13 @@ export function Recruit() {
             <span className={`float ${f.kind}`}>{f.text}</span>
           </div>
         ))}
+
+      {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value). */}
+      {sellFloats.map((f) => (
+        <div key={`sell-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
+          <span className="float gold">+{f.amount}</span>
+        </div>
+      ))}
 
       {/* A card a combat effect just granted (Arcane Weaver → Spirit Fire) flies into your hand. */}
       {fighting && replay.handGrant && (() => {

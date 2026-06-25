@@ -488,9 +488,9 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true);
   });
 
-  it('Brood Matron breeds 1 Imp per friend death, capped at 3 (golden 6)', () => {
+  it('Brood Matron breeds 1 Imp per friend death, capped at 3 (golden keeps the cap)', () => {
     // A tanky 0-Attack Brood survives while sacrificial bodies (and the bred Imps) die to a big attacker;
-    // breeding stops at the cap. So the total Imps summoned == cap (3, or 6 golden).
+    // breeding stops at the cap. Golden does NOT raise the summon cap (it doubles the Avenge buff instead).
     const imps = (golden: boolean): number =>
       run(
         [
@@ -503,7 +503,7 @@ describe('simulate (handoff A.3)', () => {
         1,
       ).events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length;
     expect(imps(false)).toBe(3); // capped at 3
-    expect(imps(true)).toBe(6); // golden cap 6
+    expect(imps(true)).toBe(3); // golden cap stays 3
   });
 
   it('the run-wide Imp buff applies to combat-summoned Imps', () => {
@@ -517,10 +517,15 @@ describe('simulate (handoff A.3)', () => {
     expect(imp?.type === 'summon' ? [imp.minion.attack, imp.minion.health] : null).toEqual([3, 3]);
   });
 
-  it('Imp King Deathrattle summons 2 Imps and buffs your Imps +2/+3', () => {
+  it('Imp King Deathrattle summons 2 Imps + a PERMANENT +2/+3 Imp buff (golden: still 2 Imps, +4/+6)', () => {
     const r = run([{ cardId: 'impking', attack: 6, health: 1 }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
     expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(2);
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 3)).toBe(true); // the Imp buff
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 3)).toBe(true);
+    expect(r.playerImpBuffGain).toEqual({ attack: 2, health: 3 }); // permanent — carried back to the run
+    // Golden: still 2 Imps (not 4), but the buff doubles to +4/+6.
+    const g = run([{ cardId: 'impking', attack: 6, health: 1, golden: true }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
+    expect(g.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(2);
+    expect(g.playerImpBuffGain).toEqual({ attack: 4, health: 6 });
   });
 
   it("Ryme's Deathrattle re-fires an adjacent minion's combat Battlecry (Alleycat → a Stray)", () => {

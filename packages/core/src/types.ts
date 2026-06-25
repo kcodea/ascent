@@ -411,6 +411,9 @@ export interface CombatResult {
   /** Permanent Undead Attack bonus from this combat (Karthus on-kill). Stacks into `undeadBuyAtk` and is
    *  also applied to existing run-board Undead immediately after combat. Absent if 0. */
   playerUndeadBuyAtkGain?: number;
+  /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
+   *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
+  playerImpBuffGain?: { attack: number; health: number };
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
   odds?: { win: number; draw: number; lose: number };
@@ -479,6 +482,9 @@ export interface CombatContext {
   /** Karthus: permanently raise run-wide Undead buy-time attack by `amount` (player only). Carried back
    *  via CombatResult.playerUndeadBuyAtkGain, stacked into undeadBuyAtk and applied to the run board. */
   grantUndeadBuyAtk(amount: number, side: Side): void;
+  /** Imp King / Brood Matron Avenge: permanently raise the run-wide Imp buff by +atk/+hp (player only).
+   *  Carried back via CombatResult.playerImpBuffGain → added to RunState.impBuff so future Imps inherit it. */
+  grantImpBuff(attack: number, health: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

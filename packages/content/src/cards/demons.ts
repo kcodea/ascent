@@ -45,11 +45,11 @@ export const DEMONS: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [
-      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2 } },
+      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2, fixed: true } },
       { on: 'onDeath', do: 'deathrattleBuffImps', params: { attack: 2, health: 3 } },
     ],
-    text: '**Deathrattle:** Summon 2 **Imps** and give your Imps **+2/+3** everywhere.',
-    goldenText: '**Deathrattle:** Summon 4 **Imps** and give your Imps **+4/+6** everywhere.',
+    text: '**Deathrattle:** Summon 2 **Imps** and give your Imps **+2/+3** permanently.',
+    goldenText: '**Deathrattle:** Summon 2 **Imps** and give your Imps **+4/+6** permanently.',
   },
   {
     id: 'feed',
@@ -89,8 +89,8 @@ export const DEMONS: CardDef[] = [
       { on: 'onDeath', do: 'onFriendDeathSummon', params: { tokenId: 'impscrap', max: 3 } },
       { on: 'avenge', do: 'avengeBuffImps', params: { count: 3, attack: 3, health: 2 } },
     ],
-    text: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+3/+2**.',
-    goldenText: 'Each time a friend dies, summon an **Imp** (max 6). **Avenge (3):** give your Imps **+6/+4**.',
+    text: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+3/+2** permanently.',
+    goldenText: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+6/+4** permanently.',
   },
   {
     // Dual-type Demon/Mech. Magnetic — and because it's also a Mech it can weld onto a friendly

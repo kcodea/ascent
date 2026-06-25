@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: imp/Ryme/Hoarder refinements + sell float + gold-projection
+
+Owner-requested follow-ups on the Imp/Ryme batch:
+
+- **Imp buffs are now permanent.** Imp King's Deathrattle and Brood Matron's Avenge buff the current combat Imps **and** carry back to the run-wide `RunState.impBuff` (new `CombatContext.grantImpBuff` → `CombatResult.playerImpBuffGain` → `settleCombat`), so the gains persist into future fights like the recruit-side imp buffs.
+- **Brood golden** keeps the **3-summon cap** (golden no longer raises it) and instead **doubles the Avenge stat** (+6/+4).
+- **Imp King golden** stays **2 Imps** (new `fixed` param on `deathrattleSummon` skips the golden count-doubling) and doubles the buff to **+4/+6**.
+- **Ryme now targets ANY Battlecry neighbour** (incl. economy battlecries — they simply no-op in combat), via `hasBattlecry` (any `onPlay`) instead of the combat-replayable-only filter.
+- **Hoarder's banked Gold** is folded into the **Wave+1 Gold projection** (the bottom-left Gold mouseover), so the "+N next turn" shows up.
+- **Sell float.** Selling a minion now floats the **actual Gold gained** (shared `sellValueOf` helper — Hoarder 2/4, else `CONFIG.sellValue`) at the **spot the minion was released**, reusing the combat death-float overlay; removed the old fixed "+1" by the Gold counter.
+- **Imp token in hover popups.** Imp summoners/buffers (Brood, Imp King, Fodder Feeder, Ritualist, Bane) now show the **Imp token at its current buffed stats** in the hover popup (`tokenRefView` folds in `impBuff`); cards that touch both Fodder and Imps show both.
+
+**Verification:** updated/added tests (Imp King carry-back + golden 2-Imps; Brood golden cap stays 3). `typecheck + lint + test (339) + build:web` green; the Gold projection (+banked) verified live in-preview.
+
 ### feat: Ryme (T4 Undead) — combat Battlecry-replay
 
 **Ryme** (T4 Undead 5/3) — **Deathrattle: trigger an adjacent minion's Battlecry** in combat (golden: both neighbours; random pick when both qualify). Battlecries are recruit-phase and baked before combat, so this required a new **combat Battlecry-replay**: `replayCombatBattlecry` re-fires a minion's `onPlay` effects in the combat context, implementing the combat-meaningful battlecries — `battlecrySummon` (summon tokens), `battlecryBuffTribe` (buff matching friends, `universalTribe`-aware), `battlecryBuffUndeadAttack` (Deathswarmer), and `battlecryGrantKeyword` (auto-picks the highest-Attack friend). Economy battlecries (Discover, gain-to-hand, free rolls, spell power, tavern buffs) have no combat meaning and no-op — so Ryme only considers neighbours with a *combat-replayable* battlecry (`hasCombatBattlecry` / `COMBAT_REPLAYABLE_BC`). The replayed battlecry's magnitude respects the **neighbour's** own golden; Ryme's golden only controls 1-vs-2 neighbours.

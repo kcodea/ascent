@@ -50,6 +50,7 @@ export function simulate(
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
+  const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
@@ -224,6 +225,11 @@ export function simulate(
     grantRandomSpell: (count, side) => {
       if (side !== 'player') return; // enemies have no hand
       spellGrants += count;
+    },
+    grantImpBuff: (attack, health, side) => {
+      if (side !== 'player') return; // enemies have no run state
+      impBuffGain.attack += attack;
+      impBuffGain.health += health;
     },
     grantUndeadBuyAtk: (amount, side) => {
       if (side !== 'player') return; // enemies have no run state
@@ -662,5 +668,6 @@ export function simulate(
     playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
+    playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
   };
 }

@@ -34,10 +34,9 @@ function grantShield(ctx: CombatContext, m: Minion): void {
   ctx.log({ type: 'shieldUp', target: m.uid });
 }
 
-/** Battlecry effects that have a meaningful COMBAT replay (Ryme). Battlecries are recruit-phase; the
- *  economy ones (Discover, gain-to-hand, free rolls, spell power, tavern buffs…) do nothing in combat. */
-const COMBAT_REPLAYABLE_BC = new Set(['battlecrySummon', 'battlecryBuffTribe', 'battlecryBuffUndeadAttack', 'battlecryGrantKeyword']);
-const hasCombatBattlecry = (m: Minion): boolean => m.effects.some((e) => e.on === 'onPlay' && COMBAT_REPLAYABLE_BC.has(e.do));
+/** Whether a minion has a Battlecry at all (any `onPlay` effect) — Ryme targets ANY Battlecry neighbour,
+ *  including economy ones (Discover, gain-Gold…) which simply no-op in combat (nothing to do there). */
+const hasBattlecry = (m: Minion): boolean => m.effects.some((e) => e.on === 'onPlay');
 
 /** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Only the
  *  combat-meaningful battlecries do anything here; others no-op. Magnitude respects the source's own golden. */
@@ -84,7 +83,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummon: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const card = ctx.getCard(str(params.tokenId));
-    const total = num(params.count, 1) * mul(self); // golden doubles the token count (e.g. Pack Scrounger 2 → 4)
+    // golden doubles the count (Deathless Hand 1 → 2) UNLESS `fixed` is set (Imp King keeps 2; golden lifts its buff instead)
+    const total = num(params.count, 1) * (params.fixed ? 1 : mul(self));
     const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
     const grantKws = kw ? [kw] : undefined; // passed into summon so the keyword is in the snapshot from the start
     for (let i = 0; i < total; i++) {
@@ -647,7 +647,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   onFriendDeathSummon: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion === self || minion.side !== self.side) return;
-    const cap = num(params.max, 3) * mul(self);
+    const cap = num(params.max, 3); // golden does NOT raise the cap — it doubles the Avenge buff instead
     if ((self.bredCount ?? 0) >= cap) return;
     ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
     self.bredCount = (self.bredCount ?? 0) + 1;
@@ -764,17 +764,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantUndeadBuyAtk(amount, self.side);
   },
 
-  /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp. Shared by Imp King (Deathrattle) and
-   *  Brood Matron (Avenge). Combat-temporary — the run-wide persistent imp buff comes from the recruit
-   *  side (Fodder Feeder / Ritualist / Bane → `RunState.impBuff`, applied at summon). Golden doubles. */
+  /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
+   *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
+   *  Golden doubles the per-proc amount. */
   deathrattleBuffImps: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const a = num(params.attack, 2) * mul(self);
     const h = num(params.health, 3) * mul(self);
     for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
+    ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
   },
 
-  /** Brood Matron — Avenge (X): every X friendly deaths, buff your Imps +atk/+hp (combat). Golden doubles. */
+  /** Brood Matron — Avenge (X): every X friendly deaths, buff your Imps +atk/+hp (permanent, carried back).
+   *  Golden doubles the stat gain (the summon cap stays at 3). */
   avengeBuffImps: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
@@ -783,6 +785,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 3) * mul(self);
     const h = num(params.health, 2) * mul(self);
     for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
+    ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
   },
 
   /** Ryme — Deathrattle: re-fire an adjacent minion's Battlecry in combat. Considers living neighbors with a
@@ -792,7 +795,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const arr = ctx.boards[self.side];
     const i = arr.indexOf(self);
     const neighbors = [arr[i - 1], arr[i + 1]].filter(
-      (m): m is Minion => !!m && !m.dead && m.health > 0 && hasCombatBattlecry(m),
+      (m): m is Minion => !!m && !m.dead && m.health > 0 && hasBattlecry(m),
     );
     if (neighbors.length === 0) return;
     const chosen = self.golden ? neighbors : [ctx.rng.pick(neighbors)];

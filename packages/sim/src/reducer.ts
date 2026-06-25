@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -318,12 +318,8 @@ export function reduce(state: RunState, action: Action): RunState {
         sold = s.hand[hi];
         s.hand.splice(hi, 1);
       }
-      // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value.
-      if (sold && sold.cardId === 'hoarder') {
-        s.embers += 2 * (sold.golden ? 2 : 1);
-      } else {
-        s.embers += CONFIG.sellValue;
-      }
+      // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value (shared helper).
+      if (sold) s.embers += sellValueOf(sold);
       // Fodder Feeder — when SOLD: queue a Fodder into your next tavern + buff your Imps everywhere
       // (golden doubles both). The sell still pays the base sell value above.
       if (sold && sold.cardId === 'fodderfeeder') {
@@ -815,6 +811,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Burial Imp: Fodder queued by its combat Deathrattle drops into the next tavern (a Demon eats it there).
   if (result.playerFodderGrants) {
     (s.pendingTavern ??= []).push(...Array(result.playerFodderGrants).fill('fred'));
+  }
+  // Imp King / Brood Matron Avenge: their in-combat Imp buffs are permanent — accrue them into the run-wide
+  // Imp buff so future Imps (next fights) inherit them.
+  if (result.playerImpBuffGain) {
+    s.impBuff ??= { attack: 0, health: 0 };
+    s.impBuff.attack += result.playerImpBuffGain.attack;
+    s.impBuff.health += result.playerImpBuffGain.health;
   }
   // Soulsman: permanent max-Gold gained from its Avenge in combat (uncapped, like Nadja's Gold Font).
   // grantMaxGold is Soulsman-only, so playerMaxGoldGain IS Soulsman's contribution — tally it run-wide

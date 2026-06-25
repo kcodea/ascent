@@ -6,6 +6,7 @@ import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeT
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
+import { pixiFx } from './pixiFx';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -1306,6 +1307,25 @@ export function Recruit() {
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
 
+  // A puff of dry-dirt dust ringing a card that just landed on / moved across the board. We wait for the
+  // GSAP Flip (0.18s) to settle, then measure the card's *landed* rect by uid — so the dust follows where
+  // the card actually ends up (e.g. snapping back to the middle), not where it was dropped. The card is
+  // briefly raised above the FX canvas (.pixifx z41) so the dust renders BEHIND it, escaping out from
+  // under every side. `.app` isn't a stacking context, so a z-index on the card wins over the overlay.
+  const puffOnBoard = (uid: string): void => {
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row.warband .card[data-uid="${uid}"]`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const prevPos = el.style.position;
+      const prevZ = el.style.zIndex;
+      el.style.position = 'relative';
+      el.style.zIndex = '42'; // above .pixifx (z41) → dust renders behind the card
+      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+      window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
+    }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
+  };
+
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
     // Insertion uses the dragged card's centre (not the raw drop pointer), matching the live preview.
     const cx = x - d.ox + d.w / 2;
@@ -1330,6 +1350,12 @@ export function Recruit() {
         const fx = x - d.ox + d.w / 2, fy = y - d.oy + d.h / 2;
         setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card) }]);
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
+      }
+      // Sprinkle gold coins out of the Gold counter (bottom-left) to sell the income.
+      const goldEl = document.querySelector('.statusbar .chip.g');
+      if (goldEl) {
+        const gr = goldEl.getBoundingClientRect();
+        pixiFx.coins(gr.left + gr.width / 2, gr.top + gr.height * 0.4);
       }
       dispatch({ type: 'sell', uid: d.uid });
       return true;
@@ -1379,10 +1405,12 @@ export function Recruit() {
     }
     if (d.source === 'hand' && zone === 'warband') {
       dispatch({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(cx) });
+      puffOnBoard(d.uid); // dust around the minion where it lands
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {
       dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(cx, d.uid) });
+      puffOnBoard(d.uid); // dust around the minion at its landed slot
       return true;
     }
     return false;

@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Buffs-window fixes + opponent frame stays put in combat.** The Buffs window now lists **Eternal Knight**
+  enchants, **totals every Mama Bear** on board (not just the first), and shows the **real Max Gold gained**
+  (was off by the natural per-wave curve). The next-enemy frame now stays **pinned top-right during combat**
+  (no more jumping to a left-side banner), with a normal cursor.
 - **Generated cards show the real card mid-combat.** A card generated in combat (Sporebat, Ryme re-firing Sea
   Urchin / Black Belt Brian) is now **picked during the fight** and flies to your hand as the actual card
   (`toHand`), instead of resolving invisibly at settle — wiring the specific-card-grant tech for future events.

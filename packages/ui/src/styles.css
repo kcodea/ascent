@@ -86,7 +86,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
 .topright { position: absolute; top: calc(100% + 8 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(40 * var(--u)); }
 /* Next-enemy frame — sized ~30% larger than the base chips for emphasis. */
-.oppframe { position: relative; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(17 * var(--u)); padding: calc(7 * var(--u)) calc(16 * var(--u)) calc(7 * var(--u)) calc(12 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: help; }
+.oppframe { position: relative; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(17 * var(--u)); padding: calc(7 * var(--u)) calc(16 * var(--u)) calc(7 * var(--u)) calc(12 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: default; }
 /* Run-buffs window — a compact list of active permanent buffs; collapsible header. Normal (system) cursor,
    not the custom gauntlet, so the panel reads as plain UI chrome. */
 .buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
@@ -1274,16 +1274,13 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Match the recruit control frame's height (~118u) so the Tavern + Warband sit at the SAME spot in
    combat as in recruit — the board never jumps when the top bar swaps. */
 .combatctl { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: calc(10 * var(--u)); flex: none; min-height: calc(121 * var(--u)); animation: combatctlin 0.4s ease both; }
-/* the threat (opponent) label sits out of flow on the left, so the buttons stay centred */
-.cbanner { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--threat-dk); background: color-mix(in srgb, var(--card) 82%, transparent); border: 2px solid color-mix(in srgb, var(--threat) 32%, var(--line)); padding: 7px 16px; border-radius: 12px; }
-.cbanner .cbanner-date { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: none; color: var(--ink3); }
 /* the post-combat / Skip buttons are ~2x the shop controls (scoped to .cbtns so the
    tavern controls keep their size); extra gap so they never crowd each other */
 .cbtns { display: flex; align-items: center; gap: 28px; }
 .cbtns .btn.big { font-size: 32px; padding: 24px 48px; border-radius: 18px; gap: 16px; box-shadow: 0 5px 0 var(--shadow); }
 .cbtns .btn.big svg { width: 42px; height: 42px; }
 .cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
-/* combat replay-speed slider — anchored to the right edge of the control bar, mirroring .cbanner on the left */
+/* combat replay-speed slider — lives in the top HudBar (left of the tribes), combat-phase only */
 .combatspeed { flex: none; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: calc(13 * var(--u)); }
 .combatspeed .csl { font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
 .combatspeed input[type='range'] { width: calc(110 * var(--u)); height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }

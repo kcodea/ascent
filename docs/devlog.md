@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: buffs-window polish (Eternal Knight + Mama Bear total + real Max Gold) + opponent frame stays top-right in combat
+
+Five owner-reported fixes to the buffs window and the combat opponent frame:
+
+- **Eternal Knight row** added to the buffs window — the run-wide enchant (`cardBuffs.knit`, each Eternal Knight death buffs all Eternal Knights +3/+2) now surfaces as `Eternal Knights +A/+B`, like the Fodder/Cling rows.
+- **Mama Bear totals every copy on board.** The row used `board.find` (first Mama Bear only); with multiple Bears, *each* buffs every summon, so it now sums all `mamabear` on board — two Bears (one +2 accrued, one golden) read `+8/+8` instead of `+4/+4`.
+- **Max Gold shows the real value.** It computed `maxEmbers − naturalPerWaveCurve`, which undercounts (early gains below the cap get absorbed by the natural curve) — the owner's golden Soulsman gained +2 but the row showed +1. Now reads `run.soulsmanGold` (the tracked actual Gold gained, golden-aware — the same number the card shows). The old formula needed `CONFIG`, now dropped from `runBuffs.ts`.
+- **Opponent frame stays pinned top-right during combat.** It was recruit-only (`OpponentFrame` returned null off-recruit), so combat showed the foe in a separate left-side `.cbanner`. Now it renders in **recruit AND combat** (the box never jumps), and the redundant `.cbanner` (JSX + CSS + the `servedOpp`/`THREATS`/`nextOpponent` it used in `Recruit.tsx`) is removed. `nextOpponent(run)` has no phase guard, so during combat it returns the exact board being fought.
+- **Opponent frame cursor → `default`** (was `help`), matching the buffs panel.
+
+**Files:** `runBuffs.ts` (Eternal Knight row; Mama Bear `filter`+sum; Max Gold via `soulsmanGold`; dropped `CONFIG` import), `OpponentFrame.tsx` (render in combat too), `Recruit.tsx` (removed `.cbanner` + now-unused `servedOpp`/imports), `styles.css` (`.oppframe` cursor `default`; removed dead `.cbanner` rules; fixed stale `.combatspeed` comment), `BuffsFrame.test.ts` (knit assertion; Max Gold via `soulsmanGold`; +1 test for the Mama Bear sum).
+
+**Verification:** `typecheck + lint + test (361, +1) + build:web` green. Confirmed **live in-preview**: buffs window shows `Eternal Knights +6/+4`, `Max Gold +2`, `Mama Bear · per summon +8/+8` (two Bears summed), `.oppframe` cursor `default`; and in combat the opponent frame renders **top-right** (`by Orangez · Djinn — 30 HP`) inside `.topright` with **no** `.cbanner` on the left.
+
 ### feat: generated cards now show the ACTUAL card mid-combat (real `toHand` event) — wires specific-card grant tech
 
 Owner-prioritised: a card generated in combat must show the real card as it's generated (and this tech will back future grant animations). Combat was carrying back a *count/request* and picking the card at **settle**, so the replay couldn't show it. Now combat **picks the actual card** and routes it through the existing `grantToHand` path:

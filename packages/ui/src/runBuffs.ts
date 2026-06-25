@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, spellAttackBonus, spellHealthBonus, type RunState } from '@game/sim';
+import { spellAttackBonus, spellHealthBonus, type RunState } from '@game/sim';
 
 export interface BuffRow {
   key: string;
@@ -44,21 +44,30 @@ export function gatherRunBuffs(run: RunState): BuffRow[] {
   const cling = run.cardBuffs?.cling;
   if (cling && (cling.attack > 0 || cling.health > 0)) rows.push({ key: 'cling', label: 'Cling Drones', value: `+${cling.attack}/+${cling.health}` });
 
+  // Eternal Knight run-wide enchant (each Eternal Knight death buffs all Eternal Knights +3/+2). Stored on
+  // the 'knit' card-type buff.
+  const knit = run.cardBuffs?.knit;
+  if (knit && (knit.attack > 0 || knit.health > 0)) rows.push({ key: 'knit', label: 'Eternal Knights', value: `+${knit.attack}/+${knit.health}` });
+
   // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.
   const tav = run.tavernBuyBonus;
   if (tav && (tav.atk > 0 || tav.hp > 0)) rows.push({ key: 'tavern', label: 'Tavern buys', value: `+${tav.atk}/+${tav.hp}` });
 
-  // Permanent max-Gold gained beyond the natural per-wave curve (Soulsman, Nadja). The baseline grows
-  // +embersPerWave/turn up to the cap; anything above that is a card-driven gain.
-  const naturalMax = Math.min(CONFIG.embersCap, CONFIG.startEmbers + (run.wave - 1) * CONFIG.embersPerWave);
-  const goldGain = run.maxEmbers - naturalMax;
+  // Permanent max-Gold gained (Soulsman's Avenge) — the actual Gold gained this run, golden-aware (matches the
+  // "Gained X Gold" the card itself shows). `soulsmanGold` is the tracked total; the natural per-wave curve is
+  // NOT counted (it's not a buff).
+  const goldGain = run.soulsmanGold ?? 0;
   if (goldGain > 0) rows.push({ key: 'gold', label: 'Max Gold', value: `+${goldGain}` });
 
-  // Mama Bear — only while on board: its current per-summon grant ((base + accrued) × golden).
-  const mb = run.board.find((c) => c.cardId === 'mamabear');
-  if (mb) {
-    const m = (effectParam('mamabear', 'summonBuffTribeImprove', 'attack', 3) + (mb.summonBonus ?? 0)) * (mb.golden ? 2 : 1);
-    rows.push({ key: 'mamabear', label: 'Mama Bear · per summon', value: `+${m}/+${m}` });
+  // Mama Bear — only while on board. With MULTIPLE Mama Bears every summon is buffed by EACH of them, so total
+  // their current per-summon grants ((base + accrued) × golden each).
+  const mamaBears = run.board.filter((c) => c.cardId === 'mamabear');
+  if (mamaBears.length > 0) {
+    const total = mamaBears.reduce(
+      (sum, mb) => sum + (effectParam('mamabear', 'summonBuffTribeImprove', 'attack', 3) + (mb.summonBonus ?? 0)) * (mb.golden ? 2 : 1),
+      0,
+    );
+    rows.push({ key: 'mamabear', label: 'Mama Bear · per summon', value: `+${total}/+${total}` });
   }
 
   // Archmagus Guel — only while on board: current per-spell grant = (base + ⌊spellsCast/4⌋) × golden.

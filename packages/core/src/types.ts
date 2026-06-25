@@ -474,8 +474,9 @@ export interface CombatContext {
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
   /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;
-   *  accumulated and carried back via `CombatResult.playerSpellPower`, applied in the run loop. */
-  grantSpellPower(attack: number, health: number, side: Side): void;
+   *  accumulated and carried back via `CombatResult.playerSpellPower`, applied in the run loop. `sourceUid`
+   *  (the granting minion) telegraphs it mid-combat as an `sc` narration. */
+  grantSpellPower(attack: number, health: number, side: Side, sourceUid?: string): void;
   /** Permanently buff a card type run-wide by +atk/+hp (Grave Knit's combat death). Player-only;
    *  accumulated and carried back via `CombatResult.playerCardBuffs`, applied in the run loop. */
   grantCardBuff(cardId: string, attack: number, health: number, side: Side): void;
@@ -490,12 +491,14 @@ export interface CombatContext {
   grantFreeRolls(count: number, side: Side): void;
   /** Grant `count` random tavern-tier spells to the player's hand after combat (Sporebat, and a Discover-spell
    *  Battlecry re-fired in combat by Ryme). Player-only; carried back via CombatResult.playerSpellGrants
-   *  (picked at settle, where the tavern tier is known). */
-  grantRandomSpell(count: number, side: Side): void;
+   *  (picked at settle, where the tavern tier is known). `sourceUid` (the granting minion) telegraphs it
+   *  mid-combat as an `sc` narration so the player sees it happen. */
+  grantRandomSpell(count: number, side: Side, sourceUid?: string): void;
   /** Grant `count` random pool minions of `tribe` to the player's hand after combat — from a Discover-minion
    *  Battlecry re-fired in combat (Ryme → Sea Urchin), which can't open the interactive Discover. Player-only;
-   *  carried back via CombatResult.playerMinionGrants (picked at settle: tribe + ≤ tavern tier + active tribes). */
-  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string): void;
+   *  carried back via CombatResult.playerMinionGrants (picked at settle: tribe + ≤ tavern tier + active tribes).
+   *  `sourceUid` telegraphs it mid-combat. */
+  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string): void;
   /** A minion casts a spell mid-combat (Taragosa's Growth). Tallies the cast (the running per-side count
    *  is reported in the `spellCast` event payload so Guel scales) and, for the player, carries it back via
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect

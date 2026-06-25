@@ -205,11 +205,13 @@ export function simulate(
         events.push({ type: 'toHand', cardId, side, source: sourceUid });
       }
     },
-    grantSpellPower: (attack, health, side) => {
+    grantSpellPower: (attack, health, side, sourceUid) => {
       // Player-only (enemies have no run state) — accumulate and carry back via playerSpellPower.
       if (side !== 'player') return;
       spellPowerGain.attack += attack;
       spellPowerGain.health += health;
+      // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain.
+      if (sourceUid && (attack !== 0 || health !== 0)) events.push({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Spell Power` });
     },
     grantCardBuff: (cardId, attack, health, side) => {
       // Player-only — accumulate per cardId and carry back via playerCardBuffs.
@@ -230,13 +232,16 @@ export function simulate(
       if (side !== 'player') return; // enemies have no shop
       freeRollGrants += count;
     },
-    grantRandomSpell: (count, side) => {
+    grantRandomSpell: (count, side, sourceUid) => {
       if (side !== 'player') return; // enemies have no hand
       spellGrants += count;
+      // Telegraph the generation mid-combat (the specific spell is picked at settle, where the tier is known).
+      if (sourceUid && count > 0) events.push({ type: 'sc', source: sourceUid, text: count > 1 ? `Generated ${count} spells` : 'Generated a spell' });
     },
-    grantRandomMinion: (count, tribe, side, exclude) => {
+    grantRandomMinion: (count, tribe, side, exclude, sourceUid) => {
       if (side !== 'player') return; // enemies have no hand
       for (let i = 0; i < count; i++) minionGrants.push({ tribe, exclude });
+      if (sourceUid && count > 0) events.push({ type: 'sc', source: sourceUid, text: count > 1 ? `Generated ${count} minions` : `Generated a ${tribe ?? 'minion'}` });
     },
     grantImpBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state

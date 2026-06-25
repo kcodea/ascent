@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: combat feedback — telegraph spell-power gains + generated cards mid-fight; Taragosa combat text
+
+Combat is a pure function whose carry-backs apply at **settle**, so several effects were invisible during the replay. Added mid-combat telegraphs (the run loop still applies them at settle — these are display-only events):
+
+- **Spell-power gains** (Ghastly Bladesmith, Gnasher, Cinderwing via Ryme) now emit an `sc` narration **+A/+B Spell Power** sourced from the granting minion — previously silent until the shop.
+- **Generated cards** (Sporebat, and the Discover battlecries Ryme re-fires — Sea Urchin / Black Belt Brian) now emit an `sc` **"Generated a spell/minion"** as they fire. The *specific* card is still chosen at settle (the pool/tier live in the run loop, not in pure combat), so this is a "card generated" telegraph rather than the exact card flying to hand — a follow-up could thread the pool into combat for the precise card.
+- **Taragosa's combat card text** now reflects the run's spell power (its Growth scales with it), reading the combat-frozen value from the store. (The golden-card live-text fix shipped earlier already corrected the bulk of "combat descriptions don't show the true value".)
+
+Implemented by adding an optional `sourceUid` to `grantSpellPower` / `grantRandomSpell` / `grantRandomMinion` (the ctx methods emit the `sc` when given one); the factory call sites pass `self.uid` / the re-fired minion's uid. Determinism is preserved (the events are deterministic and the odds sims discard them).
+
+**Files:** `types.ts` (3 ctx signatures), `simulate.ts` (emit `sc` in the 3 grant methods), `factories.ts` (6 call sites pass the uid), `Unit.tsx` (Taragosa combat text + spell power from the store), `simulate.test.ts` (+1).
+
+**Verification:** `typecheck + lint + test (359, +1) + harness (determinism) + build:web` green. Confirmed **live in-preview**: a lost combat with a Ghastly Bladesmith + Sporebat emits `+1/+0 Spell Power` and `Generated a spell` `sc` narrations.
+
 ### feat: run-buffs window (top-right) + Symbiote timing → start of every 5th turn
 
 - **Symbiote** hero power now grants its Symbiotic Attachment token at the **START of every 5th turn** (waves 5/10/15…) instead of the end of every 4. Moved the grant from `faceOmen` (end of turn) to `advanceCombat` (the wave's shop opening), wave-keyed (`s.wave % 5 === 0`) — the shop-start `checkTriples` still combines a granted token. `heroPowerTick` is now unused (kept on `RunState` for save compat). Hero text + tests updated.

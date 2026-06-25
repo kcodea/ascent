@@ -621,6 +621,16 @@ describe('simulate (handoff A.3)', () => {
     expect(gold.playerSpellPower).toEqual({ attack: 0, health: 2 }); // golden Cinderwing doubles
   });
 
+  it('combat carry-backs are telegraphed mid-fight as sc narrations (spell power + generated cards)', () => {
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    const r = run([
+      { cardId: 'skullblade', attack: 5, health: 1 }, // Deathrattle → +1/+0 spell power (otherwise silent until settle)
+      { cardId: 'sporebat', attack: 2, health: 1 },   // Deathrattle → generates a random spell
+    ], omen, 1);
+    expect(r.events.some((e) => e.type === 'sc' && /Spell Power/.test(e.text))).toBe(true);
+    expect(r.events.some((e) => e.type === 'sc' && /Generated/.test(e.text))).toBe(true);
+  });
+
   it("Taragosa's Growth scales with the run's spell power", () => {
     const board: BoardMinion[] = [
       { cardId: 'taragosa', attack: 5, health: 100 },

@@ -79,13 +79,13 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
     } else if (eff.do === 'battlecryDiscoverSpell') {
       // A Discover Battlecry can't open the interactive 1-of-3 peek mid-combat — grant a random pool card
       // instead (resolved at settle, respecting the tavern tier). Golden Discovers twice → grant ×2.
-      ctx.grantRandomSpell(g, m.side);
+      ctx.grantRandomSpell(g, m.side, m.uid);
     } else if (eff.do === 'battlecryDiscoverMinion') {
-      ctx.grantRandomMinion(g, str(p.tribe) || undefined, m.side, m.cardId); // …a random minion of the tribe, ≤ tavern tier
+      ctx.grantRandomMinion(g, str(p.tribe) || undefined, m.side, m.cardId, m.uid); // …a random minion of the tribe, ≤ tavern tier
     } else if (eff.do === 'battlecryBuffSpellPower') {
       // Cinderwing Matron — permanently raise run-wide spell power; carried back via playerSpellPower (the
       // same channel Skullblade/Gnasher use), so re-firing it in combat actually grants the spell power.
-      ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side);
+      ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side, m.uid);
     }
   }
 }
@@ -141,7 +141,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  tier-bounded pick happens at settle (where the tavern tier is known); combat just banks the count. */
   deathrattleGrantRandomSpell: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side);
+    ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side, self.uid);
   },
 
   /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once PER HIT, capped at
@@ -236,7 +236,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  as onKillBuffSelf (the onKill payload carries the killer as `attacker`). */
   onKillBuffSpellPower: (ctx, self, params, payload) => {
     if ((payload as { attacker?: Minion }).attacker !== self) return;
-    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side);
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side, self.uid);
   },
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
@@ -368,7 +368,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  then applied to the run's spell bonus in settleCombat. Each Skullblade death stacks another +atk/+hp. */
   deathrattleBuffSpellPower: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side);
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side, self.uid);
   },
 
   /** Deathrattle (Grave Knit): permanently buff a card type run-wide by +atk/+hp (golden doubles).

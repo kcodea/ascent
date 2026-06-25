@@ -45,6 +45,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Run-buffs window + Symbiote timing.** A collapsible **Buffs** window (top-right, under the next-enemy frame)
   surfaces your active permanent buffs at a glance — spell power, Undead-everywhere, Fodder, Imps, Mama Bear,
   Guel. **Symbiote** now grants its token at the **start of every 5th turn** (was end of every 4).
+- **Dust puff on board placement.** Placing or moving a minion on the board kicks up a ring of dry-dirt
+  dust that escapes out from under the card on every side — like a flat stone dropped in dust.
+- **Gold-coin sprinkle on sell.** Selling a minion now bursts a sprinkle of gold coins out of the Gold
+  counter (they pop up and arc back down under gravity) — on the new Pixi FX layer.
 - **Golden card tooltips show their LIVE value.** Golden cards were rendering the *static* printed golden text,
   so live numbers were lost — a golden **Sergeant** showed "+4 Health" instead of its real "+10", a golden
   **Taragosa** "+6/+8" instead of its spell-power-scaled value. Fixed generally for every golden live-text card.

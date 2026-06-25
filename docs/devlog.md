@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Taragosa's Growth scales with spell power + combat-log odds bar redesign
+
+- **Taragosa's Growth now inherits the run's spell power** (it's a real spell cast — this was a flagged follow-up). Combat now receives the run's spell power (`spellAttackBonus`/`spellHealthBonus` → two new `simulate` params → `CombatContext.spellPower`), and `onAllyAttackCastGrowth` adds it to the base +3/+4 per cast (golden casts twice). New `taragosaText` shows the live scaled value in the shop tooltip — e.g. at +4/+4 spell power, Growth reads **+7/+8** (golden **+14/+16**). The card text turns green once spell power is non-zero, falling back to the printed +3/+4 otherwise.
+- **Combat-log odds bar redesign.** The win/draw/loss bar is now **4× thicker**, recoloured **green → orange → red**, and its segment widths now **map to the actual odds**. (They never did: a generic `.ob { flex: 1 }` rule forced equal thirds regardless of the inline width — `flex: none` on `.oddsbar .ob` lets the per-segment width win.) Labels recoloured to match. Verified live: a 100%-win combat now shows a full green bar (not three equal segments).
+
+**Files:** `tokens.ts` (Taragosa comment), `types.ts` (`CombatContext.spellPower`), `simulate.ts` (params + ctx), `factories.ts` (`onAllyAttackCastGrowth` adds spell power), `reducer.ts` (pass spell power to both `simulate` calls), `cardText.ts` (`taragosaText`), `Recruit.tsx` (wire it), `styles.css` (odds bar), `simulate.test.ts` (+1), `cardText.test.ts` (+1).
+
+**Verification:** `typecheck + lint + test (354, +2) + harness (determinism) + build:web` all green. Combat-log bar confirmed live in-preview (height 4×, widths mapping, green/orange/red). _Golden Sergeant (also reported) was investigated — accrual (+4/gain golden, no double-count from the onGainAttack boundary diff), triple (keeps the highest bonus), and the live text all verified correct in the live build; awaiting the owner's specifics on what looked off (likely the tripled-golden accrual not being doubled, like Brood/Imp King)._
+
 ### fix: re-fired Discover battlecries grant a random pool card + Cinderwing via Ryme + Tara triple/tracker + Fleeting Vigor telegraph
 
 Owner-reported batch, all in the `replayCombatBattlecry` / combat-carry-back area.

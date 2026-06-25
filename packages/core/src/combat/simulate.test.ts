@@ -621,6 +621,19 @@ describe('simulate (handoff A.3)', () => {
     expect(gold.playerSpellPower).toEqual({ attack: 0, health: 2 }); // golden Cinderwing doubles
   });
 
+  it("Taragosa's Growth scales with the run's spell power", () => {
+    const board: BoardMinion[] = [
+      { cardId: 'taragosa', attack: 5, health: 100 },
+      { cardId: 'sandbag', attack: 0, health: 100 },
+    ];
+    const enemy: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 4000, keywords: [] }];
+    // simulate(...15 args..., spellPowerAtk, spellPowerHp). With +4/+4 spell power each Growth is +7/+8.
+    const r = simulate(board, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4);
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 7 && e.health === 8)).toBe(true);
+    const r0 = simulate(board, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    expect(r0.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // no spell power → base
+  });
+
   it('Gnasher keeps attacking after killing a Reborn target', () => {
     // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
     // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned

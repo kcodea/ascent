@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Taragosa spell-power scaling + combat-log bar.** **Taragosa**'s Growth now scales with your **spell power**
+  (text + mechanically, golden too). The combat-log **odds bar** is **4× thicker**, coloured **green/orange/red**,
+  and its segments now map to the real win/draw/loss odds.
 - **Re-fired Discover battlecries + Cinderwing via Ryme + Tara/Fleeting Vigor fixes.** When **Ryme** re-fires a
   Discover battlecry in combat (**Sea Urchin**, **Black Belt Brian**) it now grants a **random card from that
   pool** (tavern-tier rules) instead of nothing, and re-fires **Cinderwing**'s +spell power. **Tara**: tripling

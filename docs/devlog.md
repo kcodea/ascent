@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### Audio: master limiter (prevent layer-clipping) + per-card voiceline gain tune
+
+- **Master limiter on the whole SFX bus.** All sounds (samples + synth) now route through one shared
+  `DynamicsCompressorNode` (threshold −6 dB, knee 0, ratio 20, attack 1 ms, release 0.25) before
+  `ctx.destination`, created with the context in `audio()`. Fixes output **clipping when clips overlap** (the
+  card-landing + voiceline + summon SFX hitting together summed past full scale and hard-clipped). Single
+  sounds at playback gain sit below the threshold and pass untouched — only loud stacks get limited.
+- **Verified by offline render** (OfflineAudioContext): a deliberately hot ×3 sum peaked at **2.19 (+6.8 dB,
+  clipping)** straight to destination vs **0.89 (no clip)** through the limiter; tuned attack/threshold so even
+  that torture case stays under 0 dBFS. Also analyzed the three shipped clips — alley peaks at 0 dBFS (4
+  marginal samples), stray −1.4 dB, summon −2.7 dB (the limiter is the right fix, not per-file edits).
+- **Per-card voiceline gain** lowered to `0.10` (`cardVoice`) by ear.
+- **Verified:** typecheck + lint clean, 331 tests pass, app boots clean.
+
 ### Audio: per-card unique voicelines/SFX (`sfx.cardVoice`, zero-code convention)
 
 - **New system for card-specific sounds.** A card can now have its own voiceline/SFX that plays when it's

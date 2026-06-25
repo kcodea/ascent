@@ -22,6 +22,10 @@ files in `packages/ui/src/audio/`.
 - **Per-clip volume.** Each sourced clip has a tunable gain in `SAMPLE_VOL_DEFAULTS` (sfx.ts), adjustable
   live with the **DEV SFX mixer** (🔊 button, bottom-left — slider + ▶ preview per clip + "Copy values" to
   paste the dialed-in numbers back as the shipped defaults). Persisted to `localStorage['ascent.sfxvol']`.
+- **Master limiter.** Every sound (samples + synth) routes through one shared `DynamicsCompressorNode`
+  (threshold −6 dB, ratio 20, 1 ms attack) before the destination, so overlapping clips can't sum past full
+  scale and hard-clip the output. Single sounds at playback gain sit below −6 dB and pass untouched; only loud
+  *stacks* get limited. (Verified offline: a ×3 torture-sum drops from 2.19 → 0.89 peak, no clip.)
 - **Master volume + mute** (Settings → Audio) scale/silence every sound; both persist (`ascent.vol`,
   `ascent.muted`). One sound per notable event per beat.
 - **Warm-up.** The audio context + sample decode kick off on the **first user gesture** anywhere (pointer or

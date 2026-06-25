@@ -37,12 +37,31 @@ export function setVolume(v: number): void {
 /** True while the tab is backgrounded — we suppress sound then, so a pile-up doesn't blast on tab-in. */
 const isHidden = (): boolean => typeof document !== 'undefined' && document.hidden;
 
+// A master limiter every sound routes through, so overlapping clips (landing + voiceline + summon, etc.)
+// can never sum past full scale and hard-clip the output. Configured limiter-style: catch anything above the
+// threshold with a high ratio + fast attack, so peaks are tamed transparently for short SFX.
+let master: DynamicsCompressorNode | null = null;
+/** The node sounds connect to (the limiter if ready, else the raw destination). */
+function out(a: AudioContext): AudioNode {
+  return master ?? a.destination;
+}
+
 function audio(): AudioContext | null {
   try {
     const isNew = !ctx;
     ctx ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     if (ctx.state === 'suspended') void ctx.resume();
-    if (isNew) prefetchSamples(); // decode the mp3 SFX once the context exists (first user gesture)
+    if (isNew) {
+      master = ctx.createDynamicsCompressor();
+      master.threshold.value = -6; // engage when stacked sounds sum past -6 dBFS (single clips at playback
+                                   // gain sit well below this, so they pass untouched — only loud stacks limit)
+      master.knee.value = 0;       // hard knee → behaves like a limiter
+      master.ratio.value = 20;     // max ratio: anything above threshold is held down hard
+      master.attack.value = 0.001; // 1ms — fast enough that even a torture-test sum stays under 0 dBFS
+      master.release.value = 0.25;
+      master.connect(ctx.destination);
+      prefetchSamples(); // decode the mp3 SFX once the context exists (first user gesture)
+    }
     return ctx;
   } catch {
     return null;
@@ -107,7 +126,7 @@ function playSample(name: string, vol = 0.6, delay = 0): boolean {
   src.buffer = buf;
   const g = a.createGain();
   g.gain.value = vol * masterVol;
-  src.connect(g).connect(a.destination);
+  src.connect(g).connect(out(a));
   src.start(a.currentTime + Math.max(0, delay));
   return true;
 }
@@ -134,7 +153,7 @@ function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0 }: Tone
   gain.gain.setValueAtTime(0, t0);
   gain.gain.linearRampToValueAtTime(Math.max(0.0001, vol * masterVol), t0 + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  osc.connect(gain).connect(a.destination);
+  osc.connect(gain).connect(out(a));
   osc.start(t0);
   osc.stop(t0 + dur + 0.03);
 }

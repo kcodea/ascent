@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Ryme (T4 Undead).** **Deathrattle: trigger an adjacent minion's Battlecry** (golden: both). Adds a
+  combat Battlecry-replay so summon / tribe-buff / grant-keyword battlecries re-fire mid-fight (economy
+  battlecries no-op).
 - **Imp archetype + content batch.** Hero select now offers **3** champions. New **Imp** sub-theme: **Fodder
   Feeder** (T1 — sell it for a Fodder + an Imp buff) and **Imp King** (T4 — Deathrattle: 2 Imps + buff your
   Imps); **Brood Matron**, **Ritualist**, and **Bane** now feed/buff Imps too. Tuning: **Karwind** → T5,

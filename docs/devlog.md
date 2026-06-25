@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Ryme (T4 Undead) — combat Battlecry-replay
+
+**Ryme** (T4 Undead 5/3) — **Deathrattle: trigger an adjacent minion's Battlecry** in combat (golden: both neighbours; random pick when both qualify). Battlecries are recruit-phase and baked before combat, so this required a new **combat Battlecry-replay**: `replayCombatBattlecry` re-fires a minion's `onPlay` effects in the combat context, implementing the combat-meaningful battlecries — `battlecrySummon` (summon tokens), `battlecryBuffTribe` (buff matching friends, `universalTribe`-aware), `battlecryBuffUndeadAttack` (Deathswarmer), and `battlecryGrantKeyword` (auto-picks the highest-Attack friend). Economy battlecries (Discover, gain-to-hand, free rolls, spell power, tavern buffs) have no combat meaning and no-op — so Ryme only considers neighbours with a *combat-replayable* battlecry (`hasCombatBattlecry` / `COMBAT_REPLAYABLE_BC`). The replayed battlecry's magnitude respects the **neighbour's** own golden; Ryme's golden only controls 1-vs-2 neighbours.
+
+**Files:** `packages/core/src/types.ts` + `packages/content/src/schema.ts` (factory id), `packages/core/src/effects/factories.ts` (`replayCombatBattlecry` + `deathrattleReplayAdjacentBattlecry`), `packages/content/src/cards/undead.ts` (Ryme), `ryme.png` art, `simulate.test.ts`, `docs/cards.csv`.
+
+**Verification:** new tests — Ryme re-fires a neighbour's Alleycat Battlecry (summons a Stray); a golden Ryme re-fires both neighbours (2 Strays). `typecheck + lint + test (339) + harness + build:web` all green.
+
 ### feat: Imp archetype (2 new Demons + imp-buff system), hero-select 3, Brood/Ritualist/Bane/Karwind/Mama Bear/Hoarder reworks
 
 A large content batch introducing an **Imp** sub-archetype plus several tuning changes.

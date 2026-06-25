@@ -132,6 +132,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffImps',
   'avengeBuffImps',
   'battlecryBonusGoldNextTurn',
+  'deathrattleReplayAdjacentBattlecry',
 ]);
 
 export const EffectDefSchema = z.object({

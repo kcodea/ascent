@@ -523,6 +523,30 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 3)).toBe(true); // the Imp buff
   });
 
+  it("Ryme's Deathrattle re-fires an adjacent minion's combat Battlecry (Alleycat → a Stray)", () => {
+    // Ryme (the only attacker) strikes the omen, dies to retaliation → its neighbour Alleycat's Battlecry
+    // re-fires in combat → a Stray is summoned. (The 0-Attack Alleycat never swings or dies itself.)
+    const r = run(
+      [{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'alley', attack: 0, health: 100 }],
+      [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }],
+      1,
+    );
+    expect(r.events.some((e) => e.type === 'summon' && e.minion.cardId === 'stray')).toBe(true);
+  });
+
+  it('a golden Ryme re-fires BOTH adjacent Battlecries', () => {
+    const r = run(
+      [
+        { cardId: 'alley', attack: 0, health: 100 },
+        { cardId: 'ryme', attack: 5, health: 1, golden: true },
+        { cardId: 'alley', attack: 0, health: 100 },
+      ],
+      [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }],
+      1,
+    );
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'stray').length).toBe(2);
+  });
+
   it('Gnasher keeps attacking after killing a Reborn target', () => {
     // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
     // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned

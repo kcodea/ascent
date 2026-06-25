@@ -34,6 +34,44 @@ function grantShield(ctx: CombatContext, m: Minion): void {
   ctx.log({ type: 'shieldUp', target: m.uid });
 }
 
+/** Battlecry effects that have a meaningful COMBAT replay (Ryme). Battlecries are recruit-phase; the
+ *  economy ones (Discover, gain-to-hand, free rolls, spell power, tavern buffs…) do nothing in combat. */
+const COMBAT_REPLAYABLE_BC = new Set(['battlecrySummon', 'battlecryBuffTribe', 'battlecryBuffUndeadAttack', 'battlecryGrantKeyword']);
+const hasCombatBattlecry = (m: Minion): boolean => m.effects.some((e) => e.on === 'onPlay' && COMBAT_REPLAYABLE_BC.has(e.do));
+
+/** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Only the
+ *  combat-meaningful battlecries do anything here; others no-op. Magnitude respects the source's own golden. */
+function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
+  const g = m.golden ? 2 : 1;
+  const tribeOf = (t: Minion, tribe: string): boolean =>
+    !tribe || tribe === 'any' || t.tribe === tribe || t.tribe2 === tribe || !!ctx.getCard(t.cardId)?.universalTribe;
+  for (const eff of m.effects) {
+    if (eff.on !== 'onPlay') continue;
+    const p = eff.params ?? {};
+    if (eff.do === 'battlecrySummon') {
+      const token = ctx.getCard(str(p.tokenId));
+      if (token) for (let i = 0; i < num(p.count, 1) * g; i++) ctx.summon(m.side, token, m.uid);
+    } else if (eff.do === 'battlecryBuffTribe') {
+      const tribe = str(p.tribe), a = num(p.attack) * g, h = num(p.health) * g;
+      const includeSelf = p.includeSelf !== false;
+      for (const t of ctx.living(m.side)) if ((includeSelf || t !== m) && tribeOf(t, tribe)) ctx.buff(t, a, h, m.uid);
+    } else if (eff.do === 'battlecryBuffUndeadAttack') {
+      const a = num(p.amount, 1) * g;
+      for (const t of ctx.living(m.side)) if (tribeOf(t, 'undead')) ctx.buff(t, a, 0, m.uid);
+    } else if (eff.do === 'battlecryGrantKeyword') {
+      const kws = Array.isArray(p.keywords) ? (p.keywords as Keyword[]) : [];
+      const friends = ctx.living(m.side).filter((t) => t !== m); // auto-pick the highest-Attack friend (no chosen target in combat)
+      if (friends.length && kws.length) {
+        const target = friends.reduce((a, b) => (b.attack > a.attack ? b : a));
+        for (const kw of kws) if (!target.keywords.includes(kw)) {
+          target.keywords.push(kw);
+          if (kw === 'DS') target.divineShield = true;
+        }
+      }
+    }
+  }
+}
+
 /**
  * Combat-time factories. This is a *partial* registry: recruit-time ids
  * (battlecries, buff-on-buy) are implemented in `@game/sim` against the run
@@ -745,5 +783,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 3) * mul(self);
     const h = num(params.health, 2) * mul(self);
     for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
+  },
+
+  /** Ryme — Deathrattle: re-fire an adjacent minion's Battlecry in combat. Considers living neighbors with a
+   *  combat-replayable Battlecry (random pick if both qualify); golden replays BOTH neighbors. */
+  deathrattleReplayAdjacentBattlecry: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const arr = ctx.boards[self.side];
+    const i = arr.indexOf(self);
+    const neighbors = [arr[i - 1], arr[i + 1]].filter(
+      (m): m is Minion => !!m && !m.dead && m.health > 0 && hasCombatBattlecry(m),
+    );
+    if (neighbors.length === 0) return;
+    const chosen = self.golden ? neighbors : [ctx.rng.pick(neighbors)];
+    for (const n of chosen) replayCombatBattlecry(ctx, n);
   },
 };

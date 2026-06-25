@@ -157,6 +157,7 @@ export type EffectFactoryId =
   | 'onKillBuffUndeadAttack' // Karthus: when this kills an enemy, give your Undead +Attack permanently
   | 'deathrattleBuffImps' // Imp King: Deathrattle — buff all friendly Imps +atk/+hp (combat)
   | 'avengeBuffImps' // Brood Matron: Avenge (X) — buff all friendly Imps +atk/+hp (combat)
+  | 'deathrattleReplayAdjacentBattlecry' // Ryme: Deathrattle — re-fire an adjacent minion's Battlecry in combat
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys

@@ -28,6 +28,14 @@ The combat halves of Mama Bear / `buffOnSummon` / `deathrattleBuffTribe` already
 
 **Verification:** new regression test — a `symbioticattachment` token played beside a Mama Bear + Kennelmaster gains both buffs (1/1 → 5/5). `npm run typecheck && npm run lint && npm test` (**326/326**) + `npm run build:web` all green. Art confirmed serving as `image/webp` (200) via the live dev server; Symbiote portrait + power render in the HUD (verified by selecting the hero in-preview).
 
+### fix: Undead buy-time Attack bonus now shows in the tavern
+
+The Deathswarmer / Forsaken Weaver / Karthus "+Attack to your Undead **wherever they are**" (`undeadBuyAtk`) is baked into a card's stats *on buy*, but the tavern offer kept showing the unbuffed base — so an Undead's Attack jumped the moment you bought it. `shopView` (Recruit.tsx) now folds `undeadBuyAtk` into Undead offers (in addition to the Lantern of Souls `undeadAttackBonus` it already showed), so the tavern displays the buffed Attack in green, exactly matching what the offer becomes once bought. The `undead` predicate there now also matches `universalTribe`, keeping it in lockstep with the reducer's buy-time `isUndead`.
+
+**Verified live:** with `undeadBuyAtk = 3`, a tavern Sporeling (1/2) shows **4**/2 and an Eternal Knight (3/2) shows **6**/2, both green; a Beast Kennelmaster offer stays 2/3.
+
+**Files changed:** `packages/ui/src/Recruit.tsx`.
+
 ---
 
 ## 2026-06-24 (session 4)

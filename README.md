@@ -31,7 +31,9 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   Symbiote token (**Symbiotic Attachment**, "counts as every tribe") being skipped by most recruit-phase
   tribe buffs — playing it now correctly triggers Mama Bear, Kennelmaster, Dragon battlecries, etc. Audited
   every tribe check in the recruit + combat effect systems; several also ignored a card's **second tribe**
-  (dual-types), fixed in the same pass. New regression test.
+  (dual-types), fixed in the same pass. New regression test. Also: the Undead "+Attack wherever they are"
+  (Deathswarmer / Forsaken Weaver / Karthus) now shows on **tavern** Undead offers too, so the Attack no
+  longer jumps when you buy them.
 - **Sourced refresh sound.** The tavern Refresh/Reroll button now plays a real audio clip (the last tavern
   control still on a synth blip), tunable in the DEV SFX mixer.
 - **Bug fixes + 3 new Undead + live combat text + 18 art.** Shop weights flattened (equal chance for

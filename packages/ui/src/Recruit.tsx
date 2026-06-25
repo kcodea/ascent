@@ -92,6 +92,9 @@ interface ShopViewOpts {
   frontToBackBonus?: number;
   undeadAtk?: number;
   undeadHp?: number;
+  /** Deathswarmer / Forsaken Weaver / Karthus run-wide "+Attack to your Undead" — baked into the stats
+   *  on buy, so the tavern shows it too ("wherever they are"), matching what the offer becomes once bought. */
+  undeadBuyAtk?: number;
   tavernAtk?: number;
   tavernHp?: number;
 }
@@ -112,13 +115,14 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   // (Ritualist's Fodder), Staff of Guel's run-wide tavern-buy buff, and the Lantern of Souls aura on
   // Undead — so a buffed offer reads its new stats (green) and carries the baked ones in when bought.
   const cb = opts.cardBuffs?.[c.id] ?? { attack: 0, health: 0 };
-  const undead = c.tribe === 'undead' || c.tribe2 === 'undead';
+  // Matches the buy path's `isUndead` (reducer): primary/second tribe OR a universalTribe card.
+  const undead = c.tribe === 'undead' || c.tribe2 === 'undead' || !!c.universalTribe;
   // Fodder carries Staff of Guel through its run-wide enchant (cb), not the buy-buff, so don't fold the
   // tavern-buy bonus onto a Fodder offer too (the reducer's buy path skips it the same way).
   const fodder = c.keywords.includes('FD');
   const tavernAtk = fodder ? 0 : opts.tavernAtk ?? 0;
   const tavernHp = fodder ? 0 : opts.tavernHp ?? 0;
-  const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + (undead ? opts.undeadAtk ?? 0 : 0);
+  const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0);
   const addHp = (card.hp ?? 0) + cb.health + tavernHp + (undead ? opts.undeadHp ?? 0 : 0);
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
@@ -506,8 +510,8 @@ export function Recruit() {
   // changes — during a drag nothing dispatches, so `run.*` refs are stable and these stay
   // cached, which is what lets the memoized Card skip re-render on every pointermove.
   const shopViews = useMemo(
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus })] as const)),
-    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus],
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk })] as const)),
+    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk],
   );
   const spellView = useMemo(
     () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus }) : null),

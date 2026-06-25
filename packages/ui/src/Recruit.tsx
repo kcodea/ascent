@@ -104,6 +104,8 @@ interface ShopViewOpts {
   undeadBuyAtk?: number;
   tavernAtk?: number;
   tavernHp?: number;
+  /** Run-wide Deathrattles triggered this game — so a tavern Grim offer shows its live scaling buff. */
+  deathrattlesTriggered?: number;
 }
 function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const c = CARD_INDEX[card.cardId];
@@ -135,7 +137,9 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: c.attack + addAtk, health: c.health + addHp,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
-    text: c.text, goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier,
+    // Grim (and other Deathrattle-tally cards) show their live scaling buff in the tavern too, not just on board.
+    text: tallyBuffText(c.id, opts.deathrattlesTriggered ?? 0) ?? c.text,
+    goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier,
     baseAttack: c.attack, baseHealth: c.health,
   };
 }
@@ -236,8 +240,7 @@ export function Recruit() {
   // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
-  const combatSpeed = useGame((s) => s.combatSpeed);
-  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
+  const combatSpeed = useGame((s) => s.combatSpeed); // still threaded into the replay; the slider UI lives in HudBar now
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
@@ -532,8 +535,8 @@ export function Recruit() {
   // changes — during a drag nothing dispatches, so `run.*` refs are stable and these stay
   // cached, which is what lets the memoized Card skip re-render on every pointermove.
   const shopViews = useMemo(
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk })] as const)),
-    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk],
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered })] as const)),
+    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.deathrattlesTriggered],
   );
   const spellView = useMemo(
     () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus }) : null),
@@ -1447,20 +1450,6 @@ export function Recruit() {
             {servedOpp?.author ?? THREATS[run.threat].name}
             {servedOpp?.author && servedOpp.capturedAt && <span className="cbanner-date">{servedOpp.capturedAt}</span>}
           </span>
-          {/* Replay speed — 0.5×–5×, persisted. Scales every beat delay + lunge so the fight reads fast or slow. */}
-          <div className="combatspeed" title="Combat replay speed">
-            <span className="csl">Speed</span>
-            <input
-              type="range"
-              min={0.5}
-              max={5}
-              step={0.1}
-              value={combatSpeed}
-              onChange={(e) => setCombatSpeed(Number(e.target.value))}
-              aria-label="Combat replay speed"
-            />
-            <span className="combatspeed-val">{combatSpeed.toFixed(1)}×</span>
-          </div>
           <div className="cbtns">
             {replay.done ? (
               <>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createRun, type RunState } from '@game/sim';
+import { CONFIG, createRun, type RunState } from '@game/sim';
 import { gatherRunBuffs } from './runBuffs';
 
 describe('gatherRunBuffs', () => {
@@ -26,6 +26,18 @@ describe('gatherRunBuffs', () => {
     expect(byKey.imp).toBe('+2/+3');
     expect(byKey.mamabear).toBe('+4/+4'); // base 2 + accrued 2
     expect(byKey.guel).toBe('+3/+3'); // base 1 + floor(8/4) = 2
+  });
+
+  it('surfaces tavern buys, cling drones, and max-gold gains beyond the baseline', () => {
+    const run: RunState = {
+      ...createRun(1), wave: 30, maxEmbers: CONFIG.embersCap + 4,
+      tavernBuyBonus: { atk: 3, hp: 2 },
+      cardBuffs: { cling: { attack: 2, health: 2 } },
+    };
+    const byKey = Object.fromEntries(gatherRunBuffs(run).map((r) => [r.key, r.value]));
+    expect(byKey.tavern).toBe('+3/+2');
+    expect(byKey.cling).toBe('+2/+2'); // labelled "Cling Drones"
+    expect(byKey.gold).toBe('+4'); // maxEmbers is cap+4; the natural curve is capped by wave 30
   });
 
   it('drops Mama Bear / Guel rows once they leave the board', () => {

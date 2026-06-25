@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import { spellAttackBonus, spellHealthBonus, type RunState } from '@game/sim';
+import { CONFIG, spellAttackBonus, spellHealthBonus, type RunState } from '@game/sim';
 
 export interface BuffRow {
   key: string;
@@ -42,7 +42,17 @@ export function gatherRunBuffs(run: RunState): BuffRow[] {
 
   // Cling Drone run-wide enchant (each Cling magnetized grows all Clings).
   const cling = run.cardBuffs?.cling;
-  if (cling && (cling.attack > 0 || cling.health > 0)) rows.push({ key: 'cling', label: 'Clings', value: `+${cling.attack}/+${cling.health}` });
+  if (cling && (cling.attack > 0 || cling.health > 0)) rows.push({ key: 'cling', label: 'Cling Drones', value: `+${cling.attack}/+${cling.health}` });
+
+  // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.
+  const tav = run.tavernBuyBonus;
+  if (tav && (tav.atk > 0 || tav.hp > 0)) rows.push({ key: 'tavern', label: 'Tavern buys', value: `+${tav.atk}/+${tav.hp}` });
+
+  // Permanent max-Gold gained beyond the natural per-wave curve (Soulsman, Nadja). The baseline grows
+  // +embersPerWave/turn up to the cap; anything above that is a card-driven gain.
+  const naturalMax = Math.min(CONFIG.embersCap, CONFIG.startEmbers + (run.wave - 1) * CONFIG.embersPerWave);
+  const goldGain = run.maxEmbers - naturalMax;
+  if (goldGain > 0) rows.push({ key: 'gold', label: 'Max Gold', value: `+${goldGain}` });
 
   // Mama Bear — only while on board: its current per-summon grant ((base + accrued) × golden).
   const mb = run.board.find((c) => c.cardId === 'mamabear');

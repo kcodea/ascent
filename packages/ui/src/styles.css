@@ -84,10 +84,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Next-opponent intel frame — hangs under the top bar's right edge (below the tribes). Portrait + HP
    visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
-.topright { position: absolute; top: calc(100% + 8 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8 * var(--u)); }
-.oppframe { position: relative; display: flex; align-items: center; gap: calc(8 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(12 * var(--u)) calc(5 * var(--u)) calc(9 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: help; }
-/* Run-buffs window — a compact list of active permanent buffs; collapsible header. */
-.buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; }
+.topright { position: absolute; top: calc(100% + 8 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(40 * var(--u)); }
+/* Next-enemy frame — sized ~30% larger than the base chips for emphasis. */
+.oppframe { position: relative; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(17 * var(--u)); padding: calc(7 * var(--u)) calc(16 * var(--u)) calc(7 * var(--u)) calc(12 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: help; }
+/* Run-buffs window — a compact list of active permanent buffs; collapsible header. Normal (system) cursor,
+   not the custom gauntlet, so the panel reads as plain UI chrome. */
+.buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
 .buffs-head { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; padding: calc(5 * var(--u)) calc(10 * var(--u)); background: none; border: none; cursor: pointer; font-family: 'Outfit'; font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
 .buffs-head svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
 .buffs-head .buffs-title { flex: 1; text-align: left; }
@@ -97,12 +99,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); }
 .buff-row .buff-label { font-family: 'Outfit'; font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink); white-space: nowrap; }
 .buff-row .buff-val { font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); color: var(--acc-dk); font-variant-numeric: tabular-nums; }
-.oppframe .opp-l { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
-.oppframe .opp-pic { width: calc(42 * var(--u)); height: calc(42 * var(--u)); border-radius: calc(10 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--threat); }
+.oppframe .opp-l { font-family: 'Outfit'; font-weight: 700; font-size: calc(14 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
+.oppframe .opp-pic { width: calc(55 * var(--u)); height: calc(55 * var(--u)); border-radius: calc(13 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--threat); }
 .oppframe .opp-pic img { width: 100%; height: 100%; object-fit: cover; }
-.oppframe .opp-pic svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); color: var(--ink3); }
-.oppframe .opp-hp { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(17 * var(--u)); color: var(--threat-dk); }
-.oppframe .opp-hp svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--threat); }
+.oppframe .opp-pic svg { width: calc(29 * var(--u)); height: calc(29 * var(--u)); color: var(--ink3); }
+.oppframe .opp-hp { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(22 * var(--u)); color: var(--threat-dk); }
+.oppframe .opp-hp svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--threat); }
 .oppframe.threat .opp-pic { border-color: var(--ink3); }
 .oppframe .opp-tip { position: absolute; top: calc(100% + 6 * var(--u)); right: 0; min-width: calc(160 * var(--u)); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 600; font-size: calc(12.5 * var(--u)); line-height: 1.55; padding: calc(9 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); opacity: 0; pointer-events: none; transform: translateY(calc(-4 * var(--u))); transition: opacity 0.12s, transform 0.12s; z-index: 90; white-space: nowrap; box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) rgba(0, 0, 0, 0.3); }
 .oppframe:hover .opp-tip { opacity: 1; transform: translateY(0); }
@@ -1282,9 +1284,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .cbtns .btn.big svg { width: 42px; height: 42px; }
 .cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
 /* combat replay-speed slider — anchored to the right edge of the control bar, mirroring .cbanner on the left */
-.combatspeed { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 11px; background: color-mix(in srgb, var(--card) 82%, transparent); border: 2px solid var(--line); padding: 8px 15px; border-radius: 12px; }
-.combatspeed .csl { font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
-.combatspeed input[type='range'] { width: 128px; height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
+.combatspeed { flex: none; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: calc(13 * var(--u)); }
+.combatspeed .csl { font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
+.combatspeed input[type='range'] { width: calc(110 * var(--u)); height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
 .combatspeed input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
 .combatspeed input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
 .combatspeed .combatspeed-val { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }

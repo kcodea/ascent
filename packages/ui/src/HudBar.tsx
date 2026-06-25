@@ -17,6 +17,8 @@ const TRIBE_LABEL: Record<Tribe, string> = {
 export function HudBar() {
   const run = useGame((s) => s.run);
   const playerName = useGame((s) => s.playerName);
+  const combatSpeed = useGame((s) => s.combatSpeed);
+  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   const [muted, setMuted] = useState(isMuted());
   // Combat wins this run — read straight off the per-combat history (W/L/D), so it always agrees with the
   // end-screen summary. (A win = a combat won; you can climb a wave on a loss, so wins ≤ waves fought.)
@@ -32,6 +34,23 @@ export function HudBar() {
         <span className="lbl wins" title="Combats won this run"><Icon name="crown" />{wins}</span>
         <span className="lbl">Best {run.best}</span>
       </div>
+      {/* Combat replay speed — only during the fight; sits to the LEFT of the tribes bar (out of the
+          top-right buffs/opponent column). */}
+      {run.phase === 'combat' && (
+        <div className="combatspeed" title="Combat replay speed">
+          <span className="csl">Speed</span>
+          <input
+            type="range"
+            min={0.5}
+            max={5}
+            step={0.1}
+            value={combatSpeed}
+            onChange={(e) => setCombatSpeed(Number(e.target.value))}
+            aria-label="Combat replay speed"
+          />
+          <span className="combatspeed-val">{combatSpeed.toFixed(1)}×</span>
+        </div>
+      )}
       <div className="tribes" title="Tribes in play this run">
         <span className="tl">Tribes</span>
         {run.tribes.map((t) => (

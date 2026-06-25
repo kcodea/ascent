@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Per-card voicelines/SFX.** A card can now have its own sound that plays when it's played, layered over the
+  general landing sound — drop `packages/ui/src/audio/cards/<cardId>.mp3` and it auto-wires (zero code per card).
 - **Sourced End Turn sound.** Hitting End Turn (Face the Omen) now plays a real audio clip instead of the synth
   down-slide, tunable in the DEV SFX mixer.
 - **Sergeant fix.** Sergeant's Deathrattle now improves on **every** Attack-gain — in the shop too (each

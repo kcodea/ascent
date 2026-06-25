@@ -48,6 +48,8 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
       const card = prev.hand.find((c) => c.uid === action.uid);
       if (card && CARD_INDEX[card.cardId]?.spell) sfx.castSpell();
       else sfx.play();
+      // Layer the card's own unique voiceline/SFX (if it has one) over the general landing/cast sound.
+      if (card) sfx.cardVoice(card.cardId);
       break;
     }
     case 'sell': sfx.sell(); break;

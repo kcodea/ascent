@@ -66,10 +66,16 @@ if (typeof window !== 'undefined') {
 // --- Sampled SFX (mp3 files in ./audio) — decoded into AudioBuffers and played through the same context, so
 //     they overlap cleanly (each play is a fresh BufferSource) and sit alongside the synth blips. Decoded
 //     lazily; the synth blip is the fallback until a sample's buffer is ready (or if decoding fails). ---
-const SAMPLE_URLS = import.meta.glob('./audio/*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+// Top-level clips (keyed by bare name, e.g. `roll`) + per-card clips in ./audio/cards/ (keyed `cards/<cardId>`,
+// played by sfx.cardVoice on the `play` action — a unique voiceline/SFX layered over the general landing sound).
+const SAMPLE_URLS = {
+  ...import.meta.glob('./audio/*.mp3', { eager: true, query: '?url', import: 'default' }),
+  ...import.meta.glob('./audio/cards/*.mp3', { eager: true, query: '?url', import: 'default' }),
+} as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
 const loadingSamples = new Set<string>();
-const sampleName = (path: string): string => path.split('/').pop()?.replace(/\.mp3$/, '') ?? '';
+// Key = path under ./audio/ minus extension: `./audio/roll.mp3` → `roll`, `./audio/cards/karthus.mp3` → `cards/karthus`.
+const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.mp3$/, '');
 
 function loadSample(name: string): void {
   const a = audio();
@@ -154,6 +160,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   upgrade: 0.5,
   roll: 0.5,
   combatStart: 0.5,
+  cardVoice: 0.6, // shared gain for ALL per-card voicelines/SFX (audio/cards/<cardId>.mp3)
 };
 let sampleVol: Record<string, number> = (() => {
   try {
@@ -225,6 +232,9 @@ export const sfx = {
     if (playSample('roll', sampleVol.roll)) return;
     [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d }));
   },
+  // A specific card's unique voiceline/SFX — drop `audio/cards/<cardId>.mp3` and it plays when that card is
+  // played, LAYERED over the general landing/cast sound. Silent (no fallback) if the card has no clip.
+  cardVoice: (cardId: string) => { playSample(`cards/${cardId}`, sampleVol.cardVoice); },
   // A Discover choice opens — the sourced "discover" clip; synth shimmer until it decodes / if absent.
   discover: () => {
     if (playSample('discover', sampleVol.discover)) return;
@@ -297,6 +307,11 @@ const SFX_PREVIEW: Record<string, () => void> = {
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,
+  // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
+  cardVoice: () => {
+    const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/'));
+    if (first) playSample(first, sampleVol.cardVoice);
+  },
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();

@@ -14,6 +14,11 @@ files in `packages/ui/src/audio/`.
 - **To add/replace a sourced clip:** drop `name.mp3` into `packages/ui/src/audio/` (lowercase — the lookup
   and the itch Linux host are case-sensitive) and make sure the event calls `playSample('name', …)`. A new
   file needs a **dev-server restart** (the file list is an eager `import.meta.glob`, not hot-reloaded).
+- **Per-card voicelines/SFX (zero code):** drop `packages/ui/src/audio/cards/<cardId>.mp3` and it plays
+  automatically when that card is **played** (`sfx.cardVoice(cardId)` from the `play` action), **layered over**
+  the general `cardlanding`/`castSpell` sound. Keyed by `cardId` (works for minions and spells); no file = just
+  the general sound. All card clips share one gain key, `cardVoice` (one mixer slider, not one-per-card), and
+  are prefetched + bundled like every other clip (committed mp3 → ships in every build, incl. itch).
 - **Per-clip volume.** Each sourced clip has a tunable gain in `SAMPLE_VOL_DEFAULTS` (sfx.ts), adjustable
   live with the **DEV SFX mixer** (🔊 button, bottom-left — slider + ▶ preview per clip + "Copy values" to
   paste the dialed-in numbers back as the shipped defaults). Persisted to `localStorage['ascent.sfxvol']`.

@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat speed slider + triple-at-shop-start + Bane Fodder carry-back.** A **0.5×–5× Speed** slider in the
+  combat bar (persisted) scales the whole replay. Triples are now also checked **as the shop opens**, so a
+  combat-granted 3rd copy combines without waiting for your next buy. And **Bane**'s Fodder buff earned *in
+  combat* (via Ryme) now persists **run-wide**, like its Imp buff already did.
 - **Ryme combo chain + Hunter shop proc + Target Dummy 0/6.** Ryme's Deathrattle now genuinely **triggers**
   each adjacent Battlecry (with a proc narration), and a **Drakko** on board doubles each trigger — which
   **multiplies** with Sylus / Deathsayer and re-procs **Karwind**/**Bane** per trigger (golden Ryme + both

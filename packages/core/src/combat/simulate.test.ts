@@ -586,6 +586,19 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 2).length).toBe(8);
   });
 
+  it("Bane reacting to Ryme's battlecry trigger carries the Fodder enchant back to the run", () => {
+    const board = (baneGolden: boolean) => [
+      { cardId: 'ryme', attack: 5, health: 1 },        // dies → triggers the neighbour's Battlecry
+      { cardId: 'alley', attack: 0, health: 100 },     // battlecry neighbour (Alleycat)
+      { cardId: 'bane', attack: 12, health: 100, golden: baneGolden }, // reacts to battlecryTriggered
+      { cardId: 'fred', attack: 1, health: 100 },      // a living Fodder body (also buffed this combat)
+    ];
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    // One trigger → Bane fires once → the run-wide Fodder enchant carries back (like the Imp buff does).
+    expect(run(board(false), omen, 1).playerFodderBuffGain).toEqual({ attack: 2, health: 2 });
+    expect(run(board(true), omen, 1).playerFodderBuffGain).toEqual({ attack: 4, health: 4 }); // golden Bane doubles
+  });
+
   it('Gnasher keeps attacking after killing a Reborn target', () => {
     // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
     // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned

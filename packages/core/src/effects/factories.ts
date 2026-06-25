@@ -835,8 +835,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Bane (combat half) — on a triggered Battlecry, buff your living Fodder + Imps +atk/+hp, and raise the
-   *  run-wide Imp buff (permanent — carried back) so future Imps inherit it. Golden doubles. */
+  /** Bane (combat half) — on a triggered Battlecry, buff your living Fodder + Imps +atk/+hp, and raise BOTH
+   *  the run-wide Imp buff AND the run-wide Fodder enchant (permanent — carried back) so future Fodder/Imps
+   *  inherit it, exactly like the recruit-phase Bane. Golden doubles. */
   onBattlecryBuffFodder: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side: Side }).side !== self.side) return;
     const a = num(params.attack, 1) * mul(self);
@@ -846,5 +847,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (def?.keywords.includes('FD') || def?.imp) ctx.buff(m, a, h, self.uid);
     }
     ctx.grantImpBuff(a, h, self.side); // Imps permanent — carried back to RunState.impBuff
+    ctx.grantFodderBuff(a, h, self.side); // Fodder enchant permanent — carried back, mirrors recruit buffFodderRunWide
   },
 };

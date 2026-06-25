@@ -105,6 +105,9 @@ interface GameStore {
    *  and when exported for a friend's pool. Persisted; set in Settings. Empty = anonymous. */
   playerName: string;
   setPlayerName: (name: string) => void;
+  /** Combat replay speed multiplier (0.5×–5×). 1 = the tuned default. Set by the in-combat slider; persisted. */
+  combatSpeed: number;
+  setCombatSpeed: (speed: number) => void;
   /** The current run's action log (only state-changing actions), reset on a fresh run. With the run
    *  seed it forms a deterministic replay — the basis for board capture + async-PvP snapshots. */
   replayActions: Action[];
@@ -133,6 +136,14 @@ function loadPlayerName(): string {
   try { return localStorage.getItem('ascent.playername') ?? ''; } catch { return ''; }
 }
 
+/** Persisted combat speed (0.5–5×), defaulting to 1 on anything missing/out-of-range. Best-effort. */
+function loadCombatSpeed(): number {
+  try {
+    const v = Number(localStorage.getItem('ascent.combatspeed'));
+    return v >= 0.5 && v <= 5 ? v : 1;
+  } catch { return 1; }
+}
+
 export const useGame = create<GameStore>((set, get) => ({
   run: createRun(randomSeed()),
   heroArmed: false,
@@ -150,6 +161,12 @@ export const useGame = create<GameStore>((set, get) => ({
     const playerName = name.slice(0, 24).trim();
     try { localStorage.setItem('ascent.playername', playerName); } catch { /* ignore */ }
     set({ playerName });
+  },
+  combatSpeed: loadCombatSpeed(),
+  setCombatSpeed: (speed) => {
+    const combatSpeed = Math.min(5, Math.max(0.5, Math.round(speed * 10) / 10)); // clamp 0.5–5×, snap to 0.1
+    try { localStorage.setItem('ascent.combatspeed', String(combatSpeed)); } catch { /* ignore */ }
+    set({ combatSpeed });
   },
   replayActions: [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, actions: get().replayActions }),

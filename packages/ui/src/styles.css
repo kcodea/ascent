@@ -1264,6 +1264,13 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .cbtns .btn.big { font-size: 32px; padding: 24px 48px; border-radius: 18px; gap: 16px; box-shadow: 0 5px 0 var(--shadow); }
 .cbtns .btn.big svg { width: 42px; height: 42px; }
 .cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
+/* combat replay-speed slider — anchored to the right edge of the control bar, mirroring .cbanner on the left */
+.combatspeed { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 11px; background: color-mix(in srgb, var(--card) 82%, transparent); border: 2px solid var(--line); padding: 8px 15px; border-radius: 12px; }
+.combatspeed .csl { font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
+.combatspeed input[type='range'] { width: 128px; height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
+.combatspeed input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.combatspeed input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.combatspeed .combatspeed-val { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
 /* post-combat Combat Log overlay */
 .logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
 @keyframes logfade { from { opacity: 0; } to { opacity: 1; } }

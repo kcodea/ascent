@@ -235,6 +235,8 @@ export function Recruit() {
   // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
+  const combatSpeed = useGame((s) => s.combatSpeed);
+  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
@@ -383,7 +385,7 @@ export function Recruit() {
       ),
     [],
   );
-  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl });
+  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed });
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
   // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
   // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them
@@ -1444,6 +1446,20 @@ export function Recruit() {
             {servedOpp?.author ?? THREATS[run.threat].name}
             {servedOpp?.author && servedOpp.capturedAt && <span className="cbanner-date">{servedOpp.capturedAt}</span>}
           </span>
+          {/* Replay speed — 0.5×–5×, persisted. Scales every beat delay + lunge so the fight reads fast or slow. */}
+          <div className="combatspeed" title="Combat replay speed">
+            <span className="csl">Speed</span>
+            <input
+              type="range"
+              min={0.5}
+              max={5}
+              step={0.1}
+              value={combatSpeed}
+              onChange={(e) => setCombatSpeed(Number(e.target.value))}
+              aria-label="Combat replay speed"
+            />
+            <span className="combatspeed-val">{combatSpeed.toFixed(1)}×</span>
+          </div>
           <div className="cbtns">
             {replay.done ? (
               <>

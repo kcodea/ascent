@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: triple-at-shop-start + Bane combat Fodder carry-back + combat speed slider (0.5×–5×)
+
+Three owner requests.
+
+- **Triples are now checked as the shop opens.** A combat carry-back can land a 3rd copy in the hand (a Deathrattle-granted minion) *after* the last recruit action that would have checked for a triple — so it sat un-combined until the next buy/play. `advanceCombat` now calls `checkTriples(s)` as its final step (after `s.phase = 'recruit'`), the one shop entry the player never triggers. It's idempotent + loop-guarded and the only settle/advance-path call, so no double-Discover; the gameover/victory early-returns sit above it, so it never runs on a run-ending transition.
+- **Bane's combat Fodder buff now persists run-wide.** Previously a Bane reacting to Ryme's battlecry replays *in combat* buffed the living Fodder bodies that fight but only carried the **Imp** half back permanently — the Fodder card-type enchant was lost. Added a Fodder carry-back mirroring the Imp one exactly: new `CombatContext.grantFodderBuff` + `CombatResult.playerFodderBuffGain` (single accumulator, player-side guarded), populated in `simulate`, granted once per proc in the combat `onBattlecryBuffFodder` (golden ×2), and applied in `settleCombat` via the **same** `buffFodderRunWide` the recruit-phase Bane uses — so it enchants every Fodder type run-wide (board, hand, future copies). No double-count: the immediate `ctx.buff` is on the discarded combat clone; the permanent gain comes only from the carry-back.
+- **Combat speed slider (0.5×–5×).** A `Speed` range control in the combat control bar (right-anchored, mirroring the opponent name on the left). New persisted store state `combatSpeed` (localStorage `ascent.combatspeed`, clamped 0.5–5). `useCombatReplay` divides every beat delay, the final hold, and the float lifetimes by `combatSpeed` (added to those effects' deps so a mid-fight change reschedules), and each GSAP lunge is `timeScale(combatSpeed)` — so the impact beat and the lunge connection stay in sync at every speed (both divide the same windup+strike by the multiplier). The lunge-firing effect intentionally omits `combatSpeed` from its deps (it re-runs per beat and captures the latest, and must not replay the current lunge on a slider drag).
+
+**Files:** `reducer.ts` (triple hook + Fodder settle + `buffFodderRunWide` import), `types.ts` + `simulate.ts` + `factories.ts` (Fodder carry-back), `store.ts` + `useCombatReplay.ts` + `Recruit.tsx` + `styles.css` (speed slider), `simulate.test.ts` (+1), `run.test.ts` (+2).
+
+**Verification:** `typecheck + lint + test (347, +3) + harness (determinism) + build:web` all green. New tests: Bane → `playerFodderBuffGain` +2/+2 (golden +4/+4); settleCombat applies it run-wide to `cardBuffs.fred` + the on-board Fodder; a combat hand-grant completes a triple at shop-start (golden, no buy/play). Speed slider verified **live in-preview**: renders in the combat bar (`Speed … 2.0×`), store default 1 + clamps to [0.5, 5] + persists, and a drag drives both the store and the readout. Cross-checked by a 3-agent adversarial verify workflow.
+
 ### fix: Ryme battlecry-trigger ecosystem (Drakko ×, sc animation, Karwind/Bane combat) + Hunter recruit proc + Target Dummy 0/6
 
 Three owner-reported fixes.

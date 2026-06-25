@@ -1358,6 +1358,22 @@ describe('run loop (@game/sim)', () => {
     expect(s.fleetingVigor).toEqual({ attack: 0, health: 0 }); // spent after the fight
   });
 
+  it('Sergeant: every recruit Attack-gain improves its Deathrattle HP grant (+2 per event, golden +4)', () => {
+    // The reported bug: two Forsaken Weavers buffing Sergeant on a spell cast are two separate Attack-gain
+    // events, so they improve the Deathrattle twice — not once, and not by the Attack amount.
+    const sgt: BoardCard = { uid: 'sg', cardId: 'sergeant', tribe: 'undead', attack: 6, health: 6, keywords: [], golden: false };
+    addBuff(sgt, 'Forsaken Weaver', 2, 0); // 1st Weaver → +2
+    expect(sgt.hpGrantBonus).toBe(2);
+    addBuff(sgt, 'Forsaken Weaver', 2, 0); // 2nd Weaver, same spell → +2 again
+    expect(sgt.hpGrantBonus).toBe(4);
+    addBuff(sgt, 'Mend', 0, 3); // a Health-only buff is NOT an Attack-gain → no improvement
+    expect(sgt.hpGrantBonus).toBe(4);
+    // Golden Sergeant improves +4 per event.
+    const golden: BoardCard = { uid: 'g', cardId: 'sergeant', tribe: 'undead', attack: 12, health: 12, keywords: [], golden: true };
+    addBuff(golden, 'Deathswarmer', 1, 0);
+    expect(golden.hpGrantBonus).toBe(4);
+  });
+
   it('Demonic Anomaly permanently buffs all tavern minions (+3/+3 run-wide) + grants 2 free refreshes', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, board: [],

@@ -62,6 +62,14 @@ function pickRandom<T>(state: RunState, arr: T[], n: number): T[] {
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
+  // Sergeant: EVERY instance that grants it Attack (this buff is one such instance) permanently improves
+  // its Deathrattle HP grant — in the shop here, mirrored in combat by `onGainAttackImproveHpGrant`. One
+  // improvement per buff event (not scaled by the Attack amount), so two Forsaken Weavers buffing it on a
+  // spell cast improve it twice. Seeds the combat instance + shows live on the card.
+  if (attack > 0) {
+    const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.do === 'onGainAttackImproveHpGrant');
+    if (eff) card.hpGrantBonus = (card.hpGrantBonus ?? 0) + num(eff.params?.improve, 2) * gold(card);
+  }
   if (attack === 0 && health === 0) return;
   card.buffs ??= [];
   const e = card.buffs.find((b) => b.source === source);

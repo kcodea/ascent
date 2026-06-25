@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, clingProgressText, guelProgressText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
+import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, clingProgressText, guelProgressText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -168,6 +168,7 @@ function instView(
             summonScalingText(c.id, spellsThisTurn) ??
             summonBuffText(c.id, inst.summonBonus ?? 0) ??
             summonImproveText(c.id, inst.summonBonus ?? 0, !!inst.golden) ??
+            sergeantText(c.id, !!inst.golden, inst.hpGrantBonus ?? 0) ??
             tallyBuffText(c.id, deathrattlesTriggered) ??
             guelProgressText(c.id, !!inst.golden, spellsCast) ??
             clingProgressText(c.id, clingEnchant) ??

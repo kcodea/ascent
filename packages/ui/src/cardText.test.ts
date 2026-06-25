@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, guelProgressText, tallyBuffText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, guelProgressText, sergeantText, tallyBuffText } from './cardText';
 
 describe('cardText helpers', () => {
   it('guelProgressText shows Guel’s live grant + countdown to the next step (golden-aware)', () => {
@@ -27,6 +27,13 @@ describe('cardText helpers', () => {
   it('tallyBuffText falls back (null) at a zero tally or on a non-tally card', () => {
     expect(tallyBuffText('grim', 0)).toBeNull(); // nothing triggered yet → printed text
     expect(tallyBuffText('sandbag', 5)).toBeNull(); // not a tally-buff card
+  });
+
+  it('sergeantText shows the live Deathrattle HP grant (base + accrual, golden-aware)', () => {
+    expect(sergeantText('sergeant', false, 4)).toContain('{{+6 Health}}'); // 2 base + 4 accrued
+    expect(sergeantText('sergeant', true, 4)).toContain('{{+8 Health}}'); // 4 base (golden) + 4 accrued
+    expect(sergeantText('sergeant', false, 0)).toBeNull(); // no accrual yet → printed text
+    expect(sergeantText('grim', false, 4)).toBeNull(); // not Sergeant
   });
 
   it('abhorrentHorrorText shows the pending Start-of-Combat gain from Fodder consumed this turn (golden-aware)', () => {

@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: Sergeant's Deathrattle improves on EVERY Attack-gain, permanently (shop + combat)
+
+**Bug:** Sergeant ("Deathrattle: give your minions +2 Health, improves each time Sergeant gains Attack") only improved its grant from **combat** Attack-gains, and only for that one fight. Attack gained in the **shop** (Forsaken Weaver on a spell cast, Deathswarmer, Karthus, Fortify, undead buy-bonus, …) did nothing, and combat improvements reset next fight. So two Forsaken Weavers + a spell improved it **zero** times in the shop instead of twice.
+
+**Fix — `hpGrantBonus` is now a permanent, run-board–persisted accrual** (modelled on Kennelmaster's `summonBonus` carry-back), improved by **every** Attack-gain in both phases:
+- **Shop:** `addBuff` (the recruit buff chokepoint) now improves a Sergeant's `hpGrantBonus` by its `improve` (×golden) once per Attack-gain *event* — so two Forsaken Weavers buffing it on one spell cast = two improvements (+2 twice; golden +4 twice). Health-only buffs don't count.
+- **Combat:** the combat instance is **seeded** from the run board's `hpGrantBonus` (so the Deathrattle continues from the shop-accrued value), `onGainAttackImproveHpGrant` keeps improving it per `onGainAttack`, and the final value **carries back** to the run board (`CombatResult.playerHpGrantBonus` → `settleCombat`) so it's permanent across fights.
+- **Triples:** a golden Sergeant keeps the **highest** accrued bonus of the three copies (the bigger +4 step comes from being golden).
+- **Tooltip:** `sergeantText` is now wired into the **shop** card text (`instView`) too — it already showed live in combat — and the combat instance seeds `MinionSnapshot.hpGrantBonus` so the value reads true from frame 1. Both show the current grant ("+6 Health", green) updating in real time.
+
+New plumbing: `BoardCard.hpGrantBonus` (state), `BoardMinion.hpGrantBonus` + `MinionSnapshot.hpGrantBonus` + `CombatResult.playerHpGrantBonus` (types), seeded in `instantiate`, built/returned in `simulate`, applied in `settleCombat`, combined in `checkTriples`.
+
+**Files changed:** `packages/sim/src/state.ts`, `packages/sim/src/recruit.ts`, `packages/core/src/types.ts`, `packages/core/src/combat/minion.ts`, `packages/core/src/combat/simulate.ts`, `packages/sim/src/reducer.ts`, `packages/ui/src/Recruit.tsx`, `packages/ui/src/useCombatReplay.ts`, plus tests in `run.test.ts`, `simulate.test.ts`, `cardText.test.ts`.
+
+**Verification:** 3 new tests — `addBuff` improves +2 per event (golden +4), health-only no-op; the combat Deathrattle uses the seeded bonus (+2 base + 4 = +6) and a survivor carries it back; `sergeantText` shows the live grant golden-aware. `npm run typecheck && npm run lint && npm test` (**331/331**) + harness (determinism) + `build:web` all green. (Live on-card render in the shop wasn't confirmable through the preview harness — it doesn't reflect injected board/hand state — but the tooltip wiring is identical to the other live-text helpers in that same `instView` chain.)
+
 ### feat: Demonic Anomaly permanent tavern buff + Abhorrent Horror live shop-phase preview
 
 **Demonic Anomaly — permanent, run-wide tavern buff.** Its Battlecry buffed only the *current* tavern offers (`offer.atk`/`offer.hp`), so the +3/+3 evaporated on the next refresh. Per the design intent ("all tavern minions, permanently"), `battlecryFreeRollsAndBuffShop` now adds to `tavernBuyBonus` (the same run-wide buy-bonus channel as Staff of Guel) + `buffFodderRunWide`, so **current and future** offers all carry +3/+3 (golden +6/+6), shown on every offer by the shop view and baked in on buy. Card text updated: "Buff the current tavern" → "Give all Tavern minions +3/+3 this game".

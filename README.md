@@ -27,6 +27,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 - **Sourced End Turn sound.** Hitting End Turn (Face the Omen) now plays a real audio clip instead of the synth
   down-slide, tunable in the DEV SFX mixer.
+- **Sergeant fix.** Sergeant's Deathrattle now improves on **every** Attack-gain — in the shop too (each
+  Forsaken Weaver, Deathswarmer, Karthus, Fortify, etc. counts as its own improvement) — and the bonus is
+  now **permanent** across fights (carried back from combat). The card shows the live grant in the shop and
+  in combat. Two Forsaken Weavers + a spell now improve it twice, as intended.
 - **Demonic Anomaly + Abhorrent Horror tweaks.** **Demonic Anomaly** now buffs **all** tavern minions
   **+3/+3 permanently** (current and future offers, like Staff of Guel) instead of only the current set.
   **Abhorrent Horror** now previews its pending Start-of-Combat gain live in the shop — "+X/+Y next combat"

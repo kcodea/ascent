@@ -75,6 +75,11 @@ deliberately
     spell power); Maw → T3; Combinator now magnetizes a *random* Magnetic Mech. Mana→Gold rename (text +
     names + gold coin icon). Hero-power button on the hero frame (placeholder art). Two new carry-back
     channels (`playerFodderGrants`, `playerMaxGoldGain`).
+  - **Content batch (2026-06-24, shipped → devlog):** +1 hero (Symbiote — passive token every 4 turns,
+    universalTribe Magnetic attachment), +4 Demons (Acid, Trickster, Demonic Anomaly, Abhorrent Horror),
+    +5 Undead (Deathswarmer, Pillager, Thundering Abomination, Sergeant, Forsaken Weaver). New engine
+    primitives: `universalTribe`, `undeadBuyAtk`, `onRoll`/`applyOnRoll`, `fodderConsumedThisTurn`.
+    Demon pool now 11, Undead pool now 10.
   - **Follow-up (2026-06-23, shipped → devlog):** Sheldon/Speedy/Harry Botter made **Magnetic** (+ `spellAura`
     weld plumbing so the aura survives a weld); **triples now keep welded fields** (`rallyMechAtk`/aura, not
     just `manaBonus`); **Archmagus Guel scales** +1/+1 per 4 spells cast (a "T1–4 stay relevant" win);

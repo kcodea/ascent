@@ -73,6 +73,81 @@ export const UNDEAD: CardDef[] = [
     goldenText: '**Rally:** before this attacks, trigger your leftmost Deathrattle **twice**.',
   },
   {
+    // Battlecry: give your Undead +1 Attack wherever they are (board + hand immediately via
+    // battlecryBuffUndeadAttack), AND stacks undeadBuyAtk so future Undead buys carry the bonus.
+    id: 'deathswarmer',
+    name: 'Deathswarmer',
+    tribe: 'undead',
+    tier: 2,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryBuffUndeadAttack', params: { amount: 1 } }],
+    text: '**Battlecry:** Give your Undead **+1 Attack** wherever they are.',
+    goldenText: '**Battlecry:** Give your Undead **+2 Attack** wherever they are.',
+  },
+  {
+    id: 'pillager',
+    name: 'Pillager',
+    tribe: 'undead',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId: 'emberpouch', count: 1 } }],
+    text: '**Deathrattle:** Get a **Gold Pouch**.',
+    goldenText: '**Deathrattle:** Get **2 Gold Pouches**.',
+  },
+  {
+    // Engraved: stat gains carry back to the run board. Gains +3/+3 per friendly summon in combat.
+    // Overflow summons (board full) also buff your Undead +2/+2. Golden doubles both gains.
+    id: 'thunderingabomination',
+    name: 'Thundering Abomination',
+    tribe: 'undead',
+    tier: 5,
+    attack: 4,
+    health: 7,
+    keywords: ['EG'],
+    effects: [
+      { on: 'onSummon', do: 'onSummonSelfBuff', params: { attack: 3, health: 3 } },
+      { on: 'summonOverflow', do: 'onSummonOverflowBuffTribe', params: { tribe: 'undead', attack: 2, health: 2 } },
+    ],
+    text: '**Engraved.** Whenever a friendly minion is summoned in combat, gain **+3/+3**. Overflow summons give your Undead **+2/+2**.',
+    goldenText: '**Engraved.** Whenever a friendly minion is summoned, gain **+6/+6**. Overflow summons give your Undead **+4/+4**.',
+  },
+  {
+    // Deathrattle: give all living friendly minions +2 Health (golden +4). Each time Sergeant itself
+    // gains Attack in combat, the HP grant permanently improves by +2 (golden +4). Tracked via
+    // `self.hpGrantBonus` on the Minion instance.
+    id: 'sergeant',
+    name: 'Sergeant',
+    tribe: 'undead',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [
+      { on: 'onDeath', do: 'deathrattleBuffAllHealth', params: { health: 2 } },
+      { on: 'onGainAttack', do: 'onGainAttackImproveHpGrant', params: { improve: 2 } },
+    ],
+    text: '**Deathrattle:** Give your minions **+2 Health**. Improves each time Sergeant gains Attack.',
+    goldenText: '**Deathrattle:** Give your minions **+4 Health**. Improves **+4** each time Sergeant gains Attack.',
+  },
+  {
+    // When you cast a spell, give your Undead +2 Attack wherever they are (board + hand) and stack the
+    // bonus into undeadBuyAtk for future buys. Golden doubles the per-cast grant.
+    id: 'forsakenweaver',
+    name: 'Forsaken Weaver',
+    tribe: 'undead',
+    tier: 6,
+    attack: 5,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 2 } }],
+    text: 'When you cast a spell, give your Undead **+2 Attack** wherever they are.',
+    goldenText: 'When you cast a spell, give your Undead **+4 Attack** wherever they are.',
+  },
+  {
     // Avenge: every 4 friendly deaths in combat, permanently raise your max Gold by 1 (golden +2).
     // Carried back via CombatResult.playerMaxGoldGain → settleCombat bumps maxEmbers.
     id: 'soulsman',

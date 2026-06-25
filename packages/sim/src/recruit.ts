@@ -76,6 +76,7 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
  * `c.tribe === t || CARD_INDEX[c.cardId]?.tribe2 === t` check used across the dual-type systems.
  */
 export function isTribe(card: BoardCard, tribe: Tribe): boolean {
+  if (tribe !== 'neutral' && CARD_INDEX[card.cardId]?.universalTribe) return true;
   return card.tribe === tribe || CARD_INDEX[card.cardId]?.tribe2 === tribe;
 }
 
@@ -955,7 +956,76 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.spellsCast += 1;
     ctx.state.spellsThisTurn += 1;
   },
+
+  // ─── New content batch (recruit side) ──────────────────────────────────────
+
+  /** Deathswarmer — Battlecry: give your Undead +N Attack wherever they are (board + hand), and stack the
+   *  bonus into undeadBuyAtk so future undead buys carry it too. Golden doubles N. */
+  battlecryBuffUndeadAttack: (ctx, self, params) => {
+    const amount = num(params.amount, 1) * gold(self);
+    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
+      if (isTribe(card, 'undead')) addBuff(card, nameOf(self), amount, 0);
+    }
+    ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
+  },
+
+  /** Demonic Anomaly — Battlecry: gain N free refreshes and buff each tavern offer +M/+M. Golden doubles both. */
+  battlecryFreeRollsAndBuffShop: (ctx, self, params) => {
+    const rolls = num(params.rolls, 2) * gold(self);
+    const buffAmt = num(params.buff, 3) * gold(self);
+    ctx.state.freeRolls += rolls;
+    for (const offer of ctx.state.shop) {
+      offer.atk = (offer.atk ?? 0) + buffAmt;
+      offer.hp = (offer.hp ?? 0) + buffAmt;
+    }
+  },
+
+  /** Acid — every N manual refreshes, consume a random non-Fodder offer from the tavern, gaining its stats.
+   *  `rollTick` is per-instance on BoardCard and resets each wave in advanceCombat. Golden doubles the gain. */
+  onRollConsumeShop: (ctx, self, params) => {
+    const every = num(params.every, 4);
+    self.rollTick = (self.rollTick ?? 0) + 1;
+    if (self.rollTick % every !== 0) return;
+    const choices = ctx.state.shop.filter((s) => {
+      const def = CARD_INDEX[s.cardId];
+      return def && !def.keywords.includes('FD');
+    });
+    if (choices.length === 0) return;
+    const target = pickRandom(ctx.state, choices, 1)[0];
+    if (!target) return;
+    ctx.state.shop = ctx.state.shop.filter((s) => s !== target);
+    const def = CARD_INDEX[target.cardId];
+    if (!def) return;
+    const atkGain = (def.attack + (target.atk ?? 0)) * gold(self);
+    const hpGain = (def.health + (target.hp ?? 0)) * gold(self);
+    addBuff(self, nameOf(self), atkGain, hpGain);
+  },
+
+  /** Forsaken Weaver (recruit half) — when a spell is cast, give your Undead +N Attack wherever they are
+   *  (board + hand), and stack the bonus into undeadBuyAtk for future undead buys. Golden doubles N. */
+  spellCastBuffUndeadAttack: (ctx, self, params) => {
+    const amount = num(params.attack, 2) * gold(self);
+    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
+      if (isTribe(card, 'undead')) addBuff(card, nameOf(self), amount, 0);
+    }
+    ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
+  },
 };
+
+/** Fire `onRoll` effects for every board card that has one (Acid's every-N-refresh consume).
+ *  Called by the reducer's `roll` case after the tavern is refreshed. */
+export function applyOnRoll(state: RunState): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'onRoll') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+    }
+  }
+}
 
 /** Open a Discover of up to 3 distinct random spells (Black Belt Brian). Sets `state.discover`; the
  *  reducer's `discover` case resolves the pick into the hand and opens the next queued spec, if any. */
@@ -1390,6 +1460,10 @@ export function consumeTavernFodder(state: RunState): void {
     // Record the Fodder's *effective* (buffed) stats for the ghost, and the eater's actual gain (× mult)
     // so the UI can float the +X/+X on the eater (the shop-phase buff float).
     eaten.push({ eaterUid: eater.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
+    // Track raw fodder stats (pre-multiplier) for Abhorrent Horror's SoC window.
+    state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
+    state.fodderConsumedThisTurn.attack += fa;
+    state.fodderConsumedThisTurn.health += fh;
   }
   state.rngCursor = rng.state();
   // Record the consume for the UI to replay (show the Fodder, swirl it into the eater).

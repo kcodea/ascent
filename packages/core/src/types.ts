@@ -42,7 +42,8 @@ export type GameEvent =
   | 'battlecryTriggered' // recruit phase: a Battlecry just resolved (fires per Drakko repeat) — Karwind
   | 'cast' // a spell's own effect resolves (its chosen target is in the payload)
   | 'spellCast' // recruit phase: any spell was cast (for spell-tracking minions)
-  | 'summonOverflow'; // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
+  | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
+  | 'onRoll'; // recruit phase: the shop was refreshed (Acid's every-N-refreshes consume)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -143,7 +144,20 @@ export type EffectFactoryId =
   | 'spellGrantTribeAttack' // cast: a tribe gets +Attack for the rest of the run (Lantern of Souls)
   | 'healHero' // cast: heal the hero (capped at max Resolve — Mend)
   | 'conjureTribeArmy' // cast: conjure N copies of a random buyable minion of a tribe to hand (Undead Army)
-  | 'stealTavernMinion'; // cast: steal a random minion offer from the tavern into the hand (Lasso)
+  | 'stealTavernMinion' // cast: steal a random minion offer from the tavern into the hand (Lasso)
+  // --- combat factories (new content batch) ---
+  | 'deathrattleGiveHealth' // Trickster: Deathrattle — give a random friendly minion this minion's HP (golden: twice)
+  | 'scGainFodderStats' // Abhorrent Horror: Start of Combat — gain stats equal to all Fodder consumed this turn
+  | 'onSummonSelfBuff' // Thundering Abomination: on any friendly summon in combat, buff self +atk/+hp (Engraved)
+  | 'onSummonOverflowBuffTribe' // Thundering Abomination: on overflow summon, buff tribe +atk/+hp
+  | 'deathrattleBuffAllHealth' // Sergeant: Deathrattle — give all friends +HP; improves when Sergeant gains Attack
+  | 'onGainAttackImproveHpGrant' // Sergeant: when this gains Attack in combat, improve the Deathrattle HP grant
+  | 'spellCastBuffUndeadAttack' // Forsaken Weaver (combat): on spell cast, give your Undead +Attack
+  | 'deathrattleGrantCardToHand' // Pillager: Deathrattle — add a specific card to hand after combat
+  // --- recruit factories (new content batch) ---
+  | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
+  | 'battlecryFreeRollsAndBuffShop' // Demonic Anomaly: Battlecry — gain free refreshes + buff the current tavern
+  | 'onRollConsumeShop'; // Acid: every N refreshes, consume a random tavern minion (stats gained × golden)
 
 export interface EffectDef {
   on: GameEvent;
@@ -159,6 +173,9 @@ export interface CardDef {
   /** Optional second tribe — a dual-type minion (e.g. Heckbinder = Demon/Mech). Counts as both
    *  tribes for tribe checks (Magnetic targeting, tribe buffs) and renders a split-hue card. */
   tribe2?: Tribe;
+  /** Counts as EVERY non-neutral tribe simultaneously: receives all tribe buffs and can Magnetize onto
+   *  any non-neutral minion (Symbiotic Attachment). Absent = normal tribe matching. */
+  universalTribe?: boolean;
   tier: Tier;
   attack: number;
   health: number;
@@ -274,6 +291,9 @@ export interface Minion {
   /** Gryphon: how many free refreshes it has banked this combat — it grants one per hit up to a cap
    *  (so a Taunt soaking many hits doesn't roll unlimited refreshes). Absent = 0. */
   grantedRefresh?: number;
+  /** Sergeant: accumulated HP bonus on its Deathrattle (grows each time Sergeant gains Attack in
+   *  combat). Applied on top of the base params.health when the Deathrattle fires. Absent = 0. */
+  hpGrantBonus?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   side: Side;
@@ -428,6 +448,10 @@ export interface CombatContext {
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
    *  (the buff/damage) is applied by the caller — this just fires the `spellCast` trigger + counts it. */
   castSpell(side: Side): void;
+  /** Abhorrent Horror: total Fodder stats consumed this turn (attack + health), passed in from RunState.
+   *  The `scGainFodderStats` factory reads these at Start of Combat. 0 if no Fodder was eaten. */
+  readonly fodderConsumedAtk: number;
+  readonly fodderConsumedHp: number;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

@@ -3,6 +3,43 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-24 (session 3)
+
+### feat: Symbiote hero + 9 new minions (4 Demons, 5 Undead) — universalTribe, undeadBuyAtk, onRoll, fodderConsumedThisTurn
+
+**Hero: Symbiote** — a new hero whose passive grants a 1/1 Magnetic token called **Symbiotic Attachment** at the start of the run and every 4 turns. The token has `universalTribe: true` — it counts as every tribe simultaneously, getting ALL tribe-conditional buffs and magnetizing onto any non-neutral minion (instead of only same-tribe hosts).
+
+**New engine primitives introduced:**
+
+- **`universalTribe?: boolean` on `CardDef`** — causes `isTribe()` (recruit), the `tribeAuras` loop (combat), and `buffOnSummon` / `summonBuffTribeImprove` / `deathrattleBuffTribe` / `deathrattleBuffTribeByTally` factories to match on any non-neutral tribe check. `magnetizesTo()` in reducer.ts also recognizes it (any non-neutral target is valid).
+- **`undeadBuyAtk: number` on `RunState`** — the permanent recruit-time attack bonus stacked by Deathswarmer and Forsaken Weaver. Baked into newly bought undead at buy time (buy case in reducer.ts) via an "Undead Bond" tracked buff. Re-applied on Reborn and mid-combat summons via `applyUndeadBonus(m, true)` in simulate.ts (already wired in session 2). Kept separate from `undeadAttackBonus` (Lantern of Souls, combat-only) to prevent double-applying the buy-time bonus.
+- **`'onRoll'` GameEvent + `applyOnRoll()`** — fires after every manual tavern refresh (roll action in reducer.ts). Used by Acid. `rollTick` per-instance on `BoardCard` tracks per-card refresh counts; reset each wave in `advanceCombat`.
+- **`fodderConsumedThisTurn?: { attack; health }` on `RunState`** — accumulates raw fodder stats consumed in `consumeTavernFodder` each wave. Reset to `{ 0, 0 }` in `advanceCombat`. Passed to `simulate()` as `fodderConsumedAtk`/`fodderConsumedHp` on `CombatContext`; used by Abhorrent Horror's SoC factory.
+- **`heroPowerTick?: number` on `RunState`** — tracks how many faceOmen ticks have passed for the Symbiote; every 4 ticks a new token is granted to the hand. Initial token is granted in `createRun`.
+
+**4 new Demon cards:**
+
+- **Acid (T6 7/7, Consume Native)** — `onRoll` / `onRollConsumeShop`: every 4 manual refreshes, consumes a random non-Fodder tavern offer and gains its stats (golden doubles). Wave-scoped via `rollTick`.
+- **Trickster (T1 1/3)** — `onDeath` / `deathrattleGiveHealth`: give a random friendly minion this minion's current `maxHealth` (golden picks twice independently).
+- **Demonic Anomaly (T4 4/4)** — `onPlay` / `battlecryFreeRollsAndBuffShop`: gain 2 free refreshes and buff the current tavern +3/+3 (golden: 4 refreshes, +6/+6).
+- **Abhorrent Horror (T6 1/1, Start of Combat)** — `startOfCombat` / `scGainFodderStats`: gains Attack + Health equal to all fodder consumed this turn (golden doubles). SoC window so Soulfeeder + Anomaly combos can power it up.
+
+**5 new Undead cards:**
+
+- **Deathswarmer (T2 2/2)** — `onPlay` / `battlecryBuffUndeadAttack`: give your Undead +1 Attack wherever they are and stack `undeadBuyAtk` (golden +2).
+- **Pillager (T3 3/4)** — `onDeath` / `deathrattleGrantCardToHand`: get a Gold Pouch (cardId `emberpouch`) in hand after combat (golden: 2 pouches).
+- **Thundering Abomination (T5 4/7, Engraved)** — `onSummon` / `onSummonSelfBuff` (+3/+3 per friendly summon, golden +6/+6) + `summonOverflow` / `onSummonOverflowBuffTribe` (overflow summons give your Undead +2/+2, golden +4/+4). Stats carry back via EG.
+- **Sergeant (T5 6/6)** — `onDeath` / `deathrattleBuffAllHealth` (give all living friendlies +2 Health, tracked in `self.hpGrantBonus`) + `onGainAttack` / `onGainAttackImproveHpGrant` (each time Sergeant gains Attack in combat, its DR grant improves by +2; golden +4). A snowball combo with Engraved-granting effects.
+- **Forsaken Weaver (T6 5/8)** — `spellCast` / `spellCastBuffUndeadAttack` (combat half: living Undead get +2 Attack; recruit half: board+hand Undead get +2 and `undeadBuyAtk` stacks; golden +4).
+
+**Token added:** `symbioticattachment` (1/1 Magnetic, `universalTribe: true`, counts as all tribes) in tokens.ts.
+
+**Files changed:** `packages/core/src/types.ts`, `packages/content/src/schema.ts`, `packages/sim/src/heroes.ts`, `packages/content/src/cards/tokens.ts`, `packages/content/src/cards/demons.ts`, `packages/content/src/cards/undead.ts`, `packages/sim/src/state.ts`, `packages/core/src/combat/simulate.ts`, `packages/core/src/effects/factories.ts`, `packages/sim/src/reducer.ts`, `packages/sim/src/recruit.ts`.
+
+**Verification:** `npm run typecheck && npm run lint && npm test` (325/325) + `npm run build:web` all green. No art files matched the new card IDs.
+
+---
+
 ## 2026-06-24 (session 2)
 
 ### Fix: Crypt Drake live text · Twilight Whelp sequential spawn · Broodmother Taunt in snapshot · Golden Stuntdrake procs twice

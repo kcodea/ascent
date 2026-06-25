@@ -37,6 +37,9 @@ export function simulate(
   undeadAttackBonus = 0,
   undeadHealthBonus = 0,
   spellsCast = 0,
+  undeadBuyAtk = 0,
+  fodderConsumedAtk = 0,
+  fodderConsumedHp = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -63,11 +66,14 @@ export function simulate(
    * base stats, dropping the bonus, so it's re-applied there too). Pure: keyed only on side + tribe.
    */
   const hasUndeadBonus = undeadAttackBonus > 0 || undeadHealthBonus > 0; // Lantern of Souls active?
-  const applyUndeadBonus = (m: Minion): void => {
-    if (!hasUndeadBonus) return; // common case: no Lantern → skip the side/tribe checks entirely
+  // `includeBuyAtk`: pass true for mid-combat summons and Reborn, which start from base CardDef stats
+  // and therefore haven't had the buy-time bonus baked in yet. Starting minions already have it.
+  const applyUndeadBonus = (m: Minion, includeBuyAtk = false): void => {
+    const extraAtk = includeBuyAtk ? undeadBuyAtk : 0;
+    if (!hasUndeadBonus && extraAtk === 0) return;
     if (m.side !== 'player') return;
-    if (m.tribe !== 'undead' && m.tribe2 !== 'undead') return;
-    if (undeadAttackBonus > 0) m.attack = Math.max(0, m.attack + undeadAttackBonus);
+    if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !cards[m.cardId]?.universalTribe) return;
+    if (undeadAttackBonus + extraAtk > 0) m.attack = Math.max(0, m.attack + undeadAttackBonus + extraAtk);
     if (undeadHealthBonus > 0) {
       m.health += undeadHealthBonus;
       m.maxHealth += undeadHealthBonus;
@@ -118,6 +124,8 @@ export function simulate(
     boards,
     events,
     spellsThisTurn,
+    fodderConsumedAtk,
+    fodderConsumedHp,
     deathrattleTally: () => deathrattlesBase + playerDeathrattles,
     log: (event) => {
       events.push(event);
@@ -225,7 +233,7 @@ export function simulate(
       if (near >= 0) index = near + 1;
     }
     arr.splice(index, 0, minion);
-    applyUndeadBonus(minion); // Lantern of Souls — a summoned player Undead (token, filled minion) gets it too
+    applyUndeadBonus(minion, true); // Lantern + buy-time bonus — summoned minions start from base stats
     // Grant keywords (e.g. Taunt from Broodmother) BEFORE snapshotting so the UI sees them from frame 1.
     if (grantKeywords) {
       for (const kw of grantKeywords) {
@@ -240,7 +248,7 @@ export function simulate(
     bus.emit('onSummon', { minion, side });
     // Persistent tribe auras (Grim) catch minions summoned after they were registered.
     for (const aura of tribeAuras) {
-      if (aura.side === side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe)) {
+      if (aura.side === side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!cards[minion.cardId]?.universalTribe))) {
         ctx.buff(minion, aura.attack, aura.health, aura.source);
       }
     }
@@ -302,7 +310,7 @@ export function simulate(
         minion.keywords = minion.keywords.filter((k) => k !== 'R');
         minion.health = 1;
       }
-      applyUndeadBonus(minion); // Reborn reset stats to base — re-apply Lantern of Souls to a player Undead
+      applyUndeadBonus(minion, true); // Reborn reset stats to base — re-apply Lantern + buy-time bonus
       events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords] });
       return;
     }

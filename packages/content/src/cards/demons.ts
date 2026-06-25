@@ -95,6 +95,60 @@ export const DEMONS: CardDef[] = [
     text: '**End of Turn:** all Fodder gets **+1/+1**, wherever it is.',
   },
   {
+    // Every 4 manual refreshes, consumes a random non-Fodder offer from the tavern and gains its stats
+    // (golden doubles the stats gained). Uses `rollTick` on the BoardCard to count refreshes per wave;
+    // rollTick resets in advanceCombat so the every-4 cadence is wave-scoped.
+    id: 'acid',
+    name: 'Acid',
+    tribe: 'demon',
+    tier: 6,
+    attack: 7,
+    health: 7,
+    keywords: ['CN'],
+    effects: [{ on: 'onRoll', do: 'onRollConsumeShop', params: { every: 4 } }],
+    text: 'Every 4 refreshes, consume a random tavern minion.',
+    goldenText: 'Every 4 refreshes, consume a random tavern minion (gain **double** its stats).',
+  },
+  {
+    id: 'trickster',
+    name: 'Trickster',
+    tribe: 'demon',
+    tier: 1,
+    attack: 1,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleGiveHealth', params: {} }],
+    text: '**Deathrattle:** Give a random friendly minion this minion\'s Health.',
+    goldenText: '**Deathrattle:** Give a random friendly minion this minion\'s Health **twice**.',
+  },
+  {
+    id: 'demonanomaly',
+    name: 'Demonic Anomaly',
+    tribe: 'demon',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryFreeRollsAndBuffShop', params: { rolls: 2, buff: 3 } }],
+    text: '**Battlecry:** Gain 2 free refreshes. Buff the current tavern **+3/+3**.',
+    goldenText: '**Battlecry:** Gain **4** free refreshes. Buff the current tavern **+6/+6**.',
+  },
+  {
+    // Start of Combat: gains the full attack + health of all Fodder consumed this turn (before combat).
+    // `fodderConsumedThisTurn` is tracked in consumeTavernFodder and passed to simulate() as
+    // fodderConsumedAtk/Hp on the CombatContext. Golden doubles everything.
+    id: 'abhorrenthorror',
+    name: 'Abhorrent Horror',
+    tribe: 'demon',
+    tier: 6,
+    attack: 1,
+    health: 1,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scGainFodderStats', params: {} }],
+    text: '**Start of Combat:** Gain +Attack/+Health equal to the Fodder consumed this turn.',
+    goldenText: '**Start of Combat:** Gain **double** the Attack/Health of Fodder consumed this turn.',
+  },
+  {
     // Deathrattle feeds the Fodder engine from combat: a death queues Fodder into your next tavern (carried
     // back via CombatResult.playerFodderGrants → settleCombat). Golden queues 2.
     id: 'burialimp',

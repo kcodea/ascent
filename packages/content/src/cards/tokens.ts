@@ -96,6 +96,22 @@ export const TOKENS: CardDef[] = [
     goldenText: 'All stats are **Engraved**. When a minion attacks, cast **Growth twice** (+6/+8 to your minions).',
   },
   {
+    // Symbiote hero power token — a 1/1 Magnetic that counts as every tribe. Magnetizes onto ANY
+    // non-neutral minion (all-type magnetic targeting handled in magnetizesTo). Gives the welder
+    // +1/+1 regardless of tribe and counts for all tribe-buff effects on the board / in hand.
+    id: 'symbioticattachment',
+    name: 'Symbiotic Attachment',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: ['M'],
+    effects: [],
+    text: '**Magnetic**. Counts as all tribes.',
+    token: true,
+    universalTribe: true,
+  },
+  {
     // Twilight Whelp's Deathrattle cub — a 3/3 Dragon that ATTACKS IMMEDIATELY when summoned (out of turn
     // order), then joins the rotation. Not in the shop. (Broodmother → Twilight Whelps → these.)
     id: 'whelpling',

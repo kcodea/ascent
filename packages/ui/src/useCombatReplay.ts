@@ -375,6 +375,8 @@ export interface CombatReplay {
   handGrant: { cardId: string; key: number } | null;
   /** Card ids granted to the hand so far in the replay — appended to the combat hand so it grows live. */
   handGrantsShown: string[];
+  /** uids whose effect fired in the current window — their trigger medallion pulses. */
+  triggerUids: Set<string>;
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -407,6 +409,7 @@ export function useCombatReplay(
   const [beatIdx, setBeatIdx] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
+  const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
@@ -431,12 +434,23 @@ export function useCombatReplay(
     setBeatIdx(0);
     setFloats([]);
     setDeathFloats([]);
+    setTriggers(new Set());
     setFinished(false);
     setAttackUid(null);
     gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
     setProjectiles([]);
     setShake(0);
     setHandGrant(null);
+  }, [combat]);
+
+  // uid → cardId for the whole fight (initial boards + everything summoned) — used to spot which dying
+  // unit has a Deathrattle (so its medallion pulses) and which is a Blaster (purple blast bolts).
+  const cardIds = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!combat) return m;
+    for (const u of [...combat.initial.player, ...combat.initial.enemy]) m.set(u.uid, u.cardId);
+    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.minion.cardId);
+    return m;
   }, [combat]);
 
   // Track tab visibility (drives the pause-while-hidden gate on the beat clock).
@@ -545,6 +559,39 @@ export function useCombatReplay(
     return () => timers.forEach((id) => window.clearTimeout(id));
   }, [active, beatIdx, beats, events, findEl, combatSpeed]);
 
+  // Trigger-medallion pulse — when a unit's EFFECT fires this beat (Start-of-Combat, Deathrattle/summon,
+  // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.
+  // We tag the acting unit's uid, then clear it after the pulse animation so it always completes (and a
+  // re-trigger restarts it). Held a fixed ~1.15s (glow flash + delayed ring) regardless of combat speed.
+  useEffect(() => {
+    if (!active || beatIdx === 0) return;
+    const beat = beats[beatIdx - 1];
+    if (!beat) return;
+    const trig = new Set<string>();
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e) continue;
+      if ((e.type === 'sc' || e.type === 'buff' || e.type === 'rally') && e.source) trig.add(e.source);
+      else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
+      else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);
+      // A death whose unit has a Deathrattle/Avenge effect: its trigger just fired (the cleanest signal —
+      // the resulting summon/buff events don't reliably carry the dying unit as their source).
+      else if (e.type === 'death') {
+        const effs = CARD_INDEX[cardIds.get(e.target) ?? '']?.effects;
+        if (effs?.some((f) => f.on === 'onDeath' || f.on === 'avenge')) trig.add(e.target);
+      }
+    }
+    if (trig.size === 0) return;
+    sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)
+    setTriggers((prev) => new Set([...prev, ...trig]));
+    const t = window.setTimeout(() => setTriggers((prev) => {
+      const next = new Set(prev);
+      for (const uid of trig) next.delete(uid);
+      return next;
+    }), 1150);
+    return () => window.clearTimeout(t);
+  }, [active, beatIdx, beats, events, cardIds]);
+
   // Combat SFX — one sound per notable event type in the beat just resolved.
   useEffect(() => {
     if (!active || beatIdx === 0) return; // only during the live replay — fixes a phantom "smack" at the next
@@ -579,15 +626,6 @@ export function useCombatReplay(
     if (combat.result === 'win') sfx.win();
     else if (combat.result === 'lose') sfx.lose();
   }, [active, done, combat]);
-
-  // uid → cardId (for spotting which dying minion is a Blaster, to fire its purple blast bolts).
-  const cardIds = useMemo(() => {
-    const m = new Map<string, string>();
-    if (!combat) return m;
-    for (const u of [...combat.initial.player, ...combat.initial.enemy]) m.set(u.uid, u.cardId);
-    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.minion.cardId);
-    return m;
-  }, [combat]);
 
   // Measure lunge + SC projectiles AFTER the beat commits, so positions reflect the
   // frame on screen (not the previous one). Runs synchronously before paint.
@@ -746,6 +784,7 @@ export function useCombatReplay(
 
   return {
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
+    triggerUids: triggers,
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, enemyDeaths, combatBuffs, skip: () => setBeatIdx(beats.length),
   };

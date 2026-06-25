@@ -123,6 +123,8 @@ export const Card = memo(function Card({
   arrived,
   electrify,
   karwind,
+  pulse,
+  glow,
   refCards,
   dragging,
   onPointerDown,
@@ -157,6 +159,12 @@ export const Card = memo(function Card({
   /** Battlecry-trigger proc flash: `'flame'` = a Dragon just buffed by Karwind (orange); `'haze'` = Bane
    *  just enchanted Fodder (purple). On top of the normal buff flash. */
   karwind?: 'flame' | 'haze' | false;
+  /** Pulse the trigger medallion — a brief glow + a slow ring of energy when this unit's effect
+   *  *officially* fires (a Deathrattle, a Battlecry, a cadence card paying off, …). */
+  pulse?: boolean;
+  /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
+   *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
+  glow?: boolean;
   /** Cards this card references (the token it summons / Fodder it buffs) — shown as a hover popup. */
   refCards?: CardView[];
   /** A drag is in progress somewhere — suppress the referenced-card hover popup (you're holding a card). */
@@ -313,7 +321,7 @@ export const Card = memo(function Card({
             <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}`}>{card.attack}</span>
             <span className={`hp${statCls(card.health, card.baseHealth, card.floorHealth)}`}>{card.health}</span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span className="cgem" aria-hidden="true"><Icon name={mechIcon} /></span>
+            <span className={`cgem${pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
           </>
         )}
       </div>

@@ -47,17 +47,18 @@ class FxController {
 
   /** Mount the overlay canvas into `parent` (a fixed, full-viewport, pointer-events:none div).
    *  Lazily creates the PixiJS Application on first call and reuses it thereafter. */
-  attach(parent: HTMLElement): void {
-    if (typeof window === 'undefined') return; // SSR guard
+  attach(parent: HTMLElement): Promise<void> {
+    if (typeof window === 'undefined') return Promise.resolve(); // SSR guard
     if (this.app) {
       parent.appendChild(this.app.canvas); // re-mount the existing canvas (e.g. after a remount)
-      return;
+      return Promise.resolve();
     }
-    if (this.initing) return;
+    if (this.initing) return this.initing;
     this.initing = this.init(parent).catch((e) => {
       // A failed init (e.g. no WebGL context) otherwise fails silently and every impact() no-ops.
       console.error('[pixiFx] overlay init failed — effects disabled:', e);
     });
+    return this.initing;
   }
 
   private async init(parent: HTMLElement): Promise<void> {
@@ -266,6 +267,47 @@ class FxController {
   }
 
   /**
+   * The Discover flourish: golden, white-hot magic + sparkles erupt from screen center (cx, cy) and
+   * shoot outward off every edge. Additive (reads white-hot over the dimmed board), ≤3s. Rendered on
+   * the discover overlay's own burst layer — behind the cards/UI, above the dark backdrop.
+   */
+  discoverBurst(cx: number, cy: number): void {
+    if (!this.ready) return;
+    // central bloom — a big white-gold flash at the origin
+    this.spawn(this.glowTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 700, fromScale: 0.5, toScale: 5.5, spin: 0,
+      tint: 0xfff1c0, blend: 'add',
+    });
+    // glow motes — large soft orbs drifting outward, long-lived (the "magic")
+    const motes = 16;
+    for (let i = 0; i < motes; i++) {
+      const a = (i / motes) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const sp = 220 + Math.random() * 340;
+      this.spawn(this.glowTex!, {
+        x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.72,
+        life: 1500 + Math.random() * 900, fromScale: 0.6 + Math.random() * 0.8, toScale: 0.1,
+        spin: 0, tint: Math.random() < 0.5 ? 0xffe9a8 : 0xfff6d8, blend: 'add', peakAlpha: 0.85,
+      });
+    }
+    // sparkles — many fast shards flung radially, fast enough to reach the page edges
+    const sparks = 50;
+    for (let i = 0; i < sparks; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 650 + Math.random() * 900; // fast → shoot off the sides
+      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.sparkTex!;
+      const warm = Math.random();
+      const tint = warm < 0.4 ? 0xffffff : warm < 0.8 ? 0xffe79a : 0xffc23a;
+      this.spawn(tex, {
+        x: cx + (Math.random() - 0.5) * 40,
+        y: cy + (Math.random() - 0.5) * 40,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.86,
+        life: 900 + Math.random() * 1500, fromScale: 0.5 + Math.random() * 0.9, toScale: 0.05,
+        spin: (Math.random() - 0.5) * 10, rotation: a, tint, blend: 'add',
+      });
+    }
+  }
+
+  /**
    * DEV: fire a big, slow, unmissable burst at the center of the screen and log full
    * diagnostics — proves the layer is alive + visible without needing a combat. Logged
    * fields tell us where it breaks if you still see nothing.
@@ -418,8 +460,14 @@ class FxController {
  *  calls `pixiFx.impact(...)` at contact points. */
 export const pixiFx = new FxController();
 
+/** A second, independent FX layer mounted INSIDE the Discover overlay (behind the cards, above the dark
+ *  backdrop) — so the discover burst reads white-hot over the dim without covering the UI. Its own app +
+ *  canvas; attached when Discover opens, its canvas re-appended on each subsequent open. */
+export const discoverFx = new FxController();
+
 // DEV: expose for live effect tuning + manual firing from the console (mirrors the LungeTuner /
 // SfxMixer dev affordances). Stripped from production by the static env check.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __pixiFx: FxController }).__pixiFx = pixiFx;
+  (window as unknown as { __pixiFx: FxController; __discoverFx: FxController }).__pixiFx = pixiFx;
+  (window as unknown as { __pixiFx: FxController; __discoverFx: FxController }).__discoverFx = discoverFx;
 }

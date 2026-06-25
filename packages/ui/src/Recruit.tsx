@@ -6,7 +6,7 @@ import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeT
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
-import { pixiFx } from './pixiFx';
+import { pixiFx, discoverFx } from './pixiFx';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -342,6 +342,10 @@ export function Recruit() {
   const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
+  // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
+  // these pulse the medallion (ring); progress-only ticks (in eotProcUids but not here) just glow.
+  const [eotPulseUids, setEotPulseUids] = useState<Set<string>>(new Set());
+  const discoverBurstRef = useRef<HTMLDivElement>(null); // mount point for the discover burst FX layer
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
@@ -1033,6 +1037,7 @@ export function Recruit() {
     prevBoardUidsRef.current = new Set(run.board.map((c) => c.uid));
     if (fresh.length === 0) return;
     setBattlecryUids((s) => new Set([...s, ...fresh]));
+    sfx.triggerPulse(); // a Battlecry officially fires → the medallion pulse cue (deduped)
     const t = window.setTimeout(() => {
       setBattlecryUids((s) => {
         const n = new Set(s);
@@ -1042,6 +1047,15 @@ export function Recruit() {
     }, 760);
     return () => window.clearTimeout(t);
   }, [run.board, inCombat]);
+
+  // Discover opened → erupt the golden magic burst on the overlay's behind-the-cards FX layer. Fired once
+  // the burst app has initialised (attach resolves immediately if already created).
+  useEffect(() => {
+    if (!run.discover) return;
+    const el = discoverBurstRef.current;
+    if (!el) return;
+    void discoverFx.attach(el).then(() => discoverFx.discoverBurst(window.innerWidth / 2, window.innerHeight / 2));
+  }, [run.discover]);
 
   // Karwind flame flash: when a Battlecry triggers Karwind, flame the Dragons it buffed (~0.9s).
   useEffect(() => {
@@ -1228,13 +1242,21 @@ export function Recruit() {
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
     const repeats = chronosRepeats(run);
-    type Beat = { uid: string; kind: 'ritualist' | 'combinator' | 'generic'; targets: string[] };
+    type Beat = { uid: string; kind: 'ritualist' | 'combinator' | 'generic'; targets: string[]; completes: boolean };
     const beats: Beat[] = [];
     for (const card of run.board) {
       const def = CARD_INDEX[card.cardId];
       if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
       const kind: Beat['kind'] =
         card.cardId === 'ritualist' ? 'ritualist' : card.cardId === 'combinator' ? 'combinator' : 'generic';
+      // A cadence End-of-Turn effect (Frontdrake: every `every` turns) only *officially* fires on its due
+      // turn — other turns it just ticks toward it (progress → glow only). Non-cadence EOT effects fire
+      // every turn (→ pulse every turn). `completes` drives glow-vs-pulse + the trigger sound.
+      const cadence = def.effects.find(
+        (e) => e.on === 'endOfTurn' && typeof e.params?.every === 'number' && e.params.every > 1,
+      );
+      const every = (cadence?.params?.every as number | undefined) ?? 1;
+      const completes = !cadence || (((card.eotTick ?? 0) + 1) % every === 0);
       // Combinator welds onto 2 *random* friendly Mechs each proc — derive the exact same uids the
       // reducer will (shared seeded picker), so the electrify highlights the Mechs that actually get
       // buffed. Computed per proc (r), since each repeat picks a fresh random pair.
@@ -1242,7 +1264,7 @@ export function Recruit() {
       for (let r = 0; r < repeats; r++) {
         const targets =
           kind === 'combinator' ? magnetizeTargets(run.board, card.uid, 2, run.seed, run.wave, slot, r) : [];
-        beats.push({ uid: card.uid, kind, targets });
+        beats.push({ uid: card.uid, kind, targets, completes });
       }
     }
     if (beats.length === 0) {
@@ -1263,6 +1285,7 @@ export function Recruit() {
     const playBeat = (i: number): void => {
       if (i >= beats.length) {
         setEotProcUids(new Set());
+        setEotPulseUids(new Set());
         setElectrifyUids(new Set());
         endTurnPendingRef.current = false;
         setEndTurnAnimating(false);
@@ -1271,6 +1294,8 @@ export function Recruit() {
       }
       const b = beats[i]!;
       setEotProcUids(new Set([b.uid]));
+      setEotPulseUids(b.completes ? new Set([b.uid]) : new Set()); // pulse only when it officially fires
+      if (b.completes) sfx.triggerPulse(); // the energy-release cue (deduped across simultaneous pulses)
       if (b.kind === 'ritualist') setShopFlash((k) => k + 1);
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
@@ -1291,6 +1316,7 @@ export function Recruit() {
       sfx.proc();
       window.setTimeout(() => {
         setEotProcUids(new Set());
+        setEotPulseUids(new Set());
         setElectrifyUids(new Set());
         window.setTimeout(() => playBeat(i + 1), GAP);
       }, BEAT);
@@ -1527,6 +1553,7 @@ export function Recruit() {
                 side="foe"
                 anim={replay.anims[u.uid]}
                 floats={replay.floatsFor(u.uid)}
+                triggered={replay.triggerUids.has(u.uid)}
               />
             ))
           ) : (
@@ -1574,6 +1601,7 @@ export function Recruit() {
                 side="you"
                 anim={replay.anims[u.uid]}
                 floats={replay.floatsFor(u.uid)}
+                triggered={replay.triggerUids.has(u.uid)}
               />
             ))
           ) : (
@@ -1593,6 +1621,10 @@ export function Recruit() {
                     targeted={((heroArmed || isPendingTarget(m.uid)) && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
+                    // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
+                    // card that only ticked this turn (proc'd but not complete) just glows.
+                    pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid)}
+                    glow={eotProcUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid) ? (m.cardId === 'bane' || CARD_INDEX[m.cardId]?.keywords.includes('FD') ? 'haze' : 'flame') : false}
                     suppressPop={returningFromCombat}
@@ -1860,6 +1892,9 @@ export function Recruit() {
 
       {run.discover && (
         <div className="discover-ov" role="dialog" aria-label="Discover a card">
+          {/* WebGL burst layer — sits behind the cards (z0) but above the overlay's dark backdrop, so the
+              golden magic reads white-hot without covering the UI. Driven by discoverFx (see the effect). */}
+          <div className="disc-burst" ref={discoverBurstRef} aria-hidden="true" />
           <div className="disc-panel">
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
             <div className="disc-banner"><span className="disp">Discover</span></div>

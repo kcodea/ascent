@@ -25,6 +25,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Discover burst.** Opening a Discover erupts a burst of golden, white-hot magic + sparkles from center
+  that shoots off the page edges — rendered behind the cards, over the dimmed board.
+- **Trigger-medallion pulse.** When a unit's effect fires (combat *or* shop — Start-of-Combat, Deathrattle,
+  Battlecry, aura, Avenge…), its centre medallion flares then releases a slow ring of energy with a sound,
+  so you can see which unit acted. Multi-turn cadence cards (e.g. Frontdrake) just *glow* as they tick and
+  *pulse* on the turn they pay off. (Simultaneous pulses share one sound.)
 - **Ryme re-fires every Battlecry + magnetize triggers summon-buffs.** **Ryme** now re-fires *economy*
   Battlecries too (Soulfeeder's Fodder, Hoarder's Gold, …) — they replay through their real recruit factory at
   settle, so the synergy actually pays out. And **magnetizing** a minion onto a host now fires summon-buffs on

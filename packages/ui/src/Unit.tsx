@@ -16,13 +16,15 @@ interface UnitProps {
   side: 'foe' | 'you';
   anim?: string;
   floats?: Float[];
+  /** Pulse the trigger medallion this beat — this unit's effect just fired in combat. */
+  triggered?: boolean;
 }
 
 const sameKeywords = (a: string[], b: string[]): boolean =>
   a === b || (a.length === b.length && a.every((k, i) => k === b[i]));
 
 /** A combat unit — the same Card as recruit, wrapped for animations, floats, and the DS ring. */
-function UnitInner({ u, side, anim, floats }: UnitProps) {
+function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
@@ -54,7 +56,7 @@ function UnitInner({ u, side, anim, floats }: UnitProps) {
   };
   return (
     <div className={cls} data-uid={u.uid}>
-      <Card card={view} />
+      <Card card={view} pulse={triggered} />
       {floats?.map((f) => (
         <span key={f.id} className={`float ${f.kind}${SYM_KINDS.has(f.kind) ? ' sym' : ''}`}>{f.text}</span>
       ))}
@@ -73,6 +75,7 @@ function UnitInner({ u, side, anim, floats }: UnitProps) {
 export const Unit = memo(UnitInner, (a, b) =>
   a.side === b.side &&
   a.anim === b.anim &&
+  a.triggered === b.triggered &&
   a.floats === b.floats &&
   a.u.uid === b.u.uid &&
   a.u.attack === b.u.attack &&

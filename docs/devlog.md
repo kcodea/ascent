@@ -5,6 +5,77 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Discover golden-magic burst (behind the cards)
+
+Opening a Discover now erupts a burst of golden, white-hot magic + sparkles from screen center that shoots
+outward off every edge (~2.5 s, capped under 3 s). It renders **behind the Discover cards/UI but above the
+overlay's dark backdrop**, so it reads white-hot over the dim without obscuring the choice.
+
+- **Second FX layer** (`pixiFx.ts`): a separate `discoverFx = new FxController()` instance, mounted on a
+  `.disc-burst` div *inside* the Discover overlay (z0, behind `.disc-panel` at z1, above the overlay's
+  `rgba(...,0.62)` backdrop). A root-level canvas can't sit between an overlay's own background and its
+  children, so the burst needs to live inside the overlay — hence a dedicated instance. `attach()` now
+  returns its init promise so the burst fires once the (async) app is ready; the canvas is re-appended on
+  each subsequent Discover (no WebGL-context churn).
+- **`discoverBurst(cx, cy)`**: a central white-gold bloom + 16 large soft glow motes drifting outward + 50
+  fast radial sparkles (shards/dots, 650–1550 px/s so they reach the page edges), all **additive** so they
+  glow white-hot over the dark dim. Max particle life ~2.5 s.
+- **Trigger** (`Recruit.tsx`): an effect on `run.discover` attaches `discoverFx` to the `.disc-burst` ref
+  and fires the burst when Discover opens.
+
+**Files:** `pixiFx.ts` (`discoverBurst`, `discoverFx`, `attach` returns a promise, DEV `__discoverFx`),
+`Recruit.tsx` (`.disc-burst` div + ref + trigger effect), `styles.css` (`.disc-burst` z0 / `.disc-panel` z1).
+
+**Verification:** `typecheck + lint + test (354) + build:web` all green. Live: `discoverFx` initialises as
+an independent app and `discoverBurst` spawns 67 additive particles (50 fast sparkles), confirmed via the
+`__discoverFx` handle. (Animation can't run in the headless preview — owner to eyeball the live burst.)
+
+### feat: trigger-medallion pulse when a unit's effect fires in combat
+
+Each unit's mechanic medallion (`.cgem` — the centre badge showing its Battlecry/Deathrattle/keyword
+glyph) now releases a slow ring of energy when that unit's effect actually fires during the combat
+replay, so you can read *which* unit just did something.
+
+- **Combat detection** (`useCombatReplay.ts`): a per-beat pass tags the acting unit's uid as "triggered"
+  from the beat's events — `sc` / `buff` / `rally` (source), `summon` / `toHand` (source), `improve` /
+  `maxGold` / `hpGrant` / `reborn` (target = effect owner), and **`death` where the dying card has an
+  `onDeath`/`avenge` effect** (the clean Deathrattle signal — its summon/buff events don't reliably carry
+  the dying unit as their source, which is why Deathrattles weren't pulsing in the first cut). Tags held a
+  fixed ~950 ms (independent of combat speed, so the ring always completes) then cleared; a re-trigger
+  restarts it. Exposed as `triggerUids: Set<string>`. (The `cardIds` uid→cardId memo was hoisted above
+  the effects so the Deathrattle lookup can use it.)
+- **Out of combat too**: the recruit warband pulses the medallion on Battlecry (on-play) and
+  officially-firing End-of-Turn effects.
+- **Progress glow vs official pulse** (owner ask, Frontdrake example): multi-turn *cadence* cards
+  (`endOfTurn` effect with an `every: N` param, e.g. Frontdrake's every-3-turns Dragon) only **glow**
+  on the turns they tick toward the trigger, and **pulse** (glow + ring) on the turn they actually pay
+  off. `Recruit`'s end-of-turn beat builder computes `completes = ((eotTick+1) % every === 0)` (non-
+  cadence EOT effects complete every turn); the warband `Card` gets `glow` (every proc) + `pulse` (only
+  completions / Battlecries). New `glow` prop → `.cgem.glowing` (the brief glow flash, no ring).
+- **Glow-then-pulse**: the medallion flares a very brief glow (`::before`, `cgemglow` 0.22s) and the ring
+  (`::after`, `cgempulse`, delayed 0.15s) releases *after* it. Both **compositor-only** (only
+  `transform`/`opacity` animate; the glow's radial bg + box-shadow are static — no per-frame repaint).
+  Tribe-colour-tinted over a warm-white core. The trigger tag is held ~1.15s so the full sequence runs.
+- **Sound** (`sfx.ts`): a new sourced **`triggerpulse`** clip (synth swell fallback) plays whenever the
+  *pulse* fires (not the progress glow). **Deduped** — a ~70 ms throttle collapses simultaneous pulses
+  (many units triggering on one combat beat / EOT step) into a single play so the audio never stacks; in
+  combat it's also fired once per beat. Added to the dev SFX mixer.
+- **Plumbing**: combat — `Recruit` → `Unit` → `Card`'s `pulse`/`glow` props; recruit — the board `Card`
+  sets them directly off the proc sets.
+
+**Files:** `useCombatReplay.ts` (trigger set + per-beat pass + `sfx.triggerPulse` + reset + export),
+`Unit.tsx` (`triggered` prop + memo), `Card.tsx` (`pulse`/`glow` props → `.cgem` class), `Recruit.tsx`
+(combat Units + recruit board: cadence `completes`, glow/pulse sets, Battlecry pulse + sound),
+`styles.css` (`.cgem.glowing`/`.pulsing` ::before glow + ::after ring), `sfx.ts` (`triggerPulse` + dedupe
++ mixer key), `audio/triggerpulse.mp3` (new).
+
+**Verification:** `typecheck + lint + test (354) + build:web` all green. CSS distinction confirmed live —
+`.glowing` resolves `::before cgemglow` with **no** `::after` ring; `.pulsing` resolves both the glow and
+the `::after cgempulse` ring. (CSS animations + GSAP combat can't run in the headless preview, so the
+moving effect + sound are owner-verified in a real fight/shop.)
+(Full combat playback is GSAP-driven and can't run in the headless preview; owner to eyeball in a real
+fight.)
+
 ### fix: Ryme re-fires EVERY Battlecry (economy ones replay at settle) + magnetizing now triggers summon-buffs
 
 Two owner-reported interaction gaps, both "the feature didn't extend to this case":

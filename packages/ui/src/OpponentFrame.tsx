@@ -6,12 +6,13 @@ import { useGame } from './store';
 /**
  * Top-right intel on the board you'll face when you end the turn: the next opponent's hero portrait + HP,
  * with tavern tier / triples / top tribe on hover. Shows a real captured board when the pool has a
- * wave/power match; otherwise the procedural threat (no hero) as a light telegraph. Recruit-phase only —
- * it previews exactly what `faceOmen` will serve at the current board power, so it firms up as you build.
+ * wave/power match; otherwise the procedural threat (no hero) as a light telegraph. Shown in recruit AND
+ * combat (it stays pinned top-right rather than jumping to a left-side banner) — it previews exactly what
+ * `faceOmen` will serve at the current board power, so it firms up as you build, then names the foe you fight.
  */
 export function OpponentFrame() {
   const run = useGame((s) => s.run);
-  if (run.phase !== 'recruit') return null;
+  if (run.phase !== 'recruit' && run.phase !== 'combat') return null;
   const snap = nextOpponent(run);
 
   if (!snap) {

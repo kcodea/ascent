@@ -6,6 +6,7 @@ import { sfx } from './sfx';
 import { pixiFx } from './pixiFx';
 import { getLungeConfig } from './lungeConfig';
 import { buildBeats, RESULT_TYPES } from './combatBeats';
+import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -380,6 +381,8 @@ export interface CombatReplay {
   beatCount: number;
   /** Enemy minions killed so far in the replay (up to the current beat) — drives Cassen's live counter. */
   enemyDeaths: number;
+  /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — drives the live Buffs window. */
+  combatBuffs: CombatBuffDelta;
   skip: () => void;
 }
 
@@ -680,6 +683,11 @@ export function useCombatReplay(
     return n;
   }, [events, processedEnd]);
 
+  // Run-buff gains telegraphed so far this fight (spell power, max Gold) — folded into the live Buffs window so
+  // it ticks up in sync with the replay, then settles into the run state at combat end. Same up-to-the-beat
+  // accumulation as `enemyDeaths`.
+  const combatBuffs = useMemo(() => combatBuffDelta(events, processedEnd), [events, processedEnd]);
+
   // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit
   // collapses its own flex slot AS it plays its death pop, so the survivors glide in simultaneously
   // (one smooth phase) instead of waiting a beat and then sliding. CSS flex animates the neighbours for
@@ -739,6 +747,6 @@ export function useCombatReplay(
   return {
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     done, result: combat ? combat.result : null, shaking,
-    beatCount: beats.length, enemyDeaths, skip: () => setBeatIdx(beats.length),
+    beatCount: beats.length, enemyDeaths, combatBuffs, skip: () => setBeatIdx(beats.length),
   };
 }

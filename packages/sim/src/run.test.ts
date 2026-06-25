@@ -513,17 +513,35 @@ describe('run loop (@game/sim)', () => {
     expect(tara?.ascendProgress).toBe(10); // seeded from the run board, not reset to 0 each combat
   });
 
-  it('a combat Discover-minion re-fire (Ryme → Sea Urchin) grants a random beast at settle, abiding by tavern rules', () => {
+  it('a combat card grant (Sporebat / Ryme→Sea Urchin) lands the actual carried card at settle, with run buffs', () => {
     let s: RunState = {
-      ...createRun(1), tier: 3, tribes: ['beast'],
+      ...createRun(1), tier: 3, undeadBuyAtk: 2,
+      cardBuffs: { cleric: { attack: 1, health: 1 } },
       phase: 'combat', hand: [],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerMinionGrants: [{ tribe: 'beast', exclude: 'seaurchin' }] },
+      // Combat already picked these specific cards (a toHand event animated them in); settle just adds them.
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerHandGrants: ['cleric', 'karthus'] },
     };
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.hand.length).toBe(1); // one random card granted (the Discover couldn't open in combat)
-    const def = CARD_INDEX[s.hand[0]!.cardId]!;
-    expect(def.tribe === 'beast' || def.tribe2 === 'beast' || def.universalTribe).toBe(true); // of the Discover's tribe
-    expect(def.tier).toBeLessThanOrEqual(3); // …up to the tavern tier
+    const cleric = s.hand.find((c) => c.cardId === 'cleric')!;
+    const karthus = s.hand.find((c) => c.cardId === 'karthus')!;
+    expect(cleric).toBeDefined();
+    expect([cleric.attack, cleric.health]).toEqual([CARD_INDEX.cleric!.attack + 1, CARD_INDEX.cleric!.health + 1]); // run-wide cardBuff
+    expect(karthus.attack).toBe(CARD_INDEX.karthus!.attack + 2); // Undead bond (undeadBuyAtk) baked in
+  });
+
+  it('Ryme-deferred economy Battlecries replay through their recruit factory at settle (Soulfeeder + Hoarder)', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'combat', hand: [],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] },
+        // 3 economy battlecries Ryme re-fired in combat: 2 Soulfeeders (one golden) + 1 Hoarder.
+        playerDeferredBattlecries: [{ cardId: 'feed', golden: false }, { cardId: 'feed', golden: true }, { cardId: 'hoarder', golden: false }] },
+    };
+    const goldBefore = s.bonusEmbersNextTurn ?? 0;
+    s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so the queued Fodder isn't injected/cleared yet
+    // Soulfeeder queues Fodder into the next tavern: 1 (non-golden) + 2 (golden) = 3 Fred.
+    expect((s.pendingTavern ?? []).filter((id) => id === 'fred').length).toBe(3);
+    // Hoarder grants +1 Gold next turn (its recruit factory ran with full RunState access).
+    expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(1);
   });
 
   it('Soulfeeder queues Fodder only once — it does not re-proc on later rounds', () => {
@@ -768,6 +786,22 @@ describe('run loop (@game/sim)', () => {
     expect(drone.health).toBe(3); // 1 + 2
     expect(drone.keywords).toContain('DS');
     expect(drone.keywords).not.toContain('M'); // Magnetic itself isn't transferred
+  });
+
+  it('magnetizing fires summon-buffs first: Mama Bear buffs the Symbiotic Attachment, then it welds onto the host', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [
+        { uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+        { uid: 'host', cardId: 'gnash', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'sym', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sym', toIndex: 1 }); // weld onto the Gnasher host (universalTribe → any non-neutral)
+    expect(s.board.length).toBe(2); // merged, no new slot
+    const host = s.board.find((c) => c.uid === 'host')!;
+    // Attachment 1/1 + Mama Bear (+2/+2, universalTribe counts as a Beast) = 3/3, welded onto the 5/5 host → 8/8.
+    expect([host.attack, host.health]).toEqual([8, 8]);
   });
 
   it('Heckbinder (Demon/Mech) magnetizes onto a Demon or a Mech, but not other tribes', () => {
@@ -1447,19 +1481,33 @@ describe('run loop (@game/sim)', () => {
     expect(got.health).toBe(2); // Health unaffected
   });
 
-  it('Symbiote hero power triples the token the moment the 3rd is granted (not waiting for a buy)', () => {
+  it('Symbiote hero power grants a token at the START of every 5th turn, tripling it on the spot', () => {
     let s: RunState = {
       ...createRun(1, 'symbiote'),
-      heroPowerTick: 3, // next faceOmen → tick 4 → grants the 3rd token
+      wave: 4, phase: 'combat', // resolveCombat → advanceCombat → wave 5 → Symbiote grants the 3rd token
       board: [],
       hand: [
         { uid: 't1', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
         { uid: 't2', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
       ],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
-    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.wave).toBe(5); // start of the 5th turn
     expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && c.golden)).toHaveLength(1); // 3 → 1 golden, now
     expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && !c.golden)).toHaveLength(0);
+  });
+
+  it('Symbiote hero power does NOT grant on a non-5th turn', () => {
+    let s: RunState = {
+      ...createRun(1, 'symbiote'),
+      wave: 5, phase: 'combat', // → wave 6, not a multiple of 5 → no grant
+      board: [], hand: [],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.wave).toBe(6);
+    expect(s.hand.filter((c) => c.cardId === 'symbioticattachment')).toHaveLength(0);
   });
 
   it('Sergeant: every recruit Attack-gain improves its Deathrattle HP grant (+2 per event, golden +4)', () => {

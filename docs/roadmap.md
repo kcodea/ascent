@@ -315,6 +315,12 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Live Buffs window: the remaining run-buffs.** Spell power + max Gold now tick up live in combat (folded
+      from per-beat telegraphs — see the devlog). Undead-attack (Karthus), Fodder/Imp (Bane-via-Ryme), Mama
+      Bear's per-summon climb, and Guel's per-spell climb still resolve only at settle — they have no clean
+      per-beat signal (the run-wide enchant gain isn't evented; Guel's spells-cast is bus-only). To make them
+      tick too, emit a structured run-buff-gain combat event (or extend `combatBuffDelta` to read the `improve`
+      events for Mama Bear) and fold it the same way.
 - [x] **Three neutral minions (done 2026-06-22).** Hoarder (T1 — sell scales +1 Mana/turn held, golden +2),
       Black Belt Brian (T5 — Battlecry: Discover a spell, golden +1 random), Yazzus (T6 — spells cast 2×/3×, the
       cast spark procs per resolution). All wired with art + tests; see the devlog. (Shipped alongside the

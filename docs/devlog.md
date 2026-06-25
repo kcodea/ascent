@@ -46,6 +46,31 @@ Three owner requests.
 **Files:** `reducer.ts` (triple hook + Fodder settle + `buffFodderRunWide` import), `types.ts` + `simulate.ts` + `factories.ts` (Fodder carry-back), `store.ts` + `useCombatReplay.ts` + `Recruit.tsx` + `styles.css` (speed slider), `simulate.test.ts` (+1), `run.test.ts` (+2).
 
 **Verification:** `typecheck + lint + test (347, +3) + harness (determinism) + build:web` all green. New tests: Bane → `playerFodderBuffGain` +2/+2 (golden +4/+4); settleCombat applies it run-wide to `cardBuffs.fred` + the on-board Fodder; a combat hand-grant completes a triple at shop-start (golden, no buy/play). Speed slider verified **live in-preview**: renders in the combat bar (`Speed … 2.0×`), store default 1 + clamps to [0.5, 5] + persists, and a drag drives both the store and the readout. Cross-checked by a 3-agent adversarial verify workflow.
+
+### feat: gold-coin sprinkle from the Gold counter on sell
+
+A small income flourish on the new Pixi FX layer: selling a board minion now bursts a sprinkle of
+**gold coins out of the Gold counter** (bottom-left status chip), arcing up and falling back under
+gravity.
+
+- **Gravity in the particle system** (`pixiFx.ts`): particles gained a `gravity` field (px/sec²,
+  applied to `vy` after drag so it isn't damped the same frame); 0 = unchanged for all existing
+  effects. A **gold-coin texture** (dark rim · bright face · inner ring · shine) is generated once.
+- **`pixiFx.coins(x, y)`**: 9 coins fired upward in a ±37° fan, light air-drag, gravity `1500` so they
+  pop then fall, gentle spin, holding roughly their size and fading out — normal blend (the texture is
+  already gold).
+- **Trigger** (`Recruit.tsx`): on a board→tavern sell, reads the Gold chip's screen rect
+  (`.statusbar .chip.g`) and fires `coins()` from it, alongside the existing sell float (+N at the drop
+  spot), `sfx.sell()`, and the `sellTick` gold-chip flash.
+
+**Files:** `pixiFx.ts` (gravity field + apply, `coins()`, coin texture), `Recruit.tsx` (import + sell
+trigger).
+
+**Verification:** `typecheck + lint + test (344) + build:web` all green. Verified live: the Gold chip
+is resolved at its bottom-left rect; `coins()` spawns 9 coins all born upward with gravity using the
+coin texture, and pumping ~0.5 s of frames confirms all 9 reverse into a fall (the arc). Particle
+recycle path unchanged (no leak).
+
 ### feat: PixiJS WebGL effects layer + combat hit-impact (sparks · shockwave · smoke)
 
 Introduces **PixiJS v8** to the project as a **transparent WebGL effects overlay** — additive, not a

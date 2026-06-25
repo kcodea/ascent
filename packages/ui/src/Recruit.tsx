@@ -6,6 +6,7 @@ import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeT
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
+import { pixiFx } from './pixiFx';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -1330,6 +1331,12 @@ export function Recruit() {
         const fx = x - d.ox + d.w / 2, fy = y - d.oy + d.h / 2;
         setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card) }]);
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
+      }
+      // Sprinkle gold coins out of the Gold counter (bottom-left) to sell the income.
+      const goldEl = document.querySelector('.statusbar .chip.g');
+      if (goldEl) {
+        const gr = goldEl.getBoundingClientRect();
+        pixiFx.coins(gr.left + gr.width / 2, gr.top + gr.height * 0.4);
       }
       dispatch({ type: 'sell', uid: d.uid });
       return true;

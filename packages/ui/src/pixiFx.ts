@@ -29,6 +29,7 @@ interface Particle {
   toScale: number;
   spin: number; // rad/sec
   peakAlpha: number; // opacity at birth; fades to 0 over life (smoke is semi-transparent)
+  gravity: number;   // downward accel px/sec² (coins arc up then fall); 0 = none
 }
 
 class FxController {
@@ -40,6 +41,7 @@ class FxController {
   private glowTex: Texture | null = null;
   private shardRectTex: Texture | null = null; // jagged spark: elongated rectangle
   private shardTriTex: Texture | null = null;   // jagged spark: triangle
+  private coinTex: Texture | null = null;       // gold coin (sell sprinkle)
   private readonly live: Particle[] = [];
   private readonly pool: Sprite[] = [];
 
@@ -87,6 +89,7 @@ class FxController {
     this.glowTex = this.makeGlowTexture(app);
     this.shardRectTex = this.makeShardRectTexture(app);
     this.shardTriTex = this.makeShardTriTexture(app);
+    this.coinTex = this.makeCoinTexture(app);
     app.ticker.add(this.update);
     this.ready = true;
   }
@@ -105,6 +108,7 @@ class FxController {
     this.glowTex = null;
     this.shardRectTex = null;
     this.shardTriTex = null;
+    this.coinTex = null;
     this.ready = false;
     this.initing = null;
   }
@@ -193,6 +197,34 @@ class FxController {
   }
 
   /**
+   * A sprinkle of gold coins bursting up out of point (x, y) and arcing back down under gravity —
+   * the income flourish when a minion is sold (fired from the Gold counter's screen position).
+   */
+  coins(x: number, y: number): void {
+    if (!this.ready) return;
+    const count = 9;
+    for (let i = 0; i < count; i++) {
+      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.3; // up, fanned ±37°
+      const speed = 230 + Math.random() * 260;
+      const fs = 0.7 + Math.random() * 0.45;
+      this.spawn(this.coinTex!, {
+        x: x + (Math.random() - 0.5) * 18,
+        y: y + (Math.random() - 0.5) * 8,
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed, // negative → pops upward
+        drag: 0.85,                // light air damping; gravity dominates the vertical
+        gravity: 1500,             // arc up then fall back down
+        life: 700 + Math.random() * 400,
+        fromScale: fs,
+        toScale: fs * 0.85,        // hold roughly its size (coins don't shrink to nothing)
+        spin: (Math.random() - 0.5) * 18,
+        tint: 0xffffff,            // the texture is already gold
+        blend: 'normal',
+      });
+    }
+  }
+
+  /**
    * DEV: fire a big, slow, unmissable burst at the center of the screen and log full
    * diagnostics — proves the layer is alive + visible without needing a combat. Logged
    * fields tell us where it breaks if you still see nothing.
@@ -233,7 +265,8 @@ class FxController {
   /** Pull a sprite from the pool (or make one), configure it as a live particle. */
   private spawn(
     tex: Texture,
-    cfg: Omit<Particle, 'sprite' | 'peakAlpha'> & { tint: number; blend?: BLEND_MODES; peakAlpha?: number; rotation?: number },
+    cfg: Omit<Particle, 'sprite' | 'peakAlpha' | 'gravity'> &
+      { tint: number; blend?: BLEND_MODES; peakAlpha?: number; rotation?: number; gravity?: number },
   ): void {
     const layer = this.layer;
     if (!layer) return;
@@ -253,6 +286,7 @@ class FxController {
     this.live.push({
       sprite, x: cfg.x, y: cfg.y, vx: cfg.vx, vy: cfg.vy, drag: cfg.drag,
       life: cfg.life, maxLife: cfg.life, fromScale: cfg.fromScale, toScale: cfg.toScale, spin: cfg.spin, peakAlpha,
+      gravity: cfg.gravity ?? 0,
     });
   }
 
@@ -275,6 +309,7 @@ class FxController {
       const dragF = Math.pow(p.drag, dt);
       p.vx *= dragF;
       p.vy *= dragF;
+      p.vy += p.gravity * dt; // gravity after drag so it isn't damped the same frame (coins fall)
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       const s = p.sprite;
@@ -319,6 +354,19 @@ class FxController {
   private makeShardTriTexture(app: Application): Texture {
     const g = new Graphics();
     g.poly([8, 0, -6, 5, -6, -5]).fill({ color: 0xffffff });
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return tex;
+  }
+
+  /** A gold coin — dark rim, bright face, a light inner ring + a shine. Drawn opaque (normal blend)
+   *  so it reads as a solid coin on the light board. */
+  private makeCoinTexture(app: Application): Texture {
+    const g = new Graphics();
+    g.circle(0, 0, 11).fill({ color: 0x9a6a12 });                          // dark rim
+    g.circle(0, 0, 9).fill({ color: 0xffc928 });                           // gold face
+    g.circle(0, 0, 9).stroke({ width: 1.5, color: 0xfff0a8, alpha: 0.9 }); // bright inner ring
+    g.ellipse(-3, -3.5, 3.2, 2).fill({ color: 0xfff6d0, alpha: 0.85 });    // shine highlight
     const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     return tex;

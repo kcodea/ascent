@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Gold-coin sprinkle on sell.** Selling a minion now bursts a sprinkle of gold coins out of the Gold
+  counter (they pop up and arc back down under gravity) — on the new Pixi FX layer.
 - **Golden card tooltips show their LIVE value.** Golden cards were rendering the *static* printed golden text,
   so live numbers were lost — a golden **Sergeant** showed "+4 Health" instead of its real "+10", a golden
   **Taragosa** "+6/+8" instead of its spell-power-scaled value. Fixed generally for every golden live-text card.

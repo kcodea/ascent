@@ -58,6 +58,7 @@ export function simulate(
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
   let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
   let spellGrants = 0; // random tavern-tier spells granted to the hand after combat (Sporebat's Deathrattle)
+  const minionGrants: { tribe?: string; exclude?: string }[] = []; // random pool minions to grant (Ryme re-firing a Discover Battlecry)
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: spellsCast, enemy: 0 };
@@ -122,6 +123,7 @@ export function simulate(
     golden: m.golden,
     summonBonus: m.summonBonus,
     hpGrantBonus: m.hpGrantBonus,
+    ascendProgress: m.ascendProgress,
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
@@ -171,7 +173,9 @@ export function simulate(
         const newCount = (buffCounts.get(target.uid) ?? 0) + 1;
         buffCounts.set(target.uid, newCount);
         const ascendAt = cards[target.cardId]!.ascendAt!;
-        const remaining = Math.max(0, ascendAt - newCount);
+        // Count from the TOTAL: prior accumulated progress (seeded from the run board) + this combat's grants,
+        // so the live tracker matches the card's real "N to go" in the shop instead of restarting each fight.
+        const remaining = Math.max(0, ascendAt - ((target.ascendProgress ?? 0) + newCount));
         const text = remaining > 0
           ? `${target.name}: ${remaining} stat grant${remaining === 1 ? '' : 's'} to ascend`
           : `${target.name} has reached the ascend threshold!`;
@@ -226,6 +230,10 @@ export function simulate(
     grantRandomSpell: (count, side) => {
       if (side !== 'player') return; // enemies have no hand
       spellGrants += count;
+    },
+    grantRandomMinion: (count, tribe, side, exclude) => {
+      if (side !== 'player') return; // enemies have no hand
+      for (let i = 0; i < count; i++) minionGrants.push({ tribe, exclude });
     },
     grantImpBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
@@ -672,6 +680,7 @@ export function simulate(
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
     playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
+    playerMinionGrants: minionGrants.length > 0 ? minionGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,

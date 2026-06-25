@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantRandomDiscoverMinions, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -539,15 +539,19 @@ function reduceCore(state: RunState, action: Action): RunState {
         golden: b.golden,
         summonBonus: b.summonBonus ?? 0,
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
+        ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
         rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
       }));
       // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board
       // (not the run board, so it's gone after this fight), then spend it. Applied before the odds sims so
-      // every simulation sees the same buffed board.
-      if (s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)) {
-        for (const m of player) { m.attack += s.fleetingVigor.attack; m.health += s.fleetingVigor.health; }
+      // every simulation sees the same buffed board. Captured so we can telegraph it once combat resolves —
+      // a pre-baked buff with no event reads as "nothing happened", so we narrate the surge below.
+      const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)
+        ? { ...s.fleetingVigor } : null;
+      if (fleeting) {
+        for (const m of player) { m.attack += fleeting.attack; m.health += fleeting.health; }
         s.fleetingVigor = { attack: 0, health: 0 };
       }
       // The procedural threat board for this wave — the always-fightable fallback (built from current
@@ -585,6 +589,17 @@ function reduceCore(state: RunState, action: Action): RunState {
       } catch {
         const e = proceduralEnemy();
         s.lastCombat = resolveCombatVs(e.enemy, e.tier);
+      }
+      // Telegraph the Fleeting Vigor surge as a Start-of-Combat narration so the pre-baked buff reads as a
+      // real effect (a banner + glow on your line as combat opens) instead of silently bigger minions.
+      if (fleeting) {
+        const firstUid = s.lastCombat.initial.player[0]?.uid;
+        if (firstUid) {
+          s.lastCombat.events.unshift({
+            type: 'sc', source: firstUid,
+            text: `Fleeting Vigor — your minions entered at +${fleeting.attack}/+${fleeting.health}`,
+          });
+        }
       }
       s.combatSettled = false; // a fresh combat — its outcome hasn't been applied yet
       s.phase = 'combat';
@@ -719,6 +734,9 @@ function checkTriples(s: RunState): void {
     // Spirit Pup: the golden keeps the *highest* spell progress of the three (= the lowest spells-left),
     // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve.
     const goldenProgress = Math.max(...combined.map((c) => c.spellProgress ?? 0));
+    // Tara: the golden keeps the *highest* ascend progress of the three (= the lowest "to go"), so tripling a
+    // Tara that's close to ascending doesn't reset it back to 20-to-go.
+    const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
     // Hoarder: the golden keeps the EARLIEST (minimum) boughtWave of the three, so a golden Hoarder
     // inherits the oldest copy's age → its highest sell value as the starting point (sell =
     // (wave - boughtWave + 1) × 2 golden). Generic — harmless on cards that don't read it — but Hoarder
@@ -740,6 +758,7 @@ function checkTriples(s: RunState): void {
       spellAuraBonus: absorbedSpellAura > 0 ? absorbedSpellAura : undefined,
       buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
       spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
+      ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
       boughtWave: goldenBoughtWave,
       eotTick: goldenEotTick,
     });
@@ -881,6 +900,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
     }
     s.rngCursor = rng.state();
   }
+  // A Discover-minion Battlecry re-fired in combat (Ryme → Sea Urchin) can't open the interactive Discover,
+  // so grant a random pool minion of the requested tribe instead (≤ tavern tier, active tribes) — the
+  // spell-Discover half (Black Belt Brian) routes through playerSpellGrants above.
+  if (result.playerMinionGrants) grantRandomDiscoverMinions(s, result.playerMinionGrants);
   // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
   // common tribe (then spends 5). A failed grant (full hand / no tribe) keeps the kills banked for later.
   if (getHero(s.heroId).power.kind === 'collision') {

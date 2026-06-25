@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: re-fired Discover battlecries grant a random pool card + Cinderwing via Ryme + Tara triple/tracker + Fleeting Vigor telegraph
+
+Owner-reported batch, all in the `replayCombatBattlecry` / combat-carry-back area.
+
+- **Discover battlecries re-fired in combat now grant a random pool card.** Ryme re-firing **Sea Urchin** (Discover-a-minion) or **Black Belt Brian** (Discover-a-spell) silently granted nothing — Discover is an interactive recruit-phase peek with no combat equivalent. Now `replayCombatBattlecry` handles them: spell-Discover → `ctx.grantRandomSpell` (the existing Sporebat carry-back); minion-Discover → new `ctx.grantRandomMinion(count, tribe, side, exclude)` → `CombatResult.playerMinionGrants` → `settleCombat` calls `grantRandomDiscoverMinions`, which picks one random pool minion **per request** of the Discover's tribe, **≤ tavern tier**, from the run's **active tribes** (tavern rules), with the run buffs baked in. Combat stays pure (the pick is deferred to settle). Golden Discovers twice (×2); Drakko composes (re-fire repeats). **Soren's Reclaim is unchanged** — per the owner, a resummon should fire the Deathrattle, not the Battlecry.
+- **Ryme now procs Cinderwing Matron's +spell power.** `replayCombatBattlecry` gained a `battlecryBuffSpellPower` branch → `ctx.grantSpellPower` (the Skullblade/Gnasher carry-back), so re-firing Cinderwing in combat permanently raises run-wide spell power (golden ×2).
+- **Tara: triple no longer resets the ascend counter, and the live tracker aligns.** `checkTriples` now keeps the **highest** `ascendProgress` of the three copies (lowest "to go"), mirroring Spirit Pup's spell progress — tripling a near-ascended Tara doesn't send it back to 20-to-go. And the in-combat "N to ascend" tracker was counting **only this fight's** grants; the prior accumulated `ascendProgress` is now threaded into combat (`BoardMinion`/`Minion`/`MinionSnapshot` → `instantiate` → `snapshot()` → the UI's `fromSnap`), so the live narration reads the **total** (prior + this combat) and matches the shop card. The settle carry-back still adds only this combat's grants (no double-count).
+- **Fleeting Vigor now reads as doing something.** The +2/+1 start-of-combat buff worked (verified live: minions enter buffed) but was silently pre-baked into the initial board with no event — so it looked inert. `faceOmen` now prepends a Start-of-Combat **narration** (`sc`) to the combat log telegraphing the surge. `simulate` is untouched (no determinism/odds impact).
+
+**Files:** `factories.ts` (`replayCombatBattlecry` discover + spell-power branches), `types.ts` (`grantRandomMinion`/`playerMinionGrants`, `ascendProgress` on the three combat types), `simulate.ts` (minion-grant accumulator, ascend tally uses prior, snapshot carries ascendProgress), `minion.ts` (instantiate carries ascendProgress), `recruit.ts` (`grantRandomDiscoverMinions`), `reducer.ts` (settle wiring, triple `ascendProgress`, combat-board ascend seed, Fleeting Vigor capture + narration), `useCombatReplay.ts` (`fromSnap` seeds ascendProgress), `simulate.test.ts` (+2), `run.test.ts` (+4, +1 updated).
+
+**Verification:** `typecheck + lint + test (352, +6 new) + harness (determinism) + build:web` all green. Live in-preview: Fleeting Vigor emits its `sc` narration + minions enter at +2/+1; Tara carries `ascendProgress` into combat. New tests cover the random minion/spell grant + settle, Cinderwing via Ryme (golden ×2), Tara triple keeps max progress, Tara ascend seeding, and the Fleeting Vigor narration. Cross-checked by a 3-agent adversarial verify workflow.
+
 ### feat: triple-at-shop-start + Bane combat Fodder carry-back + combat speed slider (0.5×–5×)
 
 Three owner requests.

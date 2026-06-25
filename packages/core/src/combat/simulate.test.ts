@@ -599,6 +599,28 @@ describe('simulate (handoff A.3)', () => {
     expect(run(board(true), omen, 1).playerFodderBuffGain).toEqual({ attack: 4, health: 4 }); // golden Bane doubles
   });
 
+  it('Ryme re-firing a Discover Battlecry in combat grants a random pool card (Sea Urchin → minion, Brian → spell)', () => {
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    // Sea Urchin = Discover-MINION (tribe beast). Re-fired in combat it can't open the peek, so it queues a
+    // random-minion grant (resolved at settle): tribe carried, source excluded. Golden → 2.
+    const urchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100 }], omen, 1);
+    expect(urchin.playerMinionGrants).toEqual([{ tribe: 'beast', exclude: 'seaurchin' }]);
+    const goldUrchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(goldUrchin.playerMinionGrants).toHaveLength(2); // golden Discovers twice
+    // Black Belt Brian = Discover-SPELL → routes through the existing random-spell carry-back.
+    const brian = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'blackbelt', attack: 0, health: 100 }], omen, 1);
+    expect(brian.playerSpellGrants).toBe(1);
+  });
+
+  it('Ryme re-firing Cinderwing Matron in combat grants the run-wide spell power', () => {
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    // Cinderwing's Battlecry permanently raises spell power (+0/+1); re-fired in combat it now carries back.
+    const r = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'cinder', attack: 0, health: 100 }], omen, 1);
+    expect(r.playerSpellPower).toEqual({ attack: 0, health: 1 });
+    const gold = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'cinder', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(gold.playerSpellPower).toEqual({ attack: 0, health: 2 }); // golden Cinderwing doubles
+  });
+
   it('Gnasher keeps attacking after killing a Reborn target', () => {
     // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
     // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned

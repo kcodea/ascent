@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Re-fired Discover battlecries + Cinderwing via Ryme + Tara/Fleeting Vigor fixes.** When **Ryme** re-fires a
+  Discover battlecry in combat (**Sea Urchin**, **Black Belt Brian**) it now grants a **random card from that
+  pool** (tavern-tier rules) instead of nothing, and re-fires **Cinderwing**'s +spell power. **Tara**: tripling
+  keeps the highest ascend progress (no reset), and its in-combat tracker now matches the shop. **Fleeting
+  Vigor** is telegraphed with a Start-of-Combat banner (it always worked — it just looked like nothing).
 - **Combat speed slider + triple-at-shop-start + Bane Fodder carry-back.** A **0.5×–5× Speed** slider in the
   combat bar (persisted) scales the whole replay. Triples are now also checked **as the shop opens**, so a
   combat-granted 3rd copy combines without waiting for your next buy. And **Bane**'s Fodder buff earned *in

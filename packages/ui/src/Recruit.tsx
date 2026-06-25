@@ -240,6 +240,7 @@ export function Recruit() {
   // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
+  const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   const combatSpeed = useGame((s) => s.combatSpeed); // still threaded into the replay; the slider UI lives in HudBar now
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
@@ -393,6 +394,13 @@ export function Recruit() {
   useEffect(() => {
     setCombatEnemyDeaths(inCombat && !run.combatSettled ? replay.enemyDeaths : 0);
   }, [inCombat, run.combatSettled, replay.enemyDeaths, setCombatEnemyDeaths]);
+  // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
+  // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
+  // run state, so the row then reads them from there (adding the live delta too would briefly double-count).
+  const { spellAttack: cbA, spellHealth: cbH, gold: cbGold } = replay.combatBuffs;
+  useEffect(() => {
+    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, gold: cbGold } : null);
+  }, [inCombat, run.combatSettled, cbA, cbH, cbGold, setCombatBuffs]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
   // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just

@@ -1,10 +1,47 @@
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus, type RunState } from '@game/sim';
+import type { CombatEvent } from '@game/core';
 
 export interface BuffRow {
   key: string;
   label: string;
   value: string;
+}
+
+/**
+ * The run-wide buffs that ACCRUE during a fight (carried back to the run at settle) and are cleanly
+ * telegraphed per-beat, so the Buffs window can tick them up LIVE as the replay plays instead of jumping
+ * at settle: spell power (the `+A/+B Spell Power` Start-of-Combat narration emitted by Bladesmith / Gnasher /
+ * Cinderwing-via-Ryme) and max Gold (Soulsman's Avenge `maxGold` events). Other run buffs (Undead / Fodder /
+ * Imp / Guel) have no clean per-beat signal, so they still update at settle.
+ */
+export interface CombatBuffDelta {
+  spellAttack: number;
+  spellHealth: number;
+  gold: number;
+}
+
+const SPELL_POWER_RE = /^\+(\d+)\/\+(\d+) Spell Power$/;
+
+/** Sum the live-trackable combat buff gains over `events[0, upto)` (the events the replay has played so far). */
+export function combatBuffDelta(events: readonly CombatEvent[], upto: number): CombatBuffDelta {
+  let spellAttack = 0;
+  let spellHealth = 0;
+  let gold = 0;
+  const n = Math.min(upto, events.length);
+  for (let i = 0; i < n; i++) {
+    const e = events[i];
+    if (e.type === 'sc') {
+      const m = SPELL_POWER_RE.exec(e.text);
+      if (m) {
+        spellAttack += Number(m[1]);
+        spellHealth += Number(m[2]);
+      }
+    } else if (e.type === 'maxGold' && e.side === 'player') {
+      gold += e.amount;
+    }
+  }
+  return { spellAttack, spellHealth, gold };
 }
 
 /** Read a card def's first effect of a given `do` id and pull a numeric param (for live magnitudes). */
@@ -18,12 +55,14 @@ function effectParam(cardId: string, doId: string, param: string, fallback: numb
  * pushed only when its value is non-zero / the source is on board), so the window stays empty until
  * something actually applies. Each value is the LIVE current magnitude.
  */
-export function gatherRunBuffs(run: RunState): BuffRow[] {
+export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): BuffRow[] {
   const rows: BuffRow[] = [];
 
-  // Spell power (hero amplify + Cinderwing/Skullblade/Gnasher card-driven) — every stat spell gains this.
-  const spA = spellAttackBonus(run);
-  const spH = spellHealthBonus(run);
+  // Spell power (hero amplify + Cinderwing/Skullblade/Gnasher card-driven) — every stat spell gains this. In
+  // combat, add the gains telegraphed so far this fight (`combat`, carried back at settle) so the row ticks up
+  // live as Bladesmith/Gnasher/Cinderwing fire, instead of jumping only once the shop reopens.
+  const spA = spellAttackBonus(run) + (combat?.spellAttack ?? 0);
+  const spH = spellHealthBonus(run) + (combat?.spellHealth ?? 0);
   if (spA > 0 || spH > 0) rows.push({ key: 'spell', label: 'Spell power', value: `+${spA}/+${spH}` });
 
   // Permanent Undead buff everywhere: the "+Attack wherever they are" creation bonus (Deathswarmer / Forsaken
@@ -55,8 +94,8 @@ export function gatherRunBuffs(run: RunState): BuffRow[] {
 
   // Permanent max-Gold gained (Soulsman's Avenge) — the actual Gold gained this run, golden-aware (matches the
   // "Gained X Gold" the card itself shows). `soulsmanGold` is the tracked total; the natural per-wave curve is
-  // NOT counted (it's not a buff).
-  const goldGain = run.soulsmanGold ?? 0;
+  // NOT counted (it's not a buff). In combat, add this fight's `maxGold` procs so far so the row ticks up live.
+  const goldGain = (run.soulsmanGold ?? 0) + (combat?.gold ?? 0);
   if (goldGain > 0) rows.push({ key: 'gold', label: 'Max Gold', value: `+${goldGain}` });
 
   // Mama Bear — only while on board. With MULTIPLE Mama Bears every summon is buffed by EACH of them, so total

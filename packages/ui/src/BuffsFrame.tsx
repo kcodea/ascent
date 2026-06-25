@@ -9,8 +9,11 @@ import { useGame } from './store';
  */
 export function BuffsFrame() {
   const run = useGame((s) => s.run);
+  // In combat, the live per-beat buff gains (spell power, max Gold) — folded into the rows so they tick up in
+  // sync with the replay instead of jumping at settle. `null` outside combat (rows read the run state alone).
+  const combatBuffs = useGame((s) => s.combatBuffs);
   const [collapsed, setCollapsed] = useState(false);
-  const rows = gatherRunBuffs(run);
+  const rows = gatherRunBuffs(run, combatBuffs);
   if (rows.length === 0) return null;
   return (
     <div className="buffsframe">

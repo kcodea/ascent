@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Buffs window ticks up LIVE in combat (spell power + max Gold) + drop the redundant hero-tooltip spell line
+
+Two linked asks. The hero-power tooltip carried a "Your spells get +X/+Y" line; now that the Buffs window tracks spell power, that's redundant — **removed** it (and the now-unused `spellAttackBonus`/`spellHealthBonus` reads + the `.herotip-spell` rule). Then: the Buffs window was frozen at its pre-combat values during a fight (run-buff carry-backs apply at *settle*), so a spell-power build saw nothing change mid-combat. It now **ticks up live as the replay plays**, for the buffs that are cleanly telegraphed per-beat:
+
+- **Spell power** — folded from the `+A/+B Spell Power` Start-of-Combat narrations (Ghastly Bladesmith / Gnasher / Cinderwing-via-Ryme) as their beats land.
+- **Max Gold** — folded from Soulsman's Avenge `maxGold` events (player side only).
+
+Other run buffs (Undead / Fodder / Imp / Guel / Mama Bear) have no clean per-beat signal, so they still resolve at settle (a follow-up could event them).
+
+Mechanism mirrors the existing Cassen live-kill counter exactly: `useCombatReplay` computes the delta **up to the current beat** (`combatBuffDelta(events, processedEnd)`, memoized), `Recruit` bridges it to the store (gated on the values; **cleared to `null` at settle** so the row then reads the now-updated run state instead of double-counting), and `BuffsFrame` folds it via `gatherRunBuffs(run, combat?)`. The delta logic is pure + unit-tested; spell power is parsed from the sc text (the only run-buff signal that isn't a structured event).
+
+**Files:** `runBuffs.ts` (`CombatBuffDelta` + `combatBuffDelta` + `gatherRunBuffs` 2nd arg folds spell/gold), `useCombatReplay.ts` (expose `combatBuffs`), `store.ts` (`combatBuffs` slice + setter), `Recruit.tsx` (bridge effect, mirrors `combatEnemyDeaths`), `BuffsFrame.tsx` (read + fold), `StatusBar.tsx` (drop the spell line + unused imports), `styles.css` (drop `.herotip-spell`), `BuffsFrame.test.ts` (+4: `combatBuffDelta` parse/enemy-skip, `gatherRunBuffs` fold + zero-base reveal).
+
+**Verification:** `typecheck + lint + test (365, +4) + build:web` green. Confirmed **live in-preview**: the hero tooltip no longer has the spell line; a forced 3× Ghastly Bladesmith combat carries +3/+0 spell power and the Buffs window shows `Spell power +3/+0` at settle; the bridge nulls `combatBuffs` at settle (no double-count); and the store→window fold is reactive (pushing a `+2/+1` delta over a `+3/+0` base renders `+5/+1`). The per-beat animation itself can't be filmed headless (the replay clock pauses while the tab is backgrounded), but the bridge is identical to the live Cassen counter.
+
 ### fix: buffs-window polish (Eternal Knight + Mama Bear total + real Max Gold) + opponent frame stays top-right in combat
 
 Five owner-reported fixes to the buffs window and the combat opponent frame:

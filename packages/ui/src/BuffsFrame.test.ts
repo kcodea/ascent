@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createRun, type RunState } from '@game/sim';
-import { gatherRunBuffs } from './runBuffs';
+import type { CombatEvent } from '@game/core';
+import { combatBuffDelta, gatherRunBuffs } from './runBuffs';
 
 describe('gatherRunBuffs', () => {
   it('returns no rows on a fresh run (window stays hidden)', () => {
@@ -62,5 +63,41 @@ describe('gatherRunBuffs', () => {
     expect(keys).toContain('imp');
     expect(keys).not.toContain('mamabear');
     expect(keys).not.toContain('guel');
+  });
+
+  it('folds the live combat delta into the spell-power + Max Gold rows', () => {
+    const run: RunState = { ...createRun(1), spellBonus: { attack: 0, health: 2 }, soulsmanGold: 1 };
+    const byKey = Object.fromEntries(
+      gatherRunBuffs(run, { spellAttack: 1, spellHealth: 5, gold: 2 }).map((r) => [r.key, r.value]),
+    );
+    expect(byKey.spell).toBe('+1/+7'); // base 0/2 + combat 1/5
+    expect(byKey.gold).toBe('+3'); // base 1 + combat 2
+  });
+
+  it('surfaces a spell-power row from the combat delta alone (zero base)', () => {
+    const byKey = Object.fromEntries(
+      gatherRunBuffs(createRun(1), { spellAttack: 0, spellHealth: 4, gold: 0 }).map((r) => [r.key, r.value]),
+    );
+    expect(byKey.spell).toBe('+0/+4'); // a Bladesmith firing mid-combat lights the row up from nothing
+  });
+});
+
+describe('combatBuffDelta', () => {
+  it('sums spell-power narrations + player max-Gold procs up to the played beat', () => {
+    const events: CombatEvent[] = [
+      { type: 'sc', source: 'a', text: '+0/+3 Spell Power' },
+      { type: 'sc', source: 'a', text: 'Ghastly Bladesmith readies' }, // unrelated sc — ignored
+      { type: 'maxGold', target: 's', side: 'player', amount: 1 },
+      { type: 'sc', source: 'b', text: '+1/+0 Spell Power' },
+      { type: 'maxGold', target: 's', side: 'player', amount: 1 },
+    ];
+    expect(combatBuffDelta(events, 0)).toEqual({ spellAttack: 0, spellHealth: 0, gold: 0 }); // nothing played
+    expect(combatBuffDelta(events, 3)).toEqual({ spellAttack: 0, spellHealth: 3, gold: 1 }); // first sc + first gold
+    expect(combatBuffDelta(events, events.length)).toEqual({ spellAttack: 1, spellHealth: 3, gold: 2 }); // all
+  });
+
+  it('ignores enemy-side max-Gold procs (only your economy counts)', () => {
+    const events: CombatEvent[] = [{ type: 'maxGold', target: 'e', side: 'enemy', amount: 5 }];
+    expect(combatBuffDelta(events, 1).gold).toBe(0);
   });
 });

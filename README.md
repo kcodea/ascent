@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Buffs window ticks up live in combat.** Spell power and max Gold now **climb in the Buffs window as the
+  fight plays** (folded from the per-beat combat telegraphs, in sync with the replay), instead of only updating
+  when the shop reopens. The redundant "Your spells get +X/+Y" hero-tooltip line is gone — the window owns it.
 - **Buffs-window fixes + opponent frame stays put in combat.** The Buffs window now lists **Eternal Knight**
   enchants, **totals every Mama Bear** on board (not just the first), and shows the **real Max Gold gained**
   (was off by the natural per-wave curve). The next-enemy frame now stays **pinned top-right during combat**

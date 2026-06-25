@@ -393,11 +393,11 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'f2', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false }],
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist before combat
-    expect(s.cardBuffs.fred).toEqual({ attack: 1, health: 1 }); // persists for the run
+    expect(s.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // +2/+2 persists for the run
     const f1 = s.board.find((c) => c.uid === 'f1');
-    expect([f1?.attack, f1?.health]).toEqual([2, 2]); // Fodder on the board buffed now
+    expect([f1?.attack, f1?.health]).toEqual([3, 3]); // Fodder on the board buffed now (1/1 + 2/2)
     const f2 = s.hand.find((c) => c.uid === 'f2');
-    expect([f2?.attack, f2?.health]).toEqual([2, 2]); // Fodder in the hand too
+    expect([f2?.attack, f2?.health]).toEqual([3, 3]); // Fodder in the hand too
   });
 
   it('Fodder found after a Ritualist proc carries the run buff — bought from the tavern', () => {
@@ -675,9 +675,9 @@ describe('run loop (@game/sim)', () => {
       ],
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist twice (Chronos +1)
-    expect(s.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // +1/+1 applied twice
+    expect(s.cardBuffs.fred).toEqual({ attack: 4, health: 4 }); // +2/+2 applied twice
     const f = s.board.find((c) => c.uid === 'f')!;
-    expect([f.attack, f.health]).toEqual([3, 3]); // the on-board Fred: 1/1 + 2/2
+    expect([f.attack, f.health]).toEqual([5, 5]); // the on-board Fred: 1/1 + 4/4
   });
 
   it('Magnetic merges a Cling Drone onto a friendly Mech (no new slot)', () => {
@@ -1185,7 +1185,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.map((c) => c.cardId)).toContain('cleric');
   });
 
-  it('Mama Bear buffs each summoned Beast, improving the buff by +3/+3 each time (recruit)', () => {
+  it('Mama Bear buffs each summoned Beast, improving the buff by +2/+2 each time (recruit)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [{ uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
@@ -1194,10 +1194,10 @@ describe('run loop (@game/sim)', () => {
         { uid: 'b2', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
       ],
     };
-    s = reduce(s, { type: 'play', uid: 'b1' }); // first Beast summoned → +3/+3
-    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 3); // 5
-    s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +6/+6
-    expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 6); // 13
+    s = reduce(s, { type: 'play', uid: 'b1' }); // first Beast summoned → +2/+2
+    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 2); // 4
+    s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +4/+4
+    expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
   });
 
   it('a universalTribe token (Symbiotic Attachment) receives tribe summon-buffs (Mama Bear + Kennelmaster)', () => {
@@ -1216,9 +1216,9 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'sym' }); // standalone play (no weld target) → summon buffs fire
     const sym = s.board.find((c) => c.uid === 'sym')!;
-    // Mama Bear (+3/+3) and Kennelmaster (+1/+1) both treat the universalTribe token as a Beast.
-    expect(sym.attack).toBe(1 + 3 + 1); // 5
-    expect(sym.health).toBe(1 + 3 + 1); // 5
+    // Mama Bear (+2/+2) and Kennelmaster (+1/+1) both treat the universalTribe token as a Beast.
+    expect(sym.attack).toBe(1 + 2 + 1); // 4
+    expect(sym.health).toBe(1 + 2 + 1); // 4
   });
 
   it('a Mama Bear triple picks up the accrual at its current value — no reset, no double', () => {
@@ -1235,11 +1235,11 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
     const golden = s.hand.find((c) => c.cardId === 'mamabear' && c.golden)!;
     expect(golden.summonBonus).toBe(6); // current value preserved, not 9 (sum) or 0 (reset)
-    // Played, it grants (base 3 + accrual 6) × 2 golden = +18/+18 to the next Beast summoned.
+    // Played, it grants (base 2 + accrual 6) × 2 golden = +16/+16 to the next Beast summoned.
     s = reduce(s, { type: 'play', uid: golden.uid }); // golden Mama Bear → board
     s = { ...s, hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'a' });
-    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(1 + 18);
+    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(1 + 16);
   });
 
   it('Sea Urchin Battlecry offers a Discover of Beasts only (up to tavern tier)', () => {
@@ -1403,6 +1403,25 @@ describe('run loop (@game/sim)', () => {
     const golden: BoardCard = { uid: 'g', cardId: 'sergeant', tribe: 'undead', attack: 12, health: 12, keywords: [], golden: true };
     addBuff(golden, 'Deathswarmer', 1, 0);
     expect(golden.hpGrantBonus).toBe(4);
+  });
+
+  it('Fodder Feeder, when sold, queues a Fodder + accrues the run-wide Imp buff (golden 2×)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0,
+      board: [{ uid: 'ff', cardId: 'fodderfeeder', tribe: 'demon', attack: 1, health: 2, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'sell', uid: 'ff' });
+    expect(s.pendingTavern).toContain('fred'); // a Fodder queued for the next tavern
+    expect(s.impBuff).toEqual({ attack: 1, health: 1 }); // run-wide Imp buff accrued
+    expect(s.embers).toBe(CONFIG.sellValue); // still pays the base sell value
+    // Golden accrues +2/+2 and queues 2 Fodder.
+    let g: RunState = {
+      ...createRun(1), embers: 0,
+      board: [{ uid: 'ff', cardId: 'fodderfeeder', tribe: 'demon', attack: 2, health: 4, keywords: [], golden: true }],
+    };
+    g = reduce(g, { type: 'sell', uid: 'ff' });
+    expect(g.impBuff).toEqual({ attack: 2, health: 2 });
+    expect(g.pendingTavern!.filter((id) => id === 'fred').length).toBe(2);
   });
 
   it('Demonic Anomaly permanently buffs all tavern minions (+3/+3 run-wide) + grants 2 free refreshes', () => {
@@ -1667,35 +1686,34 @@ describe('run loop (@game/sim)', () => {
     expect(s.embers).toBe(4); // +1, uncapped (previously capped at maxEmbers → bug)
   });
 
-  it('Hoarder sells for +1 Mana per turn held (wave - boughtWave + 1)', () => {
-    // Bought wave 1, sold wave 5 → 5 - 1 + 1 = 5 Mana.
+  it('Hoarder sells for a flat 2 Gold (golden 4)', () => {
     let s: RunState = {
       ...createRun(1), wave: 5, embers: 0,
-      board: [{ uid: 'h', cardId: 'hoarder', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false, boughtWave: 1 }],
+      board: [{ uid: 'h', cardId: 'hoarder', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'sell', uid: 'h' });
-    expect(s.embers).toBe(5);
-  });
-
-  it('a golden Hoarder sells for +2 Mana per turn held', () => {
-    let s: RunState = {
+    expect(s.embers).toBe(2);
+    let g: RunState = {
       ...createRun(1), wave: 5, embers: 0,
-      board: [{ uid: 'h', cardId: 'hoarder', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: true, boughtWave: 1 }],
+      board: [{ uid: 'h', cardId: 'hoarder', tribe: 'neutral', attack: 4, health: 4, keywords: [], golden: true }],
     };
-    s = reduce(s, { type: 'sell', uid: 'h' });
-    expect(s.embers).toBe(10); // (5 - 1 + 1) × 2
+    g = reduce(g, { type: 'sell', uid: 'h' });
+    expect(g.embers).toBe(4); // golden sells for 4
   });
 
-  it('a same-turn buy+sell Hoarder sells for 1 (the buy stamps boughtWave = current wave)', () => {
-    // Buy then immediately sell on the same wave → wave - boughtWave + 1 = 1. The buy must set boughtWave.
-    let s: RunState = { ...createRun(1), wave: 4, embers: 3, hand: [], board: [] };
-    s.shop = [{ uid: 'so', cardId: 'hoarder' }];
-    s.pool = { ...s.pool, hoarder: 1 };
-    s = reduce(s, { type: 'buy', uid: 'so' });
-    const bought = s.hand.find((c) => c.cardId === 'hoarder')!;
-    expect(bought.boughtWave).toBe(4); // stamped at buy
-    s = reduce(s, { type: 'sell', uid: bought.uid });
-    expect(s.embers).toBe(1); // 4 - 4 + 1 = 1 (embers were 0 after the buy)
+  it("Hoarder's Battlecry banks bonus Gold for next turn (golden 2×)", () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, board: [],
+      hand: [{ uid: 'h', cardId: 'hoarder', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'h' });
+    expect(s.bonusEmbersNextTurn).toBe(1); // banked +1 for next turn
+    let g: RunState = {
+      ...createRun(1), embers: 0, board: [],
+      hand: [{ uid: 'h', cardId: 'hoarder', tribe: 'neutral', attack: 4, health: 4, keywords: [], golden: true }],
+    };
+    g = reduce(g, { type: 'play', uid: 'h' });
+    expect(g.bonusEmbersNextTurn).toBe(2); // golden banks 2
   });
 
   it('Black Belt Brian Battlecry Discovers a spell — 3 spell ids offered', () => {
@@ -1797,24 +1815,19 @@ describe('run loop (@game/sim)', () => {
     expect(s.discoverQueue ?? []).toEqual([]); // nothing queued — Triple Reward isn't a player-cast spell
   });
 
-  it('a Hoarder triple keeps the earliest (minimum) boughtWave → highest golden sell value', () => {
-    // Buy a Hoarder on wave 1, then get two more later; the triple's golden inherits boughtWave 1.
+  it('a golden Hoarder (from a triple) sells for a flat 4 Gold', () => {
     let s: RunState = {
       ...createRun(1), wave: 1, embers: 0, shop: [],
-      // two copies already in hand bought on later waves, plus an early one bought wave 1
       hand: [
-        { uid: 'h1', cardId: 'hoarder', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false, boughtWave: 1 },
-        { uid: 'h2', cardId: 'hoarder', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false, boughtWave: 3 },
-        { uid: 'h3', cardId: 'hoarder', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false, boughtWave: 4 },
+        { uid: 'h1', cardId: 'hoarder', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false },
+        { uid: 'h2', cardId: 'hoarder', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false },
+        { uid: 'h3', cardId: 'hoarder', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false },
       ],
     };
-    s = reduce(s, { type: 'play', uid: 'h1' }); // playing the 3rd-from-hand completes the triple
+    s = reduce(s, { type: 'play', uid: 'h1' }); // playing the 3rd completes the triple → golden Hoarder
     const golden = [...s.board, ...s.hand].find((c) => c.cardId === 'hoarder' && c.golden)!;
-    expect(golden.boughtWave).toBe(1); // earliest of {1,3,4}
-    // …and that earliest age drives the golden's sell value: at wave 5, (5 - 1 + 1) × 2 = 10.
-    const sold = { ...s, wave: 5, embers: 0 };
-    const after = reduce(sold, { type: 'sell', uid: golden.uid });
-    expect(after.embers).toBe(10);
+    const after = reduce({ ...s, embers: 0 }, { type: 'sell', uid: golden.uid });
+    expect(after.embers).toBe(4); // golden sells for a flat 4
   });
 
   it('Yazzus makes an aimed spell resolve twice (golden: three times)', () => {
@@ -2278,7 +2291,7 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("Djinn's Cadence procs a friendly minion's End of Turn now (once per turn)", () => {
-    // Ritualist's End of Turn buffs every Fodder +1/+1; Fred is Fodder.
+    // Ritualist's End of Turn buffs every Fodder +2/+2; Fred is Fodder.
     const board = (): BoardCard[] => [
       { uid: 'r', cardId: 'ritualist', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false },
       { uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false },
@@ -2286,8 +2299,8 @@ describe('hero powers (@game/sim)', () => {
     let s: RunState = { ...createRun(1, 'djinn'), board: board() };
     s = reduce(s, { type: 'heroPower', uid: 'r' });
     const fred = s.board.find((c) => c.uid === 'f')!;
-    expect(fred.attack).toBe(2); // 1 + 1
-    expect(fred.health).toBe(2);
+    expect(fred.attack).toBe(3); // 1 + 2
+    expect(fred.health).toBe(3);
     expect(s.heroReady).toBe(false);
     expect(reduce(s, { type: 'heroPower', uid: 'r' })).toBe(s); // once per turn
   });
@@ -2650,19 +2663,19 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(card.buffs?.some((b) => b.source === 'Flowing Monk' && b.attack === 3)).toBe(true);
   });
 
-  it('Bane: each Battlecry you trigger gives Fodder +1/+1 run-wide (+2/+2 golden)', () => {
+  it('Bane: each Battlecry you trigger gives Fodder +2/+2 run-wide (+4/+4 golden)', () => {
     // Bane subscribes to `battlecryTriggered` (Karwind's hook). Playing Soulfeeder (a Battlecry) fires once
-    // → Bane enchants the Fodder card type +1/+1. A golden Bane does +2/+2.
+    // → Bane enchants the Fodder card type +2/+2. A golden Bane does +4/+4.
     const setup = (golden: boolean): RunState => ({
       ...createRun(1), embers: 0, shop: [], pendingTavern: [],
       board: [{ uid: 'b', cardId: 'bane', tribe: 'dragon', attack: 12, health: 12, keywords: [], golden }],
       hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
     });
     const s = reduce(setup(false), { type: 'play', uid: 'sf' });
-    expect(s.cardBuffs.fred).toEqual({ attack: 1, health: 1 }); // one battlecry → +1/+1
+    expect(s.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // one battlecry → +2/+2
     expect(s.karwindFlash).toContain('b'); // Bane flashes itself so the proc reads even with no Fodder out
     const g = reduce(setup(true), { type: 'play', uid: 'sf' });
-    expect(g.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // golden → +2/+2
+    expect(g.cardBuffs.fred).toEqual({ attack: 4, health: 4 }); // golden → +4/+4
   });
 
   it('Bane: triggering N Battlecries buffs Fodder +N/+N (and respects Drakko doubling)', () => {
@@ -2681,7 +2694,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'f1' });
     s = reduce(s, { type: 'play', uid: 'f2' });
     s = reduce(s, { type: 'play', uid: 'f3' });
-    expect(s.cardBuffs.fred).toEqual({ attack: 3, health: 3 }); // N=3 battlecries → +3/+3
+    expect(s.cardBuffs.fred).toEqual({ attack: 6, health: 6 }); // N=3 battlecries × +2/+2 → +6/+6
 
     // Drakko doubling: one Battlecry fire becomes two → Bane procs twice for a single play.
     let d: RunState = {
@@ -2693,7 +2706,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
       hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
     };
     d = reduce(d, { type: 'play', uid: 'sf' });
-    expect(d.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // 1 play × 2 fires (Drakko) → +2/+2
+    expect(d.cardBuffs.fred).toEqual({ attack: 4, health: 4 }); // 1 play × 2 fires (Drakko) × +2/+2 → +4/+4
   });
 });
 

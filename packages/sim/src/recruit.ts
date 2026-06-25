@@ -129,6 +129,21 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
 }
 
 /**
+ * Accrue the run-wide **Imp** buff (Fodder Feeder / Ritualist / Bane). Imps are combat-summoned tokens
+ * (Brood Matron / Imp King), so this bumps `state.impBuff` — which `simulate` applies to every friendly Imp
+ * at combat start AND on summon, so the bonus follows them. Also buffs any Imp already on the board/hand
+ * (rare — imps are normally combat-only). Stacks; `source` labels the inspect breakdown.
+ */
+export function buffImpsRunWide(state: RunState, a: number, h: number, source: string): void {
+  state.impBuff ??= { attack: 0, health: 0 };
+  state.impBuff.attack += a;
+  state.impBuff.health += h;
+  for (const c of [...state.board, ...state.hand]) {
+    if (CARD_INDEX[c.cardId]?.imp) addBuff(c, source, a, h);
+  }
+}
+
+/**
  * Permanently enchant a single card type run-wide by +a/+h (Grave Knit's combat-death payoff). Like
  * `buffFodderRunWide` but keyed to one `cardId` rather than the Fodder keyword: bumps the persistent
  * per-cardId run buff (so future copies from any source carry it) and applies it to that card already
@@ -645,7 +660,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  of the run (so future copies from the tavern, summons, Discover etc. carry it), and the
    *  Fodder already on the board / in the hand gets it right now. Golden doubles; Ritualists stack. */
   buffFodderEverywhere: (ctx, self, params) => {
-    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    buffFodderRunWide(ctx.state, a, h, nameOf(self));
+    buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Ritualist now feeds Imps too
+  },
+
+  /** Hoarder — Battlecry: bank extra Gold for next turn (consumed when next turn's Gold is set). Golden 2×. */
+  battlecryBonusGoldNextTurn: (ctx, self, params) => {
+    ctx.state.bonusEmbersNextTurn = (ctx.state.bonusEmbersNextTurn ?? 0) + num(params.gold, 1) * gold(self);
   },
 
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*
@@ -653,7 +676,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  per Battlecry *fire* (so a Drakko-doubled Battlecry procs it twice — `fireBattlecryTriggered`
    *  notifies per fire). Multiple Banes each react, so they stack additively. */
   onBattlecryBuffFodder: (ctx, self, params) => {
-    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    buffFodderRunWide(ctx.state, a, h, nameOf(self));
+    buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Bane now buffs Imps too
     // Flash Bane itself + any Fodder on the board it just enchanted, so the proc is visible even when no
     // Fodder is out (its enchant is run-wide, to the card *type*). Reuses the battlecry-trigger flame flash:
     // the seq bump happens in `fireBattlecryTriggered`'s callers once this list is non-empty.

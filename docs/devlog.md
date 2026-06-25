@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Imp archetype (2 new Demons + imp-buff system), hero-select 3, Brood/Ritualist/Bane/Karwind/Mama Bear/Hoarder reworks
+
+A large content batch introducing an **Imp** sub-archetype plus several tuning changes.
+
+**Hero select → 3 options** (`HERO_SELECT_COUNT` 2 → 3).
+
+**The Imp system.** Imps are combat-only tokens (Brood Matron / Imp King summon them mid-fight — they never sit on the recruit board), so "buff your Imps everywhere" is a run-wide bonus *applied in combat*, exactly like the undead system. New `CardDef.imp` tag (the 1/1 Imp token only). **Recruit** sources accrue a persistent `RunState.impBuff` (via `buffImpsRunWide`); `simulate` applies it to every friendly Imp at combat start AND on summon (new `applyImpBonus`). **Combat** sources buff the combat Imps directly (`deathrattleBuffImps` / `avengeBuffImps`).
+
+**2 new Demons:**
+- **Fodder Feeder** (T1 1/2) — when **sold** (handled in the reducer's sell case): queue a Fodder + accrue the run-wide Imp buff +1/+1 (golden +2/+2).
+- **Imp King** (T4 6/5) — Deathrattle: summon 2 Imps + buff your Imps +2/+3 (golden: 4 Imps, +4/+6).
+
+**Changes:**
+- **Brood Matron** — now breeds 1 Imp per friend death capped at 3 (golden 6, via `Minion.bredCount`); gains **Avenge (3): buff your Imps +3/+2**.
+- **Ritualist** — End of Turn now gives Imps **and** Fodder **+2/+2** (was Fodder +1/+1).
+- **Bane** — per-Battlecry enchant now hits Imps **and** Fodder **+2/+2** (was Fodder +1/+1).
+- **Karwind** → Tier 5 (was 6).
+- **Mama Bear** — +2/+2 improving +2/+2 (was +3/+3 / +3/+3); a gentler, longer ramp.
+- **Hoarder** — reworked from sell-scaling to **Battlecry: +1 Gold next turn (new `bonusEmbersNextTurn`, consumed in `advanceCombat`); sells for a flat 2 Gold** (golden 4). Dropped the boughtWave sell-scaling + its live text.
+- **Demonic Anomaly** — new art (`demonanomaly2`).
+
+**Art:** Fodder Feeder, Imp King, Demonic Anomaly 2 (PNG, matching the recent minion-art convention).
+
+**Files:** `packages/core/src/types.ts` (imp tag, 3 factory ids, `bredCount`, simulate sig), `packages/core/src/combat/simulate.ts` (`applyImpBonus`), `packages/core/src/effects/factories.ts` (`deathrattleBuffImps`/`avengeBuffImps`, Brood cap), `packages/content/src/{schema.ts,cards/{demons,dragons,beasts,neutral,tokens}.ts}`, `packages/sim/src/{state.ts,recruit.ts,reducer.ts}`, `packages/ui/src/{Recruit.tsx,art.ts}`, tests + `docs/cards.csv`.
+
+**Verification:** new tests (imp buff applied to combat summons; Imp King Deathrattle; Fodder Feeder sell; Brood cap; Hoarder flat sell + battlecry bank; Mama Bear +2/+2). Updated the Mama Bear / Ritualist / Chronos / Bane / Djinn / Flowing Monk / Brood tests for the new values. `typecheck + lint + test (337) + harness + build:web` green; hero-select 3 + clean boot verified in-preview. **Ryme (combat battlecry-replay) lands in a follow-up commit.**
+
 ### feat: live-card-text audit + Soulsman "gained X Gold" metric
 
 A full audit pass (3 parallel agents over all card files) cross-referencing every card against the live-text system (`cardText.ts` helpers wired into `instView`/`Unit.tsx`, plus `spellDisplayText` for spells). Most cards were already correct — ordinary stat scaling shows on the green stat badges, and the existing 13 helpers cover the scaling-text cases. The audit surfaced a small set of genuine gaps, now fixed:

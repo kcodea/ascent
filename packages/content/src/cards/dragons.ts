@@ -49,7 +49,7 @@ export const DRAGONS: CardDef[] = [
     id: 'karwind',
     name: 'Karwind',
     tribe: 'dragon',
-    tier: 6,
+    tier: 5,
     attack: 2,
     health: 12,
     keywords: [],
@@ -69,9 +69,9 @@ export const DRAGONS: CardDef[] = [
     attack: 12,
     health: 12,
     keywords: [],
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffFodder', params: { attack: 1, health: 1 } }],
-    text: 'After you trigger a Battlecry, give Fodder **+1/+1** this run.',
-    goldenText: 'After you trigger a Battlecry, give Fodder **+2/+2** this run.',
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffFodder', params: { attack: 2, health: 2 } }],
+    text: 'After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.',
+    goldenText: 'After you trigger a Battlecry, give Fodder and Imps **+4/+4** this run.',
   },
 
   // --- New dragons (2026-06-24 content batch). Frontdrake's cadence grant, Supporter's tribe Rally, and

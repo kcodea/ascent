@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Imp archetype + content batch.** Hero select now offers **3** champions. New **Imp** sub-theme: **Fodder
+  Feeder** (T1 — sell it for a Fodder + an Imp buff) and **Imp King** (T4 — Deathrattle: 2 Imps + buff your
+  Imps); **Brood Matron**, **Ritualist**, and **Bane** now feed/buff Imps too. Tuning: **Karwind** → T5,
+  **Mama Bear** → +2/+2 (improving +2/+2), **Hoarder** reworked (Battlecry: +1 Gold next turn; sells for 2),
+  **Demonic Anomaly** new art.
 - **Live-text audit + Soulsman metric.** Audited every card's tooltip for live/current values. **Soulsman**
   now shows a running **"Gained X Gold this run"** total; **Deathswarmer / Forsaken Weaver / Karthus** show the
   current **+Attack new Undead inherit**; **Eternal Knight** shows its accrued run-wide enchant. Fixed a golden

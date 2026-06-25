@@ -12,7 +12,7 @@ gryphon,Gryphon,3,3,6,,Taunt,"**Taunt.** Each time this takes damage, gain a **f
 raptor,Raptor,3,2,8,,,"When a friendly **Beast** attacks, give it **+3/+1**.","When a friendly **Beast** attacks, give it **+6/+2**."
 seaurchin,Sea Urchin,4,4,4,,,**Battlecry:** Discover a Beast.,**Battlecry:** Discover **2** Beasts.
 sporebat,Sporebat,4,2,6,,Taunt,**Taunt. Deathrattle:** add a random tavern-tier spell to your hand.,**Taunt. Deathrattle:** add **2** random tavern-tier spells to your hand.
-mamabear,Mama Bear,5,6,6,,,"When you summon a **Beast**, give it **+3/+3** — and improve this by **+3/+3**.","When you summon a **Beast**, give it **+6/+6** — and improve this by **+6/+6**."
+mamabear,Mama Bear,5,6,6,,,"When you summon a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.","When you summon a **Beast**, give it **+4/+4** — and improve this by **+4/+4**."
 spiritpup,Spirit Pup (beast/dragon),5,4,6,,,Cast **10 spells** with this on board to transform into **Spirit Worgen**.,
 gnash,"Gnasher, the Overrun",6,6,6,,,"When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.",
 grim,Grim,6,7,1,,,**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.,
@@ -28,10 +28,10 @@ weaver,Arcane Weaver,4,3,4,,,**Deathrattle:** add a copy of **Spirit Fire** to y
 cinder,Cinderwing Matron,4,5,5,,,**Battlecry:** give your spells **+1 Health**.,**Battlecry:** give your spells **+2 Health**.
 broodmother,Twilight Broodmother,4,2,5,,,**Deathrattle:** summon 2 **Twilight Whelps** with **Taunt**.,**Deathrattle:** summon 4 **Twilight Whelps** with **Taunt**.
 hunter,Hunter,5,5,7,,,"When this gains Attack, give your minions **+2 Health**.","When this gains Attack, give your minions **+4 Health**."
+karwind,Karwind,5,2,12,,,"Whenever a **Battlecry** triggers, give your Dragons **+1/+2**.",
 stuntdrake,Stuntdrake,5,3,7,,,**Avenge (3):** give this minion's Attack to 2 other friendly minions.,**Avenge (3):** give this minion's Attack to 2 other friendly minions **twice**.
-bane,Bane (dragon/demon),6,12,12,,,"After you trigger a Battlecry, give Fodder **+1/+1** this run.","After you trigger a Battlecry, give Fodder **+2/+2** this run."
+bane,Bane (dragon/demon),6,12,12,,,"After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.","After you trigger a Battlecry, give Fodder and Imps **+4/+4** this run."
 cryptdrake,Crypt Drake (dragon/undead),6,4,10,,,"When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.","When an ally attacks, give your minions **+4/+4**. Improve this every **3** attacks."
-karwind,Karwind,6,2,12,,,"Whenever a **Battlecry** triggers, give your Dragons **+1/+2**.",
 
 # === UNDEAD (13) ===
 spore,Sporeling,1,1,2,,,**Deathrattle:** Give all friends **+1 Attack** or **+1 Health** (random).,
@@ -62,23 +62,25 @@ combinator,Combinator,5,6,7,,,**End of Turn:** magnetize a random **Magnetic** M
 beatboxer,Beatboxer,6,8,8,,,"Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.","Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this."
 nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.","**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**."
 
-# === DEMON (11) ===
+# === DEMON (13) ===
+fodderfeeder,Fodder Feeder,1,1,2,,,"When you **sell** this, add a **Fodder** to your next tavern and give your **Imps +1/+1** everywhere.","When you **sell** this, add **2 Fodder** to your next tavern and give your **Imps +2/+2** everywhere."
 feed,Soulfeeder,1,2,2,,,**Battlecry:** add Fodder to your next tavern.,**Battlecry:** add **2** Fodder to your next tavern.
 trickster,Trickster,1,1,3,,,**Deathrattle:** Give a random friendly minion this minion's Health.,**Deathrattle:** Give a random friendly minion this minion's Health **twice**.
 burialimp,Burial Imp,2,3,3,,,**Deathrattle:** add a Fodder to your next tavern.,**Deathrattle:** add **2** Fodder to your next tavern.
 imp,Voracious Imp,2,2,2,,Consume,Gains **2x** stats from Fodder.,Gains **3x** stats from Fodder.
-brood,Brood Matron,3,3,3,,,"Each time a friend dies, summon a 1/1 Imp.","Each time a friend dies, summon **two** 1/1 Imps."
+brood,Brood Matron,3,3,3,,,"Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+3/+2**.","Each time a friend dies, summon an **Imp** (max 6). **Avenge (3):** give your Imps **+6/+4**."
 maw,Maw of the Pit,3,4,5,,Taunt,**End of Turn:** add a **Fodder** to your next tavern.,**End of Turn:** add **2** Fodder to your next tavern.
 demonanomaly,Demonic Anomaly,4,4,4,,,**Battlecry:** Gain 2 free refreshes. Give all Tavern minions **+3/+3** this game.,**Battlecry:** Gain **4** free refreshes. Give all Tavern minions **+6/+6** this game.
 heckbinder,Heckbinder (demon/mech),4,3,3,,Magnetic,Magnetize onto a friendly **Mech** or **Demon**.,
-ritualist,Ritualist,5,2,5,,,"**End of Turn:** all Fodder gets **+1/+1**, wherever it is.",
+impking,Imp King,4,6,5,,,**Deathrattle:** Summon 2 **Imps** and give your Imps **+2/+3** everywhere.,**Deathrattle:** Summon 4 **Imps** and give your Imps **+4/+6** everywhere.
+ritualist,Ritualist,5,2,5,,,"**End of Turn:** give your Imps and Fodder **+2/+2**, wherever they are.","**End of Turn:** give your Imps and Fodder **+4/+4**, wherever they are."
 abhorrenthorror,Abhorrent Horror,6,1,1,,Start of Combat,**Start of Combat:** Gain +Attack/+Health equal to the Fodder consumed this turn.,**Start of Combat:** Gain **double** the Attack/Health of Fodder consumed this turn.
 acid,Acid,6,7,7,,Consume,"Every 4 refreshes, consume a random tavern minion.","Every 4 refreshes, consume a random tavern minion (gain **double** its stats)."
 
 # === NEUTRAL (16) ===
 sandbag,Target Dummy,1,0,4,,Taunt,,
 broker,Brightwing Broker,2,2,3,,,Every minion you buy gets **+1/+1**.,
-hoarder,Hoarder,2,2,2,,,Sells for **+1 Gold** per turn you hold it.,Sells for **+2 Gold** per turn you hold it.
+hoarder,Hoarder,2,2,2,,,**Battlecry:** get **1** extra Gold next turn. Sells for **2 Gold**.,**Battlecry:** get **2** extra Gold next turn. Sells for **4 Gold**.
 buddy,Buddy Buddy,3,3,4,,,**Battlecry:** add a random **Tier 1** minion to your hand.,**Battlecry:** add **two** random **Tier 1** minions to your hand.
 echo,Echo Warden,3,2,4,,,"**In combat,** your summon effects summon **1 more** copy.","**In combat,** your summon effects summon **2 more** copies."
 venom,Venom,3,1,1,,Venomous,,

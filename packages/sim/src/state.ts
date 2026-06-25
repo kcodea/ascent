@@ -144,6 +144,12 @@ export interface RunState {
   /** Total max-Gold Soulsman has earned this run (cumulative across combats) — surfaced on Soulsman's
    *  card as a "gained X Gold" metric. Absent on old saves = 0. */
   soulsmanGold?: number;
+  /** Run-wide Imp buff (Fodder Feeder / Ritualist / Bane stack it). Applied to every friendly Imp in combat
+   *  (imps are combat-summoned tokens — Brood Matron / Imp King), so the bonus follows them. Absent = 0/0. */
+  impBuff?: { attack: number; health: number };
+  /** Extra Gold granted at the start of next turn (Hoarder's Battlecry). Consumed when the next recruit
+   *  turn's Gold is set, then cleared. Absent = 0. */
+  bonusEmbersNextTurn?: number;
   resolve: number;
   maxResolve: number;
   tier: number;

@@ -155,6 +155,9 @@ export type EffectFactoryId =
   | 'spellCastBuffUndeadAttack' // Forsaken Weaver (combat): on spell cast, give your Undead +Attack
   | 'deathrattleGrantCardToHand' // Pillager: Deathrattle — add a specific card to hand after combat
   | 'onKillBuffUndeadAttack' // Karthus: when this kills an enemy, give your Undead +Attack permanently
+  | 'deathrattleBuffImps' // Imp King: Deathrattle — buff all friendly Imps +atk/+hp (combat)
+  | 'avengeBuffImps' // Brood Matron: Avenge (X) — buff all friendly Imps +atk/+hp (combat)
+  | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryFreeRollsAndBuffShop' // Demonic Anomaly: Battlecry — gain free refreshes + buff the current tavern
@@ -177,6 +180,10 @@ export interface CardDef {
   /** Counts as EVERY non-neutral tribe simultaneously: receives all tribe buffs and can Magnetize onto
    *  any non-neutral minion (Symbiotic Attachment). Absent = normal tribe matching. */
   universalTribe?: boolean;
+  /** An "Imp" — the target of imp-buff effects (Fodder Feeder, Imp King, Brood Matron, Ritualist, Bane).
+   *  Currently the 1/1 Imp token only. Run-wide imp buffs accrue into `RunState.impBuff` and apply to these
+   *  in combat (imps are combat-summoned tokens); combat imp buffs target these directly. */
+  imp?: boolean;
   tier: Tier;
   attack: number;
   health: number;
@@ -298,6 +305,8 @@ export interface Minion {
   /** Sergeant: accumulated HP bonus on its Deathrattle (grows each time Sergeant gains Attack in
    *  combat). Applied on top of the base params.health when the Deathrattle fires. Absent = 0. */
   hpGrantBonus?: number;
+  /** Brood Matron: how many Imps it has bred this combat — caps its friend-death summons. Absent = 0. */
+  bredCount?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   side: Side;

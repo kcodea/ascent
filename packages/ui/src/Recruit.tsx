@@ -143,7 +143,7 @@ function instView(
   undeadAtkBonus = 0,
   undeadHpBonus = 0,
   frontToBackBonus = 0,
-  wave = 1,
+  _wave = 1, // (was Hoarder's sell-scaling; kept positional so call sites don't shift)
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
@@ -161,9 +161,7 @@ function instView(
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
       : c.spell
         ? spellDisplayText(c.id, spellBonus, frontToBackBonus, spellBonusH)
-        : c.id === 'hoarder'
-          ? `Sells for **+1 Gold** per turn you hold it. {{Sells for ${wave - (inst.boughtWave ?? wave) + 1} Gold now.}}`
-          : transformProgressText(c.id, inst.spellProgress ?? 0) ??
+        : transformProgressText(c.id, inst.spellProgress ?? 0) ??
             ascendProgressText(c.id, inst.ascendProgress ?? 0) ??
             abhorrentHorrorText(c.id, fodderConsumed, !!inst.golden) ??
             summonScalingText(c.id, spellsThisTurn) ??
@@ -191,13 +189,11 @@ function instView(
     cardTypeTallyText(c.id, live?.cardBuffs?.[c.id]) ??
     '';
   const goldenBase =
-    c.id === 'hoarder'
-      ? `Sells for **+2 Gold** per turn you hold it. {{Sells for ${(wave - (inst.boughtWave ?? wave) + 1) * 2} Gold now.}}`
-      : c.id === 'guel'
-        ? guelProgressText(c.id, true, spellsCast) ?? c.goldenText // golden Guel shows its live (×2) grant + countdown
-        : c.id === 'mamabear'
-          ? summonImproveText(c.id, inst.summonBonus ?? 0, true) ?? c.goldenText // golden Mama Bear: live (×2) grant
-          : c.goldenText;
+    c.id === 'guel'
+      ? guelProgressText(c.id, true, spellsCast) ?? c.goldenText // golden Guel shows its live (×2) grant + countdown
+      : c.id === 'mamabear'
+        ? summonImproveText(c.id, inst.summonBonus ?? 0, true) ?? c.goldenText // golden Mama Bear: live (×2) grant
+        : c.goldenText;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     attack: (override?.attack ?? inst.attack) + auraAtk, health: (override?.health ?? inst.health) + auraHp,

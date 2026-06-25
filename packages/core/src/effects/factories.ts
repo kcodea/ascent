@@ -604,13 +604,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   // --- Demons (combat-resolved: Brood Matron breeds, the Sovereign destroys) ---
 
-  /** Brood Matron — each time another friend dies, summon a token beside self. (Golden breeds two;
-   *  Echo Warden's extra copies are added in the summon path, not here.) */
+  /** Brood Matron — each time another friend dies, summon one Imp beside self, capped at `max` per combat
+   *  (golden doubles the cap). The `bredCount` tracks how many it has bred this fight. */
   onFriendDeathSummon: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion === self || minion.side !== self.side) return;
-    const reps = mul(self);
-    for (let i = 0; i < reps; i++) ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
+    const cap = num(params.max, 3) * mul(self);
+    if ((self.bredCount ?? 0) >= cap) return;
+    ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
+    self.bredCount = (self.bredCount ?? 0) + 1;
   },
 
   /** Abyssal Sovereign — Start of Combat: destroy the enemy with the highest Attack. */
@@ -722,5 +724,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       ctx.buff(m, amount, 0, self.uid);
     }
     ctx.grantUndeadBuyAtk(amount, self.side);
+  },
+
+  /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp. Shared by Imp King (Deathrattle) and
+   *  Brood Matron (Avenge). Combat-temporary — the run-wide persistent imp buff comes from the recruit
+   *  side (Fodder Feeder / Ritualist / Bane → `RunState.impBuff`, applied at summon). Golden doubles. */
+  deathrattleBuffImps: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 3) * mul(self);
+    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
+  },
+
+  /** Brood Matron — Avenge (X): every X friendly deaths, buff your Imps +atk/+hp (combat). Golden doubles. */
+  avengeBuffImps: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const every = Math.max(1, num(params.count, 3));
+    if (count % every !== 0) return;
+    const a = num(params.attack, 3) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
   },
 };

@@ -488,19 +488,39 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true);
   });
 
-  it('a golden Brood Matron breeds two Imps per death (one for a plain one)', () => {
-    // The Alleycat trades with a 1/1 Omen and dies, firing Brood Matron's breed exactly once.
+  it('Brood Matron breeds 1 Imp per friend death, capped at 3 (golden 6)', () => {
+    // A tanky 0-Attack Brood survives while sacrificial bodies (and the bred Imps) die to a big attacker;
+    // breeding stops at the cap. So the total Imps summoned == cap (3, or 6 golden).
     const imps = (golden: boolean): number =>
       run(
         [
-          { cardId: 'alley', attack: 1, health: 1 },
-          { cardId: 'brood', attack: 3, health: 30, golden },
+          { cardId: 'brood', attack: 0, health: 1000, golden },
+          { cardId: 'sandbag', attack: 0, health: 1 },
+          { cardId: 'sandbag', attack: 0, health: 1 },
+          { cardId: 'sandbag', attack: 0, health: 1 },
         ],
-        [{ cardId: 'omen', attack: 1, health: 1, keywords: [] }],
+        [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
         1,
       ).events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length;
-    expect(imps(false)).toBe(1);
-    expect(imps(true)).toBe(2);
+    expect(imps(false)).toBe(3); // capped at 3
+    expect(imps(true)).toBe(6); // golden cap 6
+  });
+
+  it('the run-wide Imp buff applies to combat-summoned Imps', () => {
+    // impAtkBonus/impHpBonus = 2/2 → a Brood-summoned Imp enters as a 3/3 (1/1 base + 2/2).
+    const r = simulate(
+      [{ cardId: 'brood', attack: 0, health: 1000 }, { cardId: 'sandbag', attack: 0, health: 1 }],
+      [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
+      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 2,
+    );
+    const imp = r.events.find((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
+    expect(imp?.type === 'summon' ? [imp.minion.attack, imp.minion.health] : null).toEqual([3, 3]);
+  });
+
+  it('Imp King Deathrattle summons 2 Imps and buffs your Imps +2/+3', () => {
+    const r = run([{ cardId: 'impking', attack: 6, health: 1 }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(2);
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 3)).toBe(true); // the Imp buff
   });
 
   it('Gnasher keeps attacking after killing a Reborn target', () => {
@@ -930,15 +950,16 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Flowing Monk buffs a friend when a combat summon overflows the full board', () => {
-    // 7 living (Monk + golden Brood + 5 Taunt sandbags). The omen kills a sandbag → golden Brood
-    // summons 2 Imps: the first fits (back to 7), the second overflows → Monk procs +3/+3.
-    const sb = (): BoardMinion => ({ cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] });
+    // 7 living (0-Attack Monk + Imp King + 5 walls). Imp King (the only attacker) strikes the big omen and
+    // dies to retaliation → its Deathrattle summons 2 Imps: the first fits (back to 7), the second overflows
+    // → Monk procs +3/+3. (The walls + Monk have 0 Attack, so only Imp King ever swings or dies.)
+    const wall = (): BoardMinion => ({ cardId: 'sandbag', attack: 0, health: 100 });
     const p: BoardMinion[] = [
-      { cardId: 'monk', attack: 1, health: 40 },
-      { cardId: 'brood', attack: 6, health: 6, golden: true },
-      sb(), sb(), sb(), sb(), sb(),
+      { cardId: 'monk', attack: 0, health: 200 },
+      { cardId: 'impking', attack: 6, health: 1 },
+      wall(), wall(), wall(), wall(), wall(),
     ];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 80 }];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 50, health: 400 }];
     const a = run(p, e, 5);
     expect(a.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 3)).toBe(true);
   });

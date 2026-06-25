@@ -51,6 +51,7 @@ export const TOKENS: CardDef[] = [
     // A plain 1/1 with no keyword and no Fodder interaction — no body text (the stats say it all).
     text: '',
     token: true,
+    imp: true, // the target of imp-buff effects (Fodder Feeder / Imp King / Brood / Ritualist / Bane)
   },
   {
     id: 'discoverspell',

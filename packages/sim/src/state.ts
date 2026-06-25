@@ -1,5 +1,6 @@
 import { makeRng } from '@game/core';
 import type { CombatOutcome, CombatResult, Keyword, Rng, Tribe } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { rollShop, stockPool } from './shop';
@@ -98,6 +99,9 @@ export interface BoardCard {
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that
    *  wasn't bought sells for the base 1, since it has no held-since wave). */
   boughtWave?: number;
+  /** Acid's per-instance refresh counter: how many times the shop has been rolled since this card entered
+   *  the board. Fires the consume at every `every`-th roll. Reset to 0 in advanceCombat each wave. */
+  rollTick?: number;
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
    *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
   eotTick?: number;
@@ -165,6 +169,10 @@ export interface RunState {
   /** Run-wide Undead health bonus (Lantern of Souls' spell-power component). Paired with the attack
    *  bonus above and applied to the same Undead in the same places. */
   undeadHealthBonus: number;
+  /** Run-wide Undead attack bonus AT BUY TIME (Deathswarmer / Forsaken Weaver): baked into each Undead
+   *  card when it's bought, and re-applied on Reborn (Reborn resets to base stats). Separate from
+   *  `undeadAttackBonus` (Lantern of Souls) which applies in combat only. */
+  undeadBuyAtk: number;
   /** Run-wide SPELL POWER: extra +atk/+hp every stat-granting spell grants, on top of the hero's
    *  amplify (Spellbinder). Raised by cards — Cinderwing Matron (+1 Health on play), Skullblade
    *  (+1 Attack per combat death, carried back). Folded into `spellAttackBonus` / `spellHealthBonus`. */
@@ -194,6 +202,12 @@ export interface RunState {
   heroReady: boolean;
   /** Once-per-game hero powers (e.g. Oner's Gild) flip this and never recharge. */
   heroPowerSpent: boolean;
+  /** Symbiote hero: how many recruit turns have elapsed (incremented in faceOmen). Used to grant a
+   *  Symbiotic Attachment every 4 turns. */
+  heroPowerTick?: number;
+  /** Fodder consumed so far this wave (reset in advanceCombat). The Abhorrent Horror reads this at
+   *  Start of Combat to gain the fodder's stats. */
+  fodderConsumedThisTurn?: { attack: number; health: number };
   threat: ThreatId;
   /** The 5 non-neutral tribes active this run (handoff: 5 tribes per run). */
   tribes: Tribe[];
@@ -288,6 +302,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     frontToBackBonus: 0,
     undeadAttackBonus: 0,
     undeadHealthBonus: 0,
+    undeadBuyAtk: 0,
     spellBonus: { attack: 0, health: 0 },
     tavernBuyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,
@@ -310,6 +325,20 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     karwindFlashSeq: 0,
   };
   rollShop(state);
+  if (heroId === 'symbiote') {
+    const def = CARD_INDEX['symbioticattachment'];
+    if (def && state.hand.length < CONFIG.handMax) {
+      state.hand.push({
+        uid: `b${state.uidSeq++}`,
+        cardId: 'symbioticattachment',
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+  }
   return state;
 }
 
@@ -324,6 +353,7 @@ export function deserialize(json: string): RunState {
   state.cassenKills ??= 0; // heal saves from before Cassen's Collision tally
   state.turnStartPower ??= 0; // heal saves from before the pinned-opponent power
   state.spellBonus ??= { attack: 0, health: 0 }; // heal saves from before card-driven spell power
+  state.undeadBuyAtk ??= 0; // heal saves from before Deathswarmer / Forsaken Weaver
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (state.pendingSpellDiscovers && state.pendingSpellDiscovers > 0) {

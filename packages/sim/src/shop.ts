@@ -36,23 +36,12 @@ const availableOffers = (state: RunState): CardDef[] =>
   );
 
 /**
- * Draw one offer id from the available pool, weighted toward the current tier (handoff). The caller
- * decrements the pool. Returns null only when the pool is exhausted (no eligible copies left) — the
- * shop then simply offers fewer cards, which is the whole point of a finite pool.
+ * Draw one offer id from the available pool, uniformly at random (flat weight = 1 per card).
+ * The caller decrements the pool. Returns null only when the pool is exhausted.
  */
-function drawOfferId(rng: Rng, pool: CardDef[], tier: number): string | null {
+function drawOfferId(rng: Rng, pool: CardDef[], _tier: number): string | null {
   if (pool.length === 0) return null;
-  const weights = pool.map(
-    (card) => 1 + (card.tier === tier ? 1.2 : 0) + (card.tier >= tier - 1 ? 0.4 : 0),
-  );
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = rng.next() * total;
-  let k = 0;
-  while (k < pool.length - 1 && r > (weights[k] ?? 0)) {
-    r -= weights[k] ?? 0;
-    k++;
-  }
-  return (pool[k] ?? pool[0]!).id;
+  return pool[rng.int(pool.length)]!.id;
 }
 
 /** A spell offer respects the tavern tier — like minions, a spell can only appear once you're at least

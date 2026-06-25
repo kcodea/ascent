@@ -127,7 +127,8 @@ export const DRAGONS: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeGiveAttack', params: { count: 3, targets: 2 } }],
-    text: "**Avenge (3):** give this minion's Attack to 2 friendly minions.",
+    text: "**Avenge (3):** give this minion's Attack to 2 other friendly minions.",
+    goldenText: "**Avenge (3):** give this minion's Attack to 2 other friendly minions **twice**.",
   },
 
   // --- Reactive-buff dragons (2026-06-24 batch, combat-machinery). Hunter uses a new `onGainAttack` trigger;

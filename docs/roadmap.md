@@ -75,6 +75,19 @@ deliberately
     spell power); Maw → T3; Combinator now magnetizes a *random* Magnetic Mech. Mana→Gold rename (text +
     names + gold coin icon). Hero-power button on the hero frame (placeholder art). Two new carry-back
     channels (`playerFodderGrants`, `playerMaxGoldGain`).
+  - **Content batch (2026-06-24, shipped → devlog):** +1 hero (Symbiote — passive token every 4 turns,
+    universalTribe Magnetic attachment), +4 Demons (Acid, Trickster, Demonic Anomaly, Abhorrent Horror),
+    +5 Undead (Deathswarmer, Pillager, Thundering Abomination, Sergeant, Forsaken Weaver). New engine
+    primitives: `universalTribe`, `undeadBuyAtk`, `onRoll`/`applyOnRoll`, `fodderConsumedThisTurn`.
+    Demon pool now 11, Undead pool now 10.
+  - **Bug fixes + content batch + live text (2026-06-24, shipped → devlog):** Shop weights flattened
+    (equal chance for all tiers); Spell Discover now tier-gated; `onKill` bus fires for all kills
+    (not just re-attacker Gnasher). +3 Undead cards: **Karthus** (T5 8/8 DS; on-kill +3 Atk to all
+    Undead permanently — new `onKillBuffUndeadAttack` + `grantUndeadBuyAtk` carry-back), **Deathless
+    Hand** (T3 2/1; DR: summon a Footman), **Footman** (T1 1/1 Reborn token). Renames: Skullblade →
+    **Ghastly Bladesmith**, Grave Knit → **Eternal Knight**. Tara ascend procs now show in combat
+    narration log. Combat live text for Tara (`ascendProgress`), Sergeant (`hpGrantBonus` via `hpGrant`
+    event), and Thundering Abomination (`permaGain` from EG buff tracking). 18 art files wired.
   - **Follow-up (2026-06-23, shipped → devlog):** Sheldon/Speedy/Harry Botter made **Magnetic** (+ `spellAura`
     weld plumbing so the aura survives a weld); **triples now keep welded fields** (`rallyMechAtk`/aura, not
     just `manaBonus`); **Archmagus Guel scales** +1/+1 per 4 spells cast (a "T1–4 stay relevant" win);
@@ -167,6 +180,11 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
   - **Remaining threads:** **TitanHP** hero-power master matches no hero + **Nadja** has no power master (both
     unwired — need a hero/asset decision); **Taragosa** should keep its "all stats are Engraved" line (goes on
     the #16 branch); open design Qs: Taragosa Growth-cast scaling, Tribes-Choice-on-neutral UX.
+  - **Dragon bug-fix pass (shipped 2026-06-24 → devlog):** Crypt Drake live text in combat (current +N/N +
+    countdown via self-buff detection); Twilight Whelp sequential spawning (each whelp attacks before the
+    next can spawn — uses new `ctx.flushImmediateAttacks()`); Broodmother's whelps show Taunt emblem from
+    frame 1 (keyword now applied before the summon snapshot via `ctx.summon(..., grantKeywords)`); golden
+    Stuntdrake procs twice (updated `avengeGiveAttack` + `goldenText`).
 - [ ] **Enemy-strength curve tool** (the way we'll actually balance — not the old mono-tribe matrix
       runner, which is deprioritized per the user). Build a way to tune how fast enemy boards scale
       per wave so the climb's difficulty ramp feels right. Design TBD.

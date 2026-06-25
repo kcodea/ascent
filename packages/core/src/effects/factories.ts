@@ -48,9 +48,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const card = ctx.getCard(str(params.tokenId));
     const total = num(params.count, 1) * mul(self); // golden doubles the token count (e.g. Pack Scrounger 2 → 4)
     const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
+    const grantKws = kw ? [kw] : undefined; // passed into summon so the keyword is in the snapshot from the start
     for (let i = 0; i < total; i++) {
-      const m = ctx.summon(self.side, card, self.uid);
-      if (kw && !m.keywords.includes(kw)) m.keywords.push(kw);
+      ctx.summon(self.side, card, self.uid, grantKws);
+      // Sequential spawning for attack-on-summon tokens (Twilight Whelp → Whelp): each Whelp attacks
+      // immediately after spawning. Only spawn the next one if there's room after the first has attacked
+      // (if the first dies, it frees a slot; if it lives and the board was full, the next overflows).
+      if (card.attackOnSummon) ctx.flushImmediateAttacks?.();
     }
   },
 
@@ -102,7 +106,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion, side } = payload as MinionPayload;
     if (self.dead || side !== self.side || minion === self) return;
     const tribe = str(params.tribe) as Tribe | '';
-    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe) return;
+    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
     const base = num(params.attack, 3);
     const mag = (base + self.summonBonus) * mul(self);
     ctx.buff(minion, mag, mag, self.uid);
@@ -116,7 +120,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion, side } = payload as MinionPayload;
     if (self.dead || side !== self.side || minion === self) return;
     const tribe = str(params.tribe) as Tribe | 'any';
-    if (tribe !== 'any' && minion.tribe !== tribe) return;
+    if (tribe !== 'any' && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
     const bonus = self.summonBonus;
     ctx.buff(minion, num(params.attack) + bonus, num(params.health) + bonus, self.uid);
   },
@@ -145,7 +149,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.addTribeAura(self.side, tribe, attack, health, self.uid);
     // …then buff the friends already on the board.
     for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe) ctx.buff(m, attack, health, self.uid);
+      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, attack, health, self.uid);
     }
   },
 
@@ -159,7 +163,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const amount = ctx.deathrattleTally() * num(params.per, 1) * mul(self);
     ctx.addTribeAura(self.side, tribe, amount, amount, self.uid);
     for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe) ctx.buff(m, amount, amount, self.uid);
+      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, amount, amount, self.uid);
     }
   },
 
@@ -527,12 +531,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (count % x !== 0) return;
     const amount = self.attack;
     if (amount <= 0) return;
-    const pickable = ctx.living(self.side).filter((m) => m !== self);
     const targets = num(params.targets, 2);
-    for (let i = 0; i < targets && pickable.length > 0; i++) {
-      const m = ctx.rng.pick(pickable);
-      pickable.splice(pickable.indexOf(m), 1);
-      ctx.buff(m, amount, 0, self.uid);
+    // Golden procs twice — each proc independently picks `targets` random friends (can overlap).
+    for (let t = 0; t < mul(self); t++) {
+      const pickable = ctx.living(self.side).filter((m) => m !== self);
+      for (let i = 0; i < targets && pickable.length > 0; i++) {
+        const m = ctx.rng.pick(pickable);
+        pickable.splice(pickable.indexOf(m), 1);
+        ctx.buff(m, amount, 0, self.uid);
+      }
     }
   },
 
@@ -614,5 +621,106 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const victim = targets.reduce((a, b) => (b.attack > a.attack ? b : a));
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} drags down the mightiest` });
     ctx.damage(victim, victim.health, false, true); // destroy: ignores Divine Shield
+  },
+
+  // ─── New content batch factories ────────────────────────────────────────────
+
+  /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.
+   *  Golden picks a target twice (independently). */
+  deathrattleGiveHealth: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const hp = self.maxHealth;
+    if (hp <= 0) return;
+    for (let i = 0; i < mul(self); i++) {
+      const targets = ctx.living(self.side).filter((m) => m !== self);
+      if (targets.length === 0) break;
+      ctx.buff(ctx.rng.pick(targets), 0, hp, self.uid);
+    }
+  },
+
+  /** Abhorrent Horror — Start of Combat: gain +Attack/+Health equal to all Fodder consumed this turn
+   *  (passed in on the CombatContext). Golden doubles everything. */
+  scGainFodderStats: (ctx, self, _params, _payload) => {
+    const atk = ctx.fodderConsumedAtk * mul(self);
+    const hp = ctx.fodderConsumedHp * mul(self);
+    if (atk > 0 || hp > 0) {
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} absorbs the consumed essence` });
+      ctx.buff(self, atk, hp, self.uid);
+    }
+  },
+
+  /** Thundering Abomination (Engraved) — when a friendly minion is summoned in combat, buff self
+   *  +atk/+hp. The Engraved keyword carries the gains back to the run board after combat. */
+  onSummonSelfBuff: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    ctx.buff(self, num(params.attack, 3) * mul(self), num(params.health, 3) * mul(self), self.uid);
+  },
+
+  /** Thundering Abomination — when a summon on this side OVERFLOWS (board already full), buff all
+   *  living friendly minions of `tribe` by +atk/+hp. */
+  onSummonOverflowBuffTribe: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    const tribe = str(params.tribe) as Tribe | '';
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (tribe && m.tribe !== tribe && m.tribe2 !== tribe && !ctx.getCard(m.cardId)?.universalTribe) continue;
+      ctx.buff(m, a, h, self.uid);
+    }
+  },
+
+  /** Sergeant — Deathrattle: give all living friendly minions +Health equal to `params.health` × golden,
+   *  plus any `hpGrantBonus` accumulated by the Sergeant gaining Attack during this combat. */
+  deathrattleBuffAllHealth: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const hp = num(params.health, 2) * mul(self) + (self.hpGrantBonus ?? 0);
+    for (const m of ctx.living(self.side)) ctx.buff(m, 0, hp, self.uid);
+  },
+
+  /** Sergeant — when THIS minion's Attack rises in combat (onGainAttack), improve the Deathrattle's
+   *  HP grant by +`improve` (golden +`improve`×2). Stored in `self.hpGrantBonus`; also emits a
+   *  `hpGrant` event so the UI can show the live HP grant total in the combat card text. */
+  onGainAttackImproveHpGrant: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    self.hpGrantBonus = (self.hpGrantBonus ?? 0) + num(params.improve, 2) * mul(self);
+    ctx.log({ type: 'hpGrant', target: self.uid, amount: self.hpGrantBonus });
+  },
+
+  /** Forsaken Weaver (combat half) — when a spell is cast on this side, give all living friendly
+   *  Undead (+ universalTribe minions) +`attack` Attack. */
+  spellCastBuffUndeadAttack: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    const a = num(params.attack, 2) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
+      ctx.buff(m, a, 0, self.uid);
+    }
+  },
+
+  /** Pillager — Deathrattle: add a specific card (e.g. Gold Pouch) to the player's hand after combat.
+   *  Golden grants `count`×2 copies. Carried back via CombatResult.playerHandGrants. */
+  deathrattleGrantCardToHand: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const cardId = str(params.cardId);
+    if (!cardId) return;
+    const count = num(params.count, 1) * mul(self);
+    for (let i = 0; i < count; i++) ctx.grantToHand(cardId, self.side, self.uid);
+  },
+
+  /** Karthus — when this kills an enemy, give your Undead +`attack` permanently (golden ×2).
+   *  Buffs all living friendly Undead immediately, then carries back via `grantUndeadBuyAtk` so
+   *  existing run-board Undead and future buys also benefit. */
+  onKillBuffUndeadAttack: (ctx, self, params, payload) => {
+    const { attacker } = payload as { attacker: Minion; victim: Minion };
+    if (self !== attacker || self.dead) return;
+    const amount = num(params.attack, 3) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
+      ctx.buff(m, amount, 0, self.uid);
+    }
+    ctx.grantUndeadBuyAtk(amount, self.side);
   },
 };

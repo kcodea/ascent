@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCasts, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCasts, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -44,6 +44,8 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
   const m = CARD_INDEX[magneticCardId];
   const t = CARD_INDEX[targetCardId];
   if (!m || !t) return false;
+  // universalTribe Magnetic cards (Symbiotic Attachment) can weld onto any non-neutral target.
+  if (m.universalTribe) return t.tribe !== 'neutral';
   const mag: Tribe[] = [m.tribe, m.tribe2].filter((x): x is Tribe => !!x);
   const tgt: Tribe[] = [t.tribe, t.tribe2].filter((x): x is Tribe => !!x);
   return mag.some((x) => tgt.includes(x));
@@ -102,12 +104,14 @@ export function reduce(state: RunState, action: Action): RunState {
       s.shop.splice(i, 1);
       s.embers -= CONFIG.minionCost;
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
+      const isUndead = card.tribe === 'undead' || card.tribe2 === 'undead' || !!card.universalTribe;
+      const uBuyAtk = isUndead ? (s.undeadBuyAtk ?? 0) : 0;
       const bought: BoardCard = {
         uid: `b${s.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
-        // base + the persistent run buff (Ritualist's Fodder enchantment, baked at instantiation)
-        attack: card.attack + cb.attack,
+        // base + persistent run buff + Deathswarmer/Forsaken Weaver undead attack bonus (baked at buy)
+        attack: card.attack + cb.attack + uBuyAtk,
         health: card.health + cb.health,
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: false,
@@ -115,6 +119,7 @@ export function reduce(state: RunState, action: Action): RunState {
       };
       // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
       addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
+      if (uBuyAtk > 0) addBuff(bought, 'Undead Bond', uBuyAtk, 0);
       // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
       // Fodder is excluded: it already carries the Staff buff via its run-wide enchant (cardBuff above),
       // so applying it again here would double it on the rare directly-bought Fodder.
@@ -336,6 +341,7 @@ export function reduce(state: RunState, action: Action): RunState {
       }
       s.frozen = false;
       refreshTavern(s);
+      applyOnRoll(s); // Acid: every-N-refresh consume
       return s;
     }
 
@@ -478,6 +484,24 @@ export function reduce(state: RunState, action: Action): RunState {
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
+      // Symbiote hero power: grant a Symbiotic Attachment token every 4 turns.
+      if (getHero(s.heroId).power.kind === 'symbiote') {
+        s.heroPowerTick = (s.heroPowerTick ?? 0) + 1;
+        if (s.heroPowerTick % 4 === 0) {
+          const def = CARD_INDEX['symbioticattachment'];
+          if (def && s.hand.length < CONFIG.handMax) {
+            s.hand.push({
+              uid: `b${s.uidSeq++}`,
+              cardId: 'symbioticattachment',
+              tribe: def.tribe,
+              attack: def.attack + (s.undeadBuyAtk ?? 0),
+              health: def.health,
+              keywords: [...def.keywords],
+              golden: false,
+            });
+          }
+        }
+      }
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
       // Serve a strength-matched real board from the opponent pool when one exists (getting off the
@@ -515,12 +539,12 @@ export function reduce(state: RunState, action: Action): RunState {
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast);
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0;
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast).result;
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0).result;
           if (r === 'win') win++;
           else if (r === 'draw') draw++;
           else lose++;
@@ -779,6 +803,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerSpellsCast) {
     s.spellsCast += result.playerSpellsCast;
   }
+  // Karthus: on-kill permanent Undead attack bonus — stack into undeadBuyAtk AND apply to all
+  // current run-board Undead immediately so they benefit without needing to be re-bought.
+  if (result.playerUndeadBuyAtkGain) {
+    const gain = result.playerUndeadBuyAtkGain;
+    s.undeadBuyAtk = (s.undeadBuyAtk ?? 0) + gain;
+    for (const c of [...s.board, ...s.hand]) {
+      if (isTribe(c, 'undead')) addBuff(c, 'Karthus', gain, 0);
+    }
+  }
   // Sporebat: grant N random tavern-tier spells to the hand (the tavern tier is known here; honours the cap).
   if (result.playerSpellGrants) {
     const rng = makeRng(s.rngCursor);
@@ -845,7 +878,11 @@ function advanceCombat(s: RunState): void {
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
-  for (const c of s.board) c.resummon = false; // The Reclaimer's mark is a per-turn choice
+  s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
+  for (const c of s.board) {
+    c.resummon = false; // The Reclaimer's mark is a per-turn choice
+    c.rollTick = undefined; // Acid's every-N-refresh counter is wave-scoped
+  }
   if (s.tier < CONFIG.maxTier) {
     s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - CONFIG.upgradeDiscountPerWave);
   }

@@ -42,7 +42,8 @@ export type GameEvent =
   | 'battlecryTriggered' // recruit phase: a Battlecry just resolved (fires per Drakko repeat) — Karwind
   | 'cast' // a spell's own effect resolves (its chosen target is in the payload)
   | 'spellCast' // recruit phase: any spell was cast (for spell-tracking minions)
-  | 'summonOverflow'; // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
+  | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
+  | 'onRoll'; // recruit phase: the shop was refreshed (Acid's every-N-refreshes consume)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -143,7 +144,21 @@ export type EffectFactoryId =
   | 'spellGrantTribeAttack' // cast: a tribe gets +Attack for the rest of the run (Lantern of Souls)
   | 'healHero' // cast: heal the hero (capped at max Resolve — Mend)
   | 'conjureTribeArmy' // cast: conjure N copies of a random buyable minion of a tribe to hand (Undead Army)
-  | 'stealTavernMinion'; // cast: steal a random minion offer from the tavern into the hand (Lasso)
+  | 'stealTavernMinion' // cast: steal a random minion offer from the tavern into the hand (Lasso)
+  // --- combat factories (new content batch) ---
+  | 'deathrattleGiveHealth' // Trickster: Deathrattle — give a random friendly minion this minion's HP (golden: twice)
+  | 'scGainFodderStats' // Abhorrent Horror: Start of Combat — gain stats equal to all Fodder consumed this turn
+  | 'onSummonSelfBuff' // Thundering Abomination: on any friendly summon in combat, buff self +atk/+hp (Engraved)
+  | 'onSummonOverflowBuffTribe' // Thundering Abomination: on overflow summon, buff tribe +atk/+hp
+  | 'deathrattleBuffAllHealth' // Sergeant: Deathrattle — give all friends +HP; improves when Sergeant gains Attack
+  | 'onGainAttackImproveHpGrant' // Sergeant: when this gains Attack in combat, improve the Deathrattle HP grant
+  | 'spellCastBuffUndeadAttack' // Forsaken Weaver (combat): on spell cast, give your Undead +Attack
+  | 'deathrattleGrantCardToHand' // Pillager: Deathrattle — add a specific card to hand after combat
+  | 'onKillBuffUndeadAttack' // Karthus: when this kills an enemy, give your Undead +Attack permanently
+  // --- recruit factories (new content batch) ---
+  | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
+  | 'battlecryFreeRollsAndBuffShop' // Demonic Anomaly: Battlecry — gain free refreshes + buff the current tavern
+  | 'onRollConsumeShop'; // Acid: every N refreshes, consume a random tavern minion (stats gained × golden)
 
 export interface EffectDef {
   on: GameEvent;
@@ -159,6 +174,9 @@ export interface CardDef {
   /** Optional second tribe — a dual-type minion (e.g. Heckbinder = Demon/Mech). Counts as both
    *  tribes for tribe checks (Magnetic targeting, tribe buffs) and renders a split-hue card. */
   tribe2?: Tribe;
+  /** Counts as EVERY non-neutral tribe simultaneously: receives all tribe buffs and can Magnetize onto
+   *  any non-neutral minion (Symbiotic Attachment). Absent = normal tribe matching. */
+  universalTribe?: boolean;
   tier: Tier;
   attack: number;
   health: number;
@@ -274,6 +292,9 @@ export interface Minion {
   /** Gryphon: how many free refreshes it has banked this combat — it grants one per hit up to a cap
    *  (so a Taunt soaking many hits doesn't roll unlimited refreshes). Absent = 0. */
   grantedRefresh?: number;
+  /** Sergeant: accumulated HP bonus on its Deathrattle (grows each time Sergeant gains Attack in
+   *  combat). Applied on top of the base params.health when the Deathrattle fires. Absent = 0. */
+  hpGrantBonus?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   side: Side;
@@ -316,7 +337,8 @@ export type CombatEvent =
   | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
-  | { type: 'toHand'; cardId: string; side: Side; source?: string }; // a combat effect adds a card to your hand (Arcane Weaver)
+  | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
+  | { type: 'hpGrant'; target: string; amount: number }; // Sergeant: live HP-grant amount after each Attack-gain improvement
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 
@@ -367,6 +389,9 @@ export interface CombatResult {
   /** Spells the player cast IN this combat (Taragosa's Growth). Added to the run's `spellsCast` in
    *  settleCombat — so combat casts permanently improve spell-count payoffs (Archmagus Guel). Absent if 0. */
   playerSpellsCast?: number;
+  /** Permanent Undead Attack bonus from this combat (Karthus on-kill). Stacks into `undeadBuyAtk` and is
+   *  also applied to existing run-board Undead immediately after combat. Absent if 0. */
+  playerUndeadBuyAtkGain?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
   odds?: { win: number; draw: number; lose: number };
@@ -396,7 +421,13 @@ export interface CombatContext {
   /** Register a tribe buff that persists for the rest of combat: a friend of `tribe` on `side`
    *  summoned *after* this also gains +atk/+hp (Grim's Deathrattle). Current friends are buffed by the caller. */
   addTribeAura(side: Side, tribe: Tribe | 'any', attack: number, health: number, source: string): void;
-  summon(side: Side, card: CardDef, nearUid?: string): Minion;
+  /** Summon `card` onto `side`. `nearUid` positions it beside an existing unit.
+   *  `grantKeywords` are applied to the minion BEFORE the `summon` event is emitted, so the UI
+   *  sees the correct keyword set from the first frame (Broodmother → Taunt on her Whelps). */
+  summon(side: Side, card: CardDef, nearUid?: string, grantKeywords?: Keyword[]): Minion;
+  /** Flush the attack-on-summon queue immediately (Twilight Whelp: each spawned Whelp attacks
+   *  before the next one may spawn, so a full board doesn't block the second if the first dies). */
+  flushImmediateAttacks?(): void;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
   /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;
@@ -422,6 +453,13 @@ export interface CombatContext {
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
    *  (the buff/damage) is applied by the caller — this just fires the `spellCast` trigger + counts it. */
   castSpell(side: Side): void;
+  /** Abhorrent Horror: total Fodder stats consumed this turn (attack + health), passed in from RunState.
+   *  The `scGainFodderStats` factory reads these at Start of Combat. 0 if no Fodder was eaten. */
+  readonly fodderConsumedAtk: number;
+  readonly fodderConsumedHp: number;
+  /** Karthus: permanently raise run-wide Undead buy-time attack by `amount` (player only). Carried back
+   *  via CombatResult.playerUndeadBuyAtkGain, stacked into undeadBuyAtk and applied to the run board. */
+  grantUndeadBuyAtk(amount: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

@@ -127,6 +127,16 @@ Verified: typecheck clean, **325/325 tests** pass.
 
 ## 2026-06-24
 
+### Opponent pool: add Lemon's 32 boards (Drakko, waves 1–18)
+
+- **New board export** `docs/board-exports/lemon.json` — 32 real captured boards from a Drakko run (waves 1–18,
+  `origin:"self"`, `author:"Lemon"`), so players face actual human builds, not just house bot boards.
+- **Regenerated the committed pool** via `npm run pool` → `packages/sim/src/opponentPool.data.ts`. The curator
+  merged Lemon's 32 (all survived the per-wave cap, since real boards are preferred over house) with Orangez's
+  254 and house fill → **339 boards across waves 1–20**, each re-rated by the simulate gauntlet.
+- **Verified:** typecheck + lint clean, **325 tests** pass, pool regenerated deterministically (only the two
+  intended files changed — an incidental `package-lock.json` version bump was reverted to keep the PR scoped).
+
 ### Feature: spells cast in combat now trigger Archmagus Guel (and count permanently)
 
 Combat can now **cast spells** — Taragosa's Growth is a *real* spell cast, not just a buff:

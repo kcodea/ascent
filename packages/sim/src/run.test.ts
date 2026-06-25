@@ -1199,6 +1199,27 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 6); // 13
   });
 
+  it('a universalTribe token (Symbiotic Attachment) receives tribe summon-buffs (Mama Bear + Kennelmaster)', () => {
+    // Regression: the Symbiote hero-power token counts as EVERY tribe, so playing it must trigger
+    // tribe-gated summon buffs. Before the fix the recruit factories only matched tribe/tribe2, so the
+    // token was silently skipped (the reported "didn't get Mama Bear stats" bug).
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [
+        { uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false },
+        { uid: 'k', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false },
+      ],
+      hand: [
+        { uid: 'sym', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'sym' }); // standalone play (no weld target) → summon buffs fire
+    const sym = s.board.find((c) => c.uid === 'sym')!;
+    // Mama Bear (+3/+3) and Kennelmaster (+1/+1) both treat the universalTribe token as a Beast.
+    expect(sym.attack).toBe(1 + 3 + 1); // 5
+    expect(sym.health).toBe(1 + 3 + 1); // 5
+  });
+
   it('a Mama Bear triple picks up the accrual at its current value — no reset, no double', () => {
     // Two Mama Bears at summonBonus 6 and 3 + a fresh one → the golden keeps the HIGHEST (6), NOT the
     // Kennelmaster-style sum (which would be 9) and NOT 0. Its bigger +6/+6 step comes from being golden.

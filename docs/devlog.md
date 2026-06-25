@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-25 (session 5)
+
+### fix: Symbiote hero/power art + universalTribe honored across all tribe-buff checks
+
+**Symbiote art** — wired the hero portrait (`art/heroes/symbiote.webp`) and hero-power button art (`art/powers/symbiote.webp`). Both keyed by the hero id `symbiote` (how `heroArt`/`heroPowerArt` are called), so the glob picks them up with no alias. Converted from the 2.3 MB masters to 512px WebP (61 KB / 53 KB) to match the all-WebP heroes folder and keep the title/HUD lean.
+
+**universalTribe bug (reported: "Symbiote's power didn't give Mama Bear stats when played").** The `universalTribe` token (Symbiotic Attachment — counts as every non-neutral tribe) was being skipped by most *recruit-phase* tribe-gated buffs. PR #22 only taught a subset of factories about `universalTribe`; the summon-buff path it actually flows through on *play* was not among them. Audited **every** tribe-membership check in `recruit.ts` and `factories.ts` and routed them all through the `universalTribe`-aware path. Several also silently ignored a card's **second tribe** (`tribe2`) — a latent dual-type bug fixed in the same pass.
+
+Recruit factories fixed (now via the existing `isTribe` helper, which honors `tribe2` + `universalTribe`):
+- `summonBuffTribeImprove` (Mama Bear) — **the reported bug**
+- `buffOnSummon` (Kennelmaster / Bristleback Matron) — also missed `tribe2`
+- `battlecryBuffTribe` (Dragon battlecries) — also missed `tribe2`
+- `onBattlecryBuffTribe` (Karwind)
+- `deathrattleBuffTribe`
+- `summonBuffSelfTribe` (Spirit Worgen, array form) — added a `universalTribe` clause
+
+Combat factories fixed (completed the inline `universalTribe` clause already used by their corrected neighbors):
+- `deathrattleSummonOverflowBuff` (Nanon), `rallyBuff` (Supporter), `onFriendlyAttackBuffTribe` (Raptor), `scAoePerTribe` (count), `scGrantShieldTribe`, `summonBuffSelfTribe` (Spirit Worgen combat), and `onShieldBreakDamage` (Arclight — also added `tribe2`, so a Demon/Mech Heckbinder's shield-break now triggers it).
+
+The combat halves of Mama Bear / `buffOnSummon` / `deathrattleBuffTribe` already handled `universalTribe` (added in PR #22) — which is exactly why the bug only showed "on play" (recruit), confirming the diagnosis.
+
+**Files changed:** `packages/sim/src/recruit.ts` (6 factories), `packages/core/src/effects/factories.ts` (7 factories), `packages/sim/src/run.test.ts` (new regression test), `packages/ui/src/art/heroes/symbiote.webp`, `packages/ui/src/art/powers/symbiote.webp`.
+
+**Verification:** new regression test — a `symbioticattachment` token played beside a Mama Bear + Kennelmaster gains both buffs (1/1 → 5/5). `npm run typecheck && npm run lint && npm test` (**326/326**) + `npm run build:web` all green. Art confirmed serving as `image/webp` (200) via the live dev server; Symbiote portrait + power render in the HUD (verified by selecting the hero in-preview).
+
+---
+
 ## 2026-06-24 (session 4)
 
 ### Audio: sourced End Turn / Face the Omen (`combatStart`) clip

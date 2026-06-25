@@ -76,7 +76,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 2) * mul(self) * overflowed; // +2/+2 per overflow (golden +4/+4)
     const h = num(params.health, 2) * mul(self) * overflowed;
     for (const m of ctx.living(self.side)) {
-      if (!tribe || m.tribe === tribe || m.tribe2 === tribe) ctx.buff(m, a, h, self.uid);
+      if (!tribe || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
     }
   },
 
@@ -133,7 +133,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion, side } = payload as MinionPayload;
     if (self.dead || side !== self.side || minion === self) return;
     const tribes = Array.isArray(params.tribes) ? (params.tribes as Tribe[]) : [];
-    if (!tribes.includes(minion.tribe) && !(minion.tribe2 && tribes.includes(minion.tribe2))) return;
+    if (!tribes.includes(minion.tribe) && !(minion.tribe2 && tribes.includes(minion.tribe2)) && !ctx.getCard(minion.cardId)?.universalTribe) return;
     const x = (num(params.attack, 1) + ctx.spellsThisTurn) * mul(self);
     const y = (num(params.health, 1) + ctx.spellsThisTurn) * mul(self);
     ctx.buff(self, x, y, self.name);
@@ -251,7 +251,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const per = num(params.perTribe, 3) * mul(self);
     const tribe = str(params.tribe) as Tribe;
     for (const t of ctx.living(foe)) ctx.damage(t, base);
-    const others = ctx.living(self.side).filter((m) => m !== self && (m.tribe === tribe || m.tribe2 === tribe)).length;
+    const others = ctx.living(self.side).filter((m) => m !== self && (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)).length;
     for (let i = 0; i < others; i++) {
       const targets = ctx.living(foe);
       if (targets.length === 0) break;
@@ -351,7 +351,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const attack = num(params.attack, 1) * mul(self);
     const health = num(params.health, 1) * mul(self);
     const tribe = str(params.tribe) as Tribe | '';
-    let friends = ctx.living(self.side).filter((m) => m !== self && (!tribe || m.tribe === tribe || m.tribe2 === tribe));
+    let friends = ctx.living(self.side).filter((m) => m !== self && (!tribe || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe));
     const cap = num(params.count, 0); // 0 = all eligible friends
     if (cap > 0 && friends.length > cap) {
       const pickable = [...friends];
@@ -371,7 +371,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion === self || minion.side !== self.side) return;
     const tribe = str(params.tribe) as Tribe | 'any';
-    if (tribe !== 'any' && minion.tribe !== tribe && minion.tribe2 !== tribe) return;
+    if (tribe !== 'any' && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
     ctx.buff(minion, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
   },
 
@@ -560,7 +560,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  primitive — currently unused after Omega Bulwark's removal, kept for a future Mech wall card). */
   scGrantShieldTribe: (ctx, self, params) => {
     const tribe = (str(params.tribe) || 'mech') as Tribe;
-    const friends = ctx.living(self.side).filter((m) => m.tribe === tribe || m.tribe2 === tribe);
+    const friends = ctx.living(self.side).filter((m) => m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe);
     if (friends.length === 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} raises the shieldwall` });
     for (const m of friends) grantShield(ctx, m);
@@ -586,7 +586,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Arclight Reactor — when a friendly Mech's Shield breaks, deal `amount` to a random enemy. */
   onShieldBreakDamage: (ctx, self, params, payload) => {
     const { minion, side } = payload as MinionPayload;
-    if (self.dead || side !== self.side || minion.tribe !== 'mech') return;
+    if (self.dead || side !== self.side || (minion.tribe !== 'mech' && minion.tribe2 !== 'mech' && !ctx.getCard(minion.cardId)?.universalTribe)) return;
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     const targets = ctx.living(foe);
     if (targets.length === 0) return;

@@ -336,7 +336,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   buffOnSummon: (_ctx, self, params, { minion }) => {
     if (minion === self) return;
     const tribe = str(params.tribe);
-    if (tribe && tribe !== 'any' && minion.tribe !== tribe) return;
+    if (tribe && tribe !== 'any' && !isTribe(minion, tribe as Tribe)) return;
     const bonus = self.summonBonus ?? 0;
     addBuff(minion, nameOf(self), num(params.attack) + bonus, num(params.health) + bonus);
   },
@@ -348,7 +348,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   summonBuffTribeImprove: (_ctx, self, params, { minion }) => {
     if (minion === self) return;
     const tribe = str(params.tribe);
-    if (tribe && minion.tribe !== tribe && CARD_INDEX[minion.cardId]?.tribe2 !== tribe) return;
+    if (tribe && !isTribe(minion, tribe as Tribe)) return;
     const base = num(params.attack, 3);
     const mag = (base + (self.summonBonus ?? 0)) * gold(self);
     addBuff(minion, nameOf(self), mag, mag);
@@ -362,7 +362,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const health = num(params.health) * gold(self);
     const includeSelf = params.includeSelf !== false;
     for (const card of ctx.state.board) {
-      if (card.tribe !== tribe) continue;
+      if (!isTribe(card, tribe as Tribe)) continue;
       if (!includeSelf && card === self) continue;
       addBuff(card, nameOf(self), attack, health);
     }
@@ -464,7 +464,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health, 1) * gold(self);
     const flash = (ctx.state.karwindFlash ??= []);
     for (const c of ctx.state.board) {
-      if (tribe && tribe !== 'any' && c.tribe !== tribe && CARD_INDEX[c.cardId]?.tribe2 !== tribe) continue;
+      if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
       addBuff(c, nameOf(self), a, h);
       if (!flash.includes(c.uid)) flash.push(c.uid);
     }
@@ -525,7 +525,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (minion === self) return;
     const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
     const def = CARD_INDEX[minion.cardId];
-    if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2))) return;
+    if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2)) && !def?.universalTribe) return;
     const x = (num(params.attack, 1) + ctx.state.spellsThisTurn) * gold(self);
     const y = (num(params.health, 1) + ctx.state.spellsThisTurn) * gold(self);
     addBuff(self, nameOf(self), x, y);
@@ -665,7 +665,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack) * gold(self);
     const h = num(params.health) * gold(self);
     for (const c of ctx.state.board) {
-      if (c !== self && (tribe === 'any' || c.tribe === tribe || CARD_INDEX[c.cardId]?.tribe2 === tribe)) {
+      if (c !== self && (tribe === 'any' || isTribe(c, tribe as Tribe))) {
         addBuff(c, nameOf(self), a, h);
       }
     }

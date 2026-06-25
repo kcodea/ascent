@@ -27,6 +27,11 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 - **Sourced End Turn sound.** Hitting End Turn (Face the Omen) now plays a real audio clip instead of the synth
   down-slide, tunable in the DEV SFX mixer.
+- **Symbiote art + universalTribe fix.** Wired Symbiote's hero portrait + hero-power art. Fixed the
+  Symbiote token (**Symbiotic Attachment**, "counts as every tribe") being skipped by most recruit-phase
+  tribe buffs — playing it now correctly triggers Mama Bear, Kennelmaster, Dragon battlecries, etc. Audited
+  every tribe check in the recruit + combat effect systems; several also ignored a card's **second tribe**
+  (dual-types), fixed in the same pass. New regression test.
 - **Sourced refresh sound.** The tavern Refresh/Reroll button now plays a real audio clip (the last tavern
   control still on a synth blip), tunable in the DEV SFX mixer.
 - **Bug fixes + 3 new Undead + live combat text + 18 art.** Shop weights flattened (equal chance for

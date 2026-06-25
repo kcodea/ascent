@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### Audio: bake full SFX mixer levels as shipped defaults
+
+- Whole-bank mix dialed in by ear via the DEV SFX mixer, pasted into `SAMPLE_VOL_DEFAULTS` (sfx.ts). Notable
+  moves: `sell` 0.51→0.3, `smack` 0.156→0.08, `cardlanding` 0.156→0.4, `freeze` 0.5→0.31, `unfreeze` 0.5→0.36,
+  `roll` 0.5→0.61, `summon` 0.5→0.65, `cardVoice` 0.1→0.09. (Follow-up to PR #27, which merged before this
+  tweak landed — shipped as its own PR.)
+
 ### Audio: master limiter (prevent layer-clipping) + per-card voiceline gain tune
 
 - **Master limiter on the whole SFX bus.** All sounds (samples + synth) now route through one shared

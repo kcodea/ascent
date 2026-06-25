@@ -76,6 +76,16 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
           if (kw === 'DS') target.divineShield = true;
         }
       }
+    } else if (eff.do === 'battlecryDiscoverSpell') {
+      // A Discover Battlecry can't open the interactive 1-of-3 peek mid-combat — grant a random pool card
+      // instead (resolved at settle, respecting the tavern tier). Golden Discovers twice → grant ×2.
+      ctx.grantRandomSpell(g, m.side);
+    } else if (eff.do === 'battlecryDiscoverMinion') {
+      ctx.grantRandomMinion(g, str(p.tribe) || undefined, m.side, m.cardId); // …a random minion of the tribe, ≤ tavern tier
+    } else if (eff.do === 'battlecryBuffSpellPower') {
+      // Cinderwing Matron — permanently raise run-wide spell power; carried back via playerSpellPower (the
+      // same channel Skullblade/Gnasher use), so re-firing it in combat actually grants the spell power.
+      ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side);
     }
   }
 }

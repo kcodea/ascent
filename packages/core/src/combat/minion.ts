@@ -47,6 +47,7 @@ export function instantiate(
     reAttackOnKill: cardReAttacksOnKill(card),
     summonBonus: board.summonBonus ?? 0,
     hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board
+    ascendProgress: board.ascendProgress, // Tara: seed the ascend tally so the live tracker shows the total
     sourceUid: board.sourceUid,
     rallyMechAtk: rallyMechAtk > 0 ? rallyMechAtk : undefined,
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark

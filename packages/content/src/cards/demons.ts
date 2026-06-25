@@ -44,6 +44,8 @@ export const DEMONS: CardDef[] = [
     fodderMult: 2,
     effects: [],
     text: 'Gains **2x** stats from Fodder.',
+    // Golden eats at 3× (fodderMultiplier = base + 1), not the naive 2× doubling — set it explicitly.
+    goldenText: 'Gains **3x** stats from Fodder.',
   },
   {
     id: 'brood',

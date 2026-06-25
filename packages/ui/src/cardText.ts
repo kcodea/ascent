@@ -204,6 +204,31 @@ export function engraveTallyText(cardId: string, permaGain: { attack: number; he
   return `${def.text} {{${parts.join(', ')} so far}}`;
 }
 
+/** The minions that stack the run-wide Undead buy-time Attack bonus (`undeadBuyAtk`) — used to surface it. */
+const UNDEAD_BUY_CONTRIBUTORS = new Set(['deathswarmer', 'forsakenweaver', 'karthus']);
+
+/**
+ * Live run-wide metric suffixes — a small green `{{…}}` tag APPENDED to a card's rule text (golden-independent,
+ * so the same suffix rides on both the normal and golden text). Each returns null when there's nothing to show.
+ *
+ * - `soulsmanText`: how much max Gold Soulsman has earned this run (a running "gained X" total).
+ * - `undeadBuyAtkText`: the current run-wide Undead buy-bonus a freshly-acquired Undead will inherit — shown on
+ *    the cards that stack it (Deathswarmer / Forsaken Weaver / Karthus), since it has no other on-screen home.
+ * - `cardTypeTallyText`: a run-wide card-type enchant accrued from deaths (Eternal Knight's +A/+H stack).
+ */
+export function soulsmanText(cardId: string, goldGained: number): string | null {
+  return cardId === 'soulsman' && goldGained > 0 ? ` {{Gained ${goldGained} Gold this run.}}` : null;
+}
+export function undeadBuyAtkText(cardId: string, undeadBuyAtk: number): string | null {
+  return UNDEAD_BUY_CONTRIBUTORS.has(cardId) && undeadBuyAtk > 0
+    ? ` {{New Undead arrive +${undeadBuyAtk} Attack.}}`
+    : null;
+}
+export function cardTypeTallyText(cardId: string, enchant: { attack: number; health: number } | undefined): string | null {
+  if (cardId !== 'knit' || !enchant || (enchant.attack <= 0 && enchant.health <= 0)) return null;
+  return ` {{Now +${enchant.attack}/+${enchant.health} this run.}}`;
+}
+
 /**
  * Grim's Deathrattle ("+1/+1 per Deathrattle triggered this game") shows its *current* magnitude from
  * the live run tally — the printed "+1/+1" becomes the real "+N/+N" (N = tally × per), highlighted

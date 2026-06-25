@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, guelProgressText, sergeantText, tallyBuffText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, sergeantText, soulsmanText, tallyBuffText, undeadBuyAtkText } from './cardText';
 
 describe('cardText helpers', () => {
   it('guelProgressText shows Guel’s live grant + countdown to the next step (golden-aware)', () => {
@@ -27,6 +27,23 @@ describe('cardText helpers', () => {
   it('tallyBuffText falls back (null) at a zero tally or on a non-tally card', () => {
     expect(tallyBuffText('grim', 0)).toBeNull(); // nothing triggered yet → printed text
     expect(tallyBuffText('sandbag', 5)).toBeNull(); // not a tally-buff card
+  });
+
+  it('run-wide metric helpers surface live values (Soulsman gold, undeadBuyAtk contributors, Eternal Knight tally)', () => {
+    // Soulsman: total max-Gold earned this run.
+    expect(soulsmanText('soulsman', 5)).toContain('{{Gained 5 Gold this run.}}');
+    expect(soulsmanText('soulsman', 0)).toBeNull();
+    expect(soulsmanText('grim', 5)).toBeNull();
+    // The undeadBuyAtk contributors show what a freshly-acquired Undead will inherit.
+    for (const id of ['deathswarmer', 'forsakenweaver', 'karthus']) {
+      expect(undeadBuyAtkText(id, 4)).toContain('{{New Undead arrive +4 Attack.}}');
+    }
+    expect(undeadBuyAtkText('deathswarmer', 0)).toBeNull();
+    expect(undeadBuyAtkText('spore', 4)).toBeNull(); // not a contributor
+    // Eternal Knight: run-wide card-type enchant accrued from deaths.
+    expect(cardTypeTallyText('knit', { attack: 9, health: 6 })).toContain('{{Now +9/+6 this run.}}');
+    expect(cardTypeTallyText('knit', { attack: 0, health: 0 })).toBeNull();
+    expect(cardTypeTallyText('skullblade', { attack: 9, health: 6 })).toBeNull();
   });
 
   it('sergeantText shows the live Deathrattle HP grant (base + accrual, golden-aware)', () => {

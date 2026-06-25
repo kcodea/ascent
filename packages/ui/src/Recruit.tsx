@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, clingProgressText, guelProgressText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
+import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText, undeadBuyAtkText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -147,6 +147,7 @@ function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }> },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -181,18 +182,27 @@ function instView(
   const undead = !spell && (inst.tribe === 'undead' || c.tribe2 === 'undead');
   const auraAtk = undead ? undeadAtkBonus : 0;
   const auraHp = undead ? undeadHpBonus : 0;
+  // Run-wide live metric — a green `{{…}}` tag appended to the rule text (golden-independent, so it rides on
+  // both the normal + golden text): Soulsman's earned Gold, the undeadBuyAtk a new Undead inherits, Eternal
+  // Knight's accrued run-wide enchant.
+  const metric =
+    soulsmanText(c.id, live?.soulsmanGold ?? 0) ??
+    undeadBuyAtkText(c.id, live?.undeadBuyAtk ?? 0) ??
+    cardTypeTallyText(c.id, live?.cardBuffs?.[c.id]) ??
+    '';
+  const goldenBase =
+    c.id === 'hoarder'
+      ? `Sells for **+2 Gold** per turn you hold it. {{Sells for ${(wave - (inst.boughtWave ?? wave) + 1) * 2} Gold now.}}`
+      : c.id === 'guel'
+        ? guelProgressText(c.id, true, spellsCast) ?? c.goldenText // golden Guel shows its live (×2) grant + countdown
+        : c.id === 'mamabear'
+          ? summonImproveText(c.id, inst.summonBonus ?? 0, true) ?? c.goldenText // golden Mama Bear: live (×2) grant
+          : c.goldenText;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     attack: (override?.attack ?? inst.attack) + auraAtk, health: (override?.health ?? inst.health) + auraHp,
-    keywords: inst.keywords, text,
-    goldenText:
-      c.id === 'hoarder'
-        ? `Sells for **+2 Gold** per turn you hold it. {{Sells for ${(wave - (inst.boughtWave ?? wave) + 1) * 2} Gold now.}}`
-        : c.id === 'guel'
-          ? guelProgressText(c.id, true, spellsCast) ?? c.goldenText // golden Guel shows its live (×2) grant + countdown
-          : c.id === 'mamabear'
-            ? summonImproveText(c.id, inst.summonBonus ?? 0, true) ?? c.goldenText // golden Mama Bear: live (×2) grant
-            : c.goldenText,
+    keywords: inst.keywords, text: text + metric,
+    goldenText: goldenBase !== undefined ? goldenBase + metric : undefined,
     golden: inst.golden,
     tier: spell ? undefined : c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
@@ -535,13 +545,17 @@ export function Recruit() {
   }, [run.board, run.hand, run.shop, run.cardBuffs]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
+  const live = useMemo(
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs }),
+    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs],
+  );
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn)] as const)),
-    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, live)] as const)),
+    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn)] as const)),
-    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, live)] as const)),
+    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.

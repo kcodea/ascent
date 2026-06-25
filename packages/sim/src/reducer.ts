@@ -812,8 +812,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
     (s.pendingTavern ??= []).push(...Array(result.playerFodderGrants).fill('fred'));
   }
   // Soulsman: permanent max-Gold gained from its Avenge in combat (uncapped, like Nadja's Gold Font).
+  // grantMaxGold is Soulsman-only, so playerMaxGoldGain IS Soulsman's contribution — tally it run-wide
+  // for the "gained X Gold" metric shown on the card.
   if (result.playerMaxGoldGain) {
     s.maxEmbers += result.playerMaxGoldGain;
+    s.soulsmanGold = (s.soulsmanGold ?? 0) + result.playerMaxGoldGain;
   }
   // Gryphon: free shop rerolls banked from taking damage in combat.
   if (result.playerFreeRolls) {

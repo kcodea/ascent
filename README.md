@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Live-text audit + Soulsman metric.** Audited every card's tooltip for live/current values. **Soulsman**
+  now shows a running **"Gained X Gold this run"** total; **Deathswarmer / Forsaken Weaver / Karthus** show the
+  current **+Attack new Undead inherit**; **Eternal Knight** shows its accrued run-wide enchant. Fixed a golden
+  **Voracious Imp** mislabeling its multiplier (it eats at **3×**, not 2×).
 - **Discover/conjure + Symbiote triple fixes.** The Undead "+Attack wherever they are" (Deathswarmer /
   Forsaken Weaver / Karthus) now reaches **Discovered and conjured** Undead too — not just tavern buys.
   And the **Symbiote** hero power now **triples** its token the moment the 3rd is granted, instead of waiting

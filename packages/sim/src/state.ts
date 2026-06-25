@@ -141,6 +141,9 @@ export interface RunState {
   phase: Phase;
   embers: number;
   maxEmbers: number;
+  /** Total max-Gold Soulsman has earned this run (cumulative across combats) — surfaced on Soulsman's
+   *  card as a "gained X Gold" metric. Absent on old saves = 0. */
+  soulsmanGold?: number;
   resolve: number;
   maxResolve: number;
   tier: number;

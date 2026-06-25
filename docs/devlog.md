@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: live-card-text audit + Soulsman "gained X Gold" metric
+
+A full audit pass (3 parallel agents over all card files) cross-referencing every card against the live-text system (`cardText.ts` helpers wired into `instView`/`Unit.tsx`, plus `spellDisplayText` for spells). Most cards were already correct — ordinary stat scaling shows on the green stat badges, and the existing 13 helpers cover the scaling-text cases. The audit surfaced a small set of genuine gaps, now fixed:
+
+- **Voracious Imp** — a golden copy printed "Gains **2x** stats from Fodder" but actually eats at **3×** (`fodderMultiplier` = base + 1, not the naive ×2). Added an explicit `goldenText: 'Gains **3x** …'`.
+- **Soulsman "gained X Gold" metric** (the requested feature) — `grantMaxGold` is Soulsman-only, so `playerMaxGoldGain` is entirely Soulsman's contribution; `settleCombat` now accumulates it into a new run-wide `RunState.soulsmanGold`, and `soulsmanText` appends a live "{{Gained X Gold this run.}}" to the card.
+- **Deathswarmer / Forsaken Weaver / Karthus** — these stack the run-wide `undeadBuyAtk` ("+Attack to your Undead wherever they are"), but that accumulated number had no on-screen home (only the recipients' badges showed it). `undeadBuyAtkText` now appends "{{New Undead arrive +N Attack.}}" on each contributor.
+- **Eternal Knight** — its run-wide card-type enchant (`cardBuffs.knit`, +3/+2 per death) is now surfaced as "{{Now +A/+H this run.}}" (`cardTypeTallyText`), parity with Cling Drone.
+
+These three new metrics are golden-independent suffixes, so `instView` computes one `metric` string and appends it to BOTH the normal and golden text (the `goldenText` branch was refactored into a `goldenBase` var) — non-metric cards get an empty suffix and are byte-identical to before.
+
+**Deliberately deferred (flagged for the owner):** (a) **Ghastly Bladesmith** — its per-death +1 spell power is honest and the payoff already shows on the spell cards; surfacing a total on the minion would misattribute the *global* spell-power pool (Cinderwing/Gnasher/Harry/hero all feed it) to Bladesmith. (b) **Welded-host Better Bot / Harry Botter** — a host Mech's accrued `rallyMechAtk` / `spellAuraBonus` is genuinely invisible, but surfacing it needs host-side weld text (the host renders a different card's def) — a separate infra change.
+
+**Files changed:** `packages/content/src/cards/demons.ts` (Imp goldenText), `packages/sim/src/state.ts` (`soulsmanGold`), `packages/sim/src/reducer.ts` (settleCombat tally), `packages/ui/src/cardText.ts` (3 helpers), `packages/ui/src/Recruit.tsx` (instView wiring), tests in `cardText.test.ts`.
+
+**Verification:** new helper tests (Soulsman gold, the undeadBuyAtk trio, Eternal Knight tally). `npm run typecheck && npm run lint && npm test` (**335/335**) + `build:web` all green; the recruit screen renders all card types live with no console errors (verified in-preview). The Imp golden multiplier (3×) was confirmed against `fodderMultiplier`.
+
 ### fix: Undead "+Attack wherever they are" reaches Discovered/conjured copies + Symbiote token triples on grant
 
 **Bug 1 — Discovered/conjured Undead missed `undeadBuyAtk`.** The run-wide "+Attack to your Undead wherever they are" (Deathswarmer / Forsaken Weaver / Karthus) was baked in only on **tavern buy** — a Discovered or conjured Undead came in without it. New shared helper `undeadBuyBonus(state, def)` (recruit.ts) returns the bonus for any Undead/`universalTribe` def, now applied at **every** minion-creation source: the `discover` reducer case, `conjureToHand` (Summon Stone / Tribes Choice / Undead Army / Cassen's grant), `battlecryGainRandomMinion` (Buddy Buddy), and the Lasso steal. (The buy path + the Symbiote token grant already applied it.) Lantern of Souls needs no change — it's re-derived live at combat/display for any Undead, so conjured copies already get it.

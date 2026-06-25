@@ -2035,6 +2035,40 @@ describe('run loop (@game/sim)', () => {
     expect(hunter.health).toBe(7 + 3 + 2); // Fortify +3 Health + Hunter's own +2 (it buffs the whole board incl. itself)
   });
 
+  it('Hunter procs from ANY shop Attack gain — a Growth spell, not just Fortify (boundary dispatch)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 10, shop: [],
+      hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      board: [
+        { uid: 'h', cardId: 'hunter', tribe: 'dragon', attack: 5, health: 7, keywords: [], golden: false },
+        { uid: 'a', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' }); // Growth: +3/+4 to the board → Hunter gains Attack → +2 Health to all
+    const hunter = s.board.find((c) => c.uid === 'h')!;
+    const ally = s.board.find((c) => c.uid === 'a')!;
+    expect(hunter.attack).toBe(5 + 3); // Growth +3 Attack
+    expect(ally.health).toBe(3 + 4 + 2); // Growth +4 + Hunter's onGainAttack +2
+    expect(hunter.health).toBe(7 + 4 + 2); // Growth +4 + Hunter's own +2
+  });
+
+  it('a shop action with no board Attack gain does NOT proc Hunter (Mend heals the hero)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 10, shop: [], resolve: 1,
+      // Mend heals the hero — it raises no board minion's Attack, so Hunter's reactor must stay silent.
+      hand: [{ uid: 'm', cardId: 'mend', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      board: [
+        { uid: 'h', cardId: 'hunter', tribe: 'dragon', attack: 5, health: 7, keywords: [], golden: false },
+        { uid: 'a', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'm' });
+    const hunter = s.board.find((c) => c.uid === 'h')!;
+    const ally = s.board.find((c) => c.uid === 'a')!;
+    expect(ally.health).toBe(3); // no Attack gain anywhere → Hunter added nothing
+    expect(hunter.health).toBe(7); // unchanged
+  });
+
   it('hero Fortify records its source on the buffed minion (inspect breakdown)', () => {
     let s: RunState = {
       ...createRun(7),

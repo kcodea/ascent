@@ -61,6 +61,25 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
  * the combat-time effect system already works (see `@game/core`).
  */
 export function reduce(state: RunState, action: Action): RunState {
+  const next = reduceCore(state, action);
+  // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
+  // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
+  // weld, buy-triggers, end-of-turn). This mirrors combat, where `ctx.buff` emits onGainAttack on a positive
+  // delta. We diff the board by uid: a minion present before AND after whose Attack strictly rose reacts.
+  // New minions (played / summoned / Discovered) are creation, not a gain — skipped (a tripled reactor is
+  // handled in `checkTriples`). Combat settles run in the combat phase, so the recruit-phase guard skips
+  // them; the diff is ≤7 entries and `fireOnGainAttack` bails fast for non-reactors, so it's effectively free.
+  if (next !== state && state.phase === 'recruit') {
+    const before = new Map(state.board.map((c) => [c.uid, c.attack]));
+    for (const c of next.board) {
+      const prev = before.get(c.uid);
+      if (prev !== undefined && c.attack > prev) fireOnGainAttack(next, c);
+    }
+  }
+  return next;
+}
+
+function reduceCore(state: RunState, action: Action): RunState {
   // A finished run (loss or victory) takes no more actions — restart goes through the store.
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   // PERF: `lastCombat` is a large read-only result (the whole prior fight's event log + initial board
@@ -424,7 +443,7 @@ export function reduce(state: RunState, action: Action): RunState {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
         const amt = s.tier;
-        if (card) { addBuff(card, 'Fortify', amt, amt); if (amt > 0) fireOnGainAttack(s, card); } // Fortify raises Attack → Hunter procs
+        if (card) addBuff(card, 'Fortify', amt, amt); // raises Attack → the reduce() boundary fires Hunter's onGainAttack
         else {
           const offer = s.shop.find((c) => c.uid === action.uid);
           if (!offer) return state;

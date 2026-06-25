@@ -1403,13 +1403,16 @@ function fireBattlecryTriggered(state: RunState): void {
   }
 }
 
-/** Fire a single card's `onGainAttack` recruit effects (Hunter) — call after a recruit buff RAISES that
- *  card's Attack (e.g. Warden's Fortify). Mirrors `fireBattlecryTriggered` but scoped to one card, matching
- *  combat's `onGainAttack` semantics (only the minion whose Attack rose reacts). The combat path is separate
- *  (the bus emits onGainAttack inside `simulate`'s `ctx.buff`), so this never double-fires. */
+/** Fire a single card's `onGainAttack` recruit effects (Hunter) — called by the reducer boundary for every
+ *  board minion whose Attack rose during a recruit action (any source: Fortify, spells, tribe Battlecries,
+ *  weld, triples). Matches combat's `onGainAttack` semantics (only the minion whose Attack rose reacts). The
+ *  combat path is separate (the bus emits onGainAttack inside `simulate`'s `ctx.buff`), so this never
+ *  double-fires across the two phases. */
 export function fireOnGainAttack(state: RunState, card: BoardCard): void {
   const def = CARD_INDEX[card.cardId];
-  if (!def) return;
+  // Fast path: the reducer calls this for EVERY board minion whose Attack rose, so bail before the
+  // (relatively costly) makeContext unless this card actually has a dispatchable onGainAttack reactor.
+  if (!def || !def.effects.some((e) => e.on === 'onGainAttack' && RECRUIT_FACTORIES[e.do])) return;
   const ctx = makeContext(state);
   for (const effect of def.effects) {
     if (effect.on !== 'onGainAttack') continue;

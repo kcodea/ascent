@@ -190,6 +190,23 @@ export function sergeantText(cardId: string, golden: boolean, hpGrantBonus: numb
 }
 
 /**
+ * Taragosa's Growth is a real spell, so it scales with the run's spell power. Shows the live per-attack buff
+ * — base +3/+4 plus spell power, ×2 when golden (it casts Growth twice). Returns null with no spell power
+ * (the printed +3/+4 — golden +6/+8 — is already accurate).
+ */
+export function taragosaText(cardId: string, golden: boolean, spellBonusA: number, spellBonusH: number): string | null {
+  if (cardId !== 'taragosa' || (spellBonusA <= 0 && spellBonusH <= 0)) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onAllyAttackCastGrowth');
+  if (!def || !eff) return null;
+  const m = golden ? 2 : 1;
+  const a = (Number((eff.params as { attack?: number })?.attack ?? 3) + spellBonusA) * m;
+  const h = (Number((eff.params as { health?: number })?.health ?? 4) + spellBonusH) * m;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\+\d+\/\+\d+/, `{{+${a}/+${h}}}`);
+}
+
+/**
  * Thundering Abomination (Engraved): shows how many permanent stats it has gained mid-combat.
  * Appends "{{+A/+H so far}}" (green) once it starts accumulating. Returns null with no accrual.
  */

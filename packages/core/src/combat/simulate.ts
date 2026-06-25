@@ -42,6 +42,8 @@ export function simulate(
   fodderConsumedHp = 0,
   impAtkBonus = 0,
   impHpBonus = 0,
+  spellPowerAtk = 0,
+  spellPowerHp = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -141,6 +143,7 @@ export function simulate(
     boards,
     events,
     spellsThisTurn,
+    spellPower: { attack: spellPowerAtk, health: spellPowerHp },
     fodderConsumedAtk,
     fodderConsumedHp,
     deathrattleTally: () => deathrattlesBase + playerDeathrattles,

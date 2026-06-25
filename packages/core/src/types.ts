@@ -448,6 +448,9 @@ export interface CombatContext {
   readonly events: CombatEvent[];
   /** Spells cast this turn (recruit), frozen at combat start — scales Spirit Worgen's in-combat buff. */
   readonly spellsThisTurn: number;
+  /** The run's spell power at combat start ({attack, health} — hero amplify + card spell bonus). Taragosa's
+   *  Growth is a real spell cast, so it inherits this just like a shop-cast Growth does. */
+  readonly spellPower: { attack: number; health: number };
   /** Deathrattles triggered this game so far: the run-wide base (passed in) + this combat's player
    *  Deathrattles. Grim scales its buff by this. */
   deathrattleTally(): number;

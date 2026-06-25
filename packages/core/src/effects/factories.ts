@@ -446,13 +446,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Taragosa — when any ally attacks, "cast Growth": buff every living friend +atk/+hp (golden casts it
-   *  twice). Explosive on a wide board. Combat-only — it does NOT inherit the run's spell power (combat has
-   *  no access to it; flagged as a follow-up). */
+   *  twice). Explosive on a wide board. Growth is a REAL spell, so each cast inherits the run's spell power
+   *  (`ctx.spellPower`, passed in from the run loop) on top of the base — exactly like a shop-cast Growth. */
   onAllyAttackCastGrowth: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion.side !== self.side) return; // any ally's attack
-    const a = num(params.attack, 3);
-    const h = num(params.health, 4);
+    const a = num(params.attack, 3) + ctx.spellPower.attack;
+    const h = num(params.health, 4) + ctx.spellPower.health;
     for (let r = 0; r < mul(self); r++) {
       ctx.castSpell(self.side); // Growth is a REAL spell cast — fires Guel + counts toward his (permanent) improvement
       for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);

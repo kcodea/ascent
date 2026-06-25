@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantRandomDiscoverMinions, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantRandomDiscoverMinions, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -566,12 +566,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0);
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s));
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0;
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0).result;
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s)).result;
           if (r === 'win') win++;
           else if (r === 'draw') draw++;
           else lose++;

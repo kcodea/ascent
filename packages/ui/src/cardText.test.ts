@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, sergeantText, soulsmanText, tallyBuffText, undeadBuyAtkText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, sergeantText, soulsmanText, tallyBuffText, taragosaText, undeadBuyAtkText } from './cardText';
 
 describe('cardText helpers', () => {
   it('guelProgressText shows Guel’s live grant + countdown to the next step (golden-aware)', () => {
@@ -51,6 +51,13 @@ describe('cardText helpers', () => {
     expect(sergeantText('sergeant', true, 4)).toContain('{{+8 Health}}'); // 4 base (golden) + 4 accrued
     expect(sergeantText('sergeant', false, 0)).toBeNull(); // no accrual yet → printed text
     expect(sergeantText('grim', false, 4)).toBeNull(); // not Sergeant
+  });
+
+  it('taragosaText scales Growth with spell power (golden casts twice)', () => {
+    expect(taragosaText('taragosa', false, 4, 4)).toContain('{{+7/+8}}'); // base 3/4 + spell power 4/4
+    expect(taragosaText('taragosa', true, 4, 4)).toContain('{{+14/+16}}'); // ×2 (Growth twice)
+    expect(taragosaText('taragosa', false, 0, 0)).toBeNull(); // no spell power → printed +3/+4
+    expect(taragosaText('tara', false, 4, 4)).toBeNull(); // not Taragosa
   });
 
   it('abhorrentHorrorText shows the pending Start-of-Combat gain from Fodder consumed this turn (golden-aware)', () => {

@@ -11,14 +11,18 @@ Each unit's mechanic medallion (`.cgem` — the centre badge showing its Battlec
 glyph) now releases a slow ring of energy when that unit's effect actually fires during the combat
 replay, so you can read *which* unit just did something.
 
-- **Detection** (`useCombatReplay.ts`): a new per-beat pass tags the acting unit's uid as "triggered"
-  from the beat's events — `sc` / `buff` / `rally` (source), `summon` / `toHand` (source, covers
-  Deathrattle/Battlecry-summon + card generation), and `improve` / `maxGold` / `hpGrant` / `reborn`
-  (target = the effect's owner: Kennelmaster aura, Soulsman Avenge, Sergeant, Reborn). Tags are held a
-  fixed ~850 ms (independent of combat speed, so the ring always completes) then cleared; a re-trigger
-  restarts it. Exposed as `triggerUids: Set<string>`.
-- **Plumbing**: `Recruit` passes `triggered={replay.triggerUids.has(uid)}` → `Unit` → `Card`'s new
-  `pulse` prop, which adds `.cgem.pulsing`.
+- **Combat detection** (`useCombatReplay.ts`): a per-beat pass tags the acting unit's uid as "triggered"
+  from the beat's events — `sc` / `buff` / `rally` (source), `summon` / `toHand` (source), `improve` /
+  `maxGold` / `hpGrant` / `reborn` (target = effect owner), and **`death` where the dying card has an
+  `onDeath`/`avenge` effect** (the clean Deathrattle signal — its summon/buff events don't reliably carry
+  the dying unit as their source, which is why Deathrattles weren't pulsing in the first cut). Tags held a
+  fixed ~950 ms (independent of combat speed, so the ring always completes) then cleared; a re-trigger
+  restarts it. Exposed as `triggerUids: Set<string>`. (The `cardIds` uid→cardId memo was hoisted above
+  the effects so the Deathrattle lookup can use it.)
+- **Out of combat too**: the recruit warband also pulses the medallion on `battlecryUids` /
+  `eotProcUids` (Battlecry on play, End-of-Turn procs) via the same `pulse` prop.
+- **Plumbing**: combat — `Recruit` passes `triggered={replay.triggerUids.has(uid)}` → `Unit` → `Card`'s
+  new `pulse` prop (adds `.cgem.pulsing`); recruit — the board `Card` sets `pulse` directly.
 - **The pulse** (`styles.css`): a `.cgem.pulsing::after` ring scales 0.6→2.7 and fades, tinted with the
   unit's tribe colour over a warm-white core. **Compositor-only** — only `transform`/`opacity` animate;
   the glow (radial bg + box-shadow) is static, so no per-frame repaint (per the perf rules).

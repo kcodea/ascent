@@ -1606,6 +1606,7 @@ export function Recruit() {
                     targeted={((heroArmed || isPendingTarget(m.uid)) && aim?.targetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
+                    pulse={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)} // trigger-medallion pulse out of combat (Battlecry / End of Turn)
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid) ? (m.cardId === 'bane' || CARD_INDEX[m.cardId]?.keywords.includes('FD') ? 'haze' : 'flame') : false}
                     suppressPop={returningFromCombat}

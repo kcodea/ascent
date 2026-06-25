@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **WebGL effects layer (PixiJS) + combat hit-impact.** Added a transparent **PixiJS v8** overlay over
+  the board (pooled-particle system, no DOM/layout changes) and wired it to combat: each hit now bursts a
+  white-hot core flash, a saturated-orange shockwave, **jagged shards** (oriented along their travel), and
+  rising **smoke puffs**, fired on the lunge's contact frame. It's the additive foundation for an eventual
+  Pixi combat arena (effects → sprites → arena, each step shippable).
 - **Ryme combo chain + Hunter shop proc + Target Dummy 0/6.** Ryme's Deathrattle now genuinely **triggers**
   each adjacent Battlecry (with a proc narration), and a **Drakko** on board doubles each trigger — which
   **multiplies** with Sylus / Deathsayer and re-procs **Karwind**/**Bane** per trigger (golden Ryme + both
@@ -581,7 +586,8 @@ _(Full queue in [docs/roadmap.md](docs/roadmap.md).)_
   matrix hand-tuning is demoted; captured boards drive difficulty.
 - **M3 (meta):** more heroes + the full Title→Mode→Hero menu flow (hero picker shipped), unlocks,
   ascension modifiers, daily seeds, save/replay; async PvP off the shared board pool.
-- **M4 (juice & onboarding):** audio/VFX, tutorial, full accessibility + touch.
+- **M4 (juice & onboarding):** audio/VFX (✓ WebGL FX layer + hit-impact landed — next: death burst,
+  Pixi projectiles), tutorial, full accessibility + touch.
 
 ## Layout
 

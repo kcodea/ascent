@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { sfx } from './sfx';
+import { pixiFx } from './pixiFx';
 import { getLungeConfig } from './lungeConfig';
 import { buildBeats, RESULT_TYPES } from './combatBeats';
 
@@ -194,6 +195,9 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
       // from GSAP's timeline closes that gap so the impact sounds off exactly on connection.
       sfx.hit();
       if (!defender) return; // onHit: the struck minion knocks back harder along the blow, then recovers
+      // WebGL impact: a flash + spark spray at the defender's center, fired along the blow direction.
+      const r = defender.getBoundingClientRect();
+      pixiFx.impact(r.left + r.width / 2, r.top + r.height / 2, dx, dy);
       gsap.killTweensOf(defender);
       gsap.fromTo(defender, { x: 0, y: 0 }, {
         x: dx * 0.14, y: dy * 0.14, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out',

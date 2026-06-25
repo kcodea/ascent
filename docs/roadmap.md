@@ -269,7 +269,12 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## M4 — juice & onboarding
 
-- [ ] Pacing polish, audio, VFX. _(Ongoing — recently: first **sourced SFX** (random sell1–4 + combat
+- [ ] Pacing polish, audio, VFX. _(Ongoing — recently: a **PixiJS v8 WebGL effects layer** (transparent
+      full-viewport overlay, pooled-particle system) wired to combat, with a **hit-impact** burst
+      (additive hot core + normal-blend orange shockwave + jagged shards + rising smoke) fired on the
+      lunge's contact frame — the additive foundation for a future Pixi combat arena (effects → sprites →
+      arena, each shippable). **Next FX candidates:** death burst, Pixi-rendered Start-of-Combat/Blaster
+      projectiles (replacing the SVG bolts), Divine-Shield-break shimmer; first **sourced SFX** (random sell1–4 + combat
       smack, Web-Audio sample player + synth fallback), a **master-volume slider** + mute in Settings →
       Audio (persisted, scales every sound), the combat **smack fired frame-accurately from the attack
       lunge** (lands on contact, not the beat clock) with a longer/overdriven lunge; referenced-card hover

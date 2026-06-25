@@ -553,6 +553,7 @@ export function useCombatReplay(
       else if (e.type === 'shieldUp') once('shield', sfx.shield);
       else if (e.type === 'buff') once('buff', sfx.buff);
       else if (e.type === 'maxGold') once('maxgold', sfx.maxGold);
+      else if (e.type === 'summon') once('summon', () => sfx.summon(e.minion.cardId));
     }
     if (kill) setShake((n) => n + 1); // a death shakes the board (hit-stop feel)
   }, [active, beatIdx, beats, events]);

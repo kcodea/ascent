@@ -113,7 +113,7 @@ call to `playSample(...)` (with the synth as fallback). Rough priority:
 | event | length | animation | note |
 |---|---|---|---|
 | **Start-of-Combat cast (sc)** | **1080 ms** | caster `sccast` pulse + projectile bolts | Ember Whelp / Blaster opening zaps — a cast/zap would help |
-| **summon** | 660 ms | `summoned` pop-in | tokens, Deathrattle summons |
+| ~~**summon**~~ | 660 ms | `summoned` pop-in | ✅ now sourced — `sfx.summon(tokenId)`: general `summon` clip (synth fallback) + the token's own `cards/<tokenId>.mp3`. Fires in recruit (battlecry) + combat |
 | **Divine Shield BREAK (shield)** | 690 ms | `shatter` flash | distinct from *gaining* a shield — a glass-break would read great |
 | **poison kill** | 750 ms | `poisoned` + big `☠` bloom | Venomous — a hiss/dissolve |
 | **Venomous spent (venomLost)** | 750 ms | `venomspent` flash | venom drops off after its hit |
@@ -148,7 +148,7 @@ call to `playSample(...)` (with the synth as fallback). Rough priority:
 4. **Magnetic weld** (recruit) — a metallic clamp.
 5. **Poison kill** — the big `☠` bloom wants a hiss/dissolve.
 6. **Reborn** — a "phoenix" return cue.
-7. **summon / toHand / rally / improve** — minor, but each is a distinct beat with no audio.
+7. **toHand / rally / improve** — minor, but each is a distinct beat with no audio. *(summon now has audio.)*
 
 > To wire a sourced clip: add `name.mp3` to `packages/ui/src/audio/` and either swap a §1 synth key to
 > `playSample('name', sampleVol.name)` (keep the synth as fallback) or, for a §4 silent event, add a new

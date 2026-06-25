@@ -18,6 +18,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   that plays whichever card clip exists). Prefetched + bundled like every clip.
 - **Ships, not local-only:** verified the built bundle references `audio/cards/<cardId>.mp3` (Vite bundles the
   glob into `dist/`); committed mp3s travel to main → every build incl. itch.
+- **Summon audio (recruit + combat).** A new `sfx.summon(tokenId?)` plays a general summon cue (sourced
+  `summon` clip with a synth rising-blip fallback) **layered with** the summoned token's own
+  `cards/<tokenId>.mp3` (reuses the per-card system — tokens have cardIds). Fired from two places: the `play`
+  handler reads the played card's `onPlay` effects for a `tokenId` (e.g. Alleycat → Stray), and the combat
+  replay's previously-silent `summon` beat now calls `sfx.summon(e.minion.cardId)` (Deathrattle/other combat
+  summons). One shared `summon` gain (0.5) in the mixer. So the full Alleycat moment = Alleycat's voiceline +
+  the summon cue + the Stray's clip.
 - **Verified:** typecheck + lint clean, 331 tests pass, build references the cards glob. First real clip
   (Alleycat / `alley`) added separately as the test case.
 

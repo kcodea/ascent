@@ -161,6 +161,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   roll: 0.5,
   combatStart: 0.5,
   cardVoice: 0.6, // shared gain for ALL per-card voicelines/SFX (audio/cards/<cardId>.mp3)
+  summon: 0.5,    // general "a token was summoned" cue (layered with the token's own cardVoice clip)
 };
 let sampleVol: Record<string, number> = (() => {
   try {
@@ -235,6 +236,13 @@ export const sfx = {
   // A specific card's unique voiceline/SFX — drop `audio/cards/<cardId>.mp3` and it plays when that card is
   // played, LAYERED over the general landing/cast sound. Silent (no fallback) if the card has no clip.
   cardVoice: (cardId: string) => { playSample(`cards/${cardId}`, sampleVol.cardVoice); },
+  // A token is summoned — a general "summon" pop (sourced `summon` clip; synth rising blip fallback) LAYERED
+  // with the summoned token's own cards/<tokenId>.mp3 voiceline if present. Fires on battlecry summons
+  // (recruit, from store.ts) and combat summons (deathrattles etc., from useCombatReplay.ts).
+  summon: (tokenId?: string) => {
+    if (!playSample('summon', sampleVol.summon)) tone({ freq: 300, dur: 0.12, type: 'triangle', vol: 0.1, slideTo: 520 });
+    if (tokenId) playSample(`cards/${tokenId}`, sampleVol.cardVoice);
+  },
   // A Discover choice opens — the sourced "discover" clip; synth shimmer until it decodes / if absent.
   discover: () => {
     if (playSample('discover', sampleVol.discover)) return;
@@ -312,6 +320,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
     const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/'));
     if (first) playSample(first, sampleVol.cardVoice);
   },
+  summon: () => sfx.summon(),
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();

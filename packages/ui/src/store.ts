@@ -49,7 +49,15 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
       if (card && CARD_INDEX[card.cardId]?.spell) sfx.castSpell();
       else sfx.play();
       // Layer the card's own unique voiceline/SFX (if it has one) over the general landing/cast sound.
-      if (card) sfx.cardVoice(card.cardId);
+      if (card) {
+        sfx.cardVoice(card.cardId);
+        // A Battlecry that summons a token (e.g. Alleycat → Stray) → play the summon cue (general SFX +
+        // the token's own clip). Read the card's onPlay effects for a tokenId.
+        for (const eff of CARD_INDEX[card.cardId]?.effects ?? []) {
+          const tokenId = eff.on === 'onPlay' ? eff.params?.tokenId : undefined;
+          if (typeof tokenId === 'string') sfx.summon(tokenId);
+        }
+      }
       break;
     }
     case 'sell': sfx.sell(); break;

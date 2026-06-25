@@ -1307,13 +1307,23 @@ export function Recruit() {
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
 
-  // A low puff of dry-dirt dust under a card landing on / moving across the board — fired at the drop
-  // x on the warband's ground line (avoids the FLIP-in-flight rect), spanning ~a card width.
-  const puffOnBoard = (cx: number, w: number): void => {
-    const row = document.querySelector('[data-zone="warband"] .row.warband') ?? document.querySelector('[data-zone="warband"] .row');
-    if (!row) return;
-    const rr = row.getBoundingClientRect();
-    pixiFx.dust(cx, rr.bottom - 10, w);
+  // A puff of dry-dirt dust ringing a card that just landed on / moved across the board. We wait for the
+  // GSAP Flip (0.18s) to settle, then measure the card's *landed* rect by uid — so the dust follows where
+  // the card actually ends up (e.g. snapping back to the middle), not where it was dropped. The card is
+  // briefly raised above the FX canvas (.pixifx z41) so the dust renders BEHIND it, escaping out from
+  // under every side. `.app` isn't a stacking context, so a z-index on the card wins over the overlay.
+  const puffOnBoard = (uid: string): void => {
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row.warband .card[data-uid="${uid}"]`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const prevPos = el.style.position;
+      const prevZ = el.style.zIndex;
+      el.style.position = 'relative';
+      el.style.zIndex = '42'; // above .pixifx (z41) → dust renders behind the card
+      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+      window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
+    }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
   };
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
@@ -1395,12 +1405,12 @@ export function Recruit() {
     }
     if (d.source === 'hand' && zone === 'warband') {
       dispatch({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(cx) });
-      puffOnBoard(cx, d.w); // dust as the minion lands on the board
+      puffOnBoard(d.uid); // dust around the minion where it lands
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {
       dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(cx, d.uid) });
-      puffOnBoard(cx, d.w); // dust as the minion is repositioned
+      puffOnBoard(d.uid); // dust around the minion at its landed slot
       return true;
     }
     return false;

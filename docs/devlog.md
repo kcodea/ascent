@@ -5,27 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
-### feat: dry-dirt dust puff under a unit placed on / moved across the board
+### feat: dry-dirt dust ringing a unit placed on / moved across the board
 
 A "flat stone dropped in dust" flourish on the Pixi FX layer: placing a minion from hand onto the
-board, or repositioning one already on it, now kicks up a low puff of dry-dirt dust from the card's
-base.
+board, or repositioning one already on it, kicks up a ring of dry-dirt dust that escapes out from
+under the card on every side.
 
-- **`pixiFx.dust(x, y, width)`**: 7 soft tan puffs (dry-dirt colours) spread **outward to the sides**
-  from the base with only a tiny lift and near-zero gravity, so they hug the ground and billow rather
-  than rise — normal blend, low peak alpha (~0.22–0.34) so it stays subtle. Reuses the soft-glow
-  texture + the existing `gravity` particle field.
-- **Trigger** (`Recruit.tsx`): a new `puffOnBoard(cx, w)` fires it at the drop's card-center x on the
-  **warband row's ground line** (using the row rect, not the card's rect — the warband animates with
-  GSAP Flip, so a just-committed card's rect would be mid-flight), spanning ~a card width. Wired into
-  both board-landing drops: hand→warband (`play`) and board→warband (`reposition`). Spell casts and
-  Magnetic Mech merges are intentionally excluded.
+- **`pixiFx.dust(cx, cy, w, h)`**: 12 soft tan puffs (dry-dirt colours) spawned **around the card's
+  rectangular perimeter** and billowing **outward**, with vertical motion damped + gentle gravity so
+  they stay flat to the ground rather than rising — normal blend, low peak alpha (~0.2–0.32) so it
+  stays subtle. Reuses the soft-glow texture + the `gravity` particle field.
+- **Renders behind the card** (owner ask: "below the card *layer*"): `puffOnBoard` briefly raises the
+  landed card's `z-index` to 42 (above `.pixifx` z41) for the dust's lifetime, then restores it. `.app`
+  isn't a stacking context, so the card's z-index wins over the overlay — the dust reads as escaping
+  out from *under* the card, surrounding it.
+- **Follows the landed position** (owner bug: dust showed where you *dragged*, not where it *landed* —
+  e.g. a card that snaps back to the middle): `puffOnBoard(uid)` waits for the GSAP Flip (0.18 s) to
+  settle, then measures the card's resting rect **by uid**, so the dust always rings the final slot.
+- **Trigger** (`Recruit.tsx`): wired into both board-landing drops — hand→warband (`play`) and
+  board→warband (`reposition`). Spell casts and Magnetic Mech merges are intentionally excluded.
 
 **Files:** `pixiFx.ts` (`dust()`), `Recruit.tsx` (`puffOnBoard` + the two drop sites).
 
 **Verification:** `typecheck + lint + test (354) + build:web` all green. Verified live: `dust()` spawns
-7 tan puffs, all subtle, all moving mostly horizontally (7/7 `|vx|>|vy|`) with a peak rise of ~4px —
-it stays low to the ground (no rising column), as intended.
+12 tan puffs, all on the perimeter, all moving outward across ~9 distinct directions (a full ring), all
+subtle.
 
 ### fix: golden cards now show their LIVE rules text (Sergeant, Taragosa, …), not the static printed goldenText
 

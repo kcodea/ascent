@@ -10,3 +10,7 @@ ascent-itch.zip
 .DS_Store
 .vscode/
 .idea/
+# installed agent-skill packages (npx skills add) — keep .claude/launch.json tracked
+.agents/
+.claude/skills/
+skills-lock.json

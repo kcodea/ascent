@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Trigger-medallion pulse.** When a unit's effect fires in combat (Start-of-Combat, Deathrattle, aura,
+  Avenge, Reborn…), its centre medallion releases a slow ring of energy, so you can see which unit acted.
 - **Dust puff on board placement.** Placing or moving a minion on the board kicks up a ring of dry-dirt
   dust that escapes out from under the card on every side — like a flat stone dropped in dust.
 - **Gold-coin sprinkle on sell.** Selling a minion now bursts a sprinkle of gold coins out of the Gold

@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: trigger-medallion pulse when a unit's effect fires in combat
+
+Each unit's mechanic medallion (`.cgem` — the centre badge showing its Battlecry/Deathrattle/keyword
+glyph) now releases a slow ring of energy when that unit's effect actually fires during the combat
+replay, so you can read *which* unit just did something.
+
+- **Detection** (`useCombatReplay.ts`): a new per-beat pass tags the acting unit's uid as "triggered"
+  from the beat's events — `sc` / `buff` / `rally` (source), `summon` / `toHand` (source, covers
+  Deathrattle/Battlecry-summon + card generation), and `improve` / `maxGold` / `hpGrant` / `reborn`
+  (target = the effect's owner: Kennelmaster aura, Soulsman Avenge, Sergeant, Reborn). Tags are held a
+  fixed ~850 ms (independent of combat speed, so the ring always completes) then cleared; a re-trigger
+  restarts it. Exposed as `triggerUids: Set<string>`.
+- **Plumbing**: `Recruit` passes `triggered={replay.triggerUids.has(uid)}` → `Unit` → `Card`'s new
+  `pulse` prop, which adds `.cgem.pulsing`.
+- **The pulse** (`styles.css`): a `.cgem.pulsing::after` ring scales 0.6→2.7 and fades, tinted with the
+  unit's tribe colour over a warm-white core. **Compositor-only** — only `transform`/`opacity` animate;
+  the glow (radial bg + box-shadow) is static, so no per-frame repaint (per the perf rules).
+
+**Files:** `useCombatReplay.ts` (trigger set + per-beat pass + reset + export), `Unit.tsx` (`triggered`
+prop + memo), `Card.tsx` (`pulse` prop → `.cgem` class), `Recruit.tsx` (both Unit renders), `styles.css`
+(`.cgem.pulsing::after` + `cgempulse`).
+
+**Verification:** `typecheck + lint + test (354) + build:web` all green. CSS wiring confirmed live —
+toggling `pulsing` on a medallion resolves its `::after` to `animation: cgempulse 0.85s` over the badge.
+(Full combat playback is GSAP-driven and can't run in the headless preview; owner to eyeball in a real
+fight.)
+
 ### feat: dry-dirt dust ringing a unit placed on / moved across the board
 
 A "flat stone dropped in dust" flourish on the Pixi FX layer: placing a minion from hand onto the

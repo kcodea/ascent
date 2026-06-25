@@ -374,6 +374,8 @@ export interface CombatReplay {
   handGrant: { cardId: string; key: number } | null;
   /** Card ids granted to the hand so far in the replay — appended to the combat hand so it grows live. */
   handGrantsShown: string[];
+  /** uids whose effect fired in the current window — their trigger medallion pulses. */
+  triggerUids: Set<string>;
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -404,6 +406,7 @@ export function useCombatReplay(
   const [beatIdx, setBeatIdx] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
+  const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
@@ -428,6 +431,7 @@ export function useCombatReplay(
     setBeatIdx(0);
     setFloats([]);
     setDeathFloats([]);
+    setTriggers(new Set());
     setFinished(false);
     setAttackUid(null);
     gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
@@ -541,6 +545,32 @@ export function useCombatReplay(
     }
     return () => timers.forEach((id) => window.clearTimeout(id));
   }, [active, beatIdx, beats, events, findEl, combatSpeed]);
+
+  // Trigger-medallion pulse — when a unit's EFFECT fires this beat (Start-of-Combat, Deathrattle/summon,
+  // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.
+  // We tag the acting unit's uid, then clear it after the pulse animation so it always completes (and a
+  // re-trigger restarts it). Held a fixed ~850ms regardless of combat speed so the ring never cuts off.
+  useEffect(() => {
+    if (!active || beatIdx === 0) return;
+    const beat = beats[beatIdx - 1];
+    if (!beat) return;
+    const trig = new Set<string>();
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e) continue;
+      if ((e.type === 'sc' || e.type === 'buff' || e.type === 'rally') && e.source) trig.add(e.source);
+      else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
+      else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);
+    }
+    if (trig.size === 0) return;
+    setTriggers((prev) => new Set([...prev, ...trig]));
+    const t = window.setTimeout(() => setTriggers((prev) => {
+      const next = new Set(prev);
+      for (const uid of trig) next.delete(uid);
+      return next;
+    }), 850);
+    return () => window.clearTimeout(t);
+  }, [active, beatIdx, beats, events]);
 
   // Combat SFX — one sound per notable event type in the beat just resolved.
   useEffect(() => {
@@ -738,6 +768,7 @@ export function useCombatReplay(
 
   return {
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
+    triggerUids: triggers,
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, enemyDeaths, skip: () => setBeatIdx(beats.length),
   };

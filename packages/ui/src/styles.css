@@ -558,6 +558,21 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
   display: grid; place-items: center;
 }
 .card.compact .cgem svg { width: 62%; height: 62%; color: #f6e3ad; }
+/* Trigger pulse — a slow ring of energy released from the medallion when the unit's effect fires in
+   combat (Start-of-Combat, Deathrattle, aura, Avenge, Reborn, …). Compositor-only: animates the
+   transform + opacity of a ::after whose glow (radial bg + box-shadow) is STATIC, so it never repaints
+   per frame (per the perf rules in CLAUDE.md). The medallion itself brightens with a matching pulse. */
+.card.compact .cgem.pulsing::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c) 70%, #fff6d8) 0%, transparent 68%);
+  box-shadow: 0 0 12px 4px rgba(255, 240, 200, 0.85), 0 0 26px 12px color-mix(in srgb, var(--c) 60%, transparent);
+  opacity: 0; will-change: transform, opacity; animation: cgempulse 0.85s ease-out;
+}
+@keyframes cgempulse {
+  0% { opacity: 0; transform: scale(0.6); }
+  18% { opacity: 0.95; }
+  100% { opacity: 0; transform: scale(2.7); }
+}
 /* spell label — a readable white banner over the arch base (spells have no stat badges) */
 .card.compact.spellcard .ctype.spell { position: absolute; bottom: calc(var(--ccw) * -0.05); left: 50%; transform: translateX(-50%); z-index: 6; background: color-mix(in srgb, var(--t-demon) 88%, #000); color: #fff; padding: calc(var(--ccw) * 0.02) calc(var(--ccw) * 0.08); border-radius: 999px; border: 2px solid #f6e3ad; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); font-size: calc(var(--ccw) * 0.075); white-space: nowrap; }
 

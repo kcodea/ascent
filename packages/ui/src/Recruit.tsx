@@ -1538,6 +1538,7 @@ export function Recruit() {
                 side="foe"
                 anim={replay.anims[u.uid]}
                 floats={replay.floatsFor(u.uid)}
+                triggered={replay.triggerUids.has(u.uid)}
               />
             ))
           ) : (
@@ -1585,6 +1586,7 @@ export function Recruit() {
                 side="you"
                 anim={replay.anims[u.uid]}
                 floats={replay.floatsFor(u.uid)}
+                triggered={replay.triggerUids.has(u.uid)}
               />
             ))
           ) : (

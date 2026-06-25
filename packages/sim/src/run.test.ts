@@ -513,17 +513,20 @@ describe('run loop (@game/sim)', () => {
     expect(tara?.ascendProgress).toBe(10); // seeded from the run board, not reset to 0 each combat
   });
 
-  it('a combat Discover-minion re-fire (Ryme → Sea Urchin) grants a random beast at settle, abiding by tavern rules', () => {
+  it('a combat card grant (Sporebat / Ryme→Sea Urchin) lands the actual carried card at settle, with run buffs', () => {
     let s: RunState = {
-      ...createRun(1), tier: 3, tribes: ['beast'],
+      ...createRun(1), tier: 3, undeadBuyAtk: 2,
+      cardBuffs: { cleric: { attack: 1, health: 1 } },
       phase: 'combat', hand: [],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerMinionGrants: [{ tribe: 'beast', exclude: 'seaurchin' }] },
+      // Combat already picked these specific cards (a toHand event animated them in); settle just adds them.
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerHandGrants: ['cleric', 'karthus'] },
     };
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.hand.length).toBe(1); // one random card granted (the Discover couldn't open in combat)
-    const def = CARD_INDEX[s.hand[0]!.cardId]!;
-    expect(def.tribe === 'beast' || def.tribe2 === 'beast' || def.universalTribe).toBe(true); // of the Discover's tribe
-    expect(def.tier).toBeLessThanOrEqual(3); // …up to the tavern tier
+    const cleric = s.hand.find((c) => c.cardId === 'cleric')!;
+    const karthus = s.hand.find((c) => c.cardId === 'karthus')!;
+    expect(cleric).toBeDefined();
+    expect([cleric.attack, cleric.health]).toEqual([CARD_INDEX.cleric!.attack + 1, CARD_INDEX.cleric!.health + 1]); // run-wide cardBuff
+    expect(karthus.attack).toBe(CARD_INDEX.karthus!.attack + 2); // Undead bond (undeadBuyAtk) baked in
   });
 
   it('Soulfeeder queues Fodder only once — it does not re-proc on later rounds', () => {

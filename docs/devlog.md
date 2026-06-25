@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: generated cards now show the ACTUAL card mid-combat (real `toHand` event) — wires specific-card grant tech
+
+Owner-prioritised: a card generated in combat must show the real card as it's generated (and this tech will back future grant animations). Combat was carrying back a *count/request* and picking the card at **settle**, so the replay couldn't show it. Now combat **picks the actual card** and routes it through the existing `grantToHand` path:
+
+- The run's **tavern tier + active tribes** are threaded into `simulate` (two new params). `grantRandomSpell` / `grantRandomMinion` now filter the live pool (`Object.values(cards)`: spells, or `!token && !spell` minions ≤ tier, tribe-matched, active tribes, excluding the source), pick with the combat RNG, **emit a `toHand` event** with the real `cardId` (the same event Arcane Weaver uses — the card animates flying to your hand), and carry the cardId back.
+- **Unified the grant settle:** every in-combat card grant (Arcane Weaver's specific card AND the now-picked random cards) flows through `CombatResult.playerHandGrants`. `settleCombat` adds each carried card with the run's per-card enchant + Undead bond and `takeFromPool` (both no-ops for spells) — so a granted minion keeps its run buffs, matching a conjure. Removed the old `playerSpellGrants` (count) / `playerMinionGrants` (request) carry-backs, their settle blocks, and `grantRandomDiscoverMinions`.
+- Replaces the interim "Generated a spell/minion" `sc` telegraph (added earlier this session) with the real card flying in. Spell-power gains keep their `+A/+B Spell Power` `sc`.
+
+**Files:** `simulate.ts` (tier/tribes params + pick-and-grantToHand in the two methods; removed accumulators), `types.ts` (dropped 2 CombatResult fields; updated ctx docs), `reducer.ts` (unified `playerHandGrants` settle with run buffs + `takeFromPool`; pass `s.tier`/`s.tribes`; removed dead blocks/import), `recruit.ts` (removed `grantRandomDiscoverMinions`), `simulate.test.ts` (run helper threads tier/tribes; 3 tests now assert `toHand` + the actual card), `run.test.ts` (settle test asserts the carried card lands with run buffs).
+
+**Verification:** `typecheck + lint + test (360) + harness (determinism) + build:web` green. Confirmed **live in-preview**: a lost combat with a Sporebat emitted a `toHand` for the real spell (`growth`), and that same `growth` landed in the hand at settle.
+
 ### feat: combat feedback — telegraph spell-power gains + generated cards mid-fight; Taragosa combat text
 
 Combat is a pure function whose carry-backs apply at **settle**, so several effects were invisible during the replay. Added mid-combat telegraphs (the run loop still applies them at settle — these are display-only events):

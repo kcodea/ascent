@@ -44,6 +44,8 @@ export function simulate(
   impHpBonus = 0,
   spellPowerAtk = 0,
   spellPowerHp = 0,
+  playerTier = 1,
+  playerTribes: string[] = [],
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -59,8 +61,6 @@ export function simulate(
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
   let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
-  let spellGrants = 0; // random tavern-tier spells granted to the hand after combat (Sporebat's Deathrattle)
-  const minionGrants: { tribe?: string; exclude?: string }[] = []; // random pool minions to grant (Ryme re-firing a Discover Battlecry)
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: spellsCast, enemy: 0 };
@@ -234,14 +234,29 @@ export function simulate(
     },
     grantRandomSpell: (count, side, sourceUid) => {
       if (side !== 'player') return; // enemies have no hand
-      spellGrants += count;
-      // Telegraph the generation mid-combat (the specific spell is picked at settle, where the tier is known).
-      if (sourceUid && count > 0) events.push({ type: 'sc', source: sourceUid, text: count > 1 ? `Generated ${count} spells` : 'Generated a spell' });
+      // Pick the ACTUAL spell now (tavern tier passed in) and route it through grantToHand — so the replay
+      // shows the real card flying to your hand (a `toHand` event), and settle just adds the carried cardId.
+      const pool = Object.values(cards).filter((c) => c.spell && c.tier <= playerTier);
+      for (let i = 0; i < count && pool.length > 0; i++) {
+        const pick = pool[Math.floor(rng.next() * pool.length)]!;
+        handGrants.push(pick.id);
+        events.push({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+      }
     },
     grantRandomMinion: (count, tribe, side, exclude, sourceUid) => {
       if (side !== 'player') return; // enemies have no hand
-      for (let i = 0; i < count; i++) minionGrants.push({ tribe, exclude });
-      if (sourceUid && count > 0) events.push({ type: 'sc', source: sourceUid, text: count > 1 ? `Generated ${count} minions` : `Generated a ${tribe ?? 'minion'}` });
+      // Same as spells but for the buyable-minion pool (tribe-filtered, ≤ tavern tier, active tribes only).
+      const pool = Object.values(cards).filter(
+        (c) =>
+          !c.token && !c.spell && c.tier <= playerTier && c.id !== exclude &&
+          (c.tribe === 'neutral' || playerTribes.includes(c.tribe)) &&
+          (!tribe || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe),
+      );
+      for (let i = 0; i < count && pool.length > 0; i++) {
+        const pick = pool[Math.floor(rng.next() * pool.length)]!;
+        handGrants.push(pick.id);
+        events.push({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+      }
     },
     grantImpBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
@@ -687,8 +702,6 @@ export function simulate(
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
-    playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
-    playerMinionGrants: minionGrants.length > 0 ? minionGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,

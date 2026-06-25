@@ -1,12 +1,12 @@
 import { makeRng, simulate, type BoardMinion, type CombatResult, type Tribe } from '@game/core';
-import { CARD_INDEX, SPELL_CARDS } from '@game/content';
+import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantRandomDiscoverMinions, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -547,12 +547,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s));
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0;
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s)).result;
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes).result;
           if (r === 'win') win++;
           else if (r === 'draw') draw++;
           else lose++;
@@ -794,21 +794,26 @@ function settleCombat(s: RunState, result: CombatResult): void {
       if (card) addBuff(card, engraved ? 'Engraved' : 'Flowing Monk', attack, health);
     }
   }
-  // Deathrattle-granted cards (Arcane Weaver → a Spirit Fire copy) land in the hand for
-  // the next recruit, win or lose — capped by the hand limit.
+  // Cards a combat effect added to the hand land in the hand for the next recruit, win or lose — capped by
+  // the hand limit. This is the single channel for ALL in-combat card grants: a SPECIFIC card (Arcane Weaver →
+  // a Spirit Fire copy) AND a RANDOM card already picked in combat (Sporebat's spell, Ryme re-firing Sea Urchin
+  // / Black Belt Brian — the `toHand` event showed the real card flying). Each carries the run's per-card
+  // enchant + Undead bond and leaves the shared pool (both no-ops for spells), matching a normal conjure.
   if (result.playerHandGrants) {
     for (const cardId of result.playerHandGrants) {
       const def = CARD_INDEX[cardId];
       if (!def || s.hand.length >= CONFIG.handMax) continue;
+      const cb = cardBuff(s, cardId);
       s.hand.push({
         uid: `b${s.uidSeq++}`,
         cardId: def.id,
         tribe: def.tribe,
-        attack: def.attack,
-        health: def.health,
+        attack: def.attack + cb.attack + undeadBuyBonus(s, def),
+        health: def.health + cb.health,
         keywords: [...def.keywords],
         golden: false,
       });
+      takeFromPool(s, cardId);
     }
   }
   // Skullblade: permanent run-wide spell power gained from its combat Deathrattle (+Attack to your
@@ -868,23 +873,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
       if (isTribe(c, 'undead')) addBuff(c, 'Karthus', gain, 0);
     }
   }
-  // Sporebat: grant N random tavern-tier spells to the hand (the tavern tier is known here; honours the cap).
-  if (result.playerSpellGrants) {
-    const rng = makeRng(s.rngCursor);
-    const pool = SPELL_CARDS.filter((c) => c.tier <= s.tier);
-    for (let i = 0; i < result.playerSpellGrants && s.hand.length < CONFIG.handMax && pool.length > 0; i++) {
-      const def = pool[rng.int(pool.length)]!;
-      s.hand.push({
-        uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe,
-        attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false,
-      });
-    }
-    s.rngCursor = rng.state();
-  }
-  // A Discover-minion Battlecry re-fired in combat (Ryme → Sea Urchin) can't open the interactive Discover,
-  // so grant a random pool minion of the requested tribe instead (≤ tavern tier, active tribes) — the
-  // spell-Discover half (Black Belt Brian) routes through playerSpellGrants above.
-  if (result.playerMinionGrants) grantRandomDiscoverMinions(s, result.playerMinionGrants);
+  // (Random spell/minion grants — Sporebat, Ryme re-firing Sea Urchin / Black Belt Brian — are now picked in
+  //  combat and added above via playerHandGrants, so the real card animates in. No separate settle pick.)
   // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
   // common tribe (then spends 5). A failed grant (full hand / no tribe) keeps the kills banked for later.
   if (getHero(s.heroId).power.kind === 'collision') {

@@ -116,42 +116,6 @@ export function sellValueOf(card: BoardCard): number {
 }
 
 /**
- * Resolve combat Discover-minion Battlecry re-fires (Ryme re-firing Sea Urchin). A Discover can't open its
- * interactive 1-of-3 peek mid-combat, so each carried-back request grants ONE random pool minion of its
- * `tribe`, up to the tavern tier, drawn from the run's active tribes (tavern rules) — with the run buffs the
- * normal grant path bakes in (per-card run buff + Undead bond) and a pool draw, honoring the hand cap. The
- * seeded RNG keeps it replayable. Called by `settleCombat`.
- */
-export function grantRandomDiscoverMinions(state: RunState, grants: { tribe?: string; exclude?: string }[]): void {
-  if (grants.length === 0) return;
-  const rng = makeRng(state.rngCursor);
-  for (const { tribe, exclude } of grants) {
-    if (state.hand.length >= CONFIG.handMax) break;
-    const pool = BUYABLE_CARDS.filter(
-      (c) =>
-        c.tier <= state.tier &&
-        c.id !== exclude &&
-        (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
-        (!tribe || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe),
-    );
-    if (pool.length === 0) continue;
-    const def = pool[rng.int(pool.length)]!;
-    const cb = cardBuff(state, def.id);
-    state.hand.push({
-      uid: `b${state.uidSeq++}`,
-      cardId: def.id,
-      tribe: def.tribe,
-      attack: def.attack + cb.attack + undeadBuyBonus(state, def),
-      health: def.health + cb.health,
-      keywords: [...def.keywords],
-      golden: false,
-    });
-    takeFromPool(state, def.id); // a conjured copy leaves the shared pool
-  }
-  state.rngCursor = rng.state();
-}
-
-/**
  * Permanently enchant the **Fodder** card type run-wide by +a/+h (Ritualist's End of Turn, Bane's
  * battlecry trigger). Bumps the persistent per-cardId run buff for every Fodder def — so future copies
  * from any source (tavern, summon, Discover, conjure) carry it — and applies it to the Fodder already on

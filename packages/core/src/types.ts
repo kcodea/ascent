@@ -408,14 +408,6 @@ export interface CombatResult {
   playerFodderGrants?: number;
   /** Free shop rerolls banked from this combat (Gryphon's on-damaged). Added to `freeRolls` in settleCombat. */
   playerFreeRolls?: number;
-  /** Random tavern-tier spells to grant to the hand after this combat (Sporebat's Deathrattle, and a
-   *  Discover-spell Battlecry re-fired in combat by Ryme) — a count; settleCombat picks that many random
-   *  spells (tier ≤ tavern tier). Absent if 0. */
-  playerSpellGrants?: number;
-  /** Random minions to grant to the hand after this combat — from a Discover-minion Battlecry re-fired in
-   *  combat (Ryme → Sea Urchin), which can't open the interactive Discover. settleCombat picks one pool
-   *  minion per entry of the given `tribe` (≤ tavern tier, active tribes), excluding `exclude`. Absent if none. */
-  playerMinionGrants?: { tribe?: string; exclude?: string }[];
   /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
    *  settleCombat. Absent if 0. */
   playerMaxGoldGain?: number;
@@ -490,14 +482,14 @@ export interface CombatContext {
    *  CombatResult.playerFreeRolls. */
   grantFreeRolls(count: number, side: Side): void;
   /** Grant `count` random tavern-tier spells to the player's hand after combat (Sporebat, and a Discover-spell
-   *  Battlecry re-fired in combat by Ryme). Player-only; carried back via CombatResult.playerSpellGrants
-   *  (picked at settle, where the tavern tier is known). `sourceUid` (the granting minion) telegraphs it
-   *  mid-combat as an `sc` narration so the player sees it happen. */
+   *  Battlecry re-fired in combat by Ryme). Player-only. Picks the ACTUAL spell(s) now (the run's tavern tier
+   *  is threaded into combat) and routes each through `grantToHand` — so the replay shows the real card flying
+   *  (`toHand`) and settle just adds the carried cardId. `sourceUid` is the granting minion. */
   grantRandomSpell(count: number, side: Side, sourceUid?: string): void;
   /** Grant `count` random pool minions of `tribe` to the player's hand after combat — from a Discover-minion
-   *  Battlecry re-fired in combat (Ryme → Sea Urchin), which can't open the interactive Discover. Player-only;
-   *  carried back via CombatResult.playerMinionGrants (picked at settle: tribe + ≤ tavern tier + active tribes).
-   *  `sourceUid` telegraphs it mid-combat. */
+   *  Battlecry re-fired in combat (Ryme → Sea Urchin). Player-only. Picks the actual minion(s) now from the
+   *  buyable pool (≤ tavern tier, active tribes, tribe-filtered, excluding `exclude`) and routes each through
+   *  `grantToHand`, so the real card animates in. `sourceUid` is the granting minion. */
   grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string): void;
   /** A minion casts a spell mid-combat (Taragosa's Growth). Tallies the cast (the running per-side count
    *  is reported in the `spellCast` event payload so Guel scales) and, for the player, carries it back via

@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Generated cards show the real card mid-combat.** A card generated in combat (Sporebat, Ryme re-firing Sea
+  Urchin / Black Belt Brian) is now **picked during the fight** and flies to your hand as the actual card
+  (`toHand`), instead of resolving invisibly at settle — wiring the specific-card-grant tech for future events.
 - **Combat feedback telegraphs.** Effects that used to apply silently until the shop now show **during** the
   fight: **spell-power gains** ("+A/+B Spell Power") and **generated cards** ("Generated a spell/minion") emit a
   Start-of-Combat-style narration from the minion that caused them. Taragosa's combat text reflects spell power.

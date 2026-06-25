@@ -52,6 +52,21 @@ export function transformProgressText(cardId: string, spellProgress: number): st
 }
 
 /**
+ * Tara's ascend countdown: once she accumulates `ascendAt` stat-grants in combat she becomes Taragosa.
+ * When `ascendProgress > 0` appends a green "{{N to go}}" so the player can watch the threshold approach.
+ * Returns null when there's no progress yet (falls back to printed text) or once the threshold is met
+ * (she's ascending this combat settle — no countdown needed).
+ */
+export function ascendProgressText(cardId: string, ascendProgress: number): string | null {
+  if (ascendProgress <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def?.ascendAt || !def.ascendInto) return null;
+  const remaining = Math.max(0, def.ascendAt - ascendProgress);
+  if (remaining <= 0) return null;
+  return `${def.text} {{${remaining} to go}}`;
+}
+
+/**
  * Frontdrake's cadence ("Every N turns, get a Dragon") appends a live countdown (green), where
  * M = every − (eotTick mod every) and `eotTick` advances once per End of Turn. When M === 1 the cadence
  * lands at THIS turn's End of Turn (eotTick is one shy of a multiple), so it reads "End of this turn."

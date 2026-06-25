@@ -24,17 +24,20 @@ function UnitInner({ u, side, anim, floats }: UnitProps) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
+  // Combat live text — show current values for minions whose effects scale mid-fight.
+  const liveText = summonBuffText(u.cardId, u.summonBonus)
+    ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
+    ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
+    ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
+    ?? engraveTallyText(u.cardId, u.permaGain)
+    ?? def?.text ?? '';
   const view: CardView = {
     name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2, attack: u.attack, health: Math.max(0, u.health),
     keywords: u.keywords, golden: u.golden,
-    // Combat live text — show current values for minions whose effects scale mid-fight.
-    text: summonBuffText(u.cardId, u.summonBonus)
-      ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
-      ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
-      ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
-      ?? engraveTallyText(u.cardId, u.permaGain)
-      ?? def?.text ?? '',
-    goldenText: def?.goldenText,
+    text: liveText,
+    // The chain is already golden-aware, so for a golden unit whose live text resolved, feed it to
+    // goldenText (which Card renders for goldens) instead of the static printed goldenText.
+    goldenText: u.golden && liveText !== (def?.text ?? '') ? liveText : def?.goldenText,
     tier: def?.tier,
     // Two thresholds in combat: green above the *printed* base (it's buffed), red below the *floor* it
     // entered the fight with (it's been damaged/debuffed). So a recruit-buffed 5/5 stays green until

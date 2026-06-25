@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: golden cards now show their LIVE rules text (Sergeant, Taragosa, …), not the static printed goldenText
+
+Owner report: golden Sergeant's tooltip "wasn't showing the right value." Root cause (general, not Sergeant-specific): `Card.tsx` renders `card.goldenText` for a golden card, but the live-text helpers (sergeantText, taragosaText, …) only ever fed the live value into `card.text`. `instView` (Recruit) had patched only Guel and Mama Bear into `goldenText`; every other golden live-text card fell back to the **static printed** goldenText. So a golden Sergeant with +6 accrued showed the printed "+4 Health" instead of the live "+10"; a golden Taragosa showed "+6/+8" instead of its spell-power-scaled value.
+
+The live-text chain is already computed with the card's own golden flag, so for a golden card whose live text resolved, `text` *is* the golden-aware value. Both `instView` (shop) and `Unit` (combat) now feed that into `goldenText` (`golden && text !== printedText ? text : staticGoldenText`), replacing the Guel/Mama-Bear special-case with one general rule. Vanilla goldens (no live helper) still fall back to the printed/doubled golden text.
+
+**Files:** `Recruit.tsx` (instView goldenText), `Unit.tsx` (combat goldenText). **Verification:** `typecheck + lint + test (354) + harness + build:web` green. Confirmed live in-preview: golden Sergeant now reads **+10 Health** (was +4), golden Taragosa **+14/+16** at +4/+4 spell power (was +6/+8), non-golden unchanged.
+
 ### feat: Taragosa's Growth scales with spell power + combat-log odds bar redesign
 
 - **Taragosa's Growth now inherits the run's spell power** (it's a real spell cast — this was a flagged follow-up). Combat now receives the run's spell power (`spellAttackBonus`/`spellHealthBonus` → two new `simulate` params → `CombatContext.spellPower`), and `onAllyAttackCastGrowth` adds it to the base +3/+4 per cast (golden casts twice). New `taragosaText` shows the live scaled value in the shop tooltip — e.g. at +4/+4 spell power, Growth reads **+7/+8** (golden **+14/+16**). The card text turns green once spell power is non-zero, falling back to the printed +3/+4 otherwise.
@@ -38,6 +46,13 @@ Three owner requests.
 **Files:** `reducer.ts` (triple hook + Fodder settle + `buffFodderRunWide` import), `types.ts` + `simulate.ts` + `factories.ts` (Fodder carry-back), `store.ts` + `useCombatReplay.ts` + `Recruit.tsx` + `styles.css` (speed slider), `simulate.test.ts` (+1), `run.test.ts` (+2).
 
 **Verification:** `typecheck + lint + test (347, +3) + harness (determinism) + build:web` all green. New tests: Bane → `playerFodderBuffGain` +2/+2 (golden +4/+4); settleCombat applies it run-wide to `cardBuffs.fred` + the on-board Fodder; a combat hand-grant completes a triple at shop-start (golden, no buy/play). Speed slider verified **live in-preview**: renders in the combat bar (`Speed … 2.0×`), store default 1 + clamps to [0.5, 5] + persists, and a drag drives both the store and the readout. Cross-checked by a 3-agent adversarial verify workflow.
+
+### Audio: bake full SFX mixer levels as shipped defaults
+
+- Whole-bank mix dialed in by ear via the DEV SFX mixer, pasted into `SAMPLE_VOL_DEFAULTS` (sfx.ts). Notable
+  moves: `sell` 0.51→0.3, `smack` 0.156→0.08, `cardlanding` 0.156→0.4, `freeze` 0.5→0.31, `unfreeze` 0.5→0.36,
+  `roll` 0.5→0.61, `summon` 0.5→0.65, `cardVoice` 0.1→0.09. (Follow-up to PR #27, which merged before this
+  tweak landed — shipped as its own PR.)
 
 ### fix: Ryme battlecry-trigger ecosystem (Drakko ×, sc animation, Karwind/Bane combat) + Hunter recruit proc + Target Dummy 0/6
 

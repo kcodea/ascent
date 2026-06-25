@@ -196,12 +196,12 @@ function instView(
     undeadBuyAtkText(c.id, live?.undeadBuyAtk ?? 0) ??
     cardTypeTallyText(c.id, live?.cardBuffs?.[c.id]) ??
     '';
-  const goldenBase =
-    c.id === 'guel'
-      ? guelProgressText(c.id, true, spellsCast) ?? c.goldenText // golden Guel shows its live (×2) grant + countdown
-      : c.id === 'mamabear'
-        ? summonImproveText(c.id, inst.summonBonus ?? 0, true) ?? c.goldenText // golden Mama Bear: live (×2) grant
-        : c.goldenText;
+  // Golden cards render `goldenText` (Card.tsx), but the live-text chain above was already computed with
+  // this card's golden flag — so for a golden card whose live text actually resolved (differs from the
+  // printed fallback `c.text`), `text` IS the golden-aware live value. Feed it to goldenText so goldens show
+  // the LIVE number (Sergeant's climbing Deathrattle, Taragosa's spell-power Growth, Guel, Mama Bear, …)
+  // instead of the static printed goldenText. With no live value, fall back to the printed goldenText.
+  const goldenBase = inst.golden && text !== c.text ? text : c.goldenText;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     attack: (override?.attack ?? inst.attack) + auraAtk, health: (override?.health ?? inst.health) + auraHp,

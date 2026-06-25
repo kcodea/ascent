@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Golden card tooltips show their LIVE value.** Golden cards were rendering the *static* printed golden text,
+  so live numbers were lost — a golden **Sergeant** showed "+4 Health" instead of its real "+10", a golden
+  **Taragosa** "+6/+8" instead of its spell-power-scaled value. Fixed generally for every golden live-text card.
 - **Taragosa spell-power scaling + combat-log bar.** **Taragosa**'s Growth now scales with your **spell power**
   (text + mechanically, golden too). The combat-log **odds bar** is **4× thicker**, coloured **green/orange/red**,
   and its segments now map to the real win/draw/loss odds.

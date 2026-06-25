@@ -130,8 +130,8 @@ export const DEMONS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryFreeRollsAndBuffShop', params: { rolls: 2, buff: 3 } }],
-    text: '**Battlecry:** Gain 2 free refreshes. Buff the current tavern **+3/+3**.',
-    goldenText: '**Battlecry:** Gain **4** free refreshes. Buff the current tavern **+6/+6**.',
+    text: '**Battlecry:** Gain 2 free refreshes. Give all Tavern minions **+3/+3** this game.',
+    goldenText: '**Battlecry:** Gain **4** free refreshes. Give all Tavern minions **+6/+6** this game.',
   },
   {
     // Start of Combat: gains the full attack + health of all Fodder consumed this turn (before combat).

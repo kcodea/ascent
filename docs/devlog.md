@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Demonic Anomaly permanent tavern buff + Abhorrent Horror live shop-phase preview
+
+**Demonic Anomaly — permanent, run-wide tavern buff.** Its Battlecry buffed only the *current* tavern offers (`offer.atk`/`offer.hp`), so the +3/+3 evaporated on the next refresh. Per the design intent ("all tavern minions, permanently"), `battlecryFreeRollsAndBuffShop` now adds to `tavernBuyBonus` (the same run-wide buy-bonus channel as Staff of Guel) + `buffFodderRunWide`, so **current and future** offers all carry +3/+3 (golden +6/+6), shown on every offer by the shop view and baked in on buy. Card text updated: "Buff the current tavern" → "Give all Tavern minions +3/+3 this game".
+
+**Abhorrent Horror — live pending-gain preview in the shop.** Abhorrent Horror's Start-of-Combat gain equals all Fodder consumed this turn, but nothing in the shop showed how big it would be. New `abhorrentHorrorText` (cardText.ts) appends a green "{{+A/+H next combat}}" to its card text, computed from `run.fodderConsumedThisTurn` (× golden) and threaded into `instView` (board + hand). It climbs in real time as you consume more Fodder this turn, matching exactly what the SoC factory will grant. `instView` gained a `fodderConsumed` param; both view memos now depend on `run.fodderConsumedThisTurn`.
+
+**Files changed:** `packages/sim/src/recruit.ts` (Demonic Anomaly factory), `packages/content/src/cards/demons.ts` (card text), `packages/ui/src/cardText.ts` (`abhorrentHorrorText`), `packages/ui/src/Recruit.tsx` (instView wiring), plus regression tests in `packages/sim/src/run.test.ts` + `packages/ui/src/cardText.test.ts`.
+
+**Verification:** 2 new tests — Demonic Anomaly sets `tavernBuyBonus {atk:3,hp:3}` + 2 free refreshes, and a later-bought minion still carries +3/+3; `abhorrentHorrorText` returns "+4/+4 next combat" (golden "+8/+8"), null when nothing consumed. `npm run typecheck && npm run lint && npm test` (**328/328**) + `npm run build:web` all green. (Live on-card render of the Abhorrent Horror text couldn't be confirmed through the preview harness — it injects shop state but not board/hand rows — but the wiring is identical to the 8 other live-text helpers already in that `instView` chain.)
+
 ### fix: Symbiote hero/power art + universalTribe honored across all tribe-buff checks
 
 **Symbiote art** — wired the hero portrait (`art/heroes/symbiote.webp`) and hero-power button art (`art/powers/symbiote.webp`). Both keyed by the hero id `symbiote` (how `heroArt`/`heroPowerArt` are called), so the glob picks them up with no alias. Converted from the 2.3 MB masters to 512px WebP (61 KB / 53 KB) to match the all-WebP heroes folder and keep the title/HUD lean.

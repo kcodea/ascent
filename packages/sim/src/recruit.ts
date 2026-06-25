@@ -969,15 +969,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
   },
 
-  /** Demonic Anomaly — Battlecry: gain N free refreshes and buff each tavern offer +M/+M. Golden doubles both. */
+  /** Demonic Anomaly — Battlecry: gain N free refreshes and PERMANENTLY buff every tavern minion +M/+M for
+   *  the rest of the run (current AND future offers, like Staff of Guel — folded onto each offer by the shop
+   *  view and baked in on buy). Fodder picks it up via the run-wide enchant (the buy path + shop view skip FD
+   *  for the buy-bonus to avoid double-applying). Golden doubles both. */
   battlecryFreeRollsAndBuffShop: (ctx, self, params) => {
     const rolls = num(params.rolls, 2) * gold(self);
     const buffAmt = num(params.buff, 3) * gold(self);
     ctx.state.freeRolls += rolls;
-    for (const offer of ctx.state.shop) {
-      offer.atk = (offer.atk ?? 0) + buffAmt;
-      offer.hp = (offer.hp ?? 0) + buffAmt;
-    }
+    ctx.state.tavernBuyBonus.atk += buffAmt;
+    ctx.state.tavernBuyBonus.hp += buffAmt;
+    buffFodderRunWide(ctx.state, buffAmt, buffAmt, nameOf(self));
   },
 
   /** Acid — every N manual refreshes, consume a random non-Fodder offer from the tavern, gaining its stats.

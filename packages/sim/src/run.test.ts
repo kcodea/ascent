@@ -1358,6 +1358,22 @@ describe('run loop (@game/sim)', () => {
     expect(s.fleetingVigor).toEqual({ attack: 0, health: 0 }); // spent after the fight
   });
 
+  it('Demonic Anomaly permanently buffs all tavern minions (+3/+3 run-wide) + grants 2 free refreshes', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, board: [],
+      shop: [{ uid: 'x', cardId: 'alley' }],
+      hand: [{ uid: 'da', cardId: 'demonanomaly', tribe: 'demon', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    const rolls0 = s.freeRolls;
+    s = reduce(s, { type: 'play', uid: 'da' }); // Battlecry: run-wide tavern buff + free refreshes
+    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 3 }); // PERMANENT, not just the current offers
+    expect(s.freeRolls).toBe(rolls0 + 2);
+    // A minion bought AFTER the Battlecry still carries the buff (current AND future offers).
+    s = reduce({ ...s, embers: 3 }, { type: 'buy', uid: 'x' });
+    const bought = s.hand.find((c) => c.cardId === 'alley')!;
+    expect([bought.attack, bought.health]).toEqual([1 + 3, 1 + 3]); // Alleycat 1/1 + 3/3
+  });
+
   it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {
     let s: RunState = {
       ...createRun(1), embers: 4, board: [],

@@ -27,6 +27,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 - **Sourced End Turn sound.** Hitting End Turn (Face the Omen) now plays a real audio clip instead of the synth
   down-slide, tunable in the DEV SFX mixer.
+- **Demonic Anomaly + Abhorrent Horror tweaks.** **Demonic Anomaly** now buffs **all** tavern minions
+  **+3/+3 permanently** (current and future offers, like Staff of Guel) instead of only the current set.
+  **Abhorrent Horror** now previews its pending Start-of-Combat gain live in the shop — "+X/+Y next combat"
+  (green), climbing in real time as you consume Fodder this turn.
 - **Symbiote art + universalTribe fix.** Wired Symbiote's hero portrait + hero-power art. Fixed the
   Symbiote token (**Symbiotic Attachment**, "counts as every tribe") being skipped by most recruit-phase
   tribe buffs — playing it now correctly triggers Mama Bear, Kennelmaster, Dragon battlecries, etc. Audited

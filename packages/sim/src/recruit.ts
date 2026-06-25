@@ -98,6 +98,24 @@ export function cardBuff(state: RunState, cardId: string): { attack: number; hea
 }
 
 /**
+ * The baked-on-creation Undead Attack bonus (Deathswarmer / Forsaken Weaver / Karthus — "+Attack to your
+ * Undead **wherever they are**") for a freshly-created minion of `def`. Applied at EVERY creation source —
+ * tavern buy, Discover, conjure (Summon Stone / Tribes Choice / Undead Army / Buddy Buddy / Cassen), and
+ * Lasso steal — so the run-wide bonus follows your Undead everywhere, not only tavern purchases. 0 for
+ * non-Undead; `universalTribe` counts (Symbiotic Attachment), matching the buy path's `isUndead`.
+ */
+export function undeadBuyBonus(state: RunState, def: CardDef): number {
+  const undead = def.tribe === 'undead' || def.tribe2 === 'undead' || !!def.universalTribe;
+  return undead ? (state.undeadBuyAtk ?? 0) : 0;
+}
+
+/** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
+ *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
+export function sellValueOf(card: BoardCard): number {
+  return card.cardId === 'hoarder' ? 2 * (card.golden ? 2 : 1) : CONFIG.sellValue;
+}
+
+/**
  * Permanently enchant the **Fodder** card type run-wide by +a/+h (Ritualist's End of Turn, Bane's
  * battlecry trigger). Bumps the persistent per-cardId run buff for every Fodder def — so future copies
  * from any source (tavern, summon, Discover, conjure) carry it — and applies it to the Fodder already on
@@ -113,6 +131,21 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
   }
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) addBuff(c, source, a, h);
+  }
+}
+
+/**
+ * Accrue the run-wide **Imp** buff (Fodder Feeder / Ritualist / Bane). Imps are combat-summoned tokens
+ * (Brood Matron / Imp King), so this bumps `state.impBuff` — which `simulate` applies to every friendly Imp
+ * at combat start AND on summon, so the bonus follows them. Also buffs any Imp already on the board/hand
+ * (rare — imps are normally combat-only). Stacks; `source` labels the inspect breakdown.
+ */
+export function buffImpsRunWide(state: RunState, a: number, h: number, source: string): void {
+  state.impBuff ??= { attack: 0, health: 0 };
+  state.impBuff.attack += a;
+  state.impBuff.health += h;
+  for (const c of [...state.board, ...state.hand]) {
+    if (CARD_INDEX[c.cardId]?.imp) addBuff(c, source, a, h);
   }
 }
 
@@ -277,7 +310,7 @@ function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
       uid: `b${state.uidSeq++}`,
       cardId: def.id,
       tribe: def.tribe,
-      attack: def.attack + cb.attack,
+      attack: def.attack + cb.attack + undeadBuyBonus(state, def),
       health: def.health + cb.health,
       keywords: [...def.keywords],
       golden: false,
@@ -423,7 +456,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         uid: `b${ctx.state.uidSeq++}`,
         cardId: def.id,
         tribe: def.tribe,
-        attack: def.attack + cb.attack,
+        attack: def.attack + cb.attack + undeadBuyBonus(ctx.state, def),
         health: def.health + cb.health,
         keywords: [...def.keywords],
         golden: false,
@@ -476,6 +509,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(c, nameOf(self), a, h);
       if (!flash.includes(c.uid)) flash.push(c.uid);
     }
+  },
+
+  /** Hunter (recruit half) — when this gains Attack in the shop (e.g. a Fortify), give every friendly minion
+   *  +Health. Health-only, so it can never re-trigger onGainAttack (no loop). Golden doubles. Dispatched by
+   *  `fireOnGainAttack` when a recruit buff raises Hunter's Attack. */
+  onGainAttackBuffAll: (ctx, self, params) => {
+    const h = num(params.health, 2) * gold(self);
+    for (const c of ctx.state.board) addBuff(c, nameOf(self), 0, h);
   },
 
   // --- Demons (Consume, recruit-resolved: bakes into stats before combat) ---
@@ -633,7 +674,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  of the run (so future copies from the tavern, summons, Discover etc. carry it), and the
    *  Fodder already on the board / in the hand gets it right now. Golden doubles; Ritualists stack. */
   buffFodderEverywhere: (ctx, self, params) => {
-    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    buffFodderRunWide(ctx.state, a, h, nameOf(self));
+    buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Ritualist now feeds Imps too
+  },
+
+  /** Hoarder — Battlecry: bank extra Gold for next turn (consumed when next turn's Gold is set). Golden 2×. */
+  battlecryBonusGoldNextTurn: (ctx, self, params) => {
+    ctx.state.bonusEmbersNextTurn = (ctx.state.bonusEmbersNextTurn ?? 0) + num(params.gold, 1) * gold(self);
   },
 
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*
@@ -641,7 +690,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  per Battlecry *fire* (so a Drakko-doubled Battlecry procs it twice — `fireBattlecryTriggered`
    *  notifies per fire). Multiple Banes each react, so they stack additively. */
   onBattlecryBuffFodder: (ctx, self, params) => {
-    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    buffFodderRunWide(ctx.state, a, h, nameOf(self));
+    buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Bane now buffs Imps too
     // Flash Bane itself + any Fodder on the board it just enchanted, so the proc is visible even when no
     // Fodder is out (its enchant is run-wide, to the card *type*). Reuses the battlecry-trigger flame flash:
     // the seq bump happens in `fireBattlecryTriggered`'s callers once this list is non-empty.
@@ -831,7 +883,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       uid: `b${state.uidSeq++}`,
       cardId: card.id,
       tribe: card.tribe,
-      attack: card.attack + cb.attack + (offer.atk ?? 0),
+      // Stolen like a buy → also carries the run-wide Undead Attack bonus (undeadBuyAtk).
+      attack: card.attack + cb.attack + (offer.atk ?? 0) + undeadBuyBonus(state, card),
       health: card.health + cb.health + (offer.hp ?? 0),
       keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
       golden: false,
@@ -1347,6 +1400,24 @@ function fireBattlecryTriggered(state: RunState): void {
       const fn = RECRUIT_FACTORIES[effect.do];
       if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
     }
+  }
+}
+
+/** Fire a single card's `onGainAttack` recruit effects (Hunter) — called by the reducer boundary for every
+ *  board minion whose Attack rose during a recruit action (any source: Fortify, spells, tribe Battlecries,
+ *  weld, triples). Matches combat's `onGainAttack` semantics (only the minion whose Attack rose reacts). The
+ *  combat path is separate (the bus emits onGainAttack inside `simulate`'s `ctx.buff`), so this never
+ *  double-fires across the two phases. */
+export function fireOnGainAttack(state: RunState, card: BoardCard): void {
+  const def = CARD_INDEX[card.cardId];
+  // Fast path: the reducer calls this for EVERY board minion whose Attack rose, so bail before the
+  // (relatively costly) makeContext unless this card actually has a dispatchable onGainAttack reactor.
+  if (!def || !def.effects.some((e) => e.on === 'onGainAttack' && RECRUIT_FACTORIES[e.do])) return;
+  const ctx = makeContext(state);
+  for (const effect of def.effects) {
+    if (effect.on !== 'onGainAttack') continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
   }
 }
 

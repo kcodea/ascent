@@ -25,6 +25,27 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Ryme combo chain + Hunter shop proc + Target Dummy 0/6.** Ryme's Deathrattle now genuinely **triggers**
+  each adjacent Battlecry (with a proc narration), and a **Drakko** on board doubles each trigger — which
+  **multiplies** with Sylus / Deathsayer and re-procs **Karwind**/**Bane** per trigger (golden Ryme + both
+  neighbours + Drakko = **4 triggers**). **Hunter** now fires from **every shop Attack gain** (Fortify,
+  Growth, Spirit Fire, Karwind, weld, end-of-turn) — not just combat. Target Dummy is now **0/6**.
+- **Ryme (T4 Undead).** **Deathrattle: trigger an adjacent minion's Battlecry** (golden: both). Adds a
+  combat Battlecry-replay so summon / tribe-buff / grant-keyword battlecries re-fire mid-fight (economy
+  battlecries no-op).
+- **Imp archetype + content batch.** Hero select now offers **3** champions. New **Imp** sub-theme: **Fodder
+  Feeder** (T1 — sell it for a Fodder + an Imp buff) and **Imp King** (T4 — Deathrattle: 2 Imps + buff your
+  Imps); **Brood Matron**, **Ritualist**, and **Bane** now feed/buff Imps too. Tuning: **Karwind** → T5,
+  **Mama Bear** → +2/+2 (improving +2/+2), **Hoarder** reworked (Battlecry: +1 Gold next turn; sells for 2),
+  **Demonic Anomaly** new art.
+- **Live-text audit + Soulsman metric.** Audited every card's tooltip for live/current values. **Soulsman**
+  now shows a running **"Gained X Gold this run"** total; **Deathswarmer / Forsaken Weaver / Karthus** show the
+  current **+Attack new Undead inherit**; **Eternal Knight** shows its accrued run-wide enchant. Fixed a golden
+  **Voracious Imp** mislabeling its multiplier (it eats at **3×**, not 2×).
+- **Discover/conjure + Symbiote triple fixes.** The Undead "+Attack wherever they are" (Deathswarmer /
+  Forsaken Weaver / Karthus) now reaches **Discovered and conjured** Undead too — not just tavern buys.
+  And the **Symbiote** hero power now **triples** its token the moment the 3rd is granted, instead of waiting
+  for your next buy.
 - **Per-card voicelines/SFX + summon audio.** A card can have its own sound that plays when it's played, layered
   over the general landing sound — drop `packages/ui/src/audio/cards/<cardId>.mp3` (zero code per card). Summons
   now play a cue too (general summon SFX + the summoned token's own clip), in both recruit and combat.

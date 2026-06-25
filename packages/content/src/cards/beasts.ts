@@ -211,8 +211,8 @@ export const BEASTS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'summonBuffTribeImprove', params: { tribe: 'beast', attack: 3, health: 3 } }],
-    text: 'When you summon a **Beast**, give it **+3/+3** — and improve this by **+3/+3**.',
-    goldenText: 'When you summon a **Beast**, give it **+6/+6** — and improve this by **+6/+6**.',
+    effects: [{ on: 'onSummon', do: 'summonBuffTribeImprove', params: { tribe: 'beast', attack: 2, health: 2 } }],
+    text: 'When you summon a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.',
+    goldenText: 'When you summon a **Beast**, give it **+4/+4** — and improve this by **+4/+4**.',
   },
 ];

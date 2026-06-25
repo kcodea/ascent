@@ -42,6 +42,7 @@ const ART_ALIAS: Record<string, string> = {
   heckbinder: 'heckbinder2',
   combinator: 'combinator2',
   guel: 'guel2', // Archmagus Guel — updated art ships as guel2
+  demonanomaly: 'demonanomaly2', // Demonic Anomaly — updated art ships as demonanomaly2
   // Mana→Gold rename: the card ids stayed (manafont / emberpouch) but the art ships under the new names.
   manafont: 'goldfont',
   emberpouch: 'goldpouch',

@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, spellCasts, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -61,6 +61,25 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
  * the combat-time effect system already works (see `@game/core`).
  */
 export function reduce(state: RunState, action: Action): RunState {
+  const next = reduceCore(state, action);
+  // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
+  // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
+  // weld, buy-triggers, end-of-turn). This mirrors combat, where `ctx.buff` emits onGainAttack on a positive
+  // delta. We diff the board by uid: a minion present before AND after whose Attack strictly rose reacts.
+  // New minions (played / summoned / Discovered) are creation, not a gain — skipped (a tripled reactor is
+  // handled in `checkTriples`). Combat settles run in the combat phase, so the recruit-phase guard skips
+  // them; the diff is ≤7 entries and `fireOnGainAttack` bails fast for non-reactors, so it's effectively free.
+  if (next !== state && state.phase === 'recruit') {
+    const before = new Map(state.board.map((c) => [c.uid, c.attack]));
+    for (const c of next.board) {
+      const prev = before.get(c.uid);
+      if (prev !== undefined && c.attack > prev) fireOnGainAttack(next, c);
+    }
+  }
+  return next;
+}
+
+function reduceCore(state: RunState, action: Action): RunState {
   // A finished run (loss or victory) takes no more actions — restart goes through the store.
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   // PERF: `lastCombat` is a large read-only result (the whole prior fight's event log + initial board
@@ -318,13 +337,14 @@ export function reduce(state: RunState, action: Action): RunState {
         sold = s.hand[hi];
         s.hand.splice(hi, 1);
       }
-      // Hoarder sells for +1 Mana per turn held (currentWave - boughtWave + 1; ×2 golden) instead of the
-      // flat sell value. Same-turn buy+sell = 1 (or 2 golden); a Hoarder with no boughtWave (not bought)
-      // falls back to wave - wave + 1 = 1. Embers are uncapped within a turn (no max-embers ceiling).
-      if (sold && sold.cardId === 'hoarder') {
-        s.embers += (s.wave - (sold.boughtWave ?? s.wave) + 1) * (sold.golden ? 2 : 1);
-      } else {
-        s.embers += CONFIG.sellValue;
+      // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value (shared helper).
+      if (sold) s.embers += sellValueOf(sold);
+      // Fodder Feeder — when SOLD: queue a Fodder into your next tavern + buff your Imps everywhere
+      // (golden doubles both). The sell still pays the base sell value above.
+      if (sold && sold.cardId === 'fodderfeeder') {
+        const n = sold.golden ? 2 : 1;
+        (s.pendingTavern ??= []).push(...Array(n).fill('fred'));
+        buffImpsRunWide(s, n, n, 'Fodder Feeder');
       }
       // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
       if (sold) returnToPool(s, sold.cardId, sold.golden ? 3 : 1);
@@ -423,7 +443,7 @@ export function reduce(state: RunState, action: Action): RunState {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
         const amt = s.tier;
-        if (card) addBuff(card, 'Fortify', amt, amt);
+        if (card) addBuff(card, 'Fortify', amt, amt); // raises Attack → the reduce() boundary fires Hunter's onGainAttack
         else {
           const offer = s.shop.find((c) => c.uid === action.uid);
           if (!offer) return state;
@@ -451,7 +471,8 @@ export function reduce(state: RunState, action: Action): RunState {
         uid: `b${s.uidSeq++}`,
         cardId: def.id,
         tribe: def.tribe,
-        attack: def.attack + dcb.attack,
+        // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
+        attack: def.attack + dcb.attack + undeadBuyBonus(s, def),
         health: def.health + dcb.health,
         keywords: [...def.keywords],
         golden: false,
@@ -499,6 +520,7 @@ export function reduce(state: RunState, action: Action): RunState {
               keywords: [...def.keywords],
               golden: false,
             });
+            checkTriples(s); // the 3rd granted token combines into a golden NOW (not only on the next buy)
           }
         }
       }
@@ -540,12 +562,12 @@ export function reduce(state: RunState, action: Action): RunState {
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0);
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0;
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0).result;
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0).result;
           if (r === 'win') win++;
           else if (r === 'draw') draw++;
           else lose++;
@@ -809,9 +831,19 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerFodderGrants) {
     (s.pendingTavern ??= []).push(...Array(result.playerFodderGrants).fill('fred'));
   }
+  // Imp King / Brood Matron Avenge: their in-combat Imp buffs are permanent — accrue them into the run-wide
+  // Imp buff so future Imps (next fights) inherit them.
+  if (result.playerImpBuffGain) {
+    s.impBuff ??= { attack: 0, health: 0 };
+    s.impBuff.attack += result.playerImpBuffGain.attack;
+    s.impBuff.health += result.playerImpBuffGain.health;
+  }
   // Soulsman: permanent max-Gold gained from its Avenge in combat (uncapped, like Nadja's Gold Font).
+  // grantMaxGold is Soulsman-only, so playerMaxGoldGain IS Soulsman's contribution — tally it run-wide
+  // for the "gained X Gold" metric shown on the card.
   if (result.playerMaxGoldGain) {
     s.maxEmbers += result.playerMaxGoldGain;
+    s.soulsmanGold = (s.soulsmanGold ?? 0) + result.playerMaxGoldGain;
   }
   // Gryphon: free shop rerolls banked from taking damage in combat.
   if (result.playerFreeRolls) {
@@ -892,7 +924,9 @@ function advanceCombat(s: RunState): void {
   s.maxEmbers = Math.max(s.maxEmbers, Math.min(CONFIG.embersCap, s.maxEmbers + CONFIG.embersPerWave));
   // Money Bot & co. raise the effective max above the base curve while on the board — added on
   // top of the cap (a deliberate economy card), recomputed each turn so selling it removes it.
-  s.embers = s.maxEmbers + boardManaBonus(s);
+  // Hoarder's Battlecry banks bonus Gold for this turn (consumed now).
+  s.embers = s.maxEmbers + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
+  s.bonusEmbersNextTurn = 0;
   s.heroReady = true;
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);

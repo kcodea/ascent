@@ -129,6 +129,10 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryFreeRollsAndBuffShop',
   'onRollConsumeShop',
   'onKillBuffUndeadAttack',
+  'deathrattleBuffImps',
+  'avengeBuffImps',
+  'battlecryBonusGoldNextTurn',
+  'deathrattleReplayAdjacentBattlecry',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -159,6 +163,7 @@ export const CardDefSchema = z.object({
   text: z.string(),
   goldenText: z.string().optional(),
   universalTribe: z.boolean().optional(),
+  imp: z.boolean().optional(),
   token: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),
   ascendInto: z.string().optional(),

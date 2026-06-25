@@ -488,19 +488,102 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true);
   });
 
-  it('a golden Brood Matron breeds two Imps per death (one for a plain one)', () => {
-    // The Alleycat trades with a 1/1 Omen and dies, firing Brood Matron's breed exactly once.
+  it('Brood Matron breeds 1 Imp per friend death, capped at 3 (golden keeps the cap)', () => {
+    // A tanky 0-Attack Brood survives while sacrificial bodies (and the bred Imps) die to a big attacker;
+    // breeding stops at the cap. Golden does NOT raise the summon cap (it doubles the Avenge buff instead).
     const imps = (golden: boolean): number =>
       run(
         [
-          { cardId: 'alley', attack: 1, health: 1 },
-          { cardId: 'brood', attack: 3, health: 30, golden },
+          { cardId: 'brood', attack: 0, health: 1000, golden },
+          { cardId: 'sandbag', attack: 0, health: 1 },
+          { cardId: 'sandbag', attack: 0, health: 1 },
+          { cardId: 'sandbag', attack: 0, health: 1 },
         ],
-        [{ cardId: 'omen', attack: 1, health: 1, keywords: [] }],
+        [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
         1,
       ).events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length;
-    expect(imps(false)).toBe(1);
-    expect(imps(true)).toBe(2);
+    expect(imps(false)).toBe(3); // capped at 3
+    expect(imps(true)).toBe(3); // golden cap stays 3
+  });
+
+  it('the run-wide Imp buff applies to combat-summoned Imps', () => {
+    // impAtkBonus/impHpBonus = 2/2 → a Brood-summoned Imp enters as a 3/3 (1/1 base + 2/2).
+    const r = simulate(
+      [{ cardId: 'brood', attack: 0, health: 1000 }, { cardId: 'sandbag', attack: 0, health: 1 }],
+      [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
+      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 2,
+    );
+    const imp = r.events.find((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
+    expect(imp?.type === 'summon' ? [imp.minion.attack, imp.minion.health] : null).toEqual([3, 3]);
+  });
+
+  it('Imp King Deathrattle summons 2 Imps + a PERMANENT +2/+3 Imp buff (golden: still 2 Imps, +4/+6)', () => {
+    const r = run([{ cardId: 'impking', attack: 6, health: 1 }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(2);
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 3)).toBe(true);
+    expect(r.playerImpBuffGain).toEqual({ attack: 2, health: 3 }); // permanent — carried back to the run
+    // Golden: still 2 Imps (not 4), but the buff doubles to +4/+6.
+    const g = run([{ cardId: 'impking', attack: 6, health: 1, golden: true }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
+    expect(g.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(2);
+    expect(g.playerImpBuffGain).toEqual({ attack: 4, health: 6 });
+  });
+
+  it("Ryme's Deathrattle re-fires an adjacent minion's combat Battlecry (Alleycat → a Stray)", () => {
+    // Ryme (the only attacker) strikes the omen, dies to retaliation → its neighbour Alleycat's Battlecry
+    // re-fires in combat → a Stray is summoned. (The 0-Attack Alleycat never swings or dies itself.)
+    const r = run(
+      [{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'alley', attack: 0, health: 100 }],
+      [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }],
+      1,
+    );
+    expect(r.events.some((e) => e.type === 'summon' && e.minion.cardId === 'stray')).toBe(true);
+  });
+
+  it('a golden Ryme re-fires BOTH adjacent Battlecries', () => {
+    const r = run(
+      [
+        { cardId: 'alley', attack: 0, health: 100 },
+        { cardId: 'ryme', attack: 5, health: 1, golden: true },
+        { cardId: 'alley', attack: 0, health: 100 },
+      ],
+      [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }],
+      1,
+    );
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'stray').length).toBe(2);
+  });
+
+  it("Ryme's Deathrattle fires battlecryTriggered → Karwind buffs the Dragons (+1/+2), with an sc narration", () => {
+    const r = run(
+      [
+        { cardId: 'ryme', attack: 5, health: 1 },
+        { cardId: 'alley', attack: 0, health: 100 }, // neighbour with a Battlecry
+        { cardId: 'karwind', attack: 4, health: 100 },
+        { cardId: 'cleric', attack: 3, health: 100 },
+      ],
+      [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }],
+      1,
+    );
+    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(1); // 1 trigger narrated
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 2)).toBe(true); // Karwind procced
+  });
+
+  it('a golden Ryme + Drakko triggers both neighbours twice each (4 triggers → Karwind 4×)', () => {
+    const r = run(
+      [
+        { cardId: 'alley', attack: 0, health: 100 },
+        { cardId: 'ryme', attack: 5, health: 1, golden: true },
+        { cardId: 'alley', attack: 0, health: 100 },
+        { cardId: 'drummer', attack: 2, health: 100 }, // Drakko: doubles each trigger
+        { cardId: 'karwind', attack: 4, health: 100 },
+        { cardId: 'cleric', attack: 3, health: 100 },
+      ],
+      [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
+      1,
+    );
+    // 2 neighbours × 2 (Drakko) = 4 triggers — one sc narration each.
+    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(4);
+    // Karwind procs once per trigger → +1/+2 to both Dragons (Karwind + Hoard Cleric), 4× = 8 buff events.
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 2).length).toBe(8);
   });
 
   it('Gnasher keeps attacking after killing a Reborn target', () => {
@@ -930,15 +1013,16 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Flowing Monk buffs a friend when a combat summon overflows the full board', () => {
-    // 7 living (Monk + golden Brood + 5 Taunt sandbags). The omen kills a sandbag → golden Brood
-    // summons 2 Imps: the first fits (back to 7), the second overflows → Monk procs +3/+3.
-    const sb = (): BoardMinion => ({ cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] });
+    // 7 living (0-Attack Monk + Imp King + 5 walls). Imp King (the only attacker) strikes the big omen and
+    // dies to retaliation → its Deathrattle summons 2 Imps: the first fits (back to 7), the second overflows
+    // → Monk procs +3/+3. (The walls + Monk have 0 Attack, so only Imp King ever swings or dies.)
+    const wall = (): BoardMinion => ({ cardId: 'sandbag', attack: 0, health: 100 });
     const p: BoardMinion[] = [
-      { cardId: 'monk', attack: 1, health: 40 },
-      { cardId: 'brood', attack: 6, health: 6, golden: true },
-      sb(), sb(), sb(), sb(), sb(),
+      { cardId: 'monk', attack: 0, health: 200 },
+      { cardId: 'impking', attack: 6, health: 1 },
+      wall(), wall(), wall(), wall(), wall(),
     ];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 80 }];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 50, health: 400 }];
     const a = run(p, e, 5);
     expect(a.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 3)).toBe(true);
   });

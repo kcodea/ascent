@@ -40,6 +40,8 @@ export function simulate(
   undeadBuyAtk = 0,
   fodderConsumedAtk = 0,
   fodderConsumedHp = 0,
+  impAtkBonus = 0,
+  impHpBonus = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -48,6 +50,7 @@ export function simulate(
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
+  const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
@@ -81,11 +84,20 @@ export function simulate(
     }
   };
 
+  // Imps (combat-summoned tokens — Brood Matron / Imp King) inherit the run-wide Imp buff
+  // (Fodder Feeder / Ritualist / Bane). Applied to player-side Imp-tagged minions at start AND on summon.
+  const hasImpBonus = impAtkBonus > 0 || impHpBonus > 0;
+  const applyImpBonus = (m: Minion): void => {
+    if (!hasImpBonus || m.side !== 'player' || !cards[m.cardId]?.imp) return;
+    if (impAtkBonus > 0) m.attack = Math.max(0, m.attack + impAtkBonus);
+    if (impHpBonus > 0) { m.health += impHpBonus; m.maxHealth += impHpBonus; }
+  };
+
   const boards: Record<Side, Minion[]> = {
     player: player.map((b) => instantiate(b, 'player', cards, mkUid)),
     enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
   };
-  for (const m of boards.player) applyUndeadBonus(m); // bake the Lantern bonus into the starting Undead
+  for (const m of boards.player) { applyUndeadBonus(m); applyImpBonus(m); } // bake run-wide auras into starting minions
 
   // Persistent tribe buffs (Grim's Deathrattle): registered when it fires, then applied to every matching
   // friend summoned for the *rest of combat*. Side-scoped; multiple Grims stack.
@@ -214,6 +226,11 @@ export function simulate(
       if (side !== 'player') return; // enemies have no hand
       spellGrants += count;
     },
+    grantImpBuff: (attack, health, side) => {
+      if (side !== 'player') return; // enemies have no run state
+      impBuffGain.attack += attack;
+      impBuffGain.health += health;
+    },
     grantUndeadBuyAtk: (amount, side) => {
       if (side !== 'player') return; // enemies have no run state
       undeadBuyAtkGain += amount;
@@ -247,6 +264,7 @@ export function simulate(
     }
     arr.splice(index, 0, minion);
     applyUndeadBonus(minion, true); // Lantern + buy-time bonus — summoned minions start from base stats
+    applyImpBonus(minion); // run-wide Imp buff — combat-summoned Imps (Brood / Imp King) inherit it
     // Grant keywords (e.g. Taunt from Broodmother) BEFORE snapshotting so the UI sees them from frame 1.
     if (grantKeywords) {
       for (const kw of grantKeywords) {
@@ -650,5 +668,6 @@ export function simulate(
     playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
+    playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
   };
 }

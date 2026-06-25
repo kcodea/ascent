@@ -13,7 +13,7 @@ import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA, ...loadStoredBoards()]);
 
 /** How many heroes the pre-run picker offers (or all of them, if fewer exist). */
-const HERO_SELECT_COUNT = 2;
+const HERO_SELECT_COUNT = 3;
 
 /** A fresh shuffle of hero ids for the picker. UI-level randomness — the hero *choice* is a
  *  meta decision, not part of the seeded run, so Math.random is fine here (and not in the sim). */

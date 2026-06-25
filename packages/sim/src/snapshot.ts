@@ -56,9 +56,14 @@ export interface BoardSnapshot {
   /** ISO date (YYYY-MM-DD) the board was captured or generated. Wall-clock, so it's stamped by the UI/tool
    *  layer (never inside the pure `snapshotBoard`, which must stay deterministic). */
   capturedAt?: string;
-  /** Simulate-derived strength rating (0..1) — fraction of the calibration gauntlet this board beats (see
-   *  `rateBoard`). Keyword/synergy-aware, unlike `power`. Baked by `npm run pool`; the basis for true-strength
-   *  matchmaking + power-band bucketing. Optional (legacy/runtime boards may lack it → fall back to `power`). */
+  /** The build this board was captured / baked under (`<pkg version>+<short git sha>`, e.g. `0.1.0+a1b2c3d`).
+   *  Lets us identify + prune boards from old patches once the meta shifts. Stamped by the UI/tool layer (the
+   *  pure `snapshotBoard` stays deterministic). Optional for back-compat (legacy boards lack it). */
+  patch?: string;
+  /** Wave-relative strength rating (0..1) — fraction of THIS WAVE's calibration ladder the board beats (see
+   *  `rateBoardForWave`). Keyword/synergy-aware AND wave-relative (a strong wave-3 board ≠ a strong wave-15
+   *  board), unlike `power`. Baked by `npm run pool`; the basis for pool curation / pruning weak boards.
+   *  Optional (legacy/runtime boards may lack it). */
   rating?: number;
 }
 

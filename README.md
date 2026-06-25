@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Wave-relative board power banding + pool maintenance.** Enemy boards are now rated by how strong they are
+  **for their wave** (win-rate vs a per-wave bot-calibrated ladder) instead of one fixed gauntlet that saturated
+  by mid-game. Boards carry a **patch** stamp; `npm run pool:prune` clears stale boards by date/patch; the
+  re-bake drops trivially-weak boards + reports per-wave band coverage. See [docs/board-pool.md](docs/board-pool.md).
 - **Discover no longer favors high tiers.** Card-driven Discovers (Sea Urchin, Help Wanted) now weigh **every
   eligible minion up to your tavern tier evenly** — matching the flattened shop — instead of filling from the
   top tier down. The golden/triple "peek one tier up" reward is unchanged (it's meant to bias high).

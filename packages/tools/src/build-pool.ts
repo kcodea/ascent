@@ -16,16 +16,25 @@
  * file ballooning. Output is sorted (wave, power) for a stable, review-friendly diff.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { join } from 'node:path';
-import { buildBootstrapPool, dominantTribe, isServableBoard, opponentBoard, rateBoard, ratingBand, BAND_COUNT, type BoardSnapshot, type BotOptions } from '@game/sim';
+import { buildBootstrapPool, buildWaveLadders, dominantTribe, isServableBoard, opponentBoard, rateBoardForWave, ratingBand, BAND_COUNT, type BoardSnapshot, type BotOptions } from '@game/sim';
 import type { Tribe } from '@game/core';
 
 const EXPORTS_DIR = join(process.cwd(), 'docs', 'board-exports');
 const OUT_FILE = join(process.cwd(), 'packages', 'sim', 'src', 'opponentPool.data.ts');
 const CAP_PER_WAVE = 24; // keep up to N boards per wave, spread across the power range
-const HOUSE_SEEDS = Array.from({ length: 60 }, (_, i) => 1 + i * 1337);
+const HOUSE_SEEDS = Array.from({ length: 60 }, (_, i) => 1 + i * 1337); // ↑ this to populate more house boards
+// Competitive floor: drop boards below this wave-relative band at waves ≥ FLOOR_FROM_WAVE (trivially weak
+// = a free win for the player). Early waves keep the full range (easy onboarding fights are fine). Tunable.
+const FLOOR_BAND = 1;
+const FLOOR_FROM_WAVE = 4;
 const TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
 const TODAY = new Date().toISOString().slice(0, 10);
+// The build these house boards are baked under — `<pkg version>+<short git sha>` (mirrors apps/web/vite.config.ts).
+const PKG_VERSION = (JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }).version;
+const GIT_SHA = (() => { try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'dev'; } })();
+const PATCH = `${PKG_VERSION}+${GIT_SHA}`;
 
 /** A stable identity for a board, so identical captures (same wave/hero/minions) collapse to one. */
 const signature = (s: BoardSnapshot): string =>
@@ -110,7 +119,7 @@ function cardWeightFor(tribe: Tribe): (cardId: string, wave: number) => number {
 // First 10: pure greedy (no tribe, no fidelity) — produce weak, varied boards that fill early
 // wave slots. Remaining 50: commit to a cycling tribe with fidelity rising 0.25 → 1.0, so the
 // pool naturally spans weak (low-synergy drafts) through strong (near-optimal tribe boards).
-// The existing rateBoard + spreadByPower/curateWave already sorts these into even bands.
+// The wave-relative rating + the competitive floor below then drop the duds and report band coverage.
 const HOUSE_PLAN = HOUSE_SEEDS.map((seed, i) => {
   if (i < 10) return { seed, tribe: undefined as Tribe | undefined, fidelity: 0 };
   const tribe = TRIBES[(i - 10) % TRIBES.length]!;
@@ -125,13 +134,13 @@ const house: BoardSnapshot[] = buildBootstrapPool(
     if (!tribe) return {};
     return { preferTribe: tribe, fidelity, cardWeight: cardWeightFor(tribe) };
   },
-).map((s) => ({ ...s, origin: 'house' as const, capturedAt: TODAY }));
+).map((s) => ({ ...s, origin: 'house' as const, capturedAt: TODAY, patch: PATCH }));
 console.log(
   `  house: ${house.length} boards from ${HOUSE_PLAN.length} runs` +
   ` (10 greedy + 50 tribe-committed, fidelity 0.25–1.0)`,
 );
 
-// Merge → keep only servable, non-empty boards → dedupe → cap per wave (even power spread) → stable sort.
+// Merge → keep only servable, non-empty boards → dedupe.
 const merged = [...imported, ...house].filter((s) => s.minions.length > 0 && isServableBoard(s));
 const seen = new Set<string>();
 const deduped = merged.filter((s) => {
@@ -140,30 +149,44 @@ const deduped = merged.filter((s) => {
   seen.add(k);
   return true;
 });
+
+// Rate every board WAVE-RELATIVE: build the per-wave calibration ladders once (the smart bot at rising
+// fidelity), then score each board by the fraction of its OWN wave's ladder it beats. Synergy- AND
+// wave-aware, so a board that's gone weak for its wave after a balance patch reads as a low band — the old
+// fixed gauntlet saturated at 1.0 by ~wave 8 and hid exactly that.
+console.log('  building wave calibration ladders (smart bot)…');
+const ladders = buildWaveLadders();
+console.log(`  rating ${deduped.length} boards (wave-relative)…`);
+for (const s of deduped) s.rating = +rateBoardForWave(opponentBoard(s), s.wave, ladders, s.tier).toFixed(3);
+
+// Competitive floor: drop boards below band FLOOR_BAND at waves ≥ FLOOR_FROM_WAVE — a free win there isn't
+// fun. Early waves keep the full range (winnable fights are good onboarding).
+const competitive = deduped.filter((s) => s.wave < FLOOR_FROM_WAVE || ratingBand(s.rating ?? 0) >= FLOOR_BAND);
+const dropped = deduped.length - competitive.length;
+
+// Group by wave → cap per wave (prefer real boards, even power spread) → stable sort by power.
 const byWave = new Map<number, BoardSnapshot[]>();
-for (const s of deduped) (byWave.get(s.wave) ?? byWave.set(s.wave, []).get(s.wave)!).push(s);
-const pool = [...byWave.keys()]
-  .sort((a, b) => a - b)
-  .flatMap((w) => curateWave(byWave.get(w)!, CAP_PER_WAVE).sort((a, b) => a.power - b.power));
+for (const s of competitive) (byWave.get(s.wave) ?? byWave.set(s.wave, []).get(s.wave)!).push(s);
+const waves = [...byWave.keys()].sort((a, b) => a - b);
+const pool = waves.flatMap((w) => curateWave(byWave.get(w)!, CAP_PER_WAVE).sort((a, b) => a.power - b.power));
 
-// Bake a simulate-derived strength rating (0..1) into every board — keyword/synergy-aware, the basis for
-// true-strength matchmaking + band synthesis. Deterministic, so the committed data is stable across runs.
-console.log(`  rating ${pool.length} boards (simulate gauntlet)…`);
+// Band coverage: global histogram + each wave's count and band span, so an all-weak wave is obvious.
 const bands = new Array<number>(BAND_COUNT).fill(0);
-for (const s of pool) {
-  s.rating = +rateBoard(opponentBoard(s), s.tier).toFixed(3);
-  bands[ratingBand(s.rating)]++;
-}
+for (const s of pool) bands[ratingBand(s.rating ?? 0)]++;
 const bandReport = bands.map((n, i) => `b${i}:${n}`).join(' ');
+const perWave = waves.map((w) => {
+  const bs = pool.filter((s) => s.wave === w).map((s) => ratingBand(s.rating ?? 0));
+  return `w${w}:${bs.length}[b${Math.min(...bs)}–b${Math.max(...bs)}]`;
+});
 
-const waveCounts = [...byWave.keys()].sort((a, b) => a - b).map((w) => `w${w}:${Math.min(CAP_PER_WAVE, byWave.get(w)!.length)}`);
 const banner = `/* AUTO-GENERATED by \`npm run pool\` (build-pool.ts) — do not edit by hand.
- * ${pool.length} boards (${imported.length} imported, ${house.length} house) across waves ${Math.min(...byWave.keys())}–${Math.max(...byWave.keys())}.
- * Regenerate after adding board exports to docs/board-exports/ or changing the card set. */`;
+ * ${pool.length} boards (${imported.length} imported + ${house.length} house, baked under ${PATCH}) across waves ${waves[0]}–${waves[waves.length - 1]}.
+ * Regenerate after adding board exports to docs/board-exports/ or changing the card set. See docs/board-pool.md. */`;
 const body = `${banner}\nimport type { BoardSnapshot } from './snapshot';\n\nexport const OPPONENT_POOL_DATA: BoardSnapshot[] = ${JSON.stringify(pool)};\n`;
 
 if (!existsSync(EXPORTS_DIR)) mkdirSync(EXPORTS_DIR, { recursive: true });
 writeFileSync(OUT_FILE, body);
 console.log(`\nWrote ${OUT_FILE}`);
-console.log(`  ${pool.length} boards · per-wave: ${waveCounts.join(' ')}`);
-console.log(`  rating bands (0=weak … ${BAND_COUNT - 1}=strong): ${bandReport}`);
+console.log(`  ${pool.length} boards · dropped ${dropped} below band ${FLOOR_BAND} (waves ≥ ${FLOOR_FROM_WAVE})`);
+console.log(`  bands (0=weak-for-wave … ${BAND_COUNT - 1}=strong): ${bandReport}`);
+console.log(`  per-wave count[band span]: ${perWave.join(' ')}`);

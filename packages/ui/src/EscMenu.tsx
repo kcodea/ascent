@@ -4,7 +4,7 @@
  *  controls live here, in a modal nothing can obscure. */
 
 import { useRef, useState, type ChangeEvent } from 'react';
-import { exportBoardsJson, importBoardsJson, loadStoredBoards } from './boardLibrary';
+import { clearStoredBoards, exportBoardsJson, importBoardsJson, loadStoredBoards } from './boardLibrary';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
 
@@ -35,6 +35,7 @@ export function EscMenu({
   const fileRef = useRef<HTMLInputElement>(null);
   const [boardCount, setBoardCount] = useState(() => loadStoredBoards().length);
   const [boardMsg, setBoardMsg] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const exportBoards = (): void => {
     if (!boardCount) { setBoardMsg('No boards yet — finish a run first.'); return; }
@@ -71,6 +72,16 @@ export function EscMenu({
         setBoardMsg("Couldn't read that file — is it an Ascent board export?");
       }
     });
+  };
+  // Clear all of THIS browser's captured boards (e.g. when a balance patch made them stale). Two-tap confirm
+  // so it can't be a misclick. Doesn't touch the committed pool (regenerate that with `npm run pool`).
+  const clearBoards = (): void => {
+    if (!boardCount) { setBoardMsg('No boards to clear.'); return; }
+    if (!confirmClear) { setConfirmClear(true); setBoardMsg(`Clear all ${boardCount} captured boards? Tap again to confirm.`); return; }
+    clearStoredBoards();
+    setBoardCount(0);
+    setConfirmClear(false);
+    setBoardMsg('Cleared your captured boards.');
   };
 
   return (
@@ -149,6 +160,10 @@ export function EscMenu({
             <span className="ebs">Load their file — face their builds</span>
           </button>
           <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={onImportFile} />
+          <button className={`escbtn${confirmClear ? ' danger' : ''}`} onPointerDown={clearBoards}>
+            <span className="ebl">{confirmClear ? 'Tap again to clear' : 'Clear my boards'}</span>
+            <span className="ebs">{confirmClear ? `Wipes all ${boardCount} captures` : 'Wipe stale captures (e.g. after a patch)'}</span>
+          </button>
           {boardMsg && <div className="escboards-msg">{boardMsg}</div>}
         </div>
         <div className="escsec">Run</div>

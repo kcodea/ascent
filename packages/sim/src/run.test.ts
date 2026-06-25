@@ -26,7 +26,8 @@ import {
   spellAttackBonus,
   spellHealthBonus,
   spellDisplayText,
-  rateBoard,
+  rateBoardForWave,
+  buildWaveLadders,
   ratingBand,
   BAND_COUNT,
   type BoardCard,
@@ -3408,26 +3409,37 @@ describe('content batch: new minions (@game/sim)', () => {
 
 });
 
-describe('board strength rating (@game/sim)', () => {
+describe('wave-relative board strength rating (@game/sim)', () => {
   const vanilla = (n: number, atk: number, hp: number, kw?: BoardMinion['keywords']): BoardMinion[] =>
     Array.from({ length: n }, () => (kw ? { cardId: 'alley', attack: atk, health: hp, keywords: kw } : { cardId: 'alley', attack: atk, health: hp }));
+  // Build the per-wave ladders ONCE (running the bot is the slow part). A small seed/fidelity set still
+  // spans weak→strong at each wave for these assertions.
+  const ladders = buildWaveLadders([1, 42], [0.3, 0.7, 1.0]);
+  const waves = [...ladders.keys()].sort((a, b) => a - b);
+  const lowWave = waves[0]!;
+  const highWave = waves[waves.length - 1]!;
+  const avgPower = (w: number): number => {
+    const L = ladders.get(w)!;
+    return L.reduce((s, b) => s + b.reduce((p, m) => p + m.attack + m.health, 0), 0) / L.length;
+  };
 
-  it('rates 0..1, monotonic in strength, deterministic, and 0 for an empty board', () => {
-    expect(rateBoard([])).toBe(0);
-    const weak = rateBoard(vanilla(2, 1, 1));
-    const mid = rateBoard(vanilla(5, 5, 7));
-    const strong = rateBoard(vanilla(7, 10, 18, ['DS', 'W']));
-    expect(weak).toBeGreaterThanOrEqual(0);
-    expect(strong).toBeLessThanOrEqual(1);
-    expect(weak).toBeLessThan(mid);
-    expect(mid).toBeLessThan(strong);
-    expect(rateBoard(vanilla(5, 5, 7))).toBe(mid); // deterministic — same board, same rating
+  it('is WAVE-RELATIVE — the ladder scales with the wave, so a fixed board rates no higher at a later wave (no saturation)', () => {
+    expect(highWave).toBeGreaterThan(lowWave);
+    expect(avgPower(highWave)).toBeGreaterThan(avgPower(lowWave)); // later waves calibrate against stronger boards
+    const board = vanilla(5, 6, 6); // a fixed mid board
+    const low = rateBoardForWave(board, lowWave, ladders);
+    const high = rateBoardForWave(board, highWave, ladders);
+    expect(low).toBeGreaterThan(0);
+    expect(high).toBeLessThanOrEqual(low); // the SAME board is no stronger FOR a later wave — the old fixed gauntlet saturated to 1.0 and couldn't see this
   });
 
-  it('Divine Shield + Windfury raise the rating over the same raw stats (keyword-aware, unlike Σ power)', () => {
-    const plain = rateBoard(vanilla(5, 5, 8));
-    const keyworded = rateBoard(vanilla(5, 5, 8, ['DS', 'W']));
-    expect(keyworded).toBeGreaterThan(plain);
+  it('rates 0 for empty, is monotonic in board strength at a fixed wave, and is deterministic', () => {
+    expect(rateBoardForWave([], lowWave, ladders)).toBe(0);
+    const weak = rateBoardForWave(vanilla(2, 1, 1), lowWave, ladders);
+    const strong = rateBoardForWave(vanilla(7, 20, 30, ['DS', 'W']), lowWave, ladders);
+    expect(weak).toBeLessThan(strong);
+    expect(strong).toBeLessThanOrEqual(1);
+    expect(rateBoardForWave(vanilla(2, 1, 1), lowWave, ladders)).toBe(weak); // same board+wave → same rating
   });
 
   it('ratingBand buckets 0..1 into BAND_COUNT bands', () => {

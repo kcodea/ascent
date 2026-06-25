@@ -1121,17 +1121,19 @@ function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: (typeof BUYABLE_CA
 }
 
 /**
- * Offer a Discover (3 distinct, pool-filtered cards). Used by:
- *   • the triple reward (a golden played → peek one tier up) — `discoverTier` = the *target* tier;
- *     the pool walks the floor down until it finds 3, so a thin top tier still fills.
- *   • spell Discovers (`opts`): a fixed `tier` (Sprout → 1, no floor-walk) and/or a card `filter`
- *     (Help Wanted → Battlecry minions only). When `tier` is fixed the pool is just that tier (no
- *     widening), so Sprout always shows Tier 1s and Help Wanted shows Battlecry cards of any eligible tier.
+ * Offer a Discover (3 distinct, pool-filtered cards), weighing every eligible card EVENLY — no high-tier
+ * bias, the same rule as the flattened shop + spell Discover. Modes via `opts`:
+ *   • default (Sea Urchin, Help Wanted): all cards UP TO `discoverTier`, uniform.
+ *   • `tier` fixed (Sprout → 1): exactly that tier, uniform.
+ *   • `topTierFirst` — the ONE high-tier exception, set only by the golden/triple reward ("peek one tier
+ *     up"): fill from the top tier down, walking the floor down only if the top tier can't supply 3.
+ * A card `filter` (Help Wanted → Battlecry minions) and `tribe`/`exclude` (Sea Urchin → Beasts, not itself)
+ * apply in every mode.
  */
 export function offerDiscover(
   state: RunState,
   discoverTier: number,
-  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe; exclude?: string },
+  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe; exclude?: string; topTierFirst?: boolean },
 ): void {
   const baseFilter = opts?.filter ?? (() => true);
   const tribe = opts?.tribe;
@@ -1151,9 +1153,9 @@ export function offerDiscover(
         (state.pool[c.id] ?? 0) > 0 &&
         filter(c),
     );
-  } else {
-    // Tiered Discover (triple reward, or a filtered spell): up to the target tier, walking the floor
-    // down until at least 3 candidates are found.
+  } else if (opts?.topTierFirst) {
+    // Golden/triple reward only ("peek one tier up"): bias to the highest tier — fill from the top tier
+    // down, walking the floor down only if the top tier can't supply 3. The single high-tier exception.
     const target = Math.min(CONFIG.maxTier, discoverTier);
     let floor = target;
     while (pool.length < 3 && floor >= 1) {
@@ -1162,11 +1164,22 @@ export function offerDiscover(
           c.tier <= target &&
           c.tier >= floor &&
           (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
-          (state.pool[c.id] ?? 0) > 0 && // only offer cards with copies left — Discover draws from the finite pool
+          (state.pool[c.id] ?? 0) > 0 &&
           filter(c),
       );
       floor--;
     }
+  } else {
+    // Card-driven Discover up to the tavern tier (Sea Urchin, Help Wanted): EVERY eligible card at or below
+    // the target tier, weighed EVENLY — no high-tier bias (same rule as the shop + spell Discover).
+    const target = Math.min(CONFIG.maxTier, discoverTier);
+    pool = BUYABLE_CARDS.filter(
+      (c) =>
+        c.tier <= target &&
+        (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
+        (state.pool[c.id] ?? 0) > 0 && // only offer cards with copies left — Discover draws from the finite pool
+        filter(c),
+    );
   }
   if (pool.length === 0) return;
   const rng = makeRng(state.rngCursor);
@@ -1190,6 +1203,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
       tribe: spec.tribe,
       exclude: spec.exclude,
       filter: spec.filter ? discoverFilter(spec.filter) : undefined,
+      topTierFirst: spec.topTierFirst,
     });
   }
 }

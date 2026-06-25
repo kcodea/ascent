@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Discover no longer favors high tiers.** Card-driven Discovers (Sea Urchin, Help Wanted) now weigh **every
+  eligible minion up to your tavern tier evenly** — matching the flattened shop — instead of filling from the
+  top tier down. The golden/triple "peek one tier up" reward is unchanged (it's meant to bias high).
 - **Summon beat.** A battlecry-summoned token (e.g. Alleycat → Stray) now pops in ~0.2s *after* its
   trigger-medallion pulse, so you read the pulse then the result instead of both at once.
 - **Discover burst.** Opening a Discover erupts a burst of golden, white-hot magic + sparkles from center

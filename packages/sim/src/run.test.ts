@@ -1376,6 +1376,37 @@ describe('run loop (@game/sim)', () => {
     expect(s.discover).not.toContain('seaurchin'); // the source is excluded from its own Discover
   });
 
+  it('card-driven Discover weighs every tier evenly; only the golden reward (topTierFirst) peeks the top tier', () => {
+    // Tier-2 beasts (kennel/pack/shaper) give a 3-card top tier; alley (T1) is the low control. The OLD
+    // floor-walk showed ONLY the top tier; now a card Discover weighs every tier ≤ target evenly.
+    const pool = { kennel: 9, pack: 9, shaper: 9, alley: 9 };
+    const base: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'], pool,
+    };
+    // Sea Urchin at tavern tier 2 → uniform up to 2: the Tier-1 beast IS offered across seeds.
+    let urchinLowSeen = false;
+    for (let seed = 1; seed <= 50 && !urchinLowSeen; seed++) {
+      const s = reduce(
+        { ...base, tier: 2, rngCursor: seed, hand: [{ uid: 'u', cardId: 'seaurchin', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false }] },
+        { type: 'play', uid: 'u' },
+      );
+      if ((s.discover ?? []).includes('alley')) urchinLowSeen = true;
+    }
+    expect(urchinLowSeen).toBe(true); // a Tier-1 beast IS offered → the high-tier floor-walk is gone
+
+    // Golden/triple reward (discoverspell) at tier 1 → peeks tier 2 (topTierFirst): never drops below the top.
+    const goldTiers = new Set<number>();
+    for (let seed = 1; seed <= 50; seed++) {
+      const s = reduce(
+        { ...base, tier: 1, rngCursor: seed, hand: [{ uid: 'd', cardId: 'discoverspell', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] },
+        { type: 'play', uid: 'd' },
+      );
+      for (const id of s.discover ?? []) goldTiers.add(CARD_INDEX[id]!.tier);
+    }
+    expect([...goldTiers]).toEqual([2]); // exclusively the peeked (top) tier — the reward keeps its bias
+  });
+
   it('Tribe Portal Discovers a minion of your most common board tribe', () => {
     // Board is Beast-dominant (2 Beasts vs 1 Dragon) → the Discover offers only Beasts.
     let s: RunState = {

@@ -5,6 +5,39 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: card-touch sound + dust puff +20%
+
+Follow-ups to the board-click feedback:
+- **`sfx.cardTouch()`** (new) — sourced `cardtouch` clip (`packages/ui/src/audio/cardtouch.mp3`, from Cubase),
+  soft sine-tick synth fallback; registered in `SAMPLE_VOL_DEFAULTS` (`cardtouch: 0.5`) + dev preview.
+- **Wired at the root** (`Recruit.tsx`): the former `puffBoard` is now `onBoardPointerDown` — pressing any
+  `[data-zone] .card` (shop / hand / board) fires `cardTouch` and returns. It lives on the root pointerdown
+  (not the card's own drag handler) deliberately, so it plays **at any time** — including when the timer's
+  up, the hero power is armed, or end-of-turn is animating, all of which detach `onCardPointerDown`. The
+  empty-table click still falls through to `clickThock` + `pixiFx.clickPuff`.
+- **Dust +20%**: `clickPuff` got a `SIZE = 1.2` multiplier on `fromScale`/`toScale` (owner request).
+- **Verified**: `npm run typecheck && npm run lint` green; live page renders clean, both sounds fire
+  without error; clip bundles via the `./audio/*.mp3` glob.
+
+### feat: board-click "thock" + small Pixi dust puff
+
+Owner ask: clicking the (empty) board should play a tactile click sound **and** kick up a tiny dust puff
+at the cursor — like the card-landing dust, but much smaller.
+
+- **`sfx.ts`**: new `sfx.clickThock()` — sourced `clickthock` clip (`packages/ui/src/audio/clickthock.mp3`,
+  from Cubase) with a soft square-tick synth fallback; registered in `SAMPLE_VOL_DEFAULTS`
+  (`clickthock: 0.5`) + the dev SFX-mixer preview.
+- **`pixiFx.ts`**: new `clickPuff(x, y)` — a much smaller sibling of `dust()`: 7 dry-dirt tan puffs burst
+  from the click point, hug the ground (damped vertical + gentle gravity), and fade fast (~0.26–0.44 s,
+  fromScale ~0.14, low alpha). Drawn on the existing WebGL FX overlay.
+- **`Recruit.tsx`**: the existing `puffBoard` handler (primary click that misses every `.card`/`button`/
+  control) now fires `sfx.clickThock()` + `pixiFx.clickPuff(clientX, clientY)`. This **replaces** the old
+  DOM `.boarddust` puff (removed: the `dust` state/ref, the `.boarddust` JSX, and its CSS — the Pixi puff
+  matches the card-landing look the owner referenced).
+- **Scope:** fires on the empty table only, not on cards or controls (those keep their own sounds —
+  buy/sell/roll/etc.), matching the prior `puffBoard` semantics. Easy to broaden to all clicks if wanted.
+- **Verified**: `npm run typecheck && npm run lint` green; clip bundles via the `./audio/*.mp3` glob.
+
 ### feat: battlecry-summoned tokens pop in ~0.2s after the trigger pulse
 
 Owner ask: when a battlecry summons (e.g. Alleycat → Stray), see the medallion **pulse** fire, then the

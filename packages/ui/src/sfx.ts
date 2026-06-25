@@ -185,6 +185,8 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   pulse: 0.5,
   triggerpulse: 0.5,
   triggerglow: 0.5,
+  clickthock: 0.5,
+  cardtouch: 0.5,
   inspect: 0.5,
   upgrade: 0.5,
   roll: 0.61,
@@ -323,6 +325,18 @@ export const sfx = {
     if (playSample('triggerglow', sampleVol.triggerglow)) return;
     tone({ freq: 520, dur: 0.12, type: 'triangle', vol: 0.08, slideTo: 760 });
   },
+  // A mouse click on the empty board (the table surface, not a card/control) — a short tactile "thock".
+  // Sourced "clickthock" clip; soft synth tick fallback until it decodes / if absent.
+  clickThock: () => {
+    if (playSample('clickthock', sampleVol.clickthock)) return;
+    tone({ freq: 180, dur: 0.05, type: 'square', vol: 0.07, slideTo: 120 });
+  },
+  // Pressing any card — shop, hand, or board — a soft "card touch". Sourced "cardtouch" clip; soft synth
+  // tick fallback until it decodes / if absent.
+  cardTouch: () => {
+    if (playSample('cardtouch', sampleVol.cardtouch)) return;
+    tone({ freq: 330, dur: 0.05, type: 'sine', vol: 0.07, slideTo: 260 });
+  },
   temper: () => {
     tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1 });
     tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04 });
@@ -368,7 +382,7 @@ export const sfx = {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
-  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {

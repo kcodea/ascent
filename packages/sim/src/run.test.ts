@@ -455,6 +455,77 @@ describe('run loop (@game/sim)', () => {
     expect(s.pendingTavern).toEqual([]); // queue cleared — not stranded by the freeze
   });
 
+  it('triples are checked at shop-start — a combat hand-grant that completes a triple combines without a buy/play', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      board: [
+        { uid: 'c1', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'c2', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
+      ],
+      hand: [],
+      // The Deathrattle-granted 3rd copy lands in the hand at settle — completing a triple the player never
+      // had a buy/play to trigger. The shop-start check must combine it as the new wave opens.
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerHandGrants: ['cleric'] },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.phase).toBe('recruit');
+    const clerics = [...s.board, ...s.hand].filter((c) => c.cardId === 'cleric');
+    expect(clerics.length).toBe(1); // all 3 combined
+    expect(clerics[0]!.golden).toBe(true); // …into one golden
+  });
+
+  it("Bane's Fodder enchant from combat persists — settleCombat applies it run-wide", () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      board: [{ uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false }],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerFodderBuffGain: { attack: 2, health: 2 } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.cardBuffs?.fred).toEqual({ attack: 2, health: 2 }); // run-wide enchant → future Fodder inherit it
+    const fred = s.board.find((c) => c.uid === 'f')!;
+    expect([fred.attack, fred.health]).toEqual([1 + 2, 1 + 2]); // the Fodder already on board got it too
+  });
+
+  it('tripling Tara keeps the HIGHEST ascend progress (lowest "to go"), not a reset', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 't1', cardId: 'tara', tribe: 'dragon', attack: 3, health: 3, keywords: ['EG'], golden: false, ascendProgress: 12 },
+        { uid: 't2', cardId: 'tara', tribe: 'dragon', attack: 3, health: 3, keywords: ['EG'], golden: false, ascendProgress: 5 },
+      ],
+      hand: [{ uid: 't3', cardId: 'tara', tribe: 'dragon', attack: 3, health: 3, keywords: ['EG'], golden: false, ascendProgress: 8 }],
+    };
+    s = reduce(s, { type: 'play', uid: 't3' }); // 3rd Tara → triple
+    const golden = [...s.board, ...s.hand].find((c) => c.cardId === 'tara' && c.golden);
+    expect(golden).toBeDefined();
+    expect(golden!.ascendProgress).toBe(12); // max of {12, 5, 8} — the copy closest to ascending
+  });
+
+  it('Tara carries its prior ascend progress into combat (so the live tracker shows the total, not just this fight)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 't', cardId: 'tara', tribe: 'dragon', attack: 9, health: 9, keywords: ['EG'], golden: false, ascendProgress: 10 }],
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    const tara = s.lastCombat?.initial.player.find((m) => m.cardId === 'tara');
+    expect(tara?.ascendProgress).toBe(10); // seeded from the run board, not reset to 0 each combat
+  });
+
+  it('a combat Discover-minion re-fire (Ryme → Sea Urchin) grants a random beast at settle, abiding by tavern rules', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 3, tribes: ['beast'],
+      phase: 'combat', hand: [],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerMinionGrants: [{ tribe: 'beast', exclude: 'seaurchin' }] },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand.length).toBe(1); // one random card granted (the Discover couldn't open in combat)
+    const def = CARD_INDEX[s.hand[0]!.cardId]!;
+    expect(def.tribe === 'beast' || def.tribe2 === 'beast' || def.universalTribe).toBe(true); // of the Discover's tribe
+    expect(def.tier).toBeLessThanOrEqual(3); // …up to the tavern tier
+  });
+
   it('Soulfeeder queues Fodder only once — it does not re-proc on later rounds', () => {
     let s: RunState = {
       ...createRun(1),
@@ -1357,6 +1428,8 @@ describe('run loop (@game/sim)', () => {
     const startSandbag = s.lastCombat?.initial.player.find((m) => m.cardId === 'sandbag');
     expect([startSandbag?.attack, startSandbag?.health]).toEqual([3, 2]); // 1/1 + Fleeting Vigor 2/1
     expect(s.fleetingVigor).toEqual({ attack: 0, health: 0 }); // spent after the fight
+    // …and it's telegraphed as a Start-of-Combat narration (otherwise the pre-baked buff is invisible).
+    expect(s.lastCombat?.events[0]).toMatchObject({ type: 'sc', text: expect.stringContaining('Fleeting Vigor') });
   });
 
   it('undeadBuyBonus applies the run-wide undead Attack bonus to any new Undead (universalTribe counts)', () => {

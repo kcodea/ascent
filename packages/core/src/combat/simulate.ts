@@ -42,6 +42,8 @@ export function simulate(
   fodderConsumedHp = 0,
   impAtkBonus = 0,
   impHpBonus = 0,
+  spellPowerAtk = 0,
+  spellPowerHp = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -51,12 +53,14 @@ export function simulate(
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
+  const fodderBuffGain = { attack: 0, health: 0 }; // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
   let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
   let spellGrants = 0; // random tavern-tier spells granted to the hand after combat (Sporebat's Deathrattle)
+  const minionGrants: { tribe?: string; exclude?: string }[] = []; // random pool minions to grant (Ryme re-firing a Discover Battlecry)
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: spellsCast, enemy: 0 };
@@ -121,6 +125,7 @@ export function simulate(
     golden: m.golden,
     summonBonus: m.summonBonus,
     hpGrantBonus: m.hpGrantBonus,
+    ascendProgress: m.ascendProgress,
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
@@ -138,6 +143,7 @@ export function simulate(
     boards,
     events,
     spellsThisTurn,
+    spellPower: { attack: spellPowerAtk, health: spellPowerHp },
     fodderConsumedAtk,
     fodderConsumedHp,
     deathrattleTally: () => deathrattlesBase + playerDeathrattles,
@@ -170,7 +176,9 @@ export function simulate(
         const newCount = (buffCounts.get(target.uid) ?? 0) + 1;
         buffCounts.set(target.uid, newCount);
         const ascendAt = cards[target.cardId]!.ascendAt!;
-        const remaining = Math.max(0, ascendAt - newCount);
+        // Count from the TOTAL: prior accumulated progress (seeded from the run board) + this combat's grants,
+        // so the live tracker matches the card's real "N to go" in the shop instead of restarting each fight.
+        const remaining = Math.max(0, ascendAt - ((target.ascendProgress ?? 0) + newCount));
         const text = remaining > 0
           ? `${target.name}: ${remaining} stat grant${remaining === 1 ? '' : 's'} to ascend`
           : `${target.name} has reached the ascend threshold!`;
@@ -226,10 +234,19 @@ export function simulate(
       if (side !== 'player') return; // enemies have no hand
       spellGrants += count;
     },
+    grantRandomMinion: (count, tribe, side, exclude) => {
+      if (side !== 'player') return; // enemies have no hand
+      for (let i = 0; i < count; i++) minionGrants.push({ tribe, exclude });
+    },
     grantImpBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
       impBuffGain.attack += attack;
       impBuffGain.health += health;
+    },
+    grantFodderBuff: (attack, health, side) => {
+      if (side !== 'player') return; // enemies have no run state
+      fodderBuffGain.attack += attack;
+      fodderBuffGain.health += health;
     },
     grantUndeadBuyAtk: (amount, side) => {
       if (side !== 'player') return; // enemies have no run state
@@ -666,8 +683,10 @@ export function simulate(
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
     playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
+    playerMinionGrants: minionGrants.length > 0 ? minionGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
+    playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,
   };
 }

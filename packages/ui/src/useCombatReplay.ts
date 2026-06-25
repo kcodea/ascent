@@ -68,6 +68,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
   golden: s.golden ?? false, summonBonus: s.summonBonus ?? 0,
   hpGrantBonus: s.hpGrantBonus, // Sergeant: seed the live combat text from the run-board accrual (frame 1)
+  ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   baseAttack: s.attack, baseHealth: s.health, // the stats it entered the fight (or was summoned) with
 });
 
@@ -181,11 +182,11 @@ const FINAL_HOLD_MS = 900; // hold on the last beat (death anim + damage float) 
  *  overshoot. `dx`/`dy` is the full attacker→defender vector; the strike covers ~100% of it so the
  *  attacker drives all the way into the defender — a full connecting hit. GSAP owns the attacker's
  *  transform for the whole lunge — React renders no transform on combat units, so they never fight. */
-function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number): void {
+function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number, speed = 1): void {
   const c = getLungeConfig(); // live-tunable (DEV Lunge tuner) → applies to the next attack
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
-  gsap
+  const tl = gsap
     .timeline({ onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }) })
     .to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: -5, duration: c.windupDur, ease: 'power1.out' })  // wind up (anticipation lean-back)
     .to(attacker, { x: dx * c.strikeDist, y: dy * c.strikeDist, rotation: 0, duration: c.strikeDur, ease: 'power3.in' })          // strike (overdrives into the target → a full, overlapping connecting hit)
@@ -200,11 +201,14 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
       pixiFx.impact(r.left + r.width / 2, r.top + r.height / 2, dx, dy);
       gsap.killTweensOf(defender);
       gsap.fromTo(defender, { x: 0, y: 0 }, {
-        x: dx * 0.14, y: dy * 0.14, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out',
+        x: dx * 0.14, y: dy * 0.14, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
         onComplete: () => gsap.set(defender, { clearProps: 'transform' }),
       });
     }, `-=${c.smackLead}`)                                                                                 // …fired smackLead seconds BEFORE the strike completes
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });       // settle
+  // The user's combat-speed multiplier: scale the whole lunge so its connection time tracks the (also-scaled)
+  // beat clock — they divide the same windup+strike by `speed`, so the impact beat still lands on contact.
+  tl.timeScale(speed);
 }
 /** The transient animation class for the unit the active event acts on. */
 function animFor(e: CombatEvent | undefined): Record<string, string> {
@@ -389,9 +393,12 @@ export interface CombatReplay {
  */
 export function useCombatReplay(
   combat: CombatResult | null | undefined,
-  opts: { active: boolean; findEl: (uid: string) => Element | null },
+  opts: { active: boolean; findEl: (uid: string) => Element | null; combatSpeed?: number },
 ): CombatReplay {
   const { active, findEl } = opts;
+  // User-controlled replay speed (in-combat slider). 1 = the tuned default; >1 faster, <1 slower. Every
+  // beat delay / float lifetime / final hold is divided by it, and each lunge is timeScaled to match.
+  const combatSpeed = opts.combatSpeed && opts.combatSpeed > 0 ? opts.combatSpeed : 1;
   const events = useMemo(() => combat?.events ?? [], [combat]);
   const beats = useMemo(() => buildBeats(events), [events]);
   const [beatIdx, setBeatIdx] = useState(0);
@@ -471,17 +478,18 @@ export function useCombatReplay(
       // A breather AFTER an impact, before the next swing, so back-to-back attacks don't blur together.
       d += c.attackGap * 1000;
     }
+    d /= combatSpeed; // user speed multiplier — the lunge timeScale divides the same connection time, so they stay in sync
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
-  }, [active, hidden, beatIdx, beats]);
+  }, [active, hidden, beatIdx, beats, combatSpeed]);
 
   // Hold on the final beat: once the clock reaches the end, wait FINAL_HOLD_MS before reporting `done` — so
   // the last kill's death collapse + damage float fully play before cleanup + the round-end UI take over.
   useEffect(() => {
     if (!active || !replayComplete) return;
-    const t = window.setTimeout(() => setFinished(true), FINAL_HOLD_MS);
+    const t = window.setTimeout(() => setFinished(true), FINAL_HOLD_MS / combatSpeed);
     return () => window.clearTimeout(t);
-  }, [active, replayComplete]);
+  }, [active, replayComplete, combatSpeed]);
 
   // Spawn floats for every damage/poison/shield in the beat just resolved — all at once.
   // Buff events are *summed per target* so a multi-proc deathrattle (e.g. Grim re-procced by
@@ -524,15 +532,15 @@ export function useCombatReplay(
     if (spawned.length) {
       setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
       const ids = new Set(spawned.map((s) => s.id));
-      timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS));
+      timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS / combatSpeed));
     }
     if (deaths.length) {
       setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
       const ids = new Set(deaths.map((s) => s.id));
-      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), DEATH_FLOAT_MS));
+      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), DEATH_FLOAT_MS / combatSpeed));
     }
     return () => timers.forEach((id) => window.clearTimeout(id));
-  }, [active, beatIdx, beats, events, findEl]);
+  }, [active, beatIdx, beats, events, findEl, combatSpeed]);
 
   // Combat SFX — one sound per notable event type in the beat just resolved.
   useEffect(() => {
@@ -597,7 +605,7 @@ export function useCombatReplay(
       const d = center(cur.primary.defender);
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
-        playAttackLunge(atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y);
+        playAttackLunge(atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, combatSpeed);
       }
     } else {
       setAttackUid(null);

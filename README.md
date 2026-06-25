@@ -25,6 +25,21 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Golden card tooltips show their LIVE value.** Golden cards were rendering the *static* printed golden text,
+  so live numbers were lost — a golden **Sergeant** showed "+4 Health" instead of its real "+10", a golden
+  **Taragosa** "+6/+8" instead of its spell-power-scaled value. Fixed generally for every golden live-text card.
+- **Taragosa spell-power scaling + combat-log bar.** **Taragosa**'s Growth now scales with your **spell power**
+  (text + mechanically, golden too). The combat-log **odds bar** is **4× thicker**, coloured **green/orange/red**,
+  and its segments now map to the real win/draw/loss odds.
+- **Re-fired Discover battlecries + Cinderwing via Ryme + Tara/Fleeting Vigor fixes.** When **Ryme** re-fires a
+  Discover battlecry in combat (**Sea Urchin**, **Black Belt Brian**) it now grants a **random card from that
+  pool** (tavern-tier rules) instead of nothing, and re-fires **Cinderwing**'s +spell power. **Tara**: tripling
+  keeps the highest ascend progress (no reset), and its in-combat tracker now matches the shop. **Fleeting
+  Vigor** is telegraphed with a Start-of-Combat banner (it always worked — it just looked like nothing).
+- **Combat speed slider + triple-at-shop-start + Bane Fodder carry-back.** A **0.5×–5× Speed** slider in the
+  combat bar (persisted) scales the whole replay. Triples are now also checked **as the shop opens**, so a
+  combat-granted 3rd copy combines without waiting for your next buy. And **Bane**'s Fodder buff earned *in
+  combat* (via Ryme) now persists **run-wide**, like its Imp buff already did.
 - **WebGL effects layer (PixiJS) + combat hit-impact.** Added a transparent **PixiJS v8** overlay over
   the board (pooled-particle system, no DOM/layout changes) and wired it to combat: each hit now bursts a
   white-hot core flash, a saturated-orange shockwave, **jagged shards** (oriented along their travel), and

@@ -586,6 +586,54 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 2).length).toBe(8);
   });
 
+  it("Bane reacting to Ryme's battlecry trigger carries the Fodder enchant back to the run", () => {
+    const board = (baneGolden: boolean) => [
+      { cardId: 'ryme', attack: 5, health: 1 },        // dies → triggers the neighbour's Battlecry
+      { cardId: 'alley', attack: 0, health: 100 },     // battlecry neighbour (Alleycat)
+      { cardId: 'bane', attack: 12, health: 100, golden: baneGolden }, // reacts to battlecryTriggered
+      { cardId: 'fred', attack: 1, health: 100 },      // a living Fodder body (also buffed this combat)
+    ];
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    // One trigger → Bane fires once → the run-wide Fodder enchant carries back (like the Imp buff does).
+    expect(run(board(false), omen, 1).playerFodderBuffGain).toEqual({ attack: 2, health: 2 });
+    expect(run(board(true), omen, 1).playerFodderBuffGain).toEqual({ attack: 4, health: 4 }); // golden Bane doubles
+  });
+
+  it('Ryme re-firing a Discover Battlecry in combat grants a random pool card (Sea Urchin → minion, Brian → spell)', () => {
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    // Sea Urchin = Discover-MINION (tribe beast). Re-fired in combat it can't open the peek, so it queues a
+    // random-minion grant (resolved at settle): tribe carried, source excluded. Golden → 2.
+    const urchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100 }], omen, 1);
+    expect(urchin.playerMinionGrants).toEqual([{ tribe: 'beast', exclude: 'seaurchin' }]);
+    const goldUrchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(goldUrchin.playerMinionGrants).toHaveLength(2); // golden Discovers twice
+    // Black Belt Brian = Discover-SPELL → routes through the existing random-spell carry-back.
+    const brian = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'blackbelt', attack: 0, health: 100 }], omen, 1);
+    expect(brian.playerSpellGrants).toBe(1);
+  });
+
+  it('Ryme re-firing Cinderwing Matron in combat grants the run-wide spell power', () => {
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    // Cinderwing's Battlecry permanently raises spell power (+0/+1); re-fired in combat it now carries back.
+    const r = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'cinder', attack: 0, health: 100 }], omen, 1);
+    expect(r.playerSpellPower).toEqual({ attack: 0, health: 1 });
+    const gold = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'cinder', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(gold.playerSpellPower).toEqual({ attack: 0, health: 2 }); // golden Cinderwing doubles
+  });
+
+  it("Taragosa's Growth scales with the run's spell power", () => {
+    const board: BoardMinion[] = [
+      { cardId: 'taragosa', attack: 5, health: 100 },
+      { cardId: 'sandbag', attack: 0, health: 100 },
+    ];
+    const enemy: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 4000, keywords: [] }];
+    // simulate(...15 args..., spellPowerAtk, spellPowerHp). With +4/+4 spell power each Growth is +7/+8.
+    const r = simulate(board, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4);
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 7 && e.health === 8)).toBe(true);
+    const r0 = simulate(board, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    expect(r0.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // no spell power → base
+  });
+
   it('Gnasher keeps attacking after killing a Reborn target', () => {
     // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
     // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned

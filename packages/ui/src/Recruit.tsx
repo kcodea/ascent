@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText, undeadBuyAtkText } from './cardText';
+import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -170,6 +170,7 @@ function instView(
         ? spellDisplayText(c.id, spellBonus, frontToBackBonus, spellBonusH)
         : transformProgressText(c.id, inst.spellProgress ?? 0) ??
             ascendProgressText(c.id, inst.ascendProgress ?? 0) ??
+            taragosaText(c.id, !!inst.golden, spellBonus, spellBonusH) ??
             abhorrentHorrorText(c.id, fodderConsumed, !!inst.golden) ??
             summonScalingText(c.id, spellsThisTurn) ??
             summonBuffText(c.id, inst.summonBonus ?? 0) ??
@@ -195,12 +196,12 @@ function instView(
     undeadBuyAtkText(c.id, live?.undeadBuyAtk ?? 0) ??
     cardTypeTallyText(c.id, live?.cardBuffs?.[c.id]) ??
     '';
-  const goldenBase =
-    c.id === 'guel'
-      ? guelProgressText(c.id, true, spellsCast) ?? c.goldenText // golden Guel shows its live (×2) grant + countdown
-      : c.id === 'mamabear'
-        ? summonImproveText(c.id, inst.summonBonus ?? 0, true) ?? c.goldenText // golden Mama Bear: live (×2) grant
-        : c.goldenText;
+  // Golden cards render `goldenText` (Card.tsx), but the live-text chain above was already computed with
+  // this card's golden flag — so for a golden card whose live text actually resolved (differs from the
+  // printed fallback `c.text`), `text` IS the golden-aware live value. Feed it to goldenText so goldens show
+  // the LIVE number (Sergeant's climbing Deathrattle, Taragosa's spell-power Growth, Guel, Mama Bear, …)
+  // instead of the static printed goldenText. With no live value, fall back to the printed goldenText.
+  const goldenBase = inst.golden && text !== c.text ? text : c.goldenText;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     attack: (override?.attack ?? inst.attack) + auraAtk, health: (override?.health ?? inst.health) + auraHp,
@@ -235,6 +236,8 @@ export function Recruit() {
   // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
+  const combatSpeed = useGame((s) => s.combatSpeed);
+  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
@@ -383,7 +386,7 @@ export function Recruit() {
       ),
     [],
   );
-  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl });
+  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed });
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
   // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
   // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them
@@ -1444,6 +1447,20 @@ export function Recruit() {
             {servedOpp?.author ?? THREATS[run.threat].name}
             {servedOpp?.author && servedOpp.capturedAt && <span className="cbanner-date">{servedOpp.capturedAt}</span>}
           </span>
+          {/* Replay speed — 0.5×–5×, persisted. Scales every beat delay + lunge so the fight reads fast or slow. */}
+          <div className="combatspeed" title="Combat replay speed">
+            <span className="csl">Speed</span>
+            <input
+              type="range"
+              min={0.5}
+              max={5}
+              step={0.1}
+              value={combatSpeed}
+              onChange={(e) => setCombatSpeed(Number(e.target.value))}
+              aria-label="Combat replay speed"
+            />
+            <span className="combatspeed-val">{combatSpeed.toFixed(1)}×</span>
+          </div>
           <div className="cbtns">
             {replay.done ? (
               <>

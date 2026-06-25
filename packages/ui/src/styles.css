@@ -1268,6 +1268,13 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .cbtns .btn.big { font-size: 32px; padding: 24px 48px; border-radius: 18px; gap: 16px; box-shadow: 0 5px 0 var(--shadow); }
 .cbtns .btn.big svg { width: 42px; height: 42px; }
 .cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
+/* combat replay-speed slider — anchored to the right edge of the control bar, mirroring .cbanner on the left */
+.combatspeed { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 11px; background: color-mix(in srgb, var(--card) 82%, transparent); border: 2px solid var(--line); padding: 8px 15px; border-radius: 12px; }
+.combatspeed .csl { font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
+.combatspeed input[type='range'] { width: 128px; height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
+.combatspeed input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.combatspeed input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.combatspeed .combatspeed-val { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
 /* post-combat Combat Log overlay */
 .logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
 @keyframes logfade { from { opacity: 0; } to { opacity: 1; } }
@@ -1280,15 +1287,17 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Outcome-odds bar: the estimated win / draw / loss distribution for the matchup (the result was one roll). */
 .logodds { display: flex; flex-direction: column; gap: calc(5 * var(--u)); }
 .oddscap { font-family: 'Outfit'; font-weight: 800; font-size: calc(10 * var(--u)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
-.oddsbar { display: flex; height: calc(10 * var(--u)); border-radius: 999px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg2); }
-.oddsbar .ob { height: 100%; transition: width 0.3s ease; }
-.oddsbar .ob.win { background: var(--acc); }
-.oddsbar .ob.draw { background: var(--ink3); }
-.oddsbar .ob.lose { background: var(--threat); }
+/* 4× thicker than before; segment widths map 1:1 to the win/draw/loss odds (flex:none defeats the
+   generic .ob flex:1 so the inline width wins), coloured green → orange → red. */
+.oddsbar { display: flex; height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg2); }
+.oddsbar .ob { height: 100%; flex: none; transition: width 0.3s ease; }
+.oddsbar .ob.win { background: #2fb866; }
+.oddsbar .ob.draw { background: #f59324; }
+.oddsbar .ob.lose { background: #e53b3b; }
 .oddslabels { display: flex; justify-content: space-between; font-family: 'Outfit'; font-weight: 800; font-size: calc(12 * var(--u)); }
-.oddslabels .win { color: var(--acc-dk); }
-.oddslabels .draw { color: var(--ink3); }
-.oddslabels .lose { color: var(--threat-dk); }
+.oddslabels .win { color: #1f8a4b; }
+.oddslabels .draw { color: #b36608; }
+.oddslabels .lose { color: #b82626; }
 .loglines { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: calc(6 * var(--u)); padding-right: 6px; }
 .logline { font-family: 'Nunito Sans', sans-serif; font-size: calc(14 * var(--u)); font-weight: 600; color: var(--ink2); padding: calc(7 * var(--u)) calc(11 * var(--u)); border-radius: 8px; background: var(--bg2); border-left: 3px solid var(--line); }
 .logline.sc { border-left-color: var(--t-dragon); color: var(--ink); font-weight: 800; }

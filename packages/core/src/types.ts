@@ -261,6 +261,9 @@ export interface BoardMinion {
   /** Sergeant: accrued Deathrattle HP-grant bonus, seeded from the run board so combat continues from the
    *  shop-accumulated value (raised every time Sergeant gains Attack). Default 0. */
   hpGrantBonus?: number;
+  /** Tara: accrued stat-grant count toward ascension, seeded from the run board so the live in-combat
+   *  "N to ascend" tracker reflects the TOTAL (prior combats + this one), not just this fight. Default 0. */
+  ascendProgress?: number;
   /** The originating recruit board card's uid, so combat can report per-instance state
    *  (e.g. Avenge improvements) back for the run to persist. */
   sourceUid?: string;
@@ -306,6 +309,9 @@ export interface Minion {
   /** Sergeant: accumulated HP bonus on its Deathrattle (grows each time Sergeant gains Attack in
    *  combat). Applied on top of the base params.health when the Deathrattle fires. Absent = 0. */
   hpGrantBonus?: number;
+  /** Tara: prior accumulated ascend grant-count seeded from the run board, so the live "N to ascend"
+   *  tracker reads the TOTAL across combats rather than just this fight's grants. Absent = 0. */
+  ascendProgress?: number;
   /** Brood Matron: how many Imps it has bred this combat — caps its friend-death summons. Absent = 0. */
   bredCount?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
@@ -329,6 +335,9 @@ export interface MinionSnapshot {
   summonBonus?: number;
   /** Current Sergeant Deathrattle HP-grant bonus (seeded value) — for the live combat card text from frame 1. */
   hpGrantBonus?: number;
+  /** Tara's prior ascend progress (seeded from the run board) — so the live combat "N to ascend" tracker
+   *  starts from the real total and counts up, matching the shop card. */
+  ascendProgress?: number;
 }
 
 /**
@@ -399,9 +408,14 @@ export interface CombatResult {
   playerFodderGrants?: number;
   /** Free shop rerolls banked from this combat (Gryphon's on-damaged). Added to `freeRolls` in settleCombat. */
   playerFreeRolls?: number;
-  /** Random tavern-tier spells to grant to the hand after this combat (Sporebat's Deathrattle) — a count;
-   *  settleCombat picks that many random spells (tier ≤ tavern tier). Absent if 0. */
+  /** Random tavern-tier spells to grant to the hand after this combat (Sporebat's Deathrattle, and a
+   *  Discover-spell Battlecry re-fired in combat by Ryme) — a count; settleCombat picks that many random
+   *  spells (tier ≤ tavern tier). Absent if 0. */
   playerSpellGrants?: number;
+  /** Random minions to grant to the hand after this combat — from a Discover-minion Battlecry re-fired in
+   *  combat (Ryme → Sea Urchin), which can't open the interactive Discover. settleCombat picks one pool
+   *  minion per entry of the given `tribe` (≤ tavern tier, active tribes), excluding `exclude`. Absent if none. */
+  playerMinionGrants?: { tribe?: string; exclude?: string }[];
   /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
    *  settleCombat. Absent if 0. */
   playerMaxGoldGain?: number;
@@ -414,6 +428,10 @@ export interface CombatResult {
   /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
    *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
   playerImpBuffGain?: { attack: number; health: number };
+  /** Permanent run-wide Fodder enchant gained this combat (Bane reacting to Ryme's battlecry replays) —
+   *  applied via `buffFodderRunWide` so every Fodder (board, hand, future copies) inherits it, mirroring the
+   *  recruit-phase Bane. Absent if 0/0. */
+  playerFodderBuffGain?: { attack: number; health: number };
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
   odds?: { win: number; draw: number; lose: number };
@@ -430,6 +448,9 @@ export interface CombatContext {
   readonly events: CombatEvent[];
   /** Spells cast this turn (recruit), frozen at combat start — scales Spirit Worgen's in-combat buff. */
   readonly spellsThisTurn: number;
+  /** The run's spell power at combat start ({attack, health} — hero amplify + card spell bonus). Taragosa's
+   *  Growth is a real spell cast, so it inherits this just like a shop-cast Growth does. */
+  readonly spellPower: { attack: number; health: number };
   /** Deathrattles triggered this game so far: the run-wide base (passed in) + this combat's player
    *  Deathrattles. Grim scales its buff by this. */
   deathrattleTally(): number;
@@ -467,9 +488,14 @@ export interface CombatContext {
   /** Bank `count` free shop rerolls for the player from combat (Gryphon). Player-only; carried back via
    *  CombatResult.playerFreeRolls. */
   grantFreeRolls(count: number, side: Side): void;
-  /** Grant `count` random tavern-tier spells to the player's hand after combat (Sporebat). Player-only;
-   *  carried back via CombatResult.playerSpellGrants (picked at settle, where the tavern tier is known). */
+  /** Grant `count` random tavern-tier spells to the player's hand after combat (Sporebat, and a Discover-spell
+   *  Battlecry re-fired in combat by Ryme). Player-only; carried back via CombatResult.playerSpellGrants
+   *  (picked at settle, where the tavern tier is known). */
   grantRandomSpell(count: number, side: Side): void;
+  /** Grant `count` random pool minions of `tribe` to the player's hand after combat — from a Discover-minion
+   *  Battlecry re-fired in combat (Ryme → Sea Urchin), which can't open the interactive Discover. Player-only;
+   *  carried back via CombatResult.playerMinionGrants (picked at settle: tribe + ≤ tavern tier + active tribes). */
+  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string): void;
   /** A minion casts a spell mid-combat (Taragosa's Growth). Tallies the cast (the running per-side count
    *  is reported in the `spellCast` event payload so Guel scales) and, for the player, carries it back via
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
@@ -485,6 +511,9 @@ export interface CombatContext {
   /** Imp King / Brood Matron Avenge: permanently raise the run-wide Imp buff by +atk/+hp (player only).
    *  Carried back via CombatResult.playerImpBuffGain → added to RunState.impBuff so future Imps inherit it. */
   grantImpBuff(attack: number, health: number, side: Side): void;
+  /** Bane (combat, reacting to Ryme's battlecry replays): permanently enchant the Fodder card type run-wide
+   *  by +atk/+hp (player only). Carried back via CombatResult.playerFodderBuffGain → `buffFodderRunWide`. */
+  grantFodderBuff(attack: number, health: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

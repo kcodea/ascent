@@ -76,6 +76,16 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
           if (kw === 'DS') target.divineShield = true;
         }
       }
+    } else if (eff.do === 'battlecryDiscoverSpell') {
+      // A Discover Battlecry can't open the interactive 1-of-3 peek mid-combat — grant a random pool card
+      // instead (resolved at settle, respecting the tavern tier). Golden Discovers twice → grant ×2.
+      ctx.grantRandomSpell(g, m.side);
+    } else if (eff.do === 'battlecryDiscoverMinion') {
+      ctx.grantRandomMinion(g, str(p.tribe) || undefined, m.side, m.cardId); // …a random minion of the tribe, ≤ tavern tier
+    } else if (eff.do === 'battlecryBuffSpellPower') {
+      // Cinderwing Matron — permanently raise run-wide spell power; carried back via playerSpellPower (the
+      // same channel Skullblade/Gnasher use), so re-firing it in combat actually grants the spell power.
+      ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side);
     }
   }
 }
@@ -436,13 +446,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Taragosa — when any ally attacks, "cast Growth": buff every living friend +atk/+hp (golden casts it
-   *  twice). Explosive on a wide board. Combat-only — it does NOT inherit the run's spell power (combat has
-   *  no access to it; flagged as a follow-up). */
+   *  twice). Explosive on a wide board. Growth is a REAL spell, so each cast inherits the run's spell power
+   *  (`ctx.spellPower`, passed in from the run loop) on top of the base — exactly like a shop-cast Growth. */
   onAllyAttackCastGrowth: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion.side !== self.side) return; // any ally's attack
-    const a = num(params.attack, 3);
-    const h = num(params.health, 4);
+    const a = num(params.attack, 3) + ctx.spellPower.attack;
+    const h = num(params.health, 4) + ctx.spellPower.health;
     for (let r = 0; r < mul(self); r++) {
       ctx.castSpell(self.side); // Growth is a REAL spell cast — fires Guel + counts toward his (permanent) improvement
       for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
@@ -835,8 +845,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Bane (combat half) — on a triggered Battlecry, buff your living Fodder + Imps +atk/+hp, and raise the
-   *  run-wide Imp buff (permanent — carried back) so future Imps inherit it. Golden doubles. */
+  /** Bane (combat half) — on a triggered Battlecry, buff your living Fodder + Imps +atk/+hp, and raise BOTH
+   *  the run-wide Imp buff AND the run-wide Fodder enchant (permanent — carried back) so future Fodder/Imps
+   *  inherit it, exactly like the recruit-phase Bane. Golden doubles. */
   onBattlecryBuffFodder: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side: Side }).side !== self.side) return;
     const a = num(params.attack, 1) * mul(self);
@@ -846,5 +857,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (def?.keywords.includes('FD') || def?.imp) ctx.buff(m, a, h, self.uid);
     }
     ctx.grantImpBuff(a, h, self.side); // Imps permanent — carried back to RunState.impBuff
+    ctx.grantFodderBuff(a, h, self.side); // Fodder enchant permanent — carried back, mirrors recruit buffFodderRunWide
   },
 };

@@ -56,12 +56,16 @@ gravity.
 - **Gravity in the particle system** (`pixiFx.ts`): particles gained a `gravity` field (px/sec²,
   applied to `vy` after drag so it isn't damped the same frame); 0 = unchanged for all existing
   effects. A **gold-coin texture** (dark rim · bright face · inner ring · shine) is generated once.
-- **`pixiFx.coins(x, y)`**: 9 coins fired upward in a ±37° fan, light air-drag, gravity `1500` so they
-  pop then fall, gentle spin, holding roughly their size and fading out — normal blend (the texture is
-  already gold).
+- **`pixiFx.coins(x, y)`**: 9 coins fired upward in a ±33° fan with a punchy launch (speed 380–700),
+  light air-drag, gravity `1700` so they pop then fall, gentle spin, holding roughly their size and
+  fading out — normal blend (the texture is already gold).
 - **Trigger** (`Recruit.tsx`): on a board→tavern sell, reads the Gold chip's screen rect
   (`.statusbar .chip.g`) and fires `coins()` from it, alongside the existing sell float (+N at the drop
   spot), `sfx.sell()`, and the `sellTick` gold-chip flash.
+- **Overlay raised above the status bar** (`.pixifx` z-index 24 → **41**) so the coins sprinkle *over*
+  the Gold counter, not behind it. Still below dragged cards (z100), modals (z50+), and the dev/settings
+  buttons (z200). Side effect: combat impact effects now also render above the hand + floating damage
+  numbers (brief, so readability is unaffected).
 
 **Files:** `pixiFx.ts` (gravity field + apply, `coins()`, coin texture), `Recruit.tsx` (import + sell
 trigger).

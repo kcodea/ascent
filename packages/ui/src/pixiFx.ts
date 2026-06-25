@@ -204,8 +204,8 @@ class FxController {
     if (!this.ready) return;
     const count = 9;
     for (let i = 0; i < count; i++) {
-      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.3; // up, fanned ±37°
-      const speed = 230 + Math.random() * 260;
+      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.15; // up, fanned ±33°
+      const speed = 380 + Math.random() * 320;                 // punchier upward launch
       const fs = 0.7 + Math.random() * 0.45;
       this.spawn(this.coinTex!, {
         x: x + (Math.random() - 0.5) * 18,
@@ -213,7 +213,7 @@ class FxController {
         vx: Math.cos(ang) * speed,
         vy: Math.sin(ang) * speed, // negative → pops upward
         drag: 0.85,                // light air damping; gravity dominates the vertical
-        gravity: 1500,             // arc up then fall back down
+        gravity: 1700,             // pull the higher launch back down within its life
         life: 700 + Math.random() * 400,
         fromScale: fs,
         toScale: fs * 0.85,        // hold roughly its size (coins don't shrink to nothing)

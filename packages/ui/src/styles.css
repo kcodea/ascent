@@ -1198,10 +1198,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.struck .hp { animation: hpflash 0.45s ease; }
 @keyframes hpflash { 0%, 100% { transform: none; box-shadow: none; } 40% { transform: scale(1.45); box-shadow: 0 0 14px 3px var(--threat); filter: brightness(1.25); } }
 @keyframes floatup { 0% { opacity: 0; transform: translateY(14px) scale(0.5); } 10% { opacity: 1; transform: translateY(0) scale(1.18); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(-8px) scale(1); } 100% { opacity: 0; transform: translateY(-30px) scale(0.96); } }
-/* The PixiJS WebGL effects overlay (particle impacts, flashes) — a transparent full-viewport
-   canvas drawn over the board, never intercepting input. Sits above the board/projectiles but
-   below the hand + floating damage numbers so those stay readable on top. */
-.pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 24; }
+/* The PixiJS WebGL effects overlay (particle impacts, flashes, sell-coin sprinkle) — a transparent
+   full-viewport canvas drawn over the board, never intercepting input. Sits above the status bar
+   (z40) so coins sprinkle OVER the Gold counter, but below dragged cards (z100), modals (z50+), and
+   the dev/settings buttons (z200). */
+.pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 41; }
 /* Start-of-Combat bolt flying from the caster to its target */
 .proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
 /* Blaster's Deathrattle: purple blast bolts to every minion. */

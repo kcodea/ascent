@@ -122,13 +122,15 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  * `RunState.discoverQueue` and opened. Kept as plain data (not a closure) so it survives save/load:
  * the `filter` is a string id resolved back to a predicate (`discoverFilter`) when the offer opens.
  *   • `{ kind: 'spell' }`            → a 3-random-spell Discover (offerSpellDiscover).
- *   • `{ kind: 'minion'; tier; filter? }` → a minion Discover (offerDiscover) at `tier`, with an
- *      optional fixed `exactTier` (Sprout: only that tier, no floor-walk) and a card `filter`
- *      (Help Wanted: Battlecry minions only).
+ *   • `{ kind: 'minion'; tier; filter? }` → a minion Discover (offerDiscover) up to `tier`, weighing every
+ *      eligible card EVENLY (no high-tier bias — same rule as the shop + spell Discover). Options: a fixed
+ *      `exactTier` (Sprout: only that tier), a card `filter` (Help Wanted: Battlecry minions only), and
+ *      `topTierFirst` — the ONE high-tier exception, set only by the golden/triple reward ("peek one tier
+ *      up"), which fills from the top tier down.
  */
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; exclude?: string };
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; exclude?: string; topTierFirst?: boolean };
 
 export interface RunState {
   seed: number;

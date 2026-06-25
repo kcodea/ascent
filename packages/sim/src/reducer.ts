@@ -181,7 +181,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Yazzus does NOT multiply it — exactly one Discover.
       if (card.cardId === 'discoverspell') {
         s.hand.splice(i, 1);
-        queueDiscover(s, { kind: 'minion', tier: s.tier + 1 }); // peek one tier above the current tavern tier
+        // The golden/triple reward keeps its high-tier bias (`topTierFirst`) — it's a reward to PEEK one tier
+        // above your tavern tier, unlike card-driven Discovers which weigh every eligible tier evenly.
+        queueDiscover(s, { kind: 'minion', tier: s.tier + 1, topTierFirst: true });
         return s;
       }
 

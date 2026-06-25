@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: card-driven Discovers weigh every eligible tier EVENLY (no high-tier bias) — only the golden reward peeks up
+
+Owner report: Discovers favored higher-tier minions. Root cause: `offerDiscover`'s tiered branch built its pool with a **floor-walk** — it started at the target tier (`floor = target`) and included ONLY that tier, dropping to lower tiers just enough to reach 3 candidates. So at tavern tier 5 a Sea Urchin offered three tier-5 beasts whenever ≥3 existed, never mixing in lower tiers. The shop was flattened (equal chance per tier) long ago; Discover wasn't.
+
+Now every card-driven Discover weighs every eligible card **at or below** the target tier **evenly** (pool = `tier <= target`, uniform pick) — matching the flattened shop + the spell Discover (`offerSpellDiscover`, already uniform). This covers **Sea Urchin** (`battlecryDiscoverMinion`, up to your tavern tier) and **Help Wanted** (Battlecry-filtered, up to your tavern tier). Sprout (fixed Tier 1) and spell Discover were already uniform.
+
+The golden/triple reward ("peek one tier up", the `discoverspell` token) is the ONE intentional exception and is **unchanged**: a new `topTierFirst` flag on the minion `DiscoverSpec` preserves the floor-walk only for it, so a triple still shows you the next tier up.
+
+**Files:** `recruit.ts` (`offerDiscover` → uniform default + `topTierFirst` floor-walk path; `openDiscover` threads the flag), `state.ts` (`DiscoverSpec.topTierFirst`), `reducer.ts` (`discoverspell` sets `topTierFirst: true`), `run.test.ts` (+1: uniform Sea Urchin offers a Tier-1 beast; the golden reward stays top-tier-only).
+
+**Verification:** `typecheck + lint + test (369, +1) + harness (determinism) + build:web` green. Confirmed **live in-preview**: a tier-2 Sea Urchin offered all four pool beasts across seeds (incl. the Tier-1 `alley`), not just the top tier.
 ### feat: card-touch sound + dust puff +20%
 
 Follow-ups to the board-click feedback:

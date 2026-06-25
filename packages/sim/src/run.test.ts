@@ -1447,19 +1447,33 @@ describe('run loop (@game/sim)', () => {
     expect(got.health).toBe(2); // Health unaffected
   });
 
-  it('Symbiote hero power triples the token the moment the 3rd is granted (not waiting for a buy)', () => {
+  it('Symbiote hero power grants a token at the START of every 5th turn, tripling it on the spot', () => {
     let s: RunState = {
       ...createRun(1, 'symbiote'),
-      heroPowerTick: 3, // next faceOmen → tick 4 → grants the 3rd token
+      wave: 4, phase: 'combat', // resolveCombat → advanceCombat → wave 5 → Symbiote grants the 3rd token
       board: [],
       hand: [
         { uid: 't1', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
         { uid: 't2', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
       ],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
-    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.wave).toBe(5); // start of the 5th turn
     expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && c.golden)).toHaveLength(1); // 3 → 1 golden, now
     expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && !c.golden)).toHaveLength(0);
+  });
+
+  it('Symbiote hero power does NOT grant on a non-5th turn', () => {
+    let s: RunState = {
+      ...createRun(1, 'symbiote'),
+      wave: 5, phase: 'combat', // → wave 6, not a multiple of 5 → no grant
+      board: [], hand: [],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.wave).toBe(6);
+    expect(s.hand.filter((c) => c.cardId === 'symbioticattachment')).toHaveLength(0);
   });
 
   it('Sergeant: every recruit Attack-gain improves its Deathrattle HP grant (+2 per event, golden +4)', () => {

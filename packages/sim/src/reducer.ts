@@ -505,25 +505,6 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
-      // Symbiote hero power: grant a Symbiotic Attachment token every 4 turns.
-      if (getHero(s.heroId).power.kind === 'symbiote') {
-        s.heroPowerTick = (s.heroPowerTick ?? 0) + 1;
-        if (s.heroPowerTick % 4 === 0) {
-          const def = CARD_INDEX['symbioticattachment'];
-          if (def && s.hand.length < CONFIG.handMax) {
-            s.hand.push({
-              uid: `b${s.uidSeq++}`,
-              cardId: 'symbioticattachment',
-              tribe: def.tribe,
-              attack: def.attack + (s.undeadBuyAtk ?? 0),
-              health: def.health,
-              keywords: [...def.keywords],
-              golden: false,
-            });
-            checkTriples(s); // the 3rd granted token combines into a golden NOW (not only on the next buy)
-          }
-        }
-      }
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
       // Serve a strength-matched real board from the opponent pool when one exists (getting off the
@@ -980,6 +961,23 @@ function advanceCombat(s: RunState): void {
     s.frozen = false;
   } else refreshTavern(s);
   s.phase = 'recruit';
+  // Symbiote hero power: at the START of every 5th turn, add a Symbiotic Attachment token to the hand
+  // (the checkTriples below also combines it if it completes a triple). The hero starts with one token
+  // (createRun); this is the recurring grant — turns 5, 10, 15, …
+  if (getHero(s.heroId).power.kind === 'symbiote' && s.wave % 5 === 0) {
+    const def = CARD_INDEX['symbioticattachment'];
+    if (def && s.hand.length < CONFIG.handMax) {
+      s.hand.push({
+        uid: `b${s.uidSeq++}`,
+        cardId: 'symbioticattachment',
+        tribe: def.tribe,
+        attack: def.attack + (s.undeadBuyAtk ?? 0),
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+  }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here

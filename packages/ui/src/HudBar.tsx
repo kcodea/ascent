@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
+import { BuffsFrame } from './BuffsFrame';
 import { Icon } from './Icon';
 import { OpponentFrame } from './OpponentFrame';
 import { isMuted, toggleMute } from './sfx';
@@ -45,7 +46,11 @@ export function HudBar() {
       {/* The player's name on its own line, below the ASCENT/Wave boxes — mirrors the opponent frame
           (below-right). Absolutely positioned so it never reflows the bar. */}
       {playerName && <div className="barplayer" title="You">{playerName}</div>}
-      <OpponentFrame />
+      {/* Top-right column: the next-enemy frame (recruit only) with the run-buffs window stacked below it. */}
+      <div className="topright">
+        <OpponentFrame />
+        <BuffsFrame />
+      </div>
     </div>
   );
 }

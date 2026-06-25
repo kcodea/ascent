@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: run-buffs window (top-right) + Symbiote timing → start of every 5th turn
+
+- **Symbiote** hero power now grants its Symbiotic Attachment token at the **START of every 5th turn** (waves 5/10/15…) instead of the end of every 4. Moved the grant from `faceOmen` (end of turn) to `advanceCombat` (the wave's shop opening), wave-keyed (`s.wave % 5 === 0`) — the shop-start `checkTriples` still combines a granted token. `heroPowerTick` is now unused (kept on `RunState` for save compat). Hero text + tests updated.
+- **Buffs window** — a collapsible panel in the top-right, stacked **under the next-enemy frame** (`HudBar` now wraps both in a `.topright` column). Open by default, and only rendered when ≥1 tracked buff is active. Tracks the run's live permanent buffs: **spell power** (hero amplify + card-driven), **Undead · everywhere** (`undeadBuyAtk` + Lantern aura), **Fodder** (`cardBuffs.fred`), **Imps** (`impBuff`), **Clings** (`cardBuffs.cling`), and — only while on board — **Mama Bear** (current per-summon grant) and **Archmagus Guel** (current per-spell grant). The pure gather logic lives in `runBuffs.ts` (JSX-free, unit-tested); `BuffsFrame.tsx` is the view.
+
+**Files:** `reducer.ts` (Symbiote move), `heroes.ts` (text), `run.test.ts` (+1 Symbiote, rewrote 1), `runBuffs.ts` + `BuffsFrame.tsx` (new), `BuffsFrame.test.ts` (new, +3), `HudBar.tsx` + `styles.css` (top-right column + window).
+
+**Verification:** `typecheck + lint + test (358, +4) + harness + build:web` green. Buffs window confirmed **live in-preview** — renders under the opponent frame with all rows (spell power, undead, fodder, imps, Mama Bear, Guel) at correct live values, collapses to `Buffs N ▸`, and Mama Bear/Guel rows drop when off board.
+
 ### fix: golden cards now show their LIVE rules text (Sergeant, Taragosa, …), not the static printed goldenText
 
 Owner report: golden Sergeant's tooltip "wasn't showing the right value." Root cause (general, not Sergeant-specific): `Card.tsx` renders `card.goldenText` for a golden card, but the live-text helpers (sergeantText, taragosaText, …) only ever fed the live value into `card.text`. `instView` (Recruit) had patched only Guel and Mama Bear into `goldenText`; every other golden live-text card fell back to the **static printed** goldenText. So a golden Sergeant with +6 accrued showed the printed "+4 Health" instead of the live "+10"; a golden Taragosa showed "+6/+8" instead of its spell-power-scaled value.

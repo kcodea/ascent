@@ -83,7 +83,20 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .tribes .tb svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--c); }
 /* Next-opponent intel frame — hangs under the top bar's right edge (below the tribes). Portrait + HP
    visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
-.oppframe { position: absolute; top: calc(100% + 8 * var(--u)); right: 0; z-index: 60; display: flex; align-items: center; gap: calc(8 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(12 * var(--u)) calc(5 * var(--u)) calc(9 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: help; }
+/* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
+.topright { position: absolute; top: calc(100% + 8 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8 * var(--u)); }
+.oppframe { position: relative; display: flex; align-items: center; gap: calc(8 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(12 * var(--u)) calc(5 * var(--u)) calc(9 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: help; }
+/* Run-buffs window — a compact list of active permanent buffs; collapsible header. */
+.buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; }
+.buffs-head { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; padding: calc(5 * var(--u)) calc(10 * var(--u)); background: none; border: none; cursor: pointer; font-family: 'Outfit'; font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
+.buffs-head svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
+.buffs-head .buffs-title { flex: 1; text-align: left; }
+.buffs-head .buffs-count { background: var(--acc); color: #fff; border-radius: 99px; padding: 0 calc(6 * var(--u)); font-size: calc(10 * var(--u)); }
+.buffs-head .buffs-chev { color: var(--ink3); font-size: calc(10 * var(--u)); }
+.buffs-body { display: flex; flex-direction: column; padding: 0 calc(10 * var(--u)) calc(7 * var(--u)); gap: calc(3 * var(--u)); }
+.buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); }
+.buff-row .buff-label { font-family: 'Outfit'; font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink); white-space: nowrap; }
+.buff-row .buff-val { font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); color: var(--acc-dk); font-variant-numeric: tabular-nums; }
 .oppframe .opp-l { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
 .oppframe .opp-pic { width: calc(42 * var(--u)); height: calc(42 * var(--u)); border-radius: calc(10 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--threat); }
 .oppframe .opp-pic img { width: 100%; height: 100%; object-fit: cover; }

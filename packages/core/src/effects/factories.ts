@@ -34,6 +34,52 @@ function grantShield(ctx: CombatContext, m: Minion): void {
   ctx.log({ type: 'shieldUp', target: m.uid });
 }
 
+/** Whether a minion has a Battlecry at all (any `onPlay` effect) — Ryme targets ANY Battlecry neighbour,
+ *  including economy ones (Discover, gain-Gold…) which simply no-op in combat (nothing to do there). */
+const hasBattlecry = (m: Minion): boolean => m.effects.some((e) => e.on === 'onPlay');
+
+/** Drakko the Drummer's doubling for Ryme's re-fired Battlecries (combat mirror of recruit's `bestCopyRepeats`):
+ *  count living Drakkos on `side`, golden → +2 else any → +1 (best single copy, NO stacking). Total = 1 + that,
+ *  so one Drakko makes each trigger fire twice, a golden Drakko three times. */
+const drakkoRepeats = (ctx: CombatContext, side: Side): number => {
+  let bonus = 0;
+  for (const m of ctx.living(side)) if (m.cardId === 'drummer') bonus = Math.max(bonus, m.golden ? 2 : 1);
+  return 1 + bonus;
+};
+
+/** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Only the
+ *  combat-meaningful battlecries do anything here; others no-op. Magnitude respects the source's own golden. */
+function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
+  const g = m.golden ? 2 : 1;
+  const tribeOf = (t: Minion, tribe: string): boolean =>
+    !tribe || tribe === 'any' || t.tribe === tribe || t.tribe2 === tribe || !!ctx.getCard(t.cardId)?.universalTribe;
+  for (const eff of m.effects) {
+    if (eff.on !== 'onPlay') continue;
+    const p = eff.params ?? {};
+    if (eff.do === 'battlecrySummon') {
+      const token = ctx.getCard(str(p.tokenId));
+      if (token) for (let i = 0; i < num(p.count, 1) * g; i++) ctx.summon(m.side, token, m.uid);
+    } else if (eff.do === 'battlecryBuffTribe') {
+      const tribe = str(p.tribe), a = num(p.attack) * g, h = num(p.health) * g;
+      const includeSelf = p.includeSelf !== false;
+      for (const t of ctx.living(m.side)) if ((includeSelf || t !== m) && tribeOf(t, tribe)) ctx.buff(t, a, h, m.uid);
+    } else if (eff.do === 'battlecryBuffUndeadAttack') {
+      const a = num(p.amount, 1) * g;
+      for (const t of ctx.living(m.side)) if (tribeOf(t, 'undead')) ctx.buff(t, a, 0, m.uid);
+    } else if (eff.do === 'battlecryGrantKeyword') {
+      const kws = Array.isArray(p.keywords) ? (p.keywords as Keyword[]) : [];
+      const friends = ctx.living(m.side).filter((t) => t !== m); // auto-pick the highest-Attack friend (no chosen target in combat)
+      if (friends.length && kws.length) {
+        const target = friends.reduce((a, b) => (b.attack > a.attack ? b : a));
+        for (const kw of kws) if (!target.keywords.includes(kw)) {
+          target.keywords.push(kw);
+          if (kw === 'DS') target.divineShield = true;
+        }
+      }
+    }
+  }
+}
+
 /**
  * Combat-time factories. This is a *partial* registry: recruit-time ids
  * (battlecries, buff-on-buy) are implemented in `@game/sim` against the run
@@ -46,7 +92,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummon: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const card = ctx.getCard(str(params.tokenId));
-    const total = num(params.count, 1) * mul(self); // golden doubles the token count (e.g. Pack Scrounger 2 → 4)
+    // golden doubles the count (Deathless Hand 1 → 2) UNLESS `fixed` is set (Imp King keeps 2; golden lifts its buff instead)
+    const total = num(params.count, 1) * (params.fixed ? 1 : mul(self));
     const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
     const grantKws = kw ? [kw] : undefined; // passed into summon so the keyword is in the snapshot from the start
     for (let i = 0; i < total; i++) {
@@ -604,13 +651,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   // --- Demons (combat-resolved: Brood Matron breeds, the Sovereign destroys) ---
 
-  /** Brood Matron — each time another friend dies, summon a token beside self. (Golden breeds two;
-   *  Echo Warden's extra copies are added in the summon path, not here.) */
+  /** Brood Matron — each time another friend dies, summon one Imp beside self, capped at `max` per combat
+   *  (golden doubles the cap). The `bredCount` tracks how many it has bred this fight. */
   onFriendDeathSummon: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion === self || minion.side !== self.side) return;
-    const reps = mul(self);
-    for (let i = 0; i < reps; i++) ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
+    const cap = num(params.max, 3); // golden does NOT raise the cap — it doubles the Avenge buff instead
+    if ((self.bredCount ?? 0) >= cap) return;
+    ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
+    self.bredCount = (self.bredCount ?? 0) + 1;
   },
 
   /** Abyssal Sovereign — Start of Combat: destroy the enemy with the highest Attack. */
@@ -722,5 +771,80 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       ctx.buff(m, amount, 0, self.uid);
     }
     ctx.grantUndeadBuyAtk(amount, self.side);
+  },
+
+  /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
+   *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
+   *  Golden doubles the per-proc amount. */
+  deathrattleBuffImps: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 3) * mul(self);
+    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
+    ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
+  },
+
+  /** Brood Matron — Avenge (X): every X friendly deaths, buff your Imps +atk/+hp (permanent, carried back).
+   *  Golden doubles the stat gain (the summon cap stays at 3). */
+  avengeBuffImps: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const every = Math.max(1, num(params.count, 3));
+    if (count % every !== 0) return;
+    const a = num(params.attack, 3) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
+    ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
+  },
+
+  /** Ryme — Deathrattle: re-fire an adjacent minion's Battlecry in combat. Considers living neighbours that
+   *  HAVE a Battlecry (random pick if both qualify); golden re-fires BOTH. Each trigger: (1) narrates via an
+   *  `sc` event (so the replay shows Ryme proccing), (2) runs the Battlecry's combat-meaningful effect
+   *  (economy battlecries no-op), and (3) emits `battlecryTriggered` so reactive cards (Karwind/Bane) proc —
+   *  once per trigger. Drakko the Drummer doubles each trigger. Sylus / Deathsayer re-run this whole
+   *  Deathrattle (they re-invoke by factory id), so their multiplication composes for free. */
+  deathrattleReplayAdjacentBattlecry: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const arr = ctx.boards[self.side];
+    const i = arr.indexOf(self);
+    const neighbors = [arr[i - 1], arr[i + 1]].filter(
+      (m): m is Minion => !!m && !m.dead && m.health > 0 && hasBattlecry(m),
+    );
+    if (neighbors.length === 0) return;
+    const chosen = self.golden ? neighbors : [ctx.rng.pick(neighbors)];
+    const repeats = drakkoRepeats(ctx, self.side); // Drakko doubles each trigger (×2, golden Drakko ×3)
+    for (const n of chosen) {
+      for (let r = 0; r < repeats; r++) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${n.name}'s Battlecry` });
+        replayCombatBattlecry(ctx, n); // the Battlecry's own combat effect (no-op for economy battlecries)
+        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: n }); // procs Karwind / Bane per trigger
+      }
+    }
+  },
+
+  /** Karwind (combat half) — when a Battlecry is triggered on this side (Ryme re-firing an adjacent
+   *  Battlecry), buff your minions of `tribe` +atk/+hp. Golden doubles. Mirrors the recruit factory. */
+  onBattlecryBuffTribe: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side: Side }).side !== self.side) return;
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (tribe && tribe !== 'any' && m.tribe !== tribe && m.tribe2 !== tribe && !ctx.getCard(m.cardId)?.universalTribe) continue;
+      ctx.buff(m, a, h, self.uid);
+    }
+  },
+
+  /** Bane (combat half) — on a triggered Battlecry, buff your living Fodder + Imps +atk/+hp, and raise the
+   *  run-wide Imp buff (permanent — carried back) so future Imps inherit it. Golden doubles. */
+  onBattlecryBuffFodder: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side: Side }).side !== self.side) return;
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      const def = ctx.getCard(m.cardId);
+      if (def?.keywords.includes('FD') || def?.imp) ctx.buff(m, a, h, self.uid);
+    }
+    ctx.grantImpBuff(a, h, self.side); // Imps permanent — carried back to RunState.impBuff
   },
 };

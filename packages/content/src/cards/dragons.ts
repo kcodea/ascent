@@ -49,7 +49,7 @@ export const DRAGONS: CardDef[] = [
     id: 'karwind',
     name: 'Karwind',
     tribe: 'dragon',
-    tier: 6,
+    tier: 5,
     attack: 2,
     health: 12,
     keywords: [],
@@ -60,7 +60,8 @@ export const DRAGONS: CardDef[] = [
     // Dual-type Dragon/Demon payoff. Every Battlecry *fire* on your board permanently enchants the Fodder
     // card type +1/+1 run-wide (Ritualist's mechanism, on a battlecry trigger instead of End of Turn). Fires
     // per fire, so Drakko's doubling procs it twice; multiple Banes stack. Bridges Demon Fodder with a
-    // Battlecry-heavy build. No combat factory → inert in combat (just a 12/12 body).
+    // Battlecry-heavy build. In combat it also reacts to Ryme's battlecry replays via onBattlecryBuffFodder
+    // (buffs living FD/imp bodies this combat + grants the permanent Imp carry-back).
     id: 'bane',
     name: 'Bane',
     tribe: 'dragon',
@@ -69,9 +70,9 @@ export const DRAGONS: CardDef[] = [
     attack: 12,
     health: 12,
     keywords: [],
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffFodder', params: { attack: 1, health: 1 } }],
-    text: 'After you trigger a Battlecry, give Fodder **+1/+1** this run.',
-    goldenText: 'After you trigger a Battlecry, give Fodder **+2/+2** this run.',
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffFodder', params: { attack: 2, health: 2 } }],
+    text: 'After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.',
+    goldenText: 'After you trigger a Battlecry, give Fodder and Imps **+4/+4** this run.',
   },
 
   // --- New dragons (2026-06-24 content batch). Frontdrake's cadence grant, Supporter's tribe Rally, and

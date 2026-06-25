@@ -13,7 +13,6 @@ export function StatusBar() {
   const dispatch = useGame((s) => s.dispatch);
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const combatEnemyDeaths = useGame((s) => s.combatEnemyDeaths);
-  const sellTick = useGame((s) => s.sellTick);
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
   const hero = getHero(run.heroId);
   const power = hero.power;
@@ -67,7 +66,8 @@ export function StatusBar() {
   // embersPerWave, capped), plus any board mana income (Money Bot) on top of the cap —
   // assuming the source stays on board.
   const manaBonus = boardManaBonus(run);
-  const nextEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + manaBonus;
+  // Hoarder's Battlecry banks Gold for next turn only — fold it into the Wave+1 projection (not Wave+2).
+  const nextEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + manaBonus + (run.bonusEmbersNextTurn ?? 0);
   const afterEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + manaBonus;
   const hpPct = Math.max(0, Math.min(100, (run.resolve / run.maxResolve) * 100));
   // Your current spell buff — the +Attack/+Health every stat-granting spell gains right now (hero amplify +
@@ -98,7 +98,6 @@ export function StatusBar() {
             <div className="v">{run.embers}</div>
             <div className="l">Gold</div>
           </div>
-          {sellTick > 0 && <span className="sellfx" key={sellTick}>+1</span>}
           {/* hover: how much Gold you'll start the next two waves with (cascading up) */}
           <div className="emberproj" role="tooltip">
             <div className="ept">Gold · coming up</div>

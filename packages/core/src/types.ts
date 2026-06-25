@@ -155,6 +155,10 @@ export type EffectFactoryId =
   | 'spellCastBuffUndeadAttack' // Forsaken Weaver (combat): on spell cast, give your Undead +Attack
   | 'deathrattleGrantCardToHand' // Pillager: Deathrattle — add a specific card to hand after combat
   | 'onKillBuffUndeadAttack' // Karthus: when this kills an enemy, give your Undead +Attack permanently
+  | 'deathrattleBuffImps' // Imp King: Deathrattle — buff all friendly Imps +atk/+hp (combat)
+  | 'avengeBuffImps' // Brood Matron: Avenge (X) — buff all friendly Imps +atk/+hp (combat)
+  | 'deathrattleReplayAdjacentBattlecry' // Ryme: Deathrattle — re-fire an adjacent minion's Battlecry in combat
+  | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryFreeRollsAndBuffShop' // Demonic Anomaly: Battlecry — gain free refreshes + buff the current tavern
@@ -177,6 +181,10 @@ export interface CardDef {
   /** Counts as EVERY non-neutral tribe simultaneously: receives all tribe buffs and can Magnetize onto
    *  any non-neutral minion (Symbiotic Attachment). Absent = normal tribe matching. */
   universalTribe?: boolean;
+  /** An "Imp" — the target of imp-buff effects (Fodder Feeder, Imp King, Brood Matron, Ritualist, Bane).
+   *  Currently the 1/1 Imp token only. Run-wide imp buffs accrue into `RunState.impBuff` and apply to these
+   *  in combat (imps are combat-summoned tokens); combat imp buffs target these directly. */
+  imp?: boolean;
   tier: Tier;
   attack: number;
   health: number;
@@ -298,6 +306,8 @@ export interface Minion {
   /** Sergeant: accumulated HP bonus on its Deathrattle (grows each time Sergeant gains Attack in
    *  combat). Applied on top of the base params.health when the Deathrattle fires. Absent = 0. */
   hpGrantBonus?: number;
+  /** Brood Matron: how many Imps it has bred this combat — caps its friend-death summons. Absent = 0. */
+  bredCount?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   side: Side;
@@ -401,6 +411,9 @@ export interface CombatResult {
   /** Permanent Undead Attack bonus from this combat (Karthus on-kill). Stacks into `undeadBuyAtk` and is
    *  also applied to existing run-board Undead immediately after combat. Absent if 0. */
   playerUndeadBuyAtkGain?: number;
+  /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
+   *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
+  playerImpBuffGain?: { attack: number; health: number };
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
   odds?: { win: number; draw: number; lose: number };
@@ -469,6 +482,9 @@ export interface CombatContext {
   /** Karthus: permanently raise run-wide Undead buy-time attack by `amount` (player only). Carried back
    *  via CombatResult.playerUndeadBuyAtkGain, stacked into undeadBuyAtk and applied to the run board. */
   grantUndeadBuyAtk(amount: number, side: Side): void;
+  /** Imp King / Brood Matron Avenge: permanently raise the run-wide Imp buff by +atk/+hp (player only).
+   *  Carried back via CombatResult.playerImpBuffGain → added to RunState.impBuff so future Imps inherit it. */
+  grantImpBuff(attack: number, health: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

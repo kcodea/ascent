@@ -22,6 +22,36 @@ export const DEMONS: CardDef[] = [
     token: true,
   },
   {
+    // When SOLD (handled in the reducer's sell case — no combat/recruit factory): queue a Fodder into the
+    // next tavern + buff your Imps everywhere (run-wide `impBuff`). Golden doubles both.
+    id: 'fodderfeeder',
+    name: 'Fodder Feeder',
+    tribe: 'demon',
+    tier: 1,
+    attack: 1,
+    health: 2,
+    keywords: [],
+    effects: [],
+    text: 'When you **sell** this, add a **Fodder** to your next tavern and give your **Imps +1/+1** everywhere.',
+    goldenText: 'When you **sell** this, add **2 Fodder** to your next tavern and give your **Imps +2/+2** everywhere.',
+  },
+  {
+    // Deathrattle (combat): summon 2 Imps, then buff all your Imps (the new ones included) +2/+3. Golden 2×.
+    id: 'impking',
+    name: 'Imp King',
+    tribe: 'demon',
+    tier: 4,
+    attack: 6,
+    health: 5,
+    keywords: [],
+    effects: [
+      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2, fixed: true } },
+      { on: 'onDeath', do: 'deathrattleBuffImps', params: { attack: 2, health: 3 } },
+    ],
+    text: '**Deathrattle:** Summon 2 **Imps** and give your Imps **+2/+3** permanently.',
+    goldenText: '**Deathrattle:** Summon 2 **Imps** and give your Imps **+4/+6** permanently.',
+  },
+  {
     id: 'feed',
     name: 'Soulfeeder',
     tribe: 'demon',
@@ -44,6 +74,8 @@ export const DEMONS: CardDef[] = [
     fodderMult: 2,
     effects: [],
     text: 'Gains **2x** stats from Fodder.',
+    // Golden eats at 3× (fodderMultiplier = base + 1), not the naive 2× doubling — set it explicitly.
+    goldenText: 'Gains **3x** stats from Fodder.',
   },
   {
     id: 'brood',
@@ -53,9 +85,12 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'onFriendDeathSummon', params: { tokenId: 'impscrap' } }],
-    text: 'Each time a friend dies, summon a 1/1 Imp.',
-    goldenText: 'Each time a friend dies, summon **two** 1/1 Imps.',
+    effects: [
+      { on: 'onDeath', do: 'onFriendDeathSummon', params: { tokenId: 'impscrap', max: 3 } },
+      { on: 'avenge', do: 'avengeBuffImps', params: { count: 3, attack: 3, health: 2 } },
+    ],
+    text: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+3/+2** permanently.',
+    goldenText: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+6/+4** permanently.',
   },
   {
     // Dual-type Demon/Mech. Magnetic — and because it's also a Mech it can weld onto a friendly
@@ -91,8 +126,9 @@ export const DEMONS: CardDef[] = [
     attack: 2,
     health: 5,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'buffFodderEverywhere', params: { attack: 1, health: 1 } }],
-    text: '**End of Turn:** all Fodder gets **+1/+1**, wherever it is.',
+    effects: [{ on: 'endOfTurn', do: 'buffFodderEverywhere', params: { attack: 2, health: 2 } }],
+    text: '**End of Turn:** give your Imps and Fodder **+2/+2**, wherever they are.',
+    goldenText: '**End of Turn:** give your Imps and Fodder **+4/+4**, wherever they are.',
   },
   {
     // Every 4 manual refreshes, consumes a random non-Fodder offer from the tavern and gains its stats

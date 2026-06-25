@@ -73,6 +73,21 @@ export const UNDEAD: CardDef[] = [
     goldenText: 'When this kills an enemy, give your Undead **+6 Attack** permanently.',
   },
   {
+    // Deathrattle (combat): re-fire an adjacent minion's Battlecry — only combat-meaningful battlecries
+    // (summon / tribe buff / undead-attack / grant-keyword) do anything; economy battlecries no-op. Golden
+    // re-fires BOTH neighbours; non-golden picks one at random when both have a replayable battlecry.
+    id: 'ryme',
+    name: 'Ryme',
+    tribe: 'undead',
+    tier: 4,
+    attack: 5,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: {} }],
+    text: "**Deathrattle:** Trigger an adjacent minion's **Battlecry**.",
+    goldenText: "**Deathrattle:** Trigger **both** adjacent minions' **Battlecries**.",
+  },
+  {
     // Deathrattle: summon a Footman (T1 1/1 Reborn Undead token). Golden summons 2.
     id: 'deathlesshand',
     name: 'Deathless Hand',

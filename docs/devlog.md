@@ -5,6 +5,95 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: Ryme battlecry-trigger ecosystem (Drakko ×, sc animation, Karwind/Bane combat) + Hunter recruit proc + Target Dummy 0/6
+
+Three owner-reported fixes.
+
+- **Target Dummy → 0/6** (was 0/4). Data-only (`neutral.ts`); `docs/cards.csv` re-dumped; two def-derived tests updated (Broker bake `7 = 6+1`, Discover `[0,6]`).
+- **Hunter now procs from EVERY shop Attack gain.** Hunter (T4 Dragon, "when this gains Attack, give your minions +Health") only had a *combat* reactor — in the shop, raising its Attack (Fortify, Growth, Spirit Fire, Karwind, weld, end-of-turn) spread no Health. Rather than thread the run state through ~35 `addBuff` sites, the dispatch lives at the **reducer boundary**: `reduce()` now wraps `reduceCore()` and, for any recruit-phase action, diffs the board by uid — every minion present **before and after** whose Attack strictly **rose** fires its `onGainAttack` reactor (`fireOnGainAttack`, now early-bailing for non-reactors before building a context). This mirrors combat (where `ctx.buff` emits `onGainAttack` on a positive delta) and is naturally correct for hand/board semantics: a Hunter **bought into hand** or **tripled** (the golden lands in hand) doesn't spread Health until it's on the board and gains Attack there; a freshly **played** minion is creation, not a gain. Combat settles are skipped by the recruit-phase guard. The owner chose full generality over Fortify-only.
+- **Ryme's Deathrattle now actually triggers its neighbours' Battlecries in combat, with the full multiplier chain + an `sc` narration.** Rewrote `deathrattleReplayAdjacentBattlecry`: per chosen neighbour (golden Ryme = both; else a random qualifying one) it loops **`drakkoRepeats`** times — `1 + (golden Drakko ? 2 : any Drakko ? 1 : 0)`, `Math.max` (no stacking), mirroring the recruit semantics — and each iteration **(a)** logs an `sc` event (`"Ryme triggers X's Battlecry"`) so the proc animates on the dying Ryme, **(b)** calls `replayCombatBattlecry(n)` to actually fire the neighbour's battlecry, and **(c)** emits `battlecryTriggered`. That emit drives two **new combat factories**: `onBattlecryBuffTribe` (Karwind — buffs allied Dragons +1/+2 per proc, `universalTribe`/`tribe2`-aware) and `onBattlecryBuffFodder` (Bane — buffs living Fodder/Imp bodies + grants the permanent Imp carry-back). Because Sylus (`reaperBonus` re-runs onDeath) and Deathsayer (`rallyProcDeathrattle`, deathrattle-id re-invoke) each re-invoke Ryme's deathrattle by factory id and the neighbour/Drakko fan-out is re-evaluated fresh per invocation, the multipliers **compose multiplicatively**: `totalTriggers = invocations × (chosenNeighbours × drakkoRepeats)`, with `invocations = 1 + reaperBonus` on natural death (`× goldenDeathsayer` via Deathsayer). The owner's exact case — **golden Ryme + both neighbours + Drakko = 4 triggers → Karwind 4× (8 buffs)** — is locked by a test.
+
+**Why combat-only for Karwind/Bane reacting to Ryme:** `battlecryTriggered` is emitted in combat *only* by Ryme's deathrattle, so Karwind/Bane stay inert in any fight without a Ryme dying beside a live Battlecry — purely additive, no regression (confirmed: the only `onGainAttack` combat reactors are Hunter (Health-only) and Sergeant (counter-only), so the `battlecryTriggered → Karwind buff → onGainAttack` chain is depth-bounded and can't loop; summons route through the 7-cap guard).
+
+**Files:** `neutral.ts` (sandbag), `dragons.ts` (Bane comment), `factories.ts` (`drakkoRepeats`, rewritten Ryme factory, `onBattlecryBuffTribe`/`onBattlecryBuffFodder` combat factories), `recruit.ts` (`onGainAttackBuffAll` + cheap `fireOnGainAttack`), `reducer.ts` (`reduce` boundary-diff wrapper → `reduceCore`), `simulate.test.ts` (+2 Ryme tests), `run.test.ts` (+3 Hunter tests, sandbag assertions), `docs/cards.csv`.
+
+**Verification:** `typecheck + lint + test (344, +7 new) + harness (determinism) + build:web` all green. New tests: Ryme → `battlecryTriggered` → Karwind +1/+2 with an `sc` narration; golden Ryme + Drakko = 4 triggers → 8 Karwind buffs; Hunter procs from Fortify; Hunter procs from a Growth spell (any Attack gain); a Health-only shop action (Mend) does NOT proc Hunter. Validated by a 3-agent adversarial verify workflow (combo math, regression/loop safety, Hunter/sandbag correctness — all CORRECT); the workflow flagged the original Fortify-only scope, which the owner then chose to generalize.
+
+### fix: imp/Ryme/Hoarder refinements + sell float + gold-projection
+
+Owner-requested follow-ups on the Imp/Ryme batch:
+
+- **Imp buffs are now permanent.** Imp King's Deathrattle and Brood Matron's Avenge buff the current combat Imps **and** carry back to the run-wide `RunState.impBuff` (new `CombatContext.grantImpBuff` → `CombatResult.playerImpBuffGain` → `settleCombat`), so the gains persist into future fights like the recruit-side imp buffs.
+- **Brood golden** keeps the **3-summon cap** (golden no longer raises it) and instead **doubles the Avenge stat** (+6/+4).
+- **Imp King golden** stays **2 Imps** (new `fixed` param on `deathrattleSummon` skips the golden count-doubling) and doubles the buff to **+4/+6**.
+- **Ryme now targets ANY Battlecry neighbour** (incl. economy battlecries — they simply no-op in combat), via `hasBattlecry` (any `onPlay`) instead of the combat-replayable-only filter.
+- **Hoarder's banked Gold** is folded into the **Wave+1 Gold projection** (the bottom-left Gold mouseover), so the "+N next turn" shows up.
+- **Sell float.** Selling a minion now floats the **actual Gold gained** (shared `sellValueOf` helper — Hoarder 2/4, else `CONFIG.sellValue`) at the **spot the minion was released**, reusing the combat death-float overlay; removed the old fixed "+1" by the Gold counter.
+- **Imp token in hover popups.** Imp summoners/buffers (Brood, Imp King, Fodder Feeder, Ritualist, Bane) now show the **Imp token at its current buffed stats** in the hover popup (`tokenRefView` folds in `impBuff`); cards that touch both Fodder and Imps show both.
+
+**Verification:** updated/added tests (Imp King carry-back + golden 2-Imps; Brood golden cap stays 3). `typecheck + lint + test (339) + build:web` green; the Gold projection (+banked) verified live in-preview.
+
+### feat: Ryme (T4 Undead) — combat Battlecry-replay
+
+**Ryme** (T4 Undead 5/3) — **Deathrattle: trigger an adjacent minion's Battlecry** in combat (golden: both neighbours; random pick when both qualify). Battlecries are recruit-phase and baked before combat, so this required a new **combat Battlecry-replay**: `replayCombatBattlecry` re-fires a minion's `onPlay` effects in the combat context, implementing the combat-meaningful battlecries — `battlecrySummon` (summon tokens), `battlecryBuffTribe` (buff matching friends, `universalTribe`-aware), `battlecryBuffUndeadAttack` (Deathswarmer), and `battlecryGrantKeyword` (auto-picks the highest-Attack friend). Economy battlecries (Discover, gain-to-hand, free rolls, spell power, tavern buffs) have no combat meaning and no-op — so Ryme only considers neighbours with a *combat-replayable* battlecry (`hasCombatBattlecry` / `COMBAT_REPLAYABLE_BC`). The replayed battlecry's magnitude respects the **neighbour's** own golden; Ryme's golden only controls 1-vs-2 neighbours.
+
+**Files:** `packages/core/src/types.ts` + `packages/content/src/schema.ts` (factory id), `packages/core/src/effects/factories.ts` (`replayCombatBattlecry` + `deathrattleReplayAdjacentBattlecry`), `packages/content/src/cards/undead.ts` (Ryme), `ryme.png` art, `simulate.test.ts`, `docs/cards.csv`.
+
+**Verification:** new tests — Ryme re-fires a neighbour's Alleycat Battlecry (summons a Stray); a golden Ryme re-fires both neighbours (2 Strays). `typecheck + lint + test (339) + harness + build:web` all green.
+
+### feat: Imp archetype (2 new Demons + imp-buff system), hero-select 3, Brood/Ritualist/Bane/Karwind/Mama Bear/Hoarder reworks
+
+A large content batch introducing an **Imp** sub-archetype plus several tuning changes.
+
+**Hero select → 3 options** (`HERO_SELECT_COUNT` 2 → 3).
+
+**The Imp system.** Imps are combat-only tokens (Brood Matron / Imp King summon them mid-fight — they never sit on the recruit board), so "buff your Imps everywhere" is a run-wide bonus *applied in combat*, exactly like the undead system. New `CardDef.imp` tag (the 1/1 Imp token only). **Recruit** sources accrue a persistent `RunState.impBuff` (via `buffImpsRunWide`); `simulate` applies it to every friendly Imp at combat start AND on summon (new `applyImpBonus`). **Combat** sources buff the combat Imps directly (`deathrattleBuffImps` / `avengeBuffImps`).
+
+**2 new Demons:**
+- **Fodder Feeder** (T1 1/2) — when **sold** (handled in the reducer's sell case): queue a Fodder + accrue the run-wide Imp buff +1/+1 (golden +2/+2).
+- **Imp King** (T4 6/5) — Deathrattle: summon 2 Imps + buff your Imps +2/+3 (golden: 4 Imps, +4/+6).
+
+**Changes:**
+- **Brood Matron** — now breeds 1 Imp per friend death capped at 3 (golden 6, via `Minion.bredCount`); gains **Avenge (3): buff your Imps +3/+2**.
+- **Ritualist** — End of Turn now gives Imps **and** Fodder **+2/+2** (was Fodder +1/+1).
+- **Bane** — per-Battlecry enchant now hits Imps **and** Fodder **+2/+2** (was Fodder +1/+1).
+- **Karwind** → Tier 5 (was 6).
+- **Mama Bear** — +2/+2 improving +2/+2 (was +3/+3 / +3/+3); a gentler, longer ramp.
+- **Hoarder** — reworked from sell-scaling to **Battlecry: +1 Gold next turn (new `bonusEmbersNextTurn`, consumed in `advanceCombat`); sells for a flat 2 Gold** (golden 4). Dropped the boughtWave sell-scaling + its live text.
+- **Demonic Anomaly** — new art (`demonanomaly2`).
+
+**Art:** Fodder Feeder, Imp King, Demonic Anomaly 2 (PNG, matching the recent minion-art convention).
+
+**Files:** `packages/core/src/types.ts` (imp tag, 3 factory ids, `bredCount`, simulate sig), `packages/core/src/combat/simulate.ts` (`applyImpBonus`), `packages/core/src/effects/factories.ts` (`deathrattleBuffImps`/`avengeBuffImps`, Brood cap), `packages/content/src/{schema.ts,cards/{demons,dragons,beasts,neutral,tokens}.ts}`, `packages/sim/src/{state.ts,recruit.ts,reducer.ts}`, `packages/ui/src/{Recruit.tsx,art.ts}`, tests + `docs/cards.csv`.
+
+**Verification:** new tests (imp buff applied to combat summons; Imp King Deathrattle; Fodder Feeder sell; Brood cap; Hoarder flat sell + battlecry bank; Mama Bear +2/+2). Updated the Mama Bear / Ritualist / Chronos / Bane / Djinn / Flowing Monk / Brood tests for the new values. `typecheck + lint + test (337) + harness + build:web` green; hero-select 3 + clean boot verified in-preview. **Ryme (combat battlecry-replay) lands in a follow-up commit.**
+
+### feat: live-card-text audit + Soulsman "gained X Gold" metric
+
+A full audit pass (3 parallel agents over all card files) cross-referencing every card against the live-text system (`cardText.ts` helpers wired into `instView`/`Unit.tsx`, plus `spellDisplayText` for spells). Most cards were already correct — ordinary stat scaling shows on the green stat badges, and the existing 13 helpers cover the scaling-text cases. The audit surfaced a small set of genuine gaps, now fixed:
+
+- **Voracious Imp** — a golden copy printed "Gains **2x** stats from Fodder" but actually eats at **3×** (`fodderMultiplier` = base + 1, not the naive ×2). Added an explicit `goldenText: 'Gains **3x** …'`.
+- **Soulsman "gained X Gold" metric** (the requested feature) — `grantMaxGold` is Soulsman-only, so `playerMaxGoldGain` is entirely Soulsman's contribution; `settleCombat` now accumulates it into a new run-wide `RunState.soulsmanGold`, and `soulsmanText` appends a live "{{Gained X Gold this run.}}" to the card.
+- **Deathswarmer / Forsaken Weaver / Karthus** — these stack the run-wide `undeadBuyAtk` ("+Attack to your Undead wherever they are"), but that accumulated number had no on-screen home (only the recipients' badges showed it). `undeadBuyAtkText` now appends "{{New Undead arrive +N Attack.}}" on each contributor.
+- **Eternal Knight** — its run-wide card-type enchant (`cardBuffs.knit`, +3/+2 per death) is now surfaced as "{{Now +A/+H this run.}}" (`cardTypeTallyText`), parity with Cling Drone.
+
+These three new metrics are golden-independent suffixes, so `instView` computes one `metric` string and appends it to BOTH the normal and golden text (the `goldenText` branch was refactored into a `goldenBase` var) — non-metric cards get an empty suffix and are byte-identical to before.
+
+**Deliberately deferred (flagged for the owner):** (a) **Ghastly Bladesmith** — its per-death +1 spell power is honest and the payoff already shows on the spell cards; surfacing a total on the minion would misattribute the *global* spell-power pool (Cinderwing/Gnasher/Harry/hero all feed it) to Bladesmith. (b) **Welded-host Better Bot / Harry Botter** — a host Mech's accrued `rallyMechAtk` / `spellAuraBonus` is genuinely invisible, but surfacing it needs host-side weld text (the host renders a different card's def) — a separate infra change.
+
+**Files changed:** `packages/content/src/cards/demons.ts` (Imp goldenText), `packages/sim/src/state.ts` (`soulsmanGold`), `packages/sim/src/reducer.ts` (settleCombat tally), `packages/ui/src/cardText.ts` (3 helpers), `packages/ui/src/Recruit.tsx` (instView wiring), tests in `cardText.test.ts`.
+
+**Verification:** new helper tests (Soulsman gold, the undeadBuyAtk trio, Eternal Knight tally). `npm run typecheck && npm run lint && npm test` (**335/335**) + `build:web` all green; the recruit screen renders all card types live with no console errors (verified in-preview). The Imp golden multiplier (3×) was confirmed against `fodderMultiplier`.
+
+### fix: Undead "+Attack wherever they are" reaches Discovered/conjured copies + Symbiote token triples on grant
+
+**Bug 1 — Discovered/conjured Undead missed `undeadBuyAtk`.** The run-wide "+Attack to your Undead wherever they are" (Deathswarmer / Forsaken Weaver / Karthus) was baked in only on **tavern buy** — a Discovered or conjured Undead came in without it. New shared helper `undeadBuyBonus(state, def)` (recruit.ts) returns the bonus for any Undead/`universalTribe` def, now applied at **every** minion-creation source: the `discover` reducer case, `conjureToHand` (Summon Stone / Tribes Choice / Undead Army / Cassen's grant), `battlecryGainRandomMinion` (Buddy Buddy), and the Lasso steal. (The buy path + the Symbiote token grant already applied it.) Lantern of Souls needs no change — it's re-derived live at combat/display for any Undead, so conjured copies already get it.
+
+**Bug 2 — Symbiote's token didn't triple on grant.** The hero power grants a Symbiotic Attachment every 4 turns (in `faceOmen`) but never called `checkTriples`, so a 3rd copy sat un-combined until the next buy/play/Discover happened to trigger the check. Added `checkTriples(s)` right after the grant — the golden forms immediately. (`checkTriples` already counts tokens, so no other change was needed.)
+
+**Files changed:** `packages/sim/src/recruit.ts` (helper + 3 conjure sites), `packages/sim/src/reducer.ts` (discover case + Symbiote grant), `packages/sim/src/index.ts` (export the helper), tests in `run.test.ts`.
+
+**Verification:** 3 new tests — `undeadBuyBonus` returns the bonus for Undead/`universalTribe` and 0 for a Beast; a Discovered Sporeling gains +3 Attack with `undeadBuyAtk` 3; the Symbiote hero power triples the 3rd token immediately via `faceOmen` (3 tokens → 1 golden, 0 plain). `npm run typecheck && npm run lint && npm test` (**334/334**) + `build:web` all green.
 ### Audio: master limiter (prevent layer-clipping) + per-card voiceline gain tune
 
 - **Master limiter on the whole SFX bus.** All sounds (samples + synth) now route through one shared

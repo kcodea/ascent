@@ -12,7 +12,7 @@ gryphon,Gryphon,3,3,6,,Taunt,"**Taunt.** Each time this takes damage, gain a **f
 raptor,Raptor,3,2,8,,,"When a friendly **Beast** attacks, give it **+3/+1**.","When a friendly **Beast** attacks, give it **+6/+2**."
 seaurchin,Sea Urchin,4,4,4,,,**Battlecry:** Discover a Beast.,**Battlecry:** Discover **2** Beasts.
 sporebat,Sporebat,4,2,6,,Taunt,**Taunt. Deathrattle:** add a random tavern-tier spell to your hand.,**Taunt. Deathrattle:** add **2** random tavern-tier spells to your hand.
-mamabear,Mama Bear,5,6,6,,,"When you summon a **Beast**, give it **+3/+3** — and improve this by **+3/+3**.","When you summon a **Beast**, give it **+6/+6** — and improve this by **+6/+6**."
+mamabear,Mama Bear,5,6,6,,,"When you summon a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.","When you summon a **Beast**, give it **+4/+4** — and improve this by **+4/+4**."
 spiritpup,Spirit Pup (beast/dragon),5,4,6,,,Cast **10 spells** with this on board to transform into **Spirit Worgen**.,
 gnash,"Gnasher, the Overrun",6,6,6,,,"When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.",
 grim,Grim,6,7,1,,,**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.,
@@ -28,18 +28,26 @@ weaver,Arcane Weaver,4,3,4,,,**Deathrattle:** add a copy of **Spirit Fire** to y
 cinder,Cinderwing Matron,4,5,5,,,**Battlecry:** give your spells **+1 Health**.,**Battlecry:** give your spells **+2 Health**.
 broodmother,Twilight Broodmother,4,2,5,,,**Deathrattle:** summon 2 **Twilight Whelps** with **Taunt**.,**Deathrattle:** summon 4 **Twilight Whelps** with **Taunt**.
 hunter,Hunter,5,5,7,,,"When this gains Attack, give your minions **+2 Health**.","When this gains Attack, give your minions **+4 Health**."
-stuntdrake,Stuntdrake,5,3,7,,,**Avenge (3):** give this minion's Attack to 2 friendly minions.,
-bane,Bane (dragon/demon),6,12,12,,,"After you trigger a Battlecry, give Fodder **+1/+1** this run.","After you trigger a Battlecry, give Fodder **+2/+2** this run."
+karwind,Karwind,5,2,12,,,"Whenever a **Battlecry** triggers, give your Dragons **+1/+2**.",
+stuntdrake,Stuntdrake,5,3,7,,,**Avenge (3):** give this minion's Attack to 2 other friendly minions.,**Avenge (3):** give this minion's Attack to 2 other friendly minions **twice**.
+bane,Bane (dragon/demon),6,12,12,,,"After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.","After you trigger a Battlecry, give Fodder and Imps **+4/+4** this run."
 cryptdrake,Crypt Drake (dragon/undead),6,4,10,,,"When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.","When an ally attacks, give your minions **+4/+4**. Improve this every **3** attacks."
-karwind,Karwind,6,2,12,,,"Whenever a **Battlecry** triggers, give your Dragons **+1/+2**.",
 
-# === UNDEAD (6) ===
+# === UNDEAD (14) ===
 spore,Sporeling,1,1,2,,,**Deathrattle:** Give all friends **+1 Attack** or **+1 Health** (random).,
-knit,Grave Knit,2,3,2,,,"When a **Grave Knit** dies in combat, all Grave Knits gain **+3/+2** permanently.",
-skullblade,Skullblade,3,5,1,,,**Deathrattle:** give your spells **+1 Attack** for the rest of the run.,**Deathrattle:** give your spells **+2 Attack** for the rest of the run.
+deathswarmer,Deathswarmer,2,2,2,,,**Battlecry:** Give your Undead **+1 Attack** wherever they are.,**Battlecry:** Give your Undead **+2 Attack** wherever they are.
+knit,Eternal Knight,2,3,2,,,"When an **Eternal Knight** dies in combat, all Eternal Knights gain **+3/+2** permanently.",
+deathlesshand,Deathless Hand,3,2,1,,,**Deathrattle:** Summon a **Footman**.,**Deathrattle:** Summon **2 Footmen**.
+skullblade,Ghastly Bladesmith,3,5,1,,,**Deathrattle:** give your spells **+1 Attack** for the rest of the run.,**Deathrattle:** give your spells **+2 Attack** for the rest of the run.
+pillager,Pillager,3,3,4,,,**Deathrattle:** Get a **Gold Pouch**.,**Deathrattle:** Get **2 Gold Pouches**.
 soulsman,Soulsman,3,2,5,,,**Avenge (4):** raise your maximum Gold by **1**.,**Avenge (4):** raise your maximum Gold by **2**.
 deathsayer,Deathsayer,4,3,5,,Rally,"**Rally:** before this attacks, trigger your leftmost Deathrattle.","**Rally:** before this attacks, trigger your leftmost Deathrattle **twice**."
+ryme,Ryme,4,5,3,,,**Deathrattle:** Trigger an adjacent minion's **Battlecry**.,**Deathrattle:** Trigger **both** adjacent minions' **Battlecries**.
+karthus,Karthus,5,8,8,,Divine Shield,"When this kills an enemy, give your Undead **+3 Attack** permanently. (Golden: +6)","When this kills an enemy, give your Undead **+6 Attack** permanently."
+sergeant,Sergeant,5,6,6,,,**Deathrattle:** Give your minions **+2 Health**. Improves each time Sergeant gains Attack.,**Deathrattle:** Give your minions **+4 Health**. Improves **+4** each time Sergeant gains Attack.
+thunderingabomination,Thundering Abomination,5,4,7,,Engraved,"**Engraved.** Whenever a friendly minion is summoned in combat, gain **+3/+3**. Overflow summons give your Undead **+2/+2**.","**Engraved.** Whenever a friendly minion is summoned, gain **+6/+6**. Overflow summons give your Undead **+4/+4**."
 toxin,Toxin Tender,5,3,1,,,**Battlecry:** give a friendly **Undead** **Venomous**.,
+forsakenweaver,Forsaken Weaver,6,5,8,,,"When you cast a spell, give your Undead **+2 Attack** wherever they are.","When you cast a spell, give your Undead **+4 Attack** wherever they are."
 
 # === MECH (12) ===
 drone,Spare Part Drone,1,2,1,,Divine Shield,,
@@ -55,19 +63,25 @@ combinator,Combinator,5,6,7,,,**End of Turn:** magnetize a random **Magnetic** M
 beatboxer,Beatboxer,6,8,8,,,"Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.","Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this."
 nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.","**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**."
 
-# === DEMON (7) ===
+# === DEMON (13) ===
+fodderfeeder,Fodder Feeder,1,1,2,,,"When you **sell** this, add a **Fodder** to your next tavern and give your **Imps +1/+1** everywhere.","When you **sell** this, add **2 Fodder** to your next tavern and give your **Imps +2/+2** everywhere."
 feed,Soulfeeder,1,2,2,,,**Battlecry:** add Fodder to your next tavern.,**Battlecry:** add **2** Fodder to your next tavern.
+trickster,Trickster,1,1,3,,,**Deathrattle:** Give a random friendly minion this minion's Health.,**Deathrattle:** Give a random friendly minion this minion's Health **twice**.
 burialimp,Burial Imp,2,3,3,,,**Deathrattle:** add a Fodder to your next tavern.,**Deathrattle:** add **2** Fodder to your next tavern.
-imp,Voracious Imp,2,2,2,,Consume,Gains **2x** stats from Fodder.,
-brood,Brood Matron,3,3,3,,,"Each time a friend dies, summon a 1/1 Imp.","Each time a friend dies, summon **two** 1/1 Imps."
+imp,Voracious Imp,2,2,2,,Consume,Gains **2x** stats from Fodder.,Gains **3x** stats from Fodder.
+brood,Brood Matron,3,3,3,,,"Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+3/+2** permanently.","Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+6/+4** permanently."
 maw,Maw of the Pit,3,4,5,,Taunt,**End of Turn:** add a **Fodder** to your next tavern.,**End of Turn:** add **2** Fodder to your next tavern.
+demonanomaly,Demonic Anomaly,4,4,4,,,**Battlecry:** Gain 2 free refreshes. Give all Tavern minions **+3/+3** this game.,**Battlecry:** Gain **4** free refreshes. Give all Tavern minions **+6/+6** this game.
 heckbinder,Heckbinder (demon/mech),4,3,3,,Magnetic,Magnetize onto a friendly **Mech** or **Demon**.,
-ritualist,Ritualist,5,2,5,,,"**End of Turn:** all Fodder gets **+1/+1**, wherever it is.",
+impking,Imp King,4,6,5,,,**Deathrattle:** Summon 2 **Imps** and give your Imps **+2/+3** permanently.,**Deathrattle:** Summon 2 **Imps** and give your Imps **+4/+6** permanently.
+ritualist,Ritualist,5,2,5,,,"**End of Turn:** give your Imps and Fodder **+2/+2**, wherever they are.","**End of Turn:** give your Imps and Fodder **+4/+4**, wherever they are."
+abhorrenthorror,Abhorrent Horror,6,1,1,,Start of Combat,**Start of Combat:** Gain +Attack/+Health equal to the Fodder consumed this turn.,**Start of Combat:** Gain **double** the Attack/Health of Fodder consumed this turn.
+acid,Acid,6,7,7,,Consume,"Every 4 refreshes, consume a random tavern minion.","Every 4 refreshes, consume a random tavern minion (gain **double** its stats)."
 
 # === NEUTRAL (16) ===
-sandbag,Target Dummy,1,0,4,,Taunt,,
+sandbag,Target Dummy,1,0,6,,Taunt,,
 broker,Brightwing Broker,2,2,3,,,Every minion you buy gets **+1/+1**.,
-hoarder,Hoarder,2,2,2,,,Sells for **+1 Gold** per turn you hold it.,Sells for **+2 Gold** per turn you hold it.
+hoarder,Hoarder,2,2,2,,,**Battlecry:** get **1** extra Gold next turn. Sells for **2 Gold**.,**Battlecry:** get **2** extra Gold next turn. Sells for **4 Gold**.
 buddy,Buddy Buddy,3,3,4,,,**Battlecry:** add a random **Tier 1** minion to your hand.,**Battlecry:** add **two** random **Tier 1** minions to your hand.
 echo,Echo Warden,3,2,4,,,"**In combat,** your summon effects summon **1 more** copy.","**In combat,** your summon effects summon **2 more** copies."
 venom,Venom,3,1,1,,Venomous,,
@@ -109,7 +123,8 @@ cupcakes,Cupcakes,5,,,4,,Choose a **Demon** — it consumes **3** minions in the
 aresmar,Eyes of Aresmar,6,,,5,,Make a **Tier 4 or lower** minion **Golden**.,
 perfectvision,Perfect Vision,6,,,2,,Set a friendly minion's stats to **20/20**.,
 
-# === TOKENS (10) — not rollable ===
+# === TOKENS (13) — not rollable ===
+footman,Footman,1,1,1,,Reborn,**Reborn.**,
 fred,Fred,1,1,1,,Fodder,A 1/1 Demon **Fodder** — your Demons devour it from the tavern.,
 impscrap,Imp,1,1,1,,,,
 nanobot,Nanobot,1,1,1,,,A 1/1 Mech.,
@@ -117,6 +132,7 @@ omen,Omen Minion,1,1,1,,,,
 pup,Pup,1,1,1,,,A 1/1 Beast token.,
 sabercub,Saber Cub,1,0,2,,Taunt,A 0/2 Beast with **Taunt**.,
 stray,Stray,1,1,1,,,A 1/1 Beast token.,
+symbioticattachment,Symbiotic Attachment,1,1,1,,Magnetic,**Magnetic**. Counts as all tribes.,
 discoverspell,Triple Reward,1,0,1,,,**Discover** a minion from one Tier up.,
 whelpling,Whelp,1,3,3,,,A 3/3 Dragon that attacks immediately when summoned.,
 taragosa,Taragosa,2,3,3,,Engraved,"All stats are **Engraved**. When a minion attacks, cast **Growth** (+3/+4 to your minions).","All stats are **Engraved**. When a minion attacks, cast **Growth twice** (+6/+8 to your minions)."

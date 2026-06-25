@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -424,7 +424,7 @@ export function reduce(state: RunState, action: Action): RunState {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
         const amt = s.tier;
-        if (card) addBuff(card, 'Fortify', amt, amt);
+        if (card) { addBuff(card, 'Fortify', amt, amt); if (amt > 0) fireOnGainAttack(s, card); } // Fortify raises Attack → Hunter procs
         else {
           const offer = s.shop.find((c) => c.uid === action.uid);
           if (!offer) return state;

@@ -38,6 +38,15 @@ function grantShield(ctx: CombatContext, m: Minion): void {
  *  including economy ones (Discover, gain-Gold…) which simply no-op in combat (nothing to do there). */
 const hasBattlecry = (m: Minion): boolean => m.effects.some((e) => e.on === 'onPlay');
 
+/** Drakko the Drummer's doubling for Ryme's re-fired Battlecries (combat mirror of recruit's `bestCopyRepeats`):
+ *  count living Drakkos on `side`, golden → +2 else any → +1 (best single copy, NO stacking). Total = 1 + that,
+ *  so one Drakko makes each trigger fire twice, a golden Drakko three times. */
+const drakkoRepeats = (ctx: CombatContext, side: Side): number => {
+  let bonus = 0;
+  for (const m of ctx.living(side)) if (m.cardId === 'drummer') bonus = Math.max(bonus, m.golden ? 2 : 1);
+  return 1 + bonus;
+};
+
 /** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Only the
  *  combat-meaningful battlecries do anything here; others no-op. Magnitude respects the source's own golden. */
 function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
@@ -788,8 +797,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
   },
 
-  /** Ryme — Deathrattle: re-fire an adjacent minion's Battlecry in combat. Considers living neighbors with a
-   *  combat-replayable Battlecry (random pick if both qualify); golden replays BOTH neighbors. */
+  /** Ryme — Deathrattle: re-fire an adjacent minion's Battlecry in combat. Considers living neighbours that
+   *  HAVE a Battlecry (random pick if both qualify); golden re-fires BOTH. Each trigger: (1) narrates via an
+   *  `sc` event (so the replay shows Ryme proccing), (2) runs the Battlecry's combat-meaningful effect
+   *  (economy battlecries no-op), and (3) emits `battlecryTriggered` so reactive cards (Karwind/Bane) proc —
+   *  once per trigger. Drakko the Drummer doubles each trigger. Sylus / Deathsayer re-run this whole
+   *  Deathrattle (they re-invoke by factory id), so their multiplication composes for free. */
   deathrattleReplayAdjacentBattlecry: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const arr = ctx.boards[self.side];
@@ -799,6 +812,39 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     );
     if (neighbors.length === 0) return;
     const chosen = self.golden ? neighbors : [ctx.rng.pick(neighbors)];
-    for (const n of chosen) replayCombatBattlecry(ctx, n);
+    const repeats = drakkoRepeats(ctx, self.side); // Drakko doubles each trigger (×2, golden Drakko ×3)
+    for (const n of chosen) {
+      for (let r = 0; r < repeats; r++) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${n.name}'s Battlecry` });
+        replayCombatBattlecry(ctx, n); // the Battlecry's own combat effect (no-op for economy battlecries)
+        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: n }); // procs Karwind / Bane per trigger
+      }
+    }
+  },
+
+  /** Karwind (combat half) — when a Battlecry is triggered on this side (Ryme re-firing an adjacent
+   *  Battlecry), buff your minions of `tribe` +atk/+hp. Golden doubles. Mirrors the recruit factory. */
+  onBattlecryBuffTribe: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side: Side }).side !== self.side) return;
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (tribe && tribe !== 'any' && m.tribe !== tribe && m.tribe2 !== tribe && !ctx.getCard(m.cardId)?.universalTribe) continue;
+      ctx.buff(m, a, h, self.uid);
+    }
+  },
+
+  /** Bane (combat half) — on a triggered Battlecry, buff your living Fodder + Imps +atk/+hp, and raise the
+   *  run-wide Imp buff (permanent — carried back) so future Imps inherit it. Golden doubles. */
+  onBattlecryBuffFodder: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side: Side }).side !== self.side) return;
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      const def = ctx.getCard(m.cardId);
+      if (def?.keywords.includes('FD') || def?.imp) ctx.buff(m, a, h, self.uid);
+    }
+    ctx.grantImpBuff(a, h, self.side); // Imps permanent — carried back to RunState.impBuff
   },
 };

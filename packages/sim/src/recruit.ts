@@ -511,6 +511,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Hunter (recruit half) — when this gains Attack in the shop (e.g. a Fortify), give every friendly minion
+   *  +Health. Health-only, so it can never re-trigger onGainAttack (no loop). Golden doubles. Dispatched by
+   *  `fireOnGainAttack` when a recruit buff raises Hunter's Attack. */
+  onGainAttackBuffAll: (ctx, self, params) => {
+    const h = num(params.health, 2) * gold(self);
+    for (const c of ctx.state.board) addBuff(c, nameOf(self), 0, h);
+  },
+
   // --- Demons (Consume, recruit-resolved: bakes into stats before combat) ---
 
   /** Queue Fodder (Fred) into the *next* tavern refresh (golden adds 2). Soulfeeder fires it on
@@ -1392,6 +1400,21 @@ function fireBattlecryTriggered(state: RunState): void {
       const fn = RECRUIT_FACTORIES[effect.do];
       if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
     }
+  }
+}
+
+/** Fire a single card's `onGainAttack` recruit effects (Hunter) — call after a recruit buff RAISES that
+ *  card's Attack (e.g. Warden's Fortify). Mirrors `fireBattlecryTriggered` but scoped to one card, matching
+ *  combat's `onGainAttack` semantics (only the minion whose Attack rose reacts). The combat path is separate
+ *  (the bus emits onGainAttack inside `simulate`'s `ctx.buff`), so this never double-fires. */
+export function fireOnGainAttack(state: RunState, card: BoardCard): void {
+  const def = CARD_INDEX[card.cardId];
+  if (!def) return;
+  const ctx = makeContext(state);
+  for (const effect of def.effects) {
+    if (effect.on !== 'onGainAttack') continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
   }
 }
 

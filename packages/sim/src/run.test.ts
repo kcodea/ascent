@@ -179,7 +179,7 @@ describe('run loop (@game/sim)', () => {
     const s1 = reduce(s0, { type: 'buy', uid: 'x' });
     const bought = s1.hand.find((c) => c.cardId === 'sandbag');
     expect(bought?.attack).toBe(1); // 0 + 1, applied on buy
-    expect(bought?.health).toBe(5); // 4 + 1
+    expect(bought?.health).toBe(7); // 6 + 1 (Target Dummy is 0/6)
   });
 
   it('Alleycur Battlecry summons a Stray only when played', () => {
@@ -1455,7 +1455,7 @@ describe('run loop (@game/sim)', () => {
     // A Discovered minion does NOT get it (tavern purchases only).
     s = reduce({ ...s, discover: ['sandbag'] }, { type: 'discover', index: 0 });
     const disc = s.hand.find((c) => c.cardId === 'sandbag')!;
-    expect([disc.attack, disc.health]).toEqual([0, 4]); // Target Dummy base, unbuffed
+    expect([disc.attack, disc.health]).toEqual([0, 6]); // Target Dummy base (0/6), unbuffed
   });
 
   it('Staff of Guel also enchants Fodder run-wide (Demons eat bigger Fodder); no double on a bought Fodder', () => {
@@ -2017,6 +2017,22 @@ describe('run loop (@game/sim)', () => {
       { source: 'Spirit Fire', attack: 6, health: 6, count: 2 },
       { source: 'Karwind', attack: 1, health: 2, count: 1 },
     ]);
+  });
+
+  it('Hunter procs from a recruit Attack-gain (Warden Fortify) → +Health to the board', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 3, heroReady: true,
+      board: [
+        { uid: 'h', cardId: 'hunter', tribe: 'dragon', attack: 5, health: 7, keywords: [], golden: false },
+        { uid: 'a', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'h' }); // Fortify +3/+3 → Hunter gains Attack → +2 Health to the board
+    const hunter = s.board.find((c) => c.uid === 'h')!;
+    const ally = s.board.find((c) => c.uid === 'a')!;
+    expect(hunter.attack).toBe(5 + 3); // Fortify +3 Attack (tier 3)
+    expect(ally.health).toBe(3 + 2); // Hunter's onGainAttack → +2 Health
+    expect(hunter.health).toBe(7 + 3 + 2); // Fortify +3 Health + Hunter's own +2 (it buffs the whole board incl. itself)
   });
 
   it('hero Fortify records its source on the buffed minion (inspect breakdown)', () => {

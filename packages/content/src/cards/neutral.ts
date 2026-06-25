@@ -15,7 +15,7 @@ export const NEUTRAL: CardDef[] = [
     tribe: 'neutral',
     tier: 1,
     attack: 0,
-    health: 4,
+    health: 6,
     keywords: ['T'],
     effects: [],
     text: '',

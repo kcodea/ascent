@@ -79,7 +79,7 @@ abhorrenthorror,Abhorrent Horror,6,1,1,,Start of Combat,**Start of Combat:** Gai
 acid,Acid,6,7,7,,Consume,"Every 4 refreshes, consume a random tavern minion.","Every 4 refreshes, consume a random tavern minion (gain **double** its stats)."
 
 # === NEUTRAL (16) ===
-sandbag,Target Dummy,1,0,4,,Taunt,,
+sandbag,Target Dummy,1,0,6,,Taunt,,
 broker,Brightwing Broker,2,2,3,,,Every minion you buy gets **+1/+1**.,
 hoarder,Hoarder,2,2,2,,,**Battlecry:** get **1** extra Gold next turn. Sells for **2 Gold**.,**Battlecry:** get **2** extra Gold next turn. Sells for **4 Gold**.
 buddy,Buddy Buddy,3,3,4,,,**Battlecry:** add a random **Tier 1** minion to your hand.,**Battlecry:** add **two** random **Tier 1** minions to your hand.

@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Ryme combo chain + Hunter shop proc + Target Dummy 0/6.** Ryme's Deathrattle now genuinely **triggers**
+  each adjacent Battlecry (with a proc narration), and a **Drakko** on board doubles each trigger — which
+  **multiplies** with Sylus / Deathsayer and re-procs **Karwind**/**Bane** per trigger (golden Ryme + both
+  neighbours + Drakko = **4 triggers**). **Hunter** now fires from **Warden's Fortify** in the shop. Target
+  Dummy is now **0/6**.
 - **Ryme (T4 Undead).** **Deathrattle: trigger an adjacent minion's Battlecry** (golden: both). Adds a
   combat Battlecry-replay so summon / tribe-buff / grant-keyword battlecries re-fire mid-fight (economy
   battlecries no-op).

@@ -60,7 +60,8 @@ export const DRAGONS: CardDef[] = [
     // Dual-type Dragon/Demon payoff. Every Battlecry *fire* on your board permanently enchants the Fodder
     // card type +1/+1 run-wide (Ritualist's mechanism, on a battlecry trigger instead of End of Turn). Fires
     // per fire, so Drakko's doubling procs it twice; multiple Banes stack. Bridges Demon Fodder with a
-    // Battlecry-heavy build. No combat factory → inert in combat (just a 12/12 body).
+    // Battlecry-heavy build. In combat it also reacts to Ryme's battlecry replays via onBattlecryBuffFodder
+    // (buffs living FD/imp bodies this combat + grants the permanent Imp carry-back).
     id: 'bane',
     name: 'Bane',
     tribe: 'dragon',

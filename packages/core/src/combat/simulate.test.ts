@@ -552,6 +552,40 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'stray').length).toBe(2);
   });
 
+  it("Ryme's Deathrattle fires battlecryTriggered → Karwind buffs the Dragons (+1/+2), with an sc narration", () => {
+    const r = run(
+      [
+        { cardId: 'ryme', attack: 5, health: 1 },
+        { cardId: 'alley', attack: 0, health: 100 }, // neighbour with a Battlecry
+        { cardId: 'karwind', attack: 4, health: 100 },
+        { cardId: 'cleric', attack: 3, health: 100 },
+      ],
+      [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }],
+      1,
+    );
+    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(1); // 1 trigger narrated
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 2)).toBe(true); // Karwind procced
+  });
+
+  it('a golden Ryme + Drakko triggers both neighbours twice each (4 triggers → Karwind 4×)', () => {
+    const r = run(
+      [
+        { cardId: 'alley', attack: 0, health: 100 },
+        { cardId: 'ryme', attack: 5, health: 1, golden: true },
+        { cardId: 'alley', attack: 0, health: 100 },
+        { cardId: 'drummer', attack: 2, health: 100 }, // Drakko: doubles each trigger
+        { cardId: 'karwind', attack: 4, health: 100 },
+        { cardId: 'cleric', attack: 3, health: 100 },
+      ],
+      [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
+      1,
+    );
+    // 2 neighbours × 2 (Drakko) = 4 triggers — one sc narration each.
+    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(4);
+    // Karwind procs once per trigger → +1/+2 to both Dragons (Karwind + Hoard Cleric), 4× = 8 buff events.
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 2).length).toBe(8);
+  });
+
   it('Gnasher keeps attacking after killing a Reborn target', () => {
     // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
     // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned

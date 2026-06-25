@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Summon beat.** A battlecry-summoned token (e.g. Alleycat → Stray) now pops in ~0.2s *after* its
+  trigger-medallion pulse, so you read the pulse then the result instead of both at once.
 - **Discover burst.** Opening a Discover erupts a burst of golden, white-hot magic + sparkles from center
   that shoots off the page edges — rendered behind the cards, over the dimmed board.
 - **Trigger-medallion pulse.** When a unit's effect fires (combat *or* shop — Start-of-Combat, Deathrattle,

@@ -39,6 +39,8 @@ const isHidden = (): boolean => typeof document !== 'undefined' && document.hidd
 
 /** Timestamp (ms) of the last trigger-pulse sound — used to dedupe simultaneous pulses (see triggerPulse). */
 let lastTriggerPulse = 0;
+/** Timestamp (ms) of the last trigger-glow sound — dedupes simultaneous glows (see triggerGlow). */
+let lastTriggerGlow = 0;
 
 // A master limiter every sound routes through, so overlapping clips (landing + voiceline + summon, etc.)
 // can never sum past full scale and hard-clip the output. Configured limiter-style: catch anything above the
@@ -182,6 +184,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   unfreeze: 0.36,
   pulse: 0.5,
   triggerpulse: 0.5,
+  triggerglow: 0.5,
   inspect: 0.5,
   upgrade: 0.5,
   roll: 0.61,
@@ -309,6 +312,17 @@ export const sfx = {
     if (playSample('triggerpulse', sampleVol.triggerpulse)) return;
     tone({ freq: 660, dur: 0.16, type: 'triangle', vol: 0.11, slideTo: 1180 });
   },
+  // A trigger medallion GLOWS (progress only — a multi-turn cadence card ticked toward firing but didn't
+  // release, e.g. Frontdrake's per-turn countdown). DEDUPED like triggerPulse: many units can tick on the
+  // same EOT step, so a short throttle collapses simultaneous calls into one play. Sourced "triggerglow"
+  // clip; soft synth tick fallback.
+  triggerGlow: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastTriggerGlow < 70) return; // one play per ~frame of simultaneous glows
+    lastTriggerGlow = now;
+    if (playSample('triggerglow', sampleVol.triggerglow)) return;
+    tone({ freq: 520, dur: 0.12, type: 'triangle', vol: 0.08, slideTo: 760 });
+  },
   temper: () => {
     tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1 });
     tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04 });
@@ -354,7 +368,7 @@ export const sfx = {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
-  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {

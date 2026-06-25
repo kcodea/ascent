@@ -346,6 +346,9 @@ export function Recruit() {
   // these pulse the medallion (ring); progress-only ticks (in eotProcUids but not here) just glow.
   const [eotPulseUids, setEotPulseUids] = useState<Set<string>>(new Set());
   const discoverBurstRef = useRef<HTMLDivElement>(null); // mount point for the discover burst FX layer
+  // Tokens summoned by a battlecry this play — their card mount-pop is held ~0.2s so the trigger pulse
+  // reads first, THEN the token appears (e.g. Alleycat's pulse → Stray pops in just after).
+  const [summonDelayUids, setSummonDelayUids] = useState<Set<string>>(new Set());
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
@@ -1295,7 +1298,10 @@ export function Recruit() {
       const b = beats[i]!;
       setEotProcUids(new Set([b.uid]));
       setEotPulseUids(b.completes ? new Set([b.uid]) : new Set()); // pulse only when it officially fires
-      if (b.completes) sfx.triggerPulse(); // the energy-release cue (deduped across simultaneous pulses)
+      // Officially firing → the energy-release pulse cue; progress-only (cadence ticked but didn't fire,
+      // e.g. Frontdrake's countdown) → the softer glow cue. Both deduped across simultaneous procs.
+      if (b.completes) sfx.triggerPulse();
+      else sfx.triggerGlow();
       if (b.kind === 'ritualist') setShopFlash((k) => k + 1);
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
@@ -1357,6 +1363,23 @@ export function Recruit() {
       pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
       window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
+  };
+
+  // Dispatch a `play` and, if it summoned token(s) (new board minions other than the played card), hold
+  // their mount-pop ~0.2s so the trigger pulse reads first and the token appears right after. Runs
+  // synchronously, so the delay flag is set in the same React batch as the dispatch — before the token's
+  // card mounts (a post-render detection would be too late; the pop would already have played).
+  const playWithSummonDelay = (action: { type: 'play'; uid: string; toIndex?: number; targetUid?: string }): void => {
+    const before = new Set(run.board.map((c) => c.uid));
+    dispatch(action);
+    const tokens = useGame.getState().run.board.filter((c) => !before.has(c.uid) && c.uid !== action.uid).map((c) => c.uid);
+    if (tokens.length === 0) return;
+    setSummonDelayUids((s) => new Set([...s, ...tokens]));
+    window.setTimeout(() => setSummonDelayUids((s) => {
+      const n = new Set(s);
+      for (const u of tokens) n.delete(u);
+      return n;
+    }), 600);
   };
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
@@ -1437,7 +1460,7 @@ export function Recruit() {
       return false;
     }
     if (d.source === 'hand' && zone === 'warband') {
-      dispatch({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(cx) });
+      playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(cx) });
       puffOnBoard(d.uid); // dust around the minion where it lands
       return true;
     }
@@ -1625,6 +1648,7 @@ export function Recruit() {
                     // card that only ticked this turn (proc'd but not complete) just glows.
                     pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid)}
                     glow={eotProcUids.has(m.uid)}
+                    popDelay={summonDelayUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid) ? (m.cardId === 'bane' || CARD_INDEX[m.cardId]?.keywords.includes('FD') ? 'haze' : 'flame') : false}
                     suppressPop={returningFromCombat}

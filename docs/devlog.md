@@ -5,6 +5,51 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: battlecry-summoned tokens pop in ~0.2s after the trigger pulse
+
+Owner ask: when a battlecry summons (e.g. Alleycat → Stray), see the medallion **pulse** fire, then the
+token appears just after — not simultaneously.
+
+The engine resolves effects synchronously (the Stray is in board state the instant you play Alleycat), so
+this is a **visual** beat, not an engine change: the summoned token's mount-pop is held ~0.2s.
+
+- **`Recruit.tsx`**: a `playWithSummonDelay()` wrapper around the warband `play` dispatch diffs the board
+  before/after (synchronously, via `useGame.getState()`) to find tokens — new board minions other than the
+  played card — and flags them in `summonDelayUids`. Because it runs in the **same React batch** as the
+  dispatch, the flag is set before the token's card first mounts (a post-render detector would be too late —
+  the pop would already have played). Cleared after ~600 ms.
+- **`Card.tsx`**: new `popDelay` prop → `.popdelay` class.
+- **`styles.css`**: `.card.popin.popdelay { animation-delay: 0.2s; animation-fill-mode: backwards }` — the
+  token holds its invisible `from` frame during the delay, then runs the normal `cardpop`. So the pulse
+  reads at ~T0 and the token pops at T≈0.2s.
+
+Scoped to the warband minion-play path (where battlecries summon). Combat summons are already beat-sequenced.
+
+**Files:** `Recruit.tsx` (`playWithSummonDelay`, `summonDelayUids`, `popDelay` on the board Card),
+`Card.tsx` (`popDelay` prop), `styles.css` (`.card.popin.popdelay`).
+
+**Verification:** `typecheck + lint + test (368) + build:web` all green. CSS confirmed live —
+`.card.popin.popdelay` resolves `cardpop` with `animation-delay: 0.2s`, `fill-mode: backwards`. (The
+moving sequence can't run in the headless preview — owner to eyeball Alleycat → Stray.)
+
+### feat: trigger-medallion **glow** sound (distinct from the pulse)
+
+The trigger medallion already played `triggerPulse` when an effect *officially fires* (pulse animation).
+Now the **glow-only** case — a cadence card that ticks toward firing but doesn't release this turn (e.g.
+Frontdrake's per-turn countdown before it supplies a Dragon) — gets its own softer cue, `triggerGlow`.
+
+- **`sfx.ts`**: new `sfx.triggerGlow()` mirroring `triggerPulse` — sourced `triggerglow` clip
+  (`packages/ui/src/audio/triggerglow.mp3`, dropped in from Cubase) with a soft triangle-tick synth
+  fallback, registered in `SAMPLE_VOL_DEFAULTS` (`triggerglow: 0.5`) + the dev SFX-mixer preview. **Deduped
+  like the pulse**: a 70 ms throttle (`lastTriggerGlow`) collapses simultaneous glows on the same EOT step
+  into one play, so stacked cadence cards never blast.
+- **`Recruit.tsx`** (EOT telegraph): the per-beat cue now branches — `b.completes` → `triggerPulse` (as
+  before); otherwise → `triggerGlow`. This is the only glow-only site (combat units only ever `pulse`).
+- **Docs**: `sfx-events.md` gains rows + a trigger-site note for both `triggerPulse` and `triggerGlow`
+  (neither was previously listed).
+- **Verified**: `npm run typecheck && npm run lint && npm run build:web` all green; the new mp3 bundles via
+  the existing `./audio/*.mp3` glob.
+
 ### feat: Discover golden-magic burst (behind the cards)
 
 Opening a Discover now erupts a burst of golden, white-hot magic + sparkles from screen center that shoots

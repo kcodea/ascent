@@ -125,6 +125,7 @@ export const Card = memo(function Card({
   karwind,
   pulse,
   glow,
+  popDelay,
   refCards,
   dragging,
   onPointerDown,
@@ -165,6 +166,9 @@ export const Card = memo(function Card({
   /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
    *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
   glow?: boolean;
+  /** Hold this card's mount pop for ~0.2s before it appears — a battlecry-summoned token waits a beat
+   *  after the trigger pulse fires, so you see the pulse THEN the token (e.g. Alleycat → Stray). */
+  popDelay?: boolean;
   /** Cards this card references (the token it summons / Fodder it buffs) — shown as a hover popup. */
   refCards?: CardView[];
   /** A drag is in progress somewhere — suppress the referenced-card hover popup (you're holding a card). */
@@ -240,7 +244,7 @@ export const Card = memo(function Card({
   const artUrl = artFor(card.cardId, uid);
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})` } as CSSProperties}
       onClick={onClick}

@@ -334,6 +334,9 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    cards but NOT when the warband re-mounts on the way back from combat (that re-mount looked like a
    random jiggle). Declared before .dscard/.reborncard/.unit so their persistent glows still win. */
 .card.popin { animation: cardpop 0.15s ease; }
+/* A battlecry-summoned token waits ~0.2s before popping in, so the trigger pulse reads first, THEN the
+   token appears (e.g. Alleycat → Stray). `backwards` holds the invisible `from` frame during the delay. */
+.card.popin.popdelay { animation-delay: 0.2s; animation-fill-mode: backwards; }
 .card:hover { transform: translateY(-3px); z-index: 20; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 26px 2px color-mix(in srgb, var(--c) 90%, transparent); }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }

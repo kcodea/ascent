@@ -6,7 +6,7 @@ import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeT
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
-import { pixiFx } from './pixiFx';
+import { pixiFx, discoverFx } from './pixiFx';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -341,6 +341,7 @@ export function Recruit() {
   // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
   // these pulse the medallion (ring); progress-only ticks (in eotProcUids but not here) just glow.
   const [eotPulseUids, setEotPulseUids] = useState<Set<string>>(new Set());
+  const discoverBurstRef = useRef<HTMLDivElement>(null); // mount point for the discover burst FX layer
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
@@ -1039,6 +1040,15 @@ export function Recruit() {
     }, 760);
     return () => window.clearTimeout(t);
   }, [run.board, inCombat]);
+
+  // Discover opened → erupt the golden magic burst on the overlay's behind-the-cards FX layer. Fired once
+  // the burst app has initialised (attach resolves immediately if already created).
+  useEffect(() => {
+    if (!run.discover) return;
+    const el = discoverBurstRef.current;
+    if (!el) return;
+    void discoverFx.attach(el).then(() => discoverFx.discoverBurst(window.innerWidth / 2, window.innerHeight / 2));
+  }, [run.discover]);
 
   // Karwind flame flash: when a Battlecry triggers Karwind, flame the Dragons it buffed (~0.9s).
   useEffect(() => {
@@ -1893,6 +1903,9 @@ export function Recruit() {
 
       {run.discover && (
         <div className="discover-ov" role="dialog" aria-label="Discover a card">
+          {/* WebGL burst layer — sits behind the cards (z0) but above the overlay's dark backdrop, so the
+              golden magic reads white-hot without covering the UI. Driven by discoverFx (see the effect). */}
+          <div className="disc-burst" ref={discoverBurstRef} aria-hidden="true" />
           <div className="disc-panel">
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
             <div className="disc-banner"><span className="disp">Discover</span></div>

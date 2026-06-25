@@ -669,10 +669,13 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* Discover — an ornate, gold-framed parchment panel with a banner title, blue gems, a flourished
    subtitle, and tier-coloured glows on the three cards. */
 .disc-panel {
-  position: relative;
+  position: relative; z-index: 1;                                 /* above the burst FX layer (z0) */
   background: transparent; border: none; box-shadow: none;       /* transparent — just the title + cards float */
   padding: calc(46 * var(--u)) calc(40 * var(--u)) calc(34 * var(--u));
 }
+/* The Discover burst FX layer — fills the overlay behind the panel/cards (above the dark backdrop), so the
+   golden magic erupts behind the UI. The Pixi canvas inside is absolute/full-cover + pointer-events:none. */
+.disc-burst { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .disc-banner {
   position: absolute; top: calc(-22 * var(--u)); left: 50%; transform: translateX(-50%);
   background: linear-gradient(180deg, #f8edd2, #e7cf9f); border: 3px solid #c8922e; border-radius: calc(13 * var(--u));

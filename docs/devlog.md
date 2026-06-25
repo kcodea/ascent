@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Discover golden-magic burst (behind the cards)
+
+Opening a Discover now erupts a burst of golden, white-hot magic + sparkles from screen center that shoots
+outward off every edge (~2.5 s, capped under 3 s). It renders **behind the Discover cards/UI but above the
+overlay's dark backdrop**, so it reads white-hot over the dim without obscuring the choice.
+
+- **Second FX layer** (`pixiFx.ts`): a separate `discoverFx = new FxController()` instance, mounted on a
+  `.disc-burst` div *inside* the Discover overlay (z0, behind `.disc-panel` at z1, above the overlay's
+  `rgba(...,0.62)` backdrop). A root-level canvas can't sit between an overlay's own background and its
+  children, so the burst needs to live inside the overlay — hence a dedicated instance. `attach()` now
+  returns its init promise so the burst fires once the (async) app is ready; the canvas is re-appended on
+  each subsequent Discover (no WebGL-context churn).
+- **`discoverBurst(cx, cy)`**: a central white-gold bloom + 16 large soft glow motes drifting outward + 50
+  fast radial sparkles (shards/dots, 650–1550 px/s so they reach the page edges), all **additive** so they
+  glow white-hot over the dark dim. Max particle life ~2.5 s.
+- **Trigger** (`Recruit.tsx`): an effect on `run.discover` attaches `discoverFx` to the `.disc-burst` ref
+  and fires the burst when Discover opens.
+
+**Files:** `pixiFx.ts` (`discoverBurst`, `discoverFx`, `attach` returns a promise, DEV `__discoverFx`),
+`Recruit.tsx` (`.disc-burst` div + ref + trigger effect), `styles.css` (`.disc-burst` z0 / `.disc-panel` z1).
+
+**Verification:** `typecheck + lint + test (354) + build:web` all green. Live: `discoverFx` initialises as
+an independent app and `discoverBurst` spawns 67 additive particles (50 fast sparkles), confirmed via the
+`__discoverFx` handle. (Animation can't run in the headless preview — owner to eyeball the live burst.)
+
 ### feat: trigger-medallion pulse when a unit's effect fires in combat
 
 Each unit's mechanic medallion (`.cgem` — the centre badge showing its Battlecry/Deathrattle/keyword

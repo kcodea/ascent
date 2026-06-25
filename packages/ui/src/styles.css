@@ -990,28 +990,8 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
   100% { opacity: 0; transform: rotate(var(--a)) translateY(-54px) scaleY(1); }
 }
 
-/* board dust: a soft, earthy puff of motes kicked up when you tap the empty table.
-   Muted brown, quick + subtle — it should read as touching the table, not a spell. */
-.boarddust { position: fixed; width: 0; height: 0; z-index: 80; pointer-events: none; }
-.bd-puff {
-  position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; margin: -15px;
-  border-radius: 50%; background: radial-gradient(circle, rgba(107, 86, 64, 0.32) 0%, transparent 68%);
-  transform: scale(0.3); animation: bdpuff 0.6s ease-out forwards;
-}
-@keyframes bdpuff {
-  0% { transform: scale(0.3); opacity: 0.6; }
-  100% { transform: scale(1.65); opacity: 0; }
-}
-.bd-mote {
-  position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; margin: -2.5px;
-  border-radius: 50%; background: rgba(120, 96, 70, 0.85); opacity: 0;
-  transform: rotate(var(--a)) translateY(0); animation: bdmote 0.62s ease-out forwards;
-}
-@keyframes bdmote {
-  0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.6); }
-  25% { opacity: 0.6; }
-  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(1); }
-}
+/* board click feedback (the dust puff + "thock") is now drawn on the Pixi FX layer — see
+   pixiFx.clickPuff() + sfx.clickThock(), fired from Recruit's puffBoard handler. */
 /* the dragged hand card is lifted out — fully hidden (no faint "ghost copy"), but its slot
    stays reserved so the fan never reflows; the floating .dragcard is the only visible copy. */
 .card.dragsrc { opacity: 0; }

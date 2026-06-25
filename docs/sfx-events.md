@@ -58,6 +58,8 @@ files in `packages/ui/src/audio/`.
 | `pulse` | choose a hero; press the Hero-Power button | **sourced** | `pulse` | 0.50 | sine up-ping |
 | `triggerPulse` | a trigger medallion **pulses** (effect officially fires) | **sourced** | `triggerpulse` | 0.50 | triangle swell (deduped) |
 | `triggerGlow` | a trigger medallion **glows** (cadence ticks toward firing, e.g. Frontdrake) **and** every End-of-Turn proc | **sourced** | `triggerglow` | 0.50 | soft triangle tick (deduped) |
+| `clickThock` | primary click on the **empty board** (not a card/control) | **sourced** | `clickthock` | 0.50 | soft square tick |
+| `cardTouch` | pressing **any card** (shop / hand / board), at any time | **sourced** | `cardtouch` | 0.50 | soft sine tick |
 | `hit` (smack) | damage lands in combat (impact) | **sourced** | `smack` | 0.156 | square thud |
 | `castSpell` | a **spell** is cast (vs a minion landing) | synth | — | — | triangle down-slide |
 | `roll` | refresh / reroll the tavern | **sourced** | `roll` | 0.50 | (synth 3-step sweep fallback) |
@@ -88,6 +90,10 @@ files in `packages/ui/src/audio/`.
   formed), `deny` (any rejected buy/play/roll/upgrade), `combatStart` (faceOmen). Discover **pick** plays
   `buy`. Inspect (`inspectCard`) plays `inspect`.
 - **Hero Power button** (`StatusBar.tsx`) and **hero choose** (`HeroSelect.tsx`): `pulse`.
+- **Board press** (`Recruit.tsx` → `onBoardPointerDown`, the root-level handler): pressing a `[data-zone] .card`
+  (shop / hand / board) plays `cardTouch` — fired here, not in the card's own drag handler, so it sounds at any
+  time (timer up, hero armed, end-of-turn animating). A primary click that misses every card/control plays
+  `clickThock` paired with a small `pixiFx.clickPuff` dust at the cursor.
 - **Timer** (`Recruit.tsx`): `tick` (last 5 s). **End-of-Turn procs** (`Recruit.tsx`): every proc plays
   `triggerGlow` (the EOT cue), plus the medallion cue per beat — `triggerPulse` when the effect officially
   fires (so a completing beat is pulse **+** glow), or `triggerGlow` when a cadence card only ticks toward

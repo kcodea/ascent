@@ -14,9 +14,18 @@ files in `packages/ui/src/audio/`.
 - **To add/replace a sourced clip:** drop `name.mp3` into `packages/ui/src/audio/` (lowercase — the lookup
   and the itch Linux host are case-sensitive) and make sure the event calls `playSample('name', …)`. A new
   file needs a **dev-server restart** (the file list is an eager `import.meta.glob`, not hot-reloaded).
+- **Per-card voicelines/SFX (zero code):** drop `packages/ui/src/audio/cards/<cardId>.mp3` and it plays
+  automatically when that card is **played** (`sfx.cardVoice(cardId)` from the `play` action), **layered over**
+  the general `cardlanding`/`castSpell` sound. Keyed by `cardId` (works for minions and spells); no file = just
+  the general sound. All card clips share one gain key, `cardVoice` (one mixer slider, not one-per-card), and
+  are prefetched + bundled like every other clip (committed mp3 → ships in every build, incl. itch).
 - **Per-clip volume.** Each sourced clip has a tunable gain in `SAMPLE_VOL_DEFAULTS` (sfx.ts), adjustable
   live with the **DEV SFX mixer** (🔊 button, bottom-left — slider + ▶ preview per clip + "Copy values" to
   paste the dialed-in numbers back as the shipped defaults). Persisted to `localStorage['ascent.sfxvol']`.
+- **Master limiter.** Every sound (samples + synth) routes through one shared `DynamicsCompressorNode`
+  (threshold −6 dB, ratio 20, 1 ms attack) before the destination, so overlapping clips can't sum past full
+  scale and hard-clip the output. Single sounds at playback gain sit below −6 dB and pass untouched; only loud
+  *stacks* get limited. (Verified offline: a ×3 torture-sum drops from 2.19 → 0.89 peak, no clip.)
 - **Master volume + mute** (Settings → Audio) scale/silence every sound; both persist (`ascent.vol`,
   `ascent.muted`). One sound per notable event per beat.
 - **Warm-up.** The audio context + sample decode kick off on the **first user gesture** anywhere (pointer or
@@ -108,7 +117,7 @@ call to `playSample(...)` (with the synth as fallback). Rough priority:
 | event | length | animation | note |
 |---|---|---|---|
 | **Start-of-Combat cast (sc)** | **1080 ms** | caster `sccast` pulse + projectile bolts | Ember Whelp / Blaster opening zaps — a cast/zap would help |
-| **summon** | 660 ms | `summoned` pop-in | tokens, Deathrattle summons |
+| ~~**summon**~~ | 660 ms | `summoned` pop-in | ✅ now sourced — `sfx.summon(tokenId)`: general `summon` clip (synth fallback) + the token's own `cards/<tokenId>.mp3`. Fires in recruit (battlecry) + combat |
 | **Divine Shield BREAK (shield)** | 690 ms | `shatter` flash | distinct from *gaining* a shield — a glass-break would read great |
 | **poison kill** | 750 ms | `poisoned` + big `☠` bloom | Venomous — a hiss/dissolve |
 | **Venomous spent (venomLost)** | 750 ms | `venomspent` flash | venom drops off after its hit |
@@ -143,7 +152,7 @@ call to `playSample(...)` (with the synth as fallback). Rough priority:
 4. **Magnetic weld** (recruit) — a metallic clamp.
 5. **Poison kill** — the big `☠` bloom wants a hiss/dissolve.
 6. **Reborn** — a "phoenix" return cue.
-7. **summon / toHand / rally / improve** — minor, but each is a distinct beat with no audio.
+7. **toHand / rally / improve** — minor, but each is a distinct beat with no audio. *(summon now has audio.)*
 
 > To wire a sourced clip: add `name.mp3` to `packages/ui/src/audio/` and either swap a §1 synth key to
 > `playSample('name', sampleVol.name)` (keep the synth as fallback) or, for a §4 silent event, add a new

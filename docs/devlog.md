@@ -5,6 +5,43 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### Audio: master limiter (prevent layer-clipping) + per-card voiceline gain tune
+
+- **Master limiter on the whole SFX bus.** All sounds (samples + synth) now route through one shared
+  `DynamicsCompressorNode` (threshold −6 dB, knee 0, ratio 20, attack 1 ms, release 0.25) before
+  `ctx.destination`, created with the context in `audio()`. Fixes output **clipping when clips overlap** (the
+  card-landing + voiceline + summon SFX hitting together summed past full scale and hard-clipped). Single
+  sounds at playback gain sit below the threshold and pass untouched — only loud stacks get limited.
+- **Verified by offline render** (OfflineAudioContext): a deliberately hot ×3 sum peaked at **2.19 (+6.8 dB,
+  clipping)** straight to destination vs **0.89 (no clip)** through the limiter; tuned attack/threshold so even
+  that torture case stays under 0 dBFS. Also analyzed the three shipped clips — alley peaks at 0 dBFS (4
+  marginal samples), stray −1.4 dB, summon −2.7 dB (the limiter is the right fix, not per-file edits).
+- **Per-card voiceline gain** lowered to `0.10` (`cardVoice`) by ear.
+- **Verified:** typecheck + lint clean, 331 tests pass, app boots clean.
+
+### Audio: per-card unique voicelines/SFX (`sfx.cardVoice`, zero-code convention)
+
+- **New system for card-specific sounds.** A card can now have its own voiceline/SFX that plays when it's
+  **played**, layered over the general `cardlanding`/`castSpell` sound. Convention-driven: drop
+  `packages/ui/src/audio/cards/<cardId>.mp3` and it auto-plays for that card — no code per card.
+- **How it works** (`packages/ui/src/sfx.ts`): a second eager `import.meta.glob('./audio/cards/*.mp3')` merges
+  into `SAMPLE_URLS` keyed `cards/<cardId>` (sample-name derivation changed to path-relative so nested files
+  don't collide with top-level names). New `sfx.cardVoice(cardId)` `playSample`s `cards/<cardId>` (silent if
+  absent — no synth fallback). Called from the `play` handler in `store.ts` after the general sound. One shared
+  `cardVoice` gain (0.6) in `SAMPLE_VOL_DEFAULTS` → a single DEV-mixer slider for all card clips (+ a preview
+  that plays whichever card clip exists). Prefetched + bundled like every clip.
+- **Ships, not local-only:** verified the built bundle references `audio/cards/<cardId>.mp3` (Vite bundles the
+  glob into `dist/`); committed mp3s travel to main → every build incl. itch.
+- **Summon audio (recruit + combat).** A new `sfx.summon(tokenId?)` plays a general summon cue (sourced
+  `summon` clip with a synth rising-blip fallback) **layered with** the summoned token's own
+  `cards/<tokenId>.mp3` (reuses the per-card system — tokens have cardIds). Fired from two places: the `play`
+  handler reads the played card's `onPlay` effects for a `tokenId` (e.g. Alleycat → Stray), and the combat
+  replay's previously-silent `summon` beat now calls `sfx.summon(e.minion.cardId)` (Deathrattle/other combat
+  summons). One shared `summon` gain (0.5) in the mixer. So the full Alleycat moment = Alleycat's voiceline +
+  the summon cue + the Stray's clip.
+- **Verified:** typecheck + lint clean, 331 tests pass, build references the cards glob. First real clip
+  (Alleycat / `alley`) added separately as the test case.
+
 ### fix: Sergeant's Deathrattle improves on EVERY Attack-gain, permanently (shop + combat)
 
 **Bug:** Sergeant ("Deathrattle: give your minions +2 Health, improves each time Sergeant gains Attack") only improved its grant from **combat** Attack-gains, and only for that one fight. Attack gained in the **shop** (Forsaken Weaver on a spell cast, Deathswarmer, Karthus, Fortify, undead buy-bonus, …) did nothing, and combat improvements reset next fight. So two Forsaken Weavers + a spell improved it **zero** times in the shop instead of twice.

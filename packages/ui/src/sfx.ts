@@ -37,12 +37,31 @@ export function setVolume(v: number): void {
 /** True while the tab is backgrounded — we suppress sound then, so a pile-up doesn't blast on tab-in. */
 const isHidden = (): boolean => typeof document !== 'undefined' && document.hidden;
 
+// A master limiter every sound routes through, so overlapping clips (landing + voiceline + summon, etc.)
+// can never sum past full scale and hard-clip the output. Configured limiter-style: catch anything above the
+// threshold with a high ratio + fast attack, so peaks are tamed transparently for short SFX.
+let master: DynamicsCompressorNode | null = null;
+/** The node sounds connect to (the limiter if ready, else the raw destination). */
+function out(a: AudioContext): AudioNode {
+  return master ?? a.destination;
+}
+
 function audio(): AudioContext | null {
   try {
     const isNew = !ctx;
     ctx ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     if (ctx.state === 'suspended') void ctx.resume();
-    if (isNew) prefetchSamples(); // decode the mp3 SFX once the context exists (first user gesture)
+    if (isNew) {
+      master = ctx.createDynamicsCompressor();
+      master.threshold.value = -6; // engage when stacked sounds sum past -6 dBFS (single clips at playback
+                                   // gain sit well below this, so they pass untouched — only loud stacks limit)
+      master.knee.value = 0;       // hard knee → behaves like a limiter
+      master.ratio.value = 20;     // max ratio: anything above threshold is held down hard
+      master.attack.value = 0.001; // 1ms — fast enough that even a torture-test sum stays under 0 dBFS
+      master.release.value = 0.25;
+      master.connect(ctx.destination);
+      prefetchSamples(); // decode the mp3 SFX once the context exists (first user gesture)
+    }
     return ctx;
   } catch {
     return null;
@@ -66,10 +85,16 @@ if (typeof window !== 'undefined') {
 // --- Sampled SFX (mp3 files in ./audio) — decoded into AudioBuffers and played through the same context, so
 //     they overlap cleanly (each play is a fresh BufferSource) and sit alongside the synth blips. Decoded
 //     lazily; the synth blip is the fallback until a sample's buffer is ready (or if decoding fails). ---
-const SAMPLE_URLS = import.meta.glob('./audio/*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+// Top-level clips (keyed by bare name, e.g. `roll`) + per-card clips in ./audio/cards/ (keyed `cards/<cardId>`,
+// played by sfx.cardVoice on the `play` action — a unique voiceline/SFX layered over the general landing sound).
+const SAMPLE_URLS = {
+  ...import.meta.glob('./audio/*.mp3', { eager: true, query: '?url', import: 'default' }),
+  ...import.meta.glob('./audio/cards/*.mp3', { eager: true, query: '?url', import: 'default' }),
+} as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
 const loadingSamples = new Set<string>();
-const sampleName = (path: string): string => path.split('/').pop()?.replace(/\.mp3$/, '') ?? '';
+// Key = path under ./audio/ minus extension: `./audio/roll.mp3` → `roll`, `./audio/cards/karthus.mp3` → `cards/karthus`.
+const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.mp3$/, '');
 
 function loadSample(name: string): void {
   const a = audio();
@@ -89,8 +114,9 @@ function prefetchSamples(): void {
 }
 
 /** Play a decoded sample (fresh BufferSource → overlaps fine). Returns false if its buffer isn't ready yet,
- *  so the caller can fall back to a synth blip while the sample finishes decoding. */
-function playSample(name: string, vol = 0.6): boolean {
+ *  so the caller can fall back to a synth blip while the sample finishes decoding. `delay` (s) schedules the
+ *  start later on the audio clock (sample-accurate) — used to stagger a token's clip after the summon cue. */
+function playSample(name: string, vol = 0.6, delay = 0): boolean {
   if (isHidden()) return false; // don't play while the tab is backgrounded (avoids a burst on tab-in)
   const a = audio();
   if (!a || muted) return false;
@@ -100,8 +126,8 @@ function playSample(name: string, vol = 0.6): boolean {
   src.buffer = buf;
   const g = a.createGain();
   g.gain.value = vol * masterVol;
-  src.connect(g).connect(a.destination);
-  src.start();
+  src.connect(g).connect(out(a));
+  src.start(a.currentTime + Math.max(0, delay));
   return true;
 }
 
@@ -127,7 +153,7 @@ function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0 }: Tone
   gain.gain.setValueAtTime(0, t0);
   gain.gain.linearRampToValueAtTime(Math.max(0.0001, vol * masterVol), t0 + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  osc.connect(gain).connect(a.destination);
+  osc.connect(gain).connect(out(a));
   osc.start(t0);
   osc.stop(t0 + dur + 0.03);
 }
@@ -154,6 +180,8 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   upgrade: 0.5,
   roll: 0.5,
   combatStart: 0.5,
+  cardVoice: 0.1, // shared gain for ALL per-card voicelines/SFX (audio/cards/<cardId>.mp3) — dialed in by ear (mixer "10")
+  summon: 0.5,    // general "a token was summoned" cue (layered with the token's own cardVoice clip)
 };
 let sampleVol: Record<string, number> = (() => {
   try {
@@ -176,6 +204,10 @@ export function setSampleVolume(key: string, v: number): void {
     /* ignore */
   }
 }
+
+/** Seconds the summoned token's own voiceline waits after the general summon cue, so the summon SFX
+ *  gets room to land first (a slight overlap is intended). Tune by ear. */
+const SUMMON_VOICE_LEAD = 0.3;
 
 export const sfx = {
   buy: () => {
@@ -224,6 +256,17 @@ export const sfx = {
   roll: () => {
     if (playSample('roll', sampleVol.roll)) return;
     [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d }));
+  },
+  // A specific card's unique voiceline/SFX — drop `audio/cards/<cardId>.mp3` and it plays when that card is
+  // played, LAYERED over the general landing/cast sound. Silent (no fallback) if the card has no clip.
+  cardVoice: (cardId: string) => { playSample(`cards/${cardId}`, sampleVol.cardVoice); },
+  // A token is summoned — a general "summon" pop (sourced `summon` clip; synth rising blip fallback) LAYERED
+  // with the summoned token's own cards/<tokenId>.mp3 voiceline if present. Fires on battlecry summons
+  // (recruit, from store.ts) and combat summons (deathrattles etc., from useCombatReplay.ts).
+  summon: (tokenId?: string) => {
+    if (!playSample('summon', sampleVol.summon)) tone({ freq: 300, dur: 0.12, type: 'triangle', vol: 0.1, slideTo: 520 });
+    // Let the summon cue land first, THEN the summoned token's own voiceline (slight overlap is fine).
+    if (tokenId) playSample(`cards/${tokenId}`, sampleVol.cardVoice, SUMMON_VOICE_LEAD);
   },
   // A Discover choice opens — the sourced "discover" clip; synth shimmer until it decodes / if absent.
   discover: () => {
@@ -297,6 +340,12 @@ const SFX_PREVIEW: Record<string, () => void> = {
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,
+  // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
+  cardVoice: () => {
+    const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/'));
+    if (first) playSample(first, sampleVol.cardVoice);
+  },
+  summon: () => sfx.summon(),
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();

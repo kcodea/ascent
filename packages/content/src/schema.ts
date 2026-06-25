@@ -27,6 +27,7 @@ export const GameEventSchema = z.enum([
   'cast',
   'spellCast',
   'summonOverflow',
+  'onRoll',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -116,6 +117,18 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleGrantRandomSpell',
   'onDamagedGrantRefresh',
   'summonBuffTribeImprove',
+  'deathrattleGiveHealth',
+  'scGainFodderStats',
+  'onSummonSelfBuff',
+  'onSummonOverflowBuffTribe',
+  'deathrattleBuffAllHealth',
+  'onGainAttackImproveHpGrant',
+  'spellCastBuffUndeadAttack',
+  'deathrattleGrantCardToHand',
+  'battlecryBuffUndeadAttack',
+  'battlecryFreeRollsAndBuffShop',
+  'onRollConsumeShop',
+  'onKillBuffUndeadAttack',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -145,6 +158,7 @@ export const CardDefSchema = z.object({
   // (the keyword badge + hover tooltip carry the meaning).
   text: z.string(),
   goldenText: z.string().optional(),
+  universalTribe: z.boolean().optional(),
   token: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),
   ascendInto: z.string().optional(),

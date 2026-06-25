@@ -3,6 +3,128 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-24 (session 4)
+
+### feat: shop weights, spell discover fix, Karthus/DeathlessHand/Footman, onKill bus, Tara combat log, live combat text, art wiring (#23)
+
+**Bug fixes:**
+
+- **Spell Discover now tier-gated** — `offerSpellDiscover` in `recruit.ts` was drawing from all spells with no filter; changed `const avail = [...SPELL_CARDS]` → `SPELL_CARDS.filter(c => c.tier <= state.tier)`. Players can no longer discover T6 spells at T5.
+- **Shop weights flattened** — `drawOfferId` in `shop.ts` used a tier-biased formula (`1 + (tier match ? 1.2 : 0) + (within 1 tier ? 0.4 : 0)`) that gave T6 cards a 2.6× higher chance at T6 tavern. Replaced with uniform `pool[rng.int(pool.length)]` — every eligible card has equal chance. Confirmed by player request.
+- **`onKill` bus now emits for ALL kills** — previously only fired when `attacker.reAttackOnKill` was true (Gnasher). Fixed `performAttack` in `simulate.ts`: emit `onKill` unconditionally on any kill, then conditionally chain the re-attack. Enables Karthus's on-kill factory.
+
+**Card renames (id unchanged):**
+- `skullblade`: "Skullblade" → **"Ghastly Bladesmith"** (effect unchanged)
+- `knit`: "Grave Knit" → **"Eternal Knight"** (effect unchanged, card text updated)
+
+**New cards:**
+- **Karthus (T5 Undead 8/8 Divine Shield)** — `onKill` / new `onKillBuffUndeadAttack` factory: when Karthus kills an enemy, immediately buff all living friendly Undead +3 Attack (golden +6), and carry back `playerUndeadBuyAtkGain` so the bonus stacks into `undeadBuyAtk` AND is applied to existing run-board Undead in `settleCombat`. Future Undead buys also benefit.
+- **Deathless Hand (T3 Undead 2/1)** — Deathrattle: summon a Footman (uses existing `deathrattleSummon` factory; golden summons 2).
+- **Footman (T1 Undead 1/1 Reborn, token)** — not in the shop; summoned by Deathless Hand. Reborn lets it die twice — a reliable trade body and a Deathrattle trigger.
+
+**New engine primitives:**
+- `onKillBuffUndeadAttack` added to `EffectFactoryId` + `EffectFactoryIdSchema` + `FACTORIES`.
+- `grantUndeadBuyAtk(amount, side)` added to `CombatContext` — accumulates `undeadBuyAtkGain`, returned in `CombatResult.playerUndeadBuyAtkGain`. `settleCombat` in reducer.ts stacks it into `s.undeadBuyAtk` and buffs existing board+hand Undead immediately via `addBuff`.
+- `hpGrant` CombatEvent — emitted by the `onGainAttackImproveHpGrant` factory each time Sergeant's DR HP grant improves; the UI tracks `u.hpGrantBonus` from it.
+
+**Tara combat log** — `simulate.ts` buff callback now emits an `sc` narration event whenever `buffCounts` increments for a card with `ascendAt`: shows "Tara: N stat grants to go" (or "has reached the ascend threshold!") directly in the combat event log.
+
+**Combat live card text (Tara, Sergeant, Thundering Abomination):**
+- `UnitFrame` gains `ascendProgress?`, `hpGrantBonus?`, `permaGain?`.
+- `computeFrame` in `useCombatReplay.ts` now tracks: `ascendProgress` incremented on every `buff` event targeting a card with `ascendAt` (using existing `CARD_INDEX` import); `hpGrantBonus` from `hpGrant` events (absolute value so UI always shows current total); `permaGain` accumulated from `buff` events on EG-keyword units.
+- `hpGrant: 0` added to `DELAY` (no extra pause — fires in the same beat as the triggering buff).
+- `cardText.ts` gains `sergeantText()` (shows live `+N Health` replacing the printed value, green when improved) and `engraveTallyText()` (appends `{{+A/+H so far}}` for Engraved minions showing accrued combat gains).
+- `Unit.tsx` text chain extended: `ascendProgressText` → `sergeantText` → `engraveTallyText` in priority order. Memo comparator updated to include all three new fields.
+
+**Art wiring (18 files):**
+- New PNGs copied to `packages/ui/src/art/minions/` for all PR#22 cards (Acid, Trickster, DemonicAnomaly, AbhorrentHorror, Deathswarmer, Pillager, ThunderingAbomination, Sergeant, ForsakenWeaver, SymbioticAttachment) plus new cards (Karthus, DeathlessHand, Footman).
+- Rewired by replacing old webp with new PNG: VoraciousImp (→ `imp.png`), Spare Parts Drone (→ `drone.png`), Deathsayer (→ `deathsayer.png`).
+- Renamed cards use new art: Ghastly Bladesmith (→ `skullblade.png`), Eternal Knight (→ `knit.png`).
+
+**Files changed:** `packages/core/src/types.ts`, `packages/core/src/effects/factories.ts`, `packages/core/src/combat/simulate.ts`, `packages/content/src/schema.ts`, `packages/content/src/cards/undead.ts`, `packages/content/src/cards/tokens.ts`, `packages/sim/src/shop.ts`, `packages/sim/src/recruit.ts`, `packages/sim/src/reducer.ts`, `packages/ui/src/useCombatReplay.ts`, `packages/ui/src/cardText.ts`, `packages/ui/src/Unit.tsx`, `packages/tools/src/combat-harness.ts`, 18 art files.
+
+**Verification:** `npm run typecheck && npm run lint && npm test` (325/325) + `npm run build:web` all green. All new art files confirmed in the Vite bundle output.
+
+---
+
+## 2026-06-24 (session 3)
+
+### feat: Symbiote hero + 9 new minions (4 Demons, 5 Undead) — universalTribe, undeadBuyAtk, onRoll, fodderConsumedThisTurn
+
+**Hero: Symbiote** — a new hero whose passive grants a 1/1 Magnetic token called **Symbiotic Attachment** at the start of the run and every 4 turns. The token has `universalTribe: true` — it counts as every tribe simultaneously, getting ALL tribe-conditional buffs and magnetizing onto any non-neutral minion (instead of only same-tribe hosts).
+
+**New engine primitives introduced:**
+
+- **`universalTribe?: boolean` on `CardDef`** — causes `isTribe()` (recruit), the `tribeAuras` loop (combat), and `buffOnSummon` / `summonBuffTribeImprove` / `deathrattleBuffTribe` / `deathrattleBuffTribeByTally` factories to match on any non-neutral tribe check. `magnetizesTo()` in reducer.ts also recognizes it (any non-neutral target is valid).
+- **`undeadBuyAtk: number` on `RunState`** — the permanent recruit-time attack bonus stacked by Deathswarmer and Forsaken Weaver. Baked into newly bought undead at buy time (buy case in reducer.ts) via an "Undead Bond" tracked buff. Re-applied on Reborn and mid-combat summons via `applyUndeadBonus(m, true)` in simulate.ts (already wired in session 2). Kept separate from `undeadAttackBonus` (Lantern of Souls, combat-only) to prevent double-applying the buy-time bonus.
+- **`'onRoll'` GameEvent + `applyOnRoll()`** — fires after every manual tavern refresh (roll action in reducer.ts). Used by Acid. `rollTick` per-instance on `BoardCard` tracks per-card refresh counts; reset each wave in `advanceCombat`.
+- **`fodderConsumedThisTurn?: { attack; health }` on `RunState`** — accumulates raw fodder stats consumed in `consumeTavernFodder` each wave. Reset to `{ 0, 0 }` in `advanceCombat`. Passed to `simulate()` as `fodderConsumedAtk`/`fodderConsumedHp` on `CombatContext`; used by Abhorrent Horror's SoC factory.
+- **`heroPowerTick?: number` on `RunState`** — tracks how many faceOmen ticks have passed for the Symbiote; every 4 ticks a new token is granted to the hand. Initial token is granted in `createRun`.
+
+**4 new Demon cards:**
+
+- **Acid (T6 7/7, Consume Native)** — `onRoll` / `onRollConsumeShop`: every 4 manual refreshes, consumes a random non-Fodder tavern offer and gains its stats (golden doubles). Wave-scoped via `rollTick`.
+- **Trickster (T1 1/3)** — `onDeath` / `deathrattleGiveHealth`: give a random friendly minion this minion's current `maxHealth` (golden picks twice independently).
+- **Demonic Anomaly (T4 4/4)** — `onPlay` / `battlecryFreeRollsAndBuffShop`: gain 2 free refreshes and buff the current tavern +3/+3 (golden: 4 refreshes, +6/+6).
+- **Abhorrent Horror (T6 1/1, Start of Combat)** — `startOfCombat` / `scGainFodderStats`: gains Attack + Health equal to all fodder consumed this turn (golden doubles). SoC window so Soulfeeder + Anomaly combos can power it up.
+
+**5 new Undead cards:**
+
+- **Deathswarmer (T2 2/2)** — `onPlay` / `battlecryBuffUndeadAttack`: give your Undead +1 Attack wherever they are and stack `undeadBuyAtk` (golden +2).
+- **Pillager (T3 3/4)** — `onDeath` / `deathrattleGrantCardToHand`: get a Gold Pouch (cardId `emberpouch`) in hand after combat (golden: 2 pouches).
+- **Thundering Abomination (T5 4/7, Engraved)** — `onSummon` / `onSummonSelfBuff` (+3/+3 per friendly summon, golden +6/+6) + `summonOverflow` / `onSummonOverflowBuffTribe` (overflow summons give your Undead +2/+2, golden +4/+4). Stats carry back via EG.
+- **Sergeant (T5 6/6)** — `onDeath` / `deathrattleBuffAllHealth` (give all living friendlies +2 Health, tracked in `self.hpGrantBonus`) + `onGainAttack` / `onGainAttackImproveHpGrant` (each time Sergeant gains Attack in combat, its DR grant improves by +2; golden +4). A snowball combo with Engraved-granting effects.
+- **Forsaken Weaver (T6 5/8)** — `spellCast` / `spellCastBuffUndeadAttack` (combat half: living Undead get +2 Attack; recruit half: board+hand Undead get +2 and `undeadBuyAtk` stacks; golden +4).
+
+**Token added:** `symbioticattachment` (1/1 Magnetic, `universalTribe: true`, counts as all tribes) in tokens.ts.
+
+**Files changed:** `packages/core/src/types.ts`, `packages/content/src/schema.ts`, `packages/sim/src/heroes.ts`, `packages/content/src/cards/tokens.ts`, `packages/content/src/cards/demons.ts`, `packages/content/src/cards/undead.ts`, `packages/sim/src/state.ts`, `packages/core/src/combat/simulate.ts`, `packages/core/src/effects/factories.ts`, `packages/sim/src/reducer.ts`, `packages/sim/src/recruit.ts`.
+
+**Verification:** `npm run typecheck && npm run lint && npm test` (325/325) + `npm run build:web` all green. No art files matched the new card IDs.
+
+---
+
+## 2026-06-24 (session 2)
+
+### Fix: Crypt Drake live text · Twilight Whelp sequential spawn · Broodmother Taunt in snapshot · Golden Stuntdrake procs twice
+
+Four correctness fixes for the Dragon tribe's newer cards:
+
+**Crypt Drake live text in combat** — Crypt Drake's "Improve this every 3 attacks" buff has always
+scaled mid-fight, but the card text never updated in the arena. Added `attackSeen?: number` to
+`UnitFrame` (useCombatReplay.ts), detected by watching for the Crypt Drake's self-buff event in
+`computeFrame` (its `onAllyAttackBuffAll` factory buffs ALL living friends including itself using its
+own uid as source — a uniquely self-sourced buff with `attack > 0`). Added `cryptDrakeText()` to
+`cardText.ts` (same pattern as `guelProgressText`): highlights the **current grant** in green and
+appends `{{N to go}}` counting down to the next step-up. Wired into `Unit.tsx` text chain + memo
+comparator. No new event types needed.
+
+**Twilight Whelp sequential spawning** — the Whelp's Deathrattle (and Sylus extra procs) was
+spawning all whelpling tokens in a batch loop, then flushing immediate attacks once after the full
+cascade. This meant a second whelpling always overflowed if the first one was alive — it could never
+get the chance to spawn into the slot freed by the first one dying. Fixed by:
+1. Adding `flushImmediateAttacks?(): void` to `CombatContext` (types.ts) — wired from the local
+   function in simulate.ts.
+2. In `deathrattleSummon` (factories.ts): call `ctx.flushImmediateAttacks?.()` after each spawn
+   when `card.attackOnSummon` is true. Each whelpling attacks (and may die) before the next one
+   checks for board space. Correct: on a full board, if whelpling 1 dies → whelpling 2 spawns + attacks;
+   if whelpling 1 survives → whelpling 2 overflows. Works for Twilight Whelp's own deathrattle, its
+   golden (count=2), and Sylus extra procs (which call the same factory function an extra time per Sylus).
+
+**Broodmother's Twilight Whelps missing Taunt in the summon snapshot** — `deathrattleSummon` was
+granting keywords AFTER `ctx.summon()`, but the `summon` event is emitted with the snapshot taken
+INSIDE `summonMinion` — so the keyword was on the live `Minion` but absent from the UI's first frame.
+Fixed by adding optional `grantKeywords?: Keyword[]` to `ctx.summon` (interface + summonMinion signature),
+applied BEFORE the snapshot is taken. `deathrattleSummon` now passes `grantKeywords` directly. The
+Taunt emblem appears on Broodmother's spawned Whelps from frame one.
+
+**Golden Stuntdrake procs twice** — golden Stuntdrake was only giving attack to 2 friends once (same
+as non-golden except for a bigger Attack). Fixed: `avengeGiveAttack` loops `mul(self)` times (1 for
+normal, 2 for golden), rebuilding `pickable` for each proc so targets are independently random. Card
+text updated: "2 other friendly minions" (was "2 friendly minions"); added `goldenText` → "…twice."
+
+Verified: typecheck clean, **325/325 tests** pass.
+
 ## 2026-06-24
 
 ### Opponent pool: add Lemon's 32 boards (Drakko, waves 1–18)

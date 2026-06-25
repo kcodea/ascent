@@ -16,7 +16,8 @@ export type HeroPowerKind =
   | 'spellAmplify' // Rohan (passive): stat-granting spells give +X/+X more, X scaling every 3 waves
   | 'gainMaxMana' // Nadja: gain +1 max Gold permanently (id stays `gainMaxMana`)
   | 'collision' // Cassen (passive): after killing 5 enemy minions, get a minion of your most common type (carry-back)
-  | 'quest'; // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
+  | 'quest' // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
+  | 'symbiote'; // Symbiote (passive): starts with a 1/1 all-type Magnetic token; gets another every 4 turns
 
 export interface HeroPower {
   name: string;
@@ -151,6 +152,18 @@ export const HEROES: HeroDef[] = [
       passive: true, // a quest — the work happens in the buy case, nothing to arm
       oncePerGame: true,
       text: 'Drumline: Buy 5 Battlecry minions to get Drakko the Drummer. (Once per game)',
+    },
+  },
+  {
+    id: 'symbiote',
+    name: 'Symbiote',
+    blurb: 'A bond that transcends all tribes — every kind bends to the connection.',
+    resolve: 30,
+    power: {
+      name: 'Symbiotic Bond',
+      kind: 'symbiote',
+      passive: true,
+      text: 'Start with a **Symbiotic Attachment** in hand. Get another every 4 turns.',
     },
   },
 ];

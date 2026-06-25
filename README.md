@@ -25,6 +25,27 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Bug fixes + 3 new Undead + live combat text + 18 art.** Shop weights flattened (equal chance for
+  all tiers); Spell Discover now tier-gated; `onKill` bus fires for all kills. New cards: **Karthus**
+  (T5 8/8 DS; on-kill +3 Atk to all Undead permanently), **Deathless Hand** (T3; DR: summon a
+  **Footman** — 1/1 Reborn token). Renames: Skullblade → **Ghastly Bladesmith**, Grave Knit →
+  **Eternal Knight**. **Tara** ascend procs now appear in the combat log. Combat live card text for
+  Tara (countdown), Sergeant (improving HP grant), and Thundering Abomination (EG gains). 18 art files.
+- **Symbiote hero + 9 new minions.** New hero: **Symbiote** — starts with a 1/1 Magnetic token (**Symbiotic
+  Attachment**) in hand and gets another every 4 turns. The token has `universalTribe` — it counts as every
+  tribe and magnetizes onto any non-neutral minion. 4 new Demons: **Acid** (every 4 refreshes, eat a tavern
+  minion for its stats), **Trickster** (DR: give a random friend its max-Health), **Demonic Anomaly** (BC: 2
+  free rolls + buff tavern +3/+3), **Abhorrent Horror** (SoC: gain all fodder consumed this turn as stats). 5
+  new Undead: **Deathswarmer** (BC: +1 Atk to your Undead everywhere + stacks the buy-time bonus),
+  **Pillager** (DR: get a Gold Pouch), **Thundering Abomination** (gains +3/+3 per summon; overflow summons
+  buff Undead +2/+2), **Sergeant** (DR: +2 HP to all friends, improves each time it gains Atk), **Forsaken
+  Weaver** (each spell you cast gives your Undead +2 Atk). New engine primitives: `universalTribe`,
+  `undeadBuyAtk` (permanent undead buy-time bonus), `onRoll` event, `fodderConsumedThisTurn`.
+- **Dragon bug-fix pass.** Crypt Drake's text now updates live in combat (current grant highlighted + countdown
+  to next step-up). Twilight Whelp's whelps now spawn **sequentially** — each attacks before the next can enter,
+  so a full board doesn't block the second if the first one dies. Broodmother's whelps show the **Taunt emblem**
+  from their first frame (keyword is now baked into the summon snapshot). Golden Stuntdrake now **procs twice**,
+  picking 2 targets independently each time.
 - **More human opponent boards.** Added Lemon's 32 captured boards (a Drakko run, waves 1–18) to the committed
   pool via `npm run pool` — players now face more real builds across the early-to-mid curve.
 - **Spells cast in combat now trigger Guel.** Taragosa's Growth is a real spell cast — it fires **Archmagus

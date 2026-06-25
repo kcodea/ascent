@@ -5,6 +5,7 @@ import type {
   CombatEvent,
   CombatOutcome,
   CombatResult,
+  Keyword,
   Minion,
   MinionSnapshot,
   Side,
@@ -36,6 +37,9 @@ export function simulate(
   undeadAttackBonus = 0,
   undeadHealthBonus = 0,
   spellsCast = 0,
+  undeadBuyAtk = 0,
+  fodderConsumedAtk = 0,
+  fodderConsumedHp = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -43,6 +47,7 @@ export function simulate(
   const mkUid = (): string => `m${uidCounter++}`;
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
+  let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
@@ -62,11 +67,14 @@ export function simulate(
    * base stats, dropping the bonus, so it's re-applied there too). Pure: keyed only on side + tribe.
    */
   const hasUndeadBonus = undeadAttackBonus > 0 || undeadHealthBonus > 0; // Lantern of Souls active?
-  const applyUndeadBonus = (m: Minion): void => {
-    if (!hasUndeadBonus) return; // common case: no Lantern → skip the side/tribe checks entirely
+  // `includeBuyAtk`: pass true for mid-combat summons and Reborn, which start from base CardDef stats
+  // and therefore haven't had the buy-time bonus baked in yet. Starting minions already have it.
+  const applyUndeadBonus = (m: Minion, includeBuyAtk = false): void => {
+    const extraAtk = includeBuyAtk ? undeadBuyAtk : 0;
+    if (!hasUndeadBonus && extraAtk === 0) return;
     if (m.side !== 'player') return;
-    if (m.tribe !== 'undead' && m.tribe2 !== 'undead') return;
-    if (undeadAttackBonus > 0) m.attack = Math.max(0, m.attack + undeadAttackBonus);
+    if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !cards[m.cardId]?.universalTribe) return;
+    if (undeadAttackBonus + extraAtk > 0) m.attack = Math.max(0, m.attack + undeadAttackBonus + extraAtk);
     if (undeadHealthBonus > 0) {
       m.health += undeadHealthBonus;
       m.maxHealth += undeadHealthBonus;
@@ -117,6 +125,8 @@ export function simulate(
     boards,
     events,
     spellsThisTurn,
+    fodderConsumedAtk,
+    fodderConsumedHp,
     deathrattleTally: () => deathrattlesBase + playerDeathrattles,
     log: (event) => {
       events.push(event);
@@ -144,7 +154,14 @@ export function simulate(
       // Tara: tally each stat-grant on a minion that ascends after N grants (`cards[id].ascendAt`). Carried
       // back via playerAscendCount and accumulated + transformed at settle — no mid-combat transform/UI.
       if ((attack !== 0 || health !== 0) && cards[target.cardId]?.ascendAt) {
-        buffCounts.set(target.uid, (buffCounts.get(target.uid) ?? 0) + 1);
+        const newCount = (buffCounts.get(target.uid) ?? 0) + 1;
+        buffCounts.set(target.uid, newCount);
+        const ascendAt = cards[target.cardId]!.ascendAt!;
+        const remaining = Math.max(0, ascendAt - newCount);
+        const text = remaining > 0
+          ? `${target.name}: ${remaining} stat grant${remaining === 1 ? '' : 's'} to ascend`
+          : `${target.name} has reached the ascend threshold!`;
+        events.push({ type: 'sc', source: target.uid, text });
       }
       // Hunter watches its own Attack rising: emit onGainAttack on a positive delta. The bus snapshots its
       // handlers, so this nested emit is safe; health-only buffs (the common case) skip it, and onGainAttack
@@ -156,7 +173,8 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
-    summon: (side, card, nearUid) => summonMinion(side, card, nearUid, false),
+    summon: (side, card, nearUid, grantKeywords) => summonMinion(side, card, nearUid, false, grantKeywords),
+    flushImmediateAttacks: () => flushImmediateAttacks(),
     grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
       // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a
@@ -195,6 +213,10 @@ export function simulate(
       if (side !== 'player') return; // enemies have no hand
       spellGrants += count;
     },
+    grantUndeadBuyAtk: (amount, side) => {
+      if (side !== 'player') return; // enemies have no run state
+      undeadBuyAtkGain += amount;
+    },
     castSpell: (side) => {
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
       if (side === 'player') playerCombatSpells += 1; // carried back → permanently bumps the run's spellsCast
@@ -208,7 +230,7 @@ export function simulate(
    * themselves. Because this lives in the summon path, it applies to *any* summon (token Deathrattles,
    * `deathrattleFillTribe`'s real minions, Brood Matron, future effects), not just token effects.
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, isEcho: boolean): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, isEcho: boolean, grantKeywords?: Keyword[]): Minion {
     const minion = instantiate({ cardId: card.id, attack: card.attack, health: card.health }, side, cards, mkUid);
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff).
@@ -223,13 +245,22 @@ export function simulate(
       if (near >= 0) index = near + 1;
     }
     arr.splice(index, 0, minion);
-    applyUndeadBonus(minion); // Lantern of Souls — a summoned player Undead (token, filled minion) gets it too
+    applyUndeadBonus(minion, true); // Lantern + buy-time bonus — summoned minions start from base stats
+    // Grant keywords (e.g. Taunt from Broodmother) BEFORE snapshotting so the UI sees them from frame 1.
+    if (grantKeywords) {
+      for (const kw of grantKeywords) {
+        if (!minion.keywords.includes(kw)) {
+          minion.keywords.push(kw);
+          if (kw === 'DS') minion.divineShield = true;
+        }
+      }
+    }
     registerEffects(minion);
     events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid, ...(isEcho && { echo: true }) });
     bus.emit('onSummon', { minion, side });
     // Persistent tribe auras (Grim) catch minions summoned after they were registered.
     for (const aura of tribeAuras) {
-      if (aura.side === side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe)) {
+      if (aura.side === side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!cards[minion.cardId]?.universalTribe))) {
         ctx.buff(minion, aura.attack, aura.health, aura.source);
       }
     }
@@ -291,7 +322,7 @@ export function simulate(
         minion.keywords = minion.keywords.filter((k) => k !== 'R');
         minion.health = 1;
       }
-      applyUndeadBonus(minion); // Reborn reset stats to base — re-apply Lantern of Souls to a player Undead
+      applyUndeadBonus(minion, true); // Reborn reset stats to base — re-apply Lantern + buy-time bonus
       events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords] });
       return;
     }
@@ -431,9 +462,11 @@ export function simulate(
       const killed =
         targetWasAlive &&
         (target.dead || target.health <= 0 || (targetCouldReborn && !target.rebornAvailable));
-      if (killed && attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
+      if (killed) {
         bus.emit('onKill', { attacker, victim: target });
-        performAttack(attacker, defenderSide, depth + 1);
+        if (attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
+          performAttack(attacker, defenderSide, depth + 1);
+        }
       }
     }
   }
@@ -609,5 +642,6 @@ export function simulate(
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
     playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
+    playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
   };
 }

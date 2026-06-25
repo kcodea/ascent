@@ -23,6 +23,14 @@ export interface UnitFrame {
   golden: boolean;
   /** Live summon-buff bonus (Kennelmaster) — climbs via `improve` events mid-fight. */
   summonBonus: number;
+  /** Crypt Drake: ally attacks seen this combat — drives the live "current buff / N to go" text. */
+  attackSeen?: number;
+  /** Tara: how many stat-grants have accumulated toward ascension this combat. */
+  ascendProgress?: number;
+  /** Sergeant: accumulated HP bonus on the Deathrattle (grows each time Sergeant gains Attack). */
+  hpGrantBonus?: number;
+  /** Thundering Abomination (Engraved): permanent stat gains accrued mid-combat. */
+  permaGain?: { attack: number; health: number };
   /** Combat-start stats — the values this unit *entered the fight* with (for tokens, its summon stats).
    *  This is the in-combat baseline for the green/red stat colouring: health below it reads red
    *  (damaged), attack below it reads red (debuffed), above reads green (buffed). It is NOT the printed
@@ -115,7 +123,30 @@ function computeFrame(
       if (i < beatStart) gone.add(e.target);
     } else if (e.type === 'buff') {
       const u = find(e.target);
-      if (u) { u.attack += e.attack; u.health += e.health; }
+      if (u) {
+        u.attack += e.attack;
+        u.health += e.health;
+        // Tara: tally stat-grants on minions with ascendAt toward their ascend threshold.
+        if ((e.attack !== 0 || e.health !== 0) && CARD_INDEX[u.cardId]?.ascendAt) {
+          u.ascendProgress = (u.ascendProgress ?? 0) + 1;
+        }
+        // Thundering Abomination (EG): accumulate permanent stat gains for live card text.
+        if (u.keywords.includes('EG') && (e.attack !== 0 || e.health !== 0)) {
+          u.permaGain = {
+            attack: (u.permaGain?.attack ?? 0) + e.attack,
+            health: (u.permaGain?.health ?? 0) + e.health,
+          };
+        }
+      }
+      // Crypt Drake: detect its self-buff (source === target, attack > 0) to count ally-attack triggers.
+      // Its onAllyAttackBuffAll buffs all friends including itself — this event is uniquely self-sourced.
+      if (e.source === e.target && e.attack > 0) {
+        const src = find(e.source);
+        if (src?.cardId === 'cryptdrake') src.attackSeen = (src.attackSeen ?? 0) + 1;
+      }
+    } else if (e.type === 'hpGrant') {
+      const u = find(e.target);
+      if (u) u.hpGrantBonus = e.amount; // Sergeant: absolute cumulative HP-grant bonus → live card text
     } else if (e.type === 'improve') {
       const u = find(e.target);
       if (u) u.summonBonus += e.amount; // Kennelmaster's aura climbs mid-fight → live card text
@@ -134,7 +165,7 @@ const DELAY: Record<string, number> = {
   // action beats (the wind-up / cast). `attack` is tuned so the RESULT beat (smack sound + damage floats +
   // recoil) lands right at the lunge's connection (~530ms = windup 0.37s + strike 0.16s; 353 × SPEED 1.5),
   // not after. Keep `attack` × SPEED ≈ (windupDur + strikeDur) from lungeConfig.ts when retuning the lunge.
-  attack: 353, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820, maxGold: 560,
+  attack: 353, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820, maxGold: 560, hpGrant: 0,
   // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
   // (recoil + the defender's HP dropping) lands and reads before the next swing.
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,

@@ -95,8 +95,9 @@ function prefetchSamples(): void {
 }
 
 /** Play a decoded sample (fresh BufferSource → overlaps fine). Returns false if its buffer isn't ready yet,
- *  so the caller can fall back to a synth blip while the sample finishes decoding. */
-function playSample(name: string, vol = 0.6): boolean {
+ *  so the caller can fall back to a synth blip while the sample finishes decoding. `delay` (s) schedules the
+ *  start later on the audio clock (sample-accurate) — used to stagger a token's clip after the summon cue. */
+function playSample(name: string, vol = 0.6, delay = 0): boolean {
   if (isHidden()) return false; // don't play while the tab is backgrounded (avoids a burst on tab-in)
   const a = audio();
   if (!a || muted) return false;
@@ -107,7 +108,7 @@ function playSample(name: string, vol = 0.6): boolean {
   const g = a.createGain();
   g.gain.value = vol * masterVol;
   src.connect(g).connect(a.destination);
-  src.start();
+  src.start(a.currentTime + Math.max(0, delay));
   return true;
 }
 
@@ -185,6 +186,10 @@ export function setSampleVolume(key: string, v: number): void {
   }
 }
 
+/** Seconds the summoned token's own voiceline waits after the general summon cue, so the summon SFX
+ *  gets room to land first (a slight overlap is intended). Tune by ear. */
+const SUMMON_VOICE_LEAD = 0.3;
+
 export const sfx = {
   buy: () => {
     // One of the 2 sourced buy clips at random (buy1/buy2); synth blip until they decode / if absent.
@@ -241,7 +246,8 @@ export const sfx = {
   // (recruit, from store.ts) and combat summons (deathrattles etc., from useCombatReplay.ts).
   summon: (tokenId?: string) => {
     if (!playSample('summon', sampleVol.summon)) tone({ freq: 300, dur: 0.12, type: 'triangle', vol: 0.1, slideTo: 520 });
-    if (tokenId) playSample(`cards/${tokenId}`, sampleVol.cardVoice);
+    // Let the summon cue land first, THEN the summoned token's own voiceline (slight overlap is fine).
+    if (tokenId) playSample(`cards/${tokenId}`, sampleVol.cardVoice, SUMMON_VOICE_LEAD);
   },
   // A Discover choice opens — the sourced "discover" clip; synth shimmer until it decodes / if absent.
   discover: () => {

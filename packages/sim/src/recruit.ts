@@ -62,6 +62,14 @@ function pickRandom<T>(state: RunState, arr: T[], n: number): T[] {
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
+  // Sergeant: EVERY instance that grants it Attack (this buff is one such instance) permanently improves
+  // its Deathrattle HP grant — in the shop here, mirrored in combat by `onGainAttackImproveHpGrant`. One
+  // improvement per buff event (not scaled by the Attack amount), so two Forsaken Weavers buffing it on a
+  // spell cast improve it twice. Seeds the combat instance + shows live on the card.
+  if (attack > 0) {
+    const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.do === 'onGainAttackImproveHpGrant');
+    if (eff) card.hpGrantBonus = (card.hpGrantBonus ?? 0) + num(eff.params?.improve, 2) * gold(card);
+  }
   if (attack === 0 && health === 0) return;
   card.buffs ??= [];
   const e = card.buffs.find((b) => b.source === source);
@@ -336,7 +344,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   buffOnSummon: (_ctx, self, params, { minion }) => {
     if (minion === self) return;
     const tribe = str(params.tribe);
-    if (tribe && tribe !== 'any' && minion.tribe !== tribe) return;
+    if (tribe && tribe !== 'any' && !isTribe(minion, tribe as Tribe)) return;
     const bonus = self.summonBonus ?? 0;
     addBuff(minion, nameOf(self), num(params.attack) + bonus, num(params.health) + bonus);
   },
@@ -348,7 +356,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   summonBuffTribeImprove: (_ctx, self, params, { minion }) => {
     if (minion === self) return;
     const tribe = str(params.tribe);
-    if (tribe && minion.tribe !== tribe && CARD_INDEX[minion.cardId]?.tribe2 !== tribe) return;
+    if (tribe && !isTribe(minion, tribe as Tribe)) return;
     const base = num(params.attack, 3);
     const mag = (base + (self.summonBonus ?? 0)) * gold(self);
     addBuff(minion, nameOf(self), mag, mag);
@@ -362,7 +370,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const health = num(params.health) * gold(self);
     const includeSelf = params.includeSelf !== false;
     for (const card of ctx.state.board) {
-      if (card.tribe !== tribe) continue;
+      if (!isTribe(card, tribe as Tribe)) continue;
       if (!includeSelf && card === self) continue;
       addBuff(card, nameOf(self), attack, health);
     }
@@ -464,7 +472,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health, 1) * gold(self);
     const flash = (ctx.state.karwindFlash ??= []);
     for (const c of ctx.state.board) {
-      if (tribe && tribe !== 'any' && c.tribe !== tribe && CARD_INDEX[c.cardId]?.tribe2 !== tribe) continue;
+      if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
       addBuff(c, nameOf(self), a, h);
       if (!flash.includes(c.uid)) flash.push(c.uid);
     }
@@ -525,7 +533,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (minion === self) return;
     const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
     const def = CARD_INDEX[minion.cardId];
-    if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2))) return;
+    if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2)) && !def?.universalTribe) return;
     const x = (num(params.attack, 1) + ctx.state.spellsThisTurn) * gold(self);
     const y = (num(params.health, 1) + ctx.state.spellsThisTurn) * gold(self);
     addBuff(self, nameOf(self), x, y);
@@ -665,7 +673,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack) * gold(self);
     const h = num(params.health) * gold(self);
     for (const c of ctx.state.board) {
-      if (c !== self && (tribe === 'any' || c.tribe === tribe || CARD_INDEX[c.cardId]?.tribe2 === tribe)) {
+      if (c !== self && (tribe === 'any' || isTribe(c, tribe as Tribe))) {
         addBuff(c, nameOf(self), a, h);
       }
     }
@@ -969,15 +977,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
   },
 
-  /** Demonic Anomaly — Battlecry: gain N free refreshes and buff each tavern offer +M/+M. Golden doubles both. */
+  /** Demonic Anomaly — Battlecry: gain N free refreshes and PERMANENTLY buff every tavern minion +M/+M for
+   *  the rest of the run (current AND future offers, like Staff of Guel — folded onto each offer by the shop
+   *  view and baked in on buy). Fodder picks it up via the run-wide enchant (the buy path + shop view skip FD
+   *  for the buy-bonus to avoid double-applying). Golden doubles both. */
   battlecryFreeRollsAndBuffShop: (ctx, self, params) => {
     const rolls = num(params.rolls, 2) * gold(self);
     const buffAmt = num(params.buff, 3) * gold(self);
     ctx.state.freeRolls += rolls;
-    for (const offer of ctx.state.shop) {
-      offer.atk = (offer.atk ?? 0) + buffAmt;
-      offer.hp = (offer.hp ?? 0) + buffAmt;
-    }
+    ctx.state.tavernBuyBonus.atk += buffAmt;
+    ctx.state.tavernBuyBonus.hp += buffAmt;
+    buffFodderRunWide(ctx.state, buffAmt, buffAmt, nameOf(self));
   },
 
   /** Acid — every N manual refreshes, consume a random non-Fodder offer from the tavern, gaining its stats.

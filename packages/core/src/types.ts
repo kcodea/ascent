@@ -250,6 +250,9 @@ export interface BoardMinion {
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
+  /** Sergeant: accrued Deathrattle HP-grant bonus, seeded from the run board so combat continues from the
+   *  shop-accumulated value (raised every time Sergeant gains Attack). Default 0. */
+  hpGrantBonus?: number;
   /** The originating recruit board card's uid, so combat can report per-instance state
    *  (e.g. Avenge improvements) back for the run to persist. */
   sourceUid?: string;
@@ -314,6 +317,8 @@ export interface MinionSnapshot {
   golden?: boolean;
   /** Current summon-buff bonus (Kennelmaster) — for the live combat card text. */
   summonBonus?: number;
+  /** Current Sergeant Deathrattle HP-grant bonus (seeded value) — for the live combat card text from frame 1. */
+  hpGrantBonus?: number;
 }
 
 /**
@@ -358,6 +363,10 @@ export interface CombatResult {
   /** Per-instance state to persist on the run board after combat, keyed by the board
    *  card's uid (Kennelmaster's Avenge-improved summon bonus). Only entries that changed. */
   playerSummonBonus?: { sourceUid: string; bonus: number }[];
+  /** Sergeant's Deathrattle HP-grant bonus after this combat, keyed by board card uid — the seeded value
+   *  plus any improvements from Attack gained in combat. Persisted to the run board so the improvement is
+   *  permanent across fights (only minions whose bonus is > 0). */
+  playerHpGrantBonus?: { sourceUid: string; bonus: number }[];
   /** Tara's stat-grant tally this combat, per board card uid — accumulated onto `ascendProgress` and, at the
    *  threshold, transformed to its ascend form in settleCombat. */
   playerAscendCount?: { sourceUid: string; count: number }[];

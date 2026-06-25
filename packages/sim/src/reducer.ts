@@ -516,6 +516,7 @@ export function reduce(state: RunState, action: Action): RunState {
         keywords: [...b.keywords],
         golden: b.golden,
         summonBonus: b.summonBonus ?? 0,
+        hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
         rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
@@ -666,6 +667,15 @@ function checkTriples(s: RunState): void {
       const maxBonus = Math.max(...combined.map((c) => c.summonBonus ?? 0));
       summonBonus = maxBonus > 0 ? maxBonus : undefined;
     }
+    // Sergeant: the golden keeps the HIGHEST accrued Deathrattle HP-grant bonus of the three copies (not
+    // summed/reset) — the bigger per-Attack step (+4) comes from gold(self) in the factory, so the triple
+    // only preserves where the accrual already is.
+    const hpGrantEffect = def.effects.find((e) => e.do === 'onGainAttackImproveHpGrant');
+    let hpGrantBonus: number | undefined;
+    if (hpGrantEffect) {
+      const maxBonus = Math.max(...combined.map((c) => c.hpGrantBonus ?? 0));
+      hpGrantBonus = maxBonus > 0 ? maxBonus : undefined;
+    }
     // Frontdrake: keep the copy furthest into its cadence (closest to the next Dragon) — tripling a Frontdrake
     // that's about to proc keeps the "procs this turn" timing. Only the cycle position (mod every) matters,
     // so the golden inherits the max position; a fresh/just-procced set (all 0) starts a clean cycle.
@@ -702,6 +712,7 @@ function checkTriples(s: RunState): void {
       keywords,
       golden: true,
       summonBonus,
+      hpGrantBonus,
       manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
       rallyMechAtk: absorbedRally > 0 ? absorbedRally : undefined,
       spellAuraBonus: absorbedSpellAura > 0 ? absorbedSpellAura : undefined,
@@ -727,6 +738,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const { sourceUid, bonus } of result.playerSummonBonus) {
       const card = s.board.find((c) => c.uid === sourceUid);
       if (card) card.summonBonus = bonus;
+    }
+  }
+  // Sergeant: persist its Deathrattle HP-grant accrual (seeded value + this combat's Attack-gain
+  // improvements) so the bonus is permanent across fights — keyed back to the originating board card.
+  if (result.playerHpGrantBonus) {
+    for (const { sourceUid, bonus } of result.playerHpGrantBonus) {
+      const card = s.board.find((c) => c.uid === sourceUid);
+      if (card) card.hpGrantBonus = bonus;
     }
   }
   // Tara → Taragosa: accumulate this combat's stat-grants; at the `ascendAt` threshold, ascend the board card

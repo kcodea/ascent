@@ -108,6 +108,7 @@ export function simulate(
     keywords: [...m.keywords],
     golden: m.golden,
     summonBonus: m.summonBonus,
+    hpGrantBonus: m.hpGrantBonus,
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
@@ -604,6 +605,11 @@ export function simulate(
   const playerSummonBonus = boards.player
     .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0)
     .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
+  // Sergeant: the Deathrattle HP-grant accrual (seeded from the run board + any improvements from Attack
+  // gained this combat) carries back so the improvement is permanent — keyed to the originating board card.
+  const playerHpGrantBonus = boards.player
+    .filter((m) => m.sourceUid !== undefined && (m.hpGrantBonus ?? 0) > 0)
+    .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.hpGrantBonus! }));
   // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
   const playerAscendCount = boards.player
     .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)
@@ -632,6 +638,7 @@ export function simulate(
     enemyDeaths,
     initial,
     playerSummonBonus,
+    playerHpGrantBonus: playerHpGrantBonus.length > 0 ? playerHpGrantBonus : undefined,
     playerAscendCount: playerAscendCount.length > 0 ? playerAscendCount : undefined,
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,

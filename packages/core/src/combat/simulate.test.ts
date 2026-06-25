@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { simulate, makeRng, type BoardMinion } from '../index';
+import { simulate, makeRng, type BoardMinion, type CombatEvent } from '../index';
 import { CARD_INDEX } from '@game/content';
+
+/** The health deltas of every `buff` event in a combat (for asserting Deathrattle HP grants). */
+const buffHealths = (events: CombatEvent[]): number[] =>
+  events.flatMap((ev) => (ev.type === 'buff' ? [ev.health] : []));
 
 const run = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyTier = 1) =>
   simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, enemyTier);
@@ -38,6 +42,26 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, e, 7);
     expect(r.result).toBe('win'); // Kennelmaster outlasts the attacker
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
+  });
+
+  it('Sergeant Deathrattle uses its seeded hpGrantBonus, and a survivor carries the accrual back', () => {
+    const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 9 }];
+    // Seeded +4 from the shop → Deathrattle gives friends +2 base + 4 = +6 Health.
+    const seeded = run(
+      [{ cardId: 'sergeant', attack: 1, health: 1, sourceUid: 'S', hpGrantBonus: 4 }, { cardId: 'sandbag', attack: 0, health: 10 }],
+      enemy, 3,
+    );
+    expect(buffHealths(seeded.events)).toContain(6);
+    // No accrual → the same Deathrattle gives only the +2 base.
+    const plain = run(
+      [{ cardId: 'sergeant', attack: 1, health: 1 }, { cardId: 'sandbag', attack: 0, health: 10 }],
+      enemy, 3,
+    );
+    expect(buffHealths(plain.events)).toContain(2);
+    // A surviving Sergeant carries its accrual back so the improvement is permanent across fights.
+    const survives = run([{ cardId: 'sergeant', attack: 10, health: 10, sourceUid: 'S', hpGrantBonus: 4 }], [{ cardId: 'sandbag', attack: 0, health: 1 }], 3);
+    expect(survives.result).toBe('win');
+    expect(survives.playerHpGrantBonus).toContainEqual({ sourceUid: 'S', bonus: 4 });
   });
 
   it('Arcane Weaver Deathrattle reports a Spirit Fire to grant to the hand after combat', () => {

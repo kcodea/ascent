@@ -46,6 +46,7 @@ export function instantiate(
     golden: board.golden ?? false,
     reAttackOnKill: cardReAttacksOnKill(card),
     summonBonus: board.summonBonus ?? 0,
+    hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board
     sourceUid: board.sourceUid,
     rallyMechAtk: rallyMechAtk > 0 ? rallyMechAtk : undefined,
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark

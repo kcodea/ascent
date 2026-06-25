@@ -3,6 +3,67 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-25 (session 5)
+
+### fix: Sergeant's Deathrattle improves on EVERY Attack-gain, permanently (shop + combat)
+
+**Bug:** Sergeant ("Deathrattle: give your minions +2 Health, improves each time Sergeant gains Attack") only improved its grant from **combat** Attack-gains, and only for that one fight. Attack gained in the **shop** (Forsaken Weaver on a spell cast, Deathswarmer, Karthus, Fortify, undead buy-bonus, …) did nothing, and combat improvements reset next fight. So two Forsaken Weavers + a spell improved it **zero** times in the shop instead of twice.
+
+**Fix — `hpGrantBonus` is now a permanent, run-board–persisted accrual** (modelled on Kennelmaster's `summonBonus` carry-back), improved by **every** Attack-gain in both phases:
+- **Shop:** `addBuff` (the recruit buff chokepoint) now improves a Sergeant's `hpGrantBonus` by its `improve` (×golden) once per Attack-gain *event* — so two Forsaken Weavers buffing it on one spell cast = two improvements (+2 twice; golden +4 twice). Health-only buffs don't count.
+- **Combat:** the combat instance is **seeded** from the run board's `hpGrantBonus` (so the Deathrattle continues from the shop-accrued value), `onGainAttackImproveHpGrant` keeps improving it per `onGainAttack`, and the final value **carries back** to the run board (`CombatResult.playerHpGrantBonus` → `settleCombat`) so it's permanent across fights.
+- **Triples:** a golden Sergeant keeps the **highest** accrued bonus of the three copies (the bigger +4 step comes from being golden).
+- **Tooltip:** `sergeantText` is now wired into the **shop** card text (`instView`) too — it already showed live in combat — and the combat instance seeds `MinionSnapshot.hpGrantBonus` so the value reads true from frame 1. Both show the current grant ("+6 Health", green) updating in real time.
+
+New plumbing: `BoardCard.hpGrantBonus` (state), `BoardMinion.hpGrantBonus` + `MinionSnapshot.hpGrantBonus` + `CombatResult.playerHpGrantBonus` (types), seeded in `instantiate`, built/returned in `simulate`, applied in `settleCombat`, combined in `checkTriples`.
+
+**Files changed:** `packages/sim/src/state.ts`, `packages/sim/src/recruit.ts`, `packages/core/src/types.ts`, `packages/core/src/combat/minion.ts`, `packages/core/src/combat/simulate.ts`, `packages/sim/src/reducer.ts`, `packages/ui/src/Recruit.tsx`, `packages/ui/src/useCombatReplay.ts`, plus tests in `run.test.ts`, `simulate.test.ts`, `cardText.test.ts`.
+
+**Verification:** 3 new tests — `addBuff` improves +2 per event (golden +4), health-only no-op; the combat Deathrattle uses the seeded bonus (+2 base + 4 = +6) and a survivor carries it back; `sergeantText` shows the live grant golden-aware. `npm run typecheck && npm run lint && npm test` (**331/331**) + harness (determinism) + `build:web` all green. (Live on-card render in the shop wasn't confirmable through the preview harness — it doesn't reflect injected board/hand state — but the tooltip wiring is identical to the other live-text helpers in that same `instView` chain.)
+
+### feat: Demonic Anomaly permanent tavern buff + Abhorrent Horror live shop-phase preview
+
+**Demonic Anomaly — permanent, run-wide tavern buff.** Its Battlecry buffed only the *current* tavern offers (`offer.atk`/`offer.hp`), so the +3/+3 evaporated on the next refresh. Per the design intent ("all tavern minions, permanently"), `battlecryFreeRollsAndBuffShop` now adds to `tavernBuyBonus` (the same run-wide buy-bonus channel as Staff of Guel) + `buffFodderRunWide`, so **current and future** offers all carry +3/+3 (golden +6/+6), shown on every offer by the shop view and baked in on buy. Card text updated: "Buff the current tavern" → "Give all Tavern minions +3/+3 this game".
+
+**Abhorrent Horror — live pending-gain preview in the shop.** Abhorrent Horror's Start-of-Combat gain equals all Fodder consumed this turn, but nothing in the shop showed how big it would be. New `abhorrentHorrorText` (cardText.ts) appends a green "{{+A/+H next combat}}" to its card text, computed from `run.fodderConsumedThisTurn` (× golden) and threaded into `instView` (board + hand). It climbs in real time as you consume more Fodder this turn, matching exactly what the SoC factory will grant. `instView` gained a `fodderConsumed` param; both view memos now depend on `run.fodderConsumedThisTurn`.
+
+**Files changed:** `packages/sim/src/recruit.ts` (Demonic Anomaly factory), `packages/content/src/cards/demons.ts` (card text), `packages/ui/src/cardText.ts` (`abhorrentHorrorText`), `packages/ui/src/Recruit.tsx` (instView wiring), plus regression tests in `packages/sim/src/run.test.ts` + `packages/ui/src/cardText.test.ts`.
+
+**Verification:** 2 new tests — Demonic Anomaly sets `tavernBuyBonus {atk:3,hp:3}` + 2 free refreshes, and a later-bought minion still carries +3/+3; `abhorrentHorrorText` returns "+4/+4 next combat" (golden "+8/+8"), null when nothing consumed. `npm run typecheck && npm run lint && npm test` (**328/328**) + `npm run build:web` all green. (Live on-card render of the Abhorrent Horror text couldn't be confirmed through the preview harness — it injects shop state but not board/hand rows — but the wiring is identical to the 8 other live-text helpers already in that `instView` chain.)
+
+### fix: Symbiote hero/power art + universalTribe honored across all tribe-buff checks
+
+**Symbiote art** — wired the hero portrait (`art/heroes/symbiote.webp`) and hero-power button art (`art/powers/symbiote.webp`). Both keyed by the hero id `symbiote` (how `heroArt`/`heroPowerArt` are called), so the glob picks them up with no alias. Converted from the 2.3 MB masters to 512px WebP (61 KB / 53 KB) to match the all-WebP heroes folder and keep the title/HUD lean.
+
+**universalTribe bug (reported: "Symbiote's power didn't give Mama Bear stats when played").** The `universalTribe` token (Symbiotic Attachment — counts as every non-neutral tribe) was being skipped by most *recruit-phase* tribe-gated buffs. PR #22 only taught a subset of factories about `universalTribe`; the summon-buff path it actually flows through on *play* was not among them. Audited **every** tribe-membership check in `recruit.ts` and `factories.ts` and routed them all through the `universalTribe`-aware path. Several also silently ignored a card's **second tribe** (`tribe2`) — a latent dual-type bug fixed in the same pass.
+
+Recruit factories fixed (now via the existing `isTribe` helper, which honors `tribe2` + `universalTribe`):
+- `summonBuffTribeImprove` (Mama Bear) — **the reported bug**
+- `buffOnSummon` (Kennelmaster / Bristleback Matron) — also missed `tribe2`
+- `battlecryBuffTribe` (Dragon battlecries) — also missed `tribe2`
+- `onBattlecryBuffTribe` (Karwind)
+- `deathrattleBuffTribe`
+- `summonBuffSelfTribe` (Spirit Worgen, array form) — added a `universalTribe` clause
+
+Combat factories fixed (completed the inline `universalTribe` clause already used by their corrected neighbors):
+- `deathrattleSummonOverflowBuff` (Nanon), `rallyBuff` (Supporter), `onFriendlyAttackBuffTribe` (Raptor), `scAoePerTribe` (count), `scGrantShieldTribe`, `summonBuffSelfTribe` (Spirit Worgen combat), and `onShieldBreakDamage` (Arclight — also added `tribe2`, so a Demon/Mech Heckbinder's shield-break now triggers it).
+
+The combat halves of Mama Bear / `buffOnSummon` / `deathrattleBuffTribe` already handled `universalTribe` (added in PR #22) — which is exactly why the bug only showed "on play" (recruit), confirming the diagnosis.
+
+**Files changed:** `packages/sim/src/recruit.ts` (6 factories), `packages/core/src/effects/factories.ts` (7 factories), `packages/sim/src/run.test.ts` (new regression test), `packages/ui/src/art/heroes/symbiote.webp`, `packages/ui/src/art/powers/symbiote.webp`.
+
+**Verification:** new regression test — a `symbioticattachment` token played beside a Mama Bear + Kennelmaster gains both buffs (1/1 → 5/5). `npm run typecheck && npm run lint && npm test` (**326/326**) + `npm run build:web` all green. Art confirmed serving as `image/webp` (200) via the live dev server; Symbiote portrait + power render in the HUD (verified by selecting the hero in-preview).
+
+### fix: Undead buy-time Attack bonus now shows in the tavern
+
+The Deathswarmer / Forsaken Weaver / Karthus "+Attack to your Undead **wherever they are**" (`undeadBuyAtk`) is baked into a card's stats *on buy*, but the tavern offer kept showing the unbuffed base — so an Undead's Attack jumped the moment you bought it. `shopView` (Recruit.tsx) now folds `undeadBuyAtk` into Undead offers (in addition to the Lantern of Souls `undeadAttackBonus` it already showed), so the tavern displays the buffed Attack in green, exactly matching what the offer becomes once bought. The `undead` predicate there now also matches `universalTribe`, keeping it in lockstep with the reducer's buy-time `isUndead`.
+
+**Verified live:** with `undeadBuyAtk = 3`, a tavern Sporeling (1/2) shows **4**/2 and an Eternal Knight (3/2) shows **6**/2, both green; a Beast Kennelmaster offer stays 2/3.
+
+**Files changed:** `packages/ui/src/Recruit.tsx`.
+
+---
+
 ## 2026-06-24 (session 4)
 
 ### Audio: sourced End Turn / Face the Omen (`combatStart`) clip

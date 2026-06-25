@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, THREATS, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, nextOpponent, projectEndOfTurnSteps, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { ascendProgressText, cadenceProgressText, clingProgressText, guelProgressText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
+import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, clingProgressText, guelProgressText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, transformProgressText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -92,6 +92,9 @@ interface ShopViewOpts {
   frontToBackBonus?: number;
   undeadAtk?: number;
   undeadHp?: number;
+  /** Deathswarmer / Forsaken Weaver / Karthus run-wide "+Attack to your Undead" — baked into the stats
+   *  on buy, so the tavern shows it too ("wherever they are"), matching what the offer becomes once bought. */
+  undeadBuyAtk?: number;
   tavernAtk?: number;
   tavernHp?: number;
 }
@@ -112,13 +115,14 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   // (Ritualist's Fodder), Staff of Guel's run-wide tavern-buy buff, and the Lantern of Souls aura on
   // Undead — so a buffed offer reads its new stats (green) and carries the baked ones in when bought.
   const cb = opts.cardBuffs?.[c.id] ?? { attack: 0, health: 0 };
-  const undead = c.tribe === 'undead' || c.tribe2 === 'undead';
+  // Matches the buy path's `isUndead` (reducer): primary/second tribe OR a universalTribe card.
+  const undead = c.tribe === 'undead' || c.tribe2 === 'undead' || !!c.universalTribe;
   // Fodder carries Staff of Guel through its run-wide enchant (cb), not the buy-buff, so don't fold the
   // tavern-buy bonus onto a Fodder offer too (the reducer's buy path skips it the same way).
   const fodder = c.keywords.includes('FD');
   const tavernAtk = fodder ? 0 : opts.tavernAtk ?? 0;
   const tavernHp = fodder ? 0 : opts.tavernHp ?? 0;
-  const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + (undead ? opts.undeadAtk ?? 0 : 0);
+  const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0);
   const addHp = (card.hp ?? 0) + cb.health + tavernHp + (undead ? opts.undeadHp ?? 0 : 0);
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
@@ -142,6 +146,7 @@ function instView(
   wave = 1,
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
+  fodderConsumed?: { attack: number; health: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -159,9 +164,11 @@ function instView(
           ? `Sells for **+1 Gold** per turn you hold it. {{Sells for ${wave - (inst.boughtWave ?? wave) + 1} Gold now.}}`
           : transformProgressText(c.id, inst.spellProgress ?? 0) ??
             ascendProgressText(c.id, inst.ascendProgress ?? 0) ??
+            abhorrentHorrorText(c.id, fodderConsumed, !!inst.golden) ??
             summonScalingText(c.id, spellsThisTurn) ??
             summonBuffText(c.id, inst.summonBonus ?? 0) ??
             summonImproveText(c.id, inst.summonBonus ?? 0, !!inst.golden) ??
+            sergeantText(c.id, !!inst.golden, inst.hpGrantBonus ?? 0) ??
             tallyBuffText(c.id, deathrattlesTriggered) ??
             guelProgressText(c.id, !!inst.golden, spellsCast) ??
             clingProgressText(c.id, clingEnchant) ??
@@ -506,8 +513,8 @@ export function Recruit() {
   // changes — during a drag nothing dispatches, so `run.*` refs are stable and these stay
   // cached, which is what lets the memoized Card skip re-render on every pointermove.
   const shopViews = useMemo(
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus })] as const)),
-    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus],
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk })] as const)),
+    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk],
   );
   const spellView = useMemo(
     () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus }) : null),
@@ -529,12 +536,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling)] as const)),
-    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn)] as const)),
+    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling)] as const)),
-    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs],
+    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn)] as const)),
+    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn],
   );
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.

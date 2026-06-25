@@ -1199,6 +1199,27 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 6); // 13
   });
 
+  it('a universalTribe token (Symbiotic Attachment) receives tribe summon-buffs (Mama Bear + Kennelmaster)', () => {
+    // Regression: the Symbiote hero-power token counts as EVERY tribe, so playing it must trigger
+    // tribe-gated summon buffs. Before the fix the recruit factories only matched tribe/tribe2, so the
+    // token was silently skipped (the reported "didn't get Mama Bear stats" bug).
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [
+        { uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false },
+        { uid: 'k', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false },
+      ],
+      hand: [
+        { uid: 'sym', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'sym' }); // standalone play (no weld target) → summon buffs fire
+    const sym = s.board.find((c) => c.uid === 'sym')!;
+    // Mama Bear (+3/+3) and Kennelmaster (+1/+1) both treat the universalTribe token as a Beast.
+    expect(sym.attack).toBe(1 + 3 + 1); // 5
+    expect(sym.health).toBe(1 + 3 + 1); // 5
+  });
+
   it('a Mama Bear triple picks up the accrual at its current value — no reset, no double', () => {
     // Two Mama Bears at summonBonus 6 and 3 + a fresh one → the golden keeps the HIGHEST (6), NOT the
     // Kennelmaster-style sum (which would be 9) and NOT 0. Its bigger +6/+6 step comes from being golden.
@@ -1335,6 +1356,38 @@ describe('run loop (@game/sim)', () => {
     const startSandbag = s.lastCombat?.initial.player.find((m) => m.cardId === 'sandbag');
     expect([startSandbag?.attack, startSandbag?.health]).toEqual([3, 2]); // 1/1 + Fleeting Vigor 2/1
     expect(s.fleetingVigor).toEqual({ attack: 0, health: 0 }); // spent after the fight
+  });
+
+  it('Sergeant: every recruit Attack-gain improves its Deathrattle HP grant (+2 per event, golden +4)', () => {
+    // The reported bug: two Forsaken Weavers buffing Sergeant on a spell cast are two separate Attack-gain
+    // events, so they improve the Deathrattle twice — not once, and not by the Attack amount.
+    const sgt: BoardCard = { uid: 'sg', cardId: 'sergeant', tribe: 'undead', attack: 6, health: 6, keywords: [], golden: false };
+    addBuff(sgt, 'Forsaken Weaver', 2, 0); // 1st Weaver → +2
+    expect(sgt.hpGrantBonus).toBe(2);
+    addBuff(sgt, 'Forsaken Weaver', 2, 0); // 2nd Weaver, same spell → +2 again
+    expect(sgt.hpGrantBonus).toBe(4);
+    addBuff(sgt, 'Mend', 0, 3); // a Health-only buff is NOT an Attack-gain → no improvement
+    expect(sgt.hpGrantBonus).toBe(4);
+    // Golden Sergeant improves +4 per event.
+    const golden: BoardCard = { uid: 'g', cardId: 'sergeant', tribe: 'undead', attack: 12, health: 12, keywords: [], golden: true };
+    addBuff(golden, 'Deathswarmer', 1, 0);
+    expect(golden.hpGrantBonus).toBe(4);
+  });
+
+  it('Demonic Anomaly permanently buffs all tavern minions (+3/+3 run-wide) + grants 2 free refreshes', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, board: [],
+      shop: [{ uid: 'x', cardId: 'alley' }],
+      hand: [{ uid: 'da', cardId: 'demonanomaly', tribe: 'demon', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    const rolls0 = s.freeRolls;
+    s = reduce(s, { type: 'play', uid: 'da' }); // Battlecry: run-wide tavern buff + free refreshes
+    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 3 }); // PERMANENT, not just the current offers
+    expect(s.freeRolls).toBe(rolls0 + 2);
+    // A minion bought AFTER the Battlecry still carries the buff (current AND future offers).
+    s = reduce({ ...s, embers: 3 }, { type: 'buy', uid: 'x' });
+    const bought = s.hand.find((c) => c.cardId === 'alley')!;
+    expect([bought.attack, bought.health]).toEqual([1 + 3, 1 + 3]); // Alleycat 1/1 + 3/3
   });
 
   it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {

@@ -153,6 +153,27 @@ export function cryptDrakeText(cardId: string, golden: boolean, attackSeen: numb
 }
 
 /**
+ * Abhorrent Horror gains, at the next Start of Combat, +Attack/+Health equal to all Fodder consumed this
+ * turn. Surface that pending gain live (green) in the shop so the player watches it climb as they consume
+ * more Fodder — golden doubles it. Returns null with nothing consumed yet (falls back to the printed text).
+ */
+export function abhorrentHorrorText(
+  cardId: string,
+  fodderConsumed: { attack: number; health: number } | undefined,
+  golden: boolean,
+): string | null {
+  if (cardId !== 'abhorrenthorror' || !fodderConsumed) return null;
+  const m = golden ? 2 : 1;
+  const a = fodderConsumed.attack * m;
+  const h = fodderConsumed.health * m;
+  if (a <= 0 && h <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return `${src} {{+${a}/+${h} next combat}}`;
+}
+
+/**
  * Sergeant's Deathrattle gives "+N Health" where N grows each time Sergeant gains Attack in combat.
  * Shows the *current* HP grant (base + hpGrantBonus) highlighted green once it starts climbing.
  * Returns null until it has actually improved (no bonus → falls back to printed text).

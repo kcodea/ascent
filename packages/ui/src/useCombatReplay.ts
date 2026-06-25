@@ -66,6 +66,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
   golden: s.golden ?? false, summonBonus: s.summonBonus ?? 0,
+  hpGrantBonus: s.hpGrantBonus, // Sergeant: seed the live combat text from the run-board accrual (frame 1)
   baseAttack: s.attack, baseHealth: s.health, // the stats it entered the fight (or was summoned) with
 });
 

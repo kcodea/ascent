@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### tweak: snappier card hover-reveal debounce
+
+Owner ask: the hover-reveal popup (full card / referenced cards) opens too slowly. Cut the debounce in
+`Card.tsx` — compact cards **220 → 100 ms**, full-text cards **450 → 250 ms** (the `showText ? 250 : 100`
+ternary on the `showRefTip` timeout). Pure timing dial; right-click inspect stays instant.
+
 ### feat: wave-relative board power banding + patch stamping + prune/populate pool lifecycle
 
 The game's mechanics shifted a lot this week, so captured/house boards (esp. high-wave) re-simulate weaker than their stored strength implied — and the old banding couldn't see it. `rateBoard` fought every board against ONE fixed gauntlet (top rung 7/9/16) and **saturated** to `1.0` by ~wave 8, so it couldn't tell a weak high-wave board from a strong one. Redefined power banding as **wave-relative** (curation/QA only — live matchmaking still uses `Σ(atk+hp)`, owner's call), and built the maintenance lifecycle around it.

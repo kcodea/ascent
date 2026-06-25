@@ -153,6 +153,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   inspect: 0.5,
   upgrade: 0.5,
   roll: 0.5,
+  combatStart: 0.5,
 };
 let sampleVol: Record<string, number> = (() => {
   try {
@@ -254,7 +255,11 @@ export const sfx = {
     tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04 });
   },
   tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09 }),
-  combatStart: () => tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90 }),
+  // End Turn → Face the Omen — the sourced "combatStart" clip; synth low sawtooth down-slide fallback.
+  combatStart: () => {
+    if (playSample('combatStart', sampleVol.combatStart)) return;
+    tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90 });
+  },
   attack: () => tone({ freq: 320, dur: 0.08, type: 'sawtooth', vol: 0.1, slideTo: 130 }),
   // A Start-of-Combat effect firing (Ember Whelp's scorch, Blaster, etc.) — a quick magic "zap", distinct
   // from the physical smack so SC damage doesn't read as a melee hit. Synth for now (gets its own clip later).
@@ -291,6 +296,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
+  combatStart: sfx.combatStart,
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();

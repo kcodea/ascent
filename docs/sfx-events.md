@@ -54,7 +54,7 @@ files in `packages/ui/src/audio/`.
 | `proc` | an End-of-Turn effect fires (per proc) | synth | — | — | triangle shimmer |
 | `triple` | a golden is formed | synth | — | — | rising 4-note arpeggio |
 | `maxGold` | Soulsman's Avenge raises max Gold (combat) | synth | — | — | rising coin shimmer |
-| `combatStart` | End Turn → Face the Omen | synth | — | — | low sawtooth down-slide |
+| `combatStart` | End Turn → Face the Omen | **sourced** | `combatStart` | 0.50 | (synth low sawtooth down-slide fallback) |
 | `attack` | each attack swing (per hit; Windfury = 2) | synth | — | — | sawtooth down-slide |
 | `death` | a minion dies | synth | — | — | low sine drop |
 | `shield` | a Divine Shield is **gained** (shieldUp) | synth | — | — | sine up-slide shimmer |
@@ -97,8 +97,7 @@ call to `playSample(...)` (with the synth as fallback). Rough priority:
 6. **`shield`** — Divine Shield gained (a metallic "ting").
 7. **`buff`** — a combat stat buff lands.
 8. **`proc`** — the End-of-Turn shimmer (heard a lot during the EOT sequence).
-9. **`combatStart`** — the "Face the Omen" transition (a war-horn/drum hit).
-10. **`tick`** — the final-5-seconds countdown click.
+9. **`tick`** — the final-5-seconds countdown click.
 
 ---
 

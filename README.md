@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Sourced End Turn sound.** Hitting End Turn (Face the Omen) now plays a real audio clip instead of the synth
+  down-slide, tunable in the DEV SFX mixer.
 - **Sourced refresh sound.** The tavern Refresh/Reroll button now plays a real audio clip (the last tavern
   control still on a synth blip), tunable in the DEV SFX mixer.
 - **Bug fixes + 3 new Undead + live combat text + 18 art.** Shop weights flattened (equal chance for

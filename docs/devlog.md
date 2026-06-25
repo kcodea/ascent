@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24 (session 4)
 
+### Audio: sourced End Turn / Face the Omen (`combatStart`) clip
+
+- **Wired a real mp3 for the End Turn button.** The End Turn → Face the Omen transition fired `sfx.combatStart`,
+  which was synth-only; now `packages/ui/src/audio/combatStart.mp3` plays via
+  `playSample('combatStart', sampleVol.combatStart)`, with the old low sawtooth down-slide as the
+  decode/missing fallback. Added a `combatStart` entry to `SAMPLE_VOL_DEFAULTS` (0.50, tunable live in the DEV
+  SFX mixer) and the mixer preview map.
+- **Verified:** typecheck + lint clean, 325 tests pass, `build:web` bundles `combatStart.mp3` (31.32 kB), app
+  boots clean after a dev-server restart (required — the audio glob is eager). Updated `docs/sfx-events.md`
+  (combatStart → sourced; removed from the needs-sourcing list).
+
 ### feat: shop weights, spell discover fix, Karthus/DeathlessHand/Footman, onKill bus, Tara combat log, live combat text, art wiring (#23)
 
 **Bug fixes:**

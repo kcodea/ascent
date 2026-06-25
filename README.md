@@ -46,6 +46,9 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   Forsaken Weaver / Karthus) now reaches **Discovered and conjured** Undead too — not just tavern buys.
   And the **Symbiote** hero power now **triples** its token the moment the 3rd is granted, instead of waiting
   for your next buy.
+- **Per-card voicelines/SFX + summon audio.** A card can have its own sound that plays when it's played, layered
+  over the general landing sound — drop `packages/ui/src/audio/cards/<cardId>.mp3` (zero code per card). Summons
+  now play a cue too (general summon SFX + the summoned token's own clip), in both recruit and combat.
 - **Sourced End Turn sound.** Hitting End Turn (Face the Omen) now plays a real audio clip instead of the synth
   down-slide, tunable in the DEV SFX mixer.
 - **Sergeant fix.** Sergeant's Deathrattle now improves on **every** Attack-gain — in the shop too (each

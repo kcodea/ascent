@@ -414,6 +414,10 @@ export interface CombatResult {
   /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
    *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
   playerImpBuffGain?: { attack: number; health: number };
+  /** Permanent run-wide Fodder enchant gained this combat (Bane reacting to Ryme's battlecry replays) —
+   *  applied via `buffFodderRunWide` so every Fodder (board, hand, future copies) inherits it, mirroring the
+   *  recruit-phase Bane. Absent if 0/0. */
+  playerFodderBuffGain?: { attack: number; health: number };
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
   odds?: { win: number; draw: number; lose: number };
@@ -485,6 +489,9 @@ export interface CombatContext {
   /** Imp King / Brood Matron Avenge: permanently raise the run-wide Imp buff by +atk/+hp (player only).
    *  Carried back via CombatResult.playerImpBuffGain → added to RunState.impBuff so future Imps inherit it. */
   grantImpBuff(attack: number, health: number, side: Side): void;
+  /** Bane (combat, reacting to Ryme's battlecry replays): permanently enchant the Fodder card type run-wide
+   *  by +atk/+hp (player only). Carried back via CombatResult.playerFodderBuffGain → `buffFodderRunWide`. */
+  grantFodderBuff(attack: number, health: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

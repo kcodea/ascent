@@ -51,6 +51,7 @@ export function simulate(
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
+  const fodderBuffGain = { attack: 0, health: 0 }; // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
@@ -230,6 +231,11 @@ export function simulate(
       if (side !== 'player') return; // enemies have no run state
       impBuffGain.attack += attack;
       impBuffGain.health += health;
+    },
+    grantFodderBuff: (attack, health, side) => {
+      if (side !== 'player') return; // enemies have no run state
+      fodderBuffGain.attack += attack;
+      fodderBuffGain.health += health;
     },
     grantUndeadBuyAtk: (amount, side) => {
       if (side !== 'player') return; // enemies have no run state
@@ -669,5 +675,6 @@ export function simulate(
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
+    playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,
   };
 }

@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellCasts, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -838,6 +838,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.impBuff.attack += result.playerImpBuffGain.attack;
     s.impBuff.health += result.playerImpBuffGain.health;
   }
+  // Bane (combat, via Ryme's battlecry replays): its run-wide Fodder enchant is permanent — apply it the
+  // same way the recruit-phase Bane does, so every Fodder (board, hand, future copies) keeps the gain.
+  if (result.playerFodderBuffGain) {
+    buffFodderRunWide(s, result.playerFodderBuffGain.attack, result.playerFodderBuffGain.health, 'Bane');
+  }
   // Soulsman: permanent max-Gold gained from its Avenge in combat (uncapped, like Nadja's Gold Font).
   // grantMaxGold is Soulsman-only, so playerMaxGoldGain IS Soulsman's contribution — tally it run-wide
   // for the "gained X Gold" metric shown on the card.
@@ -952,6 +957,14 @@ function advanceCombat(s: RunState): void {
     s.frozen = false;
   } else refreshTavern(s);
   s.phase = 'recruit';
+  // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
+  // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
+  // path checks on the mutation; this is the one entry the player never triggers, so check once here
+  // as the shop opens. Idempotent + loop-guarded, and the only settle/advance-path call (no double-Discover).
+  // No hand overflow here: a shop-start triple always includes ≥1 hand-granted copy (3 board copies would
+  // have tripled back in recruit), and checkTriples pulls from the hand first — removing it offsets the
+  // golden it pushes back, so the hand never grows past the cap.
+  checkTriples(s);
 }
 
 /**

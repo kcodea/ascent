@@ -455,6 +455,39 @@ describe('run loop (@game/sim)', () => {
     expect(s.pendingTavern).toEqual([]); // queue cleared — not stranded by the freeze
   });
 
+  it('triples are checked at shop-start — a combat hand-grant that completes a triple combines without a buy/play', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      board: [
+        { uid: 'c1', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'c2', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
+      ],
+      hand: [],
+      // The Deathrattle-granted 3rd copy lands in the hand at settle — completing a triple the player never
+      // had a buy/play to trigger. The shop-start check must combine it as the new wave opens.
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerHandGrants: ['cleric'] },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.phase).toBe('recruit');
+    const clerics = [...s.board, ...s.hand].filter((c) => c.cardId === 'cleric');
+    expect(clerics.length).toBe(1); // all 3 combined
+    expect(clerics[0]!.golden).toBe(true); // …into one golden
+  });
+
+  it("Bane's Fodder enchant from combat persists — settleCombat applies it run-wide", () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'combat',
+      board: [{ uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false }],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerFodderBuffGain: { attack: 2, health: 2 } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.cardBuffs?.fred).toEqual({ attack: 2, health: 2 }); // run-wide enchant → future Fodder inherit it
+    const fred = s.board.find((c) => c.uid === 'f')!;
+    expect([fred.attack, fred.health]).toEqual([1 + 2, 1 + 2]); // the Fodder already on board got it too
+  });
+
   it('Soulfeeder queues Fodder only once — it does not re-proc on later rounds', () => {
     let s: RunState = {
       ...createRun(1),

@@ -225,6 +225,38 @@ class FxController {
   }
 
   /**
+   * A low puff of dry-dirt dust spreading outward from a card's base (x = card center, y = its bottom
+   * ground line, width = card width) — like a flat stone dropped into dust. Fired when a minion is
+   * placed on or moved around the board. Puffs hug the ground (slight lift, near-zero gravity), billow
+   * outward to the sides, and fade fast; dusty tan on normal blend, low alpha so it stays subtle.
+   */
+  dust(x: number, y: number, width: number): void {
+    if (!this.ready) return;
+    const puffs = 7;
+    for (let i = 0; i < puffs; i++) {
+      const t = puffs > 1 ? i / (puffs - 1) - 0.5 : 0; // -0.5 … 0.5 across the base
+      const ox = t * width * 0.9;
+      const outward = ox === 0 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(ox); // push away from center
+      const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans
+      this.spawn(this.glowTex!, {
+        x: x + ox + (Math.random() - 0.5) * 10,
+        y: y + (Math.random() - 0.5) * 6,
+        vx: outward * (45 + Math.random() * 120), // spread sideways
+        vy: -(8 + Math.random() * 34),            // a small lift off the ground
+        drag: 0.2,                                 // horizontal dust slows quickly
+        gravity: 140,                              // gentle settle — stays low, no rising column
+        life: 360 + Math.random() * 260,
+        fromScale: 0.35 + Math.random() * 0.25,
+        toScale: 1.0 + Math.random() * 0.5,        // billow outward as it dissipates
+        spin: (Math.random() - 0.5) * 1.2,
+        tint: tan,
+        blend: 'normal',
+        peakAlpha: 0.22 + Math.random() * 0.12,    // subtle
+      });
+    }
+  }
+
+  /**
    * DEV: fire a big, slow, unmissable burst at the center of the screen and log full
    * diagnostics — proves the layer is alive + visible without needing a combat. Logged
    * fields tell us where it breaks if you still see nothing.

@@ -1307,6 +1307,15 @@ export function Recruit() {
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
 
+  // A low puff of dry-dirt dust under a card landing on / moving across the board — fired at the drop
+  // x on the warband's ground line (avoids the FLIP-in-flight rect), spanning ~a card width.
+  const puffOnBoard = (cx: number, w: number): void => {
+    const row = document.querySelector('[data-zone="warband"] .row.warband') ?? document.querySelector('[data-zone="warband"] .row');
+    if (!row) return;
+    const rr = row.getBoundingClientRect();
+    pixiFx.dust(cx, rr.bottom - 10, w);
+  };
+
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
     // Insertion uses the dragged card's centre (not the raw drop pointer), matching the live preview.
     const cx = x - d.ox + d.w / 2;
@@ -1386,10 +1395,12 @@ export function Recruit() {
     }
     if (d.source === 'hand' && zone === 'warband') {
       dispatch({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(cx) });
+      puffOnBoard(cx, d.w); // dust as the minion lands on the board
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {
       dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(cx, d.uid) });
+      puffOnBoard(cx, d.w); // dust as the minion is repositioned
       return true;
     }
     return false;

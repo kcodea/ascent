@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: dry-dirt dust puff under a unit placed on / moved across the board
+
+A "flat stone dropped in dust" flourish on the Pixi FX layer: placing a minion from hand onto the
+board, or repositioning one already on it, now kicks up a low puff of dry-dirt dust from the card's
+base.
+
+- **`pixiFx.dust(x, y, width)`**: 7 soft tan puffs (dry-dirt colours) spread **outward to the sides**
+  from the base with only a tiny lift and near-zero gravity, so they hug the ground and billow rather
+  than rise — normal blend, low peak alpha (~0.22–0.34) so it stays subtle. Reuses the soft-glow
+  texture + the existing `gravity` particle field.
+- **Trigger** (`Recruit.tsx`): a new `puffOnBoard(cx, w)` fires it at the drop's card-center x on the
+  **warband row's ground line** (using the row rect, not the card's rect — the warband animates with
+  GSAP Flip, so a just-committed card's rect would be mid-flight), spanning ~a card width. Wired into
+  both board-landing drops: hand→warband (`play`) and board→warband (`reposition`). Spell casts and
+  Magnetic Mech merges are intentionally excluded.
+
+**Files:** `pixiFx.ts` (`dust()`), `Recruit.tsx` (`puffOnBoard` + the two drop sites).
+
+**Verification:** `typecheck + lint + test (354) + build:web` all green. Verified live: `dust()` spawns
+7 tan puffs, all subtle, all moving mostly horizontally (7/7 `|vx|>|vy|`) with a peak rise of ~4px —
+it stays low to the ground (no rising column), as intended.
+
 ### fix: golden cards now show their LIVE rules text (Sergeant, Taragosa, …), not the static printed goldenText
 
 Owner report: golden Sergeant's tooltip "wasn't showing the right value." Root cause (general, not Sergeant-specific): `Card.tsx` renders `card.goldenText` for a golden card, but the live-text helpers (sergeantText, taragosaText, …) only ever fed the live value into `card.text`. `instView` (Recruit) had patched only Guel and Mama Bear into `goldenText`; every other golden live-text card fell back to the **static printed** goldenText. So a golden Sergeant with +6 accrued showed the printed "+4 Health" instead of the live "+10"; a golden Taragosa showed "+6/+8" instead of its spell-power-scaled value.

@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Dust puff on board placement.** Placing or moving a minion on the board kicks up a low puff of
+  dry-dirt dust from under the card — like a flat stone dropped in dust.
 - **Gold-coin sprinkle on sell.** Selling a minion now bursts a sprinkle of gold coins out of the Gold
   counter (they pop up and arc back down under gravity) — on the new Pixi FX layer.
 - **Golden card tooltips show their LIVE value.** Golden cards were rendering the *static* printed golden text,

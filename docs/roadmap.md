@@ -34,11 +34,16 @@ The next 5 concrete steps:
    End Turn (it did: a pre-removal Lifebinder board crashed combat). **Committed pool + attribution (done
    2026-06-23):** `npm run pool` bakes a curated `OPPONENT_POOL_DATA` (house bot boards + `docs/board-exports/`
    imports) shipped in the repo + loaded at startup; `BoardSnapshot` carries `origin/author/capturedAt`; the
-   opponent frame shows "by {name}" / "House board". **Queued next:** (a) **simulate-derived strength rating**
-   (win-rate vs a calibration ladder, cached) + **power-band indexing** so matchmaking is even/on-curve; (b)
-   **synthesized boards within a band** (`origin:'synthetic'` — mutate/recombine real boards, validate via
-   `simulate`) to fill sparse bands (esp. high waves the bot can't reach); (c) **in-game friend export/import
-   UX**; (d) a shared **friend backend** keyed by `(wave, power-band, tribe)` — the async-PvP track (step 5).
+   opponent frame shows "by {name}" / "House board". ✅ **Simulate-derived WAVE-RELATIVE strength rating +
+   power bands (done 2026-06-25 → devlog + [board-pool.md](board-pool.md)):** `rateBoardForWave` rates a board
+   by win-rate vs its OWN wave's bot-calibrated ladder (no saturation); boards carry a `patch` stamp;
+   `npm run pool`/`pool:prune` bake/rate/floor/prune. Used for **curation/QA only** so far. **Queued next:**
+   (a) a **higher-ceiling ladder** — the smart bot tops out below expert play and lacks a weak end past
+   ~wave 9, so high-wave ratings compress to band 7 (curated strong references, or wire the bands into
+   matchmaking once trustworthy); (b) **synthesized boards within a band** (`origin:'synthetic'` — mutate/
+   recombine real boards, validate via `simulate`) to fill sparse bands (esp. high waves the bot can't reach);
+   (c) **in-game friend export/import UX**; (d) a shared **friend backend** keyed by `(wave, power-band,
+   tribe)` — the async-PvP track (step 5).
 4. ✅ **Serve real boards as enemies** (done 2026-06-21). `faceOmen` draws a strength-matched real snapshot via
    `nextOpponent`/`pickOpponent` (procedural omen = thin-pool fallback), and the top-right **opponent-intel
    frame** telegraphs the next foe (portrait/HP + tier/triples/top-tribe). ✅ **Damage-dealt system (done

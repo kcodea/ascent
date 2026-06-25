@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: wave-relative board power banding + patch stamping + prune/populate pool lifecycle
+
+The game's mechanics shifted a lot this week, so captured/house boards (esp. high-wave) re-simulate weaker than their stored strength implied — and the old banding couldn't see it. `rateBoard` fought every board against ONE fixed gauntlet (top rung 7/9/16) and **saturated** to `1.0` by ~wave 8, so it couldn't tell a weak high-wave board from a strong one. Redefined power banding as **wave-relative** (curation/QA only — live matchmaking still uses `Σ(atk+hp)`, owner's call), and built the maintenance lifecycle around it.
+
+- **Wave-relative rating** (`rating.ts`): `buildWaveLadders()` runs the smart bot (`buildBootstrapPool` at fixed seeds × rising fidelity 0.2→1.0) to make per-wave reference ladders spanning weak→strong CURRENT play; `rateBoardForWave(board, wave, ladders)` scores a board by the fraction of its OWN wave's ladder it beats. No saturation (the ladder scales with the wave); deterministic; self-recalibrates per patch. Replaced the absolute `rateBoard` (+ its GAUNTLET).
+- **Patch stamping**: new `BoardSnapshot.patch` = `<pkg version>+<short git sha>`, stamped at capture (`boardLibrary.ts`, via the Vite `__APP_VERSION__`/`__BUILD_SHA__` defines) and at house bake (`build-pool.ts`, via `git rev-parse`). Convention: bump `package.json` version per balance patch.
+- **Prune by date/patch**: new `npm run pool:prune` (`prune-pool.ts`, `--before/--after/--patch/--no-patch/--dry-run`) filters `docs/board-exports/*.json`; `boardLibrary.pruneStoredBoards`/`clearStoredBoards` + an Esc → Shared Boards → **Clear my boards** control for localStorage captures.
+- **Populate** (`build-pool.ts`): re-bake now rates every board wave-relative, drops boards below a competitive floor (band `FLOOR_BAND`=1 at waves ≥ `FLOOR_FROM_WAVE`=4 — no free wins mid/late, early waves keep the full range), and prints a per-wave **band-coverage** report. Knobs documented.
+- **Docs**: new `docs/board-pool.md` (the banding definition + the capture→stamp→rate→prune→regenerate lifecycle + tooling).
+
+**Files:** `rating.ts` (rewrite), `snapshot.ts` (`patch` field), `boardLibrary.ts` (stamp + prune/clear), `EscMenu.tsx` (Clear-my-boards), `build-pool.ts` (wave-relative bake + floor + report + patch), `prune-pool.ts` (new), `package.json` (`pool:prune`), `run.test.ts` (rewrote the rating tests), `docs/board-pool.md` (new).
+
+**Verification:** `typecheck + lint + test (369) + build:web` green; `npm run pool` re-baked **339 boards in 12s** (dropped 91 below band 1). New tests prove `rateBoardForWave` is wave-relative (a fixed board rates no higher at a later wave — no saturation), monotonic at a fixed wave, and deterministic. **Finding surfaced by the band report:** high waves (9–20) compress to band 7 (`w12:b7–b7`) — the bot ladder's ceiling sits below expert play and lacks a weak end past ~wave 9, so it can't discriminate strong high-wave boards. Documented as a known limitation (manage high-wave staleness via prune+re-bake for now); a higher-ceiling ladder is the follow-up.
+
 ### fix: card-driven Discovers weigh every eligible tier EVENLY (no high-tier bias) — only the golden reward peeks up
 
 Owner report: Discovers favored higher-tier minions. Root cause: `offerDiscover`'s tiered branch built its pool with a **floor-walk** — it started at the target tier (`floor = target`) and included ONLY that tier, dropping to lower tiers just enough to reach 3 candidates. So at tavern tier 5 a Sea Urchin offered three tier-5 beasts whenever ≥3 existed, never mixing in lower tiers. The shop was flattened (equal chance per tier) long ago; Discover wasn't.

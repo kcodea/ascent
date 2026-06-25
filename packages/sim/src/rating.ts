@@ -1,57 +1,96 @@
 /**
- * Simulate-derived board strength rating (M3 — the power framework).
+ * Wave-relative board strength rating + power bands (the curation / QA strength framework).
  *
- * A board's rating is the fraction of a fixed CALIBRATION GAUNTLET it beats (a draw counts as half) → a
- * 0..1 score. Unlike Σ(attack + health), this is keyword- and synergy-aware: the gauntlet fights are real
- * `simulate()` resolutions, so Divine Shield, Windfury, Venomous, Reborn, deathrattles, and golden ×2 all
- * actually move the number. Deterministic (fixed gauntlet + seed), so a board always rates the same — which
- * lets `npm run pool` bake ratings into the committed pool, and lets ratings drive even, true-strength
- * matchmaking + power-band bucketing (the basis for synthesizing boards within a band).
+ * A board's strength only means something RELATIVE TO ITS WAVE: a 7-wide board that's strong at wave 3 is
+ * weak at wave 15. So we rate a board by its win-rate against a CALIBRATION LADDER of reference boards built
+ * for that wave — real, synergy-aware boards spanning weak → strong CURRENT play (the smart bot at rising
+ * fidelity). Because the ladder scales with the wave, the rating never saturates: the old fixed-gauntlet
+ * `rateBoard` maxed out at 1.0 by ~wave 8, which hid the fact that high-wave boards had gone weak after a
+ * balance patch. Re-running the bot per patch self-recalibrates (the ladder reflects the live card set).
  *
- * The gauntlet spans weak → strong so ratings spread across the full 0..1 range; a board's rating is then
- * its strength percentile against that ladder.
+ * Deterministic (fixed bot seeds + a fixed combat seed), so `npm run pool` bakes stable ratings + bands.
+ * Used for pool CURATION / QA only — live matchmaking still uses Σ(atk+hp) power (see `opponents.ts`).
  */
 import { simulate, makeRng, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { buildBootstrapPool } from './snapshot';
+import { opponentBoard } from './opponents';
 
-/** `n` copies of a vanilla body (Alleycat — no innate effect) at the given stats/keywords, so the gauntlet
- *  rungs are pure stat+keyword controls. */
-const rung = (n: number, attack: number, health: number, keywords?: BoardMinion['keywords']): BoardMinion[] =>
-  Array.from({ length: n }, () => (keywords ? { cardId: 'alley', attack, health, keywords } : { cardId: 'alley', attack, health }));
+const RATING_SEED = 0x9e3779b1; // fixed → combat tie-breaks are reproducible
 
-// Eight rungs from a 2-body 1/2 board up to a full 7-wide 9/16 Divine-Shield + Windfury board.
-const GAUNTLET: BoardMinion[][] = [
-  rung(2, 1, 2),
-  rung(3, 2, 3),
-  rung(4, 3, 4),
-  rung(5, 4, 6),
-  rung(5, 5, 8, ['DS']),
-  rung(6, 6, 10, ['W']),
-  rung(7, 7, 12, ['DS', 'W']),
-  rung(7, 9, 16, ['DS', 'W']),
-];
+// Calibration plan: run the smart bot across a few fixed seeds × rising fidelity (random play → near-optimal).
+// Each run yields a board at every wave it reaches; grouped by wave they form that wave's weak → strong ladder.
+const LADDER_SEEDS = [1, 7, 42, 101, 777];
+const LADDER_FIDELITIES = [0.2, 0.4, 0.6, 0.8, 1.0];
+const LADDER_PER_WAVE = 8; // cap each wave's ladder to ~this many boards, spread across the power range
 
-const RATING_SEED = 0x9e3779b1; // fixed → ratings are reproducible (the gauntlet RNG only nudges tie-breaks)
+/** wave → that wave's calibration ladder (a set of reference boards spanning weak → strong play). */
+export type WaveLadders = Map<number, BoardMinion[][]>;
+
+const power = (b: BoardMinion[]): number => b.reduce((s, m) => s + m.attack + m.health, 0);
+
+/** Keep up to `cap` boards from `list`, evenly spread across the Σ(atk+hp) power range (not clustered). */
+function spreadByPower(list: BoardMinion[][], cap: number): BoardMinion[][] {
+  if (list.length <= cap) return list;
+  const sorted = [...list].sort((a, b) => power(a) - power(b));
+  const out: BoardMinion[][] = [];
+  for (let i = 0; i < cap; i++) out.push(sorted[Math.round((i * (sorted.length - 1)) / (cap - 1))]!);
+  return out;
+}
 
 /**
- * Rate a board 0..1 by the fraction of the calibration gauntlet it beats (draw = 0.5). 0 = beats nothing,
- * 1 = beats everything. `tier` is the board's tavern tier (loss-damage scaling is irrelevant here; passed
- * through for completeness). An empty board rates 0.
+ * Build per-wave reference ladders from the smart bot — boards spanning weak → strong CURRENT play at each
+ * wave. Deterministic. Call ONCE and reuse across many `rateBoardForWave` calls (it runs the bot, so it is
+ * NOT cheap). `seeds`/`fidelities` default to the calibration plan; tests pass a smaller set for speed.
  */
-export function rateBoard(board: BoardMinion[], tier = 1): number {
+export function buildWaveLadders(seeds: number[] = LADDER_SEEDS, fidelities: number[] = LADDER_FIDELITIES): WaveLadders {
+  const byWave: WaveLadders = new Map();
+  for (const fidelity of fidelities) {
+    for (const s of buildBootstrapPool(seeds, () => ({ fidelity }))) {
+      if (s.minions.length === 0) continue;
+      const arr = byWave.get(s.wave) ?? byWave.set(s.wave, []).get(s.wave)!;
+      arr.push(opponentBoard(s));
+    }
+  }
+  for (const [wave, boards] of byWave) byWave.set(wave, spreadByPower(boards, LADDER_PER_WAVE));
+  return byWave;
+}
+
+/** The ladder for `wave`, falling back to the nearest available wave (sparse high waves the bot can't reach). */
+function ladderFor(ladders: WaveLadders, wave: number): BoardMinion[][] {
+  const exact = ladders.get(wave);
+  if (exact && exact.length) return exact;
+  let best: BoardMinion[][] = [];
+  let bestDist = Infinity;
+  for (const [w, boards] of ladders) {
+    const d = Math.abs(w - wave);
+    if (boards.length > 0 && d < bestDist) { best = boards; bestDist = d; }
+  }
+  return best;
+}
+
+/**
+ * Rate a board 0..1 by the fraction of ITS WAVE's calibration ladder it beats (draw = 0.5). Pass `ladders`
+ * from `buildWaveLadders()` (built once). 0 = loses to every reference board for its wave (weak FOR the
+ * wave); 1 = beats them all (strong FOR the wave). Empty board / no ladder → 0. `tier` only affects
+ * loss-damage (irrelevant to win/loss), passed through for completeness.
+ */
+export function rateBoardForWave(board: BoardMinion[], wave: number, ladders: WaveLadders, tier = 6): number {
   if (board.length === 0) return 0;
+  const ladder = ladderFor(ladders, wave);
+  if (ladder.length === 0) return 0;
   let score = 0;
-  for (const ref of GAUNTLET) {
+  for (const ref of ladder) {
     const { result } = simulate(board, ref, makeRng(RATING_SEED), CARD_INDEX, 0, 0, tier);
     score += result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
   }
-  return score / GAUNTLET.length;
+  return score / ladder.length;
 }
 
-/** Number of power bands the 0..1 rating is bucketed into for matchmaking + synthesis targeting. */
+/** Number of power bands the 0..1 rating is bucketed into (0 = weak-for-wave … BAND_COUNT-1 = strong-for-wave). */
 export const BAND_COUNT = 8;
 
-/** The band index (0..BAND_COUNT-1) for a rating — a coarse strength bucket. */
+/** The band index (0..BAND_COUNT-1) for a wave-relative rating — a coarse strength bucket. */
 export function ratingBand(rating: number): number {
   return Math.min(BAND_COUNT - 1, Math.max(0, Math.floor(rating * BAND_COUNT)));
 }

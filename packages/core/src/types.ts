@@ -406,6 +406,11 @@ export interface CombatResult {
   /** Fodder to queue into the next tavern from this combat (Burial Imp's Deathrattle). A count of
    *  `fred` tokens; pushed onto `pendingTavern` in settleCombat. Absent if 0. */
   playerFodderGrants?: number;
+  /** Economy Battlecries Ryme re-fired in combat (Soulfeeder's Fodder, Hoarder's Gold, Demonic Anomaly's shop
+   *  buff, gain-a-minion) — recorded here (cardId + its golden state) and replayed through the real recruit
+   *  factory in settleCombat, where they have full RunState access. Combat-meaningful Battlecries (summon /
+   *  buff / discover / grant-keyword / spell-power) run in combat instead and are NOT listed here. */
+  playerDeferredBattlecries?: { cardId: string; golden: boolean }[];
   /** Free shop rerolls banked from this combat (Gryphon's on-damaged). Added to `freeRolls` in settleCombat. */
   playerFreeRolls?: number;
   /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
@@ -475,6 +480,11 @@ export interface CombatContext {
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;
+  /** Record an economy Battlecry (Ryme re-firing Soulfeeder / Hoarder / Demonic Anomaly / a gain-minion) to be
+   *  replayed through its recruit factory at settle. Player-only; carried back via
+   *  `CombatResult.playerDeferredBattlecries`. `golden` is the re-fired minion's golden state (so the factory
+   *  doubles correctly). */
+  deferBattlecry(cardId: string, golden: boolean, side: Side): void;
   /** Permanently raise the player's max Gold by `amount` (Soulsman's Avenge). Player-only; carried
    *  back via `CombatResult.playerMaxGoldGain`, applied to maxEmbers in settleCombat. */
   grantMaxGold(amount: number, side: Side): void;

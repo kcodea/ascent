@@ -65,6 +65,9 @@ export function simulate(
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: spellsCast, enemy: 0 };
   let playerCombatSpells = 0; // spells the player cast THIS combat → added to the run's spellsCast at settle
+  // Economy battlecries Ryme re-fired in combat (Fodder / Gold / shop / gain-minion) — can't run in pure combat,
+  // so they're recorded here and replayed through their real recruit factory at settle (full RunState access).
+  const deferredBattlecries: { cardId: string; golden: boolean }[] = [];
 
   /**
    * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
@@ -223,6 +226,10 @@ export function simulate(
     grantTavernFodder: (count, side) => {
       if (side !== 'player') return; // enemies have no tavern
       fodderGrants += count;
+    },
+    deferBattlecry: (cardId, golden, side) => {
+      if (side !== 'player') return; // enemies have no run state to carry economy battlecries back to
+      deferredBattlecries.push({ cardId, golden });
     },
     grantMaxGold: (amount, side) => {
       if (side !== 'player') return; // enemies have no economy
@@ -700,6 +707,7 @@ export function simulate(
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
+    playerDeferredBattlecries: deferredBattlecries.length > 0 ? deferredBattlecries : undefined,
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,

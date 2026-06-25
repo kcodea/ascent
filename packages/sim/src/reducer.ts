@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -244,6 +244,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         const target = s.board[action.toIndex];
         if (target && magnetizesTo(card.cardId, target.cardId)) {
           s.hand.splice(i, 1);
+          // Playing a Magnetic minion IS a summon — fire summon-buffs on it BEFORE welding, so the absorbed
+          // body carries any tribe summon-buff into the host (Symbiotic Attachment counts as a Beast → Mama
+          // Bear's +X/+X lands on it, then welds onto the host). Mutates card.attack/health, read below.
+          fireSummonBuffs(s, card);
           // Money Bot magnetized in: its mana-per-turn rides along on the host Mech (and survives the
           // host's triple); selling the host removes it.
           const mDef = CARD_INDEX[card.cardId];
@@ -835,6 +839,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Burial Imp: Fodder queued by its combat Deathrattle drops into the next tavern (a Demon eats it there).
   if (result.playerFodderGrants) {
     (s.pendingTavern ??= []).push(...Array(result.playerFodderGrants).fill('fred'));
+  }
+  // Ryme re-firing an ECONOMY battlecry in combat (Soulfeeder's Fodder, Hoarder's Gold, Demonic Anomaly's shop
+  // buff, a gain-a-minion) couldn't run in the pure fight — replay each through its recruit factory now, with
+  // full RunState access. Recorded once per re-fire in combat, so Drakko's doubling is already baked in.
+  if (result.playerDeferredBattlecries) {
+    for (const { cardId, golden } of result.playerDeferredBattlecries) replayEconomyBattlecry(s, cardId, golden);
   }
   // Imp King / Brood Matron Avenge: their in-combat Imp buffs are permanent — accrue them into the run-wide
   // Imp buff so future Imps (next fights) inherit them.

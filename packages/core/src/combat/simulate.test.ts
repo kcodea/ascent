@@ -630,6 +630,22 @@ describe('simulate (handoff A.3)', () => {
     expect(gold.playerSpellPower).toEqual({ attack: 0, health: 2 }); // golden Cinderwing doubles
   });
 
+  it("Ryme re-firing an ECONOMY Battlecry records it for settle (Soulfeeder, Hoarder) — not the combat ones", () => {
+    const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    // Soulfeeder = addTavernFodder (economy) — can't touch the tavern in pure combat, so it's recorded on
+    // playerDeferredBattlecries for the run loop to replay at settle (and the golden state rides along).
+    const feed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100 }], omen, 1);
+    expect(feed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: false }]);
+    const goldFeed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(goldFeed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: true }]);
+    // Hoarder = battlecryBonusGoldNextTurn (economy) → also deferred.
+    const hoard = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'hoarder', attack: 0, health: 100 }], omen, 1);
+    expect(hoard.playerDeferredBattlecries).toEqual([{ cardId: 'hoarder', golden: false }]);
+    // A combat-meaningful Battlecry (Sea Urchin's Discover) resolves IN the fight — never deferred.
+    const urchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100 }], omen, 1);
+    expect(urchin.playerDeferredBattlecries).toBeUndefined();
+  });
+
   it('combat carry-backs are shown mid-fight (spell power → sc; a generated card → toHand)', () => {
     const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
     const r = run([

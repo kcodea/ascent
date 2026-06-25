@@ -529,6 +529,21 @@ describe('run loop (@game/sim)', () => {
     expect(karthus.attack).toBe(CARD_INDEX.karthus!.attack + 2); // Undead bond (undeadBuyAtk) baked in
   });
 
+  it('Ryme-deferred economy Battlecries replay through their recruit factory at settle (Soulfeeder + Hoarder)', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'combat', hand: [],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] },
+        // 3 economy battlecries Ryme re-fired in combat: 2 Soulfeeders (one golden) + 1 Hoarder.
+        playerDeferredBattlecries: [{ cardId: 'feed', golden: false }, { cardId: 'feed', golden: true }, { cardId: 'hoarder', golden: false }] },
+    };
+    const goldBefore = s.bonusEmbersNextTurn ?? 0;
+    s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so the queued Fodder isn't injected/cleared yet
+    // Soulfeeder queues Fodder into the next tavern: 1 (non-golden) + 2 (golden) = 3 Fred.
+    expect((s.pendingTavern ?? []).filter((id) => id === 'fred').length).toBe(3);
+    // Hoarder grants +1 Gold next turn (its recruit factory ran with full RunState access).
+    expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(1);
+  });
+
   it('Soulfeeder queues Fodder only once — it does not re-proc on later rounds', () => {
     let s: RunState = {
       ...createRun(1),
@@ -771,6 +786,22 @@ describe('run loop (@game/sim)', () => {
     expect(drone.health).toBe(3); // 1 + 2
     expect(drone.keywords).toContain('DS');
     expect(drone.keywords).not.toContain('M'); // Magnetic itself isn't transferred
+  });
+
+  it('magnetizing fires summon-buffs first: Mama Bear buffs the Symbiotic Attachment, then it welds onto the host', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [
+        { uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+        { uid: 'host', cardId: 'gnash', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'sym', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sym', toIndex: 1 }); // weld onto the Gnasher host (universalTribe → any non-neutral)
+    expect(s.board.length).toBe(2); // merged, no new slot
+    const host = s.board.find((c) => c.uid === 'host')!;
+    // Attachment 1/1 + Mama Bear (+2/+2, universalTribe counts as a Beast) = 3/3, welded onto the 5/5 host → 8/8.
+    expect([host.attack, host.health]).toEqual([8, 8]);
   });
 
   it('Heckbinder (Demon/Mech) magnetizes onto a Demon or a Mech, but not other tribes', () => {

@@ -47,12 +47,22 @@ const drakkoRepeats = (ctx: CombatContext, side: Side): number => {
   return 1 + bonus;
 };
 
-/** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Only the
- *  combat-meaningful battlecries do anything here; others no-op. Magnitude respects the source's own golden. */
+/** The Battlecry `do` ids `replayCombatBattlecry` runs IN COMBAT (they affect the live fight). Every other
+ *  onPlay `do` is an economy/recruit battlecry — deferred to settle and replayed through its recruit factory.
+ *  Kept in sync with the explicit branches below; `settleCombat` reads it to skip the combat ones at settle. */
+export const COMBAT_REPLAYABLE_BATTLECRIES: ReadonlySet<string> = new Set([
+  'battlecrySummon', 'battlecryBuffTribe', 'battlecryBuffUndeadAttack', 'battlecryGrantKeyword',
+  'battlecryDiscoverSpell', 'battlecryDiscoverMinion', 'battlecryBuffSpellPower',
+]);
+
+/** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Combat-meaningful
+ *  battlecries resolve here; economy ones (Fodder/Gold/shop/gain-minion) are recorded via `ctx.deferBattlecry`
+ *  and replayed through their recruit factory at settle. Magnitude respects the source's own golden. */
 function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   const g = m.golden ? 2 : 1;
   const tribeOf = (t: Minion, tribe: string): boolean =>
     !tribe || tribe === 'any' || t.tribe === tribe || t.tribe2 === tribe || !!ctx.getCard(t.cardId)?.universalTribe;
+  let economy = false; // saw an onPlay effect not handled in combat → defer the card to settle
   for (const eff of m.effects) {
     if (eff.on !== 'onPlay') continue;
     const p = eff.params ?? {};
@@ -86,8 +96,14 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
       // Cinderwing Matron — permanently raise run-wide spell power; carried back via playerSpellPower (the
       // same channel Skullblade/Gnasher use), so re-firing it in combat actually grants the spell power.
       ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side, m.uid);
+    } else {
+      economy = true; // Fodder / Gold / shop / gain-minion — no combat surface; replayed at settle
     }
   }
+  // Economy battlecries can't run in pure combat (no tavern/Gold/hand on the run state). Record the card so
+  // settleCombat re-fires its economy onPlay effects through the real recruit factory. Player-only (gated in
+  // ctx.deferBattlecry). Recorded once per re-fire, so Drakko's doubling carries through to the settle replay.
+  if (economy) ctx.deferBattlecry(m.cardId, m.golden, m.side);
 }
 
 /**

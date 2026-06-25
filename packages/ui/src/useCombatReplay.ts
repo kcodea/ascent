@@ -559,7 +559,7 @@ export function useCombatReplay(
   // Trigger-medallion pulse — when a unit's EFFECT fires this beat (Start-of-Combat, Deathrattle/summon,
   // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.
   // We tag the acting unit's uid, then clear it after the pulse animation so it always completes (and a
-  // re-trigger restarts it). Held a fixed ~950ms regardless of combat speed so the ring never cuts off.
+  // re-trigger restarts it). Held a fixed ~1.15s (glow flash + delayed ring) regardless of combat speed.
   useEffect(() => {
     if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
@@ -584,7 +584,7 @@ export function useCombatReplay(
       const next = new Set(prev);
       for (const uid of trig) next.delete(uid);
       return next;
-    }), 950);
+    }), 1150);
     return () => window.clearTimeout(t);
   }, [active, beatIdx, beats, events, cardIds]);
 

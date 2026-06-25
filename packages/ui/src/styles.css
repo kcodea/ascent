@@ -558,15 +558,31 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
   display: grid; place-items: center;
 }
 .card.compact .cgem svg { width: 62%; height: 62%; color: #f6e3ad; }
-/* Trigger pulse — a slow ring of energy released from the medallion when the unit's effect fires in
-   combat (Start-of-Combat, Deathrattle, aura, Avenge, Reborn, …). Compositor-only: animates the
-   transform + opacity of a ::after whose glow (radial bg + box-shadow) is STATIC, so it never repaints
-   per frame (per the perf rules in CLAUDE.md). The medallion itself brightens with a matching pulse. */
+/* Trigger pulse — the medallion flares with a VERY brief glow, then releases a slow ring of energy,
+   when the unit's effect fires (Start-of-Combat, Deathrattle, Battlecry, aura, Avenge, Reborn, …).
+   Compositor-only: only opacity/transform animate; each pseudo's glow (radial bg + box-shadow) is
+   STATIC, so it never repaints per frame (per the perf rules in CLAUDE.md).
+   ::before = the quick glow flash (fires first); ::after = the expanding ring (delayed until the flash). */
+.card.compact .cgem.pulsing::before,
 .card.compact .cgem.pulsing::after {
-  content: ''; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none; z-index: 8;
+  content: ''; position: absolute; border-radius: 50%; pointer-events: none; z-index: 8; opacity: 0;
+}
+.card.compact .cgem.pulsing::before {
+  inset: -3px; will-change: opacity;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c) 60%, #fff8e0) 0%, transparent 72%);
+  box-shadow: 0 0 12px 4px rgba(255, 246, 214, 0.98), 0 0 22px 9px color-mix(in srgb, var(--c) 70%, transparent);
+  animation: cgemglow 0.22s ease-out;
+}
+.card.compact .cgem.pulsing::after {
+  inset: -4px; will-change: transform, opacity;
   background: radial-gradient(circle, color-mix(in srgb, var(--c) 75%, #fff6d8) 0%, color-mix(in srgb, var(--c) 55%, transparent) 45%, transparent 70%);
   box-shadow: 0 0 16px 6px rgba(255, 244, 210, 0.95), 0 0 34px 16px color-mix(in srgb, var(--c) 70%, transparent);
-  opacity: 0; will-change: transform, opacity; animation: cgempulse 0.9s ease-out;
+  animation: cgempulse 0.9s ease-out 0.15s; /* delayed so the ring releases AFTER the glow flares */
+}
+@keyframes cgemglow {
+  0% { opacity: 0; transform: scale(0.9); }
+  35% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(1.05); }
 }
 @keyframes cgempulse {
   0% { opacity: 0; transform: scale(0.55); }

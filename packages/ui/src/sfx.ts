@@ -161,7 +161,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   upgrade: 0.5,
   roll: 0.5,
   combatStart: 0.5,
-  cardVoice: 0.42, // shared gain for ALL per-card voicelines/SFX (audio/cards/<cardId>.mp3) — −30% from 0.6
+  cardVoice: 0.1, // shared gain for ALL per-card voicelines/SFX (audio/cards/<cardId>.mp3) — dialed in by ear (mixer "10")
   summon: 0.5,    // general "a token was summoned" cue (layered with the token's own cardVoice clip)
 };
 let sampleVol: Record<string, number> = (() => {

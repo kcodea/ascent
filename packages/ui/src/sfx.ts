@@ -165,23 +165,25 @@ const chord = (freqs: number[], opts: Omit<ToneOpts, 'freq' | 'delay'>, step = 0
 // + persisted, so audio levels can be dialed in by ear without a code change — set the value here as the
 // shipped default. (Synth fallbacks keep their own inline gains.)
 const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
+  // Whole-bank mix dialed in by ear via the DEV SFX mixer ("Copy values"), then pasted here as the shipped
+  // defaults. cardVoice = shared gain for per-card voicelines; summon = the general summon cue.
   buy: 0.5,
-  sell: 0.51,
-  smack: 0.156,
-  cardlanding: 0.156,
+  sell: 0.3,
+  smack: 0.08,
+  cardlanding: 0.4,
   discover: 0.5,
   taunt: 0.5,
-  reorder: 0.225, // smack-pass −55% from 0.5
+  reorder: 0.225,
   deny: 0.5,
-  freeze: 0.5,
-  unfreeze: 0.5,
+  freeze: 0.31,
+  unfreeze: 0.36,
   pulse: 0.5,
   inspect: 0.5,
   upgrade: 0.5,
-  roll: 0.5,
+  roll: 0.61,
   combatStart: 0.5,
-  cardVoice: 0.1, // shared gain for ALL per-card voicelines/SFX (audio/cards/<cardId>.mp3) — dialed in by ear (mixer "10")
-  summon: 0.5,    // general "a token was summoned" cue (layered with the token's own cardVoice clip)
+  cardVoice: 0.09,
+  summon: 0.65,
 };
 let sampleVol: Record<string, number> = (() => {
   try {

@@ -1031,7 +1031,7 @@ export function applyOnRoll(state: RunState): void {
  *  reducer's `discover` case resolves the pick into the hand and opens the next queued spec, if any. */
 export function offerSpellDiscover(state: RunState): void {
   const rng = makeRng(state.rngCursor);
-  const avail = [...SPELL_CARDS];
+  const avail = SPELL_CARDS.filter((c) => c.tier <= state.tier);
   const picks: string[] = [];
   for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
   state.rngCursor = rng.state();

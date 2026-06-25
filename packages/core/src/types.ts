@@ -154,6 +154,7 @@ export type EffectFactoryId =
   | 'onGainAttackImproveHpGrant' // Sergeant: when this gains Attack in combat, improve the Deathrattle HP grant
   | 'spellCastBuffUndeadAttack' // Forsaken Weaver (combat): on spell cast, give your Undead +Attack
   | 'deathrattleGrantCardToHand' // Pillager: Deathrattle — add a specific card to hand after combat
+  | 'onKillBuffUndeadAttack' // Karthus: when this kills an enemy, give your Undead +Attack permanently
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryFreeRollsAndBuffShop' // Demonic Anomaly: Battlecry — gain free refreshes + buff the current tavern
@@ -336,7 +337,8 @@ export type CombatEvent =
   | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
-  | { type: 'toHand'; cardId: string; side: Side; source?: string }; // a combat effect adds a card to your hand (Arcane Weaver)
+  | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
+  | { type: 'hpGrant'; target: string; amount: number }; // Sergeant: live HP-grant amount after each Attack-gain improvement
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 
@@ -387,6 +389,9 @@ export interface CombatResult {
   /** Spells the player cast IN this combat (Taragosa's Growth). Added to the run's `spellsCast` in
    *  settleCombat — so combat casts permanently improve spell-count payoffs (Archmagus Guel). Absent if 0. */
   playerSpellsCast?: number;
+  /** Permanent Undead Attack bonus from this combat (Karthus on-kill). Stacks into `undeadBuyAtk` and is
+   *  also applied to existing run-board Undead immediately after combat. Absent if 0. */
+  playerUndeadBuyAtkGain?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
   odds?: { win: number; draw: number; lose: number };
@@ -452,6 +457,9 @@ export interface CombatContext {
    *  The `scGainFodderStats` factory reads these at Start of Combat. 0 if no Fodder was eaten. */
   readonly fodderConsumedAtk: number;
   readonly fodderConsumedHp: number;
+  /** Karthus: permanently raise run-wide Undead buy-time attack by `amount` (player only). Carried back
+   *  via CombatResult.playerUndeadBuyAtkGain, stacked into undeadBuyAtk and applied to the run board. */
+  grantUndeadBuyAtk(amount: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
 }

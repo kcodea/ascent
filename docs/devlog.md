@@ -3,6 +3,50 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-24 (session 4)
+
+### feat: shop weights, spell discover fix, Karthus/DeathlessHand/Footman, onKill bus, Tara combat log, live combat text, art wiring (#23)
+
+**Bug fixes:**
+
+- **Spell Discover now tier-gated** — `offerSpellDiscover` in `recruit.ts` was drawing from all spells with no filter; changed `const avail = [...SPELL_CARDS]` → `SPELL_CARDS.filter(c => c.tier <= state.tier)`. Players can no longer discover T6 spells at T5.
+- **Shop weights flattened** — `drawOfferId` in `shop.ts` used a tier-biased formula (`1 + (tier match ? 1.2 : 0) + (within 1 tier ? 0.4 : 0)`) that gave T6 cards a 2.6× higher chance at T6 tavern. Replaced with uniform `pool[rng.int(pool.length)]` — every eligible card has equal chance. Confirmed by player request.
+- **`onKill` bus now emits for ALL kills** — previously only fired when `attacker.reAttackOnKill` was true (Gnasher). Fixed `performAttack` in `simulate.ts`: emit `onKill` unconditionally on any kill, then conditionally chain the re-attack. Enables Karthus's on-kill factory.
+
+**Card renames (id unchanged):**
+- `skullblade`: "Skullblade" → **"Ghastly Bladesmith"** (effect unchanged)
+- `knit`: "Grave Knit" → **"Eternal Knight"** (effect unchanged, card text updated)
+
+**New cards:**
+- **Karthus (T5 Undead 8/8 Divine Shield)** — `onKill` / new `onKillBuffUndeadAttack` factory: when Karthus kills an enemy, immediately buff all living friendly Undead +3 Attack (golden +6), and carry back `playerUndeadBuyAtkGain` so the bonus stacks into `undeadBuyAtk` AND is applied to existing run-board Undead in `settleCombat`. Future Undead buys also benefit.
+- **Deathless Hand (T3 Undead 2/1)** — Deathrattle: summon a Footman (uses existing `deathrattleSummon` factory; golden summons 2).
+- **Footman (T1 Undead 1/1 Reborn, token)** — not in the shop; summoned by Deathless Hand. Reborn lets it die twice — a reliable trade body and a Deathrattle trigger.
+
+**New engine primitives:**
+- `onKillBuffUndeadAttack` added to `EffectFactoryId` + `EffectFactoryIdSchema` + `FACTORIES`.
+- `grantUndeadBuyAtk(amount, side)` added to `CombatContext` — accumulates `undeadBuyAtkGain`, returned in `CombatResult.playerUndeadBuyAtkGain`. `settleCombat` in reducer.ts stacks it into `s.undeadBuyAtk` and buffs existing board+hand Undead immediately via `addBuff`.
+- `hpGrant` CombatEvent — emitted by the `onGainAttackImproveHpGrant` factory each time Sergeant's DR HP grant improves; the UI tracks `u.hpGrantBonus` from it.
+
+**Tara combat log** — `simulate.ts` buff callback now emits an `sc` narration event whenever `buffCounts` increments for a card with `ascendAt`: shows "Tara: N stat grants to go" (or "has reached the ascend threshold!") directly in the combat event log.
+
+**Combat live card text (Tara, Sergeant, Thundering Abomination):**
+- `UnitFrame` gains `ascendProgress?`, `hpGrantBonus?`, `permaGain?`.
+- `computeFrame` in `useCombatReplay.ts` now tracks: `ascendProgress` incremented on every `buff` event targeting a card with `ascendAt` (using existing `CARD_INDEX` import); `hpGrantBonus` from `hpGrant` events (absolute value so UI always shows current total); `permaGain` accumulated from `buff` events on EG-keyword units.
+- `hpGrant: 0` added to `DELAY` (no extra pause — fires in the same beat as the triggering buff).
+- `cardText.ts` gains `sergeantText()` (shows live `+N Health` replacing the printed value, green when improved) and `engraveTallyText()` (appends `{{+A/+H so far}}` for Engraved minions showing accrued combat gains).
+- `Unit.tsx` text chain extended: `ascendProgressText` → `sergeantText` → `engraveTallyText` in priority order. Memo comparator updated to include all three new fields.
+
+**Art wiring (18 files):**
+- New PNGs copied to `packages/ui/src/art/minions/` for all PR#22 cards (Acid, Trickster, DemonicAnomaly, AbhorrentHorror, Deathswarmer, Pillager, ThunderingAbomination, Sergeant, ForsakenWeaver, SymbioticAttachment) plus new cards (Karthus, DeathlessHand, Footman).
+- Rewired by replacing old webp with new PNG: VoraciousImp (→ `imp.png`), Spare Parts Drone (→ `drone.png`), Deathsayer (→ `deathsayer.png`).
+- Renamed cards use new art: Ghastly Bladesmith (→ `skullblade.png`), Eternal Knight (→ `knit.png`).
+
+**Files changed:** `packages/core/src/types.ts`, `packages/core/src/effects/factories.ts`, `packages/core/src/combat/simulate.ts`, `packages/content/src/schema.ts`, `packages/content/src/cards/undead.ts`, `packages/content/src/cards/tokens.ts`, `packages/sim/src/shop.ts`, `packages/sim/src/recruit.ts`, `packages/sim/src/reducer.ts`, `packages/ui/src/useCombatReplay.ts`, `packages/ui/src/cardText.ts`, `packages/ui/src/Unit.tsx`, `packages/tools/src/combat-harness.ts`, 18 art files.
+
+**Verification:** `npm run typecheck && npm run lint && npm test` (325/325) + `npm run build:web` all green. All new art files confirmed in the Vite bundle output.
+
+---
+
 ## 2026-06-24 (session 3)
 
 ### feat: Symbiote hero + 9 new minions (4 Demons, 5 Undead) — universalTribe, undeadBuyAtk, onRoll, fodderConsumedThisTurn

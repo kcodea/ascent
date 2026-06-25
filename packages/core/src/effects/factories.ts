@@ -680,10 +680,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Sergeant — when THIS minion's Attack rises in combat (onGainAttack), improve the Deathrattle's
-   *  HP grant by +`improve` (golden +`improve`×2). Stored in `self.hpGrantBonus`. */
-  onGainAttackImproveHpGrant: (_ctx, self, params, payload) => {
+   *  HP grant by +`improve` (golden +`improve`×2). Stored in `self.hpGrantBonus`; also emits a
+   *  `hpGrant` event so the UI can show the live HP grant total in the combat card text. */
+  onGainAttackImproveHpGrant: (ctx, self, params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
     self.hpGrantBonus = (self.hpGrantBonus ?? 0) + num(params.improve, 2) * mul(self);
+    ctx.log({ type: 'hpGrant', target: self.uid, amount: self.hpGrantBonus });
   },
 
   /** Forsaken Weaver (combat half) — when a spell is cast on this side, give all living friendly
@@ -706,5 +708,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (!cardId) return;
     const count = num(params.count, 1) * mul(self);
     for (let i = 0; i < count; i++) ctx.grantToHand(cardId, self.side, self.uid);
+  },
+
+  /** Karthus — when this kills an enemy, give your Undead +`attack` permanently (golden ×2).
+   *  Buffs all living friendly Undead immediately, then carries back via `grantUndeadBuyAtk` so
+   *  existing run-board Undead and future buys also benefit. */
+  onKillBuffUndeadAttack: (ctx, self, params, payload) => {
+    const { attacker } = payload as { attacker: Minion; victim: Minion };
+    if (self !== attacker || self.dead) return;
+    const amount = num(params.attack, 3) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
+      ctx.buff(m, amount, 0, self.uid);
+    }
+    ctx.grantUndeadBuyAtk(amount, self.side);
   },
 };

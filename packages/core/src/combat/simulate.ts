@@ -47,6 +47,7 @@ export function simulate(
   const mkUid = (): string => `m${uidCounter++}`;
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
+  let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
@@ -153,7 +154,14 @@ export function simulate(
       // Tara: tally each stat-grant on a minion that ascends after N grants (`cards[id].ascendAt`). Carried
       // back via playerAscendCount and accumulated + transformed at settle — no mid-combat transform/UI.
       if ((attack !== 0 || health !== 0) && cards[target.cardId]?.ascendAt) {
-        buffCounts.set(target.uid, (buffCounts.get(target.uid) ?? 0) + 1);
+        const newCount = (buffCounts.get(target.uid) ?? 0) + 1;
+        buffCounts.set(target.uid, newCount);
+        const ascendAt = cards[target.cardId]!.ascendAt!;
+        const remaining = Math.max(0, ascendAt - newCount);
+        const text = remaining > 0
+          ? `${target.name}: ${remaining} stat grant${remaining === 1 ? '' : 's'} to ascend`
+          : `${target.name} has reached the ascend threshold!`;
+        events.push({ type: 'sc', source: target.uid, text });
       }
       // Hunter watches its own Attack rising: emit onGainAttack on a positive delta. The bus snapshots its
       // handlers, so this nested emit is safe; health-only buffs (the common case) skip it, and onGainAttack
@@ -204,6 +212,10 @@ export function simulate(
     grantRandomSpell: (count, side) => {
       if (side !== 'player') return; // enemies have no hand
       spellGrants += count;
+    },
+    grantUndeadBuyAtk: (amount, side) => {
+      if (side !== 'player') return; // enemies have no run state
+      undeadBuyAtkGain += amount;
     },
     castSpell: (side) => {
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
@@ -450,9 +462,11 @@ export function simulate(
       const killed =
         targetWasAlive &&
         (target.dead || target.health <= 0 || (targetCouldReborn && !target.rebornAvailable));
-      if (killed && attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
+      if (killed) {
         bus.emit('onKill', { attacker, victim: target });
-        performAttack(attacker, defenderSide, depth + 1);
+        if (attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
+          performAttack(attacker, defenderSide, depth + 1);
+        }
       }
     }
   }
@@ -628,5 +642,6 @@ export function simulate(
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
     playerSpellGrants: spellGrants > 0 ? spellGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
+    playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
   };
 }

@@ -25,6 +25,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Bug fixes + 3 new Undead + live combat text + 18 art.** Shop weights flattened (equal chance for
+  all tiers); Spell Discover now tier-gated; `onKill` bus fires for all kills. New cards: **Karthus**
+  (T5 8/8 DS; on-kill +3 Atk to all Undead permanently), **Deathless Hand** (T3; DR: summon a
+  **Footman** — 1/1 Reborn token). Renames: Skullblade → **Ghastly Bladesmith**, Grave Knit →
+  **Eternal Knight**. **Tara** ascend procs now appear in the combat log. Combat live card text for
+  Tara (countdown), Sergeant (improving HP grant), and Thundering Abomination (EG gains). 18 art files.
 - **Symbiote hero + 9 new minions.** New hero: **Symbiote** — starts with a 1/1 Magnetic token (**Symbiotic
   Attachment**) in hand and gets another every 4 turns. The token has `universalTribe` — it counts as every
   tribe and magnetizes onto any non-neutral minion. 4 new Demons: **Acid** (every 4 refreshes, eat a tavern

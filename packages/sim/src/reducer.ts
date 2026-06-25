@@ -803,6 +803,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerSpellsCast) {
     s.spellsCast += result.playerSpellsCast;
   }
+  // Karthus: on-kill permanent Undead attack bonus — stack into undeadBuyAtk AND apply to all
+  // current run-board Undead immediately so they benefit without needing to be re-bought.
+  if (result.playerUndeadBuyAtkGain) {
+    const gain = result.playerUndeadBuyAtkGain;
+    s.undeadBuyAtk = (s.undeadBuyAtk ?? 0) + gain;
+    for (const c of [...s.board, ...s.hand]) {
+      if (isTribe(c, 'undead')) addBuff(c, 'Karthus', gain, 0);
+    }
+  }
   // Sporebat: grant N random tavern-tier spells to the hand (the tavern tier is known here; honours the cap).
   if (result.playerSpellGrants) {
     const rng = makeRng(s.rngCursor);

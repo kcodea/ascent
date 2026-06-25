@@ -128,6 +128,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryBuffUndeadAttack',
   'battlecryFreeRollsAndBuffShop',
   'onRollConsumeShop',
+  'onKillBuffUndeadAttack',
 ]);
 
 export const EffectDefSchema = z.object({

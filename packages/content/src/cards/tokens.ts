@@ -112,6 +112,19 @@ export const TOKENS: CardDef[] = [
     universalTribe: true,
   },
   {
+    // Deathless Hand's Deathrattle summon — a 1/1 Undead with Reborn. Not in the shop.
+    id: 'footman',
+    name: 'Footman',
+    tribe: 'undead',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: ['R'],
+    effects: [],
+    text: '**Reborn.**',
+    token: true,
+  },
+  {
     // Twilight Whelp's Deathrattle cub — a 3/3 Dragon that ATTACKS IMMEDIATELY when summoned (out of turn
     // order), then joins the rotation. Not in the shop. (Broodmother → Twilight Whelps → these.)
     id: 'whelpling',

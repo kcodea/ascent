@@ -80,6 +80,14 @@ deliberately
     +5 Undead (Deathswarmer, Pillager, Thundering Abomination, Sergeant, Forsaken Weaver). New engine
     primitives: `universalTribe`, `undeadBuyAtk`, `onRoll`/`applyOnRoll`, `fodderConsumedThisTurn`.
     Demon pool now 11, Undead pool now 10.
+  - **Bug fixes + content batch + live text (2026-06-24, shipped → devlog):** Shop weights flattened
+    (equal chance for all tiers); Spell Discover now tier-gated; `onKill` bus fires for all kills
+    (not just re-attacker Gnasher). +3 Undead cards: **Karthus** (T5 8/8 DS; on-kill +3 Atk to all
+    Undead permanently — new `onKillBuffUndeadAttack` + `grantUndeadBuyAtk` carry-back), **Deathless
+    Hand** (T3 2/1; DR: summon a Footman), **Footman** (T1 1/1 Reborn token). Renames: Skullblade →
+    **Ghastly Bladesmith**, Grave Knit → **Eternal Knight**. Tara ascend procs now show in combat
+    narration log. Combat live text for Tara (`ascendProgress`), Sergeant (`hpGrantBonus` via `hpGrant`
+    event), and Thundering Abomination (`permaGain` from EG buff tracking). 18 art files wired.
   - **Follow-up (2026-06-23, shipped → devlog):** Sheldon/Speedy/Harry Botter made **Magnetic** (+ `spellAura`
     weld plumbing so the aura survives a weld); **triples now keep welded fields** (`rallyMechAtk`/aura, not
     just `manaBonus`); **Archmagus Guel scales** +1/+1 per 4 spells cast (a "T1–4 stay relevant" win);

@@ -317,9 +317,6 @@ export function Recruit() {
       tl.kill();
     };
   }, [devourBolt]);
-  // A small dust puff where you click the empty board (not a card/control) — pure tactile feel.
-  const [dust, setDust] = useState<{ x: number; y: number; key: number } | null>(null);
-  const dustKeyRef = useRef(0);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
   // Fred shows e.g. 3/3, not the 1/1 base.
@@ -1224,16 +1221,19 @@ export function Recruit() {
     window.setTimeout(() => setSpark((s) => (s?.key === key ? null : s)), 600);
   };
 
-  // A dust puff on a primary click of the *empty board* — never on a card or any control,
-  // so it reads as touching the table itself. Purely cosmetic (doesn't block other handlers).
-  const puffBoard = (e: React.PointerEvent<HTMLDivElement>): void => {
-    if (e.button !== 0 || heroArmed || drag) return;
+  // Root-level press feedback (cosmetic; never blocks the real handlers). Two cases:
+  //  • pressing any shop / hand / board card → a soft "card touch", fired here (not in the card's own
+  //    handler) so it plays AT ANY TIME — even when the timer's up, the hero is armed, or end-of-turn is
+  //    animating, all of which detach the card's drag handler.
+  //  • a primary click on the *empty table* (no card/control) → the click "thock" + a tiny dust puff.
+  const onBoardPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (e.button !== 0) return;
     const t = e.target as HTMLElement;
-    if (t.closest('.card, button, a, input, [role="dialog"], .bar, .rtimer, .shopctl')) return;
-    dustKeyRef.current += 1;
-    const key = dustKeyRef.current;
-    setDust({ x: e.clientX, y: e.clientY, key });
-    window.setTimeout(() => setDust((d) => (d?.key === key ? null : d)), 620);
+    if (t.closest('[data-zone] .card')) { sfx.cardTouch(); return; }
+    if (heroArmed || drag) return;
+    if (t.closest('button, a, input, [role="dialog"], .bar, .rtimer, .shopctl')) return;
+    sfx.clickThock();
+    pixiFx.clickPuff(e.clientX, e.clientY); // small Pixi dust at the cursor (sibling of the card-landing dust)
   };
 
   // End Turn → face the Omen. End-of-Turn effects play out *one at a time* on the still-mounted
@@ -1483,7 +1483,7 @@ export function Recruit() {
       className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }`}
-      onPointerDown={puffBoard}
+      onPointerDown={onBoardPointerDown}
     >
       <HudBar />
 
@@ -1801,20 +1801,6 @@ export function Recruit() {
       {devourBolt && (
         <div className="devourbolt" key={devourBolt.key} ref={devourBoltRef} aria-hidden="true">
           +{devourBolt.attack}/+{devourBolt.health}
-        </div>
-      )}
-
-      {/* Board dust: a soft puff of motes kicked up where you tapped the empty table. */}
-      {dust && (
-        <div className="boarddust" key={dust.key} style={{ left: dust.x, top: dust.y }} aria-hidden="true">
-          <span className="bd-puff" />
-          {[28, 96, 150, 205, 270, 322].map((a, i) => (
-            <span
-              className="bd-mote"
-              key={a}
-              style={{ '--a': `${a}deg`, '--d': `${16 + (i % 3) * 7}px` } as CSSProperties}
-            />
-          ))}
         </div>
       )}
 

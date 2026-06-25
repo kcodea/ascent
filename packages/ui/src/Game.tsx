@@ -10,6 +10,8 @@ import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
+import { PixiFxLayer } from './PixiFxLayer';
+import { pixiFx } from './pixiFx';
 import { warmArt } from './art';
 import { useGame } from './store';
 
@@ -54,6 +56,9 @@ export function Game() {
   return (
     <ErrorBoundary>
       <Recruit />
+      {/* WebGL effects overlay (particle impacts, flashes) — a transparent full-viewport Pixi
+          canvas drawn over the board; the combat replay fires effects into it at contact points. */}
+      <PixiFxLayer />
       {phase === 'gameover' && <EndScreen won={false} />}
       {phase === 'victory' && <EndScreen won={true} />}
       <StatusBar />
@@ -69,6 +74,16 @@ export function Game() {
       {/* DEV-only live tuners (stripped from production via the static env check). */}
       {import.meta.env.DEV && <SfxMixer />}
       {import.meta.env.DEV && <LungeTuner />}
+      {/* DEV: fire an unmissable Pixi FX burst at screen center + log diagnostics. */}
+      {import.meta.env.DEV && (
+        <button
+          className="fxtest-btn"
+          onPointerDown={() => pixiFx.test()}
+          title="Fire a test Pixi effect at screen center"
+        >
+          Test FX
+        </button>
+      )}
       {/* Topmost layer: the pre-run hero picker (self-gates on heroChoices). */}
       <HeroSelect />
     </ErrorBoundary>

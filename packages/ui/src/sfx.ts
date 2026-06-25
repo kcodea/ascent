@@ -152,6 +152,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   pulse: 0.5,
   inspect: 0.5,
   upgrade: 0.5,
+  roll: 0.5,
 };
 let sampleVol: Record<string, number> = (() => {
   try {
@@ -218,7 +219,11 @@ export const sfx = {
     tone({ freq: 700, dur: 0.07, type: 'square', vol: 0.09 });
     tone({ freq: 1040, dur: 0.11, type: 'square', vol: 0.07, delay: 0.06 });
   },
-  roll: () => [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d })),
+  // Refresh / reroll the tavern — the sourced "roll" clip; synth ascending blip fallback until it decodes.
+  roll: () => {
+    if (playSample('roll', sampleVol.roll)) return;
+    [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d }));
+  },
   // A Discover choice opens — the sourced "discover" clip; synth shimmer until it decodes / if absent.
   discover: () => {
     if (playSample('discover', sampleVol.discover)) return;
@@ -285,7 +290,7 @@ export const sfx = {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
-  unfreeze: sfx.unfreeze, pulse: sfx.pulse, inspect: sfx.inspect, upgrade: sfx.upgrade,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();

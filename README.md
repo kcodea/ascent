@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Sourced refresh sound.** The tavern Refresh/Reroll button now plays a real audio clip (the last tavern
+  control still on a synth blip), tunable in the DEV SFX mixer.
 - **Bug fixes + 3 new Undead + live combat text + 18 art.** Shop weights flattened (equal chance for
   all tiers); Spell Discover now tier-gated; `onKill` bus fires for all kills. New cards: **Karthus**
   (T5 8/8 DS; on-kill +3 Atk to all Undead permanently), **Deathless Hand** (T3; DR: summon a

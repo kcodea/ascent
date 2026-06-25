@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { Card, type CardView } from './Card';
-import { summonBuffText } from './cardText';
+import { cryptDrakeText, summonBuffText } from './cardText';
 import type { UnitFrame } from './useCombatReplay';
 
 /** Keyword-proc floats (poison/shield/reborn) that bloom big in the card centre, staggered after the
@@ -29,7 +29,7 @@ function UnitInner({ u, side, anim, floats }: UnitProps) {
     keywords: u.keywords, golden: u.golden,
     // Summon-buff cards (Kennelmaster) show their live magnitude — `summonBonus` can climb
     // mid-fight via Avenge, so the combat card updates too.
-    text: summonBuffText(u.cardId, u.summonBonus) ?? def?.text ?? '',
+    text: summonBuffText(u.cardId, u.summonBonus) ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0) ?? def?.text ?? '',
     goldenText: def?.goldenText,
     tier: def?.tier,
     // Two thresholds in combat: green above the *printed* base (it's buffed), red below the *floor* it
@@ -66,6 +66,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.divineShield === b.u.divineShield &&
   a.u.golden === b.u.golden &&
   a.u.summonBonus === b.u.summonBonus &&
+  a.u.attackSeen === b.u.attackSeen &&
   a.u.name === b.u.name &&
   a.u.cardId === b.u.cardId &&
   a.u.tribe === b.u.tribe &&

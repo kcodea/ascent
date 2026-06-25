@@ -48,9 +48,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const card = ctx.getCard(str(params.tokenId));
     const total = num(params.count, 1) * mul(self); // golden doubles the token count (e.g. Pack Scrounger 2 → 4)
     const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
+    const grantKws = kw ? [kw] : undefined; // passed into summon so the keyword is in the snapshot from the start
     for (let i = 0; i < total; i++) {
-      const m = ctx.summon(self.side, card, self.uid);
-      if (kw && !m.keywords.includes(kw)) m.keywords.push(kw);
+      ctx.summon(self.side, card, self.uid, grantKws);
+      // Sequential spawning for attack-on-summon tokens (Twilight Whelp → Whelp): each Whelp attacks
+      // immediately after spawning. Only spawn the next one if there's room after the first has attacked
+      // (if the first dies, it frees a slot; if it lives and the board was full, the next overflows).
+      if (card.attackOnSummon) ctx.flushImmediateAttacks?.();
     }
   },
 
@@ -527,12 +531,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (count % x !== 0) return;
     const amount = self.attack;
     if (amount <= 0) return;
-    const pickable = ctx.living(self.side).filter((m) => m !== self);
     const targets = num(params.targets, 2);
-    for (let i = 0; i < targets && pickable.length > 0; i++) {
-      const m = ctx.rng.pick(pickable);
-      pickable.splice(pickable.indexOf(m), 1);
-      ctx.buff(m, amount, 0, self.uid);
+    // Golden procs twice — each proc independently picks `targets` random friends (can overlap).
+    for (let t = 0; t < mul(self); t++) {
+      const pickable = ctx.living(self.side).filter((m) => m !== self);
+      for (let i = 0; i < targets && pickable.length > 0; i++) {
+        const m = ctx.rng.pick(pickable);
+        pickable.splice(pickable.indexOf(m), 1);
+        ctx.buff(m, amount, 0, self.uid);
+      }
     }
   },
 

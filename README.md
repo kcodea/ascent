@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Dragon bug-fix pass.** Crypt Drake's text now updates live in combat (current grant highlighted + countdown
+  to next step-up). Twilight Whelp's whelps now spawn **sequentially** — each attacks before the next can enter,
+  so a full board doesn't block the second if the first one dies. Broodmother's whelps show the **Taunt emblem**
+  from their first frame (keyword is now baked into the summon snapshot). Golden Stuntdrake now **procs twice**,
+  picking 2 targets independently each time.
 - **Spells cast in combat now trigger Guel.** Taragosa's Growth is a real spell cast — it fires **Archmagus
   Guel** mid-fight (a temporary buff) and **permanently** counts toward his improvement (combat casts bump the
   run's spell tally). Combat gained a real `castSpell` path for this.

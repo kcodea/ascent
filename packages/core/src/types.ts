@@ -396,7 +396,13 @@ export interface CombatContext {
   /** Register a tribe buff that persists for the rest of combat: a friend of `tribe` on `side`
    *  summoned *after* this also gains +atk/+hp (Grim's Deathrattle). Current friends are buffed by the caller. */
   addTribeAura(side: Side, tribe: Tribe | 'any', attack: number, health: number, source: string): void;
-  summon(side: Side, card: CardDef, nearUid?: string): Minion;
+  /** Summon `card` onto `side`. `nearUid` positions it beside an existing unit.
+   *  `grantKeywords` are applied to the minion BEFORE the `summon` event is emitted, so the UI
+   *  sees the correct keyword set from the first frame (Broodmother → Taunt on her Whelps). */
+  summon(side: Side, card: CardDef, nearUid?: string, grantKeywords?: Keyword[]): Minion;
+  /** Flush the attack-on-summon queue immediately (Twilight Whelp: each spawned Whelp attacks
+   *  before the next one may spawn, so a full board doesn't block the second if the first dies). */
+  flushImmediateAttacks?(): void;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
   /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;

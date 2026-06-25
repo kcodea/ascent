@@ -167,6 +167,11 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
   - **Remaining threads:** **TitanHP** hero-power master matches no hero + **Nadja** has no power master (both
     unwired — need a hero/asset decision); **Taragosa** should keep its "all stats are Engraved" line (goes on
     the #16 branch); open design Qs: Taragosa Growth-cast scaling, Tribes-Choice-on-neutral UX.
+  - **Dragon bug-fix pass (shipped 2026-06-24 → devlog):** Crypt Drake live text in combat (current +N/N +
+    countdown via self-buff detection); Twilight Whelp sequential spawning (each whelp attacks before the
+    next can spawn — uses new `ctx.flushImmediateAttacks()`); Broodmother's whelps show Taunt emblem from
+    frame 1 (keyword now applied before the summon snapshot via `ctx.summon(..., grantKeywords)`); golden
+    Stuntdrake procs twice (updated `avengeGiveAttack` + `goldenText`).
 - [ ] **Enemy-strength curve tool** (the way we'll actually balance — not the old mono-tribe matrix
       runner, which is deprioritized per the user). Build a way to tune how fast enemy boards scale
       per wave so the climb's difficulty ramp feels right. Design TBD.

@@ -3,6 +3,47 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-24 (session 2)
+
+### Fix: Crypt Drake live text · Twilight Whelp sequential spawn · Broodmother Taunt in snapshot · Golden Stuntdrake procs twice
+
+Four correctness fixes for the Dragon tribe's newer cards:
+
+**Crypt Drake live text in combat** — Crypt Drake's "Improve this every 3 attacks" buff has always
+scaled mid-fight, but the card text never updated in the arena. Added `attackSeen?: number` to
+`UnitFrame` (useCombatReplay.ts), detected by watching for the Crypt Drake's self-buff event in
+`computeFrame` (its `onAllyAttackBuffAll` factory buffs ALL living friends including itself using its
+own uid as source — a uniquely self-sourced buff with `attack > 0`). Added `cryptDrakeText()` to
+`cardText.ts` (same pattern as `guelProgressText`): highlights the **current grant** in green and
+appends `{{N to go}}` counting down to the next step-up. Wired into `Unit.tsx` text chain + memo
+comparator. No new event types needed.
+
+**Twilight Whelp sequential spawning** — the Whelp's Deathrattle (and Sylus extra procs) was
+spawning all whelpling tokens in a batch loop, then flushing immediate attacks once after the full
+cascade. This meant a second whelpling always overflowed if the first one was alive — it could never
+get the chance to spawn into the slot freed by the first one dying. Fixed by:
+1. Adding `flushImmediateAttacks?(): void` to `CombatContext` (types.ts) — wired from the local
+   function in simulate.ts.
+2. In `deathrattleSummon` (factories.ts): call `ctx.flushImmediateAttacks?.()` after each spawn
+   when `card.attackOnSummon` is true. Each whelpling attacks (and may die) before the next one
+   checks for board space. Correct: on a full board, if whelpling 1 dies → whelpling 2 spawns + attacks;
+   if whelpling 1 survives → whelpling 2 overflows. Works for Twilight Whelp's own deathrattle, its
+   golden (count=2), and Sylus extra procs (which call the same factory function an extra time per Sylus).
+
+**Broodmother's Twilight Whelps missing Taunt in the summon snapshot** — `deathrattleSummon` was
+granting keywords AFTER `ctx.summon()`, but the `summon` event is emitted with the snapshot taken
+INSIDE `summonMinion` — so the keyword was on the live `Minion` but absent from the UI's first frame.
+Fixed by adding optional `grantKeywords?: Keyword[]` to `ctx.summon` (interface + summonMinion signature),
+applied BEFORE the snapshot is taken. `deathrattleSummon` now passes `grantKeywords` directly. The
+Taunt emblem appears on Broodmother's spawned Whelps from frame one.
+
+**Golden Stuntdrake procs twice** — golden Stuntdrake was only giving attack to 2 friends once (same
+as non-golden except for a bigger Attack). Fixed: `avengeGiveAttack` loops `mul(self)` times (1 for
+normal, 2 for golden), rebuilding `pickable` for each proc so targets are independently random. Card
+text updated: "2 other friendly minions" (was "2 friendly minions"); added `goldenText` → "…twice."
+
+Verified: typecheck clean, **325/325 tests** pass.
+
 ## 2026-06-24
 
 ### Feature: spells cast in combat now trigger Archmagus Guel (and count permanently)

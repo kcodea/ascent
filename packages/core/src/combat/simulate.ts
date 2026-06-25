@@ -5,6 +5,7 @@ import type {
   CombatEvent,
   CombatOutcome,
   CombatResult,
+  Keyword,
   Minion,
   MinionSnapshot,
   Side,
@@ -156,7 +157,8 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
-    summon: (side, card, nearUid) => summonMinion(side, card, nearUid, false),
+    summon: (side, card, nearUid, grantKeywords) => summonMinion(side, card, nearUid, false, grantKeywords),
+    flushImmediateAttacks: () => flushImmediateAttacks(),
     grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
       // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a
@@ -208,7 +210,7 @@ export function simulate(
    * themselves. Because this lives in the summon path, it applies to *any* summon (token Deathrattles,
    * `deathrattleFillTribe`'s real minions, Brood Matron, future effects), not just token effects.
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, isEcho: boolean): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, isEcho: boolean, grantKeywords?: Keyword[]): Minion {
     const minion = instantiate({ cardId: card.id, attack: card.attack, health: card.health }, side, cards, mkUid);
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff).
@@ -224,6 +226,15 @@ export function simulate(
     }
     arr.splice(index, 0, minion);
     applyUndeadBonus(minion); // Lantern of Souls — a summoned player Undead (token, filled minion) gets it too
+    // Grant keywords (e.g. Taunt from Broodmother) BEFORE snapshotting so the UI sees them from frame 1.
+    if (grantKeywords) {
+      for (const kw of grantKeywords) {
+        if (!minion.keywords.includes(kw)) {
+          minion.keywords.push(kw);
+          if (kw === 'DS') minion.divineShield = true;
+        }
+      }
+    }
     registerEffects(minion);
     events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid, ...(isEcho && { echo: true }) });
     bus.emit('onSummon', { minion, side });

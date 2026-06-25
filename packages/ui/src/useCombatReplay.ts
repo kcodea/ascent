@@ -23,6 +23,8 @@ export interface UnitFrame {
   golden: boolean;
   /** Live summon-buff bonus (Kennelmaster) — climbs via `improve` events mid-fight. */
   summonBonus: number;
+  /** Crypt Drake: ally attacks seen this combat — drives the live "current buff / N to go" text. */
+  attackSeen?: number;
   /** Combat-start stats — the values this unit *entered the fight* with (for tokens, its summon stats).
    *  This is the in-combat baseline for the green/red stat colouring: health below it reads red
    *  (damaged), attack below it reads red (debuffed), above reads green (buffed). It is NOT the printed
@@ -116,6 +118,12 @@ function computeFrame(
     } else if (e.type === 'buff') {
       const u = find(e.target);
       if (u) { u.attack += e.attack; u.health += e.health; }
+      // Crypt Drake: detect its self-buff (source === target, attack > 0) to count ally-attack triggers.
+      // Its onAllyAttackBuffAll buffs all friends including itself — this event is uniquely self-sourced.
+      if (e.source === e.target && e.attack > 0) {
+        const src = find(e.source);
+        if (src?.cardId === 'cryptdrake') src.attackSeen = (src.attackSeen ?? 0) + 1;
+      }
     } else if (e.type === 'improve') {
       const u = find(e.target);
       if (u) u.summonBonus += e.amount; // Kennelmaster's aura climbs mid-fight → live card text

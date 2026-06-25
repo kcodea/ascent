@@ -130,6 +130,29 @@ export function guelProgressText(cardId: string, golden: boolean, spellsCast: nu
 }
 
 /**
+ * Crypt Drake: "When an ally attacks, give your minions +N/+N. Improve this every 3 attacks." —
+ * highlights the *current* buff magnitude (green) and the countdown to the next step-up. Returns
+ * null when no attacks have been seen yet (falls back to printed text). Golden doubles `step`.
+ */
+export function cryptDrakeText(cardId: string, golden: boolean, attackSeen: number): string | null {
+  if (attackSeen <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onAllyAttackBuffAll');
+  if (!def || !eff) return null;
+  const p = eff.params as { step?: number; every?: number } | undefined;
+  const base = Number(p?.step ?? 2);
+  const every = Math.max(1, Number(p?.every ?? 3));
+  const step = base * (golden ? 2 : 1);
+  const improvements = Math.floor((attackSeen - 1) / every);
+  const cur = step * (1 + improvements);
+  const nextImprovement = 1 + every * (improvements + 1);
+  const toNext = nextImprovement - attackSeen;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  const upgraded = src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`);
+  return `${upgraded} {{${toNext} to go}}`;
+}
+
+/**
  * Grim's Deathrattle ("+1/+1 per Deathrattle triggered this game") shows its *current* magnitude from
  * the live run tally — the printed "+1/+1" becomes the real "+N/+N" (N = tally × per), highlighted
  * green. Returns null for non-tally cards or a zero tally (falls back to the printed "+1/+1").

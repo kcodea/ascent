@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-24
 
+### Audio: sourced refresh/reroll (`roll`) clip
+
+- **Wired a real mp3 for the tavern Refresh button.** `roll` was the last tavern control still on a synth
+  blip; now `packages/ui/src/audio/roll.mp3` plays via `playSample('roll', sampleVol.roll)`, with the old
+  3-step square sweep as the decode/missing fallback. Added a `roll` entry to `SAMPLE_VOL_DEFAULTS` (0.50,
+  tunable live in the DEV SFX mixer) and to the mixer preview map.
+- **Verified:** typecheck + lint clean, 325 tests pass, `build:web` bundles `roll.mp3` (18.79 kB), app boots
+  clean after a dev-server restart (required — the audio glob is eager, not hot-reloaded). Updated
+  `docs/sfx-events.md` (roll → sourced; removed from the needs-sourcing list).
+
 ### Opponent pool: add Lemon's 32 boards (Drakko, waves 1–18)
 
 - **New board export** `docs/board-exports/lemon.json` — 32 real captured boards from a Drakko run (waves 1–18,

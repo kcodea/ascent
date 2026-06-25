@@ -49,7 +49,7 @@ files in `packages/ui/src/audio/`.
 | `pulse` | choose a hero; press the Hero-Power button | **sourced** | `pulse` | 0.50 | sine up-ping |
 | `hit` (smack) | damage lands in combat (impact) | **sourced** | `smack` | 0.156 | square thud |
 | `castSpell` | a **spell** is cast (vs a minion landing) | synth | — | — | triangle down-slide |
-| `roll` | refresh the tavern | synth | — | — | 3-step square sweep |
+| `roll` | refresh / reroll the tavern | **sourced** | `roll` | 0.50 | (synth 3-step sweep fallback) |
 | `tick` | each of the last 5 turn-timer seconds | synth | — | — | short square click |
 | `proc` | an End-of-Turn effect fires (per proc) | synth | — | — | triangle shimmer |
 | `triple` | a golden is formed | synth | — | — | rising 4-note arpeggio |
@@ -97,9 +97,8 @@ call to `playSample(...)` (with the synth as fallback). Rough priority:
 6. **`shield`** — Divine Shield gained (a metallic "ting").
 7. **`buff`** — a combat stat buff lands.
 8. **`proc`** — the End-of-Turn shimmer (heard a lot during the EOT sequence).
-9. **`roll`** — the tavern refresh sweep.
-10. **`combatStart`** — the "Face the Omen" transition (a war-horn/drum hit).
-11. **`tick`** — the final-5-seconds countdown click.
+9. **`combatStart`** — the "Face the Omen" transition (a war-horn/drum hit).
+10. **`tick`** — the final-5-seconds countdown click.
 
 ---
 

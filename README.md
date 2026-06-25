@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Sourced refresh sound.** The tavern Refresh/Reroll button now plays a real audio clip (the last tavern
+  control still on a synth blip), tunable in the DEV SFX mixer.
 - **More human opponent boards.** Added Lemon's 32 captured boards (a Drakko run, waves 1–18) to the committed
   pool via `npm run pool` — players now face more real builds across the early-to-mid curve.
 - **Spells cast in combat now trigger Guel.** Taragosa's Growth is a real spell cast — it fires **Archmagus

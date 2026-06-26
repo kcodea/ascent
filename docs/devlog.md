@@ -5,6 +5,10 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### chore: refresh Rohan + Myra hero portraits (Rohan3, Myra3)
+
+Swapped new portrait art over the existing webp for **Rohan** (`art/heroes/rohan.webp` ← Rohan3.png) and **Myra** (`myra.webp` ← Myra3.png) via `optimize-art` (5.0 MB → 0.13 MB). Hero-power icons unchanged. Confirmed (no change) that the Chaos hero power is named **"Chaos Bond"**. The same batch also asked for new Nadja / Chaos / Darah portraits, but those masters (Nadja3 / Chaos2 / Darah2) aren't in `C:\Game Assets\Ascent Art\Heroes\` yet — deferred until they're dropped.
+
 ### feat: four tavern spells (Lantern Light, Fodder Treatment, Point Solution, Chrono Staff) + Tara → T4
 
 Owner content batch. Four new tavern spells (all `neutral`, data + a recruit `cast` factory each) and a balance dial:

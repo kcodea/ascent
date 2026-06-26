@@ -16,6 +16,25 @@ Owner clarified how Reborn should work; two bugs in `killOrReborn` (`simulate.ts
 **Files:** `simulate.ts` (`fireOwnDeathrattles` + `applyCardTypeCarryThrough` + the reborn branch), `simulate.test.ts` (+2 new — Whelp-per-death, fresh-Knight 6/4 — and updated the base-stats / golden / Lantern reborn tests to the carry-through). **Verification:** `typecheck + lint + test (374, +2) + build:web` green; a repro confirmed Whelp 2/2 R → **2** Whelps and Knit 3/2 R → reborn **6/4** (were 1 Whelp / bare 3/2).
 
 **Follow-up flagged:** the Eternal-Knight enchant accrued in PRIOR fights (already baked into the run-board stats, not passed into `simulate`) doesn't carry through Reborn yet — only the amount banked in the current fight does. Plumbing the run's `cardBuffs` into combat would close that.
+### perf + ux: magnetize glow no longer repaints every frame; hand cards sit 20% farther apart
+
+Two recruit-screen fixes from owner reports (both in `styles.css`).
+
+**Magnetize "bog down" (perf).** Magnetizing felt choppy. Cause: the electric `crackle` — the glow on a Magnetic card hovering a Mech (`.dragcard.electric`) and on the host as it's welded (`.card.electrify`, drop + Combinator's End of Turn) — animated `box-shadow` (blur + spread keyframes) on a `0.26–0.28s infinite` loop. `box-shadow` is a **paint** property, so the card repainted EVERY frame for the whole hover/weld (the #1 anti-pattern in [performance.md](performance.md)); a Combinator weld repaints several Mechs at once. Converted to the established `kwglow` pattern: a STATIC cyan halo on a `::before` whose **opacity** breathes (compositor-only, zero per-frame paint), same look. The engine path was checked too (`fireSummonBuffs` → `makeContext`/`weldMagnetic`) and is cheap — this was purely render-side.
+
+**Hand spacing (ux).** Owner: cards in hand overlap too much to click the right one. The fan's inter-card STEP was `--cw − 84px`; now `margin-left: calc(1.2 * (var(--cw) − 84px) − var(--cw))` widens that step by exactly **20%** while staying a negative overlap across the whole responsive `--cw` clamp range (so the fan still tucks behind itself). Verified live: at `--cw` 275px the step went 191→229px (+20%), margin −45.9px (still overlapping).
+
+**Files:** `packages/ui/src/styles.css` (`crackle` → opacity-on-`::before`; hand `margin-left` calc). **Verification:** `typecheck + lint + test (372) + build:web` green; live preview — computed inter-card step is +20% and still overlapping, console clean, and the glow now rides an opacity `::before` (no per-frame box-shadow repaint).
+### tweak: more spread in the hand (overlap 20% of card width, not a fixed −84px)
+
+Hand cards overlapped too much, especially with a full hand. The overlap was a fixed `margin-left: -84px`
+— but the card width (`--ccw`) is responsive (~140–245px), so that fixed px read as ~35% overlap on big
+screens and ~60% on small ones. Now the overlap is **20% of the card width** (`calc(var(--ccw) * -0.2)`),
+so it's a consistent slight overlap at every size. Tradeoff (owner-accepted): a near-full 10-card hand
+widens toward the screen edges rather than compressing — a dynamic fit-to-zone overlap was the alternative.
+
+**Files:** `styles.css` (`.row.hand .card` margin). **Verification:** `lint + build:web` green; computed
+overlap confirmed live at exactly 20% (card 141px → margin −28px), first card flush.
 
 ### fix: buffing Tara no longer fires a phantom "Ember Whelp" Start-of-Combat attack
 
@@ -24,6 +43,7 @@ Owner report: when Supporter buffs Tara mid-combat it *randomly* procs what look
 Fix (engine-only, `simulate.ts`): keep the `buffCounts` tally that drives the ascend carry-back (`playerAscendCount` → settle/transform), but **stop emitting the per-buff `sc` narration**. The live "N to ascend" card tracker counts `buff` events in the replay (`useCombatReplay` + `cardText`), *not* this event, so the countdown is unaffected; the buffs tab only parses spell-power `sc` text. Net: no phantom Start-of-Combat on a Tara buff, ascension behaviour itself unchanged.
 
 **Files:** `packages/core/src/combat/simulate.ts` (drop the ascend `sc` event; keep the tally). **Verification:** `typecheck + lint + test (372) + build:web` green; a 30-seed repro of Supporter-rallying-Tara boards went from **21–29 spurious `sc` events to 0** (a board with a real Start-of-Combat effect still emits its `sc`).
+
 ### feat: loss-damage tally + blast (surviving tiers → Resolve)
 
 On a defeat, the damage you take is now telegraphed: the surviving enemy minions' **tavern tiers** plus

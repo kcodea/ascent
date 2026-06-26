@@ -319,7 +319,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
 .zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26px); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-end; }
 .row.hand { gap: 0; align-items: flex-end; height: var(--ch); width: 100%; }
-.row.hand .card { margin-left: -84px; transform: translateY(11%); transition: transform 0.08s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+/* Hand overlap = 20% of a card's width (relative, not a fixed px, so it stays ~20% across viewport sizes
+   where the card width --ccw scales). Lower magnitude = more spread; a full 10-card hand widens toward the
+   screen edges (accepted tradeoff). Was -84px (~35-60% depending on screen). */
+.row.hand .card { margin-left: calc(var(--ccw) * -0.2); transform: translateY(11%); transition: transform 0.08s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* hover lifts just enough to reveal the whole card + bring it forward — small so the card
    stays under the cursor (no bounce-out). */
@@ -761,14 +764,19 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */
 .dragcard.magslide { transition: transform 0.28s cubic-bezier(0.5, 0, 0.85, 0.4), opacity 0.28s cubic-bezier(0.7, 0, 1, 1); }
 .dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
-/* Magnetic: electric crackle while a Cling Drone hovers a friendly Mech (will merge on drop) */
-.dragcard.electric .card { animation: crackle 0.28s ease-in-out infinite; }
-@keyframes crackle {
-  0%, 100% { box-shadow: 0 0 0 3px var(--t-mech), 0 0 22px 5px rgba(39, 169, 221, 0.75); }
-  50% { box-shadow: 0 0 0 4px #7fdcf2, 0 0 32px 9px rgba(95, 198, 224, 0.95); }
+/* Magnetic: an electric crackle while a Magnetic card hovers a friendly Mech (.electric, the floating drag
+   card) and on the host Mech as it's welded (.electrify — drop + Combinator's End of Turn). PERF: a STATIC
+   cyan halo on a ::before whose OPACITY breathes — compositor-only, zero per-frame paint. This was an animated
+   box-shadow (blur+spread keyframes), which repainted the card EVERY frame for the whole hover/weld — the
+   magnetize "bog down" the player felt. Mirrors the kwglow keyword-glow pattern above. */
+.dragcard.electric .card, .card.electrify { position: relative; }
+.dragcard.electric .card::before, .card.electrify::before {
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
+  box-shadow: 0 0 0 4px #7fdcf2, 0 0 32px 9px rgba(95, 198, 224, 0.95);
+  animation: crackle 0.28s ease-in-out infinite; will-change: opacity;
 }
-/* Combinator's End of Turn — the Mechs it magnetizes onto crackle with electricity (reuses crackle). */
-.card.electrify { z-index: 4; animation: crackle 0.26s ease-in-out infinite; }
+.card.electrify { z-index: 4; }
+@keyframes crackle { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 /* Ritualist's End of Turn — a purple wash pulses over the whole shop (it buffs the Fodder there). */
 .zone[data-zone='tavern'] { position: relative; }
 .shopflash {

@@ -22,6 +22,9 @@ const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="wa
 // ms to hold a consumed Divine Shield before it visibly shatters, so the read order is hit → settle → break
 // (scaled by the user's combat-speed). Detection lands ~at the lunge's connection; this delays the burst.
 const SHIELD_BREAK_DELAY = 300;
+// ms to keep a vanished shield bubble alive before fading it — covers a hand→board PLAY (the card unmounts
+// from hand then remounts on the board under the same uid), so the bubble resumes INSTANTLY, no fade+regrow.
+const SHIELD_CLEAR_GRACE = 280;
 
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
@@ -415,6 +418,7 @@ export function Recruit() {
   // animating (combat lunges or a drag) — idle shielded units cost nothing (no per-frame layout reads).
   const shieldUidsRef = useRef<Set<string>>(new Set());
   const pendingBreakRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) the shield should shatter
+  const pendingClearRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) to fade a vanished bubble
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
   const combatSpeedRef = useRef(combatSpeed); combatSpeedRef.current = combatSpeed;
   const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
@@ -444,25 +448,27 @@ export function Recruit() {
       seen.add(uid);
       pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
     }
-    // The dragged shielded card: drive the bubble from the floating `.dragcard`'s transform (drag state) so it
-    // follows the cursor and is already in place on drop — no disappear / flicker / regrow on re-apply.
+    // The dragged shielded card: drive a small trailing SPARKLE (mini) from the floating `.dragcard`'s
+    // transform (drag state). On drop the next non-mini setShield coalesces it back to the full bubble.
     if (d?.active && dragUid && draggedShielded) {
       seen.add(dragUid);
-      pixiFx.setShield(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h);
+      pixiFx.setShield(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h, /* mini */ true);
     }
+    const now = performance.now();
     // A bubble that just lost its `.dscard`:
     for (const uid of shieldUidsRef.current) {
-      if (seen.has(uid) || pendingBreakRef.current.has(uid)) continue;
+      if (seen.has(uid) || pendingBreakRef.current.has(uid) || pendingClearRef.current.has(uid)) continue;
       if (measureCardRect(uid) && inCombatRef.current) {
         // Absorbed a hit in combat — DON'T shatter yet. Delay it so the read order is hit lands → unit
         // settles → THEN the shield shatters (the bubble is held + tracked until the timer fires below).
-        pendingBreakRef.current.set(uid, performance.now() + SHIELD_BREAK_DELAY / combatSpeedRef.current);
+        pendingBreakRef.current.set(uid, now + SHIELD_BREAK_DELAY / combatSpeedRef.current);
       } else {
-        pixiFx.clearShield(uid); // sold / died / combat ended → fade out quietly (no break burst)
+        // Vanished (sold / played-and-remounting / died) — hold briefly: a hand→board play remounts the
+        // same uid within a frame or two, so we resume instantly instead of fading + regrowing.
+        pendingClearRef.current.set(uid, now + SHIELD_CLEAR_GRACE);
       }
     }
     // Drive scheduled combat breaks: keep the bubble on the (now shield-less) unit until its timer fires.
-    const now = performance.now();
     for (const [uid, at] of pendingBreakRef.current) {
       if (now >= at || !inCombatRef.current) {
         pixiFx.breakShield(uid);
@@ -474,6 +480,13 @@ export function Recruit() {
       if (r) pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
       seen.add(uid); // hold the bubble alive until the shatter
     }
+    // Pending clears: if the shielded card came back this pass (e.g. a play remounted it → the normal loop
+    // re-added it to `seen`), resume instantly; otherwise hold the bubble until the grace expires, then fade.
+    for (const [uid, deadline] of pendingClearRef.current) {
+      if (seen.has(uid)) { pendingClearRef.current.delete(uid); continue; } // remounted with its shield → resumed
+      if (now >= deadline) { pixiFx.clearShield(uid); pendingClearRef.current.delete(uid); }
+      else seen.add(uid); // keep the bubble alive (last position) across the remount gap
+    }
     shieldUidsRef.current = seen;
   }, []);
   // Reconcile after any render that can change the shielded set or card positions.
@@ -482,7 +495,7 @@ export function Recruit() {
   // A drop opens a brief settle window so the bubble keeps tracking the card through its Flip animation.
   useEffect(() => {
     const active = drag?.active ?? false;
-    if (prevDragActiveRef.current && !active) settleUntilRef.current = performance.now() + 320;
+    if (prevDragActiveRef.current && !active) settleUntilRef.current = performance.now() + 450; // ≥ clear-grace + Flip
     prevDragActiveRef.current = active;
   }, [drag?.active]);
   // Follow moving units (combat lunges / an active drag / the post-drop settle) frame-by-frame; idle at rest.

@@ -47,6 +47,9 @@ interface ShieldBubble {
   age: number;            // ms lived — drives the breathe phase + vein drift
   formIn: number;         // ms elapsed of the grow-in (clamped at FORM_MS)
   fadeOut: number;        // ms elapsed of a graceful clear (−1 = not fading)
+  mini: boolean;          // true while the card is being dragged → shrink to a small trailing sparkle
+  pop: number;            // ms elapsed of the coalesce/pop-in on placement (−1 = not popping)
+  scaleMul: number;       // current size multiplier (lerps toward 1 or MINI_SCALE; the pop drives it directly)
 }
 
 // Shield-bubble feel (tunable live via window.__pixiFx in DEV). The texture art is generated at radius
@@ -59,6 +62,8 @@ const BUBBLE_VEIN_ALPHA = 0.6; // base brightness of the drifting energy veins
 const BREATHE_MS = 2600;       // slow pulse period
 const FORM_MS = 260;           // grow-in when a shield is gained
 const FADE_MS = 200;           // graceful fade when a shield is cleared without breaking
+const MINI_SCALE = 0.3;        // bubble size while dragging (a small trailing sparkle of the card)
+const POP_MS = 320;            // coalesce/pop-in duration when a dragged card is placed
 const BUBBLE_GOLD = 0xffd24a;  // body tint
 const BUBBLE_RIM_GOLD = 0xffe9a8; // brighter rim tint
 
@@ -469,8 +474,10 @@ class FxController {
    * footprint of w×h (the card's rect). Idempotent: the first call spawns the bubble (with a grow-in);
    * later calls just retarget it (so it tracks the unit as it moves). The React layers call this for
    * every shielded unit whenever the shielded set or any position changes. No-op until the app is ready.
+   * `mini` = the card is being dragged → shrink to a small trailing sparkle; when a `mini` bubble is next
+   * set with `mini=false` (the card is placed), it coalesces/pops back to full size.
    */
-  setShield(uid: string, cx: number, cy: number, w: number, h: number): void {
+  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false): void {
     if (!this.ready || !this.shieldLayer) return;
     let b = this.shields.get(uid);
     if (!b) {
@@ -500,11 +507,41 @@ class FxController {
       container.addChild(fill, rim);
       container.alpha = 0;
       this.shieldLayer.addChild(container);
-      b = { container, fill, rim, veins, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1 };
+      b = { container, fill, rim, veins, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
+            mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1 };
       this.shields.set(uid, b);
     } else {
       b.cx = cx; b.cy = cy; b.w = w; b.h = h;
       b.fadeOut = -1; // re-targeted while fading (shield re-gained) → cancel the fade
+      // Dragged (mini) → placed (full): coalesce/pop the bubble back into existence (inverse of the break).
+      if (b.mini && !mini) { b.pop = 0; this.shieldPop(cx, cy, w, h); }
+      b.mini = mini;
+    }
+  }
+
+  /** The placement coalesce: a bright central flash + a ring of sparkles rushing INWARD to the center —
+   *  the inverse of the break's outward shrapnel. Fired when a dragged shield is set down. */
+  private shieldPop(cx: number, cy: number, w: number, h: number): void {
+    if (!this.ready) return;
+    const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
+    // central flash that blooms as the bubble snaps in
+    this.spawn(this.bubbleTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 240, fromScale: (rad / BUBBLE_TEX_R) * 0.35,
+      toScale: (rad / BUBBLE_TEX_R) * 1.05, spin: 0, tint: 0xfff3c8, blend: 'add', peakAlpha: 0.8,
+    });
+    // sparkles starting on a ring and rushing inward to coalesce at the center
+    const n = 10;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const r0 = rad * 1.4;
+      const speed = 360 + Math.random() * 260;
+      this.spawn(this.sparkTex!, {
+        x: cx + Math.cos(a) * r0, y: cy + Math.sin(a) * r0,
+        vx: -Math.cos(a) * speed, vy: -Math.sin(a) * speed, // inward
+        drag: 0.05, // decelerate hard as they reach the middle
+        life: 240 + Math.random() * 120, fromScale: 0.8 + Math.random() * 0.5, toScale: 0.05,
+        spin: 0, tint: 0xffe9a8, blend: 'add', peakAlpha: 0.95,
+      });
     }
   }
 
@@ -695,18 +732,33 @@ class FxController {
       const phase = (b.age / BREATHE_MS) * Math.PI * 2;
       const breatheScale = 1 + Math.sin(phase) * 0.055;
       const breatheAlpha = 0.88 + Math.sin(phase) * 0.12;
+      // drag-mini / placement-pop size: the pop drives an ease-out-back overshoot from mini → full; otherwise
+      // the size eases toward its target (full=1, dragging=MINI_SCALE) so pickup/drop shrink+grow smoothly.
+      if (b.pop >= 0) {
+        const popT = Math.min(1, b.pop / POP_MS);
+        const k = popT - 1;
+        const back = 1 + 3.6 * k * k * k + 2.6 * k * k; // ease-out-back — peaks ~+13% then settles to 1 (a clear snap)
+        b.scaleMul = MINI_SCALE + (1 - MINI_SCALE) * back;
+        b.pop += dtMs;
+        if (popT >= 1) { b.pop = -1; b.scaleMul = 1; }
+      } else {
+        const target = b.mini ? MINI_SCALE : 1;
+        b.scaleMul += (target - b.scaleMul) * Math.min(1, dt * 14);
+      }
       // fit the radius-BUBBLE_TEX_R art to the unit footprint (non-uniform → ellipse)
       const sx = (b.w * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
       const sy = (b.h * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
+      const grow = breatheScale * extraScale * b.scaleMul;
       b.container.x = b.cx;
       b.container.y = b.cy;
-      b.container.scale.set(sx * breatheScale * extraScale, sy * breatheScale * extraScale);
+      b.container.scale.set(sx * grow, sy * grow);
       b.container.alpha = life * breatheAlpha;
-      // drift the energy veins — slow rotation + a shimmer offset per vein
+      // veins fade out as the bubble shrinks toward a sparkle (so the mini state reads as a glint, not a tiny bubble)
+      const veinFade = Math.max(0, Math.min(1, (b.scaleMul - MINI_SCALE) / (1 - MINI_SCALE)));
       for (let vi = 0; vi < b.veins.length; vi++) {
         const v = b.veins[vi]!;
         v.rotation += (vi % 2 === 0 ? 0.3 : -0.22) * dt;
-        v.alpha = BUBBLE_VEIN_ALPHA * (0.6 + 0.4 * (0.5 + 0.5 * Math.sin(phase + vi * 2.1)));
+        v.alpha = veinFade * BUBBLE_VEIN_ALPHA * (0.6 + 0.4 * (0.5 + 0.5 * Math.sin(phase + vi * 2.1)));
       }
     }
   };

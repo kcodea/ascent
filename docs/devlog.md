@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: shield bubble — drag sparkle-trail + coalesce/pop-in on placement
+
+Owner-chosen juice for the held→placed flow (instead of a silent instant re-show): while a shielded card
+is **actively dragged** the bubble shrinks to a small trailing **sparkle**; on **placement** it coalesces
+and **pops** back to full — the inverse of the break burst. (Loaded the `pixijs` skill for this; the
+patterns — `Container.scale.set`, sprite `alpha`/`tint`/`blendMode`, ticker-driven animation — are all v8.)
+
+- **`pixiFx.ts`**: `ShieldBubble` gains `mini` / `pop` / `scaleMul`. `setShield(...,mini)` — `mini=true` eases
+  the bubble down to `MINI_SCALE` (0.3) and fades the veins out so it reads as a glint; a `mini→full`
+  `setShield` fires `shieldPop()` (central flash + a ring of sparkles rushing **inward** to coalesce) and an
+  ease-out-back size pop (peaks ~+14%, settles to 1) over `POP_MS`. Non-drag size changes ease smoothly via a
+  per-frame lerp.
+- **`Recruit.tsx`**: the drag-follow branch now sets the bubble `mini`; on drop the board card's normal
+  `setShield` (non-mini) triggers the pop. A `SHIELD_CLEAR_GRACE` (280 ms) holds a vanished bubble across the
+  hand→board **play remount** (the card unmounts from hand then remounts on the board under the same uid) so
+  it resumes/pops in place instead of fading + regrowing; genuine leaves (sold/dead) still fade after the
+  grace. Post-drop settle window bumped 320→450 ms to cover the grace + Flip.
+- **Verified**: typecheck + lint + 374 tests + build green; live ticker-stepping confirms the shrink
+  (scaleMul→0.3), the pop trigger (+sparkles), the ~+14% overshoot, and a clean settle to 1.0. The actual
+  on-screen feel still needs an in-game look (preview rAF is frozen).
+
 ### fix: shield break reads after the hit + bubble always rides in front of held/hovered cards
 
 Two polish fixes on the divine-shield bubble:

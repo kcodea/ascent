@@ -11,6 +11,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
   const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
+  const openLeaderboard = useGame((s) => s.openLeaderboard);
   if (!showTitle) return null;
 
   return (
@@ -28,9 +29,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="tbdesc">Any hero · unlimited Resolve · 3× clock · ends after 15 rounds.</span>
           </button>
         </div>
-        <button className="titlesettings" onClick={onSettings} title="Settings">
-          <Icon name="gear" /> Settings
-        </button>
+        <div className="titleactions">
+          <button className="titlesettings" onClick={() => { sfx.pulse(); openLeaderboard(); }} title="Leaderboard">
+            <Icon name="crown" /> Leaderboard
+          </button>
+          <button className="titlesettings" onClick={onSettings} title="Settings">
+            <Icon name="gear" /> Settings
+          </button>
+        </div>
       </div>
     </div>
   );

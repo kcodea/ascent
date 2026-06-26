@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Leaderboard — Hall of Champions.** A title-screen button opens a full, scrollable page of the latest 20
+  victory runs, each champion shown with their final winning warband (hover a card for its full text).
 - **Live shared opponent pool (Supabase).** Finished runs auto-sync to a hosted database and load back at
   startup, so you + a friend face each other's builds with no manual export/import (the Settings "Shared Boards"
   buttons are gone). Fully optional — the game still runs offline off the committed pool.

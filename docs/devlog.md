@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: leaderboard — "Hall of Champions" (latest victory runs) on the title screen
+
+A **Leaderboard** button on the title screen opens a full-page **Hall of Champions** — the latest 20 victory
+runs from the shared backend, each champion shown with their final winning warband.
+
+- **Logging** (`store.ts`): a `victory` transition now also fires `uploadVictory` (fire-and-forget) — hero,
+  author, wave, and the run's **final winning board** — alongside the existing board capture. Practice doesn't
+  reach `victory` (it ends in `gameover`), so the board is Ascent victories only, as intended.
+- **Backend** (`remoteBoards.ts`): `uploadVictory` (insert into a new `runs` table) + `fetchVictories(20)`
+  (newest first). Same no-op-when-unconfigured / fire-and-forget / never-throws contract. `runs` table + RLS
+  added to `schema.sql` (anon select + insert; `board` jsonb holds the final warband).
+- **UI** (`Leaderboard.tsx`, new): a full-page overlay (not a modal — that's the key change after first pass),
+  scrollable, with a **← Back** button top-left. Each entry = rank · hero portrait · author · wave · date, with
+  the final warband rendered **inline** using the same `Card` as the end screen (so the cards show full text on
+  hover). Graceful loading / empty / offline states. Store gained `showLeaderboard` + `openLeaderboard` /
+  `closeLeaderboard`; `Title.tsx` got the button (a `.titleactions` row beside Settings); `Game.tsx` renders it.
+- **Two display fixes from review:** (1) the warband cards overflowed + clipped because **compact cards size off
+  `--ccw`**, not `--cw` — the leaderboard now overrides `--ccw` (others derive from it) + `flex-wrap`, so a wide
+  warband never overflows and tier badges aren't cut off; (2) the card's full-text hover popup rendered *behind*
+  the old modal panel — making it a full page (the topmost layer) puts the popup on top.
+
+**Files:** `Leaderboard.tsx` (new), `store.ts` (victory log + flags), `remoteBoards.ts` (`uploadVictory` /
+`fetchVictories`), `Title.tsx` (button), `Game.tsx` (render), `styles.css` (full-page + `--ccw` sizing),
+`schema.sql` (`runs` table). **Verification:** typecheck + lint + test (402) + build:web green; verified
+**live in-preview** end-to-end — inserted 3 test champions, confirmed the rows, the inline warbands at the right
+size (150px, no overflow/clipping), the Back button, and the full-text hover popup rendering **on top**; then
+the test rows were cleared. **Follow-up (optional):** scope the board to the current version (a one-line filter)
+if a balance patch should reset it.
+
 ### feat: live shared opponent pool via a Supabase backend (auto-sync) + drop the manual board-sharing UI
 
 The manual board pipeline (capture → Export → drop in `docs/board-exports/` → `npm run pool` → committed

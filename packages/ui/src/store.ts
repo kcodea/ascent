@@ -132,6 +132,16 @@ interface GameStore {
   pickHero: (heroId: string) => void;
   /** Start a fresh run directly (optionally with a seed / hero), bypassing the picker. */
   newRun: (seed?: number, heroId?: string) => void;
+  /** The title screen is shown at boot + after a run ends — the front door to the modes. */
+  showTitle: boolean;
+  /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
+  pendingMode: 'ascent' | 'practice';
+  /** Title → Ascent: open the 3-hero picker for a scored run. */
+  startAscent: () => void;
+  /** Title → Practice: open an ALL-hero picker for a 15-round practice run. */
+  startPractice: () => void;
+  /** Return to the title screen (from the end screen). */
+  openTitle: () => void;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -157,8 +167,10 @@ export const useGame = create<GameStore>((set, get) => ({
   combatBuffs: null,
   sellTick: 0,
   inspect: null,
-  // Open on a fresh hero pick — the player chooses before the first wave loads.
-  heroChoices: rollHeroChoices(),
+  // Boot into the title screen (the front door); the hero picker opens once a mode is chosen.
+  heroChoices: null,
+  showTitle: true,
+  pendingMode: 'ascent',
   // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
   compactCards: true,
   toggleCompact: () => set((s) => ({ compactCards: !s.compactCards })),
@@ -208,9 +220,12 @@ export const useGame = create<GameStore>((set, get) => ({
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
   pickHero: (heroId) =>
-    set({ run: createRun(randomSeed(), heroId), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
+    set((s) => ({ run: createRun(randomSeed(), heroId, s.pendingMode), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] })),
   newRun: (seed, heroId) =>
-    set({ run: createRun(seed ?? randomSeed(), heroId), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
+    set((s) => ({ run: createRun(seed ?? randomSeed(), heroId, s.pendingMode), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] })),
+  startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices() }),
+  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id) }),
+  openTitle: () => set({ showTitle: true, heroChoices: null }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

@@ -23,10 +23,9 @@ export function EscMenu({
   onClose: () => void;
 }) {
   const startHeroSelect = useGame((s) => s.startHeroSelect);
-  const compactCards = useGame((s) => s.compactCards);
-  const toggleCompact = useGame((s) => s.toggleCompact);
-  const playerName = useGame((s) => s.playerName);
-  const setPlayerName = useGame((s) => s.setPlayerName);
+  const playerName = useGame((s) => s.playerName); // still used to label board exports (set at hero-select)
+  const combatSpeed = useGame((s) => s.combatSpeed);
+  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -88,19 +87,6 @@ export function EscMenu({
     <div className="escov" onPointerDown={onClose}>
       <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
         <div className="esch disp">Settings</div>
-        <div className="escsec">Player</div>
-        <div className="escvol">
-          <span className="evl">Name</span>
-          <input
-            type="text"
-            className="escname"
-            value={playerName}
-            maxLength={24}
-            placeholder="Anonymous"
-            aria-label="Player name"
-            onChange={(e) => setPlayerName(e.target.value)}
-          />
-        </div>
         <div className="escsec">Audio</div>
         <div className="escvol">
           <span className="evl">Volume</span>
@@ -128,14 +114,20 @@ export function EscMenu({
           <span className="ebl">{muted ? 'Muted' : 'Sound on'}</span>
           <span className="ebs">{muted ? 'All audio is off' : 'Tap to mute everything'}</span>
         </button>
-        <div className="escsec">Cards</div>
-        <button
-          className={`escbtn${compactCards ? ' on' : ''}`}
-          onPointerDown={toggleCompact}
-        >
-          <span className="ebl">{compactCards ? 'Compact' : 'Full text'}</span>
-          <span className="ebs">{compactCards ? 'Art + glyphs · details on hover' : 'Always-on rules text'}</span>
-        </button>
+        <div className="escsec">Gameplay</div>
+        <div className="escvol">
+          <span className="evl">Combat speed</span>
+          <input
+            type="range"
+            min={0.5}
+            max={5}
+            step={0.1}
+            value={combatSpeed}
+            aria-label="Combat speed"
+            onChange={(e) => setCombatSpeed(Number(e.target.value))}
+          />
+          <span className="evv">{combatSpeed.toFixed(1)}×</span>
+        </div>
         <div className="escsec">Display Resolution</div>
         <div className="escres">
           {RES_OPTIONS.map((o) => (

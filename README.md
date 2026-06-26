@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Title screen → modes.** The game boots into a title with **Ascent** (the scored climb) and **Practice**
+  (any hero, unlimited health, 3× clock, ends after 15 rounds), plus a Settings button.
 - **Displacement preserves your minion.** Swapping a minion to the tavern now keeps all its buffs and
   progression — re-buy it and it returns intact (and swapped-in Battlecries don't fire).
 - **Chaos Attachment flies in from the portrait.** When the Chaos hero power grants its token, it now

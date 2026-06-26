@@ -139,6 +139,9 @@ export type DiscoverSpec =
 
 export interface RunState {
   seed: number;
+  /** Game mode: 'ascent' (the scored climb) or 'practice' (a 15-round sandbox: any hero, unlimited health,
+   *  3× shop timer, ends at round 15 regardless of W/L). Absent = 'ascent'. */
+  mode?: 'ascent' | 'practice';
   /** Current wave (Altitude). Score = waves survived. */
   wave: number;
   /** Deepest wave reached this run. */
@@ -304,12 +307,13 @@ export type Action =
   | { type: 'resolveCombat' };
 
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
-export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunState {
+export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent'): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
   // The hero's Resolve is the run's starting (and max) HP — all 30 today, diverging per hero later.
   const startResolve = getHero(heroId).resolve;
   const state: RunState = {
     seed,
+    mode,
     wave: 1,
     best: 1,
     history: [],

@@ -930,7 +930,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
       s.cassenKills -= 5;
     }
   }
-  if (result.result === 'lose') s.resolve = Math.max(0, s.resolve - result.playerDamage);
+  if (result.result === 'lose' && s.mode !== 'practice') s.resolve = Math.max(0, s.resolve - result.playerDamage); // Practice: unlimited health
   // Maw of the Pit's one-combat Divine Shield is spent — strip the temp DS so it doesn't carry to the
   // next fight (consuming again re-arms it).
   for (const c of s.board) {
@@ -944,6 +944,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
 
 /** Advance past a settled combat: the terminal check (gameover / victory), else roll the next wave. */
 function advanceCombat(s: RunState): void {
+  // Practice: a fixed 15-round session — ends after round 15 regardless of W/L. (Health is unlimited, so the
+  // resolve<=0 check never fires, and the win-15 victory below is gated to Ascent.)
+  if (s.mode === 'practice' && s.wave >= 15) {
+    s.best = Math.max(s.best, s.wave);
+    s.phase = 'gameover';
+    return;
+  }
   if (s.resolve <= 0) {
     s.best = Math.max(s.best, s.wave);
     s.phase = 'gameover';
@@ -955,7 +962,7 @@ function advanceCombat(s: RunState): void {
   // lands, at whatever wave that is. (A loss costs Resolve but keeps climbing, so you can reach wave 15
   // with fewer than 15 wins and must keep going; the old `wave >= maxWave` check wrongly ended there.)
   const wins = s.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0);
-  if (wins >= CONFIG.winsToWin) {
+  if (s.mode !== 'practice' && wins >= CONFIG.winsToWin) {
     s.best = Math.max(s.best, s.wave);
     s.phase = 'victory';
     return;

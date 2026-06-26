@@ -22,8 +22,11 @@ function boardView(m: BoardCard): CardView {
  */
 export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
-  const startHeroSelect = useGame((s) => s.startHeroSelect);
+  const openTitle = useGame((s) => s.openTitle);
   const hero = getHero(run.heroId);
+  const practice = run.mode === 'practice';
+  const wins = run.history.filter((r) => r === 'win').length;
+  const losses = run.history.filter((r) => r === 'lose').length;
   return (
     <div className={`heroselect endscreen${won ? ' won' : ''}`}>
       <div className="hsbox endbox">
@@ -37,9 +40,11 @@ export function EndScreen({ won }: { won: boolean }) {
           </div>
           <div className="endhero-name">{hero.name}</div>
         </div>
-        <div className="eyebrow">{won ? 'The summit is yours' : 'The tide takes you'}</div>
-        <h1 className="disp hstitle">{won ? 'VICTORY' : 'FALLEN'}</h1>
-        <div className="endsub">{won ? `Survived all ${run.wave} waves` : `Reached wave ${run.wave}`}</div>
+        <div className="eyebrow">{practice ? 'Practice complete' : won ? 'The summit is yours' : 'The tide takes you'}</div>
+        <h1 className="disp hstitle">{practice ? 'PRACTICE' : won ? 'VICTORY' : 'FALLEN'}</h1>
+        <div className="endsub">
+          {practice ? `${run.history.length} rounds · ${wins}W ${losses}L` : won ? `Survived all ${run.wave} waves` : `Reached wave ${run.wave}`}
+        </div>
 
         {run.history.length > 0 && (
           <div className="endpips" aria-label="Round results">
@@ -60,7 +65,7 @@ export function EndScreen({ won }: { won: boolean }) {
           )}
         </div>
 
-        <button className="endplay" onClick={() => startHeroSelect()}>Play Again</button>
+        <button className="endplay" onClick={() => openTitle()}>Play Again</button>
       </div>
     </div>
   );

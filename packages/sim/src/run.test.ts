@@ -1884,6 +1884,26 @@ describe('run loop (@game/sim)', () => {
     expect(g.bonusEmbersNextTurn).toBe(2); // golden banks 2
   });
 
+  it('Robin banks +1 Gold for NEXT turn per minion sold (stacks; other heroes do not)', () => {
+    let s: RunState = {
+      ...createRun(1, 'robin'),
+      board: [
+        { uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'c', cardId: 'frontdrake', tribe: 'dragon', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+    };
+    for (const uid of ['a', 'b', 'c']) s = reduce(s, { type: 'sell', uid });
+    expect(s.bonusEmbersNextTurn).toBe(3); // each sell banks +1 for next turn (consumed + reset at turn start, like Hoarder)
+    // A non-Robin hero banks nothing from the same sells.
+    let w: RunState = {
+      ...createRun(1, 'warden'),
+      board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    w = reduce(w, { type: 'sell', uid: 'a' });
+    expect(w.bonusEmbersNextTurn ?? 0).toBe(0);
+  });
+
   it('Black Belt Brian Battlecry Discovers a spell — 3 spell ids offered', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], board: [],

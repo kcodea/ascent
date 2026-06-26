@@ -116,10 +116,21 @@ function reduceCore(state: RunState, action: Action): RunState {
         return s;
       }
       const i = s.shop.findIndex((c) => c.uid === action.uid);
-      if (i < 0 || s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
+      if (i < 0) return state;
       const offer = s.shop[i]!;
       const card = CARD_INDEX[offer.cardId];
       if (!card) return state;
+      // A spell offer sitting in the minion row (Spell Cart's spell shop) buys into the hand at its OWN cost,
+      // exactly like the right-hand spell slot — no minion creation / triple.
+      if (card.spell) {
+        const sCost = Math.max(0, (card.cost ?? 0) - s.spellCostMod);
+        if (s.embers < sCost || s.hand.length >= CONFIG.handMax) return state;
+        s.embers -= sCost;
+        s.shop.splice(i, 1);
+        s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
+        return s;
+      }
+      if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
       s.embers -= CONFIG.minionCost;
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)

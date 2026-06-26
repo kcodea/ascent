@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: Spell Cart (T5 spell) — refresh the tavern full of spells
+
+New **T5 / 2g** untargeted spell: **refresh the tavern with spells instead of minions**. New `rollSpellShop(state)` (shop.ts) replaces the minion offers with up to `tierSlots` **distinct** random eligible spells (seeded Fisher–Yates over the tier-eligible spell list; returns the current minion offers to the pool); the right-hand spell slot is untouched, and the next normal roll/turn restocks minions — so it's inherently **one-shot** (no mode flag). The cast factory `spellRefreshToSpells` calls it. The buy path gained a branch: a **spell offer sitting in the minion row buys into the HAND at its own cost** (no minion creation / triple), like the spell slot. The shop's CardView memo now also passes the spell-display opts so those offers read their right cost + value.
+
+**Files:** `shop.ts` (`rollSpellShop`), `recruit.ts` (`spellRefreshToSpells` + import), `reducer.ts` (buy-path spell-offer branch), `spells.ts` (Spell Cart), `schema.ts` + `core/types.ts` (`spellRefreshToSpells`), `Recruit.tsx` (`shopViews` spell opts), `run.test.ts` (+2), art, `cards.csv`. **Verification:** typecheck + lint + test (397, +2) + build:web green; **live** — forcing a spell-shop renders 3 spell cards in the minion row (art loaded, `.spell` class) and a dispatched buy moves Spirit Fire into hand for its 2 cost (embers 10→8), console clean. Tests cover the spell-shop fill (all distinct spells) + next-roll-restocks-minions + the spell-offer buy.
+
 ### feat: Steward of Spells (neutral T5) — End of Turn copies your last spell
 
 New neutral **T5 3/7** minion: **End of Turn, conjure a copy of the most recent spell cast this run** (golden: 2 copies) — a spell-engine payoff that snowballs whatever spell you're leaning on. Added a `lastSpellCastId` field to `RunState`, set in `castSpell` on every player cast (persists across turns); the new `spellCopyRecent` End-of-Turn factory pushes 1 (× golden) copy to hand, capped at `handMax`, no-op if no spell has been cast yet. Art wired.

@@ -140,6 +140,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellGildRandomTavern',
   'spellDisplace',
   'spellCopyRecent',
+  'spellRefreshToSpells',
 ]);
 
 export const EffectDefSchema = z.object({

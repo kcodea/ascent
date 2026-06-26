@@ -487,4 +487,19 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellDisplace' }],
     text: 'Swap a friendly minion with a random minion in the tavern.',
   },
+  {
+    // Refresh the tavern full of spells — the minion offers become random eligible spells. Untargeted; the
+    // next normal roll/turn restocks minions (one-shot).
+    id: 'spellcart',
+    name: 'Spell Cart',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellRefreshToSpells' }],
+    text: 'Refresh the tavern — fill it with **spells** instead of minions.',
+  },
 ];

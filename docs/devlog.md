@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### tweak: more spread in the hand (overlap 20% of card width, not a fixed −84px)
+
+Hand cards overlapped too much, especially with a full hand. The overlap was a fixed `margin-left: -84px`
+— but the card width (`--ccw`) is responsive (~140–245px), so that fixed px read as ~35% overlap on big
+screens and ~60% on small ones. Now the overlap is **20% of the card width** (`calc(var(--ccw) * -0.2)`),
+so it's a consistent slight overlap at every size. Tradeoff (owner-accepted): a near-full 10-card hand
+widens toward the screen edges rather than compressing — a dynamic fit-to-zone overlap was the alternative.
+
+**Files:** `styles.css` (`.row.hand .card` margin). **Verification:** `lint + build:web` green; computed
+overlap confirmed live at exactly 20% (card 141px → margin −28px), first card flush.
+
 ### fix: buffing Tara no longer fires a phantom "Ember Whelp" Start-of-Combat attack
 
 Owner report: when Supporter buffs Tara mid-combat it *randomly* procs what looks like the old Ember Whelp Start-of-Combat attack. Root cause: Tara's ascend tally (in `simulate`'s `ctx.buff`) pushed a narration `sc` event on **every** stat-grant (`"Tara: N stat grants to ascend"`). The UI treats *every* `sc` as a Start-of-Combat cast — `sfx.cast` zap, a `sccast` flash on the source, and (the visual "attack") a **projectile bolt** from the source to the next beat's damage target (`useCombatReplay.ts`). So each time Supporter rallied Tara — it pumps 2 *random* Dragons, hence "randomly" — a bolt flew from Tara to an enemy, reading exactly like Ember Whelp's old scorch. (Ember Whelp itself is long gone — replaced by Twilight Whelp; nothing uses `scDamage` anymore, so this was the *only* path to that visual.)
@@ -12,6 +23,7 @@ Owner report: when Supporter buffs Tara mid-combat it *randomly* procs what look
 Fix (engine-only, `simulate.ts`): keep the `buffCounts` tally that drives the ascend carry-back (`playerAscendCount` → settle/transform), but **stop emitting the per-buff `sc` narration**. The live "N to ascend" card tracker counts `buff` events in the replay (`useCombatReplay` + `cardText`), *not* this event, so the countdown is unaffected; the buffs tab only parses spell-power `sc` text. Net: no phantom Start-of-Combat on a Tara buff, ascension behaviour itself unchanged.
 
 **Files:** `packages/core/src/combat/simulate.ts` (drop the ascend `sc` event; keep the tally). **Verification:** `typecheck + lint + test (372) + build:web` green; a 30-seed repro of Supporter-rallying-Tara boards went from **21–29 spurious `sc` events to 0** (a board with a real Start-of-Combat effect still emits its `sc`).
+
 ### feat: loss-damage tally + blast (surviving tiers → Resolve)
 
 On a defeat, the damage you take is now telegraphed: the surviving enemy minions' **tavern tiers** plus

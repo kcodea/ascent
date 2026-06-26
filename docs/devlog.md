@@ -5,6 +5,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### fix: captured opponent boards retain per-minion accruals (Sergeant's Deathrattle HP-grant, Tara's ascend progress)
+
+Owner: opponent boards should reflect their *progress + buffs* at the snapshotted moment. A captured board (`cleanBoard` in `snapshot.ts`) kept each minion's current buffed stats / keywords / golden + `summonBonus` (Mama Bear) + `rallyMechAtk` (Better Bot) — but **dropped** two accruals that `BoardMinion` carries and combat already seeds (`minion.ts`): **Sergeant's `hpGrantBonus`** (its improved Deathrattle HP-grant) and **Tara's `ascendProgress`**. So a served Sergeant reverted to its base Deathrattle grant and a served Tara lost its head-start toward Taragosa — both fought *weaker* than the real board. `cleanBoard` now copies both (same conditional pattern as the others).
+
+**Files:** `snapshot.ts` (`cleanBoard`), `snapshot.test.ts` (+1). **Verification:** `typecheck + lint + test (378, +1) + build:web` green; new test confirms a snapshot keeps Sergeant's `hpGrantBonus` + Tara's `ascendProgress`. **Note:** takes effect for boards captured AFTER this change — the baked house pool (`opponentPool.data.ts`) + already-saved captures don't carry the fields until a re-capture or a `npm run pool` re-bake. (Spirit Pup's spell-progress isn't captured either, but that's the larger gap — it isn't threaded into combat yet; see the roadmap.)
 ### fix: spell-power telegraphs (Ryme→Cinderwing, Gnasher, Bladesmith) no longer fire a phantom Start-of-Combat attack
 
 Owner: *"ryme proccing cinderwing is doing that ember whelp attack."* Same root cause as the earlier Tara fix — the `sc` combat event is overloaded. The UI replays EVERY `sc` as a Start-of-Combat cast: a zap, an `sccast` flash, and a **projectile bolt** from the source to the next beat's damage target. When Ryme re-fires Cinderwing Matron's battlecry in combat it grants spell power, whose `+A/+B Spell Power` telegraph is an `sc` event — so a bolt flew from the source to an unrelated attack's victim, reading like the long-gone Ember Whelp's scorch.

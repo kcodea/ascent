@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Captured opponents keep their progress.** A board served as an enemy now retains its minions' accrued state
+  — Sergeant's improved Deathrattle HP-grant and Tara's ascend progress — so it fights as strong as the board it
+  was snapshotted from (it used to drop those). New captures only.
 - **No more phantom Start-of-Combat "scorch."** Spell power gained mid-fight (Ryme re-firing Cinderwing,
   Gnasher's kills, Bladesmith deaths) used to fling a projectile bolt + zap at an enemy — the UI replayed the
   "+spell power" telegraph as a Start-of-Combat attack. Now only genuine Start-of-Combat *damage* casts do that.

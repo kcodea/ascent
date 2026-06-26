@@ -3,6 +3,55 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-26 (session 6)
+
+### feat: live combat-text becomes the norm — Grim, Guel, Spirit Worgen show their current value in combat
+
+Owner: "Grim is also not showing its current value in combat. this needs to be the norm across the board." Same gap as Mama Bear, generalized: a scaling card's COMBAT card (`Unit.tsx`) showed the *printed* rule text, while the shop (`Recruit.tsx`) already shows the live magnitude. Audited the whole live-text surface (`cardText.ts`) — every builder, which the combat chain wired vs. only the shop — and closed the combat-relevant gaps:
+
+- **Grim** (`tallyBuffText`) — "+N/+N per Deathrattle this game" now reads the run's live Deathrattle tally instead of the printed "+1/+1".
+- **Archmagus Guel** (`guelProgressText`) — the live grant + countdown from spells cast this run.
+- **Spirit Worgen** (`summonScalingText`) — the per-summon gain that scales with spells cast this turn.
+
+These three are **run-level scalers**, so combat reads them from the store frozen at the fight-start value — exactly how `Unit.tsx` already reads Taragosa's spell power (`spellAttackBonus(s.run)`). Added `useGame` selectors for `s.run.deathrattlesTriggered / spellsCast / spellsThisTurn` and slotted the three builders into the combat `??` chain, mirroring the shop's order. The recruit-only builders correctly stay out of combat: cadence (Frontdrake's turn countdown), cling (magnetize is a shop action), abhorrent ("next combat" telegraph), and the economy metrics (Soulsman gold, undead buy-bonus). The run-wide Eternal Knight enchant (`cardTypeTallyText`) is a golden-independent *suffix* with extra append/golden plumbing — deferred as a follow-up, not wired this pass.
+
+**Files:** `Unit.tsx` (3 selectors + 3 chain entries + import), `cardText.test.ts` (+1 — `summonScalingText`; `tallyBuffText`/`guelProgressText` already covered). **Verification:** `typecheck + lint + test (380) + build:web` green; preview reload console-clean. typecheck validates the `s.run.*` selector paths; the cardText builders are unit-tested and the wiring mirrors the proven shop chain. Grim has no goldenText, so its golden card stays consistent with the shop (no regression). Staging a live Grim/Guel combat in the preview isn't practical, so verification is the cardText tests + the wired chain (as with Mama Bear).
+
+### feat: Mama Bear's combat card shows its per-summon buff LIVE
+
+Owner: Mama Bear's combat text should say, in real time, what the buff is. Her per-summon grant climbs (+2/+2 each Beast summoned), but the COMBAT card showed the printed text, not the live value. Two parts — the second is the load-bearing one a surface read misses:
+
+- **UI** (`Unit.tsx`): wire the existing `summonImproveText` (already used in the shop) into the combat live-text `??` chain — it shows the current grant `+M/+M` (M = base 2 + accrued, golden-doubled), per-instance, matching the buffs-window formula.
+- **Engine** (`factories.ts`): Mama Bear's combat factory `summonBuffTribeImprove` incremented `self.summonBonus` but **emitted no event**, and the UI's `computeFrame` only climbs `summonBonus` from `improve` events — so without an engine change the text would freeze at the combat-start value. Added `ctx.log({ type: 'improve', target: self.uid, amount: base })` (mirroring Kennelmaster's `avengeImproveSummon`), so the bonus — and the text — tick up live as each Beast is summoned. (Side effect, consistent with Kennelmaster: Mama Bear now also gets a ✦ float + a log line per Beast summon.)
+
+**Files:** `factories.ts` (improve emission), `Unit.tsx` (cardText wiring + import), `cardText.test.ts` (+1), `simulate.test.ts` (+1). **Verification:** `typecheck + lint + test (379, +2) + build:web` green; the engine test asserts an `improve` per Beast summoned (Mama Pup → 2 Pups → 2 improves, amount = base 2), the cardText test pins the live string `(2 + accrued) × golden`, and no existing test broke (no prior Mama Bear *combat* test existed). Planned via a mapping workflow that caught the missing-event trap; live-combat staging (a tier-5 Mama Bear + a Beast summoner mid-fight) is impractical in the preview, so verification is the engine + cardText tests + the wired chain.
+### fix: captured opponent boards retain per-minion accruals (Sergeant's Deathrattle HP-grant, Tara's ascend progress)
+
+Owner: opponent boards should reflect their *progress + buffs* at the snapshotted moment. A captured board (`cleanBoard` in `snapshot.ts`) kept each minion's current buffed stats / keywords / golden + `summonBonus` (Mama Bear) + `rallyMechAtk` (Better Bot) — but **dropped** two accruals that `BoardMinion` carries and combat already seeds (`minion.ts`): **Sergeant's `hpGrantBonus`** (its improved Deathrattle HP-grant) and **Tara's `ascendProgress`**. So a served Sergeant reverted to its base Deathrattle grant and a served Tara lost its head-start toward Taragosa — both fought *weaker* than the real board. `cleanBoard` now copies both (same conditional pattern as the others).
+
+**Files:** `snapshot.ts` (`cleanBoard`), `snapshot.test.ts` (+1). **Verification:** `typecheck + lint + test (378, +1) + build:web` green; new test confirms a snapshot keeps Sergeant's `hpGrantBonus` + Tara's `ascendProgress`. **Note:** takes effect for boards captured AFTER this change — the baked house pool (`opponentPool.data.ts`) + already-saved captures don't carry the fields until a re-capture or a `npm run pool` re-bake. (Spirit Pup's spell-progress isn't captured either, but that's the larger gap — it isn't threaded into combat yet; see the roadmap.)
+### fix: spell-power telegraphs (Ryme→Cinderwing, Gnasher, Bladesmith) no longer fire a phantom Start-of-Combat attack
+
+Owner: *"ryme proccing cinderwing is doing that ember whelp attack."* Same root cause as the earlier Tara fix — the `sc` combat event is overloaded. The UI replays EVERY `sc` as a Start-of-Combat cast: a zap, an `sccast` flash, and a **projectile bolt** from the source to the next beat's damage target. When Ryme re-fires Cinderwing Matron's battlecry in combat it grants spell power, whose `+A/+B Spell Power` telegraph is an `sc` event — so a bolt flew from the source to an unrelated attack's victim, reading like the long-gone Ember Whelp's scorch.
+
+Fix: give the `sc` event a `cast?: true` discriminator. Only a **genuine Start-of-Combat *damage* cast** sets it (the `scDamage` / `scSplitDamage` / `scAoePerTribe` / `scDestroyHighestAttack` factories — all currently unused by any live card, but future-proofed). The UI now gates the bolt + zap + flash on `cast`; mid-combat narration `sc` events (spell power, etc.) keep driving the combat log, the live buffs-window spell-power tracker, and the trigger-medallion pulse, but no longer fling a phantom attack. Blaster's separate Deathrattle bolt path is untouched.
+
+**Files:** `types.ts` (`cast?` on the `sc` event), `factories.ts` (`cast: true` on the 4 damage SoC emits), `useCombatReplay.ts` (gate bolt / sound / flash on `cast`), `simulate.test.ts` (+1). **Verification:** `typecheck + lint + test (378, +1) + build:web` green; the new test proves a mid-combat spell-power telegraph emits a narration `sc` with no `cast`. (The earlier Tara variant — the ascend narration — was already removed; this generalizes the fix to every spell-power telegraph.)
+### chore: optimize 22 stale minion art PNGs → WebP
+
+Twenty-two minion art files had been committed as raw PNG (~48 MB total) instead of the project's optimized WebP. Ran `npm run optimize-art` (the standard pipeline: downscale to ≤512px + WebP q85 + delete the source PNG; masters retained out-of-repo) over `packages/ui/src/art/minions/`, converting all 22 — **48.1 MB → 1.10 MB (97.7% smaller)**. Pure asset change, no code. **Verification:** `build:web` green; `art/minions/` now has 0 PNGs (128 WebP). (Surfaced while wiring Robin's hero art, which ran the same optimizer.)
+### feat: Robin — a new hero whose Spoils pay out next turn
+
+New hero **Robin** (30 Resolve). Passive power **Spoils**: *when you sell a minion, gain 1 Gold at the start of next turn.* It stacks within a turn but only carries to the next turn, then resets — sell 6 minions on turn 6 and you start turn 7 with **+6 Gold** (on top of the cap).
+
+- **Mechanic** (`reducer.ts`): the sell case feeds the existing `bonusEmbersNextTurn` channel (Hoarder's "bonus Gold next turn"), gated to Robin's new `sellGold` power kind. The turn-start consume + reset (in `settleCombat`) and the on-top-of-the-cap behaviour already existed, so the whole feature is **one line** plus the hero data — no new state field. (Robin's power is also added to the passive no-op branch of the `heroPower` switch so an errant activation can't fall through to Fortify.)
+- **Hero data** (`heroes.ts`): new `sellGold` `HeroPowerKind` + the Robin `HeroDef` (passive). `rollHeroChoices` already draws from all of `HEROES`, so Robin is offered automatically.
+- **Art** (`packages/ui/src/art/heroes/robin.webp`, `.../powers/robin.webp`): optimized from the `Robin2.png` (portrait) / `RobinHP.png` (power) masters; the eager glob picks them up by the `robin` id match.
+
+**Files:** `heroes.ts` (kind + HeroDef), `reducer.ts` (sell accumulation + passive no-op), `run.test.ts` (+1), 2 art webp. **Verification:** `typecheck + lint + test (378, +1) + build:web` green; the new test proves selling N minions banks +N for next turn (a non-Robin hero banks nothing). Live preview: Robin appears in hero-select with its portrait (robin.webp, 512², loaded) + the **Spoils** power text, console clean.
+
+> **Flagged (separate cleanup):** running `optimize-art` revealed **22 minion art files committed as un-optimized PNG** (~44 MB) under `packages/ui/src/art/minions/`. Reverted them out of this PR to keep it Robin-only — they want their own "optimize stale PNGs" pass.
+
 ## 2026-06-25 (session 5)
 
 ### tweak: shield bubble −25% size + −30% interior opacity (owner dial-in)
@@ -130,6 +179,28 @@ sole signifier, full-Pixi bubble + Pixi break.
   real window (the preview pane runs hidden, freezing Pixi's rAF ticker).
 - **Follow-ups**: dial in the look/feel in-game (consts are live); the rAF position-sync currently runs for
   all of combat — could be narrowed to active-lunge windows if a busy Mech board ever hitches.
+
+### feat: mid-combat ascension (engine) — Tara → Taragosa transforms during the fight
+
+Foundation for the ascension system (owner: "units need to ascend mid-combat… it will need an sfx trigger & an animation trigger"). Until now Tara → Taragosa (and Spirit Pup → Spirit Worgen) only transformed at SETTLE, between fights. The engine now transforms a qualifying minion **in place mid-combat**:
+
+- **New `ascend` combat event** (`{ type: 'ascend'; target; into }`) in the shared `CombatEvent` vocabulary — emitted when a minion transforms, for the UI to animate (the presentation wiring is the next PR).
+- **The transform** (`simulate.ts`): a queued, between-actions `ascendMinion` swaps the minion's identity (cardId / name / tribe) + effects to its ascend form and adds the new form's keywords, **keeping its current stats / buffs**. The new form's abilities go live immediately (an ascended Taragosa casts Growth the rest of the fight). The `CombatBus` can't unregister, so `registerEffects` handlers now **self-disable** when their effect is no longer in the minion's current set — the old form's abilities cleanly stop firing.
+- **Tara's trigger**: her stat-grant tally in `ctx.buff` now also checks the threshold (seeded progress + this fight's grants ≥ `ascendAt`) and queues the ascension, flushed at the next clean beat (after each attack / after Start-of-Combat). The settle-time transform of the run-board card is unchanged, so the board card and the combat instance stay consistent.
+
+**Files:** `types.ts` (`ascend` event), `simulate.ts` (ascend infra + Tara trigger + `registerEffects` self-disable + flush points), `combat-harness.ts` (narration), `simulate.test.ts` (+1). **Verification:** `typecheck + lint + test (375, +1) + build:web` green; a repro confirmed Tara ascends to Taragosa mid-fight at 20 grants and Taragosa's Growth (+3/+4) fires afterward. (Pre-existing, unrelated: `typecheck:web` flags 4 magnetize type errors in `Recruit.tsx` on clean main — noted for a separate pass.)
+
+**Next:** (a) the UI presentation — the `ascend` SFX + a level-up animation + the live board-state swap; (b) Spirit Pup → Spirit Worgen — counting in-combat spells toward its threshold (carried back) + its mid-combat transform, reusing this infra.
+
+### fix: in-combat spell casts feed spell power LIVE + proc Forsaken Weaver permanently
+
+Two fixes to how mid-combat spell casts (Taragosa's Growth) feed the spell-driven effects:
+
+1. **Live spell power (Gnasher → Taragosa's Growth).** Taragosa's Growth scales with `ctx.spellPower`, which was frozen at combat start — so Gnasher's on-kill +1/+1 spell power (and Bladesmith deaths) landed in a *separate* carry-back delta and didn't reach Growth until the next fight. Fix: `ctx.spellPower` is now a mutable local that `grantSpellPower` bumps **in place** (alongside the carry-back `spellPowerGain`), so Growth — and any spell scaled mid-fight — reads the gain in real time. Verified: with Gnasher killing a chump, Taragosa's Growth jumps **3/4 → 4/5** the same fight.
+
+2. **Forsaken Weaver procs permanently in combat.** Its `spellCast` handler already fired mid-combat (Taragosa's Growth calls `ctx.castSpell`, which emits `spellCast`), but the combat factory `spellCastBuffUndeadAttack` only granted a *temporary* combat buff. Fix: it now also `ctx.grantUndeadBuyAtk(amount)` — exactly like Karthus and its own recruit half — so the +2 Undead Attack carries back, stacks into `undeadBuyAtk`, and applies to the run-board Undead at settle. Verified: `playerUndeadBuyAtkGain` is now `> 0` from an all-in-combat Growth chain (was nothing).
+
+**Files:** `packages/core/src/combat/simulate.ts` (live `spellPower`), `packages/core/src/effects/factories.ts` (Forsaken Weaver carry-back), `simulate.test.ts` (+2). **Verification:** `typecheck + lint + test (376, +2) + build:web` green. *(Part of a batch — next up: Spirit Pup counting in-combat spells + mid-combat ascension for Tara/Spirit Pup.)*
 
 ### fix: Reborn fires the unit's Deathrattle on every death + carries Undead buffs through rebirth
 

@@ -325,6 +325,15 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Mid-combat ascension — UI presentation.** The engine now emits an `ascend` event + transforms Tara →
+      Taragosa mid-fight (see the devlog). Wire the UI: `useCombatReplay` to fold the `ascend` event (swap the
+      unit's cardId/name/tribe live), a new `sfx.ascend` (a triumphant level-up), an `.ascend` animation in
+      `styles.css` (a gold "level-up" burst — one-shot, compositor-friendly), plus the combat-log line + trigger
+      pulse. Integration map already scouted (animFor / floatFor / narrate / SFX / DELAY / combatBeats).
+- [ ] **Spirit Pup → Spirit Worgen ascends mid-combat + counts in-combat spells.** `spellCastTransform` is
+      recruit-only today. Add: combat spell-counting per Spirit Pup (carried back like Tara's `ascendProgress`
+      so the countdown is permanent), and queue its ascension via the new infra when it crosses `at`. Needs
+      `spellProgress` threaded onto the combat minion + a `playerSpellProgress` carry-back applied at settle.
 - [ ] **Reborn carries the Eternal-Knight enchant accrued in PRIOR fights.** Reborn now re-applies the
       Eternal-Knight (and Undead-everywhere) buff banked in the *current* fight (see the devlog), but a Knight
       that accumulated +A/+H over earlier fights drops that part on rebirth — it's baked into the run-board

@@ -58,6 +58,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ☣ ${n(ev.target)} spends its Venomous`;
     case 'summon':
       return `   + ${ev.minion.name} (${ev.minion.attack}/${ev.minion.health}) summoned on ${ev.side}`;
+    case 'ascend':
+      return `   ★ ${n(ev.target)} ascends into ${ev.into}`;
     case 'buff':
       return `   ↑ ${n(ev.target)} +${ev.attack}/+${ev.health}`;
     case 'improve':

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createRun, reduce, serialize, snapshotBoard, replayRun, dominantTribe, buildBootstrapPool, type Action, type BoardSnapshot } from './index';
+import { createRun, reduce, serialize, snapshotBoard, replayRun, dominantTribe, buildBootstrapPool, type Action, type BoardSnapshot, type RunState } from './index';
 
 /** A tiny greedy bot that plays a run while recording its action log + the live snapshot at each combat. */
 function recordRun(seed: number): { replay: { seed: number; heroId: string; actions: Action[] }; live: BoardSnapshot[] } {
@@ -40,6 +40,21 @@ describe('board snapshot + replay', () => {
     expect(snap.power).toBe(snap.minions.reduce((s, m) => s + m.attack + m.health, 0));
     // transferable board only — no run-specific instance refs leak into the snapshot
     expect(snap.minions.every((m) => m.sourceUid === undefined)).toBe(true);
+  });
+
+  it("snapshotBoard retains per-minion accruals (Sergeant's Deathrattle HP-grant, Tara's ascend progress)", () => {
+    // A served opponent must be as strong as the board it was captured from — so the snapshot keeps the
+    // shop-accumulated state combat seeds from the BoardMinion, not just the stats.
+    const s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'sg', cardId: 'sergeant', tribe: 'undead', attack: 5, health: 5, keywords: [], golden: false, hpGrantBonus: 8 },
+        { uid: 'ta', cardId: 'tara', tribe: 'dragon', attack: 9, health: 9, keywords: ['EG'], golden: false, ascendProgress: 15 },
+      ],
+    };
+    const snap = snapshotBoard(s);
+    expect(snap.minions.find((m) => m.cardId === 'sergeant')?.hpGrantBonus).toBe(8);
+    expect(snap.minions.find((m) => m.cardId === 'tara')?.ascendProgress).toBe(15);
   });
 
   it('replayRun reproduces the run byte-identically and yields the same per-wave snapshots', () => {

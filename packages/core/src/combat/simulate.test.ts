@@ -685,6 +685,16 @@ describe('simulate (handoff A.3)', () => {
     expect(CARD_INDEX[(grant as { cardId: string }).cardId]?.spell).toBe(true); // the actual spell that was generated
   });
 
+  it("a mid-combat spell-power telegraph is a narration sc (no `cast`) — the UI won't replay it as a SoC attack", () => {
+    // Ghastly Bladesmith's Deathrattle grants +1 spell power, telegraphed mid-fight as a "+1/+0 Spell Power" sc.
+    // It carries NO `cast` flag (only genuine Start-of-Combat damage casts do), so the UI fires no projectile
+    // bolt / zap — fixing "Ryme procs Cinderwing → phantom Ember Whelp attack" (spell power shares this channel).
+    const r = run([{ cardId: 'skullblade', attack: 5, health: 1 }], [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }], 1);
+    const sp = r.events.find((e) => e.type === 'sc' && /Spell Power/.test(e.text));
+    expect(sp).toBeDefined();
+    expect(sp?.type === 'sc' ? sp.cast : 'missing').toBeUndefined(); // narration, not a cast
+  });
+
   it("Taragosa's Growth scales with the run's spell power", () => {
     const board: BoardMinion[] = [
       { cardId: 'taragosa', attack: 5, health: 100 },
@@ -696,6 +706,62 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 7 && e.health === 8)).toBe(true);
     const r0 = simulate(board, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     expect(r0.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // no spell power → base
+  });
+
+  it('Mama Bear emits an `improve` event per Beast summoned in combat (drives the live per-summon text)', () => {
+    // Mama Pup dies → Deathrattle summons 2 Pups (Beasts); Mama Bear buffs each AND emits an `improve` so the
+    // UI's live "+M/+M per summon" card text climbs mid-fight (that field only moves on improve events).
+    const p: BoardMinion[] = [
+      { cardId: 'mamabear', attack: 6, health: 30 },
+      { cardId: 'pack', attack: 2, health: 1 }, // Mama Pup — dies → summons 2 Pups
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 40 }];
+    const a = run(p, e, 1);
+    const mb = a.initial.player.find((m) => m.cardId === 'mamabear')!.uid;
+    const improves = a.events.filter((ev) => ev.type === 'improve' && ev.target === mb);
+    expect(improves.length).toBe(2); // one per Pup summoned
+    expect(improves.every((ev) => ev.type === 'improve' && ev.amount === 2)).toBe(true); // pre-golden step = base (2)
+  });
+
+  it('Tara ascends to Taragosa MID-combat once her stat-grants cross the threshold, and Taragosa then casts Growth', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'tara', attack: 3, health: 40, keywords: ['EG'], ascendProgress: 19 }, // 1 more grant → ascend
+      { cardId: 'cryptdrake', attack: 4, health: 40 }, // buffs all on each ally attack → grants Tara a stat
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 400 }];
+    const a = run(p, e, 1);
+    const ascend = a.events.find((ev) => ev.type === 'ascend');
+    expect(ascend && ascend.type === 'ascend' ? ascend.into : null).toBe('taragosa'); // transformed mid-fight
+    // The new form's effect is live the rest of the combat: Taragosa casts Growth (+3/+4 to all) on a later attack.
+    const ai = a.events.findIndex((ev) => ev.type === 'ascend');
+    expect(a.events.slice(ai + 1).some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
+  });
+
+  it("Gnasher's kill raises spell power LIVE — Taragosa's Growth jumps from 3/4 to 4/5 the same fight", () => {
+    const p: BoardMinion[] = [
+      { cardId: 'gnash', attack: 20, health: 40 },
+      { cardId: 'taragosa', attack: 3, health: 40, keywords: ['EG'] },
+      { cardId: 'karthus', attack: 1, health: 40 }, // 3rd minion → player attacks first
+    ];
+    const e: BoardMinion[] = [
+      { cardId: 'pup', attack: 1, health: 1, keywords: ['T'] }, // Taunt → Gnasher kills it → +1/+1 spell power
+      { cardId: 'omen', attack: 1, health: 400 },
+    ];
+    const a = run(p, e, 1); // spell power starts at 0
+    const growth = a.events.filter((ev) => ev.type === 'buff' && ev.attack >= 3).map((ev) => (ev.type === 'buff' ? `${ev.attack}/${ev.health}` : ''));
+    expect(growth).toContain('3/4'); // Growth before the kill (spell power 0)
+    expect(growth).toContain('4/5'); // after Gnasher's kill bumped spell power +1/+1 — read LIVE, same fight
+  });
+
+  it("Forsaken Weaver procs PERMANENTLY from an in-combat spell (Taragosa's Growth) — undeadBuyAtk carries back", () => {
+    const p: BoardMinion[] = [
+      { cardId: 'taragosa', attack: 6, health: 20, keywords: ['EG'] },
+      { cardId: 'forsakenweaver', attack: 5, health: 20 },
+      { cardId: 'karthus', attack: 4, health: 20 }, // an Undead to receive the bonus
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 2, health: 80 }];
+    const a = run(p, e, 3);
+    expect(a.playerUndeadBuyAtkGain).toBeGreaterThan(0); // each Growth = a spell cast → Forsaken Weaver banks +2 permanently
   });
 
   it('Gnasher keeps attacking after killing a Reborn target', () => {

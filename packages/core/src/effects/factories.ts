@@ -184,6 +184,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const mag = (base + self.summonBonus) * mul(self);
     ctx.buff(minion, mag, mag, self.uid);
     self.summonBonus += base;
+    // Surface the climb (like Kennelmaster's avengeImproveSummon) so the live combat card text — "+M/+M per
+    // summon" via summonImproveText — ticks up in real time as Beasts are summoned. `amount` is the pre-golden
+    // step; the UI folds it into summonBonus and re-applies ×golden when it renders.
+    ctx.log({ type: 'improve', target: self.uid, amount: base });
   },
 
   /** When a friendly minion of `tribe` is summoned, buff it. The per-stat magnitude is the
@@ -290,7 +294,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     const targets = ctx.living(foe);
     if (targets.length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} strikes` });
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} strikes`, cast: true });
     const amount = num(params.amount, 1) * mul(self);
     const mode = str(params.target) || 'leftmost';
     if (mode === 'all') {
@@ -306,7 +310,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   scSplitDamage: (ctx, self, params) => {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     if (ctx.living(foe).length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} splits its breath` });
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} splits its breath`, cast: true });
     let n = self.attack;
     while (n-- > 0) {
       const targets = ctx.living(foe);
@@ -319,7 +323,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   scAoePerTribe: (ctx, self, params) => {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     if (ctx.living(foe).length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rains fire` });
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rains fire`, cast: true });
     const base = num(params.base, 3) * mul(self);
     const per = num(params.perTribe, 3) * mul(self);
     const tribe = str(params.tribe) as Tribe;
@@ -694,7 +698,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const targets = ctx.living(foe);
     if (targets.length === 0) return;
     const victim = targets.reduce((a, b) => (b.attack > a.attack ? b : a));
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} drags down the mightiest` });
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} drags down the mightiest`, cast: true });
     ctx.damage(victim, victim.health, false, true); // destroy: ignores Divine Shield
   },
 
@@ -763,8 +767,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.log({ type: 'hpGrant', target: self.uid, amount: self.hpGrantBonus });
   },
 
-  /** Forsaken Weaver (combat half) — when a spell is cast on this side, give all living friendly
-   *  Undead (+ universalTribe minions) +`attack` Attack. */
+  /** Forsaken Weaver (combat half) — when a spell is cast on this side (e.g. Taragosa's Growth), give all
+   *  living friendly Undead (+ universalTribe minions) +`attack` Attack this fight AND carry the bonus back
+   *  permanently (like Karthus / its own recruit half) — `grantUndeadBuyAtk` stacks it into `undeadBuyAtk`
+   *  and applies it to the run-board Undead at settle, so an in-combat cast procs it permanently. */
   spellCastBuffUndeadAttack: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
@@ -773,6 +779,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
       ctx.buff(m, a, 0, self.uid);
     }
+    ctx.grantUndeadBuyAtk(a, self.side);
   },
 
   /** Pillager — Deathrattle: add a specific card (e.g. Gold Pouch) to the player's hand after combat.

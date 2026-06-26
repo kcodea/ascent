@@ -346,7 +346,7 @@ export interface MinionSnapshot {
  * `summon`/`buff` for combat-time effects (Deathrattles, summon buffs).
  */
 export type CombatEvent =
-  | { type: 'sc'; source: string; text: string }
+  | { type: 'sc'; source: string; text: string; cast?: true } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only
   | { type: 'attack'; attacker: string; defender: string; swing: number }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number }
   | { type: 'shield'; target: string }
@@ -357,6 +357,7 @@ export type CombatEvent =
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; echo?: boolean }
+  | { type: 'ascend'; target: string; into: string } // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
   | { type: 'buff'; target: string; attack: number; health: number; source: string }
   | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle

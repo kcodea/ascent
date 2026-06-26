@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### chore: re-baked SFX mix defaults (owner pass via the dev mixer)
+
+Whole-bank volume pass dialed in by ear in the DEV SFX mixer, pasted into `SAMPLE_VOL_DEFAULTS` (sfx.ts)
+as the shipped defaults. Notable moves: `pulse` 0.5→0.67, `roll` 0.61→0.69, `cardVoice` 0.09→0.18,
+`summon` 0.65→0.37, `triggerpulse` 0.5→0.24, `triggerglow` 0.5→0.34, `divineshieldbreak` 0.6→0.26,
+`taunt`/`discover`/`freeze`/`unfreeze`/`upgrade`/`buy`/`clickthock`/`combatStart`/`deny` all trimmed.
+(Players who've already touched the mixer keep their saved `ascent.sfxvol` overrides — defaults apply to
+fresh/never-customized installs.)
+
+**Files:** `sfx.ts` (`SAMPLE_VOL_DEFAULTS`). **Verification:** `typecheck + lint + build:web` green.
+
 ### fix: divine-shield bubble — five bugs (stale persist, over-Discover, drag from shop/board, frozen-tavern)
 
 Bugs surfaced in-game after the shield shader shipped:

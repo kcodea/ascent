@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: buffing Tara no longer fires a phantom "Ember Whelp" Start-of-Combat attack
+
+Owner report: when Supporter buffs Tara mid-combat it *randomly* procs what looks like the old Ember Whelp Start-of-Combat attack. Root cause: Tara's ascend tally (in `simulate`'s `ctx.buff`) pushed a narration `sc` event on **every** stat-grant (`"Tara: N stat grants to ascend"`). The UI treats *every* `sc` as a Start-of-Combat cast — `sfx.cast` zap, a `sccast` flash on the source, and (the visual "attack") a **projectile bolt** from the source to the next beat's damage target (`useCombatReplay.ts`). So each time Supporter rallied Tara — it pumps 2 *random* Dragons, hence "randomly" — a bolt flew from Tara to an enemy, reading exactly like Ember Whelp's old scorch. (Ember Whelp itself is long gone — replaced by Twilight Whelp; nothing uses `scDamage` anymore, so this was the *only* path to that visual.)
+
+Fix (engine-only, `simulate.ts`): keep the `buffCounts` tally that drives the ascend carry-back (`playerAscendCount` → settle/transform), but **stop emitting the per-buff `sc` narration**. The live "N to ascend" card tracker counts `buff` events in the replay (`useCombatReplay` + `cardText`), *not* this event, so the countdown is unaffected; the buffs tab only parses spell-power `sc` text. Net: no phantom Start-of-Combat on a Tara buff, ascension behaviour itself unchanged.
+
+**Files:** `packages/core/src/combat/simulate.ts` (drop the ascend `sc` event; keep the tally). **Verification:** `typecheck + lint + test (372) + build:web` green; a 30-seed repro of Supporter-rallying-Tara boards went from **21–29 spurious `sc` events to 0** (a board with a real Start-of-Combat effect still emits its `sc`).
+
 ### feat: board synthesis — "print" strong high-wave boards from real-board data (+ real boards in the ladder)
 
 Follow-up to the wave-relative banding. Its band report exposed that high waves (9–20) saturated to band 7 and were thin (w20: 3 boards) — the smart bot can't build strong high-wave boards (it has to survive a whole run and plays greedily), so the bot-only calibration ladder had no real ceiling and high waves were under-populated. We *have* the data on what strong boards look like (331 real captured boards up to wave 20), so two changes use it:

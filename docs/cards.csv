@@ -96,7 +96,7 @@ sylus,Sylus the Reaper,5,4,5,,,"**In combat,** your Deathrattles proc **1 more**
 taurus,Taurus the Ancient,6,6,8,,,Start of Combat: the minion to your left is Engraved — it keeps the stats it gains in combat.,Start of Combat: the minions on both sides are Engraved — they keep the stats they gain in combat.
 yazzus,Yazzus,6,6,8,,,Your **targeted** spells cast **twice**.,Your **targeted** spells cast **three times**.
 
-# === SPELLS (29) — cost, not stats ===
+# === SPELLS (31) — cost, not stats ===
 apples,Apples,1,,,1,,Give minions in this tavern **+2/+3** (lost on refresh; kept if frozen).,
 bulwark,Bulwark,1,,,1,,Give a friendly minion **+0/+1** and **Taunt**.,
 emberpouch,Gold Pouch,1,,,1,,Gain **1 Gold**.,
@@ -114,7 +114,9 @@ lasso,Lasso,3,,,2,,Steal a random minion from the tavern.,
 shatter,Shatter,3,,,1,,"Give a minion **+2/+4** and **Taunt**. If it already has Taunt, remove it instead.",
 staffofguel,Staff of Guel,3,,,2,,Every minion you **buy** gets **+2/+2** for the rest of the game.,
 tribeportal,Tribe Portal,3,,,4,,**Discover** a minion from your most common type.,
+consume,Consume,4,,,2,,Choose a **Demon** — it consumes a random minion in the tavern.,
 fronttoback,Front to Back,4,,,1,,Give a minion **+2/+2**. Improve this by **+2/+2**.,
+goldentouch,Golden Touch,4,,,5,,Make a random minion in the tavern **Golden**.,
 growth,Growth,4,,,2,,Give your minions **+3/+4**.,
 helpwanted,Help Wanted,4,,,3,,**Discover** a Battlecry minion.,
 lanternofsouls,Lantern of Souls,4,,,2,,Your **Undead** get **+3 Attack** everywhere — even in the shop — for the rest of the game.,
@@ -123,7 +125,7 @@ devour,Channeling the Devourer,5,,,3,,Devour a friendly minion and spit its stat
 chronostaff,Chrono Staff,5,,,3,,Your **End of Turn** effects trigger **1 more** time this turn.,
 corpseboard,Corpse Board,5,,,3,,**Discover** a **Deathrattle** minion.,
 cupcakes,Cupcakes,5,,,4,,Choose a **Demon** — it consumes **3** minions in the tavern.,
-pointsolution,Point Solution,5,,,3,,Trigger a friendly **Battlecry** minion's Battlecry.,
+resonance,Resonance,5,,,3,,Trigger a friendly **Battlecry** minion's Battlecry.,
 aresmar,Eyes of Aresmar,6,,,5,,Make a **Tier 4 or lower** minion **Golden**.,
 perfectvision,Perfect Vision,6,,,2,,Set a friendly minion's stats to **20/20**.,
 
@@ -137,7 +139,6 @@ omen,Omen Minion,1,1,1,,,,
 pup,Pup,1,1,1,,,A 1/1 Beast token.,
 sabercub,Saber Cub,1,0,2,,Taunt,A 0/2 Beast with **Taunt**.,
 stray,Stray,1,1,1,,,A 1/1 Beast token.,
-symbioticattachment,Symbiotic Attachment,1,1,1,,Magnetic | Reborn,"**Magnetic**, **Reborn**. Counts as all tribes.",
 discoverspell,Triple Reward,1,0,1,,,**Discover** a minion from one Tier up.,
 whelpling,Whelp,1,3,3,,,A 3/3 Dragon that attacks immediately when summoned.,
 taragosa,Taragosa,2,3,3,,Engraved,"All stats are **Engraved**. When a minion attacks, cast **Growth** (+3/+4 to your minions).","All stats are **Engraved**. When a minion attacks, cast **Growth twice** (+6/+8 to your minions)."

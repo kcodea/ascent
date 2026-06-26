@@ -100,6 +100,20 @@ export function simulate(
     if (impHpBonus > 0) { m.health += impHpBonus; m.maxHealth += impHpBonus; }
   };
 
+  // Carry-through buff for Reborn: the run-wide Eternal-Knight enchant (a card-type +A/+H banked from Knight
+  // deaths) persists THROUGH a Reborn — re-applied on top of base stats so the reborn body keeps the buff.
+  // Gated to Undead cards (it's an "Undead buff"), so non-Undead card-type buffs (Fodder, Cling) and general
+  // stat / Imp buffs do NOT carry. Uses the amount banked THIS fight (`cardBuffGains`); a buff accrued in
+  // PRIOR fights is already baked into the run-board stats and isn't passed into combat, so it doesn't carry yet.
+  const applyCardTypeCarryThrough = (m: Minion): void => {
+    const def = cards[m.cardId];
+    if (!def || (def.tribe !== 'undead' && def.tribe2 !== 'undead')) return;
+    const g = cardBuffGains.find((c) => c.cardId === m.cardId);
+    if (!g) return;
+    if (g.attack > 0) m.attack = Math.max(0, m.attack + g.attack);
+    if (g.health > 0) { m.health += g.health; m.maxHealth += g.health; }
+  };
+
   const boards: Record<Side, Minion[]> = {
     player: player.map((b) => instantiate(b, 'player', cards, mkUid)),
     enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
@@ -360,14 +374,35 @@ export function simulate(
   // filled in summonMinion, drained by flushImmediateAttacks after each attack's death cascade settles.
   const pendingAttackOnSummon: Minion[] = [];
 
+  // Fire a minion's OWN Deathrattle / on-death effects directly (no global onDeath broadcast / Avenge / death
+  // event) — used by Reborn so a reborn death procs the unit's own Deathrattle without re-triggering other
+  // minions' death-watchers. Sylus the Reaper re-procs it (a reborn death is still a death).
+  function fireOwnDeathrattles(minion: Minion): void {
+    const fireOnce = (): void => {
+      for (const effect of minion.effects) {
+        if (effect.on !== 'onDeath') continue;
+        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+      }
+    };
+    fireOnce();
+    let reaperBonus = 0;
+    for (const m of boards[minion.side]) if (!m.dead && m.health > 0 && m.cardId === 'sylus') reaperBonus += m.golden ? 2 : 1;
+    for (let r = 0; r < reaperBonus; r++) fireOnce();
+  }
+
   function killOrReborn(minion: Minion, killer?: Minion): void {
-    // Reborn (A.3 step 6): the first death returns the minion at its *base* card stats — it sheds
-    // every combat buff and granted keyword (Divine Shield, etc.), keeping only its printed keywords
-    // (minus the spent Reborn). A golden minion returns at doubled base. So a 2/1 buffed to a 10/3
-    // Divine-Shield body comes back a plain 2/1. (Recruit-permanent stats live on the run board and
-    // are untouched — this only resets the combat instance.)
+    // Reborn (A.3 step 6): a minion's FIRST death fires its Deathrattle / on-death effects, then it returns
+    // ONCE at its *base* card stats — shedding combat buffs + granted keywords (Divine Shield, etc.), keeping
+    // printed keywords (minus the spent Reborn). Golden → doubled base. So a 2/1 buffed to a 10/3 Divine-Shield
+    // body comes back a plain 2/1, but a Twilight Whelp leaves a Whelp on each death. Undead carry-through buffs
+    // are re-applied on top (Lantern/buy-time "everywhere" + the run-wide Eternal-Knight enchant); general stat
+    // / Imp / Fodder buffs do NOT carry. (Recruit-permanent run-board stats are untouched — instance only.)
     if (minion.rebornAvailable) {
       minion.rebornAvailable = false;
+      // It really died: proc the unit's own Deathrattle / on-death effects (each death procs them) BEFORE the
+      // body returns — so the Whelp's spawn + the Eternal Knight's +3/+2 land per death, not just on the last.
+      if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles++;
+      fireOwnDeathrattles(minion);
       const def = cards[minion.cardId];
       const mul = minion.golden ? 2 : 1;
       if (def) {
@@ -379,8 +414,10 @@ export function simulate(
       } else {
         minion.keywords = minion.keywords.filter((k) => k !== 'R');
         minion.health = 1;
+        minion.maxHealth = 1;
       }
       applyUndeadBonus(minion, true); // Reborn reset stats to base — re-apply Lantern + buy-time bonus
+      applyCardTypeCarryThrough(minion); // …and the run-wide Eternal-Knight enchant (Undead carry-through)
       events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords] });
       return;
     }

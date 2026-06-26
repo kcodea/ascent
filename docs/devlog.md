@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: Reborn fires the unit's Deathrattle on every death + carries Undead buffs through rebirth
+
+Owner clarified how Reborn should work; two bugs in `killOrReborn` (`simulate.ts`):
+
+1. **Deathrattle / on-death effects fire on EVERY death of a Reborn unit** (was: only the final death). The reborn branch `return`ed before the `onDeath` emit, so a Reborn unit's Deathrattle never fired on the first (reborn) death. Now the branch first fires the unit's OWN on-death effects via a new `fireOwnDeathrattles` — the unit's own factories + Sylus the Reaper re-procs, but NOT a global `onDeath` broadcast / Avenge / death event, so a Reborn doesn't double-trigger *other* minions' death-watchers — then the body returns. Example: a Twilight Whelp buffed to 2/2 + Reborn (e.g. via Symbiote) now leaves a 3/3 Whelp on the reborn death AND the final death — **two Whelps, not one**.
+
+2. **Reborn returns at BASE stats + the Undead carry-through buffs** (was: base, dropping the Eternal-Knight enchant). Still resets to base card stats (sheds combat buffs + granted keywords like Divine Shield), but now re-applies the Undead carry-through on top: the Lantern/buy-time "everywhere" bonus (already did) AND the run-wide Eternal-Knight enchant (new `applyCardTypeCarryThrough`, gated to Undead cards). So a 3/2 Eternal Knight with Reborn that dies banks its own +3/+2 and returns **6/4**; with a Lantern it's 3+3+3 = **9** Attack. General stat / Imp / Fodder buffs still do NOT carry. Reborn HP stays **base** health (3/2 → 6/4 — matching the owner's example, not Hearthstone's 1).
+
+**Files:** `simulate.ts` (`fireOwnDeathrattles` + `applyCardTypeCarryThrough` + the reborn branch), `simulate.test.ts` (+2 new — Whelp-per-death, fresh-Knight 6/4 — and updated the base-stats / golden / Lantern reborn tests to the carry-through). **Verification:** `typecheck + lint + test (374, +2) + build:web` green; a repro confirmed Whelp 2/2 R → **2** Whelps and Knit 3/2 R → reborn **6/4** (were 1 Whelp / bare 3/2).
+
+**Follow-up flagged:** the Eternal-Knight enchant accrued in PRIOR fights (already baked into the run-board stats, not passed into `simulate`) doesn't carry through Reborn yet — only the amount banked in the current fight does. Plumbing the run's `cardBuffs` into combat would close that.
 ### perf + ux: magnetize glow no longer repaints every frame; hand cards sit 20% farther apart
 
 Two recruit-screen fixes from owner reports (both in `styles.css`).

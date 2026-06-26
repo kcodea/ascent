@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Smoother magnetize + roomier hand.** The electric crackle on a magnetizing Mech now rides an opacity-only
+  glow layer instead of repainting the card every frame (magnetizing felt choppy). And cards in hand sit **20%
+  farther apart**, so the right one is easier to click.
 - **Tara no longer fires a phantom Start-of-Combat "scorch."** Buffing Tara mid-combat (e.g. Supporter's
   Rally) used to emit a per-grant narration that the UI replayed as a Start-of-Combat cast — zap sound + a
   bolt to an enemy — reading like the long-gone Ember Whelp. The ascend tally now tracks silently; the live

@@ -764,14 +764,19 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */
 .dragcard.magslide { transition: transform 0.28s cubic-bezier(0.5, 0, 0.85, 0.4), opacity 0.28s cubic-bezier(0.7, 0, 1, 1); }
 .dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
-/* Magnetic: electric crackle while a Cling Drone hovers a friendly Mech (will merge on drop) */
-.dragcard.electric .card { animation: crackle 0.28s ease-in-out infinite; }
-@keyframes crackle {
-  0%, 100% { box-shadow: 0 0 0 3px var(--t-mech), 0 0 22px 5px rgba(39, 169, 221, 0.75); }
-  50% { box-shadow: 0 0 0 4px #7fdcf2, 0 0 32px 9px rgba(95, 198, 224, 0.95); }
+/* Magnetic: an electric crackle while a Magnetic card hovers a friendly Mech (.electric, the floating drag
+   card) and on the host Mech as it's welded (.electrify — drop + Combinator's End of Turn). PERF: a STATIC
+   cyan halo on a ::before whose OPACITY breathes — compositor-only, zero per-frame paint. This was an animated
+   box-shadow (blur+spread keyframes), which repainted the card EVERY frame for the whole hover/weld — the
+   magnetize "bog down" the player felt. Mirrors the kwglow keyword-glow pattern above. */
+.dragcard.electric .card, .card.electrify { position: relative; }
+.dragcard.electric .card::before, .card.electrify::before {
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
+  box-shadow: 0 0 0 4px #7fdcf2, 0 0 32px 9px rgba(95, 198, 224, 0.95);
+  animation: crackle 0.28s ease-in-out infinite; will-change: opacity;
 }
-/* Combinator's End of Turn — the Mechs it magnetizes onto crackle with electricity (reuses crackle). */
-.card.electrify { z-index: 4; animation: crackle 0.26s ease-in-out infinite; }
+.card.electrify { z-index: 4; }
+@keyframes crackle { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 /* Ritualist's End of Turn — a purple wash pulses over the whole shop (it buffs the Fodder there). */
 .zone[data-zone='tavern'] { position: relative; }
 .shopflash {

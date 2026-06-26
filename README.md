@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Smoother magnetize + roomier hand.** The electric crackle on a magnetizing Mech now rides an opacity-only
+  glow layer instead of repainting the card every frame (magnetizing felt choppy). And cards in hand sit **20%
+  farther apart**, so the right one is easier to click.
 - **Board synthesis — "print" strong high-wave opponents.** The bot can't build strong high-wave boards, so
   those waves were thin + all-strong-looking. `npm run pool` now folds **real captured boards into the rating
   ladder** (a real ceiling) and **synthesizes** new boards — recombine/mutate a real board, then keep it only

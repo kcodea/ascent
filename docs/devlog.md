@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### perf + ux: magnetize glow no longer repaints every frame; hand cards sit 20% farther apart
+
+Two recruit-screen fixes from owner reports (both in `styles.css`).
+
+**Magnetize "bog down" (perf).** Magnetizing felt choppy. Cause: the electric `crackle` — the glow on a Magnetic card hovering a Mech (`.dragcard.electric`) and on the host as it's welded (`.card.electrify`, drop + Combinator's End of Turn) — animated `box-shadow` (blur + spread keyframes) on a `0.26–0.28s infinite` loop. `box-shadow` is a **paint** property, so the card repainted EVERY frame for the whole hover/weld (the #1 anti-pattern in [performance.md](performance.md)); a Combinator weld repaints several Mechs at once. Converted to the established `kwglow` pattern: a STATIC cyan halo on a `::before` whose **opacity** breathes (compositor-only, zero per-frame paint), same look. The engine path was checked too (`fireSummonBuffs` → `makeContext`/`weldMagnetic`) and is cheap — this was purely render-side.
+
+**Hand spacing (ux).** Owner: cards in hand overlap too much to click the right one. The fan's inter-card STEP was `--cw − 84px`; now `margin-left: calc(1.2 * (var(--cw) − 84px) − var(--cw))` widens that step by exactly **20%** while staying a negative overlap across the whole responsive `--cw` clamp range (so the fan still tucks behind itself). Verified live: at `--cw` 275px the step went 191→229px (+20%), margin −45.9px (still overlapping).
+
+**Files:** `packages/ui/src/styles.css` (`crackle` → opacity-on-`::before`; hand `margin-left` calc). **Verification:** `typecheck + lint + test (372) + build:web` green; live preview — computed inter-card step is +20% and still overlapping, console clean, and the glow now rides an opacity `::before` (no per-frame box-shadow repaint).
+
 ### feat: board synthesis — "print" strong high-wave boards from real-board data (+ real boards in the ladder)
 
 Follow-up to the wave-relative banding. Its band report exposed that high waves (9–20) saturated to band 7 and were thin (w20: 3 boards) — the smart bot can't build strong high-wave boards (it has to survive a whole run and plays greedily), so the bot-only calibration ladder had no real ceiling and high waves were under-populated. We *have* the data on what strong boards look like (331 real captured boards up to wave 20), so two changes use it:

@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Reborn cleanup.** A Reborn unit now fires its Deathrattle on **every** death (a Twilight Whelp + Reborn
+  leaves a 3/3 Whelp on each death, not just the last), and carries its **Undead** buffs through rebirth — an
+  Eternal Knight reborns at base + its own +3/+2 enchant (→ 6/4), and keeps the Undead-everywhere bonus too.
+  General / Imp / Fodder buffs still reset to base.
 - **Tara no longer fires a phantom Start-of-Combat "scorch."** Buffing Tara mid-combat (e.g. Supporter's
   Rally) used to emit a per-grant narration that the UI replayed as a Start-of-Combat cast — zap sound + a
   bolt to an enemy — reading like the long-gone Ember Whelp. The ascend tally now tracks silently; the live

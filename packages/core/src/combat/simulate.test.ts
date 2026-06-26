@@ -378,8 +378,10 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'reborn')).toBe(true);
   });
 
-  it('Reborn returns at BASE stats — sheds combat buffs + granted keywords (e.g. Divine Shield)', () => {
-    // A Grave Knit (base 3/2) that entered combat buffed to a 10/3 Divine-Shield body.
+  it('Reborn returns at BASE stats — sheds combat buffs + granted keywords, keeps the Undead carry-through', () => {
+    // An Eternal Knight (base 3/2) that entered combat buffed to a 10/3 Divine-Shield body. On death it sheds
+    // the combat buff + granted DS back to base — then its own Deathrattle's +3/+2 Eternal-Knight enchant
+    // carries through, so it returns 6/4 (not the buffed 10/3, not bare 3/2, and not Hearthstone's 1 HP).
     const a = run(
       [{ cardId: 'knit', attack: 10, health: 3, keywords: ['R', 'DS'] }],
       [{ cardId: 'omen', attack: 4, health: 40, keywords: [] }],
@@ -388,21 +390,46 @@ describe('simulate (handoff A.3)', () => {
     const reborn = a.events.find((e) => e.type === 'reborn');
     expect(reborn).toBeDefined();
     if (reborn && reborn.type === 'reborn') {
-      expect(reborn.attack).toBe(3); // base attack, not the buffed 10
-      expect(reborn.hp).toBe(2); // base health, not 3 (and not Hearthstone's 1)
+      expect(reborn.attack).toBe(6); // base 3 + its own death's +3 Eternal-Knight enchant (not the buffed 10)
+      expect(reborn.hp).toBe(4); // base 2 + the +2 enchant (not 3, and not Hearthstone's 1)
       expect(reborn.keywords).not.toContain('DS'); // granted Divine Shield is gone
       expect(reborn.keywords).not.toContain('R'); // Reborn itself is spent
     }
   });
 
-  it('a golden Reborn minion returns at doubled base stats', () => {
+  it('a golden Reborn minion returns at doubled base stats (+ its doubled Undead carry-through)', () => {
     const a = run(
       [{ cardId: 'knit', attack: 20, health: 9, keywords: ['R'], golden: true }],
       [{ cardId: 'omen', attack: 4, health: 60, keywords: [] }],
       3,
     );
+    // 3/2 base × 2 = 6/4, plus the golden Eternal-Knight enchant from its own death (+6/+4) → 12/8.
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([6, 4]); // 3/2 base × 2
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([12, 8]);
+  });
+
+  it('Reborn fires the unit\'s Deathrattle on EVERY death — Twilight Whelp + Reborn leaves a Whelp per death', () => {
+    // Twilight Whelp (1/1, Deathrattle: summon a 3/3 Whelp) buffed to 2/2 and given Reborn. Its Deathrattle
+    // must fire on the reborn death AND the final death → two Whelps, not one (the old bug fired only the last).
+    const a = run(
+      [{ cardId: 'twilightwhelp', attack: 2, health: 2, keywords: ['R'] }],
+      [{ cardId: 'omen', attack: 3, health: 14, keywords: [] }],
+      1,
+    );
+    expect(a.events.some((e) => e.type === 'reborn')).toBe(true); // reborns once, at base 1/1
+    const whelps = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'whelpling');
+    expect(whelps.length).toBe(2);
+  });
+
+  it('Reborn carries the Eternal-Knight enchant — a fresh Reborn Knight returns at base + its own +3/+2', () => {
+    // Example: a 3/2 Eternal Knight with Reborn dies, banks its own +3/+2, and reborns as a 6/4.
+    const a = run(
+      [{ cardId: 'knit', attack: 3, health: 2, keywords: ['R'] }],
+      [{ cardId: 'omen', attack: 4, health: 24, keywords: [] }],
+      1,
+    );
+    const reborn = a.events.find((e) => e.type === 'reborn');
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([6, 4]);
   });
 
   it('a minion that Reborns from its own attack is next in line to attack again', () => {
@@ -1380,14 +1407,15 @@ describe('simulate (handoff A.3)', () => {
     expect(eSpore.attack).toBe(1); // enemy Undead unaffected (player-side only)
   });
 
-  it('Lantern of Souls re-applies to a player Undead that Reborns mid-combat', () => {
-    // Grave Knit (Undead, Reborn, 3/2 base) enters at 3+3 = 6 Attack, dies to retaliation, and Reborns at
-    // base — where the Lantern bonus is re-applied, so the reborn body is back to 6 Attack (not the base 3).
+  it('Lantern of Souls AND the Eternal-Knight enchant both re-apply to a player Undead that Reborns mid-combat', () => {
+    // Eternal Knight (Undead, Reborn, 3/2 base) enters at 3+3 = 6 Attack (Lantern), dies to retaliation, and
+    // Reborns at base — where BOTH Undead carry-through buffs re-apply: the Lantern (+3 Attack) AND its own
+    // death's Eternal-Knight enchant (+3/+2). So the reborn body is 3 + 3 + 3 = 9 Attack (not the base 3).
     const p: BoardMinion[] = [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }]; // R granted inline (knit is no longer Reborn by default)
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 80 }]; // out-trades the Knit → forces the Reborn
     const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 3);
     const reborn = a.events.find((ev) => ev.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(6); // base 3 + Lantern 3, re-applied on rebirth
+    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(9); // base 3 + Lantern 3 + Eternal-Knight 3
   });
 
   it('Lantern of Souls: the spell-power component also raises Undead Health', () => {

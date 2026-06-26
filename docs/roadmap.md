@@ -325,6 +325,11 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Reborn carries the Eternal-Knight enchant accrued in PRIOR fights.** Reborn now re-applies the
+      Eternal-Knight (and Undead-everywhere) buff banked in the *current* fight (see the devlog), but a Knight
+      that accumulated +A/+H over earlier fights drops that part on rebirth — it's baked into the run-board
+      stats and isn't passed into `simulate`. Plumb the run's `cardBuffs` into combat (a new param) so the
+      full enchant carries through Reborn. Low priority (needs a Knight with Reborn *and* a prior-fight stack).
 - [ ] **Live Buffs window: the remaining run-buffs.** Spell power + max Gold now tick up live in combat (folded
       from per-beat telegraphs — see the devlog). Undead-attack (Karthus), Fodder/Imp (Bane-via-Ryme), Mama
       Bear's per-summon climb, and Guel's per-spell climb still resolve only at settle — they have no clean

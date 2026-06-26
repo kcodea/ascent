@@ -154,13 +154,18 @@ export function simulate(
     return n;
   };
 
+  // Live spell power: starts at the run's value, then mid-combat grants (Gnasher's kills, Bladesmith deaths)
+  // bump it IN PLACE via grantSpellPower — so Taragosa's Growth and any spell cast later this fight read the
+  // gain in real time, not just at settle. `spellPowerGain` is the separate carry-back delta.
+  const spellPower = { attack: spellPowerAtk, health: spellPowerHp };
+
   const ctx: CombatContext = {
     rng,
     bus,
     boards,
     events,
     spellsThisTurn,
-    spellPower: { attack: spellPowerAtk, health: spellPowerHp },
+    spellPower,
     fodderConsumedAtk,
     fodderConsumedHp,
     deathrattleTally: () => deathrattlesBase + playerDeathrattles,
@@ -226,6 +231,8 @@ export function simulate(
       if (side !== 'player') return;
       spellPowerGain.attack += attack;
       spellPowerGain.health += health;
+      spellPower.attack += attack; // keep ctx.spellPower LIVE so Taragosa's Growth scales with the gain at once
+      spellPower.health += health;
       // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain.
       if (sourceUid && (attack !== 0 || health !== 0)) events.push({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Spell Power` });
     },

@@ -41,6 +41,8 @@ const isHidden = (): boolean => typeof document !== 'undefined' && document.hidd
 let lastTriggerPulse = 0;
 /** Timestamp (ms) of the last trigger-glow sound — dedupes simultaneous glows (see triggerGlow). */
 let lastTriggerGlow = 0;
+/** Timestamp (ms) of the last shield-break sound — dedupes shields breaking on the same beat. */
+let lastShieldBreak = 0;
 
 // A master limiter every sound routes through, so overlapping clips (landing + voiceline + summon, etc.)
 // can never sum past full scale and hard-clip the output. Configured limiter-style: catch anything above the
@@ -187,6 +189,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   triggerglow: 0.5,
   clickthock: 0.5,
   cardtouch: 0.5,
+  divineshieldbreak: 0.6,
   inspect: 0.5,
   upgrade: 0.5,
   roll: 0.61,
@@ -337,6 +340,16 @@ export const sfx = {
     if (playSample('cardtouch', sampleVol.cardtouch)) return;
     tone({ freq: 330, dur: 0.05, type: 'sine', vol: 0.07, slideTo: 260 });
   },
+  // A Divine Shield is DESTROYED in combat (the bubble cracks + shatters) — the sourced clip; synth crash
+  // fallback. DEDUPED: a single beat can break several shields (Cleave / simultaneous), so a short throttle
+  // collapses them into one play.
+  shieldBreak: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastShieldBreak < 60) return;
+    lastShieldBreak = now;
+    if (playSample('divineshieldbreak', sampleVol.divineshieldbreak)) return;
+    tone({ freq: 900, dur: 0.18, type: 'square', vol: 0.12, slideTo: 200 });
+  },
   temper: () => {
     tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1 });
     tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04 });
@@ -382,7 +395,7 @@ export const sfx = {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
-  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {

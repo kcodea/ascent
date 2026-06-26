@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **No more phantom Start-of-Combat "scorch."** Spell power gained mid-fight (Ryme re-firing Cinderwing,
+  Gnasher's kills, Bladesmith deaths) used to fling a projectile bolt + zap at an enemy — the UI replayed the
+  "+spell power" telegraph as a Start-of-Combat attack. Now only genuine Start-of-Combat *damage* casts do that.
 - **New hero: Robin.** Passive power **Spoils** — when you sell a minion, gain 1 Gold at the start of next
   turn. It stacks (sell 6 → +6 next turn, on top of the cap) but resets each turn. Portrait + power art wired.
 - **Ascension begins mid-fight (engine).** Tara now transforms into Taragosa **during** combat the moment her

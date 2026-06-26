@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Recruit } from './Recruit';
 import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
+import { Title } from './Title';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { EscMenu } from './EscMenu';
@@ -84,8 +85,10 @@ export function Game() {
           Test FX
         </button>
       )}
-      {/* Topmost layer: the pre-run hero picker (self-gates on heroChoices). */}
+      {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
+          screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}
       <HeroSelect />
+      <Title onSettings={() => setMenuOpen(true)} />
     </ErrorBoundary>
   );
 }

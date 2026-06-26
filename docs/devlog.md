@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: title screen → modes (Ascent / Practice) + Settings
+
+A proper front door. The app now boots into a **title screen** (a new top-most overlay, same store-flag pattern as the hero picker — no router) with three entries:
+
+- **Ascent** — the scored climb (the existing game): the 3-hero picker → run.
+- **Practice** — a relaxed 15-round sandbox: the **whole hero roster** in the picker, **unlimited Resolve** (a loss costs no health; you can't game-over from HP), a **3× shop clock**, and the run **ends after round 15** regardless of W/L (the win-15 victory is Ascent-only). New `RunState.mode: 'ascent' | 'practice'`.
+- **⚙ Settings** — opens the existing Esc menu.
+
+Engine: `settleCombat` skips loss-damage in Practice; `advanceCombat` ends Practice at wave 15 and gates the win-15 victory to Ascent; `createRun` takes a `mode`. UI: new `Title.tsx`; store `showTitle` / `pendingMode` + `startAscent` / `startPractice` / `openTitle`; Recruit's `turnSeconds` ×3 in Practice; the EndScreen routes "Play Again" → title and shows a "Practice complete · NW NL" summary; + title CSS (mirrors the picker's dimmed-board backdrop).
+
+**Files:** `state.ts` (mode + createRun), `reducer.ts` (settle/advance), `store.ts` (title state + actions), `Title.tsx` (new), `Game.tsx` (route), `Recruit.tsx` (3× clock), `EndScreen.tsx` (title + practice framing), `styles.css`, `run.test.ts` (+2). **Verification:** typecheck + lint + test (401, +2) + build:web green; **live** — boots to the title; Ascent opens a 3-hero picker (`mode: ascent`), Practice opens the full 12-hero picker (`mode: practice`), the Settings button opens the Esc menu; console clean. Practice's unlimited-health + 15-round-end are unit-tested.
+
 ### fix: Displacement keeps the displaced minion intact (and swapped-in Battlecries still don't fire)
 
 Two owner tweaks to the board↔tavern swap (Displacement spell + Darah's Displace):

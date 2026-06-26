@@ -276,8 +276,8 @@ export function Recruit() {
   const spellBonusH = spellHealthBonus(run);
 
   // Round timer grows +4s each wave, capped at 80s. (Recruit now stays mounted across
-  // combat, so the per-wave reset is an effect keyed on the wave — see below.)
-  const turnSeconds = Math.min(80, TURN_SECONDS + (run.wave - 1) * 4);
+  // combat, so the per-wave reset is an effect keyed on the wave — see below.) Practice gives 3× the clock.
+  const turnSeconds = Math.min(80, TURN_SECONDS + (run.wave - 1) * 4) * (run.mode === 'practice' ? 3 : 1);
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);

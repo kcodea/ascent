@@ -3,6 +3,12 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-26 (session 6)
+
+### chore: optimize 22 stale minion art PNGs → WebP
+
+Twenty-two minion art files had been committed as raw PNG (~48 MB total) instead of the project's optimized WebP. Ran `npm run optimize-art` (the standard pipeline: downscale to ≤512px + WebP q85 + delete the source PNG; masters retained out-of-repo) over `packages/ui/src/art/minions/`, converting all 22 — **48.1 MB → 1.10 MB (97.7% smaller)**. Pure asset change, no code. **Verification:** `build:web` green; `art/minions/` now has 0 PNGs (128 WebP). (Surfaced while wiring Robin's hero art, which ran the same optimizer.)
+
 ## 2026-06-25 (session 5)
 
 ### feat: mid-combat ascension (engine) — Tara → Taragosa transforms during the fight

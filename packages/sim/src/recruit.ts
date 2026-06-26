@@ -1061,6 +1061,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     swapWithTavern(ctx.state, self);
   },
 
+  /** Steward of Spells — End of Turn: add a copy of the most recent spell cast this run to your hand (golden:
+   *  2 copies). No-op if no spell has been cast yet, or the hand is full. */
+  spellCopyRecent: (ctx, self) => {
+    const spellId = ctx.state.lastSpellCastId;
+    if (!spellId || !self) return;
+    const def = CARD_INDEX[spellId];
+    if (!def) return;
+    for (let i = 0; i < gold(self) && ctx.state.hand.length < CONFIG.handMax; i++) {
+      ctx.state.hand.push({
+        uid: `b${ctx.state.uidSeq++}`,
+        cardId: spellId,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+  },
+
   /** A minion casts a named spell from an event, auto-targeting the carry (the
    *  highest-attack friend). Counts the cast but doesn't re-fire spellCast (no recursion). */
   castSpell: (ctx, self, params) => {
@@ -1713,6 +1733,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   }
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
+  state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;

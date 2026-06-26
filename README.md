@@ -25,6 +25,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Steward of Spells (neutral T5).** End of Turn: get a copy of the most recent spell you cast (golden: 2).
 - **New hero Darah + Displacement spell.** Both swap a friendly minion with a random tavern minion — Darah's
   hero power (Displace, once per turn) and a T4 spell.
 - **Acid reworked; Voracious Imp removed.** Acid now triggers every 3 refreshes — consuming a tavern minion

@@ -77,7 +77,7 @@ ritualist,Ritualist,5,2,5,,,"**End of Turn:** give your Imps and Fodder **+2/+2*
 abhorrenthorror,Abhorrent Horror,6,1,1,,Start of Combat,**Start of Combat:** Gain +Attack/+Health equal to the Fodder consumed this turn.,**Start of Combat:** Gain **double** the Attack/Health of Fodder consumed this turn.
 acid,Acid,6,7,7,,Consume,"Every 3 refreshes, consume a tavern minion and give tavern minions **+1/+1**.","Every 3 refreshes, consume a tavern minion (gain **double** its stats) and give tavern minions **+2/+2**."
 
-# === NEUTRAL (16) ===
+# === NEUTRAL (17) ===
 sandbag,Target Dummy,1,0,6,,Taunt,,
 broker,Brightwing Broker,2,2,3,,,Every minion you buy gets **+1/+1**.,
 hoarder,Hoarder,2,2,2,,,**Battlecry:** get **1** extra Gold next turn. Sells for **2 Gold**.,**Battlecry:** get **2** extra Gold next turn. Sells for **4 Gold**.
@@ -91,6 +91,7 @@ blackbelt,Black Belt Brian,5,3,5,,,**Battlecry:** Discover a spell.,**Battlecry:
 chronos,Chronos,5,1,6,,,Your **End of Turn** effects trigger **1 more** time.,Your **End of Turn** effects trigger **2 more** times.
 drummer,Drakko the Drummer,5,2,4,,,Your **Battlecries** fire **1 more** time.,Your **Battlecries** fire **2 more** times.
 jenkins,Jenkins & Fi,5,3,2,,,**Deathrattle:** destroy the minion that killed this.,
+stewardofspells,Steward of Spells,5,3,7,,,**End of Turn:** get a copy of the most recent spell cast.,**End of Turn:** get **2** copies of the most recent spell cast.
 sylus,Sylus the Reaper,5,4,5,,,"**In combat,** your Deathrattles proc **1 more** time.","**In combat,** your Deathrattles proc **2 more** times."
 taurus,Taurus the Ancient,6,6,8,,,Start of Combat: the minion to your left is Engraved — it keeps the stats it gains in combat.,Start of Combat: the minions on both sides are Engraved — they keep the stats they gain in combat.
 yazzus,Yazzus,6,6,8,,,Your **targeted** spells cast **twice**.,Your **targeted** spells cast **three times**.

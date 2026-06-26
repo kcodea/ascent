@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: rename hero Symbiote → Chaos (+ "Chaos Attachment" token, new portrait art)
+
+Owner: rename the Symbiote hero to Chaos, wire his new portrait, and rename his hero-power minion to "Chaos Attachment." Renamed the hero id `symbiote`→`chaos`, name → Chaos, the power `kind` `symbiote`→`chaos`, power name → "Chaos Bond", and the token's **display name** "Symbiotic Attachment" → "Chaos Attachment". The token's **card id stays `symbioticattachment`** on purpose — baked opponent boards, saves, and the magnetic / universalTribe tests reference that id, so keeping it means zero churn there. Added a legacy hero-id alias (`symbiote`→`chaos`) in `getHero` so old saves and the baked opponent pool (which carries `heroId:'symbiote'`) resolve to Chaos instead of falling back to the default hero — no pool regen needed.
+
+Art: new portrait `Chaos.png` → `art/heroes/chaos.webp` (2.4 MB → 75 KB via `optimize-art`); the power icon reuses the existing (unchanged-power) art, renamed `art/powers/symbiote.webp` → `chaos.webp`; removed the orphaned `art/heroes/symbiote.webp`.
+
+**Files:** `heroes.ts` (id/name/kind/power + alias), `tokens.ts` (display name), `reducer.ts` + `state.ts` (kind/heroId checks + comments), `run.test.ts` (createRun ids + titles), `core/types.ts` + `recruit.ts` (comments), art, `docs/cards.csv` (re-dumped). **Verification:** typecheck + lint + test (383) + build:web green; live hero-select renders "Chaos / Chaos Bond / Chaos Attachment" and the new `chaos.webp` portrait loads (naturalWidth > 0), console clean. The grant animation (token flying from the portrait) is its own follow-up PR.
+
 ### feat: live combat-text becomes the norm — Grim, Guel, Spirit Worgen show their current value in combat
 
 Owner: "Grim is also not showing its current value in combat. this needs to be the norm across the board." Same gap as Mama Bear, generalized: a scaling card's COMBAT card (`Unit.tsx`) showed the *printed* rule text, while the shop (`Recruit.tsx`) already shows the live magnitude. Audited the whole live-text surface (`cardText.ts`) — every builder, which the combat chain wired vs. only the shop — and closed the combat-relevant gaps:

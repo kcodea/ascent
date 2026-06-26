@@ -17,7 +17,7 @@ export type HeroPowerKind =
   | 'gainMaxMana' // Nadja: gain +1 max Gold permanently (id stays `gainMaxMana`)
   | 'collision' // Cassen (passive): after killing 5 enemy minions, get a minion of your most common type (carry-back)
   | 'quest' // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
-  | 'symbiote' // Symbiote (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
+  | 'chaos' // Chaos (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
   | 'sellGold'; // Robin (passive): each minion you sell banks +1 Gold for the START of next turn
 
 export interface HeroPower {
@@ -156,15 +156,15 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    id: 'symbiote',
-    name: 'Symbiote',
+    id: 'chaos',
+    name: 'Chaos',
     blurb: 'A bond that transcends all tribes — every kind bends to the connection.',
     resolve: 30,
     power: {
-      name: 'Symbiotic Bond',
-      kind: 'symbiote',
+      name: 'Chaos Bond',
+      kind: 'chaos',
       passive: true,
-      text: 'Start with a **Symbiotic Attachment** in hand. Get another at the start of every 5th turn.',
+      text: 'Start with a **Chaos Attachment** in hand. Get another at the start of every 5th turn.',
     },
   },
   {
@@ -193,7 +193,11 @@ export const HERO_INDEX: Record<string, HeroDef> = Object.fromEntries(
 
 export const DEFAULT_HERO_ID = 'warden';
 
+/** Legacy hero-id aliases — old saves and baked opponent boards may carry a since-renamed id (Symbiote→Chaos). */
+const HERO_ID_ALIAS: Record<string, string> = { symbiote: 'chaos' };
+
 /** Resolve a hero by id, falling back to the default so a bad/old save never crashes. */
 export function getHero(id: string | undefined): HeroDef {
-  return (id && HERO_INDEX[id]) || HERO_INDEX[DEFAULT_HERO_ID];
+  const resolved = id ? (HERO_ID_ALIAS[id] ?? id) : id;
+  return (resolved && HERO_INDEX[resolved]) || HERO_INDEX[DEFAULT_HERO_ID];
 }

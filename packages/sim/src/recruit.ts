@@ -102,7 +102,7 @@ export function cardBuff(state: RunState, cardId: string): { attack: number; hea
  * Undead **wherever they are**") for a freshly-created minion of `def`. Applied at EVERY creation source —
  * tavern buy, Discover, conjure (Summon Stone / Tribes Choice / Undead Army / Buddy Buddy / Cassen), and
  * Lasso steal — so the run-wide bonus follows your Undead everywhere, not only tavern purchases. 0 for
- * non-Undead; `universalTribe` counts (Symbiotic Attachment), matching the buy path's `isUndead`.
+ * non-Undead; `universalTribe` counts (Chaos Attachment), matching the buy path's `isUndead`.
  */
 export function undeadBuyBonus(state: RunState, def: CardDef): number {
   const undead = def.tribe === 'undead' || def.tribe2 === 'undead' || !!def.universalTribe;
@@ -1351,7 +1351,7 @@ function fire(
 /**
  * Fire the on-summon buffs (Mama Bear, Kennelmaster, Spirit Worgen, …) for a minion entering play — the same
  * trigger `playCard` fires. Exposed so the magnetize path can run it on a Magnetic minion BEFORE it welds: the
- * absorbed body picks up any tribe summon-buff (Symbiotic Attachment counts as a Beast → Mama Bear) and then
+ * absorbed body picks up any tribe summon-buff (Chaos Attachment counts as a Beast → Mama Bear) and then
  * carries those stats into the host. The minion need not be on the board — board handlers buff the payload.
  */
 export function fireSummonBuffs(state: RunState, minion: BoardCard): void {

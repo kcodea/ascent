@@ -789,7 +789,7 @@ describe('run loop (@game/sim)', () => {
     expect(drone.keywords).not.toContain('M'); // Magnetic itself isn't transferred
   });
 
-  it('magnetizing fires summon-buffs first: Mama Bear buffs the Symbiotic Attachment, then it welds onto the host', () => {
+  it('magnetizing fires summon-buffs first: Mama Bear buffs the Chaos Attachment, then it welds onto the host', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [
@@ -805,12 +805,12 @@ describe('run loop (@game/sim)', () => {
     expect([host.attack, host.health]).toEqual([8, 8]);
   });
 
-  it('Symbiotic Attachment is Magnetic Reborn — welding it grants the host Reborn', () => {
+  it('Chaos Attachment is Magnetic Reborn — welding it grants the host Reborn', () => {
     expect(CARD_INDEX.symbioticattachment!.keywords).toContain('R'); // the token itself carries Reborn
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [{ uid: 'host', cardId: 'gnash', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false }],
-      // The real token (from the Symbiote hero power) carries M + R.
+      // The real token (from the Chaos hero power) carries M + R.
       hand: [{ uid: 'sym', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M', 'R'], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sym', toIndex: 0 }); // weld onto the host
@@ -1321,8 +1321,8 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
   });
 
-  it('a universalTribe token (Symbiotic Attachment) receives tribe summon-buffs (Mama Bear + Kennelmaster)', () => {
-    // Regression: the Symbiote hero-power token counts as EVERY tribe, so playing it must trigger
+  it('a universalTribe token (Chaos Attachment) receives tribe summon-buffs (Mama Bear + Kennelmaster)', () => {
+    // Regression: the Chaos hero-power token counts as EVERY tribe, so playing it must trigger
     // tribe-gated summon buffs. Before the fix the recruit factories only matched tribe/tribe2, so the
     // token was silently skipped (the reported "didn't get Mama Bear stats" bug).
     let s: RunState = {
@@ -1528,10 +1528,10 @@ describe('run loop (@game/sim)', () => {
     expect(got.health).toBe(2); // Health unaffected
   });
 
-  it('Symbiote hero power grants a token at the START of every 5th turn, tripling it on the spot', () => {
+  it('Chaos hero power grants a token at the START of every 5th turn, tripling it on the spot', () => {
     let s: RunState = {
-      ...createRun(1, 'symbiote'),
-      wave: 4, phase: 'combat', // resolveCombat → advanceCombat → wave 5 → Symbiote grants the 3rd token
+      ...createRun(1, 'chaos'),
+      wave: 4, phase: 'combat', // resolveCombat → advanceCombat → wave 5 → Chaos grants the 3rd token
       board: [],
       hand: [
         { uid: 't1', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
@@ -1545,9 +1545,9 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && !c.golden)).toHaveLength(0);
   });
 
-  it('Symbiote hero power does NOT grant on a non-5th turn', () => {
+  it('Chaos hero power does NOT grant on a non-5th turn', () => {
     let s: RunState = {
-      ...createRun(1, 'symbiote'),
+      ...createRun(1, 'chaos'),
       wave: 5, phase: 'combat', // → wave 6, not a multiple of 5 → no grant
       board: [], hand: [],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },

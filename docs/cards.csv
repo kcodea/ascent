@@ -124,6 +124,7 @@ aresmar,Eyes of Aresmar,6,,,5,,Make a **Tier 4 or lower** minion **Golden**.,
 perfectvision,Perfect Vision,6,,,2,,Set a friendly minion's stats to **20/20**.,
 
 # === TOKENS (13) — not rollable ===
+symbioticattachment,Chaos Attachment,1,1,1,,Magnetic | Reborn,"**Magnetic**, **Reborn**. Counts as all tribes.",
 footman,Footman,1,1,1,,Reborn,**Reborn.**,
 fred,Fred,1,1,1,,Fodder,A 1/1 Demon **Fodder** — your Demons devour it from the tavern.,
 impscrap,Imp,1,1,1,,,,
@@ -132,7 +133,6 @@ omen,Omen Minion,1,1,1,,,,
 pup,Pup,1,1,1,,,A 1/1 Beast token.,
 sabercub,Saber Cub,1,0,2,,Taunt,A 0/2 Beast with **Taunt**.,
 stray,Stray,1,1,1,,,A 1/1 Beast token.,
-symbioticattachment,Symbiotic Attachment,1,1,1,,Magnetic,**Magnetic**. Counts as all tribes.,
 discoverspell,Triple Reward,1,0,1,,,**Discover** a minion from one Tier up.,
 whelpling,Whelp,1,3,3,,,A 3/3 Dragon that attacks immediately when summoned.,
 taragosa,Taragosa,2,3,3,,Engraved,"All stats are **Engraved**. When a minion attacks, cast **Growth** (+3/+4 to your minions).","All stats are **Engraved**. When a minion attacks, cast **Growth twice** (+6/+8 to your minions)."

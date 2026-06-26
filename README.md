@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Captured opponents keep their progress.** A board served as an enemy now retains its minions' accrued state
+  — Sergeant's improved Deathrattle HP-grant and Tara's ascend progress — so it fights as strong as the board it
+  was snapshotted from (it used to drop those). New captures only.
 - **Ascension begins mid-fight (engine).** Tara now transforms into Taragosa **during** combat the moment her
   stat-grants cross 20 (was only between fights), and Taragosa's Growth fires the rest of that fight. The new
   `ascend` event is wired for an upcoming sound + animation; Spirit Pup → Spirit Worgen is next.

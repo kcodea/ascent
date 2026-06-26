@@ -3,6 +3,14 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-26 (session 6)
+
+### fix: captured opponent boards retain per-minion accruals (Sergeant's Deathrattle HP-grant, Tara's ascend progress)
+
+Owner: opponent boards should reflect their *progress + buffs* at the snapshotted moment. A captured board (`cleanBoard` in `snapshot.ts`) kept each minion's current buffed stats / keywords / golden + `summonBonus` (Mama Bear) + `rallyMechAtk` (Better Bot) — but **dropped** two accruals that `BoardMinion` carries and combat already seeds (`minion.ts`): **Sergeant's `hpGrantBonus`** (its improved Deathrattle HP-grant) and **Tara's `ascendProgress`**. So a served Sergeant reverted to its base Deathrattle grant and a served Tara lost its head-start toward Taragosa — both fought *weaker* than the real board. `cleanBoard` now copies both (same conditional pattern as the others).
+
+**Files:** `snapshot.ts` (`cleanBoard`), `snapshot.test.ts` (+1). **Verification:** `typecheck + lint + test (378, +1) + build:web` green; new test confirms a snapshot keeps Sergeant's `hpGrantBonus` + Tara's `ascendProgress`. **Note:** takes effect for boards captured AFTER this change — the baked house pool (`opponentPool.data.ts`) + already-saved captures don't carry the fields until a re-capture or a `npm run pool` re-bake. (Spirit Pup's spell-progress isn't captured either, but that's the larger gap — it isn't threaded into combat yet; see the roadmap.)
+
 ## 2026-06-25 (session 5)
 
 ### feat: mid-combat ascension (engine) — Tara → Taragosa transforms during the fight

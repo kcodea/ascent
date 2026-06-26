@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Ascension begins mid-fight (engine).** Tara now transforms into Taragosa **during** combat the moment her
+  stat-grants cross 20 (was only between fights), and Taragosa's Growth fires the rest of that fight. The new
+  `ascend` event is wired for an upcoming sound + animation; Spirit Pup → Spirit Worgen is next.
 - **Reborn cleanup.** A Reborn unit now fires its Deathrattle on **every** death (a Twilight Whelp + Reborn
   leaves a 3/3 Whelp on each death, not just the last), and carries its **Undead** buffs through rebirth — an
   Eternal Knight reborns at base + its own +3/+2 enchant (→ 6/4), and keeps the Undead-everywhere bonus too.

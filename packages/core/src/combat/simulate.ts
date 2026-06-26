@@ -188,13 +188,17 @@ export function simulate(
         };
       }
       // Tara: tally each stat-grant on a minion that ascends after N grants (`cards[id].ascendAt`). Carried
-      // back via playerAscendCount and accumulated + transformed at settle — no mid-combat transform/UI.
-      // Deliberately emits NO log event: a per-buff `sc` narration here fired the Start-of-Combat cast in the
-      // UI (zap sound + a projectile bolt to the next damage target) on EVERY grant — so Supporter rallying
-      // Tara read as a phantom "Ember Whelp" Start-of-Combat attack. The live "N to ascend" card tracker counts
-      // buff events in the replay (not this tally), so it's unaffected.
-      if ((attack !== 0 || health !== 0) && cards[target.cardId]?.ascendAt) {
-        buffCounts.set(target.uid, (buffCounts.get(target.uid) ?? 0) + 1);
+      // back via playerAscendCount + transformed at settle, AND — once the running total (seeded prior progress
+      // + this fight's grants) crosses the threshold — it ascends MID-combat to `ascendInto` (queued, swapped at
+      // the next clean beat). No `sc` narration here: the live "N to ascend" tracker counts buff events in the
+      // replay, and a per-buff `sc` would fire a phantom Start-of-Combat cast in the UI (the old Ember Whelp bug).
+      const ascendDef = cards[target.cardId];
+      if ((attack !== 0 || health !== 0) && ascendDef?.ascendAt) {
+        const n = (buffCounts.get(target.uid) ?? 0) + 1;
+        buffCounts.set(target.uid, n);
+        if (ascendDef.ascendInto && (target.ascendProgress ?? 0) + n >= ascendDef.ascendAt) {
+          queueAscension(target, ascendDef.ascendInto);
+        }
       }
       // Hunter watches its own Attack rising: emit onGainAttack on a positive delta. The bus snapshots its
       // handlers, so this nested emit is safe; health-only buffs (the common case) skip it, and onGainAttack
@@ -352,10 +356,41 @@ export function simulate(
       const fn = FACTORIES[effect.do];
       if (!fn) continue; // recruit-phase effects without a combat factory are inert here
       bus.on(effect.on, (payload) => {
+        // A mid-combat ascension swaps a minion's effects; the CombatBus can't unregister, so a handler whose
+        // effect is no longer in the minion's current set self-disables — the old form's abilities stop firing.
+        if (!minion.effects.includes(effect)) return;
         // A dead minion fires nothing except its own Deathrattle.
         if (minion.dead && effect.on !== 'onDeath') return;
         fn(ctx, minion, effect.params ?? {}, payload);
       });
+    }
+  }
+
+  // --- Mid-combat ascension (Tara → Taragosa, Spirit Pup → Spirit Worgen): when a minion crosses its
+  // threshold it transforms IN PLACE at the next clean beat — swapping to its ascend form's identity + effects
+  // and gaining the new form's keywords, while KEEPING its current stats/buffs — and emits an `ascend` event
+  // for the UI to animate. Queued (not applied mid-buff/mid-attack) so the swap lands between actions. ---
+  const pendingAscensions: { minion: Minion; into: string }[] = [];
+  function queueAscension(minion: Minion, into: string): void {
+    if (minion.cardId === into || pendingAscensions.some((p) => p.minion === minion)) return;
+    pendingAscensions.push({ minion, into });
+  }
+  function ascendMinion(minion: Minion, into: string): void {
+    const def = cards[into];
+    if (!def || minion.dead || minion.health <= 0 || minion.cardId === into) return;
+    minion.cardId = into;
+    minion.name = def.name;
+    minion.tribe = def.tribe;
+    minion.tribe2 = def.tribe2;
+    for (const k of def.keywords) if (!minion.keywords.includes(k)) minion.keywords.push(k);
+    minion.effects = def.effects; // old handlers self-disable (the includes-guard above); register the new ones
+    registerEffects(minion);
+    events.push({ type: 'ascend', target: minion.uid, into });
+  }
+  function flushAscensions(): void {
+    while (pendingAscensions.length > 0) {
+      const { minion, into } = pendingAscensions.shift()!;
+      ascendMinion(minion, into);
     }
   }
 
@@ -648,6 +683,7 @@ export function simulate(
   // minion that can attack, the fight is a stalemate (a draw) rather than spinning the iteration guard.
   const canAttack = (side: Side): boolean => boards[side].some((m) => !m.dead && m.health > 0 && m.attack > 0);
   flushImmediateAttacks(); // Whelps summoned during Start-of-Combat / Reclaimer strike before the rotation begins
+  flushAscensions(); // a Start-of-Combat buff/cast can already push Tara/Spirit Pup over the line — transform before round 1
   let guard = 0;
   while (countLiving('player') > 0 && countLiving('enemy') > 0 && guard++ < ITERATION_GUARD) {
     const defenderSide = OTHER[turn];
@@ -670,6 +706,7 @@ export function simulate(
     // This attack's death cascade has fully settled — if it freed a player slot, a Reclaimer
     // resummon waiting in the wings reclaims it now (never interleaved mid-summon).
     flushResummons();
+    flushAscensions(); // a Tara/Spirit Pup that crossed its threshold this attack transforms now (between actions)
     turn = defenderSide;
   }
 

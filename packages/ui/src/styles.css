@@ -348,23 +348,9 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
-/* Divine Shield: the whole frame turns bright GOLD — a recoloured art border + an inner gold edge-glow
-   over the art + a strong, fairly fast pulsing outer halo — so a shielded unit is unmistakable on a busy
-   board, not just softly lit. The card-level glow rides the arch (the compact card's own border-radius);
-   the art border + inner glow give an always-on in-card signal that an outer glow alone lacked. */
-/* PERF: a STATIC halo lives on the card; the breathing PULSE is an opacity-only ::before overlay. The old
-   dsglow/rebornglow/venomglow keyframes animated box-shadow blur+spread, which forces a full repaint of the
-   card's bounding box + blur radius EVERY frame, on EVERY keyworded card — and Divine Shield is the canonical
-   Mech magnetic, so a magnetic-heavy board ran ~14 of these perpetual repaints at once, in combat too. Opacity
-   is compositor-only: the ::before (the bright halo) just fades in/out over the card's static dim halo. Zero
-   per-frame paint. (The recoloured .art frame + ward badge carry the keyword signal; the halo only breathes.) */
-.card.compact.dscard { z-index: 4; box-shadow: 0 0 10px 3px rgba(255, 216, 96, 0.58), 0 0 20px 5px rgba(255, 196, 64, 0.26); }
-.card.compact.dscard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 14px 4px rgba(255, 222, 104, 0.8), 0 0 27px 7px rgba(255, 200, 70, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
-.card.compact.dscard .art { border-color: #ffd23a; }
-.card.compact.dscard .art::after {
-  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
-  box-shadow: inset 0 0 0 2px rgba(255, 232, 150, 0.9), inset 0 0 18px 4px rgba(255, 196, 56, 0.92);
-}
+/* Divine Shield's signifier is now the Pixi shield BUBBLE (see pixiFx.setShield / Recruit's syncShields,
+   driven from the `.card.dscard` marker) — the old gold glow/halo/art-border + ward badge were removed.
+   The `.card.dscard` class is kept purely as the DOM hook the bubble tracker reads. */
 /* Reborn — the same unmistakable treatment in electric BLUE; in combat it drops the moment the minion
    Reborns (sheds the 'R' keyword), marking "still has its one revival left". The rising tears layer on top. */
 .card.compact.reborncard { z-index: 4; box-shadow: 0 0 10px 3px rgba(96, 170, 255, 0.58), 0 0 20px 5px rgba(64, 140, 240, 0.26); }
@@ -451,7 +437,6 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    shield, blue = a pending Reborn. If the unit also has Taunt, the Taunt ward slides left so both read. */
 .kwward { position: absolute; top: -14px; right: -14px; width: 66px; height: 66px; border-radius: 50%; border: 4px solid var(--card); display: grid; place-items: center; z-index: 9; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4); }
 .kwward svg { width: 40px; height: 40px; color: #fff; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
-.kwward.ds { background: radial-gradient(circle at 38% 32%, #ffe089, #e7a528 72%, #c2871c); }
 .kwward.reborn { background: radial-gradient(circle at 38% 32%, #bfe6ff, #3aa0e6 72%, #1d7ccc); }
 .kwward.venom { background: radial-gradient(circle at 38% 32%, #dcf98e, #84c421 72%, #5e9a14); }
 /* Stack a 2nd ward (e.g. a Venomous + Divine-Shield unit) below the first instead of overlapping it. */
@@ -1129,11 +1114,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.reborn::after { content: ''; position: absolute; inset: -8px; border-radius: 20px; border: 4px solid #a6dcff; pointer-events: none; z-index: 13; box-shadow: 0 0 24px 6px rgba(120, 200, 255, 0.85); animation: rebornring 0.85s ease forwards; }
 @keyframes rebornring { 0% { opacity: 1; transform: scale(0.75); } 100% { opacity: 0; transform: scale(1.6); } }
 
-/* Divine Shield now reads from the effect art wrapping the art panel (.dsfx, shown on any
-   shielded card). The card-level yellow glow now comes from `.card.dscard` (shared with recruit);
-   the shatter (on break) + shield-gain pulse stay. */
-.unit.shieldgain .card { animation: shieldgain 0.6s ease; }
-@keyframes shieldgain { 0% { box-shadow: 0 0 0 12px rgba(244, 207, 106, 0); } 40% { box-shadow: 0 0 0 5px #f4cf6a, 0 0 28px 5px rgba(244, 207, 106, 0.9); } 100% { box-shadow: 0 0 0 3px #f4cf6a, 0 3px 0 var(--shadow); } }
+/* Divine Shield gain + break are now the Pixi shield bubble's form-in / break burst (pixiFx) — the old
+   CSS shield-gain pulse + shatter ring were removed. */
 
 /* Poison: a vivid green flash + mist surging up over the unit — a clear "destroyed by Venomous" beat. */
 .unit.poisoned { z-index: 13; }
@@ -1158,10 +1140,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .unit.cleaving::before { content: ''; position: absolute; inset: -4px; z-index: 9; pointer-events: none; background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.92) 50%, transparent 58%); animation: cleaveswipe 0.45s ease; }
 @keyframes cleaveswipe { 0% { opacity: 0; transform: translateX(-28%); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateX(28%); } }
 
-/* shield break — a golden ring of shards bursts out as the aura shatters */
-.unit.shatter .card { animation: flare 0.4s ease; }
-.unit.shatter::after { content: ''; position: absolute; inset: -6px; border-radius: 19px; border: 3px solid #f4cf6a; pointer-events: none; z-index: 9; animation: shardburst 0.42s ease forwards; }
-@keyframes shardburst { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
+/* shield break is now the Pixi bubble's crack + explosion (pixiFx.breakShield) — the old CSS shard ring
+   was removed. (The `shatter` anim class is still tagged by the replay but no longer has any CSS.) */
 
 /* venom spent — when a Venomous minion uses its venom (its first poison proc), a quick lime ring puffs
    out + a brief lime flash, then it sheds the green glow. Simpler than the shield-break shatter (no shards). */
@@ -1243,7 +1223,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    full-viewport canvas drawn over the board, never intercepting input. Sits above the status bar
    (z40) so coins sprinkle OVER the Gold counter, but below dragged cards (z100), modals (z50+), and
    the dev/settings buttons (z200). */
-.pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 41; }
+/* Above the dragcard (z100) + hand-hover cards (z45) so the divine-shield bubble (and all FX) always ride
+   in FRONT of a held/hovered card; still below the modal overlays (end-run z400, inspect z500, dev panels
+   z200). The card-landing dust still tucks behind its own card by raising that card above this (see puffOnBoard). */
+.pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 110; }
 /* Loss-damage tally — the damage counter that assembles above the enemy board on a defeat, plus the
    tier numbers that fly up into it. The Pixi blast bolt (z41) launches from the counter into the Resolve
    bar. Counter z-index sits above the board but below the bolt. */

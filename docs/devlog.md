@@ -62,6 +62,132 @@ New hero **Robin** (30 Resolve). Passive power **Spoils**: *when you sell a mini
 
 ## 2026-06-25 (session 5)
 
+### tweak: shield bubble −25% size + −30% interior opacity (owner dial-in)
+
+After the shader landed and read well in-game, the owner dialed it in: `BUBBLE_MARGIN` 1.12 → 0.84 (the
+sphere now sits just inside the card frame), and the interior terms (`bodyA` + `hex`) ×0.7 so the body/
+force-field read softer while the fresnel rim + specular stay crisp. Verified via framebuffer readback: rim
+radius 112→84 px (exactly 0.75×), interior centre alpha 49→34 (~−30%).
+
+### feat: divine-shield bubble rebuilt as a custom WebGL energy-sphere SHADER
+
+The bubble was stacked tinted sprites (soft disc + rim + vein streaks) — flat and low-quality. Rebuilt it as
+a **custom fragment shader** (`SHIELD_FRAG` in `pixiFx.ts`, run via `Filter.from` with Pixi's
+`defaultFilterVert`) that draws a glassy energy sphere procedurally: a faked-3D sphere normal → moving
+specular glint, a fresnel rim (curved-glass edge), a scrolling aspect-corrected **hex force-field** lattice,
+drifting value-noise caustics, and a whole-bubble breathe — all on `uTime`. Output is premultiplied gold
+(`uColor`, so the same shader will serve the blue Reborn shield). Used the `pixijs` skills
+(custom-rendering / scene-mesh / scene-container) + read the installed Pixi source to get the exact filter
+vertex + uniform-resource wiring right (a `Filter.from({gl:{fragment}})` with no vertex throws in
+`ensurePrecision` — the default vertex must be passed explicitly).
+
+- **`ShieldBubble`** now holds one white quad `Sprite` + its per-bubble `Filter` (was fill/rim/veins). The
+  container still drives position + the breathe / form-in / fade / mini / pop **scale envelope**; the shader
+  owns all the internal detail + opacity. `uAspect` (card w/h) keeps the hex cells regular on tall cards;
+  `uSeed` de-syncs neighbours.
+- **Layering:** kept the single FX canvas (z110) — it's already bulletproof (nothing with a bubble exceeds
+  it: dragcard z100, hand-hover z45, and shielded cards skip the dust-raise), so a second canvas was
+  unnecessary. Break/pop **particles** still render on this canvas via the pooled system.
+- **Verified**: typecheck + lint + 374 tests + build green; in-app the shader **compiles + links + renders
+  with zero GL errors**, animates (`uTime`), and the mini/pop/break/clear lifecycle all run clean. The actual
+  on-screen look needs an in-game eyeball (preview rAF is frozen) — this is a first shader pass to tune.
+- **Tunables**: the GLSL constants in `SHIELD_FRAG` (hex scale 4.5, rim `smoothstep(0.5,1.0)`, specular pow
+  26, caustic/pulse rates) + `SHIELD_GOLD_RGB`.
+
+### feat: shield bubble — drag sparkle-trail + coalesce/pop-in on placement
+
+Owner-chosen juice for the held→placed flow (instead of a silent instant re-show): while a shielded card
+is **actively dragged** the bubble shrinks to a small trailing **sparkle**; on **placement** it coalesces
+and **pops** back to full — the inverse of the break burst. (Loaded the `pixijs` skill for this; the
+patterns — `Container.scale.set`, sprite `alpha`/`tint`/`blendMode`, ticker-driven animation — are all v8.)
+
+- **`pixiFx.ts`**: `ShieldBubble` gains `mini` / `pop` / `scaleMul`. `setShield(...,mini)` — `mini=true` eases
+  the bubble down to `MINI_SCALE` (0.3) and fades the veins out so it reads as a glint; a `mini→full`
+  `setShield` fires `shieldPop()` (central flash + a ring of sparkles rushing **inward** to coalesce) and an
+  ease-out-back size pop (peaks ~+14%, settles to 1) over `POP_MS`. Non-drag size changes ease smoothly via a
+  per-frame lerp.
+- **`Recruit.tsx`**: the drag-follow branch now sets the bubble `mini`; on drop the board card's normal
+  `setShield` (non-mini) triggers the pop. A `SHIELD_CLEAR_GRACE` (280 ms) holds a vanished bubble across the
+  hand→board **play remount** (the card unmounts from hand then remounts on the board under the same uid) so
+  it resumes/pops in place instead of fading + regrowing; genuine leaves (sold/dead) still fade after the
+  grace. Post-drop settle window bumped 320→450 ms to cover the grace + Flip.
+- **Verified**: typecheck + lint + 374 tests + build green; live ticker-stepping confirms the shrink
+  (scaleMul→0.3), the pop trigger (+sparkles), the ~+14% overshoot, and a clean settle to 1.0. The actual
+  on-screen feel still needs an in-game look (preview rAF is frozen).
+
+### fix: shield break reads after the hit + bubble always rides in front of held/hovered cards
+
+Two polish fixes on the divine-shield bubble:
+
+- **Break timing — hit → settle → shatter.** The break fired the instant the result beat dropped the unit's
+  `.dscard` (right at the lunge's connection), so it read simultaneously with the impact. Now a consumed
+  shield in combat is *scheduled* (`SHIELD_BREAK_DELAY` 300 ms, scaled by combat speed) instead of bursting
+  immediately; the bubble is held and keeps tracking the (now shield-less) unit until the timer fires, so the
+  read order is attacker connects → recoil/impact → THEN the shield shatters + sound. Recruit-side shield
+  removal still clears instantly (no delay/burst). Implemented in `Recruit.tsx`'s `syncShields` via a
+  `pendingBreakRef` map + a `measureCardRect` helper; a combat-exit flushes any pending break.
+- **Always-on-top bubble.** The FX canvas (`.pixifx`) sat at z-index 41, *below* the dragged card (z100) and
+  hand-hover cards (z45) — so the bubble fell behind the art while dragging / hovering. Raised `.pixifx` to
+  **z110** (above the dragcard, below the modal overlays). The card-landing dust still tucks behind its own
+  card — its temporary card-raise bumped 42→111 to stay above the new canvas.
+- **Verified**: typecheck + lint + 374 tests + build green; live DOM confirms `.pixifx` is z110 and the app
+  loads clean. The break timing + the in-front layering still want an in-game look (preview rAF is frozen).
+- **Known/deferred**: the bubble now also sits above the Discover overlay (z50) — a stray bubble could show
+  over a Discover dim for a shielded board card behind it. Not yet addressed (rare); flagged for follow-up.
+
+### fix+feat: shield bubble shows in COMBAT + break sound + bigger look + smooth drag
+
+Follow-ups on the divine-shield bubble after a first in-game look:
+
+- **Bug — no bubble in combat (the big one):** combat units render `data-uid` on the `.unit` wrapper, not
+  the inner `.card`, so the old selector `.unit .card.dscard[data-uid]` matched nothing in combat — the
+  bubble never registered there, so it never appeared *or* broke. `syncShields` now resolves the uid via
+  `card.closest('[data-uid]')` (the `.card` in recruit, the `.unit` in combat) and the break/clear check
+  uses `[data-uid="…"]` (any element). Verified live: a combat-shaped DOM (`.unit[data-uid] > .card.dscard`)
+  now registers a correctly-sized bubble.
+- **Break sound:** new `sfx.shieldBreak()` (sourced `divineshieldbreak.mp3`, synth crash fallback, deduped
+  60 ms so a multi-break beat plays once), fired alongside `pixiFx.breakShield` when a shield is consumed in
+  combat. Registered in the mixer (`divineshieldbreak: 0.6`) + dev preview.
+- **More noticeable:** body alpha 0.34→0.5, rim 0.55→0.95, veins 3→4 and brighter, margin 1.06→1.12,
+  stronger breathe; the break got a second shockwave ring, 14→22 shards (faster), 6→10 motes.
+- **Smooth drag:** dragging a shielded card now drives the bubble from the floating `.dragcard`'s transform
+  (drag state) so it follows the cursor and is already in place on drop — no disappear / flicker / regrow.
+  A ~320 ms post-drop "settle" window keeps the rAF sync running so the bubble tracks the card's Flip to its
+  landed slot.
+- **Verified:** typecheck + lint + 374 tests + build green; live DOM confirms recruit + combat both register
+  and clear. Animated look + the real combat break/sound still need an in-game look (preview rAF is frozen).
+- **Next (deferred):** a parallel BLUE bubble for Reborn, reusing this machinery.
+
+### feat: Pixi divine-shield BUBBLE (replaces the gold glow/badge) + crack-and-shatter break
+
+Divine Shield's signifier is now a translucent, slowly-breathing **golden bubble** drawn on the WebGL FX
+overlay in front of each shielded unit — and when a shield is consumed it **cracks and explodes** into
+energy + golden shrapnel. This replaces the old CSS gold glow + halo + art-border + ward badge entirely,
+everywhere a shield exists (shop / hand / warband / combat). Owner decisions: everywhere, bubble is the
+sole signifier, full-Pixi bubble + Pixi break.
+
+- **`pixiFx.ts`** — a new STATEFUL sub-layer (the FX layer was previously fire-and-forget only). A
+  `ShieldBubble` registry keyed by uid; each bubble is a `Container` of a translucent golden body
+  (`BUBBLE_BODY_ALPHA`, normal blend so the unit reads through), an additive rim, and 3 drifting energy
+  veins, breathing on the ticker (`BREATHE_MS`) with a `FORM_MS` grow-in. New API: `setShield(uid,cx,cy,w,h)`
+  (create/retarget), `clearShield(uid)` (graceful `FADE_MS` fade), `breakShield(uid)` (crack flash +
+  fracture lines → shockwave ring + golden shrapnel shards + energy motes, reusing the pooled particle
+  system). Three generated textures (body/rim/vein). Look is tunable via the top-of-file consts +
+  `window.__shieldDemo()` (DEV).
+- **`Recruit.tsx`** — one DOM-driven tracker (`syncShields`) for BOTH recruit + combat, keyed off the
+  `.card.dscard` marker. A card that loses `.dscard` while its element persists **in combat** → `breakShield`
+  (absorbed a hit); otherwise → `clearShield` (sold / died / left). Positions re-measure on a rAF loop ONLY
+  while something animates (combat / an active drag) + on resize; idle shielded units cost nothing.
+- **Removed** (bubble is the sole cue): the `.card.compact.dscard` glow/halo/art-border + the `kwward.ds`
+  badge (Card.tsx) + the combat `.unit.shieldgain` pulse and `.shatter` shard ring. The `.dscard` class is
+  kept purely as the bubble's DOM hook.
+- **Verified**: typecheck + lint + 374 tests + build all green; live DOM checks confirm the overlay inits,
+  a `.dscard` card registers a correctly-sized/positioned bubble (5 children), and a recruit-side shield
+  removal fades quietly (no spurious break). The animated look + the combat break can only be eyeballed in a
+  real window (the preview pane runs hidden, freezing Pixi's rAF ticker).
+- **Follow-ups**: dial in the look/feel in-game (consts are live); the rAF position-sync currently runs for
+  all of combat — could be narrowed to active-lunge windows if a busy Mech board ever hitches.
+
 ### feat: mid-combat ascension (engine) — Tara → Taragosa transforms during the fight
 
 Foundation for the ascension system (owner: "units need to ascend mid-combat… it will need an sfx trigger & an animation trigger"). Until now Tara → Taragosa (and Spirit Pup → Spirit Worgen) only transformed at SETTLE, between fights. The engine now transforms a qualifying minion **in place mid-combat**:

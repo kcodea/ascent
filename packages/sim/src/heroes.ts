@@ -17,7 +17,8 @@ export type HeroPowerKind =
   | 'gainMaxMana' // Nadja: gain +1 max Gold permanently (id stays `gainMaxMana`)
   | 'collision' // Cassen (passive): after killing 5 enemy minions, get a minion of your most common type (carry-back)
   | 'quest' // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
-  | 'symbiote'; // Symbiote (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
+  | 'symbiote' // Symbiote (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
+  | 'sellGold'; // Robin (passive): each minion you sell banks +1 Gold for the START of next turn
 
 export interface HeroPower {
   name: string;
@@ -164,6 +165,18 @@ export const HEROES: HeroDef[] = [
       kind: 'symbiote',
       passive: true,
       text: 'Start with a **Symbiotic Attachment** in hand. Get another at the start of every 5th turn.',
+    },
+  },
+  {
+    id: 'robin',
+    name: 'Robin',
+    blurb: 'Patience pays — every minion sold lines next turn\'s purse.',
+    resolve: 30,
+    power: {
+      name: 'Spoils',
+      kind: 'sellGold',
+      passive: true,
+      text: 'When you sell a minion, gain 1 Gold at the start of next turn.',
     },
   },
 ];

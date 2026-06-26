@@ -345,6 +345,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value (shared helper).
       if (sold) s.embers += sellValueOf(sold);
+      // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
+      // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
+      if (sold && getHero(s.heroId).power.kind === 'sellGold') s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
       // Fodder Feeder — when SOLD: queue a Fodder into your next tavern + buff your Imps everywhere
       // (golden doubles both). The sell still pays the base sell value above.
       if (sold && sold.cardId === 'fodderfeeder') {
@@ -437,9 +440,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card) return state;
         for (const c of s.board) c.resummon = false;
         card.resummon = true;
-      } else if (power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision') {
-        // Passive powers (Rohan's amplify, Drakko's quest, Cassen's Collision) have no activation — the
-        // work happens elsewhere (spell math / the buy case / settleCombat). Nothing to do here.
+      } else if (power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold') {
+        // Passive powers (Rohan's amplify, Drakko's quest, Cassen's Collision, Robin's Spoils) have no
+        // activation — the work happens elsewhere (spell math / the buy / sell case / settleCombat). Nothing here.
         return state;
       } else if (power.kind === 'gainMaxMana') {
         // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores

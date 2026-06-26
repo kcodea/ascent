@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: loss-damage tally + blast (surviving tiers → Resolve)
+
+On a defeat, the damage you take is now telegraphed: the surviving enemy minions' **tavern tiers** plus
+the **opponent's tavern tier** fly up into a damage counter above the enemy board, count up (clamped to
+the round cap), then a Pixi **blast bolt** hurls the number into the **Resolve bar**, which drops on
+impact. Shows *how* the loss damage was computed (`opponentTier + Σ surviving tiers`, capped 5/10/15).
+
+Presentation-only — no engine change. The formula already lives in `simulate()` (`playerDamage`) + the
+run loop's `lossDamageCap`; the UI just reads + visualises it.
+
+- **`pixiFx.ts`**: `blastBolt(from→to)` (a comet of additive glow motes streaking to the target, tail
+  lagging into a trail) + `damageBurst(x, y)` (crimson hot-core + shockwave + red shards) + a
+  `blastTravelMs` so the caller fires the burst on arrival.
+- **`Recruit.tsx`**: a loss-damage sequence effect (runs once at `replay.done` on a loss). It **defers
+  `settleCombat`** (so Resolve drops on the blast, not instantly), computes the counter spot above the
+  surviving enemy cards, flies each survivor's tier (from its card) + the opponent's tier (from the
+  `.oppframe`) into the counter on a stagger, counts up clamped to `lossDamageCap(wave)`, then
+  `blastBolt` → Resolve bar; on arrival `damageBurst` + screen shake + `settleCombat` (Resolve drops →
+  the StatusBar's existing `−X` hit flash fires). "End Combat" is held until the blast finishes. Effect
+  reads `run` fresh (not via deps) so the mid-sequence `settleCombat` can't re-fire it + clear the timers.
+- **`styles.css`**: `.lossdmg` counter (crimson glow, scale-in, launch hand-off), `.lossfly` tier numbers
+  (`lossflyto` — fly to the counter; opponent tier reads gold).
+
+**Files:** `pixiFx.ts` (`blastBolt`/`damageBurst`/`blastTravelMs`), `Recruit.tsx` (sequence + deferred
+settle + Climb-On gate + reset), `styles.css` (`.lossdmg`/`.lossfly`).
+
+**Verification:** `typecheck + lint + test (369) + build:web` all green. Live: `blastBolt` spawns 16
+target-bound motes, `damageBurst` 24 additive particles, the `.lossfly`/`.lossdmg` CSS resolves. (The
+full moving sequence needs a real combat loss + a visible tab — owner to eyeball.)
+
 ### feat: board synthesis — "print" strong high-wave boards from real-board data (+ real boards in the ladder)
 
 Follow-up to the wave-relative banding. Its band report exposed that high waves (9–20) saturated to band 7 and were thin (w20: 3 boards) — the smart bot can't build strong high-wave boards (it has to survive a whole run and plays greedily), so the bot-only calibration ladder had no real ceiling and high waves were under-populated. We *have* the data on what strong boards look like (331 real captured boards up to wave 20), so two changes use it:
@@ -20,6 +50,7 @@ Follow-up to the wave-relative banding. Its band report exposed that high waves 
 Symbiote's hero-power token (`symbioticattachment`) now carries **Reborn** (`R`) on top of Magnetic — so magnetizing it onto a host grants that host Reborn. Its keywords ride along on the weld via `applyWeld` (which already transfers every non-`M` keyword), so no new plumbing. Played standalone it's a 1/1 Reborn body. A flat power bump to the Symbiote hero: every magnetize now also makes the target come back once.
 
 **Files:** `tokens.ts` (Symbiotic Attachment → `keywords: ['M', 'R']` + text), `run.test.ts` (+1: welding grants the host `R`, not `M`). **Verification:** `typecheck + lint + test (370, +1) + build:web` green.
+
 ### tweak: snappier card hover-reveal debounce
 
 Owner ask: the hover-reveal popup (full card / referenced cards) opens too slowly. Cut the debounce in

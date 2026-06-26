@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText } from './cardText';
 import { HudBar } from './HudBar';
@@ -346,6 +346,16 @@ export function Recruit() {
   // Tokens summoned by a battlecry this play — their card mount-pop is held ~0.2s so the trigger pulse
   // reads first, THEN the token appears (e.g. Alleycat's pulse → Stray pops in just after).
   const [summonDelayUids, setSummonDelayUids] = useState<Set<string>>(new Set());
+  // Loss-damage sequence: on a defeat, surviving enemy tiers + the opponent's tier fly up into a damage
+  // counter above the enemy board, then a Pixi bolt blasts it into the Resolve bar (which drops on impact).
+  const [lossPhase, setLossPhase] = useState<null | 'tally' | 'blast' | 'done'>(null);
+  const [lossCount, setLossCount] = useState(0);   // the damage tally as it climbs
+  const [lossDmg, setLossDmg] = useState(0);       // final (capped) damage
+  const [lossCapped, setLossCapped] = useState(false); // raw total exceeded the round cap
+  const [lossPos, setLossPos] = useState<{ x: number; y: number } | null>(null); // counter screen pos
+  const [lossFlyers, setLossFlyers] = useState<{ id: number; tier: number; x: number; y: number; tx: number; ty: number; delay: number; isOpp?: boolean }[]>([]);
+  const [lossShake, setLossShake] = useState(false); // screen shake on the blast impact
+  const lossSeqRef = useRef(false);                // guards single-run per combat
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
@@ -431,9 +441,85 @@ export function Recruit() {
 
   // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
   // view — so the Resolve hit lands and is visible before the "End Combat" button returns you to the shop.
+  // On a LOSS we defer settle to the loss-damage sequence below (so Resolve drops on the blast impact, not
+  // instantly); win/draw settle immediately.
   useEffect(() => {
-    if (fighting && replay.done && !run.combatSettled) dispatch({ type: 'settleCombat' });
-  }, [fighting, replay.done, run.combatSettled, dispatch]);
+    if (fighting && replay.done && !run.combatSettled && replay.result !== 'lose') dispatch({ type: 'settleCombat' });
+  }, [fighting, replay.done, run.combatSettled, replay.result, dispatch]);
+
+  // Loss-damage sequence — runs ONCE when a defeat's replay finishes. Surviving enemy tiers + the
+  // opponent's tavern tier fly up into a damage counter above the enemy board (clamped to the round cap),
+  // then a Pixi bolt blasts it into the Resolve bar, which drops on impact. We read `run` fresh (not via
+  // deps) so the mid-sequence settleCombat (which mutates run) can't re-fire this effect + clear the timers.
+  useEffect(() => {
+    if (!fighting || !replay.done || replay.result !== 'lose' || lossSeqRef.current) return;
+    const run0 = useGame.getState().run;
+    if (run0.combatSettled) return;
+    lossSeqRef.current = true;
+
+    const survivors = replay.frame.enemy;
+    const cap = lossDamageCap(run0.wave);
+    const finalDmg = Math.min(run0.lastCombat?.playerDamage ?? 0, cap);
+    const oppTier = nextOpponent(run0)?.tier ?? run0.tier; // the just-fought board (wave advances only on Climb On)
+
+    // Counter sits centered above the surviving enemy cards.
+    const rectOf = (uid: string): DOMRect | undefined => findEl(uid)?.getBoundingClientRect() ?? undefined;
+    const sRects = survivors.map((u) => rectOf(u.uid)).filter((r): r is DOMRect => !!r);
+    const cx = sRects.length ? sRects.reduce((s, r) => s + r.left + r.width / 2, 0) / sRects.length : window.innerWidth / 2;
+    const topY = sRects.length ? Math.min(...sRects.map((r) => r.top)) : window.innerHeight * 0.3;
+    const cy = Math.max(64, topY - 64);
+
+    // Contributions: opponent tier (flies from its intel frame) + each survivor's tier (from its card).
+    const oppRect = document.querySelector('.oppframe')?.getBoundingClientRect();
+    const contribs: { tier: number; r?: DOMRect; isOpp?: boolean }[] = [
+      { tier: oppTier, r: oppRect ?? undefined, isOpp: true },
+      ...survivors.map((u) => ({ tier: CARD_INDEX[u.cardId]?.tier ?? 1, r: rectOf(u.uid) })),
+    ];
+    const rawTotal = contribs.reduce((s, c) => s + c.tier, 0);
+
+    const STAGGER = 130, FLY = 430;
+    setLossPos({ x: cx, y: cy });
+    setLossPhase('tally');
+    setLossCount(0);
+    setLossDmg(finalDmg);
+    setLossCapped(rawTotal > cap);
+    setLossFlyers(contribs.map((c, i) => ({
+      id: i, tier: c.tier,
+      x: c.r ? c.r.left + c.r.width / 2 : cx,
+      y: c.r ? c.r.top + c.r.height / 2 : cy,
+      tx: cx, ty: cy, delay: i * STAGGER, isOpp: c.isOpp,
+    })));
+
+    const timers: number[] = [];
+    let running = 0;
+    contribs.forEach((c, i) => {
+      timers.push(window.setTimeout(() => { running += c.tier; setLossCount(Math.min(running, cap)); }, i * STAGGER + FLY));
+    });
+    const tallyEnd = (contribs.length - 1) * STAGGER + FLY + 340;
+
+    timers.push(window.setTimeout(() => {
+      setLossPhase('blast');
+      setLossFlyers([]);
+      const res = document.querySelector('.hprow')?.getBoundingClientRect();
+      const tx = res ? res.left + res.width / 2 : window.innerWidth * 0.18;
+      const ty = res ? res.top + res.height / 2 : window.innerHeight * 0.92;
+      pixiFx.blastBolt(cx, cy, tx, ty);
+      timers.push(window.setTimeout(() => {
+        pixiFx.damageBurst(tx, ty);
+        setLossShake(true);
+        window.setTimeout(() => setLossShake(false), 360);
+        dispatch({ type: 'settleCombat' }); // Resolve drops here → the StatusBar's −X hit flash fires
+      }, pixiFx.blastTravelMs));
+    }, tallyEnd));
+
+    timers.push(window.setTimeout(() => setLossPhase('done'), tallyEnd + pixiFx.blastTravelMs + 650));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [fighting, replay.done, replay.result, replay.frame, findEl, dispatch]);
+
+  // Reset the loss sequence when leaving combat (ready for the next fight).
+  useEffect(() => {
+    if (!fighting) { lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); }
+  }, [fighting]);
 
   // Returning to recruit after a fight. The warband re-mounts (it was combat Units) and re-enters
   // via the base `cardpop` — a single mount animation, so it can't re-fire from a class toggle (the
@@ -1480,7 +1566,7 @@ export function Recruit() {
 
   return (
     <div
-      className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${
+      className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }`}
       onPointerDown={onBoardPointerDown}
@@ -1536,10 +1622,14 @@ export function Recruit() {
                   <Icon name="battlecry" />
                   Combat Log
                 </button>
-                <button className="btn big endturn" onClick={() => dispatch({ type: 'resolveCombat' })}>
-                  <Icon name="up" />
-                  End Combat
-                </button>
+                {/* On a loss, hold "End Combat" until the loss-damage blast finishes (so the player can't
+                    skip past the Resolve hit); win/draw show it immediately. */}
+                {(replay.result !== 'lose' || lossPhase === 'done') && (
+                  <button className="btn big endturn" onClick={() => dispatch({ type: 'resolveCombat' })}>
+                    <Icon name="up" />
+                    End Combat
+                  </button>
+                )}
               </>
             ) : (
               <button className="btn big" onClick={replay.skip}>
@@ -1689,6 +1779,29 @@ export function Recruit() {
           ))}
         </div>
       </div>
+
+      {/* Loss-damage tally — surviving enemy tiers + the opponent's tier fly up into a damage counter
+          above the enemy board (clamped to the round cap), then blast the Resolve bar. */}
+      {fighting && lossPhase && lossPos && (
+        <div
+          className={`lossdmg${lossPhase === 'blast' ? ' launch' : ''}`}
+          style={{ left: lossPos.x, top: lossPos.y } as CSSProperties}
+          aria-hidden="true"
+        >
+          <div className="lossdmg-n">{lossCount}</div>
+          <div className="lossdmg-l">{lossCapped && lossCount >= lossDmg ? 'Max Damage' : 'Damage'}</div>
+        </div>
+      )}
+      {fighting && lossFlyers.map((f) => (
+        <div
+          key={`lossfly-${f.id}`}
+          className={`lossfly${f.isOpp ? ' opp' : ''}`}
+          style={{ left: f.x, top: f.y, '--tx': `${f.tx - f.x}px`, '--ty': `${f.ty - f.y}px`, animationDelay: `${f.delay}ms` } as CSSProperties}
+          aria-hidden="true"
+        >
+          +{f.tier}
+        </div>
+      ))}
 
       {/* Start-of-Combat bolts fly from caster to target (measured in the replay). */}
       {fighting &&

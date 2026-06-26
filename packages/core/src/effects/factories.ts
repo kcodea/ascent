@@ -763,8 +763,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.log({ type: 'hpGrant', target: self.uid, amount: self.hpGrantBonus });
   },
 
-  /** Forsaken Weaver (combat half) — when a spell is cast on this side, give all living friendly
-   *  Undead (+ universalTribe minions) +`attack` Attack. */
+  /** Forsaken Weaver (combat half) — when a spell is cast on this side (e.g. Taragosa's Growth), give all
+   *  living friendly Undead (+ universalTribe minions) +`attack` Attack this fight AND carry the bonus back
+   *  permanently (like Karthus / its own recruit half) — `grantUndeadBuyAtk` stacks it into `undeadBuyAtk`
+   *  and applies it to the run-board Undead at settle, so an in-combat cast procs it permanently. */
   spellCastBuffUndeadAttack: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
@@ -773,6 +775,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
       ctx.buff(m, a, 0, self.uid);
     }
+    ctx.grantUndeadBuyAtk(a, self.side);
   },
 
   /** Pillager — Deathrattle: add a specific card (e.g. Gold Pouch) to the player's hand after combat.

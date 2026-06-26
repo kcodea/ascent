@@ -434,8 +434,12 @@ export function Recruit() {
   };
   const syncShields = useCallback((): void => {
     // Recruit cards carry data-uid on the `.card`; combat cards carry it on the `.unit` wrapper — resolve via
-    // closest so BOTH register (the combat case was the "no shield in combat" bug).
-    const els = document.querySelectorAll<HTMLElement>('[data-zone] .card.dscard, .unit .card.dscard');
+    // closest so BOTH register (the combat case was the "no shield in combat" bug). DURING COMBAT, only combat
+    // UNITS (`.unit`) get bubbles — a frozen shop / hand card sitting in a data-zone must not keep its bubble
+    // while the combat screen is up (it would float over the arena).
+    const els = document.querySelectorAll<HTMLElement>(
+      inCombatRef.current ? '.unit .card.dscard' : '[data-zone] .card.dscard, .unit .card.dscard',
+    );
     const seen = new Set<string>();
     const d = dragRef.current;
     const dragUid = d?.uid;
@@ -468,9 +472,14 @@ export function Recruit() {
     // A bubble that just lost its `.dscard`:
     for (const uid of shieldUidsRef.current) {
       if (seen.has(uid) || pendingBreakRef.current.has(uid) || pendingClearRef.current.has(uid)) continue;
-      if (measureCardRect(uid) && inCombatRef.current) {
-        // Absorbed a hit in combat — DON'T shatter yet. Delay it so the read order is hit → settle → shatter.
+      // A COMBAT UNIT still on the field but no longer carrying `.dscard` = it absorbed a hit → shatter
+      // (delayed so the read order is hit → settle → shatter). A non-unit card that left the combat-scoped set
+      // (a frozen shop card when combat opens, a death) is NOT a break — just clear it.
+      const unit = inCombatRef.current ? document.querySelector(`.unit[data-uid="${uid}"]`) : null;
+      if (unit && !unit.querySelector('.card.dscard')) {
         pendingBreakRef.current.set(uid, now + SHIELD_BREAK_DELAY / combatSpeedRef.current);
+      } else if (inCombatRef.current) {
+        pixiFx.clearShield(uid); // in combat but not a shield-break (frozen shop card / death) → clear now
       } else if (animating()) {
         pendingClearRef.current.set(uid, now + SHIELD_CLEAR_GRACE); // mid drag/play → might remount → brief grace
       } else {

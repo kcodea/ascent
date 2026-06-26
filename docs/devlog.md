@@ -5,9 +5,9 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
-### fix: divine-shield bubble — four bugs (stale persist, over-Discover, drag from shop/board)
+### fix: divine-shield bubble — five bugs (stale persist, over-Discover, drag from shop/board, frozen-tavern)
 
-Four bugs surfaced in-game after the shield shader shipped:
+Bugs surfaced in-game after the shield shader shipped:
 
 1. **Stale bubble persists into the shop after combat** (also after roll / tavern-up). A vanished bubble
    (esp. an *enemy* combat unit's, with no recruit equivalent) was parked in `pendingClearRef` with a grace
@@ -23,6 +23,11 @@ Four bugs surfaced in-game after the shield shader shipped:
    inferred from whether the dragged card's *original* element was still in the `.dscard` set — true for a
    hand drag (original hidden in place) but false for shop/board (original removed). Fix: read the drag's
    `view.keywords` instead, so the follow works from any source.
+5. **A frozen shielded shop minion's bubble persisted onto the combat screen.** The tavern zone keeps
+   rendering shop cards during the combat `closing` stage, so `[data-zone] .card.dscard` still matched the
+   frozen card → its bubble floated over the arena. Fix: during combat, scope the selector to `.unit
+   .card.dscard` (combat units only); and the break-detection now fires **only for a real `.unit` that lost
+   `.dscard`**, so the excluded shop card clears quietly instead of wrongly exploding.
 
 **Files:** `pixiFx.ts` (`setShieldsVisible`), `Recruit.tsx` (`syncShields` clear-vs-grace + drag detection +
 a `fightingRef` + the modal-hide effect). **Verified:** typecheck + lint + 383 tests + build green;

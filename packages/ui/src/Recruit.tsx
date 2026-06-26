@@ -1562,12 +1562,18 @@ export function Recruit() {
       const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row.warband .card[data-uid="${uid}"]`);
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const prevPos = el.style.position;
-      const prevZ = el.style.zIndex;
-      el.style.position = 'relative';
-      el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
+      // A SHIELDED card must keep its bubble in FRONT, so we DON'T raise it above the FX canvas — doing so
+      // would hide the bubble + its coalesce/pop behind the card for the dust's lifetime. The dust just
+      // renders over the card instead (subtle tan puffs; barely noticeable). Unshielded cards raise as before
+      // so their landing dust tucks behind them.
+      if (!el.classList.contains('dscard')) {
+        const prevPos = el.style.position;
+        const prevZ = el.style.zIndex;
+        el.style.position = 'relative';
+        el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
+        window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
+      }
       pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
-      window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
   };
 

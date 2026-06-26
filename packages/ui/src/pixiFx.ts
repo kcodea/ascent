@@ -637,6 +637,12 @@ class FxController {
     if (b && b.fadeOut < 0) b.fadeOut = 0;
   }
 
+  /** Show/hide ALL shield bubbles at once — used to suppress them behind a board-covering modal (Discover /
+   *  Choose One sit below the FX canvas with a translucent backdrop, so bubbles would otherwise show over it). */
+  setShieldsVisible(visible: boolean): void {
+    if (this.shieldLayer) this.shieldLayer.visible = visible;
+  }
+
   /**
    * The shield SHATTERS (a hit absorbed): a quick crack-flash + fracture lines, then a small explosion —
    * an energy shockwave ring, a spray of golden shrapnel shards, and a few energy motes. The persistent

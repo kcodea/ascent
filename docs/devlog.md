@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### fix: divine-shield bubble — four bugs (stale persist, over-Discover, drag from shop/board)
+
+Four bugs surfaced in-game after the shield shader shipped:
+
+1. **Stale bubble persists into the shop after combat** (also after roll / tavern-up). A vanished bubble
+   (esp. an *enemy* combat unit's, with no recruit equivalent) was parked in `pendingClearRef` with a grace
+   timer — but the rAF loop only runs during fighting/drag, so on a static shop screen the grace **never
+   expired** and the bubble froze at its old position. Fix: `syncShields` now clears a vanished bubble
+   **immediately** when not mid-animation (the grace is only for a live drag/post-drop settle, where a uid
+   may genuinely be mid-remount); pending clears also **flush** the instant the animation window ends.
+2. Same root cause as #1.
+3. **Bubble shows over the Discover screen.** Discover / Choose One render at z50 with a translucent backdrop
+   — *below* the z110 FX canvas — so bubbles for the dimmed board floated in front. Fix: new
+   `pixiFx.setShieldsVisible()`, toggled off whenever `run.discover || run.chooseOne`.
+4. **Drag sparkle didn't follow from shop or a board reposition** (only from hand). `draggedShielded` was
+   inferred from whether the dragged card's *original* element was still in the `.dscard` set — true for a
+   hand drag (original hidden in place) but false for shop/board (original removed). Fix: read the drag's
+   `view.keywords` instead, so the follow works from any source.
+
+**Files:** `pixiFx.ts` (`setShieldsVisible`), `Recruit.tsx` (`syncShields` clear-vs-grace + drag detection +
+a `fightingRef` + the modal-hide effect). **Verified:** typecheck + lint + 383 tests + build green;
+`setShieldsVisible` toggles the layer (DOM check). The three gameplay-state fixes need an in-game confirm
+(headless preview can't drive a real combat/drag).
+
 ### feat: live combat-text becomes the norm — Grim, Guel, Spirit Worgen show their current value in combat
 
 Owner: "Grim is also not showing its current value in combat. this needs to be the norm across the board." Same gap as Mama Bear, generalized: a scaling card's COMBAT card (`Unit.tsx`) showed the *printed* rule text, while the shop (`Recruit.tsx`) already shows the live magnitude. Audited the whole live-text surface (`cardText.ts`) — every builder, which the combat chain wired vs. only the shop — and closed the combat-relevant gaps:

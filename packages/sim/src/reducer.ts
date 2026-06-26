@@ -44,7 +44,7 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
   const m = CARD_INDEX[magneticCardId];
   const t = CARD_INDEX[targetCardId];
   if (!m || !t) return false;
-  // universalTribe Magnetic cards (Symbiotic Attachment) can weld onto any non-neutral target.
+  // universalTribe Magnetic cards (Chaos Attachment) can weld onto any non-neutral target.
   if (m.universalTribe) return t.tribe !== 'neutral';
   const mag: Tribe[] = [m.tribe, m.tribe2].filter((x): x is Tribe => !!x);
   const tgt: Tribe[] = [t.tribe, t.tribe2].filter((x): x is Tribe => !!x);
@@ -250,7 +250,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (target && magnetizesTo(card.cardId, target.cardId)) {
           s.hand.splice(i, 1);
           // Playing a Magnetic minion IS a summon — fire summon-buffs on it BEFORE welding, so the absorbed
-          // body carries any tribe summon-buff into the host (Symbiotic Attachment counts as a Beast → Mama
+          // body carries any tribe summon-buff into the host (Chaos Attachment counts as a Beast → Mama
           // Bear's +X/+X lands on it, then welds onto the host). Mutates card.attack/health, read below.
           fireSummonBuffs(s, card);
           // Money Bot magnetized in: its mana-per-turn rides along on the host Mech (and survives the
@@ -970,10 +970,10 @@ function advanceCombat(s: RunState): void {
     s.frozen = false;
   } else refreshTavern(s);
   s.phase = 'recruit';
-  // Symbiote hero power: at the START of every 5th turn, add a Symbiotic Attachment token to the hand
+  // Chaos hero power: at the START of every 5th turn, add a Chaos Attachment token to the hand
   // (the checkTriples below also combines it if it completes a triple). The hero starts with one token
   // (createRun); this is the recurring grant — turns 5, 10, 15, …
-  if (getHero(s.heroId).power.kind === 'symbiote' && s.wave % 5 === 0) {
+  if (getHero(s.heroId).power.kind === 'chaos' && s.wave % 5 === 0) {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && s.hand.length < CONFIG.handMax) {
       s.hand.push({

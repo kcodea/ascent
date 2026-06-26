@@ -28,6 +28,8 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Four new tavern spells.** Lantern Light (+Tier/+Tier), Fodder Treatment (sell a minion into your left-most
   Demon), Point Solution (re-trigger a Battlecry), Chrono Staff (End-of-Turn effects fire one extra time). Tara
   moved to Tier 4.
+- **Hero "Symbiote" is now "Chaos."** Renamed the hero and his hero-power token ("Chaos Attachment"), with a
+  new portrait. Old saves and baked opponents resolve through a legacy id alias.
 - **Scaling cards show their current value in combat.** Mama Bear's per-summon grant ticks up live as Beasts
   are summoned; Grim, Archmagus Guel, and Spirit Worgen now read their live run-scaled magnitude on the combat
   card too (Deathrattle tally / spells cast), instead of the printed rule text.

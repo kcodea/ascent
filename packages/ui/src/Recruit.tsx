@@ -19,6 +19,13 @@ gsap.registerPlugin(Flip);
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
 const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]';
 
+// ms to hold a consumed Divine Shield before it visibly shatters, so the read order is hit → settle → break
+// (scaled by the user's combat-speed). Detection lands ~at the lunge's connection; this delays the burst.
+const SHIELD_BREAK_DELAY = 300;
+// ms to keep a vanished shield bubble alive before fading it — covers a hand→board PLAY (the card unmounts
+// from hand then remounts on the board under the same uid), so the bubble resumes INSTANTLY, no fade+regrow.
+const SHIELD_CLEAR_GRACE = 280;
+
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
 
@@ -402,6 +409,117 @@ export function Recruit() {
     [],
   );
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed });
+
+  // --- Divine-shield bubbles (Pixi) ------------------------------------------------------------------
+  // A persistent golden bubble tracks every shielded card via its `.card.dscard` DOM marker, so the
+  // recruit board (shop / hand / warband) and combat share ONE path. When a shield is consumed in combat
+  // the card keeps its element but loses `.dscard` → we fire the break burst; a card that simply leaves
+  // (sold / dead / unmounted) clears quietly. Positions re-measure on a rAF loop ONLY while something is
+  // animating (combat lunges or a drag) — idle shielded units cost nothing (no per-frame layout reads).
+  const shieldUidsRef = useRef<Set<string>>(new Set());
+  const pendingBreakRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) the shield should shatter
+  const pendingClearRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) to fade a vanished bubble
+  const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
+  const combatSpeedRef = useRef(combatSpeed); combatSpeedRef.current = combatSpeed;
+  const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
+  const prevDragActiveRef = useRef(false);
+  // (`dragRef` is declared lower down for spell-targeting and already mirrors `drag`; syncShields reads it.)
+  // Measure a uid's card rect (recruit: data-uid on the .card; combat: on the .unit wrapper).
+  const measureCardRect = (uid: string): DOMRect | null => {
+    const host = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+    const card = host?.matches('.card') ? host : host?.querySelector<HTMLElement>('.card');
+    const r = card?.getBoundingClientRect();
+    return r && r.width > 0 ? r : null;
+  };
+  const syncShields = useCallback((): void => {
+    // Recruit cards carry data-uid on the `.card`; combat cards carry it on the `.unit` wrapper — resolve via
+    // closest so BOTH register (the combat case was the "no shield in combat" bug).
+    const els = document.querySelectorAll<HTMLElement>('[data-zone] .card.dscard, .unit .card.dscard');
+    const seen = new Set<string>();
+    const d = dragRef.current;
+    const dragUid = d?.uid;
+    let draggedShielded = false;
+    for (const card of els) {
+      const uid = card.closest<HTMLElement>('[data-uid]')?.dataset.uid;
+      if (!uid) continue;
+      if (uid === dragUid) { draggedShielded = true; continue; } // the dragged card follows the cursor (below)
+      const r = card.getBoundingClientRect();
+      if (r.width === 0) continue; // not laid out yet (mid-transition) — skip this pass
+      seen.add(uid);
+      pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+    }
+    // The dragged shielded card: drive a small trailing SPARKLE (mini) from the floating `.dragcard`'s
+    // transform (drag state). On drop the next non-mini setShield coalesces it back to the full bubble.
+    if (d?.active && dragUid && draggedShielded) {
+      seen.add(dragUid);
+      pixiFx.setShield(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h, /* mini */ true);
+    }
+    const now = performance.now();
+    // A bubble that just lost its `.dscard`:
+    for (const uid of shieldUidsRef.current) {
+      if (seen.has(uid) || pendingBreakRef.current.has(uid) || pendingClearRef.current.has(uid)) continue;
+      if (measureCardRect(uid) && inCombatRef.current) {
+        // Absorbed a hit in combat — DON'T shatter yet. Delay it so the read order is hit lands → unit
+        // settles → THEN the shield shatters (the bubble is held + tracked until the timer fires below).
+        pendingBreakRef.current.set(uid, now + SHIELD_BREAK_DELAY / combatSpeedRef.current);
+      } else {
+        // Vanished (sold / played-and-remounting / died) — hold briefly: a hand→board play remounts the
+        // same uid within a frame or two, so we resume instantly instead of fading + regrowing.
+        pendingClearRef.current.set(uid, now + SHIELD_CLEAR_GRACE);
+      }
+    }
+    // Drive scheduled combat breaks: keep the bubble on the (now shield-less) unit until its timer fires.
+    for (const [uid, at] of pendingBreakRef.current) {
+      if (now >= at || !inCombatRef.current) {
+        pixiFx.breakShield(uid);
+        sfx.shieldBreak();
+        pendingBreakRef.current.delete(uid);
+        continue; // not re-added to `seen` → it drops out of tracking, won't re-trigger
+      }
+      const r = measureCardRect(uid);
+      if (r) pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+      seen.add(uid); // hold the bubble alive until the shatter
+    }
+    // Pending clears: if the shielded card came back this pass (e.g. a play remounted it → the normal loop
+    // re-added it to `seen`), resume instantly; otherwise hold the bubble until the grace expires, then fade.
+    for (const [uid, deadline] of pendingClearRef.current) {
+      if (seen.has(uid)) { pendingClearRef.current.delete(uid); continue; } // remounted with its shield → resumed
+      if (now >= deadline) { pixiFx.clearShield(uid); pendingClearRef.current.delete(uid); }
+      else seen.add(uid); // keep the bubble alive (last position) across the remount gap
+    }
+    shieldUidsRef.current = seen;
+  }, []);
+  // Reconcile after any render that can change the shielded set or card positions.
+  useLayoutEffect(() => { syncShields(); },
+    [syncShields, run.board, run.hand, run.shop, replay.frame, inCombat, fighting, compactCards]);
+  // A drop opens a brief settle window so the bubble keeps tracking the card through its Flip animation.
+  useEffect(() => {
+    const active = drag?.active ?? false;
+    if (prevDragActiveRef.current && !active) settleUntilRef.current = performance.now() + 450; // ≥ clear-grace + Flip
+    prevDragActiveRef.current = active;
+  }, [drag?.active]);
+  // Follow moving units (combat lunges / an active drag / the post-drop settle) frame-by-frame; idle at rest.
+  useEffect(() => {
+    let raf = 0;
+    const tick = (): void => {
+      syncShields();
+      if (fighting || dragRef.current?.active || performance.now() < settleUntilRef.current) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [fighting, drag?.active, syncShields]);
+  // Re-measure on resize; clear every bubble when the screen unmounts.
+  useEffect(() => {
+    const onResize = (): void => syncShields();
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      for (const uid of shieldUidsRef.current) pixiFx.clearShield(uid);
+      shieldUidsRef.current = new Set();
+    };
+  }, [syncShields]);
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
   // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
   // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them
@@ -1437,19 +1555,25 @@ export function Recruit() {
   // A puff of dry-dirt dust ringing a card that just landed on / moved across the board. We wait for the
   // GSAP Flip (0.18s) to settle, then measure the card's *landed* rect by uid — so the dust follows where
   // the card actually ends up (e.g. snapping back to the middle), not where it was dropped. The card is
-  // briefly raised above the FX canvas (.pixifx z41) so the dust renders BEHIND it, escaping out from
+  // briefly raised above the FX canvas (.pixifx z110) so the dust renders BEHIND it, escaping out from
   // under every side. `.app` isn't a stacking context, so a z-index on the card wins over the overlay.
   const puffOnBoard = (uid: string): void => {
     window.setTimeout(() => {
       const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row.warband .card[data-uid="${uid}"]`);
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const prevPos = el.style.position;
-      const prevZ = el.style.zIndex;
-      el.style.position = 'relative';
-      el.style.zIndex = '42'; // above .pixifx (z41) → dust renders behind the card
+      // A SHIELDED card must keep its bubble in FRONT, so we DON'T raise it above the FX canvas — doing so
+      // would hide the bubble + its coalesce/pop behind the card for the dust's lifetime. The dust just
+      // renders over the card instead (subtle tan puffs; barely noticeable). Unshielded cards raise as before
+      // so their landing dust tucks behind them.
+      if (!el.classList.contains('dscard')) {
+        const prevPos = el.style.position;
+        const prevZ = el.style.zIndex;
+        el.style.position = 'relative';
+        el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
+        window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
+      }
       pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
-      window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
   };
 

@@ -184,7 +184,7 @@ export interface CardDef {
    *  tribes for tribe checks (Magnetic targeting, tribe buffs) and renders a split-hue card. */
   tribe2?: Tribe;
   /** Counts as EVERY non-neutral tribe simultaneously: receives all tribe buffs and can Magnetize onto
-   *  any non-neutral minion (Symbiotic Attachment). Absent = normal tribe matching. */
+   *  any non-neutral minion (Chaos Attachment). Absent = normal tribe matching. */
   universalTribe?: boolean;
   /** An "Imp" — the target of imp-buff effects (Fodder Feeder, Imp King, Brood Matron, Ritualist, Bane).
    *  Currently the 1/1 Imp token only. Run-wide imp buffs accrue into `RunState.impBuff` and apply to these

@@ -220,8 +220,8 @@ export interface RunState {
   heroReady: boolean;
   /** Once-per-game hero powers (e.g. Oner's Gild) flip this and never recharge. */
   heroPowerSpent: boolean;
-  /** Symbiote hero: how many recruit turns have elapsed (incremented in faceOmen). Used to grant a
-   *  Symbiotic Attachment every 4 turns. */
+  /** Chaos hero: how many recruit turns have elapsed (incremented in faceOmen). Used to grant a
+   *  Chaos Attachment every 4 turns. */
   heroPowerTick?: number;
   /** Fodder consumed so far this wave (reset in advanceCombat). The Abhorrent Horror reads this at
    *  Start of Combat to gain the fodder's stats. */
@@ -343,7 +343,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     karwindFlashSeq: 0,
   };
   rollShop(state);
-  if (heroId === 'symbiote') {
+  if (heroId === 'chaos') {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && state.hand.length < CONFIG.handMax) {
       state.hand.push({

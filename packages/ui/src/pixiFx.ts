@@ -1,4 +1,23 @@
-import { Application, Container, defaultFilterVert, Filter, Graphics, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
+import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
+
+/**
+ * Vertex shader for the shield Mesh (WebGL2 / GLSL ES 3.0). Pixi's GlMeshAdaptor binds the global-uniform
+ * group (uProjectionMatrix, uWorldTransformMatrix) + the mesh's local-uniform group (uTransformMatrix), so
+ * we just declare them and transform the quad; `aUV` (a clean 0..1 from the geometry) feeds the fragment.
+ */
+const SHIELD_VERT = /* glsl */ `#version 300 es
+in vec2 aPosition;
+in vec2 aUV;
+out vec2 vUV;
+uniform mat3 uProjectionMatrix;
+uniform mat3 uWorldTransformMatrix;
+uniform mat3 uTransformMatrix;
+void main() {
+  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
+  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
+  vUV = aUV;
+}
+`;
 
 /**
  * The divine-shield bubble fragment shader (WebGL, GLSL ES 3.0 via Pixi's `Filter.from`). Procedural — it
@@ -8,11 +27,10 @@ import { Application, Container, defaultFilterVert, Filter, Graphics, Sprite, Te
  * breathes on `uTime`. Output is premultiplied gold so it tints the unit behind it (see-through center,
  * bright rim). `uColor` lets the same shader serve the future blue Reborn shield.
  */
-const SHIELD_FRAG = /* glsl */ `
-in vec2 vTextureCoord;
+const SHIELD_FRAG = /* glsl */ `#version 300 es
+precision highp float;
+in vec2 vUV;
 out vec4 finalColor;
-uniform vec4  uInputSize;   // (filter) input texture px size in .xy
-uniform vec4  uOutputFrame;  // (filter) output frame: .zw = frame px size
 uniform float uTime;
 uniform float uAspect;   // card w/h, so the hex cells stay regular on a tall card
 uniform vec3  uColor;    // shield tint (gold for Divine Shield)
@@ -28,9 +46,7 @@ float vnoise(vec2 p){
 float hexEdge(vec2 p){ p = abs(p); return max(dot(p, vec2(0.5, 0.8660254)), p.x); }
 
 void main(){
-  // the default filter's vTextureCoord spans 0..(frame/inputTex), NOT a clean 0..1 — normalize it so the
-  // sphere is centred + sized to the sprite (with padding 0 the output frame == the sprite bounds).
-  vec2 uv = vTextureCoord * uInputSize.xy / uOutputFrame.zw;
+  vec2 uv = vUV;               // clean 0..1 straight from the mesh geometry
   vec2 p = (uv - 0.5) * 2.0;   // -1..1 across the quad
   float d = length(p);
   if (d >= 1.0) { finalColor = vec4(0.0); return; }
@@ -112,8 +128,8 @@ interface Particle {
  */
 interface ShieldBubble {
   container: Container;
-  sprite: Sprite;        // a plain quad the shield FRAGMENT SHADER (filter) draws the energy sphere onto
-  filter: Filter;        // the per-bubble shield shader (its uTime/uAspect animate each frame)
+  mesh: Mesh;            // a quad mesh the shield shader draws the energy sphere onto (clean 0..1 UVs)
+  shader: Shader;        // the per-bubble shield shader (its uTime/uAspect animate each frame)
   cx: number; cy: number; // target center (viewport px)
   w: number; h: number;   // target footprint (the card's size)
   age: number;            // ms lived — drives the breathe phase + vein drift
@@ -149,6 +165,7 @@ class FxController {
   private rimTex: Texture | null = null;        // bright ring — shield rim highlight
   private veinTex: Texture | null = null;       // thin streak — shield energy vein
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
+  private shieldGeo: MeshGeometry | null = null; // shared quad geometry (−R..R, uv 0..1) for every bubble mesh
   private readonly shields = new Map<string, ShieldBubble>();
   private readonly live: Particle[] = [];
   private readonly pool: Sprite[] = [];
@@ -198,6 +215,12 @@ class FxController {
     this.app = app;
     this.layer = layer;
     this.shieldLayer = shieldLayer;
+    // shared centred quad (−R..R) with 0..1 UVs — every bubble mesh reuses it; the container scales it per-unit
+    this.shieldGeo = new MeshGeometry({
+      positions: new Float32Array([-BUBBLE_TEX_R, -BUBBLE_TEX_R, BUBBLE_TEX_R, -BUBBLE_TEX_R, BUBBLE_TEX_R, BUBBLE_TEX_R, -BUBBLE_TEX_R, BUBBLE_TEX_R]),
+      uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    });
     this.sparkTex = this.makeSparkTexture(app);
     this.glowTex = this.makeGlowTexture(app);
     this.shardRectTex = this.makeShardRectTexture(app);
@@ -216,8 +239,10 @@ class FxController {
     for (const p of this.live) p.sprite.destroy();
     this.live.length = 0;
     this.pool.length = 0;
-    for (const b of this.shields.values()) b.container.destroy({ children: true });
+    for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
     this.shields.clear();
+    this.shieldGeo?.destroy();
+    this.shieldGeo = null;
     this.app.ticker.remove(this.update);
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     this.app = null;
@@ -550,13 +575,10 @@ class FxController {
     let b = this.shields.get(uid);
     if (!b) {
       const container = new Container();
-      // A plain white quad (2·BUBBLE_TEX_R) that the shield shader draws onto via a per-bubble Filter. The
-      // container scales it to the card footprint; the fragment masks it to an ellipse, so the quad never shows.
-      const sprite = new Sprite(Texture.WHITE);
-      sprite.anchor.set(0.5);
-      sprite.width = sprite.height = BUBBLE_TEX_R * 2;
-      const filter = Filter.from({
-        gl: { vertex: defaultFilterVert, fragment: SHIELD_FRAG },
+      // A quad mesh the shield shader draws onto. The geometry's UVs are a clean 0..1, so the fragment maps
+      // the sphere exactly (no filter-coordinate guessing). The container scales it to the card footprint.
+      const shader = Shader.from({
+        gl: { vertex: SHIELD_VERT, fragment: SHIELD_FRAG },
         resources: {
           shieldUniforms: {
             uTime: { value: 0, type: 'f32' },
@@ -566,12 +588,11 @@ class FxController {
           },
         },
       });
-      filter.padding = 0; // output frame == sprite bounds, so the normalized uv maps 0..1 exactly
-      sprite.filters = [filter];
-      container.addChild(sprite);
+      const mesh = new Mesh({ geometry: this.shieldGeo!, shader });
+      container.addChild(mesh);
       container.alpha = 0;
       this.shieldLayer.addChild(container);
-      b = { container, sprite, filter, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
+      b = { container, mesh, shader, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
             mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1 };
       this.shields.set(uid, b);
     } else {
@@ -625,6 +646,7 @@ class FxController {
     const b = this.shields.get(uid);
     if (!b) return;
     const { cx, cy, w, h } = b;
+    b.shader.destroy();
     b.container.destroy({ children: true });
     this.shields.delete(uid);
     if (!this.ready) return;
@@ -790,7 +812,7 @@ class FxController {
         const fT = Math.min(1, b.fadeOut / FADE_MS);
         b.fadeOut += dtMs;
         life *= 1 - fT;
-        if (fT >= 1) { b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
+        if (fT >= 1) { b.shader.destroy(); b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
       }
       // a subtle container size-breathe (the SHADER handles the internal energy/brightness pulse on uTime)
       const breatheScale = 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04;
@@ -816,7 +838,7 @@ class FxController {
       b.container.scale.set(sx * grow, sy * grow);
       b.container.alpha = life; // form-in / fade / mini envelope; the shader owns its internal opacity
       // drive the shield shader
-      const u = (b.filter.resources.shieldUniforms as { uniforms: Record<string, number> }).uniforms;
+      const u = (b.shader.resources.shieldUniforms as { uniforms: Record<string, number> }).uniforms;
       u.uTime = b.age / 1000;
       u.uAspect = b.w / Math.max(1, b.h);
     }

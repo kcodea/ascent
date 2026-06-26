@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Tara no longer fires a phantom Start-of-Combat "scorch."** Buffing Tara mid-combat (e.g. Supporter's
+  Rally) used to emit a per-grant narration that the UI replayed as a Start-of-Combat cast — zap sound + a
+  bolt to an enemy — reading like the long-gone Ember Whelp. The ascend tally now tracks silently; the live
+  "N to ascend" countdown and ascension are unchanged.
 - **Board synthesis — "print" strong high-wave opponents.** The bot can't build strong high-wave boards, so
   those waves were thin + all-strong-looking. `npm run pool` now folds **real captured boards into the rating
   ladder** (a real ceiling) and **synthesizes** new boards — recombine/mutate a real board, then keep it only

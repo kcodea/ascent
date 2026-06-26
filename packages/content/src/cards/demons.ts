@@ -64,20 +64,6 @@ export const DEMONS: CardDef[] = [
     goldenText: '**Battlecry:** add **2** Fodder to your next tavern.',
   },
   {
-    id: 'imp',
-    name: 'Voracious Imp',
-    tribe: 'demon',
-    tier: 2,
-    attack: 2,
-    health: 2,
-    keywords: ['CN'],
-    fodderMult: 2,
-    effects: [],
-    text: 'Gains **2x** stats from Fodder.',
-    // Golden eats at 3× (fodderMultiplier = base + 1), not the naive 2× doubling — set it explicitly.
-    goldenText: 'Gains **3x** stats from Fodder.',
-  },
-  {
     id: 'brood',
     name: 'Brood Matron',
     tribe: 'demon',
@@ -141,9 +127,9 @@ export const DEMONS: CardDef[] = [
     attack: 7,
     health: 7,
     keywords: ['CN'],
-    effects: [{ on: 'onRoll', do: 'onRollConsumeShop', params: { every: 4 } }],
-    text: 'Every 4 refreshes, consume a random tavern minion.',
-    goldenText: 'Every 4 refreshes, consume a random tavern minion (gain **double** its stats).',
+    effects: [{ on: 'onRoll', do: 'onRollConsumeShop', params: { every: 3, tavernBuff: 1 } }],
+    text: 'Every 3 refreshes, consume a tavern minion and give tavern minions **+1/+1**.',
+    goldenText: 'Every 3 refreshes, consume a tavern minion (gain **double** its stats) and give tavern minions **+2/+2**.',
   },
   {
     id: 'trickster',

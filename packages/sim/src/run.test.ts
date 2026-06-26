@@ -409,21 +409,36 @@ describe('run loop (@game/sim)', () => {
     expect([bought?.attack, bought?.health]).toEqual([3, 3]); // base 1/1 + the +2/+2 run buff
   });
 
-  it('a Demon consuming buffed Fodder gains the buffed stats (×multiplier)', () => {
+  it('a Demon consuming buffed Fodder gains the buffed stats', () => {
     let s: RunState = {
       ...createRun(1),
       phase: 'combat',
-      board: [{ uid: 'imp', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
       cardBuffs: { fred: { attack: 2, health: 2 } },
       pendingTavern: ['fred'],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
-    s = reduce(s, { type: 'resolveCombat' }); // advance → next tavern injects Fred → the Imp eats it
-    const imp = s.board.find((c) => c.cardId === 'imp');
-    // Voracious Imp eats a (1+2)/(1+2) Fred at ×2 → +6/+6 → 8/8
-    expect([imp?.attack, imp?.health]).toEqual([8, 8]);
+    s = reduce(s, { type: 'resolveCombat' }); // advance → next tavern injects Fred → the Demon eats it
+    const eater = s.board.find((c) => c.cardId === 'maw');
+    // The Demon eats a (1+2)/(1+2) Fred → +3/+3 → 5/5
+    expect([eater?.attack, eater?.health]).toEqual([5, 5]);
     // the consume record carries the Fodder's *buffed* stats (3/3) so the eat animation shows them
     expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred', attack: 3, health: 3 });
+  });
+
+  it('Acid (reworked) — every 3 refreshes, consumes a tavern minion AND buffs the rest +1/+1', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 99,
+      board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 7, health: 7, keywords: ['CN'], golden: false }],
+    };
+    s = reduce(s, { type: 'roll' }); // rollTick 1
+    s = reduce(s, { type: 'roll' }); // rollTick 2
+    s = reduce(s, { type: 'roll' }); // rollTick 3 → Acid procs on the fresh shop
+    const acid = s.board.find((c) => c.cardId === 'acid')!;
+    expect(acid.attack + acid.health).toBeGreaterThan(14); // ate a tavern minion (gained its stats)
+    expect(s.shop.length).toBeGreaterThan(0);
+    expect(s.shop.every((o) => (o.atk ?? 0) >= 1 && (o.hp ?? 0) >= 1)).toBe(true); // the rest got +1/+1
   });
 
   it('a frozen tavern tops up empty slots + a missing spell after combat', () => {
@@ -902,29 +917,17 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.some((c) => c.cardId === 'fred')).toBe(false);
   });
 
-  it('a Demon devours Fodder entering the tavern — Voracious Imp at 2x', () => {
+  it('a Demon devours Fodder entering the tavern', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
-      board: [{ uid: 'i', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
       pendingTavern: ['fred'],
     };
-    s = reduce(s, { type: 'roll' }); // tavern refresh injects the Fodder, then the Imp eats it
+    s = reduce(s, { type: 'roll' }); // tavern refresh injects the Fodder, then the Demon eats it
     expect(s.shop.some((o) => o.cardId === 'fred')).toBe(false); // eaten, not left in the tavern
-    const imp = s.board.find((c) => c.cardId === 'imp');
-    expect([imp?.attack, imp?.health]).toEqual([4, 4]); // 2/2 + 2×(1/1)
-  });
-
-  it('golden Voracious Imp eats Fodder at 3x', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 3,
-      board: [{ uid: 'i', cardId: 'imp', tribe: 'demon', attack: 4, health: 4, keywords: ['CN'], golden: true }],
-      pendingTavern: ['fred'],
-    };
-    s = reduce(s, { type: 'roll' });
-    const imp = s.board.find((c) => c.cardId === 'imp');
-    expect([imp?.attack, imp?.health]).toEqual([7, 7]); // 4/4 + 3×(1/1)
+    const eater = s.board.find((c) => c.cardId === 'maw');
+    expect([eater?.attack, eater?.health]).toEqual([3, 3]); // 2/2 + 1×(1/1)
   });
 
 
@@ -1585,7 +1588,7 @@ describe('run loop (@game/sim)', () => {
   it('Cupcakes — the chosen Demon consumes 3 random tavern minions (gains stats; tavern shrinks by 3)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0,
-      board: [{ uid: 'd', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }], // Voracious Imp (2× consume)
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }], // a Demon eater
       shop: [{ uid: 'a', cardId: 'alley' }, { uid: 'b', cardId: 'pack' }, { uid: 'c', cardId: 'kennel' }, { uid: 'e', cardId: 'gnash' }],
       hand: [{ uid: 'sp', cardId: 'cupcakes', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };

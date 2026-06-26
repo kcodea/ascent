@@ -77,7 +77,7 @@ function TurnRope() {
  *  *current* buffed Fodder for Ritualist & co). */
 const CARD_REFERENCES: Record<string, string[]> = {
   alley: ['stray'], shaper: ['stray'], pack: ['pup'], brood: ['impscrap'], combinator: ['cling', 'moneybot', 'betterbot'],
-  feed: ['fred'], imp: ['fred'], ritualist: ['fred', 'impscrap'], maw: ['fred'],
+  feed: ['fred'], ritualist: ['fred', 'impscrap'], maw: ['fred'],
   // Imp summoners / buffers — the popup shows the Imp token at its current buffed stats. Cards that touch
   // both Fodder and Imps (Ritualist, Bane, Fodder Feeder) reference both.
   impking: ['impscrap'], fodderfeeder: ['fred', 'impscrap'], bane: ['fred', 'impscrap'],

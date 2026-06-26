@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Acid reworked; Voracious Imp removed.** Acid now triggers every 3 refreshes — consuming a tavern minion
+  and giving the rest +1/+1 (golden doubles both).
 - **Golden Touch + Consume spells; Point Solution renamed to Resonance.** Golden Touch gilds a random tavern
   minion (it buys in Golden, doubled); Consume has a Demon devour a random tavern minion (works with Yazzus).
 - **Four new tavern spells.** Lantern Light (+Tier/+Tier), Fodder Treatment (sell a minion into your left-most

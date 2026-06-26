@@ -281,7 +281,9 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       low **dry-dirt dust puff** under a unit placed/moved on the board, and a **trigger-medallion pulse**
       (glow→ring + a deduped `triggerpulse` sound off a unit's mechanic badge when its effect fires in
       combat or shop; cadence cards like Frontdrake glow per tick + pulse on payoff — CSS, compositor-only),
-      and a **Discover burst** (golden white-hot magic erupting from center off the page edges, behind the cards)
+      a **Discover burst** (golden white-hot magic erupting from center off the page edges, behind the cards),
+      and a **loss-damage tally → blast** (surviving enemy tiers + opponent tier fly into a capped damage
+      counter, then a Pixi bolt blasts the Resolve bar)
       — the additive foundation for a future Pixi combat arena (effects → sprites →
       arena, each shippable). **Next FX candidates:** death burst, Pixi-rendered Start-of-Combat/Blaster
       projectiles (replacing the SVG bolts), Divine-Shield-break shimmer; first **sourced SFX** (random sell1–4 + combat

@@ -28,6 +28,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Smoother magnetize + roomier hand.** The electric crackle on a magnetizing Mech now rides an opacity-only
   glow layer instead of repainting the card every frame (magnetizing felt choppy). And cards in hand sit **20%
   farther apart**, so the right one is easier to click.
+- **Tara no longer fires a phantom Start-of-Combat "scorch."** Buffing Tara mid-combat (e.g. Supporter's
+  Rally) used to emit a per-grant narration that the UI replayed as a Start-of-Combat cast — zap sound + a
+  bolt to an enemy — reading like the long-gone Ember Whelp. The ascend tally now tracks silently; the live
+  "N to ascend" countdown and ascension are unchanged.
 - **Board synthesis — "print" strong high-wave opponents.** The bot can't build strong high-wave boards, so
   those waves were thin + all-strong-looking. `npm run pool` now folds **real captured boards into the rating
   ladder** (a real ceiling) and **synthesizes** new boards — recombine/mutate a real board, then keep it only
@@ -42,6 +46,8 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Discover no longer favors high tiers.** Card-driven Discovers (Sea Urchin, Help Wanted) now weigh **every
   eligible minion up to your tavern tier evenly** — matching the flattened shop — instead of filling from the
   top tier down. The golden/triple "peek one tier up" reward is unchanged (it's meant to bias high).
+- **Loss-damage blast.** Losing a round now shows the math: surviving enemy tiers + the opponent's tier
+  fly up into a damage counter (capped), then blast your Resolve bar with a Pixi impact + shake.
 - **Summon beat.** A battlecry-summoned token (e.g. Alleycat → Stray) now pops in ~0.2s *after* its
   trigger-medallion pulse, so you read the pulse then the result instead of both at once.
 - **Discover burst.** Opening a Discover erupts a burst of golden, white-hot magic + sparkles from center

@@ -175,17 +175,12 @@ export function simulate(
       }
       // Tara: tally each stat-grant on a minion that ascends after N grants (`cards[id].ascendAt`). Carried
       // back via playerAscendCount and accumulated + transformed at settle — no mid-combat transform/UI.
+      // Deliberately emits NO log event: a per-buff `sc` narration here fired the Start-of-Combat cast in the
+      // UI (zap sound + a projectile bolt to the next damage target) on EVERY grant — so Supporter rallying
+      // Tara read as a phantom "Ember Whelp" Start-of-Combat attack. The live "N to ascend" card tracker counts
+      // buff events in the replay (not this tally), so it's unaffected.
       if ((attack !== 0 || health !== 0) && cards[target.cardId]?.ascendAt) {
-        const newCount = (buffCounts.get(target.uid) ?? 0) + 1;
-        buffCounts.set(target.uid, newCount);
-        const ascendAt = cards[target.cardId]!.ascendAt!;
-        // Count from the TOTAL: prior accumulated progress (seeded from the run board) + this combat's grants,
-        // so the live tracker matches the card's real "N to go" in the shop instead of restarting each fight.
-        const remaining = Math.max(0, ascendAt - ((target.ascendProgress ?? 0) + newCount));
-        const text = remaining > 0
-          ? `${target.name}: ${remaining} stat grant${remaining === 1 ? '' : 's'} to ascend`
-          : `${target.name} has reached the ascend threshold!`;
-        events.push({ type: 'sc', source: target.uid, text });
+        buffCounts.set(target.uid, (buffCounts.get(target.uid) ?? 0) + 1);
       }
       // Hunter watches its own Attack rising: emit onGainAttack on a positive delta. The bus snapshots its
       // handlers, so this nested emit is safe; health-only buffs (the common case) skip it, and onGainAttack

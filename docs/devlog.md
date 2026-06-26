@@ -14,6 +14,42 @@ Two recruit-screen fixes from owner reports (both in `styles.css`).
 **Hand spacing (ux).** Owner: cards in hand overlap too much to click the right one. The fan's inter-card STEP was `--cw − 84px`; now `margin-left: calc(1.2 * (var(--cw) − 84px) − var(--cw))` widens that step by exactly **20%** while staying a negative overlap across the whole responsive `--cw` clamp range (so the fan still tucks behind itself). Verified live: at `--cw` 275px the step went 191→229px (+20%), margin −45.9px (still overlapping).
 
 **Files:** `packages/ui/src/styles.css` (`crackle` → opacity-on-`::before`; hand `margin-left` calc). **Verification:** `typecheck + lint + test (372) + build:web` green; live preview — computed inter-card step is +20% and still overlapping, console clean, and the glow now rides an opacity `::before` (no per-frame box-shadow repaint).
+### fix: buffing Tara no longer fires a phantom "Ember Whelp" Start-of-Combat attack
+
+Owner report: when Supporter buffs Tara mid-combat it *randomly* procs what looks like the old Ember Whelp Start-of-Combat attack. Root cause: Tara's ascend tally (in `simulate`'s `ctx.buff`) pushed a narration `sc` event on **every** stat-grant (`"Tara: N stat grants to ascend"`). The UI treats *every* `sc` as a Start-of-Combat cast — `sfx.cast` zap, a `sccast` flash on the source, and (the visual "attack") a **projectile bolt** from the source to the next beat's damage target (`useCombatReplay.ts`). So each time Supporter rallied Tara — it pumps 2 *random* Dragons, hence "randomly" — a bolt flew from Tara to an enemy, reading exactly like Ember Whelp's old scorch. (Ember Whelp itself is long gone — replaced by Twilight Whelp; nothing uses `scDamage` anymore, so this was the *only* path to that visual.)
+
+Fix (engine-only, `simulate.ts`): keep the `buffCounts` tally that drives the ascend carry-back (`playerAscendCount` → settle/transform), but **stop emitting the per-buff `sc` narration**. The live "N to ascend" card tracker counts `buff` events in the replay (`useCombatReplay` + `cardText`), *not* this event, so the countdown is unaffected; the buffs tab only parses spell-power `sc` text. Net: no phantom Start-of-Combat on a Tara buff, ascension behaviour itself unchanged.
+
+**Files:** `packages/core/src/combat/simulate.ts` (drop the ascend `sc` event; keep the tally). **Verification:** `typecheck + lint + test (372) + build:web` green; a 30-seed repro of Supporter-rallying-Tara boards went from **21–29 spurious `sc` events to 0** (a board with a real Start-of-Combat effect still emits its `sc`).
+### feat: loss-damage tally + blast (surviving tiers → Resolve)
+
+On a defeat, the damage you take is now telegraphed: the surviving enemy minions' **tavern tiers** plus
+the **opponent's tavern tier** fly up into a damage counter above the enemy board, count up (clamped to
+the round cap), then a Pixi **blast bolt** hurls the number into the **Resolve bar**, which drops on
+impact. Shows *how* the loss damage was computed (`opponentTier + Σ surviving tiers`, capped 5/10/15).
+
+Presentation-only — no engine change. The formula already lives in `simulate()` (`playerDamage`) + the
+run loop's `lossDamageCap`; the UI just reads + visualises it.
+
+- **`pixiFx.ts`**: `blastBolt(from→to)` (a comet of additive glow motes streaking to the target, tail
+  lagging into a trail) + `damageBurst(x, y)` (crimson hot-core + shockwave + red shards) + a
+  `blastTravelMs` so the caller fires the burst on arrival.
+- **`Recruit.tsx`**: a loss-damage sequence effect (runs once at `replay.done` on a loss). It **defers
+  `settleCombat`** (so Resolve drops on the blast, not instantly), computes the counter spot above the
+  surviving enemy cards, flies each survivor's tier (from its card) + the opponent's tier (from the
+  `.oppframe`) into the counter on a stagger, counts up clamped to `lossDamageCap(wave)`, then
+  `blastBolt` → Resolve bar; on arrival `damageBurst` + screen shake + `settleCombat` (Resolve drops →
+  the StatusBar's existing `−X` hit flash fires). "End Combat" is held until the blast finishes. Effect
+  reads `run` fresh (not via deps) so the mid-sequence `settleCombat` can't re-fire it + clear the timers.
+- **`styles.css`**: `.lossdmg` counter (crimson glow, scale-in, launch hand-off), `.lossfly` tier numbers
+  (`lossflyto` — fly to the counter; opponent tier reads gold).
+
+**Files:** `pixiFx.ts` (`blastBolt`/`damageBurst`/`blastTravelMs`), `Recruit.tsx` (sequence + deferred
+settle + Climb-On gate + reset), `styles.css` (`.lossdmg`/`.lossfly`).
+
+**Verification:** `typecheck + lint + test (369) + build:web` all green. Live: `blastBolt` spawns 16
+target-bound motes, `damageBurst` 24 additive particles, the `.lossfly`/`.lossdmg` CSS resolves. (The
+full moving sequence needs a real combat loss + a visible tab — owner to eyeball.)
 
 ### feat: board synthesis — "print" strong high-wave boards from real-board data (+ real boards in the ladder)
 
@@ -30,6 +66,7 @@ Follow-up to the wave-relative banding. Its band report exposed that high waves 
 Symbiote's hero-power token (`symbioticattachment`) now carries **Reborn** (`R`) on top of Magnetic — so magnetizing it onto a host grants that host Reborn. Its keywords ride along on the weld via `applyWeld` (which already transfers every non-`M` keyword), so no new plumbing. Played standalone it's a 1/1 Reborn body. A flat power bump to the Symbiote hero: every magnetize now also makes the target come back once.
 
 **Files:** `tokens.ts` (Symbiotic Attachment → `keywords: ['M', 'R']` + text), `run.test.ts` (+1: welding grants the host `R`, not `M`). **Verification:** `typecheck + lint + test (370, +1) + build:web` green.
+
 ### tweak: snappier card hover-reveal debounce
 
 Owner ask: the hover-reveal popup (full card / referenced cards) opens too slowly. Cut the debounce in

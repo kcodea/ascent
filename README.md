@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **New hero: Robin.** Passive power **Spoils** — when you sell a minion, gain 1 Gold at the start of next
+  turn. It stacks (sell 6 → +6 next turn, on top of the cap) but resets each turn. Portrait + power art wired.
 - **Ascension begins mid-fight (engine).** Tara now transforms into Taragosa **during** combat the moment her
   stat-grants cross 20 (was only between fights), and Taragosa's Growth fires the rest of that fight. The new
   `ascend` event is wired for an upcoming sound + animation; Spirit Pup → Spirit Worgen is next.

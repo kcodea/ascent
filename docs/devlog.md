@@ -8,6 +8,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 ### chore: optimize 22 stale minion art PNGs → WebP
 
 Twenty-two minion art files had been committed as raw PNG (~48 MB total) instead of the project's optimized WebP. Ran `npm run optimize-art` (the standard pipeline: downscale to ≤512px + WebP q85 + delete the source PNG; masters retained out-of-repo) over `packages/ui/src/art/minions/`, converting all 22 — **48.1 MB → 1.10 MB (97.7% smaller)**. Pure asset change, no code. **Verification:** `build:web` green; `art/minions/` now has 0 PNGs (128 WebP). (Surfaced while wiring Robin's hero art, which ran the same optimizer.)
+### feat: Robin — a new hero whose Spoils pay out next turn
+
+New hero **Robin** (30 Resolve). Passive power **Spoils**: *when you sell a minion, gain 1 Gold at the start of next turn.* It stacks within a turn but only carries to the next turn, then resets — sell 6 minions on turn 6 and you start turn 7 with **+6 Gold** (on top of the cap).
+
+- **Mechanic** (`reducer.ts`): the sell case feeds the existing `bonusEmbersNextTurn` channel (Hoarder's "bonus Gold next turn"), gated to Robin's new `sellGold` power kind. The turn-start consume + reset (in `settleCombat`) and the on-top-of-the-cap behaviour already existed, so the whole feature is **one line** plus the hero data — no new state field. (Robin's power is also added to the passive no-op branch of the `heroPower` switch so an errant activation can't fall through to Fortify.)
+- **Hero data** (`heroes.ts`): new `sellGold` `HeroPowerKind` + the Robin `HeroDef` (passive). `rollHeroChoices` already draws from all of `HEROES`, so Robin is offered automatically.
+- **Art** (`packages/ui/src/art/heroes/robin.webp`, `.../powers/robin.webp`): optimized from the `Robin2.png` (portrait) / `RobinHP.png` (power) masters; the eager glob picks them up by the `robin` id match.
+
+**Files:** `heroes.ts` (kind + HeroDef), `reducer.ts` (sell accumulation + passive no-op), `run.test.ts` (+1), 2 art webp. **Verification:** `typecheck + lint + test (378, +1) + build:web` green; the new test proves selling N minions banks +N for next turn (a non-Robin hero banks nothing). Live preview: Robin appears in hero-select with its portrait (robin.webp, 512², loaded) + the **Spoils** power text, console clean.
+
+> **Flagged (separate cleanup):** running `optimize-art` revealed **22 minion art files committed as un-optimized PNG** (~44 MB) under `packages/ui/src/art/minions/`. Reverted them out of this PR to keep it Robin-only — they want their own "optimize stale PNGs" pass.
 
 ## 2026-06-25 (session 5)
 

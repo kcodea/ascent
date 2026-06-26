@@ -168,7 +168,8 @@ export type EffectFactoryId =
   | 'spellSellToDemon' // Fodder Treatment: cast — sell the target, give its stats to your left-most Demon (recruit)
   | 'spellReplayBattlecry' // Resonance: cast — re-trigger a friendly Battlecry minion's Battlecry (recruit)
   | 'spellExtraEndOfTurn' // Chrono Staff: cast — your End-of-Turn effects fire 1 extra time this turn (recruit)
-  | 'spellGildRandomTavern'; // Golden Touch: cast — make a random tavern minion Golden (recruit)
+  | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)
+  | 'spellDisplace'; // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)
 
 export interface EffectDef {
   on: GameEvent;

@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix+feat: shield bubble shows in COMBAT + break sound + bigger look + smooth drag
+
+Follow-ups on the divine-shield bubble after a first in-game look:
+
+- **Bug — no bubble in combat (the big one):** combat units render `data-uid` on the `.unit` wrapper, not
+  the inner `.card`, so the old selector `.unit .card.dscard[data-uid]` matched nothing in combat — the
+  bubble never registered there, so it never appeared *or* broke. `syncShields` now resolves the uid via
+  `card.closest('[data-uid]')` (the `.card` in recruit, the `.unit` in combat) and the break/clear check
+  uses `[data-uid="…"]` (any element). Verified live: a combat-shaped DOM (`.unit[data-uid] > .card.dscard`)
+  now registers a correctly-sized bubble.
+- **Break sound:** new `sfx.shieldBreak()` (sourced `divineshieldbreak.mp3`, synth crash fallback, deduped
+  60 ms so a multi-break beat plays once), fired alongside `pixiFx.breakShield` when a shield is consumed in
+  combat. Registered in the mixer (`divineshieldbreak: 0.6`) + dev preview.
+- **More noticeable:** body alpha 0.34→0.5, rim 0.55→0.95, veins 3→4 and brighter, margin 1.06→1.12,
+  stronger breathe; the break got a second shockwave ring, 14→22 shards (faster), 6→10 motes.
+- **Smooth drag:** dragging a shielded card now drives the bubble from the floating `.dragcard`'s transform
+  (drag state) so it follows the cursor and is already in place on drop — no disappear / flicker / regrow.
+  A ~320 ms post-drop "settle" window keeps the rAF sync running so the bubble tracks the card's Flip to its
+  landed slot.
+- **Verified:** typecheck + lint + 374 tests + build green; live DOM confirms recruit + combat both register
+  and clear. Animated look + the real combat break/sound still need an in-game look (preview rAF is frozen).
+- **Next (deferred):** a parallel BLUE bubble for Reborn, reusing this machinery.
+
 ### feat: Pixi divine-shield BUBBLE (replaces the gold glow/badge) + crack-and-shatter break
 
 Divine Shield's signifier is now a translucent, slowly-breathing **golden bubble** drawn on the WebGL FX

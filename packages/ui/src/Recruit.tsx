@@ -411,27 +411,38 @@ export function Recruit() {
   // animating (combat lunges or a drag) — idle shielded units cost nothing (no per-frame layout reads).
   const shieldUidsRef = useRef<Set<string>>(new Set());
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
+  const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
+  const prevDragActiveRef = useRef(false);
   // (`dragRef` is declared lower down for spell-targeting and already mirrors `drag`; syncShields reads it.)
   const syncShields = useCallback((): void => {
-    const els = document.querySelectorAll<HTMLElement>(
-      '[data-zone] .card.dscard[data-uid], .unit .card.dscard[data-uid]',
-    );
+    // Recruit cards carry data-uid on the `.card`; combat cards carry it on the `.unit` wrapper — resolve via
+    // closest so BOTH register (the combat case was the "no shield in combat" bug).
+    const els = document.querySelectorAll<HTMLElement>('[data-zone] .card.dscard, .unit .card.dscard');
     const seen = new Set<string>();
-    const dragUid = dragRef.current?.uid;
-    for (const el of els) {
-      const uid = el.dataset.uid;
-      if (!uid || uid === dragUid) continue; // a dragged card's bubble pauses until it lands
-      const r = el.getBoundingClientRect();
+    const d = dragRef.current;
+    const dragUid = d?.uid;
+    let draggedShielded = false;
+    for (const card of els) {
+      const uid = card.closest<HTMLElement>('[data-uid]')?.dataset.uid;
+      if (!uid) continue;
+      if (uid === dragUid) { draggedShielded = true; continue; } // the dragged card follows the cursor (below)
+      const r = card.getBoundingClientRect();
       if (r.width === 0) continue; // not laid out yet (mid-transition) — skip this pass
       seen.add(uid);
       pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
     }
+    // The dragged shielded card: drive the bubble from the floating `.dragcard`'s transform (drag state) so it
+    // follows the cursor and is already in place on drop — no disappear / flicker / regrow on re-apply.
+    if (d?.active && dragUid && draggedShielded) {
+      seen.add(dragUid);
+      pixiFx.setShield(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h);
+    }
     for (const uid of shieldUidsRef.current) {
       if (seen.has(uid)) continue;
-      // Lost its shield but the unit is still on the field → it absorbed a hit (break burst). Otherwise
+      // Lost its shield but the unit is still on the field → it absorbed a hit (break burst + sound). Otherwise
       // it just left (sold / died / combat ended) → fade out quietly.
-      const stillThere = document.querySelector(`.card[data-uid="${uid}"]`);
-      if (stillThere && inCombatRef.current) pixiFx.breakShield(uid);
+      const stillThere = document.querySelector(`[data-uid="${uid}"]`);
+      if (stillThere && inCombatRef.current) { pixiFx.breakShield(uid); sfx.shieldBreak(); }
       else pixiFx.clearShield(uid);
     }
     shieldUidsRef.current = seen;
@@ -439,11 +450,21 @@ export function Recruit() {
   // Reconcile after any render that can change the shielded set or card positions.
   useLayoutEffect(() => { syncShields(); },
     [syncShields, run.board, run.hand, run.shop, replay.frame, inCombat, fighting, compactCards]);
-  // Follow moving units (combat lunges / an active drag) frame-by-frame; nothing runs at rest.
+  // A drop opens a brief settle window so the bubble keeps tracking the card through its Flip animation.
   useEffect(() => {
-    if (!fighting && !drag?.active) return;
+    const active = drag?.active ?? false;
+    if (prevDragActiveRef.current && !active) settleUntilRef.current = performance.now() + 320;
+    prevDragActiveRef.current = active;
+  }, [drag?.active]);
+  // Follow moving units (combat lunges / an active drag / the post-drop settle) frame-by-frame; idle at rest.
+  useEffect(() => {
     let raf = 0;
-    const tick = (): void => { syncShields(); raf = requestAnimationFrame(tick); };
+    const tick = (): void => {
+      syncShields();
+      if (fighting || dragRef.current?.active || performance.now() < settleUntilRef.current) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [fighting, drag?.active, syncShields]);

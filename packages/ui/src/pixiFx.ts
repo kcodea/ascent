@@ -52,9 +52,11 @@ interface ShieldBubble {
 // Shield-bubble feel (tunable live via window.__pixiFx in DEV). The texture art is generated at radius
 // ~BUBBLE_TEX_R; the container is scaled per-unit to fit the card's footprint.
 const BUBBLE_TEX_R = 40;       // generated bubble texture radius (px) before per-unit scaling
-const BUBBLE_MARGIN = 1.06;    // bubble size vs the card footprint (slightly proud of the edge)
-const BUBBLE_BODY_ALPHA = 0.34; // translucency of the golden body — low enough to read the unit behind
-const BREATHE_MS = 2800;       // slow pulse period
+const BUBBLE_MARGIN = 1.12;    // bubble size vs the card footprint (slightly proud of the edge)
+const BUBBLE_BODY_ALPHA = 0.5; // translucency of the golden body — high enough to pop, still see-through
+const BUBBLE_RIM_ALPHA = 0.95; // brightness of the additive rim highlight
+const BUBBLE_VEIN_ALPHA = 0.6; // base brightness of the drifting energy veins
+const BREATHE_MS = 2600;       // slow pulse period
 const FORM_MS = 260;           // grow-in when a shield is gained
 const FADE_MS = 200;           // graceful fade when a shield is cleared without breaking
 const BUBBLE_GOLD = 0xffd24a;  // body tint
@@ -482,15 +484,16 @@ class FxController {
       rim.anchor.set(0.5);
       rim.tint = BUBBLE_RIM_GOLD;
       rim.blendMode = 'add';     // bright glassy edge catching light
-      rim.alpha = 0.55;
+      rim.alpha = BUBBLE_RIM_ALPHA;
       const veins: Sprite[] = [];
-      for (let i = 0; i < 3; i++) {
+      const VEIN_COUNT = 4;
+      for (let i = 0; i < VEIN_COUNT; i++) {
         const v = new Sprite(this.veinTex!);
         v.anchor.set(0.5);
         v.tint = BUBBLE_RIM_GOLD;
         v.blendMode = 'add';
-        v.alpha = 0.4;
-        v.rotation = (i / 3) * Math.PI; // fan the streaks across the bubble
+        v.alpha = BUBBLE_VEIN_ALPHA;
+        v.rotation = (i / VEIN_COUNT) * Math.PI; // fan the streaks across the bubble
         veins.push(v);
         container.addChild(v);
       }
@@ -539,36 +542,40 @@ class FxController {
       });
     }
 
-    // 2) SHOCKWAVE — an additive ring expanding past the bubble edge and fading.
+    // 2) SHOCKWAVE — two additive rings expanding past the bubble edge and fading (a bigger pop).
     this.spawn(this.rimTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 420, fromScale: (rad / BUBBLE_TEX_R) * 0.85,
-      toScale: (rad / BUBBLE_TEX_R) * 1.7, spin: 0, tint: 0xffe27a, blend: 'add', peakAlpha: 0.8,
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 460, fromScale: (rad / BUBBLE_TEX_R) * 0.85,
+      toScale: (rad / BUBBLE_TEX_R) * 2.1, spin: 0, tint: 0xffe27a, blend: 'add', peakAlpha: 0.95,
+    });
+    this.spawn(this.bubbleTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 300, fromScale: (rad / BUBBLE_TEX_R),
+      toScale: (rad / BUBBLE_TEX_R) * 1.6, spin: 0, tint: 0xfff0c0, blend: 'add', peakAlpha: 0.7,
     });
 
     // 3) SHRAPNEL — golden shards flung radially out of the rim (reuses the pooled shard textures).
-    const shards = 14;
+    const shards = 22;
     for (let i = 0; i < shards; i++) {
       const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const speed = 260 + Math.random() * 520;
+      const speed = 320 + Math.random() * 640;
       const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
       const warm = Math.random();
       const tint = warm < 0.5 ? 0xffd24a : warm < 0.85 ? 0xffe9a8 : 0xfff6d8;
       this.spawn(tex, {
         x: cx + Math.cos(a) * rad * 0.7, y: cy + Math.sin(a) * rad * 0.7,
         vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
-        life: 380 + Math.random() * 320, fromScale: 0.7 + Math.random() * 0.6, toScale: 0.05,
-        spin: (Math.random() - 0.5) * 9, rotation: a, tint, blend: 'add',
+        life: 420 + Math.random() * 360, fromScale: 0.9 + Math.random() * 0.7, toScale: 0.05,
+        spin: (Math.random() - 0.5) * 10, rotation: a, tint, blend: 'add',
       });
     }
 
-    // 4) ENERGY MOTES — a few soft glints drifting out, longer-lived, for the "energy" feel.
-    for (let i = 0; i < 6; i++) {
+    // 4) ENERGY MOTES — soft glints drifting out, longer-lived, for the "energy" feel.
+    for (let i = 0; i < 10; i++) {
       const a = Math.random() * Math.PI * 2;
-      const speed = 90 + Math.random() * 200;
+      const speed = 110 + Math.random() * 240;
       this.spawn(this.sparkTex!, {
         x: cx, y: cy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.5,
-        life: 460 + Math.random() * 360, fromScale: 0.8 + Math.random() * 0.7, toScale: 0.05,
-        spin: 0, tint: 0xffe9a8, blend: 'add', peakAlpha: 0.9,
+        life: 500 + Math.random() * 400, fromScale: 0.9 + Math.random() * 0.8, toScale: 0.05,
+        spin: 0, tint: 0xffe9a8, blend: 'add', peakAlpha: 0.95,
       });
     }
   }
@@ -684,10 +691,10 @@ class FxController {
         life *= 1 - fT;
         if (fT >= 1) { b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
       }
-      // slow breathe — gentle scale + opacity pulse
+      // slow breathe — a clearly-visible scale + opacity pulse
       const phase = (b.age / BREATHE_MS) * Math.PI * 2;
-      const breatheScale = 1 + Math.sin(phase) * 0.035;
-      const breatheAlpha = 0.82 + Math.sin(phase) * 0.18;
+      const breatheScale = 1 + Math.sin(phase) * 0.055;
+      const breatheAlpha = 0.88 + Math.sin(phase) * 0.12;
       // fit the radius-BUBBLE_TEX_R art to the unit footprint (non-uniform → ellipse)
       const sx = (b.w * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
       const sy = (b.h * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
@@ -698,8 +705,8 @@ class FxController {
       // drift the energy veins — slow rotation + a shimmer offset per vein
       for (let vi = 0; vi < b.veins.length; vi++) {
         const v = b.veins[vi]!;
-        v.rotation += (vi % 2 === 0 ? 0.25 : -0.18) * dt;
-        v.alpha = 0.28 + 0.2 * (0.5 + 0.5 * Math.sin(phase + vi * 2.1));
+        v.rotation += (vi % 2 === 0 ? 0.3 : -0.22) * dt;
+        v.alpha = BUBBLE_VEIN_ALPHA * (0.6 + 0.4 * (0.5 + 0.5 * Math.sin(phase + vi * 2.1)));
       }
     }
   };

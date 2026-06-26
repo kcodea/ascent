@@ -1108,19 +1108,19 @@ describe('run loop (@game/sim)', () => {
     expect(s.embers).toBe(1);
   });
 
-  it('Point Solution re-triggers a Battlecry minion but fizzles (kept) on a non-Battlecry target', () => {
+  it('Resonance re-triggers a Battlecry minion but fizzles (kept) on a non-Battlecry target', () => {
     const s: RunState = {
       ...createRun(1),
       board: [
         { uid: 'bc', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }, // Battlecry: summon a Stray
         { uid: 'plain', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
       ],
-      hand: [{ uid: 'ps', cardId: 'pointsolution', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'ps', cardId: 'resonance', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     const onPlain = reduce(s, { type: 'play', uid: 'ps', targetUid: 'plain' });
-    expect(onPlain.hand.some((c) => c.cardId === 'pointsolution')).toBe(true); // no Battlecry → fizzles, kept
+    expect(onPlain.hand.some((c) => c.cardId === 'resonance')).toBe(true); // no Battlecry → fizzles, kept
     const onBc = reduce(s, { type: 'play', uid: 'ps', targetUid: 'bc' });
-    expect(onBc.hand.some((c) => c.cardId === 'pointsolution')).toBe(false); // consumed
+    expect(onBc.hand.some((c) => c.cardId === 'resonance')).toBe(false); // consumed
     expect([...onBc.board, ...onBc.hand].filter((c) => c.cardId === 'stray').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -1143,6 +1143,37 @@ describe('run loop (@game/sim)', () => {
 
   it('Tara is Tier 4', () => {
     expect(CARD_INDEX.tara!.tier).toBe(4);
+  });
+
+  it('Consume — a targeted Demon devours one random tavern minion (its stats feed the Demon)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'sandbag' }],
+      hand: [{ uid: 'cn', cardId: 'consume', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'cn', targetUid: 'd' });
+    expect(s.shop).toHaveLength(0); // the one tavern minion was devoured
+    const demon = s.board.find((c) => c.uid === 'd')!;
+    const meal = CARD_INDEX.sandbag!;
+    expect([demon.attack, demon.health]).toEqual([3 + meal.attack, 3 + meal.health]); // gained the meal's stats
+    expect(s.hand.some((c) => c.cardId === 'consume')).toBe(false); // consumed
+  });
+
+  it('Golden Touch makes a random tavern minion Golden; it buys in Golden with doubled stats', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 5,
+      shop: [{ uid: 's1', cardId: 'sandbag' }],
+      hand: [{ uid: 'gt', cardId: 'goldentouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'gt' }); // untargeted — gilds the (only) offer
+    expect(s.shop[0]!.golden).toBe(true);
+    s = reduce(s, { type: 'buy', uid: 's1' });
+    const bought = s.hand.find((c) => c.cardId === 'sandbag')!;
+    const base = CARD_INDEX.sandbag!;
+    expect(bought.golden).toBe(true);
+    expect([bought.attack, bought.health]).toEqual([base.attack * 2, base.health * 2]); // gild doubles the stats
   });
 
   it('Ember Pouch gains an Ember when cast (net-neutral after its 1 cost)', () => {

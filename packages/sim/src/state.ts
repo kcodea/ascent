@@ -50,6 +50,8 @@ export interface ShopCard {
   atk?: number;
   hp?: number;
   keywords?: Keyword[];
+  /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
+  golden?: boolean;
 }
 
 /** One source's contribution to a minion's recruit-phase buffs, accumulated for the inspect panel

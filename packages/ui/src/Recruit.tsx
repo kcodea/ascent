@@ -141,14 +141,17 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const tavernHp = fodder ? 0 : opts.tavernHp ?? 0;
   const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0);
   const addHp = (card.hp ?? 0) + cb.health + tavernHp + (undead ? opts.undeadHp ?? 0 : 0);
+  // Golden Touch: a gilded offer shows doubled stats + the golden frame (offer stores base + a flag; the buy
+  // bakes the doubling in, mirrored here for display).
+  const goldMul = card.golden ? 2 : 1;
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
-    attack: c.attack + addAtk, health: c.health + addHp,
+    attack: (c.attack + addAtk) * goldMul, health: (c.health + addHp) * goldMul,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     // Grim (and other Deathrattle-tally cards) show their live scaling buff in the tavern too, not just on board.
     text: tallyBuffText(c.id, opts.deathrattlesTriggered ?? 0) ?? c.text,
-    goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier,
-    baseAttack: c.attack, baseHealth: c.health,
+    goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: card.golden,
+    baseAttack: c.attack * goldMul, baseHealth: c.health * goldMul,
   };
 }
 function instView(

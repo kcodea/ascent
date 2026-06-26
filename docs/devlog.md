@@ -11,6 +11,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 - **Voracious Imp removed** — it was the only `fodderMult` demon. Deleted the card, its `CARD_REFERENCES` popup entry, and updated its tests: the general consume-on-roll + buffed-Fodder coverage was **retargeted to a vanilla Demon** (Maw, ×1); the golden-3× multiplier test was **dropped** (no multiplier card remains — `fodderMultiplier` now always returns 1, kept for a future re-add). Not in the opponent pool, so no regen.
 
 **Files:** `demons.ts` (Acid params/text; removed Voracious Imp), `recruit.ts` (`onRollConsumeShop` tavern buff), `Recruit.tsx` (`CARD_REFERENCES`), `run.test.ts` (Acid test + retargeted consume tests), art (`acid.webp`), `cards.csv` (81 minions now). **Verification:** typecheck + lint + test (389) + build:web green; a new test rolls 3× and asserts Acid eats a minion + the remaining offers each carry +1/+1.
+### feat: Golden Touch + Consume spells; rename Point Solution → Resonance
+
+Three tavern-spell changes:
+
+- **Point Solution → Resonance** — rename (id `pointsolution`→`resonance`, name, comments, tests) + new art (`resonance.webp`; removed the orphaned `pointsolution.webp`). The reducer's Battlecry-target guard keys off the *factory* (`spellReplayBattlecry`), so the rename didn't touch behavior.
+- **Consume** (T4, 2g, target a friendly Demon) — it devours **one** random tavern minion (reuses `spellDemonConsumeTavern` with `count: 1`, the same pipeline as Cupcakes). Not `singleCast`, so **Yazzus multiplies it** (a golden Yazzus → 3 consumed).
+- **Golden Touch** (T4, 5g, untargeted) — make a random tavern minion offer **Golden**. New `ShopCard.golden` flag (factory `spellGildRandomTavern` sets a random offer golden); the **buy bakes it in by doubling the final stats exactly like the Gild hero power** (`addBuff('Golden Touch', …)` then `golden: true` — goldens store *doubled* stats, confirmed via the Gild path), and `shopView` shows the offer with the golden frame + doubled stats. A bought golden grants the golden Discover on play, like any golden. Triples exclude goldens, so there's no weird interaction.
+
+**Files:** `spells.ts` (rename + 2 cards), `recruit.ts` (`spellGildRandomTavern` + comment), `reducer.ts` (buy golden-doubling + comment), `state.ts` (`ShopCard.golden`), `Recruit.tsx` (`shopView` golden), `core/types.ts` + `schema.ts` (factory id), `run.test.ts` (rename + 2 tests), art (3 webp), `cards.csv`. **Verification:** typecheck + lint + test (391, +2) + build:web green; **live** — a gilded sandbag offer renders with the crown + golden frame and **doubled stats (0/6 → 0/12)** in the tavern, normal offers stay 0/6, and it buys in as a Golden.
+### chore: refresh Rohan + Myra hero portraits (Rohan3, Myra3)
+
+Swapped new portrait art over the existing webp for **Rohan** (`art/heroes/rohan.webp` ← Rohan3.png) and **Myra** (`myra.webp` ← Myra3.png) via `optimize-art` (5.0 MB → 0.13 MB). Hero-power icons unchanged. Confirmed (no change) that the Chaos hero power is named **"Chaos Bond"**. The same batch also asked for new Nadja / Chaos / Darah portraits, but those masters (Nadja3 / Chaos2 / Darah2) aren't in `C:\Game Assets\Ascent Art\Heroes\` yet — deferred until they're dropped.
 
 ### feat: four tavern spells (Lantern Light, Fodder Treatment, Point Solution, Chrono Staff) + Tara → T4
 

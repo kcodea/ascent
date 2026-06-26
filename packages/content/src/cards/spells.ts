@@ -411,8 +411,8 @@ export const SPELLS: CardDef[] = [
   },
   {
     // Re-trigger the target's Battlecry (reducer guards it to Battlecry minions). Yazzus multiplies it.
-    id: 'pointsolution',
-    name: 'Point Solution',
+    id: 'resonance',
+    name: 'Resonance',
     tribe: 'neutral',
     tier: 5,
     attack: 0,
@@ -437,5 +437,36 @@ export const SPELLS: CardDef[] = [
     cost: 3,
     effects: [{ on: 'cast', do: 'spellExtraEndOfTurn' }],
     text: 'Your **End of Turn** effects trigger **1 more** time this turn.',
+  },
+  {
+    // Targeted Demon consumes ONE random tavern minion (the Consume pipeline). Not singleCast → Yazzus
+    // multiplies it (a golden Yazzus → 3 random minions consumed).
+    id: 'consume',
+    name: 'Consume',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellDemonConsumeTavern', params: { count: 1 } }],
+    text: 'Choose a **Demon** — it consumes a random minion in the tavern.',
+  },
+  {
+    // Make a random tavern minion Golden — an offer-level golden flag the buy bakes in (goldens store base
+    // stats, ×2 at combat, like Indy's gild). Untargeted → the game picks the minion.
+    id: 'goldentouch',
+    name: 'Golden Touch',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 5,
+    effects: [{ on: 'cast', do: 'spellGildRandomTavern' }],
+    text: 'Make a random minion in the tavern **Golden**.',
   },
 ];

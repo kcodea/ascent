@@ -133,7 +133,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         attack: card.attack + cb.attack + uBuyAtk,
         health: card.health + cb.health,
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
-        golden: false,
+        golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
         boughtWave: s.wave, // Hoarder's sell value climbs from the wave it was bought
       };
       // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
@@ -145,6 +145,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       if ((s.tavernBuyBonus.atk || s.tavernBuyBonus.hp) && !card.keywords.includes('FD')) {
         addBuff(bought, 'Staff of Guel', s.tavernBuyBonus.atk, s.tavernBuyBonus.hp);
       }
+      // Golden Touch: a gilded offer buys in Golden — double the FINAL stats (exactly like the Gild power),
+      // recorded as a buff so the inspect breakdown still itemizes it. The golden flag (set above) doubles
+      // its effects (Deathrattles twice, ×N multipliers) and shows the golden frame.
+      if (offer.golden) addBuff(bought, 'Golden Touch', bought.attack, bought.health);
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
       // Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). The quest
@@ -224,7 +228,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const casts = spellCasts(s, def);
         if (def.target === 'friendly' || def.target === 'any') {
           const boardTarget = s.board.find((c) => c.uid === action.targetUid);
-          // Point Solution only fires on a Battlecry minion — a non-Battlecry target fizzles (spell kept in hand).
+          // Resonance only fires on a Battlecry minion — a non-Battlecry target fizzles (spell kept in hand).
           if (boardTarget && def.effects.some((e) => e.do === 'spellReplayBattlecry') &&
               !CARD_INDEX[boardTarget.cardId]?.effects.some((e) => e.on === 'onPlay')) return state;
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.

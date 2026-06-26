@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: live combat-text becomes the norm — Grim, Guel, Spirit Worgen show their current value in combat
+
+Owner: "Grim is also not showing its current value in combat. this needs to be the norm across the board." Same gap as Mama Bear, generalized: a scaling card's COMBAT card (`Unit.tsx`) showed the *printed* rule text, while the shop (`Recruit.tsx`) already shows the live magnitude. Audited the whole live-text surface (`cardText.ts`) — every builder, which the combat chain wired vs. only the shop — and closed the combat-relevant gaps:
+
+- **Grim** (`tallyBuffText`) — "+N/+N per Deathrattle this game" now reads the run's live Deathrattle tally instead of the printed "+1/+1".
+- **Archmagus Guel** (`guelProgressText`) — the live grant + countdown from spells cast this run.
+- **Spirit Worgen** (`summonScalingText`) — the per-summon gain that scales with spells cast this turn.
+
+These three are **run-level scalers**, so combat reads them from the store frozen at the fight-start value — exactly how `Unit.tsx` already reads Taragosa's spell power (`spellAttackBonus(s.run)`). Added `useGame` selectors for `s.run.deathrattlesTriggered / spellsCast / spellsThisTurn` and slotted the three builders into the combat `??` chain, mirroring the shop's order. The recruit-only builders correctly stay out of combat: cadence (Frontdrake's turn countdown), cling (magnetize is a shop action), abhorrent ("next combat" telegraph), and the economy metrics (Soulsman gold, undead buy-bonus). The run-wide Eternal Knight enchant (`cardTypeTallyText`) is a golden-independent *suffix* with extra append/golden plumbing — deferred as a follow-up, not wired this pass.
+
+**Files:** `Unit.tsx` (3 selectors + 3 chain entries + import), `cardText.test.ts` (+1 — `summonScalingText`; `tallyBuffText`/`guelProgressText` already covered). **Verification:** `typecheck + lint + test (380) + build:web` green; preview reload console-clean. typecheck validates the `s.run.*` selector paths; the cardText builders are unit-tested and the wiring mirrors the proven shop chain. Grim has no goldenText, so its golden card stays consistent with the shop (no regression). Staging a live Grim/Guel combat in the preview isn't practical, so verification is the cardText tests + the wired chain (as with Mama Bear).
+
 ### feat: Mama Bear's combat card shows its per-summon buff LIVE
 
 Owner: Mama Bear's combat text should say, in real time, what the buff is. Her per-summon grant climbs (+2/+2 each Beast summoned), but the COMBAT card showed the printed text, not the live value. Two parts — the second is the load-bearing one a surface read misses:

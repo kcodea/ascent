@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, sergeantText, soulsmanText, summonImproveText, tallyBuffText, taragosaText, undeadBuyAtkText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, sergeantText, soulsmanText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText } from './cardText';
 
 describe('cardText helpers', () => {
   it('guelProgressText shows Guel’s live grant + countdown to the next step (golden-aware)', () => {
@@ -58,6 +58,12 @@ describe('cardText helpers', () => {
     expect(summonImproveText('mamabear', 2, true)).toContain('{{+8/+8}}'); // (2 + 2) × 2 golden (from goldenText)
     expect(summonImproveText('mamabear', 0, false)).toBeNull(); // no accrual yet → printed +2/+2
     expect(summonImproveText('sandbag', 4, false)).toBeNull(); // not a per-summon-improve card
+  });
+
+  it('summonScalingText (Spirit Worgen) shows the live per-summon gain = base + spells cast this turn', () => {
+    expect(summonScalingText('spiritworgen', 3)).toContain('{{+4/+4}}'); // base 1 + 3 spells this turn
+    expect(summonScalingText('spiritworgen', 0)).toBeNull(); // no spells this turn → printed +1/+1
+    expect(summonScalingText('grim', 3)).toBeNull(); // not a spells-this-turn scaler
   });
 
   it('taragosaText scales Growth with spell power (golden casts twice)', () => {

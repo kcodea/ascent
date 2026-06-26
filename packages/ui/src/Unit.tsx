@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, cryptDrakeText, engraveTallyText, sergeantText, summonBuffText, summonImproveText, taragosaText } from './cardText';
+import { ascendProgressText, cryptDrakeText, engraveTallyText, guelProgressText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText } from './cardText';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -32,12 +32,21 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
   // the same value the combat used. Primitive selectors → the memoized Unit only re-renders if they change.
   const spA = useGame((s) => spellAttackBonus(s.run));
   const spH = useGame((s) => spellHealthBonus(s.run));
-  // Combat live text — show current values for minions whose effects scale mid-fight.
+  // Run-level scalers, frozen during combat (read like spell power above) so a Grim / Guel / Spirit Worgen
+  // shows the same magnitude the fight used: the run Deathrattle tally, spells cast this run, spells this turn.
+  const drTally = useGame((s) => s.run.deathrattlesTriggered);
+  const spellsCast = useGame((s) => s.run.spellsCast);
+  const spellsThisTurn = useGame((s) => s.run.spellsThisTurn);
+  // Combat live text — show current values for minions whose effects scale mid-fight (per-minion accruals)
+  // or with frozen run-level scalers (Grim/Guel/Worgen, like Taragosa's spell power). Mirrors the shop chain.
   const liveText = summonBuffText(u.cardId, u.summonBonus)
     ?? summonImproveText(u.cardId, u.summonBonus, u.golden) // Mama Bear: live "+M/+M per summon" (climbs via improve events)
+    ?? summonScalingText(u.cardId, spellsThisTurn) // Spirit Worgen: per-summon gain scales with spells cast this turn
     ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
     ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
     ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
+    ?? tallyBuffText(u.cardId, drTally) // Grim: live "+N/+N" from the run Deathrattle tally
+    ?? guelProgressText(u.cardId, u.golden, spellsCast) // Guel: live grant + countdown from spells cast this run
     ?? taragosaText(u.cardId, u.golden, spA, spH)
     ?? engraveTallyText(u.cardId, u.permaGain)
     ?? def?.text ?? '';

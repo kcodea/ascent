@@ -52,6 +52,9 @@ export interface ShopCard {
   keywords?: Keyword[];
   /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
   golden?: boolean;
+  /** Displacement: a board minion stashed here when swapped to the tavern — restored INTACT (all buffs /
+   *  stats / progression) when re-bought or swapped back, rather than re-instantiated from base. */
+  held?: BoardCard;
 }
 
 /** One source's contribution to a minion's recruit-phase buffs, accumulated for the inspect panel

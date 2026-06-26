@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### fix: Displacement keeps the displaced minion intact (and swapped-in Battlecries still don't fire)
+
+Two owner tweaks to the board↔tavern swap (Displacement spell + Darah's Displace):
+
+- **The displaced minion keeps EVERYTHING when sent to the tavern.** Its full state (buffs, stats, keywords, golden, `summonBonus` / `ascendProgress` / etc.) is stashed on the offer's new `ShopCard.held` and restored **intact** when re-bought or swapped back — instead of resetting to a fresh base offer (the previous behavior). `swapWithTavern` stashes `held: { ...boardMinion }`; the buy path and the swap-in path restore `{ ...held, uid: new }`; `shopView` shows the held minion's preserved stats / keywords / golden frame.
+- **Swapped-in Battlecries don't fire** — already the case (the incoming minion is placed, never "played"), now locked in with a test.
+
+**Files:** `state.ts` (`ShopCard.held`), `recruit.ts` (`swapWithTavern`), `reducer.ts` (buy held-restore + checkTriples), `Recruit.tsx` (`shopView` held branch), `run.test.ts` (+2). **Verification:** typecheck + lint + test (399, +2) + build:web green; tests cover full-state preservation + re-buy restore + the no-Battlecry guarantee; **live** — a displaced 9/8 Taunt minion shows **9/8 + Taunt** in the tavern (not reset to base), console clean.
+
 ### feat: Chaos Attachment grant animation — flies in from the hero portrait
 
 UI juice for the Chaos hero power: when a Chaos Attachment is granted (every 5th turn), the new hand token now **flies in from the hero portrait**. Engine side — the reducer's recurring grant bumps a transient `chaosGrantSeq` and records the token's `chaosGrantUid` (the established one-shot-signal pattern, like `fodderEatenSeq`). UI side — a Recruit effect watches the seq (inits to the current value, so it doesn't fire on mount / for the game-start token), finds the new hand card (`[data-uid]`) + the portrait (`.heroimg`), and `gsap.from`-flies the card from the portrait position (scaled / rotated / faded) into its hand slot with a slight overshoot, clearing the inline transform on complete.

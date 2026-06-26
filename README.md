@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Displacement preserves your minion.** Swapping a minion to the tavern now keeps all its buffs and
+  progression — re-buy it and it returns intact (and swapped-in Battlecries don't fire).
 - **Chaos Attachment flies in from the portrait.** When the Chaos hero power grants its token, it now
   animates in from the hero portrait.
 - **Spell Cart (T5).** Refresh the tavern full of spells instead of minions (one-shot — the next roll

@@ -685,6 +685,16 @@ describe('simulate (handoff A.3)', () => {
     expect(CARD_INDEX[(grant as { cardId: string }).cardId]?.spell).toBe(true); // the actual spell that was generated
   });
 
+  it("a mid-combat spell-power telegraph is a narration sc (no `cast`) — the UI won't replay it as a SoC attack", () => {
+    // Ghastly Bladesmith's Deathrattle grants +1 spell power, telegraphed mid-fight as a "+1/+0 Spell Power" sc.
+    // It carries NO `cast` flag (only genuine Start-of-Combat damage casts do), so the UI fires no projectile
+    // bolt / zap — fixing "Ryme procs Cinderwing → phantom Ember Whelp attack" (spell power shares this channel).
+    const r = run([{ cardId: 'skullblade', attack: 5, health: 1 }], [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }], 1);
+    const sp = r.events.find((e) => e.type === 'sc' && /Spell Power/.test(e.text));
+    expect(sp).toBeDefined();
+    expect(sp?.type === 'sc' ? sp.cast : 'missing').toBeUndefined(); // narration, not a cast
+  });
+
   it("Taragosa's Growth scales with the run's spell power", () => {
     const board: BoardMinion[] = [
       { cardId: 'taragosa', attack: 5, health: 100 },

@@ -3,6 +3,16 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-26 (session 6)
+
+### fix: spell-power telegraphs (Ryme→Cinderwing, Gnasher, Bladesmith) no longer fire a phantom Start-of-Combat attack
+
+Owner: *"ryme proccing cinderwing is doing that ember whelp attack."* Same root cause as the earlier Tara fix — the `sc` combat event is overloaded. The UI replays EVERY `sc` as a Start-of-Combat cast: a zap, an `sccast` flash, and a **projectile bolt** from the source to the next beat's damage target. When Ryme re-fires Cinderwing Matron's battlecry in combat it grants spell power, whose `+A/+B Spell Power` telegraph is an `sc` event — so a bolt flew from the source to an unrelated attack's victim, reading like the long-gone Ember Whelp's scorch.
+
+Fix: give the `sc` event a `cast?: true` discriminator. Only a **genuine Start-of-Combat *damage* cast** sets it (the `scDamage` / `scSplitDamage` / `scAoePerTribe` / `scDestroyHighestAttack` factories — all currently unused by any live card, but future-proofed). The UI now gates the bolt + zap + flash on `cast`; mid-combat narration `sc` events (spell power, etc.) keep driving the combat log, the live buffs-window spell-power tracker, and the trigger-medallion pulse, but no longer fling a phantom attack. Blaster's separate Deathrattle bolt path is untouched.
+
+**Files:** `types.ts` (`cast?` on the `sc` event), `factories.ts` (`cast: true` on the 4 damage SoC emits), `useCombatReplay.ts` (gate bolt / sound / flash on `cast`), `simulate.test.ts` (+1). **Verification:** `typecheck + lint + test (378, +1) + build:web` green; the new test proves a mid-combat spell-power telegraph emits a narration `sc` with no `cast`. (The earlier Tara variant — the ascend narration — was already removed; this generalizes the fix to every spell-power telegraph.)
+
 ## 2026-06-25 (session 5)
 
 ### feat: mid-combat ascension (engine) — Tara → Taragosa transforms during the fight

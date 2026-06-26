@@ -225,7 +225,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'buff': return { [e.target]: 'buffed' };
     case 'improve': return { [e.target]: 'buffed' };
     case 'maxGold': return { [e.target]: 'goldproc' };
-    case 'sc': return { [e.source]: 'sccast' };
+    case 'sc': return e.cast ? { [e.source]: 'sccast' } : {}; // only a genuine SoC cast flashes; narration (spell power, etc.) is silent
     case 'death': return { [e.target]: 'dying' };
     case 'summon': return { [e.minion.uid]: 'summoned' };
     case 'rally': return { [e.source]: 'sccast', [e.target]: 'flare' }; // Deathsayer pulses; the Deathrattle minion flares
@@ -610,7 +610,7 @@ export function useCombatReplay(
       const e = events[i];
       if (!e) continue;
       if (e.type === 'attack') once('attack', sfx.attack);
-      else if (e.type === 'sc') once('cast', sfx.cast); // Start-of-Combat zap (distinct from the melee smack)
+      else if (e.type === 'sc' && e.cast) once('cast', sfx.cast); // Start-of-Combat zap — only a genuine cast, not a narration (spell-power telegraph etc.)
       else if (e.type === 'death') { once('death', sfx.death); kill = true; }
       else if (e.type === 'shieldUp') once('shield', sfx.shield);
       else if (e.type === 'buff') once('buff', sfx.buff);
@@ -655,7 +655,10 @@ export function useCombatReplay(
     // Projectiles: Start-of-Combat bolts (caster → its next-beat dmg targets), plus Blaster's Deathrattle
     // — purple bolts from the dying Blaster to every minion its AOE hit (the dmg events in the same beat).
     const ps: { id: number; x: number; y: number; dx: number; dy: number; kind?: string }[] = [];
-    if (cur?.primary.type === 'sc') {
+    if (cur?.primary.type === 'sc' && cur.primary.cast) {
+      // Only a genuine Start-of-Combat damage cast fires the projectile bolt. A mid-combat narration `sc`
+      // (a spell-power gain from Cinderwing-via-Ryme, Gnasher, Bladesmith…) has no `cast` flag, so it no
+      // longer flings a phantom "Ember Whelp" bolt at whatever the next beat's damage happens to be.
       const src = center(cur.primary.source);
       const next = beats[beatIdx];
       if (src && next) {

@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: mid-combat ascension (engine) — Tara → Taragosa transforms during the fight
+
+Foundation for the ascension system (owner: "units need to ascend mid-combat… it will need an sfx trigger & an animation trigger"). Until now Tara → Taragosa (and Spirit Pup → Spirit Worgen) only transformed at SETTLE, between fights. The engine now transforms a qualifying minion **in place mid-combat**:
+
+- **New `ascend` combat event** (`{ type: 'ascend'; target; into }`) in the shared `CombatEvent` vocabulary — emitted when a minion transforms, for the UI to animate (the presentation wiring is the next PR).
+- **The transform** (`simulate.ts`): a queued, between-actions `ascendMinion` swaps the minion's identity (cardId / name / tribe) + effects to its ascend form and adds the new form's keywords, **keeping its current stats / buffs**. The new form's abilities go live immediately (an ascended Taragosa casts Growth the rest of the fight). The `CombatBus` can't unregister, so `registerEffects` handlers now **self-disable** when their effect is no longer in the minion's current set — the old form's abilities cleanly stop firing.
+- **Tara's trigger**: her stat-grant tally in `ctx.buff` now also checks the threshold (seeded progress + this fight's grants ≥ `ascendAt`) and queues the ascension, flushed at the next clean beat (after each attack / after Start-of-Combat). The settle-time transform of the run-board card is unchanged, so the board card and the combat instance stay consistent.
+
+**Files:** `types.ts` (`ascend` event), `simulate.ts` (ascend infra + Tara trigger + `registerEffects` self-disable + flush points), `combat-harness.ts` (narration), `simulate.test.ts` (+1). **Verification:** `typecheck + lint + test (375, +1) + build:web` green; a repro confirmed Tara ascends to Taragosa mid-fight at 20 grants and Taragosa's Growth (+3/+4) fires afterward. (Pre-existing, unrelated: `typecheck:web` flags 4 magnetize type errors in `Recruit.tsx` on clean main — noted for a separate pass.)
+
+**Next:** (a) the UI presentation — the `ascend` SFX + a level-up animation + the live board-state swap; (b) Spirit Pup → Spirit Worgen — counting in-combat spells toward its threshold (carried back) + its mid-combat transform, reusing this infra.
+
 ### fix: in-combat spell casts feed spell power LIVE + proc Forsaken Weaver permanently
 
 Two fixes to how mid-combat spell casts (Taragosa's Growth) feed the spell-driven effects:

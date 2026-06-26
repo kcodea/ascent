@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Ascension begins mid-fight (engine).** Tara now transforms into Taragosa **during** combat the moment her
+  stat-grants cross 20 (was only between fights), and Taragosa's Growth fires the rest of that fight. The new
+  `ascend` event is wired for an upcoming sound + animation; Spirit Pup → Spirit Worgen is next.
 - **In-combat spells feed live.** Spell power gained mid-fight (Gnasher's kills) now boosts **Taragosa's
   Growth** the same fight, and **Forsaken Weaver** procs **permanently** off spells cast in combat (its +Atk to
   Undead now carries back, like its shop version) — both off Taragosa's Growth casts.

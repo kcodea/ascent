@@ -698,6 +698,20 @@ describe('simulate (handoff A.3)', () => {
     expect(r0.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // no spell power → base
   });
 
+  it('Tara ascends to Taragosa MID-combat once her stat-grants cross the threshold, and Taragosa then casts Growth', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'tara', attack: 3, health: 40, keywords: ['EG'], ascendProgress: 19 }, // 1 more grant → ascend
+      { cardId: 'cryptdrake', attack: 4, health: 40 }, // buffs all on each ally attack → grants Tara a stat
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 400 }];
+    const a = run(p, e, 1);
+    const ascend = a.events.find((ev) => ev.type === 'ascend');
+    expect(ascend && ascend.type === 'ascend' ? ascend.into : null).toBe('taragosa'); // transformed mid-fight
+    // The new form's effect is live the rest of the combat: Taragosa casts Growth (+3/+4 to all) on a later attack.
+    const ai = a.events.findIndex((ev) => ev.type === 'ascend');
+    expect(a.events.slice(ai + 1).some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
+  });
+
   it("Gnasher's kill raises spell power LIVE — Taragosa's Growth jumps from 3/4 to 4/5 the same fight", () => {
     const p: BoardMinion[] = [
       { cardId: 'gnash', attack: 20, health: 40 },

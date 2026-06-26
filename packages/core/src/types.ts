@@ -357,6 +357,7 @@ export type CombatEvent =
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; echo?: boolean }
+  | { type: 'ascend'; target: string; into: string } // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
   | { type: 'buff'; target: string; attack: number; health: number; source: string }
   | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle

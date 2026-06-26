@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### tweak: more spread in the hand (overlap 20% of card width, not a fixed −84px)
+
+Hand cards overlapped too much, especially with a full hand. The overlap was a fixed `margin-left: -84px`
+— but the card width (`--ccw`) is responsive (~140–245px), so that fixed px read as ~35% overlap on big
+screens and ~60% on small ones. Now the overlap is **20% of the card width** (`calc(var(--ccw) * -0.2)`),
+so it's a consistent slight overlap at every size. Tradeoff (owner-accepted): a near-full 10-card hand
+widens toward the screen edges rather than compressing — a dynamic fit-to-zone overlap was the alternative.
+
+**Files:** `styles.css` (`.row.hand .card` margin). **Verification:** `lint + build:web` green; computed
+overlap confirmed live at exactly 20% (card 141px → margin −28px), first card flush.
+
 ### feat: loss-damage tally + blast (surviving tiers → Resolve)
 
 On a defeat, the damage you take is now telegraphed: the surviving enemy minions' **tavern tiers** plus

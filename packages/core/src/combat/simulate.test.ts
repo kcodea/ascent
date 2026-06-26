@@ -708,6 +708,21 @@ describe('simulate (handoff A.3)', () => {
     expect(r0.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // no spell power → base
   });
 
+  it('Mama Bear emits an `improve` event per Beast summoned in combat (drives the live per-summon text)', () => {
+    // Mama Pup dies → Deathrattle summons 2 Pups (Beasts); Mama Bear buffs each AND emits an `improve` so the
+    // UI's live "+M/+M per summon" card text climbs mid-fight (that field only moves on improve events).
+    const p: BoardMinion[] = [
+      { cardId: 'mamabear', attack: 6, health: 30 },
+      { cardId: 'pack', attack: 2, health: 1 }, // Mama Pup — dies → summons 2 Pups
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 40 }];
+    const a = run(p, e, 1);
+    const mb = a.initial.player.find((m) => m.cardId === 'mamabear')!.uid;
+    const improves = a.events.filter((ev) => ev.type === 'improve' && ev.target === mb);
+    expect(improves.length).toBe(2); // one per Pup summoned
+    expect(improves.every((ev) => ev.type === 'improve' && ev.amount === 2)).toBe(true); // pre-golden step = base (2)
+  });
+
   it('Tara ascends to Taragosa MID-combat once her stat-grants cross the threshold, and Taragosa then casts Growth', () => {
     const p: BoardMinion[] = [
       { cardId: 'tara', attack: 3, health: 40, keywords: ['EG'], ascendProgress: 19 }, // 1 more grant → ascend

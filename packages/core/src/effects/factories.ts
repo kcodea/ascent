@@ -184,6 +184,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const mag = (base + self.summonBonus) * mul(self);
     ctx.buff(minion, mag, mag, self.uid);
     self.summonBonus += base;
+    // Surface the climb (like Kennelmaster's avengeImproveSummon) so the live combat card text — "+M/+M per
+    // summon" via summonImproveText — ticks up in real time as Beasts are summoned. `amount` is the pre-golden
+    // step; the UI folds it into summonBonus and re-applies ×golden when it renders.
+    ctx.log({ type: 'improve', target: self.uid, amount: base });
   },
 
   /** When a friendly minion of `tribe` is summoned, buff it. The per-stat magnitude is the

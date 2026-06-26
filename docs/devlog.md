@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: live combat-text becomes the norm — Grim, Guel, Spirit Worgen show their current value in combat
+
+Owner: "Grim is also not showing its current value in combat. this needs to be the norm across the board." Same gap as Mama Bear, generalized: a scaling card's COMBAT card (`Unit.tsx`) showed the *printed* rule text, while the shop (`Recruit.tsx`) already shows the live magnitude. Audited the whole live-text surface (`cardText.ts`) — every builder, which the combat chain wired vs. only the shop — and closed the combat-relevant gaps:
+
+- **Grim** (`tallyBuffText`) — "+N/+N per Deathrattle this game" now reads the run's live Deathrattle tally instead of the printed "+1/+1".
+- **Archmagus Guel** (`guelProgressText`) — the live grant + countdown from spells cast this run.
+- **Spirit Worgen** (`summonScalingText`) — the per-summon gain that scales with spells cast this turn.
+
+These three are **run-level scalers**, so combat reads them from the store frozen at the fight-start value — exactly how `Unit.tsx` already reads Taragosa's spell power (`spellAttackBonus(s.run)`). Added `useGame` selectors for `s.run.deathrattlesTriggered / spellsCast / spellsThisTurn` and slotted the three builders into the combat `??` chain, mirroring the shop's order. The recruit-only builders correctly stay out of combat: cadence (Frontdrake's turn countdown), cling (magnetize is a shop action), abhorrent ("next combat" telegraph), and the economy metrics (Soulsman gold, undead buy-bonus). The run-wide Eternal Knight enchant (`cardTypeTallyText`) is a golden-independent *suffix* with extra append/golden plumbing — deferred as a follow-up, not wired this pass.
+
+**Files:** `Unit.tsx` (3 selectors + 3 chain entries + import), `cardText.test.ts` (+1 — `summonScalingText`; `tallyBuffText`/`guelProgressText` already covered). **Verification:** `typecheck + lint + test (380) + build:web` green; preview reload console-clean. typecheck validates the `s.run.*` selector paths; the cardText builders are unit-tested and the wiring mirrors the proven shop chain. Grim has no goldenText, so its golden card stays consistent with the shop (no regression). Staging a live Grim/Guel combat in the preview isn't practical, so verification is the cardText tests + the wired chain (as with Mama Bear).
+
+### feat: Mama Bear's combat card shows its per-summon buff LIVE
+
+Owner: Mama Bear's combat text should say, in real time, what the buff is. Her per-summon grant climbs (+2/+2 each Beast summoned), but the COMBAT card showed the printed text, not the live value. Two parts — the second is the load-bearing one a surface read misses:
+
+- **UI** (`Unit.tsx`): wire the existing `summonImproveText` (already used in the shop) into the combat live-text `??` chain — it shows the current grant `+M/+M` (M = base 2 + accrued, golden-doubled), per-instance, matching the buffs-window formula.
+- **Engine** (`factories.ts`): Mama Bear's combat factory `summonBuffTribeImprove` incremented `self.summonBonus` but **emitted no event**, and the UI's `computeFrame` only climbs `summonBonus` from `improve` events — so without an engine change the text would freeze at the combat-start value. Added `ctx.log({ type: 'improve', target: self.uid, amount: base })` (mirroring Kennelmaster's `avengeImproveSummon`), so the bonus — and the text — tick up live as each Beast is summoned. (Side effect, consistent with Kennelmaster: Mama Bear now also gets a ✦ float + a log line per Beast summon.)
+
+**Files:** `factories.ts` (improve emission), `Unit.tsx` (cardText wiring + import), `cardText.test.ts` (+1), `simulate.test.ts` (+1). **Verification:** `typecheck + lint + test (379, +2) + build:web` green; the engine test asserts an `improve` per Beast summoned (Mama Pup → 2 Pups → 2 improves, amount = base 2), the cardText test pins the live string `(2 + accrued) × golden`, and no existing test broke (no prior Mama Bear *combat* test existed). Planned via a mapping workflow that caught the missing-event trap; live-combat staging (a tier-5 Mama Bear + a Beast summoner mid-fight) is impractical in the preview, so verification is the engine + cardText tests + the wired chain.
 ### fix: captured opponent boards retain per-minion accruals (Sergeant's Deathrattle HP-grant, Tara's ascend progress)
 
 Owner: opponent boards should reflect their *progress + buffs* at the snapshotted moment. A captured board (`cleanBoard` in `snapshot.ts`) kept each minion's current buffed stats / keywords / golden + `summonBonus` (Mama Bear) + `rallyMechAtk` (Better Bot) — but **dropped** two accruals that `BoardMinion` carries and combat already seeds (`minion.ts`): **Sergeant's `hpGrantBonus`** (its improved Deathrattle HP-grant) and **Tara's `ascendProgress`**. So a served Sergeant reverted to its base Deathrattle grant and a served Tara lost its head-start toward Taragosa — both fought *weaker* than the real board. `cleanBoard` now copies both (same conditional pattern as the others).

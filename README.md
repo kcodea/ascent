@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Scaling cards show their current value in combat.** Mama Bear's per-summon grant ticks up live as Beasts
+  are summoned; Grim, Archmagus Guel, and Spirit Worgen now read their live run-scaled magnitude on the combat
+  card too (Deathrattle tally / spells cast), instead of the printed rule text.
 - **Captured opponents keep their progress.** A board served as an enemy now retains its minions' accrued state
   — Sergeant's improved Deathrattle HP-grant and Tara's ascend progress — so it fights as strong as the board it
   was snapshotted from (it used to drop those). New captures only.

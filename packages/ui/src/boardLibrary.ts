@@ -46,24 +46,26 @@ export function loadStoredBoards(): BoardSnapshot[] {
  *  stored library, capped to the most recent CAP. Stamps your attribution (origin:'self' + name + date) so
  *  these boards carry "by you" when served — and so they can be exported with provenance for a friend's pool.
  *  Best-effort — board capture never blocks the game. */
-export function saveRunBoards(replay: Replay, author?: string): void {
+export function saveRunBoards(replay: Replay, author?: string): BoardSnapshot[] {
   try {
     const { final, snapshots } = replayRun(replay);
     // ONLY persist a run that actually FINISHED — won (victory) or lost (gameover). The caller already gates
     // on the gameover/victory transition; this guard makes it impossible for an in-progress / abandoned run
     // to be snapshotted even if anything ever calls this wrongly.
-    if (final.phase !== 'gameover' && final.phase !== 'victory') return;
+    if (final.phase !== 'gameover' && final.phase !== 'victory') return [];
     // Only keep boards with minions — an empty board (power 0) is never a useful opponent.
     const capturedAt = new Date().toISOString().slice(0, 10);
     const patch = `${__APP_VERSION__}+${__BUILD_SHA__}`; // the build these boards were captured under (for pruning old patches)
     const fresh = snapshots
       .filter((s) => s.minions.length > 0)
       .map((s) => ({ ...s, origin: 'self' as const, ...(author ? { author } : {}), capturedAt, patch }));
-    if (fresh.length === 0) return;
-    const all = dedupe([...loadStoredBoards(), ...fresh]).slice(-CAP);
-    localStorage.setItem(KEY, JSON.stringify(all));
+    if (fresh.length === 0) return [];
+    // localStorage write is its own best-effort step, so a quota/availability failure still returns the fresh
+    // boards (the remote upload in store.ts must run even when local persistence is unavailable).
+    try { localStorage.setItem(KEY, JSON.stringify(dedupe([...loadStoredBoards(), ...fresh]).slice(-CAP))); } catch { /* ignore */ }
+    return fresh; // hand the captured boards back so the caller can also push them to the remote pool
   } catch {
-    /* ignore — capture is best-effort, never fatal */
+    return []; // capture is best-effort, never fatal
   }
 }
 

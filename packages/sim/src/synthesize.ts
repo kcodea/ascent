@@ -13,11 +13,13 @@
  *
  * Deterministic (seeded rng). Tool-time only (used by `npm run pool`); not on any runtime path.
  */
-import { makeRng, type BoardMinion, type Rng } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { makeRng, type BoardMinion, type CardDef, type Rng, type Tribe } from '@game/core';
+import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
 import type { BoardSnapshot } from './snapshot';
+import { HEROES } from './heroes';
 import { opponentBoard } from './opponents';
 import { rateBoardForWave, ratingBand, type WaveLadders } from './rating';
+import { buildEnemyBoard, THREAT_IDS } from './threats';
 
 const power = (b: BoardMinion[]): number => b.reduce((s, m) => s + m.attack + m.health, 0);
 
@@ -95,6 +97,112 @@ export function synthesizeForWave(
       author: undefined,
       patch: opts.patch ?? base.patch,
       capturedAt: opts.capturedAt ?? base.capturedAt,
+    });
+  }
+  return out;
+}
+
+// ── From-scratch synthesis (no bot, no real seed) ────────────────────────────────────────────
+// The bot only survives to ~wave 9, so it can't seed a pool for waves 10–20. Instead we build boards
+// straight from the card set, scaled to MATCH THE TUNED ENEMY CURVE: for each wave we take the procedural
+// threat boards (`buildEnemyBoard` — the `enemyScaling` dial, defined for all 20 waves across the 5 threat
+// archetypes), copy their width + power (the "power banding" anchor), and fill that shape with real tribe
+// cards scaled to hit it. The cardIds carry real keywords/effects (so a served board fights like a real
+// tribe board), and `rateBoardForWave` (now ladder-backed at every wave) bands them. Opponents only need the
+// right STRENGTH, not buildability — so this is principled, deterministic, and covers waves 1–20.
+
+const SYNTH_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
+/** Per-tribe buyable minion pools (a card counts for either of its tribes). Built once. */
+const TRIBE_POOL: Record<string, CardDef[]> = Object.fromEntries(
+  SYNTH_TRIBES.map((t) => [t, BUYABLE_CARDS.filter((c) => c.tribe === t || c.tribe2 === t)]),
+);
+/** A plausible tavern tier for a wave — opponent-frame intel + a soft cap on which cards a board draws from. */
+const tierForWave = (wave: number): number => Math.max(1, Math.min(6, Math.round(wave / 3) + 1));
+
+/** Keep `cap` boards from `list`, spread evenly across the Σ(atk+hp) power range (not clustered). */
+function spreadByPowerMinions(list: BoardMinion[][], cap: number): BoardMinion[][] {
+  if (list.length <= cap) return list;
+  const sorted = [...list].sort((a, b) => power(a) - power(b));
+  const out: BoardMinion[][] = [];
+  for (let i = 0; i < cap; i++) out.push(sorted[Math.round((i * (sorted.length - 1)) / (cap - 1))]!);
+  return out;
+}
+
+/** Build one coherent tribe board of `n` minions, stat-scaled uniformly to hit `targetPower`. Real cardIds
+ *  (so keywords/effects are real); cards are drawn from the tribe's pool at/under `maxTier` for era-fit. */
+function buildTribeBoard(tribe: Tribe, n: number, targetPower: number, maxTier: number, rng: Rng): BoardMinion[] {
+  let pool = TRIBE_POOL[tribe]!.filter((c) => c.tier <= maxTier);
+  if (pool.length < 2) pool = TRIBE_POOL[tribe]!;
+  const picks: CardDef[] = [];
+  for (let i = 0; i < n; i++) picks.push(pool[rng.int(pool.length)]!);
+  const base = picks.reduce((s, c) => s + c.attack + c.health, 0) || 1;
+  const factor = targetPower / base; // uniform stat dial → Σ(atk+hp) ≈ targetPower
+  return picks.map((c) => ({
+    cardId: c.id,
+    attack: Math.max(1, Math.round(c.attack * factor)),
+    health: Math.max(1, Math.round(c.health * factor)),
+    keywords: [...c.keywords],
+  }));
+}
+
+export interface CurveSynthOptions {
+  /** How many boards to emit for the wave (the per-wave pool size, e.g. 5–8). */
+  perWave: number;
+  /** Procedural reference seeds per threat (more = a finer power spread to sample from). */
+  proceduralSeeds?: number;
+  patch?: string;
+  capturedAt?: string;
+}
+
+/**
+ * Synthesize `opts.perWave` boards for `wave`, banded to the tuned enemy curve. Deterministic for a given
+ * `seed`. Each board mirrors a procedural threat board's WIDTH + POWER (spread weak→strong across the wave's
+ * archetypes, with a small jitter) but is filled with real tribe cards (tribe cycles for variety). Returns
+ * `origin:'synthetic'` snapshots carrying a baked wave-relative `rating`. No bot, no real seed needed.
+ */
+export function synthesizeWaveFromCurve(
+  wave: number,
+  ladders: WaveLadders,
+  seed: number,
+  opts: CurveSynthOptions,
+): BoardSnapshot[] {
+  const rng = makeRng(seed);
+  const procSeeds = opts.proceduralSeeds ?? 4;
+  // The tuned enemy curve at this wave: 5 archetypes × procSeeds, spanning width + power weak→strong.
+  const refs: BoardMinion[][] = [];
+  THREAT_IDS.forEach((threat, ti) => {
+    for (let k = 0; k < procSeeds; k++) refs.push(buildEnemyBoard(threat, wave, makeRng(seed + ti * 131 + k * 17 + 1)));
+  });
+  const chosen = spreadByPowerMinions(refs.filter((b) => b.length > 0), opts.perWave);
+  const tier = tierForWave(wave);
+  const out: BoardSnapshot[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < chosen.length; i++) {
+    const ref = chosen[i]!;
+    const targetPower = Math.max(2, Math.round(power(ref) * (0.9 + rng.next() * 0.3))); // ×0.9–1.2 band jitter
+    const tribe = SYNTH_TRIBES[(wave + i) % SYNTH_TRIBES.length]!; // cycle tribes for synergy variety
+    const minions = buildTribeBoard(tribe, ref.length, targetPower, tier, rng);
+    const sig = signature(minions);
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    const rating = +rateBoardForWave(minions, wave, ladders, tier).toFixed(3);
+    out.push({
+      v: 1,
+      wave,
+      heroId: HEROES[(wave * 7 + i) % HEROES.length]!.id,
+      resolve: 30,
+      tier,
+      triples: 0,
+      tribes: [...SYNTH_TRIBES],
+      threat: THREAT_IDS[rng.int(THREAT_IDS.length)]!,
+      power: power(minions),
+      minions,
+      seed,
+      origin: 'synthetic',
+      author: undefined,
+      capturedAt: opts.capturedAt,
+      patch: opts.patch,
+      rating,
     });
   }
   return out;

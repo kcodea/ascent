@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { makeRng, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { mutateBoard, synthesizeForWave, buildWaveLadders, ratingBand, type BoardSnapshot } from './index';
+import { mutateBoard, synthesizeForWave, synthesizeWaveFromCurve, buildWaveLadders, ratingBand, type BoardSnapshot } from './index';
 
 const vanilla = (n: number, atk: number, hp: number, kw?: BoardMinion['keywords']): BoardMinion[] =>
   Array.from({ length: n }, () => (kw ? { cardId: 'alley', attack: atk, health: hp, keywords: kw } : { cardId: 'alley', attack: atk, health: hp }));
@@ -43,5 +43,26 @@ describe('board synthesis', () => {
     }
     const again = synthesizeForWave(reals, wave, ladders, 6, 1, opts);
     expect(again.map((s) => s.power)).toEqual(made.map((s) => s.power)); // deterministic for the same seed
+  });
+
+  it('synthesizeWaveFromCurve bands a from-scratch pool at a HIGH wave with no real seed (deterministic)', () => {
+    // The bot can't reach wave 15 — the whole point of curve-synthesis. Ladder is the procedural enemy curve.
+    const curveLadders = buildWaveLadders([], [], [], { proceduralWaves: 15, proceduralSeeds: 2 });
+    const opts = { perWave: 8, proceduralSeeds: 3, patch: 'test', capturedAt: '2026-06-26' };
+    const made = synthesizeWaveFromCurve(15, curveLadders, 1234, opts);
+    expect(made.length).toBeGreaterThan(0);
+    expect(made.length).toBeLessThanOrEqual(8);
+    for (const s of made) {
+      expect(s.wave).toBe(15);
+      expect(s.origin).toBe('synthetic');
+      expect(s.patch).toBe('test');
+      expect(s.minions.length).toBeGreaterThan(0);
+      expect(s.minions.every((m) => !!CARD_INDEX[m.cardId] && m.attack >= 1 && m.health >= 1)).toBe(true);
+      expect(s.power).toBe(s.minions.reduce((sum, m) => sum + m.attack + m.health, 0)); // power is Σ(atk+hp)
+    }
+    // Spans more than one band (a real weak→strong spread, not all-clustered).
+    expect(new Set(made.map((s) => ratingBand(s.rating ?? 0))).size).toBeGreaterThan(1);
+    const again = synthesizeWaveFromCurve(15, curveLadders, 1234, opts);
+    expect(JSON.stringify(again)).toBe(JSON.stringify(made)); // deterministic for the same seed
   });
 });

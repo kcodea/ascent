@@ -25,6 +25,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Live shared opponent pool (Supabase).** Finished runs auto-sync to a hosted database and load back at
+  startup, so you + a friend face each other's builds with no manual export/import (the Settings "Shared Boards"
+  buttons are gone). Fully optional — the game still runs offline off the committed pool.
+- **Opponent boards are now synthesized for all 20 waves.** Retired the house bot (it only reached ~wave 9):
+  `npm run pool` now generates 8 boards/wave straight from the card set, banded to the tuned enemy curve, with
+  a full weak→strong spread at every wave — so late-game fights no longer fall off. Imported player/friend
+  boards still fold in (and win matchmaking slots over synthetic ones).
 - **Title screen → modes.** The game boots into a title with **Ascent** (the scored climb) and **Practice**
   (any hero, unlimited health, 3× clock, ends after 15 rounds), plus a Settings button.
 - **Displacement preserves your minion.** Swapping a minion to the tavern now keeps all its buffs and
@@ -205,8 +212,6 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   so a full board doesn't block the second if the first one dies. Broodmother's whelps show the **Taunt emblem**
   from their first frame (keyword is now baked into the summon snapshot). Golden Stuntdrake now **procs twice**,
   picking 2 targets independently each time.
-- **More human opponent boards.** Added Lemon's 32 captured boards (a Drakko run, waves 1–18) to the committed
-  pool via `npm run pool` — players now face more real builds across the early-to-mid curve.
 - **Spells cast in combat now trigger Guel.** Taragosa's Growth is a real spell cast — it fires **Archmagus
   Guel** mid-fight (a temporary buff) and **permanently** counts toward his improvement (combat casts bump the
   run's spell tally). Combat gained a real `castSpell` path for this.

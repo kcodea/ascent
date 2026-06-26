@@ -5,6 +5,7 @@ import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
+import { fetchAndRegisterPool, uploadBoards } from './remoteBoards';
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
 // `npm run pool` from seeded bot runs + any imported you/friend board exports) plus this browser's own
@@ -12,6 +13,12 @@ import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 // load this module, so they keep their empty-pool procedural baseline. `registerOpponents` drops any board
 // referencing a card this build no longer has, so a stale committed/stored board can never crash combat.
 if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA, ...loadStoredBoards()]);
+
+// Additively fold in the live SHARED pool (Supabase) for this build's version — fetched ONCE at startup (now,
+// on the title screen, long before any run faces combat) and kept static for the session like the committed
+// pool, so replays stay faithful. Matches by version prefix (`<version>+`) so per-commit SHA churn doesn't hide
+// boards. No-ops entirely when no backend is configured; the committed OPPONENT_POOL_DATA is the offline floor.
+void fetchAndRegisterPool(`${__APP_VERSION__}+`);
 
 /** How many heroes the pre-run picker offers (or all of them, if fewer exist). */
 const HERO_SELECT_COUNT = 3;
@@ -201,7 +208,9 @@ export const useGame = create<GameStore>((set, get) => ({
       ) {
         const replay = { seed: next.seed, heroId: next.heroId, actions: [...s.replayActions, action] };
         const author = s.playerName || undefined;
-        setTimeout(() => saveRunBoards(replay, author), 0);
+        // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
+        // Deferred so it never hitches the end screen; both are best-effort and never throw.
+        setTimeout(() => { void uploadBoards(saveRunBoards(replay, author)); }, 0);
       }
       return {
         run: next,

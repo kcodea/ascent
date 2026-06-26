@@ -5,6 +5,7 @@ import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
+import { fetchAndRegisterPool, uploadBoards } from './remoteBoards';
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
 // `npm run pool` from seeded bot runs + any imported you/friend board exports) plus this browser's own
@@ -12,6 +13,12 @@ import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 // load this module, so they keep their empty-pool procedural baseline. `registerOpponents` drops any board
 // referencing a card this build no longer has, so a stale committed/stored board can never crash combat.
 if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA, ...loadStoredBoards()]);
+
+// Additively fold in the live SHARED pool (Supabase) for this build's version — fetched ONCE at startup (now,
+// on the title screen, long before any run faces combat) and kept static for the session like the committed
+// pool, so replays stay faithful. Matches by version prefix (`<version>+`) so per-commit SHA churn doesn't hide
+// boards. No-ops entirely when no backend is configured; the committed OPPONENT_POOL_DATA is the offline floor.
+void fetchAndRegisterPool(`${__APP_VERSION__}+`);
 
 /** How many heroes the pre-run picker offers (or all of them, if fewer exist). */
 const HERO_SELECT_COUNT = 3;
@@ -132,6 +139,16 @@ interface GameStore {
   pickHero: (heroId: string) => void;
   /** Start a fresh run directly (optionally with a seed / hero), bypassing the picker. */
   newRun: (seed?: number, heroId?: string) => void;
+  /** The title screen is shown at boot + after a run ends — the front door to the modes. */
+  showTitle: boolean;
+  /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
+  pendingMode: 'ascent' | 'practice';
+  /** Title → Ascent: open the 3-hero picker for a scored run. */
+  startAscent: () => void;
+  /** Title → Practice: open an ALL-hero picker for a 15-round practice run. */
+  startPractice: () => void;
+  /** Return to the title screen (from the end screen). */
+  openTitle: () => void;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -157,8 +174,10 @@ export const useGame = create<GameStore>((set, get) => ({
   combatBuffs: null,
   sellTick: 0,
   inspect: null,
-  // Open on a fresh hero pick — the player chooses before the first wave loads.
-  heroChoices: rollHeroChoices(),
+  // Boot into the title screen (the front door); the hero picker opens once a mode is chosen.
+  heroChoices: null,
+  showTitle: true,
+  pendingMode: 'ascent',
   // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
   compactCards: true,
   toggleCompact: () => set((s) => ({ compactCards: !s.compactCards })),
@@ -189,7 +208,9 @@ export const useGame = create<GameStore>((set, get) => ({
       ) {
         const replay = { seed: next.seed, heroId: next.heroId, actions: [...s.replayActions, action] };
         const author = s.playerName || undefined;
-        setTimeout(() => saveRunBoards(replay, author), 0);
+        // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
+        // Deferred so it never hitches the end screen; both are best-effort and never throw.
+        setTimeout(() => { void uploadBoards(saveRunBoards(replay, author)); }, 0);
       }
       return {
         run: next,
@@ -208,9 +229,12 @@ export const useGame = create<GameStore>((set, get) => ({
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
   pickHero: (heroId) =>
-    set({ run: createRun(randomSeed(), heroId), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
+    set((s) => ({ run: createRun(randomSeed(), heroId, s.pendingMode), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] })),
   newRun: (seed, heroId) =>
-    set({ run: createRun(seed ?? randomSeed(), heroId), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, replayActions: [] }),
+    set((s) => ({ run: createRun(seed ?? randomSeed(), heroId, s.pendingMode), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] })),
+  startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices() }),
+  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id) }),
+  openTitle: () => set({ showTitle: true, heroChoices: null }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

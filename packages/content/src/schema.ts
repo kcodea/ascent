@@ -133,6 +133,14 @@ export const EffectFactoryIdSchema = z.enum([
   'avengeBuffImps',
   'battlecryBonusGoldNextTurn',
   'deathrattleReplayAdjacentBattlecry',
+  'spellBuffByTier',
+  'spellSellToDemon',
+  'spellReplayBattlecry',
+  'spellExtraEndOfTurn',
+  'spellGildRandomTavern',
+  'spellDisplace',
+  'spellCopyRecent',
+  'spellRefreshToSpells',
 ]);
 
 export const EffectDefSchema = z.object({

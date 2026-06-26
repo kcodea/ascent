@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type BoardCard, type DiscoverSpec, type RunState, type ShopCard } from './state';
-import { takeFromPool } from './shop';
+import { returnToPool, rollSpellShop, takeFromPool } from './shop';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -102,7 +102,7 @@ export function cardBuff(state: RunState, cardId: string): { attack: number; hea
  * Undead **wherever they are**") for a freshly-created minion of `def`. Applied at EVERY creation source —
  * tavern buy, Discover, conjure (Summon Stone / Tribes Choice / Undead Army / Buddy Buddy / Cassen), and
  * Lasso steal — so the run-wide bonus follows your Undead everywhere, not only tavern purchases. 0 for
- * non-Undead; `universalTribe` counts (Symbiotic Attachment), matching the buy path's `isUndead`.
+ * non-Undead; `universalTribe` counts (Chaos Attachment), matching the buy path's `isUndead`.
  */
 export function undeadBuyBonus(state: RunState, def: CardDef): number {
   const undead = def.tribe === 'undead' || def.tribe2 === 'undead' || !!def.universalTribe;
@@ -1006,6 +1006,87 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.devourFx = { toUid: recipient.uid, attack, health };
   },
 
+  /** Lantern Light — give the target +Tier/+Tier (your current Tavern Tier). Scales with Tier by design
+   *  (the spec is exactly +Tier/+Tier), so no spell-power bonus is folded in. */
+  spellBuffByTier: (ctx, self, params) => {
+    if (!self) return;
+    const t = ctx.state.tier;
+    addBuff(self, str(params._source) || nameOf(self), t, t);
+  },
+
+  /** Fodder Treatment — SELL the target (gain its base sell value as Gold) and spit its current stats onto
+   *  your LEFT-MOST Demon, firing that Demon's on-consume payoffs (Pactstone / Maw / Glutton). No Demon →
+   *  the stats are wasted, but the sell + Gold still happen. */
+  spellSellToDemon: (ctx, self) => {
+    if (!self) return;
+    const state = ctx.state;
+    const idx = state.board.indexOf(self);
+    if (idx < 0) return;
+    const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
+    state.embers += sellValueOf(sold); // the Gold the player gets from the sell
+    returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
+    const demon = state.board.find((c) => isTribe(c, 'demon')); // left-most Demon (board order)
+    if (demon) {
+      addBuff(demon, 'Fodder Treatment', sold.attack, sold.health);
+      fire(ctx, 'onConsume', { minion: demon });
+    }
+  },
+
+  /** Resonance — re-trigger the target's Battlecry (the reducer guards this to Battlecry minions only).
+   *  Reuses the Myra-power path, so Drakko's "Battlecries fire extra times" still amplifies it. */
+  spellReplayBattlecry: (ctx, self) => {
+    if (!self) return;
+    replayBattlecry(ctx.state, self);
+  },
+
+  /** Chrono Staff — your End-of-Turn effects fire one additional time this turn (a per-turn flag: stacks with
+   *  Chronos, not with itself). Read by `endOfTurnRepeats`; reset at the next turn start. */
+  spellExtraEndOfTurn: (ctx) => {
+    ctx.state.extraEotThisTurn = true;
+  },
+
+  /** Golden Touch — make a random (non-golden) tavern minion offer Golden; the buy bakes the golden in
+   *  (goldens store base stats, ×2 at combat, like Indy's gild). Untargeted — the game picks the minion. */
+  spellGildRandomTavern: (ctx) => {
+    const offers = ctx.state.shop.filter((o) => !o.golden);
+    if (offers.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    offers[rng.int(offers.length)]!.golden = true;
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Displacement — swap the target friendly minion with a random tavern minion (shared with Darah's power). */
+  spellDisplace: (ctx, self) => {
+    if (!self) return;
+    swapWithTavern(ctx.state, self);
+  },
+
+  /** Spell Cart — refresh the tavern full of spells (replace the minion offers with random eligible spells).
+   *  The next normal roll restocks minions, so it's a one-shot. Untargeted. */
+  spellRefreshToSpells: (ctx) => {
+    rollSpellShop(ctx.state);
+  },
+
+  /** Steward of Spells — End of Turn: add a copy of the most recent spell cast this run to your hand (golden:
+   *  2 copies). No-op if no spell has been cast yet, or the hand is full. */
+  spellCopyRecent: (ctx, self) => {
+    const spellId = ctx.state.lastSpellCastId;
+    if (!spellId || !self) return;
+    const def = CARD_INDEX[spellId];
+    if (!def) return;
+    for (let i = 0; i < gold(self) && ctx.state.hand.length < CONFIG.handMax; i++) {
+      ctx.state.hand.push({
+        uid: `b${ctx.state.uidSeq++}`,
+        cardId: spellId,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+  },
+
   /** A minion casts a named spell from an event, auto-targeting the carry (the
    *  highest-attack friend). Counts the cast but doesn't re-fire spellCast (no recursion). */
   castSpell: (ctx, self, params) => {
@@ -1049,19 +1130,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const every = num(params.every, 4);
     self.rollTick = (self.rollTick ?? 0) + 1;
     if (self.rollTick % every !== 0) return;
+    // Consume a random NON-Fodder tavern minion (gain its stats × golden).
     const choices = ctx.state.shop.filter((s) => {
       const def = CARD_INDEX[s.cardId];
       return def && !def.keywords.includes('FD');
     });
-    if (choices.length === 0) return;
-    const target = pickRandom(ctx.state, choices, 1)[0];
-    if (!target) return;
-    ctx.state.shop = ctx.state.shop.filter((s) => s !== target);
-    const def = CARD_INDEX[target.cardId];
-    if (!def) return;
-    const atkGain = (def.attack + (target.atk ?? 0)) * gold(self);
-    const hpGain = (def.health + (target.hp ?? 0)) * gold(self);
-    addBuff(self, nameOf(self), atkGain, hpGain);
+    const target = choices.length ? pickRandom(ctx.state, choices, 1)[0] : undefined;
+    if (target) {
+      ctx.state.shop = ctx.state.shop.filter((s) => s !== target);
+      const def = CARD_INDEX[target.cardId];
+      if (def) {
+        addBuff(self, nameOf(self), (def.attack + (target.atk ?? 0)) * gold(self), (def.health + (target.hp ?? 0)) * gold(self));
+      }
+    }
+    // Acid's rework: also buff the REMAINING tavern minions +tavernBuff/+tavernBuff (golden ×2) — a per-offer
+    // buff baked in on buy (like Apples), applied even if there was nothing to consume.
+    const tb = num(params.tavernBuff, 0) * gold(self);
+    if (tb > 0) for (const offer of ctx.state.shop) { offer.atk = (offer.atk ?? 0) + tb; offer.hp = (offer.hp ?? 0) + tb; }
   },
 
   /** Forsaken Weaver (recruit half) — when a spell is cast, give your Undead +N Attack wherever they are
@@ -1351,7 +1436,7 @@ function fire(
 /**
  * Fire the on-summon buffs (Mama Bear, Kennelmaster, Spirit Worgen, …) for a minion entering play — the same
  * trigger `playCard` fires. Exposed so the magnetize path can run it on a Magnetic minion BEFORE it welds: the
- * absorbed body picks up any tribe summon-buff (Symbiotic Attachment counts as a Beast → Mama Bear) and then
+ * absorbed body picks up any tribe summon-buff (Chaos Attachment counts as a Beast → Mama Bear) and then
  * carries those stats into the host. The minion need not be on the board — board handlers buff the payload.
  */
 export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
@@ -1410,6 +1495,13 @@ function drummerRepeats(state: RunState): number {
  *  adds 2, no stacking). Exported so the UI can replay each proc the matching number of times. */
 export function chronosRepeats(state: RunState): number {
   return bestCopyRepeats(state, 'chronos');
+}
+
+/** How many times End-of-Turn effects fire this turn: Chronos's repeats PLUS Chrono Staff's one-shot extra
+ *  (a per-turn flag — stacks with Chronos, not with itself). The real End of Turn and its UI preview/telegraph
+ *  all read this so they agree. (Djinn's manual "proc one now" stays on plain chronosRepeats.) */
+export function endOfTurnRepeats(state: RunState): number {
+  return chronosRepeats(state) + (state.extraEotThisTurn ? 1 : 0);
 }
 
 /** Notify Battlecry-triggered watchers (Karwind) that a Battlecry just resolved. Call once per
@@ -1483,6 +1575,44 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
  * Choose One minion has no `onPlay` effects so it isn't a valid target. Returns whether a Battlecry
  * fired — the hero charge is only spent when it did.
  */
+/**
+ * Swap a friendly board minion with a RANDOM tavern offer (shared by the Displacement spell + Darah's
+ * Displace power). The displaced minion goes to the tavern KEEPING all its state (buffs / stats / progression),
+ * stashed on the offer's `held` and restored intact when re-bought or swapped back. The incoming tavern minion
+ * takes the board slot WITHOUT firing its Battlecry / summon-buff (a placement, not a play): a previously-held
+ * minion returns intact, a normal offer instantiates fresh (base + offer buff + golden, doubled). Returns false
+ * (no-op, no charge spent) when the board minion isn't on the board or the tavern is empty.
+ */
+export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean {
+  const bi = state.board.indexOf(boardMinion);
+  if (bi < 0 || state.shop.length === 0) return false;
+  const rng = makeRng(state.rngCursor);
+  const si = rng.int(state.shop.length);
+  state.rngCursor = rng.state();
+  const offer = state.shop[si]!;
+  const def = CARD_INDEX[offer.cardId];
+  if (!def) return false;
+  let incoming: BoardCard;
+  if (offer.held) {
+    incoming = { ...offer.held, uid: `b${state.uidSeq++}` }; // a previously-displaced minion returns intact
+  } else {
+    incoming = {
+      uid: `b${state.uidSeq++}`,
+      cardId: offer.cardId,
+      tribe: def.tribe,
+      attack: def.attack + (offer.atk ?? 0),
+      health: def.health + (offer.hp ?? 0),
+      keywords: [...def.keywords, ...(offer.keywords ?? []).filter((k) => !def.keywords.includes(k))],
+      golden: offer.golden ?? false,
+    };
+    if (incoming.golden) { incoming.attack *= 2; incoming.health *= 2; } // goldens store doubled stats (like Gild)
+  }
+  state.board[bi] = incoming;
+  // The displaced minion → the tavern, its FULL state stashed on the offer (restored on buy / swap-back).
+  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion } };
+  return true;
+}
+
 export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   const def = CARD_INDEX[card.cardId];
   if (!def) return false;
@@ -1616,6 +1746,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   }
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
+  state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -1656,7 +1787,7 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
   const ctx = makeContext(state);
-  const repeats = chronosRepeats(state); // Chronos: End-of-Turn effects trigger extra times
+  const repeats = endOfTurnRepeats(state); // Chronos + Chrono Staff: End-of-Turn effects trigger extra times
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -1678,7 +1809,7 @@ export function applyEndOfTurn(state: RunState): void {
 export function projectEndOfTurnSteps(state: RunState): Array<Record<string, { attack: number; health: number }>> {
   const clone = structuredClone(state);
   const ctx = makeContext(clone);
-  const repeats = chronosRepeats(clone);
+  const repeats = endOfTurnRepeats(clone);
   const steps: Array<Record<string, { attack: number; health: number }>> = [];
   const snap = (): Record<string, { attack: number; health: number }> => {
     const m: Record<string, { attack: number; health: number }> = {};

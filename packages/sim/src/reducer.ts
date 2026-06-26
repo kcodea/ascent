@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /**
@@ -44,7 +44,7 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
   const m = CARD_INDEX[magneticCardId];
   const t = CARD_INDEX[targetCardId];
   if (!m || !t) return false;
-  // universalTribe Magnetic cards (Symbiotic Attachment) can weld onto any non-neutral target.
+  // universalTribe Magnetic cards (Chaos Attachment) can weld onto any non-neutral target.
   if (m.universalTribe) return t.tribe !== 'neutral';
   const mag: Tribe[] = [m.tribe, m.tribe2].filter((x): x is Tribe => !!x);
   const tgt: Tribe[] = [t.tribe, t.tribe2].filter((x): x is Tribe => !!x);
@@ -116,10 +116,30 @@ function reduceCore(state: RunState, action: Action): RunState {
         return s;
       }
       const i = s.shop.findIndex((c) => c.uid === action.uid);
-      if (i < 0 || s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
+      if (i < 0) return state;
       const offer = s.shop[i]!;
       const card = CARD_INDEX[offer.cardId];
       if (!card) return state;
+      // A spell offer sitting in the minion row (Spell Cart's spell shop) buys into the hand at its OWN cost,
+      // exactly like the right-hand spell slot — no minion creation / triple.
+      if (card.spell) {
+        const sCost = Math.max(0, (card.cost ?? 0) - s.spellCostMod);
+        if (s.embers < sCost || s.hand.length >= CONFIG.handMax) return state;
+        s.embers -= sCost;
+        s.shop.splice(i, 1);
+        s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
+        return s;
+      }
+      // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression.
+      if (offer.held) {
+        if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
+        s.embers -= CONFIG.minionCost;
+        s.shop.splice(i, 1);
+        s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}` });
+        checkTriples(s); // a restored copy can still complete a triple
+        return s;
+      }
+      if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
       s.embers -= CONFIG.minionCost;
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
@@ -133,7 +153,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         attack: card.attack + cb.attack + uBuyAtk,
         health: card.health + cb.health,
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
-        golden: false,
+        golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
         boughtWave: s.wave, // Hoarder's sell value climbs from the wave it was bought
       };
       // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
@@ -145,6 +165,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       if ((s.tavernBuyBonus.atk || s.tavernBuyBonus.hp) && !card.keywords.includes('FD')) {
         addBuff(bought, 'Staff of Guel', s.tavernBuyBonus.atk, s.tavernBuyBonus.hp);
       }
+      // Golden Touch: a gilded offer buys in Golden — double the FINAL stats (exactly like the Gild power),
+      // recorded as a buff so the inspect breakdown still itemizes it. The golden flag (set above) doubles
+      // its effects (Deathrattles twice, ×N multipliers) and shows the golden frame.
+      if (offer.golden) addBuff(bought, 'Golden Touch', bought.attack, bought.health);
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
       // Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). The quest
@@ -224,6 +248,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         const casts = spellCasts(s, def);
         if (def.target === 'friendly' || def.target === 'any') {
           const boardTarget = s.board.find((c) => c.uid === action.targetUid);
+          // Resonance only fires on a Battlecry minion — a non-Battlecry target fizzles (spell kept in hand).
+          if (boardTarget && def.effects.some((e) => e.do === 'spellReplayBattlecry') &&
+              !CARD_INDEX[boardTarget.cardId]?.effects.some((e) => e.on === 'onPlay')) return state;
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
           const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : undefined;
           if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);
@@ -247,7 +274,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (target && magnetizesTo(card.cardId, target.cardId)) {
           s.hand.splice(i, 1);
           // Playing a Magnetic minion IS a summon — fire summon-buffs on it BEFORE welding, so the absorbed
-          // body carries any tribe summon-buff into the host (Symbiotic Attachment counts as a Beast → Mama
+          // body carries any tribe summon-buff into the host (Chaos Attachment counts as a Beast → Mama
           // Bear's +X/+X lands on it, then welds onto the host). Mutates card.attack/health, read below.
           fireSummonBuffs(s, card);
           // Money Bot magnetized in: its mana-per-turn rides along on the host Mech (and survives the
@@ -440,6 +467,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card) return state;
         for (const c of s.board) c.resummon = false;
         card.resummon = true;
+      } else if (power.kind === 'displace') {
+        // Darah: swap a friendly board minion with a random tavern minion. No-op (no charge spent) on a
+        // missing target or an empty tavern.
+        if (!card || !swapWithTavern(s, card)) return state;
       } else if (power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold') {
         // Passive powers (Rohan's amplify, Drakko's quest, Cassen's Collision, Robin's Spoils) have no
         // activation — the work happens elsewhere (spell math / the buy / sell case / settleCombat). Nothing here.
@@ -899,7 +930,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
       s.cassenKills -= 5;
     }
   }
-  if (result.result === 'lose') s.resolve = Math.max(0, s.resolve - result.playerDamage);
+  if (result.result === 'lose' && s.mode !== 'practice') s.resolve = Math.max(0, s.resolve - result.playerDamage); // Practice: unlimited health
   // Maw of the Pit's one-combat Divine Shield is spent — strip the temp DS so it doesn't carry to the
   // next fight (consuming again re-arms it).
   for (const c of s.board) {
@@ -913,6 +944,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
 
 /** Advance past a settled combat: the terminal check (gameover / victory), else roll the next wave. */
 function advanceCombat(s: RunState): void {
+  // Practice: a fixed 15-round session — ends after round 15 regardless of W/L. (Health is unlimited, so the
+  // resolve<=0 check never fires, and the win-15 victory below is gated to Ascent.)
+  if (s.mode === 'practice' && s.wave >= 15) {
+    s.best = Math.max(s.best, s.wave);
+    s.phase = 'gameover';
+    return;
+  }
   if (s.resolve <= 0) {
     s.best = Math.max(s.best, s.wave);
     s.phase = 'gameover';
@@ -924,7 +962,7 @@ function advanceCombat(s: RunState): void {
   // lands, at whatever wave that is. (A loss costs Resolve but keeps climbing, so you can reach wave 15
   // with fewer than 15 wins and must keep going; the old `wave >= maxWave` check wrongly ended there.)
   const wins = s.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0);
-  if (wins >= CONFIG.winsToWin) {
+  if (s.mode !== 'practice' && wins >= CONFIG.winsToWin) {
     s.best = Math.max(s.best, s.wave);
     s.phase = 'victory';
     return;
@@ -945,6 +983,7 @@ function advanceCombat(s: RunState): void {
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
+  s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
@@ -966,14 +1005,15 @@ function advanceCombat(s: RunState): void {
     s.frozen = false;
   } else refreshTavern(s);
   s.phase = 'recruit';
-  // Symbiote hero power: at the START of every 5th turn, add a Symbiotic Attachment token to the hand
+  // Chaos hero power: at the START of every 5th turn, add a Chaos Attachment token to the hand
   // (the checkTriples below also combines it if it completes a triple). The hero starts with one token
   // (createRun); this is the recurring grant — turns 5, 10, 15, …
-  if (getHero(s.heroId).power.kind === 'symbiote' && s.wave % 5 === 0) {
+  if (getHero(s.heroId).power.kind === 'chaos' && s.wave % 5 === 0) {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && s.hand.length < CONFIG.handMax) {
+      const grantUid = `b${s.uidSeq++}`;
       s.hand.push({
-        uid: `b${s.uidSeq++}`,
+        uid: grantUid,
         cardId: 'symbioticattachment',
         tribe: def.tribe,
         attack: def.attack + (s.undeadBuyAtk ?? 0),
@@ -981,6 +1021,9 @@ function advanceCombat(s: RunState): void {
         keywords: [...def.keywords],
         golden: false,
       });
+      // Signal the UI to fly the new token in from the hero portrait (one-shot, like fodderEatenSeq).
+      s.chaosGrantSeq = (s.chaosGrantSeq ?? 0) + 1;
+      s.chaosGrantUid = grantUid;
     }
   }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a

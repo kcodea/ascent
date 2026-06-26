@@ -15,6 +15,7 @@ import { simulate, makeRng, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { buildBootstrapPool, type BoardSnapshot } from './snapshot';
 import { opponentBoard } from './opponents';
+import { buildEnemyBoard, THREAT_IDS } from './threats';
 
 const RATING_SEED = 0x9e3779b1; // fixed → combat tie-breaks are reproducible
 
@@ -46,11 +47,18 @@ function spreadByPower(list: BoardMinion[][], cap: number): BoardMinion[][] {
  * `extra` (the imported REAL captured boards) is folded in too: real boards reach strengths — and waves —
  * the bot can't, so they give the high-wave ladders a real CEILING. Without them the bot tops out below
  * skilled play and every real board beats it → ratings saturate at band 7 past ~wave 9.
+ *
+ * `opts.proceduralWaves` folds the tuned PROCEDURAL threat boards (`buildEnemyBoard` across the 5 archetypes ×
+ * `opts.proceduralSeeds`) into every wave up to that horizon. They're wave-scaled by `enemyScaling` for ALL
+ * waves and span weak (venom swarm) → strong (iron wall / glass cannon), so the ladder covers 1..N WITHOUT the
+ * bot — the basis for rating + banding a synthetic pool the bot can't reach. Pass `seeds: []` to skip the bot
+ * entirely and calibrate purely off the designed enemy curve.
  */
 export function buildWaveLadders(
   seeds: number[] = LADDER_SEEDS,
   fidelities: number[] = LADDER_FIDELITIES,
   extra: BoardSnapshot[] = [],
+  opts: { proceduralWaves?: number; proceduralSeeds?: number } = {},
 ): WaveLadders {
   const byWave: WaveLadders = new Map();
   const add = (wave: number, board: BoardMinion[]): void => {
@@ -61,6 +69,13 @@ export function buildWaveLadders(
   };
   for (const fidelity of fidelities) {
     for (const s of buildBootstrapPool(seeds, () => ({ fidelity }))) add(s.wave, opponentBoard(s));
+  }
+  // The designed enemy curve as an all-wave reference: 5 threat archetypes × a few seeds at each wave.
+  const procSeeds = opts.proceduralSeeds ?? 4;
+  for (let wave = 1; wave <= (opts.proceduralWaves ?? 0); wave++) {
+    THREAT_IDS.forEach((threat, ti) => {
+      for (let k = 0; k < procSeeds; k++) add(wave, buildEnemyBoard(threat, wave, makeRng(0x5eed + wave * 131 + ti * 17 + k)));
+    });
   }
   for (const s of extra) add(s.wave, opponentBoard(s));
   for (const [wave, boards] of byWave) byWave.set(wave, spreadByPower(boards, LADDER_PER_WAVE));

@@ -50,6 +50,11 @@ export interface ShopCard {
   atk?: number;
   hp?: number;
   keywords?: Keyword[];
+  /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
+  golden?: boolean;
+  /** Displacement: a board minion stashed here when swapped to the tavern — restored INTACT (all buffs /
+   *  stats / progression) when re-bought or swapped back, rather than re-instantiated from base. */
+  held?: BoardCard;
 }
 
 /** One source's contribution to a minion's recruit-phase buffs, accumulated for the inspect panel
@@ -134,6 +139,9 @@ export type DiscoverSpec =
 
 export interface RunState {
   seed: number;
+  /** Game mode: 'ascent' (the scored climb) or 'practice' (a 15-round sandbox: any hero, unlimited health,
+   *  3× shop timer, ends at round 15 regardless of W/L). Absent = 'ascent'. */
+  mode?: 'ascent' | 'practice';
   /** Current wave (Altitude). Score = waves survived. */
   wave: number;
   /** Deepest wave reached this run. */
@@ -164,6 +172,12 @@ export interface RunState {
   spellsCast: number;
   /** Spells cast this turn (reset each wave) — scales Spirit Worgen's per-summon buff. */
   spellsThisTurn: number;
+  /** Chrono Staff: this turn's End-of-Turn effects fire one extra time (a per-turn flag — stacks with
+   *  Chronos, not with itself). Set on cast, reset at the next turn start. Absent = false. */
+  extraEotThisTurn?: boolean;
+  /** Steward of Spells: the id of the most recent spell cast this run (persists across turns until the next
+   *  cast). Absent until a spell is cast. */
+  lastSpellCastId?: string;
   /** Player-side Deathrattles triggered across the whole run — Grim's buff scales with this. */
   deathrattlesTriggered: number;
   /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */
@@ -217,8 +231,8 @@ export interface RunState {
   heroReady: boolean;
   /** Once-per-game hero powers (e.g. Oner's Gild) flip this and never recharge. */
   heroPowerSpent: boolean;
-  /** Symbiote hero: how many recruit turns have elapsed (incremented in faceOmen). Used to grant a
-   *  Symbiotic Attachment every 4 turns. */
+  /** Chaos hero: how many recruit turns have elapsed (incremented in faceOmen). Used to grant a
+   *  Chaos Attachment every 4 turns. */
   heroPowerTick?: number;
   /** Fodder consumed so far this wave (reset in advanceCombat). The Abhorrent Horror reads this at
    *  Start of Combat to gain the fodder's stats. */
@@ -253,6 +267,10 @@ export interface RunState {
   karwindFlash?: string[];
   /** Bumps each time Karwind flame-buffs — the UI keys its flame animation off this. */
   karwindFlashSeq: number;
+  /** Chaos hero power: bumps each time a Chaos Attachment is granted (every 5th turn), with the new token's
+   *  uid — the UI flies it in from the hero portrait. Transient; absent until the first grant. */
+  chaosGrantSeq?: number;
+  chaosGrantUid?: string;
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted
@@ -289,12 +307,13 @@ export type Action =
   | { type: 'resolveCombat' };
 
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
-export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunState {
+export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent'): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
   // The hero's Resolve is the run's starting (and max) HP — all 30 today, diverging per hero later.
   const startResolve = getHero(heroId).resolve;
   const state: RunState = {
     seed,
+    mode,
     wave: 1,
     best: 1,
     history: [],
@@ -340,7 +359,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID): RunSt
     karwindFlashSeq: 0,
   };
   rollShop(state);
-  if (heroId === 'symbiote') {
+  if (heroId === 'chaos') {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && state.hand.length < CONFIG.handMax) {
       state.hand.push({

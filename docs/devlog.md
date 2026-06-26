@@ -44,6 +44,178 @@ Bugs surfaced in-game after the shield shader shipped:
 a `fightingRef` + the modal-hide effect). **Verified:** typecheck + lint + 383 tests + build green;
 `setShieldsVisible` toggles the layer (DOM check). The three gameplay-state fixes need an in-game confirm
 (headless preview can't drive a real combat/drag).
+### feat: live shared opponent pool via a Supabase backend (auto-sync) + drop the manual board-sharing UI
+
+The manual board pipeline (capture → Export → drop in `docs/board-exports/` → `npm run pool` → committed
+`OPPONENT_POOL_DATA`) is replaced — for the live game — by an automatic shared backend. Finished runs sync to a
+hosted Postgres table and load back into the opponent pool at startup, so two devs (Kevin + Mike) automatically
+face each other's builds with zero manual steps. The committed pool stays the **offline floor**.
+
+- **Provider — Supabase (decided after weighing scale).** Hosted Postgres + JS client + dashboard. The workload
+  (low write, read-once-per-patch + identical-for-everyone, no realtime) is trivially cacheable, so the DB is
+  never the scaling wall; the public-readiness work (CDN-front the read path, server-side replay validation for
+  anti-cheat) is DB-independent and deferred. Rationale captured in `docs/roadmap.md` + `docs/board-pool.md`.
+- **The seam** (`packages/ui/src/remoteBoards.ts`): `uploadBoards` (fire-and-forget INSERT on run end) +
+  `fetchAndRegisterPool` (one time-boxed SELECT at boot → `registerOpponents`). **No-ops when the env vars are
+  unset**, so the build, headless tests, and offline play are unaffected. Boards are served by **version prefix**
+  (`patch like '<version>+%'`) so per-commit SHA churn doesn't hide them; the full `patch` (`version+sha`) is
+  stored for fine-grained pruning. Determinism preserved: the remote pool is fetched once at boot and kept static
+  for the session, exactly like `OPPONENT_POOL_DATA`.
+- **Wiring** (`store.ts`): startup `fetchAndRegisterPool('<version>+')` after the committed/local registration;
+  run-end `uploadBoards(saveRunBoards(...))` (boards captured on a `gameover`/`victory` transition — Ascent
+  win/loss AND Practice round-15, owner's call to let Practice contribute for now). `saveRunBoards`
+  (`boardLibrary.ts`) now **returns** the captured boards so the same set feeds both local + remote.
+- **Settings cleanup** (`EscMenu.tsx`): removed the now-obsolete **Shared Boards** section (Export / Import /
+  Clear my boards) + all the code that only fed it (file-import handler, board-count state, `playerName` lookup).
+  Verified live in-preview: Settings is now Audio · Gameplay · Display Resolution · Run.
+- **Config travels with the repo:** `apps/web/.env` is **committed** (un-ignored in `.gitignore`) with the
+  Supabase URL + **publishable** key — safe by design (it ships in the client bundle; RLS protects the data), so
+  Mike + the itch build get it with zero setup. `.env.local` stays gitignored for personal overrides. The
+  `service_role`/secret key is never committed. RLS: anon may `select` + `insert` on `boards`; no update/delete.
+- **Schema + docs:** `schema.sql` (table + `(patch,wave,power)` index + RLS policies + prune snippets) and
+  `docs/board-backend.md` (setup + ops + the hardening/scaling path).
+
+**Files:** `remoteBoards.ts` (new), `store.ts`, `boardLibrary.ts` (return type), `buildinfo.d.ts` (env typing),
+`EscMenu.tsx` (drop Shared Boards), `apps/web/.env` (committed) + `.env.example`, `.gitignore`, `schema.sql`,
+`docs/board-backend.md`, `packages/ui/package.json` (+`@supabase/supabase-js`). **Verification:** typecheck +
+lint + test (402) + build:web all green; Supabase read+write validated end-to-end via curl (insert returned the
+row; the `boards` table + RLS confirmed) AND live — the boot SELECT (`…/boards?select=snapshot&patch=like.0.1.0%2B%25`)
+returned 200 in the dev server with no console errors; the Settings menu confirmed clean in-preview. **Follow-up:**
+server-side replay validation (anti-cheat) + CDN-fronting before any public launch — both in the roadmap.
+
+### feat: opponent pool is synthesized from the card set (banded to the enemy curve, waves 1–20) — retire the house bot
+
+**Clean-slate reset + a new generation model for the committed opponent pool.** Two parts:
+
+1. **Wiped the board "profiles."** Deleted the committed imports `docs/board-exports/lemon.json` (self) and
+   `orangez.json` (friend) — the player/friend boards that had been baked in. (localStorage captures are
+   per-browser and cleared separately via **Esc → Shared Boards → Clear my boards** / `clearStoredBoards`.)
+
+2. **Replaced the house bot with from-scratch synthesis.** The bot (`buildBootstrapPool`) only survives to
+   ~wave 9, so a bot-only bake covered only waves 1–9 and the rating ladder topped out there too (bands
+   saturated past 9). Now the pool is **generated straight from the card set**, banded to the **tuned enemy
+   curve**, covering **every wave 1–20**:
+   - **All-wave rating ladder, no bot** (`rating.ts`): `buildWaveLadders(seeds, fidelities, extra, opts)` gains
+     `opts.proceduralWaves`/`proceduralSeeds` — it folds the **procedural threat boards** (`buildEnemyBoard`
+     across the 5 archetypes × N seeds) into every wave. They're wave-scaled by `enemyScaling` for all 20 waves
+     and span weak (venom swarm) → strong (iron wall / glass cannon), so the ladder calibrates 1–20 with no bot.
+     The bake passes `seeds: []` (bot off). Legacy bot/real-board paths preserved (tests still pin them).
+   - **Curve-matched synthesizer** (`synthesize.ts`): new `synthesizeWaveFromCurve(wave, ladders, seed, opts)`.
+     Per wave it samples the procedural boards (the "power banding" anchor), picks `perWave` of them spread
+     across the power range, and for each **copies the width + power** and fills that shape with **real tribe
+     cards** stat-scaled uniformly to hit it — cycling the 5 tribes for synergy variety. Real cardIds carry real
+     keywords/effects, so a served board fights like a real tribe board; opponents only need the right
+     *strength*, not buildability. Deterministic; tagged `origin:'synthetic'` with a baked wave-relative rating.
+   - **Pool bake rewrite** (`build-pool.ts`): dropped the bot house-plan + frequency analysis + the competitive
+     floor; now builds the procedural-curve ladder, synthesizes `SYNTH_PER_WAVE` (**8**) boards for each of
+     waves 1–`MAX_WAVE` (**20**), merges any imports (preferred over synthetic in curation), dedupes, rates,
+     curates, writes. Knobs: `SYNTH_PER_WAVE`, `MAX_WAVE`, `PROC_SEEDS`.
+
+**Result:** `opponentPool.data.ts` is now **160 boards (8/wave × waves 1–20)**, baked under `0.1.0+<sha>`, with a
+healthy weak→strong band spread at every wave (global `b0:9 b1:12 b2:10 b3:18 b4:35 b5:43 b6:17 b7:16`; every
+wave shows `8[band span]` across several bands). No thin/empty/saturated high waves — the bot's old failure mode
+is gone by construction. Matchmaking (`pickOpponent`) now finds exact-wave boards for 10–20 instead of clamping
+to wave 9. Owner's call: anchor difficulty to the **tuned enemy curve** (not skilled-player strength).
+
+**Files:** `rating.ts` (procedural-curve ladder option), `synthesize.ts` (+`synthesizeWaveFromCurve` + tribe-pool
+helpers), `build-pool.ts` (bake rewrite), `synthesize.test.ts` (+1: high-wave, no-seed determinism + band-span),
+`opponentPool.data.ts` (regenerated), deleted `docs/board-exports/{lemon,orangez}.json`, `docs/board-pool.md`
+(rewritten for the new model). **Verification:** typecheck + lint + test (**401**, synth suite 2→3) + build:web all
+green; `npm run pool` reports 160 boards / 20 waves / full band spread; new test proves wave-15 synthesis works
+with no real seed and is byte-deterministic. **Follow-up:** to harden the late game beyond the designed curve,
+raise the synth power jitter or import strong real boards (both ladder- and curation-preferred).
+
+### feat: title screen → modes (Ascent / Practice) + Settings
+
+A proper front door. The app now boots into a **title screen** (a new top-most overlay, same store-flag pattern as the hero picker — no router) with three entries:
+
+- **Ascent** — the scored climb (the existing game): the 3-hero picker → run.
+- **Practice** — a relaxed 15-round sandbox: the **whole hero roster** in the picker, **unlimited Resolve** (a loss costs no health; you can't game-over from HP), a **3× shop clock**, and the run **ends after round 15** regardless of W/L (the win-15 victory is Ascent-only). New `RunState.mode: 'ascent' | 'practice'`.
+- **⚙ Settings** — opens the Esc menu: Audio (Volume + Mute), **Combat speed** (newly surfaced here — was HUD-only), Display resolution, Shared boards, Start Over. Dropped the **Player-name field** + the **Compact/Full-text toggle** (cards stay compact by default — the store keeps `compactCards: true`). **Bugfix:** the menu was `z-index: 320`, *below* the title's `450`, so opening Settings from the title rendered it behind the title (invisible — it looked like the button did nothing); raised to `500` so it sits above the title.
+
+Engine: `settleCombat` skips loss-damage in Practice; `advanceCombat` ends Practice at wave 15 and gates the win-15 victory to Ascent; `createRun` takes a `mode`. UI: new `Title.tsx`; store `showTitle` / `pendingMode` + `startAscent` / `startPractice` / `openTitle`; Recruit's `turnSeconds` ×3 in Practice; the EndScreen routes "Play Again" → title and shows a "Practice complete · NW NL" summary; + title CSS (mirrors the picker's dimmed-board backdrop).
+
+**Files:** `state.ts` (mode + createRun), `reducer.ts` (settle/advance), `store.ts` (title state + actions), `Title.tsx` (new), `Game.tsx` (route), `Recruit.tsx` (3× clock), `EndScreen.tsx` (title + practice framing), `styles.css`, `run.test.ts` (+2). **Verification:** typecheck + lint + test (401, +2) + build:web green; **live** — boots to the title; Ascent opens a 3-hero picker (`mode: ascent`), Practice opens the full 12-hero picker (`mode: practice`), the Settings button opens the Esc menu; console clean. Practice's unlimited-health + 15-round-end are unit-tested.
+
+### fix: Displacement keeps the displaced minion intact (and swapped-in Battlecries still don't fire)
+
+Two owner tweaks to the board↔tavern swap (Displacement spell + Darah's Displace):
+
+- **The displaced minion keeps EVERYTHING when sent to the tavern.** Its full state (buffs, stats, keywords, golden, `summonBonus` / `ascendProgress` / etc.) is stashed on the offer's new `ShopCard.held` and restored **intact** when re-bought or swapped back — instead of resetting to a fresh base offer (the previous behavior). `swapWithTavern` stashes `held: { ...boardMinion }`; the buy path and the swap-in path restore `{ ...held, uid: new }`; `shopView` shows the held minion's preserved stats / keywords / golden frame.
+- **Swapped-in Battlecries don't fire** — already the case (the incoming minion is placed, never "played"), now locked in with a test.
+
+**Files:** `state.ts` (`ShopCard.held`), `recruit.ts` (`swapWithTavern`), `reducer.ts` (buy held-restore + checkTriples), `Recruit.tsx` (`shopView` held branch), `run.test.ts` (+2). **Verification:** typecheck + lint + test (399, +2) + build:web green; tests cover full-state preservation + re-buy restore + the no-Battlecry guarantee; **live** — a displaced 9/8 Taunt minion shows **9/8 + Taunt** in the tavern (not reset to base), console clean.
+
+### feat: Chaos Attachment grant animation — flies in from the hero portrait
+
+UI juice for the Chaos hero power: when a Chaos Attachment is granted (every 5th turn), the new hand token now **flies in from the hero portrait**. Engine side — the reducer's recurring grant bumps a transient `chaosGrantSeq` and records the token's `chaosGrantUid` (the established one-shot-signal pattern, like `fodderEatenSeq`). UI side — a Recruit effect watches the seq (inits to the current value, so it doesn't fire on mount / for the game-start token), finds the new hand card (`[data-uid]`) + the portrait (`.heroimg`), and `gsap.from`-flies the card from the portrait position (scaled / rotated / faded) into its hand slot with a slight overshoot, clearing the inline transform on complete.
+
+**Files:** `reducer.ts` (signal on grant), `state.ts` (`chaosGrantSeq`/`Uid`), `Recruit.tsx` (the fly effect), `run.test.ts` (signal assertion). **Verification:** typecheck + lint + test (397) + build:web green; **live** — staged a Chaos run + a token, bumped the signal, and caught the card mid-fly (gsap translating it from the `.heroimg` portrait, scale/opacity interpolating), console clean.
+
+### feat: Spell Cart (T5 spell) — refresh the tavern full of spells
+
+New **T5 / 2g** untargeted spell: **refresh the tavern with spells instead of minions**. New `rollSpellShop(state)` (shop.ts) replaces the minion offers with up to `tierSlots` **distinct** random eligible spells (seeded Fisher–Yates over the tier-eligible spell list; returns the current minion offers to the pool); the right-hand spell slot is untouched, and the next normal roll/turn restocks minions — so it's inherently **one-shot** (no mode flag). The cast factory `spellRefreshToSpells` calls it. The buy path gained a branch: a **spell offer sitting in the minion row buys into the HAND at its own cost** (no minion creation / triple), like the spell slot. The shop's CardView memo now also passes the spell-display opts so those offers read their right cost + value.
+
+**Files:** `shop.ts` (`rollSpellShop`), `recruit.ts` (`spellRefreshToSpells` + import), `reducer.ts` (buy-path spell-offer branch), `spells.ts` (Spell Cart), `schema.ts` + `core/types.ts` (`spellRefreshToSpells`), `Recruit.tsx` (`shopViews` spell opts), `run.test.ts` (+2), art, `cards.csv`. **Verification:** typecheck + lint + test (397, +2) + build:web green; **live** — forcing a spell-shop renders 3 spell cards in the minion row (art loaded, `.spell` class) and a dispatched buy moves Spirit Fire into hand for its 2 cost (embers 10→8), console clean. Tests cover the spell-shop fill (all distinct spells) + next-roll-restocks-minions + the spell-offer buy.
+
+### feat: Steward of Spells (neutral T5) — End of Turn copies your last spell
+
+New neutral **T5 3/7** minion: **End of Turn, conjure a copy of the most recent spell cast this run** (golden: 2 copies) — a spell-engine payoff that snowballs whatever spell you're leaning on. Added a `lastSpellCastId` field to `RunState`, set in `castSpell` on every player cast (persists across turns); the new `spellCopyRecent` End-of-Turn factory pushes 1 (× golden) copy to hand, capped at `handMax`, no-op if no spell has been cast yet. Art wired.
+
+**Files:** `neutral.ts` (Steward), `recruit.ts` (`lastSpellCastId` in `castSpell` + `spellCopyRecent` factory), `state.ts` (`lastSpellCastId`), `schema.ts` + `core/types.ts` (`spellCopyRecent`), `run.test.ts` (+2), art, `cards.csv`. **Verification:** typecheck + lint + test (393, +2) + build:web green; tests cover the full flow (cast Spirit Fire → EOT copies it), the golden ×2, and the no-spell-yet no-op.
+
+### feat: Darah hero + Displacement spell (board↔tavern swap)
+
+A new shared mechanic — **swap a friendly board minion with a random tavern minion**:
+
+- **Darah** (hero, 30 hp) — **Displace** (targeted, once per turn): choose a friendly minion and swap it with a random tavern minion. New `displace` `HeroPowerKind` + a reducer branch (no-op / no charge on a missing target or an empty tavern).
+- **Displacement** (spell, T4/2, target friendly, `singleCast`) — the same swap. New `spellDisplace` factory.
+
+Both call a shared **`swapWithTavern(state, boardMinion)`** in `recruit.ts`: the tavern minion takes the board slot as a **fresh** instance (base stats + any offer buff + golden, doubled — **no** Battlecry / summon-buff), and the displaced minion returns to the tavern as a **fresh re-buyable offer** (its accrued buffs reset — the cost of the gamble). `checkTriples` runs after, so a swapped-in third copy still combines.
+
+**Design calls flagged (easy to change):** (1) the displaced minion **loses its buffs** (returns to the tavern fresh); (2) the swapped-in minion arrives **without** firing its Battlecry or summon-buffs (it's a placement, not a play).
+
+Art: Darah portrait (**placeholder** — used `Darah.png`, since the requested `Darah2` master isn't in the art folder yet), Displace power (`Displace.png`), Displacement spell (`Displacement.png`).
+
+**Files:** `heroes.ts` (Darah + `displace` kind), `recruit.ts` (`swapWithTavern` + `spellDisplace`), `reducer.ts` (displace branch + import), `spells.ts` (Displacement), `schema.ts` + `core/types.ts` (`spellDisplace`), `run.test.ts` (+2), art (3 webp), `cards.csv`. **Verification:** typecheck + lint + test (393, +2) + build:web green; **live** — Darah's portrait + "Displace" power render in hero-select. The two tests cover the spell + the power (sandbag ↔ gnash; the displaced minion lands in the tavern; the charge is spent).
+
+### feat: Acid rework + remove Voracious Imp
+
+- **Acid** reworked: now **every 3 refreshes** (was 4) it consumes a tavern minion **and buffs the remaining tavern minions +1/+1** (golden: double the consumed stats + tavern **+2/+2**). The `onRollConsumeShop` factory gained a `tavernBuff` param (golden ×2 via `gold(self)`); the consume became conditional so the tavern buff still lands even when there's nothing to consume. New **Acid2** art (`acid.webp` overwritten). Tier/stats unchanged (T6 7/7).
+- **Voracious Imp removed** — it was the only `fodderMult` demon. Deleted the card, its `CARD_REFERENCES` popup entry, and updated its tests: the general consume-on-roll + buffed-Fodder coverage was **retargeted to a vanilla Demon** (Maw, ×1); the golden-3× multiplier test was **dropped** (no multiplier card remains — `fodderMultiplier` now always returns 1, kept for a future re-add). Not in the opponent pool, so no regen.
+
+**Files:** `demons.ts` (Acid params/text; removed Voracious Imp), `recruit.ts` (`onRollConsumeShop` tavern buff), `Recruit.tsx` (`CARD_REFERENCES`), `run.test.ts` (Acid test + retargeted consume tests), art (`acid.webp`), `cards.csv` (81 minions now). **Verification:** typecheck + lint + test (389) + build:web green; a new test rolls 3× and asserts Acid eats a minion + the remaining offers each carry +1/+1.
+### feat: Golden Touch + Consume spells; rename Point Solution → Resonance
+
+Three tavern-spell changes:
+
+- **Point Solution → Resonance** — rename (id `pointsolution`→`resonance`, name, comments, tests) + new art (`resonance.webp`; removed the orphaned `pointsolution.webp`). The reducer's Battlecry-target guard keys off the *factory* (`spellReplayBattlecry`), so the rename didn't touch behavior.
+- **Consume** (T4, 2g, target a friendly Demon) — it devours **one** random tavern minion (reuses `spellDemonConsumeTavern` with `count: 1`, the same pipeline as Cupcakes). Not `singleCast`, so **Yazzus multiplies it** (a golden Yazzus → 3 consumed).
+- **Golden Touch** (T4, 5g, untargeted) — make a random tavern minion offer **Golden**. New `ShopCard.golden` flag (factory `spellGildRandomTavern` sets a random offer golden); the **buy bakes it in by doubling the final stats exactly like the Gild hero power** (`addBuff('Golden Touch', …)` then `golden: true` — goldens store *doubled* stats, confirmed via the Gild path), and `shopView` shows the offer with the golden frame + doubled stats. A bought golden grants the golden Discover on play, like any golden. Triples exclude goldens, so there's no weird interaction.
+
+**Files:** `spells.ts` (rename + 2 cards), `recruit.ts` (`spellGildRandomTavern` + comment), `reducer.ts` (buy golden-doubling + comment), `state.ts` (`ShopCard.golden`), `Recruit.tsx` (`shopView` golden), `core/types.ts` + `schema.ts` (factory id), `run.test.ts` (rename + 2 tests), art (3 webp), `cards.csv`. **Verification:** typecheck + lint + test (391, +2) + build:web green; **live** — a gilded sandbag offer renders with the crown + golden frame and **doubled stats (0/6 → 0/12)** in the tavern, normal offers stay 0/6, and it buys in as a Golden.
+### chore: refresh Rohan + Myra hero portraits (Rohan3, Myra3)
+
+Swapped new portrait art over the existing webp for **Rohan** (`art/heroes/rohan.webp` ← Rohan3.png) and **Myra** (`myra.webp` ← Myra3.png) via `optimize-art` (5.0 MB → 0.13 MB). Hero-power icons unchanged. Confirmed (no change) that the Chaos hero power is named **"Chaos Bond"**. The same batch also asked for new Nadja / Chaos / Darah portraits, but those masters (Nadja3 / Chaos2 / Darah2) aren't in `C:\Game Assets\Ascent Art\Heroes\` yet — deferred until they're dropped.
+
+### feat: four tavern spells (Lantern Light, Fodder Treatment, Point Solution, Chrono Staff) + Tara → T4
+
+Owner content batch. Four new tavern spells (all `neutral`, data + a recruit `cast` factory each) and a balance dial:
+
+- **Lantern Light** (T1, 1g, target friendly) — give the target **+Tavern Tier / +Tavern Tier** (e.g. +3/+3 at Tier 3). New factory `spellBuffByTier`; scales with Tier *by design* (no spell-power bonus folded in — flagged).
+- **Fodder Treatment** (T3, 2g, target friendly, `singleCast`) — **sell** the target (gain its base sell value as Gold) and spit its current stats onto your **left-most Demon**, firing that Demon's on-consume payoffs; no Demon → stats wasted but the sell + Gold still happen. New factory `spellSellToDemon` (mirrors `spellDevour` + the Consume `addBuff`/`onConsume` pipeline). Literal stat transfer — the Demon's fodder *multiplier* is not applied (flagged).
+- **Point Solution** (T5, 3g, target friendly) — re-trigger a friendly **Battlecry** minion's Battlecry, reusing Myra's `replayBattlecry` path (so Drakko still amplifies it). New factory `spellReplayBattlecry`. "Only usable on a Battlecry minion" is enforced by a reducer guard: a non-Battlecry target **fizzles** (the spell stays in hand / drag snaps back) rather than being wasted.
+- **Chrono Staff** (T5, 3g, untargeted) — your **End-of-Turn** effects fire **one extra time** this turn (stacks with Chronos, not with itself — a per-turn `extraEotThisTurn` flag, reset at the next turn start). Introduced a shared `endOfTurnRepeats(state) = chronosRepeats + staff` helper, routed through the real EOT **and** both UI previews (`projectEndOfTurnSteps`, Recruit telegraph) so they agree.
+- **Balance:** **Tara → Tier 4** (was T2).
+
+`EffectFactoryId` (core type) + the zod allowlist both gained the four ids. **Files:** `spells.ts` (+4), `dragons.ts` (Tara), `recruit.ts` (4 factories + `endOfTurnRepeats` + 2 preview callers), `reducer.ts` (turn-reset + Point Solution guard), `state.ts` (`extraEotThisTurn`), `index.ts` + `core/types.ts` + `schema.ts`, `Recruit.tsx` (telegraph helper), art (4 webp), `cards.csv`. **Verification:** typecheck + lint + test (389, +6) + build:web green; the Lantern Light spell art renders live (`lanternlight.webp`, naturalWidth > 0). New tests cover each spell + the Tara tier.
+### feat: rename hero Symbiote → Chaos (+ "Chaos Attachment" token, new portrait art)
+
+Owner: rename the Symbiote hero to Chaos, wire his new portrait, and rename his hero-power minion to "Chaos Attachment." Renamed the hero id `symbiote`→`chaos`, name → Chaos, the power `kind` `symbiote`→`chaos`, power name → "Chaos Bond", and the token's **display name** "Symbiotic Attachment" → "Chaos Attachment". The token's **card id stays `symbioticattachment`** on purpose — baked opponent boards, saves, and the magnetic / universalTribe tests reference that id, so keeping it means zero churn there. Added a legacy hero-id alias (`symbiote`→`chaos`) in `getHero` so old saves and the baked opponent pool (which carries `heroId:'symbiote'`) resolve to Chaos instead of falling back to the default hero — no pool regen needed.
+
+Art: new portrait `Chaos.png` → `art/heroes/chaos.webp` (2.4 MB → 75 KB via `optimize-art`); the power icon reuses the existing (unchanged-power) art, renamed `art/powers/symbiote.webp` → `chaos.webp`; removed the orphaned `art/heroes/symbiote.webp`.
+
+**Files:** `heroes.ts` (id/name/kind/power + alias), `tokens.ts` (display name), `reducer.ts` + `state.ts` (kind/heroId checks + comments), `run.test.ts` (createRun ids + titles), `core/types.ts` + `recruit.ts` (comments), art, `docs/cards.csv` (re-dumped). **Verification:** typecheck + lint + test (383) + build:web green; live hero-select renders "Chaos / Chaos Bond / Chaos Attachment" and the new `chaos.webp` portrait loads (naturalWidth > 0), console clean. The grant animation (token flying from the portrait) is its own follow-up PR.
 
 ### feat: live combat-text becomes the norm — Grim, Guel, Spirit Worgen show their current value in combat
 

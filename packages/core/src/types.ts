@@ -162,7 +162,16 @@ export type EffectFactoryId =
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryFreeRollsAndBuffShop' // Demonic Anomaly: Battlecry — gain free refreshes + buff the current tavern
-  | 'onRollConsumeShop'; // Acid: every N refreshes, consume a random tavern minion (stats gained × golden)
+  | 'onRollConsumeShop' // Acid: every N refreshes, consume a random tavern minion (stats gained × golden)
+  // --- tavern-spell batch (2026-06-26) ---
+  | 'spellBuffByTier' // Lantern Light: cast — give the target +Tavern Tier / +Tavern Tier (recruit)
+  | 'spellSellToDemon' // Fodder Treatment: cast — sell the target, give its stats to your left-most Demon (recruit)
+  | 'spellReplayBattlecry' // Resonance: cast — re-trigger a friendly Battlecry minion's Battlecry (recruit)
+  | 'spellExtraEndOfTurn' // Chrono Staff: cast — your End-of-Turn effects fire 1 extra time this turn (recruit)
+  | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)
+  | 'spellDisplace' // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)
+  | 'spellCopyRecent' // Steward of Spells: End of Turn — copy the most recent spell cast to hand (recruit)
+  | 'spellRefreshToSpells'; // Spell Cart: cast — refresh the tavern full of spells (recruit)
 
 export interface EffectDef {
   on: GameEvent;
@@ -179,7 +188,7 @@ export interface CardDef {
    *  tribes for tribe checks (Magnetic targeting, tribe buffs) and renders a split-hue card. */
   tribe2?: Tribe;
   /** Counts as EVERY non-neutral tribe simultaneously: receives all tribe buffs and can Magnetize onto
-   *  any non-neutral minion (Symbiotic Attachment). Absent = normal tribe matching. */
+   *  any non-neutral minion (Chaos Attachment). Absent = normal tribe matching. */
   universalTribe?: boolean;
   /** An "Imp" — the target of imp-buff effects (Fodder Feeder, Imp King, Brood Matron, Ritualist, Bane).
    *  Currently the 1/1 Imp token only. Run-wide imp buffs accrue into `RunState.impBuff` and apply to these

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, chronosRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText } from './cardText';
 import { HudBar } from './HudBar';
@@ -77,7 +77,7 @@ function TurnRope() {
  *  *current* buffed Fodder for Ritualist & co). */
 const CARD_REFERENCES: Record<string, string[]> = {
   alley: ['stray'], shaper: ['stray'], pack: ['pup'], brood: ['impscrap'], combinator: ['cling', 'moneybot', 'betterbot'],
-  feed: ['fred'], imp: ['fred'], ritualist: ['fred', 'impscrap'], maw: ['fred'],
+  feed: ['fred'], ritualist: ['fred', 'impscrap'], maw: ['fred'],
   // Imp summoners / buffers — the popup shows the Imp token at its current buffed stats. Cards that touch
   // both Fodder and Imps (Ritualist, Bane, Fodder Feeder) reference both.
   impking: ['impscrap'], fodderfeeder: ['fred', 'impscrap'], bane: ['fred', 'impscrap'],
@@ -128,6 +128,18 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
       target: c.target, tier: c.tier,
     };
   }
+  // Displacement: a stashed minion (held) shows its FULL preserved stats / keywords / golden frame. Its stored
+  // stats are already final (golden ones already doubled), so no further folding — it restores intact on buy.
+  if (card.held) {
+    const h = card.held;
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+      attack: h.attack, health: h.health, keywords: h.keywords,
+      text: tallyBuffText(c.id, opts.deathrattlesTriggered ?? 0) ?? c.text,
+      goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: h.golden,
+      baseAttack: c.attack, baseHealth: c.health,
+    };
+  }
   // A minion offer — fold in the per-offer buff (Fortify hero power), the persistent per-card run buff
   // (Ritualist's Fodder), Staff of Guel's run-wide tavern-buy buff, and the Lantern of Souls aura on
   // Undead — so a buffed offer reads its new stats (green) and carries the baked ones in when bought.
@@ -141,14 +153,17 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const tavernHp = fodder ? 0 : opts.tavernHp ?? 0;
   const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0);
   const addHp = (card.hp ?? 0) + cb.health + tavernHp + (undead ? opts.undeadHp ?? 0 : 0);
+  // Golden Touch: a gilded offer shows doubled stats + the golden frame (offer stores base + a flag; the buy
+  // bakes the doubling in, mirrored here for display).
+  const goldMul = card.golden ? 2 : 1;
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
-    attack: c.attack + addAtk, health: c.health + addHp,
+    attack: (c.attack + addAtk) * goldMul, health: (c.health + addHp) * goldMul,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     // Grim (and other Deathrattle-tally cards) show their live scaling buff in the tavern too, not just on board.
     text: tallyBuffText(c.id, opts.deathrattlesTriggered ?? 0) ?? c.text,
-    goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier,
-    baseAttack: c.attack, baseHealth: c.health,
+    goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: card.golden,
+    baseAttack: c.attack * goldMul, baseHealth: c.health * goldMul,
   };
 }
 function instView(
@@ -261,8 +276,8 @@ export function Recruit() {
   const spellBonusH = spellHealthBonus(run);
 
   // Round timer grows +4s each wave, capped at 80s. (Recruit now stays mounted across
-  // combat, so the per-wave reset is an effect keyed on the wave — see below.)
-  const turnSeconds = Math.min(80, TURN_SECONDS + (run.wave - 1) * 4);
+  // combat, so the per-wave reset is an effect keyed on the wave — see below.) Practice gives 3× the clock.
+  const turnSeconds = Math.min(80, TURN_SECONDS + (run.wave - 1) * 4) * (run.mode === 'practice' ? 3 : 1);
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
@@ -324,6 +339,29 @@ export function Recruit() {
       tl.kill();
     };
   }, [devourBolt]);
+  // Chaos hero power: when a Chaos Attachment is granted (every 5th turn), fly the new hand token in from the
+  // hero portrait. One-shot, keyed off `chaosGrantSeq` (like fodderEatenSeq); inits to the current value so it
+  // doesn't fire on mount (the game-start token is just there).
+  const prevChaosSeq = useRef(run.chaosGrantSeq);
+  useEffect(() => {
+    const seq = run.chaosGrantSeq;
+    if (seq === undefined || seq === prevChaosSeq.current) return;
+    prevChaosSeq.current = seq;
+    const uid = run.chaosGrantUid;
+    if (!uid) return;
+    const card = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+    const portrait = document.querySelector('.heroimg');
+    if (!card || !portrait) return;
+    const c = card.getBoundingClientRect();
+    const p = portrait.getBoundingClientRect();
+    const dx = p.left + p.width / 2 - (c.left + c.width / 2);
+    const dy = p.top + p.height / 2 - (c.top + c.height / 2);
+    const tween = gsap.from(card, {
+      x: dx, y: dy, scale: 0.2, opacity: 0, rotate: -20, duration: 0.55, ease: 'back.out(1.4)',
+      onComplete: () => gsap.set(card, { clearProps: 'all' }), // hand back to its CSS-driven transforms
+    });
+    return () => { tween.kill(); };
+  }, [run.chaosGrantSeq, run.chaosGrantUid]);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
   // Fred shows e.g. 3/3, not the 1/1 base.
@@ -772,8 +810,10 @@ export function Recruit() {
   // changes — during a drag nothing dispatches, so `run.*` refs are stable and these stay
   // cached, which is what lets the memoized Card skip re-render on every pointermove.
   const shopViews = useMemo(
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered })] as const)),
-    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.deathrattlesTriggered],
+    // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
+    // row read their right cost + value, like the spell slot.
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered, spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus })] as const)),
+    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.deathrattlesTriggered, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus],
   );
   const spellView = useMemo(
     () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus }) : null),
@@ -1472,7 +1512,7 @@ export function Recruit() {
   // Omen. (The effects themselves still *resolve* inside `faceOmen` — this is purely the telegraph.)
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
-    const repeats = chronosRepeats(run);
+    const repeats = endOfTurnRepeats(run);
     type Beat = { uid: string; kind: 'ritualist' | 'combinator' | 'generic'; targets: string[]; completes: boolean };
     const beats: Beat[] = [];
     for (const card of run.board) {

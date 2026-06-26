@@ -4,12 +4,14 @@
  * buildable boards (not procedural blobs). Run: `npm run pool`.
  *
  * Sources (merged + curated):
- *   1. HOUSE boards — a greedy bot plays many seeded runs across every hero (deterministic), and we keep
- *      the per-wave board it fought. Tagged origin:'house'.
+ *   1. SYNTHETIC boards — generated straight from the card set, banded to the tuned enemy curve across ALL
+ *      waves 1–20 (`synthesizeWaveFromCurve`). Replaces the old house bot, which only survived to ~wave 9 and
+ *      left waves 10–20 empty. Tagged origin:'synthetic'.
  *   2. IMPORTED boards — any `*.json` files dropped in `docs/board-exports/`, each shaped
  *      `{ "author": "Sam", "origin": "self" | "friend", "boards": BoardSnapshot[] }` (or a raw
  *      BoardSnapshot[]). This is how YOUR exported localStorage boards + friends' boards get committed:
- *      export `localStorage.getItem('ascent.boards')` to a file there, then re-run this.
+ *      export `localStorage.getItem('ascent.boards')` to a file there, then re-run this. Real boards are
+ *      PREFERRED over synthetic during curation, so the pool faces people wherever player data exists.
  *
  * Curation: drop empty / unservable boards (cardId must exist in this build), dedupe identical boards, and
  * cap per wave with an even spread across the power range so the difficulty curve stays covered without the
@@ -18,23 +20,16 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
-import { buildBootstrapPool, buildWaveLadders, dominantTribe, isServableBoard, opponentBoard, rateBoardForWave, ratingBand, synthesizeForWave, BAND_COUNT, type BoardSnapshot, type BotOptions } from '@game/sim';
-import type { Tribe } from '@game/core';
+import { buildWaveLadders, isServableBoard, opponentBoard, rateBoardForWave, ratingBand, synthesizeWaveFromCurve, BAND_COUNT, type BoardSnapshot } from '@game/sim';
 
 const EXPORTS_DIR = join(process.cwd(), 'docs', 'board-exports');
 const OUT_FILE = join(process.cwd(), 'packages', 'sim', 'src', 'opponentPool.data.ts');
 const CAP_PER_WAVE = 24; // keep up to N boards per wave, spread across the power range
-const HOUSE_SEEDS = Array.from({ length: 60 }, (_, i) => 1 + i * 1337); // ↑ this to populate more house boards
-// Competitive floor: drop boards below this wave-relative band at waves ≥ FLOOR_FROM_WAVE (trivially weak
-// = a free win for the player). Early waves keep the full range (easy onboarding fights are fine). Tunable.
-const FLOOR_BAND = 1;
-const FLOOR_FROM_WAVE = 4;
-// Synthesis: top a thin wave up toward this many boards by mutating + validating the REAL boards at that wave
-// (the bot can't build strong high-wave boards, so high waves stay sparse without this). 0 = off.
-const SYNTH_TARGET_PER_WAVE = 16;
-const TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
+const MAX_WAVE = 20; // synthesize a pool spanning every wave a run can reach
+const SYNTH_PER_WAVE = 8; // boards generated per wave, spread weak→strong across the wave's power band
+const PROC_SEEDS = 4; // procedural reference seeds per threat (the band sampler + the rating ladder)
 const TODAY = new Date().toISOString().slice(0, 10);
-// The build these house boards are baked under — `<pkg version>+<short git sha>` (mirrors apps/web/vite.config.ts).
+// The build these boards are baked under — `<pkg version>+<short git sha>` (mirrors apps/web/vite.config.ts).
 const PKG_VERSION = (JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }).version;
 const GIT_SHA = (() => { try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'dev'; } })();
 const PATCH = `${PKG_VERSION}+${GIT_SHA}`;
@@ -56,14 +51,14 @@ function spreadByPower(list: BoardSnapshot[], cap: number): BoardSnapshot[] {
   return out;
 }
 
-/** Keep up to `cap` boards for a wave, PREFERRING real (player/friend) boards over house — fill with all the
- *  real ones first (power-spread if they overflow), then top up with house boards. So the shipped pool is
- *  real-heavy wherever player data exists, and matchmaking faces people, not bots. */
+/** Keep up to `cap` boards for a wave, PREFERRING real (player/friend) boards over synthetic — fill with all
+ *  the real ones first (power-spread if they overflow), then top up with synthetic. So the shipped pool is
+ *  real-heavy wherever player data exists, and matchmaking faces people, not generated boards. */
 function curateWave(boards: BoardSnapshot[], cap: number): BoardSnapshot[] {
   const real = boards.filter((s) => s.origin === 'self' || s.origin === 'friend');
-  const house = boards.filter((s) => s.origin !== 'self' && s.origin !== 'friend');
+  const rest = boards.filter((s) => s.origin !== 'self' && s.origin !== 'friend');
   if (real.length >= cap) return spreadByPower(real, cap);
-  return [...real, ...spreadByPower(house, cap - real.length)];
+  return [...real, ...spreadByPower(rest, cap - real.length)];
 }
 
 /** Read the optional imported-board exports (yours + friends'), stamping origin/author/date. */
@@ -95,56 +90,23 @@ function loadImported(): BoardSnapshot[] {
 console.log('Building committed opponent pool…');
 const imported = loadImported();
 
-// ── Frequency analysis: what do GOOD boards of each tribe look like at each wave? ──────────────
-// Builds a (wave, tribe) → (cardId → total rating weight) table from real imported boards so the
-// smart bot can imitate proven synergies instead of buying the first card it sees.
-type FreqMap = Map<string, number>;
-const analysis = new Map<string, FreqMap>();
-for (const board of imported) {
-  const dt = dominantTribe(board);
-  if (!dt) continue;
-  const w = board.rating ?? 0.5; // higher-rated boards contribute more
-  const key = `${board.wave}|${dt.tribe}`;
-  if (!analysis.has(key)) analysis.set(key, new Map());
-  const fm = analysis.get(key)!;
-  for (const m of board.minions) fm.set(m.cardId, (fm.get(m.cardId) ?? 0) + w);
+// ── Calibration ladders: the tuned PROCEDURAL enemy curve at every wave 1–20 (no bot — it tops out at ~wave 9)
+// PLUS any imported real boards folded in for a real high-wave ceiling. This is what bands the synthetic pool.
+console.log(`  building wave calibration ladders (procedural enemy curve 1–${MAX_WAVE} + ${imported.length} imported)…`);
+const ladders = buildWaveLadders([], [], imported, { proceduralWaves: MAX_WAVE, proceduralSeeds: PROC_SEEDS });
+
+// ── Synthesize the pool: SYNTH_PER_WAVE boards per wave, banded to the enemy curve, filled with real tribe
+// cards (so synergies/keywords/effects are real). Deterministic per-wave seed; covers waves 1–MAX_WAVE.
+const synthetic: BoardSnapshot[] = [];
+for (let wave = 1; wave <= MAX_WAVE; wave++) {
+  synthetic.push(...synthesizeWaveFromCurve(wave, ladders, 7919 * wave + 13, {
+    perWave: SYNTH_PER_WAVE, proceduralSeeds: PROC_SEEDS, patch: PATCH, capturedAt: TODAY,
+  }));
 }
-
-/** Returns a card-weight function for a committed tribe. Falls back one wave when data is sparse. */
-function cardWeightFor(tribe: Tribe): (cardId: string, wave: number) => number {
-  return (cardId, wave) =>
-    analysis.get(`${wave}|${tribe}`)?.get(cardId) ??
-    analysis.get(`${Math.max(1, wave - 1)}|${tribe}`)?.get(cardId) ??
-    0;
-}
-
-// ── House plan: 60 seeds with varying tribe commitment + fidelity ────────────────────────────
-// First 10: pure greedy (no tribe, no fidelity) — produce weak, varied boards that fill early
-// wave slots. Remaining 50: commit to a cycling tribe with fidelity rising 0.25 → 1.0, so the
-// pool naturally spans weak (low-synergy drafts) through strong (near-optimal tribe boards).
-// The wave-relative rating + the competitive floor below then drop the duds and report band coverage.
-const HOUSE_PLAN = HOUSE_SEEDS.map((seed, i) => {
-  if (i < 10) return { seed, tribe: undefined as Tribe | undefined, fidelity: 0 };
-  const tribe = TRIBES[(i - 10) % TRIBES.length]!;
-  const fidelity = +(0.25 + ((i - 10) / (HOUSE_SEEDS.length - 10)) * 0.75).toFixed(2);
-  return { seed, tribe, fidelity };
-});
-
-const house: BoardSnapshot[] = buildBootstrapPool(
-  HOUSE_PLAN.map((p) => p.seed),
-  (_, i): BotOptions => {
-    const { tribe, fidelity } = HOUSE_PLAN[i]!;
-    if (!tribe) return {};
-    return { preferTribe: tribe, fidelity, cardWeight: cardWeightFor(tribe) };
-  },
-).map((s) => ({ ...s, origin: 'house' as const, capturedAt: TODAY, patch: PATCH }));
-console.log(
-  `  house: ${house.length} boards from ${HOUSE_PLAN.length} runs` +
-  ` (10 greedy + 50 tribe-committed, fidelity 0.25–1.0)`,
-);
+console.log(`  synthesized ${synthetic.length} boards across waves 1–${MAX_WAVE} (${SYNTH_PER_WAVE}/wave, curve-banded)`);
 
 // Merge → keep only servable, non-empty boards → dedupe.
-const merged = [...imported, ...house].filter((s) => s.minions.length > 0 && isServableBoard(s));
+const merged = [...imported, ...synthetic].filter((s) => s.minions.length > 0 && isServableBoard(s));
 const seen = new Set<string>();
 const deduped = merged.filter((s) => {
   const k = signature(s);
@@ -153,43 +115,14 @@ const deduped = merged.filter((s) => {
   return true;
 });
 
-// Rate every board WAVE-RELATIVE: build the per-wave calibration ladders once (the smart bot at rising
-// fidelity, PLUS the real imported boards so the high-wave ladders get a real ceiling), then score each board
-// by the fraction of its OWN wave's ladder it beats. Synergy- AND wave-aware, so a board that's gone weak for
-// its wave after a balance patch reads as a low band — the old fixed gauntlet saturated at 1.0 by ~wave 8.
-console.log('  building wave calibration ladders (smart bot + real boards)…');
-const ladders = buildWaveLadders(undefined, undefined, imported);
-console.log(`  rating ${deduped.length} boards (wave-relative)…`);
-for (const s of deduped) s.rating = +rateBoardForWave(opponentBoard(s), s.wave, ladders, s.tier).toFixed(3);
+// Rate any board that doesn't already carry one (synthetic boards are pre-rated against these same ladders;
+// imported real boards need it) — wave-relative, so a board that's gone weak for its wave reads as a low band.
+console.log(`  rating ${deduped.filter((s) => s.rating === undefined).length} unrated boards (wave-relative)…`);
+for (const s of deduped) if (s.rating === undefined) s.rating = +rateBoardForWave(opponentBoard(s), s.wave, ladders, s.tier).toFixed(3);
 
-// Competitive floor: drop boards below band FLOOR_BAND at waves ≥ FLOOR_FROM_WAVE — a free win there isn't
-// fun. Early waves keep the full range (winnable fights are good onboarding).
-const competitive = deduped.filter((s) => s.wave < FLOOR_FROM_WAVE || ratingBand(s.rating ?? 0) >= FLOOR_BAND);
-const dropped = deduped.length - competitive.length;
-
-// Group by wave.
+// Group by wave → cap per wave (prefer real boards, even power spread) → stable sort by power.
 const byWave = new Map<number, BoardSnapshot[]>();
-for (const s of competitive) (byWave.get(s.wave) ?? byWave.set(s.wave, []).get(s.wave)!).push(s);
-
-// Synthesize to fill THIN waves: the bot can't build strong high-wave boards, so high waves are sparse —
-// mutate/recombine the REAL boards at that wave + validate (band ≥ floor) until the wave reaches the target.
-// Deterministic per-wave seed. Tagged origin:'synthetic'; they slot in behind real boards during curation.
-let synthCount = 0;
-if (SYNTH_TARGET_PER_WAVE > 0) {
-  for (const [wave, boards] of byWave) {
-    if (boards.length >= SYNTH_TARGET_PER_WAVE) continue;
-    const reals = boards.filter((s) => s.origin === 'self' || s.origin === 'friend');
-    if (reals.length === 0) continue; // no real board to learn from → can't synthesize a good one
-    const made = synthesizeForWave(reals, wave, ladders, SYNTH_TARGET_PER_WAVE - boards.length, 7919 * wave + 13, {
-      floorBand: FLOOR_BAND, patch: PATCH, capturedAt: TODAY,
-    });
-    boards.push(...made);
-    synthCount += made.length;
-  }
-  if (synthCount > 0) console.log(`  synthesized ${synthCount} boards to fill thin waves`);
-}
-
-// Cap per wave (prefer real boards, even power spread) → stable sort by power.
+for (const s of deduped) (byWave.get(s.wave) ?? byWave.set(s.wave, []).get(s.wave)!).push(s);
 const waves = [...byWave.keys()].sort((a, b) => a - b);
 const pool = waves.flatMap((w) => curateWave(byWave.get(w)!, CAP_PER_WAVE).sort((a, b) => a.power - b.power));
 
@@ -202,15 +135,17 @@ const perWave = waves.map((w) => {
   return `w${w}:${bs.length}[b${Math.min(...bs)}–b${Math.max(...bs)}]`;
 });
 
+const poolReal = pool.filter((s) => s.origin === 'self' || s.origin === 'friend').length;
 const poolSynth = pool.filter((s) => s.origin === 'synthetic').length;
 const banner = `/* AUTO-GENERATED by \`npm run pool\` (build-pool.ts) — do not edit by hand.
- * ${pool.length} boards (${imported.length} imported + ${house.length} house${poolSynth ? ` + ${poolSynth} synthetic` : ''}, baked under ${PATCH}) across waves ${waves[0]}–${waves[waves.length - 1]}.
- * Regenerate after adding board exports to docs/board-exports/ or changing the card set. See docs/board-pool.md. */`;
+ * ${pool.length} boards (${poolSynth} synthetic + ${poolReal} imported, baked under ${PATCH}) across waves ${waves[0]}–${waves[waves.length - 1]}.
+ * Synthetic boards are generated from the card set, banded to the tuned enemy curve. Regenerate after adding
+ * board exports to docs/board-exports/ or changing the card set. See docs/board-pool.md. */`;
 const body = `${banner}\nimport type { BoardSnapshot } from './snapshot';\n\nexport const OPPONENT_POOL_DATA: BoardSnapshot[] = ${JSON.stringify(pool)};\n`;
 
 if (!existsSync(EXPORTS_DIR)) mkdirSync(EXPORTS_DIR, { recursive: true });
 writeFileSync(OUT_FILE, body);
 console.log(`\nWrote ${OUT_FILE}`);
-console.log(`  ${pool.length} boards · dropped ${dropped} below band ${FLOOR_BAND} (waves ≥ ${FLOOR_FROM_WAVE}) · ${poolSynth} synthetic`);
+console.log(`  ${pool.length} boards · ${poolSynth} synthetic · ${poolReal} imported`);
 console.log(`  bands (0=weak-for-wave … ${BAND_COUNT - 1}=strong): ${bandReport}`);
 console.log(`  per-wave count[band span]: ${perWave.join(' ')}`);

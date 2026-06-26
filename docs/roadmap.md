@@ -36,12 +36,16 @@ The next 5 concrete steps:
    imports) shipped in the repo + loaded at startup; `BoardSnapshot` carries `origin/author/capturedAt`; the
    opponent frame shows "by {name}" / "House board". ✅ **Simulate-derived WAVE-RELATIVE strength rating +
    power bands (done 2026-06-25 → devlog + [board-pool.md](board-pool.md)):** `rateBoardForWave` rates a board
-   by win-rate vs its OWN wave's bot-calibrated ladder (no saturation); boards carry a `patch` stamp;
-   `npm run pool`/`pool:prune` bake/rate/floor/prune. Used for **curation/QA only** so far. **Queued next:**
-   (a) a **higher-ceiling ladder** — the smart bot tops out below expert play and lacks a weak end past
-   ~wave 9, so high-wave ratings compress to band 7 (curated strong references, or wire the bands into
-   matchmaking once trustworthy); (b) **synthesized boards within a band** (`origin:'synthetic'` — mutate/
-   recombine real boards, validate via `simulate`) to fill sparse bands (esp. high waves the bot can't reach);
+   by win-rate vs its OWN wave's calibrated ladder (no saturation); boards carry a `patch` stamp;
+   `npm run pool`/`pool:prune` bake/rate/prune. Used for **curation/QA only** so far. ✅ **All-wave synthetic
+   pool (done 2026-06-26 → devlog + [board-pool.md](board-pool.md)):** retired the house bot — `npm run pool`
+   now **synthesizes** 8 boards/wave from the card set across waves 1–20, banded to the tuned enemy curve
+   (`synthesizeWaveFromCurve`), and the rating ladder calibrates 1–20 off the **procedural enemy curve** (no
+   bot). This solves both the old "queued next" items: the band ceiling (no more `w12:b7–b7` saturation) and
+   sparse high waves (every wave ships a full weak→strong spread). **Queued next:** (a) **wire bands into live
+   matchmaking** (`pickOpponent` still matches by `Σ(atk+hp)` power only — now that ratings are trustworthy at
+   every wave, match by `(wave, band)`); (b) a **harder late-game dial** if the enemy-curve anchor proves too
+   soft vs strong player boards (raise the synth power jitter, or prefer imported strong real boards);
    (c) **in-game friend export/import UX**; (d) a shared **friend backend** keyed by `(wave, power-band,
    tribe)` — the async-PvP track (step 5).
 4. ✅ **Serve real boards as enemies** (done 2026-06-21). `faceOmen` draws a strength-matched real snapshot via
@@ -325,6 +329,39 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Dev stats tracker (TABLED 2026-06-26).** A replay-driven analytics tool — no live telemetry needed, since
+      every run is a deterministic `Replay = {seed, heroId, actions}` that re-derives byte-identically. Walk each
+      persisted replay through `reduce` and read state at each step to aggregate: per-minion **offer / purchase /
+      play / sell rates** and **win-rate-when-present**; per-**hero** runs / win-rate / avg-waves / avg-power /
+      tribes / triples; per-tribe rollups. Build in layers: (1) `npm run track` headless aggregator in
+      `packages/tools/` (mirrors `balance`/`curve`; works over bot runs today, auto-reports on real runs once they
+      land in a `docs/run-exports/` or the backend below); (2) persist the full **replay** on run-end (a ~1-file
+      mirror of `boardLibrary.ts` — `store.ts` already keeps `replayActions` + `exportReplay()`); (3) optional
+      in-app live overlay (presentation). Easy/Easy/Medium. Design fully scoped in the 2026-06-26 session.
+- [ ] **Auto-persist boards (+ replays) to a shared backend — kill the manual export/bake.** Today capture →
+      `localStorage` → manual Export → `docs/board-exports/` → `npm run pool` → committed `OPPONENT_POOL_DATA`.
+      Replace the manual middle with a **serverless DB — DECIDED: Supabase (2026-06-26)** (hosted Postgres + JS
+      client + dashboard; alternatives weighed + parked: Cloudflare Workers+D1, PocketBase, custom Worker):
+      **write** = fire-and-forget POST of finished-run boards on run-end (next to `saveRunBoards`); **read** =
+      fetch a curated pool ONCE at startup and `registerOpponents` it (kept static for the session → determinism
+      preserved). `BoardSnapshot` already carries `patch` — store it as a column so we can **serve by patch**,
+      **sort/query by patch**, and **clear stale patches** from the dashboard. Keep `OPPONENT_POOL_DATA` as the
+      shipped **offline floor** (itch builds must work with no network).
+      - **Seam:** all DB access behind one `remoteBoards.ts` (`uploadBoards` / `fetchPool({patch})`), reading
+        `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` from env — **no-ops gracefully when unset**, so the build
+        stays green before a project exists. Touches `store.ts` (hot/shared — coordinate) for the two hooks. Its
+        own branch/PR (`feat/board-backend`), not the title-practice branch.
+      - **Why Supabase scales to public (2026-06-26 decision rationale):** this workload is read-heavy +
+        identical-per-patch + low-write + no-realtime, so the DB is never the wall. The two things that actually
+        gate "public" are **DB-independent** and added *when* we go public: (1) **CDN-front the read path** (serve
+        the curated pool as a static/edge-cached blob, never hit the DB on boot) and (2) **server-side replay
+        validation** for anti-cheat (clients upload the `{seed,heroId,actions}` replay; a Worker/edge fn runs
+        `@game/sim` to re-derive the boards → fabricated boards aren't reproducible). Leaving Supabase, if a true
+        hit, is a **cost** optimization (→ Cloudflare Workers+D1/R2, or self-host Neon/RDS), bounded because it's
+        standard Postgres + the one-file seam.
+      - **Caveat to design around:** a live pool makes replays reproducible only against the *same* pool snapshot —
+        fine for same-session board capture, but daily/shareable seeds must pin to the committed pool.
+      This is the concrete realization of step 3d / async-PvP step 5. Schema + seam sketched in the 2026-06-26 session.
 - [ ] **Mid-combat ascension — UI presentation.** The engine now emits an `ascend` event + transforms Tara →
       Taragosa mid-fight (see the devlog). Wire the UI: `useCombatReplay` to fold the `ascend` event (swap the
       unit's cardId/name/tribe live), a new `sfx.ascend` (a triumphant level-up), an `.ascend` animation in

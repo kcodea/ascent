@@ -20,6 +20,7 @@ import {
   boardManaBonus,
   THREAT_IDS,
   addBuff,
+  endOfTurnRepeats,
   undeadBuyBonus,
   getHero,
   spellStatBonus,
@@ -408,21 +409,36 @@ describe('run loop (@game/sim)', () => {
     expect([bought?.attack, bought?.health]).toEqual([3, 3]); // base 1/1 + the +2/+2 run buff
   });
 
-  it('a Demon consuming buffed Fodder gains the buffed stats (×multiplier)', () => {
+  it('a Demon consuming buffed Fodder gains the buffed stats', () => {
     let s: RunState = {
       ...createRun(1),
       phase: 'combat',
-      board: [{ uid: 'imp', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
       cardBuffs: { fred: { attack: 2, health: 2 } },
       pendingTavern: ['fred'],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
-    s = reduce(s, { type: 'resolveCombat' }); // advance → next tavern injects Fred → the Imp eats it
-    const imp = s.board.find((c) => c.cardId === 'imp');
-    // Voracious Imp eats a (1+2)/(1+2) Fred at ×2 → +6/+6 → 8/8
-    expect([imp?.attack, imp?.health]).toEqual([8, 8]);
+    s = reduce(s, { type: 'resolveCombat' }); // advance → next tavern injects Fred → the Demon eats it
+    const eater = s.board.find((c) => c.cardId === 'maw');
+    // The Demon eats a (1+2)/(1+2) Fred → +3/+3 → 5/5
+    expect([eater?.attack, eater?.health]).toEqual([5, 5]);
     // the consume record carries the Fodder's *buffed* stats (3/3) so the eat animation shows them
     expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred', attack: 3, health: 3 });
+  });
+
+  it('Acid (reworked) — every 3 refreshes, consumes a tavern minion AND buffs the rest +1/+1', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 99,
+      board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 7, health: 7, keywords: ['CN'], golden: false }],
+    };
+    s = reduce(s, { type: 'roll' }); // rollTick 1
+    s = reduce(s, { type: 'roll' }); // rollTick 2
+    s = reduce(s, { type: 'roll' }); // rollTick 3 → Acid procs on the fresh shop
+    const acid = s.board.find((c) => c.cardId === 'acid')!;
+    expect(acid.attack + acid.health).toBeGreaterThan(14); // ate a tavern minion (gained its stats)
+    expect(s.shop.length).toBeGreaterThan(0);
+    expect(s.shop.every((o) => (o.atk ?? 0) >= 1 && (o.hp ?? 0) >= 1)).toBe(true); // the rest got +1/+1
   });
 
   it('a frozen tavern tops up empty slots + a missing spell after combat', () => {
@@ -789,7 +805,7 @@ describe('run loop (@game/sim)', () => {
     expect(drone.keywords).not.toContain('M'); // Magnetic itself isn't transferred
   });
 
-  it('magnetizing fires summon-buffs first: Mama Bear buffs the Symbiotic Attachment, then it welds onto the host', () => {
+  it('magnetizing fires summon-buffs first: Mama Bear buffs the Chaos Attachment, then it welds onto the host', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [
@@ -805,12 +821,12 @@ describe('run loop (@game/sim)', () => {
     expect([host.attack, host.health]).toEqual([8, 8]);
   });
 
-  it('Symbiotic Attachment is Magnetic Reborn — welding it grants the host Reborn', () => {
+  it('Chaos Attachment is Magnetic Reborn — welding it grants the host Reborn', () => {
     expect(CARD_INDEX.symbioticattachment!.keywords).toContain('R'); // the token itself carries Reborn
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [{ uid: 'host', cardId: 'gnash', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false }],
-      // The real token (from the Symbiote hero power) carries M + R.
+      // The real token (from the Chaos hero power) carries M + R.
       hand: [{ uid: 'sym', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M', 'R'], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sym', toIndex: 0 }); // weld onto the host
@@ -901,29 +917,17 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.some((c) => c.cardId === 'fred')).toBe(false);
   });
 
-  it('a Demon devours Fodder entering the tavern — Voracious Imp at 2x', () => {
+  it('a Demon devours Fodder entering the tavern', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
-      board: [{ uid: 'i', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
       pendingTavern: ['fred'],
     };
-    s = reduce(s, { type: 'roll' }); // tavern refresh injects the Fodder, then the Imp eats it
+    s = reduce(s, { type: 'roll' }); // tavern refresh injects the Fodder, then the Demon eats it
     expect(s.shop.some((o) => o.cardId === 'fred')).toBe(false); // eaten, not left in the tavern
-    const imp = s.board.find((c) => c.cardId === 'imp');
-    expect([imp?.attack, imp?.health]).toEqual([4, 4]); // 2/2 + 2×(1/1)
-  });
-
-  it('golden Voracious Imp eats Fodder at 3x', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 3,
-      board: [{ uid: 'i', cardId: 'imp', tribe: 'demon', attack: 4, health: 4, keywords: ['CN'], golden: true }],
-      pendingTavern: ['fred'],
-    };
-    s = reduce(s, { type: 'roll' });
-    const imp = s.board.find((c) => c.cardId === 'imp');
-    expect([imp?.attack, imp?.health]).toEqual([7, 7]); // 4/4 + 3×(1/1)
+    const eater = s.board.find((c) => c.cardId === 'maw');
+    expect([eater?.attack, eater?.health]).toEqual([3, 3]); // 2/2 + 1×(1/1)
   });
 
 
@@ -1060,6 +1064,241 @@ describe('run loop (@game/sim)', () => {
     const recip = s.board.find((c) => c.uid === 'recip')!;
     expect([recip.attack, recip.health]).toEqual([7, 6]); // 1/1 + the devoured 6/5
     expect(s.devourFx).toEqual({ toUid: 'recip', attack: 6, health: 5 }); // projectile hint for the UI
+  });
+
+  it('Lantern Light gives the target +Tier/+Tier (scales with Tavern Tier)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      tier: 3,
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'll', cardId: 'lanternlight', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'll', targetUid: 'm' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([4, 4]); // 1/1 + Tier 3
+    expect(s.hand.some((c) => c.cardId === 'lanternlight')).toBe(false); // consumed
+  });
+
+  it('Fodder Treatment sells the target (+Gold) and feeds its stats to the left-most Demon', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      board: [
+        { uid: 'd', cardId: 'maw', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'fodder', cardId: 'sandbag', tribe: 'neutral', attack: 4, health: 5, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'ft', cardId: 'foddertreatment', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'ft', targetUid: 'fodder' });
+    expect(s.board.find((c) => c.uid === 'fodder')).toBeUndefined(); // sold
+    const demon = s.board.find((c) => c.uid === 'd')!;
+    expect([demon.attack, demon.health]).toEqual([7, 8]); // 3/3 + the sold 4/5
+    expect(s.embers).toBe(1); // counts as a sell → +1 Gold
+  });
+
+  it('Fodder Treatment with no Demon still sells the minion (+Gold); the stats are wasted', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      board: [{ uid: 'fodder', cardId: 'sandbag', tribe: 'neutral', attack: 4, health: 5, keywords: [], golden: false }],
+      hand: [{ uid: 'ft', cardId: 'foddertreatment', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'ft', targetUid: 'fodder' });
+    expect(s.board).toHaveLength(0); // sold, nothing to feed
+    expect(s.embers).toBe(1);
+  });
+
+  it('Resonance re-triggers a Battlecry minion but fizzles (kept) on a non-Battlecry target', () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'bc', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }, // Battlecry: summon a Stray
+        { uid: 'plain', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'ps', cardId: 'resonance', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    const onPlain = reduce(s, { type: 'play', uid: 'ps', targetUid: 'plain' });
+    expect(onPlain.hand.some((c) => c.cardId === 'resonance')).toBe(true); // no Battlecry → fizzles, kept
+    const onBc = reduce(s, { type: 'play', uid: 'ps', targetUid: 'bc' });
+    expect(onBc.hand.some((c) => c.cardId === 'resonance')).toBe(false); // consumed
+    expect([...onBc.board, ...onBc.hand].filter((c) => c.cardId === 'stray').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Chrono Staff makes End-of-Turn effects fire one extra time (stacks with Chronos, not itself)', () => {
+    const withChronos = {
+      ...createRun(1),
+      board: [{ uid: 'c', cardId: 'chronos', tribe: 'neutral', attack: 1, health: 6, keywords: [], golden: false }],
+    } as RunState;
+    expect(endOfTurnRepeats(withChronos)).toBe(2); // 1 + Chronos
+    expect(endOfTurnRepeats({ ...withChronos, extraEotThisTurn: true })).toBe(3); // + Chrono Staff (stacks)
+    // Casting the staff sets the per-turn flag; casting twice doesn't stack with itself.
+    let s: RunState = {
+      ...createRun(1),
+      hand: [{ uid: 'cs', cardId: 'chronostaff', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'cs' });
+    expect(s.extraEotThisTurn).toBe(true);
+    expect(endOfTurnRepeats(s)).toBe(2); // no Chronos → 1 + staff
+  });
+
+  it('Steward of Spells — End of Turn copies the most recent spell cast (golden: 2 copies)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'st', cardId: 'stewardofspells', tribe: 'neutral', attack: 3, health: 7, keywords: [], golden: false },
+        { uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'sp', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm' }); // cast Spirit Fire → records the last spell
+    expect(s.lastSpellCastId).toBe('spiritfire');
+    applyEndOfTurn(s); // Steward conjures a copy
+    expect(s.hand.filter((c) => c.cardId === 'spiritfire')).toHaveLength(1);
+    // Golden Steward → 2 copies.
+    const g: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'st', cardId: 'stewardofspells', tribe: 'neutral', attack: 3, health: 7, keywords: [], golden: true }],
+      lastSpellCastId: 'spiritfire',
+    };
+    applyEndOfTurn(g);
+    expect(g.hand.filter((c) => c.cardId === 'spiritfire')).toHaveLength(2);
+  });
+
+  it('Steward of Spells does nothing when no spell has been cast yet', () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'st', cardId: 'stewardofspells', tribe: 'neutral', attack: 3, health: 7, keywords: [], golden: false }],
+    };
+    applyEndOfTurn(s);
+    expect(s.hand).toHaveLength(0); // no lastSpellCastId → no copy
+  });
+
+  it('Tara is Tier 4', () => {
+    expect(CARD_INDEX.tara!.tier).toBe(4);
+  });
+
+  it('Consume — a targeted Demon devours one random tavern minion (its stats feed the Demon)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'sandbag' }],
+      hand: [{ uid: 'cn', cardId: 'consume', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'cn', targetUid: 'd' });
+    expect(s.shop).toHaveLength(0); // the one tavern minion was devoured
+    const demon = s.board.find((c) => c.uid === 'd')!;
+    const meal = CARD_INDEX.sandbag!;
+    expect([demon.attack, demon.health]).toEqual([3 + meal.attack, 3 + meal.health]); // gained the meal's stats
+    expect(s.hand.some((c) => c.cardId === 'consume')).toBe(false); // consumed
+  });
+
+  it('Golden Touch makes a random tavern minion Golden; it buys in Golden with doubled stats', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 5,
+      shop: [{ uid: 's1', cardId: 'sandbag' }],
+      hand: [{ uid: 'gt', cardId: 'goldentouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'gt' }); // untargeted — gilds the (only) offer
+    expect(s.shop[0]!.golden).toBe(true);
+    s = reduce(s, { type: 'buy', uid: 's1' });
+    const bought = s.hand.find((c) => c.cardId === 'sandbag')!;
+    const base = CARD_INDEX.sandbag!;
+    expect(bought.golden).toBe(true);
+    expect([bought.attack, bought.health]).toEqual([base.attack * 2, base.health * 2]); // gild doubles the stats
+  });
+
+  it('Displacement swaps a friendly minion with a random tavern minion', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'gnash' }],
+      hand: [{ uid: 'dp', cardId: 'displacement', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'dp', targetUid: 'm' });
+    expect(s.board).toHaveLength(1);
+    expect(s.board[0]!.cardId).toBe('gnash'); // the tavern minion swapped onto the board
+    expect(s.shop.some((o) => o.cardId === 'sandbag')).toBe(true); // the displaced minion went to the tavern
+    expect(s.shop.some((o) => o.cardId === 'gnash')).toBe(false); // and left it
+    expect(s.hand.some((c) => c.cardId === 'displacement')).toBe(false); // consumed
+  });
+
+  it('Displacement preserves the displaced minion intact in the tavern; re-buying restores all its state', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 10,
+      // a buffed + progressed minion (not base 1/1)
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 9, health: 8, keywords: ['T'], golden: false, summonBonus: 5 }],
+      shop: [{ uid: 's1', cardId: 'gnash' }],
+      hand: [{ uid: 'dp', cardId: 'displacement', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'dp', targetUid: 'm' });
+    const offer = s.shop.find((o) => o.cardId === 'sandbag')!;
+    expect(offer.held).toBeDefined();
+    expect([offer.held!.attack, offer.held!.health]).toEqual([9, 8]); // full stats preserved (not reset to base)
+    expect(offer.held!.summonBonus).toBe(5); // progression preserved
+    s = reduce(s, { type: 'buy', uid: offer.uid }); // re-buy → returns intact
+    const back = s.hand.find((c) => c.cardId === 'sandbag')!;
+    expect([back.attack, back.health]).toEqual([9, 8]);
+    expect(back.summonBonus).toBe(5);
+    expect(back.keywords).toContain('T');
+    expect(s.embers).toBe(7); // 10 − minionCost (3)
+  });
+
+  it('Displacement does NOT fire the swapped-in minion’s Battlecry', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'alley' }], // Alleycat — Battlecry: summon a Stray
+      hand: [{ uid: 'dp', cardId: 'displacement', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'dp', targetUid: 'm' });
+    expect(s.board[0]!.cardId).toBe('alley'); // swapped in
+    expect(s.board.some((c) => c.cardId === 'stray')).toBe(false); // its Battlecry did NOT fire (no Stray)
+  });
+
+  it('Darah Displace swaps a friendly minion with a random tavern minion (spends the charge)', () => {
+    let s: RunState = {
+      ...createRun(1, 'darah'),
+      heroReady: true,
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'gnash' }],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'm' });
+    expect(s.board[0]!.cardId).toBe('gnash'); // swapped in
+    expect(s.shop.some((o) => o.cardId === 'sandbag')).toBe(true); // displaced to the tavern
+    expect(s.heroReady).toBe(false); // once-per-turn charge spent
+  });
+
+  it('Spell Cart fills the tavern with (distinct) spells; the next roll restocks minions', () => {
+    let s: RunState = {
+      ...createRun(1),
+      tier: 5,
+      embers: 99,
+      shop: [{ uid: 'm1', cardId: 'sandbag' }, { uid: 'm2', cardId: 'gnash' }],
+      hand: [{ uid: 'sc', cardId: 'spellcart', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sc' }); // untargeted cast
+    expect(s.shop.length).toBeGreaterThan(0);
+    expect(s.shop.every((o) => CARD_INDEX[o.cardId]?.spell)).toBe(true); // every offer is now a spell
+    const ids = s.shop.map((o) => o.cardId);
+    expect(new Set(ids).size).toBe(ids.length); // distinct
+    s = reduce(s, { type: 'roll' });
+    expect(s.shop.some((o) => !CARD_INDEX[o.cardId]?.spell)).toBe(true); // minions again
+  });
+
+  it('a spell offer from Spell Cart buys into the hand at its own cost', () => {
+    let s: RunState = {
+      ...createRun(1),
+      tier: 5,
+      embers: 10,
+      shop: [{ uid: 'sp1', cardId: 'spiritfire' }], // a spell offer in the minion row (cost 2)
+      hand: [],
+    };
+    s = reduce(s, { type: 'buy', uid: 'sp1' });
+    expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // bought into hand
+    expect(s.shop.some((o) => o.cardId === 'spiritfire')).toBe(false); // left the shop
+    expect(s.embers).toBe(8); // 10 − Spirit Fire's cost (2)
   });
 
   it('Ember Pouch gains an Ember when cast (net-neutral after its 1 cost)', () => {
@@ -1321,8 +1560,8 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
   });
 
-  it('a universalTribe token (Symbiotic Attachment) receives tribe summon-buffs (Mama Bear + Kennelmaster)', () => {
-    // Regression: the Symbiote hero-power token counts as EVERY tribe, so playing it must trigger
+  it('a universalTribe token (Chaos Attachment) receives tribe summon-buffs (Mama Bear + Kennelmaster)', () => {
+    // Regression: the Chaos hero-power token counts as EVERY tribe, so playing it must trigger
     // tribe-gated summon buffs. Before the fix the recruit factories only matched tribe/tribe2, so the
     // token was silently skipped (the reported "didn't get Mama Bear stats" bug).
     let s: RunState = {
@@ -1474,7 +1713,7 @@ describe('run loop (@game/sim)', () => {
   it('Cupcakes — the chosen Demon consumes 3 random tavern minions (gains stats; tavern shrinks by 3)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0,
-      board: [{ uid: 'd', cardId: 'imp', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }], // Voracious Imp (2× consume)
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }], // a Demon eater
       shop: [{ uid: 'a', cardId: 'alley' }, { uid: 'b', cardId: 'pack' }, { uid: 'c', cardId: 'kennel' }, { uid: 'e', cardId: 'gnash' }],
       hand: [{ uid: 'sp', cardId: 'cupcakes', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
@@ -1528,10 +1767,10 @@ describe('run loop (@game/sim)', () => {
     expect(got.health).toBe(2); // Health unaffected
   });
 
-  it('Symbiote hero power grants a token at the START of every 5th turn, tripling it on the spot', () => {
+  it('Chaos hero power grants a token at the START of every 5th turn, tripling it on the spot', () => {
     let s: RunState = {
-      ...createRun(1, 'symbiote'),
-      wave: 4, phase: 'combat', // resolveCombat → advanceCombat → wave 5 → Symbiote grants the 3rd token
+      ...createRun(1, 'chaos'),
+      wave: 4, phase: 'combat', // resolveCombat → advanceCombat → wave 5 → Chaos grants the 3rd token
       board: [],
       hand: [
         { uid: 't1', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
@@ -1543,11 +1782,13 @@ describe('run loop (@game/sim)', () => {
     expect(s.wave).toBe(5); // start of the 5th turn
     expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && c.golden)).toHaveLength(1); // 3 → 1 golden, now
     expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && !c.golden)).toHaveLength(0);
+    expect(s.chaosGrantSeq).toBeGreaterThan(0); // the grant bumped the UI fly-in signal
+    expect(s.chaosGrantUid).toBeDefined();
   });
 
-  it('Symbiote hero power does NOT grant on a non-5th turn', () => {
+  it('Chaos hero power does NOT grant on a non-5th turn', () => {
     let s: RunState = {
-      ...createRun(1, 'symbiote'),
+      ...createRun(1, 'chaos'),
       wave: 5, phase: 'combat', // → wave 6, not a multiple of 5 → no grant
       board: [], hand: [],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
@@ -3081,6 +3322,27 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     expect([1, 2, 3].map(lossDamageCap)).toEqual([5, 5, 5]);
     expect([4, 5, 6].map(lossDamageCap)).toEqual([10, 10, 10]);
     expect([7, 12, 30].map(lossDamageCap)).toEqual([15, 15, 15]);
+  });
+
+  it('Practice mode: a loss costs no Resolve (unlimited health), and the run keeps going below round 15', () => {
+    let s: RunState = {
+      ...createRun(1, 'warden', 'practice'),
+      wave: 5, phase: 'combat', resolve: 30,
+      lastCombat: { events: [], result: 'lose', playerDamage: 10, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.resolve).toBe(30); // unlimited — no Resolve lost on a loss
+    expect(s.phase).toBe('recruit'); // wave 5 < 15 → keep climbing
+  });
+
+  it('Practice mode ends after round 15 regardless of W/L (no win-15 victory)', () => {
+    let s: RunState = {
+      ...createRun(1, 'warden', 'practice'),
+      wave: 15, phase: 'combat',
+      lastCombat: { events: [], result: 'lose', playerDamage: 10, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.phase).toBe('gameover'); // 15 rounds done — the session ends
   });
 
   it('settleCombat keeps the same lastCombat reference (the UI replay must not restart)', () => {

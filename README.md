@@ -28,6 +28,14 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Scaling cards show their current value in combat.** Mama Bear's per-summon grant ticks up live as Beasts
   are summoned; Grim, Archmagus Guel, and Spirit Worgen now read their live run-scaled magnitude on the combat
   card too (Deathrattle tally / spells cast), instead of the printed rule text.
+- **Captured opponents keep their progress.** A board served as an enemy now retains its minions' accrued state
+  — Sergeant's improved Deathrattle HP-grant and Tara's ascend progress — so it fights as strong as the board it
+  was snapshotted from (it used to drop those). New captures only.
+- **No more phantom Start-of-Combat "scorch."** Spell power gained mid-fight (Ryme re-firing Cinderwing,
+  Gnasher's kills, Bladesmith deaths) used to fling a projectile bolt + zap at an enemy — the UI replayed the
+  "+spell power" telegraph as a Start-of-Combat attack. Now only genuine Start-of-Combat *damage* casts do that.
+- **New hero: Robin.** Passive power **Spoils** — when you sell a minion, gain 1 Gold at the start of next
+  turn. It stacks (sell 6 → +6 next turn, on top of the cap) but resets each turn. Portrait + power art wired.
 - **Ascension begins mid-fight (engine).** Tara now transforms into Taragosa **during** combat the moment her
   stat-grants cross 20 (was only between fights), and Taragosa's Growth fires the rest of that fight. The new
   `ascend` event is wired for an upcoming sound + animation; Spirit Pup → Spirit Worgen is next.

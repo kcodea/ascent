@@ -294,7 +294,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     const targets = ctx.living(foe);
     if (targets.length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} strikes` });
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} strikes`, cast: true });
     const amount = num(params.amount, 1) * mul(self);
     const mode = str(params.target) || 'leftmost';
     if (mode === 'all') {
@@ -310,7 +310,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   scSplitDamage: (ctx, self, params) => {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     if (ctx.living(foe).length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} splits its breath` });
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} splits its breath`, cast: true });
     let n = self.attack;
     while (n-- > 0) {
       const targets = ctx.living(foe);
@@ -323,7 +323,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   scAoePerTribe: (ctx, self, params) => {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     if (ctx.living(foe).length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rains fire` });
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rains fire`, cast: true });
     const base = num(params.base, 3) * mul(self);
     const per = num(params.perTribe, 3) * mul(self);
     const tribe = str(params.tribe) as Tribe;
@@ -698,7 +698,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const targets = ctx.living(foe);
     if (targets.length === 0) return;
     const victim = targets.reduce((a, b) => (b.attack > a.attack ? b : a));
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} drags down the mightiest` });
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} drags down the mightiest`, cast: true });
     ctx.damage(victim, victim.health, false, true); // destroy: ignores Divine Shield
   },
 

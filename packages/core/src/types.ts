@@ -346,7 +346,7 @@ export interface MinionSnapshot {
  * `summon`/`buff` for combat-time effects (Deathrattles, summon buffs).
  */
 export type CombatEvent =
-  | { type: 'sc'; source: string; text: string }
+  | { type: 'sc'; source: string; text: string; cast?: true } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only
   | { type: 'attack'; attacker: string; defender: string; swing: number }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number }
   | { type: 'shield'; target: string }

@@ -128,6 +128,18 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
       target: c.target, tier: c.tier,
     };
   }
+  // Displacement: a stashed minion (held) shows its FULL preserved stats / keywords / golden frame. Its stored
+  // stats are already final (golden ones already doubled), so no further folding — it restores intact on buy.
+  if (card.held) {
+    const h = card.held;
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+      attack: h.attack, health: h.health, keywords: h.keywords,
+      text: tallyBuffText(c.id, opts.deathrattlesTriggered ?? 0) ?? c.text,
+      goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: h.golden,
+      baseAttack: c.attack, baseHealth: c.health,
+    };
+  }
   // A minion offer — fold in the per-offer buff (Fortify hero power), the persistent per-card run buff
   // (Ritualist's Fodder), Staff of Guel's run-wide tavern-buy buff, and the Lantern of Souls aura on
   // Undead — so a buffed offer reads its new stats (green) and carries the baked ones in when bought.

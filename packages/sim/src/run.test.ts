@@ -1223,6 +1223,40 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'displacement')).toBe(false); // consumed
   });
 
+  it('Displacement preserves the displaced minion intact in the tavern; re-buying restores all its state', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 10,
+      // a buffed + progressed minion (not base 1/1)
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 9, health: 8, keywords: ['T'], golden: false, summonBonus: 5 }],
+      shop: [{ uid: 's1', cardId: 'gnash' }],
+      hand: [{ uid: 'dp', cardId: 'displacement', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'dp', targetUid: 'm' });
+    const offer = s.shop.find((o) => o.cardId === 'sandbag')!;
+    expect(offer.held).toBeDefined();
+    expect([offer.held!.attack, offer.held!.health]).toEqual([9, 8]); // full stats preserved (not reset to base)
+    expect(offer.held!.summonBonus).toBe(5); // progression preserved
+    s = reduce(s, { type: 'buy', uid: offer.uid }); // re-buy → returns intact
+    const back = s.hand.find((c) => c.cardId === 'sandbag')!;
+    expect([back.attack, back.health]).toEqual([9, 8]);
+    expect(back.summonBonus).toBe(5);
+    expect(back.keywords).toContain('T');
+    expect(s.embers).toBe(7); // 10 − minionCost (3)
+  });
+
+  it('Displacement does NOT fire the swapped-in minion’s Battlecry', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'alley' }], // Alleycat — Battlecry: summon a Stray
+      hand: [{ uid: 'dp', cardId: 'displacement', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'dp', targetUid: 'm' });
+    expect(s.board[0]!.cardId).toBe('alley'); // swapped in
+    expect(s.board.some((c) => c.cardId === 'stray')).toBe(false); // its Battlecry did NOT fire (no Stray)
+  });
+
   it('Darah Displace swaps a friendly minion with a random tavern minion (spends the charge)', () => {
     let s: RunState = {
       ...createRun(1, 'darah'),

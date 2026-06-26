@@ -130,6 +130,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         return s;
       }
+      // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression.
+      if (offer.held) {
+        if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
+        s.embers -= CONFIG.minionCost;
+        s.shop.splice(i, 1);
+        s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}` });
+        checkTriples(s); // a restored copy can still complete a triple
+        return s;
+      }
       if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
       s.embers -= CONFIG.minionCost;

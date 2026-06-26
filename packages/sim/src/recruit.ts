@@ -1577,10 +1577,11 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
  */
 /**
  * Swap a friendly board minion with a RANDOM tavern offer (shared by the Displacement spell + Darah's
- * Displace power). The tavern minion takes the board slot as a FRESH instance — base stats + any offer
- * buff + golden (doubled), no Battlecry / summon-buff — and the board minion goes back to the tavern as a
- * fresh re-buyable offer (its accrued buffs reset: the cost of the gamble). Returns false (no-op, no charge
- * spent) when the board minion isn't on the board or the tavern is empty.
+ * Displace power). The displaced minion goes to the tavern KEEPING all its state (buffs / stats / progression),
+ * stashed on the offer's `held` and restored intact when re-bought or swapped back. The incoming tavern minion
+ * takes the board slot WITHOUT firing its Battlecry / summon-buff (a placement, not a play): a previously-held
+ * minion returns intact, a normal offer instantiates fresh (base + offer buff + golden, doubled). Returns false
+ * (no-op, no charge spent) when the board minion isn't on the board or the tavern is empty.
  */
 export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean {
   const bi = state.board.indexOf(boardMinion);
@@ -1591,18 +1592,24 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   const offer = state.shop[si]!;
   const def = CARD_INDEX[offer.cardId];
   if (!def) return false;
-  const incoming: BoardCard = {
-    uid: `b${state.uidSeq++}`,
-    cardId: offer.cardId,
-    tribe: def.tribe,
-    attack: def.attack + (offer.atk ?? 0),
-    health: def.health + (offer.hp ?? 0),
-    keywords: [...def.keywords, ...(offer.keywords ?? []).filter((k) => !def.keywords.includes(k))],
-    golden: offer.golden ?? false,
-  };
-  if (incoming.golden) { incoming.attack *= 2; incoming.health *= 2; } // goldens store doubled stats (like Gild)
+  let incoming: BoardCard;
+  if (offer.held) {
+    incoming = { ...offer.held, uid: `b${state.uidSeq++}` }; // a previously-displaced minion returns intact
+  } else {
+    incoming = {
+      uid: `b${state.uidSeq++}`,
+      cardId: offer.cardId,
+      tribe: def.tribe,
+      attack: def.attack + (offer.atk ?? 0),
+      health: def.health + (offer.hp ?? 0),
+      keywords: [...def.keywords, ...(offer.keywords ?? []).filter((k) => !def.keywords.includes(k))],
+      golden: offer.golden ?? false,
+    };
+    if (incoming.golden) { incoming.attack *= 2; incoming.health *= 2; } // goldens store doubled stats (like Gild)
+  }
   state.board[bi] = incoming;
-  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId }; // the displaced minion → fresh offer
+  // The displaced minion → the tavern, its FULL state stashed on the offer (restored on buy / swap-back).
+  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion } };
   return true;
 }
 

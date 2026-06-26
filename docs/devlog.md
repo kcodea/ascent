@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: board synthesis — "print" strong high-wave boards from real-board data (+ real boards in the ladder)
+
+Follow-up to the wave-relative banding. Its band report exposed that high waves (9–20) saturated to band 7 and were thin (w20: 3 boards) — the smart bot can't build strong high-wave boards (it has to survive a whole run and plays greedily), so the bot-only calibration ladder had no real ceiling and high waves were under-populated. We *have* the data on what strong boards look like (331 real captured boards up to wave 20), so two changes use it:
+
+- **Real boards in the ladder** (`rating.ts`): `buildWaveLadders(seeds, fidelities, extra)` folds the imported real boards into the per-wave ladders, giving high waves a real ceiling. Unservable boards (stale cardIds like the renamed `whelp`) are skipped so they can't break ratings.
+- **Synthesis** (`synthesize.ts`, new): `mutateBoard` recombines a real board (swap 0–2 minions for ones seen on other real boards at that wave) + nudges stats ×0.8–1.3 as a strength dial; `synthesizeForWave` generates N candidates, **validates each via `simulate`** (`rateBoardForWave`) to band ≥ floor, dedupes, and tags them `origin:'synthetic'`. So "competitive" is empirical (it actually wins), and it's coherent (anchored in real boards). `build-pool.ts` tops thin waves up toward `SYNTH_TARGET_PER_WAVE` (16).
+
+**Result (re-bake):** the band histogram went from `b7:212` (a black hole) to an even `b0:5 b1:52 … b7:57`, and every wave now spans `b1–b7` with **16 boards** (was 3–9, all b7) — **392 boards, 61 synthetic**. The "high-wave ceiling" known-limitation from the prior entry is resolved.
+
+**Files:** `rating.ts` (`extra` ladder boards + servable guard), `synthesize.ts` (new) + `index.ts` (export), `build-pool.ts` (ladder with reals + synthesis fill + report), `synthesize.test.ts` (new, +2). **Verification:** `typecheck + lint + test (+2) + build:web` green; `npm run pool` re-baked 392 boards (61 synthetic) in 12s with an even band spread across all waves.
+
 ### feat: wave-relative board power banding + patch stamping + prune/populate pool lifecycle
 
 The game's mechanics shifted a lot this week, so captured/house boards (esp. high-wave) re-simulate weaker than their stored strength implied — and the old banding couldn't see it. `rateBoard` fought every board against ONE fixed gauntlet (top rung 7/9/16) and **saturated** to `1.0` by ~wave 8, so it couldn't tell a weak high-wave board from a strong one. Redefined power banding as **wave-relative** (curation/QA only — live matchmaking still uses `Σ(atk+hp)`, owner's call), and built the maintenance lifecycle around it.

@@ -7,5 +7,6 @@ export * from './reducer';
 export * from './snapshot';
 export * from './opponents';
 export * from './rating';
+export * from './synthesize';
 export * from './opponentPool.data';
 export { addBuff, boardManaBonus, cardBuff, chronosRepeats, isTribe, magnetizeTargets, projectEndOfTurnSteps, sellValueOf, spellCastMult, spellCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus } from './recruit';

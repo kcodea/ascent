@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: shield break reads after the hit + bubble always rides in front of held/hovered cards
+
+Two polish fixes on the divine-shield bubble:
+
+- **Break timing — hit → settle → shatter.** The break fired the instant the result beat dropped the unit's
+  `.dscard` (right at the lunge's connection), so it read simultaneously with the impact. Now a consumed
+  shield in combat is *scheduled* (`SHIELD_BREAK_DELAY` 300 ms, scaled by combat speed) instead of bursting
+  immediately; the bubble is held and keeps tracking the (now shield-less) unit until the timer fires, so the
+  read order is attacker connects → recoil/impact → THEN the shield shatters + sound. Recruit-side shield
+  removal still clears instantly (no delay/burst). Implemented in `Recruit.tsx`'s `syncShields` via a
+  `pendingBreakRef` map + a `measureCardRect` helper; a combat-exit flushes any pending break.
+- **Always-on-top bubble.** The FX canvas (`.pixifx`) sat at z-index 41, *below* the dragged card (z100) and
+  hand-hover cards (z45) — so the bubble fell behind the art while dragging / hovering. Raised `.pixifx` to
+  **z110** (above the dragcard, below the modal overlays). The card-landing dust still tucks behind its own
+  card — its temporary card-raise bumped 42→111 to stay above the new canvas.
+- **Verified**: typecheck + lint + 374 tests + build green; live DOM confirms `.pixifx` is z110 and the app
+  loads clean. The break timing + the in-front layering still want an in-game look (preview rAF is frozen).
+- **Known/deferred**: the bubble now also sits above the Discover overlay (z50) — a stray bubble could show
+  over a Discover dim for a shielded board card behind it. Not yet addressed (rare); flagged for follow-up.
+
 ### fix+feat: shield bubble shows in COMBAT + break sound + bigger look + smooth drag
 
 Follow-ups on the divine-shield bubble after a first in-game look:

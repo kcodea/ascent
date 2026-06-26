@@ -19,6 +19,10 @@ gsap.registerPlugin(Flip);
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
 const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]';
 
+// ms to hold a consumed Divine Shield before it visibly shatters, so the read order is hit → settle → break
+// (scaled by the user's combat-speed). Detection lands ~at the lunge's connection; this delays the burst.
+const SHIELD_BREAK_DELAY = 300;
+
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
 
@@ -410,10 +414,19 @@ export function Recruit() {
   // (sold / dead / unmounted) clears quietly. Positions re-measure on a rAF loop ONLY while something is
   // animating (combat lunges or a drag) — idle shielded units cost nothing (no per-frame layout reads).
   const shieldUidsRef = useRef<Set<string>>(new Set());
+  const pendingBreakRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) the shield should shatter
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
+  const combatSpeedRef = useRef(combatSpeed); combatSpeedRef.current = combatSpeed;
   const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
   const prevDragActiveRef = useRef(false);
   // (`dragRef` is declared lower down for spell-targeting and already mirrors `drag`; syncShields reads it.)
+  // Measure a uid's card rect (recruit: data-uid on the .card; combat: on the .unit wrapper).
+  const measureCardRect = (uid: string): DOMRect | null => {
+    const host = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+    const card = host?.matches('.card') ? host : host?.querySelector<HTMLElement>('.card');
+    const r = card?.getBoundingClientRect();
+    return r && r.width > 0 ? r : null;
+  };
   const syncShields = useCallback((): void => {
     // Recruit cards carry data-uid on the `.card`; combat cards carry it on the `.unit` wrapper — resolve via
     // closest so BOTH register (the combat case was the "no shield in combat" bug).
@@ -437,13 +450,29 @@ export function Recruit() {
       seen.add(dragUid);
       pixiFx.setShield(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h);
     }
+    // A bubble that just lost its `.dscard`:
     for (const uid of shieldUidsRef.current) {
-      if (seen.has(uid)) continue;
-      // Lost its shield but the unit is still on the field → it absorbed a hit (break burst + sound). Otherwise
-      // it just left (sold / died / combat ended) → fade out quietly.
-      const stillThere = document.querySelector(`[data-uid="${uid}"]`);
-      if (stillThere && inCombatRef.current) { pixiFx.breakShield(uid); sfx.shieldBreak(); }
-      else pixiFx.clearShield(uid);
+      if (seen.has(uid) || pendingBreakRef.current.has(uid)) continue;
+      if (measureCardRect(uid) && inCombatRef.current) {
+        // Absorbed a hit in combat — DON'T shatter yet. Delay it so the read order is hit lands → unit
+        // settles → THEN the shield shatters (the bubble is held + tracked until the timer fires below).
+        pendingBreakRef.current.set(uid, performance.now() + SHIELD_BREAK_DELAY / combatSpeedRef.current);
+      } else {
+        pixiFx.clearShield(uid); // sold / died / combat ended → fade out quietly (no break burst)
+      }
+    }
+    // Drive scheduled combat breaks: keep the bubble on the (now shield-less) unit until its timer fires.
+    const now = performance.now();
+    for (const [uid, at] of pendingBreakRef.current) {
+      if (now >= at || !inCombatRef.current) {
+        pixiFx.breakShield(uid);
+        sfx.shieldBreak();
+        pendingBreakRef.current.delete(uid);
+        continue; // not re-added to `seen` → it drops out of tracking, won't re-trigger
+      }
+      const r = measureCardRect(uid);
+      if (r) pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+      seen.add(uid); // hold the bubble alive until the shatter
     }
     shieldUidsRef.current = seen;
   }, []);
@@ -1513,7 +1542,7 @@ export function Recruit() {
   // A puff of dry-dirt dust ringing a card that just landed on / moved across the board. We wait for the
   // GSAP Flip (0.18s) to settle, then measure the card's *landed* rect by uid — so the dust follows where
   // the card actually ends up (e.g. snapping back to the middle), not where it was dropped. The card is
-  // briefly raised above the FX canvas (.pixifx z41) so the dust renders BEHIND it, escaping out from
+  // briefly raised above the FX canvas (.pixifx z110) so the dust renders BEHIND it, escaping out from
   // under every side. `.app` isn't a stacking context, so a z-index on the card wins over the overlay.
   const puffOnBoard = (uid: string): void => {
     window.setTimeout(() => {
@@ -1523,7 +1552,7 @@ export function Recruit() {
       const prevPos = el.style.position;
       const prevZ = el.style.zIndex;
       el.style.position = 'relative';
-      el.style.zIndex = '42'; // above .pixifx (z41) → dust renders behind the card
+      el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
       pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
       window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide

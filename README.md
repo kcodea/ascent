@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Mama Bear's buff shows live in combat.** Her card now ticks up its current per-summon grant (+M/+M) in
+  real time as Beasts are summoned mid-fight, instead of showing the printed text.
 - **Ascension begins mid-fight (engine).** Tara now transforms into Taragosa **during** combat the moment her
   stat-grants cross 20 (was only between fights), and Taragosa's Growth fires the rest of that fight. The new
   `ascend` event is wired for an upcoming sound + animation; Spirit Pup → Spirit Worgen is next.

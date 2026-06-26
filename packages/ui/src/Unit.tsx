@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, cryptDrakeText, engraveTallyText, sergeantText, summonBuffText, taragosaText } from './cardText';
+import { ascendProgressText, cryptDrakeText, engraveTallyText, sergeantText, summonBuffText, summonImproveText, taragosaText } from './cardText';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -34,6 +34,7 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
   const spH = useGame((s) => spellHealthBonus(s.run));
   // Combat live text — show current values for minions whose effects scale mid-fight.
   const liveText = summonBuffText(u.cardId, u.summonBonus)
+    ?? summonImproveText(u.cardId, u.summonBonus, u.golden) // Mama Bear: live "+M/+M per summon" (climbs via improve events)
     ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
     ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
     ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)

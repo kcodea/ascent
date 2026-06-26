@@ -3,6 +3,17 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-26 (session 6)
+
+### feat: Mama Bear's combat card shows its per-summon buff LIVE
+
+Owner: Mama Bear's combat text should say, in real time, what the buff is. Her per-summon grant climbs (+2/+2 each Beast summoned), but the COMBAT card showed the printed text, not the live value. Two parts — the second is the load-bearing one a surface read misses:
+
+- **UI** (`Unit.tsx`): wire the existing `summonImproveText` (already used in the shop) into the combat live-text `??` chain — it shows the current grant `+M/+M` (M = base 2 + accrued, golden-doubled), per-instance, matching the buffs-window formula.
+- **Engine** (`factories.ts`): Mama Bear's combat factory `summonBuffTribeImprove` incremented `self.summonBonus` but **emitted no event**, and the UI's `computeFrame` only climbs `summonBonus` from `improve` events — so without an engine change the text would freeze at the combat-start value. Added `ctx.log({ type: 'improve', target: self.uid, amount: base })` (mirroring Kennelmaster's `avengeImproveSummon`), so the bonus — and the text — tick up live as each Beast is summoned. (Side effect, consistent with Kennelmaster: Mama Bear now also gets a ✦ float + a log line per Beast summon.)
+
+**Files:** `factories.ts` (improve emission), `Unit.tsx` (cardText wiring + import), `cardText.test.ts` (+1), `simulate.test.ts` (+1). **Verification:** `typecheck + lint + test (379, +2) + build:web` green; the engine test asserts an `improve` per Beast summoned (Mama Pup → 2 Pups → 2 improves, amount = base 2), the cardText test pins the live string `(2 + accrued) × golden`, and no existing test broke (no prior Mama Bear *combat* test existed). Planned via a mapping workflow that caught the missing-event trap; live-combat staging (a tier-5 Mama Bear + a Beast summoner mid-fight) is impractical in the preview, so verification is the engine + cardText tests + the wired chain.
+
 ## 2026-06-25 (session 5)
 
 ### feat: mid-combat ascension (engine) — Tara → Taragosa transforms during the fight

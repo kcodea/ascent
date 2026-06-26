@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, sergeantText, soulsmanText, tallyBuffText, taragosaText, undeadBuyAtkText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, sergeantText, soulsmanText, summonImproveText, tallyBuffText, taragosaText, undeadBuyAtkText } from './cardText';
 
 describe('cardText helpers', () => {
   it('guelProgressText shows Guel’s live grant + countdown to the next step (golden-aware)', () => {
@@ -51,6 +51,13 @@ describe('cardText helpers', () => {
     expect(sergeantText('sergeant', true, 4)).toContain('{{+8 Health}}'); // 4 base (golden) + 4 accrued
     expect(sergeantText('sergeant', false, 0)).toBeNull(); // no accrual yet → printed text
     expect(sergeantText('grim', false, 4)).toBeNull(); // not Sergeant
+  });
+
+  it('summonImproveText (Mama Bear) shows the live per-summon grant = (2 base + accrued), golden-aware', () => {
+    expect(summonImproveText('mamabear', 4, false)).toContain('{{+6/+6}}'); // 2 base + 4 accrued
+    expect(summonImproveText('mamabear', 2, true)).toContain('{{+8/+8}}'); // (2 + 2) × 2 golden (from goldenText)
+    expect(summonImproveText('mamabear', 0, false)).toBeNull(); // no accrual yet → printed +2/+2
+    expect(summonImproveText('sandbag', 4, false)).toBeNull(); // not a per-summon-improve card
   });
 
   it('taragosaText scales Growth with spell power (golden casts twice)', () => {

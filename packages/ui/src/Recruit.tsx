@@ -402,6 +402,61 @@ export function Recruit() {
     [],
   );
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed });
+
+  // --- Divine-shield bubbles (Pixi) ------------------------------------------------------------------
+  // A persistent golden bubble tracks every shielded card via its `.card.dscard` DOM marker, so the
+  // recruit board (shop / hand / warband) and combat share ONE path. When a shield is consumed in combat
+  // the card keeps its element but loses `.dscard` → we fire the break burst; a card that simply leaves
+  // (sold / dead / unmounted) clears quietly. Positions re-measure on a rAF loop ONLY while something is
+  // animating (combat lunges or a drag) — idle shielded units cost nothing (no per-frame layout reads).
+  const shieldUidsRef = useRef<Set<string>>(new Set());
+  const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
+  // (`dragRef` is declared lower down for spell-targeting and already mirrors `drag`; syncShields reads it.)
+  const syncShields = useCallback((): void => {
+    const els = document.querySelectorAll<HTMLElement>(
+      '[data-zone] .card.dscard[data-uid], .unit .card.dscard[data-uid]',
+    );
+    const seen = new Set<string>();
+    const dragUid = dragRef.current?.uid;
+    for (const el of els) {
+      const uid = el.dataset.uid;
+      if (!uid || uid === dragUid) continue; // a dragged card's bubble pauses until it lands
+      const r = el.getBoundingClientRect();
+      if (r.width === 0) continue; // not laid out yet (mid-transition) — skip this pass
+      seen.add(uid);
+      pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+    }
+    for (const uid of shieldUidsRef.current) {
+      if (seen.has(uid)) continue;
+      // Lost its shield but the unit is still on the field → it absorbed a hit (break burst). Otherwise
+      // it just left (sold / died / combat ended) → fade out quietly.
+      const stillThere = document.querySelector(`.card[data-uid="${uid}"]`);
+      if (stillThere && inCombatRef.current) pixiFx.breakShield(uid);
+      else pixiFx.clearShield(uid);
+    }
+    shieldUidsRef.current = seen;
+  }, []);
+  // Reconcile after any render that can change the shielded set or card positions.
+  useLayoutEffect(() => { syncShields(); },
+    [syncShields, run.board, run.hand, run.shop, replay.frame, inCombat, fighting, compactCards]);
+  // Follow moving units (combat lunges / an active drag) frame-by-frame; nothing runs at rest.
+  useEffect(() => {
+    if (!fighting && !drag?.active) return;
+    let raf = 0;
+    const tick = (): void => { syncShields(); raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [fighting, drag?.active, syncShields]);
+  // Re-measure on resize; clear every bubble when the screen unmounts.
+  useEffect(() => {
+    const onResize = (): void => syncShields();
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      for (const uid of shieldUidsRef.current) pixiFx.clearShield(uid);
+      shieldUidsRef.current = new Set();
+    };
+  }, [syncShields]);
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
   // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
   // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them

@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Pixi divine-shield BUBBLE (replaces the gold glow/badge) + crack-and-shatter break
+
+Divine Shield's signifier is now a translucent, slowly-breathing **golden bubble** drawn on the WebGL FX
+overlay in front of each shielded unit — and when a shield is consumed it **cracks and explodes** into
+energy + golden shrapnel. This replaces the old CSS gold glow + halo + art-border + ward badge entirely,
+everywhere a shield exists (shop / hand / warband / combat). Owner decisions: everywhere, bubble is the
+sole signifier, full-Pixi bubble + Pixi break.
+
+- **`pixiFx.ts`** — a new STATEFUL sub-layer (the FX layer was previously fire-and-forget only). A
+  `ShieldBubble` registry keyed by uid; each bubble is a `Container` of a translucent golden body
+  (`BUBBLE_BODY_ALPHA`, normal blend so the unit reads through), an additive rim, and 3 drifting energy
+  veins, breathing on the ticker (`BREATHE_MS`) with a `FORM_MS` grow-in. New API: `setShield(uid,cx,cy,w,h)`
+  (create/retarget), `clearShield(uid)` (graceful `FADE_MS` fade), `breakShield(uid)` (crack flash +
+  fracture lines → shockwave ring + golden shrapnel shards + energy motes, reusing the pooled particle
+  system). Three generated textures (body/rim/vein). Look is tunable via the top-of-file consts +
+  `window.__shieldDemo()` (DEV).
+- **`Recruit.tsx`** — one DOM-driven tracker (`syncShields`) for BOTH recruit + combat, keyed off the
+  `.card.dscard` marker. A card that loses `.dscard` while its element persists **in combat** → `breakShield`
+  (absorbed a hit); otherwise → `clearShield` (sold / died / left). Positions re-measure on a rAF loop ONLY
+  while something animates (combat / an active drag) + on resize; idle shielded units cost nothing.
+- **Removed** (bubble is the sole cue): the `.card.compact.dscard` glow/halo/art-border + the `kwward.ds`
+  badge (Card.tsx) + the combat `.unit.shieldgain` pulse and `.shatter` shard ring. The `.dscard` class is
+  kept purely as the bubble's DOM hook.
+- **Verified**: typecheck + lint + 374 tests + build all green; live DOM checks confirm the overlay inits,
+  a `.dscard` card registers a correctly-sized/positioned bubble (5 children), and a recruit-side shield
+  removal fades quietly (no spurious break). The animated look + the combat break can only be eyeballed in a
+  real window (the preview pane runs hidden, freezing Pixi's rAF ticker).
+- **Follow-ups**: dial in the look/feel in-game (consts are live); the rAF position-sync currently runs for
+  all of combat — could be narrowed to active-lunge windows if a busy Mech board ever hitches.
+
 ### fix: Reborn fires the unit's Deathrattle on every death + carries Undead buffs through rebirth
 
 Owner clarified how Reborn should work; two bugs in `killOrReborn` (`simulate.ts`):

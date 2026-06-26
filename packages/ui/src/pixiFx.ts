@@ -32,6 +32,34 @@ interface Particle {
   gravity: number;   // downward accel px/sec² (coins arc up then fall); 0 = none
 }
 
+/**
+ * A persistent divine-shield bubble bound to one unit (by uid). Unlike particles (fire-and-forget),
+ * it lives until the shield breaks or is cleared, breathing on the ticker and tracking the unit's
+ * on-screen rect. The React layers measure the rect and push it via `setShield`; this stays DOM-agnostic.
+ */
+interface ShieldBubble {
+  container: Container;
+  fill: Sprite;          // translucent golden body (see-through)
+  rim: Sprite;           // bright additive edge highlight
+  veins: Sprite[];       // faint drifting energy streaks
+  cx: number; cy: number; // target center (viewport px)
+  w: number; h: number;   // target footprint (the card's size)
+  age: number;            // ms lived — drives the breathe phase + vein drift
+  formIn: number;         // ms elapsed of the grow-in (clamped at FORM_MS)
+  fadeOut: number;        // ms elapsed of a graceful clear (−1 = not fading)
+}
+
+// Shield-bubble feel (tunable live via window.__pixiFx in DEV). The texture art is generated at radius
+// ~BUBBLE_TEX_R; the container is scaled per-unit to fit the card's footprint.
+const BUBBLE_TEX_R = 40;       // generated bubble texture radius (px) before per-unit scaling
+const BUBBLE_MARGIN = 1.06;    // bubble size vs the card footprint (slightly proud of the edge)
+const BUBBLE_BODY_ALPHA = 0.34; // translucency of the golden body — low enough to read the unit behind
+const BREATHE_MS = 2800;       // slow pulse period
+const FORM_MS = 260;           // grow-in when a shield is gained
+const FADE_MS = 200;           // graceful fade when a shield is cleared without breaking
+const BUBBLE_GOLD = 0xffd24a;  // body tint
+const BUBBLE_RIM_GOLD = 0xffe9a8; // brighter rim tint
+
 class FxController {
   private app: Application | null = null;
   private layer: Container | null = null;
@@ -42,6 +70,11 @@ class FxController {
   private shardRectTex: Texture | null = null; // jagged spark: elongated rectangle
   private shardTriTex: Texture | null = null;   // jagged spark: triangle
   private coinTex: Texture | null = null;       // gold coin (sell sprinkle)
+  private bubbleTex: Texture | null = null;     // soft translucent disc — shield body
+  private rimTex: Texture | null = null;        // bright ring — shield rim highlight
+  private veinTex: Texture | null = null;       // thin streak — shield energy vein
+  private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
+  private readonly shields = new Map<string, ShieldBubble>();
   private readonly live: Particle[] = [];
   private readonly pool: Sprite[] = [];
 
@@ -81,16 +114,23 @@ class FxController {
     canvas.style.display = 'block';
     parent.appendChild(canvas);
 
+    // Bubbles sit on their own layer BENEATH the particle layer, so break shards/flash draw over them.
+    const shieldLayer = new Container();
+    app.stage.addChild(shieldLayer);
     const layer = new Container();
     app.stage.addChild(layer);
 
     this.app = app;
     this.layer = layer;
+    this.shieldLayer = shieldLayer;
     this.sparkTex = this.makeSparkTexture(app);
     this.glowTex = this.makeGlowTexture(app);
     this.shardRectTex = this.makeShardRectTexture(app);
     this.shardTriTex = this.makeShardTriTexture(app);
     this.coinTex = this.makeCoinTexture(app);
+    this.bubbleTex = this.makeBubbleTexture(app);
+    this.rimTex = this.makeRimTexture(app);
+    this.veinTex = this.makeVeinTexture(app);
     app.ticker.add(this.update);
     this.ready = true;
   }
@@ -101,15 +141,21 @@ class FxController {
     for (const p of this.live) p.sprite.destroy();
     this.live.length = 0;
     this.pool.length = 0;
+    for (const b of this.shields.values()) b.container.destroy({ children: true });
+    this.shields.clear();
     this.app.ticker.remove(this.update);
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     this.app = null;
     this.layer = null;
+    this.shieldLayer = null;
     this.sparkTex = null;
     this.glowTex = null;
     this.shardRectTex = null;
     this.shardTriTex = null;
     this.coinTex = null;
+    this.bubbleTex = null;
+    this.rimTex = null;
+    this.veinTex = null;
     this.ready = false;
     this.initing = null;
   }
@@ -417,6 +463,117 @@ class FxController {
   }
 
   /**
+   * Create or update the divine-shield bubble for `uid`, centered at (cx, cy) and sized to a unit
+   * footprint of w×h (the card's rect). Idempotent: the first call spawns the bubble (with a grow-in);
+   * later calls just retarget it (so it tracks the unit as it moves). The React layers call this for
+   * every shielded unit whenever the shielded set or any position changes. No-op until the app is ready.
+   */
+  setShield(uid: string, cx: number, cy: number, w: number, h: number): void {
+    if (!this.ready || !this.shieldLayer) return;
+    let b = this.shields.get(uid);
+    if (!b) {
+      const container = new Container();
+      const fill = new Sprite(this.bubbleTex!);
+      fill.anchor.set(0.5);
+      fill.tint = BUBBLE_GOLD;
+      fill.alpha = BUBBLE_BODY_ALPHA;
+      fill.blendMode = 'normal'; // tint the unit (additive would just wash the cream board to white)
+      const rim = new Sprite(this.rimTex!);
+      rim.anchor.set(0.5);
+      rim.tint = BUBBLE_RIM_GOLD;
+      rim.blendMode = 'add';     // bright glassy edge catching light
+      rim.alpha = 0.55;
+      const veins: Sprite[] = [];
+      for (let i = 0; i < 3; i++) {
+        const v = new Sprite(this.veinTex!);
+        v.anchor.set(0.5);
+        v.tint = BUBBLE_RIM_GOLD;
+        v.blendMode = 'add';
+        v.alpha = 0.4;
+        v.rotation = (i / 3) * Math.PI; // fan the streaks across the bubble
+        veins.push(v);
+        container.addChild(v);
+      }
+      container.addChild(fill, rim);
+      container.alpha = 0;
+      this.shieldLayer.addChild(container);
+      b = { container, fill, rim, veins, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1 };
+      this.shields.set(uid, b);
+    } else {
+      b.cx = cx; b.cy = cy; b.w = w; b.h = h;
+      b.fadeOut = -1; // re-targeted while fading (shield re-gained) → cancel the fade
+    }
+  }
+
+  /** Gracefully fade out and remove a bubble whose shield was removed WITHOUT breaking (rare — e.g. a
+   *  Reborn return overwrites keywords). A broken shield uses `breakShield` instead. */
+  clearShield(uid: string): void {
+    const b = this.shields.get(uid);
+    if (b && b.fadeOut < 0) b.fadeOut = 0;
+  }
+
+  /**
+   * The shield SHATTERS (a hit absorbed): a quick crack-flash + fracture lines, then a small explosion —
+   * an energy shockwave ring, a spray of golden shrapnel shards, and a few energy motes. The persistent
+   * bubble is removed immediately; the burst is fire-and-forget on the particle layer.
+   */
+  breakShield(uid: string): void {
+    const b = this.shields.get(uid);
+    if (!b) return;
+    const { cx, cy, w, h } = b;
+    b.container.destroy({ children: true });
+    this.shields.delete(uid);
+    if (!this.ready) return;
+    const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
+
+    // 1) CRACK — a bright white-gold flash at the bubble's footprint + a few fracture lines snapping across.
+    this.spawn(this.bubbleTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 150, fromScale: rad / BUBBLE_TEX_R,
+      toScale: (rad / BUBBLE_TEX_R) * 1.18, spin: 0, tint: 0xfff3c8, blend: 'add',
+    });
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * Math.PI;
+      this.spawn(this.veinTex!, {
+        x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 130, fromScale: (rad / 26) * 1.1, toScale: rad / 26,
+        spin: 0, rotation: a, tint: 0xffffff, blend: 'add', peakAlpha: 0.95,
+      });
+    }
+
+    // 2) SHOCKWAVE — an additive ring expanding past the bubble edge and fading.
+    this.spawn(this.rimTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 420, fromScale: (rad / BUBBLE_TEX_R) * 0.85,
+      toScale: (rad / BUBBLE_TEX_R) * 1.7, spin: 0, tint: 0xffe27a, blend: 'add', peakAlpha: 0.8,
+    });
+
+    // 3) SHRAPNEL — golden shards flung radially out of the rim (reuses the pooled shard textures).
+    const shards = 14;
+    for (let i = 0; i < shards; i++) {
+      const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const speed = 260 + Math.random() * 520;
+      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
+      const warm = Math.random();
+      const tint = warm < 0.5 ? 0xffd24a : warm < 0.85 ? 0xffe9a8 : 0xfff6d8;
+      this.spawn(tex, {
+        x: cx + Math.cos(a) * rad * 0.7, y: cy + Math.sin(a) * rad * 0.7,
+        vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
+        life: 380 + Math.random() * 320, fromScale: 0.7 + Math.random() * 0.6, toScale: 0.05,
+        spin: (Math.random() - 0.5) * 9, rotation: a, tint, blend: 'add',
+      });
+    }
+
+    // 4) ENERGY MOTES — a few soft glints drifting out, longer-lived, for the "energy" feel.
+    for (let i = 0; i < 6; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const speed = 90 + Math.random() * 200;
+      this.spawn(this.sparkTex!, {
+        x: cx, y: cy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.5,
+        life: 460 + Math.random() * 360, fromScale: 0.8 + Math.random() * 0.7, toScale: 0.05,
+        spin: 0, tint: 0xffe9a8, blend: 'add', peakAlpha: 0.9,
+      });
+    }
+  }
+
+  /**
    * DEV: fire a big, slow, unmissable burst at the center of the screen and log full
    * diagnostics — proves the layer is alive + visible without needing a combat. Logged
    * fields tell us where it breaks if you still see nothing.
@@ -511,6 +668,40 @@ class FxController {
       s.scale.set(p.fromScale + (p.toScale - p.fromScale) * t);
       s.alpha = p.peakAlpha * (1 - t * t); // ease-out fade from its peak (lingers, then drops)
     }
+
+    // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.
+    for (const [uid, b] of this.shields) {
+      b.age += dtMs;
+      // grow-in (gain) and optional fade-out (graceful clear)
+      const formT = Math.min(1, b.formIn / FORM_MS); // 0→1 ease-out
+      b.formIn += dtMs;
+      const formEase = 1 - (1 - formT) * (1 - formT);
+      let life = formEase;                 // overall opacity envelope
+      const extraScale = 1 + (1 - formEase) * 0.16; // start a touch large, settle
+      if (b.fadeOut >= 0) {
+        const fT = Math.min(1, b.fadeOut / FADE_MS);
+        b.fadeOut += dtMs;
+        life *= 1 - fT;
+        if (fT >= 1) { b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
+      }
+      // slow breathe — gentle scale + opacity pulse
+      const phase = (b.age / BREATHE_MS) * Math.PI * 2;
+      const breatheScale = 1 + Math.sin(phase) * 0.035;
+      const breatheAlpha = 0.82 + Math.sin(phase) * 0.18;
+      // fit the radius-BUBBLE_TEX_R art to the unit footprint (non-uniform → ellipse)
+      const sx = (b.w * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
+      const sy = (b.h * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
+      b.container.x = b.cx;
+      b.container.y = b.cy;
+      b.container.scale.set(sx * breatheScale * extraScale, sy * breatheScale * extraScale);
+      b.container.alpha = life * breatheAlpha;
+      // drift the energy veins — slow rotation + a shimmer offset per vein
+      for (let vi = 0; vi < b.veins.length; vi++) {
+        const v = b.veins[vi]!;
+        v.rotation += (vi % 2 === 0 ? 0.25 : -0.18) * dt;
+        v.alpha = 0.28 + 0.2 * (0.5 + 0.5 * Math.sin(phase + vi * 2.1));
+      }
+    }
   };
 
   /** A small bright dot with a soft edge — the spark. Generated once, tinted per particle. */
@@ -563,6 +754,37 @@ class FxController {
     g.destroy();
     return tex;
   }
+
+  /** The shield BODY — a soft translucent disc with a radial falloff (brightest mid, fading to the edge),
+   *  tinted gold + drawn at low alpha per-sprite so the unit reads through it. Radius ~BUBBLE_TEX_R. */
+  private makeBubbleTexture(app: Application): Texture {
+    const g = new Graphics();
+    for (let r = BUBBLE_TEX_R; r >= 2; r -= 2) g.circle(0, 0, r).fill({ color: 0xffffff, alpha: 0.03 });
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return tex;
+  }
+
+  /** The shield RIM — a bright soft ring near the bubble's edge (the glassy highlight), additive per-sprite. */
+  private makeRimTexture(app: Application): Texture {
+    const g = new Graphics();
+    g.circle(0, 0, BUBBLE_TEX_R - 3).stroke({ width: 7, color: 0xffffff, alpha: 0.22 }); // soft halo
+    g.circle(0, 0, BUBBLE_TEX_R - 3).stroke({ width: 3, color: 0xffffff, alpha: 0.6 });  // bright core ring
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return tex;
+  }
+
+  /** A shield energy VEIN — a thin soft streak (bright core + halo), drawn pointing +X so a rotation fans
+   *  it across the bubble. Half-length ~26 so the break's fracture-line scaling (rad/26) reads right. */
+  private makeVeinTexture(app: Application): Texture {
+    const g = new Graphics();
+    g.ellipse(0, 0, 26, 2.4).fill({ color: 0xffffff, alpha: 0.4 }); // soft halo
+    g.ellipse(0, 0, 22, 1.1).fill({ color: 0xffffff, alpha: 0.95 }); // bright core
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return tex;
+  }
 }
 
 /** The singleton effects layer. The React `PixiFxLayer` drives its mount; the combat replay
@@ -577,6 +799,21 @@ export const discoverFx = new FxController();
 // DEV: expose for live effect tuning + manual firing from the console (mirrors the LungeTuner /
 // SfxMixer dev affordances). Stripped from production by the static env check.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __pixiFx: FxController; __discoverFx: FxController }).__pixiFx = pixiFx;
-  (window as unknown as { __pixiFx: FxController; __discoverFx: FxController }).__discoverFx = discoverFx;
+  const w = window as unknown as { __pixiFx: FxController; __discoverFx: FxController; __shieldDemo: (loops?: number) => void };
+  w.__pixiFx = pixiFx;
+  w.__discoverFx = discoverFx;
+  // DEV: drop a shield bubble at screen center (card-sized), hold it, then break it — repeats `loops`
+  // times so the bubble look + the crack/explosion can be eyeballed and tuned without a real combat.
+  w.__shieldDemo = (loops = 3): void => {
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2, cw = 150, ch = 190;
+    let n = 0;
+    const cycle = (): void => {
+      pixiFx.setShield('__demo', cx, cy, cw, ch);
+      window.setTimeout(() => {
+        pixiFx.breakShield('__demo');
+        if (++n < loops) window.setTimeout(cycle, 900);
+      }, 2600);
+    };
+    cycle();
+  };
 }

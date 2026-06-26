@@ -1236,6 +1236,37 @@ describe('run loop (@game/sim)', () => {
     expect(s.heroReady).toBe(false); // once-per-turn charge spent
   });
 
+  it('Spell Cart fills the tavern with (distinct) spells; the next roll restocks minions', () => {
+    let s: RunState = {
+      ...createRun(1),
+      tier: 5,
+      embers: 99,
+      shop: [{ uid: 'm1', cardId: 'sandbag' }, { uid: 'm2', cardId: 'gnash' }],
+      hand: [{ uid: 'sc', cardId: 'spellcart', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sc' }); // untargeted cast
+    expect(s.shop.length).toBeGreaterThan(0);
+    expect(s.shop.every((o) => CARD_INDEX[o.cardId]?.spell)).toBe(true); // every offer is now a spell
+    const ids = s.shop.map((o) => o.cardId);
+    expect(new Set(ids).size).toBe(ids.length); // distinct
+    s = reduce(s, { type: 'roll' });
+    expect(s.shop.some((o) => !CARD_INDEX[o.cardId]?.spell)).toBe(true); // minions again
+  });
+
+  it('a spell offer from Spell Cart buys into the hand at its own cost', () => {
+    let s: RunState = {
+      ...createRun(1),
+      tier: 5,
+      embers: 10,
+      shop: [{ uid: 'sp1', cardId: 'spiritfire' }], // a spell offer in the minion row (cost 2)
+      hand: [],
+    };
+    s = reduce(s, { type: 'buy', uid: 'sp1' });
+    expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // bought into hand
+    expect(s.shop.some((o) => o.cardId === 'spiritfire')).toBe(false); // left the shop
+    expect(s.embers).toBe(8); // 10 − Spirit Fire's cost (2)
+  });
+
   it('Ember Pouch gains an Ember when cast (net-neutral after its 1 cost)', () => {
     let s: RunState = { ...createRun(1), embers: 5, spell: { uid: 'sp', cardId: 'emberpouch' } };
     s = reduce(s, { type: 'buy', uid: s.spell!.uid }); // pay 1 → 4

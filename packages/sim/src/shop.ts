@@ -90,6 +90,24 @@ export function rollShop(state: RunState): void {
 }
 
 /**
+ * Spell Cart: refresh the tavern FULL of spells — replace the minion offers with up to `tierSlots` DISTINCT
+ * random eligible spells (returning the current minion offers to the pool first). The right-hand spell slot is
+ * left as-is. The NEXT normal roll (reroll / turn advance) restocks minions, so this is a one-shot.
+ */
+export function rollSpellShop(state: RunState): void {
+  for (const offer of state.shop) returnToPool(state, offer.cardId);
+  const rng = makeRng(state.rngCursor);
+  const slots = tierSlots(state.tier);
+  const eligible = SPELL_CARDS.filter((c) => c.tier <= state.tier).map((c) => c.id);
+  for (let i = eligible.length - 1; i > 0; i--) { // Fisher–Yates shuffle (seeded) → distinct picks
+    const j = rng.int(i + 1);
+    [eligible[i], eligible[j]] = [eligible[j]!, eligible[i]!];
+  }
+  state.shop = eligible.slice(0, slots).map((id) => ({ uid: `s${state.uidSeq++}`, cardId: id }));
+  state.rngCursor = rng.state();
+}
+
+/**
  * Top up a *frozen* tavern that carried over with empty slots (you bought some) or a missing spell.
  * Keeps every frozen offer in place (they stay out of the pool) and only fills the gaps from the
  * pool. Reproducible via the shop RNG cursor.

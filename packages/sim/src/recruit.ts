@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type BoardCard, type DiscoverSpec, type RunState, type ShopCard } from './state';
-import { returnToPool, takeFromPool } from './shop';
+import { returnToPool, rollSpellShop, takeFromPool } from './shop';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -1059,6 +1059,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellDisplace: (ctx, self) => {
     if (!self) return;
     swapWithTavern(ctx.state, self);
+  },
+
+  /** Spell Cart — refresh the tavern full of spells (replace the minion offers with random eligible spells).
+   *  The next normal roll restocks minions, so it's a one-shot. Untargeted. */
+  spellRefreshToSpells: (ctx) => {
+    rollSpellShop(ctx.state);
   },
 
   /** Steward of Spells — End of Turn: add a copy of the most recent spell cast this run to your hand (golden:

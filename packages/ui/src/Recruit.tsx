@@ -458,6 +458,7 @@ export function Recruit() {
   const pendingBreakRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) the shield should shatter
   const pendingClearRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) to fade a vanished bubble
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
+  const fightingRef = useRef(fighting); fightingRef.current = fighting;
   const combatSpeedRef = useRef(combatSpeed); combatSpeedRef.current = combatSpeed;
   const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
   const prevDragActiveRef = useRef(false);
@@ -471,39 +472,56 @@ export function Recruit() {
   };
   const syncShields = useCallback((): void => {
     // Recruit cards carry data-uid on the `.card`; combat cards carry it on the `.unit` wrapper — resolve via
-    // closest so BOTH register (the combat case was the "no shield in combat" bug).
-    const els = document.querySelectorAll<HTMLElement>('[data-zone] .card.dscard, .unit .card.dscard');
+    // closest so BOTH register (the combat case was the "no shield in combat" bug). DURING COMBAT, only combat
+    // UNITS (`.unit`) get bubbles — a frozen shop / hand card sitting in a data-zone must not keep its bubble
+    // while the combat screen is up (it would float over the arena).
+    const els = document.querySelectorAll<HTMLElement>(
+      inCombatRef.current ? '.unit .card.dscard' : '[data-zone] .card.dscard, .unit .card.dscard',
+    );
     const seen = new Set<string>();
     const d = dragRef.current;
     const dragUid = d?.uid;
-    let draggedShielded = false;
+    // Is the card being dragged a shielded one? Read its keywords (the drag's CardView), NOT whether its
+    // original element is still in the dscard set — a hand drag only HIDES the original, but a shop/board
+    // drag REMOVES it. Reading the view is what makes the drag sparkle follow from ANY source.
+    const draggedShielded = !!(d?.active && d.view?.keywords?.includes('DS'));
     for (const card of els) {
       const uid = card.closest<HTMLElement>('[data-uid]')?.dataset.uid;
       if (!uid) continue;
-      if (uid === dragUid) { draggedShielded = true; continue; } // the dragged card follows the cursor (below)
+      if (uid === dragUid) continue; // the dragged card is driven from drag state below, not measured here
       const r = card.getBoundingClientRect();
       if (r.width === 0) continue; // not laid out yet (mid-transition) — skip this pass
       seen.add(uid);
       pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
     }
-    // The dragged shielded card: drive a small trailing SPARKLE (mini) from the floating `.dragcard`'s
-    // transform (drag state). On drop the next non-mini setShield coalesces it back to the full bubble.
+    // The dragged shielded card: drive a small trailing SPARKLE (mini) from the floating dragcard's transform
+    // (drag state). On drop the next non-mini setShield coalesces it back to the full bubble.
     if (d?.active && dragUid && draggedShielded) {
       seen.add(dragUid);
       pixiFx.setShield(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h, /* mini */ true);
     }
     const now = performance.now();
+    // Are we mid-animation (combat / a live drag / the post-drop settle)? Only THEN is a vanished bubble
+    // possibly mid-remount and worth a brief grace. Outside that (combat→recruit, roll, tavern-up) it's gone
+    // for good and must clear NOW — the rAF loop isn't running to expire a grace timer, which is exactly why
+    // stale bubbles used to freeze on the shop screen.
+    const animating = (): boolean =>
+      fightingRef.current || (dragRef.current?.active ?? false) || performance.now() < settleUntilRef.current;
     // A bubble that just lost its `.dscard`:
     for (const uid of shieldUidsRef.current) {
       if (seen.has(uid) || pendingBreakRef.current.has(uid) || pendingClearRef.current.has(uid)) continue;
-      if (measureCardRect(uid) && inCombatRef.current) {
-        // Absorbed a hit in combat — DON'T shatter yet. Delay it so the read order is hit lands → unit
-        // settles → THEN the shield shatters (the bubble is held + tracked until the timer fires below).
+      // A COMBAT UNIT still on the field but no longer carrying `.dscard` = it absorbed a hit → shatter
+      // (delayed so the read order is hit → settle → shatter). A non-unit card that left the combat-scoped set
+      // (a frozen shop card when combat opens, a death) is NOT a break — just clear it.
+      const unit = inCombatRef.current ? document.querySelector(`.unit[data-uid="${uid}"]`) : null;
+      if (unit && !unit.querySelector('.card.dscard')) {
         pendingBreakRef.current.set(uid, now + SHIELD_BREAK_DELAY / combatSpeedRef.current);
+      } else if (inCombatRef.current) {
+        pixiFx.clearShield(uid); // in combat but not a shield-break (frozen shop card / death) → clear now
+      } else if (animating()) {
+        pendingClearRef.current.set(uid, now + SHIELD_CLEAR_GRACE); // mid drag/play → might remount → brief grace
       } else {
-        // Vanished (sold / played-and-remounting / died) — hold briefly: a hand→board play remounts the
-        // same uid within a frame or two, so we resume instantly instead of fading + regrowing.
-        pendingClearRef.current.set(uid, now + SHIELD_CLEAR_GRACE);
+        pixiFx.clearShield(uid); // static screen → it's gone; fade now (no rAF will come to expire a grace)
       }
     }
     // Drive scheduled combat breaks: keep the bubble on the (now shield-less) unit until its timer fires.
@@ -518,11 +536,11 @@ export function Recruit() {
       if (r) pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
       seen.add(uid); // hold the bubble alive until the shatter
     }
-    // Pending clears: if the shielded card came back this pass (e.g. a play remounted it → the normal loop
-    // re-added it to `seen`), resume instantly; otherwise hold the bubble until the grace expires, then fade.
+    // Pending clears: resume instantly if the card came back this pass; else hold during the grace — but
+    // FLUSH the moment the animation window ends, so a leftover grace can never freeze a bubble on a static screen.
     for (const [uid, deadline] of pendingClearRef.current) {
       if (seen.has(uid)) { pendingClearRef.current.delete(uid); continue; } // remounted with its shield → resumed
-      if (now >= deadline) { pixiFx.clearShield(uid); pendingClearRef.current.delete(uid); }
+      if (now >= deadline || !animating()) { pixiFx.clearShield(uid); pendingClearRef.current.delete(uid); }
       else seen.add(uid); // keep the bubble alive (last position) across the remount gap
     }
     shieldUidsRef.current = seen;
@@ -558,6 +576,12 @@ export function Recruit() {
       shieldUidsRef.current = new Set();
     };
   }, [syncShields]);
+  // Hide every bubble while a board-covering modal is open. Discover / Choose One render at z50 with a
+  // translucent backdrop (BELOW the z110 FX canvas), so bubbles for the dimmed board behind would otherwise
+  // float in front of the overlay. (Inspect / hero-select / end-of-run sit above the FX canvas already.)
+  useEffect(() => {
+    pixiFx.setShieldsVisible(!(run.discover || run.chooseOne));
+  }, [run.discover, run.chooseOne]);
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
   // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
   // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them

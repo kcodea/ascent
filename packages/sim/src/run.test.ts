@@ -1141,6 +1141,38 @@ describe('run loop (@game/sim)', () => {
     expect(endOfTurnRepeats(s)).toBe(2); // no Chronos → 1 + staff
   });
 
+  it('Steward of Spells — End of Turn copies the most recent spell cast (golden: 2 copies)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'st', cardId: 'stewardofspells', tribe: 'neutral', attack: 3, health: 7, keywords: [], golden: false },
+        { uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'sp', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm' }); // cast Spirit Fire → records the last spell
+    expect(s.lastSpellCastId).toBe('spiritfire');
+    applyEndOfTurn(s); // Steward conjures a copy
+    expect(s.hand.filter((c) => c.cardId === 'spiritfire')).toHaveLength(1);
+    // Golden Steward → 2 copies.
+    const g: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'st', cardId: 'stewardofspells', tribe: 'neutral', attack: 3, health: 7, keywords: [], golden: true }],
+      lastSpellCastId: 'spiritfire',
+    };
+    applyEndOfTurn(g);
+    expect(g.hand.filter((c) => c.cardId === 'spiritfire')).toHaveLength(2);
+  });
+
+  it('Steward of Spells does nothing when no spell has been cast yet', () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'st', cardId: 'stewardofspells', tribe: 'neutral', attack: 3, health: 7, keywords: [], golden: false }],
+    };
+    applyEndOfTurn(s);
+    expect(s.hand).toHaveLength(0); // no lastSpellCastId → no copy
+  });
+
   it('Tara is Tier 4', () => {
     expect(CARD_INDEX.tara!.tier).toBe(4);
   });

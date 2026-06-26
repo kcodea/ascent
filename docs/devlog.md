@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: Steward of Spells (neutral T5) — End of Turn copies your last spell
+
+New neutral **T5 3/7** minion: **End of Turn, conjure a copy of the most recent spell cast this run** (golden: 2 copies) — a spell-engine payoff that snowballs whatever spell you're leaning on. Added a `lastSpellCastId` field to `RunState`, set in `castSpell` on every player cast (persists across turns); the new `spellCopyRecent` End-of-Turn factory pushes 1 (× golden) copy to hand, capped at `handMax`, no-op if no spell has been cast yet. Art wired.
+
+**Files:** `neutral.ts` (Steward), `recruit.ts` (`lastSpellCastId` in `castSpell` + `spellCopyRecent` factory), `state.ts` (`lastSpellCastId`), `schema.ts` + `core/types.ts` (`spellCopyRecent`), `run.test.ts` (+2), art, `cards.csv`. **Verification:** typecheck + lint + test (393, +2) + build:web green; tests cover the full flow (cast Spirit Fire → EOT copies it), the golden ×2, and the no-spell-yet no-op.
+
 ### feat: Darah hero + Displacement spell (board↔tavern swap)
 
 A new shared mechanic — **swap a friendly board minion with a random tavern minion**:

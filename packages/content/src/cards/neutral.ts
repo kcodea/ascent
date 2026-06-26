@@ -222,4 +222,18 @@ export const NEUTRAL: CardDef[] = [
     effects: [{ on: 'onDeath', do: 'deathrattleDestroyKiller' }],
     text: '**Deathrattle:** destroy the minion that killed this.',
   },
+  {
+    // End of Turn: conjure a copy of the most recent spell cast this run (golden: 2 copies). A spell engine
+    // that snowballs whatever spell you're leaning on.
+    id: 'stewardofspells',
+    name: 'Steward of Spells',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 3,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'spellCopyRecent' }],
+    text: '**End of Turn:** get a copy of the most recent spell cast.',
+    goldenText: '**End of Turn:** get **2** copies of the most recent spell cast.',
+  },
 ];

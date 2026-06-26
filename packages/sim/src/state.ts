@@ -169,6 +169,9 @@ export interface RunState {
   /** Chrono Staff: this turn's End-of-Turn effects fire one extra time (a per-turn flag — stacks with
    *  Chronos, not with itself). Set on cast, reset at the next turn start. Absent = false. */
   extraEotThisTurn?: boolean;
+  /** Steward of Spells: the id of the most recent spell cast this run (persists across turns until the next
+   *  cast). Absent until a spell is cast. */
+  lastSpellCastId?: string;
   /** Player-side Deathrattles triggered across the whole run — Grim's buff scales with this. */
   deathrattlesTriggered: number;
   /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */

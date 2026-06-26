@@ -20,6 +20,7 @@ import {
   boardManaBonus,
   THREAT_IDS,
   addBuff,
+  endOfTurnRepeats,
   undeadBuyBonus,
   getHero,
   spellStatBonus,
@@ -1060,6 +1061,85 @@ describe('run loop (@game/sim)', () => {
     const recip = s.board.find((c) => c.uid === 'recip')!;
     expect([recip.attack, recip.health]).toEqual([7, 6]); // 1/1 + the devoured 6/5
     expect(s.devourFx).toEqual({ toUid: 'recip', attack: 6, health: 5 }); // projectile hint for the UI
+  });
+
+  it('Lantern Light gives the target +Tier/+Tier (scales with Tavern Tier)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      tier: 3,
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'll', cardId: 'lanternlight', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'll', targetUid: 'm' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([4, 4]); // 1/1 + Tier 3
+    expect(s.hand.some((c) => c.cardId === 'lanternlight')).toBe(false); // consumed
+  });
+
+  it('Fodder Treatment sells the target (+Gold) and feeds its stats to the left-most Demon', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      board: [
+        { uid: 'd', cardId: 'maw', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'fodder', cardId: 'sandbag', tribe: 'neutral', attack: 4, health: 5, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'ft', cardId: 'foddertreatment', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'ft', targetUid: 'fodder' });
+    expect(s.board.find((c) => c.uid === 'fodder')).toBeUndefined(); // sold
+    const demon = s.board.find((c) => c.uid === 'd')!;
+    expect([demon.attack, demon.health]).toEqual([7, 8]); // 3/3 + the sold 4/5
+    expect(s.embers).toBe(1); // counts as a sell → +1 Gold
+  });
+
+  it('Fodder Treatment with no Demon still sells the minion (+Gold); the stats are wasted', () => {
+    let s: RunState = {
+      ...createRun(1),
+      embers: 0,
+      board: [{ uid: 'fodder', cardId: 'sandbag', tribe: 'neutral', attack: 4, health: 5, keywords: [], golden: false }],
+      hand: [{ uid: 'ft', cardId: 'foddertreatment', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'ft', targetUid: 'fodder' });
+    expect(s.board).toHaveLength(0); // sold, nothing to feed
+    expect(s.embers).toBe(1);
+  });
+
+  it('Point Solution re-triggers a Battlecry minion but fizzles (kept) on a non-Battlecry target', () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'bc', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }, // Battlecry: summon a Stray
+        { uid: 'plain', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'ps', cardId: 'pointsolution', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    const onPlain = reduce(s, { type: 'play', uid: 'ps', targetUid: 'plain' });
+    expect(onPlain.hand.some((c) => c.cardId === 'pointsolution')).toBe(true); // no Battlecry → fizzles, kept
+    const onBc = reduce(s, { type: 'play', uid: 'ps', targetUid: 'bc' });
+    expect(onBc.hand.some((c) => c.cardId === 'pointsolution')).toBe(false); // consumed
+    expect([...onBc.board, ...onBc.hand].filter((c) => c.cardId === 'stray').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Chrono Staff makes End-of-Turn effects fire one extra time (stacks with Chronos, not itself)', () => {
+    const withChronos = {
+      ...createRun(1),
+      board: [{ uid: 'c', cardId: 'chronos', tribe: 'neutral', attack: 1, health: 6, keywords: [], golden: false }],
+    } as RunState;
+    expect(endOfTurnRepeats(withChronos)).toBe(2); // 1 + Chronos
+    expect(endOfTurnRepeats({ ...withChronos, extraEotThisTurn: true })).toBe(3); // + Chrono Staff (stacks)
+    // Casting the staff sets the per-turn flag; casting twice doesn't stack with itself.
+    let s: RunState = {
+      ...createRun(1),
+      hand: [{ uid: 'cs', cardId: 'chronostaff', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'cs' });
+    expect(s.extraEotThisTurn).toBe(true);
+    expect(endOfTurnRepeats(s)).toBe(2); // no Chronos → 1 + staff
+  });
+
+  it('Tara is Tier 4', () => {
+    expect(CARD_INDEX.tara!.tier).toBe(4);
   });
 
   it('Ember Pouch gains an Ember when cast (net-neutral after its 1 cost)', () => {

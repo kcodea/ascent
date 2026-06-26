@@ -18,7 +18,8 @@ export type HeroPowerKind =
   | 'collision' // Cassen (passive): after killing 5 enemy minions, get a minion of your most common type (carry-back)
   | 'quest' // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
   | 'chaos' // Chaos (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
-  | 'sellGold'; // Robin (passive): each minion you sell banks +1 Gold for the START of next turn
+  | 'sellGold' // Robin (passive): each minion you sell banks +1 Gold for the START of next turn
+  | 'displace'; // Darah: swap a friendly minion with a random tavern minion (active, targeted)
 
 export interface HeroPower {
   name: string;
@@ -177,6 +178,17 @@ export const HEROES: HeroDef[] = [
       kind: 'sellGold',
       passive: true,
       text: 'When you sell a minion, gain 1 Gold at the start of next turn.',
+    },
+  },
+  {
+    id: 'darah',
+    name: 'Darah',
+    blurb: 'A sleight of fate — trade a piece on your board for a stranger from the tavern.',
+    resolve: 30,
+    power: {
+      name: 'Displace',
+      kind: 'displace',
+      text: 'Choose a friendly minion — swap it with a random minion in the tavern.',
     },
   },
 ];

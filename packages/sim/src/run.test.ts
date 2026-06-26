@@ -1176,6 +1176,34 @@ describe('run loop (@game/sim)', () => {
     expect([bought.attack, bought.health]).toEqual([base.attack * 2, base.health * 2]); // gild doubles the stats
   });
 
+  it('Displacement swaps a friendly minion with a random tavern minion', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'gnash' }],
+      hand: [{ uid: 'dp', cardId: 'displacement', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'dp', targetUid: 'm' });
+    expect(s.board).toHaveLength(1);
+    expect(s.board[0]!.cardId).toBe('gnash'); // the tavern minion swapped onto the board
+    expect(s.shop.some((o) => o.cardId === 'sandbag')).toBe(true); // the displaced minion went to the tavern
+    expect(s.shop.some((o) => o.cardId === 'gnash')).toBe(false); // and left it
+    expect(s.hand.some((c) => c.cardId === 'displacement')).toBe(false); // consumed
+  });
+
+  it('Darah Displace swaps a friendly minion with a random tavern minion (spends the charge)', () => {
+    let s: RunState = {
+      ...createRun(1, 'darah'),
+      heroReady: true,
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'gnash' }],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'm' });
+    expect(s.board[0]!.cardId).toBe('gnash'); // swapped in
+    expect(s.shop.some((o) => o.cardId === 'sandbag')).toBe(true); // displaced to the tavern
+    expect(s.heroReady).toBe(false); // once-per-turn charge spent
+  });
+
   it('Ember Pouch gains an Ember when cast (net-neutral after its 1 cost)', () => {
     let s: RunState = { ...createRun(1), embers: 5, spell: { uid: 'sp', cardId: 'emberpouch' } };
     s = reduce(s, { type: 'buy', uid: s.spell!.uid }); // pay 1 → 4

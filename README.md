@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **New hero Darah + Displacement spell.** Both swap a friendly minion with a random tavern minion — Darah's
+  hero power (Displace, once per turn) and a T4 spell.
 - **Acid reworked; Voracious Imp removed.** Acid now triggers every 3 refreshes — consuming a tavern minion
   and giving the rest +1/+1 (golden doubles both).
 - **Golden Touch + Consume spells; Point Solution renamed to Resonance.** Golden Touch gilds a random tavern

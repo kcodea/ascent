@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: Darah hero + Displacement spell (board↔tavern swap)
+
+A new shared mechanic — **swap a friendly board minion with a random tavern minion**:
+
+- **Darah** (hero, 30 hp) — **Displace** (targeted, once per turn): choose a friendly minion and swap it with a random tavern minion. New `displace` `HeroPowerKind` + a reducer branch (no-op / no charge on a missing target or an empty tavern).
+- **Displacement** (spell, T4/2, target friendly, `singleCast`) — the same swap. New `spellDisplace` factory.
+
+Both call a shared **`swapWithTavern(state, boardMinion)`** in `recruit.ts`: the tavern minion takes the board slot as a **fresh** instance (base stats + any offer buff + golden, doubled — **no** Battlecry / summon-buff), and the displaced minion returns to the tavern as a **fresh re-buyable offer** (its accrued buffs reset — the cost of the gamble). `checkTriples` runs after, so a swapped-in third copy still combines.
+
+**Design calls flagged (easy to change):** (1) the displaced minion **loses its buffs** (returns to the tavern fresh); (2) the swapped-in minion arrives **without** firing its Battlecry or summon-buffs (it's a placement, not a play).
+
+Art: Darah portrait (**placeholder** — used `Darah.png`, since the requested `Darah2` master isn't in the art folder yet), Displace power (`Displace.png`), Displacement spell (`Displacement.png`).
+
+**Files:** `heroes.ts` (Darah + `displace` kind), `recruit.ts` (`swapWithTavern` + `spellDisplace`), `reducer.ts` (displace branch + import), `spells.ts` (Displacement), `schema.ts` + `core/types.ts` (`spellDisplace`), `run.test.ts` (+2), art (3 webp), `cards.csv`. **Verification:** typecheck + lint + test (393, +2) + build:web green; **live** — Darah's portrait + "Displace" power render in hero-select. The two tests cover the spell + the power (sandbag ↔ gnash; the displaced minion lands in the tavern; the charge is spent).
+
 ### feat: Acid rework + remove Voracious Imp
 
 - **Acid** reworked: now **every 3 refreshes** (was 4) it consumes a tavern minion **and buffs the remaining tavern minions +1/+1** (golden: double the consumed stats + tavern **+2/+2**). The `onRollConsumeShop` factory gained a `tavernBuff` param (golden ×2 via `gold(self)`); the consume became conditional so the tavern buff still lands even when there's nothing to consume. New **Acid2** art (`acid.webp` overwritten). Tier/stats unchanged (T6 7/7).

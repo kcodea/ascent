@@ -1055,6 +1055,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.rngCursor = rng.state();
   },
 
+  /** Displacement — swap the target friendly minion with a random tavern minion (shared with Darah's power). */
+  spellDisplace: (ctx, self) => {
+    if (!self) return;
+    swapWithTavern(ctx.state, self);
+  },
+
   /** A minion casts a named spell from an event, auto-targeting the carry (the
    *  highest-attack friend). Counts the cast but doesn't re-fire spellCast (no recursion). */
   castSpell: (ctx, self, params) => {
@@ -1543,6 +1549,37 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
  * Choose One minion has no `onPlay` effects so it isn't a valid target. Returns whether a Battlecry
  * fired — the hero charge is only spent when it did.
  */
+/**
+ * Swap a friendly board minion with a RANDOM tavern offer (shared by the Displacement spell + Darah's
+ * Displace power). The tavern minion takes the board slot as a FRESH instance — base stats + any offer
+ * buff + golden (doubled), no Battlecry / summon-buff — and the board minion goes back to the tavern as a
+ * fresh re-buyable offer (its accrued buffs reset: the cost of the gamble). Returns false (no-op, no charge
+ * spent) when the board minion isn't on the board or the tavern is empty.
+ */
+export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean {
+  const bi = state.board.indexOf(boardMinion);
+  if (bi < 0 || state.shop.length === 0) return false;
+  const rng = makeRng(state.rngCursor);
+  const si = rng.int(state.shop.length);
+  state.rngCursor = rng.state();
+  const offer = state.shop[si]!;
+  const def = CARD_INDEX[offer.cardId];
+  if (!def) return false;
+  const incoming: BoardCard = {
+    uid: `b${state.uidSeq++}`,
+    cardId: offer.cardId,
+    tribe: def.tribe,
+    attack: def.attack + (offer.atk ?? 0),
+    health: def.health + (offer.hp ?? 0),
+    keywords: [...def.keywords, ...(offer.keywords ?? []).filter((k) => !def.keywords.includes(k))],
+    golden: offer.golden ?? false,
+  };
+  if (incoming.golden) { incoming.attack *= 2; incoming.health *= 2; } // goldens store doubled stats (like Gild)
+  state.board[bi] = incoming;
+  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId }; // the displaced minion → fresh offer
+  return true;
+}
+
 export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   const def = CARD_INDEX[card.cardId];
   if (!def) return false;

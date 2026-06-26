@@ -469,4 +469,22 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellGildRandomTavern' }],
     text: 'Make a random minion in the tavern **Golden**.',
   },
+  {
+    // Swap the target friendly minion with a random tavern minion (shares Darah's Displace mechanic). The
+    // tavern minion arrives fresh on the board; the target goes back to the tavern as a fresh re-buyable
+    // offer. singleCast — a Yazzus can't re-swap the already-displaced target.
+    id: 'displacement',
+    name: 'Displacement',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    singleCast: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellDisplace' }],
+    text: 'Swap a friendly minion with a random minion in the tavern.',
+  },
 ];

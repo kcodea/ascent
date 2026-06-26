@@ -11,6 +11,8 @@ import { Application, Container, defaultFilterVert, Filter, Graphics, Sprite, Te
 const SHIELD_FRAG = /* glsl */ `
 in vec2 vTextureCoord;
 out vec4 finalColor;
+uniform vec4  uInputSize;   // (filter) input texture px size in .xy
+uniform vec4  uOutputFrame;  // (filter) output frame: .zw = frame px size
 uniform float uTime;
 uniform float uAspect;   // card w/h, so the hex cells stay regular on a tall card
 uniform vec3  uColor;    // shield tint (gold for Divine Shield)
@@ -26,7 +28,10 @@ float vnoise(vec2 p){
 float hexEdge(vec2 p){ p = abs(p); return max(dot(p, vec2(0.5, 0.8660254)), p.x); }
 
 void main(){
-  vec2 p = (vTextureCoord - 0.5) * 2.0;   // -1..1 across the quad
+  // the default filter's vTextureCoord spans 0..(frame/inputTex), NOT a clean 0..1 — normalize it so the
+  // sphere is centred + sized to the sprite (with padding 0 the output frame == the sprite bounds).
+  vec2 uv = vTextureCoord * uInputSize.xy / uOutputFrame.zw;
+  vec2 p = (uv - 0.5) * 2.0;   // -1..1 across the quad
   float d = length(p);
   if (d >= 1.0) { finalColor = vec4(0.0); return; }
 
@@ -46,7 +51,7 @@ void main(){
   vec2 h2 = mod(hp + cell * 0.5, cell) - cell * 0.5;
   vec2 hh = dot(h1, h1) < dot(h2, h2) ? h1 : h2;
   float edge = smoothstep(0.36, 0.5, hexEdge(hh));
-  float hexPulse = 0.55 + 0.45 * sin(uTime * 1.6 + (vTextureCoord.x + vTextureCoord.y) * 6.0 + uSeed);
+  float hexPulse = 0.55 + 0.45 * sin(uTime * 1.6 + (uv.x + uv.y) * 6.0 + uSeed);
   float hex = edge * (0.3 + 0.5 * hexPulse);
 
   // drifting energy caustics
@@ -561,7 +566,7 @@ class FxController {
           },
         },
       });
-      filter.padding = 2;
+      filter.padding = 0; // output frame == sprite bounds, so the normalized uv maps 0..1 exactly
       sprite.filters = [filter];
       container.addChild(sprite);
       container.alpha = 0;

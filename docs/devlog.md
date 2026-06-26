@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: Chaos Attachment grant animation — flies in from the hero portrait
+
+UI juice for the Chaos hero power: when a Chaos Attachment is granted (every 5th turn), the new hand token now **flies in from the hero portrait**. Engine side — the reducer's recurring grant bumps a transient `chaosGrantSeq` and records the token's `chaosGrantUid` (the established one-shot-signal pattern, like `fodderEatenSeq`). UI side — a Recruit effect watches the seq (inits to the current value, so it doesn't fire on mount / for the game-start token), finds the new hand card (`[data-uid]`) + the portrait (`.heroimg`), and `gsap.from`-flies the card from the portrait position (scaled / rotated / faded) into its hand slot with a slight overshoot, clearing the inline transform on complete.
+
+**Files:** `reducer.ts` (signal on grant), `state.ts` (`chaosGrantSeq`/`Uid`), `Recruit.tsx` (the fly effect), `run.test.ts` (signal assertion). **Verification:** typecheck + lint + test (397) + build:web green; **live** — staged a Chaos run + a token, bumped the signal, and caught the card mid-fly (gsap translating it from the `.heroimg` portrait, scale/opacity interpolating), console clean.
+
 ### feat: Spell Cart (T5 spell) — refresh the tavern full of spells
 
 New **T5 / 2g** untargeted spell: **refresh the tavern with spells instead of minions**. New `rollSpellShop(state)` (shop.ts) replaces the minion offers with up to `tierSlots` **distinct** random eligible spells (seeded Fisher–Yates over the tier-eligible spell list; returns the current minion offers to the pool); the right-hand spell slot is untouched, and the next normal roll/turn restocks minions — so it's inherently **one-shot** (no mode flag). The cast factory `spellRefreshToSpells` calls it. The buy path gained a branch: a **spell offer sitting in the minion row buys into the HAND at its own cost** (no minion creation / triple), like the spell slot. The shop's CardView memo now also passes the spell-display opts so those offers read their right cost + value.

@@ -995,8 +995,9 @@ function advanceCombat(s: RunState): void {
   if (getHero(s.heroId).power.kind === 'chaos' && s.wave % 5 === 0) {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && s.hand.length < CONFIG.handMax) {
+      const grantUid = `b${s.uidSeq++}`;
       s.hand.push({
-        uid: `b${s.uidSeq++}`,
+        uid: grantUid,
         cardId: 'symbioticattachment',
         tribe: def.tribe,
         attack: def.attack + (s.undeadBuyAtk ?? 0),
@@ -1004,6 +1005,9 @@ function advanceCombat(s: RunState): void {
         keywords: [...def.keywords],
         golden: false,
       });
+      // Signal the UI to fly the new token in from the hero portrait (one-shot, like fodderEatenSeq).
+      s.chaosGrantSeq = (s.chaosGrantSeq ?? 0) + 1;
+      s.chaosGrantUid = grantUid;
     }
   }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a

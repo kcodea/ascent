@@ -327,6 +327,29 @@ export function Recruit() {
       tl.kill();
     };
   }, [devourBolt]);
+  // Chaos hero power: when a Chaos Attachment is granted (every 5th turn), fly the new hand token in from the
+  // hero portrait. One-shot, keyed off `chaosGrantSeq` (like fodderEatenSeq); inits to the current value so it
+  // doesn't fire on mount (the game-start token is just there).
+  const prevChaosSeq = useRef(run.chaosGrantSeq);
+  useEffect(() => {
+    const seq = run.chaosGrantSeq;
+    if (seq === undefined || seq === prevChaosSeq.current) return;
+    prevChaosSeq.current = seq;
+    const uid = run.chaosGrantUid;
+    if (!uid) return;
+    const card = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+    const portrait = document.querySelector('.heroimg');
+    if (!card || !portrait) return;
+    const c = card.getBoundingClientRect();
+    const p = portrait.getBoundingClientRect();
+    const dx = p.left + p.width / 2 - (c.left + c.width / 2);
+    const dy = p.top + p.height / 2 - (c.top + c.height / 2);
+    const tween = gsap.from(card, {
+      x: dx, y: dy, scale: 0.2, opacity: 0, rotate: -20, duration: 0.55, ease: 'back.out(1.4)',
+      onComplete: () => gsap.set(card, { clearProps: 'all' }), // hand back to its CSS-driven transforms
+    });
+    return () => { tween.kill(); };
+  }, [run.chaosGrantSeq, run.chaosGrantUid]);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
   // Fred shows e.g. 3/3, not the 1/1 base.

@@ -261,6 +261,10 @@ export interface RunState {
   karwindFlash?: string[];
   /** Bumps each time Karwind flame-buffs — the UI keys its flame animation off this. */
   karwindFlashSeq: number;
+  /** Chaos hero power: bumps each time a Chaos Attachment is granted (every 5th turn), with the new token's
+   *  uid — the UI flies it in from the hero portrait. Transient; absent until the first grant. */
+  chaosGrantSeq?: number;
+  chaosGrantUid?: string;
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted

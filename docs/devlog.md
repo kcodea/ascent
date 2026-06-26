@@ -11,7 +11,7 @@ New hero **Robin** (30 Resolve). Passive power **Spoils**: *when you sell a mini
 
 - **Mechanic** (`reducer.ts`): the sell case feeds the existing `bonusEmbersNextTurn` channel (Hoarder's "bonus Gold next turn"), gated to Robin's new `sellGold` power kind. The turn-start consume + reset (in `settleCombat`) and the on-top-of-the-cap behaviour already existed, so the whole feature is **one line** plus the hero data — no new state field. (Robin's power is also added to the passive no-op branch of the `heroPower` switch so an errant activation can't fall through to Fortify.)
 - **Hero data** (`heroes.ts`): new `sellGold` `HeroPowerKind` + the Robin `HeroDef` (passive). `rollHeroChoices` already draws from all of `HEROES`, so Robin is offered automatically.
-- **Art** (`packages/ui/src/art/heroes/robin.webp`, `.../powers/robin.webp`): optimized from the `Robin.png` / `RobinHP.png` masters via `npm run optimize-art`; the eager glob picks them up by the `robin` id match.
+- **Art** (`packages/ui/src/art/heroes/robin.webp`, `.../powers/robin.webp`): optimized from the `Robin2.png` (portrait) / `RobinHP.png` (power) masters; the eager glob picks them up by the `robin` id match.
 
 **Files:** `heroes.ts` (kind + HeroDef), `reducer.ts` (sell accumulation + passive no-op), `run.test.ts` (+1), 2 art webp. **Verification:** `typecheck + lint + test (378, +1) + build:web` green; the new test proves selling N minions banks +N for next turn (a non-Robin hero banks nothing). Live preview: Robin appears in hero-select with its portrait (robin.webp, 512², loaded) + the **Spoils** power text, console clean.
 

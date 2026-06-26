@@ -710,6 +710,8 @@ describe('simulate (handoff A.3)', () => {
     // The new form's effect is live the rest of the combat: Taragosa casts Growth (+3/+4 to all) on a later attack.
     const ai = a.events.findIndex((ev) => ev.type === 'ascend');
     expect(a.events.slice(ai + 1).some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
+  });
+
   it("Gnasher's kill raises spell power LIVE — Taragosa's Growth jumps from 3/4 to 4/5 the same fight", () => {
     const p: BoardMinion[] = [
       { cardId: 'gnash', attack: 20, health: 40 },

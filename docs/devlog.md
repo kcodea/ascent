@@ -16,6 +16,7 @@ Foundation for the ascension system (owner: "units need to ascend mid-combat… 
 **Files:** `types.ts` (`ascend` event), `simulate.ts` (ascend infra + Tara trigger + `registerEffects` self-disable + flush points), `combat-harness.ts` (narration), `simulate.test.ts` (+1). **Verification:** `typecheck + lint + test (375, +1) + build:web` green; a repro confirmed Tara ascends to Taragosa mid-fight at 20 grants and Taragosa's Growth (+3/+4) fires afterward. (Pre-existing, unrelated: `typecheck:web` flags 4 magnetize type errors in `Recruit.tsx` on clean main — noted for a separate pass.)
 
 **Next:** (a) the UI presentation — the `ascend` SFX + a level-up animation + the live board-state swap; (b) Spirit Pup → Spirit Worgen — counting in-combat spells toward its threshold (carried back) + its mid-combat transform, reusing this infra.
+
 ### fix: in-combat spell casts feed spell power LIVE + proc Forsaken Weaver permanently
 
 Two fixes to how mid-combat spell casts (Taragosa's Growth) feed the spell-driven effects:

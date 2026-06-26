@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Golden Touch + Consume spells; Point Solution renamed to Resonance.** Golden Touch gilds a random tavern
+  minion (it buys in Golden, doubled); Consume has a Demon devour a random tavern minion (works with Yazzus).
 - **Four new tavern spells.** Lantern Light (+Tier/+Tier), Fodder Treatment (sell a minion into your left-most
   Demon), Point Solution (re-trigger a Battlecry), Chrono Staff (End-of-Turn effects fire one extra time). Tara
   moved to Tier 4.

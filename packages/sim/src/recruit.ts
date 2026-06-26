@@ -1032,7 +1032,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Point Solution — re-trigger the target's Battlecry (the reducer guards this to Battlecry minions only).
+  /** Resonance — re-trigger the target's Battlecry (the reducer guards this to Battlecry minions only).
    *  Reuses the Myra-power path, so Drakko's "Battlecries fire extra times" still amplifies it. */
   spellReplayBattlecry: (ctx, self) => {
     if (!self) return;
@@ -1043,6 +1043,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Chronos, not with itself). Read by `endOfTurnRepeats`; reset at the next turn start. */
   spellExtraEndOfTurn: (ctx) => {
     ctx.state.extraEotThisTurn = true;
+  },
+
+  /** Golden Touch — make a random (non-golden) tavern minion offer Golden; the buy bakes the golden in
+   *  (goldens store base stats, ×2 at combat, like Indy's gild). Untargeted — the game picks the minion. */
+  spellGildRandomTavern: (ctx) => {
+    const offers = ctx.state.shop.filter((o) => !o.golden);
+    if (offers.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    offers[rng.int(offers.length)]!.golden = true;
+    ctx.state.rngCursor = rng.state();
   },
 
   /** A minion casts a named spell from an event, auto-targeting the carry (the

@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: Golden Touch + Consume spells; rename Point Solution → Resonance
+
+Three tavern-spell changes:
+
+- **Point Solution → Resonance** — rename (id `pointsolution`→`resonance`, name, comments, tests) + new art (`resonance.webp`; removed the orphaned `pointsolution.webp`). The reducer's Battlecry-target guard keys off the *factory* (`spellReplayBattlecry`), so the rename didn't touch behavior.
+- **Consume** (T4, 2g, target a friendly Demon) — it devours **one** random tavern minion (reuses `spellDemonConsumeTavern` with `count: 1`, the same pipeline as Cupcakes). Not `singleCast`, so **Yazzus multiplies it** (a golden Yazzus → 3 consumed).
+- **Golden Touch** (T4, 5g, untargeted) — make a random tavern minion offer **Golden**. New `ShopCard.golden` flag (factory `spellGildRandomTavern` sets a random offer golden); the **buy bakes it in by doubling the final stats exactly like the Gild hero power** (`addBuff('Golden Touch', …)` then `golden: true` — goldens store *doubled* stats, confirmed via the Gild path), and `shopView` shows the offer with the golden frame + doubled stats. A bought golden grants the golden Discover on play, like any golden. Triples exclude goldens, so there's no weird interaction.
+
+**Files:** `spells.ts` (rename + 2 cards), `recruit.ts` (`spellGildRandomTavern` + comment), `reducer.ts` (buy golden-doubling + comment), `state.ts` (`ShopCard.golden`), `Recruit.tsx` (`shopView` golden), `core/types.ts` + `schema.ts` (factory id), `run.test.ts` (rename + 2 tests), art (3 webp), `cards.csv`. **Verification:** typecheck + lint + test (391, +2) + build:web green; **live** — a gilded sandbag offer renders with the crown + golden frame and **doubled stats (0/6 → 0/12)** in the tavern, normal offers stay 0/6, and it buys in as a Golden.
+
 ### feat: four tavern spells (Lantern Light, Fodder Treatment, Point Solution, Chrono Staff) + Tara → T4
 
 Owner content batch. Four new tavern spells (all `neutral`, data + a recruit `cast` factory each) and a balance dial:

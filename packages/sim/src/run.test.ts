@@ -1748,6 +1748,8 @@ describe('run loop (@game/sim)', () => {
     expect(s.wave).toBe(5); // start of the 5th turn
     expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && c.golden)).toHaveLength(1); // 3 → 1 golden, now
     expect(s.hand.filter((c) => c.cardId === 'symbioticattachment' && !c.golden)).toHaveLength(0);
+    expect(s.chaosGrantSeq).toBeGreaterThan(0); // the grant bumped the UI fly-in signal
+    expect(s.chaosGrantUid).toBeDefined();
   });
 
   it('Chaos hero power does NOT grant on a non-5th turn', () => {

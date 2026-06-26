@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Chaos Attachment flies in from the portrait.** When the Chaos hero power grants its token, it now
+  animates in from the hero portrait.
 - **Spell Cart (T5).** Refresh the tavern full of spells instead of minions (one-shot — the next roll
   restocks minions).
 - **Steward of Spells (neutral T5).** End of Turn: get a copy of the most recent spell you cast (golden: 2).

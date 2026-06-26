@@ -1236,6 +1236,23 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    (z40) so coins sprinkle OVER the Gold counter, but below dragged cards (z100), modals (z50+), and
    the dev/settings buttons (z200). */
 .pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 41; }
+/* Loss-damage tally — the damage counter that assembles above the enemy board on a defeat, plus the
+   tier numbers that fly up into it. The Pixi blast bolt (z41) launches from the counter into the Resolve
+   bar. Counter z-index sits above the board but below the bolt. */
+.lossdmg { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%); text-align: center; animation: lossdmgin 0.25s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.lossdmg-n { font-family: 'Outfit'; font-weight: 900; font-size: 72px; line-height: 1; color: #fff; text-shadow: 0 0 10px var(--threat), 0 0 22px var(--threat), 0 3px 8px rgba(0, 0, 0, 0.5); }
+.lossdmg-l { font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: #ffd9c0; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); margin-top: 4px; }
+.lossdmg.launch { animation: lossdmglaunch 0.34s ease-in forwards; } /* the DOM number hands off to the Pixi bolt */
+@keyframes lossdmgin { from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes lossdmglaunch { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -50%) scale(0.55); } }
+/* A tier number flying from its enemy card (or the opponent intel frame) up into the damage counter. */
+.lossfly { position: fixed; z-index: 31; pointer-events: none; font-family: 'Outfit'; font-weight: 900; font-size: 30px; color: #fff; text-shadow: 0 0 8px var(--threat), 0 2px 5px rgba(0, 0, 0, 0.55); animation: lossflyto 0.43s ease-in forwards; }
+.lossfly.opp { color: #ffe6a8; text-shadow: 0 0 8px #d6a83e, 0 2px 5px rgba(0, 0, 0, 0.55); } /* the opponent's tavern tier reads gold */
+@keyframes lossflyto {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0.5); }
+}
 /* Start-of-Combat bolt flying from the caster to its target */
 .proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
 /* Blaster's Deathrattle: purple blast bolts to every minion. */

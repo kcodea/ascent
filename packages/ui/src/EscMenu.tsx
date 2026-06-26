@@ -3,8 +3,7 @@
  *  and Start Over. The HUD's quick-mute button sits behind the enemy frame, so the dependable audio
  *  controls live here, in a modal nothing can obscure. */
 
-import { useRef, useState, type ChangeEvent } from 'react';
-import { clearStoredBoards, exportBoardsJson, importBoardsJson, loadStoredBoards } from './boardLibrary';
+import { useState } from 'react';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
 
@@ -23,65 +22,12 @@ export function EscMenu({
   onClose: () => void;
 }) {
   const startHeroSelect = useGame((s) => s.startHeroSelect);
-  const playerName = useGame((s) => s.playerName); // still used to label board exports (set at hero-select)
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
   const [muted, setMuted] = useState(isMuted());
-  // Shared boards: count of this browser's captured boards + a status line after export/import.
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [boardCount, setBoardCount] = useState(() => loadStoredBoards().length);
-  const [boardMsg, setBoardMsg] = useState<string | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
-
-  const exportBoards = (): void => {
-    if (!boardCount) { setBoardMsg('No boards yet — finish a run first.'); return; }
-    const json = exportBoardsJson(playerName);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ascent-boards-${(playerName || 'me').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.json`;
-    // Append before click + revoke on a delay: a detached <a> or an immediately-revoked URL gets the
-    // download dropped in some browsers (and in itch's sandboxed iframe).
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    // itch embeds the game in a sandboxed iframe that can silently block file downloads — if we're framed,
-    // tell the friend to use itch's fullscreen button (loads first-party, where downloads work).
-    const framed = (() => { try { return window.self !== window.top; } catch { return true; } })();
-    const sent = `Exported ${boardCount} board${boardCount === 1 ? '' : 's'}`;
-    setBoardMsg(framed
-      ? `${sent}. If no file downloaded, open the game fullscreen (the ⛶ button on itch) and export again.`
-      : `${sent} — send the file to a friend.`);
-  };
-  const onImportFile = (e: ChangeEvent<HTMLInputElement>): void => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // allow re-importing the same file
-    if (!file) return;
-    file.text().then((text) => {
-      const res = importBoardsJson(text);
-      if (res) {
-        setBoardCount(res.total);
-        setBoardMsg(`Imported ${res.imported} board${res.imported === 1 ? '' : 's'} — you'll face them now.`);
-      } else {
-        setBoardMsg("Couldn't read that file — is it an Ascent board export?");
-      }
-    });
-  };
-  // Clear all of THIS browser's captured boards (e.g. when a balance patch made them stale). Two-tap confirm
-  // so it can't be a misclick. Doesn't touch the committed pool (regenerate that with `npm run pool`).
-  const clearBoards = (): void => {
-    if (!boardCount) { setBoardMsg('No boards to clear.'); return; }
-    if (!confirmClear) { setConfirmClear(true); setBoardMsg(`Clear all ${boardCount} captured boards? Tap again to confirm.`); return; }
-    clearStoredBoards();
-    setBoardCount(0);
-    setConfirmClear(false);
-    setBoardMsg('Cleared your captured boards.');
-  };
 
   return (
     <div className="escov" onPointerDown={onClose}>
@@ -140,23 +86,6 @@ export function EscMenu({
               <span className="ebs">{o.sub}</span>
             </button>
           ))}
-        </div>
-        <div className="escsec">Shared Boards</div>
-        <div className="escboards">
-          <button className="escbtn" onPointerDown={exportBoards}>
-            <span className="ebl">Export my boards</span>
-            <span className="ebs">{boardCount} saved · download a file to share</span>
-          </button>
-          <button className="escbtn" onPointerDown={() => fileRef.current?.click()}>
-            <span className="ebl">Import a friend's boards</span>
-            <span className="ebs">Load their file — face their builds</span>
-          </button>
-          <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={onImportFile} />
-          <button className={`escbtn${confirmClear ? ' danger' : ''}`} onPointerDown={clearBoards}>
-            <span className="ebl">{confirmClear ? 'Tap again to clear' : 'Clear my boards'}</span>
-            <span className="ebs">{confirmClear ? `Wipes all ${boardCount} captures` : 'Wipe stale captures (e.g. after a patch)'}</span>
-          </button>
-          {boardMsg && <div className="escboards-msg">{boardMsg}</div>}
         </div>
         <div className="escsec">Run</div>
         <button

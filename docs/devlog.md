@@ -5,6 +5,87 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: live shared opponent pool via a Supabase backend (auto-sync) + drop the manual board-sharing UI
+
+The manual board pipeline (capture → Export → drop in `docs/board-exports/` → `npm run pool` → committed
+`OPPONENT_POOL_DATA`) is replaced — for the live game — by an automatic shared backend. Finished runs sync to a
+hosted Postgres table and load back into the opponent pool at startup, so two devs (Kevin + Mike) automatically
+face each other's builds with zero manual steps. The committed pool stays the **offline floor**.
+
+- **Provider — Supabase (decided after weighing scale).** Hosted Postgres + JS client + dashboard. The workload
+  (low write, read-once-per-patch + identical-for-everyone, no realtime) is trivially cacheable, so the DB is
+  never the scaling wall; the public-readiness work (CDN-front the read path, server-side replay validation for
+  anti-cheat) is DB-independent and deferred. Rationale captured in `docs/roadmap.md` + `docs/board-pool.md`.
+- **The seam** (`packages/ui/src/remoteBoards.ts`): `uploadBoards` (fire-and-forget INSERT on run end) +
+  `fetchAndRegisterPool` (one time-boxed SELECT at boot → `registerOpponents`). **No-ops when the env vars are
+  unset**, so the build, headless tests, and offline play are unaffected. Boards are served by **version prefix**
+  (`patch like '<version>+%'`) so per-commit SHA churn doesn't hide them; the full `patch` (`version+sha`) is
+  stored for fine-grained pruning. Determinism preserved: the remote pool is fetched once at boot and kept static
+  for the session, exactly like `OPPONENT_POOL_DATA`.
+- **Wiring** (`store.ts`): startup `fetchAndRegisterPool('<version>+')` after the committed/local registration;
+  run-end `uploadBoards(saveRunBoards(...))` (boards captured on a `gameover`/`victory` transition — Ascent
+  win/loss AND Practice round-15, owner's call to let Practice contribute for now). `saveRunBoards`
+  (`boardLibrary.ts`) now **returns** the captured boards so the same set feeds both local + remote.
+- **Settings cleanup** (`EscMenu.tsx`): removed the now-obsolete **Shared Boards** section (Export / Import /
+  Clear my boards) + all the code that only fed it (file-import handler, board-count state, `playerName` lookup).
+  Verified live in-preview: Settings is now Audio · Gameplay · Display Resolution · Run.
+- **Config travels with the repo:** `apps/web/.env` is **committed** (un-ignored in `.gitignore`) with the
+  Supabase URL + **publishable** key — safe by design (it ships in the client bundle; RLS protects the data), so
+  Mike + the itch build get it with zero setup. `.env.local` stays gitignored for personal overrides. The
+  `service_role`/secret key is never committed. RLS: anon may `select` + `insert` on `boards`; no update/delete.
+- **Schema + docs:** `schema.sql` (table + `(patch,wave,power)` index + RLS policies + prune snippets) and
+  `docs/board-backend.md` (setup + ops + the hardening/scaling path).
+
+**Files:** `remoteBoards.ts` (new), `store.ts`, `boardLibrary.ts` (return type), `buildinfo.d.ts` (env typing),
+`EscMenu.tsx` (drop Shared Boards), `apps/web/.env` (committed) + `.env.example`, `.gitignore`, `schema.sql`,
+`docs/board-backend.md`, `packages/ui/package.json` (+`@supabase/supabase-js`). **Verification:** typecheck +
+lint + test (402) + build:web all green; Supabase read+write validated end-to-end via curl (insert returned the
+row; the `boards` table + RLS confirmed) AND live — the boot SELECT (`…/boards?select=snapshot&patch=like.0.1.0%2B%25`)
+returned 200 in the dev server with no console errors; the Settings menu confirmed clean in-preview. **Follow-up:**
+server-side replay validation (anti-cheat) + CDN-fronting before any public launch — both in the roadmap.
+
+### feat: opponent pool is synthesized from the card set (banded to the enemy curve, waves 1–20) — retire the house bot
+
+**Clean-slate reset + a new generation model for the committed opponent pool.** Two parts:
+
+1. **Wiped the board "profiles."** Deleted the committed imports `docs/board-exports/lemon.json` (self) and
+   `orangez.json` (friend) — the player/friend boards that had been baked in. (localStorage captures are
+   per-browser and cleared separately via **Esc → Shared Boards → Clear my boards** / `clearStoredBoards`.)
+
+2. **Replaced the house bot with from-scratch synthesis.** The bot (`buildBootstrapPool`) only survives to
+   ~wave 9, so a bot-only bake covered only waves 1–9 and the rating ladder topped out there too (bands
+   saturated past 9). Now the pool is **generated straight from the card set**, banded to the **tuned enemy
+   curve**, covering **every wave 1–20**:
+   - **All-wave rating ladder, no bot** (`rating.ts`): `buildWaveLadders(seeds, fidelities, extra, opts)` gains
+     `opts.proceduralWaves`/`proceduralSeeds` — it folds the **procedural threat boards** (`buildEnemyBoard`
+     across the 5 archetypes × N seeds) into every wave. They're wave-scaled by `enemyScaling` for all 20 waves
+     and span weak (venom swarm) → strong (iron wall / glass cannon), so the ladder calibrates 1–20 with no bot.
+     The bake passes `seeds: []` (bot off). Legacy bot/real-board paths preserved (tests still pin them).
+   - **Curve-matched synthesizer** (`synthesize.ts`): new `synthesizeWaveFromCurve(wave, ladders, seed, opts)`.
+     Per wave it samples the procedural boards (the "power banding" anchor), picks `perWave` of them spread
+     across the power range, and for each **copies the width + power** and fills that shape with **real tribe
+     cards** stat-scaled uniformly to hit it — cycling the 5 tribes for synergy variety. Real cardIds carry real
+     keywords/effects, so a served board fights like a real tribe board; opponents only need the right
+     *strength*, not buildability. Deterministic; tagged `origin:'synthetic'` with a baked wave-relative rating.
+   - **Pool bake rewrite** (`build-pool.ts`): dropped the bot house-plan + frequency analysis + the competitive
+     floor; now builds the procedural-curve ladder, synthesizes `SYNTH_PER_WAVE` (**8**) boards for each of
+     waves 1–`MAX_WAVE` (**20**), merges any imports (preferred over synthetic in curation), dedupes, rates,
+     curates, writes. Knobs: `SYNTH_PER_WAVE`, `MAX_WAVE`, `PROC_SEEDS`.
+
+**Result:** `opponentPool.data.ts` is now **160 boards (8/wave × waves 1–20)**, baked under `0.1.0+<sha>`, with a
+healthy weak→strong band spread at every wave (global `b0:9 b1:12 b2:10 b3:18 b4:35 b5:43 b6:17 b7:16`; every
+wave shows `8[band span]` across several bands). No thin/empty/saturated high waves — the bot's old failure mode
+is gone by construction. Matchmaking (`pickOpponent`) now finds exact-wave boards for 10–20 instead of clamping
+to wave 9. Owner's call: anchor difficulty to the **tuned enemy curve** (not skilled-player strength).
+
+**Files:** `rating.ts` (procedural-curve ladder option), `synthesize.ts` (+`synthesizeWaveFromCurve` + tribe-pool
+helpers), `build-pool.ts` (bake rewrite), `synthesize.test.ts` (+1: high-wave, no-seed determinism + band-span),
+`opponentPool.data.ts` (regenerated), deleted `docs/board-exports/{lemon,orangez}.json`, `docs/board-pool.md`
+(rewritten for the new model). **Verification:** typecheck + lint + test (**401**, synth suite 2→3) + build:web all
+green; `npm run pool` reports 160 boards / 20 waves / full band spread; new test proves wave-15 synthesis works
+with no real seed and is byte-deterministic. **Follow-up:** to harden the late game beyond the designed curve,
+raise the synth power jitter or import strong real boards (both ladder- and curation-preferred).
+
 ### feat: title screen → modes (Ascent / Practice) + Settings
 
 A proper front door. The app now boots into a **title screen** (a new top-most overlay, same store-flag pattern as the hero picker — no router) with three entries:

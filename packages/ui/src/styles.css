@@ -1502,7 +1502,7 @@ svg { width: 18px; height: 18px; }
 .version { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: 'Outfit'; font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }
 /* Esc / settings overlay — above everything incl. game-over, so resolution is changeable anywhere */
-.escov { position: fixed; inset: 0; z-index: 320; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
+.escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
 .escpanel { background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 26px 26px 20px; min-width: 380px; box-shadow: 0 26px 64px -16px rgba(0, 0, 0, 0.62); }
 .escpanel .esch { font-weight: 800; font-size: 28px; color: var(--ink); text-align: center; }
 .escsec { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }

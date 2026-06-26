@@ -27,6 +27,8 @@ export function EscMenu({
   const toggleCompact = useGame((s) => s.toggleCompact);
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
+  const combatSpeed = useGame((s) => s.combatSpeed);
+  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -136,6 +138,20 @@ export function EscMenu({
           <span className="ebl">{compactCards ? 'Compact' : 'Full text'}</span>
           <span className="ebs">{compactCards ? 'Art + glyphs · details on hover' : 'Always-on rules text'}</span>
         </button>
+        <div className="escsec">Gameplay</div>
+        <div className="escvol">
+          <span className="evl">Combat speed</span>
+          <input
+            type="range"
+            min={0.5}
+            max={5}
+            step={0.1}
+            value={combatSpeed}
+            aria-label="Combat speed"
+            onChange={(e) => setCombatSpeed(Number(e.target.value))}
+          />
+          <span className="evv">{combatSpeed.toFixed(1)}×</span>
+        </div>
         <div className="escsec">Display Resolution</div>
         <div className="escres">
           {RES_OPTIONS.map((o) => (

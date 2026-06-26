@@ -25,6 +25,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Board synthesis — "print" strong high-wave opponents.** The bot can't build strong high-wave boards, so
+  those waves were thin + all-strong-looking. `npm run pool` now folds **real captured boards into the rating
+  ladder** (a real ceiling) and **synthesizes** new boards — recombine/mutate a real board, then keep it only
+  if `simulate` says it's competitive — to fill thin waves. The pool's bands went from a `b7` black hole to an
+  even spread, every wave 1–20 now spanning weak→strong with a full count. See [docs/board-pool.md](docs/board-pool.md).
+- **Symbiote's attachment grants Reborn.** The Symbiotic Attachment (Symbiote's Magnetic token) is now
+  **Magnetic + Reborn** — magnetizing it onto a minion gives that minion Reborn (it comes back once on death).
 - **Wave-relative board power banding + pool maintenance.** Enemy boards are now rated by how strong they are
   **for their wave** (win-rate vs a per-wave bot-calibrated ladder) instead of one fixed gauntlet that saturated
   by mid-game. Boards carry a **patch** stamp; `npm run pool:prune` clears stale boards by date/patch; the

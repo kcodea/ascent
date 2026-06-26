@@ -13,7 +13,7 @@
  */
 import { simulate, makeRng, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { buildBootstrapPool } from './snapshot';
+import { buildBootstrapPool, type BoardSnapshot } from './snapshot';
 import { opponentBoard } from './opponents';
 
 const RATING_SEED = 0x9e3779b1; // fixed → combat tie-breaks are reproducible
@@ -42,16 +42,27 @@ function spreadByPower(list: BoardMinion[][], cap: number): BoardMinion[][] {
  * Build per-wave reference ladders from the smart bot — boards spanning weak → strong CURRENT play at each
  * wave. Deterministic. Call ONCE and reuse across many `rateBoardForWave` calls (it runs the bot, so it is
  * NOT cheap). `seeds`/`fidelities` default to the calibration plan; tests pass a smaller set for speed.
+ *
+ * `extra` (the imported REAL captured boards) is folded in too: real boards reach strengths — and waves —
+ * the bot can't, so they give the high-wave ladders a real CEILING. Without them the bot tops out below
+ * skilled play and every real board beats it → ratings saturate at band 7 past ~wave 9.
  */
-export function buildWaveLadders(seeds: number[] = LADDER_SEEDS, fidelities: number[] = LADDER_FIDELITIES): WaveLadders {
+export function buildWaveLadders(
+  seeds: number[] = LADDER_SEEDS,
+  fidelities: number[] = LADDER_FIDELITIES,
+  extra: BoardSnapshot[] = [],
+): WaveLadders {
   const byWave: WaveLadders = new Map();
+  const add = (wave: number, board: BoardMinion[]): void => {
+    // A ladder reference is fought via `simulate`, which throws on an unknown cardId — so a single stale
+    // `extra` board (captured under an old card set) would break ALL ratings. Skip unservable boards.
+    if (board.length === 0 || !board.every((m) => !!CARD_INDEX[m.cardId])) return;
+    (byWave.get(wave) ?? byWave.set(wave, []).get(wave)!).push(board);
+  };
   for (const fidelity of fidelities) {
-    for (const s of buildBootstrapPool(seeds, () => ({ fidelity }))) {
-      if (s.minions.length === 0) continue;
-      const arr = byWave.get(s.wave) ?? byWave.set(s.wave, []).get(s.wave)!;
-      arr.push(opponentBoard(s));
-    }
+    for (const s of buildBootstrapPool(seeds, () => ({ fidelity }))) add(s.wave, opponentBoard(s));
   }
+  for (const s of extra) add(s.wave, opponentBoard(s));
   for (const [wave, boards] of byWave) byWave.set(wave, spreadByPower(boards, LADDER_PER_WAVE));
   return byWave;
 }

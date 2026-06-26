@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### tweak: shield bubble −25% size + −30% interior opacity (owner dial-in)
+
+After the shader landed and read well in-game, the owner dialed it in: `BUBBLE_MARGIN` 1.12 → 0.84 (the
+sphere now sits just inside the card frame), and the interior terms (`bodyA` + `hex`) ×0.7 so the body/
+force-field read softer while the fresnel rim + specular stay crisp. Verified via framebuffer readback: rim
+radius 112→84 px (exactly 0.75×), interior centre alpha 49→34 (~−30%).
+
 ### feat: divine-shield bubble rebuilt as a custom WebGL energy-sphere SHADER
 
 The bubble was stacked tinted sprites (soft disc + rim + vein streaks) — flat and low-quality. Rebuilt it as

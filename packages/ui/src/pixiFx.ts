@@ -68,7 +68,7 @@ void main(){
   vec2 hh = dot(h1, h1) < dot(h2, h2) ? h1 : h2;
   float edge = smoothstep(0.36, 0.5, hexEdge(hh));
   float hexPulse = 0.55 + 0.45 * sin(uTime * 1.6 + (uv.x + uv.y) * 6.0 + uSeed);
-  float hex = edge * (0.3 + 0.5 * hexPulse);
+  float hex = edge * (0.3 + 0.5 * hexPulse) * 0.7;   // −30% interior opacity
 
   // drifting energy caustics
   float e = vnoise(p * 3.0 + vec2(uTime * 0.30, -uTime * 0.22) + uSeed)
@@ -77,7 +77,7 @@ void main(){
 
   float pulse = 0.85 + 0.15 * sin(uTime * 1.1 + uSeed);   // whole-bubble breathe
 
-  float bodyA = (0.16 + energy * 0.5) * pulse;            // translucent interior
+  float bodyA = (0.16 + energy * 0.5) * pulse * 0.7;      // translucent interior (−30% opacity)
   float alpha = clamp(bodyA + rim * 0.85 + hex * 0.5, 0.0, 0.92);
   alpha *= smoothstep(1.0, 0.94, d);                      // soft outer edge
 
@@ -143,7 +143,7 @@ interface ShieldBubble {
 // Shield-bubble feel (tunable live via window.__pixiFx in DEV). The shield shader draws into a quad of
 // half-size BUBBLE_TEX_R; the container is scaled per-unit to fit the card's footprint.
 const BUBBLE_TEX_R = 40;       // shader quad half-size (px) before per-unit scaling
-const BUBBLE_MARGIN = 1.12;    // bubble size vs the card footprint (slightly proud of the edge)
+const BUBBLE_MARGIN = 0.84;    // bubble size vs the card footprint (−25% from 1.12 — sits inside the frame)
 const BREATHE_MS = 2600;       // slow pulse period (the shader also breathes on its own clock)
 const FORM_MS = 260;           // grow-in when a shield is gained
 const FADE_MS = 200;           // graceful fade when a shield is cleared without breaking

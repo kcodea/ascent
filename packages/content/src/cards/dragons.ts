@@ -171,7 +171,7 @@ export const DRAGONS: CardDef[] = [
     id: 'tara',
     name: 'Tara',
     tribe: 'dragon',
-    tier: 2,
+    tier: 4,
     attack: 3,
     health: 3,
     keywords: ['EG'],

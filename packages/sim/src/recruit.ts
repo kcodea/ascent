@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type BoardCard, type DiscoverSpec, type RunState, type ShopCard } from './state';
-import { takeFromPool } from './shop';
+import { returnToPool, takeFromPool } from './shop';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -1006,6 +1006,45 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.devourFx = { toUid: recipient.uid, attack, health };
   },
 
+  /** Lantern Light — give the target +Tier/+Tier (your current Tavern Tier). Scales with Tier by design
+   *  (the spec is exactly +Tier/+Tier), so no spell-power bonus is folded in. */
+  spellBuffByTier: (ctx, self, params) => {
+    if (!self) return;
+    const t = ctx.state.tier;
+    addBuff(self, str(params._source) || nameOf(self), t, t);
+  },
+
+  /** Fodder Treatment — SELL the target (gain its base sell value as Gold) and spit its current stats onto
+   *  your LEFT-MOST Demon, firing that Demon's on-consume payoffs (Pactstone / Maw / Glutton). No Demon →
+   *  the stats are wasted, but the sell + Gold still happen. */
+  spellSellToDemon: (ctx, self) => {
+    if (!self) return;
+    const state = ctx.state;
+    const idx = state.board.indexOf(self);
+    if (idx < 0) return;
+    const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
+    state.embers += sellValueOf(sold); // the Gold the player gets from the sell
+    returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
+    const demon = state.board.find((c) => isTribe(c, 'demon')); // left-most Demon (board order)
+    if (demon) {
+      addBuff(demon, 'Fodder Treatment', sold.attack, sold.health);
+      fire(ctx, 'onConsume', { minion: demon });
+    }
+  },
+
+  /** Point Solution — re-trigger the target's Battlecry (the reducer guards this to Battlecry minions only).
+   *  Reuses the Myra-power path, so Drakko's "Battlecries fire extra times" still amplifies it. */
+  spellReplayBattlecry: (ctx, self) => {
+    if (!self) return;
+    replayBattlecry(ctx.state, self);
+  },
+
+  /** Chrono Staff — your End-of-Turn effects fire one additional time this turn (a per-turn flag: stacks with
+   *  Chronos, not with itself). Read by `endOfTurnRepeats`; reset at the next turn start. */
+  spellExtraEndOfTurn: (ctx) => {
+    ctx.state.extraEotThisTurn = true;
+  },
+
   /** A minion casts a named spell from an event, auto-targeting the carry (the
    *  highest-attack friend). Counts the cast but doesn't re-fire spellCast (no recursion). */
   castSpell: (ctx, self, params) => {
@@ -1412,6 +1451,13 @@ export function chronosRepeats(state: RunState): number {
   return bestCopyRepeats(state, 'chronos');
 }
 
+/** How many times End-of-Turn effects fire this turn: Chronos's repeats PLUS Chrono Staff's one-shot extra
+ *  (a per-turn flag — stacks with Chronos, not with itself). The real End of Turn and its UI preview/telegraph
+ *  all read this so they agree. (Djinn's manual "proc one now" stays on plain chronosRepeats.) */
+export function endOfTurnRepeats(state: RunState): number {
+  return chronosRepeats(state) + (state.extraEotThisTurn ? 1 : 0);
+}
+
 /** Notify Battlecry-triggered watchers (Karwind) that a Battlecry just resolved. Call once per
  *  Battlecry *fire* — including each Drakko repeat — so a doubled Battlecry procs Karwind twice. */
 function fireBattlecryTriggered(state: RunState): void {
@@ -1656,7 +1702,7 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
   const ctx = makeContext(state);
-  const repeats = chronosRepeats(state); // Chronos: End-of-Turn effects trigger extra times
+  const repeats = endOfTurnRepeats(state); // Chronos + Chrono Staff: End-of-Turn effects trigger extra times
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -1678,7 +1724,7 @@ export function applyEndOfTurn(state: RunState): void {
 export function projectEndOfTurnSteps(state: RunState): Array<Record<string, { attack: number; health: number }>> {
   const clone = structuredClone(state);
   const ctx = makeContext(clone);
-  const repeats = chronosRepeats(clone);
+  const repeats = endOfTurnRepeats(clone);
   const steps: Array<Record<string, { attack: number; health: number }>> = [];
   const snap = (): Record<string, { attack: number; health: number }> => {
     const m: Record<string, { attack: number; health: number }> = {};

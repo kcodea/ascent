@@ -162,7 +162,12 @@ export type EffectFactoryId =
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryFreeRollsAndBuffShop' // Demonic Anomaly: Battlecry — gain free refreshes + buff the current tavern
-  | 'onRollConsumeShop'; // Acid: every N refreshes, consume a random tavern minion (stats gained × golden)
+  | 'onRollConsumeShop' // Acid: every N refreshes, consume a random tavern minion (stats gained × golden)
+  // --- tavern-spell batch (2026-06-26) ---
+  | 'spellBuffByTier' // Lantern Light: cast — give the target +Tavern Tier / +Tavern Tier (recruit)
+  | 'spellSellToDemon' // Fodder Treatment: cast — sell the target, give its stats to your left-most Demon (recruit)
+  | 'spellReplayBattlecry' // Point Solution: cast — re-trigger a friendly Battlecry minion's Battlecry (recruit)
+  | 'spellExtraEndOfTurn'; // Chrono Staff: cast — your End-of-Turn effects fire 1 extra time this turn (recruit)
 
 export interface EffectDef {
   on: GameEvent;

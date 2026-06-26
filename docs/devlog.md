@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: four tavern spells (Lantern Light, Fodder Treatment, Point Solution, Chrono Staff) + Tara → T4
+
+Owner content batch. Four new tavern spells (all `neutral`, data + a recruit `cast` factory each) and a balance dial:
+
+- **Lantern Light** (T1, 1g, target friendly) — give the target **+Tavern Tier / +Tavern Tier** (e.g. +3/+3 at Tier 3). New factory `spellBuffByTier`; scales with Tier *by design* (no spell-power bonus folded in — flagged).
+- **Fodder Treatment** (T3, 2g, target friendly, `singleCast`) — **sell** the target (gain its base sell value as Gold) and spit its current stats onto your **left-most Demon**, firing that Demon's on-consume payoffs; no Demon → stats wasted but the sell + Gold still happen. New factory `spellSellToDemon` (mirrors `spellDevour` + the Consume `addBuff`/`onConsume` pipeline). Literal stat transfer — the Demon's fodder *multiplier* is not applied (flagged).
+- **Point Solution** (T5, 3g, target friendly) — re-trigger a friendly **Battlecry** minion's Battlecry, reusing Myra's `replayBattlecry` path (so Drakko still amplifies it). New factory `spellReplayBattlecry`. "Only usable on a Battlecry minion" is enforced by a reducer guard: a non-Battlecry target **fizzles** (the spell stays in hand / drag snaps back) rather than being wasted.
+- **Chrono Staff** (T5, 3g, untargeted) — your **End-of-Turn** effects fire **one extra time** this turn (stacks with Chronos, not with itself — a per-turn `extraEotThisTurn` flag, reset at the next turn start). Introduced a shared `endOfTurnRepeats(state) = chronosRepeats + staff` helper, routed through the real EOT **and** both UI previews (`projectEndOfTurnSteps`, Recruit telegraph) so they agree.
+- **Balance:** **Tara → Tier 4** (was T2).
+
+`EffectFactoryId` (core type) + the zod allowlist both gained the four ids. **Files:** `spells.ts` (+4), `dragons.ts` (Tara), `recruit.ts` (4 factories + `endOfTurnRepeats` + 2 preview callers), `reducer.ts` (turn-reset + Point Solution guard), `state.ts` (`extraEotThisTurn`), `index.ts` + `core/types.ts` + `schema.ts`, `Recruit.tsx` (telegraph helper), art (4 webp), `cards.csv`. **Verification:** typecheck + lint + test (389, +6) + build:web green; the Lantern Light spell art renders live (`lanternlight.webp`, naturalWidth > 0). New tests cover each spell + the Tara tier.
+
 ### feat: live combat-text becomes the norm — Grim, Guel, Spirit Worgen show their current value in combat
 
 Owner: "Grim is also not showing its current value in combat. this needs to be the norm across the board." Same gap as Mama Bear, generalized: a scaling card's COMBAT card (`Unit.tsx`) showed the *printed* rule text, while the shop (`Recruit.tsx`) already shows the live magnitude. Audited the whole live-text surface (`cardText.ts`) — every builder, which the combat chain wired vs. only the shop — and closed the combat-relevant gaps:

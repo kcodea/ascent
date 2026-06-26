@@ -164,6 +164,9 @@ export interface RunState {
   spellsCast: number;
   /** Spells cast this turn (reset each wave) — scales Spirit Worgen's per-summon buff. */
   spellsThisTurn: number;
+  /** Chrono Staff: this turn's End-of-Turn effects fire one extra time (a per-turn flag — stacks with
+   *  Chronos, not with itself). Set on cast, reset at the next turn start. Absent = false. */
+  extraEotThisTurn?: boolean;
   /** Player-side Deathrattles triggered across the whole run — Grim's buff scales with this. */
   deathrattlesTriggered: number;
   /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */

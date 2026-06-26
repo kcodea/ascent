@@ -15,6 +15,16 @@ Follow-up to the wave-relative banding. Its band report exposed that high waves 
 **Result (re-bake):** the band histogram went from `b7:212` (a black hole) to an even `b0:5 b1:52 … b7:57`, and every wave now spans `b1–b7` with **16 boards** (was 3–9, all b7) — **392 boards, 61 synthetic**. The "high-wave ceiling" known-limitation from the prior entry is resolved.
 
 **Files:** `rating.ts` (`extra` ladder boards + servable guard), `synthesize.ts` (new) + `index.ts` (export), `build-pool.ts` (ladder with reals + synthesis fill + report), `synthesize.test.ts` (new, +2). **Verification:** `typecheck + lint + test (+2) + build:web` green; `npm run pool` re-baked 392 boards (61 synthetic) in 12s with an even band spread across all waves.
+### feat: Symbiotic Attachment is Magnetic Reborn — grants Reborn to whatever it welds onto
+
+Symbiote's hero-power token (`symbioticattachment`) now carries **Reborn** (`R`) on top of Magnetic — so magnetizing it onto a host grants that host Reborn. Its keywords ride along on the weld via `applyWeld` (which already transfers every non-`M` keyword), so no new plumbing. Played standalone it's a 1/1 Reborn body. A flat power bump to the Symbiote hero: every magnetize now also makes the target come back once.
+
+**Files:** `tokens.ts` (Symbiotic Attachment → `keywords: ['M', 'R']` + text), `run.test.ts` (+1: welding grants the host `R`, not `M`). **Verification:** `typecheck + lint + test (370, +1) + build:web` green.
+### tweak: snappier card hover-reveal debounce
+
+Owner ask: the hover-reveal popup (full card / referenced cards) opens too slowly. Cut the debounce in
+`Card.tsx` — compact cards **220 → 100 ms**, full-text cards **450 → 250 ms** (the `showText ? 250 : 100`
+ternary on the `showRefTip` timeout). Pure timing dial; right-click inspect stays instant.
 
 ### feat: wave-relative board power banding + patch stamping + prune/populate pool lifecycle
 

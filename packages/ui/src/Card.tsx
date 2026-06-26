@@ -231,7 +231,7 @@ export const Card = memo(function Card({
       const estH = r.width * 1.34; // a full card is ~1.34× its width tall — clamp so it stays on-screen
       const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
       setRefPos({ left, top, origin: flip ? 'right' : 'left' });
-    }, showText ? 450 : 220);
+    }, showText ? 250 : 100);
   };
   const hideRefTip = (): void => {
     if (refTimer.current) { window.clearTimeout(refTimer.current); refTimer.current = null; }

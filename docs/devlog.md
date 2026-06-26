@@ -5,6 +5,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: Symbiotic Attachment is Magnetic Reborn — grants Reborn to whatever it welds onto
+
+Symbiote's hero-power token (`symbioticattachment`) now carries **Reborn** (`R`) on top of Magnetic — so magnetizing it onto a host grants that host Reborn. Its keywords ride along on the weld via `applyWeld` (which already transfers every non-`M` keyword), so no new plumbing. Played standalone it's a 1/1 Reborn body. A flat power bump to the Symbiote hero: every magnetize now also makes the target come back once.
+
+**Files:** `tokens.ts` (Symbiotic Attachment → `keywords: ['M', 'R']` + text), `run.test.ts` (+1: welding grants the host `R`, not `M`). **Verification:** `typecheck + lint + test (370, +1) + build:web` green.
 ### tweak: snappier card hover-reveal debounce
 
 Owner ask: the hover-reveal popup (full card / referenced cards) opens too slowly. Cut the debounce in

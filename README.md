@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Symbiote's attachment grants Reborn.** The Symbiotic Attachment (Symbiote's Magnetic token) is now
+  **Magnetic + Reborn** — magnetizing it onto a minion gives that minion Reborn (it comes back once on death).
 - **Wave-relative board power banding + pool maintenance.** Enemy boards are now rated by how strong they are
   **for their wave** (win-rate vs a per-wave bot-calibrated ladder) instead of one fixed gauntlet that saturated
   by mid-game. Boards carry a **patch** stamp; `npm run pool:prune` clears stale boards by date/patch; the

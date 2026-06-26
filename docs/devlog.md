@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: Acid rework + remove Voracious Imp
+
+- **Acid** reworked: now **every 3 refreshes** (was 4) it consumes a tavern minion **and buffs the remaining tavern minions +1/+1** (golden: double the consumed stats + tavern **+2/+2**). The `onRollConsumeShop` factory gained a `tavernBuff` param (golden ×2 via `gold(self)`); the consume became conditional so the tavern buff still lands even when there's nothing to consume. New **Acid2** art (`acid.webp` overwritten). Tier/stats unchanged (T6 7/7).
+- **Voracious Imp removed** — it was the only `fodderMult` demon. Deleted the card, its `CARD_REFERENCES` popup entry, and updated its tests: the general consume-on-roll + buffed-Fodder coverage was **retargeted to a vanilla Demon** (Maw, ×1); the golden-3× multiplier test was **dropped** (no multiplier card remains — `fodderMultiplier` now always returns 1, kept for a future re-add). Not in the opponent pool, so no regen.
+
+**Files:** `demons.ts` (Acid params/text; removed Voracious Imp), `recruit.ts` (`onRollConsumeShop` tavern buff), `Recruit.tsx` (`CARD_REFERENCES`), `run.test.ts` (Acid test + retargeted consume tests), art (`acid.webp`), `cards.csv` (81 minions now). **Verification:** typecheck + lint + test (389) + build:web green; a new test rolls 3× and asserts Acid eats a minion + the remaining offers each carry +1/+1.
+
 ### feat: four tavern spells (Lantern Light, Fodder Treatment, Point Solution, Chrono Staff) + Tara → T4
 
 Owner content batch. Four new tavern spells (all `neutral`, data + a recruit `cast` factory each) and a balance dial:

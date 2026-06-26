@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Acid reworked; Voracious Imp removed.** Acid now triggers every 3 refreshes — consuming a tavern minion
+  and giving the rest +1/+1 (golden doubles both).
 - **Four new tavern spells.** Lantern Light (+Tier/+Tier), Fodder Treatment (sell a minion into your left-most
   Demon), Point Solution (re-trigger a Battlecry), Chrono Staff (End-of-Turn effects fire one extra time). Tara
   moved to Tier 4.

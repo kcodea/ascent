@@ -63,12 +63,11 @@ combinator,Combinator,5,6,7,,,**End of Turn:** magnetize a random **Magnetic** M
 beatboxer,Beatboxer,6,8,8,,,"Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.","Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this."
 nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.","**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**."
 
-# === DEMON (13) ===
+# === DEMON (12) ===
 fodderfeeder,Fodder Feeder,1,1,2,,,"When you **sell** this, add a **Fodder** to your next tavern and give your **Imps +1/+1** everywhere.","When you **sell** this, add **2 Fodder** to your next tavern and give your **Imps +2/+2** everywhere."
 feed,Soulfeeder,1,2,2,,,**Battlecry:** add Fodder to your next tavern.,**Battlecry:** add **2** Fodder to your next tavern.
 trickster,Trickster,1,1,3,,,**Deathrattle:** Give a random friendly minion this minion's Health.,**Deathrattle:** Give a random friendly minion this minion's Health **twice**.
 burialimp,Burial Imp,2,3,3,,,**Deathrattle:** add a Fodder to your next tavern.,**Deathrattle:** add **2** Fodder to your next tavern.
-imp,Voracious Imp,2,2,2,,Consume,Gains **2x** stats from Fodder.,Gains **3x** stats from Fodder.
 brood,Brood Matron,3,3,3,,,"Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+3/+2** permanently.","Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+6/+4** permanently."
 maw,Maw of the Pit,3,4,5,,Taunt,**End of Turn:** add a **Fodder** to your next tavern.,**End of Turn:** add **2** Fodder to your next tavern.
 demonanomaly,Demonic Anomaly,4,4,4,,,**Battlecry:** Gain 2 free refreshes. Give all Tavern minions **+3/+3** this game.,**Battlecry:** Gain **4** free refreshes. Give all Tavern minions **+6/+6** this game.
@@ -76,7 +75,7 @@ heckbinder,Heckbinder (demon/mech),4,3,3,,Magnetic,Magnetize onto a friendly **M
 impking,Imp King,4,6,5,,,**Deathrattle:** Summon 2 **Imps** and give your Imps **+2/+3** permanently.,**Deathrattle:** Summon 2 **Imps** and give your Imps **+4/+6** permanently.
 ritualist,Ritualist,5,2,5,,,"**End of Turn:** give your Imps and Fodder **+2/+2**, wherever they are.","**End of Turn:** give your Imps and Fodder **+4/+4**, wherever they are."
 abhorrenthorror,Abhorrent Horror,6,1,1,,Start of Combat,**Start of Combat:** Gain +Attack/+Health equal to the Fodder consumed this turn.,**Start of Combat:** Gain **double** the Attack/Health of Fodder consumed this turn.
-acid,Acid,6,7,7,,Consume,"Every 4 refreshes, consume a random tavern minion.","Every 4 refreshes, consume a random tavern minion (gain **double** its stats)."
+acid,Acid,6,7,7,,Consume,"Every 3 refreshes, consume a tavern minion and give tavern minions **+1/+1**.","Every 3 refreshes, consume a tavern minion (gain **double** its stats) and give tavern minions **+2/+2**."
 
 # === NEUTRAL (16) ===
 sandbag,Target Dummy,1,0,6,,Taunt,,
@@ -137,7 +136,6 @@ omen,Omen Minion,1,1,1,,,,
 pup,Pup,1,1,1,,,A 1/1 Beast token.,
 sabercub,Saber Cub,1,0,2,,Taunt,A 0/2 Beast with **Taunt**.,
 stray,Stray,1,1,1,,,A 1/1 Beast token.,
-symbioticattachment,Symbiotic Attachment,1,1,1,,Magnetic | Reborn,"**Magnetic**, **Reborn**. Counts as all tribes.",
 discoverspell,Triple Reward,1,0,1,,,**Discover** a minion from one Tier up.,
 whelpling,Whelp,1,3,3,,,A 3/3 Dragon that attacks immediately when summoned.,
 taragosa,Taragosa,2,3,3,,Engraved,"All stats are **Engraved**. When a minion attacks, cast **Growth** (+3/+4 to your minions).","All stats are **Engraved**. When a minion attacks, cast **Growth twice** (+6/+8 to your minions)."

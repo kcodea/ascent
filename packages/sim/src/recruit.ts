@@ -1088,19 +1088,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const every = num(params.every, 4);
     self.rollTick = (self.rollTick ?? 0) + 1;
     if (self.rollTick % every !== 0) return;
+    // Consume a random NON-Fodder tavern minion (gain its stats × golden).
     const choices = ctx.state.shop.filter((s) => {
       const def = CARD_INDEX[s.cardId];
       return def && !def.keywords.includes('FD');
     });
-    if (choices.length === 0) return;
-    const target = pickRandom(ctx.state, choices, 1)[0];
-    if (!target) return;
-    ctx.state.shop = ctx.state.shop.filter((s) => s !== target);
-    const def = CARD_INDEX[target.cardId];
-    if (!def) return;
-    const atkGain = (def.attack + (target.atk ?? 0)) * gold(self);
-    const hpGain = (def.health + (target.hp ?? 0)) * gold(self);
-    addBuff(self, nameOf(self), atkGain, hpGain);
+    const target = choices.length ? pickRandom(ctx.state, choices, 1)[0] : undefined;
+    if (target) {
+      ctx.state.shop = ctx.state.shop.filter((s) => s !== target);
+      const def = CARD_INDEX[target.cardId];
+      if (def) {
+        addBuff(self, nameOf(self), (def.attack + (target.atk ?? 0)) * gold(self), (def.health + (target.hp ?? 0)) * gold(self));
+      }
+    }
+    // Acid's rework: also buff the REMAINING tavern minions +tavernBuff/+tavernBuff (golden ×2) — a per-offer
+    // buff baked in on buy (like Apples), applied even if there was nothing to consume.
+    const tb = num(params.tavernBuff, 0) * gold(self);
+    if (tb > 0) for (const offer of ctx.state.shop) { offer.atk = (offer.atk ?? 0) + tb; offer.hp = (offer.hp ?? 0) + tb; }
   },
 
   /** Forsaken Weaver (recruit half) — when a spell is cast, give your Undead +N Attack wherever they are

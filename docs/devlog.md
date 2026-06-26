@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### feat: divine-shield bubble rebuilt as a custom WebGL energy-sphere SHADER
+
+The bubble was stacked tinted sprites (soft disc + rim + vein streaks) — flat and low-quality. Rebuilt it as
+a **custom fragment shader** (`SHIELD_FRAG` in `pixiFx.ts`, run via `Filter.from` with Pixi's
+`defaultFilterVert`) that draws a glassy energy sphere procedurally: a faked-3D sphere normal → moving
+specular glint, a fresnel rim (curved-glass edge), a scrolling aspect-corrected **hex force-field** lattice,
+drifting value-noise caustics, and a whole-bubble breathe — all on `uTime`. Output is premultiplied gold
+(`uColor`, so the same shader will serve the blue Reborn shield). Used the `pixijs` skills
+(custom-rendering / scene-mesh / scene-container) + read the installed Pixi source to get the exact filter
+vertex + uniform-resource wiring right (a `Filter.from({gl:{fragment}})` with no vertex throws in
+`ensurePrecision` — the default vertex must be passed explicitly).
+
+- **`ShieldBubble`** now holds one white quad `Sprite` + its per-bubble `Filter` (was fill/rim/veins). The
+  container still drives position + the breathe / form-in / fade / mini / pop **scale envelope**; the shader
+  owns all the internal detail + opacity. `uAspect` (card w/h) keeps the hex cells regular on tall cards;
+  `uSeed` de-syncs neighbours.
+- **Layering:** kept the single FX canvas (z110) — it's already bulletproof (nothing with a bubble exceeds
+  it: dragcard z100, hand-hover z45, and shielded cards skip the dust-raise), so a second canvas was
+  unnecessary. Break/pop **particles** still render on this canvas via the pooled system.
+- **Verified**: typecheck + lint + 374 tests + build green; in-app the shader **compiles + links + renders
+  with zero GL errors**, animates (`uTime`), and the mini/pop/break/clear lifecycle all run clean. The actual
+  on-screen look needs an in-game eyeball (preview rAF is frozen) — this is a first shader pass to tune.
+- **Tunables**: the GLSL constants in `SHIELD_FRAG` (hex scale 4.5, rim `smoothstep(0.5,1.0)`, specular pow
+  26, caustic/pulse rates) + `SHIELD_GOLD_RGB`.
+
 ### feat: shield bubble — drag sparkle-trail + coalesce/pop-in on placement
 
 Owner-chosen juice for the held→placed flow (instead of a silent instant re-show): while a shielded card

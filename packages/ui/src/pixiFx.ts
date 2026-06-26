@@ -1,4 +1,72 @@
-import { Application, Container, Graphics, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
+import { Application, Container, defaultFilterVert, Filter, Graphics, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
+
+/**
+ * The divine-shield bubble fragment shader (WebGL, GLSL ES 3.0 via Pixi's `Filter.from`). Procedural — it
+ * ignores the input texture and draws a glassy energy sphere over the filtered quad: a faked-3D sphere
+ * normal drives a moving specular glint; a fresnel term lights the rim like curved glass; a scrolling,
+ * aspect-corrected HEX force-field grid + drifting value-noise caustics give the "energy" read; everything
+ * breathes on `uTime`. Output is premultiplied gold so it tints the unit behind it (see-through center,
+ * bright rim). `uColor` lets the same shader serve the future blue Reborn shield.
+ */
+const SHIELD_FRAG = /* glsl */ `
+in vec2 vTextureCoord;
+out vec4 finalColor;
+uniform float uTime;
+uniform float uAspect;   // card w/h, so the hex cells stay regular on a tall card
+uniform vec3  uColor;    // shield tint (gold for Divine Shield)
+uniform float uSeed;     // per-bubble phase offset so neighbours don't pulse in lockstep
+
+float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float vnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  float a = hash(i), b = hash(i + vec2(1.0,0.0)), c = hash(i + vec2(0.0,1.0)), d = hash(i + vec2(1.0,1.0));
+  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
+}
+// distance to the nearest edge of a hex cell (flat-top), 0 at centre → ~0.5 at edge
+float hexEdge(vec2 p){ p = abs(p); return max(dot(p, vec2(0.5, 0.8660254)), p.x); }
+
+void main(){
+  vec2 p = (vTextureCoord - 0.5) * 2.0;   // -1..1 across the quad
+  float d = length(p);
+  if (d >= 1.0) { finalColor = vec4(0.0); return; }
+
+  // faked sphere normal → moving specular glint (sells the glass)
+  float z = sqrt(max(0.0, 1.0 - d * d));
+  vec3 n = vec3(p, z);
+  vec3 L = normalize(vec3(-0.45, -0.6, 0.65));
+  float spec = pow(max(0.0, dot(reflect(-L, n), vec3(0.0, 0.0, 1.0))), 26.0);
+
+  // fresnel rim — bright glassy edge
+  float rim = pow(smoothstep(0.5, 1.0, d), 2.0);
+
+  // hex force-field: two offset lattices → honeycomb, scrolling + pulsing
+  vec2 hp = p * vec2(uAspect, 1.0) * 4.5;
+  vec2 cell = vec2(1.0, 1.7320508);
+  vec2 h1 = mod(hp, cell) - cell * 0.5;
+  vec2 h2 = mod(hp + cell * 0.5, cell) - cell * 0.5;
+  vec2 hh = dot(h1, h1) < dot(h2, h2) ? h1 : h2;
+  float edge = smoothstep(0.36, 0.5, hexEdge(hh));
+  float hexPulse = 0.55 + 0.45 * sin(uTime * 1.6 + (vTextureCoord.x + vTextureCoord.y) * 6.0 + uSeed);
+  float hex = edge * (0.3 + 0.5 * hexPulse);
+
+  // drifting energy caustics
+  float e = vnoise(p * 3.0 + vec2(uTime * 0.30, -uTime * 0.22) + uSeed)
+          + 0.5 * vnoise(p * 6.0 - vec2(uTime * 0.25, uTime * 0.30));
+  float energy = 0.12 + 0.22 * e;
+
+  float pulse = 0.85 + 0.15 * sin(uTime * 1.1 + uSeed);   // whole-bubble breathe
+
+  float bodyA = (0.16 + energy * 0.5) * pulse;            // translucent interior
+  float alpha = clamp(bodyA + rim * 0.85 + hex * 0.5, 0.0, 0.92);
+  alpha *= smoothstep(1.0, 0.94, d);                      // soft outer edge
+
+  vec3 col = uColor * (bodyA + rim * 1.3 + hex) * pulse;
+  col += vec3(1.0, 0.96, 0.85) * spec * 1.5;              // white-gold specular glint
+  col += uColor * rim * 0.6;                              // rim bloom
+
+  finalColor = vec4(col * alpha, alpha);                  // premultiplied
+}
+`;
 
 /**
  * The WebGL effects layer — a single transparent PixiJS overlay stretched over the whole
@@ -39,9 +107,8 @@ interface Particle {
  */
 interface ShieldBubble {
   container: Container;
-  fill: Sprite;          // translucent golden body (see-through)
-  rim: Sprite;           // bright additive edge highlight
-  veins: Sprite[];       // faint drifting energy streaks
+  sprite: Sprite;        // a plain quad the shield FRAGMENT SHADER (filter) draws the energy sphere onto
+  filter: Filter;        // the per-bubble shield shader (its uTime/uAspect animate each frame)
   cx: number; cy: number; // target center (viewport px)
   w: number; h: number;   // target footprint (the card's size)
   age: number;            // ms lived — drives the breathe phase + vein drift
@@ -52,20 +119,16 @@ interface ShieldBubble {
   scaleMul: number;       // current size multiplier (lerps toward 1 or MINI_SCALE; the pop drives it directly)
 }
 
-// Shield-bubble feel (tunable live via window.__pixiFx in DEV). The texture art is generated at radius
-// ~BUBBLE_TEX_R; the container is scaled per-unit to fit the card's footprint.
-const BUBBLE_TEX_R = 40;       // generated bubble texture radius (px) before per-unit scaling
+// Shield-bubble feel (tunable live via window.__pixiFx in DEV). The shield shader draws into a quad of
+// half-size BUBBLE_TEX_R; the container is scaled per-unit to fit the card's footprint.
+const BUBBLE_TEX_R = 40;       // shader quad half-size (px) before per-unit scaling
 const BUBBLE_MARGIN = 1.12;    // bubble size vs the card footprint (slightly proud of the edge)
-const BUBBLE_BODY_ALPHA = 0.5; // translucency of the golden body — high enough to pop, still see-through
-const BUBBLE_RIM_ALPHA = 0.95; // brightness of the additive rim highlight
-const BUBBLE_VEIN_ALPHA = 0.6; // base brightness of the drifting energy veins
-const BREATHE_MS = 2600;       // slow pulse period
+const BREATHE_MS = 2600;       // slow pulse period (the shader also breathes on its own clock)
 const FORM_MS = 260;           // grow-in when a shield is gained
 const FADE_MS = 200;           // graceful fade when a shield is cleared without breaking
 const MINI_SCALE = 0.3;        // bubble size while dragging (a small trailing sparkle of the card)
 const POP_MS = 320;            // coalesce/pop-in duration when a dragged card is placed
-const BUBBLE_GOLD = 0xffd24a;  // body tint
-const BUBBLE_RIM_GOLD = 0xffe9a8; // brighter rim tint
+const SHIELD_GOLD_RGB = [1.0, 0.82, 0.29]; // Divine-Shield shader tint (0xffd24a in 0..1 rgb)
 
 class FxController {
   private app: Application | null = null;
@@ -482,32 +545,28 @@ class FxController {
     let b = this.shields.get(uid);
     if (!b) {
       const container = new Container();
-      const fill = new Sprite(this.bubbleTex!);
-      fill.anchor.set(0.5);
-      fill.tint = BUBBLE_GOLD;
-      fill.alpha = BUBBLE_BODY_ALPHA;
-      fill.blendMode = 'normal'; // tint the unit (additive would just wash the cream board to white)
-      const rim = new Sprite(this.rimTex!);
-      rim.anchor.set(0.5);
-      rim.tint = BUBBLE_RIM_GOLD;
-      rim.blendMode = 'add';     // bright glassy edge catching light
-      rim.alpha = BUBBLE_RIM_ALPHA;
-      const veins: Sprite[] = [];
-      const VEIN_COUNT = 4;
-      for (let i = 0; i < VEIN_COUNT; i++) {
-        const v = new Sprite(this.veinTex!);
-        v.anchor.set(0.5);
-        v.tint = BUBBLE_RIM_GOLD;
-        v.blendMode = 'add';
-        v.alpha = BUBBLE_VEIN_ALPHA;
-        v.rotation = (i / VEIN_COUNT) * Math.PI; // fan the streaks across the bubble
-        veins.push(v);
-        container.addChild(v);
-      }
-      container.addChild(fill, rim);
+      // A plain white quad (2·BUBBLE_TEX_R) that the shield shader draws onto via a per-bubble Filter. The
+      // container scales it to the card footprint; the fragment masks it to an ellipse, so the quad never shows.
+      const sprite = new Sprite(Texture.WHITE);
+      sprite.anchor.set(0.5);
+      sprite.width = sprite.height = BUBBLE_TEX_R * 2;
+      const filter = Filter.from({
+        gl: { vertex: defaultFilterVert, fragment: SHIELD_FRAG },
+        resources: {
+          shieldUniforms: {
+            uTime: { value: 0, type: 'f32' },
+            uAspect: { value: w / Math.max(1, h), type: 'f32' },
+            uColor: { value: new Float32Array(SHIELD_GOLD_RGB), type: 'vec3<f32>' },
+            uSeed: { value: (this.shields.size % 7) * 1.3, type: 'f32' }, // de-sync neighbours' pulses
+          },
+        },
+      });
+      filter.padding = 2;
+      sprite.filters = [filter];
+      container.addChild(sprite);
       container.alpha = 0;
       this.shieldLayer.addChild(container);
-      b = { container, fill, rim, veins, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
+      b = { container, sprite, filter, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
             mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1 };
       this.shields.set(uid, b);
     } else {
@@ -728,10 +787,8 @@ class FxController {
         life *= 1 - fT;
         if (fT >= 1) { b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
       }
-      // slow breathe — a clearly-visible scale + opacity pulse
-      const phase = (b.age / BREATHE_MS) * Math.PI * 2;
-      const breatheScale = 1 + Math.sin(phase) * 0.055;
-      const breatheAlpha = 0.88 + Math.sin(phase) * 0.12;
+      // a subtle container size-breathe (the SHADER handles the internal energy/brightness pulse on uTime)
+      const breatheScale = 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04;
       // drag-mini / placement-pop size: the pop drives an ease-out-back overshoot from mini → full; otherwise
       // the size eases toward its target (full=1, dragging=MINI_SCALE) so pickup/drop shrink+grow smoothly.
       if (b.pop >= 0) {
@@ -745,21 +802,18 @@ class FxController {
         const target = b.mini ? MINI_SCALE : 1;
         b.scaleMul += (target - b.scaleMul) * Math.min(1, dt * 14);
       }
-      // fit the radius-BUBBLE_TEX_R art to the unit footprint (non-uniform → ellipse)
+      // fit the BUBBLE_TEX_R quad to the unit footprint (non-uniform → ellipse)
       const sx = (b.w * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
       const sy = (b.h * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
       const grow = breatheScale * extraScale * b.scaleMul;
       b.container.x = b.cx;
       b.container.y = b.cy;
       b.container.scale.set(sx * grow, sy * grow);
-      b.container.alpha = life * breatheAlpha;
-      // veins fade out as the bubble shrinks toward a sparkle (so the mini state reads as a glint, not a tiny bubble)
-      const veinFade = Math.max(0, Math.min(1, (b.scaleMul - MINI_SCALE) / (1 - MINI_SCALE)));
-      for (let vi = 0; vi < b.veins.length; vi++) {
-        const v = b.veins[vi]!;
-        v.rotation += (vi % 2 === 0 ? 0.3 : -0.22) * dt;
-        v.alpha = veinFade * BUBBLE_VEIN_ALPHA * (0.6 + 0.4 * (0.5 + 0.5 * Math.sin(phase + vi * 2.1)));
-      }
+      b.container.alpha = life; // form-in / fade / mini envelope; the shader owns its internal opacity
+      // drive the shield shader
+      const u = (b.filter.resources.shieldUniforms as { uniforms: Record<string, number> }).uniforms;
+      u.uTime = b.age / 1000;
+      u.uAspect = b.w / Math.max(1, b.h);
     }
   };
 

@@ -698,6 +698,33 @@ describe('simulate (handoff A.3)', () => {
     expect(r0.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // no spell power → base
   });
 
+  it("Gnasher's kill raises spell power LIVE — Taragosa's Growth jumps from 3/4 to 4/5 the same fight", () => {
+    const p: BoardMinion[] = [
+      { cardId: 'gnash', attack: 20, health: 40 },
+      { cardId: 'taragosa', attack: 3, health: 40, keywords: ['EG'] },
+      { cardId: 'karthus', attack: 1, health: 40 }, // 3rd minion → player attacks first
+    ];
+    const e: BoardMinion[] = [
+      { cardId: 'pup', attack: 1, health: 1, keywords: ['T'] }, // Taunt → Gnasher kills it → +1/+1 spell power
+      { cardId: 'omen', attack: 1, health: 400 },
+    ];
+    const a = run(p, e, 1); // spell power starts at 0
+    const growth = a.events.filter((ev) => ev.type === 'buff' && ev.attack >= 3).map((ev) => (ev.type === 'buff' ? `${ev.attack}/${ev.health}` : ''));
+    expect(growth).toContain('3/4'); // Growth before the kill (spell power 0)
+    expect(growth).toContain('4/5'); // after Gnasher's kill bumped spell power +1/+1 — read LIVE, same fight
+  });
+
+  it("Forsaken Weaver procs PERMANENTLY from an in-combat spell (Taragosa's Growth) — undeadBuyAtk carries back", () => {
+    const p: BoardMinion[] = [
+      { cardId: 'taragosa', attack: 6, health: 20, keywords: ['EG'] },
+      { cardId: 'forsakenweaver', attack: 5, health: 20 },
+      { cardId: 'karthus', attack: 4, health: 20 }, // an Undead to receive the bonus
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 2, health: 80 }];
+    const a = run(p, e, 3);
+    expect(a.playerUndeadBuyAtkGain).toBeGreaterThan(0); // each Growth = a spell cast → Forsaken Weaver banks +2 permanently
+  });
+
   it('Gnasher keeps attacking after killing a Reborn target', () => {
     // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
     // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned

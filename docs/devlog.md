@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-25 (session 5)
 
+### fix: in-combat spell casts feed spell power LIVE + proc Forsaken Weaver permanently
+
+Two fixes to how mid-combat spell casts (Taragosa's Growth) feed the spell-driven effects:
+
+1. **Live spell power (Gnasher → Taragosa's Growth).** Taragosa's Growth scales with `ctx.spellPower`, which was frozen at combat start — so Gnasher's on-kill +1/+1 spell power (and Bladesmith deaths) landed in a *separate* carry-back delta and didn't reach Growth until the next fight. Fix: `ctx.spellPower` is now a mutable local that `grantSpellPower` bumps **in place** (alongside the carry-back `spellPowerGain`), so Growth — and any spell scaled mid-fight — reads the gain in real time. Verified: with Gnasher killing a chump, Taragosa's Growth jumps **3/4 → 4/5** the same fight.
+
+2. **Forsaken Weaver procs permanently in combat.** Its `spellCast` handler already fired mid-combat (Taragosa's Growth calls `ctx.castSpell`, which emits `spellCast`), but the combat factory `spellCastBuffUndeadAttack` only granted a *temporary* combat buff. Fix: it now also `ctx.grantUndeadBuyAtk(amount)` — exactly like Karthus and its own recruit half — so the +2 Undead Attack carries back, stacks into `undeadBuyAtk`, and applies to the run-board Undead at settle. Verified: `playerUndeadBuyAtkGain` is now `> 0` from an all-in-combat Growth chain (was nothing).
+
+**Files:** `packages/core/src/combat/simulate.ts` (live `spellPower`), `packages/core/src/effects/factories.ts` (Forsaken Weaver carry-back), `simulate.test.ts` (+2). **Verification:** `typecheck + lint + test (376, +2) + build:web` green. *(Part of a batch — next up: Spirit Pup counting in-combat spells + mid-combat ascension for Tara/Spirit Pup.)*
+
 ### fix: Reborn fires the unit's Deathrattle on every death + carries Undead buffs through rebirth
 
 Owner clarified how Reborn should work; two bugs in `killOrReborn` (`simulate.ts`):

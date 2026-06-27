@@ -111,7 +111,7 @@ void main(){
   float e = vnoise(p * 3.0 + vec2(uTime * 0.30, -uTime * 0.22) + uSeed)
           + 0.5 * vnoise(p * 6.0 - vec2(uTime * 0.25, uTime * 0.30));
   float energy = 0.12 + 0.22 * e;
-  float pulse = 1.0;   // whole-bubble breathe REMOVED — steady (was 0.85 + 0.15*sin; the bob isn't wanted)
+  float pulse = 0.85 + 0.15 * sin(uTime * 1.1 * 0.85 + uSeed);   // whole-bubble colour breathe (speed 0.85)
 
   float bodyA = (0.16 + energy * 0.5) * pulse * 0.00;   // translucent interior (tuned OFF)
   float alpha = clamp(bodyA + rim * 0.85 + hex * 0.5, 0.0, 0.92) * mask;
@@ -1017,8 +1017,9 @@ class FxController {
         life *= 1 - fT;
         if (fT >= 1) { b.shader.destroy(); b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
       }
-      // a subtle container size-breathe (the SHADER handles the internal energy/brightness pulse on uTime)
-      const breatheScale = 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04;
+      // a subtle container size-breathe — REBORN only. The divine shield holds a steady size now (only its
+      // colour/energy pulse, owned by the shader, breathes); the wispy reborn sibling still bobs in size.
+      const breatheScale = b.kind === 'shield' ? 1 : 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04;
       // drag-mini / placement-pop size: the pop drives an ease-out-back overshoot from mini → full; otherwise
       // the size eases toward its target (full=1, dragging=MINI_SCALE) so pickup/drop shrink+grow smoothly.
       if (b.pop >= 0) {

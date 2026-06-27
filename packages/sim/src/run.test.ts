@@ -368,20 +368,6 @@ describe('run loop (@game/sim)', () => {
     expect(cleric?.health).toBe(7); // 4 + 3
   });
 
-  it('Toxin Tender grants Venomous to the minion you target after playing it', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 3,
-      hand: [],
-      board: [{ uid: 'g', cardId: 'spore', tribe: 'undead', attack: 1, health: 2, keywords: [], golden: false }],
-      shop: [{ uid: 'x', cardId: 'toxin' }],
-    };
-    s = reduce(s, { type: 'buy', uid: 'x' });
-    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'g' }); // pick the friendly Undead target after playing
-    expect(s.board.find((c) => c.cardId === 'spore')?.keywords).toContain('V');
-  });
-
   it("Ritualist's End of Turn buffs all Fodder — existing copies and the run-level card buff", () => {
     let s: RunState = {
       ...createRun(1),
@@ -2305,46 +2291,6 @@ describe('run loop (@game/sim)', () => {
     expect([m.attack, m.health]).toEqual([4, 5]); // 1/1 + 3/4 once
   });
 
-  it('Toxin Tender is player-targeted: its Battlecry waits, then grants Venomous to the chosen minion', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 3,
-      hand: [],
-      board: [
-        { uid: 'big', cardId: 'skullblade', tribe: 'undead', attack: 6, health: 6, keywords: [], golden: false },
-        { uid: 'mid', cardId: 'spore', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false },
-      ],
-      shop: [{ uid: 'x', cardId: 'toxin' }],
-    };
-    s = reduce(s, { type: 'buy', uid: 'x' });
-    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    // Played to the board, but the Battlecry waits for a target — nothing has Venomous yet.
-    expect(s.pendingTarget?.cardId).toBe('toxin');
-    expect(s.board.some((c) => c.keywords.includes('V'))).toBe(false);
-    // Pick 'mid', NOT the highest-attack 'big' — proving it's the player's choice, not an auto-carry.
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'mid' });
-    expect(s.pendingTarget).toBeUndefined();
-    expect(s.board.find((c) => c.uid === 'mid')?.keywords).toContain('V');
-    expect(s.board.find((c) => c.uid === 'big')?.keywords).not.toContain('V');
-  });
-
-  it('an unresolved Toxin Tender target auto-resolves on the carry when the turn ends', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 3,
-      hand: [],
-      board: [{ uid: 'big', cardId: 'skullblade', tribe: 'undead', attack: 6, health: 6, keywords: [], golden: false }],
-      shop: [{ uid: 'x', cardId: 'toxin' }],
-    };
-    s = reduce(s, { type: 'buy', uid: 'x' });
-    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    expect(s.pendingTarget?.cardId).toBe('toxin');
-    s = reduce(s, { type: 'faceOmen' }); // end the turn without picking → grant lands on the carry (the eligible Undead)
-    expect(s.pendingTarget).toBeUndefined();
-    expect(s.board.find((c) => c.uid === 'big')?.keywords).toContain('V');
-  });
-
-
   it('tripling combines current stats (top two) and unions keywords', () => {
     const mk = (uid: string, attack: number, health: number, keywords: ('V' | 'T')[]): BoardCard => ({
       uid, cardId: 'sandbag', tribe: 'neutral', attack, health, keywords, golden: false,
@@ -2440,7 +2386,7 @@ describe('run loop (@game/sim)', () => {
     addBuff(card, 'Spirit Fire', 3, 3);
     addBuff(card, 'Spirit Fire', 3, 3);
     addBuff(card, 'Karwind', 1, 2);
-    addBuff(card, 'Toxin Tender', 0, 0); // keyword-only → not listed as a stat buff
+    addBuff(card, 'Plaguebringer', 0, 0); // keyword-only → not listed as a stat buff
     expect([card.attack, card.health]).toEqual([2 + 6 + 1, 1 + 6 + 2]);
     expect(card.buffs).toEqual([
       { source: 'Spirit Fire', attack: 6, health: 6, count: 2 },
@@ -2701,20 +2647,6 @@ describe('hero powers (@game/sim)', () => {
     expect(s.heroReady).toBe(false);
     // Once per turn: a second use this wave is rejected.
     expect(reduce(s, { type: 'heroPower', uid: 'c' })).toBe(s);
-  });
-
-  it("Myra's Pulse auto-targets a targeted Battlecry (Toxin Tender → best friend gets Venomous)", () => {
-    const s: RunState = {
-      ...createRun(1, 'myra'),
-      wave: 3,
-      board: [
-        { uid: 't', cardId: 'toxin', tribe: 'undead', attack: 1, health: 3, keywords: [], golden: false },
-        { uid: 'f', cardId: 'skullblade', tribe: 'undead', attack: 5, health: 5, keywords: [], golden: false }, // highest-attack Undead friend → auto-picked
-      ],
-    };
-    const after = reduce(s, { type: 'heroPower', uid: 't' });
-    expect(after.board.find((c) => c.uid === 'f')!.keywords).toContain('V');
-    expect(after.heroReady).toBe(false);
   });
 
   it("Myra's Pulse no-ops (no charge spent) on a minion with no Battlecry", () => {
@@ -3608,46 +3540,6 @@ describe('content batch: new minions (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
     const target = s.board.find((c) => c.uid === 't')!;
     expect([target.attack, target.health]).toEqual([7, 6]); // 2/2 + 5/4
-  });
-
-  it('Toxin Tender (toxin) grants Venomous to a friendly Undead you target', () => {
-    let s: RunState = {
-      ...createRun(1),
-      board: [card('u', 'spore', 'undead', 1, 2)], // a friendly Undead
-      hand: [card('tt', 'toxin', 'undead', 3, 1)],
-    };
-    s = reduce(s, { type: 'play', uid: 'tt' });
-    expect(s.pendingTarget?.cardId).toBe('toxin'); // waits for a friendly-Undead pick
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'u' });
-    expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('V');
-  });
-
-  it('Toxin Tender with no friendly Undead plays without a prompt and grants nothing', () => {
-    let s: RunState = {
-      ...createRun(1),
-      board: [card('b', 'stray', 'beast', 1, 1)], // no friendly Undead (self not yet on board)
-      hand: [card('tt', 'toxin', 'undead', 3, 1)],
-    };
-    s = reduce(s, { type: 'play', uid: 'tt' });
-    expect(s.pendingTarget).toBeUndefined(); // no viable Undead → no targeting prompt
-    expect(s.board.find((c) => c.uid === 'b')?.keywords ?? []).not.toContain('V'); // Beast never gets it
-  });
-
-  it("Toxin Tender's auto-pick (face-Omen carry) only grants Venomous to a friendly Undead", () => {
-    // Two Undead present + the played Toxin Tender; ending the turn mid-pick auto-resolves on the
-    // highest-attack *Undead* carry — never a higher-attack off-tribe minion.
-    let s: RunState = {
-      ...createRun(1),
-      board: [
-        card('big', 'gnash', 'beast', 9, 9), // highest attack, but NOT Undead → ineligible
-        card('u', 'spore', 'undead', 4, 4), // the eligible Undead carry
-        card('tt', 'toxin', 'undead', 3, 1), // the played Toxin Tender (pending target)
-      ],
-      pendingTarget: { uid: 'tt', cardId: 'toxin' },
-    };
-    s = reduce(s, { type: 'faceOmen' });
-    expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('V'); // Undead carry got it
-    expect(s.board.find((c) => c.uid === 'big')?.keywords ?? []).not.toContain('V'); // Beast did not
   });
 
   it('Grave Knit (knit) run-wide +3/+2 carry-back lands in settleCombat — board, hand, and future copies', () => {

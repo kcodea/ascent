@@ -3,7 +3,7 @@ import type { CardDef } from '@game/core';
 /**
  * Undead (handoff A.7) — Venomous application + Deathrattle value. Answers Ironwall
  * (Venomous melts giant Taunts) and Glass Cannon (Venomous trades up; bodies absorb).
- * Toxin Tender / Plaguebringer grant Venomous (+Windfury) at recruit; the rest pay
+ * Plaguebringer grants Venomous (+Windfury) at recruit; the rest pay
  * off in combat (Deathrattles, Reborn, an innate Venomous body). Venomous now drops off
  * after its first proc in combat (one-shot per fight unless re-granted).
  */
@@ -18,19 +18,6 @@ export const UNDEAD: CardDef[] = [
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffAllRandomStat', params: { amount: 1 } }],
     text: '**Deathrattle:** Give all friends **+1 Attack** or **+1 Health** (random).',
-  },
-  {
-    id: 'toxin',
-    name: 'Toxin Tender',
-    tribe: 'undead',
-    tier: 5,
-    attack: 3,
-    health: 1,
-    keywords: [],
-    target: 'friendly',
-    targetTribe: 'undead',
-    effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['V'] } }],
-    text: '**Battlecry:** give a friendly **Undead** **Venomous**.',
   },
   {
     id: 'knit',

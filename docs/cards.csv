@@ -33,7 +33,7 @@ stuntdrake,Stuntdrake,5,3,7,,,**Avenge (3):** give this minion's Attack to 2 oth
 bane,Bane (dragon/demon),6,12,12,,,"After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.","After you trigger a Battlecry, give Fodder and Imps **+4/+4** this run."
 cryptdrake,Crypt Drake (dragon/undead),6,4,10,,,"When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.","When an ally attacks, give your minions **+4/+4**. Improve this every **3** attacks."
 
-# === UNDEAD (14) ===
+# === UNDEAD (13) ===
 spore,Sporeling,1,1,2,,,**Deathrattle:** Give all friends **+1 Attack** or **+1 Health** (random).,
 deathswarmer,Deathswarmer,2,2,2,,,**Battlecry:** Give your Undead **+1 Attack** wherever they are.,**Battlecry:** Give your Undead **+2 Attack** wherever they are.
 knit,Eternal Knight,2,3,2,,,"When an **Eternal Knight** dies in combat, all Eternal Knights gain **+3/+2** permanently.",
@@ -46,7 +46,6 @@ ryme,Ryme,4,5,3,,,**Deathrattle:** Trigger an adjacent minion's **Battlecry**.,*
 karthus,Karthus,5,8,8,,Divine Shield,"When this kills an enemy, give your Undead **+3 Attack** permanently. (Golden: +6)","When this kills an enemy, give your Undead **+6 Attack** permanently."
 sergeant,Sergeant,5,6,6,,,**Deathrattle:** Give your minions **+2 Health**. Improves each time Sergeant gains Attack.,**Deathrattle:** Give your minions **+4 Health**. Improves **+4** each time Sergeant gains Attack.
 thunderingabomination,Thundering Abomination,5,4,7,,Engraved,"**Engraved.** Whenever a friendly minion is summoned in combat, gain **+3/+3**. Overflow summons give your Undead **+2/+2**.","**Engraved.** Whenever a friendly minion is summoned, gain **+6/+6**. Overflow summons give your Undead **+4/+4**."
-toxin,Toxin Tender,5,3,1,,,**Battlecry:** give a friendly **Undead** **Venomous**.,
 forsakenweaver,Forsaken Weaver,6,5,8,,,"When you cast a spell, give your Undead **+2 Attack** wherever they are.","When you cast a spell, give your Undead **+4 Attack** wherever they are."
 
 # === MECH (12) ===

@@ -17,6 +17,29 @@ down (and the last-5-seconds `sfx.tick` kept firing) on those screens, where the
   closes (no refill). The hero-picker pause was already handled (`heroSelecting`).
 - **Verified**: typecheck + lint + `build:web` green; dev server HMR'd clean. (The symptom was the audible
   tick + visible countdown on the Hall of Champions — now silent/frozen there.)
+### feat: opponent selection — fully random within a source-priority cascade (Supabase → local → synthetic)
+
+Reworked `pickOpponent` so you always face real *player* boards when any exist for your wave, picked at
+random instead of power-matched. Same-wave matching (development stage) is unchanged; within the wave the
+pick now follows a source priority and is otherwise uniform random:
+1. **Supabase** — boards from the live shared pool (freshest, from other players), then
+2. **local** — your own captured / imported friend boards, then
+3. **synthetic** — the committed pool floor.
+
+It serves uniformly at random from the highest non-empty tier (no similar-power bias), falling to synthetic
+only when no real board exists for the wave.
+
+- **`sim/snapshot.ts`** — new optional `remote?: boolean` on `BoardSnapshot`. `origin` can't tell a
+  Supabase board from a local capture (both are `'self'`), so this flag marks the live-shared-pool boards.
+- **`sim/opponents.ts`** (`pickOpponent`) — replaced the "sort by |power − yours|, pick among the closest 3"
+  bias with a tier cascade (`remote` → `self`/`friend` → rest) and a uniform `rng.int(tier.length)` pick.
+  Still seeded (replays stay byte-identical within a session); `power` is now ignored (kept in the signature
+  so the recruit preview + call sites are untouched).
+- **`ui/remoteBoards.ts`** (`fetchAndRegisterPool`) — stamps fetched boards `remote: true` before registering.
+- **Verified**: typecheck + lint + `build:web` + full suite green (**402 tests**). New test covers the
+  cascade (remote > local > synthetic, even when remote's power is far from yours) and that selection is
+  fully random within a tier (both same-tier boards appear across seeds). The existing wave-match /
+  real-preference / widen / empty-pool test still passes. Dev server HMR'd clean.
 
 ### tweak: Taunt bulwark — size back to 1.34, shift down to 8px
 

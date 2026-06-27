@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Leaderboard buff breakdown.** Right-clicking a champion's minion in the Hall of Champions now shows how it
+  was buffed (Spirit Fire ×2, Golden Touch, …) in the inspect panel — for boards captured from here on.
 - **Taunt bulwark.** Taunt minions now sit behind a silver-metal heater shield (rendered *behind* the card,
   peeking out around the edges) that deploys with a thwap + a light smoke plume and a "thunk" sound. The old
   corner Taunt badge is retired (the aura signifies it now); a DEV tuner lets the shield's shape/tint/size be

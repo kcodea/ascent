@@ -1496,6 +1496,21 @@ describe('simulate (handoff A.3)', () => {
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(9); // base 3 + Lantern 3 + Eternal-Knight 3
   });
 
+  it('Eternal Knight Reborn keeps its accrued stacks: a 5-stack Knight dies (→6) and Reborns at 6 stacks', () => {
+    // A Knight that entered with 5 prior stacks of its run-wide enchant (+3/+2 each = +15/+10, carried into
+    // combat on its buff breakdown under the card's own name) at base 3/2 → 18/12. It dies, banking a 6th
+    // stack this fight, and Reborns: base 3/2 + 6 stacks (15/10 prior + 3/2 this fight = 18/12) = 21/14.
+    const p: BoardMinion[] = [{
+      cardId: 'knit', attack: 18, health: 12, keywords: ['R'],
+      buffs: [{ source: 'Eternal Knight', attack: 15, health: 10, count: 5 }],
+    }];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 20, health: 200 }]; // out-trades the Knight → forces the Reborn
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1);
+    const reborn = a.events.find((ev) => ev.type === 'reborn');
+    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(21); // base 3 + (15 prior + 3 this fight)
+    expect(reborn && reborn.type === 'reborn' && reborn.hp).toBe(14); // base 2 + (10 prior + 2 this fight)
+  });
+
   it('Lantern of Souls: the spell-power component also raises Undead Health', () => {
     // +4 Attack / +1 Health (the spell-power scaling): a 1/2 Sporeling (Undead) enters combat at 5/3.
     const p: BoardMinion[] = [{ cardId: 'spore', attack: 1, health: 2, sourceUid: 'u' }];

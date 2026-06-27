@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Fix: Eternal Knight Reborn keeps its stacks.** A Reborning Eternal Knight no longer sheds its accrued
+  run-wide enchant — a 5-stack Knight that dies returns at 6 stacks instead of dropping back to 1.
 - **Balance: Displacement / Displace can't target goldens.** The Displacement spell and Darah's Displace power
   no longer accept a golden (triple) minion — you can't trade away a triple for a random tavern minion.
 - **Wave stakes in the top bar.** Under the WAVE meter, a small "♥ Max −N" line shows the most Resolve a loss

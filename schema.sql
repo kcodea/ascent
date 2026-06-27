@@ -31,6 +31,31 @@ drop policy if exists "anon insert boards"  on public.boards;
 create policy "anon read boards"   on public.boards for select to anon using (true);
 create policy "anon insert boards"  on public.boards for insert to anon with check (true);
 
+-- ── runs — completed-run log for the leaderboard ("Hall of Champions") ─────────────────────────────────────
+-- One row per completed VICTORY run (15 wins). `board` holds the final winning warband (shown on hover in the
+-- leaderboard). Separate from `boards` (which feeds the opponent pool). The UI inserts only victories today;
+-- the `result` column leaves room to log losses later (the tabled dev-tracker).
+create table if not exists public.runs (
+  id          uuid primary key default gen_random_uuid(),
+  patch       text not null,
+  hero_id     text not null,
+  author      text,
+  wave        int  not null,           -- the wave the run won at ("Survived all N waves")
+  wins        int,
+  result      text not null,           -- 'victory' (future: 'gameover')
+  seed        bigint,
+  board       jsonb,                   -- the final BoardSnapshot (winning warband) for the hover reveal
+  captured_at date,
+  created_at  timestamptz default now()
+);
+create index if not exists runs_result_created on public.runs (result, created_at desc);
+
+alter table public.runs enable row level security;
+drop policy if exists "anon read runs"   on public.runs;
+drop policy if exists "anon insert runs"  on public.runs;
+create policy "anon read runs"   on public.runs for select to anon using (true);
+create policy "anon insert runs"  on public.runs for insert to anon with check (true);
+
 -- ── Maintenance (run by hand in the SQL Editor when needed) ────────────────────────────────────────────────
 -- Clear everything EXCEPT the current patch (the "regenerate per balance patch" op):
 --   delete from public.boards where patch not like '0.1.0+%';

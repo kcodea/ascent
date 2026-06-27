@@ -63,6 +63,7 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
     // it's chipped below 5 — it doesn't flip to red/neutral the instant combat begins.
     baseAttack: (def?.attack ?? 0) * goldMul, baseHealth: (def?.health ?? 0) * goldMul,
     floorAttack: u.baseAttack, floorHealth: u.baseHealth,
+    buffs: u.buffs, // per-source breakdown (recruit + combat) for the right-click inspect panel
   };
   return (
     <div className={cls} data-uid={u.uid}>

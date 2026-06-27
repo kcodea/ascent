@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import gsap from 'gsap';
-import type { CombatEvent, CombatResult, Keyword, MinionSnapshot, Tribe } from '@game/core';
+import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { sfx } from './sfx';
 import { pixiFx } from './pixiFx';
@@ -33,6 +33,10 @@ export interface UnitFrame {
   hpGrantBonus?: number;
   /** Thundering Abomination (Engraved): permanent stat gains accrued mid-combat. */
   permaGain?: { attack: number; health: number };
+  /** Per-source buff breakdown for the right-click inspect panel: the recruit-phase buffs this minion
+   *  entered the fight with (carried in the snapshot), plus the combat `buff` events it gains as the log
+   *  folds — merged by source name. Mirrors the shop inspect's breakdown. */
+  buffs?: MinionBuff[];
   /** Combat-start stats — the values this unit *entered the fight* with (for tokens, its summon stats).
    *  This is the in-combat baseline for the green/red stat colouring: health below it reads red
    *  (damaged), attack below it reads red (debuffed), above reads green (buffed). It is NOT the printed
@@ -71,7 +75,17 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   hpGrantBonus: s.hpGrantBonus, // Sergeant: seed the live combat text from the run-board accrual (frame 1)
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   baseAttack: s.attack, baseHealth: s.health, // the stats it entered the fight (or was summoned) with
+  // Clone the recruit-buff breakdown so the per-beat fold can merge in combat buffs without mutating the snapshot.
+  buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,
 });
+
+/** Merge one buff into a per-source breakdown (find-and-sum by source, else push) — the combat counterpart
+ *  of sim's recruit `bumpBuff`, used to fold `buff` events into a unit's inspect breakdown. */
+function recordBuff(buffs: MinionBuff[], source: string, attack: number, health: number): void {
+  const e = buffs.find((b) => b.source === source);
+  if (e) { e.attack += attack; e.health += health; e.count += 1; }
+  else buffs.push({ source, attack, health, count: 1 });
+}
 
 /**
  * Fold the event log up to `upto` into the live board state. Deaths from *before*
@@ -84,6 +98,7 @@ function computeFrame(
   events: CombatEvent[],
   upto: number,
   beatStart: number,
+  names: Map<string, string>,
 ): { player: UnitFrame[]; enemy: UnitFrame[] } {
   const player = initial.player.map(fromSnap);
   const enemy = initial.enemy.map(fromSnap);
@@ -114,6 +129,7 @@ function computeFrame(
         u.divineShield = e.keywords.includes('DS');
         u.baseAttack = e.attack; // a returned minion is "fresh" — its stats become the new baseline
         u.baseHealth = e.hp;
+        u.buffs = undefined; // back at base stats — the old buff breakdown no longer applies
       }
     } else if (e.type === 'reveal') {
       const u = find(e.target);
@@ -130,6 +146,11 @@ function computeFrame(
       if (u) {
         u.attack += e.attack;
         u.health += e.health;
+        // Itemize the buff under its source for the inspect panel (combat buffs merge alongside recruit ones).
+        if (e.attack !== 0 || e.health !== 0) {
+          u.buffs ??= [];
+          recordBuff(u.buffs, names.get(e.source) ?? 'Combat', e.attack, e.health);
+        }
         // Tara: tally stat-grants on minions with ascendAt toward their ascend threshold.
         if ((e.attack !== 0 || e.health !== 0) && CARD_INDEX[u.cardId]?.ascendAt) {
           u.ascendProgress = (u.ascendProgress ?? 0) + 1;
@@ -707,8 +728,8 @@ export function useCombatReplay(
   // every dead minion so the result shows only survivors.
   const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.start ?? 0);
   const frame = useMemo(
-    () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart) : { player: [], enemy: [] }),
-    [combat, events, processedEnd, beatStart],
+    () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart, names) : { player: [], enemy: [] }),
+    [combat, events, processedEnd, beatStart, names],
   );
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks

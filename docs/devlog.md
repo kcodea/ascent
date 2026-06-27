@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### fix: Eternal Knight Reborn dropped its accrued stacks
+
+An Eternal Knight that Reborned came back having shed every prior stack of its run-wide enchant. A Knight
+carrying 5 stacks (base 3/2 + 15/10 = 18/12) that died — banking a 6th stack — should Reborn at base + 6
+stacks = 21/14; instead it returned at 6/4 (base + only the single stack banked *this* fight).
+
+Cause: on Reborn the body resets to base CardDef stats, then `applyCardTypeCarryThrough` re-applied only the
+amount banked **this** fight (`cardBuffGains`). The stacks accrued in **prior** fights live baked into the
+run-board stats, so resetting to base discarded them. They weren't available to combat before — but PR #77
+now carries each minion's per-source buff breakdown into the combat snapshot, where the run-wide enchant
+appears under the card's own name ("Eternal Knight", the label `settleCombat` gives the carried-back buff).
+
+- **`core/combat/simulate.ts`** (`applyCardTypeCarryThrough`): the Reborn carry-through now sums BOTH parts —
+  the prior-fight stacks read off `m.buffs` (source === the card's own name) AND this fight's `cardBuffGains`
+  — and re-applies the total on top of base. Still Undead-gated; general stat / Imp / Fodder buffs don't carry.
+- **Verified**: typecheck + lint + `build:web` + full suite green (**399 tests**). New test: a 5-stack Knight
+  dies and Reborns at 21/14 (base 3/2 + 15/10 prior + 3/2 this fight). The existing single-stack Reborn +
+  Lantern carry-through test still passes (prior = 0 → unchanged).
+
 ### feat: restore the "Clear my boards" button in the Esc menu
 
 Brought back a one-tap way to wipe this browser's captured finished-run boards (`boardLibrary`,

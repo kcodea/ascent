@@ -51,6 +51,11 @@ export interface BoardSnapshot {
   /** Provenance of this board in the opponent pool (self / friend / house / synthetic). Optional for
    *  back-compat with legacy captures; missing → treated as 'house'. Stamped by the capture/build layer. */
   origin?: BoardOrigin;
+  /** True for boards pulled from the live Supabase shared pool this session (stamped in `fetchAndRegisterPool`).
+   *  `origin` can't distinguish these — another player's uploaded board and your own local capture are both
+   *  `'self'` — so `pickOpponent` uses this flag to prefer the live shared pool. Absent for committed +
+   *  local-captured boards. */
+  remote?: boolean;
   /** Display name of the board's author — you or a friend. Shown on the opponent frame ("by Sam"). */
   author?: string;
   /** ISO date (YYYY-MM-DD) the board was captured or generated. Wall-clock, so it's stamped by the UI/tool

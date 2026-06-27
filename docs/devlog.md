@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### tweak: Reborn aura — bake the arched-card silhouette + per-badge cutouts into `REBORN_FRAG`
+
+Replaced the reborn aura's rounded-box SDF with a **polygon-outline SDF** that traces the game's actual
+**arched card** silhouette (dome top → vertical sides → rounded bottom), plus **four elliptical cutouts**
+that carve the glow off the tier pill / attack / medallion / health badges. The shape was sculpted live in
+an **in-chat WebGL shape editor** (the exact `REBORN_FRAG` running in the user's browser with draggable
+outline + cutout handles, since the headless preview can't animate) and the tuned values baked back as GLSL
+constants — no texture, no perf cost (pure analytic SDF).
+
+- **`pixiFx.ts`**: `REBORN_FRAG` now defines `const vec2 PTS[15]` (the outline, quad coords, y-down) +
+  `CP[4]`/`CR[4]` (cutout centres/radii); `sdPoly()` (iq winding-number polygon SDF) replaces `sdRoundBox`;
+  cutouts loop as soft elliptical falloffs. Tuned dials baked in: corner-round 0.010, `core` k=7, `halo`
+  k=6 (snug glow), warp 0 (steady outline, no jitter), drift speed 0.20, `maxAlpha` 0.40 (subtle). Reborn
+  tint `REBORN_BLUE_RGB` → `[0.32, 0.59, 1.0]`.
+- **Verified**: typecheck + lint + `build:web` green; app boots clean (no crash, Pixi ready). Shader
+  proven via **framebuffer readback** (compiles + links; hollow centre α≈3; bright blue side edges α=102 =
+  the 0.40 cap, blue-dominant; tier + health cutouts α=0). The shape is editable + re-bakeable from the
+  shape-editor widget; re-tune there rather than hand-editing the constants.
+
 ### feat: Reborn aura — blue wispy wraith (generalized the shield aura system to two kinds)
 
 Reborn now gets a persistent **blue wispy/wraith aura** (the spirit that brings the unit back), the sibling

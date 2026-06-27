@@ -104,6 +104,20 @@ uniform float uAspect;
 uniform vec3  uColor;
 uniform float uSeed;
 
+// The card silhouette traced as a closed polygon OUTLINE (quad coords -1..1, y-down; the quad is the card ×
+// the reborn margin, so these points hug the ARCHED card edge — dome top, vertical sides, rounded bottom).
+// Sculpted live in the in-chat shape editor; tweak there and re-bake rather than hand-editing these numbers.
+const int NP = 15;
+const vec2 PTS[15] = vec2[15](
+  vec2( 0.021, -0.687), vec2( 0.335, -0.775), vec2( 0.685, -0.539), vec2( 0.804, -0.331),
+  vec2( 0.827,  0.140), vec2( 0.842,  0.477), vec2( 0.812,  0.833), vec2( 0.267,  0.840),
+  vec2(-0.292,  0.833), vec2(-0.821,  0.807), vec2(-0.843,  0.463), vec2(-0.851,  0.188),
+  vec2(-0.851, -0.122), vec2(-0.761, -0.472), vec2(-0.374, -0.761)
+);
+// Soft elliptical cutouts (centre, radius) that carve the aura off the badges: tier pill, attack, medallion, health.
+const vec2 CP[4] = vec2[4]( vec2( 0.014, -0.828), vec2(-0.590, 0.773), vec2(-0.001, 0.813), vec2( 0.566, 0.759) );
+const vec2 CR[4] = vec2[4]( vec2( 0.490,  0.410), vec2( 0.600, 0.560), vec2( 0.490, 0.270), vec2( 0.670, 0.630) );
+
 float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 float vnoise(vec2 p){
   vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -111,40 +125,49 @@ float vnoise(vec2 p){
   return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
 }
 float fbm(vec2 p){ float v = 0.0, a = 0.55; for (int i = 0; i < 4; i++){ v += a * vnoise(p); p = p * 2.0 + 7.3; a *= 0.5; } return v; }
-// signed distance to a rounded box (half-extents b, corner radius r): <0 inside, 0 on the border, >0 outside
-float sdRoundBox(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r; }
+// signed distance to the polygon PTS: <0 inside, 0 on an edge, >0 outside (iq's winding-number sdf)
+float sdPoly(vec2 p){
+  float d = 1e9, s = 1.0;
+  for (int i = 0; i < NP; i++){
+    int j = (i + NP - 1) % NP;
+    vec2 a = PTS[i], b = PTS[j];
+    vec2 e = b - a, w = p - a;
+    vec2 bb = w - e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0);
+    d = min(d, dot(bb, bb));
+    bvec3 c = bvec3(p.y >= a.y, p.y < b.y, e.x * w.y > e.y * w.x);
+    if (all(c) || all(not(c))) s = -s;
+  }
+  return s * sqrt(d);
+}
 
 void main(){
-  vec2 p = (vUV - 0.5) * 2.0;   // -1..1 over the quad (the quad is the card × a margin, so the card edge ≈ 0.86)
-  // the card's rounded-rect border, traced as a glowing wispy OUTLINE — hollow centre, the art stays clear.
-  float sd = sdRoundBox(p, vec2(0.84, 0.86), 0.28); // sd≈0 sits on the card edge
+  vec2 p = (vUV - 0.5) * 2.0;    // -1..1 over the quad (card edge ≈ the PTS ring; +y is down)
+  // the card's arched border, traced as a glowing OUTLINE — hollow centre, the art stays clear.
+  float sd = sdPoly(p) - 0.010;  // sd≈0 sits on the edge; the small subtract rounds the polygon corners
 
-  // WISP: warp the border with drifting fbm noise so the outline flickers into roiling tendrils
+  // drifting fbm noise feeds the tendril licks (warp tuned to 0 here → the band itself stays steady)
   vec2 q = p * vec2(uAspect, 1.0);
-  float t = uTime * 0.35;
+  float t = uTime * 0.20;
   float n  = fbm(q * 2.6 + vec2(t * 0.5, -t) + uSeed);
   float n2 = fbm(q * 5.2 - vec2(t * 0.8, t * 0.5) + uSeed * 1.9);
-  float warp = (n - 0.5) * 0.30 + (n2 - 0.5) * 0.14;   // jitter the band position → wispy
-  float band = sd + warp;
+  float band = sd;
 
-  float core = exp(-abs(band) * 7.0);   // tight bright outline on the (warped) border
-  float halo = exp(-abs(band) * 2.9);   // soft glow hugging the line — hollow centre (far inside → 0)
-  // tendrils: noise-driven licks, but GATED to the border (exp on |band|) so they don't fill the centre
+  float core = exp(-abs(band) * 7.0);   // tight bright outline on the border
+  float halo = exp(-abs(band) * 6.0);   // a snug glow hugging the line — hollow centre (far inside → 0)
+  // tendrils: noise-driven licks, GATED to the border (exp on |band|) so they don't fill the centre
   float tend = smoothstep(0.46, 0.9, n + 0.25 * n2) * exp(-abs(band) * 3.0);
 
   float pulse = 0.85 + 0.15 * sin(uTime * 1.1 + uSeed);
   float lit = (core * 0.9 + halo * 0.45 + tend * 0.8) * pulse;
-  float fade = smoothstep(0.99, 0.6, max(abs(p.x), abs(p.y))); // don't clip hard at the quad edge
-  float alpha = clamp(lit * fade, 0.0, 0.9);
+  float fade = smoothstep(0.99, 0.55, max(abs(p.x), abs(p.y))); // don't clip hard at the quad edge
+  float alpha = clamp(lit * fade, 0.0, 0.40);
 
-  // CARVE the aura around the card's badges/labels so it doesn't glow over them — the tier pill (top-centre),
-  // the attack/health badges (bottom corners) + the mechanic medallion (bottom-centre). Soft circular cutouts
-  // in quad space (card edge ≈ ±0.86; +y is down). Positions/radii are dialled to the compact-card layout.
+  // CARVE the aura away from each badge so it doesn't glow over them — soft elliptical cutouts in quad space.
   float cut = 0.0;
-  cut = max(cut, smoothstep(0.44, 0.0, length((p - vec2( 0.00, -0.92)) * vec2(0.5, 1.1)))); // TIER pill (wide)
-  cut = max(cut, smoothstep(0.34, 0.0, length( p - vec2(-0.70,  0.86))));                    // ATTACK (BL)
-  cut = max(cut, smoothstep(0.28, 0.0, length( p - vec2( 0.00,  0.99))));                    // medallion (BC)
-  cut = max(cut, smoothstep(0.34, 0.0, length( p - vec2( 0.70,  0.86))));                    // HEALTH (BR)
+  for (int i = 0; i < 4; i++){
+    vec2 dd = (p - CP[i]) / max(CR[i], vec2(0.0001));
+    cut = max(cut, smoothstep(1.0, 0.0, length(dd)));
+  }
   alpha *= 1.0 - cut;
 
   // stay SATURATED blue (uColor-dominant); only a soft bright core, not a white wash
@@ -218,7 +241,7 @@ const FADE_MS = 30;            // graceful fade when a shield is cleared without
 const MINI_SCALE = 0.3;        // bubble size while dragging (a small trailing sparkle of the card)
 const POP_MS = 320;            // coalesce/pop-in duration when a dragged card is placed
 const SHIELD_GOLD_RGB = [1.0, 0.82, 0.29]; // Divine-Shield shader tint (0xffd24a in 0..1 rgb)
-const REBORN_BLUE_RGB = [0.42, 0.72, 1.0]; // Reborn wisp tint (spectral blue)
+const REBORN_BLUE_RGB = [0.32, 0.59, 1.0]; // Reborn wisp tint (spectral blue), tuned in the shape editor
 /** Per-kind aura config: the fragment shader, base colour, and footprint margin (shield sits INSIDE the
  *  card frame; reborn rides slightly PROUD of it so its edge-tracing wisps hug/overhang the card border). */
 const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTint: number; margin: number }> = {

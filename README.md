@@ -27,6 +27,11 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 - **Balance: Displacement / Displace can't target goldens.** The Displacement spell and Darah's Displace power
   no longer accept a golden (triple) minion — you can't trade away a triple for a random tavern minion.
+- **Wave stakes in the top bar.** Under the WAVE meter, a small "♥ Max −N" line shows the most Resolve a loss
+  this wave can cost (the round damage cap) — so you can read the downside before a fight. Hidden in Practice.
+- **Right-click buff tracking in combat.** The inspect panel now itemizes a combat unit's per-source buff
+  breakdown — the recruit buffs it carried into the fight (Spirit Fire, triples, Battlecries) plus the buffs
+  it gains mid-combat (Crypt Drake, auras, Rally), merged by source — matching the shop's right-click panel.
 - **Leaderboard — Hall of Champions.** A title-screen button opens a full, scrollable page of the latest 20
   victory runs, each champion shown with their final winning warband (hover a card for its full text).
 - **Live shared opponent pool (Supabase).** Finished runs auto-sync to a hosted database and load back at

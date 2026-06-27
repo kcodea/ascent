@@ -69,7 +69,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
    frame on the right. Absolutely positioned off `.bar` so it never reflows the top row. */
 .barplayer { position: absolute; top: calc(100% + 8 * var(--u)); left: 0; z-index: 60; font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; color: var(--acc); background: var(--ink); padding: calc(5 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); max-width: calc(220 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); }
+.alt .wavecol { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3 * var(--u)); }
 .alt .w { font-family: 'Outfit'; font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
+/* Round damage cap — the most Resolve a loss this wave can cost, threat-coloured under the wave. */
+.alt .maxdmg { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: 'Outfit'; font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.05em; color: var(--threat-dk); text-transform: uppercase; line-height: 1; }
+.alt .maxdmg svg { width: calc(11 * var(--u)); height: calc(11 * var(--u)); color: var(--threat); }
 .alt .lbl { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
 /* Win counter — gold-accented with a small crown, so the run's wins read at a glance. */
 .alt .lbl.wins { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--acc-dk); font-size: calc(14 * var(--u)); }

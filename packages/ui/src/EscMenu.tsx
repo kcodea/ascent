@@ -4,6 +4,7 @@
  *  controls live here, in a modal nothing can obscure. */
 
 import { useState } from 'react';
+import { clearStoredBoards, loadStoredBoards } from './boardLibrary';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
 
@@ -28,6 +29,20 @@ export function EscMenu({
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
   const [muted, setMuted] = useState(isMuted());
+  // This browser's captured finished-run boards (boardLibrary, localStorage). Wipe them when they go stale
+  // (e.g. after a balance patch). Two-tap confirm so it can't be a misclick. Doesn't touch the live shared
+  // pool or the leaderboard — only this machine's local captures.
+  const [boardCount, setBoardCount] = useState(() => loadStoredBoards().length);
+  const [boardMsg, setBoardMsg] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const clearBoards = (): void => {
+    if (!boardCount) { setBoardMsg('No boards to clear.'); return; }
+    if (!confirmClear) { setConfirmClear(true); setBoardMsg(`Clear all ${boardCount} captured boards? Tap again to confirm.`); return; }
+    clearStoredBoards();
+    setBoardCount(0);
+    setConfirmClear(false);
+    setBoardMsg('Cleared your captured boards.');
+  };
 
   return (
     <div className="escov" onPointerDown={onClose}>
@@ -86,6 +101,14 @@ export function EscMenu({
               <span className="ebs">{o.sub}</span>
             </button>
           ))}
+        </div>
+        <div className="escsec">Saved Boards</div>
+        <div className="escboards">
+          <button className={`escbtn${confirmClear ? ' danger' : ''}`} onPointerDown={clearBoards}>
+            <span className="ebl">{confirmClear ? 'Tap again to clear' : 'Clear my boards'}</span>
+            <span className="ebs">{confirmClear ? `Wipes all ${boardCount} captures` : `${boardCount} saved · wipe stale captures`}</span>
+          </button>
+          {boardMsg && <div className="escboards-msg">{boardMsg}</div>}
         </div>
         <div className="escsec">Run</div>
         <button

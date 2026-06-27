@@ -51,6 +51,7 @@ export function instantiate(
     sourceUid: board.sourceUid,
     rallyMechAtk: rallyMechAtk > 0 ? rallyMechAtk : undefined,
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
+    buffs: board.buffs, // recruit-phase buff breakdown, carried into the snapshot for the combat inspect
     side,
     effects: card.effects,
     dead: false,

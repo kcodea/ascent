@@ -21,6 +21,8 @@ browser with draggable outline + cutout handles + glass-look sliders) and baked 
   density 4.4 / opacity 0.40. Tint `SHIELD_GOLD_RGB` → `[1.0, 0.89, 0.36]`. The physical **size-breathe was
   removed** for the shield — the container ±4% grow/shrink (`breatheScale`, the bob-in/out) is now gated to
   reborn only; the shield holds a steady size while keeping its shader colour/energy pulse (that part stays).
+  The visible **shimmer got +30% speed + swing**: hex force-field pulse 1.6→2.08 speed / 0.45→0.585 swing,
+  whole-bubble colour breathe 0.85→1.105 speed / 0.15→0.195 swing.
 - **`AURA.shield.margin`** 0.84 → **1.16** (matches reborn) so the bubble quad encloses the whole card and
   the polygon coords map to the card edge (the circular bubble used a smaller quad).
 - **Verified**: typecheck + lint + test (395) + `build:web` green; app boots clean (no crash, Pixi ready).

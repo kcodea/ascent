@@ -289,11 +289,8 @@ export const Card = memo(function Card({
       {card.keywords.includes('T') && (
         <span className="tauntward" aria-hidden="true"><Icon name="taunt" /></span>
       )}
-      {/* Divine Shield's signifier is the Pixi shield BUBBLE (pixiFx.setShield, driven from `.card.dscard`
-          in Recruit) — no badge/glow here. Reborn keeps its ward badge. */}
-      {card.keywords.includes('R') && (
-        <span className="kwward reborn" aria-hidden="true"><Icon name="reborn" /></span>
-      )}
+      {/* Divine Shield + Reborn both signify via their Pixi AURA (pixiFx, driven from `.card.dscard` /
+          `.card.reborncard` in Recruit) — no badge/glow here. */}
       {card.keywords.includes('V') && (
         <span className="kwward venom" aria-hidden="true"><Icon name="poison" /></span>
       )}

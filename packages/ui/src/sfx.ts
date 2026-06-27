@@ -43,6 +43,9 @@ let lastTriggerPulse = 0;
 let lastTriggerGlow = 0;
 /** Timestamp (ms) of the last shield-break sound — dedupes shields breaking on the same beat. */
 let lastShieldBreak = 0;
+/** Timestamps (ms) of the last reborn shatter / summon sounds — dedupe simultaneous reborns on a beat. */
+let lastRebornShatter = 0;
+let lastRebornSummon = 0;
 
 // A master limiter every sound routes through, so overlapping clips (landing + voiceline + summon, etc.)
 // can never sum past full scale and hard-clip the output. Configured limiter-style: catch anything above the
@@ -190,6 +193,8 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   clickthock: 0.44,
   cardtouch: 0.5,
   divineshieldbreak: 0.26,
+  rebornshatter: 0.5,
+  rebornsummon: 0.5,
   inspect: 0.5,
   upgrade: 0.39,
   roll: 0.69,
@@ -350,6 +355,22 @@ export const sfx = {
     if (playSample('divineshieldbreak', sampleVol.divineshieldbreak)) return;
     tone({ freq: 900, dur: 0.18, type: 'square', vol: 0.12, slideTo: 200 });
   },
+  // A Reborn aura SHATTERS in combat (the unit dies + its spirit releases). Deduped like shieldBreak.
+  rebornShatter: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastRebornShatter < 60) return;
+    lastRebornShatter = now;
+    if (playSample('rebornshatter', sampleVol.rebornshatter)) return;
+    tone({ freq: 520, dur: 0.22, type: 'sine', vol: 0.11, slideTo: 160 });
+  },
+  // A Reborn unit RE-FORMS (the rebirth/resummon). Its own clip, distinct from the generic summon. Deduped.
+  rebornSummon: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastRebornSummon < 60) return;
+    lastRebornSummon = now;
+    if (playSample('rebornsummon', sampleVol.rebornsummon)) return;
+    tone({ freq: 300, dur: 0.26, type: 'sine', vol: 0.12, slideTo: 620 });
+  },
   temper: () => {
     tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1 });
     tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04 });
@@ -395,7 +416,7 @@ export const sfx = {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
-  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {

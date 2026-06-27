@@ -5,6 +5,69 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### fix: Reborn aura flickered behind the card on placement (z-layering parity with divine shield)
+
+The reborn wisp dropped **behind** the card for ~850ms when a reborn unit was placed/moved on the board —
+the exact bug we'd already fixed for the divine-shield bubble. Cause: `puffOnBoard` raises a freshly-landed
+card to `z-index:111` (above the `.pixifx` overlay at z110) so its landing dust tucks *behind* it. The
+divine-shield fix skipped that raise for `.dscard` cards (keep the bubble in front), but the check was
+hard-coded to `dscard`, so reborn cards (`.reborncard`) still got raised over their own aura.
+
+- **`Recruit.tsx`** (`puffOnBoard`): the skip-raise check is now `AURA_CFGS.some(c => el.classList.contains(
+  c.marker))` — i.e. skip the raise for **any** aura-bearing card (shield OR reborn), driven off the shared
+  config so future aura kinds are covered automatically. Aura-free cards still raise as before.
+- Audited the rest of the divine-shield layering/visibility work for parity: drag mini-sparkle
+  (`cfg.dragKw`), per-marker combat scoping, and the discover/chooseOne hide (whole-layer
+  `setShieldsVisible`) **already** iterate generically over `AURA_CFGS`, so reborn was covered everywhere
+  except this one z-raise. `.pixifx` (z110) is the only overlay cards can out-stack, and `111` was its only
+  offender — fix is complete.
+- **Verified**: typecheck + lint + `build:web` green; app boots clean (no crash, Pixi ready). The live
+  placement (dust + 850ms raise) needs an in-game look — headless can't animate it.
+
+### tweak: Reborn aura — bake the arched-card silhouette + per-badge cutouts into `REBORN_FRAG`
+
+Replaced the reborn aura's rounded-box SDF with a **polygon-outline SDF** that traces the game's actual
+**arched card** silhouette (dome top → vertical sides → rounded bottom), plus **four elliptical cutouts**
+that carve the glow off the tier pill / attack / medallion / health badges. The shape was sculpted live in
+an **in-chat WebGL shape editor** (the exact `REBORN_FRAG` running in the user's browser with draggable
+outline + cutout handles, since the headless preview can't animate) and the tuned values baked back as GLSL
+constants — no texture, no perf cost (pure analytic SDF).
+
+- **`pixiFx.ts`**: `REBORN_FRAG` now defines `const vec2 PTS[15]` (the outline, quad coords, y-down) +
+  `CP[4]`/`CR[4]` (cutout centres/radii); `sdPoly()` (iq winding-number polygon SDF) replaces `sdRoundBox`;
+  cutouts loop as soft elliptical falloffs. Tuned dials baked in: corner-round 0.010, `core` k=7, `halo`
+  k=6 (snug glow), warp 0 (steady outline, no jitter), drift speed 0.20, `maxAlpha` 0.40 (subtle). Reborn
+  tint `REBORN_BLUE_RGB` → `[0.32, 0.59, 1.0]`.
+- **Verified**: typecheck + lint + `build:web` green; app boots clean (no crash, Pixi ready). Shader
+  proven via **framebuffer readback** (compiles + links; hollow centre α≈3; bright blue side edges α=102 =
+  the 0.40 cap, blue-dominant; tier + health cutouts α=0). The shape is editable + re-bakeable from the
+  shape-editor widget; re-tune there rather than hand-editing the constants.
+
+### feat: Reborn aura — blue wispy wraith (generalized the shield aura system to two kinds)
+
+Reborn now gets a persistent **blue wispy/wraith aura** (the spirit that brings the unit back), the sibling
+of the gold divine-shield bubble. Generalized the whole aura system to be **kind-aware** rather than
+duplicating it:
+
+- **`pixiFx.ts`**: a `kind: 'shield' | 'reborn'` threads through the bubble — registry keyed by `kind uid`,
+  shader + colour chosen per kind (`AURA` config). New `REBORN_FRAG` shader: no glassy fresnel/hex; instead
+  a hazy translucent body with drifting fbm-noise wisps that RISE, brighter tendril streaks, a feathered
+  edge, gentle pulse — spectral blue. `setShield/clearShield/breakShield` take a `kind`; the same
+  breathe/mini-sparkle/pop machinery serves both. Reborn break = `rebornShatter` (soft blue bloom + rising
+  smoke wisps + spirit motes, no shards); reborn rebirth = `rebornSummon` (blue wisps converge + rise into
+  the re-formed unit).
+- **`Recruit.tsx`**: `syncShields` generalized to loop over `AURA_CFGS` (`.dscard`→shield, `.reborncard`→
+  reborn) with composite keys, so a unit can carry both. Shield breaks DELAYED (hit→settle→shatter); Reborn
+  breaks IMMEDIATELY on the reborn beat → fires the shatter **and** the re-form summon (so the read is:
+  die → spirit shatters → unit re-forms). All the combat-scope / modal-hide / drag-from-any-source fixes
+  apply to both kinds.
+- **Audio**: new `sfx.rebornShatter` (`rebornshatter.mp3`) + `sfx.rebornSummon` (`rebornsummon.mp3`, a
+  distinct clip from the generic summon), deduped, in the mixer + dev preview.
+- **Removed** (replaced by the aura): the CSS `.reborncard` blue glow/halo/art-border, the rising "reborn
+  tears", and the combat `.unit.reborn` flare/ring. `.reborncard` stays as the tracker's DOM hook.
+- **Verified**: typecheck + lint + 402 tests + build green; framebuffer readback confirms the gold shield
+  still renders (R>G>B) AND the reborn aura renders blue (B>R), both shaders compile (no init errors). The
+  wispy look + the break/summon timing need an in-game eyeball (headless preview freezes Pixi's ticker).
 ### fix(art): retire stale ART_ALIAS so the refreshed art actually shows (guel, heckbinder, demonanomaly, +3)
 
 Follow-up to the art refresh (#73): `art.ts` had a leftover `ART_ALIAS` map that forced 6 cards to render a

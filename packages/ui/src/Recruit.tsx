@@ -25,6 +25,22 @@ const SHIELD_BREAK_DELAY = 300;
 // ms to keep a vanished shield bubble alive before fading it — covers a hand→board PLAY (the card unmounts
 // from hand then remounts on the board under the same uid), so the bubble resumes INSTANTLY, no fade+regrow.
 const SHIELD_CLEAR_GRACE = 280;
+// ms after a Reborn triggers (spirit bursts + unit collapses) before the body RE-FORMS with its summon wisp —
+// matches the `rebornswap` CSS (gone ~38-52%, re-forms ~52-74% of 0.85s), so the read is die → gone → reborn.
+const REBORN_SUMMON_DELAY = 460;
+// The two persistent auras the tracker drives, each marked by a CSS class on the card and a keyword on the
+// drag view. Divine Shield (gold, breaks DELAYED so the read is hit→settle→shatter) + Reborn (blue wisp,
+// breaks IMMEDIATELY on the reborn beat → shatter + re-form summon).
+const AURA_CFGS = [
+  { kind: 'shield', marker: 'dscard', dragKw: 'DS', delayedBreak: true },
+  { kind: 'reborn', marker: 'reborncard', dragKw: 'R', delayedBreak: false },
+] as const;
+const markerOf = (kind: 'shield' | 'reborn'): string => (kind === 'reborn' ? 'reborncard' : 'dscard');
+const ckey = (kind: string, uid: string): string => `${kind}|${uid}`;
+const unkey = (k: string): { kind: 'shield' | 'reborn'; uid: string } => {
+  const i = k.indexOf('|');
+  return { kind: k.slice(0, i) as 'shield' | 'reborn', uid: k.slice(i + 1) };
+};
 
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
@@ -471,77 +487,86 @@ export function Recruit() {
     return r && r.width > 0 ? r : null;
   };
   const syncShields = useCallback((): void => {
-    // Recruit cards carry data-uid on the `.card`; combat cards carry it on the `.unit` wrapper — resolve via
-    // closest so BOTH register (the combat case was the "no shield in combat" bug). DURING COMBAT, only combat
-    // UNITS (`.unit`) get bubbles — a frozen shop / hand card sitting in a data-zone must not keep its bubble
-    // while the combat screen is up (it would float over the arena).
-    const els = document.querySelectorAll<HTMLElement>(
-      inCombatRef.current ? '.unit .card.dscard' : '[data-zone] .card.dscard, .unit .card.dscard',
-    );
-    const seen = new Set<string>();
-    const d = dragRef.current;
-    const dragUid = d?.uid;
-    // Is the card being dragged a shielded one? Read its keywords (the drag's CardView), NOT whether its
-    // original element is still in the dscard set — a hand drag only HIDES the original, but a shop/board
-    // drag REMOVES it. Reading the view is what makes the drag sparkle follow from ANY source.
-    const draggedShielded = !!(d?.active && d.view?.keywords?.includes('DS'));
-    for (const card of els) {
-      const uid = card.closest<HTMLElement>('[data-uid]')?.dataset.uid;
-      if (!uid) continue;
-      if (uid === dragUid) continue; // the dragged card is driven from drag state below, not measured here
-      const r = card.getBoundingClientRect();
-      if (r.width === 0) continue; // not laid out yet (mid-transition) — skip this pass
-      seen.add(uid);
-      pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
-    }
-    // The dragged shielded card: drive a small trailing SPARKLE (mini) from the floating dragcard's transform
-    // (drag state). On drop the next non-mini setShield coalesces it back to the full bubble.
-    if (d?.active && dragUid && draggedShielded) {
-      seen.add(dragUid);
-      pixiFx.setShield(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h, /* mini */ true);
-    }
+    const seen = new Set<string>(); // composite keys `${kind} ${uid}` (a unit can carry both auras)
     const now = performance.now();
-    // Are we mid-animation (combat / a live drag / the post-drop settle)? Only THEN is a vanished bubble
-    // possibly mid-remount and worth a brief grace. Outside that (combat→recruit, roll, tavern-up) it's gone
-    // for good and must clear NOW — the rAF loop isn't running to expire a grace timer, which is exactly why
-    // stale bubbles used to freeze on the shop screen.
+    // Mid-animation (combat / a live drag / post-drop settle)? Only THEN is a vanished aura possibly
+    // mid-remount and worth a grace; otherwise it's gone for good and must clear NOW (no rAF will expire a timer).
     const animating = (): boolean =>
       fightingRef.current || (dragRef.current?.active ?? false) || performance.now() < settleUntilRef.current;
-    // A bubble that just lost its `.dscard`:
-    for (const uid of shieldUidsRef.current) {
-      if (seen.has(uid) || pendingBreakRef.current.has(uid) || pendingClearRef.current.has(uid)) continue;
-      // A COMBAT UNIT still on the field but no longer carrying `.dscard` = it absorbed a hit → shatter
-      // (delayed so the read order is hit → settle → shatter). A non-unit card that left the combat-scoped set
-      // (a frozen shop card when combat opens, a death) is NOT a break — just clear it.
-      const unit = inCombatRef.current ? document.querySelector(`.unit[data-uid="${uid}"]`) : null;
-      if (unit && !unit.querySelector('.card.dscard')) {
-        pendingBreakRef.current.set(uid, now + SHIELD_BREAK_DELAY / combatSpeedRef.current);
-      } else if (inCombatRef.current) {
-        pixiFx.clearShield(uid); // in combat but not a shield-break (frozen shop card / death) → clear now
-      } else if (animating()) {
-        pendingClearRef.current.set(uid, now + SHIELD_CLEAR_GRACE); // mid drag/play → might remount → brief grace
-      } else {
-        pixiFx.clearShield(uid); // static screen → it's gone; fade now (no rAF will come to expire a grace)
+    const d = dragRef.current;
+    const dragUid = d?.uid;
+    // PASS 1 — for each aura kind, register + position every marked card; the dragged card follows from drag
+    // state (works from ANY source — its CardView keywords say if it has the aura). DURING COMBAT only combat
+    // UNITS (`.unit`) get auras, so a frozen shop/hand card can't float its aura over the arena.
+    for (const cfg of AURA_CFGS) {
+      const els = document.querySelectorAll<HTMLElement>(
+        inCombatRef.current
+          ? `.unit .card.${cfg.marker}`
+          : `[data-zone] .card.${cfg.marker}, .unit .card.${cfg.marker}`,
+      );
+      const draggedHas = !!(d?.active && d.view?.keywords?.includes(cfg.dragKw));
+      for (const card of els) {
+        const uid = card.closest<HTMLElement>('[data-uid]')?.dataset.uid;
+        if (!uid || uid === dragUid) continue; // the dragged card is driven from drag state below
+        const r = card.getBoundingClientRect();
+        if (r.width === 0) continue; // not laid out yet (mid-transition)
+        seen.add(ckey(cfg.kind, uid));
+        pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, false, cfg.kind);
+      }
+      if (d?.active && dragUid && draggedHas) {
+        seen.add(ckey(cfg.kind, dragUid));
+        pixiFx.setShield(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h, /* mini */ true, cfg.kind);
       }
     }
-    // Drive scheduled combat breaks: keep the bubble on the (now shield-less) unit until its timer fires.
-    for (const [uid, at] of pendingBreakRef.current) {
+    // PASS 2 — an aura that just vanished from `seen`: a combat break vs a quiet clear (per kind).
+    for (const key of shieldUidsRef.current) {
+      if (seen.has(key) || pendingBreakRef.current.has(key) || pendingClearRef.current.has(key)) continue;
+      const { kind, uid } = unkey(key);
+      // A COMBAT UNIT still on the field but no longer carrying its marker = the aura triggered.
+      const unit = inCombatRef.current ? document.querySelector(`.unit[data-uid="${uid}"]`) : null;
+      const triggered = !!unit && !unit.querySelector(`.card.${markerOf(kind)}`);
+      if (triggered && kind === 'shield') {
+        pendingBreakRef.current.set(key, now + SHIELD_BREAK_DELAY / combatSpeedRef.current); // delayed shatter
+      } else if (triggered) {
+        // REBORN triggered: the spirit BURSTS now as the unit dies + collapses (rebornswap CSS); THEN, after
+        // the brief disappear, the body RE-FORMS with a wispy summon glow. Stagger the two so it reads as
+        // die → gone → reborn (not one simultaneous flash).
+        const r = measureCardRect(uid);
+        pixiFx.breakShield(uid, 'reborn');
+        sfx.rebornShatter();
+        if (r) {
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2, w = r.width, h = r.height;
+          window.setTimeout(() => { pixiFx.rebornSummon(cx, cy, w, h); sfx.rebornSummon(); }, REBORN_SUMMON_DELAY);
+        } else {
+          window.setTimeout(() => sfx.rebornSummon(), REBORN_SUMMON_DELAY);
+        }
+      } else if (inCombatRef.current) {
+        pixiFx.clearShield(uid, kind); // in combat but not a trigger (frozen shop card / death) → clear now
+      } else if (animating()) {
+        pendingClearRef.current.set(key, now + SHIELD_CLEAR_GRACE); // mid drag/play → might remount → brief grace
+      } else {
+        pixiFx.clearShield(uid, kind); // static screen → it's gone; clear now
+      }
+    }
+    // PASS 3 — drive delayed (shield) combat breaks: hold the bubble on the unit until its timer fires.
+    for (const [key, at] of pendingBreakRef.current) {
+      const { kind, uid } = unkey(key);
       if (now >= at || !inCombatRef.current) {
-        pixiFx.breakShield(uid);
+        pixiFx.breakShield(uid, kind);
         sfx.shieldBreak();
-        pendingBreakRef.current.delete(uid);
-        continue; // not re-added to `seen` → it drops out of tracking, won't re-trigger
+        pendingBreakRef.current.delete(key);
+        continue;
       }
       const r = measureCardRect(uid);
-      if (r) pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
-      seen.add(uid); // hold the bubble alive until the shatter
+      if (r) pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, false, kind);
+      seen.add(key);
     }
-    // Pending clears: resume instantly if the card came back this pass; else hold during the grace — but
-    // FLUSH the moment the animation window ends, so a leftover grace can never freeze a bubble on a static screen.
-    for (const [uid, deadline] of pendingClearRef.current) {
-      if (seen.has(uid)) { pendingClearRef.current.delete(uid); continue; } // remounted with its shield → resumed
-      if (now >= deadline || !animating()) { pixiFx.clearShield(uid); pendingClearRef.current.delete(uid); }
-      else seen.add(uid); // keep the bubble alive (last position) across the remount gap
+    // PASS 4 — pending clears: resume if the card came back; else hold during the grace, FLUSH when animation ends.
+    for (const [key, deadline] of pendingClearRef.current) {
+      const { kind, uid } = unkey(key);
+      if (seen.has(key)) { pendingClearRef.current.delete(key); continue; }
+      if (now >= deadline || !animating()) { pixiFx.clearShield(uid, kind); pendingClearRef.current.delete(key); }
+      else seen.add(key);
     }
     shieldUidsRef.current = seen;
   }, []);
@@ -572,7 +597,7 @@ export function Recruit() {
     window.addEventListener('resize', onResize);
     return () => {
       window.removeEventListener('resize', onResize);
-      for (const uid of shieldUidsRef.current) pixiFx.clearShield(uid);
+      for (const key of shieldUidsRef.current) { const { kind, uid } = unkey(key); pixiFx.clearShield(uid, kind); }
       shieldUidsRef.current = new Set();
     };
   }, [syncShields]);
@@ -1626,11 +1651,13 @@ export function Recruit() {
       const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row.warband .card[data-uid="${uid}"]`);
       if (!el) return;
       const r = el.getBoundingClientRect();
-      // A SHIELDED card must keep its bubble in FRONT, so we DON'T raise it above the FX canvas — doing so
-      // would hide the bubble + its coalesce/pop behind the card for the dust's lifetime. The dust just
-      // renders over the card instead (subtle tan puffs; barely noticeable). Unshielded cards raise as before
-      // so their landing dust tucks behind them.
-      if (!el.classList.contains('dscard')) {
+      // A card with a persistent AURA (divine-shield bubble OR reborn wisp) must keep that aura in FRONT, so
+      // we DON'T raise it above the FX canvas — doing so would hide the aura + its coalesce/pop behind the
+      // card for the dust's lifetime (the "effect flickers behind the card on placement" bug). The dust just
+      // renders over the card instead (subtle tan puffs; barely noticeable). Aura-free cards raise as before
+      // so their landing dust tucks behind them. Driven off AURA_CFGS so any future aura kind is covered.
+      const hasAura = AURA_CFGS.some((c) => el.classList.contains(c.marker));
+      if (!hasAura) {
         const prevPos = el.style.position;
         const prevZ = el.style.zIndex;
         el.style.position = 'relative';

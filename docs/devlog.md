@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### art: refresh all minion + hero art (new illustrated masters → optimized WebP)
+
+Re-wired the updated art masters from `C:\Game Assets\Ascent Art\{Minions,Heroes}` — **85 minion/token arts + 12
+hero portraits**.
+
+- **Matched by normalized name, not by hand.** A throwaway tsx matcher (`wire-art.ts`, deleted after) mapped each
+  PascalCase source file → cardId/heroId by comparing the normalized filename to the **live** card/hero names
+  (`ALL_CARDS` / `HEROES`) — so renames are correct automatically (e.g. `EternalKnight.png`→`knit`, whose old
+  README name "Grave Knit" was stale). 79/85 matched cleanly; the other 6 used verified explicit overrides:
+  `ChaosMagnetic`→`symbioticattachment` (the Magnetic chaos token), `Fodder`→`fred`, `JenkinsAndFi`→`jenkins`,
+  `SparePartsDrone`→`drone`, and `Pup1`/`Pup2`→ the two `pup` variants.
+- **Optimized:** `npm run optimize-art` downscaled to ≤512px WebP q85 (and deleted the in-repo PNGs; masters stay
+  out-of-repo). **97 files, 198.8 MB → 4.96 MB (97.5% smaller)** — ~2 MB masters → 40–65 KB each.
+- **Not in this batch (kept on existing art):** `gryphon`, `tara`/`taragosa`, `betterbot`, `acid`,
+  `demonanomaly`, `abhorrenthorror`, `sandbag`, `discoverspell` (no source file provided); `omen` never needs art.
+
+**Verification:** typecheck + build:web green; restarted the dev server (the glob compiles at startup) and
+confirmed **live in-preview** — hero portraits (picker + hero panel + opponent frame), shop minions, and the
+Chaos Attachment token all render the new art; 8/8 visible art images loaded, **0 broken**, no console errors.
+
 ### feat: leaderboard — "Hall of Champions" (latest victory runs) on the title screen
 
 A **Leaderboard** button on the title screen opens a full-page **Hall of Champions** — the latest 20 victory

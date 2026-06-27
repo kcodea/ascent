@@ -485,7 +485,11 @@ export function Recruit() {
   const measureCardRect = (uid: string): DOMRect | null => {
     const host = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
     const card = host?.matches('.card') ? host : host?.querySelector<HTMLElement>('.card');
-    const r = card?.getBoundingClientRect();
+    // Centre auras on the square ART region (`.archbox`), not the whole `.card`: in the shop a card is
+    // `height:auto` (taller than its art, so the card's centre sits low → the aura looked low), whereas a
+    // combat unit is a fixed square. The archbox is the same `--ccw` square everywhere, so this aligns all rows.
+    const box = card?.querySelector<HTMLElement>('.archbox') ?? card;
+    const r = box?.getBoundingClientRect();
     return r && r.width > 0 ? r : null;
   };
   const syncShields = useCallback((): void => {
@@ -510,7 +514,8 @@ export function Recruit() {
       for (const card of els) {
         const uid = card.closest<HTMLElement>('[data-uid]')?.dataset.uid;
         if (!uid || uid === dragUid) continue; // the dragged card is driven from drag state below
-        const r = card.getBoundingClientRect();
+        // measure the square ART region (`.archbox`), not the height:auto `.card` — see measureCardRect
+        const r = (card.querySelector<HTMLElement>('.archbox') ?? card).getBoundingClientRect();
         if (r.width === 0) continue; // not laid out yet (mid-transition)
         seen.add(ckey(cfg.kind, uid));
         pixiFx.setShield(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, false, cfg.kind);

@@ -36,6 +36,20 @@ uniform float uAspect;   // card w/h, so the hex cells stay regular on a tall ca
 uniform vec3  uColor;    // shield tint (gold for Divine Shield)
 uniform float uSeed;     // per-bubble phase offset so neighbours don't pulse in lockstep
 
+// The card silhouette as a closed polygon (quad coords -1..1, y-down). The shield glass fills this MASK —
+// replacing the old circular clip — so the bubble conforms to the ARCHED card. Sculpted in the shape editor;
+// re-bake from there rather than hand-editing these numbers.
+const int NP = 17;
+const vec2 PTS[17] = vec2[17](
+  vec2( 0.023,-0.795), vec2( 0.349,-0.820), vec2( 0.582,-0.702), vec2( 0.769,-0.509), vec2( 0.853,-0.214),
+  vec2( 0.827, 0.140), vec2( 0.842, 0.477), vec2( 0.843, 0.753), vec2( 0.267, 0.840), vec2(-0.292, 0.833),
+  vec2(-0.834, 0.803), vec2(-0.843, 0.467), vec2(-0.853, 0.189), vec2(-0.871,-0.164), vec2(-0.797,-0.492),
+  vec2(-0.610,-0.702), vec2(-0.322,-0.820)
+);
+// Soft elliptical cutouts (centre, radius) carving the bubble off the badges: tier pill, attack, medallion, health.
+const vec2 CP[4] = vec2[4]( vec2( 0.014,-0.786), vec2(-0.592, 0.761), vec2( 0.005, 0.820), vec2( 0.582, 0.778) );
+const vec2 CR[4] = vec2[4]( vec2( 0.410, 0.260), vec2( 0.400, 0.390), vec2( 0.370, 0.360), vec2( 0.470, 0.480) );
+
 float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 float vnoise(vec2 p){
   vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -44,42 +58,63 @@ float vnoise(vec2 p){
 }
 // distance to the nearest edge of a hex cell (flat-top), 0 at centre → ~0.5 at edge
 float hexEdge(vec2 p){ p = abs(p); return max(dot(p, vec2(0.5, 0.8660254)), p.x); }
+// signed distance to the polygon PTS: <0 inside, 0 on an edge, >0 outside (iq winding-number sdf)
+float sdPoly(vec2 p){
+  float d = 1e9, s = 1.0;
+  for (int i = 0; i < NP; i++){
+    int j = (i + NP - 1) % NP;
+    vec2 a = PTS[i], b = PTS[j];
+    vec2 e = b - a, w = p - a;
+    vec2 bb = w - e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0);
+    d = min(d, dot(bb, bb));
+    bvec3 c = bvec3(p.y >= a.y, p.y < b.y, e.x * w.y > e.y * w.x);
+    if (all(c) || all(not(c))) s = -s;
+  }
+  return s * sqrt(d);
+}
 
 void main(){
   vec2 uv = vUV;               // clean 0..1 straight from the mesh geometry
   vec2 p = (uv - 0.5) * 2.0;   // -1..1 across the quad
-  float d = length(p);
-  if (d >= 1.0) { finalColor = vec4(0.0); return; }
+  float sd = sdPoly(p) - 0.010;  // <0 inside the card silhouette; the small subtract rounds the corners
 
-  // faked sphere normal → moving specular glint (sells the glass)
-  float z = sqrt(max(0.0, 1.0 - d * d));
+  // MASK: the glass fills the silhouette with a soft (edge-softness) feathered edge, minus the badge cutouts.
+  float mask = smoothstep(0.0, -0.110, sd);
+  for (int i = 0; i < 4; i++){
+    vec2 dd = (p - CP[i]) / max(CR[i], vec2(0.0001));
+    mask *= 1.0 - smoothstep(1.0, 0.0, length(dd));
+  }
+  if (mask <= 0.001) { finalColor = vec4(0.0); return; }
+
+  // faked dome normal (radial proxy) → moving specular glint (sells the glass)
+  float d = length(p);
+  float z = sqrt(max(0.0, 1.0 - min(d * d, 1.0)));
   vec3 n = vec3(p, z);
   vec3 L = normalize(vec3(-0.45, -0.6, 0.65));
-  float spec = pow(max(0.0, dot(reflect(-L, n), vec3(0.0, 0.0, 1.0))), 26.0);
+  float spec = pow(max(0.0, dot(reflect(-L, n), vec3(0.0, 0.0, 1.0))), 26.0) * 1.05;
 
-  // fresnel rim — bright glassy edge
-  float rim = pow(smoothstep(0.5, 1.0, d), 2.0);
+  // fresnel RIM hugging the polygon edge (so it conforms to whatever silhouette is sculpted)
+  float rim = exp(-abs(sd) * 5.0) * 1.10;
 
   // hex force-field: two offset lattices → honeycomb, scrolling + pulsing
-  vec2 hp = p * vec2(uAspect, 1.0) * 4.5;
+  vec2 hp = p * vec2(uAspect, 1.0) * 4.4;
   vec2 cell = vec2(1.0, 1.7320508);
   vec2 h1 = mod(hp, cell) - cell * 0.5;
   vec2 h2 = mod(hp + cell * 0.5, cell) - cell * 0.5;
   vec2 hh = dot(h1, h1) < dot(h2, h2) ? h1 : h2;
   float edge = smoothstep(0.36, 0.5, hexEdge(hh));
-  float hexPulse = 0.55 + 0.45 * sin(uTime * 1.6 + (uv.x + uv.y) * 6.0 + uSeed);
-  float hex = edge * (0.3 + 0.5 * hexPulse) * 0.7;   // −30% interior opacity
+  float hexPulse = 0.55 + 0.585 * sin(uTime * 2.08 + (uv.x + uv.y) * 6.0 + uSeed); // +30% speed + swing
+  float hex = edge * (0.3 + 0.5 * hexPulse) * 0.40;   // hex opacity
 
-  // drifting energy caustics
+  // drifting energy caustics feed the translucent interior — interior opacity tuned to 0, so the body drops
+  // out and the shield reads as a hollow rim+hex+glint glass. (Kept wired so the interior is one dial away.)
   float e = vnoise(p * 3.0 + vec2(uTime * 0.30, -uTime * 0.22) + uSeed)
           + 0.5 * vnoise(p * 6.0 - vec2(uTime * 0.25, uTime * 0.30));
   float energy = 0.12 + 0.22 * e;
+  float pulse = 0.85 + 0.195 * sin(uTime * 1.1 * 1.105 + uSeed);   // whole-bubble colour breathe (+30% speed + swing)
 
-  float pulse = 0.85 + 0.15 * sin(uTime * 1.1 + uSeed);   // whole-bubble breathe
-
-  float bodyA = (0.16 + energy * 0.5) * pulse * 0.7;      // translucent interior (−30% opacity)
-  float alpha = clamp(bodyA + rim * 0.85 + hex * 0.5, 0.0, 0.92);
-  alpha *= smoothstep(1.0, 0.94, d);                      // soft outer edge
+  float bodyA = (0.16 + energy * 0.5) * pulse * 0.00;   // translucent interior (tuned OFF)
+  float alpha = clamp(bodyA + rim * 0.85 + hex * 0.5, 0.0, 0.92) * mask;
 
   vec3 col = uColor * (bodyA + rim * 1.3 + hex) * pulse;
   col += vec3(1.0, 0.96, 0.85) * spec * 1.5;              // white-gold specular glint
@@ -240,12 +275,12 @@ const FORM_MS = 260;           // grow-in when a shield is gained
 const FADE_MS = 30;            // graceful fade when a shield is cleared without breaking (near-instant)
 const MINI_SCALE = 0.3;        // bubble size while dragging (a small trailing sparkle of the card)
 const POP_MS = 320;            // coalesce/pop-in duration when a dragged card is placed
-const SHIELD_GOLD_RGB = [1.0, 0.82, 0.29]; // Divine-Shield shader tint (0xffd24a in 0..1 rgb)
+const SHIELD_GOLD_RGB = [1.0, 0.89, 0.36]; // Divine-Shield shader tint, tuned in the shape editor
 const REBORN_BLUE_RGB = [0.32, 0.59, 1.0]; // Reborn wisp tint (spectral blue), tuned in the shape editor
 /** Per-kind aura config: the fragment shader, base colour, and footprint margin (shield sits INSIDE the
  *  card frame; reborn rides slightly PROUD of it so its edge-tracing wisps hug/overhang the card border). */
 const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTint: number; margin: number }> = {
-  shield: { frag: SHIELD_FRAG, rgb: SHIELD_GOLD_RGB, tint: 0xffd24a, rimTint: 0xffe9a8, margin: 0.84 },
+  shield: { frag: SHIELD_FRAG, rgb: SHIELD_GOLD_RGB, tint: 0xffd24a, rimTint: 0xffe9a8, margin: 1.16 },
   reborn: { frag: REBORN_FRAG, rgb: REBORN_BLUE_RGB, tint: 0x6ab0ff, rimTint: 0xbfe2ff, margin: 1.16 },
 };
 const auraKey = (kind: AuraKind, uid: string): string => `${kind}|${uid}`;
@@ -982,8 +1017,9 @@ class FxController {
         life *= 1 - fT;
         if (fT >= 1) { b.shader.destroy(); b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
       }
-      // a subtle container size-breathe (the SHADER handles the internal energy/brightness pulse on uTime)
-      const breatheScale = 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04;
+      // a subtle container size-breathe — REBORN only. The divine shield holds a steady size now (only its
+      // colour/energy pulse, owned by the shader, breathes); the wispy reborn sibling still bobs in size.
+      const breatheScale = b.kind === 'shield' ? 1 : 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04;
       // drag-mini / placement-pop size: the pop drives an ease-out-back overshoot from mini → full; otherwise
       // the size eases toward its target (full=1, dragging=MINI_SCALE) so pickup/drop shrink+grow smoothly.
       if (b.pop >= 0) {

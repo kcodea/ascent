@@ -5,6 +5,49 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### fix: three effect-layering bugs (shop shield position, fodder-over-shield, discover on top)
+
+Review feedback on the reshaped divine shield surfaced three layering issues:
+
+- **Shield sat slightly low in the SHOP only.** The aura centres on the card's measured rect, but `.card.compact`
+  is `width:--ccw; height:auto` (taller than its art, so its centre is low), while a combat `.unit` is a fixed
+  `--ccw` square. Fix: `Recruit.tsx` now measures the square **`.archbox`** art region (same in every row) for
+  the aura centre + size, in both `measureCardRect` and the `syncShields` PASS-1 loop — so shop/hand/board align.
+- **Fodder consume swirl hid behind the shield.** `.fodderghost` was z60, under the FX overlay (`.pixifx` z110),
+  so a consumed shielded unit's bubble covered the swirl. Raised `.fodderghost` → **z120** (above the aura); the
+  consume animation now reads in front.
+- **A unit that triggers Discover covered its own menu.** `.discover-ov` (also used by Choose-One) was z50 — below
+  a freshly-placed card's z111 lift. Raised → **z160**, above all effects (FX overlay, card lift, fodder swirl),
+  so Discover/Choose-One is always on top.
+- **Verified**: typecheck + lint + `build:web` green; app boots clean; computed z-indices confirmed live
+  (discover 160 > fodder 120 > pixifx 110). The shop-shield alignment needs an in-game look (headless can't
+  place a shielded shop card).
+
+### tweak: Divine shield conforms to the arched card — polygon mask + cutouts replace the circular clip
+
+Gave the divine-shield bubble the same shape treatment as reborn: it no longer hard-clips to a **circle**
+(which didn't follow the arched card) — the glassy energy-sphere now fills an editable **polygon silhouette**
+of the card, with **four elliptical cutouts** carving it off the tier pill / attack / medallion / health
+badges. Sculpted live in the in-chat divine-shield shape editor (the real `SHIELD_FRAG` glass running in the
+browser with draggable outline + cutout handles + glass-look sliders) and baked back as GLSL constants.
+
+- **`pixiFx.ts`** (`SHIELD_FRAG`): added `const vec2 PTS[17]` (silhouette) + `CP[4]`/`CR[4]` (cutouts) +
+  `sdPoly()`; the old `if (d>=1.0) discard` circular clip → a soft polygon **mask** (edge-softness 0.110,
+  corner-round 0.010) minus the cutouts. The fresnel **rim now hugs the polygon edge** (`exp(-|sd|*5)`) so it
+  conforms to the sculpted shape instead of a circle. Baked look dials: rimAmt 1.10, **interior opacity 0**
+  (hollow rim+hex+glint glass — the body term is kept wired, one dial from re-enabling), specular 1.05, hex
+  density 4.4 / opacity 0.40. Tint `SHIELD_GOLD_RGB` → `[1.0, 0.89, 0.36]`. The physical **size-breathe was
+  removed** for the shield — the container ±4% grow/shrink (`breatheScale`, the bob-in/out) is now gated to
+  reborn only; the shield holds a steady size while keeping its shader colour/energy pulse (that part stays).
+  The visible **shimmer got +30% speed + swing**: hex force-field pulse 1.6→2.08 speed / 0.45→0.585 swing,
+  whole-bubble colour breathe 0.85→1.105 speed / 0.15→0.195 swing.
+- **`AURA.shield.margin`** 0.84 → **1.16** (matches reborn) so the bubble quad encloses the whole card and
+  the polygon coords map to the card edge (the circular bubble used a smaller quad).
+- **Verified**: typecheck + lint + test (395) + `build:web` green; app boots clean (no crash, Pixi ready).
+  Shader proven via **framebuffer readback** — compiles + links; bright gold rim hugging the silhouette
+  (edge α 89, peak α 181, gold-dominant); hollow interior (center α 18); all three sampled cutouts + outside
+  the silhouette masked to α 0. Editable + re-bakeable from the shape-editor widget.
+
 ### fix: tavern consumes (Acid, Consume/Cupcakes, Demon-eats-Fodder) used base stats, not the buffed value
 
 Consuming a buffed tavern minion fed the consumer the minion's **base** stats instead of its current value.

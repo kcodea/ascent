@@ -53,7 +53,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The stage box: centred in the window via absolute inset:0 + margin auto + a fixed --gw/--gh.
    By default it fills the window; the resolution scaler shrinks it. The illustrated board art +
    readability scrim live here (so letterbox bars stay the dark body frame). */
-.app { position: relative; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: linear-gradient(rgba(28, 22, 16, 0.34), rgba(28, 22, 16, 0.46)), url('/board4.png') center / cover no-repeat, var(--bg); border-radius: 2px; }
+.app { position: relative; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: linear-gradient(rgba(28, 22, 16, 0.34), rgba(28, 22, 16, 0.46)), url('/board7.webp') center / cover no-repeat, var(--bg); border-radius: 2px; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
@@ -1409,7 +1409,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Pre-run hero picker — first slice of the Title→Mode→Hero flow (one store flag drives it). */
 .heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The pre-run picker uses the board art, heavily dimmed, as its textured backdrop (the end screen keeps the flat tint). */
-.heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), url('/board4.png') center / cover no-repeat, var(--bg); }
+.heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), url('/board7.webp') center / cover no-repeat, var(--bg); }
 /* Back-to-title button on the hero picker (Ascent + Practice) — matches the leaderboard's Back. */
 .hsback { position: absolute; top: 24px; left: 30px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.22); padding: 10px 18px; border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .hsback:hover { border-color: var(--acc); color: var(--acc); }
@@ -1469,7 +1469,7 @@ body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 .endscreen.won .eyebrow { color: var(--acc); }
 
 /* Title screen — the front door, layered above the hero picker. Mirrors the picker's dimmed-board backdrop. */
-.titlescreen { position: fixed; inset: 0; z-index: 450; display: grid; place-items: center; background: linear-gradient(rgba(22, 15, 9, 0.6), rgba(22, 15, 9, 0.72)), url('/board4.png') center / cover no-repeat, var(--bg); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.titlescreen { position: fixed; inset: 0; z-index: 450; display: grid; place-items: center; background: linear-gradient(rgba(22, 15, 9, 0.6), rgba(22, 15, 9, 0.72)), url('/board7.webp') center / cover no-repeat, var(--bg); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 body:has(.titlescreen) .app { visibility: hidden; }
 body:has(.titlescreen) .statusbar { visibility: hidden; }
 .titlebox { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 96vw; }
@@ -1561,7 +1561,7 @@ svg { width: 18px; height: 18px; }
 .titleactions .titlesettings { margin-top: 0; }
 
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
-.lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: linear-gradient(rgba(22, 15, 9, 0.8), rgba(22, 15, 9, 0.88)), url('/board4.png') center / cover no-repeat, var(--bg); animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: linear-gradient(rgba(22, 15, 9, 0.8), rgba(22, 15, 9, 0.88)), url('/board7.webp') center / cover no-repeat, var(--bg); animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .lbtopbar { display: flex; align-items: center; gap: 18px; padding: 22px 30px 14px; flex: none; }
 .lbback { display: inline-flex; align-items: center; gap: 8px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.22); padding: 10px 18px; border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
 .lbback:hover { border-color: var(--acc); color: var(--acc); }

@@ -111,30 +111,35 @@ float vnoise(vec2 p){
   return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
 }
 float fbm(vec2 p){ float v = 0.0, a = 0.55; for (int i = 0; i < 4; i++){ v += a * vnoise(p); p = p * 2.0 + 7.3; a *= 0.5; } return v; }
+// signed distance to a rounded box (half-extents b, corner radius r): <0 inside, 0 on the border, >0 outside
+float sdRoundBox(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r; }
 
 void main(){
-  vec2 uv = vUV;
-  vec2 p = (uv - 0.5) * 2.0;        // -1..1
-  float d = length(p);
-  if (d >= 1.0) { finalColor = vec4(0.0); return; }
+  vec2 p = (vUV - 0.5) * 2.0;   // -1..1 over the quad (the quad is the card × a margin, so the card edge ≈ 0.86)
+  // the card's rounded-rect border, traced as a glowing wispy OUTLINE — hollow centre, the art stays clear.
+  float sd = sdRoundBox(p, vec2(0.84, 0.86), 0.28); // sd≈0 sits on the card edge
 
-  float falloff = smoothstep(1.0, 0.15, d);   // soft glow, strongest mid, fading out
+  // WISP: warp the border with drifting fbm noise so the outline flickers into roiling tendrils
   vec2 q = p * vec2(uAspect, 1.0);
-  float t = uTime * 0.22;
-  // two drifting noise fields that RISE (− on y) at different rates → roiling spirit-smoke
-  float w1 = fbm(q * 1.7 + vec2(t * 0.5, -t) + uSeed);
-  float w2 = fbm(q * 3.2 - vec2(t * 0.4, t * 1.3) + uSeed * 1.7);
-  float wisp = w1 * 0.6 + w2 * 0.4;
-  float tendril = smoothstep(0.5, 0.85, wisp); // brighter wisp streaks
+  float t = uTime * 0.35;
+  float n  = fbm(q * 2.6 + vec2(t * 0.5, -t) + uSeed);
+  float n2 = fbm(q * 5.2 - vec2(t * 0.8, t * 0.5) + uSeed * 1.9);
+  float warp = (n - 0.5) * 0.30 + (n2 - 0.5) * 0.14;   // jitter the band position → wispy
+  float band = sd + warp;
 
-  float pulse = 0.8 + 0.2 * sin(uTime * 0.85 + uSeed);
-  float bodyA = falloff * (0.08 + 0.26 * wisp) * pulse;   // hazy translucent body
-  float bright = tendril * 0.55 * falloff;
-  float edge = smoothstep(1.0, 0.7, d);                   // very soft feathered edge (no hard rim)
-  float alpha = clamp(bodyA + bright, 0.0, 0.72) * edge;
+  float core = exp(-abs(band) * 7.0);   // tight bright outline on the (warped) border
+  float halo = exp(-abs(band) * 2.9);   // soft glow hugging the line — hollow centre (far inside → 0)
+  // tendrils: noise-driven licks, but GATED to the border (exp on |band|) so they don't fill the centre
+  float tend = smoothstep(0.46, 0.9, n + 0.25 * n2) * exp(-abs(band) * 3.0);
 
-  vec3 col = uColor * (bodyA * 1.25 + bright * 1.5);
-  col += vec3(0.72, 0.86, 1.0) * tendril * 0.45 * falloff; // cool white-blue wisp highlights
+  float pulse = 0.85 + 0.15 * sin(uTime * 1.1 + uSeed);
+  float lit = (core * 0.9 + halo * 0.45 + tend * 0.8) * pulse;
+  float fade = smoothstep(0.99, 0.6, max(abs(p.x), abs(p.y))); // don't clip hard at the quad edge
+  float alpha = clamp(lit * fade, 0.0, 0.9);
+
+  // stay SATURATED blue (uColor-dominant); only a soft bright core, not a white wash
+  vec3 col = uColor * (core * 0.9 + halo * 0.85 + tend * 1.2);
+  col += vec3(0.82, 0.92, 1.0) * core * 0.4;
   finalColor = vec4(col * alpha, alpha);                   // premultiplied
 }
 `;
@@ -197,7 +202,6 @@ interface ShieldBubble {
 // Shield-bubble feel (tunable live via window.__pixiFx in DEV). The shield shader draws into a quad of
 // half-size BUBBLE_TEX_R; the container is scaled per-unit to fit the card's footprint.
 const BUBBLE_TEX_R = 40;       // shader quad half-size (px) before per-unit scaling
-const BUBBLE_MARGIN = 0.84;    // bubble size vs the card footprint (−25% from 1.12 — sits inside the frame)
 const BREATHE_MS = 2600;       // slow pulse period (the shader also breathes on its own clock)
 const FORM_MS = 260;           // grow-in when a shield is gained
 const FADE_MS = 30;            // graceful fade when a shield is cleared without breaking (near-instant)
@@ -205,10 +209,11 @@ const MINI_SCALE = 0.3;        // bubble size while dragging (a small trailing s
 const POP_MS = 320;            // coalesce/pop-in duration when a dragged card is placed
 const SHIELD_GOLD_RGB = [1.0, 0.82, 0.29]; // Divine-Shield shader tint (0xffd24a in 0..1 rgb)
 const REBORN_BLUE_RGB = [0.42, 0.72, 1.0]; // Reborn wisp tint (spectral blue)
-/** Per-kind aura config: the fragment shader + the base colour (gold sphere vs blue wisp). */
-const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTint: number }> = {
-  shield: { frag: SHIELD_FRAG, rgb: SHIELD_GOLD_RGB, tint: 0xffd24a, rimTint: 0xffe9a8 },
-  reborn: { frag: REBORN_FRAG, rgb: REBORN_BLUE_RGB, tint: 0x6ab0ff, rimTint: 0xbfe2ff },
+/** Per-kind aura config: the fragment shader, base colour, and footprint margin (shield sits INSIDE the
+ *  card frame; reborn rides slightly PROUD of it so its edge-tracing wisps hug/overhang the card border). */
+const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTint: number; margin: number }> = {
+  shield: { frag: SHIELD_FRAG, rgb: SHIELD_GOLD_RGB, tint: 0xffd24a, rimTint: 0xffe9a8, margin: 0.84 },
+  reborn: { frag: REBORN_FRAG, rgb: REBORN_BLUE_RGB, tint: 0x6ab0ff, rimTint: 0xbfe2ff, margin: 1.16 },
 };
 const auraKey = (kind: AuraKind, uid: string): string => `${kind}|${uid}`;
 
@@ -670,7 +675,7 @@ class FxController {
    *  the inverse of the break's outward shrapnel. Fired when a dragged shield is set down. */
   private shieldPop(cx: number, cy: number, w: number, h: number, kind: AuraKind = 'shield'): void {
     if (!this.ready) return;
-    const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
+    const rad = Math.max(w, h) * 0.5 * AURA[kind].margin;
     const c = AURA[kind];
     // central flash that blooms as the bubble snaps in
     this.spawn(this.bubbleTex!, {
@@ -720,7 +725,7 @@ class FxController {
     this.shields.delete(key);
     if (!this.ready) return;
     if (kind === 'reborn') { this.rebornShatter(cx, cy, w, h); return; } // wispy spirit release, not shards
-    const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
+    const rad = Math.max(w, h) * 0.5 * AURA[kind].margin;
 
     // 1) CRACK — a bright white-gold flash at the bubble's footprint + a few fracture lines snapping across.
     this.spawn(this.bubbleTex!, {
@@ -776,7 +781,7 @@ class FxController {
   /** The REBORN aura SHATTERS — the wraith spirit releases: a soft blue bloom + drifting/RISING smoke wisps
    *  + a few bright spirit motes streaking up. No hard shards (the wispy counterpart of the glassy shatter). */
   private rebornShatter(cx: number, cy: number, w: number, h: number): void {
-    const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
+    const rad = Math.max(w, h) * 0.5 * AURA.reborn.margin;
     // soft blue bloom that swells + fades
     this.spawn(this.bubbleTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 300, fromScale: (rad / BUBBLE_TEX_R) * 0.8,
@@ -812,7 +817,7 @@ class FxController {
    *  reborn unit + a soft blue flash. The wispy counterpart of a summon poof (fired on the `reborn` beat). */
   rebornSummon(cx: number, cy: number, w: number, h: number): void {
     if (!this.ready) return;
-    const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
+    const rad = Math.max(w, h) * 0.5 * AURA.reborn.margin;
     // soft blue flash as the body knits back together
     this.spawn(this.bubbleTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 320, fromScale: (rad / BUBBLE_TEX_R) * 0.3,
@@ -959,9 +964,10 @@ class FxController {
         const target = b.mini ? MINI_SCALE : 1;
         b.scaleMul += (target - b.scaleMul) * Math.min(1, dt * 14);
       }
-      // fit the BUBBLE_TEX_R quad to the unit footprint (non-uniform → ellipse)
-      const sx = (b.w * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
-      const sy = (b.h * 0.5 * BUBBLE_MARGIN) / BUBBLE_TEX_R;
+      // fit the BUBBLE_TEX_R quad to the unit footprint (non-uniform → ellipse), per-kind margin
+      const margin = AURA[b.kind].margin;
+      const sx = (b.w * 0.5 * margin) / BUBBLE_TEX_R;
+      const sy = (b.h * 0.5 * margin) / BUBBLE_TEX_R;
       const grow = breatheScale * extraScale * b.scaleMul;
       b.container.x = b.cx;
       b.container.y = b.cy;

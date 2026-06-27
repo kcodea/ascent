@@ -3202,6 +3202,28 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     expect(pickOpponent(3, 20, makeRng(7), [])).toBeNull();
   });
 
+  it('pickOpponent source priority: Supabase (remote) > local player > synthetic, fully random within the tier (no power bias)', () => {
+    const mk = (over: Partial<BoardSnapshot>): BoardSnapshot => ({
+      v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
+      minions: [{ cardId: 'frontdrake', attack: 10, health: 10, keywords: [] }], seed: 0, ...over,
+    });
+    const remote3 = mk({ wave: 3, origin: 'self', author: 'Net', power: 999, remote: true }); // far-off power on purpose
+    const self3 = mk({ wave: 3, origin: 'self', author: 'Me', power: 20 });
+    const synth3 = mk({ wave: 3, origin: 'synthetic', power: 20 });
+    // The live shared (remote) board wins even though its power is nowhere near yours — power no longer weights the pick.
+    expect(pickOpponent(3, 20, makeRng(7), [synth3, self3, remote3])?.author).toBe('Net');
+    // No remote at this wave → a local player board is preferred over the synthetic floor.
+    expect(pickOpponent(3, 20, makeRng(7), [synth3, self3])?.author).toBe('Me');
+    // Only synthetic available → serve it (graceful floor).
+    expect(pickOpponent(3, 20, makeRng(7), [synth3])?.origin).toBe('synthetic');
+    // Fully random within a tier: across many seeds, both same-tier remote boards get served (not pinned to one).
+    const a = mk({ wave: 3, origin: 'self', author: 'A', power: 20, remote: true });
+    const b = mk({ wave: 3, origin: 'self', author: 'B', power: 20, remote: true });
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 40; seed++) seen.add(pickOpponent(3, 20, makeRng(seed), [a, b])!.author!);
+    expect(seen).toEqual(new Set(['A', 'B']));
+  });
+
   it('the sim default pool is empty → headless/tests fight procedural omens (the app injects the bootstrap)', () => {
     expect(OPPONENT_POOL.length).toBe(0); // empty here keeps headless runs deterministic-procedural
     const s: RunState = {

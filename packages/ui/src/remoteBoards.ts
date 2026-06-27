@@ -81,7 +81,8 @@ export async function fetchAndRegisterPool(patchPrefix?: string): Promise<number
     if (!result || result.error || !result.data) return 0;
     const snaps = (result.data as { snapshot: BoardSnapshot }[])
       .map((r) => r.snapshot)
-      .filter((s): s is BoardSnapshot => !!s && Array.isArray(s.minions) && s.minions.length > 0);
+      .filter((s): s is BoardSnapshot => !!s && Array.isArray(s.minions) && s.minions.length > 0)
+      .map((s) => ({ ...s, remote: true as const })); // mark as live-shared-pool so pickOpponent prefers them
     registerOpponents(snaps);
     return snaps.length;
   } catch {

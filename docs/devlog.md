@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### tweak: Divine shield conforms to the arched card — polygon mask + cutouts replace the circular clip
+
+Gave the divine-shield bubble the same shape treatment as reborn: it no longer hard-clips to a **circle**
+(which didn't follow the arched card) — the glassy energy-sphere now fills an editable **polygon silhouette**
+of the card, with **four elliptical cutouts** carving it off the tier pill / attack / medallion / health
+badges. Sculpted live in the in-chat divine-shield shape editor (the real `SHIELD_FRAG` glass running in the
+browser with draggable outline + cutout handles + glass-look sliders) and baked back as GLSL constants.
+
+- **`pixiFx.ts`** (`SHIELD_FRAG`): added `const vec2 PTS[17]` (silhouette) + `CP[4]`/`CR[4]` (cutouts) +
+  `sdPoly()`; the old `if (d>=1.0) discard` circular clip → a soft polygon **mask** (edge-softness 0.110,
+  corner-round 0.010) minus the cutouts. The fresnel **rim now hugs the polygon edge** (`exp(-|sd|*5)`) so it
+  conforms to the sculpted shape instead of a circle. Baked look dials: rimAmt 1.10, **interior opacity 0**
+  (hollow rim+hex+glint glass — the body term is kept wired, one dial from re-enabling), specular 1.05, hex
+  density 4.4 / opacity 0.40, breathe 0.85. Tint `SHIELD_GOLD_RGB` → `[1.0, 0.89, 0.36]`.
+- **`AURA.shield.margin`** 0.84 → **1.16** (matches reborn) so the bubble quad encloses the whole card and
+  the polygon coords map to the card edge (the circular bubble used a smaller quad).
+- **Verified**: typecheck + lint + test (395) + `build:web` green; app boots clean (no crash, Pixi ready).
+  Shader proven via **framebuffer readback** — compiles + links; bright gold rim hugging the silhouette
+  (edge α 89, peak α 181, gold-dominant); hollow interior (center α 18); all three sampled cutouts + outside
+  the silhouette masked to α 0. Editable + re-bakeable from the shape-editor widget.
+
 ### feat: restore the "Clear my boards" button in the Esc menu
 
 Brought back a one-tap way to wipe this browser's captured finished-run boards (`boardLibrary`,

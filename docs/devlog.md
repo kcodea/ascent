@@ -21,6 +21,10 @@ arts + 12 hero portraits + 34 spell arts** (the full set — done in passes as t
 - **Spells** (34, also into `art/minions/` — spells share the minion glob) all matched by live name, incl.
   `GoldFont`→`manafont`, `GoldPouch`→`emberpouch`, `RefreshingTexts`→`refreshtexts`, `TripleReward`→`discoverspell`.
 - **Full coverage now:** every non-`omen` card has new art. (`omen` is the anonymous procedural enemy — never needs any.)
+- **Retired the stale `ART_ALIAS` workaround** (`art.ts`): 6 cards (`heckbinder`, `combinator`, `guel`,
+  `demonanomaly`, `manafont`/Gold Font, `emberpouch`/Gold Pouch) were rendering OLD pre-refresh art via aliases
+  pointing at `<id>2`/renamed files (all dated Jun 23). Emptied the map + deleted the 6 stale files so they use
+  their new base-named art. (The owner caught guel + heckbinder; the other 4 had the same latent bug.)
 
 **Verification:** typecheck + build:web green; restarted the dev server (the glob compiles at startup) and
 confirmed **live in-preview** — hero portraits (picker + hero panel + opponent frame), shop minions, and the

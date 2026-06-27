@@ -537,7 +537,7 @@ export function Recruit() {
         // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that
         // disperses outward, fired on the FRONT layer (viewport coords) so it reads around the card.
         if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(ckey('taunt', uid))) {
-          pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+          pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
         set(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, false, cfg.kind);
       }

@@ -7,8 +7,8 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ### art: refresh all minion + hero art (new illustrated masters → optimized WebP)
 
-Re-wired the updated art masters from `C:\Game Assets\Ascent Art\{Minions,Heroes}` — **93 minion/token arts + 12
-hero portraits** (the full set — done in two passes as the owner finished exporting).
+Re-wired the updated art masters from `C:\Game Assets\Ascent Art\{Minions,Heroes,Spells}` — **93 minion/token
+arts + 12 hero portraits + 34 spell arts** (the full set — done in passes as the owner finished exporting).
 
 - **Matched by normalized name, not by hand.** A throwaway tsx matcher (`wire-art.ts`, deleted after) mapped each
   PascalCase source file → cardId/heroId by comparing the normalized filename to the **live** card/hero names
@@ -18,12 +18,15 @@ hero portraits** (the full set — done in two passes as the owner finished expo
   `SparePartsDrone`→`drone`, `TrainingDummy`→`sandbag` ("Target Dummy"), and `Pup1`/`Pup2`→ the two `pup` variants.
 - **Optimized:** `npm run optimize-art` downscaled to ≤512px WebP q85 (and deleted the in-repo PNGs; masters stay
   out-of-repo). **105 files, 216.0 MB → 5.35 MB (97.5% smaller)** — ~2 MB masters → 36–65 KB each.
-- **Only card with no new source:** `discoverspell` (Triple Reward — kept its existing art); `omen` never needs art.
+- **Spells** (34, also into `art/minions/` — spells share the minion glob) all matched by live name, incl.
+  `GoldFont`→`manafont`, `GoldPouch`→`emberpouch`, `RefreshingTexts`→`refreshtexts`, `TripleReward`→`discoverspell`.
+- **Full coverage now:** every non-`omen` card has new art. (`omen` is the anonymous procedural enemy — never needs any.)
 
 **Verification:** typecheck + build:web green; restarted the dev server (the glob compiles at startup) and
 confirmed **live in-preview** — hero portraits (picker + hero panel + opponent frame), shop minions, and the
 Chaos Attachment token render the new art (0 broken, no console errors); the 8 second-pass arts (gryphon, acid,
-tara, taragosa, betterbot, abhorrenthorror, demonanomaly, sandbag) all load at 512×512.
+tara, taragosa, betterbot, abhorrenthorror, demonanomaly, sandbag) and all 34 spell arts load at ≤512×512; a
+spell (Gold Pouch) renders its new art in the shop.
 
 ### feat: leaderboard — "Hall of Champions" (latest victory runs) on the title screen
 

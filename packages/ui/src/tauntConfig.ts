@@ -50,9 +50,9 @@ const DEFAULTS: TauntConfig = {
   colorR: 0.59,
   colorG: 0.59,
   colorB: 0.59,
-  margin: 1.54, // +15% over the tuned 1.34
+  margin: 1.34,
   offsetX: 0,
-  offsetY: 2,
+  offsetY: 8,
   deployMs: 440,
 };
 

@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### tweak: Taunt bulwark — size back to 1.34, shift down to 8px
+
+Dialed the taunt bulwark defaults: `margin` 1.54 → 1.34 (reverting the +15%) and `offsetY` 2 → 8 (a bigger
+downward nudge so the heater sits lower behind the card). `tauntConfig.ts` only. (localStorage tunes still
+override — Reset in the DEV taunt tuner to adopt them.)
+
 ### tweak: Taunt bulwark — +15% size, rigid deploy, +25% dust plume
 
 Three feel tweaks to the taunt bulwark:

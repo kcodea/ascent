@@ -27,6 +27,9 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 - **Leaderboard buff breakdown.** Right-clicking a champion's minion in the Hall of Champions now shows how it
   was buffed (Spirit Fire ×2, Golden Touch, …) in the inspect panel — for boards captured from here on.
+- **Opponents: real player boards, random.** You now face real player boards whenever any exist for your wave
+  — the live Supabase shared pool first, then your local/friend boards, then the synthetic floor — picked at
+  random (no power-matching) within the highest available tier.
 - **Taunt bulwark.** Taunt minions now sit behind a silver-metal heater shield (rendered *behind* the card,
   peeking out around the edges) that deploys with a thwap + a light smoke plume and a "thunk" sound. The old
   corner Taunt badge is retired (the aura signifies it now); a DEV tuner lets the shield's shape/tint/size be

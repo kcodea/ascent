@@ -29,10 +29,16 @@ export const OPPONENT_POOL: BoardSnapshot[] = [];
 /**
  * Pick an opponent by WAVE — you face a board at the same development stage (same amount of shopping). This
  * matters: matching by win count instead served over-developed boards to early players (a wave-5 board with
- * 0 wins — a struggling run — landed on a turn-1 player as Tier-2 units). Then: prefer REAL player/friend
- * boards over house/synthetic, and bias toward a similar-power board for a fair fight, randomizing among the
- * closest few for variety. Widens to the closest wave if none match exactly; null only on an empty pool
- * (→ procedural fallback, rng untouched). Consumes `rng` only when it returns a board.
+ * 0 wins — a struggling run — landed on a turn-1 player as Tier-2 units). Within that wave, opponents are
+ * served by SOURCE PRIORITY and otherwise FULLY RANDOM (no power weighting):
+ *   1) the live Supabase shared pool (`remote`), then
+ *   2) any local player / friend board (`origin` self/friend), then
+ *   3) the committed synthetic floor —
+ * picking uniformly at random within the highest non-empty tier. So you always face real player boards when
+ * any exist (freshest from Supabase first), falling to synthetic only when there are none for the wave.
+ * Widens to the closest wave if none match exactly; null only on an empty pool (→ procedural fallback, rng
+ * untouched). Consumes `rng` only when it returns a board. `power` is retained for signature stability but no
+ * longer weights the pick (selection is fully random within the chosen tier).
  */
 export function pickOpponent(
   wave: number,
@@ -40,6 +46,7 @@ export function pickOpponent(
   rng: Rng,
   pool: BoardSnapshot[] = OPPONENT_POOL,
 ): BoardSnapshot | null {
+  void power; // no longer weights the pick — kept so the call signature (and the recruit preview) stays stable
   if (pool.length === 0) return null;
   // 1) Same WAVE (same development stage); widen to the closest available wave if none match exactly.
   let candidates = pool.filter((s) => s.wave === wave);
@@ -47,12 +54,12 @@ export function pickOpponent(
     const minDist = Math.min(...pool.map((s) => Math.abs(s.wave - wave)));
     candidates = pool.filter((s) => Math.abs(s.wave - wave) === minDist);
   }
-  // 2) Prefer real player/friend boards over house/synthetic at this wave.
+  // 2) Source priority: live Supabase pool → local player/friend boards → committed synthetic floor.
+  const remote = candidates.filter((s) => s.remote);
   const real = candidates.filter((s) => s.origin === 'self' || s.origin === 'friend');
-  const pref = real.length ? real : candidates;
-  // 3) Bias toward similar power (fair fight), randomize among the closest few.
-  const close = [...pref].sort((a, b) => Math.abs(a.power - power) - Math.abs(b.power - power));
-  return close[rng.int(Math.min(3, close.length))] ?? null;
+  const tier = remote.length ? remote : real.length ? real : candidates;
+  // 3) Fully random within the chosen tier (uniform — no similar-power bias).
+  return tier[rng.int(tier.length)] ?? null;
 }
 
 /** A fresh, mutation-safe clone of a snapshot's board for handing to `simulate` (protects the static pool). */

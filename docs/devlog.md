@@ -7,23 +7,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ### art: refresh all minion + hero art (new illustrated masters → optimized WebP)
 
-Re-wired the updated art masters from `C:\Game Assets\Ascent Art\{Minions,Heroes}` — **85 minion/token arts + 12
-hero portraits**.
+Re-wired the updated art masters from `C:\Game Assets\Ascent Art\{Minions,Heroes}` — **93 minion/token arts + 12
+hero portraits** (the full set — done in two passes as the owner finished exporting).
 
 - **Matched by normalized name, not by hand.** A throwaway tsx matcher (`wire-art.ts`, deleted after) mapped each
   PascalCase source file → cardId/heroId by comparing the normalized filename to the **live** card/hero names
   (`ALL_CARDS` / `HEROES`) — so renames are correct automatically (e.g. `EternalKnight.png`→`knit`, whose old
-  README name "Grave Knit" was stale). 79/85 matched cleanly; the other 6 used verified explicit overrides:
+  README name "Grave Knit" was stale). Most matched by name; the rest used verified explicit overrides:
   `ChaosMagnetic`→`symbioticattachment` (the Magnetic chaos token), `Fodder`→`fred`, `JenkinsAndFi`→`jenkins`,
-  `SparePartsDrone`→`drone`, and `Pup1`/`Pup2`→ the two `pup` variants.
+  `SparePartsDrone`→`drone`, `TrainingDummy`→`sandbag` ("Target Dummy"), and `Pup1`/`Pup2`→ the two `pup` variants.
 - **Optimized:** `npm run optimize-art` downscaled to ≤512px WebP q85 (and deleted the in-repo PNGs; masters stay
-  out-of-repo). **97 files, 198.8 MB → 4.96 MB (97.5% smaller)** — ~2 MB masters → 40–65 KB each.
-- **Not in this batch (kept on existing art):** `gryphon`, `tara`/`taragosa`, `betterbot`, `acid`,
-  `demonanomaly`, `abhorrenthorror`, `sandbag`, `discoverspell` (no source file provided); `omen` never needs art.
+  out-of-repo). **105 files, 216.0 MB → 5.35 MB (97.5% smaller)** — ~2 MB masters → 36–65 KB each.
+- **Only card with no new source:** `discoverspell` (Triple Reward — kept its existing art); `omen` never needs art.
 
 **Verification:** typecheck + build:web green; restarted the dev server (the glob compiles at startup) and
 confirmed **live in-preview** — hero portraits (picker + hero panel + opponent frame), shop minions, and the
-Chaos Attachment token all render the new art; 8/8 visible art images loaded, **0 broken**, no console errors.
+Chaos Attachment token render the new art (0 broken, no console errors); the 8 second-pass arts (gryphon, acid,
+tara, taragosa, betterbot, abhorrenthorror, demonanomaly, sandbag) all load at 512×512.
 
 ### feat: leaderboard — "Hall of Champions" (latest victory runs) on the title screen
 

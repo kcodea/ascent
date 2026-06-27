@@ -7,6 +7,7 @@ import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { pixiFx, discoverFx, tauntFx } from './pixiFx';
+import { getDragFeel } from './dragFeel';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -58,6 +59,12 @@ const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a d
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
 const RING = 2 * Math.PI * 17; // countdown ring circumference
+
+/** Build the floating drag-card transform with a CONSISTENT function list, so a CSS transition between the
+ *  rAF lean and the snap/magslide states interpolates cleanly. tx/ty = top-left offset; rotX/rotY = tilt deg. */
+function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY: number, scale: number): string {
+  return `perspective(${persp}px) translate(${tx}px, ${ty}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale}) rotate(-1.5deg)`;
+}
 
 /** The countdown ring — subscribes to the turn clock so ONLY this tiny SVG re-renders each second
  *  (not the whole recruit tree). See turnClock.ts. */
@@ -797,6 +804,53 @@ export function Recruit() {
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
+  // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
+  // motion. Driven by a per-frame rAF that writes the card's transform directly (no React re-render), so it
+  // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
+  // When the card is snapping back or magnet-sliding, React/CSS own the transform instead (see the JSX).
+  const dragCardRef = useRef<HTMLDivElement>(null);
+  const dragMotionRef = useRef({ rx: 0, ry: 0 });
+  const reactDrivesDrag = snapping || magSlide; // these use a CSS transition, not the rAF lean
+  const reactDrivesDragRef = useRef(reactDrivesDrag);
+  reactDrivesDragRef.current = reactDrivesDrag;
+
+  // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
+  // card's render position toward the cursor and tilt it toward its motion, writing the transform straight
+  // to the node each frame. The lag-gap (cursor − render pos) drives BOTH the catch-up and the lean, so a
+  // fast drag leans hard and a stopped cursor settles flat. Pure compositor transform — no layout reads.
+  useLayoutEffect(() => {
+    if (!drag?.active) return;
+    const el = dragCardRef.current;
+    if (!el) return;
+    const m = dragMotionRef.current;
+    const d0 = dragRef.current;
+    if (d0) {
+      m.rx = d0.x; m.ry = d0.y; // start at the cursor so the lift doesn't jump
+      const f = getDragFeel();
+      el.style.transform = dragTransform(f.perspective, m.rx - d0.ox, m.ry - d0.oy, 0, 0, 1.04); // before-paint, no flash
+    }
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number): void => {
+      const dt = Math.min(48, now - last);
+      last = now;
+      raf = requestAnimationFrame(tick);
+      const d = dragRef.current;
+      if (!d || reactDrivesDragRef.current) return; // snap/magslide → React+CSS own the transform
+      const f = getDragFeel();
+      const k = f.follow >= 1 ? 1 : 1 - Math.pow(1 - f.follow, dt / 16.667); // frame-rate-independent catch-up
+      const gx = d.x - m.rx;
+      const gy = d.y - m.ry;
+      m.rx += gx * k;
+      m.ry += gy * k;
+      const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
+      const rotY = clamp(gx * f.tiltPerPx);  // lean left/right into horizontal motion
+      const rotX = clamp(-gy * f.tiltPerPx); // lean up/down into vertical motion
+      el.style.transform = dragTransform(f.perspective, m.rx - d.ox, m.ry - d.oy, rotX, rotY, 1.04);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [drag?.active]);
   // Cached board/shop card rects for spell targeting — populated at drag-start (the board is static
   // during a spell drag: a spell doesn't open an insertion gap), so boardUidAt/shopUidAt hit-test
   // arithmetic instead of calling elementFromPoint every frame. Null outside a spell drag.
@@ -2121,16 +2175,21 @@ export function Recruit() {
 
       {drag?.active && !castingSpell && (
         <div
+          ref={dragCardRef}
           className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}`}
           style={{
             width: drag.w,
             height: drag.h,
-            // pivot scale/rotate around the exact grab point so the card stays under the cursor.
-            // When magnetizing, the card shrinks straight into the Mech (no tilt) so it "absorbs".
+            // pivot scale/rotate/tilt around the exact grab point so the card stays under the cursor.
             transformOrigin: `${drag.ox}px ${drag.oy}px`,
+            // Normal drag: the rAF (above) owns `transform` — a weighted lag + tilt-toward-motion, written
+            // straight to this node, so React re-renders don't fight it. Snap-back / magnet-slide use a CSS
+            // transition instead, so React drives those transforms here (matching function list).
             transform: magSlide
-              ? `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(0.06)`
-              : `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(1.04) rotate(-1.5deg)`,
+              ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 0.06)
+              : snapping
+                ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 1.04)
+                : undefined,
             // accelerate + fade fully out as it shrinks in, so it vanishes cleanly into the Mech
             opacity: magSlide ? 0 : 1,
           }}

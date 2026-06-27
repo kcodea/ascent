@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### feat: weighted card-drag — perspective tilt + a slight lag for heft
+
+Dragged cards (the floating `.dragcard`) now tilt in 3D toward their motion and lag slightly behind the
+cursor, so they feel like they have weight (inspired by the PixiJS perspective-mesh example — but done with
+CSS 3D transforms on the DOM card, not a Pixi mesh, since the card is composed DOM).
+
+- **One signal drives both.** A per-frame rAF (active only while a card is dragged) smooths the card's render
+  position toward the cursor; the *gap* between cursor and render position drives BOTH the catch-up and the
+  lean (`rotateX/rotateY` under a `perspective()`), so a fast drag leans hard and a stopped cursor settles
+  flat. The transform is written straight to the node (no React re-render) → pure compositor, no layout reads.
+- **No fights.** React owns the transform only for the snap-back / magnet-slide states (which use CSS
+  transitions); the normal lean omits `transform` from the style prop so the rAF owns it cleanly. A
+  `useLayoutEffect` writes the first frame before paint (no lift flash). All transforms share one function
+  list (`dragTransform`) so the snap/magslide transitions interpolate smoothly back to flat.
+- **Tunable + DEV tuner.** `dragFeel.ts` holds the dials — `follow` (lag; lower = heavier), `tiltPerPx`
+  (lean), `tiltMax` (cap), `perspective` — persisted to localStorage and read live each frame. `DragTuner.tsx`
+  (the 🎴 button) lets them be dialed by eye while dragging. Defaults are deliberately *slight*: follow 0.4,
+  tiltPerPx 0.16, tiltMax 6°, perspective 800.
+
+**Files:** `dragFeel.ts` (new — dials), `DragTuner.tsx` (new — DEV tuner), `Recruit.tsx` (motion rAF +
+`dragTransform` helper + JSX hand-off), `Game.tsx` (mount tuner), `styles.css` (tuner button).
+
+**Verification:** `typecheck + lint + build:web` green; page loads with no console errors, tuner mounts. The
+tilt/lag feel itself is for live by-eye tuning (the headless preview throttles rAF).
+
 ### feat: opponent selection — fully random within a source-priority cascade (Supabase → local → synthetic)
 
 Reworked `pickOpponent` so you always face real *player* boards when any exist for your wave, picked at

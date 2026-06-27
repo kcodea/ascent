@@ -88,3 +88,60 @@ export async function fetchAndRegisterPool(patchPrefix?: string): Promise<number
     return 0;
   }
 }
+
+// ── Runs / leaderboard (victories) ─────────────────────────────────────────────────────────────
+// A completed VICTORY run logs a row in the `runs` table for the leaderboard — the hero/author/wave + the
+// final winning warband (shown on hover). Separate from `boards` (which feeds the opponent pool). Same
+// no-op-when-unconfigured, fire-and-forget, never-throws contract.
+
+/** One leaderboard entry (a victory run), shaped for the UI. */
+export interface VictoryRow {
+  heroId: string;
+  author?: string;
+  wave: number;
+  date: string; // YYYY-MM-DD
+  board: BoardSnapshot | null; // the final winning warband, for the end-screen-style hover reveal
+}
+
+/** Log a completed victory run for the leaderboard. Fire-and-forget; never throws / blocks. */
+export async function uploadVictory(v: {
+  heroId: string; author?: string; wave: number; wins: number; seed: number;
+  board: BoardSnapshot | null; patch: string; capturedAt: string;
+}): Promise<void> {
+  const c = client();
+  if (!c) return;
+  try {
+    await c.from('runs').insert([{
+      patch: v.patch, hero_id: v.heroId, author: v.author ?? null, wave: v.wave,
+      wins: v.wins, result: 'victory', seed: v.seed, board: v.board, captured_at: v.capturedAt,
+    }]);
+  } catch {
+    /* best-effort — leaderboard logging must never disrupt the end screen */
+  }
+}
+
+/** Fetch the latest `limit` victory runs (newest first) for the leaderboard. Best-effort + time-boxed; [] on
+ *  any failure / no backend. */
+export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const request = Promise.resolve(
+      c.from('runs').select('hero_id,author,wave,board,captured_at,created_at')
+        .eq('result', 'victory').order('created_at', { ascending: false }).limit(limit),
+    );
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as Array<{ hero_id: string; author: string | null; wave: number; board: BoardSnapshot | null; captured_at: string | null; created_at: string | null }>)
+      .map((r) => ({
+        heroId: r.hero_id,
+        author: r.author ?? undefined,
+        wave: r.wave,
+        date: (r.captured_at ?? r.created_at ?? '').slice(0, 10),
+        board: r.board ?? null,
+      }));
+  } catch {
+    return [];
+  }
+}

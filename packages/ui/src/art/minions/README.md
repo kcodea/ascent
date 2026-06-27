@@ -40,7 +40,6 @@ picks one per instance, stable by uid (~50/50), for flavour.
 | `karwind` | Karwind ✅ | `lifebinder` | Corrupted Lifebinder ✅ |
 | **Undead** | | | |
 | `spore` | Sporeling ✅ | **Neutral** | |
-| `toxin` | Toxin Tender | `sandbag` | Target Dummy ✅ |
 | `knit` | Grave Knit | `broker` | Brightwing Broker ✅ |
 | `rot` | Rot Weaver | `echo` | Echo Warden ✅ |
 | `maex` | Webspinner Matron | `buddy` | Buddy Buddy ✅ |

@@ -4,6 +4,7 @@ import { Recruit } from './Recruit';
 import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
 import { Title } from './Title';
+import { Leaderboard } from './Leaderboard';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { EscMenu } from './EscMenu';
@@ -89,6 +90,7 @@ export function Game() {
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}
       <HeroSelect />
       <Title onSettings={() => setMenuOpen(true)} />
+      <Leaderboard />
     </ErrorBoundary>
   );
 }

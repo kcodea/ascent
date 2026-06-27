@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, reduce, type Action, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, reduce, type Action, type BoardSnapshot, type Replay, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
-import { fetchAndRegisterPool, uploadBoards } from './remoteBoards';
+import { fetchAndRegisterPool, uploadBoards, uploadVictory } from './remoteBoards';
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
 // `npm run pool` from seeded bot runs + any imported you/friend board exports) plus this browser's own
@@ -149,6 +149,10 @@ interface GameStore {
   startPractice: () => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;
+  /** The leaderboard overlay (Hall of Champions — latest victory runs) is open. */
+  showLeaderboard: boolean;
+  openLeaderboard: () => void;
+  closeLeaderboard: () => void;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -177,6 +181,7 @@ export const useGame = create<GameStore>((set, get) => ({
   // Boot into the title screen (the front door); the hero picker opens once a mode is chosen.
   heroChoices: null,
   showTitle: true,
+  showLeaderboard: false,
   pendingMode: 'ascent',
   // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
   compactCards: true,
@@ -208,9 +213,23 @@ export const useGame = create<GameStore>((set, get) => ({
       ) {
         const replay = { seed: next.seed, heroId: next.heroId, actions: [...s.replayActions, action] };
         const author = s.playerName || undefined;
+        const won = next.phase === 'victory';
         // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
-        // Deferred so it never hitches the end screen; both are best-effort and never throw.
-        setTimeout(() => { void uploadBoards(saveRunBoards(replay, author)); }, 0);
+        // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
+        // the end screen; all best-effort and never throw.
+        setTimeout(() => {
+          const fresh = saveRunBoards(replay, author);
+          void uploadBoards(fresh);
+          if (won) {
+            const finalBoard = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
+            void uploadVictory({
+              heroId: next.heroId, author, wave: next.wave,
+              wins: next.history.filter((r) => r === 'win').length, seed: next.seed,
+              board: finalBoard, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+              capturedAt: new Date().toISOString().slice(0, 10),
+            });
+          }
+        }, 0);
       }
       return {
         run: next,
@@ -235,6 +254,8 @@ export const useGame = create<GameStore>((set, get) => ({
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices() }),
   startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id) }),
   openTitle: () => set({ showTitle: true, heroChoices: null }),
+  openLeaderboard: () => set({ showLeaderboard: true }),
+  closeLeaderboard: () => set({ showLeaderboard: false }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

@@ -14,10 +14,12 @@ export function HeroSelect() {
   const pickHero = useGame((s) => s.pickHero);
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
+  const openTitle = useGame((s) => s.openTitle);
   if (!choices) return null;
 
   return (
     <div className="heroselect">
+      <button className="hsback" onClick={() => { sfx.pulse(); openTitle(); }}>← Back</button>
       <div className="hsbox">
         <div className="eyebrow">Choose your champion</div>
         <h1 className="disp hstitle">THE ASCENT</h1>

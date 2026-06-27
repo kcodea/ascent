@@ -68,6 +68,84 @@ duplicating it:
 - **Verified**: typecheck + lint + 402 tests + build green; framebuffer readback confirms the gold shield
   still renders (R>G>B) AND the reborn aura renders blue (B>R), both shaders compile (no init errors). The
   wispy look + the break/summon timing need an in-game eyeball (headless preview freezes Pixi's ticker).
+### fix(art): retire stale ART_ALIAS so the refreshed art actually shows (guel, heckbinder, demonanomaly, +3)
+
+Follow-up to the art refresh (#73): `art.ts` had a leftover `ART_ALIAS` map that forced 6 cards to render a
+*different* file — `heckbinder→heckbinder2`, `combinator→combinator2`, `guel→guel2`, `demonanomaly→demonanomaly2`,
+`manafont→goldfont`, `emberpouch→goldpouch` — and every one of those alias files was the **old pre-refresh art**
+(Jun 23). So the new masters (correctly wired under the proper card ids by the refresh) were shadowed. The owner
+caught guel + heckbinder + Demonic Anomaly; the same bug silently hit combinator, Gold Font, and Gold Pouch too.
+
+Emptied the alias map and deleted the 6 stale files, so each card uses its new base-named art. The alias
+mechanism stays (empty) for future one-off swaps. **Verification:** typecheck + build:web green; on `chore/art-refresh`
+the fix was confirmed live (all 6 new arts load at 512px, the stale files 404) — but #73 merged just before that
+commit, so this re-lands it on `main`.
+
+### art: refresh all minion + hero art (new illustrated masters → optimized WebP)
+
+Re-wired the updated art masters from `C:\Game Assets\Ascent Art\{Minions,Heroes}` — **93 minion/token arts + 12
+hero portraits** (the full set — done in two passes as the owner finished exporting).
+
+- **Matched by normalized name, not by hand.** A throwaway tsx matcher (`wire-art.ts`, deleted after) mapped each
+  PascalCase source file → cardId/heroId by comparing the normalized filename to the **live** card/hero names
+  (`ALL_CARDS` / `HEROES`) — so renames are correct automatically (e.g. `EternalKnight.png`→`knit`, whose old
+  README name "Grave Knit" was stale). Most matched by name; the rest used verified explicit overrides:
+  `ChaosMagnetic`→`symbioticattachment` (the Magnetic chaos token), `Fodder`→`fred`, `JenkinsAndFi`→`jenkins`,
+  `SparePartsDrone`→`drone`, `TrainingDummy`→`sandbag` ("Target Dummy"), and `Pup1`/`Pup2`→ the two `pup` variants.
+- **Optimized:** `npm run optimize-art` downscaled to ≤512px WebP q85 (and deleted the in-repo PNGs; masters stay
+  out-of-repo). **105 files, 216.0 MB → 5.35 MB (97.5% smaller)** — ~2 MB masters → 36–65 KB each.
+- **Only card with no new source:** `discoverspell` (Triple Reward — kept its existing art); `omen` never needs art.
+
+**Verification:** typecheck + build:web green; restarted the dev server (the glob compiles at startup) and
+confirmed **live in-preview** — hero portraits (picker + hero panel + opponent frame), shop minions, and the
+Chaos Attachment token render the new art (0 broken, no console errors); the 8 second-pass arts (gryphon, acid,
+tara, taragosa, betterbot, abhorrenthorror, demonanomaly, sandbag) all load at 512×512.
+
+### feat: leaderboard — "Hall of Champions" (latest victory runs) on the title screen
+
+A **Leaderboard** button on the title screen opens a full-page **Hall of Champions** — the latest 20 victory
+runs from the shared backend, each champion shown with their final winning warband.
+
+- **Logging** (`store.ts`): a `victory` transition now also fires `uploadVictory` (fire-and-forget) — hero,
+  author, wave, and the run's **final winning board** — alongside the existing board capture. Practice doesn't
+  reach `victory` (it ends in `gameover`), so the board is Ascent victories only, as intended.
+- **Backend** (`remoteBoards.ts`): `uploadVictory` (insert into a new `runs` table) + `fetchVictories(20)`
+  (newest first). Same no-op-when-unconfigured / fire-and-forget / never-throws contract. `runs` table + RLS
+  added to `schema.sql` (anon select + insert; `board` jsonb holds the final warband).
+- **UI** (`Leaderboard.tsx`, new): a full-page overlay (not a modal — that's the key change after first pass),
+  scrollable, with a **← Back** button top-left. Each entry = rank · hero portrait · author · wave · date, with
+  the final warband rendered **inline** using the same `Card` as the end screen (so the cards show full text on
+  hover). Graceful loading / empty / offline states. Store gained `showLeaderboard` + `openLeaderboard` /
+  `closeLeaderboard`; `Title.tsx` got the button (a `.titleactions` row beside Settings); `Game.tsx` renders it.
+- **Two display fixes from review:** (1) the warband cards overflowed + clipped because **compact cards size off
+  `--ccw`**, not `--cw` — the leaderboard now overrides `--ccw` (others derive from it) + `flex-wrap`, so a wide
+  warband never overflows and tier badges aren't cut off; (2) the card's full-text hover popup rendered *behind*
+  the old modal panel — making it a full page (the topmost layer) puts the popup on top.
+
+**Files:** `Leaderboard.tsx` (new), `store.ts` (victory log + flags), `remoteBoards.ts` (`uploadVictory` /
+`fetchVictories`), `Title.tsx` (button), `Game.tsx` (render), `styles.css` (full-page + `--ccw` sizing),
+`schema.sql` (`runs` table). **Verification:** typecheck + lint + test (402) + build:web green; verified
+**live in-preview** end-to-end — inserted 3 test champions, confirmed the rows, the inline warbands at the right
+size (150px, no overflow/clipping), the Back button, and the full-text hover popup rendering **on top**; then
+the test rows were cleared. **Follow-up (optional):** scope the board to the current version (a one-line filter)
+if a balance patch should reset it.
+
+Also in this PR: a **← Back** button on the hero picker (Ascent + Practice → title), matching the leaderboard's,
+so picking a mode isn't a one-way door (`HeroSelect.tsx` calls `openTitle`; `.hsback` mirrors `.lbback`).
+### chore(content): remove Toxin Tender
+
+Pulled the Undead T5 **Toxin Tender** (`toxin`, "Battlecry: give a friendly Undead Venomous") per the owner.
+
+- Card def removed from `content/cards/undead.ts`; its 7 specific tests removed from `run.test.ts` (→ 395).
+- The general **targeted-Battlecry primitive stays** (`target:'friendly'` / `targetTribe` / `pendingTarget`):
+  ~11 spells still use `target:'friendly'`, so the machinery + recruit UI are live. `targetTribe` now has no card
+  user (a dormant primitive); the explanatory code comments still name Toxin Tender as the historical example.
+- Regenerated `docs/cards.csv` (`npm run dump-cards`) and re-baked the opponent pool (`npm run pool`) so neither
+  references `toxin` (synthetic boards no longer draw it; any stale committed/remote board referencing it was
+  already dropped at load by `isServableBoard`). Removed the art-wiring README row.
+
+**Verification:** typecheck + lint + test (395) + build:web green; `grep toxin` clean across content, the generated
+pool data, and `cards.csv`. Left as-is: historical changelog (README highlights) + the balance-handoff snapshot.
 
 ### chore: re-baked SFX mix defaults (owner pass via the dev mixer)
 

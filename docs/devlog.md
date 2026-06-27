@@ -34,6 +34,9 @@ size (150px, no overflow/clipping), the Back button, and the full-text hover pop
 the test rows were cleared. **Follow-up (optional):** scope the board to the current version (a one-line filter)
 if a balance patch should reset it.
 
+Also in this PR: a **← Back** button on the hero picker (Ascent + Practice → title), matching the leaderboard's,
+so picking a mode isn't a one-way door (`HeroSelect.tsx` calls `openTitle`; `.hsback` mirrors `.lbback`).
+
 ### feat: live shared opponent pool via a Supabase backend (auto-sync) + drop the manual board-sharing UI
 
 The manual board pipeline (capture → Export → drop in `docs/board-exports/` → `npm run pool` → committed

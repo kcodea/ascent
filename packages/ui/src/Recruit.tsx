@@ -290,6 +290,10 @@ export function Recruit() {
   const combatSpeed = useGame((s) => s.combatSpeed); // still threaded into the replay; the slider UI lives in HudBar now
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
+  // Recruit stays mounted under the title / leaderboard overlays (see Game.tsx), so the round clock must also
+  // pause for those — otherwise the timer keeps ticking (and the last-5s `sfx.tick` fires) on the Hall of
+  // Champions / title screen, where there's no active turn.
+  const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   const heroPowerKind = getHero(run.heroId).power.kind;
   const heroTargetsTavern = heroPowerKind === 'fortify';
@@ -1275,7 +1279,7 @@ export function Recruit() {
   // writes turnClock directly, so ticking never re-renders Recruit. The reset effect above runs first
   // on a new turn (effect order), so the clock is back at full time before this re-schedules.
   useEffect(() => {
-    if (run.phase !== 'recruit' || run.discover || heroSelecting) return;
+    if (run.phase !== 'recruit' || run.discover || heroSelecting || overlayOpen) return;
     let id = 0;
     const tick = (): void => {
       const cur = turnClock.get();
@@ -1287,7 +1291,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, 1000);
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, heroSelecting, run.wave]);
+  }, [run.phase, run.discover, heroSelecting, overlayOpen, run.wave]);
 
   // Flash a card green AND float its +X/+X when its stats jump in the recruit phase (a buff landed).
   useEffect(() => {

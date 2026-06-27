@@ -1272,6 +1272,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    "arrives" where the tavern was. The warband, hero frame, HUD (ASCENT/wave/tribes/mute)
    never move — `Recruit` stays mounted the whole time, only its top-half content swaps. */
 .app { position: relative; }
+/* The behind-cards taunt FX layer — first child of .app, so its Pixi canvas paints above the board
+   surface but below the card rows. pointer-events:none; z auto + first-in-DOM keeps it behind every card. */
+.taunt-back { position: absolute; inset: 0; pointer-events: none; }
+.taunt-back canvas { pointer-events: none; }
 
 /* the shop closing: the control bar + the tavern offers fold up and fade out */
 .shopctl.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }

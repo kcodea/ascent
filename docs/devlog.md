@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### tweak: Taunt bulwark +15% size
+
+Bumped the taunt bulwark's footprint `margin` 1.34 → 1.54 (+15%) in `tauntConfig.ts` defaults, so the silver
+heater reads a touch bigger behind the card. (Existing localStorage tunes override the default — hit Reset in
+the DEV taunt tuner to adopt the new size.)
+
 ### feat: Taunt bulwark — live DEV tuner, old badge removed, deploy "thunk" sound
 
 Follow-up polish on the Taunt bulwark, all on `feat/taunt-bulwark`:

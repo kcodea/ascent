@@ -137,6 +137,16 @@ void main(){
   float fade = smoothstep(0.99, 0.6, max(abs(p.x), abs(p.y))); // don't clip hard at the quad edge
   float alpha = clamp(lit * fade, 0.0, 0.9);
 
+  // CARVE the aura around the card's badges/labels so it doesn't glow over them — the tier pill (top-centre),
+  // the attack/health badges (bottom corners) + the mechanic medallion (bottom-centre). Soft circular cutouts
+  // in quad space (card edge ≈ ±0.86; +y is down). Positions/radii are dialled to the compact-card layout.
+  float cut = 0.0;
+  cut = max(cut, smoothstep(0.44, 0.0, length((p - vec2( 0.00, -0.92)) * vec2(0.5, 1.1)))); // TIER pill (wide)
+  cut = max(cut, smoothstep(0.34, 0.0, length( p - vec2(-0.70,  0.86))));                    // ATTACK (BL)
+  cut = max(cut, smoothstep(0.28, 0.0, length( p - vec2( 0.00,  0.99))));                    // medallion (BC)
+  cut = max(cut, smoothstep(0.34, 0.0, length( p - vec2( 0.70,  0.86))));                    // HEALTH (BR)
+  alpha *= 1.0 - cut;
+
   // stay SATURATED blue (uColor-dominant); only a soft bright core, not a white wash
   vec3 col = uColor * (core * 0.9 + halo * 0.85 + tend * 1.2);
   col += vec3(0.82, 0.92, 1.0) * core * 0.4;

@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Wave stakes in the top bar.** Under the WAVE meter, a small "♥ Max −N" line shows the most Resolve a loss
+  this wave can cost (the round damage cap) — so you can read the downside before a fight. Hidden in Practice.
 - **Leaderboard — Hall of Champions.** A title-screen button opens a full, scrollable page of the latest 20
   victory runs, each champion shown with their final winning warband (hover a card for its full text).
 - **Live shared opponent pool (Supabase).** Finished runs auto-sync to a hosted database and load back at

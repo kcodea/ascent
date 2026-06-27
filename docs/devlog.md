@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### fix: three effect-layering bugs (shop shield position, fodder-over-shield, discover on top)
+
+Review feedback on the reshaped divine shield surfaced three layering issues:
+
+- **Shield sat slightly low in the SHOP only.** The aura centres on the card's measured rect, but `.card.compact`
+  is `width:--ccw; height:auto` (taller than its art, so its centre is low), while a combat `.unit` is a fixed
+  `--ccw` square. Fix: `Recruit.tsx` now measures the square **`.archbox`** art region (same in every row) for
+  the aura centre + size, in both `measureCardRect` and the `syncShields` PASS-1 loop — so shop/hand/board align.
+- **Fodder consume swirl hid behind the shield.** `.fodderghost` was z60, under the FX overlay (`.pixifx` z110),
+  so a consumed shielded unit's bubble covered the swirl. Raised `.fodderghost` → **z120** (above the aura); the
+  consume animation now reads in front.
+- **A unit that triggers Discover covered its own menu.** `.discover-ov` (also used by Choose-One) was z50 — below
+  a freshly-placed card's z111 lift. Raised → **z160**, above all effects (FX overlay, card lift, fodder swirl),
+  so Discover/Choose-One is always on top.
+- **Verified**: typecheck + lint + `build:web` green; app boots clean; computed z-indices confirmed live
+  (discover 160 > fodder 120 > pixifx 110). The shop-shield alignment needs an in-game look (headless can't
+  place a shielded shop card).
+
 ### tweak: Divine shield conforms to the arched card — polygon mask + cutouts replace the circular clip
 
 Gave the divine-shield bubble the same shape treatment as reborn: it no longer hard-clips to a **circle**

@@ -25,6 +25,9 @@ const SHIELD_BREAK_DELAY = 300;
 // ms to keep a vanished shield bubble alive before fading it — covers a hand→board PLAY (the card unmounts
 // from hand then remounts on the board under the same uid), so the bubble resumes INSTANTLY, no fade+regrow.
 const SHIELD_CLEAR_GRACE = 280;
+// ms after a Reborn triggers (spirit bursts + unit collapses) before the body RE-FORMS with its summon wisp —
+// matches the `rebornswap` CSS (gone ~38-52%, re-forms ~52-74% of 0.85s), so the read is die → gone → reborn.
+const REBORN_SUMMON_DELAY = 460;
 // The two persistent auras the tracker drives, each marked by a CSS class on the card and a keyword on the
 // drag view. Divine Shield (gold, breaks DELAYED so the read is hit→settle→shatter) + Reborn (blue wisp,
 // breaks IMMEDIATELY on the reborn beat → shatter + re-form summon).
@@ -525,12 +528,18 @@ export function Recruit() {
       if (triggered && kind === 'shield') {
         pendingBreakRef.current.set(key, now + SHIELD_BREAK_DELAY / combatSpeedRef.current); // delayed shatter
       } else if (triggered) {
-        // REBORN triggered: the spirit shatters AND the unit re-forms — both fire now, on the reborn beat.
+        // REBORN triggered: the spirit BURSTS now as the unit dies + collapses (rebornswap CSS); THEN, after
+        // the brief disappear, the body RE-FORMS with a wispy summon glow. Stagger the two so it reads as
+        // die → gone → reborn (not one simultaneous flash).
         const r = measureCardRect(uid);
         pixiFx.breakShield(uid, 'reborn');
         sfx.rebornShatter();
-        if (r) pixiFx.rebornSummon(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
-        sfx.rebornSummon();
+        if (r) {
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2, w = r.width, h = r.height;
+          window.setTimeout(() => { pixiFx.rebornSummon(cx, cy, w, h); sfx.rebornSummon(); }, REBORN_SUMMON_DELAY);
+        } else {
+          window.setTimeout(() => sfx.rebornSummon(), REBORN_SUMMON_DELAY);
+        }
       } else if (inCombatRef.current) {
         pixiFx.clearShield(uid, kind); // in combat but not a trigger (frozen shop card / death) → clear now
       } else if (animating()) {

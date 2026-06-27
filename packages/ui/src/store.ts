@@ -66,6 +66,9 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
           if (typeof tokenId === 'string') sfx.summon(tokenId);
         }
       }
+      // A minion that arrives WITH Taunt (innate or self-granted on play) — fire the bulwark "thunk" as the
+      // silver shield deploys behind it. (The board-wide grant check below skips it: it's new to the board.)
+      if (next.board.find((m) => m.uid === action.uid)?.keywords.includes('T')) sfx.taunt();
       break;
     }
     case 'sell': sfx.sell(); break;

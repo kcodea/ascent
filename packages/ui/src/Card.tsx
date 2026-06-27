@@ -286,11 +286,8 @@ export const Card = memo(function Card({
           <span className="costn">{card.cost}</span>
         </span>
       )}
-      {card.keywords.includes('T') && (
-        <span className="tauntward" aria-hidden="true"><Icon name="taunt" /></span>
-      )}
-      {/* Divine Shield + Reborn both signify via their Pixi AURA (pixiFx, driven from `.card.dscard` /
-          `.card.reborncard` in Recruit) — no badge/glow here. */}
+      {/* Divine Shield, Reborn, and Taunt all signify via their Pixi AURA (driven from `.card.dscard` /
+          `.card.reborncard` / `.card.taunt` in Recruit) — no badge/glow here. */}
       {card.keywords.includes('V') && (
         <span className="kwward venom" aria-hidden="true"><Icon name="poison" /></span>
       )}

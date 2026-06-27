@@ -5,6 +5,70 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### feat: Taunt bulwark — live DEV tuner, old badge removed, deploy "thunk" sound
+
+Follow-up polish on the Taunt bulwark, all on `feat/taunt-bulwark`:
+
+- **Interactive tuner** (`TauntTuner.tsx` + `tauntConfig.ts`): a DEV floating panel (mirrors the Lunge
+  tuner / SFX mixer pattern) with sliders for the shield **shape** (top edge, bottom point, width, taper),
+  the chrome **rim**, the **gem** size, **glint speed**, the silver **tint** (R/G/B + a live swatch), the
+  **footprint size**, and the **deploy ms**. The 12 values persist to `localStorage` (`ascent.taunt`) and
+  drive the shader **live** — `pixiFx` reads `getTauntConfig()` every frame for each taunt bubble and pushes
+  the shape/look values into uniforms, so a slider edit updates a held demo bubble instantly. "Hold demo"
+  parks a bulwark at screen centre; "Deploy ▸" re-fires the thwap; "Copy values" grabs the JSON to paste
+  back as the shipped defaults; "Reset" restores them. Stripped from production via the static env check.
+  - To make this work, `TAUNT_FRAG`'s hardcoded shape/look constants became uniforms (`uTopY/uBotY/uHalfW/
+    uWidthPow/uRimW/uGemSize/uGlintSpeed`); `setShield` builds the extra uniform group only for taunt;
+    `TAUNT_DEPLOY_MS` (was a const) and the footprint margin now come from the live config.
+- **Removed the old Taunt badge.** The `.tauntward` corner shield icon on cards is gone (markup + CSS) —
+  Taunt now signifies purely via the silver bulwark aura, matching how Divine Shield / Reborn dropped their
+  badges in favour of their Pixi auras.
+- **Deploy sound.** Playing a minion that arrives **with** Taunt now fires the `taunt` "thunk" clip as the
+  bulwark deploys (`store.ts`, in the `play` action). Complements the existing board-wide grant check
+  (which only fired when an *existing* minion was newly granted Taunt).
+- **Dead-steady size + X/Y nudge.** The taunt bulwark no longer size-breathes (the bob is now reborn-only);
+  added `offsetX`/`offsetY` dials to shift the shield left/right/up/down of the card centre (applied JS-side
+  in the update loop). **Tuned-in defaults** (from the live tuner): a broader, flatter heater (`halfW 0.98`,
+  `widthPow 0.65`, `topY 0.83`), a thin rim (`rimW 0.07`), neutral grey steel (`0.59` all channels), a slower
+  glint (`0.08`), `margin 1.34`, a 2px downward nudge, and a slower `440 ms` deploy.
+
+**Files:** `tauntConfig.ts` (new — dials + ranges + localStorage), `TauntTuner.tsx` (new — the panel),
+`pixiFx.ts` (shader uniforms + live drive + margin/deploy from config), `Card.tsx` + `styles.css` (badge
+removed, tuner button/swatch CSS), `Game.tsx` (mount the tuner), `store.ts` (deploy sound on play).
+
+**Verification:** `typecheck + lint + test (401) + build:web` all green. Live-checked on a throwaway dev
+server: the rewritten shader compiles with **no WebGL errors**, the back-layer canvas is live, the taunt
+bubble registers with all 11 uniforms (4 base + 7 new tunable), and the per-frame uniform drive runs
+without throwing. The visual look is now the user's to dial in via the tuner.
+
+### feat: Taunt bulwark — silver-metal heater shield BEHIND the card (deploy thwap + smoke)
+
+A new persistent aura for Taunt minions: a procedural silver-metallic heater/kite shield (beveled chrome
+rim, brushed-steel field, faceted silver gem core, sweeping specular glint) that sits **behind** the card
+so its rim peeks out around every edge — unlike Divine Shield / Reborn, which render over the card.
+
+- **Shader** (`pixiFx.ts`, `TAUNT_FRAG`): GLSL heater-shield SDF → faux-3D bevel (normal from the SDF
+  gradient) + brushed field + faceted gem; `uColor` is the silver tint (live-tunable). Added `taunt` to
+  the `AuraKind` / `AURA` registry (`behind: true`, margin 1.28 so it overhangs the card).
+- **Back layer** (`tauntFx`): a third `FxController` instance whose canvas mounts inside `.app` (first
+  child, behind the card rows) so the shield renders behind the cards. Its stage origin is the board's
+  top-left, so `syncShields` shifts taunt coords by the layer's offset (front auras stay viewport-raw).
+- **Routing**: `syncShields` gained a `taunt` kind (reusing the `.card.taunt` marker, `T` keyword); a
+  per-kind `auraFx()` routes taunt → `tauntFx`, shield/reborn → `pixiFx`. Taunt never "breaks" — it
+  deploys on gain and fades when removed.
+- **Deploy**: a "thwap" — ease-out-back scale from nothing → ~+10% overshoot → snap (`TAUNT_DEPLOY_MS`
+  230 ms), vs the shield's gentle grow-in. Plus a light placement-style **smoke plume** (`pixiFx.dust`)
+  dispersing outward, fired on the front layer when a taunt newly deploys.
+- **DEV**: `window.__tauntFx` + `__tauntDemo()` to deploy a bulwark at screen center for live tuning.
+
+**Files:** `pixiFx.ts` (`TAUNT_FRAG`, `taunt` AURA, `tauntFx`, deploy thwap, DEV hooks), `Recruit.tsx`
+(back-layer mount + attach, taunt sync routing + offset + deploy smoke), `styles.css` (`.taunt-back`).
+
+**Verification:** `typecheck + lint + build:web` green. Live-checked on a throwaway dev server: the shader
+compiles (no WebGL errors), `tauntFx` mounts behind the cards, and the bulwark renders **silver** (4144
+of 4610 opaque pixels read silver, max-luma 255 glint) and deploys to full alpha after the thwap. The
+look itself is for live DEV tuning (the headless preview can't show the animation).
+
 ### fix: three effect-layering bugs (shop shield position, fodder-over-shield, discover on top)
 
 Review feedback on the reshaped divine shield surfaced three layering issues:

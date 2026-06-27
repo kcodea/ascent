@@ -10,6 +10,7 @@ import { Inspect } from './Inspect';
 import { EscMenu } from './EscMenu';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
+import { TauntTuner } from './TauntTuner';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PixiFxLayer } from './PixiFxLayer';
@@ -76,6 +77,7 @@ export function Game() {
       {/* DEV-only live tuners (stripped from production via the static env check). */}
       {import.meta.env.DEV && <SfxMixer />}
       {import.meta.env.DEV && <LungeTuner />}
+      {import.meta.env.DEV && <TauntTuner />}
       {/* DEV: fire an unmissable Pixi FX burst at screen center + log diagnostics. */}
       {import.meta.env.DEV && (
         <button

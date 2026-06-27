@@ -35,18 +35,11 @@ const hashStr = (s: string): number => {
   return Math.abs(h);
 };
 
-/** Art-file aliases: a card id → a different art filename. Lets us ship updated art under a new name
- *  (drop `heckbinder2.webp` in and it replaces the heckbinder card's art) without renaming the card or
- *  deleting the old file. Falls back to the card-id-named file if the alias file isn't present. */
-const ART_ALIAS: Record<string, string> = {
-  heckbinder: 'heckbinder2',
-  combinator: 'combinator2',
-  guel: 'guel2', // Archmagus Guel — updated art ships as guel2
-  demonanomaly: 'demonanomaly2', // Demonic Anomaly — updated art ships as demonanomaly2
-  // Mana→Gold rename: the card ids stayed (manafont / emberpouch) but the art ships under the new names.
-  manafont: 'goldfont',
-  emberpouch: 'goldpouch',
-};
+/** Art-file aliases: a card id → a different art filename. Lets us ship updated art under a new name without
+ *  renaming the card. Now EMPTY — the full art refresh (2026-06-26) names every master by card id, so the old
+ *  aliases (heckbinder2 / combinator2 / guel2 / demonanomaly2 / goldfont / goldpouch — all pre-refresh art)
+ *  were retired and their stale files deleted; the mechanism stays for future one-off art swaps. */
+const ART_ALIAS: Record<string, string> = {};
 
 /** The illustrated art URL for a card id, or undefined if none has been added. `uid` lets cards
  *  with multiple art variants pick one per instance (stable across re-renders, ~50/50 split). */

@@ -51,6 +51,21 @@ the fight with **and** the buffs it gains mid-fight, merged by source.
   server HMR'd clean (no console errors); the live in-combat right-click is left for a playtest (a full run
   into combat with a buffed unit isn't reliably automatable).
 
+### feat(ui): show the wave's max loss damage under the WAVE meter
+
+The top bar showed the wave but not the stakes — how much Resolve a loss this wave can cost. Added a small
+threat-coloured "♥ Max −N" line directly under "WAVE N", where N is `lossDamageCap(wave)` — the per-round
+loss-damage cap the reducer already applies at settle (5 through wave 3, 10 through wave 6, 15 from wave 7).
+So the player can read the downside at a glance before committing to a fight.
+
+- **`HudBar.tsx`** — wrapped "WAVE N" in a `.wavecol` column with the new `.maxdmg` sub-label
+  (`lossDamageCap(run.wave)`, heart icon). Hidden in **Practice** mode, where Resolve is unlimited and a
+  loss deals no damage.
+- **`styles.css`** — `.alt .wavecol` (vertical stack) + `.alt .maxdmg` (threat-coloured, ~10px uppercase,
+  heart in `--threat`).
+- **Verified**: typecheck + lint + `build:web` + full suite (396) green. Live-checked in the running app —
+  started an Ascent run; the top-left bar reads "WAVE 1 / ♥ MAX −5" (cap 5 at wave 1), no console errors.
+
 ### fix: Reborn aura flickered behind the card on placement (z-layering parity with divine shield)
 
 The reborn wisp dropped **behind** the card for ~850ms when a reborn unit was placed/moved on the board —

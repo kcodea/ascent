@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
+import { lossDamageCap } from '@game/sim';
 import { BuffsFrame } from './BuffsFrame';
 import { Icon } from './Icon';
 import { OpponentFrame } from './OpponentFrame';
@@ -27,7 +28,16 @@ export function HudBar() {
     <div className="bar">
       <div className="wm disp">ASCENT</div>
       <div className="alt">
-        <span className="w">WAVE {run.wave}</span>
+        <span className="wavecol">
+          <span className="w">WAVE {run.wave}</span>
+          {/* The most Resolve a loss this wave can cost — the round damage cap (see lossDamageCap). Hidden in
+              Practice, where Resolve is unlimited and losses deal no damage. */}
+          {run.mode !== 'practice' && (
+            <span className="maxdmg" title="Most Resolve you can lose if you lose this combat">
+              <Icon name="heart" />Max −{lossDamageCap(run.wave)}
+            </span>
+          )}
+        </span>
         <span className="meter">
           <i style={{ width: `${Math.min(100, run.wave * 8)}%` }} />
         </span>

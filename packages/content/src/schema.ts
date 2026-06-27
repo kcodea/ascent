@@ -182,6 +182,7 @@ export const CardDefSchema = z.object({
   target: z.enum(['friendly', 'any']).optional(),
   targetTribe: TribeSchema.optional(),
   targetMaxTier: z.number().int().positive().optional(),
+  targetNoGolden: z.boolean().optional(),
   fodderMult: z.number().int().positive().optional(),
   manaPerTurn: z.number().int().positive().optional(),
   rallyMechAtk: z.number().int().positive().optional(),

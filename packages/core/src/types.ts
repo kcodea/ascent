@@ -232,6 +232,9 @@ export interface CardDef {
   /** Restricts a `target: 'friendly'` pick to minions of this tier or lower (Eyes of Aresmar → a
    *  Tier 4 or lower minion). Absent = no tier cap on the pick. */
   targetMaxTier?: number;
+  /** Excludes golden (tripled) minions from a `target: 'friendly'` pick (Displacement — you can't trade
+   *  away a triple). Absent = goldens are valid targets. Mirrored by Darah's Displace power in `swapWithTavern`. */
+  targetNoGolden?: boolean;
   /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
    *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
   fodderMult?: number;

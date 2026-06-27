@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### balance: Displacement + Darah's Displace can no longer target a golden minion
+
+Both the Displacement spell and Darah's Displace hero power swap a friendly minion for a random tavern
+offer. Trading away a **golden (triple)** — hard-won, doubled stats + doubled effects — for a random minion
+was a strictly bad / trap interaction, so goldens are now excluded as targets for both.
+
+- **Authoritative (the rule):** `swapWithTavern` (the shared spell + power path in `recruit.ts`) now returns
+  `false` immediately on a golden `boardMinion` — before consuming any RNG — so the swap is a clean no-op.
+  Darah's power already treats a `false` return as "no charge spent". For the spell, the reducer's `play`
+  case fizzles a `targetNoGolden` cast on a golden target (`return state`), keeping the spell in hand — same
+  pattern as Resonance's non-Battlecry fizzle.
+- **Data:** new optional `targetNoGolden` flag on `CardDef` (core types + zod schema), set on `displacement`.
+- **UI (`Recruit.tsx`):** the Displacement drag snaps back without consuming the spell on a golden target
+  (mirrors the `targetMaxTier` guard); Darah's Displace aim line no longer lights up / accepts a golden
+  minion (`heroTargetsNoGolden` in `minionAt`).
+- **Verified:** typecheck + lint + `build:web` + full suite green (**397 tests**). Two new reducer tests cover
+  the spell (fizzles, spell kept in hand) and the power (no swap, charge not spent); the existing
+  non-golden Displacement/Displace tests still pass. Dev server HMR'd clean (no console errors) — the live
+  golden-target drag is left for a playtest (not practically automatable).
+
 ### fix: Reborn aura flickered behind the card on placement (z-layering parity with divine shield)
 
 The reborn wisp dropped **behind** the card for ~850ms when a reborn unit was placed/moved on the board —

@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Balance: Displacement / Displace can't target goldens.** The Displacement spell and Darah's Displace power
+  no longer accept a golden (triple) minion — you can't trade away a triple for a random tavern minion.
 - **Leaderboard — Hall of Champions.** A title-screen button opens a full, scrollable page of the latest 20
   victory runs, each champion shown with their final winning warband (hover a card for its full text).
 - **Live shared opponent pool (Supabase).** Finished runs auto-sync to a hosted database and load back at

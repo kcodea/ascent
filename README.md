@@ -26,7 +26,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
 - **Taunt bulwark.** Taunt minions now sit behind a silver-metal heater shield (rendered *behind* the card,
-  peeking out around the edges) that deploys with a thwap + a light smoke plume.
+  peeking out around the edges) that deploys with a thwap + a light smoke plume and a "thunk" sound. The old
+  corner Taunt badge is retired (the aura signifies it now); a DEV tuner lets the shield's shape/tint/size be
+  dialed in live.
 - **Fix: tavern consumes use the buffed value.** Acid, the Consume / Cupcakes spells, and Demons eating
   Fodder now feed the consumer a tavern minion's CURRENT stats (run buff + per-offer buff + golden + held),
   not its base — a consumed minion is worth exactly what it'd be if bought.

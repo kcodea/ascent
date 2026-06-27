@@ -5,6 +5,37 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### feat: Taunt bulwark — live DEV tuner, old badge removed, deploy "thunk" sound
+
+Follow-up polish on the Taunt bulwark, all on `feat/taunt-bulwark`:
+
+- **Interactive tuner** (`TauntTuner.tsx` + `tauntConfig.ts`): a DEV floating panel (mirrors the Lunge
+  tuner / SFX mixer pattern) with sliders for the shield **shape** (top edge, bottom point, width, taper),
+  the chrome **rim**, the **gem** size, **glint speed**, the silver **tint** (R/G/B + a live swatch), the
+  **footprint size**, and the **deploy ms**. The 12 values persist to `localStorage` (`ascent.taunt`) and
+  drive the shader **live** — `pixiFx` reads `getTauntConfig()` every frame for each taunt bubble and pushes
+  the shape/look values into uniforms, so a slider edit updates a held demo bubble instantly. "Hold demo"
+  parks a bulwark at screen centre; "Deploy ▸" re-fires the thwap; "Copy values" grabs the JSON to paste
+  back as the shipped defaults; "Reset" restores them. Stripped from production via the static env check.
+  - To make this work, `TAUNT_FRAG`'s hardcoded shape/look constants became uniforms (`uTopY/uBotY/uHalfW/
+    uWidthPow/uRimW/uGemSize/uGlintSpeed`); `setShield` builds the extra uniform group only for taunt;
+    `TAUNT_DEPLOY_MS` (was a const) and the footprint margin now come from the live config.
+- **Removed the old Taunt badge.** The `.tauntward` corner shield icon on cards is gone (markup + CSS) —
+  Taunt now signifies purely via the silver bulwark aura, matching how Divine Shield / Reborn dropped their
+  badges in favour of their Pixi auras.
+- **Deploy sound.** Playing a minion that arrives **with** Taunt now fires the `taunt` "thunk" clip as the
+  bulwark deploys (`store.ts`, in the `play` action). Complements the existing board-wide grant check
+  (which only fired when an *existing* minion was newly granted Taunt).
+
+**Files:** `tauntConfig.ts` (new — dials + ranges + localStorage), `TauntTuner.tsx` (new — the panel),
+`pixiFx.ts` (shader uniforms + live drive + margin/deploy from config), `Card.tsx` + `styles.css` (badge
+removed, tuner button/swatch CSS), `Game.tsx` (mount the tuner), `store.ts` (deploy sound on play).
+
+**Verification:** `typecheck + lint + test (401) + build:web` all green. Live-checked on a throwaway dev
+server: the rewritten shader compiles with **no WebGL errors**, the back-layer canvas is live, the taunt
+bubble registers with all 11 uniforms (4 base + 7 new tunable), and the per-frame uniform drive runs
+without throwing. The visual look is now the user's to dial in via the tuner.
+
 ### feat: Taunt bulwark — silver-metal heater shield BEHIND the card (deploy thwap + smoke)
 
 A new persistent aura for Taunt minions: a procedural silver-metallic heater/kite shield (beveled chrome

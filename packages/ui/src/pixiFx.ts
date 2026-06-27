@@ -1,4 +1,5 @@
 import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
+import { getTauntConfig } from './tauntConfig';
 
 /**
  * Vertex shader for the shield Mesh (WebGL2 / GLSL ES 3.0). Pixi's GlMeshAdaptor binds the global-uniform
@@ -225,8 +226,15 @@ in vec2 vUV;
 out vec4 finalColor;
 uniform float uTime;
 uniform float uAspect;   // card w/h (kept for parity)
-uniform vec3  uColor;    // silver tint
+uniform vec3  uColor;    // silver tint (live-tunable in DEV)
 uniform float uSeed;     // per-bubble phase offset
+uniform float uTopY;     // heater silhouette: top edge
+uniform float uBotY;     // heater silhouette: bottom point
+uniform float uHalfW;    // heater silhouette: shoulder half-width
+uniform float uWidthPow; // width taper exponent toward the bottom point
+uniform float uRimW;     // bevel/rim band width
+uniform float uGemSize;  // central gem size (0 = none)
+uniform float uGlintSpeed; // glint sweep speed
 
 float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 float vnoise(vec2 p){
@@ -234,11 +242,11 @@ float vnoise(vec2 p){
   float a = hash(i), b = hash(i + vec2(1.0,0.0)), c = hash(i + vec2(0.0,1.0)), d = hash(i + vec2(1.0,1.0));
   return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
 }
-// Heater/kite shield silhouette. q: x in [-1,1], y UP (+1 top, -1 bottom). <0 inside.
+// Heater/kite shield silhouette. q: x in [-1,1], y UP (+1 top, -1 bottom). <0 inside. Shape from uniforms.
 float shieldSDF(vec2 q){
-  float topY = 0.82, botY = -0.96;
+  float topY = uTopY, botY = uBotY;
   float t = clamp((q.y - botY) / (topY - botY), 0.0, 1.0);   // 0 bottom → 1 top
-  float hw = 0.78 * pow(t, 0.5);                              // 0 at the bottom point → wide shoulders
+  float hw = uHalfW * pow(t, uWidthPow);                      // 0 at the bottom point → wide shoulders
   hw *= 1.0 - 0.16 * smoothstep(0.72, 1.0, t);               // slight inward at the very top (rounded shoulders)
   float notch = (1.0 - smoothstep(0.0, 0.16, abs(q.x))) * 0.07; // central V dip in the top edge
   float top = topY - notch;
@@ -256,7 +264,7 @@ void main(){
   float e = 0.004;
   vec2 grad = vec2(shieldSDF(q + vec2(e,0.0)) - shieldSDF(q - vec2(e,0.0)),
                    shieldSDF(q + vec2(0.0,e)) - shieldSDF(q - vec2(0.0,e)));
-  float rimW = 0.16;
+  float rimW = uRimW;
   float rim = smoothstep(0.0, rimW, -d);    // 0 at edge → 1 past the rim
   float bevel = 1.0 - rim;                   // 1 at the very edge
   vec3 n = normalize(vec3(grad * bevel * 2.4, 1.0));
@@ -265,7 +273,7 @@ void main(){
   vec3 H = normalize(L + vec3(0.0,0.0,1.0));
   float spec = pow(max(dot(n, H), 0.0), 40.0);
   // a bright glint sweeping across the metal
-  float sweep = smoothstep(0.07, 0.0, abs(fract(uTime * 0.16 + uSeed) - (q.x * 0.5 + 0.5)));
+  float sweep = smoothstep(0.07, 0.0, abs(fract(uTime * uGlintSpeed + uSeed) - (q.x * 0.5 + 0.5)));
   spec += sweep * bevel * 0.7;
 
   // brushed-steel inner field
@@ -274,7 +282,7 @@ void main(){
 
   // faceted silver gem (a diamond in the centre)
   vec2 g = q * vec2(1.0, 1.3);
-  float gemD = abs(g.x) + abs(g.y - 0.04) - 0.3;
+  float gemD = abs(g.x) + abs(g.y - 0.04) - uGemSize;
   float gem = smoothstep(0.02, -0.02, gemD);
   float ang = atan(g.y - 0.04, g.x);
   float facet = 0.5 + 0.5 * cos(floor(ang / 1.0472) * 1.0472);   // 6 facets
@@ -356,7 +364,6 @@ interface ShieldBubble {
 const BUBBLE_TEX_R = 40;       // shader quad half-size (px) before per-unit scaling
 const BREATHE_MS = 2600;       // slow pulse period (the shader also breathes on its own clock)
 const FORM_MS = 260;           // grow-in when a shield is gained
-const TAUNT_DEPLOY_MS = 230;   // taunt "thwap" deploy — fast ease-out-back snap from nothing
 const FADE_MS = 30;            // graceful fade when a shield is cleared without breaking (near-instant)
 const MINI_SCALE = 0.3;        // bubble size while dragging (a small trailing sparkle of the card)
 const POP_MS = 320;            // coalesce/pop-in duration when a dragged card is placed
@@ -372,6 +379,8 @@ const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTin
   taunt: { frag: TAUNT_FRAG, rgb: TAUNT_SILVER_RGB, tint: 0xcfd6e2, rimTint: 0xeef2f8, margin: 1.28, behind: true },
 };
 const auraKey = (kind: AuraKind, uid: string): string => `${kind}|${uid}`;
+/** Footprint margin for an aura — taunt's is live-tunable (DEV taunt tuner), the rest are static. */
+const auraMargin = (kind: AuraKind): number => (kind === 'taunt' ? getTauntConfig().margin : AURA[kind].margin);
 
 class FxController {
   private app: Application | null = null;
@@ -800,16 +809,27 @@ class FxController {
       const container = new Container();
       // A quad mesh the aura shader draws onto. The geometry's UVs are a clean 0..1, so the fragment maps the
       // sphere/wisp exactly. The container scales it to the card footprint; the shader is chosen per kind.
+      const tc = getTauntConfig();
+      const isTaunt = kind === 'taunt';
+      const uniforms: Record<string, { value: number | Float32Array; type: string }> = {
+        uTime: { value: 0, type: 'f32' },
+        uAspect: { value: w / Math.max(1, h), type: 'f32' },
+        uColor: { value: new Float32Array(isTaunt ? [tc.colorR, tc.colorG, tc.colorB] : AURA[kind].rgb), type: 'vec3<f32>' },
+        uSeed: { value: (this.shields.size % 7) * 1.3, type: 'f32' }, // de-sync neighbours' pulses
+      };
+      if (isTaunt) {
+        // Shape/look uniforms — driven LIVE from the taunt config each frame (DEV tuner edits show instantly).
+        uniforms.uTopY = { value: tc.topY, type: 'f32' };
+        uniforms.uBotY = { value: tc.botY, type: 'f32' };
+        uniforms.uHalfW = { value: tc.halfW, type: 'f32' };
+        uniforms.uWidthPow = { value: tc.widthPow, type: 'f32' };
+        uniforms.uRimW = { value: tc.rimW, type: 'f32' };
+        uniforms.uGemSize = { value: tc.gemSize, type: 'f32' };
+        uniforms.uGlintSpeed = { value: tc.glintSpeed, type: 'f32' };
+      }
       const shader = Shader.from({
         gl: { vertex: SHIELD_VERT, fragment: AURA[kind].frag },
-        resources: {
-          shieldUniforms: {
-            uTime: { value: 0, type: 'f32' },
-            uAspect: { value: w / Math.max(1, h), type: 'f32' },
-            uColor: { value: new Float32Array(AURA[kind].rgb), type: 'vec3<f32>' },
-            uSeed: { value: (this.shields.size % 7) * 1.3, type: 'f32' }, // de-sync neighbours' pulses
-          },
-        },
+        resources: { shieldUniforms: uniforms },
       });
       const mesh = new Mesh({ geometry: this.shieldGeo!, shader });
       container.addChild(mesh);
@@ -831,7 +851,7 @@ class FxController {
    *  the inverse of the break's outward shrapnel. Fired when a dragged shield is set down. */
   private shieldPop(cx: number, cy: number, w: number, h: number, kind: AuraKind = 'shield'): void {
     if (!this.ready) return;
-    const rad = Math.max(w, h) * 0.5 * AURA[kind].margin;
+    const rad = Math.max(w, h) * 0.5 * auraMargin(kind);
     const c = AURA[kind];
     // central flash that blooms as the bubble snaps in
     this.spawn(this.bubbleTex!, {
@@ -1095,7 +1115,8 @@ class FxController {
       b.age += dtMs;
       // grow-in (gain) and optional fade-out (graceful clear). Taunt "deploys" with a thwap — an
       // ease-out-back scale from nothing → overshoot → snap; shield/reborn fade in + settle gently.
-      const formT = Math.min(1, b.formIn / (b.kind === 'taunt' ? TAUNT_DEPLOY_MS : FORM_MS));
+      const tcfg = b.kind === 'taunt' ? getTauntConfig() : null;
+      const formT = Math.min(1, b.formIn / (tcfg ? tcfg.deployMs : FORM_MS));
       b.formIn += dtMs;
       let life: number;
       let extraScale: number;
@@ -1131,7 +1152,7 @@ class FxController {
         b.scaleMul += (target - b.scaleMul) * Math.min(1, dt * 14);
       }
       // fit the BUBBLE_TEX_R quad to the unit footprint (non-uniform → ellipse), per-kind margin
-      const margin = AURA[b.kind].margin;
+      const margin = tcfg ? tcfg.margin : AURA[b.kind].margin;
       const sx = (b.w * 0.5 * margin) / BUBBLE_TEX_R;
       const sy = (b.h * 0.5 * margin) / BUBBLE_TEX_R;
       const grow = breatheScale * extraScale * b.scaleMul;
@@ -1140,9 +1161,21 @@ class FxController {
       b.container.scale.set(sx * grow, sy * grow);
       b.container.alpha = life; // form-in / fade / mini envelope; the shader owns its internal opacity
       // drive the shield shader
-      const u = (b.shader.resources.shieldUniforms as { uniforms: Record<string, number> }).uniforms;
+      const u = (b.shader.resources.shieldUniforms as { uniforms: Record<string, number | Float32Array> }).uniforms;
       u.uTime = b.age / 1000;
       u.uAspect = b.w / Math.max(1, b.h);
+      // Taunt: push the live config into the shape/look uniforms each frame, so DEV tuner edits show instantly.
+      if (tcfg) {
+        const col = u.uColor as Float32Array;
+        col[0] = tcfg.colorR; col[1] = tcfg.colorG; col[2] = tcfg.colorB;
+        u.uTopY = tcfg.topY;
+        u.uBotY = tcfg.botY;
+        u.uHalfW = tcfg.halfW;
+        u.uWidthPow = tcfg.widthPow;
+        u.uRimW = tcfg.rimW;
+        u.uGemSize = tcfg.gemSize;
+        u.uGlintSpeed = tcfg.glintSpeed;
+      }
     }
   };
 

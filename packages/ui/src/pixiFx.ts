@@ -1135,9 +1135,9 @@ class FxController {
         life *= 1 - fT;
         if (fT >= 1) { b.shader.destroy(); b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
       }
-      // a subtle container size-breathe — REBORN only. The divine shield holds a steady size now (only its
-      // colour/energy pulse, owned by the shader, breathes); the wispy reborn sibling still bobs in size.
-      const breatheScale = b.kind === 'shield' ? 1 : 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04;
+      // a subtle container size-breathe — REBORN only. The divine shield and the taunt bulwark hold a steady
+      // size (the shield's colour/energy pulse, owned by the shader, still breathes); only the wispy reborn bobs.
+      const breatheScale = b.kind === 'reborn' ? 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04 : 1;
       // drag-mini / placement-pop size: the pop drives an ease-out-back overshoot from mini → full; otherwise
       // the size eases toward its target (full=1, dragging=MINI_SCALE) so pickup/drop shrink+grow smoothly.
       if (b.pop >= 0) {
@@ -1156,8 +1156,8 @@ class FxController {
       const sx = (b.w * 0.5 * margin) / BUBBLE_TEX_R;
       const sy = (b.h * 0.5 * margin) / BUBBLE_TEX_R;
       const grow = breatheScale * extraScale * b.scaleMul;
-      b.container.x = b.cx;
-      b.container.y = b.cy;
+      b.container.x = b.cx + (tcfg ? tcfg.offsetX : 0); // taunt: live nudge from the DEV tuner
+      b.container.y = b.cy + (tcfg ? tcfg.offsetY : 0);
       b.container.scale.set(sx * grow, sy * grow);
       b.container.alpha = life; // form-in / fade / mini envelope; the shader owns its internal opacity
       // drive the shield shader

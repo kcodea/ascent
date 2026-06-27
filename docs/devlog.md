@@ -26,6 +26,11 @@ Follow-up polish on the Taunt bulwark, all on `feat/taunt-bulwark`:
 - **Deploy sound.** Playing a minion that arrives **with** Taunt now fires the `taunt` "thunk" clip as the
   bulwark deploys (`store.ts`, in the `play` action). Complements the existing board-wide grant check
   (which only fired when an *existing* minion was newly granted Taunt).
+- **Dead-steady size + X/Y nudge.** The taunt bulwark no longer size-breathes (the bob is now reborn-only);
+  added `offsetX`/`offsetY` dials to shift the shield left/right/up/down of the card centre (applied JS-side
+  in the update loop). **Tuned-in defaults** (from the live tuner): a broader, flatter heater (`halfW 0.98`,
+  `widthPow 0.65`, `topY 0.83`), a thin rim (`rimW 0.07`), neutral grey steel (`0.59` all channels), a slower
+  glint (`0.08`), `margin 1.34`, a 2px downward nudge, and a slower `440 ms` deploy.
 
 **Files:** `tauntConfig.ts` (new — dials + ranges + localStorage), `TauntTuner.tsx` (new — the panel),
 `pixiFx.ts` (shader uniforms + live drive + margin/deploy from config), `Card.tsx` + `styles.css` (badge

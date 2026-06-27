@@ -31,23 +31,29 @@ export interface TauntConfig {
   colorB: number;
   /** Footprint margin — the heater quad size relative to the card (>1 peeks out around the edges). */
   margin: number;
+  /** Horizontal nudge (px) — shift the shield left/right of the card centre. */
+  offsetX: number;
+  /** Vertical nudge (px) — shift the shield up/down of the card centre. */
+  offsetY: number;
   /** Deploy duration (ms) — the ease-out-back "thwap" snap from nothing into final shape. */
   deployMs: number;
 }
 
 const DEFAULTS: TauntConfig = {
-  topY: 0.82,
+  topY: 0.83,
   botY: -0.96,
-  halfW: 0.78,
-  widthPow: 0.5,
-  rimW: 0.16,
+  halfW: 0.98,
+  widthPow: 0.65,
+  rimW: 0.07,
   gemSize: 0.3,
-  glintSpeed: 0.16,
-  colorR: 0.8,
-  colorG: 0.84,
-  colorB: 0.9,
-  margin: 1.28,
-  deployMs: 230,
+  glintSpeed: 0.08,
+  colorR: 0.59,
+  colorG: 0.59,
+  colorB: 0.59,
+  margin: 1.34,
+  offsetX: 0,
+  offsetY: 2,
+  deployMs: 440,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -63,6 +69,8 @@ export const TAUNT_RANGES: Record<keyof TauntConfig, [number, number, number]> =
   colorG: [0, 1, 0.01],
   colorB: [0, 1, 0.01],
   margin: [1.0, 2.0, 0.02],
+  offsetX: [-120, 120, 1],
+  offsetY: [-120, 120, 1],
   deployMs: [80, 600, 10],
 };
 export const TAUNT_KEYS = Object.keys(DEFAULTS) as (keyof TauntConfig)[];

@@ -23,6 +23,8 @@ const LABELS: Record<keyof TauntConfig, string> = {
   colorG: 'tint G',
   colorB: 'tint B',
   margin: 'size',
+  offsetX: 'shift ←→',
+  offsetY: 'shift ↑↓',
   deployMs: 'deploy ms',
 };
 

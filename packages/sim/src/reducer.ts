@@ -564,6 +564,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
         rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
+        buffs: b.buffs, // recruit-phase buff breakdown → carried into combat so the inspect panel itemizes it
       }));
       // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board
       // (not the run board, so it's gone after this fight), then spend it. Applied before the odds sims so

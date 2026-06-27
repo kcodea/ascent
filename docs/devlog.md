@@ -5,11 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
-### tweak: Taunt bulwark +15% size
+### tweak: Taunt bulwark — +15% size, rigid deploy, +25% dust plume
 
-Bumped the taunt bulwark's footprint `margin` 1.34 → 1.54 (+15%) in `tauntConfig.ts` defaults, so the silver
-heater reads a touch bigger behind the card. (Existing localStorage tunes override the default — hit Reset in
-the DEV taunt tuner to adopt the new size.)
+Three feel tweaks to the taunt bulwark:
+- **+15% size.** Footprint `margin` 1.34 → 1.54 in `tauntConfig.ts` defaults, so the silver heater reads a
+  touch bigger behind the card. (Existing localStorage tunes override the default — hit Reset in the DEV
+  taunt tuner to adopt the new size.)
+- **Rigid deploy (no bob).** The deploy scale swapped from ease-out-**back** (overshoot ~+10% then settle —
+  read as a bob) to ease-out-**quart** (`1 - (1-t)⁴`): it grows out fast and **locks** at full width with no
+  overshoot. It's metal — it shouldn't spring.
+- **+25% dust plume.** `dust()` gained an optional `scale` (default 1) that inflates both the ring spread and
+  the puff sizes; the taunt deploy passes `1.25`. The generic card-landing dust is unchanged (still 1).
 
 ### feat: Taunt bulwark — live DEV tuner, old badge removed, deploy "thunk" sound
 

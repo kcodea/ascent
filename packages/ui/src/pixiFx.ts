@@ -608,12 +608,13 @@ class FxController {
    * Puffs spawn around the card's perimeter and billow **outward** (away from the card), hugging the
    * ground (vertical motion damped, gentle gravity) and fading fast — dusty tan on normal blend, low
    * alpha so it stays subtle. The caller raises the landed card above the FX layer for the duration,
-   * so the dust reads as escaping out from *under* the card on every side.
+   * so the dust reads as escaping out from *under* the card on every side. `scale` (default 1) inflates the
+   * whole plume — both the ring spread and the puff sizes — for a bigger billow (taunt deploy passes >1).
    */
-  dust(cx: number, cy: number, w: number, h: number): void {
+  dust(cx: number, cy: number, w: number, h: number, scale = 1): void {
     if (!this.ready) return;
-    const halfW = w * 0.5;
-    const halfH = h * 0.5;
+    const halfW = w * 0.5 * scale;
+    const halfH = h * 0.5 * scale;
     const puffs = 12;
     for (let i = 0; i < puffs; i++) {
       const ang = (i / puffs) * Math.PI * 2 + (Math.random() - 0.5) * 0.4; // around the ring
@@ -633,8 +634,8 @@ class FxController {
         drag: 0.2,                                         // dust slows quickly
         gravity: 130,                                      // gentle settle — no rising column
         life: 380 + Math.random() * 260,
-        fromScale: 0.3 + Math.random() * 0.2,
-        toScale: 0.9 + Math.random() * 0.5,                // billow as it dissipates
+        fromScale: (0.3 + Math.random() * 0.2) * scale,
+        toScale: (0.9 + Math.random() * 0.5) * scale,      // billow as it dissipates
         spin: (Math.random() - 0.5) * 1.2,
         tint: tan,
         blend: 'normal',
@@ -1113,16 +1114,16 @@ class FxController {
     // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.
     for (const [uid, b] of this.shields) {
       b.age += dtMs;
-      // grow-in (gain) and optional fade-out (graceful clear). Taunt "deploys" with a thwap — an
-      // ease-out-back scale from nothing → overshoot → snap; shield/reborn fade in + settle gently.
+      // grow-in (gain) and optional fade-out (graceful clear). Taunt "deploys" RIGID — it grows out to full
+      // width and LOCKS (it's metal: no overshoot, no bob); shield/reborn fade in + settle gently.
       const tcfg = b.kind === 'taunt' ? getTauntConfig() : null;
       const formT = Math.min(1, b.formIn / (tcfg ? tcfg.deployMs : FORM_MS));
       b.formIn += dtMs;
       let life: number;
       let extraScale: number;
       if (b.kind === 'taunt') {
-        const k = formT - 1;
-        extraScale = 1 + 2.70158 * k * k * k + 1.70158 * k * k; // ease-out-back: 0 → ~+10% overshoot → 1 (thwap)
+        const inv = 1 - formT;
+        extraScale = 1 - inv * inv * inv * inv;                 // ease-out-quart: 0 → 1, fast then locks at max (no overshoot)
         life = Math.min(1, formT * 3.5);                        // snap into view fast (deploy from nothing)
       } else {
         const formEase = 1 - (1 - formT) * (1 - formT);

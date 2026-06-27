@@ -3,7 +3,25 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
-## 2026-06-26 (session 6)
+## 2026-06-27 (session 7)
+
+### feat: restore the "Clear my boards" button in the Esc menu
+
+Brought back a one-tap way to wipe this browser's captured finished-run boards (`boardLibrary`,
+`localStorage['ascent.boards']`) — the local board section was dropped in #67 when the live Supabase shared
+pool replaced local export/import sharing, but the local library is still written on every finished run, so
+a "these went stale after a patch" clear is still useful.
+
+- **`EscMenu.tsx`**: a new **Saved Boards** section with a single **Clear my boards** button (shows the live
+  count) using two-tap confirm (arms → `danger` style + "Tap again to confirm", second tap clears) via
+  `clearStoredBoards()`; a status line confirms. Deliberately did NOT restore the old export/import buttons —
+  those served the pre-#67 file-sharing model the live pool superseded. Only `clearStoredBoards` +
+  `loadStoredBoards` re-imported; all CSS classes (`.escboards`, `.escboards-msg`, `.escbtn.danger`) already
+  existed.
+- Scope note: clears **local** captures only — not the live shared pool or the leaderboard (those are backend).
+- **Verified**: typecheck + lint + test (395) + `build:web` green; exercised live in-preview — seeded 3
+  boards, opened the menu (button read "3 saved"), tap 1 armed the confirm, tap 2 cleared
+  `localStorage['ascent.boards']` (count → 0, "Cleared your captured boards").
 
 ### feat: right-click buff tracking in combat (recruit + combat buffs, parity with the shop)
 

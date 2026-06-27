@@ -21,6 +21,7 @@ import {
   THREAT_IDS,
   addBuff,
   endOfTurnRepeats,
+  offerBuyStats,
   undeadBuyBonus,
   getHero,
   spellStatBonus,
@@ -1176,6 +1177,42 @@ describe('run loop (@game/sim)', () => {
     const meal = CARD_INDEX.sandbag!;
     expect([demon.attack, demon.health]).toEqual([3 + meal.attack, 3 + meal.health]); // gained the meal's stats
     expect(s.hand.some((c) => c.cardId === 'consume')).toBe(false); // consumed
+  });
+
+  it('Consume devours a BUFFED tavern minion at its current value (offer buff + run buff + golden), not its base', () => {
+    const meal = CARD_INDEX.sandbag!;
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false }],
+      // a tavern minion buffed by Apples/Shatter (offer.atk/hp +2/+3) AND a persistent +1/+1 run enchant, gilded golden
+      shop: [{ uid: 's1', cardId: 'sandbag', atk: 2, hp: 3, golden: true }],
+      cardBuffs: { sandbag: { attack: 1, health: 1 } },
+      hand: [{ uid: 'cn', cardId: 'consume', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'cn', targetUid: 'd' });
+    const demon = s.board.find((c) => c.uid === 'd')!;
+    // current value = (base + offer buff + run buff) ×2 (golden) — exactly what buying it would yield
+    const ea = (meal.attack + 2 + 1) * 2;
+    const eh = (meal.health + 3 + 1) * 2;
+    expect([demon.attack, demon.health]).toEqual([3 + ea, 3 + eh]);
+  });
+
+  it('offerBuyStats: a consumed offer is worth its CURRENT value — base + run buff + per-offer buff + Staff of Guel, ×2 golden; held keeps its body', () => {
+    const meal = CARD_INDEX.gnash!;
+    const base: RunState = {
+      ...createRun(1),
+      cardBuffs: { gnash: { attack: 1, health: 1 } }, // persistent run enchant (Ritualist-style)
+      tavernBuyBonus: { atk: 2, hp: 2 }, // Staff of Guel (applies to non-Fodder offers)
+    };
+    // base + run buff (1/1) + per-offer buff (3/4) + Staff of Guel (2/2)
+    expect(offerBuyStats(base, { uid: 'o', cardId: 'gnash', atk: 3, hp: 4 }))
+      .toEqual({ attack: meal.attack + 1 + 3 + 2, health: meal.health + 1 + 4 + 2 });
+    // golden offer (Golden Touch) doubles the whole effective value — exactly like buying it
+    expect(offerBuyStats(base, { uid: 'o', cardId: 'gnash', atk: 3, hp: 4, golden: true }))
+      .toEqual({ attack: (meal.attack + 1 + 3 + 2) * 2, health: (meal.health + 1 + 4 + 2) * 2 });
+    // a Displacement-stashed (held) minion is worth its full preserved body, untouched by run/offer buffs
+    expect(offerBuyStats(base, { uid: 'o', cardId: 'gnash', held: { uid: 'h', cardId: 'gnash', tribe: 'beast', attack: 40, health: 30, keywords: [], golden: false } }))
+      .toEqual({ attack: 40, health: 30 });
   });
 
   it('Golden Touch makes a random tavern minion Golden; it buys in Golden with doubled stats', () => {

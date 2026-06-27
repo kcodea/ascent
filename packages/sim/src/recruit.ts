@@ -945,9 +945,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       ctx.state.shop.splice(idx, 1);
       if (!meal) continue;
       const mult = fodderMultiplier(self);
-      const cb = cardBuff(ctx.state, meal.id);
-      const ma = meal.attack + cb.attack + (offer.atk ?? 0);
-      const mh = meal.health + cb.health + (offer.hp ?? 0);
+      const { attack: ma, health: mh } = offerBuyStats(ctx.state, offer); // current buffed value, not base
       addBuff(self, 'Consume', ma * mult, mh * mult);
       fire(ctx, 'onConsume', { minion: self });
       eaten.push({ eaterUid: self.uid, fodderId: meal.id, attack: ma, health: mh, gainA: ma * mult, gainH: mh * mult });
@@ -1138,10 +1136,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const target = choices.length ? pickRandom(ctx.state, choices, 1)[0] : undefined;
     if (target) {
       ctx.state.shop = ctx.state.shop.filter((s) => s !== target);
-      const def = CARD_INDEX[target.cardId];
-      if (def) {
-        addBuff(self, nameOf(self), (def.attack + (target.atk ?? 0)) * gold(self), (def.health + (target.hp ?? 0)) * gold(self));
-      }
+      // Consume the target's CURRENT buffed value (run buff + per-offer buff + golden + held), not its base.
+      const { attack, health } = offerBuyStats(ctx.state, target);
+      addBuff(self, nameOf(self), attack * gold(self), health * gold(self));
     }
     // Acid's rework: also buff the REMAINING tavern minions +tavernBuff/+tavernBuff (golden ×2) — a per-offer
     // buff baked in on buy (like Apples), applied even if there was nothing to consume.
@@ -1690,6 +1687,30 @@ function fodderMultiplier(consumer: BoardCard): number {
 }
 
 /**
+ * The CURRENT (buffed) stats of a tavern offer — exactly what it's worth if bought: a Displacement-stashed
+ * minion (`held`) keeps its full preserved body, otherwise base + the persistent per-card run buff
+ * (Ritualist / Staff via the Fodder enchant) + the Undead buy-attack + the per-offer buff (Apples / Shatter /
+ * Fortify, stored on `atk`/`hp`) + Staff of Guel's tavern-buy bonus, all ×2 for a Golden Touch offer.
+ * The single source of truth for every CONSUME path (Acid, the Consume / Cupcakes spells, a Demon eating
+ * Fodder) so a consumed minion grants its current value, not its base. Mirrors the reducer's buy case;
+ * excludes only the Lantern of Souls live aura, which the buy path also doesn't bake (it re-applies to actual
+ * Undead on the board / in combat, so transferring it onto a Demon would double-dip a temporary aura).
+ */
+export function offerBuyStats(state: RunState, offer: ShopCard): { attack: number; health: number } {
+  if (offer.held) return { attack: offer.held.attack, health: offer.held.health };
+  const def = CARD_INDEX[offer.cardId];
+  if (!def) return { attack: 0, health: 0 };
+  const cb = cardBuff(state, def.id);
+  const fodder = def.keywords.includes('FD'); // Fodder carries Staff of Guel via its run-wide enchant, not the buy-buff
+  const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0);
+  const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
+  let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA;
+  let health = def.health + cb.health + (offer.hp ?? 0) + staffH;
+  if (offer.golden) { attack *= 2; health *= 2; } // Golden Touch: a gilded offer is worth double, like on buy
+  return { attack, health };
+}
+
+/**
  * Demons devour Fodder sitting in the tavern. Called right after a tavern refresh
  * adds Fodder: if you have any Demon on board, each Fodder is eaten by one *random*
  * Demon (2 Demons + 1 Fodder → a coin-flip who eats it). The eater gains the fodder's
@@ -1712,9 +1733,7 @@ export function consumeTavernFodder(state: RunState): void {
     const eater = demons[rng.int(demons.length)]!;
     state.shop.splice(i, 1); // eaten — leaves the tavern
     const mult = fodderMultiplier(eater);
-    const buff = cardBuff(state, fodder.id); // Ritualist's run buff feeds the eater too
-    const fa = fodder.attack + buff.attack;
-    const fh = fodder.health + buff.health;
+    const { attack: fa, health: fh } = offerBuyStats(state, offer); // current buffed value (run buff + per-offer + golden)
     addBuff(eater, 'Consume', fa * mult, fh * mult);
     fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off
     // Record the Fodder's *effective* (buffed) stats for the ghost, and the eater's actual gain (× mult)

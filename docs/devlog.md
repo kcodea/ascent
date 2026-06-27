@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### fix: tavern consumes (Acid, Consume/Cupcakes, Demon-eats-Fodder) used base stats, not the buffed value
+
+Consuming a buffed tavern minion fed the consumer the minion's **base** stats instead of its current value.
+Each consume path computed stats ad hoc and missed different buffs: Acid (`onRollConsumeShop`) added the
+per-offer buff but skipped the persistent run enchant, golden, and held; the Consume/Cupcakes spell
+(`spellDemonConsumeTavern`) skipped golden and held; the Demon-eats-Fodder path (`consumeTavernFodder`)
+skipped the per-offer buff, golden, and held. So a gilded / Apples-buffed / Ritualist-enchanted offer was
+eaten for far less than it was worth.
+
+- **`sim/recruit.ts`** — new shared `offerBuyStats(state, offer)`: the single source of truth for a tavern
+  offer's CURRENT value — `held` (Displacement-stashed) returns its full preserved body, otherwise base +
+  persistent run buff (`cardBuff`) + Undead buy-attack + per-offer buff (`atk`/`hp` from Apples / Shatter /
+  Fortify) + Staff of Guel's tavern-buy bonus, all ×2 for a Golden Touch offer. Mirrors the reducer's buy
+  case, so **a consumed minion now grants exactly what buying it would**. All three consume paths route
+  through it. (It excludes only the Lantern of Souls *live aura*, which the buy path also doesn't bake — it
+  re-applies to real Undead on board/in combat, so transferring it onto a Demon would double-dip a temporary
+  aura. Flagged for follow-up if we want consume to match the on-card aura preview instead.)
+- **`sim/index.ts`** — export `offerBuyStats`.
+- **Verified**: typecheck + lint + `build:web` + full suite green (**401 tests**). New tests: a direct
+  `offerBuyStats` unit test (run buff + per-offer buff + Staff, golden ×2, held passthrough) and a Consume
+  integration test devouring a buffed + gilded + enchanted offer at its full value. Existing Acid / Consume /
+  Cupcakes tests still pass. Dev server HMR'd clean.
+
 ### fix: Eternal Knight Reborn dropped its accrued stacks
 
 An Eternal Knight that Reborned came back having shed every prior stack of its run-wide enchant. A Knight

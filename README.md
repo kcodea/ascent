@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Leaderboard buff breakdown.** Right-clicking a champion's minion in the Hall of Champions now shows how it
+  was buffed (Spirit Fire ×2, Golden Touch, …) in the inspect panel — for boards captured from here on.
 - **Opponents: real player boards, random.** You now face real player boards whenever any exist for your wave
   — the live Supabase shared pool first, then your local/friend boards, then the synthetic floor — picked at
   random (no power-matching) within the highest available tier.

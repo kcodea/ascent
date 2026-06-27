@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### chore(content): remove Toxin Tender
+
+Pulled the Undead T5 **Toxin Tender** (`toxin`, "Battlecry: give a friendly Undead Venomous") per the owner.
+
+- Card def removed from `content/cards/undead.ts`; its 7 specific tests removed from `run.test.ts` (→ 395).
+- The general **targeted-Battlecry primitive stays** (`target:'friendly'` / `targetTribe` / `pendingTarget`):
+  ~11 spells still use `target:'friendly'`, so the machinery + recruit UI are live. `targetTribe` now has no card
+  user (a dormant primitive); the explanatory code comments still name Toxin Tender as the historical example.
+- Regenerated `docs/cards.csv` (`npm run dump-cards`) and re-baked the opponent pool (`npm run pool`) so neither
+  references `toxin` (synthetic boards no longer draw it; any stale committed/remote board referencing it was
+  already dropped at load by `isServableBoard`). Removed the art-wiring README row.
+
+**Verification:** typecheck + lint + test (395) + build:web green; `grep toxin` clean across content, the generated
+pool data, and `cards.csv`. Left as-is: historical changelog (README highlights) + the balance-handoff snapshot.
+
 ### chore: re-baked SFX mix defaults (owner pass via the dev mixer)
 
 Whole-bank volume pass dialed in by ear in the DEV SFX mixer, pasted into `SAMPLE_VOL_DEFAULTS` (sfx.ts)

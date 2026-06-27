@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### fix(art): retire stale ART_ALIAS so the refreshed art actually shows (guel, heckbinder, demonanomaly, +3)
+
+Follow-up to the art refresh (#73): `art.ts` had a leftover `ART_ALIAS` map that forced 6 cards to render a
+*different* file — `heckbinder→heckbinder2`, `combinator→combinator2`, `guel→guel2`, `demonanomaly→demonanomaly2`,
+`manafont→goldfont`, `emberpouch→goldpouch` — and every one of those alias files was the **old pre-refresh art**
+(Jun 23). So the new masters (correctly wired under the proper card ids by the refresh) were shadowed. The owner
+caught guel + heckbinder + Demonic Anomaly; the same bug silently hit combinator, Gold Font, and Gold Pouch too.
+
+Emptied the alias map and deleted the 6 stale files, so each card uses its new base-named art. The alias
+mechanism stays (empty) for future one-off swaps. **Verification:** typecheck + build:web green; on `chore/art-refresh`
+the fix was confirmed live (all 6 new arts load at 512px, the stale files 404) — but #73 merged just before that
+commit, so this re-lands it on `main`.
+
 ### art: refresh all minion + hero art (new illustrated masters → optimized WebP)
 
 Re-wired the updated art masters from `C:\Game Assets\Ascent Art\{Minions,Heroes}` — **93 minion/token arts + 12

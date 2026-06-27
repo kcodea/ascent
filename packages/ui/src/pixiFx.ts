@@ -111,7 +111,7 @@ void main(){
   float e = vnoise(p * 3.0 + vec2(uTime * 0.30, -uTime * 0.22) + uSeed)
           + 0.5 * vnoise(p * 6.0 - vec2(uTime * 0.25, uTime * 0.30));
   float energy = 0.12 + 0.22 * e;
-  float pulse = 0.85 + 0.15 * sin(uTime * 1.1 * 0.85 + uSeed);   // whole-bubble breathe (speed 0.85)
+  float pulse = 1.0;   // whole-bubble breathe REMOVED — steady (was 0.85 + 0.15*sin; the bob isn't wanted)
 
   float bodyA = (0.16 + energy * 0.5) * pulse * 0.00;   // translucent interior (tuned OFF)
   float alpha = clamp(bodyA + rim * 0.85 + hex * 0.5, 0.0, 0.92) * mask;

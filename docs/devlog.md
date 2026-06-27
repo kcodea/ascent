@@ -18,7 +18,9 @@ browser with draggable outline + cutout handles + glass-look sliders) and baked 
   corner-round 0.010) minus the cutouts. The fresnel **rim now hugs the polygon edge** (`exp(-|sd|*5)`) so it
   conforms to the sculpted shape instead of a circle. Baked look dials: rimAmt 1.10, **interior opacity 0**
   (hollow rim+hex+glint glass — the body term is kept wired, one dial from re-enabling), specular 1.05, hex
-  density 4.4 / opacity 0.40, breathe 0.85. Tint `SHIELD_GOLD_RGB` → `[1.0, 0.89, 0.36]`.
+  density 4.4 / opacity 0.40. Tint `SHIELD_GOLD_RGB` → `[1.0, 0.89, 0.36]`. The whole-bubble **breathe was
+  removed** (`pulse` flattened to a constant) — the subtle bob-in/out isn't wanted on the new shield; the hex
+  shimmer + caustic drift stay (those aren't the bob).
 - **`AURA.shield.margin`** 0.84 → **1.16** (matches reborn) so the bubble quad encloses the whole card and
   the polygon coords map to the card edge (the circular bubble used a smaller quad).
 - **Verified**: typecheck + lint + test (395) + `build:web` green; app boots clean (no crash, Pixi ready).

@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### fix: Reborn aura flickered behind the card on placement (z-layering parity with divine shield)
+
+The reborn wisp dropped **behind** the card for ~850ms when a reborn unit was placed/moved on the board —
+the exact bug we'd already fixed for the divine-shield bubble. Cause: `puffOnBoard` raises a freshly-landed
+card to `z-index:111` (above the `.pixifx` overlay at z110) so its landing dust tucks *behind* it. The
+divine-shield fix skipped that raise for `.dscard` cards (keep the bubble in front), but the check was
+hard-coded to `dscard`, so reborn cards (`.reborncard`) still got raised over their own aura.
+
+- **`Recruit.tsx`** (`puffOnBoard`): the skip-raise check is now `AURA_CFGS.some(c => el.classList.contains(
+  c.marker))` — i.e. skip the raise for **any** aura-bearing card (shield OR reborn), driven off the shared
+  config so future aura kinds are covered automatically. Aura-free cards still raise as before.
+- Audited the rest of the divine-shield layering/visibility work for parity: drag mini-sparkle
+  (`cfg.dragKw`), per-marker combat scoping, and the discover/chooseOne hide (whole-layer
+  `setShieldsVisible`) **already** iterate generically over `AURA_CFGS`, so reborn was covered everywhere
+  except this one z-raise. `.pixifx` (z110) is the only overlay cards can out-stack, and `111` was its only
+  offender — fix is complete.
+- **Verified**: typecheck + lint + `build:web` green; app boots clean (no crash, Pixi ready). The live
+  placement (dust + 850ms raise) needs an in-game look — headless can't animate it.
+
 ### tweak: Reborn aura — bake the arched-card silhouette + per-badge cutouts into `REBORN_FRAG`
 
 Replaced the reborn aura's rounded-box SDF with a **polygon-outline SDF** that traces the game's actual

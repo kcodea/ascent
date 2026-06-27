@@ -1651,11 +1651,13 @@ export function Recruit() {
       const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row.warband .card[data-uid="${uid}"]`);
       if (!el) return;
       const r = el.getBoundingClientRect();
-      // A SHIELDED card must keep its bubble in FRONT, so we DON'T raise it above the FX canvas — doing so
-      // would hide the bubble + its coalesce/pop behind the card for the dust's lifetime. The dust just
-      // renders over the card instead (subtle tan puffs; barely noticeable). Unshielded cards raise as before
-      // so their landing dust tucks behind them.
-      if (!el.classList.contains('dscard')) {
+      // A card with a persistent AURA (divine-shield bubble OR reborn wisp) must keep that aura in FRONT, so
+      // we DON'T raise it above the FX canvas — doing so would hide the aura + its coalesce/pop behind the
+      // card for the dust's lifetime (the "effect flickers behind the card on placement" bug). The dust just
+      // renders over the card instead (subtle tan puffs; barely noticeable). Aura-free cards raise as before
+      // so their landing dust tucks behind them. Driven off AURA_CFGS so any future aura kind is covered.
+      const hasAura = AURA_CFGS.some((c) => el.classList.contains(c.marker));
+      if (!hasAura) {
         const prevPos = el.style.position;
         const prevZ = el.style.zIndex;
         el.style.position = 'relative';

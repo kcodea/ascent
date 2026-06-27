@@ -351,15 +351,9 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* Divine Shield's signifier is now the Pixi shield BUBBLE (see pixiFx.setShield / Recruit's syncShields,
    driven from the `.card.dscard` marker) — the old gold glow/halo/art-border + ward badge were removed.
    The `.card.dscard` class is kept purely as the DOM hook the bubble tracker reads. */
-/* Reborn — the same unmistakable treatment in electric BLUE; in combat it drops the moment the minion
-   Reborns (sheds the 'R' keyword), marking "still has its one revival left". The rising tears layer on top. */
-.card.compact.reborncard { z-index: 4; box-shadow: 0 0 10px 3px rgba(96, 170, 255, 0.58), 0 0 20px 5px rgba(64, 140, 240, 0.26); }
-.card.compact.reborncard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 14px 4px rgba(110, 180, 255, 0.8), 0 0 27px 7px rgba(78, 150, 245, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
-.card.compact.reborncard .art { border-color: #5cc8ff; }
-.card.compact.reborncard .art::after {
-  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
-  box-shadow: inset 0 0 0 2px rgba(165, 220, 255, 0.9), inset 0 0 18px 4px rgba(80, 170, 255, 0.92);
-}
+/* Reborn's signifier is now the Pixi blue wispy AURA (pixiFx kind='reborn', driven from the `.reborncard`
+   marker, parallel to the shield bubble) — the old blue glow/halo/art-border + rising tears were removed.
+   The `.reborncard` class is kept purely as the DOM hook the aura tracker reads. */
 /* Venomous — the same unmistakable treatment in toxic LIME (the V keyword: any damage it deals kills). */
 .card.compact.venomcard { z-index: 4; box-shadow: 0 0 10px 3px rgba(150, 228, 52, 0.58), 0 0 20px 5px rgba(120, 200, 40, 0.26); }
 .card.compact.venomcard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 14px 4px rgba(168, 238, 70, 0.8), 0 0 27px 7px rgba(128, 208, 46, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
@@ -384,22 +378,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .triparrows .ta:nth-child(3) { left: 62%; animation-delay: 0.66s; }
 .triparrows .ta:nth-child(4) { left: 84%; animation-delay: 0.98s; }
 @keyframes triparrow { 0% { opacity: 0; transform: translateY(12px) scale(0.85); } 25% { opacity: 1; } 70% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-30px) scale(1); } }
-/* spectral tears that rise across the card — bigger + brighter, several at a time for a lively glow */
-.reborntears { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; border-radius: 13px; }
-.reborntears .rt {
-  position: absolute; width: 11px; height: 15px; opacity: 0;
-  background: radial-gradient(circle at 50% 36%, #eaf4ff 0%, #7db4f5 52%, rgba(90, 150, 235, 0) 84%);
-  border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
-  filter: drop-shadow(0 0 7px rgba(140, 192, 252, 0.95));
-  animation: reborntear 4.4s ease-in-out infinite;
-}
-@keyframes reborntear {
-  0% { opacity: 0; transform: translateY(12px) scale(0.6); }
-  16% { opacity: 1; transform: translateY(3px) scale(1.1); }
-  44% { opacity: 0.95; transform: translateY(-16px) scale(1.15); }
-  68% { opacity: 0; transform: translateY(-34px) scale(0.95); }
-  100% { opacity: 0; transform: translateY(-34px) scale(0.95); }
-}
+/* (Reborn's rising "spectral tears" were removed — replaced by the Pixi blue wispy aura.) */
 /* Venomous — green venom globs constantly dripping off the card (no rim glow, just the drips) */
 .venomdrip { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; border-radius: 13px; }
 .venomdrip .vd {
@@ -1101,18 +1080,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 @keyframes impactspark { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4); } }
 .unit.flare .card { animation: flare 0.5s ease; }
 @keyframes flare { 0% { filter: brightness(1.9); } 100% { filter: none; } }
-/* Reborn — an unmistakable bright-blue resurrection: the whole unit flares electric blue with an
-   expanding glowing ring the moment it returns from death. */
-.unit.reborn { z-index: 14; }
-.unit.reborn .card { animation: rebornburst 0.85s ease; }
-@keyframes rebornburst {
-  0% { box-shadow: 0 0 0 4px #5696eb, 0 3px 0 var(--shadow); filter: brightness(1); }
-  16% { box-shadow: 0 0 0 10px #a6dcff, 0 0 60px 20px rgba(120, 200, 255, 0.98); filter: brightness(2.5) drop-shadow(0 0 24px #a6dcff); }
-  55% { box-shadow: 0 0 0 5px #5696eb, 0 0 34px 10px rgba(120, 200, 255, 0.7); filter: brightness(1.35); }
-  100% { box-shadow: 0 3px 0 var(--shadow); filter: none; }
-}
-.unit.reborn::after { content: ''; position: absolute; inset: -8px; border-radius: 20px; border: 4px solid #a6dcff; pointer-events: none; z-index: 13; box-shadow: 0 0 24px 6px rgba(120, 200, 255, 0.85); animation: rebornring 0.85s ease forwards; }
-@keyframes rebornring { 0% { opacity: 1; transform: scale(0.75); } 100% { opacity: 0; transform: scale(1.6); } }
+/* Reborn's resurrection flare is now the Pixi blue wispy break + re-form summon (pixiFx breakShield(…,'reborn')
+   + rebornSummon, fired from the tracker on the reborn beat) — the old CSS flare + ring were removed. The
+   `.unit.reborn` anim class is still tagged by the replay but no longer has any CSS. */
 
 /* Divine Shield gain + break are now the Pixi shield bubble's form-in / break burst (pixiFx) — the old
    CSS shield-gain pulse + shatter ring were removed. */

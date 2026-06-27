@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-26 (session 6)
 
+### feat: Reborn aura — blue wispy wraith (generalized the shield aura system to two kinds)
+
+Reborn now gets a persistent **blue wispy/wraith aura** (the spirit that brings the unit back), the sibling
+of the gold divine-shield bubble. Generalized the whole aura system to be **kind-aware** rather than
+duplicating it:
+
+- **`pixiFx.ts`**: a `kind: 'shield' | 'reborn'` threads through the bubble — registry keyed by `kind uid`,
+  shader + colour chosen per kind (`AURA` config). New `REBORN_FRAG` shader: no glassy fresnel/hex; instead
+  a hazy translucent body with drifting fbm-noise wisps that RISE, brighter tendril streaks, a feathered
+  edge, gentle pulse — spectral blue. `setShield/clearShield/breakShield` take a `kind`; the same
+  breathe/mini-sparkle/pop machinery serves both. Reborn break = `rebornShatter` (soft blue bloom + rising
+  smoke wisps + spirit motes, no shards); reborn rebirth = `rebornSummon` (blue wisps converge + rise into
+  the re-formed unit).
+- **`Recruit.tsx`**: `syncShields` generalized to loop over `AURA_CFGS` (`.dscard`→shield, `.reborncard`→
+  reborn) with composite keys, so a unit can carry both. Shield breaks DELAYED (hit→settle→shatter); Reborn
+  breaks IMMEDIATELY on the reborn beat → fires the shatter **and** the re-form summon (so the read is:
+  die → spirit shatters → unit re-forms). All the combat-scope / modal-hide / drag-from-any-source fixes
+  apply to both kinds.
+- **Audio**: new `sfx.rebornShatter` (`rebornshatter.mp3`) + `sfx.rebornSummon` (`rebornsummon.mp3`, a
+  distinct clip from the generic summon), deduped, in the mixer + dev preview.
+- **Removed** (replaced by the aura): the CSS `.reborncard` blue glow/halo/art-border, the rising "reborn
+  tears", and the combat `.unit.reborn` flare/ring. `.reborncard` stays as the tracker's DOM hook.
+- **Verified**: typecheck + lint + 402 tests + build green; framebuffer readback confirms the gold shield
+  still renders (R>G>B) AND the reborn aura renders blue (B>R), both shaders compile (no init errors). The
+  wispy look + the break/summon timing need an in-game eyeball (headless preview freezes Pixi's ticker).
+
 ### chore: re-baked SFX mix defaults (owner pass via the dev mixer)
 
 Whole-bank volume pass dialed in by ear in the DEV SFX mixer, pasted into `SAMPLE_VOL_DEFAULTS` (sfx.ts)

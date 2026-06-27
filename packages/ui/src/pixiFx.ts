@@ -90,6 +90,56 @@ void main(){
 `;
 
 /**
+ * The REBORN aura fragment shader — the wispy, wraith-spirit sibling of the shield shader. No glassy
+ * fresnel rim or hex force-field; instead a hazy translucent body with slow DRIFTING fbm-noise wisps that
+ * RISE (like a hovering spirit), brighter tendril streaks, a very soft feathered edge, and a gentle pulse.
+ * Premultiplied; `uColor` is a spectral blue. Reuses the same quad + vUV as the shield mesh.
+ */
+const REBORN_FRAG = /* glsl */ `#version 300 es
+precision highp float;
+in vec2 vUV;
+out vec4 finalColor;
+uniform float uTime;
+uniform float uAspect;
+uniform vec3  uColor;
+uniform float uSeed;
+
+float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float vnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  float a = hash(i), b = hash(i + vec2(1.0,0.0)), c = hash(i + vec2(0.0,1.0)), d = hash(i + vec2(1.0,1.0));
+  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
+}
+float fbm(vec2 p){ float v = 0.0, a = 0.55; for (int i = 0; i < 4; i++){ v += a * vnoise(p); p = p * 2.0 + 7.3; a *= 0.5; } return v; }
+
+void main(){
+  vec2 uv = vUV;
+  vec2 p = (uv - 0.5) * 2.0;        // -1..1
+  float d = length(p);
+  if (d >= 1.0) { finalColor = vec4(0.0); return; }
+
+  float falloff = smoothstep(1.0, 0.15, d);   // soft glow, strongest mid, fading out
+  vec2 q = p * vec2(uAspect, 1.0);
+  float t = uTime * 0.22;
+  // two drifting noise fields that RISE (− on y) at different rates → roiling spirit-smoke
+  float w1 = fbm(q * 1.7 + vec2(t * 0.5, -t) + uSeed);
+  float w2 = fbm(q * 3.2 - vec2(t * 0.4, t * 1.3) + uSeed * 1.7);
+  float wisp = w1 * 0.6 + w2 * 0.4;
+  float tendril = smoothstep(0.5, 0.85, wisp); // brighter wisp streaks
+
+  float pulse = 0.8 + 0.2 * sin(uTime * 0.85 + uSeed);
+  float bodyA = falloff * (0.08 + 0.26 * wisp) * pulse;   // hazy translucent body
+  float bright = tendril * 0.55 * falloff;
+  float edge = smoothstep(1.0, 0.7, d);                   // very soft feathered edge (no hard rim)
+  float alpha = clamp(bodyA + bright, 0.0, 0.72) * edge;
+
+  vec3 col = uColor * (bodyA * 1.25 + bright * 1.5);
+  col += vec3(0.72, 0.86, 1.0) * tendril * 0.45 * falloff; // cool white-blue wisp highlights
+  finalColor = vec4(col * alpha, alpha);                   // premultiplied
+}
+`;
+
+/**
  * The WebGL effects layer — a single transparent PixiJS overlay stretched over the whole
  * viewport, drawing the *juice* that DOM/CSS does poorly (particle bursts, impact flashes)
  * on the GPU compositor. It does NOT render the board, cards, or layout — React/DOM still
@@ -126,10 +176,14 @@ interface Particle {
  * it lives until the shield breaks or is cleared, breathing on the ticker and tracking the unit's
  * on-screen rect. The React layers measure the rect and push it via `setShield`; this stays DOM-agnostic.
  */
+/** Which flavour of persistent aura — gold glassy Divine Shield, or blue wispy Reborn spirit. */
+type AuraKind = 'shield' | 'reborn';
+
 interface ShieldBubble {
+  kind: AuraKind;        // picks the shader + break/pop colour
   container: Container;
-  mesh: Mesh;            // a quad mesh the shield shader draws the energy sphere onto (clean 0..1 UVs)
-  shader: Shader;        // the per-bubble shield shader (its uTime/uAspect animate each frame)
+  mesh: Mesh;            // a quad mesh the aura shader draws onto (clean 0..1 UVs)
+  shader: Shader;        // the per-bubble aura shader (its uTime/uAspect animate each frame)
   cx: number; cy: number; // target center (viewport px)
   w: number; h: number;   // target footprint (the card's size)
   age: number;            // ms lived — drives the breathe phase + vein drift
@@ -150,6 +204,13 @@ const FADE_MS = 30;            // graceful fade when a shield is cleared without
 const MINI_SCALE = 0.3;        // bubble size while dragging (a small trailing sparkle of the card)
 const POP_MS = 320;            // coalesce/pop-in duration when a dragged card is placed
 const SHIELD_GOLD_RGB = [1.0, 0.82, 0.29]; // Divine-Shield shader tint (0xffd24a in 0..1 rgb)
+const REBORN_BLUE_RGB = [0.42, 0.72, 1.0]; // Reborn wisp tint (spectral blue)
+/** Per-kind aura config: the fragment shader + the base colour (gold sphere vs blue wisp). */
+const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTint: number }> = {
+  shield: { frag: SHIELD_FRAG, rgb: SHIELD_GOLD_RGB, tint: 0xffd24a, rimTint: 0xffe9a8 },
+  reborn: { frag: REBORN_FRAG, rgb: REBORN_BLUE_RGB, tint: 0x6ab0ff, rimTint: 0xbfe2ff },
+};
+const auraKey = (kind: AuraKind, uid: string): string => `${kind}|${uid}`;
 
 class FxController {
   private app: Application | null = null;
@@ -570,20 +631,21 @@ class FxController {
    * `mini` = the card is being dragged → shrink to a small trailing sparkle; when a `mini` bubble is next
    * set with `mini=false` (the card is placed), it coalesces/pops back to full size.
    */
-  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false): void {
+  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield'): void {
     if (!this.ready || !this.shieldLayer) return;
-    let b = this.shields.get(uid);
+    const key = auraKey(kind, uid);
+    let b = this.shields.get(key);
     if (!b) {
       const container = new Container();
-      // A quad mesh the shield shader draws onto. The geometry's UVs are a clean 0..1, so the fragment maps
-      // the sphere exactly (no filter-coordinate guessing). The container scales it to the card footprint.
+      // A quad mesh the aura shader draws onto. The geometry's UVs are a clean 0..1, so the fragment maps the
+      // sphere/wisp exactly. The container scales it to the card footprint; the shader is chosen per kind.
       const shader = Shader.from({
-        gl: { vertex: SHIELD_VERT, fragment: SHIELD_FRAG },
+        gl: { vertex: SHIELD_VERT, fragment: AURA[kind].frag },
         resources: {
           shieldUniforms: {
             uTime: { value: 0, type: 'f32' },
             uAspect: { value: w / Math.max(1, h), type: 'f32' },
-            uColor: { value: new Float32Array(SHIELD_GOLD_RGB), type: 'vec3<f32>' },
+            uColor: { value: new Float32Array(AURA[kind].rgb), type: 'vec3<f32>' },
             uSeed: { value: (this.shields.size % 7) * 1.3, type: 'f32' }, // de-sync neighbours' pulses
           },
         },
@@ -592,27 +654,28 @@ class FxController {
       container.addChild(mesh);
       container.alpha = 0;
       this.shieldLayer.addChild(container);
-      b = { container, mesh, shader, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
+      b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
             mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1 };
-      this.shields.set(uid, b);
+      this.shields.set(key, b);
     } else {
       b.cx = cx; b.cy = cy; b.w = w; b.h = h;
-      b.fadeOut = -1; // re-targeted while fading (shield re-gained) → cancel the fade
+      b.fadeOut = -1; // re-targeted while fading (re-gained) → cancel the fade
       // Dragged (mini) → placed (full): coalesce/pop the bubble back into existence (inverse of the break).
-      if (b.mini && !mini) { b.pop = 0; this.shieldPop(cx, cy, w, h); }
+      if (b.mini && !mini) { b.pop = 0; this.shieldPop(cx, cy, w, h, kind); }
       b.mini = mini;
     }
   }
 
   /** The placement coalesce: a bright central flash + a ring of sparkles rushing INWARD to the center —
    *  the inverse of the break's outward shrapnel. Fired when a dragged shield is set down. */
-  private shieldPop(cx: number, cy: number, w: number, h: number): void {
+  private shieldPop(cx: number, cy: number, w: number, h: number, kind: AuraKind = 'shield'): void {
     if (!this.ready) return;
     const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
+    const c = AURA[kind];
     // central flash that blooms as the bubble snaps in
     this.spawn(this.bubbleTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 240, fromScale: (rad / BUBBLE_TEX_R) * 0.35,
-      toScale: (rad / BUBBLE_TEX_R) * 1.05, spin: 0, tint: 0xfff3c8, blend: 'add', peakAlpha: 0.8,
+      toScale: (rad / BUBBLE_TEX_R) * 1.05, spin: 0, tint: c.rimTint, blend: 'add', peakAlpha: 0.8,
     });
     // sparkles starting on a ring and rushing inward to coalesce at the center
     const n = 10;
@@ -625,15 +688,14 @@ class FxController {
         vx: -Math.cos(a) * speed, vy: -Math.sin(a) * speed, // inward
         drag: 0.05, // decelerate hard as they reach the middle
         life: 240 + Math.random() * 120, fromScale: 0.8 + Math.random() * 0.5, toScale: 0.05,
-        spin: 0, tint: 0xffe9a8, blend: 'add', peakAlpha: 0.95,
+        spin: 0, tint: c.rimTint, blend: 'add', peakAlpha: 0.95,
       });
     }
   }
 
-  /** Gracefully fade out and remove a bubble whose shield was removed WITHOUT breaking (rare — e.g. a
-   *  Reborn return overwrites keywords). A broken shield uses `breakShield` instead. */
-  clearShield(uid: string): void {
-    const b = this.shields.get(uid);
+  /** Gracefully fade out and remove an aura that was removed WITHOUT breaking (sold / left the field). */
+  clearShield(uid: string, kind: AuraKind = 'shield'): void {
+    const b = this.shields.get(auraKey(kind, uid));
     if (b && b.fadeOut < 0) b.fadeOut = 0;
   }
 
@@ -648,14 +710,16 @@ class FxController {
    * an energy shockwave ring, a spray of golden shrapnel shards, and a few energy motes. The persistent
    * bubble is removed immediately; the burst is fire-and-forget on the particle layer.
    */
-  breakShield(uid: string): void {
-    const b = this.shields.get(uid);
+  breakShield(uid: string, kind: AuraKind = 'shield'): void {
+    const key = auraKey(kind, uid);
+    const b = this.shields.get(key);
     if (!b) return;
     const { cx, cy, w, h } = b;
     b.shader.destroy();
     b.container.destroy({ children: true });
-    this.shields.delete(uid);
+    this.shields.delete(key);
     if (!this.ready) return;
+    if (kind === 'reborn') { this.rebornShatter(cx, cy, w, h); return; } // wispy spirit release, not shards
     const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
 
     // 1) CRACK — a bright white-gold flash at the bubble's footprint + a few fracture lines snapping across.
@@ -705,6 +769,66 @@ class FxController {
         x: cx, y: cy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.5,
         life: 500 + Math.random() * 400, fromScale: 0.9 + Math.random() * 0.8, toScale: 0.05,
         spin: 0, tint: 0xffe9a8, blend: 'add', peakAlpha: 0.95,
+      });
+    }
+  }
+
+  /** The REBORN aura SHATTERS — the wraith spirit releases: a soft blue bloom + drifting/RISING smoke wisps
+   *  + a few bright spirit motes streaking up. No hard shards (the wispy counterpart of the glassy shatter). */
+  private rebornShatter(cx: number, cy: number, w: number, h: number): void {
+    const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
+    // soft blue bloom that swells + fades
+    this.spawn(this.bubbleTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 300, fromScale: (rad / BUBBLE_TEX_R) * 0.8,
+      toScale: (rad / BUBBLE_TEX_R) * 1.8, spin: 0, tint: 0x9ccbff, blend: 'add', peakAlpha: 0.7,
+    });
+    // smoke wisps — soft blobs that drift outward but bias UPWARD (spirits rising) and EXPAND as they fade
+    const wisps = 14;
+    for (let i = 0; i < wisps; i++) {
+      const a = (i / wisps) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+      const speed = 55 + Math.random() * 150;
+      this.spawn(this.glowTex!, {
+        x: cx + (Math.random() - 0.5) * rad, y: cy + (Math.random() - 0.5) * rad,
+        vx: Math.cos(a) * speed * 0.6, vy: Math.sin(a) * speed * 0.5 - (55 + Math.random() * 120), // rise
+        drag: 0.55, life: 600 + Math.random() * 520, fromScale: 0.5 + Math.random() * 0.5,
+        toScale: 1.4 + Math.random() * 0.8, spin: (Math.random() - 0.5) * 1.0,
+        tint: Math.random() < 0.5 ? 0x6ab0ff : 0xbfe2ff, blend: 'add', peakAlpha: 0.42 + Math.random() * 0.2,
+      });
+    }
+    // a few bright spirit motes streaking up
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+      const speed = 180 + Math.random() * 240;
+      this.spawn(this.sparkTex!, {
+        x: cx + (Math.random() - 0.5) * rad * 0.6, y: cy,
+        vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.4,
+        life: 500 + Math.random() * 400, fromScale: 0.8 + Math.random() * 0.6, toScale: 0.05,
+        spin: 0, tint: 0xdfeeff, blend: 'add', peakAlpha: 0.9,
+      });
+    }
+  }
+
+  /** The REBORN rebirth — the unit re-forms from the spirit: blue wisps CONVERGE inward + rise into the
+   *  reborn unit + a soft blue flash. The wispy counterpart of a summon poof (fired on the `reborn` beat). */
+  rebornSummon(cx: number, cy: number, w: number, h: number): void {
+    if (!this.ready) return;
+    const rad = Math.max(w, h) * 0.5 * BUBBLE_MARGIN;
+    // soft blue flash as the body knits back together
+    this.spawn(this.bubbleTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 320, fromScale: (rad / BUBBLE_TEX_R) * 0.3,
+      toScale: (rad / BUBBLE_TEX_R) * 1.2, spin: 0, tint: 0xcfe6ff, blend: 'add', peakAlpha: 0.65,
+    });
+    // wisps starting below + around, rising and converging into the unit
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const r0 = rad * (1.1 + Math.random() * 0.4);
+      const speed = 220 + Math.random() * 220;
+      this.spawn(this.glowTex!, {
+        x: cx + Math.cos(a) * r0, y: cy + Math.sin(a) * r0 + rad * 0.4, // start a touch low → rise in
+        vx: -Math.cos(a) * speed * 0.6, vy: -Math.abs(Math.sin(a)) * speed - 40, // inward + up
+        drag: 0.12, life: 360 + Math.random() * 220, fromScale: 0.6 + Math.random() * 0.5, toScale: 0.05,
+        spin: 0, tint: Math.random() < 0.5 ? 0x6ab0ff : 0xdfeeff, blend: 'add', peakAlpha: 0.7,
       });
     }
   }

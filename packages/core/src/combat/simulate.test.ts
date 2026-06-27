@@ -29,6 +29,18 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerDamage).toBe(b.playerDamage);
   });
 
+  it('carries the recruit-phase buff breakdown into the initial snapshot (for the combat inspect)', () => {
+    // A board minion enters combat with a recruit-buff breakdown; the snapshot the UI reads must keep it
+    // so right-click inspect can itemize recruit buffs in combat (parity with the shop panel).
+    const p: BoardMinion[] = [
+      { cardId: 'pack', attack: 8, health: 8, buffs: [{ source: 'Spirit Fire', attack: 6, health: 6, count: 2 }] },
+    ];
+    const r = run(p, [{ cardId: 'sandbag', attack: 1, health: 1 }], 1);
+    expect(r.initial.player[0]!.buffs).toEqual([{ source: 'Spirit Fire', attack: 6, health: 6, count: 2 }]);
+    // A summoned token (enemy sandbag here had none) carries no breakdown.
+    expect(r.initial.enemy[0]!.buffs).toBeUndefined();
+  });
+
   it('Kennelmaster Avenge (3) improves its summon buff and reports the bonus to carry back', () => {
     // 3 Taunt sandbags are killed first (forced targets) while the no-Taunt Kennelmaster
     // chips the tanky enemy — so all 3 friends die with Kennelmaster alive → Avenge (3)

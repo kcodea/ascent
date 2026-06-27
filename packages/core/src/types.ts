@@ -249,6 +249,18 @@ export interface CardDef {
   chooseOne?: { text: string; effects: EffectDef[] }[];
 }
 
+/** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown
+ *  ("Spirit Fire ×2: +6/+6"). Structurally mirrors `@game/sim`'s recruit-phase `CardBuff` so the
+ *  run board's breakdown can ride into combat (carried through the snapshot to the combat inspect),
+ *  and so the UI can merge in the buffs a minion gains mid-fight under the same shape. `count` = how
+ *  many times that source buffed this minion. */
+export interface MinionBuff {
+  source: string;
+  attack: number;
+  health: number;
+  count: number;
+}
+
 /**
  * A board minion as it enters combat — a card id plus its *current* stats
  * (after recruit-phase buffs have been baked in by `@game/sim`). For M0 the
@@ -279,6 +291,9 @@ export interface BoardMinion {
   /** The Reclaimer's mark: at the start of combat this minion is destroyed (Deathrattle fires) and
    *  an exact copy is resummoned if there's room. */
   resummon?: boolean;
+  /** Per-source recruit-phase buff breakdown carried from the run board, so the combat inspect panel can
+   *  itemize where this minion's stats came from (Spirit Fire, triples, Battlecries…) — same as the shop. */
+  buffs?: MinionBuff[];
 }
 
 /** A live combat instance. Mutable for the duration of one `simulate()` call. */
@@ -325,6 +340,10 @@ export interface Minion {
   bredCount?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
+  /** Recruit-phase buff breakdown carried from the run board (see BoardMinion.buffs) — passed into the
+   *  combat snapshot so the inspect panel itemizes recruit buffs in combat. Combat-only minions (summoned
+   *  tokens, Reborn bodies) have none. */
+  buffs?: MinionBuff[];
   side: Side;
   effects: EffectDef[];
   dead: boolean;
@@ -347,6 +366,9 @@ export interface MinionSnapshot {
   /** Tara's prior ascend progress (seeded from the run board) — so the live combat "N to ascend" tracker
    *  starts from the real total and counts up, matching the shop card. */
   ascendProgress?: number;
+  /** Per-source recruit-phase buff breakdown (see Minion.buffs) — lets the combat inspect panel itemize a
+   *  minion's recruit buffs, the same breakdown the shop shows. Absent for combat-summoned tokens. */
+  buffs?: MinionBuff[];
 }
 
 /**

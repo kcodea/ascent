@@ -3,7 +3,53 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
-## 2026-06-26 (session 6)
+## 2026-06-27 (session 7)
+
+### feat: restore the "Clear my boards" button in the Esc menu
+
+Brought back a one-tap way to wipe this browser's captured finished-run boards (`boardLibrary`,
+`localStorage['ascent.boards']`) — the local board section was dropped in #67 when the live Supabase shared
+pool replaced local export/import sharing, but the local library is still written on every finished run, so
+a "these went stale after a patch" clear is still useful.
+
+- **`EscMenu.tsx`**: a new **Saved Boards** section with a single **Clear my boards** button (shows the live
+  count) using two-tap confirm (arms → `danger` style + "Tap again to confirm", second tap clears) via
+  `clearStoredBoards()`; a status line confirms. Deliberately did NOT restore the old export/import buttons —
+  those served the pre-#67 file-sharing model the live pool superseded. Only `clearStoredBoards` +
+  `loadStoredBoards` re-imported; all CSS classes (`.escboards`, `.escboards-msg`, `.escbtn.danger`) already
+  existed.
+- Scope note: clears **local** captures only — not the live shared pool or the leaderboard (those are backend).
+- **Verified**: typecheck + lint + test (395) + `build:web` green; exercised live in-preview — seeded 3
+  boards, opened the menu (button read "3 saved"), tap 1 armed the confirm, tap 2 cleared
+  `localStorage['ascent.boards']` (count → 0, "Cleared your captured boards").
+
+### feat: right-click buff tracking in combat (recruit + combat buffs, parity with the shop)
+
+The shop's right-click inspect itemizes a minion's per-source buff breakdown ("Spirit Fire ×2: +6/+6")
+from `card.buffs` (`CardBuff[]`, accrued by `recruit.ts`). In combat the inspect panel showed **nothing**:
+combat units are rebuilt from the event log as `UnitFrame`s, and the `view` handed to `Card`/`Inspect`
+carried no `buffs`. This wires the same breakdown into combat — both the recruit buffs a minion entered
+the fight with **and** the buffs it gains mid-fight, merged by source.
+
+- **`core/types.ts`** — new `MinionBuff` interface (structurally mirrors sim's `CardBuff`), added as an
+  optional `buffs?: MinionBuff[]` on `BoardMinion`, `Minion`, and `MinionSnapshot`. This is the shared
+  combat-event/snapshot boundary, so the shape lives in core; sim's `CardBuff` assigns to it structurally.
+- **`core/combat/minion.ts`** (`instantiate`) carries `board.buffs` onto the live `Minion`; combat-only
+  bodies (summoned tokens, Reborn) have none.
+- **`core/combat/simulate.ts`** (`snapshot`) copies `m.buffs` into the `MinionSnapshot`, so `initial`
+  carries each starting minion's recruit breakdown out to the UI.
+- **`sim/reducer.ts`** — the `resolveCombat` player `BoardMinion[]` now passes `buffs: b.buffs` from the
+  run board card into combat.
+- **`ui/useCombatReplay.ts`** — `UnitFrame` gains `buffs`; `fromSnap` clones the recruit breakdown (so the
+  per-beat fold can mutate safely); `computeFrame` folds each `buff` event into the unit's breakdown by
+  **source name** (resolved via the `names` map, now passed in) using a new `recordBuff` helper — the
+  combat counterpart of recruit's `bumpBuff`. A `reborn` clears the breakdown (back at base stats).
+- **`ui/Unit.tsx`** — the combat `view` now passes `buffs: u.buffs`; the existing `<Inspect>` panel renders
+  it unchanged (its `inspect.buffs` block already handles the shape).
+- **Verified**: typecheck + lint + `build:web` + full suite green (now 396 tests). New core test proves the
+  recruit breakdown survives into `initial.player[].buffs` and that buff-less minions stay `undefined`. Dev
+  server HMR'd clean (no console errors); the live in-combat right-click is left for a playtest (a full run
+  into combat with a buffed unit isn't reliably automatable).
 
 ### feat(ui): show the wave's max loss damage under the WAVE meter
 

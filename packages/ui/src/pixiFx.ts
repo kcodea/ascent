@@ -103,7 +103,7 @@ void main(){
   vec2 h2 = mod(hp + cell * 0.5, cell) - cell * 0.5;
   vec2 hh = dot(h1, h1) < dot(h2, h2) ? h1 : h2;
   float edge = smoothstep(0.36, 0.5, hexEdge(hh));
-  float hexPulse = 0.55 + 0.45 * sin(uTime * 1.6 + (uv.x + uv.y) * 6.0 + uSeed);
+  float hexPulse = 0.55 + 0.585 * sin(uTime * 2.08 + (uv.x + uv.y) * 6.0 + uSeed); // +30% speed + swing
   float hex = edge * (0.3 + 0.5 * hexPulse) * 0.40;   // hex opacity
 
   // drifting energy caustics feed the translucent interior — interior opacity tuned to 0, so the body drops
@@ -111,7 +111,7 @@ void main(){
   float e = vnoise(p * 3.0 + vec2(uTime * 0.30, -uTime * 0.22) + uSeed)
           + 0.5 * vnoise(p * 6.0 - vec2(uTime * 0.25, uTime * 0.30));
   float energy = 0.12 + 0.22 * e;
-  float pulse = 0.85 + 0.15 * sin(uTime * 1.1 * 0.85 + uSeed);   // whole-bubble colour breathe (speed 0.85)
+  float pulse = 0.85 + 0.195 * sin(uTime * 1.1 * 1.105 + uSeed);   // whole-bubble colour breathe (+30% speed + swing)
 
   float bodyA = (0.16 + energy * 0.5) * pulse * 0.00;   // translucent interior (tuned OFF)
   float alpha = clamp(bodyA + rim * 0.85 + hex * 0.5, 0.0, 0.92) * mask;

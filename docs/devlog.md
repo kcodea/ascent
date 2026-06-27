@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### fix: the round timer kept ticking under the title / leaderboard overlays
+
+`<Recruit />` stays mounted across every phase (combat plays out in place), and the title screen, hero
+picker, and Hall of Champions render *on top* of it (see `Game.tsx`). The recruit round-timer loop only
+paused for an open Discover + the hero picker — not the title or leaderboard — so the clock kept counting
+down (and the last-5-seconds `sfx.tick` kept firing) on those screens, where there's no active turn.
+
+- **`Recruit.tsx`** — the countdown effect now also pauses while an overlay is open (`showTitle ||
+  showLeaderboard`), added to its guard + deps. The clock freezes where it was and resumes when the overlay
+  closes (no refill). The hero-picker pause was already handled (`heroSelecting`).
+- **Verified**: typecheck + lint + `build:web` green; dev server HMR'd clean. (The symptom was the audible
+  tick + visible countdown on the Hall of Champions — now silent/frozen there.)
+
 ### tweak: Taunt bulwark — size back to 1.34, shift down to 8px
 
 Dialed the taunt bulwark defaults: `margin` 1.54 → 1.34 (reverting the +15%) and `offsetY` 2 → 8 (a bigger

@@ -17,6 +17,9 @@ function cardViewOf(m: BoardMinion): CardView {
     attack: m.attack, health: m.health, keywords: m.keywords ?? [],
     text: def?.text ?? '', goldenText: def?.goldenText, golden: m.golden,
     tier: def?.tier ?? 1, baseAttack: def?.attack ?? m.attack, baseHealth: def?.health ?? m.health,
+    // Per-source buff breakdown (captured in the snapshot) → shown in the right-click inspect panel. Older
+    // snapshots (captured before this shipped) carry none, so the panel just doesn't appear for them.
+    buffs: m.buffs,
   };
 }
 

@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-27 (session 7)
 
+### feat: Hall of Champions shows each minion's buff breakdown (right-click inspect)
+
+Right-clicking a champion's minion in the leaderboard now itemizes HOW it was buffed ("Spirit Fire ×2:
++6/+6", "Golden Touch", etc.) in the inspect panel — the same breakdown the shop + combat already show
+(PR #77). Board snapshots didn't carry the breakdown, so this captures it.
+
+- **`sim/snapshot.ts`** (`cleanBoard`) — carries each board card's per-source `buffs` into the snapshot
+  (cloned, omitted when empty). So captured/served/leaderboard boards keep the breakdown, not just final stats.
+- **`ui/Leaderboard.tsx`** (`cardViewOf`) — passes `buffs` into the card view; the existing right-click
+  `<Inspect>` overlay renders it unchanged.
+- **Caveat**: only boards captured AFTER this ships carry the breakdown — older leaderboard rows (captured
+  before now) simply show no Buffs panel (graceful).
+- **Verified**: typecheck + lint + `build:web` + full suite green (**402 tests**). New snapshot test:
+  `snapshotBoard` captures the buff breakdown (cloned, not shared) and omits it for buff-less minions.
 ### feat: opponent selection — fully random within a source-priority cascade (Supabase → local → synthetic)
 
 Reworked `pickOpponent` so you always face real *player* boards when any exist for your wave, picked at

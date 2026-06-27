@@ -135,6 +135,10 @@ function cleanBoard(s: RunState): BoardMinion[] {
     // Tara's ascend progress. Without these a served Sergeant/Tara fought weaker than the real board did.
     ...(c.hpGrantBonus ? { hpGrantBonus: c.hpGrantBonus } : {}),
     ...(c.ascendProgress ? { ascendProgress: c.ascendProgress } : {}),
+    // Per-source recruit-buff breakdown ("Spirit Fire ×2: +6/+6") — carried so a captured board can show
+    // HOW its minions were buffed in the right-click inspect (leaderboard / served opponent). Cloned so the
+    // snapshot never shares the run board's arrays.
+    ...(c.buffs && c.buffs.length ? { buffs: c.buffs.map((b) => ({ ...b })) } : {}),
   }));
 }
 

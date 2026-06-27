@@ -1586,6 +1586,7 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
 export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean {
   const bi = state.board.indexOf(boardMinion);
   if (bi < 0 || state.shop.length === 0) return false;
+  if (boardMinion.golden) return false; // can't trade away a golden (triple) — no RNG consumed on the no-op
   const rng = makeRng(state.rngCursor);
   const si = rng.int(state.shop.length);
   state.rngCursor = rng.state();

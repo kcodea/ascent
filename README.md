@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Balance: Displacement / Displace can't target goldens.** The Displacement spell and Darah's Displace power
+  no longer accept a golden (triple) minion — you can't trade away a triple for a random tavern minion.
 - **Wave stakes in the top bar.** Under the WAVE meter, a small "♥ Max −N" line shows the most Resolve a loss
   this wave can cost (the round damage cap) — so you can read the downside before a fight. Hidden in Practice.
 - **Right-click buff tracking in combat.** The inspect panel now itemizes a combat unit's per-source buff

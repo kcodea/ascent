@@ -286,6 +286,8 @@ export function Recruit() {
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   const heroPowerKind = getHero(run.heroId).power.kind;
   const heroTargetsTavern = heroPowerKind === 'fortify';
+  // Darah's Displace can't target a golden minion (you can't trade away a triple) — excluded as a valid pick.
+  const heroTargetsNoGolden = heroPowerKind === 'displace';
   // The active +X/+X bonus to stat-granting spells (Spellbinder, etc.) — so spell cards show their
   // real value. One source of truth shared with the reducer's cast math.
   const spellBonus = spellAttackBonus(run);
@@ -1117,6 +1119,8 @@ export function Recruit() {
       const el = document.elementFromPoint(x, y)?.closest(sel);
       const uid = el?.getAttribute('data-uid');
       if (!uid || uid === run.spell?.uid) return null; // a minion, never the spell
+      // Displace can't target a golden (triple) — it never lights up as a valid pick.
+      if (heroTargetsNoGolden && run.board.find((c) => c.uid === uid)?.golden) return null;
       return { uid };
     };
     const move = (e: PointerEvent): void => {
@@ -1151,7 +1155,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, heroTargetsTavern, run.spell?.uid, timeUp, dispatch, armHero, inCombat, flashBuffed]);
+  }, [heroArmed, heroTargetsTavern, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat, flashBuffed]);
 
   // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
   // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors
@@ -1737,6 +1741,8 @@ export function Recruit() {
           const tTier = tCard ? CARD_INDEX[tCard.cardId]?.tier : undefined;
           if (tTier === undefined || tTier > maxTier) return false; // invalid target → snap back, no cast
         }
+        // Displacement: can't trade away a golden (triple). A golden target → snap back WITHOUT consuming the spell.
+        if (CARD_INDEX[d.view.cardId]?.targetNoGolden && run.board.find((c) => c.uid === targetUid)?.golden) return false;
         if (d.view.cardId === 'devour') {
           // Capture the devoured minion's centre BEFORE the cast removes it, then fling its stats over.
           const el = document.querySelector(`[data-zone="warband"] .row.warband .card[data-uid="${targetUid}"]`);

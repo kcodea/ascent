@@ -1256,6 +1256,33 @@ describe('run loop (@game/sim)', () => {
     expect(s.heroReady).toBe(false); // once-per-turn charge spent
   });
 
+  it('Displacement cannot target a golden minion — fizzles, keeps the spell in hand', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: true }],
+      shop: [{ uid: 's1', cardId: 'gnash' }],
+      hand: [{ uid: 'dp', cardId: 'displacement', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'dp', targetUid: 'm' });
+    expect(s.board[0]!.cardId).toBe('sandbag'); // unchanged — no swap
+    expect(s.board[0]!.golden).toBe(true);
+    expect(s.shop.some((o) => o.cardId === 'gnash')).toBe(true); // tavern minion stayed
+    expect(s.hand.some((c) => c.cardId === 'displacement')).toBe(true); // spell NOT consumed
+  });
+
+  it('Darah Displace cannot target a golden minion — no swap, charge not spent', () => {
+    let s: RunState = {
+      ...createRun(1, 'darah'),
+      heroReady: true,
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: true }],
+      shop: [{ uid: 's1', cardId: 'gnash' }],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'm' });
+    expect(s.board[0]!.cardId).toBe('sandbag'); // unchanged — golden can't be displaced
+    expect(s.shop.some((o) => o.cardId === 'gnash')).toBe(true); // tavern minion stayed
+    expect(s.heroReady).toBe(true); // no-op → charge NOT spent
+  });
+
   it('Spell Cart fills the tavern with (distinct) spells; the next roll restocks minions', () => {
     let s: RunState = {
       ...createRun(1),

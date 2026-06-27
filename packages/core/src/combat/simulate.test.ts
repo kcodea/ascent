@@ -29,6 +29,18 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerDamage).toBe(b.playerDamage);
   });
 
+  it('carries the recruit-phase buff breakdown into the initial snapshot (for the combat inspect)', () => {
+    // A board minion enters combat with a recruit-buff breakdown; the snapshot the UI reads must keep it
+    // so right-click inspect can itemize recruit buffs in combat (parity with the shop panel).
+    const p: BoardMinion[] = [
+      { cardId: 'pack', attack: 8, health: 8, buffs: [{ source: 'Spirit Fire', attack: 6, health: 6, count: 2 }] },
+    ];
+    const r = run(p, [{ cardId: 'sandbag', attack: 1, health: 1 }], 1);
+    expect(r.initial.player[0]!.buffs).toEqual([{ source: 'Spirit Fire', attack: 6, health: 6, count: 2 }]);
+    // A summoned token (enemy sandbag here had none) carries no breakdown.
+    expect(r.initial.enemy[0]!.buffs).toBeUndefined();
+  });
+
   it('Kennelmaster Avenge (3) improves its summon buff and reports the bonus to carry back', () => {
     // 3 Taunt sandbags are killed first (forced targets) while the no-Taunt Kennelmaster
     // chips the tanky enemy — so all 3 friends die with Kennelmaster alive → Avenge (3)
@@ -1482,6 +1494,21 @@ describe('simulate (handoff A.3)', () => {
     const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 3);
     const reborn = a.events.find((ev) => ev.type === 'reborn');
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(9); // base 3 + Lantern 3 + Eternal-Knight 3
+  });
+
+  it('Eternal Knight Reborn keeps its accrued stacks: a 5-stack Knight dies (→6) and Reborns at 6 stacks', () => {
+    // A Knight that entered with 5 prior stacks of its run-wide enchant (+3/+2 each = +15/+10, carried into
+    // combat on its buff breakdown under the card's own name) at base 3/2 → 18/12. It dies, banking a 6th
+    // stack this fight, and Reborns: base 3/2 + 6 stacks (15/10 prior + 3/2 this fight = 18/12) = 21/14.
+    const p: BoardMinion[] = [{
+      cardId: 'knit', attack: 18, health: 12, keywords: ['R'],
+      buffs: [{ source: 'Eternal Knight', attack: 15, health: 10, count: 5 }],
+    }];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 20, health: 200 }]; // out-trades the Knight → forces the Reborn
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1);
+    const reborn = a.events.find((ev) => ev.type === 'reborn');
+    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(21); // base 3 + (15 prior + 3 this fight)
+    expect(reborn && reborn.type === 'reborn' && reborn.hp).toBe(14); // base 2 + (10 prior + 2 this fight)
   });
 
   it('Lantern of Souls: the spell-power component also raises Undead Health', () => {

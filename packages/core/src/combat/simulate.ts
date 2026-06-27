@@ -102,16 +102,20 @@ export function simulate(
 
   // Carry-through buff for Reborn: the run-wide Eternal-Knight enchant (a card-type +A/+H banked from Knight
   // deaths) persists THROUGH a Reborn — re-applied on top of base stats so the reborn body keeps the buff.
-  // Gated to Undead cards (it's an "Undead buff"), so non-Undead card-type buffs (Fodder, Cling) and general
-  // stat / Imp buffs do NOT carry. Uses the amount banked THIS fight (`cardBuffGains`); a buff accrued in
-  // PRIOR fights is already baked into the run-board stats and isn't passed into combat, so it doesn't carry yet.
+  // Gated to Undead cards (it's an "Undead buff"), so general stat / Imp / Fodder buffs do NOT carry.
+  // The total has TWO parts: (1) the stacks accrued in PRIOR fights, baked into the run-board stats and
+  // carried into combat on the minion's buff breakdown under the card's own name (the label settleCombat
+  // gives the run-wide card buff); and (2) the stacks banked THIS fight (`cardBuffGains`). Without part (1)
+  // a Reborn shed every prior stack — a 6-stack Knight came back at 1 stack. Re-apply both on top of base.
   const applyCardTypeCarryThrough = (m: Minion): void => {
     const def = cards[m.cardId];
     if (!def || (def.tribe !== 'undead' && def.tribe2 !== 'undead')) return;
-    const g = cardBuffGains.find((c) => c.cardId === m.cardId);
-    if (!g) return;
-    if (g.attack > 0) m.attack = Math.max(0, m.attack + g.attack);
-    if (g.health > 0) { m.health += g.health; m.maxHealth += g.health; }
+    const prior = m.buffs?.find((b) => b.source === def.name); // prior-fight stacks baked into the run board
+    const g = cardBuffGains.find((c) => c.cardId === m.cardId); // stacks added this fight (the death just now)
+    const atk = (prior?.attack ?? 0) + (g?.attack ?? 0);
+    const hp = (prior?.health ?? 0) + (g?.health ?? 0);
+    if (atk > 0) m.attack = Math.max(0, m.attack + atk);
+    if (hp > 0) { m.health += hp; m.maxHealth += hp; }
   };
 
   const boards: Record<Side, Minion[]> = {
@@ -143,6 +147,7 @@ export function simulate(
     summonBonus: m.summonBonus,
     hpGrantBonus: m.hpGrantBonus,
     ascendProgress: m.ascendProgress,
+    buffs: m.buffs, // recruit-phase buff breakdown → the combat inspect panel (absent on summoned tokens)
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);

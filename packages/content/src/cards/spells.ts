@@ -484,6 +484,7 @@ export const SPELLS: CardDef[] = [
     singleCast: true,
     cost: 2,
     target: 'friendly',
+    targetNoGolden: true, // can't trade away a golden (triple) — mirrors Darah's Displace power
     effects: [{ on: 'cast', do: 'spellDisplace' }],
     text: 'Swap a friendly minion with a random minion in the tavern.',
   },

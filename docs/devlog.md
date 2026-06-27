@@ -48,6 +48,48 @@ browser with draggable outline + cutout handles + glass-look sliders) and baked 
   (edge α 89, peak α 181, gold-dominant); hollow interior (center α 18); all three sampled cutouts + outside
   the silhouette masked to α 0. Editable + re-bakeable from the shape-editor widget.
 
+### fix: tavern consumes (Acid, Consume/Cupcakes, Demon-eats-Fodder) used base stats, not the buffed value
+
+Consuming a buffed tavern minion fed the consumer the minion's **base** stats instead of its current value.
+Each consume path computed stats ad hoc and missed different buffs: Acid (`onRollConsumeShop`) added the
+per-offer buff but skipped the persistent run enchant, golden, and held; the Consume/Cupcakes spell
+(`spellDemonConsumeTavern`) skipped golden and held; the Demon-eats-Fodder path (`consumeTavernFodder`)
+skipped the per-offer buff, golden, and held. So a gilded / Apples-buffed / Ritualist-enchanted offer was
+eaten for far less than it was worth.
+
+- **`sim/recruit.ts`** — new shared `offerBuyStats(state, offer)`: the single source of truth for a tavern
+  offer's CURRENT value — `held` (Displacement-stashed) returns its full preserved body, otherwise base +
+  persistent run buff (`cardBuff`) + Undead buy-attack + per-offer buff (`atk`/`hp` from Apples / Shatter /
+  Fortify) + Staff of Guel's tavern-buy bonus, all ×2 for a Golden Touch offer. Mirrors the reducer's buy
+  case, so **a consumed minion now grants exactly what buying it would**. All three consume paths route
+  through it. (It excludes only the Lantern of Souls *live aura*, which the buy path also doesn't bake — it
+  re-applies to real Undead on board/in combat, so transferring it onto a Demon would double-dip a temporary
+  aura. Flagged for follow-up if we want consume to match the on-card aura preview instead.)
+- **`sim/index.ts`** — export `offerBuyStats`.
+- **Verified**: typecheck + lint + `build:web` + full suite green (**401 tests**). New tests: a direct
+  `offerBuyStats` unit test (run buff + per-offer buff + Staff, golden ×2, held passthrough) and a Consume
+  integration test devouring a buffed + gilded + enchanted offer at its full value. Existing Acid / Consume /
+  Cupcakes tests still pass. Dev server HMR'd clean.
+
+### fix: Eternal Knight Reborn dropped its accrued stacks
+
+An Eternal Knight that Reborned came back having shed every prior stack of its run-wide enchant. A Knight
+carrying 5 stacks (base 3/2 + 15/10 = 18/12) that died — banking a 6th stack — should Reborn at base + 6
+stacks = 21/14; instead it returned at 6/4 (base + only the single stack banked *this* fight).
+
+Cause: on Reborn the body resets to base CardDef stats, then `applyCardTypeCarryThrough` re-applied only the
+amount banked **this** fight (`cardBuffGains`). The stacks accrued in **prior** fights live baked into the
+run-board stats, so resetting to base discarded them. They weren't available to combat before — but PR #77
+now carries each minion's per-source buff breakdown into the combat snapshot, where the run-wide enchant
+appears under the card's own name ("Eternal Knight", the label `settleCombat` gives the carried-back buff).
+
+- **`core/combat/simulate.ts`** (`applyCardTypeCarryThrough`): the Reborn carry-through now sums BOTH parts —
+  the prior-fight stacks read off `m.buffs` (source === the card's own name) AND this fight's `cardBuffGains`
+  — and re-applies the total on top of base. Still Undead-gated; general stat / Imp / Fodder buffs don't carry.
+- **Verified**: typecheck + lint + `build:web` + full suite green (**399 tests**). New test: a 5-stack Knight
+  dies and Reborns at 21/14 (base 3/2 + 15/10 prior + 3/2 this fight). The existing single-stack Reborn +
+  Lantern carry-through test still passes (prior = 0 → unchanged).
+
 ### feat: restore the "Clear my boards" button in the Esc menu
 
 Brought back a one-tap way to wipe this browser's captured finished-run boards (`boardLibrary`,
@@ -65,6 +107,69 @@ a "these went stale after a patch" clear is still useful.
 - **Verified**: typecheck + lint + test (395) + `build:web` green; exercised live in-preview — seeded 3
   boards, opened the menu (button read "3 saved"), tap 1 armed the confirm, tap 2 cleared
   `localStorage['ascent.boards']` (count → 0, "Cleared your captured boards").
+
+### feat: right-click buff tracking in combat (recruit + combat buffs, parity with the shop)
+
+The shop's right-click inspect itemizes a minion's per-source buff breakdown ("Spirit Fire ×2: +6/+6")
+from `card.buffs` (`CardBuff[]`, accrued by `recruit.ts`). In combat the inspect panel showed **nothing**:
+combat units are rebuilt from the event log as `UnitFrame`s, and the `view` handed to `Card`/`Inspect`
+carried no `buffs`. This wires the same breakdown into combat — both the recruit buffs a minion entered
+the fight with **and** the buffs it gains mid-fight, merged by source.
+
+- **`core/types.ts`** — new `MinionBuff` interface (structurally mirrors sim's `CardBuff`), added as an
+  optional `buffs?: MinionBuff[]` on `BoardMinion`, `Minion`, and `MinionSnapshot`. This is the shared
+  combat-event/snapshot boundary, so the shape lives in core; sim's `CardBuff` assigns to it structurally.
+- **`core/combat/minion.ts`** (`instantiate`) carries `board.buffs` onto the live `Minion`; combat-only
+  bodies (summoned tokens, Reborn) have none.
+- **`core/combat/simulate.ts`** (`snapshot`) copies `m.buffs` into the `MinionSnapshot`, so `initial`
+  carries each starting minion's recruit breakdown out to the UI.
+- **`sim/reducer.ts`** — the `resolveCombat` player `BoardMinion[]` now passes `buffs: b.buffs` from the
+  run board card into combat.
+- **`ui/useCombatReplay.ts`** — `UnitFrame` gains `buffs`; `fromSnap` clones the recruit breakdown (so the
+  per-beat fold can mutate safely); `computeFrame` folds each `buff` event into the unit's breakdown by
+  **source name** (resolved via the `names` map, now passed in) using a new `recordBuff` helper — the
+  combat counterpart of recruit's `bumpBuff`. A `reborn` clears the breakdown (back at base stats).
+- **`ui/Unit.tsx`** — the combat `view` now passes `buffs: u.buffs`; the existing `<Inspect>` panel renders
+  it unchanged (its `inspect.buffs` block already handles the shape).
+- **Verified**: typecheck + lint + `build:web` + full suite green (now 396 tests). New core test proves the
+  recruit breakdown survives into `initial.player[].buffs` and that buff-less minions stay `undefined`. Dev
+  server HMR'd clean (no console errors); the live in-combat right-click is left for a playtest (a full run
+  into combat with a buffed unit isn't reliably automatable).
+
+### feat(ui): show the wave's max loss damage under the WAVE meter
+
+The top bar showed the wave but not the stakes — how much Resolve a loss this wave can cost. Added a small
+threat-coloured "♥ Max −N" line directly under "WAVE N", where N is `lossDamageCap(wave)` — the per-round
+loss-damage cap the reducer already applies at settle (5 through wave 3, 10 through wave 6, 15 from wave 7).
+So the player can read the downside at a glance before committing to a fight.
+
+- **`HudBar.tsx`** — wrapped "WAVE N" in a `.wavecol` column with the new `.maxdmg` sub-label
+  (`lossDamageCap(run.wave)`, heart icon). Hidden in **Practice** mode, where Resolve is unlimited and a
+  loss deals no damage.
+- **`styles.css`** — `.alt .wavecol` (vertical stack) + `.alt .maxdmg` (threat-coloured, ~10px uppercase,
+  heart in `--threat`).
+- **Verified**: typecheck + lint + `build:web` + full suite (396) green. Live-checked in the running app —
+  started an Ascent run; the top-left bar reads "WAVE 1 / ♥ MAX −5" (cap 5 at wave 1), no console errors.
+
+### balance: Displacement + Darah's Displace can no longer target a golden minion
+
+Both the Displacement spell and Darah's Displace hero power swap a friendly minion for a random tavern
+offer. Trading away a **golden (triple)** — hard-won, doubled stats + doubled effects — for a random minion
+was a strictly bad / trap interaction, so goldens are now excluded as targets for both.
+
+- **Authoritative (the rule):** `swapWithTavern` (the shared spell + power path in `recruit.ts`) now returns
+  `false` immediately on a golden `boardMinion` — before consuming any RNG — so the swap is a clean no-op.
+  Darah's power already treats a `false` return as "no charge spent". For the spell, the reducer's `play`
+  case fizzles a `targetNoGolden` cast on a golden target (`return state`), keeping the spell in hand — same
+  pattern as Resonance's non-Battlecry fizzle.
+- **Data:** new optional `targetNoGolden` flag on `CardDef` (core types + zod schema), set on `displacement`.
+- **UI (`Recruit.tsx`):** the Displacement drag snaps back without consuming the spell on a golden target
+  (mirrors the `targetMaxTier` guard); Darah's Displace aim line no longer lights up / accepts a golden
+  minion (`heroTargetsNoGolden` in `minionAt`).
+- **Verified:** typecheck + lint + `build:web` + full suite green (**397 tests**). Two new reducer tests cover
+  the spell (fizzles, spell kept in hand) and the power (no swap, charge not spent); the existing
+  non-golden Displacement/Displace tests still pass. Dev server HMR'd clean (no console errors) — the live
+  golden-target drag is left for a playtest (not practically automatable).
 
 ### fix: Reborn aura flickered behind the card on placement (z-layering parity with divine shield)
 

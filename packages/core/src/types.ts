@@ -232,6 +232,9 @@ export interface CardDef {
   /** Restricts a `target: 'friendly'` pick to minions of this tier or lower (Eyes of Aresmar → a
    *  Tier 4 or lower minion). Absent = no tier cap on the pick. */
   targetMaxTier?: number;
+  /** Excludes golden (tripled) minions from a `target: 'friendly'` pick (Displacement — you can't trade
+   *  away a triple). Absent = goldens are valid targets. Mirrored by Darah's Displace power in `swapWithTavern`. */
+  targetNoGolden?: boolean;
   /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
    *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
   fodderMult?: number;
@@ -247,6 +250,18 @@ export interface CardDef {
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; effects: EffectDef[] }[];
+}
+
+/** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown
+ *  ("Spirit Fire ×2: +6/+6"). Structurally mirrors `@game/sim`'s recruit-phase `CardBuff` so the
+ *  run board's breakdown can ride into combat (carried through the snapshot to the combat inspect),
+ *  and so the UI can merge in the buffs a minion gains mid-fight under the same shape. `count` = how
+ *  many times that source buffed this minion. */
+export interface MinionBuff {
+  source: string;
+  attack: number;
+  health: number;
+  count: number;
 }
 
 /**
@@ -279,6 +294,9 @@ export interface BoardMinion {
   /** The Reclaimer's mark: at the start of combat this minion is destroyed (Deathrattle fires) and
    *  an exact copy is resummoned if there's room. */
   resummon?: boolean;
+  /** Per-source recruit-phase buff breakdown carried from the run board, so the combat inspect panel can
+   *  itemize where this minion's stats came from (Spirit Fire, triples, Battlecries…) — same as the shop. */
+  buffs?: MinionBuff[];
 }
 
 /** A live combat instance. Mutable for the duration of one `simulate()` call. */
@@ -325,6 +343,10 @@ export interface Minion {
   bredCount?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
+  /** Recruit-phase buff breakdown carried from the run board (see BoardMinion.buffs) — passed into the
+   *  combat snapshot so the inspect panel itemizes recruit buffs in combat. Combat-only minions (summoned
+   *  tokens, Reborn bodies) have none. */
+  buffs?: MinionBuff[];
   side: Side;
   effects: EffectDef[];
   dead: boolean;
@@ -347,6 +369,9 @@ export interface MinionSnapshot {
   /** Tara's prior ascend progress (seeded from the run board) — so the live combat "N to ascend" tracker
    *  starts from the real total and counts up, matching the shop card. */
   ascendProgress?: number;
+  /** Per-source recruit-phase buff breakdown (see Minion.buffs) — lets the combat inspect panel itemize a
+   *  minion's recruit buffs, the same breakdown the shop shows. Absent for combat-summoned tokens. */
+  buffs?: MinionBuff[];
 }
 
 /**

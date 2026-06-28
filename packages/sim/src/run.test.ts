@@ -792,6 +792,20 @@ describe('run loop (@game/sim)', () => {
     expect(drone.keywords).not.toContain('M'); // Magnetic itself isn't transferred
   });
 
+  it('a Mech Magnetic can weld onto a Chaos Attachment host (the all-type body counts as a Mech)', () => {
+    // Regression: a Chaos Attachment's printed tribe is 'neutral' (+ universalTribe), so the old tribe-match
+    // missed it and a normal Mech magnetic couldn't weld onto it. The host being all-type must accept any magnetic.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'host', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M', 'R'], golden: false }],
+      hand: [{ uid: 'cl', cardId: 'cling', tribe: 'mech', attack: 2, health: 2, keywords: ['M'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'cl', toIndex: 0 }); // weld the Mech magnetic onto the all-type host
+    expect(s.board.length).toBe(1); // merged, no new slot
+    expect(s.hand.length).toBe(0);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // 1/1 host + Cling 2/2
+  });
+
   it('magnetizing fires summon-buffs first: Mama Bear buffs the Chaos Attachment, then it welds onto the host', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],

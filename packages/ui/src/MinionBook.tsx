@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, Tribe } from '@game/core';
 import { BUYABLE_CARDS, SPELL_CARDS } from '@game/content';
@@ -20,7 +20,8 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
 };
 
 const TIERS = [1, 2, 3, 4, 5, 6] as const;
-const PAGE_SIZE = 10;
+/** Every non-neutral tribe — the left-rail set when browsing the full game (from the title, pre-run). */
+const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'mech', 'undead', 'demon'];
 
 /** A book card def → the view object `Card` renders. Base (printed) stats only — the book is a static
  *  reference, not a live board, so no run buffs. */
@@ -43,29 +44,34 @@ function toView(c: CardDef): CardView {
 }
 
 /**
- * The Minion Book (Tab) — a filterable codex of every minion + spell findable in the current run. A blurred
+ * The Compendium (Tab) — a filterable codex of minions + spells: the whole card set when opened from the
+ * title (pre-run), or scoped to the active run's tribes once a run is underway. A blurred
  * full-screen overlay styled like an open tome: tier filters (1–6) across the top, tribe + Spells categories
- * down the left (multi-select, both axes), and a paged gallery of cards you flip through. Right-click a card
+ * down the left (multi-select, both axes), and a single scrolling gallery of cards. Right-click a card
  * for the enlarged inspect (the global Inspect overlay handles it). UI-only — reads `run.pool`'s eligibility
  * rule (neutral + active tribes) off `BUYABLE_CARDS` so the contents stay stable as you buy/sell.
  */
 export function MinionBook() {
   const run = useGame((s) => s.run);
+  const showTitle = useGame((s) => s.showTitle);
   const closeBook = useGame((s) => s.closeBook);
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
   const [cats, setCats] = useState<Set<Category>>(() => new Set());
-  const [page, setPage] = useState(0);
 
-  // Left-rail categories: the run's active tribes, then Neutral (always findable), then Spells.
-  const categories: Category[] = useMemo(() => [...run.tribes, 'neutral', 'spells'], [run.tribes]);
+  // Opened from the title (no committed run) → browse the WHOLE card set; in a run → scope to its active
+  // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
+  const tribes: Tribe[] = showTitle ? ALL_TRIBES : run.tribes;
 
-  // Every card findable this run: minions whose tribe is neutral or an active tribe (mirrors `stockPool`),
-  // plus every tavern spell. Tokens are excluded — `BUYABLE_CARDS` already drops them.
+  // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells.
+  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells'], [tribes]);
+
+  // Every eligible card: minions whose tribe is neutral or in `tribes`, plus every tavern spell. Tokens are
+  // excluded — `BUYABLE_CARDS` already drops them.
   const allCards = useMemo(() => {
-    const minions = BUYABLE_CARDS.filter((c) => c.tribe === 'neutral' || run.tribes.includes(c.tribe));
+    const minions = BUYABLE_CARDS.filter((c) => c.tribe === 'neutral' || tribes.includes(c.tribe));
     return [...minions, ...SPELL_CARDS];
-  }, [run.tribes]);
+  }, [tribes]);
 
   const filtered = useMemo(() => {
     return allCards
@@ -78,36 +84,17 @@ export function MinionBook() {
       .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
   }, [allCards, tiers, cats]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  // Clamp the page when the filtered set shrinks under it.
-  const safePage = Math.min(page, pageCount - 1);
-  useEffect(() => { if (page !== safePage) setPage(safePage); }, [page, safePage]);
-  const shown = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-
-  // Reset to the first page whenever the filters change (so you're not stranded on an empty later page).
-  useEffect(() => { setPage(0); }, [tiers, cats]);
-
-  // Page flipping via the arrow keys (Esc/Tab to close are owned by Game's global handlers).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'ArrowRight') setPage((p) => Math.min(p + 1, pageCount - 1));
-      else if (e.key === 'ArrowLeft') setPage((p) => Math.max(p - 1, 0));
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [pageCount]);
-
   const toggleTier = (t: number): void =>
     setTiers((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; });
   const toggleCat = (c: Category): void =>
     setCats((prev) => { const next = new Set(prev); if (next.has(c)) next.delete(c); else next.add(c); return next; });
 
   return (
-    <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Minion Book — Esc or Tab to close">
+    <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Compendium — Esc or Tab to close">
       <div className="book" onClick={(e) => e.stopPropagation()}>
         <div className="book-head">
-          <div className="book-title"><Icon name="house" /> Bestiary</div>
-          <div className="book-sub">{filtered.length} of {allCards.length} cards findable this run</div>
+          <div className="book-title"><Icon name="house" /> Compendium</div>
+          <div className="book-sub">{filtered.length} of {allCards.length} cards {showTitle ? 'in the game' : 'findable this run'}</div>
           <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
         </div>
 
@@ -144,10 +131,10 @@ export function MinionBook() {
             ))}
           </div>
 
-          {/* The paged gallery. */}
-          {shown.length > 0 ? (
+          {/* The scrolling gallery — all matching cards in one vertically-scrollable grid. */}
+          {filtered.length > 0 ? (
             <div className="book-grid">
-              {shown.map((c) => (
+              {filtered.map((c) => (
                 <div className="book-cell" key={c.id}>
                   <Card card={toView(c)} forceFull suppressPop />
                 </div>
@@ -156,26 +143,6 @@ export function MinionBook() {
           ) : (
             <div className="book-empty">No cards match these filters.</div>
           )}
-        </div>
-
-        <div className="book-foot">
-          <button
-            className="book-flip"
-            onClick={() => setPage((p) => Math.max(p - 1, 0))}
-            disabled={safePage === 0}
-            aria-label="Previous page"
-          >
-            ‹ Prev
-          </button>
-          <span className="book-page">Page {safePage + 1} / {pageCount}</span>
-          <button
-            className="book-flip"
-            onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-            disabled={safePage >= pageCount - 1}
-            aria-label="Next page"
-          >
-            Next ›
-          </button>
         </div>
       </div>
     </div>

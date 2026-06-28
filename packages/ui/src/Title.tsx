@@ -12,6 +12,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
+  const toggleBook = useGame((s) => s.toggleBook);
   if (!showTitle) return null;
 
   return (
@@ -22,7 +23,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         <div className="titlemodes">
           <button className="titlebtn primary" onClick={() => { sfx.pulse(); startAscent(); }}>
             <span className="tbname">Ascent</span>
-            <span className="tbdesc">The scored climb — survive the rising threat as long as you can.</span>
+            <span className="tbdesc">Climb the rising threat — win 15 rounds to ascend, or fall when your Resolve runs out.</span>
           </button>
           <button className="titlebtn" onClick={() => { sfx.pulse(); startPractice(); }}>
             <span className="tbname">Practice</span>
@@ -32,6 +33,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         <div className="titleactions">
           <button className="titlesettings" onClick={() => { sfx.pulse(); openLeaderboard(); }} title="Leaderboard">
             <Icon name="crown" /> Leaderboard
+          </button>
+          <button className="titlesettings" onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">
+            <Icon name="eye" /> Compendium
           </button>
           <button className="titlesettings" onClick={onSettings} title="Settings">
             <Icon name="gear" /> Settings

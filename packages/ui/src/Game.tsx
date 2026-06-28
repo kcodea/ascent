@@ -61,13 +61,13 @@ export function Game() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Tab toggles the Minion Book — but only while actually playing (not on the title screen / hero
-  // picker, where there's no run to reference). `preventDefault` stops the browser's focus-cycling.
+  // Tab toggles the Compendium — from the title (browse the whole set) or in a run (scoped to it). Not
+  // during hero select. `preventDefault` stops the browser's focus-cycling.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return;
       const st = useGame.getState();
-      if (st.showTitle || st.heroChoices) return;
+      if (st.heroChoices) return;
       e.preventDefault();
       st.toggleBook();
     };

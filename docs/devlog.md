@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-28 (session 8)
 
+### feat(ui): Compendium button on the title + Ascent win-condition copy
+
+- **Title-screen Compendium button** (`Title.tsx`) — a third centered action (`Leaderboard · Compendium ·
+  Settings`; the row was already `justify-content: center`) that opens the Compendium. Opened from the title
+  (no committed run), the book now browses the **whole card set** — `MinionBook` uses all six tribes + Neutral +
+  Spells and the subtitle reads "… cards in the game" (vs "… findable this run" mid-run). The global **Tab**
+  hotkey now also works from the title (still suppressed during hero select).
+- **Ascent description** — reworded from the vague "survive the rising threat as long as you can" to the real
+  win/lose condition: *"Climb the rising threat — win 15 rounds to ascend, or fall when your Resolve runs out."*
+  (Matches `CONFIG.winsToWin = 15` → victory on the 15th won combat; gameover when Resolve hits 0.)
+- **Verified** live: title shows three centered buttons + the new copy; the Compendium opens from the title at
+  "114 of 114 cards in the game" (all tribes). typecheck + lint + build:web green.
+
+### tweak(ui): Minion Book → "Compendium" — 6-wide, +15%, single scroll (no pages)
+
+Per owner feedback: renamed the overlay title **Bestiary → Compendium**; the gallery is **6 columns wide**
+(was 5); the whole thing is ~15% larger — the book panel grew to `min(1700px, 96vw)` × `min(1000px, 92vh)` and
+the card size to `--ch: clamp(212px, 26vh, 276px)`; and **pagination is replaced with a single vertical scroll**
+so you can skim the whole filtered list at once (dropped `PAGE_SIZE` + page state + the Prev/Next footer + the
+arrow-key page flip; `.book-grid` was already `overflow-y: auto`). Verified live: all 114 cards render in one
+scrollable 6-wide grid, scrollbar present, no footer. **Themed the scroll areas' scrollbars** (`.book-grid` /
+`.book-rail`) — a native scrollbar reverts the cursor to the OS arrow, so a styled webkit scrollbar (+ Firefox
+`scrollbar-color`) renders as part of the element, keeping the gauntlet cursor and matching the accent theme.
+typecheck + lint + build:web green.
 ### feat: unify run-wide buffs as "auras" — apply everywhere (incl. resummon) + consistent naming
 
 Run-wide buffs ("Undead everywhere", Fodder, Imp, Eternal Knight) are now treated as **auras** that follow a

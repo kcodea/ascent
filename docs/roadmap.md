@@ -332,6 +332,11 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Minion Book polish (shipped 2026-06-28 → devlog).** The Tab bestiary is live (filterable by tier ×
+      tribe/Spells, paged). Future passes when content/meta grows: a name/text **search box**; sort options
+      (tier / tribe / attack / health); show **copies remaining** in the live pool; a **keyword filter** row;
+      decide how **set/RNG-variable cards** appear once sets exist (per owner — revisit then); maybe a real
+      page-turn animation + SFX for the book feel.
 - [ ] **Decouple the remaining hardcoded card-ids (effect-system audit, 2026-06-28).** The mechanics system is
       data-driven (cards = data + effect subscriptions); a content push needs no engine changes for normal
       Battlecry/Deathrattle/SoC/keyword cards. But a handful of cards still branch on their own id in logic.

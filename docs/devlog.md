@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-28 (session 8)
 
+### feat: Minion Book (Tab) — a filterable bestiary of every card findable this run
+
+A new reference overlay so players can browse the run's card pool. Tab toggles a blurred full-screen "tome":
+tier filters (1–6) across the top, tribe + Spells filters down the left, and a paged gallery of cards you
+flip through. Both filter axes are **multi-select** and combine (OR within an axis, AND across axes), e.g.
+tiers 1+2 ∧ Beasts+Dragons. Pure presentation — no engine changes.
+
+- **`ui/MinionBook.tsx`** (new) — derives contents from the same eligibility rule as `stockPool` (neutral +
+  active-tribe minions off `BUYABLE_CARDS`, so the list is stable as you buy/sell) plus all `SPELL_CARDS`;
+  tokens are excluded. Cards render via the existing `<Card forceFull>` (base/printed stats — it's a static
+  reference, no run buffs); right-click still opens the global Inspect (which layers above the book at z 500 vs
+  480). Page size 10; ArrowLeft/Right flip pages; filters reset to page 1 on change.
+- **`ui/store.ts`** — added UI-only `showBook` + `toggleBook`/`closeBook` (mirrors the leaderboard toggle).
+- **`ui/Game.tsx`** — a global **Tab** handler toggles the book (gated to an active run — not the title/hero
+  picker; `preventDefault` stops focus-cycling). The existing **Esc** handler now lets the book claim Esc
+  (closes itself) before the menu would open, matching how Inspect already does.
+- **`ui/styles.css`** — `.book-ov` / `.book` + the head / tier row / left rail / grid / footer; the grid sets a
+  compact `--cw`/`--ch` so cards tile 5×2, with a hover scale-up on each cell.
+- **Scope note (per owner):** contents are *this run's* findable cards (active tribes + neutral), tokens
+  excluded. When future set/RNG cards land we'll revisit whether/how run-variable cards appear.
+- **Verified** live in the preview: Tab opens/closes; Esc closes without opening the menu; tier∧tribe and
+  multi-select filtering produce correct counts (tier1∧Beast → 2; tiers1,2 ∧ Beast,Dragon → 8); right-click
+  inspect layers on top; no console errors. typecheck + lint + test (403) + build:web all green.
 ### refactor: data-driven Discover-on-play + opponent-frame intel + cursor fix
 
 Three small, independent changes (UI polish + an engine de-coupling).

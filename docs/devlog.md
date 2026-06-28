@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-28 (session 8)
 
+### fix: magnetic can weld onto a Chaos Attachment host + Minion Book pop-in animation
+
+Two small fixes from a feedback batch.
+
+- **Magnetic → Chaos Attachment.** A normal Mech Magnetic minion couldn't weld onto a Chaos Attachment (the
+  `universalTribe` all-type body). Cause: the attachment's printed `tribe` is `'neutral'`, so the tribe-match in
+  `magnetizesTo` (`reducer.ts`) missed it. Fix: a `universalTribe` **host** counts as every tribe (incl. Mech),
+  so it now accepts any Magnetic — the mirror of the already-handled magnetic-*side* universalTribe case. Added a
+  regression test (`run.test.ts`: a Cling Drone welds onto a Chaos Attachment → merges, 1/1 + 2/2 = 3/3).
+- **Minion Book pop-in.** The book reused `inspectpop` (animates `scale(1.45)→1.9`, correct for the inspect card
+  which *rests* at scale 1.9); the book rests at scale 1, so it ballooned then snapped down. New `bookpop`
+  keyframe: opacity 0→1 + `scale(0.97)→1`. Verified live (computed `animation-name: bookpop`).
+- **Verified**: typecheck + lint + test (404) + build:web green.
+
 ### feat: Minion Book (Tab) — a filterable bestiary of every card findable this run
 
 A new reference overlay so players can browse the run's card pool. Tab toggles a blurred full-screen "tome":

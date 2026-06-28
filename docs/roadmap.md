@@ -345,6 +345,11 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       spell-cast multiplier; and **genuinely-novel multiplier effects** that may warrant a new primitive rather
       than a hardcode — Echo Warden (summon duplication) + Sylus the Reaper (extra Deathrattle fires) in
       `core/combat/simulate.ts`, Beatboxer magnetic mirroring. Low priority — none block new content.
+- [ ] **Aura system (shipped 2026-06-28 → devlog).** Run-wide buffs are now a declarative `AURAS` registry in
+      `simulate` applied everywhere (warband/shop/start/summon/Reborn/resummon); new aggregate auras are a
+      one-line entry, per-card enchants flow from `cardBuffs`. Follow-ups if useful: move the aggregate auras
+      (undead/imp) into the `cardBuffs`-style map so recruit + combat share ONE source; add an "Aura" line in
+      the card inspect breakdown; audit the latent imp double-apply on a starting-board Imp.
 
 - [ ] **Dev stats tracker (TABLED 2026-06-26).** A replay-driven analytics tool — no live telemetry needed, since
       every run is a deterministic `Replay = {seed, heroId, actions}` that re-derives byte-identically. Walk each

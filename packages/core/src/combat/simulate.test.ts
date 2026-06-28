@@ -1511,6 +1511,37 @@ describe('simulate (handoff A.3)', () => {
     expect(reborn && reborn.type === 'reborn' && reborn.hp).toBe(14); // base 2 + (10 prior + 2 this fight)
   });
 
+  it('Soren resummon re-applies run-wide auras (regression: a resummoned body used to shed the Undead Aura)', () => {
+    // A marked minion is destroyed at Start of Combat and resummoned later. It used to come back with NO
+    // run-wide auras re-applied (flushResummons skipped them) — so a resummoned Undead lost its Lantern aura.
+    // Compare the resummoned Eternal Knight's Attack with the aura off vs on: the delta must be the +Attack.
+    const mk = (): BoardMinion[] => [
+      { cardId: 'knit', attack: 3, health: 2, resummon: true },
+      { cardId: 'sandbag', attack: 0, health: 50 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
+    const resummonAtk = (undeadAtk: number): number => {
+      const a = simulate(mk(), e, makeRng(5), CARD_INDEX, 0, 0, 1, undeadAtk, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES);
+      const ev = a.events.filter((x) => x.type === 'summon' && x.minion.cardId === 'knit').pop();
+      return ev && ev.type === 'summon' ? ev.minion.attack : -1;
+    };
+    // The resummoned Knight returns with the live Undead Aura (captured at Start of Combat) — the delta from
+    // turning the aura on must be exactly its +Attack, not doubled and not dropped.
+    expect(resummonAtk(4) - resummonAtk(0)).toBe(4);
+  });
+
+  it('a combat-summoned token inherits its run-wide per-card enchant (the Fodder Aura mechanism)', () => {
+    // Per-card run enchants (the channel Ritualist uses for Fodder, and Eternal Knight for its type) now
+    // re-apply to bodies summoned mid-combat. Mama Pup summons 1/1 Pups; a +2/+3 enchant on the Pup type
+    // means the summoned Pups arrive at 3/4.
+    const p: BoardMinion[] = [{ cardId: 'pack', attack: 1, health: 1 }]; // dies → Deathrattle summons Pups
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 50 }];
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, { pup: { attack: 2, health: 3 } });
+    const pup = a.events.find((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup');
+    expect(pup && pup.type === 'summon' && pup.minion.attack).toBe(3); // base 1 + 2
+    expect(pup && pup.type === 'summon' && pup.minion.health).toBe(4); // base 1 + 3
+  });
+
   it('Lantern of Souls: the spell-power component also raises Undead Health', () => {
     // +4 Attack / +1 Health (the spell-power scaling): a 1/2 Sporeling (Undead) enters combat at 5/3.
     const p: BoardMinion[] = [{ cardId: 'spore', attack: 1, health: 2, sourceUid: 'u' }];

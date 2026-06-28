@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Auras.** Run-wide buffs (Undead Aura, Fodder Aura, Imp Aura, Eternal Knight Aura) now apply *everywhere* —
+  warband, shop, and every combat body including summons, Reborns, and Soren's resummons (which previously shed
+  them). New auras are a one-line registry entry.
 - **Minion Book (Tab).** A new blurred-overlay bestiary of every minion + spell findable this run — tier
   filters across the top, tribe/Spells filters down the left (both multi-select), a paged card gallery you flip
   through. Right-click any card for the full inspect.

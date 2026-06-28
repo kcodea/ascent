@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-28 (session 8)
 
+### feat: unify run-wide buffs as "auras" — apply everywhere (incl. resummon) + consistent naming
+
+Run-wide buffs ("Undead everywhere", Fodder, Imp, Eternal Knight) are now treated as **auras** that follow a
+player minion everywhere — the warband, the shop, and every combat body (start, summon, Reborn, **resummon**).
+This fixes several inconsistencies where a fresh combat body silently shed a buff it should keep.
+
+- **Combat (`core/combat/simulate.ts`)** — replaced the three ad-hoc helpers (`applyUndeadBonus` /
+  `applyImpBonus` / `applyCardTypeCarryThrough`) with a declarative `AURAS` registry + one `applyAuras(m, fromBase)`,
+  applied at combat start, summon, and Reborn. New aggregate auras are now one registry entry; per-card enchants
+  (Fodder, Eternal Knight) flow from `cardBuffs`, which is now **threaded into `simulate()`** (new trailing param;
+  both reducer call sites pass `s.cardBuffs`). The per-card prior total reads `cardBuffs[id]` (authoritative) and
+  falls back to the minion's own buff breakdown, so existing Eternal Knight / Lantern tests stay byte-identical.
+  - **Bug fixes via the unified path:** a **summoned** token now inherits its per-card enchant (a summoned Fodder
+    gets the Ritualist buff); a **Reborn** body now also re-gains the Imp aura + non-undead enchants (Fodder);
+    a **resummoned** body (Soren's Reclaim) now re-applies the per-card stacks banked *this fight* via a dedicated
+    `applyCombatGains` — its start-of-combat copy already carries the live auras + prior stacks, so only the
+    later gains were missing (this is the "resummoned Eternal Knight doesn't gain the buff" report).
+- **Recruit display** — `instView` (warband/hand) now folds the Undead aura onto `universalTribe` minions too
+  (it already did for plain Undead; shop + combat already did). The run-buffs window (`runBuffs.ts`) renames the
+  rows to the aura vocabulary: **Undead Aura · Fodder Aura · Imp Aura · Eternal Knight Aura**.
+- **Verified**: typecheck + lint + `build:web` green; full suite **405** (2 new — a resummoned Knight carries the
+  Undead Aura with the exact +Attack delta, not doubled/dropped; a combat-summoned token inherits its per-card
+  enchant); `npm run harness` re-confirms identical-seed determinism. Existing golden/Eternal-Knight/Lantern
+  tests unchanged.
+- **Note (combat-determinism boundary):** `simulate()` gained a trailing `cardBuffs` param — coordinate before
+  further signature changes.
 ### fix: magnetic can weld onto a Chaos Attachment host + Minion Book pop-in animation
 
 Two small fixes from a feedback batch.

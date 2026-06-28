@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-28 (session 8)
 
+### feat(ui): Compendium button on the title + Ascent win-condition copy
+
+- **Title-screen Compendium button** (`Title.tsx`) — a third centered action (`Leaderboard · Compendium ·
+  Settings`; the row was already `justify-content: center`) that opens the Compendium. Opened from the title
+  (no committed run), the book now browses the **whole card set** — `MinionBook` uses all six tribes + Neutral +
+  Spells and the subtitle reads "… cards in the game" (vs "… findable this run" mid-run). The global **Tab**
+  hotkey now also works from the title (still suppressed during hero select).
+- **Ascent description** — reworded from the vague "survive the rising threat as long as you can" to the real
+  win/lose condition: *"Climb the rising threat — win 15 rounds to ascend, or fall when your Resolve runs out."*
+  (Matches `CONFIG.winsToWin = 15` → victory on the 15th won combat; gameover when Resolve hits 0.)
+- **Verified** live: title shows three centered buttons + the new copy; the Compendium opens from the title at
+  "114 of 114 cards in the game" (all tribes). typecheck + lint + build:web green.
+
 ### tweak(ui): Minion Book → "Compendium" — 6-wide, +15%, single scroll (no pages)
 
 Per owner feedback: renamed the overlay title **Bestiary → Compendium**; the gallery is **6 columns wide**

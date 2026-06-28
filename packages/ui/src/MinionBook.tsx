@@ -20,6 +20,8 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
 };
 
 const TIERS = [1, 2, 3, 4, 5, 6] as const;
+/** Every non-neutral tribe — the left-rail set when browsing the full game (from the title, pre-run). */
+const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'mech', 'undead', 'demon'];
 
 /** A book card def → the view object `Card` renders. Base (printed) stats only — the book is a static
  *  reference, not a live board, so no run buffs. */
@@ -42,7 +44,8 @@ function toView(c: CardDef): CardView {
 }
 
 /**
- * The Minion Book (Tab) — a filterable codex of every minion + spell findable in the current run. A blurred
+ * The Compendium (Tab) — a filterable codex of minions + spells: the whole card set when opened from the
+ * title (pre-run), or scoped to the active run's tribes once a run is underway. A blurred
  * full-screen overlay styled like an open tome: tier filters (1–6) across the top, tribe + Spells categories
  * down the left (multi-select, both axes), and a single scrolling gallery of cards. Right-click a card
  * for the enlarged inspect (the global Inspect overlay handles it). UI-only — reads `run.pool`'s eligibility
@@ -50,20 +53,25 @@ function toView(c: CardDef): CardView {
  */
 export function MinionBook() {
   const run = useGame((s) => s.run);
+  const showTitle = useGame((s) => s.showTitle);
   const closeBook = useGame((s) => s.closeBook);
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
   const [cats, setCats] = useState<Set<Category>>(() => new Set());
 
-  // Left-rail categories: the run's active tribes, then Neutral (always findable), then Spells.
-  const categories: Category[] = useMemo(() => [...run.tribes, 'neutral', 'spells'], [run.tribes]);
+  // Opened from the title (no committed run) → browse the WHOLE card set; in a run → scope to its active
+  // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
+  const tribes: Tribe[] = showTitle ? ALL_TRIBES : run.tribes;
 
-  // Every card findable this run: minions whose tribe is neutral or an active tribe (mirrors `stockPool`),
-  // plus every tavern spell. Tokens are excluded — `BUYABLE_CARDS` already drops them.
+  // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells.
+  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells'], [tribes]);
+
+  // Every eligible card: minions whose tribe is neutral or in `tribes`, plus every tavern spell. Tokens are
+  // excluded — `BUYABLE_CARDS` already drops them.
   const allCards = useMemo(() => {
-    const minions = BUYABLE_CARDS.filter((c) => c.tribe === 'neutral' || run.tribes.includes(c.tribe));
+    const minions = BUYABLE_CARDS.filter((c) => c.tribe === 'neutral' || tribes.includes(c.tribe));
     return [...minions, ...SPELL_CARDS];
-  }, [run.tribes]);
+  }, [tribes]);
 
   const filtered = useMemo(() => {
     return allCards
@@ -86,7 +94,7 @@ export function MinionBook() {
       <div className="book" onClick={(e) => e.stopPropagation()}>
         <div className="book-head">
           <div className="book-title"><Icon name="house" /> Compendium</div>
-          <div className="book-sub">{filtered.length} of {allCards.length} cards findable this run</div>
+          <div className="book-sub">{filtered.length} of {allCards.length} cards {showTitle ? 'in the game' : 'findable this run'}</div>
           <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
         </div>
 

@@ -167,6 +167,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 3,
     effects: [],
+    discoverOnPlay: { exactTier: 1 },
     text: '**Discover** a Tier 1 minion.',
   },
   {
@@ -224,6 +225,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 3,
     effects: [],
+    discoverOnPlay: { filter: 'battlecry' },
     text: '**Discover** a Battlecry minion.',
   },
   {
@@ -299,6 +301,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 4,
     effects: [],
+    discoverOnPlay: { tribe: 'dominant' },
     text: '**Discover** a minion from your most common type.',
   },
   {
@@ -313,6 +316,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 3,
     effects: [],
+    discoverOnPlay: { filter: 'deathrattle' },
     text: '**Discover** a **Deathrattle** minion.',
   },
   {

@@ -200,46 +200,30 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (i < 0) return state;
       const card = s.hand[i]!;
 
-      // A Discover spell isn't a minion: playing it opens the Discover (a peek one tier up) and is
-      // consumed — no board slot. Triple Reward is NOT a player-cast spell (it's a golden's reward), so
-      // Yazzus does NOT multiply it — exactly one Discover.
-      if (card.cardId === 'discoverspell') {
-        s.hand.splice(i, 1);
-        // The golden/triple reward keeps its high-tier bias (`topTierFirst`) — it's a reward to PEEK one tier
-        // above your tavern tier, unlike card-driven Discovers which weigh every eligible tier evenly.
-        queueDiscover(s, { kind: 'minion', tier: s.tier + 1, topTierFirst: true });
-        return s;
-      }
+      const def = CARD_INDEX[card.cardId];
 
-      // Sprout: Discover a Tier 1 minion (fixed tier). Help Wanted: Discover a Battlecry minion (up to the
-      // tavern tier). Both are untargeted Discover spells, so Yazzus does NOT multiply them — one Discover
-      // each. Consumed — no board slot.
-      if (card.cardId === 'sprout') {
+      // Discover-on-play (data-driven): playing this card isn't a minion — it opens a Discover (a peek) and
+      // is consumed (no board slot). The offer is resolved from the card's `discoverOnPlay` spec against the
+      // live run. These are untargeted, so Yazzus does NOT multiply them (we return before `spellCasts`) —
+      // exactly one Discover. Covers Sprout / Help Wanted / Tribe Portal / Corpse Board and the golden
+      // Triple Reward token; new Discover spells need only the data field, no reducer change.
+      if (def?.discoverOnPlay) {
+        const dop = def.discoverOnPlay;
         s.hand.splice(i, 1);
-        queueDiscover(s, { kind: 'minion', tier: 1, exactTier: 1 });
-        return s;
-      }
-      if (card.cardId === 'helpwanted') {
-        s.hand.splice(i, 1);
-        queueDiscover(s, { kind: 'minion', tier: s.tier, filter: 'battlecry' });
-        return s;
-      }
-      // Tribe Portal: Discover a minion of your most common board tribe (neutral isn't a type → falls back
-      // to an unfiltered Discover on a tribe-less board). Corpse Board: Discover a Deathrattle minion (up to
-      // the tavern tier). Both untargeted Discover spells → Yazzus doesn't multiply them. Consumed, no slot.
-      if (card.cardId === 'tribeportal') {
-        s.hand.splice(i, 1);
-        queueDiscover(s, { kind: 'minion', tier: s.tier, tribe: dominantBoardTribe(s) ?? undefined });
-        return s;
-      }
-      if (card.cardId === 'corpseboard') {
-        s.hand.splice(i, 1);
-        queueDiscover(s, { kind: 'minion', tier: s.tier, filter: 'deathrattle' });
+        const tier = dop.exactTier ?? s.tier + (dop.tierOffset ?? 0);
+        const tribe = dop.tribe === 'dominant' ? (dominantBoardTribe(s) ?? undefined) : dop.tribe;
+        queueDiscover(s, {
+          kind: 'minion',
+          tier,
+          ...(dop.exactTier !== undefined ? { exactTier: dop.exactTier } : {}),
+          ...(dop.filter ? { filter: dop.filter } : {}),
+          ...(tribe ? { tribe } : {}),
+          ...(dop.topTierFirst ? { topTierFirst: true } : {}),
+        });
         return s;
       }
 
       // Other spells: cast on the chosen target, then consume — no board slot.
-      const def = CARD_INDEX[card.cardId];
       if (def?.spell) {
         // Yazzus: while it's on the board, an *aimed* spell's effect resolves N times (2, or 3 if golden)
         // — the card is still consumed once. Untargeted economy/utility spells and `singleCast` spells

@@ -26,8 +26,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
 - **Compendium (Tab).** A blurred-overlay reference of every minion + spell findable this run — tier filters
-  across the top, tribe/Spells filters down the left (both multi-select), a paged 6×2 card gallery you flip
-  through. Right-click any card for the full inspect.
+  across the top, tribe/Spells filters down the left (both multi-select), a single scrolling 6-wide card
+  gallery. Right-click any card for the full inspect.
 - **Opponent intel + Discover refactor.** The next-opponent badge now shows wins + tavern tier right in the
   thumbnail (alongside name, hero, life), with the gauntlet cursor on hover. Under the hood, Discover spells
   (Sprout, Help Wanted, Tribe Portal, Corpse Board, Triple Reward) are now driven by a data-only

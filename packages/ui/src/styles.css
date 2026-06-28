@@ -1608,8 +1608,3 @@ svg { width: 18px; height: 18px; }
 .book-cell { transition: transform 0.12s ease; }
 .book-cell:hover { transform: scale(1.06); z-index: 3; position: relative; }
 .book-empty { flex: 1; display: grid; place-items: center; font-family: 'Outfit'; font-weight: 700; font-size: 18px; color: var(--ink3); }
-.book-foot { display: flex; align-items: center; justify-content: center; gap: 22px; padding: 11px; border-top: 2px solid var(--line); background: color-mix(in srgb, var(--acc) 8%, var(--card)); flex: none; }
-.book-flip { padding: 9px 20px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: 'Outfit'; font-weight: 800; font-size: 15px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.book-flip:hover:not(:disabled) { border-color: var(--acc); }
-.book-flip:disabled { opacity: 0.4; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.book-page { font-family: 'Outfit'; font-weight: 800; font-size: 15px; color: var(--ink2); min-width: 120px; text-align: center; }

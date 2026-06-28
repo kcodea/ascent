@@ -5,13 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-28 (session 8)
 
-### tweak(ui): Minion Book → "Compendium", 6×2 grid, +15% size
+### tweak(ui): Minion Book → "Compendium" — 6-wide, +15%, single scroll (no pages)
 
-Per owner feedback: renamed the overlay title **Bestiary → Compendium**; the gallery is now **6×2** (12 cards
-per page, `PAGE_SIZE` 12, `.book-grid` 6 columns) instead of 5×2; and the whole thing is ~15% larger — the book
-panel grew to `min(1700px, 96vw)` × `min(1000px, 92vh)` and the card size to `--ch: clamp(212px, 26vh, 276px)`.
-Verified live: title reads "Compendium", two full rows of 6 render without clipping (114 cards → 10 pages).
-typecheck + lint + build:web green.
+Per owner feedback: renamed the overlay title **Bestiary → Compendium**; the gallery is **6 columns wide**
+(was 5); the whole thing is ~15% larger — the book panel grew to `min(1700px, 96vw)` × `min(1000px, 92vh)` and
+the card size to `--ch: clamp(212px, 26vh, 276px)`; and **pagination is replaced with a single vertical scroll**
+so you can skim the whole filtered list at once (dropped `PAGE_SIZE` + page state + the Prev/Next footer + the
+arrow-key page flip; `.book-grid` was already `overflow-y: auto`). Verified live: all 114 cards render in one
+scrollable 6-wide grid, scrollbar present, no footer. typecheck + lint + build:web green.
 
 ### feat: Minion Book (Tab) — a filterable bestiary of every card findable this run
 

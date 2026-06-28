@@ -44,8 +44,11 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
   const m = CARD_INDEX[magneticCardId];
   const t = CARD_INDEX[targetCardId];
   if (!m || !t) return false;
-  // universalTribe Magnetic cards (Chaos Attachment) can weld onto any non-neutral target.
-  if (m.universalTribe) return t.tribe !== 'neutral';
+  // universalTribe Magnetic cards (Chaos Attachment) can weld onto any non-neutral target (or another all-type).
+  if (m.universalTribe) return t.tribe !== 'neutral' || !!t.universalTribe;
+  // A universalTribe HOST counts as every tribe (incl. Mech), so it accepts any Magnetic — e.g. a normal Mech
+  // magnetic welding onto a Chaos Attachment (whose printed tribe is 'neutral', so the tribe match below misses).
+  if (t.universalTribe) return true;
   const mag: Tribe[] = [m.tribe, m.tribe2].filter((x): x is Tribe => !!x);
   const tgt: Tribe[] = [t.tribe, t.tribe2].filter((x): x is Tribe => !!x);
   return mag.some((x) => tgt.includes(x));

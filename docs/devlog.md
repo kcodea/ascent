@@ -28,6 +28,29 @@ tiers 1+2 ∧ Beasts+Dragons. Pure presentation — no engine changes.
 - **Verified** live in the preview: Tab opens/closes; Esc closes without opening the menu; tier∧tribe and
   multi-select filtering produce correct counts (tier1∧Beast → 2; tiers1,2 ∧ Beast,Dragon → 8); right-click
   inspect layers on top; no console errors. typecheck + lint + test (403) + build:web all green.
+### refactor: data-driven Discover-on-play + opponent-frame intel + cursor fix
+
+Three small, independent changes (UI polish + an engine de-coupling).
+
+- **`discoverOnPlay` — Discover spells are now data, not a reducer card-id chain.** The `play` action in
+  `sim/reducer.ts` special-cased five card ids (`discoverspell`, `sprout`, `helpwanted`, `tribeportal`,
+  `corpseboard`), each calling `queueDiscover` with bespoke params. Replaced by a single generic handler that
+  reads a new optional `CardDef.discoverOnPlay` spec (`core/types.ts`, zod-validated in `content/schema.ts`):
+  `{ exactTier?, tierOffset?, filter?, tribe?: Tribe | 'dominant', topTierFirst? }`. The reducer resolves the
+  offer tier (`exactTier ?? tavernTier + tierOffset`) and tribe (`'dominant'` → `dominantBoardTribe(s)`) at
+  play time, then builds the same `DiscoverSpec`. The five cards now carry the field; the golden Triple Reward
+  token keeps its peek-up bias via `{ tierOffset: 1, topTierFirst: true }`. New Discover spells are now
+  data-only — no reducer change. Behaviour is byte-identical (untargeted → still not multiplied by Yazzus,
+  still consumed with no board slot). **Verified**: full `npm test` green (403 tests, incl. the existing
+  sprout/helpwanted/tribeportal/corpseboard/discoverspell coverage) + typecheck + lint + build:web.
+- **Opponent frame — wins + tavern tier now in the thumbnail itself.** `OpponentFrame.tsx` previously showed
+  only name + hero portrait + life in the always-visible badge (the rest was hover-only). Added a stats
+  column: life (♥) on top, then a meta row of wins (crown, accent) + tavern tier (star) — both already on
+  `BoardSnapshot`. The hover tooltip is unchanged (still hero name / HP / tier / triples / top tribe /
+  author). New CSS: `.opp-stats`, `.opp-meta`, `.opp-wins`, `.opp-tier`. **Verified** live in the preview:
+  badge reads "LEMON · ♥30 · 👑0 · ★1", tooltip intact.
+- **Opponent frame cursor.** `.oppframe` used the bare OS `cursor: default` on hover; switched to the custom
+  `url('/cursors/gauntlet_default.svg') 6 2, help` (matching `.chip` — it's an informational hover surface).
 
 ## 2026-06-27 (session 7)
 

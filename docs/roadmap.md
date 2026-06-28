@@ -337,6 +337,14 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
       (tier / tribe / attack / health); show **copies remaining** in the live pool; a **keyword filter** row;
       decide how **set/RNG-variable cards** appear once sets exist (per owner — revisit then); maybe a real
       page-turn animation + SFX for the book feel.
+- [ ] **Decouple the remaining hardcoded card-ids (effect-system audit, 2026-06-28).** The mechanics system is
+      data-driven (cards = data + effect subscriptions); a content push needs no engine changes for normal
+      Battlecry/Deathrattle/SoC/keyword cards. But a handful of cards still branch on their own id in logic.
+      ✅ Discover spells fixed via `discoverOnPlay` (2026-06-28). Remaining: **easy data-field cases** —
+      Hoarder sell value (`recruit.ts` `sellValueOf`), Cling magnetize stacking, Fodder Feeder sell, Yazzus
+      spell-cast multiplier; and **genuinely-novel multiplier effects** that may warrant a new primitive rather
+      than a hardcode — Echo Warden (summon duplication) + Sylus the Reaper (extra Deathrattle fires) in
+      `core/combat/simulate.ts`, Beatboxer magnetic mirroring. Low priority — none block new content.
 
 - [ ] **Dev stats tracker (TABLED 2026-06-26).** A replay-driven analytics tool — no live telemetry needed, since
       every run is a deterministic `Replay = {seed, heroId, actions}` that re-derives byte-identically. Walk each

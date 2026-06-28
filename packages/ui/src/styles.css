@@ -90,7 +90,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
 .topright { position: absolute; top: calc(100% + 8 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(40 * var(--u)); }
 /* Next-enemy frame — sized ~30% larger than the base chips for emphasis. */
-.oppframe { position: relative; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(17 * var(--u)); padding: calc(7 * var(--u)) calc(16 * var(--u)) calc(7 * var(--u)) calc(12 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: default; }
+.oppframe { position: relative; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(17 * var(--u)); padding: calc(7 * var(--u)) calc(16 * var(--u)) calc(7 * var(--u)) calc(12 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
 /* Run-buffs window — a compact list of active permanent buffs; collapsible header. Normal (system) cursor,
    not the custom gauntlet, so the panel reads as plain UI chrome. */
 .buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
@@ -109,6 +109,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .oppframe .opp-pic svg { width: calc(29 * var(--u)); height: calc(29 * var(--u)); color: var(--ink3); }
 .oppframe .opp-hp { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(22 * var(--u)); color: var(--threat-dk); }
 .oppframe .opp-hp svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--threat); }
+.oppframe .opp-stats { display: flex; flex-direction: column; align-items: flex-end; gap: calc(1 * var(--u)); }
+.oppframe .opp-meta { display: inline-flex; align-items: center; gap: calc(9 * var(--u)); }
+.oppframe .opp-wins, .oppframe .opp-tier { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); color: var(--ink3); font-variant-numeric: tabular-nums; }
+.oppframe .opp-wins svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
+.oppframe .opp-tier svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--ink3); }
 .oppframe.threat .opp-pic { border-color: var(--ink3); }
 .oppframe .opp-tip { position: absolute; top: calc(100% + 6 * var(--u)); right: 0; min-width: calc(160 * var(--u)); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 600; font-size: calc(12.5 * var(--u)); line-height: 1.55; padding: calc(9 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); opacity: 0; pointer-events: none; transform: translateY(calc(-4 * var(--u))); transition: opacity 0.12s, transform 0.12s; z-index: 90; white-space: nowrap; box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) rgba(0, 0, 0, 0.3); }
 .oppframe:hover .opp-tip { opacity: 1; transform: translateY(0); }

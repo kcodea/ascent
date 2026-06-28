@@ -65,6 +65,8 @@ export const TOKENS: CardDef[] = [
     // The displayed text is overridden in the UI to name the exact Tier (current + 1, capped) —
     // see `discoverSpellText` in Recruit. This is the fallback if that ever isn't applied.
     text: '**Discover** a minion from one Tier up.',
+    // Peek one tier above the tavern tier, biased to the top of the range — the golden reward's peek-up.
+    discoverOnPlay: { tierOffset: 1, topTierFirst: true },
     token: true,
   },
   {

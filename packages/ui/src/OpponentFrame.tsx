@@ -40,7 +40,14 @@ export function OpponentFrame() {
       <div className="opp-pic">
         {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
       </div>
-      <span className="opp-hp"><Icon name="heart" />{snap.resolve}</span>
+      {/* At-a-glance intel in the thumbnail itself: life, then wins (crown) + tavern tier (star). */}
+      <div className="opp-stats">
+        <span className="opp-hp"><Icon name="heart" />{snap.resolve}</span>
+        <span className="opp-meta">
+          <span className="opp-wins" title="Wins"><Icon name="crown" />{snap.wins ?? 0}</span>
+          <span className="opp-tier" title="Tavern tier"><Icon name="star" />{snap.tier}</span>
+        </span>
+      </div>
       <div className="opp-tip" role="tooltip">
         <b>{hero.name}</b> — {snap.resolve} HP
         <div>Tavern tier {snap.tier}</div>

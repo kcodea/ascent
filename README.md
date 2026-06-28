@@ -28,6 +28,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Minion Book (Tab).** A new blurred-overlay bestiary of every minion + spell findable this run — tier
   filters across the top, tribe/Spells filters down the left (both multi-select), a paged card gallery you flip
   through. Right-click any card for the full inspect.
+- **Opponent intel + Discover refactor.** The next-opponent badge now shows wins + tavern tier right in the
+  thumbnail (alongside name, hero, life), with the gauntlet cursor on hover. Under the hood, Discover spells
+  (Sprout, Help Wanted, Tribe Portal, Corpse Board, Triple Reward) are now driven by a data-only
+  `discoverOnPlay` card field instead of hardcoded card-ids in the reducer.
 - **Leaderboard buff breakdown.** Right-clicking a champion's minion in the Hall of Champions now shows how it
   was buffed (Spirit Fire ×2, Golden Touch, …) in the inspect panel — for boards captured from here on.
 - **Opponents: real player boards, random.** You now face real player boards whenever any exist for your wave

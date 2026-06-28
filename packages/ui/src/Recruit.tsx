@@ -235,7 +235,7 @@ function instView(
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
   // Lantern of Souls is a run-wide Undead aura — fold it on top of the shown stats for any Undead so
   // the board/hand reflect it in the shop too (combat re-derives the same bump). Spells are never Undead.
-  const undead = !spell && (inst.tribe === 'undead' || c.tribe2 === 'undead');
+  const undead = !spell && (inst.tribe === 'undead' || c.tribe2 === 'undead' || !!c.universalTribe);
   const auraAtk = undead ? undeadAtkBonus : 0;
   const auraHp = undead ? undeadHpBonus : 0;
   // Run-wide live metric — a green `{{…}}` tag appended to the rule text (golden-independent, so it rides on

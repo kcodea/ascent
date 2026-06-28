@@ -29,6 +29,45 @@ scrollable 6-wide grid, scrollbar present, no footer. **Themed the scroll areas'
 `.book-rail`) — a native scrollbar reverts the cursor to the OS arrow, so a styled webkit scrollbar (+ Firefox
 `scrollbar-color`) renders as part of the element, keeping the gauntlet cursor and matching the accent theme.
 typecheck + lint + build:web green.
+### feat: unify run-wide buffs as "auras" — apply everywhere (incl. resummon) + consistent naming
+
+Run-wide buffs ("Undead everywhere", Fodder, Imp, Eternal Knight) are now treated as **auras** that follow a
+player minion everywhere — the warband, the shop, and every combat body (start, summon, Reborn, **resummon**).
+This fixes several inconsistencies where a fresh combat body silently shed a buff it should keep.
+
+- **Combat (`core/combat/simulate.ts`)** — replaced the three ad-hoc helpers (`applyUndeadBonus` /
+  `applyImpBonus` / `applyCardTypeCarryThrough`) with a declarative `AURAS` registry + one `applyAuras(m, fromBase)`,
+  applied at combat start, summon, and Reborn. New aggregate auras are now one registry entry; per-card enchants
+  (Fodder, Eternal Knight) flow from `cardBuffs`, which is now **threaded into `simulate()`** (new trailing param;
+  both reducer call sites pass `s.cardBuffs`). The per-card prior total reads `cardBuffs[id]` (authoritative) and
+  falls back to the minion's own buff breakdown, so existing Eternal Knight / Lantern tests stay byte-identical.
+  - **Bug fixes via the unified path:** a **summoned** token now inherits its per-card enchant (a summoned Fodder
+    gets the Ritualist buff); a **Reborn** body now also re-gains the Imp aura + non-undead enchants (Fodder);
+    a **resummoned** body (Soren's Reclaim) now re-applies the per-card stacks banked *this fight* via a dedicated
+    `applyCombatGains` — its start-of-combat copy already carries the live auras + prior stacks, so only the
+    later gains were missing (this is the "resummoned Eternal Knight doesn't gain the buff" report).
+- **Recruit display** — `instView` (warband/hand) now folds the Undead aura onto `universalTribe` minions too
+  (it already did for plain Undead; shop + combat already did). The run-buffs window (`runBuffs.ts`) renames the
+  rows to the aura vocabulary: **Undead Aura · Fodder Aura · Imp Aura · Eternal Knight Aura**.
+- **Verified**: typecheck + lint + `build:web` green; full suite **405** (2 new — a resummoned Knight carries the
+  Undead Aura with the exact +Attack delta, not doubled/dropped; a combat-summoned token inherits its per-card
+  enchant); `npm run harness` re-confirms identical-seed determinism. Existing golden/Eternal-Knight/Lantern
+  tests unchanged.
+- **Note (combat-determinism boundary):** `simulate()` gained a trailing `cardBuffs` param — coordinate before
+  further signature changes.
+### fix: magnetic can weld onto a Chaos Attachment host + Minion Book pop-in animation
+
+Two small fixes from a feedback batch.
+
+- **Magnetic → Chaos Attachment.** A normal Mech Magnetic minion couldn't weld onto a Chaos Attachment (the
+  `universalTribe` all-type body). Cause: the attachment's printed `tribe` is `'neutral'`, so the tribe-match in
+  `magnetizesTo` (`reducer.ts`) missed it. Fix: a `universalTribe` **host** counts as every tribe (incl. Mech),
+  so it now accepts any Magnetic — the mirror of the already-handled magnetic-*side* universalTribe case. Added a
+  regression test (`run.test.ts`: a Cling Drone welds onto a Chaos Attachment → merges, 1/1 + 2/2 = 3/3).
+- **Minion Book pop-in.** The book reused `inspectpop` (animates `scale(1.45)→1.9`, correct for the inspect card
+  which *rests* at scale 1.9); the book rests at scale 1, so it ballooned then snapped down. New `bookpop`
+  keyframe: opacity 0→1 + `scale(0.97)→1`. Verified live (computed `animation-name: bookpop`).
+- **Verified**: typecheck + lint + test (404) + build:web green.
 
 ### feat: Minion Book (Tab) — a filterable bestiary of every card findable this run
 

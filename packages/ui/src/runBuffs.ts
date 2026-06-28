@@ -69,15 +69,15 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   // Weaver / Karthus) plus the run-wide Undead aura (Lantern of Souls).
   const undA = (run.undeadBuyAtk ?? 0) + (run.undeadAttackBonus ?? 0);
   const undH = run.undeadHealthBonus ?? 0;
-  if (undA > 0 || undH > 0) rows.push({ key: 'undead', label: 'Undead · everywhere', value: `+${undA}/+${undH}` });
+  if (undA > 0 || undH > 0) rows.push({ key: 'undead', label: 'Undead Aura', value: `+${undA}/+${undH}` });
 
   // Permanent Fodder enchant (Ritualist / Bane) — applies to every Fodder, board/hand/future.
   const fod = run.cardBuffs?.fred;
-  if (fod && (fod.attack > 0 || fod.health > 0)) rows.push({ key: 'fodder', label: 'Fodder', value: `+${fod.attack}/+${fod.health}` });
+  if (fod && (fod.attack > 0 || fod.health > 0)) rows.push({ key: 'fodder', label: 'Fodder Aura', value: `+${fod.attack}/+${fod.health}` });
 
   // Permanent Imp buff (Fodder Feeder / Imp King / Brood / Bane) — applied to combat Imps.
   const imp = run.impBuff;
-  if (imp && (imp.attack > 0 || imp.health > 0)) rows.push({ key: 'imp', label: 'Imps', value: `+${imp.attack}/+${imp.health}` });
+  if (imp && (imp.attack > 0 || imp.health > 0)) rows.push({ key: 'imp', label: 'Imp Aura', value: `+${imp.attack}/+${imp.health}` });
 
   // Cling Drone run-wide enchant (each Cling magnetized grows all Clings).
   const cling = run.cardBuffs?.cling;
@@ -86,7 +86,7 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   // Eternal Knight run-wide enchant (each Eternal Knight death buffs all Eternal Knights +3/+2). Stored on
   // the 'knit' card-type buff.
   const knit = run.cardBuffs?.knit;
-  if (knit && (knit.attack > 0 || knit.health > 0)) rows.push({ key: 'knit', label: 'Eternal Knights', value: `+${knit.attack}/+${knit.health}` });
+  if (knit && (knit.attack > 0 || knit.health > 0)) rows.push({ key: 'knit', label: 'Eternal Knight Aura', value: `+${knit.attack}/+${knit.health}` });
 
   // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.
   const tav = run.tavernBuyBonus;

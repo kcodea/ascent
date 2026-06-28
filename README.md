@@ -25,8 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Minion Book (Tab).** A new blurred-overlay bestiary of every minion + spell findable this run — tier
-  filters across the top, tribe/Spells filters down the left (both multi-select), a paged card gallery you flip
+- **Compendium (Tab).** A blurred-overlay reference of every minion + spell findable this run — tier filters
+  across the top, tribe/Spells filters down the left (both multi-select), a paged 6×2 card gallery you flip
   through. Right-click any card for the full inspect.
 - **Opponent intel + Discover refactor.** The next-opponent badge now shows wins + tavern tier right in the
   thumbnail (alongside name, hero, life), with the gauntlet cursor on hover. Under the hood, Discover spells

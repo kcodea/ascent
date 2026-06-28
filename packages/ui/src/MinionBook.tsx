@@ -20,7 +20,7 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
 };
 
 const TIERS = [1, 2, 3, 4, 5, 6] as const;
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 12;
 
 /** A book card def → the view object `Card` renders. Base (printed) stats only — the book is a static
  *  reference, not a live board, so no run buffs. */
@@ -106,7 +106,7 @@ export function MinionBook() {
     <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Minion Book — Esc or Tab to close">
       <div className="book" onClick={(e) => e.stopPropagation()}>
         <div className="book-head">
-          <div className="book-title"><Icon name="house" /> Bestiary</div>
+          <div className="book-title"><Icon name="house" /> Compendium</div>
           <div className="book-sub">{filtered.length} of {allCards.length} cards findable this run</div>
           <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
         </div>

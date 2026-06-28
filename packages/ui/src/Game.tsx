@@ -7,6 +7,7 @@ import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
+import { MinionBook } from './MinionBook';
 import { EscMenu } from './EscMenu';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
@@ -24,6 +25,7 @@ import { useGame } from './store';
  *  game-over overlay layer on top. The Esc menu drives the display-resolution scaler. */
 export function Game() {
   const phase = useGame((s) => s.run.phase);
+  const showBook = useGame((s) => s.showBook);
   const [menuOpen, setMenuOpen] = useState(false);
   const [res, setRes] = useState<string>(() => {
     try { return localStorage.getItem('ascent-res') || 'fit'; } catch { return 'fit'; }
@@ -42,15 +44,32 @@ export function Game() {
   }, [res]);
 
   // Esc toggles the menu — but if the menu is closed and a card is being inspected, let the
-  // inspect overlay claim Esc (it closes itself) instead of opening the menu.
+  // inspect overlay claim Esc (it closes itself) instead of opening the menu. The Minion Book
+  // also claims Esc (closes itself) before the menu would open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      const st = useGame.getState();
+      if (st.showBook) { st.closeBook(); return; }
       setMenuOpen((open) => {
         if (open) return false;
-        if (useGame.getState().inspect) return false;
+        if (st.inspect) return false;
         return true;
       });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Tab toggles the Minion Book — but only while actually playing (not on the title screen / hero
+  // picker, where there's no run to reference). `preventDefault` stops the browser's focus-cycling.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const st = useGame.getState();
+      if (st.showTitle || st.heroChoices) return;
+      e.preventDefault();
+      st.toggleBook();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -65,6 +84,7 @@ export function Game() {
       {phase === 'gameover' && <EndScreen won={false} />}
       {phase === 'victory' && <EndScreen won={true} />}
       <StatusBar />
+      {showBook && <MinionBook />}
       <Inspect />
       <button className="gearbtn" onPointerDown={() => setMenuOpen(true)} title="Settings (Esc)" aria-label="Settings">
         <Icon name="gear" />

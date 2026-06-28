@@ -1577,3 +1577,34 @@ svg { width: 18px; height: 18px; }
    a wide warband never overflows; the page is the top layer so the full-text-on-hover popup sits on top. */
 .lbwarband { --ccw: clamp(112px, 13vh, 150px); --cw: calc(var(--ccw) / 0.85); --ch: calc(var(--cw) / 0.752); display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; padding-top: 10px; }
 .lbwarband .card { min-width: 0; }
+
+/* ── Minion Book (Tab) — a filterable codex of every minion + spell findable this run. Blurred overlay
+   styled like an open tome: tier filters across the top, tribe/Spells filters down the left, paged gallery. ── */
+.book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(26, 16, 6, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.book { width: min(1480px, 94vw); height: min(900px, 90vh); display: flex; flex-direction: column; background: linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, var(--acc)) 0%, var(--card) 16%); border: 3px solid var(--line); border-radius: 22px; box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7), inset 0 0 0 2px color-mix(in srgb, var(--acc) 18%, transparent); overflow: hidden; animation: inspectpop 0.2s cubic-bezier(0.34, 1.3, 0.64, 1); cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.book-head { display: flex; align-items: center; gap: 16px; padding: 15px 22px; border-bottom: 2px solid var(--line); background: color-mix(in srgb, var(--acc) 10%, var(--card)); flex: none; }
+.book-title { display: inline-flex; align-items: center; gap: 10px; font-family: 'Outfit'; font-weight: 800; font-size: 25px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
+.book-title svg { width: 25px; height: 25px; color: var(--acc); }
+.book-sub { font-family: 'Nunito Sans', sans-serif; font-weight: 600; font-size: 14px; color: var(--ink3); }
+.book-close { margin-left: auto; width: 40px; height: 40px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-size: 17px; font-weight: 800; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.book-close:hover { border-color: var(--threat); color: var(--threat-dk); }
+.book-tiers { display: flex; align-items: center; gap: 8px; padding: 11px 22px; border-bottom: 2px solid var(--line); flex: none; }
+.book-axislabel { font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-right: 4px; }
+.book-tier { width: 38px; height: 38px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: 'Outfit'; font-weight: 800; font-size: 17px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.book-tier:hover { transform: translateY(-2px); border-color: var(--acc); }
+.book-tier.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
+.book-main { flex: 1; display: flex; min-height: 0; }
+.book-rail { display: flex; flex-direction: column; gap: 7px; padding: 16px 12px; border-right: 2px solid var(--line); background: color-mix(in srgb, var(--card) 90%, var(--bg)); overflow-y: auto; flex: none; }
+.book-cat { display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px 9px 11px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: 'Outfit'; font-weight: 700; font-size: 14px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; white-space: nowrap; transition: border-color 0.1s, background 0.1s; }
+.book-cat svg { width: 18px; height: 18px; color: var(--c); flex: none; }
+.book-cat:hover { border-color: var(--c); }
+.book-cat.on { background: color-mix(in srgb, var(--c) 20%, var(--card)); border-color: var(--c); color: var(--ink); }
+.book-grid { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px 14px; padding: 20px; overflow-y: auto; align-content: start; justify-items: center; --ch: clamp(184px, 23vh, 240px); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+.book-cell { transition: transform 0.12s ease; }
+.book-cell:hover { transform: scale(1.06); z-index: 3; position: relative; }
+.book-empty { flex: 1; display: grid; place-items: center; font-family: 'Outfit'; font-weight: 700; font-size: 18px; color: var(--ink3); }
+.book-foot { display: flex; align-items: center; justify-content: center; gap: 22px; padding: 11px; border-top: 2px solid var(--line); background: color-mix(in srgb, var(--acc) 8%, var(--card)); flex: none; }
+.book-flip { padding: 9px 20px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: 'Outfit'; font-weight: 800; font-size: 15px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.book-flip:hover:not(:disabled) { border-color: var(--acc); }
+.book-flip:disabled { opacity: 0.4; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.book-page { font-family: 'Outfit'; font-weight: 800; font-size: 15px; color: var(--ink2); min-width: 120px; text-align: center; }

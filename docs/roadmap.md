@@ -332,6 +332,12 @@ as tests pass ~200; consider sub-reducers in `reducer.ts` if many new actions la
 
 ## Backlog / ideas (unscheduled)
 
+- [ ] **Minion Book polish (shipped 2026-06-28 → devlog).** The Tab bestiary is live (filterable by tier ×
+      tribe/Spells, paged). Future passes when content/meta grows: a name/text **search box**; sort options
+      (tier / tribe / attack / health); show **copies remaining** in the live pool; a **keyword filter** row;
+      decide how **set/RNG-variable cards** appear once sets exist (per owner — revisit then); maybe a real
+      page-turn animation + SFX for the book feel.
+
 - [ ] **Dev stats tracker (TABLED 2026-06-26).** A replay-driven analytics tool — no live telemetry needed, since
       every run is a deterministic `Replay = {seed, heroId, actions}` that re-derives byte-identically. Walk each
       persisted replay through `reduce` and read state at each step to aggregate: per-minion **offer / purchase /

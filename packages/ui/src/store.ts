@@ -156,6 +156,11 @@ interface GameStore {
   showLeaderboard: boolean;
   openLeaderboard: () => void;
   closeLeaderboard: () => void;
+  /** The Minion Book codex overlay (Tab) is open — a filterable reference of every minion + spell
+   *  findable this run. UI-only; reads the run's pool + active tribes. */
+  showBook: boolean;
+  toggleBook: () => void;
+  closeBook: () => void;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -259,6 +264,9 @@ export const useGame = create<GameStore>((set, get) => ({
   openTitle: () => set({ showTitle: true, heroChoices: null }),
   openLeaderboard: () => set({ showLeaderboard: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
+  showBook: false,
+  toggleBook: () => set((s) => ({ showBook: !s.showBook })),
+  closeBook: () => set({ showBook: false }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

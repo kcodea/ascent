@@ -191,4 +191,13 @@ export const CardDefSchema = z.object({
     .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }))
     .min(2)
     .optional(),
+  discoverOnPlay: z
+    .object({
+      exactTier: z.number().int().positive().optional(),
+      tierOffset: z.number().int().optional(),
+      filter: z.enum(['battlecry', 'deathrattle']).optional(),
+      tribe: z.union([TribeSchema, z.literal('dominant')]).optional(),
+      topTierFirst: z.boolean().optional(),
+    })
+    .optional(),
 });

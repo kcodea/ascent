@@ -250,6 +250,29 @@ export interface CardDef {
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; effects: EffectDef[] }[];
+  /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
+   *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
+   *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe
+   *  are resolved at play time from the live run (see `DiscoverOnPlay`). Replaces what was a per-card-id
+   *  branch in the reducer — new Discover spells are now data-only. */
+  discoverOnPlay?: DiscoverOnPlay;
+}
+
+/** Declarative spec for {@link CardDef.discoverOnPlay}. The offer tier is `exactTier` if set, otherwise the
+ *  current tavern tier plus `tierOffset` (default 0). All fields optional → a bare `{}` Discovers from the
+ *  current tier with no filter. */
+export interface DiscoverOnPlay {
+  /** Fixed offer tier, ignoring the tavern tier (Sprout = always Tier 1). */
+  exactTier?: number;
+  /** Added to the current tavern tier to choose the offer tier, engine-capped (Triple Reward = +1). */
+  tierOffset?: number;
+  /** Narrow the pool to minions with this trigger. */
+  filter?: 'battlecry' | 'deathrattle';
+  /** Restrict to one tribe; `'dominant'` resolves to the player's most-common board tribe at play time
+   *  (Tribe Portal). A tribe-less board falls back to an unfiltered Discover. */
+  tribe?: Tribe | 'dominant';
+  /** Bias the offer toward the highest eligible tier when the pool spans tiers (the reward's peek-up bias). */
+  topTierFirst?: boolean;
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown

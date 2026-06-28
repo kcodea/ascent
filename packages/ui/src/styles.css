@@ -1605,6 +1605,14 @@ svg { width: 18px; height: 18px; }
 .book-cat:hover { border-color: var(--c); }
 .book-cat.on { background: color-mix(in srgb, var(--c) 20%, var(--card)); border-color: var(--c); color: var(--ink); }
 .book-grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px 14px; padding: 20px; overflow-y: auto; align-content: start; justify-items: center; --ch: clamp(212px, 26vh, 276px); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+/* Themed scrollbars for the book's scroll areas — a native scrollbar reverts the cursor to the OS arrow;
+   a styled webkit scrollbar renders as part of the element, so it keeps the custom gauntlet cursor + looks
+   on-theme. (Firefox falls back to the thin scrollbar-color form.) */
+.book-grid, .book-rail { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--acc) 50%, var(--line)) transparent; }
+.book-grid::-webkit-scrollbar, .book-rail::-webkit-scrollbar { width: 12px; }
+.book-grid::-webkit-scrollbar-track, .book-rail::-webkit-scrollbar-track { background: transparent; }
+.book-grid::-webkit-scrollbar-thumb, .book-rail::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--acc) 45%, var(--line)); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; }
+.book-grid::-webkit-scrollbar-thumb:hover, .book-rail::-webkit-scrollbar-thumb:hover { background: var(--acc); background-clip: padding-box; }
 .book-cell { transition: transform 0.12s ease; }
 .book-cell:hover { transform: scale(1.06); z-index: 3; position: relative; }
 .book-empty { flex: 1; display: grid; place-items: center; font-family: 'Outfit'; font-weight: 700; font-size: 18px; color: var(--ink3); }

@@ -12,7 +12,10 @@ Per owner feedback: renamed the overlay title **Bestiary → Compendium**; the g
 the card size to `--ch: clamp(212px, 26vh, 276px)`; and **pagination is replaced with a single vertical scroll**
 so you can skim the whole filtered list at once (dropped `PAGE_SIZE` + page state + the Prev/Next footer + the
 arrow-key page flip; `.book-grid` was already `overflow-y: auto`). Verified live: all 114 cards render in one
-scrollable 6-wide grid, scrollbar present, no footer. typecheck + lint + build:web green.
+scrollable 6-wide grid, scrollbar present, no footer. **Themed the scroll areas' scrollbars** (`.book-grid` /
+`.book-rail`) — a native scrollbar reverts the cursor to the OS arrow, so a styled webkit scrollbar (+ Firefox
+`scrollbar-color`) renders as part of the element, keeping the gauntlet cursor and matching the accent theme.
+typecheck + lint + build:web green.
 
 ### feat: Minion Book (Tab) — a filterable bestiary of every card findable this run
 

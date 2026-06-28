@@ -90,7 +90,7 @@ export function MinionBook() {
     setCats((prev) => { const next = new Set(prev); if (next.has(c)) next.delete(c); else next.add(c); return next; });
 
   return (
-    <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Minion Book — Esc or Tab to close">
+    <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Compendium — Esc or Tab to close">
       <div className="book" onClick={(e) => e.stopPropagation()}>
         <div className="book-head">
           <div className="book-title"><Icon name="house" /> Compendium</div>

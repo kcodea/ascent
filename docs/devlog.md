@@ -14,6 +14,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 - **Verified live:** Compendium renders godfodder/hexflayer/wolvesden at 512px (the token doesn't list in the
   Compendium but resolves through the same eager glob in combat). Note: the running dev server needs a full
   restart, not just a reload, to pick up new art (`import.meta.glob` is eager).
+### fix: The Godfodder now actually feeds Fodder
+
+- **Bug:** The Godfodder's Battlecry pulled a Fodder *from the shop* — but Fodder (Fred) is a non-rollable
+  token that's essentially never in the shop, so the Battlecry silently fizzled: no stat gain, no animation.
+- **Fix:** `battlecryTargetConsumeFodder` now **creates** a Fodder and feeds it to the targeted friendly
+  minion (golden: 2), mirroring the Consume spell (`spellDemonConsumeFodder`). The target gains the Fodder's
+  stats × its fodder multiplier, the on-consume pipeline fires, and the eat animation plays
+  (`fodderEaten`/`fodderEatenSeq`, the same source-agnostic swirl + stat-float the UI already drives). Card
+  text updated ("consumes a **Fodder**", dropping "from the shop").
+- **Verified:** headless reduce(play → battlecryTarget) — target +1/+1, `fodderEatenSeq` bumped, `fodderEaten`
+  event recorded. typecheck + lint + `npm test` (402) green.
 
 ### feat: Practice mode is read-only against the snapshot DB
 

@@ -529,24 +529,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     (ctx.state.pendingTavern ??= []).push(...Array(count).fill(id));
   },
 
-  /** The Godfodder — Battlecry: the targeted friendly minion (`payload.target`) consumes one Fodder
-   *  directly from the shop (golden: 2). Pulls the first Fodder off the shop, applies its buffed stats
-   *  × the target's fodder multiplier, and fires the normal onConsume pipeline (Pactstone / Maw / Glutton).
-   *  No-op if no Fodder is in the shop (the Battlecry fizzles). */
+  /** The Godfodder — Battlecry: CREATE a Fodder (Fred) and feed it to the targeted friendly minion
+   *  (`payload.target`); golden makes 2. Each created Fodder carries the run-wide Fodder enchant
+   *  (Ritualist/Bane), grants its stats × the target's fodder multiplier (Voracious Imp ×2), fires the
+   *  normal onConsume pipeline, and plays the eat animation (`fodderEaten`). Mirrors the Consume spell
+   *  (`spellDemonConsumeFodder`) — it does NOT depend on Fodder being in the shop, so it always resolves. */
   battlecryTargetConsumeFodder: (ctx, self, _params, payload) => {
     const target = payload.target ?? self;
+    const fodder = CARD_INDEX.fred;
+    if (!fodder) return;
     const count = gold(self); // 1 normally, 2 if golden
+    const cb = cardBuff(ctx.state, fodder.id); // a created Fodder carries the run-wide Fodder enchant
+    const fa = fodder.attack + cb.attack;
+    const fh = fodder.health + cb.health;
+    const mult = fodderMultiplier(target);
     const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
     for (let i = 0; i < count; i++) {
-      const fi = ctx.state.shop.findIndex((o) => CARD_INDEX[o.cardId]?.keywords.includes('FD'));
-      if (fi < 0) break; // no Fodder left in the shop
-      const offer = ctx.state.shop[fi]!;
-      ctx.state.shop.splice(fi, 1);
-      const { attack: fa, health: fh } = offerBuyStats(ctx.state, offer);
-      const mult = fodderMultiplier(target);
       addBuff(target, 'Consume', fa * mult, fh * mult);
       fire(ctx, 'onConsume', { minion: target });
-      eaten.push({ eaterUid: target.uid, fodderId: offer.cardId, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
+      eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
       ctx.state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
       ctx.state.fodderConsumedThisTurn.attack += fa;
       ctx.state.fodderConsumedThisTurn.health += fh;

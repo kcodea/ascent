@@ -3,6 +3,21 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-29 (session 9)
+
+### feat: Practice mode is read-only against the snapshot DB
+
+- **Practice no longer writes snapshots.** Practice runs still fight real captured boards (the opponent
+  pool loads at startup regardless of mode) but never contribute back: no local capture (`saveRunBoards`),
+  no shared upload (`uploadBoards`), and no leaderboard log (`uploadVictory`). Only scored **Ascent** runs
+  create snapshots and can reach the leaderboard.
+- **Change:** the run-end capture block in `store.ts` now also gates on `next.mode !== 'practice'`. Reading
+  is untouched — `fetchAndRegisterPool` (shared pool) + `loadStoredBoards` (local pool) both run at boot for
+  every mode, so practice keeps facing real boards.
+- **Reverses** the earlier interim decision (devlog: "Ascent win/loss AND Practice round-15, owner's call to
+  let Practice contribute for now").
+- **Verified:** typecheck + lint + `npm test` green.
+
 ## 2026-06-28 (session 8)
 
 ### art: Taragosa, Gnasher the Overrun, Ghostsmith

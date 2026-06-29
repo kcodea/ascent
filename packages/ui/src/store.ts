@@ -214,10 +214,13 @@ export const useGame = create<GameStore>((set, get) => ({
       actionSfx(action, s.run, next);
       // A run just ended → capture its boards into the library (loaded into the opponent pool next
       // startup, so you face boards you actually built). Deferred so it never hitches the end screen.
+      // PRACTICE runs are read-only against the snapshot DB: they fight real captured boards but never
+      // write back (no local capture, no shared upload, no leaderboard) — only scored Ascent runs do.
       if (
         (next.phase === 'gameover' || next.phase === 'victory') &&
         s.run.phase !== 'gameover' &&
-        s.run.phase !== 'victory'
+        s.run.phase !== 'victory' &&
+        next.mode !== 'practice'
       ) {
         const replay = { seed: next.seed, heroId: next.heroId, actions: [...s.replayActions, action] };
         const author = s.playerName || undefined;

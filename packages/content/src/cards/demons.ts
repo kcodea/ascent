@@ -118,7 +118,8 @@ export const DEMONS: CardDef[] = [
   },
   {
     // Spend-gold payoff: every 7 Gold you spend (a continuous per-instance meter, carried across turns)
-    // permanently buffs your Fodder + Imps run-wide (like Bane). Golden doubles the grant.
+    // permanently buffs your Fodder + Imps run-wide (like Bane) AND queues a Fodder into the next tavern.
+    // Golden doubles both the grant and the Fodder count.
     id: 'acid',
     name: 'Acid',
     tribe: 'demon',
@@ -126,9 +127,9 @@ export const DEMONS: CardDef[] = [
     attack: 8,
     health: 8,
     keywords: [],
-    effects: [{ on: 'goldSpent', do: 'goldSpentBuffFodderImps', params: { every: 7, attack: 2, health: 2 } }],
-    text: 'When you spend **7 Gold**, give your Fodder and Imps **+2/+2**.',
-    goldenText: 'When you spend **7 Gold**, give your Fodder and Imps **+4/+4**.',
+    effects: [{ on: 'goldSpent', do: 'goldSpentBuffFodderImps', params: { every: 7, attack: 1, health: 1, fodder: 1 } }],
+    text: 'When you spend **7 Gold**, give your Fodder and Imps **+1/+1** and add **1 Fodder** to your next tavern.',
+    goldenText: 'When you spend **7 Gold**, give your Fodder and Imps **+2/+2** and add **2 Fodder** to your next tavern.',
   },
   {
     id: 'trickster',

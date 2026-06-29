@@ -46,8 +46,9 @@ session) plus the two new minions below.
   were live, not deferred as an old comment claimed — all removed), **Cupcakes**.
 - **Reworks:**
   - **Acid** (8/8, no longer a Consume body) — *new `goldSpent` trigger*: every 7 Gold you spend permanently
-    buffs your Fodder + Imps +2/+2 (golden +4/+4), via a continuous per-instance meter (`BoardCard.goldTick`)
-    fired from a single `spendGold` chokepoint in the reducer (buys, rerolls, tier-ups, hero powers).
+    buffs your Fodder + Imps +1/+1 (golden +2/+2) AND queues 1 Fodder (golden 2) into your next tavern, via a
+    continuous per-instance meter (`BoardCard.goldTick`) fired from a single `spendGold` chokepoint in the
+    reducer (buys, rerolls, tier-ups, hero powers).
   - **Banksly** (new Mech, T5 5/6) — same `goldSpent` meter: every 10 Gold spent welds a random Magnetic onto
     itself (golden 2).
   - **Commander Impala** (new Demon, T5 6/4) — *new combat factory* `onKillBuffFodderImps`: each kill

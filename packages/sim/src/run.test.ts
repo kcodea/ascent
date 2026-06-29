@@ -36,7 +36,7 @@ import {
   type RunState,
 } from './index';
 import type { BoardMinion } from '@game/core';
-import { applyEndOfTurn } from './recruit';
+import { applyEndOfTurn, applyGoldSpent } from './recruit';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
 function playToEnd(seed: number): RunState {
@@ -413,18 +413,20 @@ describe('run loop (@game/sim)', () => {
     expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred', attack: 3, health: 3 });
   });
 
-  it('Acid (reworked) — every 7 Gold spent, permanently buffs your Fodder and Imps +2/+2', () => {
-    let s: RunState = {
+  it('Acid (reworked) — every 7 Gold spent, buffs Fodder/Imps +1/+1 and queues a Fodder', () => {
+    // Drive applyGoldSpent directly: the reducer's roll path would refresh the tavern (draining
+    // pendingTavern into the shop, where the on-board Acid Demon eats it), hiding the queued Fodder.
+    const s: RunState = {
       ...createRun(1),
-      embers: 99,
-      freeRolls: 0,
+      pendingTavern: [],
       board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 8, health: 8, keywords: [], golden: false }],
     };
-    for (let i = 0; i < 6; i++) s = reduce(s, { type: 'roll' }); // 6 Gold spent — under the 7-Gold threshold
+    applyGoldSpent(s, 6); // 6 Gold — under the 7-Gold threshold
     expect(s.impBuff ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // not yet
-    s = reduce(s, { type: 'roll' }); // 7th Gold spent → Acid procs once
-    expect(s.impBuff).toEqual({ attack: 2, health: 2 }); // Imps buffed run-wide
-    expect(s.cardBuffs?.fred).toEqual({ attack: 2, health: 2 }); // Fodder enchant run-wide
+    applyGoldSpent(s, 1); // crosses 7 → Acid procs once
+    expect(s.impBuff).toEqual({ attack: 1, health: 1 }); // Imps buffed run-wide
+    expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 }); // Fodder enchant run-wide
+    expect(s.pendingTavern).toEqual(['fred']); // a Fodder queued into the next tavern
   });
 
   it('a frozen tavern tops up empty slots + a missing spell after combat', () => {

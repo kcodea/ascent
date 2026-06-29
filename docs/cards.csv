@@ -75,7 +75,7 @@ impking,Imp King,4,6,5,,,**Deathrattle:** Summon 2 **Imps** and give your Imps *
 impala,Commander Impala,5,6,6,,Windfury,"**Windfury.** When this kills an enemy, give your Fodder and Imps **+3/+3** permanently.","**Windfury.** When this kills an enemy, give your Fodder and Imps **+6/+6** permanently."
 ritualist,Ritualist,5,5,6,,,"**End of Turn:** give your Imps and Fodder **+2/+2**, wherever they are.","**End of Turn:** give your Imps and Fodder **+4/+4**, wherever they are."
 abhorrenthorror,Abhorrent Horror,6,1,1,,Start of Combat,**Start of Combat:** Gain +Attack/+Health equal to the Fodder consumed this turn.,**Start of Combat:** Gain **double** the Attack/Health of Fodder consumed this turn.
-acid,Acid,6,8,8,,,"When you spend **7 Gold**, give your Fodder and Imps **+2/+2**.","When you spend **7 Gold**, give your Fodder and Imps **+4/+4**."
+acid,Acid,6,8,8,,,"When you spend **7 Gold**, give your Fodder and Imps **+1/+1** and add **1 Fodder** to your next tavern.","When you spend **7 Gold**, give your Fodder and Imps **+2/+2** and add **2 Fodder** to your next tavern."
 
 # === NEUTRAL (16) ===
 sandbag,Target Dummy,1,0,4,,Taunt,"**Taunt.** When this takes damage, it gains **+1 Attack** permanently.","**Taunt.** When this takes damage, it gains **+2 Attack** permanently."

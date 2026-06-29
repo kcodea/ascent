@@ -5,7 +5,8 @@ goes in [devlog.md](devlog.md)); when new work appears, add it under the right s
 and current. High-level milestone summaries live in [../CLAUDE.md](../CLAUDE.md).
 
 ## Recently shipped (2026-06-29)
-- The Godfodder (T2 Demon — targeted consume Battlecry), Hex Flayer (T4 Demon — tribe-wide buff Battlecry), Wolves Den (T3 Undead/Beast — 3 Crypt Wolf Deathrattle)
+- Hex Flayer (T4 Demon — tribe-wide buff Battlecry), Wolves Den (T3 Undead/Beast — 3 Crypt Wolf Deathrattle)
+- Removed The Godfodder (T2 Demon — its targeted-consume Battlecry primitive went with it)
 - Eternal Knight real-time aura fix (surviving copies now get the +3/+2 immediately in combat)
 
 ## Patch roadmap — the next 5 (strategic sequence)

@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-29 (session 9)
 
+### chore: remove The Godfodder
+
+- Cut **The Godfodder** (T2 Demon) from the game — card removed from `demons.ts`. It was the only user of
+  the `battlecryTargetConsumeFodder` effect primitive, so that factory (`recruit.ts`), its `EffectFactoryId`
+  union member (`core/types.ts`), and its schema enum entry (`content/schema.ts`) are all removed too. The
+  Fodder/consume state plumbing (`fodderEaten`, `fodderConsumedThisTurn`, the auto-consume pipeline,
+  Abhorrent Horror) is untouched — those are shared, not Godfodder-specific.
+- **Verified:** typecheck + lint + `npm test` (402) + `build:web` all green.
+
 ### feat: Practice mode is read-only against the snapshot DB
 
 - **Practice no longer writes snapshots.** Practice runs still fight real captured boards (the opponent

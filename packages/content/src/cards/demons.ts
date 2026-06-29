@@ -132,23 +132,6 @@ export const DEMONS: CardDef[] = [
     goldenText: 'When you spend **7 Gold**, give your Fodder and Imps **+2/+2** and add **2 Fodder** to your next tavern.',
   },
   {
-    // Battlecry (targeted): make a chosen friendly minion immediately eat one Fodder from the
-    // shop — consuming it off the tavern exactly like the auto-consume pipeline (stat transfer ×
-    // their multiplier, on-consume payoffs). Golden consumes 2 Fodder. No-op if no Fodder is in the
-    // shop. The card needs `target: 'friendly'` so the UI shows the targeting cursor.
-    id: 'godfodder',
-    name: 'The Godfodder',
-    tribe: 'demon',
-    tier: 2,
-    attack: 3,
-    health: 2,
-    keywords: [],
-    target: 'friendly',
-    effects: [{ on: 'onPlay', do: 'battlecryTargetConsumeFodder', params: {} }],
-    text: '**Battlecry:** Target a friendly minion. They consume a **Fodder** from the shop.',
-    goldenText: '**Battlecry:** Target a friendly minion. They consume **2 Fodder** from the shop.',
-  },
-  {
     // Battlecry: buff every friendly Demon on the board +1/+3 (golden +2/+6). A wide-board payoff
     // for the Consume tribe — rewards having many Demons in play at once.
     id: 'hexflayer',

@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-29 (session 9)
 
+### feat: combat odds panel shows average damage on loss
+
+- The outcome-odds panel (estimated from the 1000-sim matchup re-run) now also reports **average damage on
+  loss** — the mean Resolve you'd lose across the *losing* simulations (round-capped, like a real loss), i.e.
+  what a typical loss of this matchup costs. Lets you tell an unlucky loss from a deserved one.
+- Computed in the existing odds loop (no extra sims): the loop now reads each sim's full result and sums
+  `min(playerDamage, lossDamageCap)` over losses → `odds.avgLossDamage` (0 when no sim lost). Shown under the
+  win/draw/loss labels when `lose > 0`.
+- **Touches:** `CombatResult.odds` type (+`avgLossDamage`), the reducer odds loop, `Recruit.tsx` + a small
+  style. **Verified:** new test asserts the field is 0/positive and ≤ the round cap; typecheck + lint +
+  `npm test` (405) + build:web green.
+
 ### fix: Front to Back's per-cast improvement scales with spell power
 
 - **Before:** the grant grew only +2/+2 per cast (spell power was a flat add to every grant), while the card

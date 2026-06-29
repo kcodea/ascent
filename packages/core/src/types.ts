@@ -495,8 +495,10 @@ export interface CombatResult {
    *  recruit-phase Bane. Absent if 0/0. */
   playerFodderBuffGain?: { attack: number; health: number };
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
-   *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
-  odds?: { win: number; draw: number; lose: number };
+   *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
+   *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage
+   *  you'd take on a typical loss of this matchup — 0 when no sim lost. */
+  odds?: { win: number; draw: number; lose: number; avgLossDamage: number };
 }
 
 /**

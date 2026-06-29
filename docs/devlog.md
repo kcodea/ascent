@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-29 (session 9)
 
+### art: The Godfodder, Hex Flayer, Wolves Den, Crypt Wolf
+
+- Wired art for the four minions added in #98 — `godfodder`, `hexflayer`, `wolvesden`, and the `cryptwolf`
+  token. Masters from `C:\Game Assets\Ascent Art\Minions` (TheGodfodder/HexFlayer/WolvesDen/CryptWolf.png),
+  copied in under their card ids and run through `npm run optimize-art` (PNG → WebP, ≤512px, q85). Each
+  shrank ~2.2MB → ~50KB.
+- **Verified live:** Compendium renders godfodder/hexflayer/wolvesden at 512px (the token doesn't list in the
+  Compendium but resolves through the same eager glob in combat). Note: the running dev server needs a full
+  restart, not just a reload, to pick up new art (`import.meta.glob` is eager).
 ### fix: The Godfodder now actually feeds Fodder
 
 - **Bug:** The Godfodder's Battlecry pulled a Fodder *from the shop* — but Fodder (Fred) is a non-rollable

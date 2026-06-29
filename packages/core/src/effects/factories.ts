@@ -392,13 +392,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side, self.uid);
   },
 
-  /** Deathrattle (Grave Knit): permanently buff a card type run-wide by +atk/+hp (golden doubles).
+  /** Deathrattle (Eternal Knight): permanently buff a card type run-wide by +atk/+hp (golden doubles).
    *  Carried back via `CombatResult.playerCardBuffs` (player-side only), then applied run-wide in
-   *  settleCombat (board / hand / future copies). Each death stacks; `cardId` defaults to self's. */
+   *  settleCombat (board / hand / future copies). Each death stacks; `cardId` defaults to self's.
+   *  Also immediately buffs any surviving copies of that card on the board right now so the aura is
+   *  real-time: 2× Eternal Knights alive → one dies → the survivor gains +3/+2 immediately. */
   deathrattleBuffCardTypeRunWide: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const cardId = str(params.cardId) || self.cardId;
-    ctx.grantCardBuff(cardId, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    ctx.grantCardBuff(cardId, a, h, self.side); // carry-back: run board / hand / future copies
+    // Real-time: buff every living copy of that card still on the board this combat.
+    for (const m of ctx.living(self.side)) {
+      if (m.cardId === cardId) ctx.buff(m, a, h, self.uid);
+    }
   },
 
   /** Deathrattle (Burial Imp): queue `count` Fodder (golden doubles) into your next tavern. Player-side

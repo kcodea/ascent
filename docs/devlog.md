@@ -3,6 +3,20 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-29 (session 9)
+
+### feat: 3 new minions + Eternal Knight real-time aura fix
+
+**New cards:**
+- **The Godfodder** (T2 Demon 3/2) — targeted Battlecry: a chosen friendly minion consumes one Fodder from the shop (golden: 2). Uses a new factory `battlecryTargetConsumeFodder` that pulls Fodder off `state.shop`, applies `offerBuyStats` × the target's `fodderMultiplier`, fires the `onConsume` pipeline, and tracks `fodderConsumedThisTurn`. Card has `target: 'friendly'` for cursor UI. Fizzles if no Fodder is in the shop.
+- **Hex Flayer** (T4 Demon 3/4) — Battlecry: give your Demons +1/+3 (golden +2/+6). Uses existing `battlecryBuffTribe` — no new factory.
+- **Wolves Den** (T3 Undead/Beast 3/3) — Deathrattle: summon 3 Crypt Wolves (golden: 6). New `cryptwolf` token added to `tokens.ts` (1/1 Undead/Beast dual-type). Uses existing `deathrattleSummon` — golden ×2 is the standard path.
+
+**Eternal Knight aura fix:**
+- `deathrattleBuffCardTypeRunWide` previously only called `ctx.grantCardBuff` (run-wide carry-back) — surviving Eternal Knights on the current combat board did NOT receive the +3/+2 immediately. Fixed: after the carry-back call, the factory now iterates `ctx.living(self.side)` and buffs every minion whose `cardId` matches. Future summons are covered by `cardBuffGains` in `applyAuras`, so the three paths (current board, future summons, next-fight run-board) all work correctly.
+
+**Verified:** typecheck + lint + `npm test` (402 pass).
+
 ## 2026-06-28 (session 8)
 
 ### art: Taragosa, Gnasher the Overrun, Ghostsmith

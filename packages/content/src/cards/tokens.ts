@@ -129,6 +129,20 @@ export const TOKENS: CardDef[] = [
     token: true,
   },
   {
+    // Wolves Den's Deathrattle summon — a 1/1 dual-type Undead/Beast body. Not in the shop.
+    id: 'cryptwolf',
+    name: 'Crypt Wolf',
+    tribe: 'undead',
+    tribe2: 'beast',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    text: 'A 1/1 Undead Beast.',
+    token: true,
+  },
+  {
     // Twilight Whelp's Deathrattle cub — a 3/3 Dragon that ATTACKS IMMEDIATELY when summoned (out of turn
     // order), then joins the rotation. Not in the shop. (Broodmother → Twilight Whelps → these.)
     id: 'whelpling',

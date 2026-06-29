@@ -144,6 +144,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellDisplace',
   'spellCopyRecent',
   'spellRefreshToSpells',
+  'battlecryTargetConsumeFodder',
 ]);
 
 export const EffectDefSchema = z.object({

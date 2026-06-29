@@ -26,7 +26,7 @@ cleric,Hoard Cleric,3,3,4,,,**Battlecry:** give your Dragons **+2/+3**.,
 weaver,Arcane Weaver,4,4,4,,,**Deathrattle:** add a copy of **Spirit Fire** to your hand.,**Deathrattle:** add two copies of **Spirit Fire** to your hand.
 cinder,Cinderwing Matron,4,4,5,,,**Battlecry:** give your spells **+1 Health**.,**Battlecry:** give your spells **+2 Health**.
 tara,Tara,4,5,6,,Engraved,All stats are **Engraved**. Granted stats **20 times** in combat → ascend to **Taragosa**.,
-broodmother,Twilight Broodmother,4,2,5,,,**Deathrattle:** summon 2 **Violet Whelps** with **Taunt**.,**Deathrattle:** summon 4 **Violet Whelps** with **Taunt**.
+broodmother,Violet Whelpmother,4,2,5,,,**Deathrattle:** summon 2 **Violet Whelps** with **Taunt**.,**Deathrattle:** summon 4 **Violet Whelps** with **Taunt**.
 hunter,Hunter,5,5,7,,,"When this gains Attack, give your minions **+2 Health**.","When this gains Attack, give your minions **+4 Health**."
 karwind,Karwind,5,2,12,,,"Whenever a **Battlecry** triggers, give your Dragons **+2/+2**.","Whenever a **Battlecry** triggers, give your Dragons **+4/+4**."
 stuntdrake,Obsidian Drake,5,3,7,,,**Avenge (3):** give this minion's Attack to 2 other friendly minions.,**Avenge (3):** give this minion's Attack to 2 other friendly minions **twice**.
@@ -75,7 +75,7 @@ impking,Imp King,4,6,5,,,**Deathrattle:** Summon 2 **Imps** and give your Imps *
 impala,Commander Impala,5,6,6,,Windfury,"**Windfury.** When this kills an enemy, give your Fodder and Imps **+3/+3** permanently.","**Windfury.** When this kills an enemy, give your Fodder and Imps **+6/+6** permanently."
 ritualist,Ritualist,5,5,6,,,"**End of Turn:** give your Imps and Fodder **+2/+2**, wherever they are.","**End of Turn:** give your Imps and Fodder **+4/+4**, wherever they are."
 abhorrenthorror,Abhorrent Horror,6,1,1,,Start of Combat,**Start of Combat:** Gain +Attack/+Health equal to the Fodder consumed this turn.,**Start of Combat:** Gain **double** the Attack/Health of Fodder consumed this turn.
-acid,Acid,6,8,8,,,"When you spend **7 Gold**, give your Fodder and Imps **+1/+1** and add **1 Fodder** to your next tavern.","When you spend **7 Gold**, give your Fodder and Imps **+2/+2** and add **2 Fodder** to your next tavern."
+acid,"Koron, the Hungerer",6,8,8,,,"When you spend **7 Gold**, give your Fodder and Imps **+1/+1** and add **1 Fodder** to your next tavern.","When you spend **7 Gold**, give your Fodder and Imps **+2/+2** and add **2 Fodder** to your next tavern."
 
 # === NEUTRAL (16) ===
 sandbag,Target Dummy,1,0,4,,Taunt,"**Taunt.** When this takes damage, it gains **+1 Attack** permanently.","**Taunt.** When this takes damage, it gains **+2 Attack** permanently."

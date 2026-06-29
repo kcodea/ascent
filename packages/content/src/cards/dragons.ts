@@ -201,7 +201,7 @@ export const DRAGONS: CardDef[] = [
     // Deathrattle factory for the Whelp line: leaves 2 Twilight Whelps WITH Taunt (each leaves a 3/3
     // immediate Whelp when it dies). Golden → 4. Uses deathrattleSummon's optional `keyword` grant.
     id: 'broodmother',
-    name: 'Twilight Broodmother',
+    name: 'Violet Whelpmother',
     tribe: 'dragon',
     tier: 4,
     attack: 2,

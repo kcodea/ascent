@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-28 (session 8)
 
+### content: Violet Whelpmother + Koron renames; art for Worgen/Karwind/Cleric/Whelpmother/Koron
+
+- **Renames** (ids kept): Twilight Broodmother → **Violet Whelpmother**, Acid → **Koron, the Hungerer**.
+- **Art wired:** Spirit Worgen, Karwind, Hoard Cleric (`cleric`), Violet Whelpmother (`broodmother`), Koron
+  (`acid`) — all confirmed loading live. (The Koron master shipped as `KorokTheHungerer.png` — a one-letter
+  filename typo vs the "Koron" card name; wired by card id regardless.)
+- **Verified:** typecheck + lint + `npm test` (402 pass) + build:web green; CSV regenerated; live Compendium check.
+
 ### balance: Taragosa → T6, Cratering Hulk rename, Sergeant/Hulk art
 
 - **Taragosa** (Tara's ascend form) is now a **Tier 6** unit (was T2).

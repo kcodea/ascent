@@ -27,7 +27,7 @@ export const GameEventSchema = z.enum([
   'cast',
   'spellCast',
   'summonOverflow',
-  'onRoll',
+  'goldSpent',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -113,7 +113,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellBuffTavern',
   'spellPendingSCBuff',
   'onAllyAttackCastGrowth',
-  'spellDemonConsumeTavern',
+  'spellDemonConsumeFodder',
   'deathrattleGrantRandomSpell',
   'onDamagedGrantRefresh',
   'summonBuffTribeImprove',
@@ -126,9 +126,12 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffUndeadAttack',
   'deathrattleGrantCardToHand',
   'battlecryBuffUndeadAttack',
-  'battlecryFreeRollsAndBuffShop',
-  'onRollConsumeShop',
+  'goldSpentBuffFodderImps',
+  'goldSpentMagnetize',
   'onKillBuffUndeadAttack',
+  'onKillBuffFodderImps',
+  'onDamagedGainAttack',
+  'rallyGrantMagnetic',
   'deathrattleBuffImps',
   'avengeBuffImps',
   'battlecryBonusGoldNextTurn',

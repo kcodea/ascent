@@ -6,8 +6,15 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
+
+/** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
+ *  for buys, rerolls, tier-ups and hero powers. */
+function spendGold(s: RunState, amount: number): void {
+  s.embers -= amount;
+  applyGoldSpent(s, amount);
+}
 
 /**
  * The board the *next* combat will serve: a wave-matched real opponent from the pool (same development stage),
@@ -105,7 +112,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!spellDef) return state;
         const cost = Math.max(0, (spellDef.cost ?? 0) - s.spellCostMod);
         if (s.embers < cost || s.hand.length >= CONFIG.handMax) return state;
-        s.embers -= cost;
+        spendGold(s, cost);
         s.hand.push({
           uid: `b${s.uidSeq++}`,
           cardId: spellDef.id,
@@ -128,7 +135,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (card.spell) {
         const sCost = Math.max(0, (card.cost ?? 0) - s.spellCostMod);
         if (s.embers < sCost || s.hand.length >= CONFIG.handMax) return state;
-        s.embers -= sCost;
+        spendGold(s, sCost);
         s.shop.splice(i, 1);
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         return s;
@@ -136,7 +143,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression.
       if (offer.held) {
         if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
-        s.embers -= CONFIG.minionCost;
+        spendGold(s, CONFIG.minionCost);
         s.shop.splice(i, 1);
         s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}` });
         checkTriples(s); // a restored copy can still complete a triple
@@ -144,7 +151,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
-      s.embers -= CONFIG.minionCost;
+      spendGold(s, CONFIG.minionCost);
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
       const isUndead = card.tribe === 'undead' || card.tribe2 === 'undead' || !!card.universalTribe;
       const uBuyAtk = isUndead ? (s.undeadBuyAtk ?? 0) : 0;
@@ -382,11 +389,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.freeRolls -= 1;
       } else {
         if (s.embers < CONFIG.refreshCost) return state;
-        s.embers -= CONFIG.refreshCost;
+        spendGold(s, CONFIG.refreshCost); // gold spent → Acid / Banksly meter
       }
       s.frozen = false;
       refreshTavern(s);
-      applyOnRoll(s); // Acid: every-N-refresh consume
       return s;
     }
 
@@ -397,7 +403,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'upgrade': {
       if (s.tier >= CONFIG.maxTier || s.embers < s.upgradeCost) return state;
-      s.embers -= s.upgradeCost;
+      spendGold(s, s.upgradeCost);
       s.tier += 1;
       s.upgradeCost = s.tier >= CONFIG.maxTier ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
       return s;
@@ -484,7 +490,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       if (power.oncePerGame) s.heroPowerSpent = true;
       else s.heroReady = false;
-      if (power.cost) s.embers = Math.max(0, s.embers - power.cost);
+      if (power.cost) spendGold(s, Math.min(s.embers, power.cost)); // gold spent → Acid / Banksly meter
       // A power that summons or generates a minion (Myra's Battlecry replay → an Alleycat's Stray,
       // Dusk's End-of-Turn replay) can complete a triple — check now, like buy / play / discover do.
       checkTriples(s);
@@ -978,7 +984,6 @@ function advanceCombat(s: RunState): void {
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
-    c.rollTick = undefined; // Acid's every-N-refresh counter is wave-scoped
   }
   if (s.tier < CONFIG.maxTier) {
     s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - CONFIG.upgradeDiscountPerWave);

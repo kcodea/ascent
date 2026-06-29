@@ -366,23 +366,8 @@ export const SPELLS: CardDef[] = [
     text: 'Give minions in this tavern **+2/+3** (lost on refresh; kept if frozen).',
   },
   {
-    // Targeted at a friendly Demon — it devours 3 random tavern minions (the real Consume pipeline: stats ×
-    // the Demon's multiplier + its on-consume effects). Fizzles on a non-Demon target.
-    id: 'cupcakes',
-    name: 'Cupcakes',
-    tribe: 'neutral',
-    tier: 5,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 4,
-    target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellDemonConsumeTavern', params: { count: 3 } }],
-    text: 'Choose a **Demon** — it consumes **3** minions in the tavern.',
-  },
-  {
-    // Tier-scaled buff: +Tavern Tier / +Tavern Tier. Scales with Tier (not spell power) by design.
+    // Tier-scaled buff: +Tavern Tier / +Tavern Tier, plus the run's spell power on top of both stats
+    // (so at T4 with +1/+0 spell power it gives +5/+4).
     id: 'lanternlight',
     name: 'Lantern Light',
     tribe: 'neutral',
@@ -453,10 +438,10 @@ export const SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 2,
+    cost: 3,
     target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellDemonConsumeTavern', params: { count: 1 } }],
-    text: 'Choose a **Demon** — it consumes a random minion in the tavern.',
+    effects: [{ on: 'cast', do: 'spellDemonConsumeFodder', params: { count: 1 } }],
+    text: 'Choose a **Demon** — it consumes a **Fodder**.',
   },
   {
     // Make a random tavern minion Golden — an offer-level golden flag the buy bakes in (goldens store base

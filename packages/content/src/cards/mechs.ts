@@ -13,7 +13,7 @@ import type { CardDef } from '@game/core';
 export const MECHS: CardDef[] = [
   {
     id: 'drone',
-    name: 'Spare Part Drone',
+    name: 'Warding Drone',
     tribe: 'mech',
     tier: 1,
     attack: 2,
@@ -63,7 +63,7 @@ export const MECHS: CardDef[] = [
     id: 'junk',
     name: 'Junkyard Titan',
     tribe: 'mech',
-    tier: 4,
+    tier: 3,
     attack: 4,
     health: 4,
     keywords: [],
@@ -106,18 +106,6 @@ export const MECHS: CardDef[] = [
     goldenText: 'Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this.',
   },
   {
-    // Magnetic — welds its Divine Shield (+ 2/4 body) onto a host Mech.
-    id: 'sheldon',
-    name: 'Sheldon',
-    tribe: 'mech',
-    tier: 3,
-    attack: 2,
-    health: 4,
-    keywords: ['DS', 'M'],
-    effects: [],
-    text: '',
-  },
-  {
     // Magnetic — welds its Windfury (+ 4/4 body) onto a host Mech.
     id: 'speedy',
     name: 'Speedy',
@@ -153,9 +141,9 @@ export const MECHS: CardDef[] = [
     id: 'betterbot',
     name: 'Better Bot',
     tribe: 'mech',
-    tier: 5,
-    attack: 6,
-    health: 4,
+    tier: 4,
+    attack: 5,
+    health: 5,
     keywords: ['M', 'RL'],
     rallyMechAtk: 5,
     effects: [],
@@ -172,8 +160,36 @@ export const MECHS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonOverflowBuff', params: { tokenId: 'nanobot', count: 6, tribe: 'mech', attack: 2, health: 2 } }],
-    text: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.",
-    goldenText: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**.",
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonOverflowBuff', params: { tokenId: 'nanobot', count: 6, tribe: 'mech', attack: 3, health: 4 } }],
+    text: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+3/+4**.",
+    goldenText: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+6/+8**.",
+  },
+  {
+    // Spend-gold payoff (the gold meter shared with Acid): every 10 Gold you spend, weld a RANDOM Magnetic
+    // minion's stats + keywords onto Banksly himself (like Combinator, but onto self). Golden welds 2.
+    id: 'banksly',
+    name: 'Banksly',
+    tribe: 'mech',
+    tier: 5,
+    attack: 5,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'goldSpent', do: 'goldSpentMagnetize', params: { every: 10, count: 1 } }],
+    text: 'When you spend **10 Gold**, magnetize a random **Magnetic** onto this.',
+    goldenText: 'When you spend **10 Gold**, magnetize **2** random **Magnetics** onto this.',
+  },
+  {
+    // Rally engine: each time it attacks in combat, add a random Magnetic Mech to your hand (carried back
+    // after combat). Golden grants 2 per attack. Pairs with Windfury / Rally enablers.
+    id: 'jouster',
+    name: 'Mechanical Jouster',
+    tribe: 'mech',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGrantMagnetic', params: { count: 1 } }],
+    text: '**Rally:** get a random **Magnetic** Mech.',
+    goldenText: '**Rally:** get **2** random **Magnetic** Mechs.',
   },
 ];

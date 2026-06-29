@@ -89,7 +89,7 @@ export const TOKENS: CardDef[] = [
     id: 'taragosa',
     name: 'Taragosa',
     tribe: 'dragon',
-    tier: 2,
+    tier: 6,
     attack: 3,
     health: 3,
     keywords: ['EG'],

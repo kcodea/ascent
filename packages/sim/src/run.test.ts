@@ -2662,6 +2662,10 @@ describe('run loop (@game/sim)', () => {
     expect(odds.lose).toBeGreaterThanOrEqual(0);
     // Deterministic: the same seed + wave re-derives identical odds (own RNG stream).
     expect(reduce(setup(), { type: 'faceOmen' }).lastCombat!.odds).toEqual(odds);
+    // Average loss damage: 0 when nothing lost, otherwise a positive, round-capped mean.
+    expect(odds.avgLossDamage).toBeGreaterThanOrEqual(0);
+    if (odds.lose > 0) expect(odds.avgLossDamage).toBeLessThanOrEqual(lossDamageCap(1));
+    else expect(odds.avgLossDamage).toBe(0);
   });
 });
 

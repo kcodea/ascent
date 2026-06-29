@@ -1464,21 +1464,40 @@ describe('run loop (@game/sim)', () => {
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([6, 7]); // 2/3 + 4/4
   });
 
-  it('Front to Back adds spell power (Rohan) on top of its escalation', () => {
-    // Rohan's amplify is +1 at wave 1 → first cast is +(2 + 0 + 1) = +3/+3.
+  it('Front to Back: the per-cast improvement scales with spell power (Rohan)', () => {
+    // Rohan's amplify is +1 at wave 1 → first cast is +(step 2 + escalation 0 + power 1) = +3/+3.
     const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
-    expect(s.frontToBackBonus).toBe(2); // the tally still climbs by exactly 2
-    // The card shows BOTH the live grant (base 2 + accumulated escalation + spell power) AND the per-cast
-    // improvement (base step 2 + spell power). Both slots scale with spell power; only the grant scales
-    // with escalation. A slot is greened only when it's actually above its printed base.
+    // The escalation now climbs by (step + current spell power) = 2 + 1 = 3, so the NEXT cast grows by that
+    // much — the per-cast improvement genuinely scales with spell power (matching the "Improve this by" text).
+    expect(s.frontToBackBonus).toBe(3);
+    expect(s.frontToBackBonusH).toBe(3);
+    // The card shows the live grant (step + accumulated escalation + power) AND the per-cast improvement
+    // (step + power). Both scale with spell power; a slot greens only when above its printed base.
     expect(spellDisplayText('fronttoback', 0, 0)).toBe('Give a minion **+2/+2**. Improve this by **+2/+2**.'); // base — no boost
     // +1 spell power, no escalation (the in-game screenshot): grant 2+0+1=3, improve 2+1=3 — both green.
     expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **{{+3/+3}}**.');
-    // Escalated (+2) AND +1 power: grant 2+2+1=5; improve does NOT take escalation, only power → 2+1=3.
+    // Escalated (+2) AND +1 power: grant 2+2+1=5; improve = step + power = 2+1=3.
     expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **{{+3/+3}}**.');
-    // Escalated only (+4), no power: grant 2+4=6 green; improve stays the printed +2/+2 (power-only).
+    // Escalated only (+4), no power: grant 2+4=6 green; improve stays the printed +2/+2 (no power).
     expect(spellDisplayText('fronttoback', 0, 4)).toBe('Give a minion **{{+6/+6}}**. Improve this by **+2/+2**.');
+  });
+
+  it('Front to Back: two casts under spell power — the second grant grows by step + power', () => {
+    // +1 spell power (Rohan), two casts on the same target. Cast 1: +(2+0+1)=+3/+3. Cast 2: +(2+3+1)=+6/+6.
+    // The grant grew by 3 = step(2) + power(1), exactly the displayed "Improve this by".
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], heroId: 'rohan',
+      board: [oneNeutral('m', { attack: 0, health: 0 })],
+      hand: [
+        { uid: 's1', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+        { uid: 's2', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // +3/+3
+    s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([9, 9]); // 3/3 + 6/6 (grew by step+power = 3)
   });
 
   it('Mana Font raises max Mana permanently but does NOT refill current Mana', () => {

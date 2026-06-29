@@ -5,6 +5,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-28 (session 8)
 
+### art: Taragosa, Gnasher the Overrun, Ghostsmith
+
+- New art wired for Taragosa, Gnasher the Overrun (`gnash`), and Ghostsmith (`skullblade`) — confirmed loading
+  live in the Compendium. Art-only (no code/test changes).
+
 ### content: Violet Whelpmother + Koron renames; art for Worgen/Karwind/Cleric/Whelpmother/Koron
 
 - **Renames** (ids kept): Twilight Broodmother → **Violet Whelpmother**, Acid → **Koron, the Hungerer**.

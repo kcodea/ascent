@@ -1248,6 +1248,31 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'displacement')).toBe(false); // consumed
   });
 
+  it('Displacement only swaps with a tavern MINION, never a spell', () => {
+    // Tavern holds a spell AND a minion — the swap must always pick the minion, never pull a spell onto the board.
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'spiritfire' }, { uid: 's2', cardId: 'gnash' }],
+      hand: [{ uid: 'dp', cardId: 'displacement', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'dp', targetUid: 'm' });
+    expect(s.board[0]!.cardId).toBe('gnash'); // the minion swapped in, not the spell
+    expect(s.shop.some((o) => o.cardId === 'spiritfire')).toBe(true); // the spell stayed in the tavern, untouched
+  });
+
+  it('Displacement fizzles (keeps the spell) when the tavern has no minion', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'spiritfire' }], // only a spell in the tavern
+      hand: [{ uid: 'dp', cardId: 'displacement', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'dp', targetUid: 'm' });
+    expect(s.board[0]!.cardId).toBe('sandbag'); // board unchanged — no swap
+    expect(s.hand.some((c) => c.cardId === 'displacement')).toBe(true); // spell NOT consumed
+  });
+
   it('Displacement preserves the displaced minion intact in the tavern; re-buying restores all its state', () => {
     let s: RunState = {
       ...createRun(1),

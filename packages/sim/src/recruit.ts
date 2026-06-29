@@ -1631,8 +1631,12 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   const bi = state.board.indexOf(boardMinion);
   if (bi < 0 || state.shop.length === 0) return false;
   if (boardMinion.golden) return false; // can't trade away a golden (triple) — no RNG consumed on the no-op
+  // Only swap with a tavern MINION — spells can never be displaced onto the board. With no minion in the
+  // tavern the swap can't happen (no RNG consumed on the no-op); callers keep the spell / hero charge.
+  const minionIdx = state.shop.flatMap((o, i) => (CARD_INDEX[o.cardId]?.spell ? [] : [i]));
+  if (minionIdx.length === 0) return false;
   const rng = makeRng(state.rngCursor);
-  const si = rng.int(state.shop.length);
+  const si = minionIdx[rng.int(minionIdx.length)]!;
   state.rngCursor = rng.state();
   const offer = state.shop[si]!;
   const def = CARD_INDEX[offer.cardId];

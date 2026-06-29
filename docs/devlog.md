@@ -17,6 +17,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   factory + `spellDisplayText` (per-stat escalation), and the `Recruit.tsx` view plumbing.
 - **Verified:** new tests — escalation climbs by step+power; two casts under +1 power grow +3 then +6.
   typecheck + lint + `npm test` (403) green.
+### fix: Displacement can never swap a minion for a spell
+
+- **Bug:** Displacement (and Darah's Displace power) picked a *random tavern offer* — including spells — so it
+  could pull a spell onto the board (and stash your minion in the tavern). Spells must never be displaced.
+- **Fix:** `swapWithTavern` now only considers tavern **minion** offers and returns false when there are
+  none. Darah's power already keys its charge off that return (no charge spent on a fizzle). The Displacement
+  **spell** gets a reducer guard so it fizzles and stays in hand when the tavern holds no minion.
+- **Verified:** new tests — swap with a mixed tavern always picks the minion; an all-spell tavern fizzles and
+  keeps the spell. typecheck + lint + `npm test` (404) green.
 
 ### art: The Godfodder, Hex Flayer, Wolves Den, Crypt Wolf
 

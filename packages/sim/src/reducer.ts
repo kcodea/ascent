@@ -247,6 +247,10 @@ function reduceCore(state: RunState, action: Action): RunState {
               !CARD_INDEX[boardTarget.cardId]?.effects.some((e) => e.on === 'onPlay')) return state;
           // Displacement (targetNoGolden): can't trade away a golden (triple) — fizzles, spell kept in hand.
           if (boardTarget && def.targetNoGolden && boardTarget.golden) return state;
+          // Displacement needs a tavern MINION to swap with (spells can't be displaced) — with none in the
+          // tavern the swap can't happen, so the spell fizzles and stays in hand.
+          if (boardTarget && def.effects.some((e) => e.do === 'spellDisplace') &&
+              !s.shop.some((o) => !CARD_INDEX[o.cardId]?.spell)) return state;
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
           const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : undefined;
           if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);

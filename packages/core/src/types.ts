@@ -174,7 +174,8 @@ export type EffectFactoryId =
   | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)
   | 'spellDisplace' // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)
   | 'spellCopyRecent' // Steward of Spells: End of Turn — copy the most recent spell cast to hand (recruit)
-  | 'spellRefreshToSpells'; // Spell Cart: cast — refresh the tavern full of spells (recruit)
+  | 'spellRefreshToSpells' // Spell Cart: cast — refresh the tavern full of spells (recruit)
+  | 'battlecryTargetConsumeFodder'; // Godfodder: Battlecry — targeted friendly minion consumes a Fodder from the shop
 
 export interface EffectDef {
   on: GameEvent;

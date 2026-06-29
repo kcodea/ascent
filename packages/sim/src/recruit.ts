@@ -529,6 +529,34 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     (ctx.state.pendingTavern ??= []).push(...Array(count).fill(id));
   },
 
+  /** The Godfodder — Battlecry: the targeted friendly minion (`payload.target`) consumes one Fodder
+   *  directly from the shop (golden: 2). Pulls the first Fodder off the shop, applies its buffed stats
+   *  × the target's fodder multiplier, and fires the normal onConsume pipeline (Pactstone / Maw / Glutton).
+   *  No-op if no Fodder is in the shop (the Battlecry fizzles). */
+  battlecryTargetConsumeFodder: (ctx, self, _params, payload) => {
+    const target = payload.target ?? self;
+    const count = gold(self); // 1 normally, 2 if golden
+    const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const fi = ctx.state.shop.findIndex((o) => CARD_INDEX[o.cardId]?.keywords.includes('FD'));
+      if (fi < 0) break; // no Fodder left in the shop
+      const offer = ctx.state.shop[fi]!;
+      ctx.state.shop.splice(fi, 1);
+      const { attack: fa, health: fh } = offerBuyStats(ctx.state, offer);
+      const mult = fodderMultiplier(target);
+      addBuff(target, 'Consume', fa * mult, fh * mult);
+      fire(ctx, 'onConsume', { minion: target });
+      eaten.push({ eaterUid: target.uid, fodderId: offer.cardId, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
+      ctx.state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
+      ctx.state.fodderConsumedThisTurn.attack += fa;
+      ctx.state.fodderConsumedThisTurn.health += fh;
+    }
+    if (eaten.length > 0) {
+      ctx.state.fodderEaten = eaten;
+      ctx.state.fodderEatenSeq += 1;
+    }
+  },
+
   /** Pactstone Acolyte / Ravening Glutton: on any friendly consume, grow. */
   onConsumeBuffSelf: (_ctx, self, params) => {
     addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));

@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-29 (session 9)
 
+### fix: Front to Back "Improve this by" text no longer overstates the step
+
+- **Bug:** Front to Back's live card text folded spell power into the "Improve this by" number (e.g.
+  *Improve this by +43/+47*), implying each cast jumps the grant by that much. In reality each cast only
+  raises the grant by the escalation step (+2/+2) — spell power is a flat add to *every* grant, not a
+  per-cast increment. So the grant grew only +2/+2 per cast, exactly as reported, while the text promised far
+  more.
+- **Fix:** `spellDisplayText` now renders the improvement slot as the constant printed step (+2/+2). The grant
+  slot still scales with accumulated escalation **and** spell power (unchanged). No mechanic change — the
+  buff math was already correct; only the misleading text is fixed. Test updated to assert the honest step.
+- **Verified:** typecheck + lint + `npm test` (402) green.
+
 ### art: The Godfodder, Hex Flayer, Wolves Den, Crypt Wolf
 
 - Wired art for the four minions added in #98 — `godfodder`, `hexflayer`, `wolvesden`, and the `cryptwolf`

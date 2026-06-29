@@ -1444,15 +1444,15 @@ describe('run loop (@game/sim)', () => {
     const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
     expect(s.frontToBackBonus).toBe(2); // the tally still climbs by exactly 2
-    // The card shows BOTH the live grant (base 2 + accumulated escalation + spell power) AND the per-cast
-    // improvement (base step 2 + spell power). Both slots scale with spell power; only the grant scales
-    // with escalation. A slot is greened only when it's actually above its printed base.
+    // The card's GRANT (slot 0) scales with both accumulated escalation and spell power. The per-cast
+    // IMPROVEMENT (slot 1) is the constant escalation step — always the printed +2/+2 — because spell power
+    // is a flat add to every grant, not a per-cast increment, so it must NOT inflate "Improve this by".
     expect(spellDisplayText('fronttoback', 0, 0)).toBe('Give a minion **+2/+2**. Improve this by **+2/+2**.'); // base — no boost
-    // +1 spell power, no escalation (the in-game screenshot): grant 2+0+1=3, improve 2+1=3 — both green.
-    expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **{{+3/+3}}**.');
-    // Escalated (+2) AND +1 power: grant 2+2+1=5; improve does NOT take escalation, only power → 2+1=3.
-    expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **{{+3/+3}}**.');
-    // Escalated only (+4), no power: grant 2+4=6 green; improve stays the printed +2/+2 (power-only).
+    // +1 spell power, no escalation (the in-game screenshot): grant 2+0+1=3 green; improve stays +2/+2.
+    expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **+2/+2**.');
+    // Escalated (+2) AND +1 power: grant 2+2+1=5 green; improve stays the constant +2/+2 step.
+    expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **+2/+2**.');
+    // Escalated only (+4), no power: grant 2+4=6 green; improve stays the printed +2/+2.
     expect(spellDisplayText('fronttoback', 0, 4)).toBe('Give a minion **{{+6/+6}}**. Improve this by **+2/+2**.');
   });
 

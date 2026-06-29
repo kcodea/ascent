@@ -1398,8 +1398,10 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (!def) return '';
   // Front to Back (escalating): the printed text carries TWO "+B/+B" groups — the GRANT (slot 0) and the
   // per-cast IMPROVEMENT (slot 1). The grant = base + accumulated escalation + spell power. The improvement
-  // is the escalation step (= base) and ALSO picks up spell power, so both numbers scale together and read
-  // consistently. Each slot is highlighted (green) only once it's actually above its printed base.
+  // is the constant escalation STEP (always +base, i.e. +2/+2): spell power is a flat add to every grant,
+  // NOT a per-cast increment, so it must NOT inflate the "improve this by" number (doing so wrongly promised
+  // a huge jump while each cast only grew the grant by +2/+2). Slot 0 greens when above its printed base;
+  // slot 1 is the fixed step, shown as the printed value.
   const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
   if (esc) {
     let slot = 0;
@@ -1411,9 +1413,8 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
         const vh = nh + escalation + bonusH;
         return escalation + bonusA > 0 || escalation + bonusH > 0 ? `{{+${va}/+${vh}}}` : m;
       }
-      const ia = na + bonusA;
-      const ih = nh + bonusH;
-      return bonusA > 0 || bonusH > 0 ? `{{+${ia}/+${ih}}}` : m;
+      // The per-cast improvement is the constant escalation step — always the printed +2/+2.
+      return m;
     });
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;

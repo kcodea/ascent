@@ -61,8 +61,8 @@ describe('cardText helpers', () => {
   });
 
   it('summonScalingText (Spirit Worgen) shows the live per-summon gain = base + spells cast this turn', () => {
-    expect(summonScalingText('spiritworgen', 3)).toContain('{{+4/+4}}'); // base 1 + 3 spells this turn
-    expect(summonScalingText('spiritworgen', 0)).toBeNull(); // no spells this turn → printed +1/+1
+    expect(summonScalingText('spiritworgen', 3)).toContain('{{+6/+6}}'); // base 3 + 3 spells this turn
+    expect(summonScalingText('spiritworgen', 0)).toBeNull(); // no spells this turn → printed +3/+3
     expect(summonScalingText('grim', 3)).toBeNull(); // not a spells-this-turn scaler
   });
 

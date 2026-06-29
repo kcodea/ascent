@@ -13,7 +13,7 @@ export const UNDEAD: CardDef[] = [
     name: 'Sporeling',
     tribe: 'undead',
     tier: 1,
-    attack: 1,
+    attack: 2,
     health: 2,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffAllRandomStat', params: { amount: 1 } }],
@@ -35,11 +35,11 @@ export const UNDEAD: CardDef[] = [
     // Fires in COMBAT, so it carries back via CombatResult.playerSpellPower → applied in settleCombat.
     // Stacks (each Ghastly Bladesmith death = +1). Shares the "Ghastly Bladesmith" name only with itself.
     id: 'skullblade',
-    name: 'Ghastly Bladesmith',
+    name: 'Ghostsmith',
     tribe: 'undead',
     tier: 3,
-    attack: 5,
-    health: 1,
+    attack: 4,
+    health: 2,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 0 } }],
     text: '**Deathrattle:** give your spells **+1 Attack** for the rest of the run.',
@@ -52,7 +52,7 @@ export const UNDEAD: CardDef[] = [
     name: 'Karthus',
     tribe: 'undead',
     tier: 5,
-    attack: 8,
+    attack: 7,
     health: 8,
     keywords: ['DS'],
     effects: [{ on: 'onKill', do: 'onKillBuffUndeadAttack', params: { attack: 3 } }],
@@ -77,7 +77,7 @@ export const UNDEAD: CardDef[] = [
   {
     // Deathrattle: summon a Footman (T1 1/1 Reborn Undead token). Golden summons 2.
     id: 'deathlesshand',
-    name: 'Deathless Hand',
+    name: 'Footman Leader',
     tribe: 'undead',
     tier: 3,
     attack: 2,
@@ -108,8 +108,8 @@ export const UNDEAD: CardDef[] = [
     name: 'Deathswarmer',
     tribe: 'undead',
     tier: 2,
-    attack: 2,
-    health: 2,
+    attack: 1,
+    health: 4,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBuffUndeadAttack', params: { amount: 1 } }],
     text: '**Battlecry:** Give your Undead **+1 Attack** wherever they are.',
@@ -131,18 +131,18 @@ export const UNDEAD: CardDef[] = [
     // Engraved: stat gains carry back to the run board. Gains +3/+3 per friendly summon in combat.
     // Overflow summons (board full) also buff your Undead +2/+2. Golden doubles both gains.
     id: 'thunderingabomination',
-    name: 'Thundering Abomination',
+    name: 'Cratering Hulk',
     tribe: 'undead',
     tier: 5,
     attack: 4,
     health: 7,
-    keywords: ['EG'],
+    keywords: [],
     effects: [
       { on: 'onSummon', do: 'onSummonSelfBuff', params: { attack: 3, health: 3 } },
-      { on: 'summonOverflow', do: 'onSummonOverflowBuffTribe', params: { tribe: 'undead', attack: 2, health: 2 } },
+      { on: 'summonOverflow', do: 'onSummonOverflowBuffTribe', params: { tribe: 'undead', attack: 2, health: 2, engrave: true } },
     ],
-    text: '**Engraved.** Whenever a friendly minion is summoned in combat, gain **+3/+3**. Overflow summons give your Undead **+2/+2**.',
-    goldenText: '**Engraved.** Whenever a friendly minion is summoned, gain **+6/+6**. Overflow summons give your Undead **+4/+4**.',
+    text: 'Gain **+3/+3** when a minion is summoned in combat. Overflow summons **Engrave** your Undead **+2/+2**.',
+    goldenText: 'Gain **+6/+6** when a minion is summoned in combat. Overflow summons **Engrave** your Undead **+4/+4**.',
   },
   {
     // Deathrattle: give all living friendly minions +2 Health (golden +4). Each time Sergeant itself

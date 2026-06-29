@@ -36,7 +36,7 @@ import {
   type RunState,
 } from './index';
 import type { BoardMinion } from '@game/core';
-import { applyEndOfTurn } from './recruit';
+import { applyEndOfTurn, applyGoldSpent } from './recruit';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
 function playToEnd(seed: number): RunState {
@@ -172,17 +172,17 @@ describe('run loop (@game/sim)', () => {
 
   // --- recruit effects: buy → hand (onBuy) → play → board (onSummon + Battlecry) ---
 
-  it('Brightwing Broker buffs minions bought after it (+1/+1, in hand)', () => {
+  it('Brightwing Broker buffs minions bought after it (+1/+2, in hand)', () => {
     const s0: RunState = {
       ...createRun(1),
       embers: 3,
-      board: [{ uid: 'br', cardId: 'broker', tribe: 'neutral', attack: 2, health: 3, keywords: [], golden: false }],
+      board: [{ uid: 'br', cardId: 'broker', tribe: 'neutral', attack: 3, health: 4, keywords: [], golden: false }],
       shop: [{ uid: 'x', cardId: 'sandbag' }],
     };
     const s1 = reduce(s0, { type: 'buy', uid: 'x' });
     const bought = s1.hand.find((c) => c.cardId === 'sandbag');
     expect(bought?.attack).toBe(1); // 0 + 1, applied on buy
-    expect(bought?.health).toBe(7); // 6 + 1 (Target Dummy is 0/6)
+    expect(bought?.health).toBe(6); // 4 + 2 (Target Dummy is 0/4, Broker gives +1/+2)
   });
 
   it('Alleycur Battlecry summons a Stray only when played', () => {
@@ -413,19 +413,20 @@ describe('run loop (@game/sim)', () => {
     expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred', attack: 3, health: 3 });
   });
 
-  it('Acid (reworked) — every 3 refreshes, consumes a tavern minion AND buffs the rest +1/+1', () => {
-    let s: RunState = {
+  it('Acid (reworked) — every 7 Gold spent, buffs Fodder/Imps +1/+1 and queues a Fodder', () => {
+    // Drive applyGoldSpent directly: the reducer's roll path would refresh the tavern (draining
+    // pendingTavern into the shop, where the on-board Acid Demon eats it), hiding the queued Fodder.
+    const s: RunState = {
       ...createRun(1),
-      embers: 99,
-      board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 7, health: 7, keywords: ['CN'], golden: false }],
+      pendingTavern: [],
+      board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 8, health: 8, keywords: [], golden: false }],
     };
-    s = reduce(s, { type: 'roll' }); // rollTick 1
-    s = reduce(s, { type: 'roll' }); // rollTick 2
-    s = reduce(s, { type: 'roll' }); // rollTick 3 → Acid procs on the fresh shop
-    const acid = s.board.find((c) => c.cardId === 'acid')!;
-    expect(acid.attack + acid.health).toBeGreaterThan(14); // ate a tavern minion (gained its stats)
-    expect(s.shop.length).toBeGreaterThan(0);
-    expect(s.shop.every((o) => (o.atk ?? 0) >= 1 && (o.hp ?? 0) >= 1)).toBe(true); // the rest got +1/+1
+    applyGoldSpent(s, 6); // 6 Gold — under the 7-Gold threshold
+    expect(s.impBuff ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // not yet
+    applyGoldSpent(s, 1); // crosses 7 → Acid procs once
+    expect(s.impBuff).toEqual({ attack: 1, health: 1 }); // Imps buffed run-wide
+    expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 }); // Fodder enchant run-wide
+    expect(s.pendingTavern).toEqual(['fred']); // a Fodder queued into the next tavern
   });
 
   it('a frozen tavern tops up empty slots + a missing spell after combat', () => {
@@ -609,7 +610,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    expect([k.attack, k.health]).toEqual([5, 17]); // 2/12 +2/+3 (Cleric) +1/+2 (Karwind proc)
+    expect([k.attack, k.health]).toEqual([6, 17]); // 2/12 +2/+3 (Cleric) +2/+2 (Karwind proc)
   });
 
   it('Karwind procs once per Battlecry fire — Drakko doubling triggers it twice', () => {
@@ -625,8 +626,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // Cleric Battlecry fires 2× (+4/+6) and Karwind procs 2× (+2/+4): 2/12 → 8/22
-    expect([k.attack, k.health]).toEqual([8, 22]);
+    // Cleric Battlecry fires 2× (+4/+6) and Karwind procs 2× (+2/+2 each = +4/+4): 2/12 → 10/22
+    expect([k.attack, k.health]).toEqual([10, 22]);
   });
 
   it('Money Bot raises max mana while on board; selling it removes the income', () => {
@@ -672,18 +673,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.board[0]!.rallyMechAtk).toBe(10); // +5 each → +10
   });
 
-  it('Sheldon / Speedy / Harry Botter are Magnetic — they weld their keyword/aura onto a host Mech', () => {
-    // Sheldon welds Divine Shield (+ its 2/4 body) onto the host.
-    let sh: RunState = {
-      ...createRun(1),
-      hand: [{ uid: 'mag', cardId: 'sheldon', tribe: 'mech', attack: 2, health: 4, keywords: ['DS', 'M'], golden: false }],
-      board: [{ uid: 'd', cardId: 'drone', tribe: 'mech', attack: 4, health: 4, keywords: [], golden: false }],
-    };
-    sh = reduce(sh, { type: 'play', uid: 'mag', toIndex: 0 });
-    expect(sh.board.length).toBe(1); // merged, no new slot
-    expect(sh.board[0]!.keywords).toContain('DS');
-    expect([sh.board[0]!.attack, sh.board[0]!.health]).toEqual([6, 8]); // 4/4 + Sheldon 2/4
-
+  it('Speedy / Harry Botter are Magnetic — they weld their keyword/aura onto a host Mech', () => {
     // Speedy welds Windfury.
     let sp: RunState = {
       ...createRun(1),
@@ -724,8 +714,9 @@ describe('run loop (@game/sim)', () => {
     const cmb = s.board.find((c) => c.uid === 'cmb')!;
     const welded = [d1, d2].filter((m) => m.attack > 2);
     expect(welded.length).toBe(1); // non-golden welds exactly one Mech (golden would weld two)
-    // The host (2/1) gained a random Magnetic Mech's body: Cling (2/2), Money Bot (3/3) or Better Bot (6/4).
-    const profiles = [[2 + 2, 1 + 2], [2 + 3, 1 + 3], [2 + 6, 1 + 4]];
+    // The host (2/1) gained a random Magnetic Mech's body: Cling (2/2), Money Bot (3/3),
+    // Speedy (4/4), Harry Botter (1/5) or Better Bot (6/4).
+    const profiles = [[2 + 2, 1 + 2], [2 + 3, 1 + 3], [2 + 4, 1 + 4], [2 + 1, 1 + 5], [2 + 6, 1 + 4]];
     expect(profiles).toContainEqual([welded[0]!.attack, welded[0]!.health]);
     expect([cmb.attack, cmb.health]).toEqual([6, 7]); // self is not a target
   });
@@ -1178,7 +1169,7 @@ describe('run loop (@game/sim)', () => {
     expect(CARD_INDEX.tara!.tier).toBe(4);
   });
 
-  it('Consume — a targeted Demon devours one random tavern minion (its stats feed the Demon)', () => {
+  it('Consume — a targeted Demon creates and eats a Fodder (its stats feed the Demon, tavern untouched)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false }],
@@ -1186,29 +1177,26 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'cn', cardId: 'consume', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'cn', targetUid: 'd' });
-    expect(s.shop).toHaveLength(0); // the one tavern minion was devoured
+    expect(s.shop).toHaveLength(1); // the tavern is untouched — Consume makes its own Fodder
     const demon = s.board.find((c) => c.uid === 'd')!;
-    const meal = CARD_INDEX.sandbag!;
-    expect([demon.attack, demon.health]).toEqual([3 + meal.attack, 3 + meal.health]); // gained the meal's stats
+    const fred = CARD_INDEX.fred!;
+    expect([demon.attack, demon.health]).toEqual([3 + fred.attack, 3 + fred.health]); // gained the Fodder's 1/1
+    expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred' }); // the eat animation plays
     expect(s.hand.some((c) => c.cardId === 'consume')).toBe(false); // consumed
   });
 
-  it('Consume devours a BUFFED tavern minion at its current value (offer buff + run buff + golden), not its base', () => {
-    const meal = CARD_INDEX.sandbag!;
+  it("Consume's created Fodder carries the run-wide Fodder enchant — the Demon gains the buffed value", () => {
+    const fred = CARD_INDEX.fred!;
     let s: RunState = {
       ...createRun(1),
       board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false }],
-      // a tavern minion buffed by Apples/Shatter (offer.atk/hp +2/+3) AND a persistent +1/+1 run enchant, gilded golden
-      shop: [{ uid: 's1', cardId: 'sandbag', atk: 2, hp: 3, golden: true }],
-      cardBuffs: { sandbag: { attack: 1, health: 1 } },
+      cardBuffs: { fred: { attack: 2, health: 2 } }, // Fodder enchanted +2/+2 run-wide (Ritualist/Bane)
       hand: [{ uid: 'cn', cardId: 'consume', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'cn', targetUid: 'd' });
     const demon = s.board.find((c) => c.uid === 'd')!;
-    // current value = (base + offer buff + run buff) ×2 (golden) — exactly what buying it would yield
-    const ea = (meal.attack + 2 + 1) * 2;
-    const eh = (meal.health + 3 + 1) * 2;
-    expect([demon.attack, demon.health]).toEqual([3 + ea, 3 + eh]);
+    // eats a (1+2)/(1+2) Fodder → +3/+3 (maw's fodder multiplier is 1)
+    expect([demon.attack, demon.health]).toEqual([3 + fred.attack + 2, 3 + fred.health + 2]);
   });
 
   it('offerBuyStats: a consumed offer is worth its CURRENT value — base + run buff + per-offer buff + Staff of Guel, ×2 golden; held keeps its body', () => {
@@ -1774,18 +1762,6 @@ describe('run loop (@game/sim)', () => {
     expect([t.attack, t.health]).toEqual([20, 20]);
   });
 
-  it('Cupcakes — the chosen Demon consumes 3 random tavern minions (gains stats; tavern shrinks by 3)', () => {
-    let s: RunState = {
-      ...createRun(1), embers: 0,
-      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }], // a Demon eater
-      shop: [{ uid: 'a', cardId: 'alley' }, { uid: 'b', cardId: 'pack' }, { uid: 'c', cardId: 'kennel' }, { uid: 'e', cardId: 'gnash' }],
-      hand: [{ uid: 'sp', cardId: 'cupcakes', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
-    };
-    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'd' });
-    expect(s.shop.length).toBe(1); // 4 − 3 consumed
-    expect(s.board.find((c) => c.uid === 'd')!.attack).toBeGreaterThan(2); // the Demon grew from eating
-  });
-
   it('Apples buffs the current tavern offers +2/+3, and a buy bakes it in', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, frozen: false,
@@ -1827,7 +1803,7 @@ describe('run loop (@game/sim)', () => {
     let s: RunState = { ...createRun(1), undeadBuyAtk: 3, discover: ['spore'] };
     s = reduce(s, { type: 'discover', index: 0 });
     const got = s.hand.find((c) => c.cardId === 'spore')!;
-    expect(got.attack).toBe(1 + 3); // Sporeling base 1 + undeadBuyAtk 3
+    expect(got.attack).toBe(2 + 3); // Sporeling base 2 + undeadBuyAtk 3
     expect(got.health).toBe(2); // Health unaffected
   });
 
@@ -1897,22 +1873,6 @@ describe('run loop (@game/sim)', () => {
     expect(g.pendingTavern!.filter((id) => id === 'fred').length).toBe(2);
   });
 
-  it('Demonic Anomaly permanently buffs all tavern minions (+3/+3 run-wide) + grants 2 free refreshes', () => {
-    let s: RunState = {
-      ...createRun(1), embers: 0, board: [],
-      shop: [{ uid: 'x', cardId: 'alley' }],
-      hand: [{ uid: 'da', cardId: 'demonanomaly', tribe: 'demon', attack: 4, health: 4, keywords: [], golden: false }],
-    };
-    const rolls0 = s.freeRolls;
-    s = reduce(s, { type: 'play', uid: 'da' }); // Battlecry: run-wide tavern buff + free refreshes
-    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 3 }); // PERMANENT, not just the current offers
-    expect(s.freeRolls).toBe(rolls0 + 2);
-    // A minion bought AFTER the Battlecry still carries the buff (current AND future offers).
-    s = reduce({ ...s, embers: 3 }, { type: 'buy', uid: 'x' });
-    const bought = s.hand.find((c) => c.cardId === 'alley')!;
-    expect([bought.attack, bought.health]).toEqual([1 + 3, 1 + 3]); // Alleycat 1/1 + 3/3
-  });
-
   it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {
     let s: RunState = {
       ...createRun(1), embers: 4, board: [],
@@ -1928,7 +1888,7 @@ describe('run loop (@game/sim)', () => {
     // A Discovered minion does NOT get it (tavern purchases only).
     s = reduce({ ...s, discover: ['sandbag'] }, { type: 'discover', index: 0 });
     const disc = s.hand.find((c) => c.cardId === 'sandbag')!;
-    expect([disc.attack, disc.health]).toEqual([0, 6]); // Target Dummy base (0/6), unbuffed
+    expect([disc.attack, disc.health]).toEqual([0, 4]); // Target Dummy base (0/4), unbuffed
   });
 
   it('Staff of Guel also enchants Fodder run-wide (Demons eat bigger Fodder); no double on a bought Fodder', () => {
@@ -3050,21 +3010,21 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(s.triplesMade).toBe(1); // run-wide triples tally bumped by the merge
   });
 
-  it("the Worgen's per-summon gain scales with spells cast this turn (X = 1 + spellsThisTurn)", () => {
-    // No spells this turn → +1/+1 per Beast/Dragon.
+  it("the Worgen's per-summon gain scales with spells cast this turn (X = 3 + spellsThisTurn)", () => {
+    // No spells this turn → +3/+3 per Beast/Dragon.
     let s: RunState = { ...createRun(1), board: [worgen()], hand: [whelp('d')] };
     s = reduce(s, { type: 'play', uid: 'd' });
-    expect(worgenAtk(s)).toBe(5); // 4 + 1
+    expect(worgenAtk(s)).toBe(7); // 4 + 3
 
-    // 4 spells this turn → +5/+5 per Beast/Dragon.
+    // 4 spells this turn → +7/+7 per Beast/Dragon.
     let s2: RunState = { ...createRun(1), board: [worgen()], hand: [...Array.from({ length: 4 }, (_, i) => pouch(i)), whelp('d')] };
     for (let i = 0; i < 4; i++) s2 = reduce(s2, { type: 'play', uid: s2.hand[0]!.uid });
     s2 = reduce(s2, { type: 'play', uid: 'd' });
-    expect(worgenAtk(s2)).toBe(4 + 5); // 4 + (1 + 4)
+    expect(worgenAtk(s2)).toBe(4 + 7); // 4 + (3 + 4)
   });
 
   it('an Alleycat (it + its Stray, both Beasts) buffs the Worgen twice', () => {
-    // 4 spells → X = 5; Alleycat + its 1 Stray = 2 Beast summons → +10/+10 total.
+    // 4 spells → X = 7; Alleycat + its 1 Stray = 2 Beast summons → +14/+14 total.
     let s: RunState = {
       ...createRun(1), board: [worgen()],
       hand: [...Array.from({ length: 4 }, (_, i) => pouch(i)),
@@ -3072,7 +3032,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     };
     for (let i = 0; i < 4; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
     s = reduce(s, { type: 'play', uid: 'a' });
-    expect(worgenAtk(s)).toBe(4 + 10);
+    expect(worgenAtk(s)).toBe(4 + 14);
   });
 
   it('the Worgen ignores a summoned neutral', () => {

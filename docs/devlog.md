@@ -5,6 +5,97 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-28 (session 8)
 
+### art: Taragosa, Gnasher the Overrun, Ghostsmith
+
+- New art wired for Taragosa, Gnasher the Overrun (`gnash`), and Ghostsmith (`skullblade`) — confirmed loading
+  live in the Compendium. Art-only (no code/test changes).
+
+### content: Violet Whelpmother + Koron renames; art for Worgen/Karwind/Cleric/Whelpmother/Koron
+
+- **Renames** (ids kept): Twilight Broodmother → **Violet Whelpmother**, Acid → **Koron, the Hungerer**.
+- **Art wired:** Spirit Worgen, Karwind, Hoard Cleric (`cleric`), Violet Whelpmother (`broodmother`), Koron
+  (`acid`) — all confirmed loading live. (The Koron master shipped as `KorokTheHungerer.png` — a one-letter
+  filename typo vs the "Koron" card name; wired by card id regardless.)
+- **Verified:** typecheck + lint + `npm test` (402 pass) + build:web green; CSV regenerated; live Compendium check.
+
+### balance: Taragosa → T6, Cratering Hulk rename, Sergeant/Hulk art
+
+- **Taragosa** (Tara's ascend form) is now a **Tier 6** unit (was T2).
+- **Rename:** Thundering Abomination → **Cratering Hulk** (id `thunderingabomination` kept).
+- **Art wired:** Sergeant and Cratering Hulk (`thunderingabomination.webp`) — confirmed loading live.
+- **Verified:** typecheck + lint + `npm test` (402 pass) + build:web green; pool + CSV regenerated; live
+  Compendium check (Taragosa T6 badge, rename, both art files render).
+
+### balance: follow-up tuning + Violet Whelp rename, Mechanical Jouster, art rewires
+
+- **Rename:** Twilight Whelp → **Violet Whelp** (id `twilightwhelp` kept; Twilight Broodmother's summon text now
+  reads "Violet Whelps").
+- **Stat/buff tuning:** Spirit Pup 6/6, Mama Bear 5/5, Tara 5/6; Spirit Worgen's per-summon gain 1/1 → **3/3**
+  (golden 6/6); Commander Impala → **6/6 + Windfury**, on-kill Fodder/Imp buff 2/2 → **3/3** (golden 6/6).
+- **New minion — Mechanical Jouster** (Mech, T4 4/5): *new combat factory* `rallyGrantMagnetic` — Rally (on each
+  attack) adds a random Magnetic Mech to your hand (golden 2 per attack), carried back after combat.
+- **Art rewired** (new masters): Supporter, Guardian Drake (`bronzewarden`), Violet Whelp (`twilightwhelp`),
+  Taragosa, Spirit Worgen, + Mechanical Jouster. All wired by card id and confirmed loading live in the Compendium.
+- **Verified:** typecheck + lint + `npm test` (402 pass — Spirit Worgen scaling tests updated to base 3) +
+  build:web green; pool + CSV regenerated; live Compendium check (rename, new card, all six art files render).
+
+### balance: big tuning pass + 6 renames, 3 cuts, 5 reworks, 2 new minions, Compendium polish
+
+A broad owner-directed balance + content update. New art for Bane, Acid, Supporter (rewired earlier this
+session) plus the two new minions below.
+
+- **Stat tuning (data only):** Beasts — Gryphon 2/5, Raptor 2/6, Mama Pup 3/2, Kennelmaster 1/4, Wildwood
+  Shaper 1/1, Sea Urchin 3/3. Dragons — Arcane Weaver 4/4, Cinderwing Matron 4/5, Bane 7/9, Crypt Drake 6/6.
+  Mechs — Junkyard Titan → T3, Better Bot → T4 & 5/5. Undead — Sporeling 2/2, Deathswarmer 1/4, Ghostsmith
+  4/2, Karthus 7/8. Demons — Fodder Feeder 2/2, Trickster → T2 & 2/4, Ritualist 5/6. Neutrals — Buddy Buddy
+  3/3, Archmagus Guel 4/4, Blaster 5/3, Flowing Monk 4/5, Sylus 1/7, Yazzus 5/7.
+- **Buff-value tweaks:** Karwind +2/+2 (golden +4/+4), Nanon overflow +3/+4 (golden +6/+8), Brightwing Broker
+  3/4 body giving +1/+2 (golden +2/+4).
+- **Renames (card `id`s kept stable → art/pool/saves intact):** Bronze Warden → **Guardian Drake**, Stuntdrake
+  → **Obsidian Drake**, Spare Part Drone → **Warding Drone**, Deathless Hand → **Footman Leader**, Ghastly
+  Bladesmith → **Ghostsmith**, Taurus the Ancient → **Taurus**.
+- **Removals (cascaded like Sheldon — def + tests + pool + CSV + art + orphan factories):** **Demonic Anomaly**,
+  **Echo Warden** (its summon-multiplier logic in `simulate.ts` + the `echo` summon-event flag + replay handling
+  were live, not deferred as an old comment claimed — all removed), **Cupcakes**.
+- **Reworks:**
+  - **Acid** (8/8, no longer a Consume body) — *new `goldSpent` trigger*: every 7 Gold you spend permanently
+    buffs your Fodder + Imps +1/+1 (golden +2/+2) AND queues 1 Fodder (golden 2) into your next tavern, via a
+    continuous per-instance meter (`BoardCard.goldTick`) fired from a single `spendGold` chokepoint in the
+    reducer (buys, rerolls, tier-ups, hero powers).
+  - **Banksly** (new Mech, T5 5/6) — same `goldSpent` meter: every 10 Gold spent welds a random Magnetic onto
+    itself (golden 2).
+  - **Commander Impala** (new Demon, T5 6/4) — *new combat factory* `onKillBuffFodderImps`: each kill
+    permanently buffs Fodder + Imps +2/+2 (golden +4/+4), carried back like Bane.
+  - **Target Dummy** (0/4) — *new combat factory* `onDamagedGainAttack`: gains +1 Attack per hit (any damage
+    amount), permanent (carried back via `permaGain`).
+  - **Thundering Abomination** — dropped Engraved; its overflow grant to Undead is now the engraved (permanent)
+    part (`onSummonOverflowBuffTribe` gained an `engrave` param).
+  - **Taurus** — base now Engraves BOTH neighbors; a golden Taurus additionally **doubles** their combat
+    stat-gains via a new per-minion `Minion.gainMult` applied at the top of `ctx.buff`.
+  - **Lantern Light** — now folds run spell power onto both stats on top of +Tier/+Tier.
+  - **Consume** (→ 3 cost) — instead of eating a tavern minion, the chosen Demon now **creates and eats a
+    Fodder** (new `spellDemonConsumeFodder`), playing the fodder-eat animation; the Fodder carries the run-wide
+    Fodder enchant.
+- **Compendium:** cursor fixes — the inspect overlay's enlarged card and the book's scrollbar pseudo-elements
+  now keep the themed gauntlet cursor (were falling back to the OS arrow). **Evolution units** (Spirit Worgen,
+  Taragosa) now appear in the book — detected as ascend/transform targets even though they're non-buyable tokens.
+- **Verified:** typecheck + lint + `npm test` (402 pass — many combat/run tests updated: Echo/Cupcakes/Demonic
+  Anomaly deleted, Karwind/Nanon/Brightwing/Acid/Consume/Taurus expectations rewritten, and several scaffold
+  tests switched off `sandbag` since Target Dummy is no longer an inert wall) + build:web all green. Pool + CSV
+  regenerated.
+
+### content: remove Sheldon from the card set
+
+- **Cut the `sheldon` Mech** (tier-3, 2/4, Divine Shield + Magnetic) from `packages/content/src/cards/mechs.ts`.
+  It was one of five Magnetic mechs; the others (Cling Drone, Money Bot, Speedy, Harry Botter, Better Bot) stay.
+- **Cascading cleanup:** deleted the art build copy (`packages/ui/src/art/minions/sheldon.webp`); regenerated
+  `docs/cards.csv` (`npm run dump-cards` → 80 minions) and the opponent pool (`npm run pool`, which sources the
+  live card set). Pruned the Sheldon-specific assertion from the Magnetic-weld test (`run.test.ts`) and broadened
+  the Combinator random-weld test's expected profiles to cover the **full** current Magnetic-mech pool (it had
+  hardcoded a 3-of-5 subset, so dropping Sheldon shifted the seeded RNG onto Harry Botter and failed the stale
+  list).
+- **Verified:** `npm run typecheck`, `npm test` (406 pass), lint, build:web all green.
+
 ### feat(ui): Compendium button on the title + Ascent win-condition copy
 
 - **Title-screen Compendium button** (`Title.tsx`) — a third centered action (`Leaderboard · Compendium ·

@@ -108,9 +108,10 @@ export interface BoardCard {
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that
    *  wasn't bought sells for the base 1, since it has no held-since wave). */
   boughtWave?: number;
-  /** Acid's per-instance refresh counter: how many times the shop has been rolled since this card entered
-   *  the board. Fires the consume at every `every`-th roll. Reset to 0 in advanceCombat each wave. */
-  rollTick?: number;
+  /** Gold-spend meter for `goldSpent` effects (Acid, Banksly): accrues the Gold spent while this card is on
+   *  the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
+   *  remainder), per-instance; absent = 0. */
+  goldTick?: number;
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
    *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
   eotTick?: number;

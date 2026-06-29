@@ -105,6 +105,15 @@ deliberately
     shows current grant + countdown via `cardText.ts`); **shop buff floats** (+X/+X above a buffed minion,
     like combat); Combinator welds credited to the **magnetic** ("Harry Botter ×2"), not Combinator;
     disabled hero-power button keeps the game cursor.
+  - **Tuning follow-up (2026-06-28, shipped → devlog):** Twilight Whelp → Violet Whelp; Spirit Pup/Mama Bear/Tara
+    stats + Spirit Worgen +3/+3; Commander Impala 6/6 + Windfury; new **Mechanical Jouster** (Rally → random
+    Magnetic Mech); art rewires (Supporter, Guardian Drake, Violet Whelp, Taragosa, Spirit Worgen, Jouster).
+  - **Balance + content batch (2026-06-28, shipped → devlog):** broad stat tuning across every tribe; 6 renames;
+    cut Demonic Anomaly / Echo Warden / Cupcakes; reworks — Acid & new Banksly (spend-Gold trigger), new Commander
+    Impala (on-kill Fodder/Imp buff), Target Dummy (gains Attack when hit), Taurus (engraves both neighbors; golden
+    2× combat gains), Thundering Abomination, Lantern Light (spell-power scaling), Consume (creates & eats a Fodder).
+    Compendium shows evolution units + cursor fixes. **Still queued:** the deeper counter-matrix tuning + T1–4
+    relevance / decision-diversity direction below.
   - **Fixes + audit (2026-06-23, shipped → devlog):** rally fires **per hit** (Windfury → 2×); Cling Drone
     shows its accumulated bonus; Fodder-consume floats +X/+X. Plus a 6-agent audit cleanup: dead files/assets
     removed (−87 KB web build), dead events/data trimmed, combat hot-path allocations cut (~600k/faceOmen),

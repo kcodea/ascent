@@ -205,6 +205,9 @@ export function simulate(
     },
     allCards: () => Object.values(cards),
     buff: (target, attack, health, source) => {
+      // Golden Taurus doubles every combat stat-gain its engraved neighbors receive (`gainMult`).
+      const gm = target.gainMult ?? 1;
+      if (gm !== 1) { attack *= gm; health *= gm; }
       target.attack = Math.max(0, target.attack + attack); // Attack never drops below 0
       target.health += health;
       if (health > 0) target.maxHealth += health;
@@ -240,7 +243,7 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
-    summon: (side, card, nearUid, grantKeywords) => summonMinion(side, card, nearUid, false, grantKeywords),
+    summon: (side, card, nearUid, grantKeywords) => summonMinion(side, card, nearUid, grantKeywords),
     flushImmediateAttacks: () => flushImmediateAttacks(),
     grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
@@ -332,12 +335,11 @@ export function simulate(
   };
 
   /**
-   * Summon one minion (the single summon chokepoint). Echo Warden: each summoned unit gets one more
-   * copy per living Echo Warden (golden = 2) — recursion-guarded by `isEcho` so the copies don't echo
-   * themselves. Because this lives in the summon path, it applies to *any* summon (token Deathrattles,
-   * `deathrattleFillTribe`'s real minions, Brood Matron, future effects), not just token effects.
+   * Summon one minion (the single summon chokepoint). Because this lives in the summon path, run-wide
+   * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
+   * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, isEcho: boolean, grantKeywords?: Keyword[]): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[]): Minion {
     const minion = instantiate({ cardId: card.id, attack: card.attack, health: card.health }, side, cards, mkUid);
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff).
@@ -363,18 +365,13 @@ export function simulate(
       }
     }
     registerEffects(minion);
-    events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid, ...(isEcho && { echo: true }) });
+    events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
     bus.emit('onSummon', { minion, side });
     // Persistent tribe auras (Grim) catch minions summoned after they were registered.
     for (const aura of tribeAuras) {
       if (aura.side === side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!cards[minion.cardId]?.universalTribe))) {
         ctx.buff(minion, aura.attack, aura.health, aura.source);
       }
-    }
-    if (!isEcho) {
-      let echoes = 0; // count Echo Wardens without allocating a living() array on every summon
-      for (const m of boards[side]) if (!m.dead && m.health > 0 && m.cardId === 'echo') echoes += m.golden ? 2 : 1;
-      for (let i = 0; i < echoes && countLiving(side) < 7; i++) summonMinion(side, card, minion.uid, true);
     }
     // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
     // already returned above, so only minions actually placed on the board reach here.

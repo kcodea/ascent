@@ -24,7 +24,7 @@ export const DRAGONS: CardDef[] = [
     name: 'Cinderwing Matron',
     tribe: 'dragon',
     tier: 4,
-    attack: 5,
+    attack: 4,
     health: 5,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBuffSpellPower', params: { attack: 0, health: 1 } }],
@@ -36,7 +36,7 @@ export const DRAGONS: CardDef[] = [
     name: 'Arcane Weaver',
     tribe: 'dragon',
     tier: 4,
-    attack: 3,
+    attack: 4,
     health: 4,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'spiritfire' } }],
@@ -53,8 +53,9 @@ export const DRAGONS: CardDef[] = [
     attack: 2,
     health: 12,
     keywords: [],
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 1, health: 2 } }],
-    text: 'Whenever a **Battlecry** triggers, give your Dragons **+1/+2**.',
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }],
+    text: 'Whenever a **Battlecry** triggers, give your Dragons **+2/+2**.',
+    goldenText: 'Whenever a **Battlecry** triggers, give your Dragons **+4/+4**.',
   },
   {
     // Dual-type Dragon/Demon payoff. Every Battlecry *fire* on your board permanently enchants the Fodder
@@ -67,8 +68,8 @@ export const DRAGONS: CardDef[] = [
     tribe: 'dragon',
     tribe2: 'demon',
     tier: 6,
-    attack: 12,
-    health: 12,
+    attack: 7,
+    health: 9,
     keywords: [],
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffFodder', params: { attack: 2, health: 2 } }],
     text: 'After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.',
@@ -108,7 +109,7 @@ export const DRAGONS: CardDef[] = [
   {
     // A plain Divine-Shield wall — soaks the first hit. Keyword-only (the DS badge carries the meaning).
     id: 'bronzewarden',
-    name: 'Bronze Warden',
+    name: 'Guardian Drake',
     tribe: 'dragon',
     tier: 3,
     attack: 3,
@@ -121,7 +122,7 @@ export const DRAGONS: CardDef[] = [
     // Avenge payoff: after 3 friendly deaths in combat, hand this minion's Attack to 2 other friends — a
     // burst that rewards a sacrificial front line. Uses the new `avengeGiveAttack` combat primitive.
     id: 'stuntdrake',
-    name: 'Stuntdrake',
+    name: 'Obsidian Drake',
     tribe: 'dragon',
     tier: 5,
     attack: 3,
@@ -156,8 +157,8 @@ export const DRAGONS: CardDef[] = [
     tribe: 'dragon',
     tribe2: 'undead',
     tier: 6,
-    attack: 4,
-    health: 10,
+    attack: 6,
+    health: 6,
     keywords: [],
     effects: [{ on: 'onAttack', do: 'onAllyAttackBuffAll', params: { step: 2, every: 3 } }],
     text: 'When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.',
@@ -172,8 +173,8 @@ export const DRAGONS: CardDef[] = [
     name: 'Tara',
     tribe: 'dragon',
     tier: 4,
-    attack: 3,
-    health: 3,
+    attack: 5,
+    health: 6,
     keywords: ['EG'],
     effects: [],
     ascendAt: 20,
@@ -186,7 +187,7 @@ export const DRAGONS: CardDef[] = [
     // Fragile T1 that leaves a 3/3 Whelp behind — and the Whelp ATTACKS IMMEDIATELY on spawn (the
     // `whelpling` token's `attackOnSummon`, drained by simulate's immediate-attack queue). Golden → 2 Whelps.
     id: 'twilightwhelp',
-    name: 'Twilight Whelp',
+    name: 'Violet Whelp',
     tribe: 'dragon',
     tier: 1,
     attack: 1,
@@ -200,14 +201,14 @@ export const DRAGONS: CardDef[] = [
     // Deathrattle factory for the Whelp line: leaves 2 Twilight Whelps WITH Taunt (each leaves a 3/3
     // immediate Whelp when it dies). Golden → 4. Uses deathrattleSummon's optional `keyword` grant.
     id: 'broodmother',
-    name: 'Twilight Broodmother',
+    name: 'Violet Whelpmother',
     tribe: 'dragon',
     tier: 4,
     attack: 2,
     health: 5,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'twilightwhelp', count: 2, keyword: 'T' } }],
-    text: '**Deathrattle:** summon 2 **Twilight Whelps** with **Taunt**.',
-    goldenText: '**Deathrattle:** summon 4 **Twilight Whelps** with **Taunt**.',
+    text: '**Deathrattle:** summon 2 **Violet Whelps** with **Taunt**.',
+    goldenText: '**Deathrattle:** summon 4 **Violet Whelps** with **Taunt**.',
   },
 ];

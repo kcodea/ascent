@@ -327,7 +327,6 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   const rally = new Map<string, number>();
   const generated = new Map<string, number>();
   const summoned = new Map<string, number>();
-  const echoed = new Map<string, number>(); // extra copies Echo Warden spun off your summons
   const startCombat = new Map<string, number>(); // Start-of-Combat effects that fired (by source)
   const buffs = new Map<string, { n: number; atk: number; hp: number }>();
   const maxGold = new Map<string, { n: number; total: number }>(); // Soulsman's Avenge → max Gold raised
@@ -343,8 +342,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
     else if (e.type === 'sc') inc(startCombat, n(e.source));
     else if (e.type === 'toHand') inc(generated, e.source ? `${n(e.source)} → ${cardName(e.cardId)}` : cardName(e.cardId));
     else if (e.type === 'summon') {
-      if (e.echo) inc(echoed, e.minion.name); // Echo Warden's bonus copies — attributed to the engine, not the original
-      else inc(summoned, e.source ? `${n(e.source)} → ${e.minion.name}` : e.minion.name);
+      inc(summoned, e.source ? `${n(e.source)} → ${e.minion.name}` : e.minion.name);
     }
     else if (e.type === 'buff') {
       const k = n(e.source);
@@ -371,7 +369,6 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   if (rally.size) { out.push({ text: 'Rally', kind: 'head' }); for (const [k, c] of rally) out.push({ text: `${k} — ${c}×`, kind: 'rally' }); }
   if (generated.size) { out.push({ text: 'Cards generated', kind: 'head' }); for (const [k, c] of generated) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
   if (summoned.size) { out.push({ text: 'Summoned', kind: 'head' }); for (const [k, c] of summoned) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
-  if (echoed.size) { out.push({ text: 'Echoed · Echo Warden', kind: 'head' }); for (const [k, c] of echoed) out.push({ text: `${k} — +${c}×`, kind: 'summon' }); }
   if (buffs.size) { out.push({ text: 'Buffs', kind: 'head' }); for (const [k, t] of buffs) out.push({ text: `${k} — ${t.n}× (+${t.atk}/+${t.hp})`, kind: 'buff' }); }
   if (maxGold.size) { out.push({ text: 'Max Gold', kind: 'head' }); for (const [k, t] of maxGold) out.push({ text: `${k} — +${t.total} (${t.n}×)`, kind: 'buff' }); }
   return out;

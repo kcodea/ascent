@@ -1,10 +1,24 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, Tribe } from '@game/core';
-import { BUYABLE_CARDS, SPELL_CARDS } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { Card, type CardView } from './Card';
 import { Icon } from './Icon';
 import { useGame } from './store';
+
+/** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
+ *  Tara → Taragosa). Detected from the card set (ascend targets + `spellCastTransform` destinations) so the
+ *  Compendium can show these "secret" payoff forms even though they never appear in the shop. */
+const EVOLUTION_CARDS: CardDef[] = (() => {
+  const ids = new Set<string>();
+  for (const c of Object.values(CARD_INDEX)) {
+    if (c.ascendInto) ids.add(c.ascendInto);
+    for (const e of c.effects) {
+      if (e.do === 'spellCastTransform' && typeof e.params?.into === 'string') ids.add(e.params.into);
+    }
+  }
+  return [...ids].map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
+})();
 
 /** Left-rail category: a real tribe, or the tribe-less "spells" bucket. */
 type Category = Tribe | 'spells';
@@ -69,8 +83,11 @@ export function MinionBook() {
   // Every eligible card: minions whose tribe is neutral or in `tribes`, plus every tavern spell. Tokens are
   // excluded — `BUYABLE_CARDS` already drops them.
   const allCards = useMemo(() => {
-    const minions = BUYABLE_CARDS.filter((c) => c.tribe === 'neutral' || tribes.includes(c.tribe));
-    return [...minions, ...SPELL_CARDS];
+    const inScope = (c: CardDef): boolean => c.tribe === 'neutral' || tribes.includes(c.tribe);
+    const minions = BUYABLE_CARDS.filter(inScope);
+    // Evolution units (Spirit Worgen, Taragosa) — shown alongside their tribe's minions though never buyable.
+    const evolutions = EVOLUTION_CARDS.filter(inScope);
+    return [...minions, ...evolutions, ...SPELL_CARDS];
   }, [tribes]);
 
   const filtered = useMemo(() => {

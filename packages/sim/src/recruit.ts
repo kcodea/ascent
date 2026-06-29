@@ -930,27 +930,28 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const card of ctx.state.board) addBuff(card, source, attack, health);
   },
 
-  /** Cupcakes — cast: the chosen Demon (`self`) consumes `count` random tavern minions. Each feeds the Demon
-   *  its stats × the Demon's fodder multiplier (Voracious Imp ×2) and fires its on-consume effects (Maw's
-   *  shield, etc.) — the normal Consume pipeline + the UI swirl. No-op if the target isn't a Demon. */
-  spellDemonConsumeTavern: (ctx, self, params) => {
+  /** Consume — cast: the chosen Demon (`self`) creates and eats `count` Fodder (Fred). Each freshly-made
+   *  Fodder carries the run-wide Fodder enchant (Ritualist/Bane), feeds the Demon its stats × the Demon's
+   *  fodder multiplier (Voracious Imp ×2) and fires its on-consume effects — the normal Consume pipeline +
+   *  the eat animation (`fodderEaten`). No-op if the target isn't a Demon. */
+  spellDemonConsumeFodder: (ctx, self, params) => {
     if (!self || !isTribe(self, 'demon')) return;
-    const count = num(params.count, 3);
-    const rng = makeRng(ctx.state.rngCursor);
+    const fodder = CARD_INDEX.fred;
+    if (!fodder) return;
+    const count = num(params.count, 1);
+    const cb = cardBuff(ctx.state, fodder.id); // a created Fodder carries the run-wide Fodder enchant
+    const fa = fodder.attack + cb.attack;
+    const fh = fodder.health + cb.health;
+    const mult = fodderMultiplier(self);
     const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
-    for (let i = 0; i < count && ctx.state.shop.length > 0; i++) {
-      const idx = rng.int(ctx.state.shop.length);
-      const offer = ctx.state.shop[idx]!;
-      const meal = CARD_INDEX[offer.cardId];
-      ctx.state.shop.splice(idx, 1);
-      if (!meal) continue;
-      const mult = fodderMultiplier(self);
-      const { attack: ma, health: mh } = offerBuyStats(ctx.state, offer); // current buffed value, not base
-      addBuff(self, 'Consume', ma * mult, mh * mult);
+    for (let i = 0; i < count; i++) {
+      addBuff(self, 'Consume', fa * mult, fh * mult);
       fire(ctx, 'onConsume', { minion: self });
-      eaten.push({ eaterUid: self.uid, fodderId: meal.id, attack: ma, health: mh, gainA: ma * mult, gainH: mh * mult });
+      eaten.push({ eaterUid: self.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
+      ctx.state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
+      ctx.state.fodderConsumedThisTurn.attack += fa;
+      ctx.state.fodderConsumedThisTurn.health += fh;
     }
-    ctx.state.rngCursor = rng.state();
     if (eaten.length > 0) {
       ctx.state.fodderEaten = eaten;
       ctx.state.fodderEatenSeq += 1;
@@ -1004,12 +1005,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.devourFx = { toUid: recipient.uid, attack, health };
   },
 
-  /** Lantern Light — give the target +Tier/+Tier (your current Tavern Tier). Scales with Tier by design
-   *  (the spec is exactly +Tier/+Tier), so no spell-power bonus is folded in. */
+  /** Lantern Light — give the target +Tier/+Tier (your current Tavern Tier), PLUS the run's spell power on
+   *  top of both stats (so at T4 with +1/+0 spell power it gives +5/+4), like every other stat spell. */
   spellBuffByTier: (ctx, self, params) => {
     if (!self) return;
     const t = ctx.state.tier;
-    addBuff(self, str(params._source) || nameOf(self), t, t);
+    addBuff(self, str(params._source) || nameOf(self), t + spellAttackBonus(ctx.state), t + spellHealthBonus(ctx.state));
   },
 
   /** Fodder Treatment — SELL the target (gain its base sell value as Gold) and spit its current stats onto
@@ -1109,41 +1110,41 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
   },
 
-  /** Demonic Anomaly — Battlecry: gain N free refreshes and PERMANENTLY buff every tavern minion +M/+M for
-   *  the rest of the run (current AND future offers, like Staff of Guel — folded onto each offer by the shop
-   *  view and baked in on buy). Fodder picks it up via the run-wide enchant (the buy path + shop view skip FD
-   *  for the buy-bonus to avoid double-applying). Golden doubles both. */
-  battlecryFreeRollsAndBuffShop: (ctx, self, params) => {
-    const rolls = num(params.rolls, 2) * gold(self);
-    const buffAmt = num(params.buff, 3) * gold(self);
-    ctx.state.freeRolls += rolls;
-    ctx.state.tavernBuyBonus.atk += buffAmt;
-    ctx.state.tavernBuyBonus.hp += buffAmt;
-    buffFodderRunWide(ctx.state, buffAmt, buffAmt, nameOf(self));
+  /** Acid — every `every` Gold you spend (the per-instance gold meter), permanently buff your Fodder + Imps
+   *  run-wide (like Bane's enchant) AND queue `fodder` Fodder into your next tavern. Golden doubles both the
+   *  stat grant and the Fodder count. Fired by `applyGoldSpent` once per threshold. */
+  goldSpentBuffFodderImps: (ctx, self, params) => {
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    buffFodderRunWide(ctx.state, a, h, nameOf(self));
+    buffImpsRunWide(ctx.state, a, h, nameOf(self));
+    const fodder = num(params.fodder, 0) * gold(self);
+    if (fodder > 0) (ctx.state.pendingTavern ??= []).push(...Array(fodder).fill('fred'));
   },
 
-  /** Acid — every N manual refreshes, consume a random non-Fodder offer from the tavern, gaining its stats.
-   *  `rollTick` is per-instance on BoardCard and resets each wave in advanceCombat. Golden doubles the gain. */
-  onRollConsumeShop: (ctx, self, params) => {
-    const every = num(params.every, 4);
-    self.rollTick = (self.rollTick ?? 0) + 1;
-    if (self.rollTick % every !== 0) return;
-    // Consume a random NON-Fodder tavern minion (gain its stats × golden).
-    const choices = ctx.state.shop.filter((s) => {
-      const def = CARD_INDEX[s.cardId];
-      return def && !def.keywords.includes('FD');
-    });
-    const target = choices.length ? pickRandom(ctx.state, choices, 1)[0] : undefined;
-    if (target) {
-      ctx.state.shop = ctx.state.shop.filter((s) => s !== target);
-      // Consume the target's CURRENT buffed value (run buff + per-offer buff + golden + held), not its base.
-      const { attack, health } = offerBuyStats(ctx.state, target);
-      addBuff(self, nameOf(self), attack * gold(self), health * gold(self));
+  /** Banksly — every `every` Gold you spend (the per-instance gold meter), weld a RANDOM Magnetic minion's
+   *  stats + keywords onto Banksly himself (`count` times, golden doubles `count`). Mirrors Combinator's
+   *  random-magnetic roll, but the host is always self. */
+  goldSpentMagnetize: (ctx, self, params) => {
+    const count = num(params.count, 1) * gold(self);
+    const magnetics = Object.values(CARD_INDEX).filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
+    if (magnetics.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < count; i++) {
+      const pick = magnetics[rng.int(magnetics.length)]!;
+      const pickBuff = cardBuff(ctx.state, pick.id); // a Cling pick carries its accrued improvement
+      const clings = pick.id === 'cling' ? 1 : 0;
+      weldMagnetic(ctx.state, self, {
+        source: pick.name,
+        attack: pick.attack + pickBuff.attack,
+        health: pick.health + pickBuff.health,
+        keywords: [...pick.keywords],
+        mana: pick.manaPerTurn ?? 0,
+        rallyMechAtk: pick.rallyMechAtk,
+        spellAura: pick.spellAura,
+      }, clings);
     }
-    // Acid's rework: also buff the REMAINING tavern minions +tavernBuff/+tavernBuff (golden ×2) — a per-offer
-    // buff baked in on buy (like Apples), applied even if there was nothing to consume.
-    const tb = num(params.tavernBuff, 0) * gold(self);
-    if (tb > 0) for (const offer of ctx.state.shop) { offer.atk = (offer.atk ?? 0) + tb; offer.hp = (offer.hp ?? 0) + tb; }
+    ctx.state.rngCursor = rng.state();
   },
 
   /** Forsaken Weaver (recruit half) — when a spell is cast, give your Undead +N Attack wherever they are
@@ -1157,17 +1158,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 };
 
-/** Fire `onRoll` effects for every board card that has one (Acid's every-N-refresh consume).
- *  Called by the reducer's `roll` case after the tavern is refreshed. */
-export function applyOnRoll(state: RunState): void {
+/**
+ * Fire `goldSpent` effects (Acid, Banksly) when the player spends Gold. Each board card with a `goldSpent`
+ * effect keeps a continuous per-instance meter (`goldTick`): every `amount` Gold spent accrues onto it, and
+ * each time it crosses the effect's `every` threshold the factory fires once (the remainder carries to the
+ * next spend). A single big spend can cross the threshold several times. Called by the reducer at every Gold
+ * spend point (buy / roll / tier up / buy a spell).
+ */
+export function applyGoldSpent(state: RunState, amount: number): void {
+  if (amount <= 0) return;
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
-    if (!def) continue;
-    for (const effect of def.effects) {
-      if (effect.on !== 'onRoll') continue;
-      const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+    const effect = def?.effects.find((e) => e.on === 'goldSpent');
+    if (!effect) continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (!fn) continue;
+    const every = Math.max(1, num(effect.params?.every, 7));
+    card.goldTick = (card.goldTick ?? 0) + amount;
+    while (card.goldTick >= every) {
+      card.goldTick -= every;
+      fn(ctx, card, effect.params ?? {}, { minion: card });
     }
   }
 }

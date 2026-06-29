@@ -177,6 +177,21 @@ export const UNDEAD: CardDef[] = [
     goldenText: 'When you cast a spell, give your Undead **+4 Attack** wherever they are.',
   },
   {
+    // Dual-type Undead/Beast. Deathrattle: summon 3 Crypt Wolves (1/1 undead beasts). Golden
+    // summons 6 (the standard ×2 via mul). Good at flooding the board after death.
+    id: 'wolvesden',
+    name: 'Wolves Den',
+    tribe: 'undead',
+    tribe2: 'beast',
+    tier: 3,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'cryptwolf', count: 3 } }],
+    text: '**Deathrattle:** Summon 3 **Crypt Wolves**.',
+    goldenText: '**Deathrattle:** Summon 6 **Crypt Wolves**.',
+  },
+  {
     // Avenge: every 4 friendly deaths in combat, permanently raise your max Gold by 1 (golden +2).
     // Carried back via CombatResult.playerMaxGoldGain → settleCombat bumps maxEmbers.
     id: 'soulsman',

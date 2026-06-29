@@ -802,14 +802,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Front to Back — cast: linear escalation. +(2 + frontToBackBonus + spell power)/(same), then the
-   *  run's frontToBackBonus climbs by 2 so the next cast is bigger. `self` is the chosen target. */
+  /** Front to Back — cast: escalating grant. Each cast gives +(step + accumulated escalation + spell power),
+   *  then the escalation climbs by (step + CURRENT spell power) — so the per-cast IMPROVEMENT scales with
+   *  spell power (the next grant grows by step+power, matching the card's "Improve this by"). Attack and
+   *  Health escalate independently because spell power can be asymmetric (Cinderwing grants Health only).
+   *  `self` is the chosen target. */
   spellBuffTargetEscalating: (ctx, self, params) => {
-    const base = num(params.attack, 2) + ctx.state.frontToBackBonus;
-    const a = base + spellAttackBonus(ctx.state);
-    const h = base + spellHealthBonus(ctx.state);
+    const step = num(params.attack, 2);
+    const spA = spellAttackBonus(ctx.state);
+    const spH = spellHealthBonus(ctx.state);
+    const a = step + ctx.state.frontToBackBonus + spA;
+    const h = step + ctx.state.frontToBackBonusH + spH;
     addBuff(self, str(params._source) || 'Front to Back', a, h);
-    ctx.state.frontToBackBonus += 2;
+    ctx.state.frontToBackBonus += step + spA;
+    ctx.state.frontToBackBonusH += step + spH;
   },
 
   /** Eyes of Aresmar — cast: make the targeted minion Golden (like Oner's Gild), but only if its
@@ -1393,13 +1399,14 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, escalationH = escalation): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Front to Back (escalating): the printed text carries TWO "+B/+B" groups — the GRANT (slot 0) and the
-  // per-cast IMPROVEMENT (slot 1). The grant = base + accumulated escalation + spell power. The improvement
-  // is the escalation step (= base) and ALSO picks up spell power, so both numbers scale together and read
-  // consistently. Each slot is highlighted (green) only once it's actually above its printed base.
+  // per-cast IMPROVEMENT (slot 1). The grant = base step + accumulated escalation + spell power (Attack and
+  // Health escalate independently). The improvement is the escalation STEP = base + spell power — so each
+  // cast really does grow the grant by that much (the engine bakes spell power into the step). Each slot is
+  // highlighted (green) only once it's actually above its printed base.
   const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
   if (esc) {
     let slot = 0;
@@ -1408,8 +1415,8 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
       const nh = Number(h);
       if (slot++ === 0) {
         const va = na + escalation + bonusA;
-        const vh = nh + escalation + bonusH;
-        return escalation + bonusA > 0 || escalation + bonusH > 0 ? `{{+${va}/+${vh}}}` : m;
+        const vh = nh + escalationH + bonusH;
+        return escalation + bonusA > 0 || escalationH + bonusH > 0 ? `{{+${va}/+${vh}}}` : m;
       }
       const ia = na + bonusA;
       const ih = nh + bonusH;

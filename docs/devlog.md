@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-29 (session 9)
 
+### fix: Front to Back's per-cast improvement scales with spell power
+
+- **Before:** the grant grew only +2/+2 per cast (spell power was a flat add to every grant), while the card
+  advertised "Improve this by +2+power" — so the text overstated the growth.
+- **Now:** the escalation step itself absorbs spell power. Each cast grants +(step + accumulated escalation +
+  spell power), then the escalation climbs by (step + current spell power). So the next grant really is bigger
+  by step+power — matching the displayed "Improve this by". Attack and Health escalate independently (new
+  `frontToBackBonusH`), since spell power can be asymmetric (Cinderwing grants Health only).
+- **Touches:** `state.ts` (new `frontToBackBonusH` + deserialize heal), the `spellBuffTargetEscalating`
+  factory + `spellDisplayText` (per-stat escalation), and the `Recruit.tsx` view plumbing.
+- **Verified:** new tests — escalation climbs by step+power; two casts under +1 power grow +3 then +6.
+  typecheck + lint + `npm test` (403) green.
+
 ### art: The Godfodder, Hex Flayer, Wolves Den, Crypt Wolf
 
 - Wired art for the four minions added in #98 — `godfodder`, `hexflayer`, `wolvesden`, and the `cryptwolf`

@@ -149,6 +149,9 @@ export interface RunState {
   best: number;
   /** Result of each combat resolved this run, in order — drives the end-screen W-L-W summary. */
   history: CombatOutcome[];
+  /** Par (A2): the target number of scored wins for this run — cover or beat it. Set at run start (static
+   *  today; becomes rating-driven with the career system). See `lineResult`. */
+  line: number;
   phase: Phase;
   embers: number;
   maxEmbers: number;
@@ -327,6 +330,24 @@ export function isCalibrationRound(wave: number): boolean {
   return wave <= CONFIG.calibrationRounds;
 }
 
+/** How a run graded against its par (A2). `covered` = met the line exactly, `exceeded` = beat it,
+ *  `missed` = fell short, `flawless` = won every scored round, `failed` = the run ended in a loss
+ *  (Resolve 0) before completing the course. `delta` = scored wins − line. Meaningful on a finished run. */
+export type LineStatus = 'flawless' | 'exceeded' | 'covered' | 'missed' | 'failed';
+export function lineResult(state: RunState): { line: number; wins: number; delta: number; status: LineStatus } {
+  const { wins } = runRecord(state);
+  const line = state.line;
+  const delta = wins - line;
+  const scoredRounds = CONFIG.courseRounds - CONFIG.calibrationRounds;
+  let status: LineStatus;
+  if (state.phase === 'gameover') status = 'failed';
+  else if (wins >= scoredRounds) status = 'flawless';
+  else if (wins > line) status = 'exceeded';
+  else if (wins === line) status = 'covered';
+  else status = 'missed';
+  return { line, wins, delta, status };
+}
+
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
 export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent'): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
@@ -338,6 +359,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     wave: 1,
     best: 1,
     history: [],
+    line: CONFIG.defaultLine,
     phase: 'recruit',
     embers: CONFIG.startEmbers,
     maxEmbers: CONFIG.startEmbers,
@@ -409,6 +431,7 @@ export function deserialize(json: string): RunState {
   state.turnStartPower ??= 0; // heal saves from before the pinned-opponent power
   state.spellBonus ??= { attack: 0, health: 0 }; // heal saves from before card-driven spell power
   state.undeadBuyAtk ??= 0; // heal saves from before Deathswarmer / Forsaken Weaver
+  state.line ??= CONFIG.defaultLine; // heal saves from before the par/line (A2)
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (state.pendingSpellDiscovers && state.pendingSpellDiscovers > 0) {

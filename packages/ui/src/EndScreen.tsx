@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, getHero, isCalibrationRound, runRecord, type BoardCard } from '@game/sim';
+import { CONFIG, getHero, isCalibrationRound, lineResult, runRecord, type BoardCard, type LineStatus } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { heroArt } from './art';
 import { Icon } from './Icon';
@@ -30,6 +30,15 @@ export function EndScreen({ won }: { won: boolean }) {
   // Practice has no calibration concept — count every round.
   const rawWins = run.history.filter((r) => r === 'win').length;
   const rawLosses = run.history.filter((r) => r === 'lose').length;
+  // Par / line verdict (A2) — how the run graded against its target wins.
+  const line = lineResult(run);
+  const LINE_VERDICT: Record<LineStatus, string> = {
+    flawless: 'Flawless — line destroyed',
+    exceeded: `Exceeded (+${line.delta})`,
+    covered: 'Line covered',
+    missed: `Missed (${line.delta})`,
+    failed: 'Course failed',
+  };
   return (
     <div className={`heroselect endscreen${won ? ' won' : ''}`}>
       <div className="hsbox endbox">
@@ -52,6 +61,12 @@ export function EndScreen({ won }: { won: boolean }) {
               ? `Record ${rec.wins}–${rec.losses}${rec.draws ? ` · ${rec.draws}D` : ''}`
               : `Record ${rec.wins}–${rec.losses} · fell on round ${run.wave} of ${CONFIG.courseRounds}`}
         </div>
+        {!practice && (
+          <div className={`endline ${line.status}`}>
+            <span className="endline-par">Line {line.line}</span>
+            <span className="endline-verdict">{LINE_VERDICT[line.status]}</span>
+          </div>
+        )}
 
         {run.history.length > 0 && (
           <div className="endpips" aria-label="Round results">

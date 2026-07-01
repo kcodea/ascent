@@ -49,6 +49,7 @@ export function HudBar() {
             <Icon name="crown" />{wins}–{losses}
           </span>
         )}
+        {!practice && <span className="lbl line" title={`Your par for this run — cover or beat ${run.line} wins`}>Line {run.line}</span>}
       </div>
       {/* Combat replay speed — only during the fight; sits to the LEFT of the tribes bar (out of the
           top-right buffs/opponent column). */}

@@ -454,6 +454,7 @@ export function Recruit() {
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
+  const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [logTab, setLogTab] = useState<'gains' | 'procs' | 'log'>('gains'); // Permanent gains · Procs · blow-by-blow log
   // Per-card stat snapshot (attack + health) for the recruit-phase buff flash + the +X/+X float (declared
   // up here so the combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
@@ -645,9 +646,13 @@ export function Recruit() {
   // translucent backdrop (BELOW the z110 FX canvas), so bubbles for the dimmed board behind would otherwise
   // float in front of the overlay. (Inspect / hero-select / end-of-run sit above the FX canvas already.)
   useEffect(() => {
-    pixiFx.setShieldsVisible(!(run.discover || run.chooseOne));
-    tauntFx.setShieldsVisible(!(run.discover || run.chooseOne));
-  }, [run.discover, run.chooseOne]);
+    // A minimized Discover leaves the board visible, so keep the behind-card shields showing then.
+    const modalCovering = (run.discover && !discoverMin) || run.chooseOne;
+    pixiFx.setShieldsVisible(!modalCovering);
+    tauntFx.setShieldsVisible(!modalCovering);
+  }, [run.discover, run.chooseOne, discoverMin]);
+  // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
+  useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // Mount the BEHIND-cards taunt FX layer into its div inside `.app` (once). Its canvas paints above the
   // board surface but below the card rows, so the silver bulwark sits behind each taunt minion.
   useEffect(() => {
@@ -2301,12 +2306,19 @@ export function Recruit() {
         </div>
       )}
 
-      {run.discover && (
+      {run.discover && discoverMin && (
+        <button className="disc-restore" onClick={() => setDiscoverMin(false)} title="Return to your Discover">
+          <Icon name="up" /> Return to Discover · {run.discover.length} options
+        </button>
+      )}
+
+      {run.discover && !discoverMin && (
         <div className="discover-ov" role="dialog" aria-label="Discover a card">
           {/* WebGL burst layer — sits behind the cards (z0) but above the overlay's dark backdrop, so the
               golden magic reads white-hot without covering the UI. Driven by discoverFx (see the effect). */}
           <div className="disc-burst" ref={discoverBurstRef} aria-hidden="true" />
           <div className="disc-panel">
+            <button className="disc-min" onClick={() => setDiscoverMin(true)} title="Minimize — inspect your board, then return">–</button>
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
             <div className="disc-banner"><span className="disp">Discover</span></div>
             <div className="disc-sub">Choose a minion from the next tier.</div>

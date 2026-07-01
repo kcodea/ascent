@@ -1680,6 +1680,20 @@ describe('run loop (@game/sim)', () => {
     }
   });
 
+  it('a pending Discover blocks other board actions until resolved (B2 minimize safety)', () => {
+    const base: RunState = {
+      ...createRun(1), embers: 5, discover: ['alley', 'raptor', 'pack'],
+      shop: [{ uid: 'x', cardId: 'gnash' }],
+    };
+    // Buy / roll are no-ops while a Discover is pending (same state ref) — inspecting can't invalidate it.
+    expect(reduce(base, { type: 'roll' })).toBe(base);
+    expect(reduce(base, { type: 'buy', uid: 'x' })).toBe(base);
+    // The resolving action still works.
+    const s = reduce(base, { type: 'discover', index: 0 });
+    expect(s.discover).toBeUndefined();
+    expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true);
+  });
+
   it('Sea Urchin cannot Discover itself', () => {
     // Pool is all Beasts INCLUDING Sea Urchin — the Discover must still never offer another Sea Urchin.
     let s: RunState = {

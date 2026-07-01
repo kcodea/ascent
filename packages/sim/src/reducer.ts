@@ -1,6 +1,7 @@
 import { makeRng, simulate, type BoardMinion, type CombatResult, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
+import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
@@ -795,6 +796,8 @@ function checkTriples(s: RunState): void {
 function settleCombat(s: RunState, result: CombatResult): void {
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
+  // Attribute this combat's player damage + mechanic procs into the run-wide tallies (→ MVP + most-triggered).
+  accumulateContribution((s.runDamage ??= {}), (s.runProcs ??= {}), tallyCombat(result));
   // Accumulate this combat's player Deathrattles into the run-wide "this game" count (Grim scales off it).
   s.deathrattlesTriggered += result.playerDeathrattles;
   // Persist per-instance combat state (Kennelmaster's Avenge permanently improves its

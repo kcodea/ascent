@@ -40,7 +40,16 @@ describe('careerStats (A7)', () => {
   });
 
   it('returns zeros for an empty history', () => {
-    expect(careerStats([])).toMatchObject({ runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, topTribes: [], perHero: [] });
+    expect(careerStats([])).toMatchObject({ runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, topTribes: [], favoriteMechanic: null, perHero: [] });
+  });
+
+  it('picks the favorite mechanic (most common per-run top mechanic)', () => {
+    const s = careerStats([
+      entry('rohan', 10, true, { topMechanic: { name: 'Echo', count: 5 } }),
+      entry('rohan', 8, true, { topMechanic: { name: 'Echo', count: 3 } }),
+      entry('warden', 9, true, { topMechanic: { name: 'Summon', count: 4 } }),
+    ]);
+    expect(s.favoriteMechanic).toBe('Echo');
   });
 
   it('aggregates overall + per-hero + run stats, sorted by runs', () => {

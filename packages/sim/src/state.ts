@@ -188,6 +188,10 @@ export interface RunState {
   triplesMade: number;
   /** Total Gold spent across the run (buys, rerolls, tier-ups, hero powers) — a career/post-run stat. */
   goldSpent: number;
+  /** Combat contribution across the run (see `contribution.ts`): per-card attack damage (→ MVP minion) and
+   *  mechanic-trigger counts (→ most-triggered mechanic). Accumulated in `settleCombat`. */
+  runDamage: Record<string, { name: string; damage: number }>;
+  runProcs: Record<string, number>;
   /** True once the just-fought combat's outcome (damage + carry-backs) has been applied, while still in the
    *  combat view — so the Resolve hit lands before returning to the shop. Reset when a combat starts. */
   combatSettled: boolean;
@@ -377,6 +381,8 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     deathrattlesTriggered: 0,
     triplesMade: 0,
     goldSpent: 0,
+    runDamage: {},
+    runProcs: {},
     combatSettled: false,
     freeRolls: 0,
     frontToBackBonus: 0,
@@ -436,6 +442,8 @@ export function deserialize(json: string): RunState {
   state.undeadBuyAtk ??= 0; // heal saves from before Deathswarmer / Forsaken Weaver
   state.line ??= CONFIG.defaultLine; // heal saves from before the par/line (A2)
   state.goldSpent ??= 0; // heal saves from before gold-spent tracking
+  state.runDamage ??= {}; // heal saves from before combat-contribution tracking
+  state.runProcs ??= {};
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (state.pendingSpellDiscovers && state.pendingSpellDiscovers > 0) {

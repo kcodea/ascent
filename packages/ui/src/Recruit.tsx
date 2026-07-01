@@ -1570,11 +1570,15 @@ export function Recruit() {
   useLayoutEffect(() => {
     if (flipStateRef.current) {
       // Two feels: while a drag is live, the warband cards slide aside under the cursor — a slightly-eased
-      // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
-      // settles snappy.
+      // glide so the side-to-side tracks smoothly, not janky (no `absolute`, so the reflow tracks the cursor).
+      // A COMMITTED change with no drag (a played/summoned token making room, an effect repositioning a minion,
+      // neighbours closing a sold gap) uses `absolute: true` so the surviving cards slide smoothly THROUGH the
+      // flex reflow as cards enter/leave — without it they snap to their new slots instantly.
       Flip.from(
         flipStateRef.current,
-        dragRef.current?.active ? { duration: 0.25, ease: 'power2.out' } : { duration: 0.18, ease: 'power2.out' },
+        dragRef.current?.active
+          ? { duration: 0.25, ease: 'power2.out' }
+          : { duration: 0.28, ease: 'power2.out', absolute: true },
       );
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);

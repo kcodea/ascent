@@ -5,7 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
-### feat: board-art selector + dimming slider in Settings
+### fix: board cards slide (not snap) on committed moves (sell / play / summon / reposition)
+
+The warband GSAP Flip already slid cards while dragging, but a COMMITTED, non-drag change (a summoned token
+making room, an effect repositioning a minion, neighbours closing a sold gap) snapped instantly. The committed
+`Flip.from` ran without `absolute: true`, so as cards enter/leave the flex row the surviving cards jumped to
+their new slots instead of animating through the reflow. Added `absolute: true` (+ 0.28 s) to the committed
+path only; the live-drag path (which tracks the cursor and must NOT be absolute) is unchanged. The warband row
+is already `position: relative`, so the absolute flip anchors correctly.
+
+Not verifiable in the headless preview (React doesn't re-render in a backgrounded pane) — needs a live browser
+window to confirm the slide + check shielded units' aura tracking during the animation.
 
 A **Board Art** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) to compare the illustrated
 game-board backgrounds without a rebuild: a thumbnail grid (`BOARD_OPTIONS`, active tile ringed) plus a

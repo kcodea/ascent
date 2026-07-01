@@ -201,9 +201,9 @@ look because the engine already produces the data.
 
 ## Standing backlog (carried over — unscheduled, behind the spine)
 
-**Board-art selector follow-up:** the Settings **Board Art** picker (shipped session 12 as a testing aid)
-currently shows to players and defaults to board8. Decide: keep it player-facing or DEV-gate it
-(`import.meta.env.DEV`), and confirm the default board once the final board art is picked.
+**Board-art selector follow-up:** the Settings **Board Art** picker + dimming slider (shipped session 12)
+currently shows to players; the board defaults to **board8 @ 15% dimming**. Decide: keep it player-facing or
+DEV-gate it (`import.meta.env.DEV`), and re-confirm the default board once the final board art is locked.
 
 
 **Meta / progression (PvE):** unlocks (cards/heroes gated by a persisted profile — heroes are already

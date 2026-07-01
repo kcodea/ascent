@@ -28,12 +28,14 @@ export const BOARD_OPTIONS: { id: string; label: string }[] = [
 ];
 
 export function EscMenu({
-  res, onRes, board, onBoard, onClose,
+  res, onRes, board, onBoard, scrim, onScrim, onClose,
 }: {
   res: string;
   onRes: (r: string) => void;
   board: string;
   onBoard: (b: string) => void;
+  scrim: number;
+  onScrim: (s: number) => void;
   onClose: () => void;
 }) {
   const startHeroSelect = useGame((s) => s.startHeroSelect);
@@ -130,6 +132,19 @@ export function EscMenu({
               <span className="ebt">{o.label}</span>
             </button>
           ))}
+        </div>
+        <div className="escvol">
+          <span className="evl">Board dimming</span>
+          <input
+            type="range"
+            min={0}
+            max={1.5}
+            step={0.05}
+            value={scrim}
+            aria-label="Board dimming"
+            onChange={(e) => onScrim(Number(e.target.value))}
+          />
+          <span className="evv">{Math.round(scrim * 100)}%</span>
         </div>
         <div className="escsec">Saved Boards</div>
         <div className="escboards">

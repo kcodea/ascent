@@ -3,6 +3,7 @@ export * from './heroes';
 export * from './threats';
 export * from './shop';
 export * from './state';
+export * from './buildTags';
 export * from './reducer';
 export * from './snapshot';
 export * from './opponents';

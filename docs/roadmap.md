@@ -98,11 +98,11 @@ look because the engine already produces the data.
 
 ## Phase B — UX polish (parallelizable; slot any time)
 
-### B1. Hero-power dragging
-- **Goal:** targeted hero powers use the same press-drag-release-on-target language as card drag (highlight
-  valid targets; release off-target cancels) instead of a separate button mode.
-- **Touches:** the existing pointer-drag system + `heroArmed`/targeting line in the store/`Recruit.tsx`.
-  **Size:** M. **Done-when:** a targeted power is cast by dragging from the power onto a valid target.
+### B1. Hero-power dragging — ✅ **shipped 2026-06-30** (→ devlog)
+- Targeted hero powers use the press-drag-release card-drag language (arm on the button's pointerdown, drag
+  the aim line onto a minion, release to fire; off-target cancels). A quick tap still arms for the
+  press-then-click-target flow. Minimal change over the existing aim-line system.
+
 
 ### B2. Discover minimize — ✅ **shipped 2026-06-30** (→ devlog)
 - A pending Discover minimizes to a "Return to Discover · N options" pill; the board is inspectable while

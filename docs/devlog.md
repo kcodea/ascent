@@ -10,10 +10,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 **Root cause found.** `.card` carries `transition: transform 0.12s` (for hover/buff eases), but GSAP Flip
 animates the reposition slide VIA `transform` — so the CSS transition re-smoothed every frame GSAP set and
 fought the slide into looking like an instant snap. (A DEV probe confirmed it: the committed Flip *was* firing
-with `moved: 2` tweens over the tuned duration, yet nothing visibly moved.) Fix: on a COMMITTED one-shot
-(play / sell / summon / auto-reposition) kill the cards' `transition` for the slide (`gsap.set(targets,
-{ transition: 'none' })`) and restore on complete/interrupt. The live-drag path is left untouched — it re-fires
-the flip every frame, so GSAP blends it and touching the transition per-frame just thrashed every card around.
+with `moved: 2` tweens over the tuned duration, yet nothing visibly moved.) Fix, two paths:
+- **Live drag** (cards preemptively sliding aside to open the drop gap): the flip re-fires every frame, so a
+  per-frame JS transition toggle thrashed every card. Instead, kill the transition for the WHOLE drag via one
+  CSS rule (`body.dragging .zone[warband/tavern] .card { transition: none }`) — restored on release.
+- **Committed one-shot** (play / sell / summon / auto-reposition, no drag): `gsap.set(targets, { transition:
+  'none' })` for the slide, restored on complete/interrupt.
 
 The Flip durations also now read from a live config (`flipConfig.ts`): `dragMs` (drag-across glide) + `commitMs`
 (committed settle). `FlipTuner.tsx` (the 🔀 button, sixth in the DEV cluster) exposes both as sliders with hover

@@ -361,6 +361,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto; }
+/* While dragging, board/shop cards slide aside via GSAP Flip (which animates `transform`). Their CSS
+   `transition: transform` would re-smooth every GSAP frame and mash the preemptive slide into a snap, so turn
+   it off for the whole drag (one CSS toggle via body.dragging — no per-frame JS thrash). Restored on release. */
+body.dragging .zone[data-zone='warband'] .card,
+body.dragging .zone[data-zone='tavern'] .card { transition: none; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }

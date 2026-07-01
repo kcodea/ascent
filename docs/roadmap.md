@@ -44,16 +44,12 @@ look because the engine already produces the data.
   line rating-driven (new ~7 / mid ~9 / high ~11 / elite ~12+) once the career/rating system (A7) exists —
   `rating.ts` bands feed it. **Next:** A3 (save & continue) or A4 (post-combat summary).
 
-### A3. Save & continue — **cheaper than it looks**
-- **Goal:** productized save/resume so a 15+ round thinking-game can be stepped away from.
-- **Why:** the slow, thoughtful async identity needs "this run matters enough to come back to."
-- **Touches:** `serialize`/`deserialize` **already exist** ([state.ts](packages/sim/src/state.ts)) with
-  old-save field-healing — most save fields (seed, hero, round, phase, shop, spell slot, hand, board,
-  Resolve, gold/maxGold, run-wide buffs, pending Discover/ChooseOne/target) already round-trip. The work is
-  **UI + autosave**: write `RunState` to localStorage on phase changes, a Title "Continue" entry, restore on
-  boot. Add any new A1 record fields to the save.
-- **Size:** S–M. **Depends:** A1 (so the saved state includes the record). **Done-when:** quitting mid-run
-  and reopening restores the exact run; verified across recruit/combat/Discover/targeting states.
+### A3. Save & continue — ✅ **shipped 2026-06-30** (→ devlog)
+- The in-progress run autosaves to `localStorage` (`ascent.save` = serialized `RunState` + action log) on
+  every change and reloads at boot; the title shows a **Continue** entry ("{hero} · Round n") that resumes
+  the exact run. A finished run clears the save; starting a new run overwrites it. Built on the existing
+  `serialize`/`deserialize`. Store seam: `savedRun` + `continueRun` in `store.ts`. **Next:** A4
+  (post-combat summary) — the carry-back data is already on `CombatResult`.
 
 ### A4. Post-combat summary — **data already carried**
 - **Goal:** after each fight, explain *what happened and what changed permanently* — not what to buy next.

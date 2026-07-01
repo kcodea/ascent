@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getHero } from '@game/sim';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
@@ -39,6 +40,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const toggleBook = useGame((s) => s.toggleBook);
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
+  const savedRun = useGame((s) => s.savedRun);
+  const continueRun = useGame((s) => s.continueRun);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -76,7 +79,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
 
         <nav className="titlenav">
-          <button className="menubtn active" onClick={() => { sfx.pulse(); startAscent(); }}>
+          {savedRun && (
+            <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} title="Resume your run in progress">
+              <span className="mbicon"><Crest /></span>
+              <span className="mblabel">Continue</span>
+              <span className="mbnote">{getHero(savedRun.heroId).name} · Round {savedRun.wave}</span>
+            </button>
+          )}
+          <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); startAscent(); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
             <span className="mbicon"><Crest /></span>
             <span className="mblabel">Play</span>
           </button>

@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: A3 — save & continue
+
+- **Runs now autosave and resume.** The in-progress run is persisted to `localStorage` (`ascent.save`) on
+  every state change — the serialized `RunState` + the action log — and reloaded at boot. Quit mid-run,
+  reopen, and the title shows a **Continue** entry (blue, "{hero} · Round n") that resumes the exact run.
+- A **finished** run (victory/gameover) is not resumable — the save is cleared when the run ends, and
+  starting a new run (Play/Practice) overwrites it. Both modes are saved.
+- **Store** (`store.ts`): `loadSave`/`writeSave`/`clearSave` (best-effort, never throw); boots into the
+  saved run behind the title; `savedRun` + `continueRun`; autosave wired into `dispatch` (clears on finish)
+  + `pickHero`/`newRun`. Built on the existing `serialize`/`deserialize` (which heals older-schema saves).
+- **Title** (`Title.tsx`): the Continue button (with the run's hero + round) appears above Play when a save
+  exists; Play then reads "start a new run (replaces your saved run)".
+- Autosave is per-action (clicks, not per-frame), so no combat-loop perf cost.
+- **Verified live:** played a run, reloaded the page → Continue restored the exact state (embers, actions);
+  Continue resumed; finishing cleared the save. typecheck + lint + `npm test` (405) + build:web green.
+
 ### feat: A2 — par / rating line
 
 - Every run now carries a **par line** — a target number of scored wins to cover or beat. `RunState.line`

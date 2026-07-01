@@ -1571,20 +1571,13 @@ export function Recruit() {
   useLayoutEffect(() => {
     if (flipStateRef.current) {
       // Two feels: while a drag is live, the warband cards slide aside under the cursor — a slightly-eased
-      // glide (no `absolute`, so the reflow tracks the cursor). A COMMITTED, non-drag reposition — a played /
-      // summoned card taking a spot, an effect moving a minion, a sold gap closing — uses `absolute: true` so
-      // the surviving cards SLIDE through the flex reflow instead of snapping to their new slots. Durations are
-      // live-tunable via the DEV Flip tuner (flipConfig.ts, ms → seconds).
+      // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
+      // settles snappy. Both durations are live-tunable via the DEV Flip tuner (flipConfig.ts, ms → seconds).
       const flipCfg = getFlipConfig();
-      const dragging = dragRef.current?.active ?? false;
       Flip.from(flipStateRef.current, {
-        duration: (dragging ? flipCfg.dragMs : flipCfg.commitMs) / 1000,
+        duration: (dragRef.current?.active ? flipCfg.dragMs : flipCfg.commitMs) / 1000,
         ease: 'power2.out',
-        ...(dragging ? {} : { absolute: true }),
       });
-      // Hold the aura-tracking window open across the committed slide so a shielded/taunt minion's Pixi bubble
-      // follows the card as it slides (otherwise it would snap to the final slot while the card is still moving).
-      if (!dragging) settleUntilRef.current = Math.max(settleUntilRef.current, performance.now() + flipCfg.commitMs + 120);
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);

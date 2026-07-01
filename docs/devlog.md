@@ -5,18 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
-### feat: reposition slide for committed board moves + DEV tuner
+### feat: DEV tuner for the reposition slide speed
 
-Two parts:
-- **The slide.** A COMMITTED, non-drag board reposition (a played/summoned card taking a spot, an effect moving
-  a minion, a sold gap closing) now uses `Flip.from(..., { absolute: true })` so the surviving cards SLIDE
-  through the flex reflow instead of snapping to their new slots. The live-drag path is unchanged (no
-  `absolute`, so it tracks the cursor). The committed slide also holds the aura-tracking settle window open for
-  its duration so a shielded/taunt minion's Pixi bubble follows the card as it slides.
-- **The tuner.** The Flip durations now read from a live config (`flipConfig.ts`): `dragMs` (drag-across glide)
-  + `commitMs` (committed settle). `FlipTuner.tsx` (the 🔀 button, sixth in the DEV cluster) exposes both as
-  sliders with hover defs, persisted to localStorage. Defaults dragMs 250, commitMs 180; `Flip.from` converts
-  ms → seconds. (Crank `commitMs` high to make any reposition slide unmistakable, then dial to taste.)
+The warband/shop GSAP Flip durations now read from a live config (`flipConfig.ts`): `dragMs` (the glide while a
+card is dragged across the row) + `commitMs` (the settle after a committed change). `FlipTuner.tsx` (the 🔀
+button, sixth in the DEV cluster) exposes both as sliders with hover defs, persisted to localStorage. Defaults
+dragMs 250, commitMs 180; `Flip.from` converts ms → seconds.
+
+(A committed `absolute: true` Flip was tried to make non-drag repositions slide, and reverted: it didn't
+animate the repositions AND it made the board slide in from the right when a card was picked up. The committed
+reposition still snaps — root cause not yet found; the base Flip's committed path apparently produces no
+position delta for these actions.)
 
 ### feat: board-art selector + dimming slider in Settings
 

@@ -126,7 +126,10 @@ export function StatusBar() {
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
               aria-label={`${power.name} — ${power.text}`}
-              onClick={(e) => {
+              onPointerDown={(e) => {
+                // B1: arm on PRESS, not click — so a press-drag-release onto a minion is one continuous
+                // gesture (like dragging a card). A quick tap without dragging just arms it, preserving the
+                // press-then-click-target flow (the aim line then follows the cursor; see Recruit).
                 e.stopPropagation();
                 if (isPassive || !canHero || heroArmed) return;
                 sfx.pulse(); // the hero-power "pulse" cue, on pressing the button (fire or arm)

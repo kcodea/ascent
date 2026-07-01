@@ -1,9 +1,9 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type BoardCard, type ShopCard } from '@game/sim';
+import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { combatGains } from './combatGains';
-import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText } from './cardText';
+import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -138,6 +138,23 @@ interface ShopViewOpts {
   tavernHp?: number;
   /** Run-wide Deathrattles triggered this game — so a tavern Grim offer shows its live scaling buff. */
   deathrattlesTriggered?: number;
+  /** More run-wide live-text inputs so EVERY scaling offer (Guel, Taragosa, Spirit Worgen, Soulsman, …)
+   *  shows its current value in the shop, not just Grim. */
+  spellsCast?: number;
+  spellsThisTurn?: number;
+  soulsmanGold?: number;
+  fodderConsumed?: { attack: number; health: number };
+}
+
+/** Build the LiveTextParams for a shop/Discover OFFER (no per-instance accruals — it isn't owned yet). */
+function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
+  return {
+    tier: 1, golden,
+    spellBonus: o.spellBonus ?? 0, spellBonusH: o.spellBonusH ?? o.spellBonus ?? 0, frontToBackBonus: o.frontToBackBonus ?? 0,
+    spellsThisTurn: o.spellsThisTurn ?? 0, spellsCast: o.spellsCast ?? 0, deathrattlesTriggered: o.deathrattlesTriggered ?? 0,
+    clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
+    undeadBuyAtk: o.undeadBuyAtk ?? 0, soulsmanGold: o.soulsmanGold ?? 0, cardBuffs: o.cardBuffs,
+  };
 }
 function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const c = CARD_INDEX[card.cardId];
@@ -156,11 +173,11 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   // stats are already final (golden ones already doubled), so no further folding — it restores intact on buy.
   if (card.held) {
     const h = card.held;
+    const lt = liveCardText(c.id, offerLiveTextParams(!!h.golden, opts));
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
       attack: h.attack, health: h.health, keywords: h.keywords,
-      text: tallyBuffText(c.id, opts.deathrattlesTriggered ?? 0) ?? c.text,
-      goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: h.golden,
+      text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: h.golden,
       baseAttack: c.attack, baseHealth: c.health,
     };
   }
@@ -180,89 +197,16 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   // Golden Touch: a gilded offer shows doubled stats + the golden frame (offer stores base + a flag; the buy
   // bakes the doubling in, mirrored here for display).
   const goldMul = card.golden ? 2 : 1;
+  // Every scaling offer (Grim, Guel, Taragosa, Spirit Worgen, …) shows its live value in the tavern, not just
+  // on the board — the same live-text chain the board uses (instView), via the shared liveCardText.
+  const lt = liveCardText(c.id, offerLiveTextParams(!!card.golden, opts));
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: (c.attack + addAtk) * goldMul, health: (c.health + addHp) * goldMul,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
-    // Grim (and other Deathrattle-tally cards) show their live scaling buff in the tavern too, not just on board.
-    text: tallyBuffText(c.id, opts.deathrattlesTriggered ?? 0) ?? c.text,
-    goldenText: c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: card.golden,
+    text: lt.text,
+    goldenText: lt.goldenText ?? c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: card.golden,
     baseAttack: c.attack * goldMul, baseHealth: c.health * goldMul,
-  };
-}
-function instView(
-  inst: BoardCard,
-  tier = 1,
-  override?: { attack: number; health: number },
-  spellBonus = 0,
-  spellBonusH = 0,
-  spellsThisTurn = 0,
-  deathrattlesTriggered = 0,
-  undeadAtkBonus = 0,
-  undeadHpBonus = 0,
-  frontToBackBonus = 0,
-  _wave = 1, // (was Hoarder's sell-scaling; kept positional so call sites don't shift)
-  spellsCast = 0,
-  clingEnchant?: { attack: number; health: number },
-  fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }> },
-): CardView {
-  const c = CARD_INDEX[inst.cardId];
-  const spell = c.spell === true || c.id === 'discoverspell';
-  // Triple Reward names the exact Tier it Discovers from (current Tier + 1, capped). A held spell
-  // shows its bonus-adjusted value (Spellbinder); a transform card its "N to go" countdown; a
-  // spells-this-turn scaler (Spirit Worgen) or summon-buff card (Kennelmaster) its current magnitude;
-  // a tally-buff card (Grim) its current "+N/+N"; a spell-scaler (Guel) its current grant + countdown.
-  // All live values green via {{…}}.
-  const text =
-    c.id === 'discoverspell'
-      ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, tier + 1)}** minion.`
-      : c.spell
-        ? spellDisplayText(c.id, spellBonus, frontToBackBonus, spellBonusH)
-        : transformProgressText(c.id, inst.spellProgress ?? 0) ??
-            ascendProgressText(c.id, inst.ascendProgress ?? 0) ??
-            taragosaText(c.id, !!inst.golden, spellBonus, spellBonusH) ??
-            abhorrentHorrorText(c.id, fodderConsumed, !!inst.golden) ??
-            summonScalingText(c.id, spellsThisTurn) ??
-            summonBuffText(c.id, inst.summonBonus ?? 0) ??
-            summonImproveText(c.id, inst.summonBonus ?? 0, !!inst.golden) ??
-            sergeantText(c.id, !!inst.golden, inst.hpGrantBonus ?? 0) ??
-            tallyBuffText(c.id, deathrattlesTriggered) ??
-            guelProgressText(c.id, !!inst.golden, spellsCast) ??
-            clingProgressText(c.id, clingEnchant) ??
-            cadenceProgressText(c.id, inst.eotTick ?? 0) ??
-            c.text;
-  // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
-  // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
-  // Lantern of Souls is a run-wide Undead aura — fold it on top of the shown stats for any Undead so
-  // the board/hand reflect it in the shop too (combat re-derives the same bump). Spells are never Undead.
-  const undead = !spell && (inst.tribe === 'undead' || c.tribe2 === 'undead' || !!c.universalTribe);
-  const auraAtk = undead ? undeadAtkBonus : 0;
-  const auraHp = undead ? undeadHpBonus : 0;
-  // Run-wide live metric — a green `{{…}}` tag appended to the rule text (golden-independent, so it rides on
-  // both the normal + golden text): Soulsman's earned Gold, the undeadBuyAtk a new Undead inherits, Eternal
-  // Knight's accrued run-wide enchant.
-  const metric =
-    soulsmanText(c.id, live?.soulsmanGold ?? 0) ??
-    undeadBuyAtkText(c.id, live?.undeadBuyAtk ?? 0) ??
-    cardTypeTallyText(c.id, live?.cardBuffs?.[c.id]) ??
-    '';
-  // Golden cards render `goldenText` (Card.tsx), but the live-text chain above was already computed with
-  // this card's golden flag — so for a golden card whose live text actually resolved (differs from the
-  // printed fallback `c.text`), `text` IS the golden-aware live value. Feed it to goldenText so goldens show
-  // the LIVE number (Sergeant's climbing Deathrattle, Taragosa's spell-power Growth, Guel, Mama Bear, …)
-  // instead of the static printed goldenText. With no live value, fall back to the printed goldenText.
-  const goldenBase = inst.golden && text !== c.text ? text : c.goldenText;
-  return {
-    name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
-    attack: (override?.attack ?? inst.attack) + auraAtk, health: (override?.health ?? inst.health) + auraHp,
-    keywords: inst.keywords, text: text + metric,
-    goldenText: goldenBase !== undefined ? goldenBase + metric : undefined,
-    golden: inst.golden,
-    tier: spell ? undefined : c.tier, spell, target: c.target,
-    baseAttack: inst.golden ? c.attack * 2 : c.attack,
-    baseHealth: inst.golden ? c.health * 2 : c.health,
-    buffs: inst.buffs,
   };
 }
 
@@ -288,13 +232,16 @@ export function Recruit() {
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
-  const combatSpeed = useGame((s) => s.combatSpeed); // still threaded into the replay; the slider UI lives in HudBar now
+  const combatSpeed = useGame((s) => s.combatSpeed);
+  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Recruit stays mounted under the title / leaderboard overlays (see Game.tsx), so the round clock must also
   // pause for those — otherwise the timer keeps ticking (and the last-5s `sfx.tick` fires) on the Hall of
   // Champions / title screen, where there's no active turn.
-  const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard);
+  // Any full-screen overlay pauses the recruit turn timer + logic — so the saved game never ticks / runs
+  // "in the background" behind the Career, Leaderboard, Compendium, or title (an exploit + a confusing UX).
+  const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showCareer || s.showBook);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   const heroPowerKind = getHero(run.heroId).power.kind;
   const heroTargetsTavern = heroPowerKind === 'fortify';
@@ -888,8 +835,8 @@ export function Recruit() {
   const shopViews = useMemo(
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered, spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus })] as const)),
-    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.deathrattlesTriggered, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus],
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus })] as const)),
+    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus],
   );
   const spellView = useMemo(
     () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus }) : null),
@@ -944,12 +891,15 @@ export function Recruit() {
   viewsRef.current = { shopViews, spellView, boardViews, handViews, spellUid: run.spell?.uid };
   const onCardPointerDown = useCallback(
     (e: ReactPointerEvent): void => {
-      if (e.button !== 0 || timeUp || inCombat || useGame.getState().endTurnAnimating) return; // no dragging when the timer's up / in combat / mid end-of-turn
+      if (e.button !== 0 || inCombat || useGame.getState().endTurnAnimating) return; // no dragging in combat / mid end-of-turn
       const el = e.currentTarget as HTMLElement;
       const uid = el.dataset.uid;
       if (!uid) return;
       const zone = el.closest('[data-zone]')?.getAttribute('data-zone');
       const source: DragSource = zone === 'warband' ? 'board' : zone === 'hand' ? 'hand' : 'shop';
+      // When the timer's up you can still REORDER your board, but not play / buy / sell — so allow a board
+      // drag through, block hand + shop drags.
+      if (timeUp && source !== 'board') return;
       const v = viewsRef.current;
       const view =
         source === 'board'
@@ -1029,7 +979,7 @@ export function Recruit() {
       warband: measureSlots('[data-zone="warband"] .row .card[data-uid]'),
       shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
     };
-    const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && y < wbTop;
+    const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && !timeUp && y < wbTop;
     if (drag.source === 'board' && !drag.view.spell) setSellTop(wbTop);
     if (drag.source === 'shop') setBuyTop(wbTop);
     // Mirror for buying: a shop card released anywhere *below* the warband line — the whole lower screen
@@ -1754,7 +1704,7 @@ export function Recruit() {
     // Sell a *board* minion by dropping it on the tavern. A minion must be played to the board first
     // before it can be sold — a hand minion flung up to the tavern just snaps back to the hand (it
     // falls through to the invalid-drop snap-back below). Spells are never sold (cast/play gesture).
-    if (d.source === 'board' && zone === 'tavern' && !d.view.spell) {
+    if (d.source === 'board' && zone === 'tavern' && !d.view.spell && !timeUp) {
       // Float the actual Gold gained at the spot the minion was released (not over the Gold counter).
       const card = run.board.find((c) => c.uid === d.uid);
       if (card) {
@@ -1886,10 +1836,10 @@ export function Recruit() {
       </div>
       ) : (
         <div className="combatctl">
-          {/* The foe is named top-right by the OpponentFrame (pinned in both recruit + combat); no left-side
-              banner here, so the post-combat buttons stay centred. */}
+          {/* Post-combat actions stay centred. During the replay the Skip button + speed slider live in the
+              top-right combat HUD (below) instead, so the arena stays clear. */}
           <div className="cbtns">
-            {replay.done ? (
+            {replay.done && (
               <>
                 <button className="btn big" onClick={() => { setLogTab('gains'); setShowLog(true); }}>
                   <Icon name="battlecry" />
@@ -1904,19 +1854,37 @@ export function Recruit() {
                   </button>
                 )}
               </>
-            ) : (
-              <button className="btn big" onClick={replay.skip}>
-                <Icon name="sword" />
-                Skip
-              </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Top-right combat HUD (during the replay) — a small Skip button by the tribes bar, with the
+          replay-speed slider stacked beneath it. */}
+      {inCombat && !replay.done && (
+        <div className="combathud">
+          <button className="combathud-skip" onClick={replay.skip} title="Skip the combat replay">
+            <Icon name="sword" /> Skip
+          </button>
+          <div className="combatspeed" title="Combat replay speed">
+            <span className="csl">Speed</span>
+            <input
+              type="range"
+              min={0.5}
+              max={5}
+              step={0.1}
+              value={combatSpeed}
+              onChange={(e) => setCombatSpeed(Number(e.target.value))}
+              aria-label="Combat replay speed"
+            />
+            <span className="combatspeed-val">{combatSpeed.toFixed(1)}×</span>
           </div>
         </div>
       )}
 
       {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and
           releasing anywhere in it sells (handled by inSellRegion in the drop handler). */}
-      {drag?.active && drag.source === 'board' && !drag.view.spell && (
+      {drag?.active && drag.source === 'board' && !drag.view.spell && !timeUp && (
         <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: sellTop } as CSSProperties} aria-hidden="true">
           <span className="sellzone-tag">Sell +1</span>
         </div>
@@ -2306,9 +2274,17 @@ export function Recruit() {
         </div>
       )}
 
-      {run.discover && discoverMin && (
-        <button className="disc-restore" onClick={() => setDiscoverMin(false)} title="Return to your Discover">
-          <Icon name="up" /> Return to Discover · {run.discover.length} options
+      {/* One orange button, always in the same fixed spot just below the Discover cards — it toggles between
+          Minimize (inspect the board) and Return, so the player can flip back and forth without moving the mouse. */}
+      {run.discover && (
+        <button
+          className="disc-toggle"
+          onClick={() => setDiscoverMin((m) => !m)}
+          title={discoverMin ? 'Return to your Discover' : 'Inspect your board, then return to choose'}
+        >
+          {discoverMin
+            ? <><Icon name="up" /> Return to Discover · {run.discover.length} options</>
+            : <><Icon name="eye" /> Minimize</>}
         </button>
       )}
 
@@ -2318,19 +2294,23 @@ export function Recruit() {
               golden magic reads white-hot without covering the UI. Driven by discoverFx (see the effect). */}
           <div className="disc-burst" ref={discoverBurstRef} aria-hidden="true" />
           <div className="disc-panel">
-            <button className="disc-min" onClick={() => setDiscoverMin(true)} title="Inspect your board, then return to choose">
-              <Icon name="eye" /> Minimize
-            </button>
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
             <div className="disc-banner"><span className="disp">Discover</span></div>
-            <div className="disc-sub">Choose a minion from the next tier.</div>
             <div className="disc-cards">
               {run.discover.map((id, i) => {
                 const c = CARD_INDEX[id];
+                // A Discover option shows its CURRENT value too (Grim's +32/+32, Guel's live grant, …) — the
+                // same live-text chain the shop + board use.
+                const lt = liveCardText(c.id, {
+                  tier: run.tier, golden: false, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus,
+                  spellsThisTurn: run.spellsThisTurn, spellsCast: run.spellsCast, deathrattlesTriggered: run.deathrattlesTriggered,
+                  clingEnchant: run.cardBuffs?.cling, fodderConsumed: run.fodderConsumedThisTurn,
+                  undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs,
+                });
                 return (
                   <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
-                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, attack: c.attack, health: c.health, keywords: c.keywords, text: c.text, tier: c.tier }}
+                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier }}
                       onClick={() => dispatch({ type: 'discover', index: i })}
                     />
                   </div>

@@ -56,7 +56,7 @@ export const UNDEAD: CardDef[] = [
     health: 8,
     keywords: ['DS'],
     effects: [{ on: 'onKill', do: 'onKillBuffUndeadAttack', params: { attack: 3 } }],
-    text: 'When this kills an enemy, give your Undead **+3 Attack** permanently. (Golden: +6)',
+    text: 'When this kills an enemy, give your Undead **+3 Attack** permanently.',
     goldenText: 'When this kills an enemy, give your Undead **+6 Attack** permanently.',
   },
   {

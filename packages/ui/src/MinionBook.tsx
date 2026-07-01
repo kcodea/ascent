@@ -38,18 +38,24 @@ const TIERS = [1, 2, 3, 4, 5, 6] as const;
 const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'mech', 'undead', 'demon'];
 
 /** A book card def → the view object `Card` renders. Base (printed) stats only — the book is a static
- *  reference, not a live board, so no run buffs. */
-function toView(c: CardDef): CardView {
+ *  reference, not a live board, so no run buffs. `gilded` shows the tripled/golden form: doubled stats, the
+ *  golden frame, and the card's golden text (Card falls back to doubling the printed numbers when a card has
+ *  no explicit goldenText). */
+function toView(c: CardDef, gilded = false): CardView {
+  const mul = gilded ? 2 : 1;
   return {
     name: c.name,
     cardId: c.id,
     tribe: c.tribe,
     tribe2: c.tribe2,
-    attack: c.attack,
-    health: c.health,
+    attack: c.attack * mul,
+    health: c.health * mul,
     keywords: c.keywords,
     text: c.text,
     goldenText: c.goldenText,
+    golden: gilded,
+    baseAttack: c.attack * mul,
+    baseHealth: c.health * mul,
     tier: c.tier,
     spell: c.spell,
     cost: c.cost,
@@ -72,6 +78,7 @@ export function MinionBook() {
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
   const [cats, setCats] = useState<Set<Category>>(() => new Set());
+  const [gilded, setGilded] = useState(false); // show every card's tripled/golden form
 
   // Opened from the title (no committed run) → browse the WHOLE card set; in a run → scope to its active
   // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
@@ -112,6 +119,14 @@ export function MinionBook() {
         <div className="book-head">
           <div className="book-title"><Icon name="house" /> Compendium</div>
           <div className="book-sub">{filtered.length} of {allCards.length} cards {showTitle ? 'in the game' : 'findable this run'}</div>
+          <button
+            className={`book-gilded${gilded ? ' on' : ''}`}
+            onClick={() => setGilded((g) => !g)}
+            aria-pressed={gilded}
+            title="Show every card's tripled (Gilded) form"
+          >
+            <Icon name="crown" /> Gilded
+          </button>
           <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
         </div>
 
@@ -153,7 +168,7 @@ export function MinionBook() {
             <div className="book-grid">
               {filtered.map((c) => (
                 <div className="book-cell" key={c.id}>
-                  <Card card={toView(c)} forceFull suppressPop />
+                  <Card card={toView(c, gilded)} forceFull suppressPop />
                 </div>
               ))}
             </div>

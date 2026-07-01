@@ -18,8 +18,6 @@ const TRIBE_LABEL: Record<Tribe, string> = {
 export function HudBar() {
   const run = useGame((s) => s.run);
   const playerName = useGame((s) => s.playerName);
-  const combatSpeed = useGame((s) => s.combatSpeed);
-  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   const [muted, setMuted] = useState(isMuted());
   // Your W–L record over the SCORED rounds (calibration rounds 1–2 don't count) — the run's score (A1).
   const { wins, losses } = runRecord(run);
@@ -41,9 +39,11 @@ export function HudBar() {
         </span>
         <span className="meter">
           <i style={{ width: `${Math.min(100, (run.wave / CONFIG.courseRounds) * 100)}%` }} />
+          {/* A notch at the end of the pre-round (Setup) rounds — marks where the scored climb begins. */}
+          {!practice && <span className="meter-notch" style={{ left: `${(CONFIG.calibrationRounds / CONFIG.courseRounds) * 100}%` }} />}
         </span>
         {calibration ? (
-          <span className="lbl calib" title="Calibration rounds (1–2) don't count toward your record">Calibration</span>
+          <span className="lbl calib" title="Setup rounds (1–2) don't count toward your record">Setup</span>
         ) : (
           <span className="lbl record" title="Your record over the scored rounds (calibration rounds 1–2 don't count)">
             <Icon name="crown" />{wins}–{losses}
@@ -51,23 +51,6 @@ export function HudBar() {
         )}
         {!practice && <span className="lbl line" title={`Your par for this run — cover or beat ${run.line} wins`}>Line {run.line}</span>}
       </div>
-      {/* Combat replay speed — only during the fight; sits to the LEFT of the tribes bar (out of the
-          top-right buffs/opponent column). */}
-      {run.phase === 'combat' && (
-        <div className="combatspeed" title="Combat replay speed">
-          <span className="csl">Speed</span>
-          <input
-            type="range"
-            min={0.5}
-            max={5}
-            step={0.1}
-            value={combatSpeed}
-            onChange={(e) => setCombatSpeed(Number(e.target.value))}
-            aria-label="Combat replay speed"
-          />
-          <span className="combatspeed-val">{combatSpeed.toFixed(1)}×</span>
-        </div>
-      )}
       <div className="tribes" title="Tribes in play this run">
         <span className="tl">Tribes</span>
         {run.tribes.map((t) => (

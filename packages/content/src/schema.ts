@@ -111,6 +111,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onAllyAttackBuffAll',
   'onGainAttackBuffAll',
   'spellBuffTavern',
+  'spellBuffNextShop',
   'spellPendingSCBuff',
   'onAllyAttackCastGrowth',
   'spellDemonConsumeFodder',

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getHero } from '@game/sim';
+import { avatarSrc } from './art';
 import { Icon } from './Icon';
 import { getVolume, isMuted, sfx } from './sfx';
 import { useGame } from './store';
@@ -41,12 +42,15 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const toggleBook = useGame((s) => s.toggleBook);
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
+  const playerAvatar = useGame((s) => s.playerAvatar);
+  const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const savedRun = useGame((s) => s.savedRun);
   const continueRun = useGame((s) => s.continueRun);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoReady, setVideoReady] = useState(false); // fade the video in once it's actually playing
 
   // Menu video audio. Browsers block autoplay WITH sound, so we start muted (guaranteeing the video plays
   // visually), then unmute on the first user gesture — honoring the game's mute + master-volume settings.
@@ -76,12 +80,17 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {/* Looping menu ambience — autoplaying video behind the menu; `muted` is controlled imperatively (see
           the effect above) so it can unmute on the first user gesture. Falls back to the homescreen.webp
           poster if the file is absent / still loading, and is hidden under prefers-reduced-motion (CSS). */}
-      <video ref={videoRef} className="titlevideo" autoPlay loop playsInline poster="/homescreen.webp" aria-hidden="true">
+      <video ref={videoRef} className={`titlevideo${videoReady ? ' ready' : ''}`} autoPlay loop playsInline preload="auto" poster="/homescreen.webp" aria-hidden="true" onPlaying={() => setVideoReady(true)}>
         <source src="/homescreen.mp4" type="video/mp4" />
       </video>
 
-      {/* Account name (top-right) — click to set/rename yourself. Wires to the real account once that lands. */}
+      {/* Account (top-right) — the avatar opens the picker; the name is click-to-rename. */}
       <div className="titleaccount">
+        <button className="titleavatar" onClick={openAvatarPicker} title="Change your avatar" aria-label="Change your avatar">
+          {avatarSrc(playerAvatar)
+            ? <img src={avatarSrc(playerAvatar)} alt="Your avatar" draggable={false} />
+            : <span className="titleavatar-ph">{(playerName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
+        </button>
         {editing ? (
           <input
             className="acctinput"

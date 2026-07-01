@@ -6,6 +6,8 @@ import { HeroSelect } from './HeroSelect';
 import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
 import { Career } from './Career';
+import { AvatarPicker } from './AvatarPicker';
+import { FontLab } from './FontLab';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
@@ -115,6 +117,8 @@ export function Game() {
       <Title onSettings={() => setMenuOpen(true)} />
       <Leaderboard />
       <Career />
+      <AvatarPicker />
+      <FontLab />
     </ErrorBoundary>
   );
 }

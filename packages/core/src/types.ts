@@ -120,7 +120,8 @@ export type EffectFactoryId =
   | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (+ optional keyword: Spirit Fire, Bulwark)
   | 'spellBuffAll' // cast: buff every friendly minion on the board (Growth) — scales with spell power
   | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
-  | 'spellBuffTavern' // Apples: cast — buff every current tavern offer (lost on refresh, kept on freeze)
+  | 'spellBuffTavern' // Apples (Choose One): cast — buff every current tavern offer (lost on refresh, kept on freeze)
+  | 'spellBuffNextShop' // Apples (Choose One): cast — bank a buff folded onto the NEXT tavern roll's offers
   | 'spellPendingSCBuff' // Fleeting Vigor: cast — bank a one-shot Start-of-Combat buff for the next combat
   | 'spellDemonConsumeFodder' // Consume: cast — a chosen Demon creates and eats N Fodder
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)

@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, reduce, serialize, type Action, type BoardSnapshot, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, isPlayerAction, reduce, serialize, type Action, type BoardSnapshot, type Replay, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 import { fetchAndRegisterPool, uploadBoards, uploadVictory } from './remoteBoards';
 import { buildRunHistoryEntry, saveRunHistoryEntry } from './runHistory';
+import { turnClock } from './turnClock';
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
 // `npm run pool` from seeded bot runs + any imported you/friend board exports) plus this browser's own
@@ -121,6 +122,14 @@ interface GameStore {
    *  and when exported for a friend's pool. Persisted; set in Settings. Empty = anonymous. */
   playerName: string;
   setPlayerName: (name: string) => void;
+  /** The player's chosen profile avatar — an art id (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`),
+   *  or null for the default initial glyph. Cosmetic, local, persisted. Set via the avatar picker. */
+  playerAvatar: string | null;
+  setPlayerAvatar: (id: string | null) => void;
+  /** Whether the avatar picker overlay is open (openable from the Title chip + Career profile card). */
+  avatarPickerOpen: boolean;
+  openAvatarPicker: () => void;
+  closeAvatarPicker: () => void;
   /** Combat replay speed multiplier (0.5×–5×). 1 = the tuned default. Set by the in-combat slider; persisted. */
   combatSpeed: number;
   setCombatSpeed: (speed: number) => void;
@@ -179,6 +188,9 @@ interface GameStore {
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
 
 /** Your persisted display name (empty if unset). Best-effort — localStorage may be unavailable. */
+function loadPlayerAvatar(): string | null {
+  try { return localStorage.getItem('ascent.avatar') || null; } catch { return null; }
+}
 function loadPlayerName(): string {
   try { return localStorage.getItem('ascent.playername') ?? ''; } catch { return ''; }
 }
@@ -221,7 +233,10 @@ export const useGame = create<GameStore>((set, get) => ({
   run: BOOT_SAVE?.run ?? createRun(randomSeed()),
   savedRun: BOOT_SAVE?.run ?? null,
   lastRunBoards: 0,
-  continueRun: () => set({ showTitle: false, heroChoices: null }),
+  // Resuming a run starts the turn with the clock ALREADY expired (you can End Turn / reorder, but not shop),
+  // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat
+  // resume is unaffected; the next recruit turn (wave change) gets its full timer back via Recruit's reset.
+  continueRun: () => { turnClock.set(0); set({ showTitle: false, heroChoices: null, avatarPickerOpen: false }); },
   heroArmed: false,
   endTurnAnimating: false,
   combatEnemyDeaths: 0,
@@ -242,6 +257,14 @@ export const useGame = create<GameStore>((set, get) => ({
     try { localStorage.setItem('ascent.playername', playerName); } catch { /* ignore */ }
     set({ playerName });
   },
+  playerAvatar: loadPlayerAvatar(),
+  setPlayerAvatar: (id) => {
+    try { if (id) localStorage.setItem('ascent.avatar', id); else localStorage.removeItem('ascent.avatar'); } catch { /* ignore */ }
+    set({ playerAvatar: id });
+  },
+  avatarPickerOpen: false,
+  openAvatarPicker: () => set({ avatarPickerOpen: true }),
+  closeAvatarPicker: () => set({ avatarPickerOpen: false }),
   combatSpeed: loadCombatSpeed(),
   setCombatSpeed: (speed) => {
     const combatSpeed = Math.min(5, Math.max(0.5, Math.round(speed * 10) / 10)); // clamp 0.5–5×, snap to 0.1
@@ -279,7 +302,9 @@ export const useGame = create<GameStore>((set, get) => ({
           // A7: append this run to the local match history (win or loss) for the Career screen. APT + cards
           // played come from the action log (the replay), which the run state itself doesn't track.
           const actions = replay.actions;
-          const apt = Math.round((actions.length / Math.max(1, next.wave)) * 10) / 10;
+          // APT = player decisions per round (buys, plays, rolls, discovers, …) — exclude the automatic
+          // combat-flow transitions, which fire ~once/round regardless of how you build.
+          const apt = Math.round((actions.filter(isPlayerAction).length / Math.max(1, next.wave)) * 10) / 10;
           const cardsPlayed = actions.filter((a) => a.type === 'play').length;
           saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed }));
           if (won) {
@@ -323,16 +348,16 @@ export const useGame = create<GameStore>((set, get) => ({
     set((s) => {
       const run = createRun(randomSeed(), heroId, s.pendingMode);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] };
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
     }),
   newRun: (seed, heroId) =>
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode);
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] };
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
     }),
-  startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices() }),
-  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id) }),
+  startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id), avatarPickerOpen: false }),
   openTitle: () => set({ showTitle: true, heroChoices: null }),
   openLeaderboard: () => set({ showLeaderboard: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),

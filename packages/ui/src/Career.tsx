@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { getHero, type BoardMinion, type LineStatus, type Tribe } from '@game/sim';
+import { getHero, metLine, TAG_INFO, type BoardMinion, type LineStatus, type Tribe } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { heroArt } from './art';
+import { avatarSrc, heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
@@ -50,6 +50,8 @@ export function Career() {
   const show = useGame((s) => s.showCareer);
   const close = useGame((s) => s.closeCareer);
   const playerName = useGame((s) => s.playerName);
+  const playerAvatar = useGame((s) => s.playerAvatar);
+  const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   // Load once per open (localStorage is synchronous + cheap; `show` gates the read).
   const entries = useMemo(() => (show ? loadRunHistory() : []), [show]);
   const stats = useMemo(() => careerStats(entries), [entries]);
@@ -66,6 +68,7 @@ export function Career() {
   const favHeroName = favHero ? getHero(favHero.heroId).name : '—';
   const favTribe = stats.topTribes[0] ? TRIBE_LABEL[stats.topTribes[0].tribe] : '—';
   const avatarChar = (playerName.trim()[0] ?? '').toUpperCase();
+  const avatarImg = avatarSrc(playerAvatar);
 
   return (
     <div className="lbpage">
@@ -85,18 +88,13 @@ export function Career() {
           <div className="lbempty">No runs yet — play a run to start your career.</div>
         ) : (
           <>
-            <div className="carprofile carbar">
-              <div className="carstat"><span className="cs-v">{stats.runs}</span><span className="cs-l">Runs</span></div>
-              <div className="carstat"><span className="cs-v">{stats.bestRun ? `${stats.bestRun.wins}–${stats.bestRun.losses}` : '—'}</span><span className="cs-l">Best Run</span></div>
-              <div className="carstat"><span className="cs-v">{stats.avgWins}</span><span className="cs-l">Avg Wins</span></div>
-              <div className="carstat"><span className="cs-v">{stats.winRate}%</span><span className="cs-l">Win Rate</span></div>
-            </div>
-
             <div className="carcols">
-              {/* LEFT — Profile Card */}
+              {/* LEFT — Profile + Insights + Hero record (one panel) */}
               <aside className="carcard carprofilecard">
                 <div className="carsec">Profile</div>
-                <div className="caravatar">{avatarChar || <Icon name="anvil" />}</div>
+                <button className="caravatar" onClick={openAvatarPicker} title="Change your avatar">
+                  {avatarImg ? <img src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
+                </button>
                 <div className="carpname">{playerName || 'Unnamed Climber'}</div>
                 <div className="carrank">Unranked</div>
                 <div className="carprofmeta">
@@ -104,6 +102,38 @@ export function Career() {
                   <div><b>{stats.flawless}</b><span>Flawless</span></div>
                   <div><b>{stats.streak}</b><span>Streak</span></div>
                 </div>
+
+                <div className="carsec">Insights</div>
+                <div className="carinsights">
+                  <Insight icon="refresh" label="Runs" value={String(stats.runs)} />
+                  <Insight icon="star" label="Best Run" value={stats.bestRun ? `${stats.bestRun.wins}–${stats.bestRun.losses}` : '—'} />
+                  <Insight icon="up" label="Win Rate" value={`${stats.winRate}%`} />
+                  <Insight icon="sword" label="Avg Wins" value={String(stats.avgWins)} />
+                  <Insight icon="windfury" label="Avg Actions / Round" value={String(stats.avgApt)} />
+                  <Insight icon="ember" label="Avg Gold Spent" value={String(stats.avgGold)} />
+                  <Insight icon="crown" label="Favorite Hero" value={favHeroName} />
+                  <Insight icon="paw" label="Favorite Tribe" value={favTribe} />
+                  <Insight icon="sc" label="Favorite Mechanic" value={stats.favoriteMechanic ?? '—'} />
+                  <Insight icon="heart" label="Favorite Minion" value={stats.favoriteMinion ?? '—'} />
+                  <Insight icon="flame" label="Current Streak" value={stats.streak > 0 ? `${stats.streak} on line` : '—'} />
+                </div>
+
+                {stats.perHero.length > 0 && (
+                  <>
+                    <div className="carsec">By hero · W–L</div>
+                    <div className="carherorows">
+                      {stats.perHero.map((h) => (
+                        <div className="carherorow" key={h.heroId}>
+                          <div className="carhero-portrait">
+                            {heroArt(h.heroId) ? <img src={heroArt(h.heroId)} alt={getHero(h.heroId).name} draggable={false} /> : <Icon name="anvil" />}
+                          </div>
+                          <div className="carhero-name">{getHero(h.heroId).name}</div>
+                          <div className="carhero-wl"><span className="chw-w">{h.lineWins}W</span>–<span className="chw-l">{h.lineLosses}L</span></div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </aside>
 
               {/* CENTER — Recent Match History (expandable cards) */}
@@ -120,14 +150,14 @@ export function Career() {
                         <div className="lbinfo">
                           <div className="lbname">
                             {getHero(e.heroId).name}
-                            <span className={`carrec ${e.completed ? 'won' : 'lost'}`}>{e.wins}–{e.losses}</span>
+                            <span className={`carrec ${metLine(e.lineStatus) ? 'won' : 'lost'}`}>{e.wins}–{e.losses}</span>
                             <span className={`carverdict ${e.lineStatus}`}>Line {e.line} · {VERDICT[e.lineStatus]}</span>
                           </div>
                           <div className="lbmeta">
                             {e.completed ? 'Course complete' : `Fell on round ${e.wave}`}{e.date ? ` · ${e.date}` : ''}
                           </div>
                           {e.tags.length > 0 && (
-                            <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}</span>)}</div>
+                            <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}{TAG_INFO[t] && <span className="tagtip">{TAG_INFO[t]}</span>}</span>)}</div>
                           )}
                         </div>
                         <span className={`carchev${expanded ? ' open' : ''}`} aria-hidden="true">▾</span>
@@ -154,34 +184,7 @@ export function Career() {
                   );
                 })}
               </section>
-
-              {/* RIGHT — Insights */}
-              <aside className="carcard carinsights">
-                <div className="carsec">Insights</div>
-                <Insight icon="crown" label="Favorite Hero" value={favHeroName} />
-                <Insight icon="paw" label="Favorite Tribe" value={favTribe} />
-                <Insight icon="sc" label="Favorite Mechanic" value={stats.favoriteMechanic ?? '—'} />
-                <Insight icon="up" label="Win Rate" value={`${stats.winRate}%`} />
-                <Insight icon="star" label="Current Streak" value={stats.streak > 0 ? `${stats.streak} on line` : '—'} />
-              </aside>
             </div>
-
-            {stats.perHero.length > 0 && (
-              <div className="carheroes">
-                <div className="carsec">By hero</div>
-                <div className="carherorows">
-                  {stats.perHero.map((h) => (
-                    <div className="carherorow" key={h.heroId}>
-                      <div className="carhero-portrait">
-                        {heroArt(h.heroId) ? <img src={heroArt(h.heroId)} alt={getHero(h.heroId).name} draggable={false} /> : <Icon name="anvil" />}
-                      </div>
-                      <div className="carhero-name">{getHero(h.heroId).name}</div>
-                      <div className="carhero-meta">{h.runs} run{h.runs === 1 ? '' : 's'} · avg {h.avgWins} · best {h.bestWins} · {h.completions} completed</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>

@@ -392,10 +392,10 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'reborn')).toBe(true);
   });
 
-  it('Reborn returns at BASE stats — sheds combat buffs + granted keywords, keeps the Undead carry-through', () => {
+  it('Reborn returns at base ATTACK with 1 Health — sheds combat buffs + granted keywords, keeps the carry-through', () => {
     // An Eternal Knight (base 3/2) that entered combat buffed to a 10/3 Divine-Shield body. On death it sheds
-    // the combat buff + granted DS back to base — then its own Deathrattle's +3/+2 Eternal-Knight enchant
-    // carries through, so it returns 6/4 (not the buffed 10/3, not bare 3/2, and not Hearthstone's 1 HP).
+    // the combat buff + granted DS, returning at base attack with 1 Health — then its own Deathrattle's +3/+2
+    // Eternal-Knight enchant carries through, so it returns 6/3 (base 3 + 3 attack, 1 + 2 health).
     const a = run(
       [{ cardId: 'knit', attack: 10, health: 3, keywords: ['R', 'DS'] }],
       [{ cardId: 'omen', attack: 4, health: 40, keywords: [] }],
@@ -405,21 +405,34 @@ describe('simulate (handoff A.3)', () => {
     expect(reborn).toBeDefined();
     if (reborn && reborn.type === 'reborn') {
       expect(reborn.attack).toBe(6); // base 3 + its own death's +3 Eternal-Knight enchant (not the buffed 10)
-      expect(reborn.hp).toBe(4); // base 2 + the +2 enchant (not 3, and not Hearthstone's 1)
+      expect(reborn.hp).toBe(3); // 1 (Rise base Health) + the +2 enchant
       expect(reborn.keywords).not.toContain('DS'); // granted Divine Shield is gone
       expect(reborn.keywords).not.toContain('R'); // Reborn itself is spent
     }
   });
 
-  it('a golden Reborn minion returns at doubled base stats (+ its doubled Undead carry-through)', () => {
+  it('a golden Reborn minion returns at 2 Health + doubled base attack + doubled carry-through', () => {
     const a = run(
       [{ cardId: 'knit', attack: 20, health: 9, keywords: ['R'], golden: true }],
       [{ cardId: 'omen', attack: 4, health: 60, keywords: [] }],
       3,
     );
-    // 3/2 base × 2 = 6/4, plus the golden Eternal-Knight enchant from its own death (+6/+4) → 12/8.
+    // Golden: base attack 3×2 = 6 + golden enchant +6 → 12; Health 2 (golden Rise base) + golden enchant +4 → 6.
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([12, 8]);
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([12, 6]);
+  });
+
+  it('a captured ENEMY Eternal Knight re-gains its OWN enchant when it Rises (snapshot auras intact)', () => {
+    // An enemy snapshot Knight carrying a +15/+10 Eternal-Knight enchant on its buff breakdown (base 3/2 →
+    // 18/12) with Rise. On death it Rises from base — applyAuras must re-fold its own enchant even for the
+    // enemy side: base attack 3 + 15 = 18, Rise Health 1 + 10 = 11 (NOT bare 3/1).
+    const a = run(
+      [{ cardId: 'omen', attack: 30, health: 90, keywords: [] }],
+      [{ cardId: 'knit', attack: 18, health: 12, keywords: ['R'], buffs: [{ source: 'Eternal Knight', attack: 15, health: 10, count: 5 }] }],
+      3,
+    );
+    const reborn = a.events.find((e) => e.type === 'reborn');
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([18, 11]);
   });
 
   it('Reborn fires the unit\'s Deathrattle on EVERY death — Twilight Whelp + Reborn leaves a Whelp per death', () => {
@@ -435,15 +448,16 @@ describe('simulate (handoff A.3)', () => {
     expect(whelps.length).toBe(2);
   });
 
-  it('Reborn carries the Eternal-Knight enchant — a fresh Reborn Knight returns at base + its own +3/+2', () => {
-    // Example: a 3/2 Eternal Knight with Reborn dies, banks its own +3/+2, and reborns as a 6/4.
+  it('Reborn carries the Eternal-Knight enchant — a fresh Reborn Knight returns at base attack + 1 Health + its own +3/+2', () => {
+    // Example: a 3/2 Eternal Knight with Reborn dies, banks its own +3/+2, and reborns as a 6/3 (base 3 + 3
+    // attack; 1 Rise Health + 2 enchant).
     const a = run(
       [{ cardId: 'knit', attack: 3, health: 2, keywords: ['R'] }],
       [{ cardId: 'omen', attack: 4, health: 24, keywords: [] }],
       1,
     );
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([6, 4]);
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([6, 3]);
   });
 
   it('a minion that Reborns from its own attack is next in line to attack again', () => {
@@ -1458,7 +1472,7 @@ describe('simulate (handoff A.3)', () => {
   it('Eternal Knight Reborn keeps its accrued stacks: a 5-stack Knight dies (→6) and Reborns at 6 stacks', () => {
     // A Knight that entered with 5 prior stacks of its run-wide enchant (+3/+2 each = +15/+10, carried into
     // combat on its buff breakdown under the card's own name) at base 3/2 → 18/12. It dies, banking a 6th
-    // stack this fight, and Reborns: base 3/2 + 6 stacks (15/10 prior + 3/2 this fight = 18/12) = 21/14.
+    // stack this fight, and Reborns at base attack 3 + 6 stacks and 1 Health + the enchant health = 21/13.
     const p: BoardMinion[] = [{
       cardId: 'knit', attack: 18, health: 12, keywords: ['R'],
       buffs: [{ source: 'Eternal Knight', attack: 15, health: 10, count: 5 }],
@@ -1467,7 +1481,7 @@ describe('simulate (handoff A.3)', () => {
     const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1);
     const reborn = a.events.find((ev) => ev.type === 'reborn');
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(21); // base 3 + (15 prior + 3 this fight)
-    expect(reborn && reborn.type === 'reborn' && reborn.hp).toBe(14); // base 2 + (10 prior + 2 this fight)
+    expect(reborn && reborn.type === 'reborn' && reborn.hp).toBe(13); // 1 (Rise) + (10 prior + 2 this fight)
   });
 
   it('Soren resummon re-applies run-wide auras (regression: a resummoned body used to shed the Undead Aura)', () => {

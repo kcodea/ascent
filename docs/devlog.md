@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: A7 (part 1) — run-history persistence layer
+
+- **Runs no longer disappear.** On run-end, a compact per-run entry is appended to `localStorage`
+  (`ascent.history`, capped 50, newest first) — hero, W–L record, line + verdict, completed?, round reached,
+  build tags (A5), tribes, boards contributed, and the final-board snapshot. Ascent runs only (Practice is a
+  sandbox). New `runHistory.ts`: `buildRunHistoryEntry` + `loadRunHistory`/`saveRunHistoryEntry` +
+  `careerStats` (overall + per-hero rollups). All best-effort.
+- Wired into the store's existing deferred run-end capture (alongside the board upload), for both wins and
+  losses. **No UI yet** — that's part 2 (the Career screen, which the title's placeholder Career button
+  opens).
+- **Verified:** unit tests for `buildRunHistoryEntry` (record/line/tags, died-run) + `careerStats`
+  (empty / per-hero aggregation); live-checked a real run-end appends an entry. typecheck + lint + `npm test`
+  (420) + build:web green.
+
 ### feat: A6 — post-run summary (build identity + contributions)
 
 - The end screen now shows the run's **build identity** and **contributions**, on top of the record + line

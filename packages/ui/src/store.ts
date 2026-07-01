@@ -6,6 +6,7 @@ import type { CombatBuffDelta } from './runBuffs';
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 import { fetchAndRegisterPool, uploadBoards, uploadVictory } from './remoteBoards';
+import { buildRunHistoryEntry, saveRunHistoryEntry } from './runHistory';
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
 // `npm run pool` from seeded bot runs + any imported you/friend board exports) plus this browser's own
@@ -269,13 +270,16 @@ export const useGame = create<GameStore>((set, get) => ({
           const fresh = saveRunBoards(replay, author);
           set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
           void uploadBoards(fresh);
+          const finalBoard = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
+          const date = new Date().toISOString().slice(0, 10);
+          // A7: append this run to the local match history (win or loss) for the Career screen.
+          saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard }));
           if (won) {
-            const finalBoard = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
             void uploadVictory({
               heroId: next.heroId, author, wave: next.wave,
               wins: next.history.filter((r) => r === 'win').length, seed: next.seed,
               board: finalBoard, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-              capturedAt: new Date().toISOString().slice(0, 10),
+              capturedAt: date,
             });
           }
         }, 0);

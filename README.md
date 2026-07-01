@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Board-art selector + dimming** — a **Board Art** section in Settings swaps the illustrated game-board
+  background (boards 4/5/7/8/9/10/11) and a **Board dimming** slider tunes the readability scrim, both
+  persisted per-browser. The board now defaults to **board8 at 15% dimming** (brighter, more vibrant art).
 - **Looping menu video** — the title screen plays a muted, looping ambience video behind the menu (falls
   back to the `homescreen.webp` still when absent or under reduced-motion).
 - **Career page redesign** — a stats bar (runs · best run · avg wins · win rate) over three columns: a

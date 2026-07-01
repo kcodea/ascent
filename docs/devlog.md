@@ -3,6 +3,32 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-01 (session 12)
+
+### feat: board-art selector + dimming slider in Settings
+
+A **Board Art** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) to compare the illustrated
+game-board backgrounds without a rebuild: a thumbnail grid (`BOARD_OPTIONS`, active tile ringed) plus a
+**Board dimming** slider. [Game.tsx](packages/ui/src/Game.tsx) owns both bits of state (persisted to
+`localStorage` as `ascent-board` / `ascent-scrim`, mirroring the existing `res` scaler) and applies them
+as `--board-img` + `--scrim` on `:root`. The `.app` board background reads
+`var(--board-img)` for the image and `calc(0.34 * var(--scrim)) … calc(0.46 * …)` for the readability
+scrim, so the slider scales the overlay live.
+
+- **New defaults (owner call): board8 at 15% dimming.** The scrim multiplier defaults to **0.15** (a light
+  dim — the board art reads much more vibrant than the old flat 0.34→0.46 scrim, which was making it look
+  darker/duller than the source). Slider range 0–150%, 100% = the old tuned value.
+- **Hero-select decoupled:** the pre-run hero picker keeps its own heavier fixed scrim (0.62→0.70) for card
+  readability — the slider/default only affect the in-game board.
+- **Art pipeline:** the source PNGs in `Ascent Art/Game Boards` were encoded to `apps/web/public/boardN.webp`
+  via sharp (1680px wide, q82 — 58–253 KB each; both source + webp are plain sRGB, no profile loss). Available
+  boards are the ones present in the folder: **4, 5, 7, 8, 9, 10, 11**.
+- **Note:** the picker currently ships to players (not DEV-gated). Flagged for review — trivial to wrap in
+  `import.meta.env.DEV` if it should be dev-only.
+- **Verified:** typecheck + lint clean, 441 tests green, `build:web` OK. Live: all 7 boards serve real
+  `image/webp`, the picker renders 7 tiles, the slider drives `--scrim` (30% → `.app` alpha 0.10/0.14), and a
+  fresh browser defaults to board8 @ 0.15.
+
 ## 2026-07-01 (session 11)
 
 ### fix: Rise retaliation bug, choose-one cards, resume-clock exploit, + content/visual tweaks

@@ -279,18 +279,18 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'sc': return { text: e.text, kind: 'sc' };
     case 'attack': return { text: `${n(e.attacker)} strikes ${n(e.defender)} for ${e.swing}.`, kind: 'attack' };
     case 'dmg': return { text: `${n(e.target)} takes ${e.amount} damage (${Math.max(0, e.remainingHp)} HP left).`, kind: 'dmg' };
-    case 'shield': return { text: `${n(e.target)}'s Divine Shield absorbs the hit.`, kind: 'shield' };
-    case 'shieldUp': return { text: `${n(e.target)} gains a Divine Shield.`, kind: 'shield' };
-    case 'poison': return { text: `Poison destroys ${n(e.target)}.`, kind: 'poison' };
-    case 'venomLost': return { text: `${n(e.target)}'s Venomous is spent.`, kind: 'poison' };
-    case 'reborn': return { text: `${n(e.target)} is Reborn at ${e.hp} HP.`, kind: 'reborn' };
+    case 'shield': return { text: `${n(e.target)}'s Ward absorbs the hit.`, kind: 'shield' };
+    case 'shieldUp': return { text: `${n(e.target)} gains a Ward.`, kind: 'shield' };
+    case 'poison': return { text: `Toxin destroys ${n(e.target)}.`, kind: 'poison' };
+    case 'venomLost': return { text: `${n(e.target)}'s Toxin is spent.`, kind: 'poison' };
+    case 'reborn': return { text: `${n(e.target)} rises at ${e.hp} HP.`, kind: 'reborn' };
     case 'reveal': return { text: `${n(e.target)} breaks Stealth.`, kind: 'reveal' };
     case 'death': return { text: `${n(e.target)} is destroyed.`, kind: 'death' };
     case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'improve': return { text: `${n(e.target)}'s summon aura strengthens by +${e.amount}/+${e.amount}.`, kind: 'buff' };
     case 'maxGold': return { text: `${n(e.target)}'s Avenge raises your max Gold by ${e.amount}.`, kind: 'buff' };
-    case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Deathrattle.`, kind: 'sc' };
+    case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Echo.`, kind: 'sc' };
     case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
     default: return null;
   }
@@ -301,16 +301,16 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
   switch (e.type) {
     case 'sc': return e.text;
     case 'attack': return `${n(e.attacker)} strikes ${n(e.defender)}.`;
-    case 'shield': return 'A Divine Shield absorbs the blow!';
-    case 'shieldUp': return `${n(e.target)} gains a Divine Shield.`;
-    case 'poison': return `Poison! ${n(e.target)} is destroyed.`;
-    case 'reborn': return `${n(e.target)} is Reborn at 1 Health.`;
+    case 'shield': return 'A Ward absorbs the blow!';
+    case 'shieldUp': return `${n(e.target)} gains a Ward.`;
+    case 'poison': return `Toxin! ${n(e.target)} is destroyed.`;
+    case 'reborn': return `${n(e.target)} rises at 1 Health.`;
     case 'death': return `${n(e.target)} falls.`;
     case 'summon': return `${e.minion.name} joins the fray.`;
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
     case 'improve': return `${n(e.target)}'s aura strengthens (+${e.amount}/+${e.amount}).`;
     case 'maxGold': return `${n(e.target)} raises your max Gold by ${e.amount}!`;
-    case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Deathrattle!`;
+    case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Echo!`;
     case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;
     default: return null;
   }
@@ -338,7 +338,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
     else if (e.type === 'poison') poison++;
     else if (e.type === 'shieldUp') shieldUp++;
     else if (e.type === 'shield') shieldBreak++;
-    else if (e.type === 'rally') inc(rally, `${n(e.source)} → ${n(e.target)}'s Deathrattle`);
+    else if (e.type === 'rally') inc(rally, `${n(e.source)} → ${n(e.target)}'s Echo`);
     else if (e.type === 'sc') inc(startCombat, n(e.source));
     else if (e.type === 'toHand') inc(generated, e.source ? `${n(e.source)} → ${cardName(e.cardId)}` : cardName(e.cardId));
     else if (e.type === 'summon') {
@@ -360,10 +360,10 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   const out: { text: string; kind: string }[] = [];
   out.push({ text: `${attacks} attacks · ${dmg} damage dealt · ${deaths} deaths`, kind: 'total' });
   const kw: string[] = [];
-  if (shieldUp) kw.push(`${shieldUp} shields gained`);
-  if (shieldBreak) kw.push(`${shieldBreak} shields broken`);
-  if (poison) kw.push(`${poison} poison kills`);
-  if (reborn) kw.push(`${reborn} reborns`);
+  if (shieldUp) kw.push(`${shieldUp} Wards gained`);
+  if (shieldBreak) kw.push(`${shieldBreak} Wards broken`);
+  if (poison) kw.push(`${poison} Toxin kills`);
+  if (reborn) kw.push(`${reborn} rises`);
   if (kw.length) out.push({ text: kw.join(' · '), kind: 'total' });
   if (startCombat.size) { out.push({ text: 'Start of Combat', kind: 'head' }); for (const [k, c] of startCombat) out.push({ text: c > 1 ? `${k} — ${c}×` : k, kind: 'sc' }); }
   if (rally.size) { out.push({ text: 'Rally', kind: 'head' }); for (const [k, c] of rally) out.push({ text: `${k} — ${c}×`, kind: 'rally' }); }

@@ -21,6 +21,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   Career aggregates (Flawless 1 · Triples 11 · Avg gold 128 · Avg APT 5.7 · Top tribes). Tests updated;
   typecheck + lint + `npm test` (421) + build:web green.
 
+### feat: expanded build tags (A5+)
+
+- Grew `buildTags` from ~11 to ~24 tags and bumped the display cap 3 → 4, so a run's identity reads richer.
+  New tags, all computed from data we already track (board shape/stats, keywords, `history`, `triplesMade`,
+  per-minion `buffs`, record vs line):
+  - **Board shape:** Carry Stack (one monster holds most stats) · Wide Board (many bodies, no carry) ·
+    Glass Cannon (attack-heavy + Flurry/Toxin) · Fortress Board (health-heavy + Ward/Taunt) · Token Flood ·
+    Keyword Soup · Menagerie (mixed tribes).
+  - **Progression / record:** Triple Hunter · Scaling Engine · Tempo Climber (strong early, fades) ·
+    Late Bloom (weak start, strong finish) · Underdog Line (bad start, still covered) · Low Roll Survivor.
+- History-arc tags need ≥6 scored rounds, so they only fire on a full-ish run.
+- **Deferred** (need per-minion combat-damage / economy tracking we don't have yet): Economy Engine,
+  Sacrifice Engine, Boss Killer, Perfect Curve, Pivot Run, Shop Sculptor, Spell Weaver, MVP-based tags.
+- **Verified:** 5 new unit tests + existing A5 tests green. typecheck + lint + `npm test` (425) + build:web.
+
+### feat: B3 — keyword / terminology pass — **Phase B complete**
+
+- Player-facing keyword rename, **display-time only** (internal ids / keyword codes / card DATA unchanged, so
+  low-risk + reversible): **Battlecry→Shout · Deathrattle→Echo · Divine Shield→Ward · Windfury→Flurry ·
+  Venomous→Toxin · Reborn→Rise · Magnetize→Attach / Magnetic→Attachment · Golden→Gilded.** Kept: Taunt,
+  Avenge, Choose One, Start of Combat, End of Turn, Rally, Cleave, Consume, Discover (Rally stays — not
+  "Charge", per the design flag).
+- New `terms.ts` `renameTerms()` (whole-word, plural-aware — Deathrattles→Echoes, etc.) applied to rendered
+  **card rules text** in `Card.tsx`; the keyword-badge labels (`KW_LABEL`) + trigger pills (`triggerPill`)
+  updated; the **combat-log narration + Procs summary** strings reworded grammatically ("rises at N HP",
+  "Toxin destroys …", "N Wards broken").
+- The tag names A5 already used (Shout/Echo/Ward/…) now match the in-game vocabulary.
+- **Verified live:** the Compendium (114 cards) shows the new terms with **zero** old terms remaining; pills
+  read Shout/Echo/Ward/Toxin/Flurry/Attachment/… `renameTerms` unit tests. typecheck + lint + `npm test`
+  (424) + build:web green. **This closes Phase B (B1–B3).**
 ### feat: B1 — hero-power dragging
 
 - Targeted hero powers now use the **same press-drag-release language as card drag**: press the power, drag

@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import { artFor } from './art';
+import { renameTerms } from './terms';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
 import { useGame } from './store';
 
 const KW_LABEL: Record<Keyword, string> = {
-  T: 'Taunt', DS: 'Shield', V: 'Venomous', W: 'Windfury', R: 'Reborn', C: 'Cleave', M: 'Magnetic', SC: 'Start', CN: 'Consume',
+  T: 'Taunt', DS: 'Ward', V: 'Toxin', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
   FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', EG: 'Engraved',
 };
 const KW_ICON: Record<Keyword, string> = {
@@ -97,9 +98,9 @@ const statCls = (cur: number, base?: number, floor?: number): string => {
  */
 const triggerPill = (text: string): { label: string; icon: string } | null =>
   /^\W*battlecry/i.test(text)
-    ? { label: 'Battlecry', icon: 'battlecry' }
+    ? { label: 'Shout', icon: 'battlecry' }
     : /^\W*deathrattle/i.test(text)
-      ? { label: 'Deathrattle', icon: 'skull' }
+      ? { label: 'Echo', icon: 'skull' }
       : /^\W*avenge/i.test(text)
         ? { label: 'Avenge', icon: 'skull' }
         : /^\W*end of turn/i.test(text)
@@ -338,7 +339,7 @@ export const Card = memo(function Card({
         )}
         {card.text && (
           <div className="desc">
-            <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />
+            <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(renameTerms(shownText))) }} />
           </div>
         )}
         {!card.spell && (

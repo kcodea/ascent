@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: A4 — post-combat summary (permanent gains)
+
+- The post-combat overlay (now **"Combat Summary"**, opened by the **Summary** button after a fight) leads
+  with a new **Gains** tab: *"What you keep from this fight"* — the permanent value the fight left you with.
+- Pure presentation over data **already carried** on `CombatResult` — no engine work. New `combatGains.ts`
+  maps the carry-back channels to readable lines, most-impactful first: spell power, max Gold, Undead
+  Attack, Imp/Fodder buffs, per-card run-wide enchants, kept/Engraved stats (aggregated), Fodder → next
+  tavern, banked free rerolls, and cards added to hand. Empty fight → "No lasting gains this fight."
+- The overlay keeps the existing **Procs** (major triggers) + **Log** (blow-by-blow) tabs and the outcome-
+  odds bar; Gains is the default tab. `combatGains` unit-tested.
+- **Scope note:** the roadmap's "Standout Unit" + "Risk Signals" sections are deferred (they need per-minion
+  damage derivation, not currently on `CombatResult`); this ships the "Permanent Gains" core.
+- **Verified live:** drove a real combat, opened Summary → the Gains tab showed the injected carry-backs
+  ("spells +2/+1", "Max Gold +1", "Added to hand: Spirit Fire"). typecheck + lint + `npm test` (408) +
+  build:web green.
+
 ### feat: A3 — save & continue
 
 - **Runs now autosave and resume.** The in-progress run is persisted to `localStorage` (`ascent.save`) on

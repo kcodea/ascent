@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type BoardCard, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
+import { combatGains } from './combatGains';
 import { abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText } from './cardText';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
@@ -452,8 +453,8 @@ export function Recruit() {
   const inCombat = run.phase === 'combat';
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
-  const [showLog, setShowLog] = useState(false); // the post-combat Combat Log overlay
-  const [logTab, setLogTab] = useState<'procs' | 'log'>('procs'); // Procs summary vs the blow-by-blow log
+  const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
+  const [logTab, setLogTab] = useState<'gains' | 'procs' | 'log'>('gains'); // Permanent gains · Procs · blow-by-blow log
   // Per-card stat snapshot (attack + health) for the recruit-phase buff flash + the +X/+X float (declared
   // up here so the combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
   const prevStatsRef = useRef<Map<string, { a: number; h: number }>>(new Map());
@@ -1885,9 +1886,9 @@ export function Recruit() {
           <div className="cbtns">
             {replay.done ? (
               <>
-                <button className="btn big" onClick={() => setShowLog(true)}>
+                <button className="btn big" onClick={() => { setLogTab('gains'); setShowLog(true); }}>
                   <Icon name="battlecry" />
-                  Combat Log
+                  Summary
                 </button>
                 {/* On a loss, hold "End Combat" until the loss-damage blast finishes (so the player can't
                     skip past the Resolve hit); win/draw show it immediately. */}
@@ -2216,7 +2217,7 @@ export function Recruit() {
         <div className="logov" role="dialog" aria-label="Combat log" onClick={() => setShowLog(false)}>
           <div className="logbox" onClick={(e) => e.stopPropagation()}>
             <div className="logtitle">
-              Combat Log <span className={`logverdict ${replay.result ?? ''}`}>{replay.result === 'win' ? 'Victory' : replay.result === 'lose' ? 'Defeat' : 'Draw'}</span>
+              Combat Summary <span className={`logverdict ${replay.result ?? ''}`}>{replay.result === 'win' ? 'Victory' : replay.result === 'lose' ? 'Defeat' : 'Draw'}</span>
             </div>
             {run.lastCombat?.odds && (
               <div
@@ -2242,10 +2243,23 @@ export function Recruit() {
               </div>
             )}
             <div className="logtabs">
+              <button className={`logtab${logTab === 'gains' ? ' active' : ''}`} onClick={() => setLogTab('gains')}>Gains</button>
               <button className={`logtab${logTab === 'procs' ? ' active' : ''}`} onClick={() => setLogTab('procs')}>Procs</button>
               <button className={`logtab${logTab === 'log' ? ' active' : ''}`} onClick={() => setLogTab('log')}>Log</button>
             </div>
-            {logTab === 'procs' ? (
+            {logTab === 'gains' ? (
+              <div className="loglines">
+                <div className="loggainhead">What you keep from this fight</div>
+                {(() => {
+                  const gains = combatGains(run.lastCombat);
+                  return gains.length === 0 ? (
+                    <div className="logline">No lasting gains this fight.</div>
+                  ) : (
+                    gains.map((g, i) => <div className="loggain" key={i}>{g}</div>)
+                  );
+                })()}
+              </div>
+            ) : logTab === 'procs' ? (
               <div className="loglines">
                 {replay.procs.map((s, i) => (
                   <div className={`logsum ${s.kind}`} key={i}>{s.text}</div>

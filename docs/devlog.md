@@ -891,7 +891,8 @@ CSS 3D transforms on the DOM card, not a Pixi mesh, since the card is composed D
   live each frame; `DragTuner.tsx` (the 🎴 button) exposes all 11 as sliders with a hover-tooltip definition
   on each: `follow` (lag), `tiltPerPx` (lean), `tiltMax` (cap), `hLean`/`vLean` (per-axis directional lean ±),
   `perspective`, `scale` (hold size), `staticRotate` (angle while held), `threshold` (click→drag px), `snapMs`
-  (snap-back), `magSlideMs` (magnet-slide). Lean defaults are pronounced (tiltPerPx 0.28, tiltMax 14°); follow 0.4,
+  (snap-back), `magSlideMs` (magnet-slide). Owner-tuned defaults: hLean 0.3, vLean −0.2, tiltPerPx 0.6, tiltMax
+  19°, follow 0.64, perspective 1600, scale 1.12, threshold 1;
   perspective 800, scale 1.04. snap/magslide durations are pushed to the CSS transition inline so they tune live.
 - **Denser drop cloud.** The dry-dirt dust puff kicked up when a card is placed/moved on the board keeps its
   original size but is +50% DENSER — `dust()` gained a `density` arg (multiplies the puff count, not the size);

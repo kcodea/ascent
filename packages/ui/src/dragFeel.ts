@@ -34,15 +34,15 @@ export interface DragFeel {
 }
 
 const DEFAULTS: DragFeel = {
-  follow: 0.4,      // a slight, weighty lag (closes 40% of the gap each frame ≈ 33 ms time constant)
-  tiltPerPx: 0.28,  // pronounced enough that the lean direction reads clearly (dial down once it feels right)
-  tiltMax: 14,      // room for the lean to be visible
-  hLean: -1,        // lean into horizontal motion (flip the sign if left/right feel backwards)
-  vLean: 1,         // lean into vertical motion (flip the sign if up/down feel backwards)
-  perspective: 800,
-  scale: 1.04,      // lifted a touch off the table
+  follow: 0.64,     // snappier catch-up (tuned by eye)
+  tiltPerPx: 0.6,   // strong lean per px of lag
+  tiltMax: 19,      // generous tilt ceiling
+  hLean: 0.3,       // lean into horizontal motion
+  vLean: -0.2,      // lean into vertical motion
+  perspective: 1600,// gentle 3D depth
+  scale: 1.12,      // clearly lifted off the table
   staticRotate: 0,  // flat when held still
-  threshold: 5,
+  threshold: 1,     // drag engages almost immediately
   snapMs: 110,
   magSlideMs: 280,
 };

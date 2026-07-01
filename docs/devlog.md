@@ -875,6 +875,8 @@ CSS 3D transforms on the DOM card, not a Pixi mesh, since the card is composed D
   list (`dragTransform`) so the snap/magslide transitions interpolate smoothly back to flat.
 - **Held-still sits flat.** No static 2D angle by default (`staticRotate` 0) — a card held still is square
   like one on the table (the lift read is the drop-shadow + scale, not a tilt); it only leans while moving.
+- **Horizontal lean is non-mirrored.** The mathematically-mirrored left-drag tilt read wrong by eye, so the
+  horizontal lean uses `|gx|` — both directions get the same (right-drag) bank. Vertical lean stays directional.
 - **Recentres onto the cursor.** You can grab a card anywhere, but once the drag begins the card smoothly
   slides so its CENTRE sits under the cursor (the anchor lerps grab-point → card-centre in the rAF, a hair
   quicker than the position catch-up). The drop/insertion math is unchanged because the anchor is stored as

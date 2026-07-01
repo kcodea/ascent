@@ -813,8 +813,10 @@ export function Recruit() {
       m.rx += gx * k;
       m.ry += gy * k;
       const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
-      const rotY = clamp(gx * f.tiltPerPx * f.tiltDir);  // lean left/right into horizontal motion (tiltDir flips)
-      const rotX = clamp(-gy * f.tiltPerPx * f.tiltDir); // lean up/down into vertical motion
+      // Horizontal lean is NON-mirrored on purpose: the mirrored left-drag tilt read wrong, so both directions
+      // get the RIGHT-drag look — |gx| fixes the sign to what a rightward drag produces (tiltDir still flips it).
+      const rotY = clamp(Math.abs(gx) * f.tiltPerPx * f.tiltDir);
+      const rotX = clamp(-gy * f.tiltPerPx * f.tiltDir); // vertical lean stays directional (up vs down)
       el.style.transformOrigin = `${m.ax}px ${m.ay}px`; // pivot tilt/scale around the (recentring) anchor
       el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, rotX, rotY, f.scale, f.staticRotate);
     };

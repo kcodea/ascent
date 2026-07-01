@@ -20,6 +20,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 - **Verified live:** the Compendium (114 cards) shows the new terms with **zero** old terms remaining; pills
   read Shout/Echo/Ward/Toxin/Flurry/Attachment/… `renameTerms` unit tests. typecheck + lint + `npm test`
   (424) + build:web green. **This closes Phase B (B1–B3).**
+### feat: B1 — hero-power dragging
+
+- Targeted hero powers now use the **same press-drag-release language as card drag**: press the power, drag
+  the aim line onto a valid minion, release to fire; release off-target to cancel. One continuous gesture.
+- The aim-line + fire-on-release logic already existed — the fix is arming on the button's **`pointerdown`**
+  (not click), so the press flows straight into the drag. A quick **tap** (press+release without dragging)
+  still arms it for the existing press-then-click-target flow, so nothing is lost. Untargeted powers still
+  fire on press.
+- **Verified live:** Warden's Fortify — press-drag-release onto a minion applied +1/+1 and cleared armed;
+  release off-target cancelled; a tap still armed. typecheck + lint + `npm test` (421) + build:web green.
 
 ### feat: B2 — Discover minimize
 

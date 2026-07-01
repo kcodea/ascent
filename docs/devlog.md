@@ -5,20 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
-### fix: board cards slide (not snap) on committed moves (sell / play / summon / reposition)
+### tweak: slower drag recentre, gated to 10 px of drag
 
-The warband GSAP Flip already slid cards while dragging, but a COMMITTED, non-drag change (a summoned token
-making room, an effect repositioning a minion, neighbours closing a sold gap) snapped instantly. The committed
-`Flip.from` ran without `absolute: true`, so as cards enter/leave the flex row the surviving cards jumped to
-their new slots instead of animating through the reflow. Added `absolute: true` (+ 0.28 s) to the committed
-path only; the live-drag path (which tracks the cursor and must NOT be absolute) is unchanged. The warband row
-is already `position: relative`, so the absolute flip anchors correctly.
-
-Not verifiable in the headless preview (React doesn't re-render in a backgrounded pane) — needs a live browser
-window to confirm the slide + check shielded units' aura tracking during the animation.
-
-Also tuned the drag recentre: it now glides onto the cursor slowly (`recenter` 0.12, was ~0.9) and only
-begins after `recenterAfter` 10 px of drag (both new live dials in `dragFeel.ts` / the 🎴 tuner).
+The dragged card's recentre onto the cursor now glides slowly (`recenter` 0.12, was ~0.9) and only begins
+after the pointer has dragged `recenterAfter` 10 px from the grab point. Both are new live dials in
+`dragFeel.ts` / the 🎴 tuner. (A speculative `absolute: true` board-slide Flip for committed moves was tried
+and reverted — it snapped auras during the reflow; committed board moves keep their prior snappy 0.18 s Flip.)
 
 A **Board Art** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) to compare the illustrated
 game-board backgrounds without a rebuild: a thumbnail grid (`BOARD_OPTIONS`, active tile ringed) plus a

@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### fix: end screen readability — own dark backdrop, board hidden
+
+- The end-of-run screen no longer renders over the live board (which showed through, killing contrast). It
+  now gets its **own dark backdrop** — the sky-castle art heavily scrimmed (`rgba(6,11,22,0.88→0.93)`) — and
+  the board + status bar behind it are hidden (`body:has(.heroselect) .app/.statusbar { visibility: hidden }`,
+  extended from the hero-picker to the end screen too).
+- Fixed the **run-stats row** + **contributions line** (added this session) that used dark ink colors meant
+  for a light background → now light (`rgba(255,255,255,·)`), readable on the dark backdrop.
+- **Verified live:** the FALLEN screen reads cleanly — record, line verdict, tags, stats (triples · gold ·
+  APT · cards · strongest), pips, and final warband all high-contrast over a clean backdrop.
+
 ### feat: run stats — gold spent, APT, triples, strongest + career aggregates
 
 - **New `RunState.goldSpent`** — total Gold spent across the run, incremented at the single `spendGold`

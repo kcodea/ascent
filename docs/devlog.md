@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-01 (session 11)
+
+### feat: combat-contribution tracking — MVP minion + most-triggered mechanic
+
+- **New `packages/sim/src/contribution.ts`** — pure helpers that walk a settled combat's event log (+ its
+  `initial` rosters) to attribute **player-side damage by cardId** and count **player mechanic triggers**,
+  then accumulate both across the run. No `simulate`/`core` change: everything is derived from the
+  `CombatResult` the reducer already has.
+  - **Damage.** Combat is *simultaneous* — one `attack A→B` emits a `dmg` to B (dealt by A) **and** a `dmg`
+    to A (B's retaliation). So each `dmg` is credited to whichever of the attack pair *isn't* taking it, and
+    only when the target is an enemy (a card is never credited for damage it soaks). Start-of-Combat `cast`
+    damage is credited to the caster. This correctly attributes retaliation kills (the common killing blow).
+  - **Procs.** Player-side `sc → Start of Combat`, `rally → Rally`, `summon → Summon`, `reborn → Rise`,
+    `shieldUp → Ward`, and a player card's `death` whose `CardDef` has an `onDeath` effect → `Echo`.
+  - `runMvp(runDamage)` → the top-damage card; `topMechanic(runProcs)` → the most-fired mechanic.
+- **`RunState` gains `runDamage` + `runProcs`** (init `{}`, deserialize-healed for old saves); `settleCombat`
+  calls `accumulateContribution(...tallyCombat(result))` after pushing the round result.
+- **Post-run summary** gains **MVP: <card> (N dmg)** and **Most: <mechanic> (N)** in the stats row.
+- **Match history + Career** — each run stores `mvp` + `topMechanic`; the run rows show `· MVP: <card>`, and
+  the profile strip shows **Favorite mechanic** (most-common per-run top mechanic across the career).
+- **Verified:** 433 tests green (new `contribution.test.ts` covers the simultaneous-exchange crediting, the
+  six procs, accumulation + MVP/top-mechanic derivation; `runHistory.test.ts` covers favorite mechanic).
+  Live over 4 real combats: `gnash` accrued 64 dmg incl. retaliation kills → end screen reads
+  *MVP: Gnasher, the Overrun (64 dmg)* · *Most: Start of Combat (6)*. typecheck/lint/build green.
+- **Still deferred (Phase C / needs new signals):** biggest permanent-scaling source, Quest choices taken,
+  Ancient — none are in the combat log; they'll come with the meta systems.
+
 ## 2026-06-30 (session 10)
 
 ### fix: end screen readability — own dark backdrop, board hidden

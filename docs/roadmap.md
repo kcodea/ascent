@@ -81,7 +81,9 @@ look because the engine already produces the data.
 
 ### Phase A follow-ups (deferred within A1–A7, do opportunistically)
 - **Rating-driven par line** (A2 seam) — make `line` scale with a player rating once one exists.
-- **MVP / standout unit** (A4 + A6) — needs per-minion damage-dealt tracked out of `simulate` (`CombatResult`).
+- ~~**MVP / standout unit** (A4 + A6)~~ — ✓ done (session 11): `packages/sim/src/contribution.ts` attributes
+  player damage by cardId + counts mechanic procs from the combat log; end screen shows **MVP** + **Most**,
+  Career shows favorite mechanic. Still deferred: biggest permanent-scaling source, Quest choices, Ancient.
 - **Run detail page** (A7) — open a history entry into round-by-round + full post-run summary + replay
   (the entry already stores the final board; add the replay to enable re-derivation).
 - **Goal:** runs stop disappearing. A career surface with: current rating, best record, average wins, total

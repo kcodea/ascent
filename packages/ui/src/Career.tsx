@@ -71,8 +71,12 @@ export function Career() {
               <div className="carstat"><span className="cs-v">{stats.avgApt}</span><span className="cs-l">Avg APT</span></div>
             </div>
 
-            {stats.topTribes.length > 0 && (
-              <div className="cartop">Top tribes: {stats.topTribes.map((t) => `${TRIBE_LABEL[t.tribe]} (${t.count})`).join(' · ')}</div>
+            {(stats.topTribes.length > 0 || stats.favoriteMechanic) && (
+              <div className="cartop">
+                {stats.topTribes.length > 0 && <>Top tribes: {stats.topTribes.map((t) => `${TRIBE_LABEL[t.tribe]} (${t.count})`).join(' · ')}</>}
+                {stats.topTribes.length > 0 && stats.favoriteMechanic ? ' · ' : ''}
+                {stats.favoriteMechanic && <>Favorite mechanic: {stats.favoriteMechanic}</>}
+              </div>
             )}
 
             {stats.perHero.length > 0 && (
@@ -109,7 +113,7 @@ export function Career() {
                       {e.completed ? 'Course complete' : `Fell on round ${e.wave}`}{e.date ? ` · ${e.date}` : ''}
                       {e.triples ? ` · ${e.triples} triples` : ''}
                       {e.goldSpent !== undefined ? ` · ${e.goldSpent} gold` : ''}
-                      {e.strongest ? ` · best: ${e.strongest.name} ${e.strongest.attack}/${e.strongest.health}` : ''}
+                      {e.mvp ? ` · MVP: ${e.mvp.name}` : ''}
                     </div>
                     {e.tags.length > 0 && (
                       <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}</span>)}</div>

@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import { buildTags, CONFIG, getHero, isCalibrationRound, lineResult, runRecord, type BoardCard, type LineStatus } from '@game/sim';
+import { buildTags, CONFIG, getHero, isCalibrationRound, lineResult, runMvp, runRecord, topMechanic, type BoardCard, type LineStatus } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { heroArt } from './art';
 import { Icon } from './Icon';
@@ -33,6 +33,8 @@ export function EndScreen({ won }: { won: boolean }) {
   const strongest = run.board.reduce<typeof run.board[number] | null>((b, m) => (!b || m.attack + m.health > b.attack + b.health ? m : b), null);
   const apt = Math.round((actions.length / Math.max(1, run.wave)) * 10) / 10;
   const cardsPlayed = actions.filter((a) => a.type === 'play').length;
+  const mvp = runMvp(run.runDamage);
+  const mech = topMechanic(run.runProcs);
   // Ascent: the score is the W–L record over the scored rounds (calibration rounds don't count).
   const rec = runRecord(run);
   // Practice has no calibration concept — count every round.
@@ -90,6 +92,8 @@ export function EndScreen({ won }: { won: boolean }) {
             <span className="endstat"><b>{run.goldSpent}</b> gold spent</span>
             <span className="endstat"><b>{apt}</b> actions/round</span>
             <span className="endstat"><b>{cardsPlayed}</b> cards played</span>
+            {mvp && <span className="endstat">MVP: <b>{mvp.name}</b> ({mvp.damage} dmg)</span>}
+            {mech && <span className="endstat">Most: <b>{mech.name}</b> ({mech.count})</span>}
             {strongest && <span className="endstat">Strongest: <b>{CARD_INDEX[strongest.cardId]?.name ?? strongest.cardId}</b> {strongest.attack}/{strongest.health}</span>}
           </div>
         )}

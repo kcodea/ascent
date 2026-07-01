@@ -1,6 +1,6 @@
 import { CARD_INDEX } from '@game/content';
 import type { Tribe } from '@game/core';
-import { buildTags, lineResult, runRecord, type BoardSnapshot, type LineStatus, type RunState } from '@game/sim';
+import { buildTags, lineResult, runMvp, runRecord, topMechanic, type BoardSnapshot, type LineStatus, type RunState } from '@game/sim';
 
 /**
  * Career / match history (A7) — the persistence layer. On run-end, a compact per-run entry is appended to
@@ -32,6 +32,8 @@ export interface RunHistoryEntry {
   cardsPlayed?: number;
   dominantTribe?: Tribe | null; // the final board's top non-neutral tribe
   strongest?: { name: string; attack: number; health: number } | null; // biggest final-board minion
+  mvp?: { name: string; damage: number } | null; // most attack damage dealt across the run
+  topMechanic?: { name: string; count: number } | null; // most-triggered combat mechanic
 }
 
 /** The final board's top non-neutral tribe (both tribes counted), or null for an empty/all-neutral board. */
@@ -77,6 +79,8 @@ export function buildRunHistoryEntry(
     cardsPlayed: extra.cardsPlayed,
     dominantTribe: dominantTribeOf(run),
     strongest: big ? { name: CARD_INDEX[big.cardId]?.name ?? big.cardId, attack: big.attack, health: big.health } : null,
+    mvp: runMvp(run.runDamage),
+    topMechanic: topMechanic(run.runProcs),
   };
 }
 
@@ -121,17 +125,19 @@ export interface CareerStats {
   avgGold: number; // avg Gold spent per run
   avgApt: number; // avg actions per round
   topTribes: { tribe: Tribe; count: number }[]; // most-played final-board tribes
+  favoriteMechanic: string | null; // the mechanic most often a run's most-triggered
   perHero: HeroStat[]; // sorted by runs desc
 }
 
 /** Aggregate the match history into overall + per-hero career stats. Pure. */
 export function careerStats(entries: RunHistoryEntry[]): CareerStats {
   const runs = entries.length;
-  const empty: CareerStats = { runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, topTribes: [], perHero: [] };
+  const empty: CareerStats = { runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, topTribes: [], favoriteMechanic: null, perHero: [] };
   if (runs === 0) return empty;
   let bestWins = 0, totalWins = 0, completions = 0, flawless = 0, triples = 0, totalGold = 0, goldRuns = 0, totalApt = 0, aptRuns = 0;
   const heroes = new Map<string, HeroStat>();
   const tribes = new Map<Tribe, number>();
+  const mechanics = new Map<string, number>();
   for (const e of entries) {
     bestWins = Math.max(bestWins, e.wins);
     totalWins += e.wins;
@@ -141,6 +147,7 @@ export function careerStats(entries: RunHistoryEntry[]): CareerStats {
     if (e.goldSpent !== undefined) { totalGold += e.goldSpent; goldRuns++; }
     if (e.apt !== undefined) { totalApt += e.apt; aptRuns++; }
     if (e.dominantTribe) tribes.set(e.dominantTribe, (tribes.get(e.dominantTribe) ?? 0) + 1);
+    if (e.topMechanic) mechanics.set(e.topMechanic.name, (mechanics.get(e.topMechanic.name) ?? 0) + 1);
     const h = heroes.get(e.heroId) ?? { heroId: e.heroId, runs: 0, wins: 0, bestWins: 0, avgWins: 0, completions: 0 };
     h.runs++;
     h.wins += e.wins;
@@ -152,10 +159,11 @@ export function careerStats(entries: RunHistoryEntry[]): CareerStats {
     .map((h) => ({ ...h, avgWins: Math.round((h.wins / h.runs) * 10) / 10 }))
     .sort((a, b) => b.runs - a.runs);
   const topTribes = [...tribes.entries()].map(([tribe, count]) => ({ tribe, count })).sort((a, b) => b.count - a.count).slice(0, 3);
+  const favoriteMechanic = [...mechanics.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   return {
     runs, bestWins, avgWins: Math.round((totalWins / runs) * 10) / 10, completions, flawless, triples,
     avgGold: goldRuns ? Math.round(totalGold / goldRuns) : 0,
     avgApt: aptRuns ? Math.round((totalApt / aptRuns) * 10) / 10 : 0,
-    topTribes, perHero,
+    topTribes, favoriteMechanic, perHero,
   };
 }

@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat-contribution tracking** — the post-run summary now names your **MVP minion** (most damage dealt)
+  and **most-triggered mechanic**, and the Career screen shows your **favorite mechanic**. Damage is
+  attributed from the combat log (retaliation-aware), with no change to the pure `simulate()`.
 - **Taragosa → Tier 6**, Thundering Abomination → **Cratering Hulk**, plus new art for Sergeant and Cratering Hulk.
 - **More tuning + a new Mech.** Twilight Whelp → **Violet Whelp**; Spirit Pup 6/6, Mama Bear 5/5, Tara 5/6,
   Spirit Worgen +3/+3 per summon; Commander Impala now 6/6 with **Windfury** and a +3/+3 on-kill buff. New

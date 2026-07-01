@@ -244,6 +244,12 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       // Other spells: cast on the chosen target, then consume — no board slot.
       if (def?.spell) {
+        // Spell Choose One (Apples): a SPELL choice — its own thing, NOT a Battlecry. Pause for the pick,
+        // keeping the spell in hand; the chosen effect is cast (and the spell consumed) in `chooseOne`.
+        if (def.chooseOne?.length) {
+          s.chooseOne = { uid: card.uid, cardId: def.id, spell: true };
+          return s;
+        }
         // Yazzus: while it's on the board, an *aimed* spell's effect resolves N times (2, or 3 if golden)
         // — the card is still consumed once. Untargeted economy/utility spells and `singleCast` spells
         // (Channeling the Devourer) never multi-fire (see `spellCasts`). The Discover-spells returned early
@@ -342,9 +348,24 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'chooseOne': {
       if (!s.chooseOne) return state;
-      const card = s.board.find((c) => c.uid === s.chooseOne!.uid);
-      const option = CARD_INDEX[s.chooseOne.cardId]?.chooseOne?.[action.index];
-      if (!card || !option) return state;
+      const co = s.chooseOne;
+      const def = CARD_INDEX[co.cardId];
+      const option = def?.chooseOne?.[action.index];
+      if (!def || !option) return state;
+      // A SPELL choose-one (Apples): the spell is still in hand — cast its chosen effect (a synthetic def with
+      // just that option's effects, respecting Yazzus quantity), then consume it. Not a Battlecry.
+      if (co.spell) {
+        const hi = s.hand.findIndex((c) => c.uid === co.uid);
+        if (hi < 0) { s.chooseOne = undefined; return s; }
+        const casts = spellCasts(s, def);
+        for (let n = 0; n < casts; n++) castSpell(s, { ...def, effects: option.effects }, undefined);
+        s.hand.splice(hi, 1);
+        s.chooseOne = undefined;
+        checkTriples(s);
+        return s;
+      }
+      const card = s.board.find((c) => c.uid === co.uid);
+      if (!card) return state;
       applyChooseOne(s, card, option.effects); // the chosen Battlecry resolves now
       s.chooseOne = undefined;
       checkTriples(s);
@@ -1047,6 +1068,15 @@ function advanceCombat(s: RunState): void {
  */
 function refreshTavern(s: RunState): void {
   rollShop(s);
+  // Apples (Choose One → "the next shop"): fold the banked buff onto the freshly-rolled offers, then clear it.
+  const nb = s.nextShopBuff;
+  if (nb && (nb.attack || nb.health)) {
+    for (const offer of s.shop) {
+      offer.atk = (offer.atk ?? 0) + nb.attack;
+      offer.hp = (offer.hp ?? 0) + nb.health;
+    }
+    s.nextShopBuff = undefined;
+  }
   injectPendingTavern(s);
 }
 

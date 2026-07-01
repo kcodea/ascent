@@ -5,6 +5,262 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 11)
 
+### fix: Rise retaliation bug, choose-one cards, resume-clock exploit, + content/visual tweaks
+
+Owner batch (session 12). Done this pass:
+- **Rise retaliation damage bug (combat).** An attacker striking a Rise minion took the *risen* (base) attack
+  back, not the body it clashed with — the main hit killed-and-rebuilt the target within `dealDamage`, then
+  the retaliation read its reset attack. Now the defender's counter-attack (+ venom) is snapshotted **before**
+  the hit ([simulate.ts](packages/core/src/combat/simulate.ts)): hit a 100-attack Knight, take 100 back.
+- **Fleeting Vigor now scales with spell power** (owner-confirmed) — its banked +2/+1 gains the run's spell
+  power on both stats; `spellDisplayText` shows the live value.
+- **Wildwood Shaper → Choose One:** *Give your Beasts +1/+3* **or** *summon a 1/1 Stray* — the first card to
+  use the (previously unused) choose-one engine. Updated its test.
+- **Gilded Selfless Sentinel gives TWO friends a Divine Shield** (`deathrattleGrantShield` golden-aware +
+  goldenText).
+- **Gilded cards are more obvious** — a thicker, brighter gold ring + stronger glow (board + full card).
+- **Resume-clock exploit closed** (#continue): `continueRun` now sets the turn clock to **0**, so resuming a
+  shop turn (or leaving to the title to bank time) starts expired — you can End Turn / reorder but not shop.
+  The next turn's timer returns to normal.
+- **Overlays pause the recruit:** `overlayOpen` now also covers the Career + Compendium, so a saved game never
+  ticks/runs behind them.
+- **Verified:** 439 tests green, typecheck + lint clean. Live: Wildwood's two options render + apply
+  (Shaper → 3/5); resuming shows the clock expired; the golden card's ring/glow reads clearly.
+
+Second pass — the queued items:
+- **Enemy-snapshot auras on Rise** (the flip side of the retaliation bug): `applyAuras` bailed on every
+  non-player minion, so a captured enemy Eternal Knight lost its enchant when it Rose. Now the aggregate
+  run-wide auras (Undead / Imp) stay player-only, but the **per-card enchant re-applies from the minion's own
+  buff breakdown** for BOTH sides — so an enemy Knight (snapshot carries `buffs`) re-gains it on Rise (test:
+  enemy Knight Rises 18/11, not 3/1). [simulate.ts](packages/core/src/combat/simulate.ts).
+- **Godfodder animation** — Drakko re-fires its Battlecry, but each fire *overwrote* `fodderEaten`, so only one
+  ghost animated. `applyBattlecryTarget` now clears `fodderEaten` once up front and the consume **appends** per
+  fire, so N Fodder show N ghosts (verified: a Drakko'd Godfodder feeds 2, target 2/2 → 4/4, 2 events).
+- **Gilded toggle in the Compendium** — [MinionBook.tsx](packages/ui/src/MinionBook.tsx) gets a "Gilded"
+  toggle that flips every card to its tripled form (doubled stats, golden frame, golden text). Verified all
+  116 cards gild.
+
+- **Apples → Choose One** (the last item) — two new mechanics:
+  - **Spell choose-one** — a SPELL choice, its own thing (not a Battlecry). `chooseOne` on the state now carries
+    a `spell` flag; the reducer's spell path pauses (keeping the spell in hand) and the `chooseOne` handler
+    casts the chosen option's effects (a synthetic def, Yazzus-quantity aware) then consumes it. The existing
+    "Choose One — {name}" overlay already reads off the def, so it renders for spells unchanged.
+  - **`spellBuffNextShop`** — banks a `nextShopBuff` that `refreshTavern` folds onto the NEXT roll's offers,
+    then clears (registered in the effect-id schema + type).
+  - Apples is now *Choose One: give the shop **+1/+3**, or the next shop **+2/+4***. Tests for both options
+    (+ the buy-bake-in and the next-roll application); verified live end-to-end (overlay renders "Choose One —
+    Apples", "next shop" banks +2/+4 and lands on the next refresh).
+
+**Batch complete — all 11 items done.** 441 tests green (+ new coverage for choose-one, enemy-Rise auras,
+Apples), typecheck + lint + build:web clean.
+
+### fix: Rise→1 HP, no gilded text on cards, live discover/shop values, reorder after the timer
+
+- **Rise (Reborn) now returns at 1 Health** (Hearthstone-style), regardless of the card's base — a golden
+  minion reborns at 2. Base attack + the run-wide carry-through / auras still apply on top (so Karthus reborns
+  at 7/1, not 7/8). [simulate.ts](packages/core/src/combat/simulate.ts) `killOrReborn`; updated the reborn HP
+  assertions in [simulate.test.ts](packages/core/src/combat/simulate.test.ts). *(Owner-requested rules change.)*
+- **No gilded text on cards.** Removed the "(Golden: +6)" parenthetical baked into Karthus's `text`
+  ([undead.ts](packages/content/src/cards/undead.ts)) — it was the only card leaking a golden hint onto its
+  non-golden face.
+- **Discover + shop always show a card's CURRENT value.** Extracted the full live-text chain into a shared
+  `liveCardText` in [instView.ts](packages/ui/src/instView.ts); `instView` (board/end screen), `shopView`, and
+  the Discover overlay now all use it, so Grim reads **+32/+32**, Guel its live grant, etc. — not the printed
+  base — wherever it's offered. (Previously the shop only did Grim's tally; Discover was fully static.)
+- **Reorder your board after the clock runs out.** When the recruit timer expires you can now still
+  drag-reorder your board minions ([Recruit.tsx](packages/ui/src/Recruit.tsx) — the drag gate allows a `board`
+  source through when `timeUp`); play / buy / **sell** stay locked (sell drop + sell zone gated on `!timeUp`).
+- **Verified:** 439 tests green, typecheck + lint + build:web clean. Live: Discover Grim shows +32/+32; Karthus
+  text has no gilded line; with the timer expired (End Turn `urgent`), dragging a board minion fired a
+  `reposition` (order changed) while the sell zone stayed hidden and no sell/gold change occurred.
+
+### tweak: declutter the combat arena — no team tints/vignette, Skip + speed moved top-right
+
+- **Removed the combat-area coloration.** The two faint team-tint bands (`.app.fighting` — enemy raspberry on
+  the tavern row, player orange on the warband row) and the win/lose **result vignette** (`.app.combat.done::after`,
+  the green-on-win / raspberry-on-lose screen glow) are gone — the arena stays uncoloured through the fight.
+- **Skip button → top-right, smaller.** During the replay the Skip button now lives in a compact top-right
+  **combat HUD** ([Recruit.tsx](packages/ui/src/Recruit.tsx)) instead of the big centred button, with the
+  **replay-speed slider stacked beneath it** (moved out of the HudBar). Sits under the opponent frame in the
+  right column; the run-buffs window is hidden during combat so nothing collides. Post-combat Summary / End
+  Combat still render centred.
+- **Verified live:** in a (slowed) fight the board shows no tint/vignette, and the orange Skip + speed slider
+  sit stacked top-right with no overlap. 439 tests green, typecheck + lint clean.
+
+### tweak: round-bar "Setup" rename + a pre-round notch on the meter
+
+- Renamed the pre-round HUD label **"Calibration" → "Setup"** ([HudBar.tsx](packages/ui/src/HudBar.tsx),
+  tooltip updated to match).
+- Added a **notch on the round meter** at the end of the calibration/Setup rounds
+  (`left: calibrationRounds / courseRounds`, i.e. 2/17 ≈ 11.8%) — a thin card-coloured vertical gap with dark
+  edges so it reads on both the orange fill and the empty track. It visually separates the pre-round Setup
+  segment from the scored climb. Recruit/combat only (hidden in Practice, which has no calibration).
+- **Verified live:** the meter renders the notch at 11.76% and the label shows "Setup"; typecheck + lint clean.
+
+### fix: title menu-video no longer flashes the still image before playing
+
+- On load the `.titlescreen` webp base (also the `<video>` poster) showed until the video decoded its first
+  frame, then **popped** to the video — a visible flash. Fix: the video now starts at `opacity: 0` and only
+  fades in (`.titlevideo.ready`, 0.5s) once it fires its `playing` event (`onPlaying` → `videoReady` state in
+  [Title.tsx](packages/ui/src/Title.tsx)), so it **cross-dissolves from the webp** instead of hard-cutting.
+  Added `preload="auto"` so it's ready sooner. Reduced-motion still hides the video entirely (unchanged).
+- **Verified:** opacity is 0 with no `ready` class until the video plays, then transitions to 1; typecheck +
+  lint clean. (A truly cold, uncached load can't be captured in-preview — the browser caches the 31 MB clip —
+  but the fade path is confirmed.)
+
+### feat: custom build-tag tooltips + unified orange Discover minimize/return button
+
+- **Build-tag tooltips** were the browser's native `title` bubble (plain, OS-styled). Replaced with a custom
+  `.tagtip` — a dark rounded card with a caret, on-theme fonts, fading in above the chip on hover — rendered
+  as a child of each `.endtag` on both the end screen and Career (removed the `title` attrs). Not clipped by
+  the Career match cards' `overflow: hidden` (measured clearance; collapsed rows have more room).
+- **Removed the Discover subtitle** ("Choose a minion from the next tier.") — it was unnecessary and factually
+  wrong (Discover options can be from any tier, not just the next), so the `.disc-sub` line + its CSS are gone;
+  `.disc-cards` gains a small top margin to keep breathing room under the banner.
+- **Discover minimize/return** was two buttons in different spots (a dark "Minimize" pinned top-right of the
+  panel + an orange "Return" pill at the screen bottom). Unified into **one orange `.disc-toggle`** pinned to
+  the **same fixed spot just below the cards** (`top: 66%`) for both states — it flips label/action between
+  Minimize (inspect the board) and "Return to Discover · N options", so the player toggles back and forth
+  **without moving the mouse**. Verified live: the button's center is identical (954, 920) in both states.
+- **Verified:** 439 tests green, typecheck + lint + build:web clean. Live: the Discover toggle is orange,
+  centered under the cards, and swaps in place; the tag tooltip renders the styled card with the right copy.
+
+### feat: Career redesign (Profile+Insights panel, hero W–L), bigger avatars, font dev lab
+
+- **Bigger avatars.** Menu (`.titleavatar`) **+100%** (46→92px); Career (`.caravatar`) **+50%** (84→126px),
+  placeholder glyphs scaled to match.
+- **Career layout rebuilt.** Dropped the 4-square stat bar; the left column is now **one panel** = Profile +
+  Insights + a per-hero record, and it's **wider** (320px). Insights grew from 5 to **11 rows**: Runs, Best
+  Run, Win Rate, Avg Wins, Avg Actions/Round, Avg Gold Spent, Favorite Hero/Tribe/Mechanic/**Minion**, Current
+  Streak. The old bottom "By hero" section moved into the panel as **line W–L** (green W / red L).
+- **New stats** in `careerStats` ([runHistory.ts](packages/ui/src/runHistory.ts)): `favoriteMinion` (the
+  minion most-used across final boards) + per-hero `lineWins`/`lineLosses` (runs that covered par vs fell
+  short — the game's win = cover-your-line). Tests added for both.
+- **Font Lab (dev).** [FontLab.tsx](packages/ui/src/FontLab.tsx) — a bottom-right toggle on the title opens
+  three font pickers (**Titles / UI / Body**) with **Outfit, Sora, Plus Jakarta Sans, Nunito Sans**. To make
+  it work, the stylesheet's `font-family`s were routed through CSS variables — `--font-title` (big display
+  headings: `.disp` / `.hstitle` / `.titleword` / `.over h1`), `--font-ui` (everything else that was Outfit),
+  `--font-body` (was Nunito Sans). The picker sets those vars on `:root` live, persists to `ascent.fonts`, and
+  applies at boot. Loaded Sora + Plus Jakarta Sans via the Google Fonts link.
+- **Verified live:** menu avatar visibly 2×; Career shows the merged panel with all 11 insights + hero W–L
+  (Cassen 1W–1L, Robin 1W–0L, …) and Favorite Minion; Font Lab swaps "ASCENT" to Sora and back, persisting.
+  439 tests green (+2), typecheck + lint + build:web clean.
+
+### fix: avatar picker z-index + custom cursor over avatar buttons and scroll areas
+
+- **Picker opened *behind* the Title/Career.** `.avatarpick` was `z-index: 80`, but `.titlescreen` is 450 and
+  Career (`.lbpage`) is 470 — so clicking the avatar opened the picker underneath them ("nothing pops up").
+  Raised `.avatarpick` to **z-index 520** (above every title/career/leaderboard/compendium overlay). Verified
+  `elementFromPoint` at screen-center now hits the picker over both the Title and Career.
+- **Custom cursor over the avatar buttons.** `.titleavatar` / `.caravatar` / `.avatarpick-opt` /
+  `.avatarpick-close` set plain `cursor: pointer`, which overrode the global `button` rule and reverted to the
+  OS arrow — swapped to the game's `gauntlet_open.svg` cursor.
+- **Custom cursor over scroll areas (hero page, compendium, avatar picker, leaderboard/career, combat log).**
+  Root cause: a native scrollbar *forces* the OS arrow — the browser ignores `cursor` on it, even on a styled
+  `::-webkit-scrollbar` (the compendium already tried that and it didn't work). Fix: **hide the native
+  scrollbar** on those containers (`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`) and
+  scroll by wheel/trackpad — the gauntlet cursor now covers the whole area. Removed the old ineffective
+  book-grid scrollbar-cursor block.
+- **Bonus:** the practice hero picker overflowed (12 heroes, ~1645px in a ~1352px viewport) with
+  `overflow: visible`, so the bottom heroes were **clipped and unreachable**. `.heroselect` is now
+  `place-items: safe center; overflow-y: auto` — it scrolls (heroes reachable) without clipping the top, and
+  the hidden-scrollbar rule keeps the cursor clean. Same win for a tall end screen on short viewports.
+- **Verified live:** picker renders on top of Title + Career; avatar/scroll cursors are the gauntlet SVG;
+  compendium, hero page, and picker all scroll with `nativeBarPx: 0`. 437 tests green, typecheck + lint clean.
+- *Tradeoff flagged to owner:* the native scrollbars are now hidden (wheel-scroll only). If a visible bar is
+  wanted back, the next step is a custom overlay scrollbar element (keeps both the bar and the custom cursor).
+
+### fix: avatar picker could linger into gameplay — gated to Title/Career + reset on run start
+
+- The avatar-picker overlay (`avatarPickerOpen`) had no reset on navigation, so a lingering-true flag could
+  show the picker over a run ("the avatar selection is happening when a game starts"). Two-part fix:
+  **(1)** [AvatarPicker.tsx](packages/ui/src/AvatarPicker.tsx) now renders only when `showTitle || showCareer`
+  (its only entry points) — a defensive gate so it can never cover gameplay regardless of the flag; **(2)**
+  every leave-the-title / run-entry store action (`startAscent`, `startPractice`, `pickHero`, `newRun`,
+  `continueRun`) now sets `avatarPickerOpen: false`. Verified live: forcing the flag true mid-recruit renders
+  nothing; opening it on the title still works and clicking PLAY clears it. 437 tests green, typecheck + lint clean.
+
+### feat: round-board viewer (inline board swap), live final-warband values, avatar picker
+
+- **Round-board viewer.** The end screen's W/L pips are now clickable: clicking a round **swaps the FINAL
+  WARBAND board in place** to show the exact board you fought that round (not a popover — per owner request),
+  and the board label becomes a `Round N · Won/Lost ↩ Final warband` button that returns you. The boards are
+  re-derived deterministically from the run's replay (`replayRun({seed,heroId,actions})` → per-wave
+  `BoardSnapshot`s), memoized once, keyed by wave. Best-effort (a replay hiccup just leaves pips
+  non-clickable), and **gated to Ascent** — `replayRun` re-runs in ascent mode, so a practice replay
+  (unlimited Resolve / 15-round cap) wouldn't reconstruct faithfully. *Note: replay fidelity holds within a
+  session; a run whose early waves were played in a **prior** session can diverge if the opponent pool
+  changed since — the end-screen use (run just finished, same session) is always faithful.*
+- **Live values on the final warband.** Extracted `instView` (the recruit board's live-`CardView` composer)
+  out of `Recruit.tsx` into a shared [instView.ts](packages/ui/src/instView.ts) and pointed the end-screen
+  final warband at it, so scaling cards (Guel, Sergeant, Taragosa, Mama Bear, …) show their **accumulated**
+  magnitude at run's end instead of the printed base "+1/+1". Recruit's behavior is unchanged (same function,
+  same call sites); `EndScreen`'s `boardView` now feeds `instView` the run-wide live inputs
+  (`spellAttackBonus`/`spellHealthBonus`, undeadBuyAtk, soulsmanGold, cardBuffs, …).
+- **Avatar picker.** New [AvatarPicker.tsx](packages/ui/src/AvatarPicker.tsx) modal lets the player pick any
+  bundled art — **heroes / minions / tokens / hero powers** (156 options, enumerated via a new `AVATAR_ART`
+  export in [art.ts](packages/ui/src/art.ts), namespaced `hero:`/`minion:`/`power:`) — as their profile
+  avatar. Persisted, cosmetic, local (`playerAvatar` + `setPlayerAvatar` + `avatarPickerOpen` on the store,
+  `ascent.avatar` in localStorage). The avatar renders on the **Title account chip** and the **Career profile
+  card**, and clicking either opens the picker (a "Default" tile clears back to the name initial).
+- **Verified:** 437 tests green, typecheck + lint clean. Live (drove real in-session runs to gameover):
+  clicking a pip swaps the board in place with the round's real stats and a working back control, no popover;
+  the picker opens with all 156 options, and a pick persists + updates both the Title chip and Career avatar
+  images. *Caveat surfaced to owner: an early live-test consumed the in-progress "Continue" run — use a
+  throwaway `newRun` when driving the store, not the player's saved run.*
+
+### feat: end-screen polish — real APT, tag tooltips, bigger metrics, drop pool text
+
+- **Actions/round is now player decisions only.** APT counted *every* state-changing action ÷ rounds,
+  which included the automatic combat-flow transitions (`faceOmen` / `settleCombat` / `resolveCombat`,
+  ~once per round each) — inflating the number by a flat ~3/round. Added `isPlayerAction` in
+  [state.ts](packages/sim/src/state.ts) (a small `COMBAT_FLOW_ACTIONS` exclusion set) and filtered the APT
+  calc through it in both places it's computed ([store.ts](packages/ui/src/store.ts) for the saved Career
+  entry, [EndScreen.tsx](packages/ui/src/EndScreen.tsx) for the live end screen). It already included the
+  buys/plays/rolls/discovers the owner cared about — this just strips the phase-advance noise.
+- **Build-tag tooltips.** Tags were bare strings. Added `TAG_INFO` in
+  [buildTags.ts](packages/sim/src/buildTags.ts) — a terse one-line description for all 29 tags (tribe
+  archetypes, trigger-density, keyword walls, board-shape, history-arc) — and wired it as a `title` hover on
+  every tag chip on both the end screen and the Career match rows.
+- **Bigger run metrics.** `.endstats` bumped 14→18px and brightened (0.62→0.8 alpha) so the triples / gold /
+  APT / cards / MVP / strongest line reads at a glance. *(The owner also floated "maybe stack them vertically
+  off to the side" — deferred to the end-screen layout pass that lands with the round-board viewer.)*
+- **Removed the "Added N boards to the pool" line** (+ its `.endcontrib` style and the now-unused
+  `lastRunBoards` read in EndScreen). Board capture/upload still happens; it's just no longer surfaced here.
+- **Verified:** 437 tests green, typecheck + lint clean. Live: drove a finished run into the store — metrics
+  render larger, tag chips carry their tooltip text, the pool line is gone. Gold-spent confirmed already
+  correct (single `spendGold` chokepoint sums buys/rerolls/tier-ups/hero powers), so no change there.
+- **Queued next (owner greenlit):** round-board viewer (click a W/L pip → that round's board via
+  `replayRun`), live card values on the final warband (scaling cards show accumulated stats, not base text),
+  and a player-avatar picker (choose any hero/minion/token art). Follow-up PRs.
+
+### fix: par is the win condition — covering the line wins the run even if you then fall
+
+- **Bug (the big one):** `lineResult` in [state.ts](packages/sim/src/state.ts) forced `status = 'failed'` on
+  **any** gameover (Resolve 0), *regardless of wins*. So a run that beat par — e.g. **11 wins against par 9**
+  — but died on round 16 of 17 graded `failed` and the end screen read **FALLEN / COURSE FAILED**. Par is
+  supposed to *be* the objective; covering it should be a win whether or not you survive to the final round.
+- **Fix — grade against par, death only breaks a tie under it.** `lineResult` now grades purely on scored
+  wins vs par (`flawless` = won every scored round, `exceeded` > par, `covered` = par); only **under par** is
+  a loss, split into `failed` (died early) vs `missed` (survived the course but short). Added a single
+  exported source of truth, **`metLine(status)`** (covered/exceeded/flawless = a win), and routed every
+  surface through it:
+  - **End screen** ([EndScreen.tsx](packages/ui/src/EndScreen.tsx)) — win/loss title + gold styling now key
+    off `metLine`, not course-completion. A covered-par-but-died run shows **PAR COVERED** (gold) / "You
+    covered your line" while the sub-line still honestly reads "fell on round N of M". Course actually
+    finished + covered → **COURSE COMPLETE**; under par → **FALLEN**.
+  - **Career** ([Career.tsx](packages/ui/src/Career.tsx)) — the match-row record color (won/lost) is now
+    par-based via `metLine`.
+  - **Build tags** ([buildTags.ts](packages/sim/src/buildTags.ts)) — `Underdog Line` reuses `metLine`.
+- **Also:** removed the **"the tide takes you"** loss eyebrow (now empty for a genuine FALLEN). And folded
+  the earlier Career fix in — `careerStats().winRate` = runs that met their line / total runs (the local
+  `metLine` copy is gone; it imports the shared one). A run of three all-failed climbs reads **0%**.
+- **Verified:** full suite **437 green** (updated `run.test.ts` + `runHistory.test.ts` to the new par
+  semantics — incl. a regression for "died but covered par → exceeded"). typecheck + lint clean. Live: drove
+  a gameover run with 11 wins / par 9 into the store — end screen renders **PAR COVERED / EXCEEDED (+2)**,
+  gold; a 3-win/par-9 death still renders **FALLEN / Course failed** with no leftover eyebrow. Screenshots
+  captured.
+
 ### feat: looping menu-ambience video on the title screen
 
 - The title screen now hosts an **autoplaying, looping `<video>`** (`.titlevideo`) behind the menu, sourced

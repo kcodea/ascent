@@ -1,4 +1,9 @@
 :root {
+  /* Font roles (swappable live via the dev font selector on the title). `title` = big display headings,
+     `ui` = labels / buttons / stats, `body` = descriptions / prose. Default to the shipped Outfit + Nunito. */
+  --font-title: 'Outfit', sans-serif;
+  --font-ui: 'Outfit', sans-serif;
+  --font-body: 'Nunito Sans', sans-serif;
   /* tribe hues (drive each card's accent --c): Beast green · Dragon red/orange · Mech blue ·
      Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
      card into both hues (see .card.dual / --c2). */
@@ -36,18 +41,27 @@
 html, body, #root { height: 100%; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */
 #root { display: flex; align-items: center; justify-content: center; overflow: hidden; }
-body { font-family: 'Nunito Sans', sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; }
+body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; }
 /* the window behind the stage is a dark frame — it only shows as letterbox bars when the
    resolution scaler shrinks the stage below the window (otherwise the stage covers it). */
 body { background: #160f08; }
 /* gauntlet opens over anything grabbable/clickable */
 .card, .btn, button, .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled
+   ::-webkit-scrollbar) forces the OS arrow cursor — the browser ignores `cursor` on it — which breaks the
+   game's custom gauntlet cursor. Hiding it keeps the cursor consistent everywhere; content still scrolls. */
+.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .loglines, .inspect-buffs, .sfxmix {
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.book-grid::-webkit-scrollbar, .book-rail::-webkit-scrollbar, .avatarpick-scroll::-webkit-scrollbar,
+.lbscroll::-webkit-scrollbar, .heroselect::-webkit-scrollbar, .loglines::-webkit-scrollbar,
+.inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* The hero frame is no longer clickable (the power fires from its button only) — don't show the action cursor on it.
    A disabled power button keeps the game's custom default cursor (not the bare OS arrow), like the other ctl buttons. */
 .heropowerbtn:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 /* closed fist while a card is being dragged */
 body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing !important; }
-.disp { font-family: 'Outfit', sans-serif; }
+.disp { font-family: var(--font-title), sans-serif; }
 canvas.spr { image-rendering: pixelated; display: block; }
 
 /* The stage box: centred in the window via absolute inset:0 + margin auto + a fixed --gw/--gh.
@@ -64,17 +78,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
 
 /* HUD */
 .bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; }
-.wm { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; font-family: 'Outfit'; font-weight: 800; font-size: calc(19 * var(--u)); letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: calc(7 * var(--u)) calc(15 * var(--u)); border-radius: calc(11 * var(--u)); }
+.wm { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: calc(7 * var(--u)) calc(15 * var(--u)); border-radius: calc(11 * var(--u)); }
 /* The player's name on its own pill, hanging below the ASCENT/Wave row (left), mirroring the opponent
    frame on the right. Absolutely positioned off `.bar` so it never reflows the top row. */
-.barplayer { position: absolute; top: calc(100% + 8 * var(--u)); left: 0; z-index: 60; font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; color: var(--acc); background: var(--ink); padding: calc(5 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); max-width: calc(220 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); }
+.barplayer { position: absolute; top: calc(100% + 8 * var(--u)); left: 0; z-index: 60; font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; color: var(--acc); background: var(--ink); padding: calc(5 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); max-width: calc(220 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); }
 .alt .wavecol { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3 * var(--u)); }
-.alt .w { font-family: 'Outfit'; font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
+.alt .w { font-family: var(--font-ui); font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
 /* Round damage cap — the most Resolve a loss this wave can cost, threat-coloured under the wave. */
-.alt .maxdmg { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: 'Outfit'; font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.05em; color: var(--threat-dk); text-transform: uppercase; line-height: 1; }
+.alt .maxdmg { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: var(--font-ui); font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.05em; color: var(--threat-dk); text-transform: uppercase; line-height: 1; }
 .alt .maxdmg svg { width: calc(11 * var(--u)); height: calc(11 * var(--u)); color: var(--threat); }
-.alt .lbl { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
+.alt .lbl { font-family: var(--font-ui); font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
 /* Record — gold-accented W–L with a small crown, so the run's score reads at a glance. */
 .alt .lbl.record { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--acc-dk); font-size: calc(14 * var(--u)); font-variant-numeric: tabular-nums; }
 .alt .lbl.record svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
@@ -86,7 +100,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .mutebtn { width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: var(--card); color: var(--ink2); display: grid; place-items: center; cursor: pointer; flex: none; }
 .mutebtn:hover { border-color: var(--acc); color: var(--ink); }
 .mutebtn svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); }
-.tribes .tl { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; margin-right: 2px; }
+.tribes .tl { font-family: var(--font-ui); font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; margin-right: 2px; }
 .tribes .tb { width: calc(24 * var(--u)); height: calc(24 * var(--u)); border-radius: calc(7 * var(--u)); display: grid; place-items: center; background: color-mix(in srgb, var(--c) 20%, var(--card)); }
 .tribes .tb svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--c); }
 /* Next-opponent intel frame — hangs under the top bar's right edge (below the tribes). Portrait + HP
@@ -98,28 +112,28 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Run-buffs window — a compact list of active permanent buffs; collapsible header. Normal (system) cursor,
    not the custom gauntlet, so the panel reads as plain UI chrome. */
 .buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
-.buffs-head { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; padding: calc(5 * var(--u)) calc(10 * var(--u)); background: none; border: none; cursor: pointer; font-family: 'Outfit'; font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
+.buffs-head { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; padding: calc(5 * var(--u)) calc(10 * var(--u)); background: none; border: none; cursor: pointer; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
 .buffs-head svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
 .buffs-head .buffs-title { flex: 1; text-align: left; }
 .buffs-head .buffs-count { background: var(--acc); color: #fff; border-radius: 99px; padding: 0 calc(6 * var(--u)); font-size: calc(10 * var(--u)); }
 .buffs-head .buffs-chev { color: var(--ink3); font-size: calc(10 * var(--u)); }
 .buffs-body { display: flex; flex-direction: column; padding: 0 calc(10 * var(--u)) calc(7 * var(--u)); gap: calc(3 * var(--u)); }
 .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); }
-.buff-row .buff-label { font-family: 'Outfit'; font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink); white-space: nowrap; }
-.buff-row .buff-val { font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); color: var(--acc-dk); font-variant-numeric: tabular-nums; }
-.oppframe .opp-l { font-family: 'Outfit'; font-weight: 700; font-size: calc(14 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
+.buff-row .buff-label { font-family: var(--font-ui); font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink); white-space: nowrap; }
+.buff-row .buff-val { font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); color: var(--acc-dk); font-variant-numeric: tabular-nums; }
+.oppframe .opp-l { font-family: var(--font-ui); font-weight: 700; font-size: calc(14 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
 .oppframe .opp-pic { width: calc(55 * var(--u)); height: calc(55 * var(--u)); border-radius: calc(13 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--threat); }
 .oppframe .opp-pic img { width: 100%; height: 100%; object-fit: cover; }
 .oppframe .opp-pic svg { width: calc(29 * var(--u)); height: calc(29 * var(--u)); color: var(--ink3); }
-.oppframe .opp-hp { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(22 * var(--u)); color: var(--threat-dk); }
+.oppframe .opp-hp { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(22 * var(--u)); color: var(--threat-dk); }
 .oppframe .opp-hp svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--threat); }
 .oppframe .opp-stats { display: flex; flex-direction: column; align-items: flex-end; gap: calc(1 * var(--u)); }
 .oppframe .opp-meta { display: inline-flex; align-items: center; gap: calc(9 * var(--u)); }
-.oppframe .opp-wins, .oppframe .opp-tier { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); color: var(--ink3); font-variant-numeric: tabular-nums; }
+.oppframe .opp-wins, .oppframe .opp-tier { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); color: var(--ink3); font-variant-numeric: tabular-nums; }
 .oppframe .opp-wins svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
 .oppframe .opp-tier svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--ink3); }
 .oppframe.threat .opp-pic { border-color: var(--ink3); }
-.oppframe .opp-tip { position: absolute; top: calc(100% + 6 * var(--u)); right: 0; min-width: calc(160 * var(--u)); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 600; font-size: calc(12.5 * var(--u)); line-height: 1.55; padding: calc(9 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); opacity: 0; pointer-events: none; transform: translateY(calc(-4 * var(--u))); transition: opacity 0.12s, transform 0.12s; z-index: 90; white-space: nowrap; box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) rgba(0, 0, 0, 0.3); }
+.oppframe .opp-tip { position: absolute; top: calc(100% + 6 * var(--u)); right: 0; min-width: calc(160 * var(--u)); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 600; font-size: calc(12.5 * var(--u)); line-height: 1.55; padding: calc(9 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); opacity: 0; pointer-events: none; transform: translateY(calc(-4 * var(--u))); transition: opacity 0.12s, transform 0.12s; z-index: 90; white-space: nowrap; box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) rgba(0, 0, 0, 0.3); }
 .oppframe:hover .opp-tip { opacity: 1; transform: translateY(0); }
 .oppframe .opp-tip b { color: var(--acc); }
 .oppframe .opp-by { margin-top: 3px; font-size: 11px; font-style: italic; color: var(--ink3); }
@@ -128,19 +142,23 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .rtimer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
 .rtimer .rt-bg { fill: var(--card); stroke: var(--line); stroke-width: 4; }
 .rtimer .rt-fg { fill: none; stroke: var(--acc); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.95s linear; }
-.rtimer .rt-n { position: relative; font-family: 'Outfit'; font-weight: 800; font-size: calc(26 * var(--u)); color: var(--ink); }
+.rtimer .rt-n { position: relative; font-family: var(--font-ui); font-weight: 800; font-size: calc(26 * var(--u)); color: var(--ink); }
 .rtimer[data-low='true'] .rt-fg { stroke: var(--threat); }
 .rtimer[data-low='true'] .rt-n { color: var(--threat); }
-.meter { width: calc(104 * var(--u)); height: calc(9 * var(--u)); border-radius: 6px; background: var(--bg2); overflow: hidden; }
+.meter { position: relative; width: calc(104 * var(--u)); height: calc(9 * var(--u)); border-radius: 6px; background: var(--bg2); overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--acc); border-radius: 6px; }
+/* Pre-round (Setup) notch — a gap cut into the bar at the end of the calibration rounds, so the setup
+   segment reads as separate from the scored climb. Card-coloured with dark edges so it shows on both the
+   orange fill and the empty track. */
+.meter-notch { position: absolute; top: 0; bottom: 0; width: calc(3 * var(--u)); transform: translateX(-50%); background: var(--card); box-shadow: 0 0 0 1px rgba(74, 52, 20, 0.35); z-index: 1; }
 .sp { flex: 1; }
 .chip { position: relative; display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(15 * var(--u)) calc(5 * var(--u)) calc(11 * var(--u)); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
 .chip .ic { width: calc(32 * var(--u)); height: calc(32 * var(--u)); border-radius: calc(9 * var(--u)); display: grid; place-items: center; }
 .chip .ic svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); color: #fff; }
 .chip.g .ic { background: var(--acc); } .chip.h .ic { background: var(--threat); }
 .chip.mana .ic { background: var(--mana); } /* Mana economy reads teal, not tangerine */
-.chip .v { font-family: 'Outfit'; font-weight: 800; font-size: calc(20 * var(--u)); line-height: 1; }
-.chip .l { font-family: 'Outfit'; font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
+.chip .v { font-family: var(--font-ui); font-weight: 800; font-size: calc(20 * var(--u)); line-height: 1; }
+.chip .l { font-family: var(--font-ui); font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
 .hero { display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(4 * var(--u)) calc(14 * var(--u)) calc(4 * var(--u)) calc(5 * var(--u)); }
 /* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
    arrow) so moving onto a spent/passive hero doesn't visibly switch/flicker the cursor */
@@ -148,41 +166,41 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .hero .f { width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: calc(10 * var(--u)); background: var(--ink); display: grid; place-items: center; overflow: hidden; }
 .hero .f svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); color: var(--acc); }
 .hero .f .heroimg { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; -webkit-user-drag: none; }
-.hero .nm { font-family: 'Outfit'; font-weight: 700; font-size: calc(13 * var(--u)); }
+.hero .nm { font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); }
 .hero .pw { font-size: calc(11 * var(--u)); font-weight: 600; color: var(--ink2); }
 
 /* result toast */
 .toast { flex: none; display: flex; align-items: center; gap: calc(10 * var(--u)); padding: calc(8 * var(--u)) calc(16 * var(--u)); border-radius: calc(11 * var(--u)); font-weight: 700; font-size: calc(14 * var(--u)); color: #fff; }
 .toast.win { background: var(--acc); } .toast.lose { background: var(--threat); } .toast.draw { background: var(--ink3); }
-.toast .vd { font-family: 'Outfit'; font-weight: 900; letter-spacing: 0.06em; }
+.toast .vd { font-family: var(--font-ui); font-weight: 900; letter-spacing: 0.06em; }
 
 /* OMEN */
 .omen { background: var(--threat); border-radius: 14px; padding: 7px 16px; display: flex; align-items: center; gap: 14px; flex: none; box-shadow: 0 4px 0 var(--threat-dk); }
 .osig { width: 44px; height: 44px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex: none; }
 .osig svg { width: 25px; height: 25px; color: var(--threat); }
 .ob { flex: 1; min-width: 0; color: #fff; }
-.oey { font-family: 'Outfit'; font-weight: 700; font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.9; }
-.onm { font-family: 'Outfit'; font-weight: 900; font-size: 19px; line-height: 1.05; margin: 0; }
+.oey { font-family: var(--font-ui); font-weight: 700; font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.9; }
+.onm { font-family: var(--font-ui); font-weight: 900; font-size: 19px; line-height: 1.05; margin: 0; }
 .ode { font-size: 12px; font-weight: 600; opacity: 0.95; max-width: 600px; line-height: 1.25; }
 .oc { display: flex; align-items: center; gap: 7px; margin-top: 3px; flex-wrap: wrap; }
-.oc .k { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; opacity: 0.85; }
-.cc { font-family: 'Outfit'; font-weight: 700; font-size: 12px; color: #fff; padding: 3px 11px; border-radius: 8px; text-transform: capitalize; }
+.oc .k { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; opacity: 0.85; }
+.cc { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: #fff; padding: 3px 11px; border-radius: 8px; text-transform: capitalize; }
 .prev { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex: none; }
-.prev .pl { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; opacity: 0.85; }
+.prev .pl { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; opacity: 0.85; }
 .pr { display: flex; gap: 6px; }
 .eu { width: 38px; height: 46px; border-radius: 10px; background: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
 .eu canvas { width: 32px; height: 32px; }
-.eu .s { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 11px; background: var(--ink); color: #fff; padding: 1px 7px; border-radius: 7px; }
+.eu .s { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); font-family: var(--font-ui); font-weight: 800; font-size: 11px; background: var(--ink); color: #fff; padding: 1px 7px; border-radius: 7px; }
 .eu .pz { position: absolute; top: -6px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: var(--poison); display: grid; place-items: center; }
 .eu .pz svg { width: 11px; height: 11px; color: #fff; }
 
 /* ZONES */
 .zone { flex: none; display: flex; flex-direction: column; }
 .zh { display: flex; align-items: center; gap: calc(11 * var(--u)); margin-bottom: 4px; min-height: calc(28 * var(--u)); }
-.zt { font-family: 'Outfit'; font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; }
+.zt { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; }
 .zt b { color: var(--acc-dk); }
 .hint { font-size: calc(12 * var(--u)); font-weight: 700; color: var(--ink3); }
-.btn { font-family: 'Outfit'; font-weight: 700; font-size: calc(12 * var(--u)); padding: calc(7 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); border: 2px solid var(--line); background: var(--card); color: var(--ink); display: flex; align-items: center; gap: calc(6 * var(--u)); }
+.btn { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); padding: calc(7 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); border: 2px solid var(--line); background: var(--card); color: var(--ink); display: flex; align-items: center; gap: calc(6 * var(--u)); }
 .btn:hover:not(:disabled) { border-color: var(--acc); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--ink2); }
@@ -192,16 +210,16 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* two stacked, equal-width control columns flanking the timer (tier + up · refresh + freeze) */
 .ctl-col { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: calc(64 * var(--u)); }
 /* one compact, uniform icon control */
-.ctlbtn { position: relative; width: 100%; height: calc(46 * var(--u)); display: flex; align-items: center; justify-content: center; gap: calc(5 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(18 * var(--u)); color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: calc(14 * var(--u)); box-shadow: 0 3px 0 var(--shadow); transition: filter 0.1s, border-color 0.1s; }
+.ctlbtn { position: relative; width: 100%; height: calc(46 * var(--u)); display: flex; align-items: center; justify-content: center; gap: calc(5 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(18 * var(--u)); color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: calc(14 * var(--u)); box-shadow: 0 3px 0 var(--shadow); transition: filter 0.1s, border-color 0.1s; }
 /* styled hover tooltip (replaces the native title) — the game's dark rounded pill, dropping below the button */
-.ctltip { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.01em; padding: calc(6 * var(--u)) calc(12 * var(--u)); border-radius: calc(10 * var(--u)); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 90; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.55); transition: opacity 0.14s; }
+.ctltip { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.01em; padding: calc(6 * var(--u)) calc(12 * var(--u)); border-radius: calc(10 * var(--u)); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 90; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.55); transition: opacity 0.14s; }
 .ctltip::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-bottom-color: var(--ink); }
 .ctlbtn:hover .ctltip { opacity: 1; transition-delay: 0.3s; }
 /* Hovering applies a `filter` (below), which makes the button its own stacking context and would trap
    the tooltip behind the neighbouring buttons + the timer. Lift the hovered control above them all. */
 .ctlbtn:hover { z-index: 85; }
 .ctlbtn svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); color: var(--ink2); }
-.ctlbtn .c { font-family: 'Outfit'; font-weight: 800; font-size: calc(19 * var(--u)); color: var(--mana-dk); }
+.ctlbtn .c { font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); color: var(--mana-dk); }
 .ctlbtn:not(:disabled):hover { filter: brightness(1.04); border-color: color-mix(in srgb, var(--ink3) 40%, var(--line)); }
 .ctlbtn:disabled { opacity: 0.45; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 /* tier — same squared button as the others (house icon + tier number), tier-accent tint; the tooltip
@@ -222,7 +240,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    .hero arm/fire handler. Placeholder glyph for now; dedicated hero-power artwork to come. */
 /* Wrapper so the gold-cost badge can overhang below the circle without being clipped by overflow:hidden. */
 .hpwrap { flex: none; margin-left: auto; position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--u)); }
-.hpcost { display: flex; align-items: center; gap: calc(2 * var(--u)); background: var(--mana); color: var(--mana-dk); border-radius: calc(10 * var(--u)); padding: calc(1 * var(--u)) calc(6 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(11 * var(--u)); line-height: 1.4; border: 2px solid var(--card); pointer-events: none; white-space: nowrap; }
+.hpcost { display: flex; align-items: center; gap: calc(2 * var(--u)); background: var(--mana); color: var(--mana-dk); border-radius: calc(10 * var(--u)); padding: calc(1 * var(--u)) calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); line-height: 1.4; border: 2px solid var(--card); pointer-events: none; white-space: nowrap; }
 .hpcost svg { width: calc(10 * var(--u)); height: calc(10 * var(--u)); color: var(--mana-dk); }
 .heropowerbtn {
   width: calc(75 * var(--u)); height: calc(75 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
@@ -240,10 +258,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .heropowerbtn.passive { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */
-.tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }
+.tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }
 .tavernbox svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--ink2); }
 .tavernbox b { color: var(--acc); font-size: calc(21 * var(--u)); }
-.warband-hint { color: var(--ink3); font-family: 'Outfit'; font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.02em; }
+.warband-hint { color: var(--ink3); font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.02em; }
 /* burning rope (last 15s of the turn) — a braided fuse on the board's centre line (in flow between
    the offers and the warband, so it lands on the split at any viewport) that burns left→right with
    a live flame (halo + hot core + rising embers) and a glowing char edge trailing behind it. The
@@ -411,8 +429,8 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 }
 /* cost badge — a teal Mana circle overhanging the top-left corner */
 .cost { position: absolute; top: -20px; left: -16px; width: 60px; height: 60px; z-index: 6; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
-.cost .costn { font-family: 'Outfit'; font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
-.tierbadge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
+.cost .costn { font-family: var(--font-ui); font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+.tierbadge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
 .tierbadge[data-tier="1"] { background: #74809a; }
 .tierbadge[data-tier="2"] { background: #1f9d6b; }
@@ -433,7 +451,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    of them so the larger text never slips under a badge */
 .cfoot { display: flex; align-items: center; justify-content: center; padding: 5px 52px; background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 0 0 11px 11px; }
 /* Attack / Health — 2x badges that overhang the card's bottom corners (like the cost ember). */
-.atk, .hp { position: absolute; bottom: -12px; z-index: 6; flex: none; width: 60px; height: 60px; border-radius: 16px; border: 3px solid var(--card); font-family: 'Outfit'; font-weight: 800; font-size: 30px; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+.atk, .hp { position: absolute; bottom: -12px; z-index: 6; flex: none; width: 60px; height: 60px; border-radius: 16px; border: 3px solid var(--card); font-family: var(--font-ui); font-weight: 800; font-size: 30px; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
 .atk { left: -8px; background: var(--atk); } .hp { right: -8px; background: var(--hpc); }
 /* stats above base read green, below base read red */
 .atk.up, .hp.up { background: #1aa86f; }
@@ -458,11 +476,11 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .card.dual:hover { box-shadow: 0 3px 0 var(--shadow), 0 0 26px 2px color-mix(in srgb, var(--c) 90%, transparent); }
 .card.golden.dual::before, .card.spellcard::before, .card.triplecard::before { display: none; } /* special frames win */
 .cbody { padding: 0 9px 8px; margin-top: -20px; position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
-.cn { flex: none; align-self: center; max-width: 100%; font-family: 'Outfit'; font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+.cn { flex: none; align-self: center; max-width: 100%; font-family: var(--font-ui); font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 /* always reserves one pill-row of height (even with no pills) so the description below
    always starts on the same line — Battlecry text aligns with Start-of-Combat text, etc. */
 .kws { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; align-items: center; min-height: 22px; margin: 6px 0 5px; }
-.kw { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 8px; background: var(--c); color: #fff; display: flex; align-items: center; gap: 4px; }
+.kw { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 8px; background: var(--c); color: #fff; display: flex; align-items: center; gap: 4px; }
 .kw svg { width: 12px; height: 12px; }
 .desc { font-size: 14px; font-weight: 600; line-height: 1.34; color: var(--ink2); text-align: center; flex: 1; background: var(--card); border-radius: 9px; padding: 6px 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .desc b { color: var(--ink); font-weight: 700; }
@@ -478,9 +496,9 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .hero:hover .herotip { opacity: 1; transition-delay: 0.35s; }
 /* embers projection — hover the Embers chip to see the next two waves' starting Embers */
 .emberproj { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); min-width: 158px; background: var(--ink); color: #fff; border-radius: 12px; padding: 9px 12px; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
-.emberproj .ept { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); margin-bottom: 6px; text-align: center; }
+.emberproj .ept { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); margin-bottom: 6px; text-align: center; }
 .emberproj .epr { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 12px; font-weight: 600; padding: 2px 0; }
-.emberproj .epr b { display: flex; align-items: center; gap: 4px; color: var(--acc); font-family: 'Outfit'; font-weight: 800; font-size: 15px; }
+.emberproj .epr b { display: flex; align-items: center; gap: 4px; color: var(--acc); font-family: var(--font-ui); font-weight: 800; font-size: 15px; }
 .emberproj .epr b svg { width: 14px; height: 14px; color: var(--mana); }
 .chip.g:hover .emberproj { opacity: 1; transition-delay: 0.25s; }
 .tiprow + .tiprow { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
@@ -596,10 +614,10 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
   border-top: none; border-radius: 0 0 calc(16 * var(--u)) calc(16 * var(--u));
   box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.4);
 }
-.card.compact.showtext .drawer .cn { font-family: 'Outfit'; font-weight: 800; font-size: calc(var(--ccw) * 0.088); color: var(--ink); background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
+.card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.088); color: var(--ink); background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
 .card.compact.showtext .drawer .kws { min-height: 0; margin: 0 0 calc(var(--ccw) * 0.035); }
 .card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: 1.32; color: var(--ink2); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
-.card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: 'Outfit'; font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
+.card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .card.compact.showtext .drawer .dtribe svg { width: calc(var(--ccw) * 0.075); height: calc(var(--ccw) * 0.075); color: var(--c); }
 .card.compact.showtext .drawer .dtribe svg:last-of-type { color: var(--c2); }   /* 2nd tribe in its own hue */
 
@@ -614,7 +632,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 
 /* Golden / tripled compact card: the arch frame goes gold (gradient border) + a soft gold glow + a
    crown emblem in the corner — so a tripled minion is instantly findable in a row, without being loud. */
-.card.compact.golden { box-shadow: 0 0 16px -2px rgba(231, 181, 61, 0.75); }
+.card.compact.golden { box-shadow: 0 0 0 3px #ffd85a, 0 0 24px 2px rgba(255, 190, 50, 0.9); }
 .card.compact.golden .art {
   border-color: transparent;
   background: linear-gradient(color-mix(in srgb, #f4cf6a 24%, var(--card)), color-mix(in srgb, #f4cf6a 24%, var(--card))) padding-box,
@@ -629,7 +647,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .card.compact .goldcrown svg { width: 62%; height: 62%; color: #6a4d07; }
 
 /* golden (tripled) minion */
-.card.golden { border-color: #e7b53d; background: color-mix(in srgb, #f4cf6a 20%, var(--card)); box-shadow: 0 0 0 2px #f4cf6a, 0 3px 0 var(--shadow), 0 0 18px -2px rgba(231, 181, 61, 0.7); }
+.card.golden { border-color: #ffcf4a; background: color-mix(in srgb, #f4cf6a 24%, var(--card)); box-shadow: 0 0 0 3px #ffd85a, 0 3px 0 var(--shadow), 0 0 28px 2px rgba(255, 190, 50, 0.85); }
 .card.golden .art { background: color-mix(in srgb, #f4cf6a 32%, var(--card)); }
 /* golden name pill — filled gold instead of just gold text */
 .card.golden .cn { background: linear-gradient(180deg, #ffe9a6, #f1cb5e); color: #6e5008; box-shadow: 0 1px 3px rgba(120, 80, 10, 0.32); }
@@ -655,7 +673,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    card's z111 lift, and the Fodder swirl (z120) — so a unit that triggers Discover can't cover its own menu. */
 .discover-ov { position: fixed; inset: 0; background: rgba(34, 22, 9, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 160; animation: fadein 0.2s ease; }
 .discover-box { background: var(--card); border: 3px solid var(--acc); border-radius: calc(20 * var(--u)); padding: calc(22 * var(--u)) calc(26 * var(--u)); box-shadow: 0 18px 50px -10px rgba(0, 0, 0, 0.4); }
-.discover-title { font-family: 'Outfit'; font-weight: 800; font-size: calc(19 * var(--u)); text-align: center; margin-bottom: calc(16 * var(--u)); color: var(--ink); }
+.discover-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); text-align: center; margin-bottom: calc(16 * var(--u)); color: var(--ink); }
 .discover-title b { color: var(--acc-dk); }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 /* Discover — an ornate, gold-framed parchment panel with a banner title, blue gems, a flourished
@@ -665,13 +683,11 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
   background: transparent; border: none; box-shadow: none;       /* transparent — just the title + cards float */
   padding: calc(46 * var(--u)) calc(40 * var(--u)) calc(34 * var(--u));
 }
-/* B2: minimize the Discover to inspect the board; a floating pill restores it. */
-.disc-min { position: absolute; top: calc(12 * var(--u)); right: calc(12 * var(--u)); z-index: 3; display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.04em; color: #f4ecda; background: rgba(0, 0, 0, 0.42); border: 2px solid rgba(255, 255, 255, 0.28); padding: calc(8 * var(--u)) calc(15 * var(--u)); border-radius: calc(11 * var(--u)); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.disc-min svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); }
-.disc-min:hover { border-color: var(--acc); color: var(--acc); }
-.disc-restore { position: fixed; left: 50%; bottom: calc(18 * var(--u)); transform: translateX(-50%); z-index: 160; display: inline-flex; align-items: center; gap: calc(7 * var(--u)); font-family: 'Outfit'; font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.03em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(10 * var(--u)) calc(20 * var(--u)); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(6 * var(--u)) calc(20 * var(--u)) -6px rgba(0, 0, 0, 0.6); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.2s ease; }
-.disc-restore svg { width: calc(17 * var(--u)); height: calc(17 * var(--u)); }
-.disc-restore:hover { filter: brightness(1.07); }
+/* B2: minimize the Discover to inspect the board, then return — ONE orange button, pinned to the same fixed
+   spot just below the cards for both states, so the player flips between them without moving the mouse. */
+.disc-toggle { position: fixed; left: 50%; top: 66%; transform: translateX(-50%); z-index: 200; display: inline-flex; align-items: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.03em; color: #5a3d12; background: linear-gradient(180deg, #f8edd2, #e7cf9f); border: 2px solid #c8922e; padding: calc(10 * var(--u)) calc(22 * var(--u)); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.45), inset 0 -3px 6px rgba(150, 100, 30, 0.2); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.2s ease; }
+.disc-toggle svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
+.disc-toggle:hover { filter: brightness(1.04); }
 /* The Discover burst FX layer — fills the overlay behind the panel/cards (above the dark backdrop), so the
    golden magic erupts behind the UI. The Pixi canvas inside is absolute/full-cover + pointer-events:none. */
 .disc-burst { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
@@ -683,11 +699,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 }
 .disc-banner .disp { font-weight: 900; font-size: calc(30 * var(--u)); color: #5a3d12; letter-spacing: 0.03em; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
 .disc-gem { display: none; }   /* panel decorations — dropped now the panel is transparent */
-.disc-sub { text-align: center; font-family: 'Outfit'; font-weight: 700; font-size: calc(16 * var(--u)); color: #8a6a3a; letter-spacing: 0.04em; margin: calc(8 * var(--u)) 0 calc(24 * var(--u)); }
-.disc-sub::before, .disc-sub::after { content: '✦'; color: #d6a83e; }
-.disc-sub::before { margin-right: calc(10 * var(--u)); }
-.disc-sub::after { margin-left: calc(10 * var(--u)); }
-.disc-cards { display: flex; gap: calc(22 * var(--u)); justify-content: center; }
+.disc-cards { display: flex; gap: calc(22 * var(--u)); justify-content: center; margin-top: calc(20 * var(--u)); }
 /* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline) */
 .disc-slot { display: inline-flex; border-radius: var(--arch-radius); animation: discpulse 2s ease-in-out infinite; }
 @keyframes discpulse {
@@ -712,7 +724,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 }
 /* Choose One — two big option buttons */
 .chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
-.chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: 'Nunito Sans', sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }
+.chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }
 .chooseopt:hover { border-color: var(--acc); transform: translateY(-3px); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35); }
 .chooseopt b { color: var(--acc-dk); font-weight: 800; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
@@ -728,12 +740,12 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
 /* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
 .inspect-buffs { align-self: center; min-width: 92px; max-width: min(252px, 44vw); max-height: min(72vh, 560px); overflow-y: auto; background: color-mix(in srgb, var(--card) 95%, transparent); border: 2px solid var(--line); border-radius: 9px; padding: 6px 8px; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
-.ib-title { font-family: 'Outfit'; font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); text-align: center; margin-bottom: 2px; }
+.ib-title { font-family: var(--font-ui); font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); text-align: center; margin-bottom: 2px; }
 .ib-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 10px; white-space: nowrap; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
-.ib-src { font-family: 'Outfit'; font-weight: 700; color: var(--ink); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ib-src { font-family: var(--font-ui); font-weight: 700; color: var(--ink); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ib-src em { color: var(--ink3); font-style: normal; font-weight: 600; font-size: 8.5px; }
-.ib-amt { font-family: 'Outfit'; font-weight: 800; color: #1aa86f; flex: 0 0 auto; }
+.ib-amt { font-family: var(--font-ui); font-weight: 800; color: #1aa86f; flex: 0 0 auto; }
 @keyframes inspectpop { from { opacity: 0; transform: scale(1.45); } to { opacity: 1; transform: scale(1.9); } }
 
 /* custom drag: a solid card pinned to the cursor; the source dims; invalid drops snap back.
@@ -882,7 +894,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    clears the player's warband below as the turn's end-of-turn effects resolve. */
 .eotbanner { position: fixed; left: 0; right: 0; top: 0; height: 62vh; z-index: 95; display: grid; place-items: center; pointer-events: none; }
 .eotbanner .eot-text {
-  font-family: 'Outfit'; font-weight: 900; font-size: clamp(34px, 6vh, 64px); letter-spacing: 0.08em;
+  font-family: var(--font-ui); font-weight: 900; font-size: clamp(34px, 6vh, 64px); letter-spacing: 0.08em;
   text-transform: uppercase; color: #fff; text-shadow: 0 3px 0 var(--acc-dk), 0 0 34px rgba(240, 144, 46, 0.75);
   animation: eotpop 0.85s ease forwards;
 }
@@ -897,7 +909,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .crashscreen {
   position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 40px;
-  background: var(--card); color: var(--ink); font-family: 'Outfit', sans-serif;
+  background: var(--card); color: var(--ink); font-family: var(--font-ui), sans-serif;
 }
 .crashscreen h1 { font-size: 30px; font-weight: 900; letter-spacing: 0.02em; color: var(--acc-dk); }
 .crashscreen p { max-width: 460px; font-size: 15px; line-height: 1.5; color: var(--ink3); }
@@ -907,7 +919,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 }
 .crashbtns { display: flex; gap: 12px; margin-top: 6px; }
 .crashbtns button {
-  font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 15px; padding: 10px 22px;
+  font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 15px; padding: 10px 22px;
   border-radius: 12px; border: 2px solid var(--acc-dk); background: var(--acc); color: #fff;
   box-shadow: 0 4px 0 var(--acc-dk); cursor: pointer;
 }
@@ -954,7 +966,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* Channeling the Devourer's stat mote — GSAP owns its transform (x/y/scale); CSS is just the look. */
 .devourbolt {
   position: fixed; left: 0; top: 0; z-index: 121; pointer-events: none; white-space: nowrap;
-  font-family: 'Outfit'; font-weight: 900; font-size: calc(30 * var(--u));
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(30 * var(--u));
   color: #fff; padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: 999px;
   background: linear-gradient(180deg, #c074f0, #8a3fd0); border: 2px solid #f0d9ff;
   box-shadow: 0 0 20px 5px rgba(177, 92, 240, 0.9), 0 4px 10px rgba(0, 0, 0, 0.45);
@@ -987,17 +999,17 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    stays reserved so the fan never reflows; the floating .dragcard is the only visible copy. */
 .card.dragsrc { opacity: 0; }
 .zone.sellglow .row { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: 0 0 0 3px var(--acc), 0 0 24px -2px color-mix(in srgb, var(--acc) 75%, transparent); border-radius: 16px; }
-.zone.sellglow .row::after { content: 'Sell +1'; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; color: var(--acc-dk); text-transform: uppercase; }
+.zone.sellglow .row::after { content: 'Sell +1'; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; color: var(--acc-dk); text-transform: uppercase; }
 /* Sell zone — the entire screen above the warband, lit while dragging a board minion. Releasing
    anywhere in it sells (handled in JS). Sits below the floating drag card (z 100), above the board. */
 .sellzone { position: absolute; top: 0; left: 0; right: 0; z-index: 40; pointer-events: none; display: flex; align-items: flex-start; justify-content: center; padding-top: calc(34 * var(--u)); background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 20%, transparent), transparent 78%); border-bottom: 3px dashed color-mix(in srgb, var(--acc) 45%, transparent); opacity: 0.55; transition: opacity 0.12s, background 0.12s; }
 .sellzone.on { opacity: 1; background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 34%, transparent), transparent 82%); border-bottom-color: var(--acc); }
-.sellzone-tag { font-family: 'Outfit'; font-weight: 800; font-size: calc(20 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: var(--acc); padding: calc(7 * var(--u)) calc(22 * var(--u)); border-radius: calc(12 * var(--u)); box-shadow: 0 5px 16px rgba(0, 0, 0, 0.3); }
+.sellzone-tag { font-family: var(--font-ui); font-weight: 800; font-size: calc(20 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: var(--acc); padding: calc(7 * var(--u)) calc(22 * var(--u)); border-radius: calc(12 * var(--u)); box-shadow: 0 5px 16px rgba(0, 0, 0, 0.3); }
 /* Buy zone — vertical mirror of the sell zone: anchored to the bottom, tint strongest at the bottom (hand),
    dashed boundary at the top (the warband line). `top` is set inline to the warband line; bottom pins to screen. */
 .buyzone { position: absolute; bottom: 0; left: 0; right: 0; z-index: 40; pointer-events: none; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(34 * var(--u)); background: linear-gradient(0deg, color-mix(in srgb, var(--acc) 20%, transparent), transparent 78%); border-top: 3px dashed color-mix(in srgb, var(--acc) 45%, transparent); opacity: 0.55; transition: opacity 0.12s, background 0.12s; }
 .buyzone.on { opacity: 1; background: linear-gradient(0deg, color-mix(in srgb, var(--acc) 34%, transparent), transparent 82%); border-top-color: var(--acc); }
-.buyzone-tag { font-family: 'Outfit'; font-weight: 800; font-size: calc(20 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: var(--acc); padding: calc(7 * var(--u)) calc(22 * var(--u)); border-radius: calc(12 * var(--u)); box-shadow: 0 5px 16px rgba(0, 0, 0, 0.3); }
+.buyzone-tag { font-family: var(--font-ui); font-weight: 800; font-size: calc(20 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: var(--acc); padding: calc(7 * var(--u)) calc(22 * var(--u)); border-radius: calc(12 * var(--u)); box-shadow: 0 5px 16px rgba(0, 0, 0, 0.3); }
 .zone[data-zone='tavern'] .row { position: relative; transition: box-shadow 0.12s, background 0.12s; }
 /* valid drop target (buy onto hand, play/reorder onto warband) — a soft accent frame */
 .zone.dropok .row { background: color-mix(in srgb, var(--acc) 9%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent); border-radius: 16px; transition: box-shadow 0.12s, background 0.12s; }
@@ -1013,10 +1025,10 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .aimline circle { fill: var(--acc); filter: drop-shadow(0 0 7px var(--acc)); }
 .aimline circle.on { fill: #fff; stroke: var(--acc); stroke-width: 4; }
 /* Floating prompt while a played minion waits for its targeted-Battlecry pick (Toxin Tender). */
-.targetprompt { position: fixed; left: 50%; top: 30%; transform: translateX(-50%); z-index: 92; pointer-events: none; font-family: 'Outfit'; font-weight: 800; font-size: calc(15 * var(--u)); color: #fff; background: var(--acc-dk); padding: calc(7 * var(--u)) calc(18 * var(--u)); border-radius: 999px; box-shadow: 0 6px 20px -7px rgba(0, 0, 0, 0.5); border: 2px solid color-mix(in srgb, var(--acc) 70%, #fff); animation: tpfade 0.25s ease; }
+.targetprompt { position: fixed; left: 50%; top: 30%; transform: translateX(-50%); z-index: 92; pointer-events: none; font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: #fff; background: var(--acc-dk); padding: calc(7 * var(--u)) calc(18 * var(--u)); border-radius: 999px; box-shadow: 0 6px 20px -7px rgba(0, 0, 0, 0.5); border: 2px solid color-mix(in srgb, var(--acc) 70%, #fff); animation: tpfade 0.25s ease; }
 @keyframes tpfade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes aimdash { to { stroke-dashoffset: -14; } }
-.ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: 'Outfit'; font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
+.ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 17px; height: 17px; color: var(--c); }
 .ctype.spell { flex: 1; color: var(--t-demon); font-size: 15px; }
 /* dual-type footer (Heckbinder = Demon/Mech): two labels + icons, so shrink to fit; second icon is the --c2 hue */
@@ -1036,7 +1048,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .hprow .ic svg { width: calc(32 * var(--u)); height: calc(32 * var(--u)); color: var(--threat); }
 .hprow .hpbar { flex: 1; height: calc(20 * var(--u)); border-radius: 10px; background: color-mix(in srgb, var(--threat) 18%, var(--card)); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18); }
 .hprow .hpbar i { display: block; height: 100%; background: var(--hpc); border-radius: 10px; transition: width 0.35s ease; }
-.hprow .hpval { flex: none; min-width: 1.4em; text-align: right; font-family: 'Outfit'; font-weight: 800; font-size: calc(28 * var(--u)); color: var(--threat-dk); }
+.hprow .hpval { flex: none; min-width: 1.4em; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(28 * var(--u)); color: var(--threat-dk); }
 .statusbar .hero { pointer-events: auto; }
 /* the Embers chip captures hover too (for its projection popup) */
 .statusbar .chip.g { pointer-events: auto; }
@@ -1047,7 +1059,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* resolve took a hit */
 .hprow.hit { animation: hitshake 0.5s ease; }
 @keyframes hitshake { 0%, 100% { transform: none; } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
-.resfx { position: absolute; top: -10px; right: 14px; font-family: 'Outfit'; font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
+.resfx { position: absolute; top: -10px; right: 14px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 /* compact sizing for the corner tray (was hero-sized when it was the centrepiece); the
    hero panel is ~15% larger than the chips so it reads as the centrepiece of the tray */
 .statusbar .hero { padding: calc(8 * var(--u)) calc(22 * var(--u)) calc(8 * var(--u)) calc(8 * var(--u)); border-radius: calc(23 * var(--u)); gap: calc(14 * var(--u)); }
@@ -1065,7 +1077,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .statusbar .chip .v { font-size: calc(34 * var(--u)); }
 .statusbar .chip .l { font-size: calc(12 * var(--u)); letter-spacing: 0.06em; }
 .statusbar .sellfx { font-size: calc(18 * var(--u)); top: -2px; right: 12px; }
-.sellfx { position: absolute; top: -8px; right: 8px; font-family: 'Outfit'; font-weight: 900; font-size: 16px; color: #d99a2e; pointer-events: none; animation: sellrise 0.85s ease forwards; }
+.sellfx { position: absolute; top: -8px; right: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 16px; color: #d99a2e; pointer-events: none; animation: sellrise 0.85s ease forwards; }
 @keyframes sellrise { 0% { opacity: 0; transform: translateY(6px); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
 
 /* Selection emphasises the card's own tribe colour (brighter ring + glow) rather than a clashing accent. */
@@ -1077,8 +1089,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 
 /* LEGEND */
 .legend { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.legend .lt { font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.1em; color: var(--ink3); text-transform: uppercase; }
-.li { font-family: 'Outfit'; font-weight: 700; font-size: 11px; color: var(--ink2); display: flex; align-items: center; gap: 6px; background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 4px 10px; }
+.legend .lt { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; color: var(--ink3); text-transform: uppercase; }
+.li { font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: var(--ink2); display: flex; align-items: center; gap: 6px; background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 4px 10px; }
 .li b { color: var(--ink); }
 .li svg { width: 13px; height: 13px; color: var(--acc-dk); }
 
@@ -1158,11 +1170,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 @keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }
 /* result vignette keyframe — used by .app.combat.done::after */
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
-.alog { position: fixed; left: 50%; bottom: calc(var(--bar-y) + var(--ch) * 0.66 + 16px); transform: translateX(-50%); z-index: 30; text-align: center; font-family: 'Outfit'; font-weight: 800; font-size: 20px; color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: 11px 28px; border-radius: 14px; border: 2px solid color-mix(in srgb, var(--acc) 55%, var(--ink)); box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.6); pointer-events: none; max-width: 76vw; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
+.alog { position: fixed; left: 50%; bottom: calc(var(--bar-y) + var(--ch) * 0.66 + 16px); transform: translateX(-50%); z-index: 30; text-align: center; font-family: var(--font-ui); font-weight: 800; font-size: 20px; color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: 11px 28px; border-radius: 14px; border: 2px solid color-mix(in srgb, var(--acc) 55%, var(--ink)); box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.6); pointer-events: none; max-width: 76vw; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
 /* A combat-granted card (Arcane Weaver → Spirit Fire) pops in centre-screen, then flies down + fades
    toward the hand, so the player sees it being added. */
 .handgrant { position: fixed; left: 50%; top: 46%; z-index: 33; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: var(--cw); pointer-events: none; animation: tohandfly 1.15s cubic-bezier(0.4, 0, 0.5, 1) forwards; }
-.hg-label { font-family: 'Outfit'; font-weight: 900; font-size: calc(16 * var(--u)); color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: calc(4 * var(--u)) calc(13 * var(--u)); border-radius: 999px; border: 2px solid var(--acc); white-space: nowrap; box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.5); }
+.hg-label { font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: calc(4 * var(--u)) calc(13 * var(--u)); border-radius: 999px; border: 2px solid var(--acc); white-space: nowrap; box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.5); }
 @keyframes tohandfly {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
   16% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
@@ -1184,7 +1196,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Damage/heal numbers pop up *over each card's own stat corner* (near the HP), so the attacker's
    and the target's hits are both readable at the same instant — they spawn together (one impact beat).
    Bigger and lingering longer than before, and they stay on the card instead of flying off the top. */
-.float { position: absolute; bottom: 15%; right: 7px; font-family: 'Outfit'; font-weight: 900; font-size: 34px; pointer-events: none; z-index: 25; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); animation: floatup 1.4s cubic-bezier(0.2, 0.85, 0.3, 1) forwards; }
+.float { position: absolute; bottom: 15%; right: 7px; font-family: var(--font-ui); font-weight: 900; font-size: 34px; pointer-events: none; z-index: 25; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); animation: floatup 1.4s cubic-bezier(0.2, 0.85, 0.3, 1) forwards; }
 /* Killing-blow damage number for a dying unit — anchored in a board overlay at the minion's last spot
    (the unit itself collapses), centred there; the inner .float rides the floatup rise from the anchor.
    It clears FASTER than a normal float (≈0.9s) so a lone number over a vanished unit doesn't hang. */
@@ -1231,13 +1243,13 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    tier numbers that fly up into it. The Pixi blast bolt (z41) launches from the counter into the Resolve
    bar. Counter z-index sits above the board but below the bolt. */
 .lossdmg { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%); text-align: center; animation: lossdmgin 0.25s cubic-bezier(0.34, 1.4, 0.64, 1); }
-.lossdmg-n { font-family: 'Outfit'; font-weight: 900; font-size: 72px; line-height: 1; color: #fff; text-shadow: 0 0 10px var(--threat), 0 0 22px var(--threat), 0 3px 8px rgba(0, 0, 0, 0.5); }
-.lossdmg-l { font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: #ffd9c0; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); margin-top: 4px; }
+.lossdmg-n { font-family: var(--font-ui); font-weight: 900; font-size: 72px; line-height: 1; color: #fff; text-shadow: 0 0 10px var(--threat), 0 0 22px var(--threat), 0 3px 8px rgba(0, 0, 0, 0.5); }
+.lossdmg-l { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: #ffd9c0; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); margin-top: 4px; }
 .lossdmg.launch { animation: lossdmglaunch 0.34s ease-in forwards; } /* the DOM number hands off to the Pixi bolt */
 @keyframes lossdmgin { from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 @keyframes lossdmglaunch { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -50%) scale(0.55); } }
 /* A tier number flying from its enemy card (or the opponent intel frame) up into the damage counter. */
-.lossfly { position: fixed; z-index: 31; pointer-events: none; font-family: 'Outfit'; font-weight: 900; font-size: 30px; color: #fff; text-shadow: 0 0 8px var(--threat), 0 2px 5px rgba(0, 0, 0, 0.55); animation: lossflyto 0.43s ease-in forwards; }
+.lossfly { position: fixed; z-index: 31; pointer-events: none; font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #fff; text-shadow: 0 0 8px var(--threat), 0 2px 5px rgba(0, 0, 0, 0.55); animation: lossflyto 0.43s ease-in forwards; }
 .lossfly.opp { color: #ffe6a8; text-shadow: 0 0 8px #d6a83e, 0 2px 5px rgba(0, 0, 0, 0.55); } /* the opponent's tavern tier reads gold */
 @keyframes lossflyto {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
@@ -1311,25 +1323,35 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .cbtns .btn.big { font-size: 32px; padding: 24px 48px; border-radius: 18px; gap: 16px; box-shadow: 0 5px 0 var(--shadow); }
 .cbtns .btn.big svg { width: 42px; height: 42px; }
 .cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
-/* combat replay-speed slider — lives in the top HudBar (left of the tribes), combat-phase only */
+/* Top-right combat HUD (replay only): a small Skip button with the speed slider stacked beneath it, tucked
+   under the tribes bar so the arena stays clear. */
+.combathud { position: fixed; top: calc(146 * var(--u)); right: calc(16 * var(--u)); z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }
+/* Hide the run-buffs window during combat so it never collides with the combat HUD below the opponent frame
+   (buffs aren't actionable mid-replay; it returns in recruit). */
+.app.combat .buffsframe { display: none; }
+.combathud-skip { display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
+.combathud-skip:hover { background: var(--acc-dk); }
+.combathud-skip:active { transform: translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--acc-dk); }
+/* combat replay-speed slider — now sits in the top-right combat HUD, beneath the Skip button */
 .combatspeed { flex: none; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: calc(13 * var(--u)); }
-.combatspeed .csl { font-family: 'Outfit'; font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
+.combatspeed .csl { font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
 .combatspeed input[type='range'] { width: calc(110 * var(--u)); height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
 .combatspeed input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
 .combatspeed input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
-.combatspeed .combatspeed-val { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+.combatspeed .combatspeed-val { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
 /* post-combat Combat Log overlay */
 .logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
 @keyframes logfade { from { opacity: 0; } to { opacity: 1; } }
 .logbox { width: min(calc(560 * var(--u)), 90vw); max-height: 76vh; display: flex; flex-direction: column; gap: calc(13 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(18 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.5); }
-.logtitle { font-family: 'Outfit'; font-weight: 900; font-size: calc(20 * var(--u)); letter-spacing: 0.04em; display: flex; align-items: center; gap: calc(12 * var(--u)); }
+.logtitle { font-family: var(--font-ui); font-weight: 900; font-size: calc(20 * var(--u)); letter-spacing: 0.04em; display: flex; align-items: center; gap: calc(12 * var(--u)); }
 .logverdict { font-size: calc(13 * var(--u)); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; padding: calc(3 * var(--u)) calc(11 * var(--u)); border-radius: 9px; }
 .logverdict.win { color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 20%, transparent); }
 .logverdict.lose { color: var(--threat-dk); background: color-mix(in srgb, var(--threat) 18%, transparent); }
 .logverdict.draw { color: var(--ink2); background: var(--bg2); }
 /* Outcome-odds bar: the estimated win / draw / loss distribution for the matchup (the result was one roll). */
 .logodds { display: flex; flex-direction: column; gap: calc(5 * var(--u)); }
-.oddscap { font-family: 'Outfit'; font-weight: 800; font-size: calc(10 * var(--u)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.oddscap { font-family: var(--font-ui); font-weight: 800; font-size: calc(10 * var(--u)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
 /* 4× thicker than before; segment widths map 1:1 to the win/draw/loss odds (flex:none defeats the
    generic .ob flex:1 so the inline width wins), coloured green → orange → red. */
 .oddsbar { display: flex; height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg2); }
@@ -1337,17 +1359,17 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .oddsbar .ob.win { background: #2fb866; }
 .oddsbar .ob.draw { background: #f59324; }
 .oddsbar .ob.lose { background: #e53b3b; }
-.oddslabels { display: flex; justify-content: space-between; font-family: 'Outfit'; font-weight: 800; font-size: calc(12 * var(--u)); }
+.oddslabels { display: flex; justify-content: space-between; font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); }
 .oddslabels .win { color: #1f8a4b; }
 .oddslabels .draw { color: #b36608; }
 .oddslabels .lose { color: #b82626; }
-.oddsavg { font-family: 'Outfit'; font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink3); }
+.oddsavg { font-family: var(--font-ui); font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink3); }
 .oddsavg b { font-weight: 800; color: #b82626; }
 .loglines { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: calc(6 * var(--u)); padding-right: 6px; }
-.logline { font-family: 'Nunito Sans', sans-serif; font-size: calc(14 * var(--u)); font-weight: 600; color: var(--ink2); padding: calc(7 * var(--u)) calc(11 * var(--u)); border-radius: 8px; background: var(--bg2); border-left: 3px solid var(--line); }
+.logline { font-family: var(--font-body), sans-serif; font-size: calc(14 * var(--u)); font-weight: 600; color: var(--ink2); padding: calc(7 * var(--u)) calc(11 * var(--u)); border-radius: 8px; background: var(--bg2); border-left: 3px solid var(--line); }
 /* Post-combat "Gains" tab (A4): the permanent value the fight left you with. */
-.loggainhead { font-family: 'Outfit'; font-weight: 900; font-size: calc(11.5 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); margin-bottom: calc(2 * var(--u)); }
-.loggain { font-family: 'Outfit'; font-weight: 700; font-size: calc(14 * var(--u)); color: var(--ink); padding: calc(7 * var(--u)) calc(12 * var(--u)); border-radius: 8px; background: var(--bg2); border-left: 3px solid #3b9e57; }
+.loggainhead { font-family: var(--font-ui); font-weight: 900; font-size: calc(11.5 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); margin-bottom: calc(2 * var(--u)); }
+.loggain { font-family: var(--font-ui); font-weight: 700; font-size: calc(14 * var(--u)); color: var(--ink); padding: calc(7 * var(--u)) calc(12 * var(--u)); border-radius: 8px; background: var(--bg2); border-left: 3px solid #3b9e57; }
 .logline.sc { border-left-color: var(--t-dragon); color: var(--ink); font-weight: 800; }
 .logline.attack { border-left-color: var(--ink3); }
 .logline.dmg { border-left-color: var(--threat); color: var(--threat-dk); }
@@ -1361,9 +1383,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Proc-count summary block above the detailed log. */
 /* Combat Log tab switcher (Procs / Log) + the per-source proc lines. */
 .logtabs { display: flex; gap: calc(8 * var(--u)); }
-.logtab { font-family: 'Outfit'; font-weight: 800; font-size: calc(14 * var(--u)); padding: calc(6 * var(--u)) calc(16 * var(--u)); border-radius: 999px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); }
+.logtab { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); padding: calc(6 * var(--u)) calc(16 * var(--u)); border-radius: 999px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); }
 .logtab.active { background: var(--acc); color: #fff; border-color: var(--acc); }
-.logsum { font-family: 'Outfit'; font-weight: 700; font-size: calc(13.5 * var(--u)); color: var(--ink); padding: calc(3 * var(--u)) calc(11 * var(--u)); }
+.logsum { font-family: var(--font-ui); font-weight: 700; font-size: calc(13.5 * var(--u)); color: var(--ink); padding: calc(3 * var(--u)) calc(11 * var(--u)); }
 .logsum.total { color: var(--ink2); font-weight: 800; }
 .logsum.head { color: var(--ink); font-weight: 900; font-size: calc(11.5 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.65; margin-top: calc(7 * var(--u)); }
 .logsum.rally { color: var(--t-demon); padding-left: calc(20 * var(--u)); }
@@ -1373,9 +1395,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .logbox .btn { align-self: center; }
 @keyframes combatctlin { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 
-/* faint team tints + the enemy "arrival" once the fight is on */
-.app.fighting .zone[data-zone='tavern'] .row { background: color-mix(in srgb, var(--threat) 8%, transparent); border-radius: 18px; }
-.app.fighting .zone[data-zone='warband'] .row { background: color-mix(in srgb, var(--acc) 9%, transparent); border-radius: 18px; }
+/* the enemy "arrival" once the fight is on (team-tint bands removed — the combat area stays uncoloured) */
 /* Enemies drop in at combat start. NB: no `both`/`forwards` fill — a held final transform would
    override the inline lunge transform, so enemy minions would never animate their attacks. The
    keyframe ends at the identity transform, so dropping the fill is seamless. */
@@ -1391,10 +1411,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* a kill shakes just the unit rows (never the HUD / hero) */
 .app.shaking .zone[data-zone='tavern'] .row, .app.shaking .zone[data-zone='warband'] .row { animation: boardshake 0.3s ease; }
 
-/* a soft vignette tint when the replay settles — green for a win, raspberry for a loss */
-.app.combat.done::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 13; animation: resulttint 0.6s ease forwards; }
-.app.combat.done.win::after { background: radial-gradient(120% 78% at 50% 46%, transparent 48%, rgba(34, 190, 134, 0.22)); }
-.app.combat.done.lose::after { background: radial-gradient(120% 78% at 50% 46%, transparent 48%, rgba(229, 57, 99, 0.22)); }
+/* (result vignette removed — no green/raspberry screen tint when the replay settles) */
 
 /* post-combat: the warband re-enters via the base card `cardpop` (a single mount animation) —
    no separate reset class to toggle, which is what double-flashed the board on the way back. */
@@ -1407,23 +1424,23 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    reads as a faint ghost, not an interactive screen; it also captures clicks (blocks the board). */
 .over { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 94%, transparent); animation: fadein 0.3s ease; }
 .over .box { display: flex; flex-direction: column; align-items: center; text-align: center; }
-.over .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.3em; color: var(--threat); text-transform: uppercase; }
-.over h1 { font-family: 'Outfit'; font-weight: 900; font-size: 52px; letter-spacing: 0.06em; color: var(--ink); margin: 10px 0; }
-.over .final { font-family: 'Outfit'; font-weight: 900; font-size: 72px; color: var(--acc-dk); line-height: 1; }
-.over .fcap { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.2em; color: var(--ink3); text-transform: uppercase; margin-bottom: 22px; }
+.over .eyebrow { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.3em; color: var(--threat); text-transform: uppercase; }
+.over h1 { font-family: var(--font-title); font-weight: 900; font-size: 52px; letter-spacing: 0.06em; color: var(--ink); margin: 10px 0; }
+.over .final { font-family: var(--font-ui); font-weight: 900; font-size: 72px; color: var(--acc-dk); line-height: 1; }
+.over .fcap { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.2em; color: var(--ink3); text-transform: uppercase; margin-bottom: 22px; }
 /* Victory screen (survived the final wave) — warm + celebratory vs the threat-red loss screen. */
 .over.victory .eyebrow { color: var(--acc); }
 .over.victory h1 { color: #ffd98a; text-shadow: 0 0 28px rgba(255, 200, 110, 0.45); }
 
 /* Pre-run hero picker — first slice of the Title→Mode→Hero flow (one store flag drives it). */
-.heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: safe center; overflow-y: auto; padding: 24px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The pre-run picker uses the board art, heavily dimmed, as its textured backdrop. */
 .heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), url('/board7.webp') center / cover no-repeat, var(--bg); }
 /* The end screen gets its OWN dark backdrop (the sky-castle art, heavily scrimmed) so the run's stats read
    over a clean, high-contrast surface — never over the busy live board behind it. */
 .heroselect.endscreen { background: linear-gradient(rgba(6, 11, 22, 0.88), rgba(6, 11, 22, 0.93)), url('/homescreen.webp') center / cover no-repeat, var(--bg); }
 /* Back-to-title button on the hero picker (Ascent + Practice) — matches the leaderboard's Back. */
-.hsback { position: absolute; top: 24px; left: 30px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.22); padding: 10px 18px; border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.hsback { position: absolute; top: 24px; left: 30px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.22); padding: 10px 18px; border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .hsback:hover { border-color: var(--acc); color: var(--acc); }
 /* While the pre-run picker is up, hide all the game chrome behind it (HUD, tavern, board, controls, hero
    panel, status bar) — the dimmed board art above is the only backdrop until a champion is chosen. */
@@ -1431,22 +1448,22 @@ body:has(.heroselect) .app { visibility: hidden; }
 body:has(.heroselect) .statusbar { visibility: hidden; }
 .hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 96vw; }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
-.heroselect .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
-.hstitle { font-family: 'Outfit'; font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
+.heroselect .eyebrow { font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
+.hstitle { font-family: var(--font-title); font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
 .hcart { width: 151px; height: 151px; border-radius: 23px; background: var(--ink); display: grid; place-items: center; overflow: hidden; flex: none; }
 .hcart img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .hcart svg { width: 70px; height: 70px; color: var(--acc); }
-.hcname { font-family: 'Outfit'; font-weight: 900; font-size: 31px; letter-spacing: 0.02em; }
-.hchp { display: inline-flex; align-items: center; gap: 6px; font-family: 'Outfit'; font-weight: 800; font-size: 23px; color: var(--ink); margin: -2px 0 2px; }
+.hcname { font-family: var(--font-ui); font-weight: 900; font-size: 31px; letter-spacing: 0.02em; }
+.hchp { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-weight: 800; font-size: 23px; color: var(--ink); margin: -2px 0 2px; }
 .hchp svg { width: 22px; height: 22px; color: var(--hpc); }
 .hcpw { font-size: 17.5px; font-weight: 600; color: var(--ink2); line-height: 1.35; }
 .hcpw b { color: var(--acc-dk); font-weight: 800; }
-.hclock { font-family: 'Outfit'; font-weight: 800; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 4px 13px; border-radius: 8px; }
+.hclock { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 4px 13px; border-radius: 8px; }
 .hcblurb { font-size: 13px; font-style: italic; color: var(--ink3); line-height: 1.4; margin-top: auto; padding-top: 6px; }
-.hcpick { margin-top: 16px; font-family: 'Outfit'; font-weight: 800; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 10px 29px; border-radius: 12px; }
+.hcpick { margin-top: 16px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 10px 29px; border-radius: 12px; }
 .herocard:hover .hcpick { background: var(--acc-dk); }
 
 /* End-of-run screen — reuses the hero-picker overlay (.heroselect/.hsbox); shows the round
@@ -1457,38 +1474,66 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .endhero-portrait { width: 104px; height: 104px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--ink); border: 4px solid color-mix(in srgb, var(--acc) 60%, var(--card)); box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.6); }
 .endhero-img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .endhero-portrait svg { width: 52px; height: 52px; color: var(--acc); }
-.endhero-name { font-family: 'Outfit'; font-weight: 800; font-size: 20px; letter-spacing: 0.06em; color: var(--ink2); }
+.endhero-name { font-family: var(--font-ui); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; color: var(--ink2); }
 /* End screen sized up ~2.5× and forced to single rows (pips + warband never wrap). */
 .endscreen .eyebrow { font-size: 26px; letter-spacing: 0.32em; }
 .endscreen .hstitle { margin: 12px 0 0; font-size: 116px; }
-.endsub { font-family: 'Outfit'; font-weight: 700; font-size: 32px; letter-spacing: 0.12em; text-transform: uppercase; color: #ddd2c0; margin-top: 16px; }
+.endsub { font-family: var(--font-ui); font-weight: 700; font-size: 32px; letter-spacing: 0.12em; text-transform: uppercase; color: #ddd2c0; margin-top: 16px; }
 /* Par / line verdict (A2): the run's target + how it graded (covered / exceeded / missed / …). */
-.endline { display: inline-flex; align-items: center; gap: 12px; margin-top: 12px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
+.endline { display: inline-flex; align-items: center; gap: 12px; margin-top: 12px; font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
 .endline-par { color: #b9ad97; }
 .endline-verdict { padding: 4px 14px; border-radius: 10px; color: #fff; }
 .endline.flawless .endline-verdict, .endline.exceeded .endline-verdict, .endline.covered .endline-verdict { background: #3b9e57; }
 .endline.missed .endline-verdict, .endline.failed .endline-verdict { background: var(--threat); }
 /* Build identity (A6): the tags that describe what you built this run. */
 .endtags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 90vw; margin-top: 16px; }
-.endtag { font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, var(--card)); border: 1.5px solid color-mix(in srgb, var(--acc) 55%, transparent); padding: 6px 14px; border-radius: 999px; }
+.endtag { position: relative; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, var(--card)); border: 1.5px solid color-mix(in srgb, var(--acc) 55%, transparent); padding: 6px 14px; border-radius: 999px; }
+/* Custom build-tag tooltip — replaces the native title bubble: a dark rounded card with a caret, above the chip. */
+.tagtip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%) translateY(4px); width: max-content; max-width: 230px; background: var(--ink); color: #f6efe2; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 8px 12px; font-family: var(--font-body); font-weight: 600; font-size: 12.5px; line-height: 1.4; letter-spacing: normal; text-transform: none; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s ease, transform 0.14s ease; }
+.tagtip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); }
+.endtag:hover .tagtip { opacity: 1; transform: translateX(-50%) translateY(0); }
 /* Run stats row (polish): triples · gold · APT · cards · strongest. Light text on the dark end-screen backdrop. */
-.endstats { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin-top: 14px; font-family: 'Outfit'; font-weight: 600; font-size: 14px; color: rgba(255, 255, 255, 0.62); }
+.endstats { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 24px; margin-top: 18px; font-family: var(--font-ui); font-weight: 600; font-size: 18px; color: rgba(255, 255, 255, 0.8); }
 .endstat b { font-weight: 900; color: #fff; }
-/* Run contributions — boards you added to the shared pool. */
-.endcontrib { margin-top: 12px; font-family: 'Outfit'; font-weight: 700; font-size: 14px; letter-spacing: 0.04em; color: rgba(255, 255, 255, 0.6); }
 .endpips { display: flex; flex-wrap: nowrap; gap: 9px; justify-content: center; max-width: 96vw; margin: 34px 0 8px; }
-.endpip { flex: none; width: 44px; height: 44px; border-radius: 11px; font-family: 'Outfit'; font-weight: 800; font-size: 22px; color: #fff; display: grid; place-items: center; }
+.endpip { flex: none; width: 44px; height: 44px; border-radius: 11px; font-family: var(--font-ui); font-weight: 800; font-size: 22px; color: #fff; display: grid; place-items: center; }
 .endpip.win { background: #3b9e57; }
 .endpip.lose { background: var(--threat); }
 .endpip.draw { background: var(--ink3); }
 /* Calibration rounds (1–2) don't count toward the record — dimmed + desaturated so the scored pips read. */
 .endpip.cal { opacity: 0.4; filter: grayscale(0.55); }
-.endboardlabel { font-family: 'Outfit'; font-weight: 700; font-size: 26px; letter-spacing: 0.2em; text-transform: uppercase; color: #ddd2c0; margin: 44px 0 14px; }
+/* Clickable pips (a board was captured that round) — open the round-board popover. */
+button.endpip { border: none; padding: 0; font: inherit; }
+.endpip.clickable { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.08s ease, box-shadow 0.08s ease; }
+.endpip.clickable:hover { transform: translateY(-2px); box-shadow: 0 5px 14px rgba(0, 0, 0, 0.4); }
+.endpip.clickable.active { outline: 3px solid var(--acc); outline-offset: 2px; }
+/* Viewing a past round's board (clicked a pip): the board label becomes a "back to final" control. */
+.endboardlabel { font-family: var(--font-ui); font-weight: 700; font-size: 26px; letter-spacing: 0.2em; text-transform: uppercase; color: #ddd2c0; margin: 44px 0 14px; }
+.endboard-back { font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--acc); background: none; border: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.endboard-backhint { color: rgba(255, 255, 255, 0.55); font-size: 0.7em; margin-left: 10px; }
+.endboard-back:hover .endboard-backhint { color: rgba(255, 255, 255, 0.85); }
 .endboard { display: flex; gap: 14px; justify-content: center; align-items: flex-start; flex-wrap: nowrap; zoom: 0.92; max-width: 96vw; }
 .endboard .card { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.endempty { font-family: 'Outfit'; font-weight: 700; font-size: 15px; color: #ddd2c0; padding: 24px; }
-.endplay { margin-top: 44px; font-family: 'Outfit'; font-weight: 800; font-size: 30px; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: var(--acc); border: 3px solid var(--acc-dk); box-shadow: 0 7px 0 var(--acc-dk); padding: 22px 60px; border-radius: 20px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.endempty { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: #ddd2c0; padding: 24px; }
+.endplay { margin-top: 44px; font-family: var(--font-ui); font-weight: 800; font-size: 30px; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: var(--acc); border: 3px solid var(--acc-dk); box-shadow: 0 7px 0 var(--acc-dk); padding: 22px 60px; border-radius: 20px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .endplay:hover { background: var(--acc-dk); }
+
+/* Avatar picker — a modal grid of every bundled hero / minion / token / power art. */
+.avatarpick { position: fixed; inset: 0; z-index: 520; display: grid; place-items: center; background: rgba(8, 10, 20, 0.74); backdrop-filter: blur(3px); }
+.avatarpick-panel { display: flex; flex-direction: column; width: min(760px, 92vw); max-height: 84vh; background: rgba(18, 20, 32, 0.98); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 20px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); }
+.avatarpick-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 24px 14px; }
+.avatarpick-title { font-family: var(--font-ui); font-weight: 800; font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; color: #f6efe2; }
+.avatarpick-close { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #ddd2c0; background: rgba(255, 255, 255, 0.08); border: none; border-radius: 10px; width: 40px; height: 40px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.avatarpick-close:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.avatarpick-scroll { overflow-y: auto; padding: 4px 24px 24px; }
+.avatarpick-grouplabel { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin: 16px 0 10px; }
+.avatarpick-grid { display: grid; grid-template-columns: repeat(auto-fill, 60px); gap: 10px; }
+.avatarpick-opt { width: 60px; height: 60px; padding: 0; border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 50%; overflow: hidden; background: rgba(255, 255, 255, 0.05); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.08s ease, border-color 0.08s ease; }
+.avatarpick-opt img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatarpick-opt:hover { transform: scale(1.08); border-color: rgba(255, 255, 255, 0.4); }
+.avatarpick-opt.active { border-color: var(--acc); box-shadow: 0 0 0 2px var(--acc); }
+.avatarpick-opt.default { display: grid; place-items: center; }
+.avatarpick-default { font-family: var(--font-ui); font-weight: 800; font-size: 24px; color: rgba(255, 255, 255, 0.5); }
 .endscreen.won .eyebrow { color: var(--acc); }
 
 /* Title screen — the front door, layered above the hero picker. Mirrors the picker's dimmed-board backdrop. */
@@ -1498,7 +1543,10 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
     url('/homescreen.webp') center / cover no-repeat, var(--bg);
   animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* Looping ambience video — sits over the webp base; the vignette (::before) + menu render above it. */
-.titlevideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; }
+/* Fade the video in only once it's actually playing, so it cross-dissolves from the webp base instead of the
+   still image popping/flashing to the first video frame. */
+.titlevideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; }
+.titlevideo.ready { opacity: 1; }
 /* Dark left vignette so the ornate left-aligned menu stays legible over the bright sky (was on .titlescreen). */
 .titlescreen::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background:
     linear-gradient(90deg, rgba(6, 11, 22, 0.9) 0%, rgba(6, 11, 22, 0.62) 26%, rgba(6, 11, 22, 0.08) 52%, rgba(6, 11, 22, 0) 66%),
@@ -1513,8 +1561,23 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .crest { width: 1em; height: 1em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 
 /* Account name (top-right) — click to set/rename yourself; wires to the real account when that lands. */
-.titleaccount { position: absolute; top: 24px; right: 30px; }
-.acctname, .acctinput { font-family: 'Outfit'; font-weight: 800; font-size: 26px; letter-spacing: 0.06em; color: #ecdcb2;
+.titleaccount { position: absolute; top: 24px; right: 30px; display: flex; align-items: center; gap: 12px; }
+.titleavatar { width: 92px; height: 92px; border-radius: 50%; overflow: hidden; padding: 0; display: grid; place-items: center; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 2px solid rgba(255, 255, 255, 0.35); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s ease, border-color 0.1s ease; }
+.titleavatar:hover { transform: scale(1.07); border-color: rgba(255, 255, 255, 0.7); }
+.titleavatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.titleavatar-ph { font-family: var(--font-ui); font-weight: 900; font-size: 44px; color: #1a1208; }
+
+/* Font Lab (dev) — bottom-right of the title; a small toggle that opens the per-role font pickers. */
+.fontlab { position: fixed; right: 18px; bottom: 18px; z-index: 460; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.fontlab-toggle { width: 46px; height: 46px; border-radius: 12px; border: 2px solid rgba(255, 255, 255, 0.28); background: rgba(18, 20, 32, 0.9); color: #ecdcb2; font-family: var(--font-title); font-weight: 900; font-size: 20px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fontlab-toggle:hover { border-color: rgba(255, 255, 255, 0.6); }
+.fontlab-panel { width: 250px; background: rgba(18, 20, 32, 0.97); border: 2px solid rgba(255, 255, 255, 0.16); border-radius: 14px; padding: 14px 16px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 10px; }
+.fontlab-title { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.fontlab-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: #ecdcb2; }
+.fontlab-row select { flex: none; width: 140px; padding: 5px 8px; border-radius: 8px; border: 1.5px solid rgba(255, 255, 255, 0.2); background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fontlab-reset { margin-top: 2px; align-self: stretch; padding: 7px; border-radius: 8px; border: none; background: rgba(255, 255, 255, 0.1); color: #ddd2c0; font-family: var(--font-ui); font-weight: 700; font-size: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fontlab-reset:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.acctname, .acctinput { font-family: var(--font-ui); font-weight: 800; font-size: 26px; letter-spacing: 0.06em; color: #ecdcb2;
   padding: 8px 20px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.55);
   background: linear-gradient(180deg, rgba(20, 30, 50, 0.82), rgba(11, 19, 34, 0.86)); box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.6);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
@@ -1527,7 +1590,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
   display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }
 .titlelogo { display: flex; align-items: center; gap: 14px; }
 .titlelogo .crest { font-size: 62px; }
-.titleword { font-family: 'Outfit'; font-weight: 900; font-size: 86px; letter-spacing: 0.1em; color: #f4ecda; margin: 0;
+.titleword { font-family: var(--font-title); font-weight: 900; font-size: 86px; letter-spacing: 0.1em; color: #f4ecda; margin: 0;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), 0 0 40px rgba(120, 175, 255, 0.28); }
 
 .titlenav { display: flex; flex-direction: column; gap: 15px; width: min(420px, 78vw); }
@@ -1539,9 +1602,9 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .menubtn .mbicon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; color: #d9b86a; }
 .menubtn .mbicon svg { width: 26px; height: 26px; }
 .menubtn .mbicon .crest { font-size: 26px; }
-.mblabel { font-family: 'Outfit'; font-weight: 800; font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; }
+.mblabel { font-family: var(--font-ui); font-weight: 800; font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; }
 /* Continue's run context (hero · round) — small, right-aligned. */
-.mbnote { margin-left: auto; font-family: 'Outfit'; font-weight: 700; font-size: 13px; letter-spacing: 0.03em; opacity: 0.82; white-space: nowrap; }
+.mbnote { margin-left: auto; font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.03em; opacity: 0.82; white-space: nowrap; }
 .menubtn:hover { transform: translateX(6px); border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); }
 /* Active (Play) — the brighter blue call-to-action from the mockup. */
 .menubtn.active { background: linear-gradient(180deg, #3f7fc4, #245a97); border-color: rgba(150, 200, 245, 0.9); color: #fff;
@@ -1553,12 +1616,12 @@ body:has(.titlescreen) .version { visibility: hidden; }
 
 /* Preserved secondary modes — small links under the main menu. */
 .titlesecondary { display: flex; align-items: center; gap: 10px; padding-left: 4px; }
-.titlesecondary button { font-family: 'Outfit'; font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;
+.titlesecondary button { font-family: var(--font-ui); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;
   color: rgba(236, 220, 178, 0.72); background: none; border: none; padding: 2px 4px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .titlesecondary button:hover { color: #ecdcb2; text-decoration: underline; }
 .tsdot { color: rgba(236, 220, 178, 0.4); }
 
-.titleversion { position: absolute; right: 22px; bottom: 16px; font-family: 'Outfit'; font-weight: 700; font-size: 13px;
+.titleversion { position: absolute; right: 22px; bottom: 16px; font-family: var(--font-ui); font-weight: 700; font-size: 13px;
   letter-spacing: 0.05em; color: rgba(236, 220, 178, 0.6); }
 .endscreen.won .hstitle { color: #ffd98a; text-shadow: 0 0 28px rgba(255, 200, 110, 0.45); }
 .endscreen:not(.won) .eyebrow { color: var(--threat); }
@@ -1577,19 +1640,19 @@ svg { width: 18px; height: 18px; }
 .gearbtn:hover { border-color: var(--acc); color: var(--ink); transform: rotate(35deg); transition: transform 0.2s ease; }
 .gearbtn svg { width: calc(21 * var(--u)); height: calc(21 * var(--u)); }
 /* Build badge — sits just above the gear (scales with --u so it clears the gear at any resolution box). */
-.version { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: 'Outfit'; font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
+.version { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }
 /* Esc / settings overlay — above everything incl. game-over, so resolution is changeable anywhere */
 .escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
 .escpanel { background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 26px 26px 20px; min-width: 380px; box-shadow: 0 26px 64px -16px rgba(0, 0, 0, 0.62); }
 .escpanel .esch { font-weight: 800; font-size: 28px; color: var(--ink); text-align: center; }
-.escsec { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
+.escsec { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
 .escres { display: grid; gap: 8px; }
 .escboards { display: grid; gap: 8px; }
-.escboards-msg { font-family: 'Outfit'; font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
+.escboards-msg { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
 /* DEV dev-tool buttons — bottom-right cluster, left of the settings gear: [lunge][sfx][gear]. */
 .sfxmix-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
-.sfxmix { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200; width: 290px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: 'Outfit'; box-sizing: border-box; resize: both; overflow: auto; min-width: 220px; max-width: 92vw; min-height: 110px; max-height: 88vh; }
+.sfxmix { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200; width: 290px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: var(--font-ui); box-sizing: border-box; resize: both; overflow: auto; min-width: 220px; max-width: 92vw; min-height: 110px; max-height: 88vh; }
 .sfxmix-h { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 8px; }
 .sfxmix-h.drag { cursor: move; user-select: none; touch-action: none; }
 .sfxmix-h span { font-size: 10px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -1599,11 +1662,11 @@ svg { width: 18px; height: 18px; }
 .sfxmix-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--acc); cursor: pointer; }
 .sfxmix-val { flex: 0 0 26px; text-align: right; font-size: 12px; font-weight: 800; color: var(--acc-dk); font-variant-numeric: tabular-nums; }
 .sfxmix-play { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg2); cursor: pointer; font-size: 10px; color: var(--ink); }
-.sfxmix-copy { width: 100%; margin-top: 10px; padding: 7px; border-radius: 9px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); font-family: 'Outfit'; font-weight: 800; font-size: 13px; cursor: pointer; }
+.sfxmix-copy { width: 100%; margin-top: 10px; padding: 7px; border-radius: 9px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }
 /* DEV lunge tuner — third button in the bottom-right cluster, left of the SFX mixer. */
 .lunge-btn { position: fixed; right: calc(var(--bar-x) + 112px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 /* DEV: Pixi FX test trigger — fires an unmissable burst at screen center. */
-.fxtest-btn { position: fixed; right: calc(var(--bar-x) + 160px); bottom: calc(var(--bar-y) + 16px); z-index: 200; height: 40px; padding: 0 14px; border-radius: 20px; border: 2px solid var(--line); background: var(--card); font-family: 'Outfit'; font-weight: 800; font-size: 13px; color: var(--ink); cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.fxtest-btn { position: fixed; right: calc(var(--bar-x) + 160px); bottom: calc(var(--bar-y) + 16px); z-index: 200; height: 40px; padding: 0 14px; border-radius: 20px; border: 2px solid var(--line); background: var(--card); font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: var(--ink); cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
 .sfxmix.lunge .sfxmix-val { flex-basis: 42px; }
 .lunge-btns { display: flex; gap: 8px; }
@@ -1615,10 +1678,10 @@ svg { width: 18px; height: 18px; }
 .sfxmix.taunt .sfxmix-h { display: flex; align-items: center; gap: 6px; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
-.escvol .evl { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }
-.escvol .evv { font-family: 'Outfit'; font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.escvol .evl { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }
+.escvol .evv { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 .escvol input[type='range'] { flex: 1; height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
-.escname { flex: 1; min-width: 0; font-family: 'Outfit'; font-weight: 700; font-size: 15px; color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 7px 11px; outline: none; }
+.escname { flex: 1; min-width: 0; font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 7px 11px; outline: none; }
 .escname:focus { border-color: var(--acc); }
 .escname::placeholder { color: var(--ink3); }
 .escvol input[type='range']:disabled { opacity: 0.4; cursor: default; }
@@ -1627,35 +1690,35 @@ svg { width: 18px; height: 18px; }
 .escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); cursor: pointer; text-align: left; }
 .escbtn:hover { border-color: var(--acc); }
 .escbtn.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); box-shadow: inset 0 0 0 1px var(--acc); }
-.escbtn .ebl { font-family: 'Outfit'; font-weight: 800; font-size: 17px; color: var(--ink); }
-.escbtn .ebs { font-family: 'Outfit'; font-weight: 700; font-size: 12px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.06em; }
+.escbtn .ebl { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: var(--ink); }
+.escbtn .ebs { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.06em; }
 .escbtn.on .ebs { color: var(--acc-dk); }
 .escbtn.danger { border-color: color-mix(in srgb, var(--threat) 45%, var(--line)); }
 .escbtn.danger:hover { border-color: var(--threat); background: color-mix(in srgb, var(--threat) 12%, var(--card)); }
 .escbtn.danger .ebl { color: var(--threat-dk); }
-.escclose { margin-top: 18px; width: 100%; padding: 12px; border-radius: 13px; border: none; background: var(--acc); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 17px; cursor: pointer; }
+.escclose { margin-top: 18px; width: 100%; padding: 12px; border-radius: 13px; border: none; background: var(--acc); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 17px; cursor: pointer; }
 .escclose:hover { background: var(--acc-dk); }
 
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
 .lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: linear-gradient(rgba(6, 11, 22, 0.82), rgba(6, 11, 22, 0.9)), url('/homescreen.webp') center / cover no-repeat, var(--bg); animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .lbtopbar { display: flex; align-items: center; gap: 18px; padding: 22px 30px 14px; flex: none; }
-.lbback { display: inline-flex; align-items: center; gap: 8px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.22); padding: 10px 18px; border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
+.lbback { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.22); padding: 10px 18px; border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
 .lbback:hover { border-color: var(--acc); color: var(--acc); }
 .lbtitle { display: flex; align-items: center; gap: 12px; }
 .lbtitle svg { width: 30px; height: 30px; color: var(--acc); flex: none; }
 .lbtitle .esch { color: #fff; font-size: 26px; text-align: left; line-height: 1.05; }
-.lbsub { font-family: 'Outfit'; font-weight: 600; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.62); }
+.lbsub { font-family: var(--font-ui); font-weight: 600; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.62); }
 .lbscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: flex; flex-direction: column; gap: 14px; }
-.lbempty { margin: 56px auto; color: rgba(255, 255, 255, 0.72); font-family: 'Outfit'; font-weight: 700; font-size: 18px; }
+.lbempty { margin: 56px auto; color: rgba(255, 255, 255, 0.72); font-family: var(--font-ui); font-weight: 700; font-size: 18px; }
 .lbentry { background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 18px; padding: 14px 18px; }
 .lbentry-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
-.lbrank { min-width: 30px; text-align: center; font-family: 'Outfit'; font-weight: 800; font-size: 20px; color: var(--acc); flex: none; }
+.lbrank { min-width: 30px; text-align: center; font-family: var(--font-ui); font-weight: 800; font-size: 20px; color: var(--acc); flex: none; }
 .lbportrait { width: 46px; height: 46px; border-radius: 11px; overflow: hidden; background: rgba(0, 0, 0, 0.3); flex: none; display: grid; place-items: center; }
 .lbportrait img { width: 100%; height: 100%; object-fit: cover; }
 .lbportrait svg { width: 26px; height: 26px; color: #f6efe2; }
 .lbinfo { display: flex; flex-direction: column; }
-.lbname { font-family: 'Outfit'; font-weight: 800; font-size: 18px; color: #fff; }
-.lbmeta { font-family: 'Outfit'; font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+.lbname { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #fff; }
+.lbmeta { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
 /* Shrink the cards for the leaderboard: compact cards size off --ccw (the others derive from it). flex-wrap so
    a wide warband never overflows; the page is the top layer so the full-text-on-hover popup sits on top. */
 .lbwarband { --ccw: clamp(112px, 13vh, 150px); --cw: calc(var(--ccw) / 0.85); --ch: calc(var(--cw) / 0.752); display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; padding-top: 10px; }
@@ -1664,40 +1727,46 @@ svg { width: 18px; height: 18px; }
 /* Career (A7 part 2) — reuses the leaderboard page shell (.lbpage / .lbentry / .lbwarband). */
 .carprofile { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
 .carstat { flex: 1; min-width: 120px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 14px 10px; border-radius: 14px; background: rgba(20, 30, 50, 0.55); border: 1.5px solid rgba(196, 160, 92, 0.4); }
-.carstat .cs-v { font-family: 'Outfit'; font-weight: 900; font-size: 30px; color: #fff; font-variant-numeric: tabular-nums; }
-.carstat .cs-l { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
-.carsec { font-family: 'Outfit'; font-weight: 900; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(236, 220, 178, 0.75); margin: 18px 0 4px; }
-.cartop { font-family: 'Outfit'; font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 8px; }
+.carstat .cs-v { font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #fff; font-variant-numeric: tabular-nums; }
+.carstat .cs-l { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.carsec { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(236, 220, 178, 0.75); margin: 18px 0 4px; }
+.cartop { font-family: var(--font-ui); font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 8px; }
 .carherorows { display: flex; flex-direction: column; gap: 6px; }
 .carherorow { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px; background: rgba(20, 30, 50, 0.4); }
 .carhero-portrait { width: 40px; height: 40px; border-radius: 9px; overflow: hidden; flex: none; background: var(--bg2); display: grid; place-items: center; }
 .carhero-portrait img { width: 100%; height: 100%; object-fit: cover; }
-.carhero-name { font-family: 'Outfit'; font-weight: 800; font-size: 15px; color: #fff; min-width: 120px; }
-.carhero-meta { font-family: 'Outfit'; font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
-.carrec { font-family: 'Outfit'; font-weight: 900; font-size: 15px; margin-left: 10px; font-variant-numeric: tabular-nums; }
+.carhero-name { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #fff; min-width: 120px; }
+.carhero-meta { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
+.carrec { font-family: var(--font-ui); font-weight: 900; font-size: 15px; margin-left: 10px; font-variant-numeric: tabular-nums; }
 .carrec.won { color: #6fe0a0; }
 .carrec.lost { color: #ff9a9a; }
-.carverdict { font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; margin-left: 10px; padding: 3px 10px; border-radius: 999px; color: #fff; background: rgba(255, 255, 255, 0.16); }
+.carverdict { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; margin-left: 10px; padding: 3px 10px; border-radius: 999px; color: #fff; background: rgba(255, 255, 255, 0.16); }
 .carverdict.flawless, .carverdict.exceeded, .carverdict.covered { background: #2f7d49; }
 .carverdict.missed, .carverdict.failed { background: #a33; }
 .cartags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 
-/* Career layout (redesign) — a stats bar over three columns: Profile Card · Match History · Insights. */
-.carbar { margin-bottom: 4px; }
-.carcols { display: grid; grid-template-columns: 232px minmax(0, 1fr) 232px; gap: 16px; align-items: start; margin-top: 10px; }
-.carcard { background: rgba(20, 30, 50, 0.5); border: 1.5px solid rgba(196, 160, 92, 0.35); border-radius: 16px; padding: 6px 16px 16px; display: flex; flex-direction: column; gap: 10px; position: sticky; top: 6px; }
+/* Career layout (redesign) — two columns: a combined Profile+Insights+Record panel · Match History. */
+.carcols { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 10px; }
+.carcard { background: rgba(20, 30, 50, 0.5); border: 1.5px solid rgba(196, 160, 92, 0.35); border-radius: 16px; padding: 6px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
 .carcard .carsec { margin: 8px 0 2px; }
 
-/* Left — Profile Card */
+/* Left — Profile + Insights + hero record (one panel). Header block centered; the lists below full-width. */
 .carprofilecard { align-items: center; text-align: center; }
-.caravatar { width: 84px; height: 84px; border-radius: 50%; margin: 4px auto 2px; display: grid; place-items: center; font-family: 'Outfit'; font-weight: 900; font-size: 38px; color: #1a1208; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 2px solid rgba(255, 255, 255, 0.35); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+.carprofilecard .carsec, .carprofilecard .carinsights, .carprofilecard .carherorows { align-self: stretch; text-align: left; }
+.carprofilecard .carhero-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.carhero-wl { margin-left: auto; flex: none; font-family: var(--font-ui); font-weight: 900; font-size: 14px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.55); }
+.carhero-wl .chw-w { color: #6fe0a0; }
+.carhero-wl .chw-l { color: #ff9a9a; }
+.caravatar { width: 126px; height: 126px; border-radius: 50%; margin: 4px auto 2px; display: grid; place-items: center; overflow: hidden; padding: 0; font-family: var(--font-ui); font-weight: 900; font-size: 57px; color: #1a1208; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 2px solid rgba(255, 255, 255, 0.35); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
+.caravatar:hover { transform: scale(1.05); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
 .caravatar svg { width: 42px; height: 42px; color: #1a1208; }
-.carpname { font-family: 'Outfit'; font-weight: 900; font-size: 20px; color: #fff; }
-.carrank { align-self: center; padding: 4px 16px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.caravatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.carpname { font-family: var(--font-ui); font-weight: 900; font-size: 20px; color: #fff; }
+.carrank { align-self: center; padding: 4px 16px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
 .carprofmeta { display: flex; width: 100%; gap: 8px; margin-top: 6px; }
 .carprofmeta > div { flex: 1; display: flex; flex-direction: column; gap: 1px; padding: 8px 4px; border-radius: 10px; background: rgba(0, 0, 0, 0.22); }
-.carprofmeta b { font-family: 'Outfit'; font-weight: 900; font-size: 19px; color: #fff; font-variant-numeric: tabular-nums; }
-.carprofmeta span { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.carprofmeta b { font-family: var(--font-ui); font-weight: 900; font-size: 19px; color: #fff; font-variant-numeric: tabular-nums; }
+.carprofmeta span { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
 
 /* Center — expandable match cards */
 .carcenter { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
@@ -1710,7 +1779,7 @@ svg { width: 18px; height: 18px; }
 .carchev { flex: none; font-size: 15px; color: rgba(255, 255, 255, 0.5); transition: transform 0.18s ease; transform: rotate(-90deg); }
 .carchev.open { transform: rotate(0deg); }
 .carmatch-body { padding: 0 18px 16px; }
-.carmatchstats { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 0 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-family: 'Outfit'; font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
+.carmatchstats { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 0 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
 .carmatchstats b { color: #fff; font-weight: 800; }
 
 /* Right — Insights rail */
@@ -1720,8 +1789,8 @@ svg { width: 18px; height: 18px; }
 .ci-ico { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
 .ci-ico svg { width: 18px; height: 18px; }
 .ci-text { display: flex; flex-direction: column; min-width: 0; }
-.ci-l { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
-.ci-v { font-family: 'Outfit'; font-weight: 800; font-size: 15px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ci-l { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.ci-v { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Stack the three columns on narrow viewports. */
 @media (max-width: 900px) {
@@ -1737,31 +1806,30 @@ svg { width: 18px; height: 18px; }
    the book rests at scale 1, so inspectpop made it balloon then snap down). */
 @keyframes bookpop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
 .book-head { display: flex; align-items: center; gap: 16px; padding: 15px 22px; border-bottom: 2px solid var(--line); background: color-mix(in srgb, var(--acc) 10%, var(--card)); flex: none; }
-.book-title { display: inline-flex; align-items: center; gap: 10px; font-family: 'Outfit'; font-weight: 800; font-size: 25px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
+.book-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 25px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
 .book-title svg { width: 25px; height: 25px; color: var(--acc); }
-.book-sub { font-family: 'Nunito Sans', sans-serif; font-weight: 600; font-size: 14px; color: var(--ink3); }
-.book-close { margin-left: auto; width: 40px; height: 40px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-size: 17px; font-weight: 800; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.book-sub { font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; color: var(--ink3); }
+/* Gilded toggle — show every card's tripled form. Pushed to the right, beside the close button. */
+.book-gilded { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.book-gilded svg { width: 17px; height: 17px; }
+.book-gilded:hover { transform: translateY(-2px); border-color: #e7b53d; }
+.book-gilded.on { background: linear-gradient(180deg, #ffd85a, #e7b53d); color: #6e5008; border-color: #c8922e; box-shadow: 0 3px 0 #c8922e; }
+.book-close { width: 40px; height: 40px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-size: 17px; font-weight: 800; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .book-close:hover { border-color: var(--threat); color: var(--threat-dk); }
 .book-tiers { display: flex; align-items: center; gap: 8px; padding: 11px 22px; border-bottom: 2px solid var(--line); flex: none; }
-.book-axislabel { font-family: 'Outfit'; font-weight: 800; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-right: 4px; }
-.book-tier { width: 38px; height: 38px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: 'Outfit'; font-weight: 800; font-size: 17px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.book-axislabel { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-right: 4px; }
+.book-tier { width: 38px; height: 38px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 17px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
 .book-tier:hover { transform: translateY(-2px); border-color: var(--acc); }
 .book-tier.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
 .book-main { flex: 1; display: flex; min-height: 0; }
 .book-rail { display: flex; flex-direction: column; gap: 7px; padding: 16px 12px; border-right: 2px solid var(--line); background: color-mix(in srgb, var(--card) 90%, var(--bg)); overflow-y: auto; flex: none; }
-.book-cat { display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px 9px 11px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: 'Outfit'; font-weight: 700; font-size: 14px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; white-space: nowrap; transition: border-color 0.1s, background 0.1s; }
+.book-cat { display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px 9px 11px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 700; font-size: 14px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; white-space: nowrap; transition: border-color 0.1s, background 0.1s; }
 .book-cat svg { width: 18px; height: 18px; color: var(--c); flex: none; }
 .book-cat:hover { border-color: var(--c); }
 .book-cat.on { background: color-mix(in srgb, var(--c) 20%, var(--card)); border-color: var(--c); color: var(--ink); }
 .book-grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px 14px; padding: 20px; overflow-y: auto; align-content: start; justify-items: center; --ch: clamp(212px, 26vh, 276px); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
-/* Themed scrollbars for the book's scroll areas — a native scrollbar reverts the cursor to the OS arrow;
-   a styled webkit scrollbar renders as part of the element, so it keeps the custom gauntlet cursor + looks
-   on-theme. (Firefox falls back to the thin scrollbar-color form.) */
-.book-grid, .book-rail { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--acc) 50%, var(--line)) transparent; }
-.book-grid::-webkit-scrollbar, .book-rail::-webkit-scrollbar { width: 12px; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-.book-grid::-webkit-scrollbar-track, .book-rail::-webkit-scrollbar-track { background: transparent; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-.book-grid::-webkit-scrollbar-thumb, .book-rail::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--acc) 45%, var(--line)); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.book-grid::-webkit-scrollbar-thumb:hover, .book-rail::-webkit-scrollbar-thumb:hover { background: var(--acc); background-clip: padding-box; }
+/* (Book scroll areas hide the native scrollbar — see the shared rule near the top; a styled webkit
+   scrollbar can't keep the custom cursor, so we hide it and scroll by wheel/trackpad.) */
 .book-cell { transition: transform 0.12s ease; }
 .book-cell:hover { transform: scale(1.06); z-index: 3; position: relative; }
-.book-empty { flex: 1; display: grid; place-items: center; font-family: 'Outfit'; font-weight: 700; font-size: 18px; color: var(--ink3); }
+.book-empty { flex: 1; display: grid; place-items: center; font-family: var(--font-ui); font-weight: 700; font-size: 18px; color: var(--ink3); }

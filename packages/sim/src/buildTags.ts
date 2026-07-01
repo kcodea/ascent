@@ -1,7 +1,7 @@
 import { CARD_INDEX } from '@game/content';
 import type { CardDef, GameEvent, Tribe } from '@game/core';
 import { CONFIG } from './config';
-import { lineResult, runRecord, type RunState } from './state';
+import { lineResult, metLine, runRecord, type RunState } from './state';
 
 /**
  * Build-tag classifier (A5, expanded). Reads a run's FINAL board + run signals (history, triples, buffs,
@@ -16,6 +16,40 @@ import { lineResult, runRecord, type RunState } from './state';
  * NOTE: tag names lead with the intended flavor terms (Shout/Echo/Ward/Toxin/Flurry/Attachment) even though
  * the in-game mechanic tooltips aren't renamed yet (that's the B3 pass) — tags are build labels, not rules.
  */
+
+/** One-line, mechanical descriptions for every build tag — shown as a hover tooltip on the end/Career
+ *  screens so a tag ("Fortress Board") explains what it read off your board. Keep terse. */
+export const TAG_INFO: Record<string, string> = {
+  'Beast Swarm': 'A board built mostly of Beasts.',
+  'Dragon Scaling': 'A Dragon-heavy board leaning on scaling stats.',
+  'Undead Army': 'An Undead-heavy board.',
+  'Mech Battalion': 'A Mech-heavy board.',
+  'Demon Legion': 'A Demon-heavy board.',
+  'Echo Web': '3+ Deathrattle minions — value chains as they die.',
+  'Shout Chain': '3+ Battlecry minions — a payoff on every play.',
+  'End-of-Turn Engine': 'Several end-of-turn triggers stacking each round.',
+  'Summon Overflow': 'Multiple minions that summon extra bodies.',
+  'Ward Wall': '2+ Divine Shields soaking the first hits.',
+  'Toxin Control': 'Poison on board — trades up into anything.',
+  'Flurry Finish': 'A high-attack Windfury unit swinging twice.',
+  'Gilded Carry': 'Golden (tripled) minions anchoring the board.',
+  'Spell Engine': 'Lots of spells cast, or a spell-power carrier.',
+  'Fodder Economy': 'A Demon fodder/imp engine feeding buffs.',
+  'Attachment Carry': 'Mechs welded into one oversized body.',
+  'Carry Stack': "One unit holds most of the board's stats.",
+  'Wide Board': 'Many bodies, no single carry.',
+  'Glass Cannon': 'Attack-heavy and aggressive — hits hard, dies fast.',
+  'Fortress Board': 'Health-heavy and defensive — hard to break.',
+  'Token Flood': 'A swarm of small bodies.',
+  'Keyword Soup': 'Five or more distinct keywords across the board.',
+  'Menagerie': 'Four or more tribes sharing the board.',
+  'Triple Hunter': 'Chased triples and golden upgrades.',
+  'Scaling Engine': 'Big permanent, run-wide stat growth.',
+  'Tempo Climber': 'Strong early, faded late.',
+  'Late Bloom': 'Slow start, powered up late.',
+  'Underdog Line': 'A bad start, but still covered par.',
+  'Low Roll Survivor': 'Covered par without triples or goldens.',
+};
 
 const TRIBE_TAG: Partial<Record<Tribe, string>> = {
   beast: 'Beast Swarm', dragon: 'Dragon Scaling', undead: 'Undead Army', mech: 'Mech Battalion', demon: 'Demon Legion',
@@ -135,8 +169,7 @@ export function buildTags(state: RunState): string[] {
     if (early - late >= 0.34) add('Tempo Climber', 4);
     else if (late - early >= 0.34) add('Late Bloom', 5);
     const lr = lineResult(state);
-    const covered = lr.status === 'covered' || lr.status === 'exceeded' || lr.status === 'flawless';
-    if (covered && early <= 0.34) add('Underdog Line', 6); // bad start, still covered the line
+    if (metLine(lr.status) && early <= 0.34) add('Underdog Line', 6); // bad start, still covered the line
     const rec = runRecord(state);
     if (rec.wins >= state.line && state.triplesMade <= 1 && goldens.length <= 1) add('Low Roll Survivor', 4);
   }

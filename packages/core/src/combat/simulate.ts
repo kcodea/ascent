@@ -105,22 +105,26 @@ export function simulate(
   ];
 
   const applyAuras = (m: Minion, fromBase: boolean): void => {
-    if (m.side !== 'player') return;
-    for (const aura of AURAS) {
-      const g = aura.grant(m);
-      const a = g.attack + (fromBase ? g.bakedAtk ?? 0 : 0);
-      if (a > 0) m.attack = Math.max(0, m.attack + a);
-      if (g.health > 0) { m.health += g.health; m.maxHealth += g.health; }
+    const isPlayer = m.side === 'player';
+    // Aggregate run-wide auras (Undead / Imp) are keyed to the PLAYER's run state — an enemy snapshot has no
+    // run state, so it doesn't inherit these.
+    if (isPlayer) {
+      for (const aura of AURAS) {
+        const g = aura.grant(m);
+        const a = g.attack + (fromBase ? g.bakedAtk ?? 0 : 0);
+        if (a > 0) m.attack = Math.max(0, m.attack + a);
+        if (g.health > 0) { m.health += g.health; m.maxHealth += g.health; }
+      }
     }
-    // Per-card run enchant (Fodder Aura + Eternal Knight). The prior-run total is authoritative in `cardBuffs`
-    // (already baked on run-board bodies → only re-add from base); fall back to the minion's own buff breakdown
-    // (keyed under the card's own name) so a board that carries the enchant inline still re-applies it. The
-    // stacks banked THIS fight apply to every fresh body.
+    // Per-card run enchant (Fodder Aura + Eternal Knight). The player's prior-run total is authoritative in
+    // `cardBuffs`; for BOTH sides the minion's own buff breakdown (keyed under the card's name) carries it
+    // inline — so a captured ENEMY Eternal Knight re-gains its enchant when it Rises (built from base). The
+    // stacks banked THIS fight (`cardBuffGains`) are the player's own tracking, so they only fold onto players.
     const def = cards[m.cardId];
     const prior = fromBase
-      ? cardBuffs[m.cardId] ?? (def ? m.buffs?.find((b) => b.source === def.name) : undefined)
+      ? (isPlayer ? cardBuffs[m.cardId] : undefined) ?? (def ? m.buffs?.find((b) => b.source === def.name) : undefined)
       : undefined;
-    const gain = cardBuffGains.find((c) => c.cardId === m.cardId);
+    const gain = isPlayer ? cardBuffGains.find((c) => c.cardId === m.cardId) : undefined;
     const a = (prior?.attack ?? 0) + (gain?.attack ?? 0);
     const h = (prior?.health ?? 0) + (gain?.health ?? 0);
     if (a > 0) m.attack = Math.max(0, m.attack + a);
@@ -455,11 +459,11 @@ export function simulate(
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
     // Reborn (A.3 step 6): a minion's FIRST death fires its Deathrattle / on-death effects, then it returns
-    // ONCE at its *base* card stats — shedding combat buffs + granted keywords (Divine Shield, etc.), keeping
-    // printed keywords (minus the spent Reborn). Golden → doubled base. So a 2/1 buffed to a 10/3 Divine-Shield
-    // body comes back a plain 2/1, but a Twilight Whelp leaves a Whelp on each death. Undead carry-through buffs
-    // are re-applied on top (Lantern/buy-time "everywhere" + the run-wide Eternal-Knight enchant); general stat
-    // / Imp / Fodder buffs do NOT carry. (Recruit-permanent run-board stats are untouched — instance only.)
+    // ONCE at its *base ATTACK* with **1 Health** (Hearthstone-style — regardless of its printed Health),
+    // shedding combat buffs + granted keywords (Divine Shield, etc.), keeping printed keywords (minus the spent
+    // Reborn). Golden → doubled (base attack ×2, 2 Health). So a 7/8 buffed to a 13/10 body comes back a 7/1.
+    // Undead carry-through + run-wide auras are still re-applied on top (Lantern/buy-time "everywhere" + the
+    // Eternal-Knight enchant); general stat / Imp / Fodder buffs do NOT carry.
     if (minion.rebornAvailable) {
       minion.rebornAvailable = false;
       // It really died: proc the unit's own Deathrattle / on-death effects (each death procs them) BEFORE the
@@ -470,7 +474,7 @@ export function simulate(
       const mul = minion.golden ? 2 : 1;
       if (def) {
         minion.attack = Math.max(0, def.attack * mul);
-        minion.health = Math.max(1, def.health * mul);
+        minion.health = mul; // Rise returns at 1 Health (2 golden), regardless of the card's base Health
         minion.maxHealth = minion.health;
         minion.keywords = def.keywords.filter((k) => k !== 'R');
         minion.divineShield = def.keywords.includes('DS');
@@ -612,8 +616,14 @@ export function simulate(
         for (const n of neighbours) dealDamage(n, attacker.attack, poison, false, attacker);
       }
 
+      // Snapshot the defender's counter-attack BEFORE the hit: combat is simultaneous, but the main hit can
+      // kill a Rise target and rebuild it at base stats within `dealDamage` — so reading target.attack after
+      // would retaliate with the *risen* (reset) attack, not the body that actually clashed. (Bug: an attacker
+      // struck a 100-attack Eternal Knight and only took 6 back, its post-Rise base.)
+      const counterAttack = target.attack;
+      const counterVenom = target.keywords.includes('V');
       dealDamage(target, attacker.attack, poison, false, attacker); // main hit
-      dealDamage(attacker, target.attack, target.keywords.includes('V'), false, target); // retaliation
+      dealDamage(attacker, counterAttack, counterVenom, false, target); // retaliation (pre-Rise counter)
 
       // On-kill re-attack (Gnasher). Dropping a Reborn target to 0 counts as a kill even though it
       // returns to life — it spent its Reborn — so detect a consumed Reborn alongside an outright death.

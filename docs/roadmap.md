@@ -79,6 +79,27 @@ look because the engine already produces the data.
   profile strip + per-hero rollups + a match list (record · verdict · tags · final warband). Rating absent
   until the rating system exists. **This completes the Phase A run/career spine (A1–A7).**
 
+### End-screen / Career polish (owner batch, session 12)
+- ~~**Real APT / tag tooltips / bigger metrics / drop pool text**~~ — ✓ done (session 12, → devlog): APT now
+  counts player actions only; every build tag has a hover tooltip (`TAG_INFO`); run metrics enlarged; the
+  "Added N boards to the pool" line removed. Gold-spent confirmed already correct (no change).
+- ~~**Round-board viewer**~~ — ✓ done (session 12, → devlog): clicking a W/L pip swaps the final-warband
+  board **in place** to that round's board (re-derived via `replayRun`); label toggles back to the final
+  warband. Ascent-only (practice replays wouldn't reconstruct faithfully). *Still open:* the same viewer on
+  the Career expanded-run rows (the entry stores only the final board today — needs the replay stored too).
+- ~~**Live card values on the final warband**~~ — ✓ done (session 12, → devlog): `instView` extracted to a
+  shared module; the end-screen final warband uses it, so scaling cards show accumulated magnitude.
+- ~~**Player-avatar picker**~~ — ✓ done (session 12, → devlog): pick any hero/minion/token/power art as a
+  persisted cosmetic, shown on the Title chip + Career profile card. *Still open:* the metrics "stack
+  vertically off to the side" layout idea (deferred; the board swap didn't need it).
+
+### Career / menu polish (owner batch, session 12) — ✓ done (→ devlog)
+- ✓ Career redesign: dropped the stat bar; Profile + **11-row Insights** + per-hero **line W–L** in one wider
+  left panel; added **Favorite Minion** + avg APT/gold to insights. Bigger avatars (menu +100%, Career +50%).
+- ✓ **Font Lab** (dev): bottom-right title toggle, per-role pickers (Titles/UI/Body × Outfit/Sora/Plus Jakarta
+  Sans/Nunito) driving `--font-*` CSS vars. *Follow-up:* it's always-on for now — gate behind a dev flag before
+  a public build; consider splitting the Outfit → title/ui boundary more finely if more granular control helps.
+
 ### Phase A follow-ups (deferred within A1–A7, do opportunistically)
 - **Rating-driven par line** (A2 seam) — make `line` scale with a player rating once one exists.
 - ~~**MVP / standout unit** (A4 + A6)~~ — ✓ done (session 11): `packages/sim/src/contribution.ts` attributes

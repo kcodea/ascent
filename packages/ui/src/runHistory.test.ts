@@ -26,10 +26,17 @@ describe('buildRunHistoryEntry (A7)', () => {
     expect(Array.isArray(e.tags)).toBe(true);
   });
 
-  it('marks a died run as not completed', () => {
+  it('marks a died run as not completed, but still a line win if it covered par', () => {
+    // finishedRun has 11 scored wins over par 9 — dying doesn't erase covering the line.
     const e = buildRunHistoryEntry(finishedRun({ phase: 'gameover', wave: 9 }), extra);
+    expect(e.completed).toBe(false); // didn't finish the course
+    expect(e.lineStatus).toBe('exceeded'); // but covered par → a win
+  });
+
+  it('marks a died run under par as failed', () => {
+    const e = buildRunHistoryEntry(finishedRun({ phase: 'gameover', wave: 5, history: ['lose', 'lose', 'win', 'win', 'lose'] }), extra);
     expect(e.completed).toBe(false);
-    expect(e.lineStatus).toBe('failed');
+    expect(e.lineStatus).toBe('failed'); // 2 scored wins < par 9, and died
   });
 });
 
@@ -61,6 +68,17 @@ describe('careerStats (A7)', () => {
     expect(s.streak).toBe(0);
   });
 
+  it('win rate counts runs that met their line, not rounds won', () => {
+    // Every run lost its line (like a fresh player who never covered), even though
+    // plenty of individual rounds were won — win rate must read 0%, not the round split.
+    const s = careerStats([
+      entry('robin', 3, false, { lineStatus: 'missed', losses: 4 }),
+      entry('nadja', 1, false, { lineStatus: 'missed', losses: 4 }),
+      entry('soren', 7, false, { lineStatus: 'missed', losses: 2 }),
+    ]);
+    expect(s.winRate).toBe(0);
+  });
+
   it('aggregates overall + per-hero + run stats, sorted by runs', () => {
     const s = careerStats([
       entry('rohan', 11, true, { lineStatus: 'flawless', triples: 3, goldSpent: 100, apt: 6, dominantTribe: 'beast' }),
@@ -75,10 +93,28 @@ describe('careerStats (A7)', () => {
     expect(s.triples).toBe(6);
     expect(s.avgGold).toBe(80); // (100+50+90)/3
     expect(s.avgApt).toBe(5); // (6+4+5)/3
-    expect(s.winRate).toBe(60); // 27 wins / 45 scored rounds
+    expect(s.winRate).toBe(100); // 3 of 3 runs met their line (flawless/covered/covered)
     expect(s.bestRun).toEqual({ wins: 11, losses: 4 }); // the highest-win run
     expect(s.streak).toBe(3); // all three met their line (flawless/covered/covered)
     expect(s.topTribes[0]).toEqual({ tribe: 'beast', count: 2 });
-    expect(s.perHero[0]).toMatchObject({ heroId: 'rohan', runs: 2, bestWins: 11, avgWins: 9, completions: 1 });
+    expect(s.perHero[0]).toMatchObject({ heroId: 'rohan', runs: 2, bestWins: 11, avgWins: 9, completions: 1, lineWins: 2, lineLosses: 0 });
+  });
+
+  it('tracks per-hero line record (covered vs fell short)', () => {
+    const s = careerStats([
+      entry('cassen', 10, true, { lineStatus: 'covered' }),  // win
+      entry('cassen', 3, false, { lineStatus: 'missed' }),   // loss
+      entry('cassen', 2, false, { lineStatus: 'failed' }),   // loss
+    ]);
+    expect(s.perHero[0]).toMatchObject({ heroId: 'cassen', runs: 3, lineWins: 1, lineLosses: 2 });
+  });
+
+  it('picks the favorite minion (most-used across final boards)', () => {
+    const board = (...cardIds: string[]) => ({ minions: cardIds.map((cardId) => ({ cardId, attack: 1, health: 1, keywords: [] })) }) as unknown as RunHistoryEntry['board'];
+    const s = careerStats([
+      entry('rohan', 9, true, { board: board('alley', 'pack') }),
+      entry('rohan', 9, true, { board: board('alley', 'kennel') }),
+    ]);
+    expect(s.favoriteMinion).toBe('Alleycat'); // 'alley' 2× vs 1× for the others
   });
 });

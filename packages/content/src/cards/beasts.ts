@@ -81,9 +81,13 @@ export const BEASTS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'stray', count: 1 } }],
-    text: '**Battlecry:** Summon a 1/1 **Stray**.',
-    goldenText: '**Battlecry:** Summon two 1/1 **Strays**.',
+    effects: [],
+    chooseOne: [
+      { text: 'Give your Beasts **+1/+3**.', effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'beast', attack: 1, health: 3 } }] },
+      { text: 'Summon a 1/1 **Stray**.', effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'stray', count: 1 } }] },
+    ],
+    text: '**Choose One:** Give your Beasts **+1/+3**, or summon a 1/1 **Stray**.',
+    goldenText: '**Choose One:** Give your Beasts **+2/+6**, or summon two 1/1 **Strays**.',
   },
   {
     id: 'spiritpup',

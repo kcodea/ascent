@@ -553,7 +553,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       ctx.state.fodderConsumedThisTurn.health += fh;
     }
     if (eaten.length > 0) {
-      ctx.state.fodderEaten = eaten;
+      // APPEND (not replace): Drakko re-fires this Battlecry, so each fire's Fodder must accumulate — else
+      // only the last fire's ghost would animate (the Godfodder anim reads the final `fodderEaten`).
+      // `applyBattlecryTarget` clears `fodderEaten` before the repeats, so this stays per-play.
+      ctx.state.fodderEaten = [...(ctx.state.fodderEaten ?? []), ...eaten];
       ctx.state.fodderEatenSeq += 1;
     }
   },
@@ -1008,12 +1011,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Apples (Choose One, second option) — bank a buff for the NEXT tavern roll: it's folded onto that shop's
+   *  offers in `refreshTavern`, then cleared. Flat (no spell-power scaling), like the current-shop option. */
+  spellBuffNextShop: (ctx, _self, params) => {
+    ctx.state.nextShopBuff ??= { attack: 0, health: 0 };
+    ctx.state.nextShopBuff.attack += num(params.attack, 2);
+    ctx.state.nextShopBuff.health += num(params.health, 4);
+  },
+
   /** Fleeting Vigor — cast: bank a one-shot Start-of-Combat buff for the NEXT combat (your minions enter
-   *  that fight at +atk/+hp, then it's spent — applied in `faceOmen`). Stacks if cast twice. Flat. */
+   *  that fight at +atk/+hp, then it's spent — applied in `faceOmen`). Stacks if cast twice. Scales with the
+   *  run's spell power (folded onto both stats), like the other stat-buff spells. */
   spellPendingSCBuff: (ctx, _self, params) => {
     ctx.state.fleetingVigor ??= { attack: 0, health: 0 };
-    ctx.state.fleetingVigor.attack += num(params.attack, 2);
-    ctx.state.fleetingVigor.health += num(params.health, 1);
+    ctx.state.fleetingVigor.attack += num(params.attack, 2) + spellAttackBonus(ctx.state);
+    ctx.state.fleetingVigor.health += num(params.health, 1) + spellHealthBonus(ctx.state);
   },
 
   /** Channeling the Devourer — cast: devour the targeted friendly minion (`self`, removed from the
@@ -1430,6 +1442,13 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const h = Number((shopBuff.params as { health?: number } | undefined)?.health ?? 2);
     return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
+  // Fleeting Vigor: its banked next-combat "+A/+B" scales with spell power on both stats too.
+  const scBuff = def.effects.find((e) => e.do === 'spellPendingSCBuff');
+  if (scBuff) {
+    const a = Number((scBuff.params as { attack?: number } | undefined)?.attack ?? 2);
+    const h = Number((scBuff.params as { health?: number } | undefined)?.health ?? 1);
+    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+  }
   const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');
   if (!eff) return def.text;
   const ba = Number((eff.params as { attack?: number } | undefined)?.attack ?? 0);
@@ -1590,6 +1609,7 @@ export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDe
  *  Fires the played card's onPlay effects with the target injected, honoring Drakko + Karwind. */
 export function applyBattlecryTarget(state: RunState, card: BoardCard, target: BoardCard): void {
   state.karwindFlash = [];
+  state.fodderEaten = []; // fresh for this resolution so a Drakko-repeated Godfodder accumulates each fire's Fodder
   const ctx = makeContext(state);
   const def = CARD_INDEX[card.cardId];
   if (!def) return;

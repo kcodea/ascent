@@ -220,6 +220,9 @@ export interface RunState {
   /** Staff of Guel — a run-wide buff baked onto every minion BOUGHT from the tavern (not Discovered or
    *  conjured). Persists for the rest of the run; stacks (and picks up spell power) if cast again. */
   tavernBuyBonus: { atk: number; hp: number };
+  /** Apples (Choose One) — a one-shot buff folded into the offers of the NEXT tavern roll (refresh or turn
+   *  advance), then cleared. Stacks if cast more than once before the next roll. */
+  nextShopBuff?: { attack: number; health: number };
   /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
   drakkoBuys: number;
   /** Cassen hero: enemy minions killed since the last Collision payoff — at 5 it grants a minion of the
@@ -289,9 +292,10 @@ export interface RunState {
    *  Black Belt Brian queues a 2nd spell Discover, Yazzus multiplies Help Wanted / Sprout, and a
    *  Drakko-doubled Brian queues one spell Discover per Battlecry fire. */
   discoverQueue?: DiscoverSpec[];
-  /** A pending Choose One — a played card waiting for the player to pick an option. The
-   *  options live on the card def (`CARD_INDEX[cardId].chooseOne`). */
-  chooseOne?: { uid: string; cardId: string };
+  /** A pending Choose One — a played card waiting for the player to pick an option. The options live on the
+   *  card def (`CARD_INDEX[cardId].chooseOne`). `spell` marks a SPELL choose-one (its own thing, not a
+   *  battlecry): the card is still in HAND and its chosen effect is cast (then consumed) on pick. */
+  chooseOne?: { uid: string; cardId: string; spell?: boolean };
   /** A played minion with a *targeted* Battlecry (`CardDef.target === 'friendly'`, e.g. Toxin Tender),
    *  on the board and waiting for the player to pick the friendly minion its Battlecry hits. Resolved
    *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. */
@@ -317,6 +321,13 @@ export type Action =
   | { type: 'settleCombat' }
   | { type: 'resolveCombat' };
 
+/** The automatic combat-flow transitions — they fire ~once per round regardless of how the player
+ *  builds, so they're excluded from the "actions per round" stat (which measures player decisions). */
+const COMBAT_FLOW_ACTIONS = new Set<Action['type']>(['faceOmen', 'settleCombat', 'resolveCombat']);
+/** Is this a player-initiated decision (buy / sell / play / roll / freeze / tier-up / reposition /
+ *  discover / choose / hero power / targeting) vs. an automatic combat-flow transition? Basis for APT. */
+export const isPlayerAction = (a: Action): boolean => !COMBAT_FLOW_ACTIONS.has(a.type);
+
 /** A run's W–L record over the SCORED rounds only (A1). The first `CONFIG.calibrationRounds` rounds are
  *  calibration and don't count; draws are excluded from both wins and losses. `history[i]` is round i+1's
  *  result, so scored results = `history.slice(calibrationRounds)`. */
@@ -336,9 +347,10 @@ export function isCalibrationRound(wave: number): boolean {
   return wave <= CONFIG.calibrationRounds;
 }
 
-/** How a run graded against its par (A2). `covered` = met the line exactly, `exceeded` = beat it,
- *  `missed` = fell short, `flawless` = won every scored round, `failed` = the run ended in a loss
- *  (Resolve 0) before completing the course. `delta` = scored wins − line. Meaningful on a finished run. */
+/** How a run graded against its par (A2). Par is the win condition: covering it is a win even if you
+ *  then fell before the final round. `covered` = met the line exactly, `exceeded` = beat it, `flawless`
+ *  = won every scored round. Falling short is a loss: `failed` = under par *and* died (Resolve 0) before
+ *  finishing the course, `missed` = under par but survived to the end. `delta` = scored wins − line. */
 export type LineStatus = 'flawless' | 'exceeded' | 'covered' | 'missed' | 'failed';
 export function lineResult(state: RunState): { line: number; wins: number; delta: number; status: LineStatus } {
   const { wins } = runRecord(state);
@@ -346,13 +358,18 @@ export function lineResult(state: RunState): { line: number; wins: number; delta
   const delta = wins - line;
   const scoredRounds = CONFIG.courseRounds - CONFIG.calibrationRounds;
   let status: LineStatus;
-  if (state.phase === 'gameover') status = 'failed';
-  else if (wins >= scoredRounds) status = 'flawless';
+  if (wins >= scoredRounds) status = 'flawless';
   else if (wins > line) status = 'exceeded';
-  else if (wins === line) status = 'covered';
-  else status = 'missed';
+  else if (wins >= line) status = 'covered';
+  // Under par — a loss. Distinguish dying early (`failed`) from surviving the course short (`missed`).
+  else status = state.phase === 'gameover' ? 'failed' : 'missed';
   return { line, wins, delta, status };
 }
+
+/** Did the run cover its par? `covered` / `exceeded` / `flawless` are wins; `missed` / `failed` are losses.
+ *  The single source of truth for "was this run a win" across the end screen, Career, and build tags. */
+export const metLine = (status: LineStatus): boolean =>
+  status === 'covered' || status === 'exceeded' || status === 'flawless';
 
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
 export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent'): RunState {

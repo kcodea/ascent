@@ -663,12 +663,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) grantShield(ctx, m);
   },
 
-  /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield. */
+  /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield (golden: TWO friends). */
   deathrattleGrantShield: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
-    if (pool.length === 0) return;
-    grantShield(ctx, ctx.rng.pick(pool));
+    const count = self.golden ? 2 : 1;
+    for (let i = 0; i < count; i++) {
+      const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
+      if (pool.length === 0) return;
+      grantShield(ctx, ctx.rng.pick(pool));
+    }
   },
 
   /** Shield Capacitor — when a friendly Shield breaks, give another friend a Shield. */

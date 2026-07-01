@@ -307,19 +307,66 @@ describe('run loop (@game/sim)', () => {
     expect([stray?.attack, stray?.health]).toEqual([11, 11]); // 1/1 + (base 1 + summonBonus 9) = +10/+10
   });
 
-  it('Wildwood Shaper: Battlecry summons a Stray (golden summons two)', () => {
+  it('Wildwood Shaper: Choose One — buff Beasts +1/+3 OR summon a Stray (golden doubles)', () => {
+    // Playing it pauses for the pick, then the chosen option resolves.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], board: [],
       hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sh' });
+    expect(s.chooseOne).toBeDefined(); // waits for the choice
+    s = reduce(s, { type: 'chooseOne', index: 1 }); // summon a Stray
     expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(1);
+    expect(s.chooseOne).toBeUndefined();
+
+    // Golden + summon → two Strays.
     let g: RunState = {
       ...createRun(1), embers: 0, shop: [], board: [],
       hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: true }],
     };
     g = reduce(g, { type: 'play', uid: 'sh' });
+    g = reduce(g, { type: 'chooseOne', index: 1 });
     expect(g.board.filter((c) => c.cardId === 'stray').length).toBe(2);
+
+    // The other option buffs your Beasts +1/+3 (includes self).
+    let b: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [],
+      hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
+    };
+    b = reduce(b, { type: 'play', uid: 'sh' });
+    b = reduce(b, { type: 'chooseOne', index: 0 });
+    const shaper = b.board.find((c) => c.cardId === 'shaper');
+    expect([shaper?.attack, shaper?.health]).toEqual([3, 5]); // 2/2 + 1/3
+  });
+
+  it('Apples: SPELL Choose One — buff this shop +1/+3 OR bank +2/+4 for the next shop', () => {
+    // Option 0 — buff the current tavern offers. Playing a Choose-One spell pauses (spell stays in hand).
+    let s: RunState = {
+      ...createRun(1), embers: 5,
+      hand: [{ uid: 'ap', cardId: 'apples', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 'o1', cardId: 'alley' }, { uid: 'o2', cardId: 'pack' }],
+    };
+    s = reduce(s, { type: 'play', uid: 'ap' });
+    expect(s.chooseOne).toMatchObject({ cardId: 'apples', spell: true });
+    expect(s.hand.some((c) => c.uid === 'ap')).toBe(true); // not consumed yet
+    s = reduce(s, { type: 'chooseOne', index: 0 });
+    expect(s.chooseOne).toBeUndefined();
+    expect(s.hand.some((c) => c.uid === 'ap')).toBe(false); // cast + consumed
+    expect([s.shop[0]!.atk, s.shop[0]!.hp]).toEqual([1, 3]); // this shop's offers buffed
+
+    // Option 1 — bank +2/+4 for the NEXT roll; the current shop is untouched, the buff lands on refresh.
+    let g: RunState = {
+      ...createRun(1), embers: 5,
+      hand: [{ uid: 'ap', cardId: 'apples', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 'o1', cardId: 'alley' }],
+    };
+    g = reduce(g, { type: 'play', uid: 'ap' });
+    g = reduce(g, { type: 'chooseOne', index: 1 });
+    expect(g.nextShopBuff).toEqual({ attack: 2, health: 4 });
+    expect([g.shop[0]!.atk ?? 0, g.shop[0]!.hp ?? 0]).toEqual([0, 0]); // current shop NOT buffed
+    g = reduce(g, { type: 'roll' });
+    expect(g.nextShopBuff).toBeUndefined();
+    expect(g.shop.length > 0 && g.shop.every((o) => (o.atk ?? 0) === 2 && (o.hp ?? 0) === 4)).toBe(true);
   });
 
   it('Dragon Battlecries bake into stats when played', () => {
@@ -1786,18 +1833,19 @@ describe('run loop (@game/sim)', () => {
     expect([t.attack, t.health]).toEqual([20, 20]);
   });
 
-  it('Apples buffs the current tavern offers +2/+3, and a buy bakes it in', () => {
+  it('Apples (Choose One → this shop) buffs the current offers +1/+3, and a buy bakes it in', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, frozen: false,
       shop: [{ uid: 'x', cardId: 'alley' }, { uid: 'y', cardId: 'pack' }],
       hand: [{ uid: 'sp', cardId: 'apples', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    expect(s.shop.every((o) => o.atk === 2 && o.hp === 3)).toBe(true); // both offers buffed
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // "Give the shop +1/+3"
+    expect(s.shop.every((o) => o.atk === 1 && o.hp === 3)).toBe(true); // both offers buffed
     s = { ...s, embers: 10 };
-    s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + Apples
+    s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + Apples +1/+3
     const bought = s.hand.find((c) => c.cardId === 'alley')!;
-    expect([bought.attack, bought.health]).toEqual([3, 4]);
+    expect([bought.attack, bought.health]).toEqual([2, 4]);
   });
 
   it('Fleeting Vigor banks a Start-of-Combat buff applied to the next combat, then spent', () => {
@@ -2954,9 +3002,19 @@ describe('PvE course + record (@game/sim)', () => {
     expect(lineResult(finish(scored)).status).toBe('flawless'); // won every scored round
   });
 
-  it('lineResult marks a run that died (Resolve 0) as failed, regardless of wins', () => {
+  it('lineResult treats covering par as a win even when the run died before the finish', () => {
+    const scored = CONFIG.courseRounds - CONFIG.calibrationRounds; // 15
+    // Died (Resolve 0) but had already beaten par 9 with 11 scored wins → a win, not a failure.
+    const diedButCovered: RunState = {
+      ...createRun(1), line: 9, phase: 'gameover',
+      history: [...Array(CONFIG.calibrationRounds).fill('lose'), ...Array(11).fill('win'), ...Array(scored - 11).fill('lose')],
+    };
+    expect(lineResult(diedButCovered)).toMatchObject({ status: 'exceeded', delta: 2 });
+  });
+
+  it('lineResult marks a run that died under par as failed', () => {
     const s: RunState = { ...createRun(1), line: 9, phase: 'gameover', history: ['win', 'win', 'win', 'win', 'lose'] };
-    expect(lineResult(s).status).toBe('failed');
+    expect(lineResult(s).status).toBe('failed'); // only 2 scored wins (< par 9), and died
   });
 });
 

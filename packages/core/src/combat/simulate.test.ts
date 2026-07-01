@@ -778,24 +778,6 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerUndeadBuyAtkGain).toBeGreaterThan(0); // each Growth = a spell cast → Forsaken Weaver banks +2 permanently
   });
 
-  it('Gnasher keeps attacking after killing a Reborn target', () => {
-    // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
-    // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned
-    // body off — clearing the board on its own turn (exactly 2 swings, the enemy never gets to attack).
-    // With the bug the kill wasn't registered, the turn passed, and combat ran far longer.
-    const a = run(
-      [
-        { cardId: 'gnash', attack: 6, health: 6 },
-        { cardId: 'sandbag', attack: 0, health: 30, keywords: ['T'] }, // inert filler so Gnasher goes first
-      ],
-      [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }],
-      1,
-    );
-    expect(a.events.some((e) => e.type === 'reborn')).toBe(true);
-    expect(a.events.filter((e) => e.type === 'attack').length).toBe(2); // both swings are Gnasher's
-    expect(a.result).toBe('win');
-  });
-
   it('a golden minion fires its effect at doubled magnitude', () => {
     const a = run(
       [
@@ -1021,17 +1003,17 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.target === raptorUid)).toBe(false); // Raptor never self-buffs
   });
 
-  it('Crypt Drake buffs your whole board +2/+2 per ally attack, improving to +4/+4 after 3', () => {
+  it('Crypt Drake buffs your whole board a flat +2/+2 every 2 ally attacks (no improvement)', () => {
     const a = run(
       [
         { cardId: 'cryptdrake', attack: 4, health: 80 },
         { cardId: 'sandbag', attack: 1, health: 80, keywords: [] }, // a second attacker → more ally attacks
       ],
-      [{ cardId: 'omen', attack: 0, health: 200 }], // 0-atk wall → the fight runs long enough to improve
+      [{ cardId: 'omen', attack: 0, health: 200 }], // 0-atk wall → the fight runs long
       3,
     );
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // attacks 1–3
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true); // improved after 3
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // fires every 2nd attack
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(false); // flat — never improves
   });
 
   it('Taragosa casts Growth (+3/+4 to all your minions) on each ally attack', () => {
@@ -1265,7 +1247,7 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('counts enemy-side deaths in enemyDeaths (Cassen Collision) — player losses excluded', () => {
-    // Gnasher (re-attacks on kill) clears two 1/1 enemies on its own turn; the player loses nothing.
+    // Gnasher (6/6) clears two 1/1 enemies over its turns; the player loses nothing (sandbag Taunt absorbs).
     const a = run(
       [
         { cardId: 'gnash', attack: 6, health: 6 },

@@ -150,8 +150,7 @@ export const DRAGONS: CardDef[] = [
     goldenText: 'When this gains Attack, give your minions **+4 Health**.',
   },
   {
-    // Undead/Dragon snowball: every ally attack buffs your whole board, and the buff grows every 3 attacks.
-    // Explosive on a wide board. Golden doubles the per-step buff.
+    // Undead/Dragon snowball: every 2 ally attacks, buff your whole board a flat +2/+2. Golden → +4/+4.
     id: 'cryptdrake',
     name: 'Crypt Drake',
     tribe: 'dragon',
@@ -160,9 +159,9 @@ export const DRAGONS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onAttack', do: 'onAllyAttackBuffAll', params: { step: 2, every: 3 } }],
-    text: 'When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.',
-    goldenText: 'When an ally attacks, give your minions **+4/+4**. Improve this every **3** attacks.',
+    effects: [{ on: 'onAttack', do: 'onAllyAttackBuffAll', params: { step: 2, every: 2 } }],
+    text: 'Every **2** ally attacks, give your minions **+2/+2**.',
+    goldenText: 'Every **2** ally attacks, give your minions **+4/+4**.',
   },
   {
     // Quest dragon: Engraved (keeps combat stat gains), and after being GRANTED STATS 20 times in combat it

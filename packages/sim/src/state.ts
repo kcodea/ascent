@@ -188,11 +188,9 @@ export interface RunState {
   combatSettled: boolean;
   /** Free rerolls banked (Refreshing Texts) — a roll spends these before charging Mana. */
   freeRolls: number;
-  /** Front to Back's accumulated escalation (Attack / Health tracked separately — spell power can be
-   *  asymmetric). Each cast grants +(step + this + spell power), then this += (step + current spell power),
-   *  so the per-cast improvement scales with spell power. */
+  /** Front to Back's accumulated escalation: each cast grants +(2 + this + spell power), then this += 2
+   *  (a flat step — the per-cast improvement is always +2/+2). */
   frontToBackBonus: number;
-  frontToBackBonusH: number;
   /** Fleeting Vigor — a one-shot Start-of-Combat buff banked for the NEXT combat only (your minions enter
    *  that fight at +this; spent in `faceOmen`, win or lose). Absent = none. */
   fleetingVigor?: { attack: number; health: number };
@@ -338,7 +336,6 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     combatSettled: false,
     freeRolls: 0,
     frontToBackBonus: 0,
-    frontToBackBonusH: 0,
     undeadAttackBonus: 0,
     undeadHealthBonus: 0,
     undeadBuyAtk: 0,
@@ -393,7 +390,6 @@ export function deserialize(json: string): RunState {
   state.turnStartPower ??= 0; // heal saves from before the pinned-opponent power
   state.spellBonus ??= { attack: 0, health: 0 }; // heal saves from before card-driven spell power
   state.undeadBuyAtk ??= 0; // heal saves from before Deathswarmer / Forsaken Weaver
-  state.frontToBackBonusH ??= state.frontToBackBonus ?? 0; // heal saves from before per-stat F2B escalation
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (state.pendingSpellDiscovers && state.pendingSpellDiscovers > 0) {

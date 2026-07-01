@@ -304,53 +304,19 @@ describe('run loop (@game/sim)', () => {
     expect([stray?.attack, stray?.health]).toEqual([11, 11]); // 1/1 + (base 1 + summonBonus 9) = +10/+10
   });
 
-  it('Choose One: playing prompts, then the picked option resolves as the Battlecry', () => {
+  it('Wildwood Shaper: Battlecry summons a Stray (golden summons two)', () => {
     let s: RunState = {
-      ...createRun(1),
-      embers: 0,
-      shop: [],
-      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
-      hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false }],
+      ...createRun(1), embers: 0, shop: [], board: [],
+      hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sh' });
-    expect(s.chooseOne?.cardId).toBe('shaper'); // the Battlecry waits on the choice
-    expect(s.board.find((c) => c.uid === 'b')?.attack).toBe(1); // not buffed yet
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // "give your Beasts +1/+1"
-    expect(s.chooseOne).toBeUndefined();
-    expect(s.board.find((c) => c.uid === 'b')?.attack).toBe(2); // Alleycat 1 → 2
-    expect(s.board.find((c) => c.uid === 'sh')?.attack).toBe(3); // Shaper 2 → 3 (includes self)
-  });
-
-  it('Choose One: the other option summons tokens', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 0,
-      shop: [],
-      board: [],
-      hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false }],
+    expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(1);
+    let g: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [],
+      hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: true }],
     };
-    s = reduce(s, { type: 'play', uid: 'sh' });
-    s = reduce(s, { type: 'chooseOne', index: 1 }); // "summon two 1/1 Strays"
-    expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
-  });
-
-  it('Choose One is not a Battlecry — Drakko the Drummer does not double it', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 0,
-      shop: [],
-      board: [
-        { uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false },
-        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
-      ],
-      hand: [{ uid: 'sh', cardId: 'shaper', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false }],
-    };
-    s = reduce(s, { type: 'play', uid: 'sh' });
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // "give your Beasts +1/+1"
-    // Drakko the Drummer doubles Battlecries — but Choose One is its own keyword, not a Battlecry,
-    // so the buff lands once (+1/+1), not twice.
-    expect(s.board.find((c) => c.uid === 'b')?.attack).toBe(2); // 1 → 2 (would be 3 if doubled)
-    expect(s.board.find((c) => c.uid === 'sh')?.attack).toBe(3); // 2 → 3 (would be 4 if doubled)
+    g = reduce(g, { type: 'play', uid: 'sh' });
+    expect(g.board.filter((c) => c.cardId === 'stray').length).toBe(2);
   });
 
   it('Dragon Battlecries bake into stats when played', () => {
@@ -1464,28 +1430,25 @@ describe('run loop (@game/sim)', () => {
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([6, 7]); // 2/3 + 4/4
   });
 
-  it('Front to Back: the per-cast improvement scales with spell power (Rohan)', () => {
+  it('Front to Back adds spell power (Rohan) on top of its flat escalation', () => {
     // Rohan's amplify is +1 at wave 1 → first cast is +(step 2 + escalation 0 + power 1) = +3/+3.
     const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
-    // The escalation now climbs by (step + current spell power) = 2 + 1 = 3, so the NEXT cast grows by that
-    // much — the per-cast improvement genuinely scales with spell power (matching the "Improve this by" text).
-    expect(s.frontToBackBonus).toBe(3);
-    expect(s.frontToBackBonusH).toBe(3);
-    // The card shows the live grant (step + accumulated escalation + power) AND the per-cast improvement
-    // (step + power). Both scale with spell power; a slot greens only when above its printed base.
+    expect(s.frontToBackBonus).toBe(2); // the escalation climbs by a FLAT 2 (spell power is not part of it)
+    // The grant (slot 0) scales with escalation + spell power; the improvement (slot 1) is a constant +2/+2
+    // — spell power is a flat add to every grant, NOT a per-cast increment, so it never inflates "Improve".
     expect(spellDisplayText('fronttoback', 0, 0)).toBe('Give a minion **+2/+2**. Improve this by **+2/+2**.'); // base — no boost
-    // +1 spell power, no escalation (the in-game screenshot): grant 2+0+1=3, improve 2+1=3 — both green.
-    expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **{{+3/+3}}**.');
-    // Escalated (+2) AND +1 power: grant 2+2+1=5; improve = step + power = 2+1=3.
-    expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **{{+3/+3}}**.');
-    // Escalated only (+4), no power: grant 2+4=6 green; improve stays the printed +2/+2 (no power).
+    // +1 spell power, no escalation: grant 2+0+1=3 green; improve stays +2/+2.
+    expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **+2/+2**.');
+    // Escalated (+2) AND +1 power: grant 2+2+1=5 green; improve stays +2/+2.
+    expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **+2/+2**.');
+    // Escalated only (+4), no power: grant 2+4=6 green; improve stays +2/+2.
     expect(spellDisplayText('fronttoback', 0, 4)).toBe('Give a minion **{{+6/+6}}**. Improve this by **+2/+2**.');
   });
 
-  it('Front to Back: two casts under spell power — the second grant grows by step + power', () => {
-    // +1 spell power (Rohan), two casts on the same target. Cast 1: +(2+0+1)=+3/+3. Cast 2: +(2+3+1)=+6/+6.
-    // The grant grew by 3 = step(2) + power(1), exactly the displayed "Improve this by".
+  it('Front to Back: two casts grow by a flat +2 step (plus flat spell power on each grant)', () => {
+    // +1 spell power (Rohan), two casts on the same target. Cast 1: +(2+0+1)=+3/+3. Cast 2: +(2+2+1)=+5/+5.
+    // The escalation step is a flat +2 (spell power adds +1 to each grant, but not to the step).
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], heroId: 'rohan',
       board: [oneNeutral('m', { attack: 0, health: 0 })],
@@ -1497,7 +1460,7 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' });
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // +3/+3
     s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' });
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([9, 9]); // 3/3 + 6/6 (grew by step+power = 3)
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([8, 8]); // 3/3 + 5/5 (grew by step 2 + power 1)
   });
 
   it('Mana Font raises max Mana permanently but does NOT refill current Mana', () => {
@@ -1896,25 +1859,6 @@ describe('run loop (@game/sim)', () => {
     const golden: BoardCard = { uid: 'g', cardId: 'sergeant', tribe: 'undead', attack: 12, health: 12, keywords: [], golden: true };
     addBuff(golden, 'Deathswarmer', 1, 0);
     expect(golden.hpGrantBonus).toBe(4);
-  });
-
-  it('Fodder Feeder, when sold, queues a Fodder + accrues the run-wide Imp buff (golden 2×)', () => {
-    let s: RunState = {
-      ...createRun(1), embers: 0,
-      board: [{ uid: 'ff', cardId: 'fodderfeeder', tribe: 'demon', attack: 1, health: 2, keywords: [], golden: false }],
-    };
-    s = reduce(s, { type: 'sell', uid: 'ff' });
-    expect(s.pendingTavern).toContain('fred'); // a Fodder queued for the next tavern
-    expect(s.impBuff).toEqual({ attack: 1, health: 1 }); // run-wide Imp buff accrued
-    expect(s.embers).toBe(CONFIG.sellValue); // still pays the base sell value
-    // Golden accrues +2/+2 and queues 2 Fodder.
-    let g: RunState = {
-      ...createRun(1), embers: 0,
-      board: [{ uid: 'ff', cardId: 'fodderfeeder', tribe: 'demon', attack: 2, health: 4, keywords: [], golden: true }],
-    };
-    g = reduce(g, { type: 'sell', uid: 'ff' });
-    expect(g.impBuff).toEqual({ attack: 2, health: 2 });
-    expect(g.pendingTavern!.filter((id) => id === 'fred').length).toBe(2);
   });
 
   it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {

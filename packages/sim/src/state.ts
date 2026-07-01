@@ -371,8 +371,10 @@ export function lineResult(state: RunState): { line: number; wins: number; delta
 export const metLine = (status: LineStatus): boolean =>
   status === 'covered' || status === 'exceeded' || status === 'flawless';
 
-/** Create a fresh run from a seed. Deterministic: same seed → same opening. */
-export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent'): RunState {
+/** Create a fresh run from a seed. Deterministic: same seed → same opening. `line` is the run's par (the
+ *  rating system passes the player's rating-derived Line; defaults to CONFIG.defaultLine so callers that
+ *  don't track rating — tests, tools, the boot throwaway — keep the historic mid-tier Line 9). */
+export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent', line: number = CONFIG.defaultLine): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
   // The hero's Resolve is the run's starting (and max) HP — all 30 today, diverging per hero later.
   const startResolve = getHero(heroId).resolve;
@@ -382,7 +384,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     wave: 1,
     best: 1,
     history: [],
-    line: CONFIG.defaultLine,
+    line,
     phase: 'recruit',
     embers: CONFIG.startEmbers,
     maxEmbers: CONFIG.startEmbers,

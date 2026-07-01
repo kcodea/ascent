@@ -9,6 +9,7 @@ export * from './reducer';
 export * from './snapshot';
 export * from './opponents';
 export * from './rating';
+export * from './playerRating';
 export * from './synthesize';
 export * from './opponentPool.data';
 export { addBuff, boardManaBonus, cardBuff, chronosRepeats, endOfTurnRepeats, isTribe, magnetizeTargets, offerBuyStats, projectEndOfTurnSteps, sellValueOf, spellCastMult, spellCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus } from './recruit';

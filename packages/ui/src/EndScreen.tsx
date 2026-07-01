@@ -38,6 +38,9 @@ export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
   const openTitle = useGame((s) => s.openTitle);
   const actions = useGame((s) => s.replayActions);
+  // The rating change for this scored run (computed on run-end, a tick after the phase flips). null for
+  // Practice or until it lands.
+  const lastRating = useGame((s) => s.lastRating);
   const hero = getHero(run.heroId);
   const practice = run.mode === 'practice';
   // Build identity (A5/A6): the tags that describe what you built this run.
@@ -74,13 +77,16 @@ export function EndScreen({ won }: { won: boolean }) {
   // round. The `won` prop only tells us whether the course was *completed* (survived to the end).
   const completedCourse = won;
   const wonPar = metLine(line.status);
+  // Verdict text sits after "Line N", so it doesn't repeat the word — reads "Line 9 · Covered",
+  // "Line 9 · Exceeded +2", "Line 9 · Missed -2". Standardized on "Line" (never "Par"/"Course failed").
   const LINE_VERDICT: Record<LineStatus, string> = {
-    flawless: 'Flawless — line destroyed',
-    exceeded: `Exceeded (+${line.delta})`,
-    covered: 'Line covered',
-    missed: `Missed (${line.delta})`,
-    failed: 'Course failed',
+    flawless: 'Flawless',
+    exceeded: `Exceeded +${line.delta}`,
+    covered: 'Covered',
+    missed: `Missed ${line.delta}`,
+    failed: `Missed ${line.delta}`,
   };
+  const ratingSign = lastRating && lastRating.ratingDelta >= 0 ? '+' : '';
   return (
     <div className={`heroselect endscreen${wonPar ? ' won' : ''}`}>
       <div className="hsbox endbox">
@@ -98,7 +104,7 @@ export function EndScreen({ won }: { won: boolean }) {
           {practice ? 'Practice complete' : wonPar ? (completedCourse ? 'The climb is complete' : 'You covered your line') : ''}
         </div>
         <h1 className="disp hstitle">
-          {practice ? 'PRACTICE' : wonPar ? (completedCourse ? 'COURSE COMPLETE' : 'PAR COVERED') : 'FALLEN'}
+          {practice ? 'PRACTICE' : wonPar ? (completedCourse ? 'COURSE COMPLETE' : 'LINE COVERED') : 'FALLEN'}
         </h1>
         <div className="endsub">
           {practice
@@ -111,6 +117,18 @@ export function EndScreen({ won }: { won: boolean }) {
           <div className={`endline ${line.status}`}>
             <span className="endline-par">Line {line.line}</span>
             <span className="endline-verdict">{LINE_VERDICT[line.status]}</span>
+          </div>
+        )}
+
+        {!practice && lastRating && (
+          <div className={`endrating${lastRating.ratingDelta >= 0 ? ' up' : ' down'}`} aria-label="Rating change">
+            {lastRating.completionBonus > 0 && (
+              <span className="endrating-bonus">Summit Bonus +{lastRating.completionBonus}</span>
+            )}
+            <span className="endrating-delta">Rating {ratingSign}{lastRating.ratingDelta}</span>
+            <span className="endrating-now">{lastRating.ratingAfter}</span>
+            {lastRating.promoted && <span className="endrating-move promo">Promoted → Line {lastRating.lineAfter}</span>}
+            {lastRating.demoted && <span className="endrating-move demo">Demoted → Line {lastRating.lineAfter}</span>}
           </div>
         )}
 

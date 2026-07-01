@@ -5,6 +5,43 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### feat: rating system — rating-derived Line, run-end delta, Career/end-screen surfaces
+
+The career skill-pressure layer (handoff "Rating System") on top of the existing course/Line scaffolding
+(A1/A2). A run's **Line** (par) now comes from the player's **rating** instead of the static
+`CONFIG.defaultLine`, and finishing a scored run moves the rating by how the scored-win count compared to
+the Line, plus a summit bonus. Built local-first but structured so the eventual move to Supabase-backed
+accounts is a swap of the persistence layer, not a rewrite.
+
+- **Pure math in `@game/sim`** — new [playerRating.ts](packages/sim/src/playerRating.ts): `PlayerProfile`
+  (`rating`, `currentLine`, `highestRating`, `highestLine`, reserved `lineGrace?`), `lineForRating`,
+  `resolveLine` (promotion/demotion hysteresis — a 75-pt buffer so a player near a band edge doesn't yo-yo),
+  `lineRatingDelta` (the handoff table: +36/+30/+22/+14/+6/−8/−16/−24/−32), and `resolveRunRating(profile,
+  outcome)` returning the new profile + a breakdown. Deterministic + side-effect-free (no storage, no
+  `Math.random`), so the *same function* can run server-side later to re-verify a delta from the replay.
+- **Line from rating** — `createRun` takes an optional `line` (defaults to `CONFIG.defaultLine` for
+  tests/tools/boot); the store passes `profile.currentLine`. Starting rating **1200 → Line 9** reproduces
+  today's default exactly.
+- **Persistence seam** — new [profileStore.ts](packages/ui/src/profileStore.ts): one `ascent.profile`
+  localStorage object (maps 1:1 to a future `profiles` row), the single read/write point. Run history
+  (`RunHistoryEntry`, still `v:1`) gains optional `ratingBefore/After/Delta` + `lineDelta`.
+- **Store wiring** — `store.ts` loads the profile at boot, sets the run's Line from it, and on each scored
+  run's finish computes `resolveRunRating`, persists the profile, exposes `lastRating` for the end screen,
+  and stamps the rating fields into history. Practice stays unscored.
+- **UI surfaces** — end screen shows the rating delta + summit bonus + promo/demo tag and its copy is
+  standardized on **"Line"** ("PAR COVERED" → "LINE COVERED", verdicts read "Line 9 · Covered / Exceeded +2
+  / Missed −2"); Career replaces the "Unranked" placeholder with rating + Line + high-water marks (and shows
+  the rating on the empty state); hero-select telegraphs the run's Line ("Rating 1200 · Line 9 · Cover 9
+  wins · Strong 11+").
+- **Deliberately NOT touched:** matchmaking (stays wave/power-first — rating is expectation, not difficulty)
+  and the new-Line grace buffer (reserved field; a follow-up).
+- **Verified:** 456 tests green (incl. 15 new — the 5 handoff worked examples + band/hysteresis/floor cases),
+  typecheck + lint + `build:web` clean. Live (throwaway run, real save/profile backed up + restored): a fresh
+  profile loads 1200/Line 9; `run.line` = 9; an empty-board loss to round 5 graded 0 wins → `−32` → rating
+  1200→1168 with no demotion (held above the 1125 buffer) and the high-water mark held at 1200; end screen
+  rendered "LINE 9 · MISSED −9" + "RATING −32 · 1168"; the history entry carried the rating fields; the
+  hero-select + Career surfaces rendered the rating.
+
 ### feat: board-art selector + dimming slider in Settings
 
 A **Board Art** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) to compare the illustrated

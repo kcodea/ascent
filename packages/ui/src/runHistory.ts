@@ -1,6 +1,6 @@
 import { CARD_INDEX } from '@game/content';
 import type { Tribe } from '@game/core';
-import { buildTags, lineResult, metLine, runMvp, runRecord, topMechanic, type BoardSnapshot, type LineStatus, type RunState } from '@game/sim';
+import { buildTags, lineResult, metLine, runMvp, runRecord, topMechanic, type BoardSnapshot, type LineStatus, type RatingChange, type RunState } from '@game/sim';
 
 /**
  * Career / match history (A7) — the persistence layer. On run-end, a compact per-run entry is appended to
@@ -34,6 +34,12 @@ export interface RunHistoryEntry {
   strongest?: { name: string; attack: number; health: number } | null; // biggest final-board minion
   mvp?: { name: string; damage: number } | null; // most attack damage dealt across the run
   topMechanic?: { name: string; count: number } | null; // most-triggered combat mechanic
+  // Rating (career skill pressure; absent on entries from before the rating system). `lineDelta` = scored
+  // wins − line (the run's over/under-par). See `@game/sim` playerRating.
+  ratingBefore?: number;
+  ratingAfter?: number;
+  ratingDelta?: number;
+  lineDelta?: number;
 }
 
 /** The final board's top non-neutral tribe (both tribes counted), or null for an empty/all-neutral board. */
@@ -52,7 +58,7 @@ function dominantTribeOf(run: RunState): Tribe | null {
 /** Build a history entry from a finished run + the run-end extras (capture count, final board, date, APT). */
 export function buildRunHistoryEntry(
   run: RunState,
-  extra: { date: string; boardsContributed: number; board: BoardSnapshot | null; apt: number; cardsPlayed: number },
+  extra: { date: string; boardsContributed: number; board: BoardSnapshot | null; apt: number; cardsPlayed: number; rating?: RatingChange },
 ): RunHistoryEntry {
   const rec = runRecord(run);
   const lr = lineResult(run);
@@ -81,6 +87,10 @@ export function buildRunHistoryEntry(
     strongest: big ? { name: CARD_INDEX[big.cardId]?.name ?? big.cardId, attack: big.attack, health: big.health } : null,
     mvp: runMvp(run.runDamage),
     topMechanic: topMechanic(run.runProcs),
+    ratingBefore: extra.rating?.ratingBefore,
+    ratingAfter: extra.rating?.ratingAfter,
+    ratingDelta: extra.rating?.ratingDelta,
+    lineDelta: extra.rating?.lineDelta,
   };
 }
 

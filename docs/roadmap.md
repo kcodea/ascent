@@ -101,15 +101,22 @@ look because the engine already produces the data.
   a public build; consider splitting the Outfit → title/ui boundary more finely if more granular control helps.
 
 ### Phase A follow-ups (deferred within A1–A7, do opportunistically)
-- **Rating-driven par line** (A2 seam) — make `line` scale with a player rating once one exists.
+- ~~**Rating system / rating-driven par line**~~ — ✓ done (session 12 → devlog): persistent `PlayerProfile`
+  (rating + Line + high-water marks) in `ascent.profile`; the run's Line comes from the rating (1200 → Line 9);
+  scored runs move the rating by the handoff delta table + summit bonus with a promo/demo hysteresis buffer;
+  end screen / Career / hero-select surface it. Pure math in `@game/sim` playerRating.ts, built local-first for
+  a later Supabase-accounts swap. **Remaining:** (1) **new-Line grace** (soften the first misses after a
+  promotion — `lineGrace` field reserved); (2) **rating-aware matchmaking** — still intentionally off (rating is
+  expectation, not difficulty); revisit under "Matchmaking evolution" once the board pool is larger; (3) surface
+  **rating Δ per run** on the Career match cards + optionally seed veterans' rating from existing history.
 - ~~**MVP / standout unit** (A4 + A6)~~ — ✓ done (session 11): `packages/sim/src/contribution.ts` attributes
   player damage by cardId + counts mechanic procs from the combat log; end screen shows **MVP** + **Most**,
   Career shows favorite mechanic. Still deferred: biggest permanent-scaling source, Quest choices, Ancient.
 - **Run detail page** (A7) — the Career match cards now **expand in place** (session 11) to show the run's
   stat line + final warband; the remaining step is a full **round-by-round + replay** view (the entry already
   stores the final board; add the `{seed,heroId,actions}` replay to enable re-derivation).
-- **Career "Rank"** — the Profile Card shows an **"Unranked"** placeholder (session 11); wire it to a real
-  rank/rating band when that system lands (pairs with the rating-driven par line above).
+- ~~**Career "Rank"**~~ — ✓ done (session 12): the Profile Card's "Unranked" placeholder now shows rating +
+  Line + high-water marks (rating also on the empty state).
 - **Goal:** runs stop disappearing. A career surface with: current rating, best record, average wins, total
   runs, recent runs, **per-hero stats**, rating Δ per run, final-board preview, build tags. Match entry e.g.
   *"Rohan · 11–4 · Line 9 · +18 · Spell Engine / Gilded Carry / Flurry Finish."*

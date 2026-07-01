@@ -875,8 +875,10 @@ CSS 3D transforms on the DOM card, not a Pixi mesh, since the card is composed D
   list (`dragTransform`) so the snap/magslide transitions interpolate smoothly back to flat.
 - **Held-still sits flat.** No static 2D angle by default (`staticRotate` 0) — a card held still is square
   like one on the table (the lift read is the drop-shadow + scale, not a tilt); it only leans while moving.
-- **Both leans are non-mirrored.** The mathematically-mirrored opposite-direction tilt read wrong by eye, so
-  each axis uses the motion magnitude with one fixed sign (`|gx|`, `−|gy|`) — left mimics right, up mimics down.
+- **Per-axis tilt model (tunable).** Each axis's lean = a DIRECTIONAL part (signed gap → mirrors direction) +
+  a MAGNITUDE part (|gap| → same both ways), each with its own live coefficient (`hDir/hAbs`, `vDir/vAbs`),
+  so the per-quadrant feel can be dialed by eye in the tuner. Defaults are pure-magnitude (`hAbs 1`, `vAbs −1`),
+  replacing the old single `tiltDir` flip.
 - **Recentres onto the cursor.** You can grab a card anywhere, but once the drag begins the card smoothly
   slides so its CENTRE sits under the cursor (the anchor lerps grab-point → card-centre in the rAF, a hair
   quicker than the position catch-up). The drop/insertion math is unchanged because the anchor is stored as
@@ -884,10 +886,10 @@ CSS 3D transforms on the DOM card, not a Pixi mesh, since the card is composed D
   recentre without a pickup pop and to aim the snap-back at the original slot. (This made the old `pivot` dial
   redundant — the pivot is now the centre by definition — so it was removed.)
 - **Tunable + DEV tuner.** `dragFeel.ts` holds every card-motion dial, persisted to localStorage and read
-  live each frame; `DragTuner.tsx` (the 🎴 button) exposes all 10 as sliders with a hover-tooltip definition
-  on each: `follow` (lag), `tiltPerPx` (lean), `tiltMax` (cap), `tiltDir` (±1 to invert the lean), `perspective`,
-  `scale` (hold size), `staticRotate` (angle while held), `threshold` (click→drag px), `snapMs` (snap-back),
-  `magSlideMs` (magnet-slide). Defaults are deliberately *slight*: follow 0.4, tiltPerPx 0.16, tiltMax 6°,
+  live each frame; `DragTuner.tsx` (the 🎴 button) exposes all 13 as sliders with a hover-tooltip definition
+  on each: `follow` (lag), `tiltPerPx` (lean), `tiltMax` (cap), `hDir/hAbs/vDir/vAbs` (per-axis lean model),
+  `perspective`, `scale` (hold size), `staticRotate` (angle while held), `threshold` (click→drag px), `snapMs`
+  (snap-back), `magSlideMs` (magnet-slide). Defaults are deliberately *slight*: follow 0.4, tiltPerPx 0.16, tiltMax 6°,
   perspective 800, scale 1.04. snap/magslide durations are pushed to the CSS transition inline so they tune live.
 - **Denser drop cloud.** The dry-dirt dust puff kicked up when a card is placed/moved on the board keeps its
   original size but is +50% DENSER — `dust()` gained a `density` arg (multiplies the puff count, not the size);

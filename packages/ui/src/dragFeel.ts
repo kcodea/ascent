@@ -13,8 +13,14 @@ export interface DragFeel {
   tiltPerPx: number;
   /** Max tilt (deg) — clamps the lean so a fast fling can't over-rotate. */
   tiltMax: number;
-  /** Tilt direction: +1 leans one way into motion, −1 the opposite. Flip to A/B which feels right. */
-  tiltDir: number;
+  /** Horizontal lean — DIRECTIONAL part: leans by left-vs-right direction (mirrored). ± sets which way, 0 = off. */
+  hDir: number;
+  /** Horizontal lean — MAGNITUDE part: leans by horizontal SPEED regardless of direction. ± sets which way. */
+  hAbs: number;
+  /** Vertical lean — DIRECTIONAL part: leans by up-vs-down direction (mirrored). ± sets which way, 0 = off. */
+  vDir: number;
+  /** Vertical lean — MAGNITUDE part: leans by vertical SPEED regardless of direction. ± sets which way. */
+  vAbs: number;
   /** CSS perspective (px) for the 3D tilt — smaller = stronger foreshortening. */
   perspective: number;
   /** Hold scale — how much the card grows while lifted (the 'off the table' size). */
@@ -33,7 +39,10 @@ const DEFAULTS: DragFeel = {
   follow: 0.4,      // a slight, weighty lag (closes 40% of the gap each frame ≈ 33 ms time constant)
   tiltPerPx: 0.16,  // gentle lean
   tiltMax: 6,       // the slightest tilt
-  tiltDir: 1,       // lean direction (flip to −1 to invert)
+  hDir: 0,          // horizontal: no directional lean by default…
+  hAbs: 1,          // …lean by horizontal speed (both directions the same)
+  vDir: 0,          // vertical: no directional lean by default…
+  vAbs: -1,         // …lean by vertical speed (both directions the same)
   perspective: 800,
   scale: 1.04,      // lifted a touch off the table
   staticRotate: 0,  // flat when held still
@@ -47,7 +56,10 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   follow: [0.1, 1, 0.02],
   tiltPerPx: [0, 0.6, 0.01],
   tiltMax: [0, 20, 0.5],
-  tiltDir: [-1, 1, 2], // two stops: −1 (inverted) / +1 (normal)
+  hDir: [-1, 1, 0.1],
+  hAbs: [-1, 1, 0.1],
+  vDir: [-1, 1, 0.1],
+  vAbs: [-1, 1, 0.1],
   perspective: [200, 1600, 50],
   scale: [1, 1.3, 0.01],
   staticRotate: [-8, 8, 0.5],
@@ -61,7 +73,10 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   follow: 'How fast the card catches up to the cursor. Lower = heavier/laggier; 1 = instant (no lag).',
   tiltPerPx: 'Degrees of 3D lean per pixel the card trails the cursor. Higher = leans harder when moving.',
   tiltMax: 'Ceiling on the tilt (degrees) so a fast fling can’t over-rotate.',
-  tiltDir: 'Which way it leans into motion: +1 or −1 (flip to invert both axes).',
+  hDir: 'Horizontal DIRECTIONAL lean: mirrors left vs right. ± sets which way; 0 = off. (Combines with H speed.)',
+  hAbs: 'Horizontal SPEED lean: same tilt whichever way you drag horizontally. ± sets which way; 0 = off.',
+  vDir: 'Vertical DIRECTIONAL lean: mirrors up vs down. ± sets which way; 0 = off. (Combines with V speed.)',
+  vAbs: 'Vertical SPEED lean: same tilt whichever way you drag vertically. ± sets which way; 0 = off.',
   perspective: 'CSS 3D depth (px). Smaller = stronger foreshortening / more dramatic tilt.',
   scale: 'How much the card grows while held — the “lifted off the table” size.',
   staticRotate: 'A fixed 2D angle (deg) while held. 0 = sits flat like a card on the table.',

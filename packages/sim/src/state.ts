@@ -308,6 +308,25 @@ export type Action =
   | { type: 'settleCombat' }
   | { type: 'resolveCombat' };
 
+/** A run's W–L record over the SCORED rounds only (A1). The first `CONFIG.calibrationRounds` rounds are
+ *  calibration and don't count; draws are excluded from both wins and losses. `history[i]` is round i+1's
+ *  result, so scored results = `history.slice(calibrationRounds)`. */
+export function runRecord(state: RunState): { wins: number; losses: number; draws: number } {
+  let wins = 0, losses = 0, draws = 0;
+  for (const r of state.history.slice(CONFIG.calibrationRounds)) {
+    if (r === 'win') wins++;
+    else if (r === 'lose') losses++;
+    else draws++;
+  }
+  return { wins, losses, draws };
+}
+
+/** Whether a given round (1-based wave) is a calibration round — the opening rounds that don't count
+ *  toward the record (they still cost Resolve + run the economy). */
+export function isCalibrationRound(wave: number): boolean {
+  return wave <= CONFIG.calibrationRounds;
+}
+
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
 export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent'): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));

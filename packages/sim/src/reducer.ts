@@ -952,12 +952,10 @@ function advanceCombat(s: RunState): void {
     return;
   }
 
-  // PvE win condition: WIN `winsToWin` combats. `settleCombat` already pushed this combat's result to
-  // history, so the just-fought win is counted here — the run ends in victory the moment the 15th win
-  // lands, at whatever wave that is. (A loss costs Resolve but keeps climbing, so you can reach wave 15
-  // with fewer than 15 wins and must keep going; the old `wave >= maxWave` check wrongly ended there.)
-  const wins = s.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0);
-  if (s.mode !== 'practice' && wins >= CONFIG.winsToWin) {
+  // Course complete (A1): a run plays a fixed course of `courseRounds` rounds; survive them all and the
+  // run is done — the record IS the score, whatever it is. The just-fought round's result is already in
+  // history. The only early exit is Resolve 0 (handled above); you never "win early" by a win count.
+  if (s.mode !== 'practice' && s.wave >= CONFIG.courseRounds) {
     s.best = Math.max(s.best, s.wave);
     s.phase = 'victory';
     return;

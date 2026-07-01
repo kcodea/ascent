@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
-import { lossDamageCap } from '@game/sim';
+import { CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@game/sim';
 import { BuffsFrame } from './BuffsFrame';
 import { Icon } from './Icon';
 import { OpponentFrame } from './OpponentFrame';
@@ -21,28 +21,34 @@ export function HudBar() {
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   const [muted, setMuted] = useState(isMuted());
-  // Combat wins this run — read straight off the per-combat history (W/L/D), so it always agrees with the
-  // end-screen summary. (A win = a combat won; you can climb a wave on a loss, so wins ≤ waves fought.)
-  const wins = run.history.filter((r) => r === 'win').length;
+  // Your W–L record over the SCORED rounds (calibration rounds 1–2 don't count) — the run's score (A1).
+  const { wins, losses } = runRecord(run);
+  const practice = run.mode === 'practice';
+  const calibration = !practice && isCalibrationRound(run.wave);
   return (
     <div className="bar">
       <div className="wm disp">ASCENT</div>
       <div className="alt">
         <span className="wavecol">
-          <span className="w">WAVE {run.wave}</span>
+          <span className="w">{practice ? `WAVE ${run.wave}` : `ROUND ${run.wave} / ${CONFIG.courseRounds}`}</span>
           {/* The most Resolve a loss this wave can cost — the round damage cap (see lossDamageCap). Hidden in
               Practice, where Resolve is unlimited and losses deal no damage. */}
-          {run.mode !== 'practice' && (
+          {!practice && (
             <span className="maxdmg" title="Most Resolve you can lose if you lose this combat">
               <Icon name="heart" />Max −{lossDamageCap(run.wave)}
             </span>
           )}
         </span>
         <span className="meter">
-          <i style={{ width: `${Math.min(100, run.wave * 8)}%` }} />
+          <i style={{ width: `${Math.min(100, (run.wave / CONFIG.courseRounds) * 100)}%` }} />
         </span>
-        <span className="lbl wins" title="Combats won this run"><Icon name="crown" />{wins}</span>
-        <span className="lbl">Best {run.best}</span>
+        {calibration ? (
+          <span className="lbl calib" title="Calibration rounds (1–2) don't count toward your record">Calibration</span>
+        ) : (
+          <span className="lbl record" title="Your record over the scored rounds (calibration rounds 1–2 don't count)">
+            <Icon name="crown" />{wins}–{losses}
+          </span>
+        )}
       </div>
       {/* Combat replay speed — only during the fight; sits to the LEFT of the tribes bar (out of the
           top-right buffs/opponent column). */}

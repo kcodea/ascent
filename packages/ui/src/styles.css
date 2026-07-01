@@ -1494,11 +1494,17 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Title screen — the front door, layered above the hero picker. Mirrors the picker's dimmed-board backdrop. */
 /* Title screen — the homescreen-mockup look: full-bleed sky-castle art + a dark left vignette so the
    ornate left-aligned menu stays legible over the bright sky. */
-.titlescreen { position: fixed; inset: 0; z-index: 450; background:
-    linear-gradient(90deg, rgba(6, 11, 22, 0.9) 0%, rgba(6, 11, 22, 0.62) 26%, rgba(6, 11, 22, 0.08) 52%, rgba(6, 11, 22, 0) 66%),
-    linear-gradient(rgba(6, 11, 22, 0.28), rgba(6, 11, 22, 0.42)),
+.titlescreen { position: fixed; inset: 0; z-index: 450; overflow: hidden; background:
     url('/homescreen.webp') center / cover no-repeat, var(--bg);
   animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* Looping ambience video — sits over the webp base; the vignette (::before) + menu render above it. */
+.titlevideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; }
+/* Dark left vignette so the ornate left-aligned menu stays legible over the bright sky (was on .titlescreen). */
+.titlescreen::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background:
+    linear-gradient(90deg, rgba(6, 11, 22, 0.9) 0%, rgba(6, 11, 22, 0.62) 26%, rgba(6, 11, 22, 0.08) 52%, rgba(6, 11, 22, 0) 66%),
+    linear-gradient(rgba(6, 11, 22, 0.28), rgba(6, 11, 22, 0.42)); }
+.titlemenu, .titleaccount, .titleversion { z-index: 2; }
+@media (prefers-reduced-motion: reduce) { .titlevideo { display: none; } }
 body:has(.titlescreen) .app { visibility: hidden; }
 body:has(.titlescreen) .statusbar { visibility: hidden; }
 body:has(.titlescreen) .version { visibility: hidden; }

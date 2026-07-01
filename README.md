@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Looping menu video** — the title screen plays a muted, looping ambience video behind the menu (falls
+  back to the `homescreen.webp` still when absent or under reduced-motion).
 - **Career page redesign** — a stats bar (runs · best run · avg wins · win rate) over three columns: a
   **Profile Card** (avatar · name · "Unranked" placeholder), the **Recent Match History** (click-to-expand
   cards with stats + final warband), and an **Insights** rail (favorite hero / tribe / mechanic · win rate ·

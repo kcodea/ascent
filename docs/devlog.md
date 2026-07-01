@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 11)
 
+### feat: looping menu-ambience video on the title screen
+
+- The title screen now hosts an **autoplaying, looping `<video>`** (`.titlevideo`) behind the menu, sourced
+  from `/homescreen.mp4`. Layering: the `homescreen.webp` is now the title's **base background + the video
+  `poster`** (so if the file is absent or still loading the screen looks exactly as before); the video sits
+  above it (`z-index:0`, `object-fit:cover`); the **left vignette moved to `.titlescreen::before`**
+  (`z-index:1`) so it tints the video the same way it tinted the still; the menu / account / version sit at
+  `z-index:2`. Hidden under `prefers-reduced-motion` (falls back to the webp base).
+- **Audio.** The clip has a soundtrack. Browsers block autoplay *with* sound, so `muted` is controlled
+  imperatively (a Title effect): it starts by trying the desired state and, if the browser blocks unmuted
+  autoplay at cold boot, falls back to muted playback and **unmutes on the first user gesture** (pointer /
+  key). It honors the game's **mute + master-volume** (`isMuted()` / `getVolume()` from `sfx.ts`), so the
+  Settings mute silences the menu too. Returning to the title after a run (audio already unlocked) starts
+  sound immediately.
+- **Asset wired:** `apps/web/public/homescreen.mp4` — a ~31 MB, 28.7s, 3440×1440 (ultrawide) H.264 loop
+  (compressed down from a 115 MB source). `object-fit:cover` fills the viewport and crops the ultrawide
+  frame. Only the **title** ("main menu area") gets the video; Career/Leaderboard keep the lighter static
+  webp. *(Note: 31 MB is above the ~10 MB target — fine for now, worth a further compression pass before a
+  size-sensitive distribution.)*
+- **Verified:** typecheck/lint/build green. Live: the `<video>` plays (`readyState 4`, advancing, looping,
+  `currentSrc` = homescreen.mp4) full-bleed with the menu legible over the vignette; screenshot confirmed.
 ### feat: Career page redesign — stats bar + Profile / Match History / Insights columns
 
 - **Reworked the Career overlay** (`Career.tsx`) from a flat list into the requested three-column layout:

@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: expanded build tags (A5+)
+
+- Grew `buildTags` from ~11 to ~24 tags and bumped the display cap 3 → 4, so a run's identity reads richer.
+  New tags, all computed from data we already track (board shape/stats, keywords, `history`, `triplesMade`,
+  per-minion `buffs`, record vs line):
+  - **Board shape:** Carry Stack (one monster holds most stats) · Wide Board (many bodies, no carry) ·
+    Glass Cannon (attack-heavy + Flurry/Toxin) · Fortress Board (health-heavy + Ward/Taunt) · Token Flood ·
+    Keyword Soup · Menagerie (mixed tribes).
+  - **Progression / record:** Triple Hunter · Scaling Engine · Tempo Climber (strong early, fades) ·
+    Late Bloom (weak start, strong finish) · Underdog Line (bad start, still covered) · Low Roll Survivor.
+- History-arc tags need ≥6 scored rounds, so they only fire on a full-ish run.
+- **Deferred** (need per-minion combat-damage / economy tracking we don't have yet): Economy Engine,
+  Sacrifice Engine, Boss Killer, Perfect Curve, Pivot Run, Shop Sculptor, Spell Weaver, MVP-based tags.
+- **Verified:** 5 new unit tests + existing A5 tests green. typecheck + lint + `npm test` (425) + build:web.
+
 ### feat: B1 — hero-power dragging
 
 - Targeted hero powers now use the **same press-drag-release language as card drag**: press the power, drag

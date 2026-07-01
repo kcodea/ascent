@@ -62,7 +62,39 @@ describe('buildTags (A5 build-tag classifier)', () => {
       mk('burialimp', { uid: 't5' }),
     ];
     const tags = buildTags(withBoard(board, { spellsCast: 12 }));
-    expect(tags.length).toBeLessThanOrEqual(3);
+    expect(tags.length).toBeLessThanOrEqual(4);
     expect(tags.length).toBeGreaterThan(0);
+  });
+
+  it('tags board shape: Carry Stack (one monster) vs Wide Board (many bodies)', () => {
+    const carry = [
+      mk('sandbag', { uid: 'c1', attack: 40, health: 40 }),
+      mk('sandbag', { uid: 'c2', attack: 2, health: 2 }),
+      mk('sandbag', { uid: 'c3', attack: 2, health: 2 }),
+    ];
+    expect(buildTags(withBoard(carry))).toContain('Carry Stack');
+    const wide = Array.from({ length: 6 }, (_, i) => mk('sandbag', { uid: `w${i}`, attack: 6, health: 6 }));
+    expect(buildTags(withBoard(wide))).toContain('Wide Board');
+  });
+
+  it('tags Glass Cannon (attack-heavy + aggressive) and Fortress Board (health-heavy + defensive)', () => {
+    const glass = Array.from({ length: 3 }, (_, i) => mk('sandbag', { uid: `g${i}`, attack: 14, health: 2, keywords: i === 0 ? ['W'] : [] }));
+    expect(buildTags(withBoard(glass))).toContain('Glass Cannon');
+    const fort = Array.from({ length: 3 }, (_, i) => mk('sandbag', { uid: `f${i}`, attack: 2, health: 14, keywords: ['DS'] }));
+    expect(buildTags(withBoard(fort))).toContain('Fortress Board');
+  });
+
+  it('tags Triple Hunter (chased upgrades) and Menagerie (mixed tribes)', () => {
+    expect(buildTags(withBoard([mk('sandbag', { uid: 'a' })], { triplesMade: 4 }))).toContain('Triple Hunter');
+    const mixed = [mk('alley', { uid: 'm1' }), mk('frontdrake', { uid: 'm2' }), mk('karthus', { uid: 'm3' }), mk('feed', { uid: 'm4' })];
+    expect(buildTags(withBoard(mixed))).toContain('Menagerie'); // beast · dragon · undead · demon
+
+  });
+
+  it('tags a comeback (Late Bloom / Underdog Line) from the round history', () => {
+    // 2 calibration + 12 scored: lose the first 6, win the last 6 → covered line 6, weak early.
+    const history = ['lose', 'lose', ...Array(6).fill('lose'), ...Array(6).fill('win')];
+    const tags = buildTags(withBoard([mk('sandbag', { uid: 'x' })], { history, line: 6, phase: 'victory' }));
+    expect(tags.some((t) => t === 'Late Bloom' || t === 'Underdog Line')).toBe(true);
   });
 });

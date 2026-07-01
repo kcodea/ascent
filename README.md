@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Looping menu video** — the title screen plays a muted, looping ambience video behind the menu (falls
+  back to the `homescreen.webp` still when absent or under reduced-motion).
 - **Combat-contribution tracking** — the post-run summary now names your **MVP minion** (most damage dealt)
   and **most-triggered mechanic**, and the Career screen shows your **favorite mechanic**. Damage is
   attributed from the combat log (retaliation-aware), with no change to the pure `simulate()`.

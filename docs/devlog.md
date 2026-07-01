@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 11)
 
+### feat: looping menu-ambience video on the title screen
+
+- The title screen now hosts a **muted, autoplaying, looping `<video>`** (`.titlevideo`) behind the menu,
+  sourced from `/homescreen.mp4`. Layering: the `homescreen.webp` is now the title's **base background +
+  the video `poster`** (so if the file is absent or still loading the screen looks exactly as before); the
+  video sits above it (`z-index:0`, `object-fit:cover`); the **left vignette moved to `.titlescreen::before`**
+  (`z-index:1`) so it tints the video the same way it tinted the still; the menu / account / version sit at
+  `z-index:2`. Hidden under `prefers-reduced-motion` (falls back to the webp base).
+- **Asset pending:** the source `homescreen.mp4` is 115 MB — unshippable. Per the owner, a compressed loop
+  (muted, ≤10 MB, 1080p/720p H.264, seamless) will be dropped at `apps/web/public/homescreen.mp4`; the code
+  degrades to the poster until then. Only the **title** ("main menu area") gets the video; Career/Leaderboard
+  keep the lighter static webp.
+- **Verified:** typecheck/lint/build green. Live: the `<video>` renders with the right attrs
+  (autoplay/loop/muted/playsInline, poster `/homescreen.webp`) and `networkState 3` (no source yet) → the
+  poster shows, so the title is visually identical to before pending the asset.
+
 ### feat: combat-contribution tracking — MVP minion + most-triggered mechanic
 
 - **New `packages/sim/src/contribution.ts`** — pure helpers that walk a settled combat's event log (+ its

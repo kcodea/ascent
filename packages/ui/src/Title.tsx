@@ -53,6 +53,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
   return (
     <div className="titlescreen">
+      {/* Looping menu ambience — muted, autoplaying video behind the menu. Falls back to the homescreen.webp
+          poster if the file is absent / still loading, and is hidden under prefers-reduced-motion (CSS). */}
+      <video className="titlevideo" autoPlay loop muted playsInline poster="/homescreen.webp" aria-hidden="true">
+        <source src="/homescreen.mp4" type="video/mp4" />
+      </video>
+
       {/* Account name (top-right) — click to set/rename yourself. Wires to the real account once that lands. */}
       <div className="titleaccount">
         {editing ? (

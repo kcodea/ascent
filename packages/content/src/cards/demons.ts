@@ -22,20 +22,6 @@ export const DEMONS: CardDef[] = [
     token: true,
   },
   {
-    // When SOLD (handled in the reducer's sell case — no combat/recruit factory): queue a Fodder into the
-    // next tavern + buff your Imps everywhere (run-wide `impBuff`). Golden doubles both.
-    id: 'fodderfeeder',
-    name: 'Fodder Feeder',
-    tribe: 'demon',
-    tier: 1,
-    attack: 2,
-    health: 2,
-    keywords: [],
-    effects: [],
-    text: 'When you **sell** this, add a **Fodder** to your next tavern and give your **Imps +1/+1** everywhere.',
-    goldenText: 'When you **sell** this, add **2 Fodder** to your next tavern and give your **Imps +2/+2** everywhere.',
-  },
-  {
     // Deathrattle (combat): summon 2 Imps, then buff all your Imps (the new ones included) +2/+3. Golden 2×.
     id: 'impking',
     name: 'Imp King',
@@ -147,20 +133,6 @@ export const DEMONS: CardDef[] = [
     effects: [{ on: 'onPlay', do: 'battlecryTargetConsumeFodder', params: {} }],
     text: '**Battlecry:** Target a friendly minion — it consumes a **Fodder**.',
     goldenText: '**Battlecry:** Target a friendly minion — it consumes **2 Fodder**.',
-  },
-  {
-    // Battlecry: buff every friendly Demon on the board +1/+3 (golden +2/+6). A wide-board payoff
-    // for the Consume tribe — rewards having many Demons in play at once.
-    id: 'hexflayer',
-    name: 'Hex Flayer',
-    tribe: 'demon',
-    tier: 4,
-    attack: 3,
-    health: 4,
-    keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'demon', attack: 1, health: 3 } }],
-    text: '**Battlecry:** Give your **Demons** **+1/+3**.',
-    goldenText: '**Battlecry:** Give your **Demons** **+2/+6**.',
   },
   {
     id: 'trickster',

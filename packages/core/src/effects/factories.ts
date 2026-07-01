@@ -473,16 +473,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(minion, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
   },
 
-  /** Crypt Drake — when ANY ally attacks (itself included), buff every living friend +mag/+mag, where mag
-   *  starts at `step` and improves by `step` every `every` ally attacks this combat (1–3: +2/+2, 4–6: +4/+4,
-   *  …). Per-combat counter on `self.attackSeen`. Golden doubles `step`. */
+  /** Crypt Drake — every `every` ally attacks this combat (itself included), buff every living friend a
+   *  FLAT +step/+step (no improvement). Per-combat counter on `self.attackSeen`. Golden doubles `step`. */
   onAllyAttackBuffAll: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion.side !== self.side) return; // any ally's attack (self included)
     self.attackSeen = (self.attackSeen ?? 0) + 1;
-    const every = Math.max(1, num(params.every, 3));
-    const improvements = Math.floor((self.attackSeen - 1) / every);
-    const mag = num(params.step, 2) * (1 + improvements) * mul(self);
+    const every = Math.max(1, num(params.every, 2));
+    if (self.attackSeen % every !== 0) return; // cadence: only proc on every Nth ally attack
+    const mag = num(params.step, 2) * mul(self); // flat buff — no improvement
     for (const m of ctx.living(self.side)) ctx.buff(m, mag, mag, self.uid);
   },
 

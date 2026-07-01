@@ -7,14 +7,14 @@ alley,Alleycat,1,1,1,,,**Battlecry:** summon a 1/1 Stray next to it.,**Battlecry
 manasaber,Manasaber,1,4,1,,,**Deathrattle:** summon a 0/2 Saber Cub with **Taunt**.,**Deathrattle:** summon two 0/2 Saber Cubs with **Taunt**.
 kennel,Kennelmaster,2,1,4,,,Each **Beast** you summon gains **+1/+1**. **Avenge (3):** Improve this.,
 pack,Mama Pup,2,3,2,,,**Deathrattle:** summon two 1/1 Pups.,**Deathrattle:** summon four 1/1 Pups.
-shaper,Wildwood Shaper,2,1,1,,,**Choose One:** give your Beasts +1/+1; or summon two 1/1 Strays.,**Choose One:** give your Beasts +2/+2; or summon four 1/1 Strays.
+shaper,Wildwood Shaper,2,2,2,,,**Battlecry:** Summon a 1/1 **Stray**.,**Battlecry:** Summon two 1/1 **Strays**.
 gryphon,Gryphon,3,2,5,,Taunt,"**Taunt.** Each time this takes damage, gain a **free refresh** — up to **4 hits** a combat.","**Taunt.** Each time this takes damage, gain **2 free refreshes** — up to **4 hits** a combat."
 raptor,Raptor,3,2,6,,,"When a friendly **Beast** attacks, give it **+3/+1**.","When a friendly **Beast** attacks, give it **+6/+2**."
 seaurchin,Sea Urchin,4,3,3,,,**Battlecry:** Discover a Beast.,**Battlecry:** Discover **2** Beasts.
 sporebat,Sporebat,4,2,6,,Taunt,**Taunt. Deathrattle:** add a random tavern-tier spell to your hand.,**Taunt. Deathrattle:** add **2** random tavern-tier spells to your hand.
 mamabear,Mama Bear,5,5,5,,,"When you summon a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.","When you summon a **Beast**, give it **+4/+4** — and improve this by **+4/+4**."
 spiritpup,Spirit Pup (beast/dragon),5,6,6,,,Cast **10 spells** with this on board to transform into **Spirit Worgen**.,
-gnash,"Gnasher, the Overrun",6,6,6,,,"When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.",
+gnash,"Gnasher, the Overrun",6,6,6,,,"When it kills a minion, your spells permanently gain **+1/+1**.",
 grim,Grim,6,7,1,,,**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.,
 
 # === DRAGON (14) ===
@@ -31,9 +31,9 @@ hunter,Hunter,5,5,7,,,"When this gains Attack, give your minions **+2 Health**."
 karwind,Karwind,5,2,12,,,"Whenever a **Battlecry** triggers, give your Dragons **+2/+2**.","Whenever a **Battlecry** triggers, give your Dragons **+4/+4**."
 stuntdrake,Obsidian Drake,5,3,7,,,**Avenge (3):** give this minion's Attack to 2 other friendly minions.,**Avenge (3):** give this minion's Attack to 2 other friendly minions **twice**.
 bane,Bane (dragon/demon),6,7,9,,,"After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.","After you trigger a Battlecry, give Fodder and Imps **+4/+4** this run."
-cryptdrake,Crypt Drake (dragon/undead),6,6,6,,,"When an ally attacks, give your minions **+2/+2**. Improve this every **3** attacks.","When an ally attacks, give your minions **+4/+4**. Improve this every **3** attacks."
+cryptdrake,Crypt Drake (dragon/undead),6,6,6,,,"Every **2** ally attacks, give your minions **+2/+2**.","Every **2** ally attacks, give your minions **+4/+4**."
 
-# === UNDEAD (13) ===
+# === UNDEAD (14) ===
 spore,Sporeling,1,2,2,,,**Deathrattle:** Give all friends **+1 Attack** or **+1 Health** (random).,
 deathswarmer,Deathswarmer,2,1,4,,,**Battlecry:** Give your Undead **+1 Attack** wherever they are.,**Battlecry:** Give your Undead **+2 Attack** wherever they are.
 knit,Eternal Knight,2,3,2,,,"When an **Eternal Knight** dies in combat, all Eternal Knights gain **+3/+2** permanently.",
@@ -41,6 +41,7 @@ deathlesshand,Footman Leader,3,2,1,,,**Deathrattle:** Summon a **Footman**.,**De
 skullblade,Ghostsmith,3,4,2,,,**Deathrattle:** give your spells **+1 Attack** for the rest of the run.,**Deathrattle:** give your spells **+2 Attack** for the rest of the run.
 pillager,Pillager,3,3,4,,,**Deathrattle:** Get a **Gold Pouch**.,**Deathrattle:** Get **2 Gold Pouches**.
 soulsman,Soulsman,3,2,5,,,**Avenge (4):** raise your maximum Gold by **1**.,**Avenge (4):** raise your maximum Gold by **2**.
+wolvesden,Wolves Den (undead/beast),3,3,3,,,**Deathrattle:** Summon 3 **Crypt Wolves**.,**Deathrattle:** Summon 6 **Crypt Wolves**.
 deathsayer,Deathsayer,4,3,5,,Rally,"**Rally:** before this attacks, trigger your leftmost Deathrattle.","**Rally:** before this attacks, trigger your leftmost Deathrattle **twice**."
 ryme,Ryme,4,5,3,,,**Deathrattle:** Trigger an adjacent minion's **Battlecry**.,**Deathrattle:** Trigger **both** adjacent minions' **Battlecries**.
 thunderingabomination,Cratering Hulk,5,4,7,,,Gain **+3/+3** when a minion is summoned in combat. Overflow summons **Engrave** your Undead **+2/+2**.,Gain **+6/+6** when a minion is summoned in combat. Overflow summons **Engrave** your Undead **+4/+4**.
@@ -64,9 +65,9 @@ beatboxer,Beatboxer,6,8,8,,,"Whenever a **Magnetic** attaches to another friendl
 nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+3/+4**.","**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+6/+8**."
 
 # === DEMON (12) ===
-fodderfeeder,Fodder Feeder,1,2,2,,,"When you **sell** this, add a **Fodder** to your next tavern and give your **Imps +1/+1** everywhere.","When you **sell** this, add **2 Fodder** to your next tavern and give your **Imps +2/+2** everywhere."
 feed,Soulfeeder,1,2,2,,,**Battlecry:** add Fodder to your next tavern.,**Battlecry:** add **2** Fodder to your next tavern.
 burialimp,Burial Imp,2,3,3,,,**Deathrattle:** add a Fodder to your next tavern.,**Deathrattle:** add **2** Fodder to your next tavern.
+godfodder,The Godfodder,2,3,2,,,**Battlecry:** Target a friendly minion — it consumes a **Fodder**.,**Battlecry:** Target a friendly minion — it consumes **2 Fodder**.
 trickster,Trickster,2,2,4,,,**Deathrattle:** Give a random friendly minion this minion's Health.,**Deathrattle:** Give a random friendly minion this minion's Health **twice**.
 brood,Brood Matron,3,3,3,,,"Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+3/+2** permanently.","Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+6/+4** permanently."
 maw,Maw of the Pit,3,4,5,,Taunt,**End of Turn:** add a **Fodder** to your next tavern.,**End of Turn:** add **2** Fodder to your next tavern.
@@ -129,8 +130,9 @@ spellcart,Spell Cart,5,,,2,,Refresh the tavern — fill it with **spells** inste
 aresmar,Eyes of Aresmar,6,,,5,,Make a **Tier 4 or lower** minion **Golden**.,
 perfectvision,Perfect Vision,6,,,2,,Set a friendly minion's stats to **20/20**.,
 
-# === TOKENS (13) — not rollable ===
+# === TOKENS (14) — not rollable ===
 symbioticattachment,Chaos Attachment,1,1,1,,Magnetic | Reborn,"**Magnetic**, **Reborn**. Counts as all tribes.",
+cryptwolf,Crypt Wolf (undead/beast),1,1,1,,,A 1/1 Undead Beast.,
 footman,Footman,1,1,1,,Reborn,**Reborn.**,
 fred,Fred,1,1,1,,Fodder,A 1/1 Demon **Fodder** — your Demons devour it from the tavern.,
 impscrap,Imp,1,1,1,,,,

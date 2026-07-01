@@ -57,10 +57,9 @@ export const BEASTS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [
-      { on: 'onKill', do: 'reAttackOnKill' },
       { on: 'onKill', do: 'onKillBuffSpellPower', params: { attack: 1, health: 1 } },
     ],
-    text: 'When it kills a minion, it **attacks again** and your spells permanently gain **+1/+1**.',
+    text: 'When it kills a minion, your spells permanently gain **+1/+1**.',
   },
   {
     // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.
@@ -75,27 +74,16 @@ export const BEASTS: CardDef[] = [
     text: '**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.',
   },
   {
-    // Sample Choose One card — picks one Battlecry when played (see CardDef.chooseOne).
     id: 'shaper',
     name: 'Wildwood Shaper',
     tribe: 'beast',
     tier: 2,
-    attack: 1,
-    health: 1,
+    attack: 2,
+    health: 2,
     keywords: [],
-    effects: [],
-    chooseOne: [
-      {
-        text: 'Give your Beasts **+1/+1**.',
-        effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'beast', attack: 1, health: 1 } }],
-      },
-      {
-        text: 'Summon two 1/1 **Strays**.',
-        effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'stray', count: 2 } }],
-      },
-    ],
-    text: '**Choose One:** give your Beasts +1/+1; or summon two 1/1 Strays.',
-    goldenText: '**Choose One:** give your Beasts +2/+2; or summon four 1/1 Strays.',
+    effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'stray', count: 1 } }],
+    text: '**Battlecry:** Summon a 1/1 **Stray**.',
+    goldenText: '**Battlecry:** Summon two 1/1 **Strays**.',
   },
   {
     id: 'spiritpup',

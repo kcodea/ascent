@@ -6,7 +6,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -375,13 +375,6 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
       // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
       if (sold && getHero(s.heroId).power.kind === 'sellGold') s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
-      // Fodder Feeder — when SOLD: queue a Fodder into your next tavern + buff your Imps everywhere
-      // (golden doubles both). The sell still pays the base sell value above.
-      if (sold && sold.cardId === 'fodderfeeder') {
-        const n = sold.golden ? 2 : 1;
-        (s.pendingTavern ??= []).push(...Array(n).fill('fred'));
-        buffImpsRunWide(s, n, n, 'Fodder Feeder');
-      }
       // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
       if (sold) returnToPool(s, sold.cardId, sold.golden ? 3 : 1);
       return s;

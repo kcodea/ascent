@@ -3,6 +3,25 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-30 (session 10)
+
+### balance: power-outlier tuning + two cuts
+
+- **Gnasher, the Overrun** — no longer re-attacks on kill (removed `reAttackOnKill`); it keeps only the
+  on-kill run-wide spell-power gain. Removed the two combat re-attack tests.
+- **Front to Back** — reverted the spell-power-scaling escalation: the per-cast improvement is again a flat
+  **+2/+2** (spell power still adds a flat bonus to each grant, but is not part of the step). Dropped the
+  per-stat `frontToBackBonusH` state field + its UI plumbing; `spellDisplayText`'s "Improve this by" shows a
+  constant +2/+2.
+- **Crypt Drake** — now procs **every 2 ally attacks** for a flat **+2/+2** (golden +4/+4); no longer
+  improves. `onAllyAttackBuffAll` became a cadence (`attackSeen % every`) with no growth; live combat text
+  shows the countdown to the next proc.
+- **Wildwood Shaper** — reworked from a Choose One 1/1 to a plain **2/2, Battlecry: summon a Stray** (golden
+  two). Removed the Choose One tests (no card uses `chooseOne` now — the reducer mechanic stays, dormant).
+- **Removed Fodder Feeder** (T1 Demon) — card + its reducer sell-handler (`buffImpsRunWide` import dropped) +
+  art. **Removed Hex Flayer** (T4 Demon) — card + art.
+- Regenerated `docs/cards.csv`. **Verified:** typecheck + lint + `npm test` (401) + build:web green.
+
 ## 2026-06-29 (session 9)
 
 ### feat: combat odds panel shows average damage on loss

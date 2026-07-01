@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: A1 — course + record (win-condition reframe)
+
+- **The run is now a fixed course, scored by record.** A run plays `CONFIG.courseRounds` (**17**) rounds; the
+  first `CONFIG.calibrationRounds` (**2**) are calibration — they still cost Resolve + run the economy but do
+  **not** count toward your record. The run **always completes the course** (→ `victory`) unless Resolve hits
+  0 (→ `gameover`). The old "win by 15 combat wins" condition is gone (`winsToWin` removed).
+- **Record = W–L over the scored rounds** (rounds 3–17). New pure helpers in `state.ts`: `runRecord(state)`
+  ({wins, losses, draws}, calibration excluded, draws not counted in W–L) and `isCalibrationRound(wave)`.
+- **HUD:** the wave box reads **ROUND n / 17** (Ascent); the meter fills toward the course end; a
+  **Calibration** badge shows on rounds 1–2, replaced by the **record chip (W–L)** on scored rounds.
+- **End screen:** completion is now **"COURSE COMPLETE" · Record W–L** (not "VICTORY"); a death shows
+  **"FALLEN" · Record W–L · fell on round n of 17**. Calibration pips are dimmed + labelled "not scored".
+- **Config:** `maxWave` → 17 (the balance/curve horizon now covers the whole course). Practice is unchanged
+  (its own 15-round session; no calibration/record concept).
+- **Decisions locked with the owner:** calibration rounds don't count toward record; the course always
+  completes unless Resolve hits 0.
+- **Verified:** rewrote the win-condition tests as course/record tests; typecheck + lint + `npm test` (402) +
+  the bot harness (terminates, no early-win) green; live-checked the HUD + both end screens.
+
 ### balance: power-outlier tuning + two cuts
 
 - **Gnasher, the Overrun** — no longer re-attacks on kill (removed `reAttackOnKill`); it keeps only the

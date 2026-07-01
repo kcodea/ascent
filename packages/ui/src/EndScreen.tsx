@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import { getHero, type BoardCard } from '@game/sim';
+import { CONFIG, getHero, isCalibrationRound, runRecord, type BoardCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { heroArt } from './art';
 import { Icon } from './Icon';
@@ -25,8 +25,11 @@ export function EndScreen({ won }: { won: boolean }) {
   const openTitle = useGame((s) => s.openTitle);
   const hero = getHero(run.heroId);
   const practice = run.mode === 'practice';
-  const wins = run.history.filter((r) => r === 'win').length;
-  const losses = run.history.filter((r) => r === 'lose').length;
+  // Ascent: the score is the W–L record over the scored rounds (calibration rounds don't count).
+  const rec = runRecord(run);
+  // Practice has no calibration concept — count every round.
+  const rawWins = run.history.filter((r) => r === 'win').length;
+  const rawLosses = run.history.filter((r) => r === 'lose').length;
   return (
     <div className={`heroselect endscreen${won ? ' won' : ''}`}>
       <div className="hsbox endbox">
@@ -40,19 +43,26 @@ export function EndScreen({ won }: { won: boolean }) {
           </div>
           <div className="endhero-name">{hero.name}</div>
         </div>
-        <div className="eyebrow">{practice ? 'Practice complete' : won ? 'The summit is yours' : 'The tide takes you'}</div>
-        <h1 className="disp hstitle">{practice ? 'PRACTICE' : won ? 'VICTORY' : 'FALLEN'}</h1>
+        <div className="eyebrow">{practice ? 'Practice complete' : won ? 'The climb is complete' : 'The tide takes you'}</div>
+        <h1 className="disp hstitle">{practice ? 'PRACTICE' : won ? 'COURSE COMPLETE' : 'FALLEN'}</h1>
         <div className="endsub">
-          {practice ? `${run.history.length} rounds · ${wins}W ${losses}L` : won ? `Survived all ${run.wave} waves` : `Reached wave ${run.wave}`}
+          {practice
+            ? `${run.history.length} rounds · ${rawWins}W ${rawLosses}L`
+            : won
+              ? `Record ${rec.wins}–${rec.losses}${rec.draws ? ` · ${rec.draws}D` : ''}`
+              : `Record ${rec.wins}–${rec.losses} · fell on round ${run.wave} of ${CONFIG.courseRounds}`}
         </div>
 
         {run.history.length > 0 && (
           <div className="endpips" aria-label="Round results">
-            {run.history.map((r, i) => (
-              <span key={i} className={`endpip ${r}`} title={`Wave ${i + 1}: ${r}`}>
-                {r === 'win' ? 'W' : r === 'lose' ? 'L' : 'D'}
-              </span>
-            ))}
+            {run.history.map((r, i) => {
+              const cal = !practice && isCalibrationRound(i + 1);
+              return (
+                <span key={i} className={`endpip ${r}${cal ? ' cal' : ''}`} title={`Round ${i + 1}: ${r}${cal ? ' (calibration — not scored)' : ''}`}>
+                  {r === 'win' ? 'W' : r === 'lose' ? 'L' : 'D'}
+                </span>
+              );
+            })}
           </div>
         )}
 

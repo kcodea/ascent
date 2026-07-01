@@ -75,9 +75,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .alt .maxdmg { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: 'Outfit'; font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.05em; color: var(--threat-dk); text-transform: uppercase; line-height: 1; }
 .alt .maxdmg svg { width: calc(11 * var(--u)); height: calc(11 * var(--u)); color: var(--threat); }
 .alt .lbl { font-family: 'Outfit'; font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
-/* Win counter — gold-accented with a small crown, so the run's wins read at a glance. */
-.alt .lbl.wins { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--acc-dk); font-size: calc(14 * var(--u)); }
-.alt .lbl.wins svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
+/* Record — gold-accented W–L with a small crown, so the run's score reads at a glance. */
+.alt .lbl.record { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--acc-dk); font-size: calc(14 * var(--u)); font-variant-numeric: tabular-nums; }
+.alt .lbl.record svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
+/* Calibration marker — the opening rounds that don't count toward the record. */
+.alt .lbl.calib { color: var(--ink3); font-size: calc(11 * var(--u)); opacity: 0.85; }
 .tribes { margin-left: auto; display: flex; align-items: center; gap: calc(6 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(12 * var(--u)); }
 .mutebtn { width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: var(--card); color: var(--ink2); display: grid; place-items: center; cursor: pointer; flex: none; }
 .mutebtn:hover { border-color: var(--acc); color: var(--ink); }
@@ -1450,6 +1452,8 @@ body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 .endpip.win { background: #3b9e57; }
 .endpip.lose { background: var(--threat); }
 .endpip.draw { background: var(--ink3); }
+/* Calibration rounds (1–2) don't count toward the record — dimmed + desaturated so the scored pips read. */
+.endpip.cal { opacity: 0.4; filter: grayscale(0.55); }
 .endboardlabel { font-family: 'Outfit'; font-weight: 700; font-size: 26px; letter-spacing: 0.2em; text-transform: uppercase; color: #ddd2c0; margin: 44px 0 14px; }
 .endboard { display: flex; gap: 14px; justify-content: center; align-items: flex-start; flex-wrap: nowrap; zoom: 0.92; max-width: 96vw; }
 .endboard .card { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }

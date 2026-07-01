@@ -15,6 +15,8 @@ import {
   registerOpponents,
   buildBootstrapPool,
   lossDamageCap,
+  runRecord,
+  isCalibrationRound,
   OPPONENT_POOL,
   type BoardSnapshot,
   boardManaBonus,
@@ -2879,37 +2881,46 @@ describe('hero powers (@game/sim)', () => {
   });
 });
 
-describe('PvE win condition (@game/sim)', () => {
-  // The run is won by WINNING `winsToWin` combats — not by reaching a wave cap. Drive a settled combat
-  // of a known result without simulating: craft lastCombat + dispatch resolveCombat (which settles +
-  // runs the terminal check). High Resolve so a loss survives and the run keeps climbing.
+describe('PvE course + record (@game/sim)', () => {
+  // A run plays a fixed course of `courseRounds` rounds; it completes the course (→ victory) unless Resolve
+  // hits 0 (→ gameover). Record is decoupled from the win condition. Drive a settled combat of a known
+  // result: craft lastCombat + dispatch resolveCombat (settles + runs the terminal check). High Resolve so
+  // a loss survives and the run keeps climbing.
   const winShell: CombatResult = { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
   const loseShell: CombatResult = { ...winShell, result: 'lose', playerDamage: 3 };
   const resolveWith = (over: Partial<RunState>, last: CombatResult): RunState =>
     reduce({ ...createRun(1), resolve: 100, maxResolve: 100, phase: 'combat', combatSettled: false, lastCombat: last, ...over }, { type: 'resolveCombat' });
 
-  it('victory triggers on the Nth WON combat, decoupled from the wave', () => {
-    // 14 prior wins banked; the 15th win ends the run in victory — even at an early wave.
-    const s = resolveWith({ wave: 6, history: Array(CONFIG.winsToWin - 1).fill('win') }, winShell);
+  it('completing the final course round ends the run in victory (whatever the record)', () => {
+    // The last round settles at wave === courseRounds → victory, even on a loss (Resolve survives).
+    const s = resolveWith({ wave: CONFIG.courseRounds, history: Array(CONFIG.courseRounds - 1).fill('lose') }, loseShell);
     expect(s.phase).toBe('victory');
   });
 
-  it('does NOT win the run by merely reaching the wave horizon with fewer wins (the bug)', () => {
-    // At the wave horizon with only a few wins: a loss here survives (Resolve > 0) and the climb
-    // continues PAST the horizon — it is NOT a wave-cap victory.
-    const s = resolveWith({ wave: CONFIG.maxWave, history: ['win', 'lose', 'win'] }, loseShell);
+  it('does NOT win early by piling up wins — the course must complete', () => {
+    // Many wins but not yet the final round: a win here just advances to the next round.
+    const s = resolveWith({ wave: 6, history: Array(15).fill('win') }, winShell);
     expect(s.phase).toBe('recruit');
-    expect(s.wave).toBe(CONFIG.maxWave + 1); // climbs past the horizon, no auto-win
+    expect(s.wave).toBe(7);
   });
 
-  it('the 14th win advances to the next wave, not yet victory', () => {
-    const s = resolveWith({ wave: 14, history: Array(CONFIG.winsToWin - 2).fill('win') }, winShell);
+  it('the penultimate round advances, not yet victory', () => {
+    const s = resolveWith({ wave: CONFIG.courseRounds - 1, history: Array(CONFIG.courseRounds - 2).fill('win') }, winShell);
     expect(s.phase).toBe('recruit');
+    expect(s.wave).toBe(CONFIG.courseRounds);
   });
 
-  it('losing with Resolve to 0 is a game over, regardless of wins so far', () => {
+  it('losing with Resolve to 0 is a game over, before the course completes', () => {
     const s = resolveWith({ wave: 8, resolve: 1, maxResolve: 1, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 5 });
     expect(s.phase).toBe('gameover');
+  });
+
+  it('runRecord counts only the scored rounds — calibration rounds (1–2) do not count', () => {
+    // history = [cal1, cal2, r3, r4, r5]; the two calibration entries are excluded from the record.
+    const record = runRecord({ ...createRun(1), history: ['lose', 'lose', 'win', 'win', 'lose'] });
+    expect(record).toEqual({ wins: 2, losses: 1, draws: 0 });
+    expect(isCalibrationRound(2)).toBe(true);
+    expect(isCalibrationRound(3)).toBe(false);
   });
 });
 

@@ -29,21 +29,13 @@ look because the engine already produces the data.
 
 ## Phase A — the run/career spine ("what does a good run mean?")
 
-### A1. Course + record (win-condition reframe) — **the foundation**
-- **Goal:** turn "survive until the game ends" into "play a fixed course and post a record." A run is a set
-  number of scored rounds; final **W–L record** is the headline score. Resolve stays the survival pressure
-  (hit 0 → the course ends early as a failed run).
-- **Why:** record gives every fight meaning (a 10–5 is a real result; 15–0 becomes exceptional, not just
-  "victory"). Quests/Ancients/rating all need a stable course to sit inside.
-- **Touches:** `CONFIG` (today `maxWave = 20` victory + `winsToWin = 15`), `RunState.history` (already a
-  per-wave win/loss array — the record data exists), `reducer` victory/gameover transitions, the HUD win
-  counter + end screen.
-- **Size:** M. **Depends:** none (it's the root). **Done-when:** a run plays a defined course (recommend
-  **2 calibration rounds + 15 scored**, or a flat 15 with rounds 1–2 as calibration), the UI shows a live
-  **X–Y record**, and the run ends on course-complete *or* Resolve 0.
-- **Open Qs (decide first):** do calibration rounds count toward record (lean: no — economy/Resolve only)?
-  Does the course always complete unless Resolve hits 0 (lean: yes)? Can a player "win early"? Maps cleanly
-  onto the existing waves-1–5 difficulty on-ramp.
+### A1. Course + record (win-condition reframe) — ✅ **shipped 2026-06-30** (→ devlog)
+- **Fixed course of 17 rounds** (2 calibration + 15 scored); the run completes the course (→ victory) unless
+  Resolve hits 0 (→ gameover). **Record = W–L over the scored rounds** — calibration rounds cost Resolve +
+  run the economy but don't count. `runRecord`/`isCalibrationRound` in `state.ts`; `CONFIG.courseRounds` /
+  `calibrationRounds`; HUD shows "ROUND n/17" + record chip + a Calibration badge; end screens show the
+  record ("COURSE COMPLETE" / "FALLEN"). `winsToWin` removed. **Decisions:** calibration doesn't count; the
+  course always completes unless Resolve 0. **Next:** A2 (par/rating line) sits directly on this.
 
 ### A2. Par / rating line
 - **Goal:** each run gets a target line ("Line: 9 wins"). Beating/covering the line is success; perfection

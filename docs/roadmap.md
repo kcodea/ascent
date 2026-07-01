@@ -72,11 +72,18 @@ look because the engine already produces the data.
   tracking not on `CombatResult` — same gap as A4). **Next:** A7 (career / match history) — the last spine
   piece and the big persistence one.
 
-### A7. Career page / match history — the persistence layer *(part 1 ✅ shipped 2026-06-30)*
-- **Part 1 (done):** `runHistory.ts` — per-run entries persisted to `localStorage` on run-end (record, line
-  verdict, tags, completed?, tribes, contributions, final board), capped 50; `careerStats` rolls them up
-  (overall + per-hero). Wired into the store's deferred capture. **Part 2 (next):** the Career overlay UI
-  (the title's placeholder Career button) reading `loadRunHistory()` + `careerStats()`.
+### A7. Career page / match history — ✅ **shipped 2026-06-30** (both parts → devlog)
+- **Part 1:** `runHistory.ts` — per-run entries persisted to `localStorage` (record, line verdict, tags,
+  completed?, tribes, contributions, final board), capped 50; `careerStats` (overall + per-hero); wired into
+  the run-end capture. **Part 2:** the **Career** overlay (`Career.tsx`, via the title's Career button) —
+  profile strip + per-hero rollups + a match list (record · verdict · tags · final warband). Rating absent
+  until the rating system exists. **This completes the Phase A run/career spine (A1–A7).**
+
+### Phase A follow-ups (deferred within A1–A7, do opportunistically)
+- **Rating-driven par line** (A2 seam) — make `line` scale with a player rating once one exists.
+- **MVP / standout unit** (A4 + A6) — needs per-minion damage-dealt tracked out of `simulate` (`CombatResult`).
+- **Run detail page** (A7) — open a history entry into round-by-round + full post-run summary + replay
+  (the entry already stores the final board; add the replay to enable re-derivation).
 - **Goal:** runs stop disappearing. A career surface with: current rating, best record, average wins, total
   runs, recent runs, **per-hero stats**, rating Δ per run, final-board preview, build tags. Match entry e.g.
   *"Rohan · 11–4 · Line 9 · +18 · Spell Engine / Gilded Carry / Flurry Finish."*

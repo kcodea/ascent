@@ -165,6 +165,10 @@ interface GameStore {
   showLeaderboard: boolean;
   openLeaderboard: () => void;
   closeLeaderboard: () => void;
+  /** The Career overlay (your local match history + per-hero stats) is open. */
+  showCareer: boolean;
+  openCareer: () => void;
+  closeCareer: () => void;
   /** The Minion Book codex overlay (Tab) is open — a filterable reference of every minion + spell
    *  findable this run. UI-only; reads the run's pool + active tribes. */
   showBook: boolean;
@@ -328,6 +332,9 @@ export const useGame = create<GameStore>((set, get) => ({
   openTitle: () => set({ showTitle: true, heroChoices: null }),
   openLeaderboard: () => set({ showLeaderboard: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
+  showCareer: false,
+  openCareer: () => set({ showCareer: true }),
+  closeCareer: () => set({ showCareer: false }),
   showBook: false,
   toggleBook: () => set((s) => ({ showBook: !s.showBook })),
   closeBook: () => set({ showBook: false }),

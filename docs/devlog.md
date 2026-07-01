@@ -5,14 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
-### feat: DEV tuner for the reposition slide speed
+### feat: reposition slide for committed board moves + DEV tuner
 
-The warband/shop GSAP Flip (cards sliding when they reorder / close a sold gap / make room) now reads its
-durations from a live config (`flipConfig.ts`): `dragMs` (the glide while a card is dragged across the row) and
-`commitMs` (the settle after a drop / play / sell / auto-reposition). `FlipTuner.tsx` (the 🔀 button, sixth in
-the DEV cluster) exposes both as sliders with hover definitions; values persist to localStorage and apply to
-the next reposition. Defaults unchanged (dragMs 250, commitMs 180); `Recruit.tsx`'s `Flip.from` converts
-ms → seconds at animation time.
+Two parts:
+- **The slide.** A COMMITTED, non-drag board reposition (a played/summoned card taking a spot, an effect moving
+  a minion, a sold gap closing) now uses `Flip.from(..., { absolute: true })` so the surviving cards SLIDE
+  through the flex reflow instead of snapping to their new slots. The live-drag path is unchanged (no
+  `absolute`, so it tracks the cursor). The committed slide also holds the aura-tracking settle window open for
+  its duration so a shielded/taunt minion's Pixi bubble follows the card as it slides.
+- **The tuner.** The Flip durations now read from a live config (`flipConfig.ts`): `dragMs` (drag-across glide)
+  + `commitMs` (committed settle). `FlipTuner.tsx` (the 🔀 button, sixth in the DEV cluster) exposes both as
+  sliders with hover defs, persisted to localStorage. Defaults dragMs 250, commitMs 180; `Flip.from` converts
+  ms → seconds. (Crank `commitMs` high to make any reposition slide unmistakable, then dial to taste.)
 
 ### feat: board-art selector + dimming slider in Settings
 

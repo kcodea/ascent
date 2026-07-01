@@ -1513,6 +1513,8 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .menubtn .mbicon svg { width: 26px; height: 26px; }
 .menubtn .mbicon .crest { font-size: 26px; }
 .mblabel { font-family: 'Outfit'; font-weight: 800; font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; }
+/* Continue's run context (hero · round) — small, right-aligned. */
+.mbnote { margin-left: auto; font-family: 'Outfit'; font-weight: 700; font-size: 13px; letter-spacing: 0.03em; opacity: 0.82; white-space: nowrap; }
 .menubtn:hover { transform: translateX(6px); border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); }
 /* Active (Play) — the brighter blue call-to-action from the mockup. */
 .menubtn.active { background: linear-gradient(180deg, #3f7fc4, #245a97); border-color: rgba(150, 200, 245, 0.9); color: #fff;

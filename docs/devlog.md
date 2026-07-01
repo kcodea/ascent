@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: B3 — keyword / terminology pass — **Phase B complete**
+
+- Player-facing keyword rename, **display-time only** (internal ids / keyword codes / card DATA unchanged, so
+  low-risk + reversible): **Battlecry→Shout · Deathrattle→Echo · Divine Shield→Ward · Windfury→Flurry ·
+  Venomous→Toxin · Reborn→Rise · Magnetize→Attach / Magnetic→Attachment · Golden→Gilded.** Kept: Taunt,
+  Avenge, Choose One, Start of Combat, End of Turn, Rally, Cleave, Consume, Discover (Rally stays — not
+  "Charge", per the design flag).
+- New `terms.ts` `renameTerms()` (whole-word, plural-aware — Deathrattles→Echoes, etc.) applied to rendered
+  **card rules text** in `Card.tsx`; the keyword-badge labels (`KW_LABEL`) + trigger pills (`triggerPill`)
+  updated; the **combat-log narration + Procs summary** strings reworded grammatically ("rises at N HP",
+  "Toxin destroys …", "N Wards broken").
+- The tag names A5 already used (Shout/Echo/Ward/…) now match the in-game vocabulary.
+- **Verified live:** the Compendium (114 cards) shows the new terms with **zero** old terms remaining; pills
+  read Shout/Echo/Ward/Toxin/Flurry/Attachment/… `renameTerms` unit tests. typecheck + lint + `npm test`
+  (424) + build:web green. **This closes Phase B (B1–B3).**
+
 ### feat: B2 — Discover minimize
 
 - A pending **Discover** can now be **minimized** to inspect your board/shop before choosing — a "–" button

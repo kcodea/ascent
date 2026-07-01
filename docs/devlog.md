@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: A5 — build-tag classifier
+
+- New pure helper `buildTags(state)` in `@game/sim` (`buildTags.ts`) — reads a run's **final board** + a few
+  run signals and emits up to **3 build tags** that give an emergent build an identity ("Spell Engine ·
+  Gilded Carry · Flurry Finish"). Deterministic + testable; feeds A6 (post-run summary) and A7 (career).
+- **Heuristic + thresholded scoring:** tribe archetypes (Beast Swarm / Dragon Scaling / Undead Army / Mech
+  Battalion / Demon Legion), trigger density (Echo Web / Shout Chain / End-of-Turn Engine / Summon Overflow),
+  keyword walls + finishers (Ward Wall / Toxin Control / Flurry Finish — reads *live* granted keywords),
+  Gilded Carry, Spell Engine (spellsCast or a spell-power/aura carrier), Fodder Economy (fodder cards or
+  run-wide Imp scaling), Attachment Carry (Mech-heavy welded body). Top 3 by score, strongest first; a
+  tribal board that clears no other bar still gets its tribe tag, so identity is rarely blank.
+- **Tag names lead with the intended flavor terms** (Shout/Echo/Ward/Toxin/Flurry/Attachment) even though the
+  mechanic tooltips aren't renamed yet (B3) — tags are build labels, not rules text. **Not surfaced in the UI
+  yet** — that's A6/A7.
+- **Verified:** 8 unit tests (empty / tribe / deathrattle / keyword walls / gilded / spell / fodder / cap-3).
+  typecheck + lint + `npm test` (416) + build:web green.
+
 ### feat: A4 — post-combat summary (permanent gains)
 
 - The post-combat overlay (now **"Combat Summary"**, opened by the **Summary** button after a fight) leads

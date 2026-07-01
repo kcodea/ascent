@@ -59,15 +59,11 @@ look because the engine already produces the data.
 - **Deferred to a follow-up:** the "Standout Unit" + "Risk Signals" sections (need per-minion damage
   derivation, not currently on `CombatResult`). **Next:** A5 (build-tag classifier — feeds A6 + A7).
 
-### A5. Build-tag classifier — **pulled forward (feeds A6 + A7)**
-- **Goal:** a pure function that reads a final board + run history and emits tags: *Spell Engine, Fodder
-  Economy, Attachment Carry, Echo Web, Beast Swarm, Dragon Scaling, Undead Army, Gilded Carry, Shout Chain,
-  End-of-Turn Engine, Flurry Carry, Ward Wall, Toxin Control, Summon Overflow*, …
-- **Why:** tags give language to emergent builds and are a **dependency** of post-run summary, career, and
-  later quest-gen/analytics — so the classifier ships before the screens that show it.
-- **Touches:** new pure module in `@game/sim` (deterministic, unit-testable; mirrors `rating.ts` shape).
-- **Size:** M. **Depends:** none (classifier itself). **Done-when:** the function returns stable tags for a
-  given board, with tests over representative boards.
+### A5. Build-tag classifier — ✅ **shipped 2026-06-30** (→ devlog)
+- Pure `buildTags(state)` in `@game/sim` (`buildTags.ts`) — reads the final board + run signals, emits up to
+  3 build tags (tribe archetypes, trigger density, keyword walls/finishers, Gilded/Spell/Fodder/Attachment
+  engines), strongest first, with a tribe fallback so identity is rarely blank. 8 unit tests. **Not surfaced
+  in the UI yet** — it's the dependency A6 (post-run summary) + A7 (career) consume. **Next:** A6.
 
 ### A6. Post-run summary — the emotional payoff
 - **Goal:** the end screen makes the player feel they *authored* a run. Final record · line (covered/

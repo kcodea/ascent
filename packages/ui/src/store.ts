@@ -142,6 +142,9 @@ interface GameStore {
   pickHero: (heroId: string) => void;
   /** Start a fresh run directly (optionally with a seed / hero), bypassing the picker. */
   newRun: (seed?: number, heroId?: string) => void;
+  /** Boards this run contributed to the pool (captured on run-end) — shown on the post-run summary (A6).
+   *  0 until the deferred capture runs; stays 0 for Practice (read-only). */
+  lastRunBoards: number;
   /** A resumable in-progress run (loaded from localStorage at boot, kept in sync during play), or null when
    *  there's nothing to continue. Drives the title's "Continue" entry. */
   savedRun: RunState | null;
@@ -212,6 +215,7 @@ export const useGame = create<GameStore>((set, get) => ({
   // otherwise a throwaway fresh run that Play/Practice will replace.
   run: BOOT_SAVE?.run ?? createRun(randomSeed()),
   savedRun: BOOT_SAVE?.run ?? null,
+  lastRunBoards: 0,
   continueRun: () => set({ showTitle: false, heroChoices: null }),
   heroArmed: false,
   endTurnAnimating: false,
@@ -263,6 +267,7 @@ export const useGame = create<GameStore>((set, get) => ({
         // the end screen; all best-effort and never throw.
         setTimeout(() => {
           const fresh = saveRunBoards(replay, author);
+          set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
           void uploadBoards(fresh);
           if (won) {
             const finalBoard = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
@@ -306,13 +311,13 @@ export const useGame = create<GameStore>((set, get) => ({
     set((s) => {
       const run = createRun(randomSeed(), heroId, s.pendingMode);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] };
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] };
     }),
   newRun: (seed, heroId) =>
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode);
       writeSave(run, []);
-      return { run, savedRun: run, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] };
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] };
     }),
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices() }),
   startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id) }),

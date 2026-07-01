@@ -65,13 +65,12 @@ look because the engine already produces the data.
   engines), strongest first, with a tribe fallback so identity is rarely blank. 8 unit tests. **Not surfaced
   in the UI yet** — it's the dependency A6 (post-run summary) + A7 (career) consume. **Next:** A6.
 
-### A6. Post-run summary — the emotional payoff
-- **Goal:** the end screen makes the player feel they *authored* a run. Final record · line (covered/
-  missed/exceeded) · rating Δ · **build identity** (tags, main archetype, MVP, key card, biggest scaling
-  source, final board) · **run contributions** ("Added 12 boards to your pool / uploaded N").
-- **Touches:** the existing end screen, A5 tags, A1 record, A2 line, and the board-capture counts from
-  `boardLibrary`/`remoteBoards` (already produced on run end).
-- **Size:** M. **Depends:** A1, A2, A5. **Done-when:** the end screen shows record+line+tags+contributions.
+### A6. Post-run summary — ✅ **shipped 2026-06-30** (→ devlog)
+- The end screen shows record + line verdict (A1/A2) + **build tags** (A5's `buildTags`, as chips) + the
+  final warband + **run contributions** ("Added N boards to the pool", from a new `lastRunBoards` store
+  field set in the deferred run-end capture). **Deferred:** MVP / standout-unit (needs per-minion damage
+  tracking not on `CombatResult` — same gap as A4). **Next:** A7 (career / match history) — the last spine
+  piece and the big persistence one.
 
 ### A7. Career page / match history — the persistence layer
 - **Goal:** runs stop disappearing. A career surface with: current rating, best record, average wins, total

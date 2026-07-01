@@ -80,6 +80,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .alt .lbl.record svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
 /* Calibration marker — the opening rounds that don't count toward the record. */
 .alt .lbl.calib { color: var(--ink3); font-size: calc(11 * var(--u)); opacity: 0.85; }
+/* Par / line — the run's target wins. */
+.alt .lbl.line { color: var(--ink2); }
 .tribes { margin-left: auto; display: flex; align-items: center; gap: calc(6 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(12 * var(--u)); }
 .mutebtn { width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: var(--card); color: var(--ink2); display: grid; place-items: center; cursor: pointer; flex: none; }
 .mutebtn:hover { border-color: var(--acc); color: var(--ink); }
@@ -1447,6 +1449,12 @@ body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 .endscreen .eyebrow { font-size: 26px; letter-spacing: 0.32em; }
 .endscreen .hstitle { margin: 12px 0 0; font-size: 116px; }
 .endsub { font-family: 'Outfit'; font-weight: 700; font-size: 32px; letter-spacing: 0.12em; text-transform: uppercase; color: #ddd2c0; margin-top: 16px; }
+/* Par / line verdict (A2): the run's target + how it graded (covered / exceeded / missed / …). */
+.endline { display: inline-flex; align-items: center; gap: 12px; margin-top: 12px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
+.endline-par { color: #b9ad97; }
+.endline-verdict { padding: 4px 14px; border-radius: 10px; color: #fff; }
+.endline.flawless .endline-verdict, .endline.exceeded .endline-verdict, .endline.covered .endline-verdict { background: #3b9e57; }
+.endline.missed .endline-verdict, .endline.failed .endline-verdict { background: var(--threat); }
 .endpips { display: flex; flex-wrap: nowrap; gap: 9px; justify-content: center; max-width: 96vw; margin: 34px 0 8px; }
 .endpip { flex: none; width: 44px; height: 44px; border-radius: 11px; font-family: 'Outfit'; font-weight: 800; font-size: 22px; color: #fff; display: grid; place-items: center; }
 .endpip.win { background: #3b9e57; }

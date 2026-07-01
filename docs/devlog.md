@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: A2 — par / rating line
+
+- Every run now carries a **par line** — a target number of scored wins to cover or beat. `RunState.line`
+  (set at run start from `CONFIG.defaultLine` = **9**; static for now, a clean seam for the future
+  rating-driven line). New `lineResult(state)` helper grades a finished run: **flawless** (won every scored
+  round) · **exceeded** (+delta) · **covered** (met exactly) · **missed** (−delta) · **failed** (died before
+  completing the course).
+- **HUD:** a **"Line N"** label sits beside the record (Ascent only).
+- **End screen:** a verdict row — **"Line 9 · Exceeded (+2)"** (green for flawless/exceeded/covered, threat
+  red for missed/failed).
+- **Verified:** `lineResult` unit tests (covered/exceeded/missed/flawless/failed) + the default-line test;
+  typecheck + lint + `npm test` (405) green; live-checked the HUD line + end-screen verdict.
+
 ### feat: A1 — course + record (win-condition reframe)
 
 - **The run is now a fixed course, scored by record.** A run plays `CONFIG.courseRounds` (**17**) rounds; the

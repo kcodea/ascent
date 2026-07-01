@@ -17,6 +17,7 @@ import {
   lossDamageCap,
   runRecord,
   isCalibrationRound,
+  lineResult,
   OPPONENT_POOL,
   type BoardSnapshot,
   boardManaBonus,
@@ -2921,6 +2922,27 @@ describe('PvE course + record (@game/sim)', () => {
     expect(record).toEqual({ wins: 2, losses: 1, draws: 0 });
     expect(isCalibrationRound(2)).toBe(true);
     expect(isCalibrationRound(3)).toBe(false);
+  });
+
+  it('a new run gets the default par line', () => {
+    expect(createRun(1).line).toBe(CONFIG.defaultLine);
+  });
+
+  it('lineResult grades a finished course against the par (covered / exceeded / missed / flawless)', () => {
+    const scored = CONFIG.courseRounds - CONFIG.calibrationRounds; // 15
+    const finish = (wins: number): RunState => ({
+      ...createRun(1), line: 9, phase: 'victory',
+      history: [...Array(CONFIG.calibrationRounds).fill('lose'), ...Array(wins).fill('win'), ...Array(scored - wins).fill('lose')],
+    });
+    expect(lineResult(finish(9)).status).toBe('covered');
+    expect(lineResult(finish(11))).toMatchObject({ status: 'exceeded', delta: 2 });
+    expect(lineResult(finish(7))).toMatchObject({ status: 'missed', delta: -2 });
+    expect(lineResult(finish(scored)).status).toBe('flawless'); // won every scored round
+  });
+
+  it('lineResult marks a run that died (Resolve 0) as failed, regardless of wins', () => {
+    const s: RunState = { ...createRun(1), line: 9, phase: 'gameover', history: ['win', 'win', 'win', 'win', 'lose'] };
+    expect(lineResult(s).status).toBe('failed');
   });
 });
 

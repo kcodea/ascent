@@ -37,16 +37,12 @@ look because the engine already produces the data.
   record ("COURSE COMPLETE" / "FALLEN"). `winsToWin` removed. **Decisions:** calibration doesn't count; the
   course always completes unless Resolve 0. **Next:** A2 (par/rating line) sits directly on this.
 
-### A2. Par / rating line
-- **Goal:** each run gets a target line ("Line: 9 wins"). Beating/covering the line is success; perfection
-  isn't required. 15–0 destroyed it, 9–6 covered it, 7–8 missed it.
-- **Why:** ASCENT is async, not a live lobby — the player needs a calibrated personal expectation that makes
-  partial success legible.
-- **Touches:** new per-run line value (start **static by rating tier**: new 7 / mid 9 / high 11 / elite
-  12+), surfaced in HUD + summaries. Longer-term inputs: rating, hero, ascension, patch, pool strength.
-  `rating.ts` already has wave-relative board rating + bands to build a player rating on later.
-- **Size:** S (static first). **Depends:** A1 (record). **Done-when:** each run shows its line and the
-  end screen reports covered / missed / exceeded.
+### A2. Par / rating line — ✅ **shipped 2026-06-30** (→ devlog)
+- Every run carries a **par line** (`RunState.line`, from `CONFIG.defaultLine` = 9; static for now).
+  `lineResult(state)` grades a finished run: flawless / exceeded (+Δ) / covered / missed (−Δ) / failed. HUD
+  shows "Line N"; the end screen shows the verdict ("Line 9 · Exceeded (+2)"). **Seam for later:** make the
+  line rating-driven (new ~7 / mid ~9 / high ~11 / elite ~12+) once the career/rating system (A7) exists —
+  `rating.ts` bands feed it. **Next:** A3 (save & continue) or A4 (post-combat summary).
 
 ### A3. Save & continue — **cheaper than it looks**
 - **Goal:** productized save/resume so a 15+ round thinking-game can be stepped away from.

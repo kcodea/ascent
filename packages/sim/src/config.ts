@@ -19,6 +19,9 @@ export const CONFIG = {
   // (`curve.statScalePerWave`) is the difficulty dial.
   calibrationRounds: 2,
   courseRounds: 17, // 2 calibration + 15 scored
+  // Par / line (A2): the default target number of scored wins a run is graded against. Static for now
+  // (mid-tier); becomes rating-driven with the career system (new ~7 / mid ~9 / high ~11 / elite ~12+).
+  defaultLine: 9,
   // Wave horizon for the balance/curve tools (`npm run curve`) — the difficulty curve is reported over
   // the whole course.
   maxWave: 17,

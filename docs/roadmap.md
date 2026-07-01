@@ -109,17 +109,12 @@ look because the engine already produces the data.
   minimized. A reducer modal-guard blocks board actions (buy/roll/play/…) while any Discover / Choose One /
   targeted Battlecry is pending, so inspecting can'''t invalidate the pick.
 
-### B3. Keyword / terminology pass
-- **Goal:** a player-facing rename for identity: **Battlecry→Shout, Deathrattle→Echo, Golden→Gilded,
-  Divine Shield→Ward, Reborn→Rise, Windfury→Flurry, Venomous→Toxin, Magnetic→Attachment** (verb "Attach").
-  Keep Taunt, Avenge, Choose One, Start of Combat, End of Turn. Discover (or "Find").
-- **Caveats:** **internal IDs stay unchanged** (do it in display/`cardText.ts` only) — lower risk. But it
-  must thread the **live-accuracy tooltip system** (scaling cards compute text dynamically), not just static
-  strings, so do it as **one atomic PR**. **Avoid "Charge" for Rally** — in card games Charge means *attack
-  immediately*; pick a non-loaded word or keep Rally. **Size:** M. **Done-when:** all player-facing text +
-  tooltips use the new terms; internal IDs/tests untouched; live-text cards verified.
+### B3. Keyword / terminology pass — ✅ **shipped 2026-06-30** (→ devlog)
+- Display-time player-facing rename (internal ids/codes/data unchanged): Battlecry→Shout, Deathrattle→Echo,
+  Divine Shield→Ward, Windfury→Flurry, Venomous→Toxin, Reborn→Rise, Magnetic→Attachment, Golden→Gilded (Taunt/
+  Avenge/Choose One/SoC/EoT/Rally kept). `terms.ts renameTerms` over card text + badges + trigger pills +
+  combat-log narration. **Closes Phase B (B1–B3).**
 
----
 
 ## Phase C — build-authorship depth (after the spine)
 

@@ -1574,18 +1574,27 @@ export function Recruit() {
       // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
       // settles snappy. Both durations are live-tunable via the DEV Flip tuner (flipConfig.ts, ms → seconds).
       const flipCfg = getFlipConfig();
-      // The cards carry a CSS `transition: transform` (for hover/buff eases). GSAP Flip animates cards VIA
-      // `transform`, so that CSS transition re-smooths every frame GSAP sets and fights the slide into looking
-      // like an instant snap. Kill the transition on the flipped cards for the duration, then restore it.
-      const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
-      gsap.set(targets, { transition: 'none' });
-      const restore = (): void => gsap.set(targets, { clearProps: 'transition' });
-      Flip.from(flipStateRef.current, {
-        duration: (dragRef.current?.active ? flipCfg.dragMs : flipCfg.commitMs) / 1000,
-        ease: 'power2.out',
-        onComplete: restore,
-        onInterrupt: restore,
-      });
+      const dragging = dragRef.current?.active ?? false;
+      if (dragging) {
+        // Live drag: the flip re-fires every frame as the gap tracks the cursor. Leave the cards' CSS
+        // transition alone — GSAP blends the continuous flips fine, and touching the transition per-frame
+        // would thrash it. (This path already read smoothly.)
+        Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
+      } else {
+        // Committed one-shot (play / sell / summon / auto-reposition): `.card` carries `transition: transform`
+        // (hover/buff eases) and GSAP animates the slide VIA transform, so that CSS transition re-smooths every
+        // GSAP frame and mashes the slide into an instant snap. Kill it on the cards that MOVE for the slide's
+        // duration, then restore — a single one-shot, so no per-frame thrash.
+        const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        gsap.set(targets, { transition: 'none' });
+        const restore = (): void => gsap.set(targets, { clearProps: 'transition' });
+        Flip.from(flipStateRef.current, {
+          duration: flipCfg.commitMs / 1000,
+          ease: 'power2.out',
+          onComplete: restore,
+          onInterrupt: restore,
+        });
+      }
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);

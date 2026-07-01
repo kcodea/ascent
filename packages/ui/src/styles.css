@@ -1416,11 +1416,6 @@ body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
 .heroselect .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
 .hstitle { font-family: 'Outfit'; font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
-.hsname { display: flex; align-items: center; gap: 12px; margin: 0 0 30px; }
-.hsname > span { font-family: 'Outfit'; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #d9cdb8; }
-.hsname input { font-family: 'Outfit'; font-weight: 800; font-size: 18px; color: #f6efe2; background: rgba(0, 0, 0, 0.28); border: 2px solid rgba(255, 255, 255, 0.22); border-radius: 11px; padding: 9px 15px; width: 230px; max-width: 60vw; outline: none; text-align: center; }
-.hsname input:focus { border-color: var(--acc); }
-.hsname input::placeholder { color: rgba(246, 239, 226, 0.42); }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
@@ -1464,22 +1459,66 @@ body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 .endscreen.won .eyebrow { color: var(--acc); }
 
 /* Title screen — the front door, layered above the hero picker. Mirrors the picker's dimmed-board backdrop. */
-.titlescreen { position: fixed; inset: 0; z-index: 450; display: grid; place-items: center; background: linear-gradient(rgba(22, 15, 9, 0.6), rgba(22, 15, 9, 0.72)), url('/board7.webp') center / cover no-repeat, var(--bg); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* Title screen — the homescreen-mockup look: full-bleed sky-castle art + a dark left vignette so the
+   ornate left-aligned menu stays legible over the bright sky. */
+.titlescreen { position: fixed; inset: 0; z-index: 450; background:
+    linear-gradient(90deg, rgba(6, 11, 22, 0.9) 0%, rgba(6, 11, 22, 0.62) 26%, rgba(6, 11, 22, 0.08) 52%, rgba(6, 11, 22, 0) 66%),
+    linear-gradient(rgba(6, 11, 22, 0.28), rgba(6, 11, 22, 0.42)),
+    url('/homescreen.webp') center / cover no-repeat, var(--bg);
+  animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 body:has(.titlescreen) .app { visibility: hidden; }
 body:has(.titlescreen) .statusbar { visibility: hidden; }
-.titlebox { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 96vw; }
-.titlescreen .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 16px; letter-spacing: 0.34em; color: var(--acc); text-transform: uppercase; }
-.titledisp { font-family: 'Outfit'; font-weight: 900; font-size: 128px; letter-spacing: 0.08em; color: #f6efe2; margin: 6px 0 32px; text-shadow: 0 0 42px rgba(255, 178, 89, 0.32); }
-.titlemodes { display: flex; gap: 24px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
-.titlebtn { width: 360px; max-width: 90vw; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 26px; border-radius: 22px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
-.titlebtn:hover { transform: translateY(-6px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
-.titlebtn.primary { background: var(--acc); border-color: var(--acc-dk); color: #fff; }
-.titlebtn.primary .tbdesc { color: rgba(255, 255, 255, 0.92); }
-.tbname { font-family: 'Outfit'; font-weight: 900; font-size: 34px; letter-spacing: 0.02em; }
-.tbdesc { font-size: 16px; font-weight: 600; color: var(--ink2); line-height: 1.35; }
-.titlesettings { margin-top: 36px; display: inline-flex; align-items: center; gap: 10px; font-family: 'Outfit'; font-weight: 800; font-size: 18px; letter-spacing: 0.06em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.22); padding: 12px 26px; border-radius: 14px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.titlesettings:hover { border-color: var(--acc); color: var(--acc); }
-.titlesettings svg { width: 20px; height: 20px; }
+body:has(.titlescreen) .version { visibility: hidden; }
+
+/* Shared crest gem — used in the logo, rank chip, and the Play button. */
+.crest { width: 1em; height: 1em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
+
+/* Account name (top-right) — click to set/rename yourself; wires to the real account when that lands. */
+.titleaccount { position: absolute; top: 24px; right: 30px; }
+.acctname, .acctinput { font-family: 'Outfit'; font-weight: 800; font-size: 26px; letter-spacing: 0.06em; color: #ecdcb2;
+  padding: 8px 20px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.55);
+  background: linear-gradient(180deg, rgba(20, 30, 50, 0.82), rgba(11, 19, 34, 0.86)); box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.6);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.acctname:hover { border-color: rgba(230, 200, 130, 0.95); color: #f4ecda; }
+.acctinput { outline: none; text-align: right; min-width: 220px; cursor: text; }
+.acctinput::placeholder { color: rgba(236, 220, 178, 0.45); }
+
+/* The left menu column. */
+.titlemenu { position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }
+.titlelogo { display: flex; align-items: center; gap: 14px; }
+.titlelogo .crest { font-size: 62px; }
+.titleword { font-family: 'Outfit'; font-weight: 900; font-size: 86px; letter-spacing: 0.1em; color: #f4ecda; margin: 0;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), 0 0 40px rgba(120, 175, 255, 0.28); }
+
+.titlenav { display: flex; flex-direction: column; gap: 15px; width: min(420px, 78vw); }
+/* Ornate menu button: dark navy fill, gold rim + inner bevel, a framed gold icon cell, letter-spaced label. */
+.menubtn { display: flex; align-items: center; gap: 16px; width: 100%; padding: 15px 22px; border-radius: 9px;
+  border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 6px 18px -8px rgba(0, 0, 0, 0.6);
+  color: #e7d9b5; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, filter 0.14s ease, border-color 0.14s ease; }
+.menubtn .mbicon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; color: #d9b86a; }
+.menubtn .mbicon svg { width: 26px; height: 26px; }
+.menubtn .mbicon .crest { font-size: 26px; }
+.mblabel { font-family: 'Outfit'; font-weight: 800; font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; }
+.menubtn:hover { transform: translateX(6px); border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); }
+/* Active (Play) — the brighter blue call-to-action from the mockup. */
+.menubtn.active { background: linear-gradient(180deg, #3f7fc4, #245a97); border-color: rgba(150, 200, 245, 0.9); color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 0 1px rgba(120, 175, 255, 0.35), 0 8px 22px -8px rgba(40, 100, 180, 0.7); }
+.menubtn.active .mbicon { color: #fff; }
+.menubtn.active .mblabel { font-weight: 900; }
+.menubtn.disabled { opacity: 0.62; }
+.menubtn.disabled:hover { transform: none; filter: none; border-color: rgba(196, 160, 92, 0.6); cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; }
+
+/* Preserved secondary modes — small links under the main menu. */
+.titlesecondary { display: flex; align-items: center; gap: 10px; padding-left: 4px; }
+.titlesecondary button { font-family: 'Outfit'; font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(236, 220, 178, 0.72); background: none; border: none; padding: 2px 4px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.titlesecondary button:hover { color: #ecdcb2; text-decoration: underline; }
+.tsdot { color: rgba(236, 220, 178, 0.4); }
+
+.titleversion { position: absolute; right: 22px; bottom: 16px; font-family: 'Outfit'; font-weight: 700; font-size: 13px;
+  letter-spacing: 0.05em; color: rgba(236, 220, 178, 0.6); }
 .endscreen.won .hstitle { color: #ffd98a; text-shadow: 0 0 28px rgba(255, 200, 110, 0.45); }
 .endscreen:not(.won) .eyebrow { color: var(--threat); }
 
@@ -1556,12 +1595,8 @@ svg { width: 18px; height: 18px; }
 .escclose { margin-top: 18px; width: 100%; padding: 12px; border-radius: 13px; border: none; background: var(--acc); color: #fff; font-family: 'Outfit'; font-weight: 800; font-size: 17px; cursor: pointer; }
 .escclose:hover { background: var(--acc-dk); }
 
-/* Title actions row (Leaderboard + Settings, side by side) */
-.titleactions { margin-top: 36px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-.titleactions .titlesettings { margin-top: 0; min-width: 240px; justify-content: center; }
-
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
-.lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: linear-gradient(rgba(22, 15, 9, 0.8), rgba(22, 15, 9, 0.88)), url('/board7.webp') center / cover no-repeat, var(--bg); animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: linear-gradient(rgba(6, 11, 22, 0.82), rgba(6, 11, 22, 0.9)), url('/homescreen.webp') center / cover no-repeat, var(--bg); animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .lbtopbar { display: flex; align-items: center; gap: 18px; padding: 22px 30px 14px; flex: none; }
 .lbback { display: inline-flex; align-items: center; gap: 8px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.22); padding: 10px 18px; border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
 .lbback:hover { border-color: var(--acc); color: var(--acc); }

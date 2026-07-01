@@ -3,6 +3,27 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-06-30 (session 10)
+
+### feat: homescreen title art + mockup menu
+
+- New **homescreen background** wired to the title screen: `C:\Game Assets\Ascent Art\homescreen.png` →
+  `apps/web/public/homescreen.webp` (1915×821, 218 KB via sharp q82); `.titlescreen` now layers it under a
+  left-edge vignette so the menu stays legible over the bright sky.
+- **Title menu restyled to the provided mockup:** left-aligned ornate menu (navy fill + gold rim + bevel,
+  framed gold icon cells, letter-spaced caps) — **Play** (blue active CTA → starts Ascent), **Career**
+  (placeholder, no-op, per owner "doesn't go anywhere yet"), **Leaderboard**, **Settings**. The
+  **transparentlogo** art sits above the ASCENT wordmark; the build **version** is bottom-right.
+  **Practice + Compendium** kept as small secondary links so no mode is lost.
+- **Account name (top-right):** clickable chip → inline edit lets the player name themselves (persists via the
+  existing `playerName`/localStorage). Larger than the old rank chip; the XP bar + icon are gone (a real
+  account/rank binding comes with the career system).
+- **Leaderboard** page now uses the same homescreen background.
+- **Note:** the title screen adopts the mockup's blue/gold palette, which diverges from the Sunward warm
+  identity — intentional for this art; revisit if it should be reconciled.
+- **Verified live:** title renders with the homescreen bg + 4 buttons; Career is a no-op, Leaderboard opens,
+  no console errors; typecheck + lint + build:web green.
+
 ## 2026-06-29 (session 9)
 
 ### feat: combat odds panel shows average damage on loss

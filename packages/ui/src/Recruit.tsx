@@ -8,6 +8,7 @@ import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { pixiFx, discoverFx, tauntFx } from './pixiFx';
+import { getDragFeel } from './dragFeel';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -53,12 +54,20 @@ const auraFx = (kind: AuraK): typeof pixiFx => (kind === 'taunt' ? tauntFx : pix
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
 
-const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a drag
+// px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
 const RING = 2 * Math.PI * 17; // countdown ring circumference
+
+/** Build the floating drag-card transform with a CONSISTENT function list, so a CSS transition between the
+ *  rAF lean and the snap/magslide states interpolates cleanly. tx/ty = top-left offset; rotX/rotY = 3D tilt
+ *  deg; `spin` = the static 2D angle (0 = flat, like a card on the table — the lift read comes from the
+ *  drop-shadow + scale, not an angle). All dials live in `dragFeel.ts` / the DEV Drag tuner. */
+function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY: number, scale: number, spin: number): string {
+  return `perspective(${persp}px) translate(${tx}px, ${ty}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale}) rotate(${spin}deg)`;
+}
 
 /** The countdown ring — subscribes to the turn clock so ONLY this tiny SVG re-renders each second
  *  (not the whole recruit tree). See turnClock.ts. */
@@ -214,7 +223,10 @@ interface DragState {
   uid: string;
   source: DragSource;
   view: CardView;
-  ox: number; oy: number; // pointer offset within the card
+  ox: number; oy: number; // anchor offset within the card — set to the CENTRE so the card rides centred on
+                          // the cursor once dragging (all drop/insertion math is `x - ox + w/2` = cursor).
+  grabOx: number; grabOy: number; // the ACTUAL grab point within the card — the floating card starts here
+                                  // (no pickup pop) then smoothly recentres to the cursor over the first frames.
   w: number; h: number; // the source card's size, so the floating card matches exactly
   startX: number; startY: number; // pointer position at press
   x: number; y: number; // current pointer
@@ -754,6 +766,63 @@ export function Recruit() {
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
+  // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
+  // motion. Driven by a per-frame rAF that writes the card's transform directly (no React re-render), so it
+  // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
+  // When the card is snapping back or magnet-sliding, React/CSS own the transform instead (see the JSX).
+  const dragCardRef = useRef<HTMLDivElement>(null);
+  const dragMotionRef = useRef({ rx: 0, ry: 0, ax: 0, ay: 0 }); // rx/ry = smoothed position; ax/ay = anchor (grab→centre)
+  const reactDrivesDrag = snapping || magSlide; // these use a CSS transition, not the rAF lean
+  const reactDrivesDragRef = useRef(reactDrivesDrag);
+  reactDrivesDragRef.current = reactDrivesDrag;
+
+  // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
+  // card's render position toward the cursor and tilt it toward its motion, writing the transform straight
+  // to the node each frame. The lag-gap (cursor − render pos) drives BOTH the catch-up and the lean, so a
+  // fast drag leans hard and a stopped cursor settles flat. Pure compositor transform — no layout reads.
+  useLayoutEffect(() => {
+    if (!drag?.active) return;
+    const el = dragCardRef.current;
+    if (!el) return;
+    const m = dragMotionRef.current;
+    const d0 = dragRef.current;
+    if (d0) {
+      m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
+      m.ax = d0.grabOx; m.ay = d0.grabOy; // anchor starts at the grab point → the card appears where you grabbed
+      const f = getDragFeel();
+      el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
+      el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, 0, 0, f.scale, f.staticRotate); // before-paint, no flash
+    }
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number): void => {
+      const dt = Math.min(48, now - last);
+      last = now;
+      raf = requestAnimationFrame(tick);
+      const d = dragRef.current;
+      if (!d || reactDrivesDragRef.current) return; // snap/magslide → React+CSS own the transform
+      const f = getDragFeel();
+      const k = f.follow >= 1 ? 1 : 1 - Math.pow(1 - f.follow, dt / 16.667); // frame-rate-independent catch-up
+      // recentre the anchor from the grab point toward the card centre → the card slides to sit centred on the
+      // cursor as the drag begins (a hair quicker than the position catch-up so it settles centred promptly).
+      const kc = Math.min(1, k * 1.4);
+      m.ax += (d.w / 2 - m.ax) * kc;
+      m.ay += (d.h / 2 - m.ay) * kc;
+      const gx = d.x - m.rx;
+      const gy = d.y - m.ry;
+      m.rx += gx * k;
+      m.ry += gy * k;
+      const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
+      // Lean INTO the drag direction: each axis tilts by its signed lag-gap (cursor − card). Direction-driven,
+      // so left/right (and up/down) lean opposite ways; when the cursor stops the gap closes and it sits flat.
+      const rotY = clamp(f.tiltPerPx * f.hLean * gx); // horizontal lean
+      const rotX = clamp(f.tiltPerPx * f.vLean * gy); // vertical lean
+      el.style.transformOrigin = `${m.ax}px ${m.ay}px`; // pivot tilt/scale around the (recentring) anchor
+      el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, rotX, rotY, f.scale, f.staticRotate);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [drag?.active]);
   // Cached board/shop card rects for spell targeting — populated at drag-start (the board is static
   // during a spell drag: a spell doesn't open an insertion gap), so boardUidAt/shopUidAt hit-test
   // arithmetic instead of calling elementFromPoint every frame. Null outside a spell drag.
@@ -924,7 +993,8 @@ export function Recruit() {
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
       setDrag({
         uid, source, view,
-        ox: e.clientX - r.left, oy: e.clientY - r.top,
+        ox: r.width / 2, oy: r.height / 2,           // anchor = centre → the card rides centred on the cursor
+        grabOx: e.clientX - r.left, grabOy: e.clientY - r.top, // where you actually grabbed (recentre starts here)
         w: r.width, h: r.height,
         startX: e.clientX, startY: e.clientY,
         x: e.clientX, y: e.clientY,
@@ -998,7 +1068,7 @@ export function Recruit() {
       lastMove = null;
       setDrag((d) => {
         if (!d) return d;
-        const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
+        const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold;
         return { ...d, x: e.clientX, y: e.clientY, active };
       });
       setOverZone(inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY));
@@ -1011,7 +1081,7 @@ export function Recruit() {
       const d = dragRef.current;
       // Recompute "did it move" from the up event too: with the rAF-throttle a flick completed inside one
       // frame may not have flushed `active` yet, but it's still a drag if the pointer cleared the threshold.
-      const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD);
+      const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold);
       if (!d || !moved) {
         document.body.classList.remove('dragging');
         // a click, not a drag — let onClick (hero targeting) handle it
@@ -1048,7 +1118,7 @@ export function Recruit() {
           setOverZone(null);
           // let the Mech keep crackling a beat past the merge, then settle on the green buff flash
           window.setTimeout(() => setMagTargetUid(null), 120);
-        }, el ? 280 : 0);
+        }, el ? getDragFeel().magSlideMs : 0);
         return;
       }
 
@@ -1058,14 +1128,15 @@ export function Recruit() {
         setDrag(null);
         setOverZone(null);
       } else {
-        // invalid drop — snap the card cleanly + quickly back to where it came from
+        // invalid drop — snap the card cleanly + quickly back to its original slot. The card rides CENTRED on
+        // the cursor, so aim its centre at the slot centre (press point − grab offset + half-card).
         setSnapping(true);
-        setDrag((cur) => (cur ? { ...cur, x: cur.startX, y: cur.startY } : cur));
+        setDrag((cur) => (cur ? { ...cur, x: cur.startX - cur.grabOx + cur.w / 2, y: cur.startY - cur.grabOy + cur.h / 2 } : cur));
         window.setTimeout(() => {
           setSnapping(false);
           setDrag(null);
           setOverZone(null);
-        }, 110);
+        }, getDragFeel().snapMs);
       }
     };
     // Right-click while aiming a spell cancels it (snaps back to the hand).
@@ -1667,7 +1738,7 @@ export function Recruit() {
         el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
         window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
       }
-      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1, 1.5); // original size, +50% denser cloud
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
   };
 
@@ -2099,16 +2170,22 @@ export function Recruit() {
 
       {drag?.active && !castingSpell && (
         <div
+          ref={dragCardRef}
           className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}`}
           style={{
             width: drag.w,
             height: drag.h,
-            // pivot scale/rotate around the exact grab point so the card stays under the cursor.
-            // When magnetizing, the card shrinks straight into the Mech (no tilt) so it "absorbs".
-            transformOrigin: `${drag.ox}px ${drag.oy}px`,
+            // Normal drag: the rAF (above) owns `transform` + `transform-origin` (a weighted lag, a recentre
+            // onto the cursor, and a tilt-toward-motion), written straight to this node so React re-renders
+            // don't fight it. Snap-back / magnet-slide use a CSS transition, so React drives those here — the
+            // origin is the card centre (matching the recentred anchor), the durations come from the config.
+            transformOrigin: reactDrivesDrag ? `${drag.w / 2}px ${drag.h / 2}px` : undefined,
             transform: magSlide
-              ? `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(0.06)`
-              : `translate(${drag.x - drag.ox}px, ${drag.y - drag.oy}px) scale(1.04) rotate(-1.5deg)`,
+              ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 0.06, 0)
+              : snapping
+                ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, getDragFeel().scale, getDragFeel().staticRotate)
+                : undefined,
+            transitionDuration: magSlide ? `${getDragFeel().magSlideMs}ms` : snapping ? `${getDragFeel().snapMs}ms` : undefined,
             // accelerate + fade fully out as it shrinks in, so it vanishes cleanly into the Mech
             opacity: magSlide ? 0 : 1,
           }}

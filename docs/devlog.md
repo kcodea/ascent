@@ -885,6 +885,51 @@ Three small, independent changes (UI polish + an engine de-coupling).
 
 ## 2026-06-27 (session 7)
 
+### feat: weighted card-drag — perspective tilt + a slight lag for heft
+
+Dragged cards (the floating `.dragcard`) now tilt in 3D toward their motion and lag slightly behind the
+cursor, so they feel like they have weight (inspired by the PixiJS perspective-mesh example — but done with
+CSS 3D transforms on the DOM card, not a Pixi mesh, since the card is composed DOM).
+
+- **One signal drives both.** A per-frame rAF (active only while a card is dragged) smooths the card's render
+  position toward the cursor; the *gap* between cursor and render position drives BOTH the catch-up and the
+  lean (`rotateX/rotateY` under a `perspective()`), so a fast drag leans hard and a stopped cursor settles
+  flat. The transform is written straight to the node (no React re-render) → pure compositor, no layout reads.
+- **No fights.** React owns the transform only for the snap-back / magnet-slide states (which use CSS
+  transitions); the normal lean omits `transform` from the style prop so the rAF owns it cleanly. A
+  `useLayoutEffect` writes the first frame before paint (no lift flash). All transforms share one function
+  list (`dragTransform`) so the snap/magslide transitions interpolate smoothly back to flat.
+- **Held-still sits flat.** No static 2D angle by default (`staticRotate` 0) — a card held still is square
+  like one on the table (the lift read is the drop-shadow + scale, not a tilt); it only leans while moving.
+- **Directional lean into motion.** Each axis tilts by its signed lag-gap (`rotateY = tiltPerPx·hLean·gx`,
+  `rotateX = tiltPerPx·vLean·gy`), so left/right and up/down lean opposite ways and the card sits flat when
+  the cursor stops. Two live dials — `hLean`, `vLean` (magnitude = how much, sign = which way) — replace the
+  earlier magnitude/direction split (which had a footgun: with both coefficients set, one drag direction
+  doubled the tilt and the other cancelled to zero). Defaults are pronounced (`tiltPerPx 0.28`, `tiltMax 14`)
+  so the direction reads clearly. `DragTuner` guards a missing range so a mid-edit HMR desync can't blank the app.
+- **Recentres onto the cursor.** You can grab a card anywhere, but once the drag begins the card smoothly
+  slides so its CENTRE sits under the cursor (the anchor lerps grab-point → card-centre in the rAF, a hair
+  quicker than the position catch-up). The drop/insertion math is unchanged because the anchor is stored as
+  the centre (`ox = w/2`), so `x − ox + w/2` = the cursor; the real grab point is kept only to start the
+  recentre without a pickup pop and to aim the snap-back at the original slot. (This made the old `pivot` dial
+  redundant — the pivot is now the centre by definition — so it was removed.)
+- **Tunable + DEV tuner.** `dragFeel.ts` holds every card-motion dial, persisted to localStorage and read
+  live each frame; `DragTuner.tsx` (the 🎴 button) exposes all 11 as sliders with a hover-tooltip definition
+  on each: `follow` (lag), `tiltPerPx` (lean), `tiltMax` (cap), `hLean`/`vLean` (per-axis directional lean ±),
+  `perspective`, `scale` (hold size), `staticRotate` (angle while held), `threshold` (click→drag px), `snapMs`
+  (snap-back), `magSlideMs` (magnet-slide). Owner-tuned defaults: hLean 0.3, vLean −0.2, tiltPerPx 0.6, tiltMax
+  19°, follow 0.64, perspective 1600, scale 1.12, threshold 1;
+  perspective 800, scale 1.04. snap/magslide durations are pushed to the CSS transition inline so they tune live.
+- **Denser drop cloud.** The dry-dirt dust puff kicked up when a card is placed/moved on the board keeps its
+  original size but is +50% DENSER — `dust()` gained a `density` arg (multiplies the puff count, not the size);
+  `puffOnBoard` passes `density 1.5` (12 → 18 puffs) so the landing reads more without ballooning.
+
+**Files:** `dragFeel.ts` (new — dials), `DragTuner.tsx` (new — DEV tuner), `Recruit.tsx` (motion rAF +
+`dragTransform` helper + JSX hand-off), `Game.tsx` (mount tuner), `styles.css` (tuner button).
+
+**Verification:** `typecheck + lint + build:web` green; page loads with no console errors, tuner mounts. The
+tilt/lag feel itself is for live by-eye tuning (the headless preview throttles rAF).
+
 ### fix: the round timer kept ticking under the title / leaderboard overlays
 
 `<Recruit />` stays mounted across every phase (combat plays out in place), and the title screen, hero
@@ -911,6 +956,7 @@ Right-clicking a champion's minion in the leaderboard now itemizes HOW it was bu
   before now) simply show no Buffs panel (graceful).
 - **Verified**: typecheck + lint + `build:web` + full suite green (**402 tests**). New snapshot test:
   `snapshotBoard` captures the buff breakdown (cloned, not shared) and omits it for buff-less minions.
+
 ### feat: opponent selection — fully random within a source-priority cascade (Supabase → local → synthetic)
 
 Reworked `pickOpponent` so you always face real *player* boards when any exist for your wave, picked at

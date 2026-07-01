@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Board-art selector** — a **Board Art** section in Settings swaps the illustrated game-board background
+  (boards 4/5/7/8/9/10/11) live, persisted per-browser. A testing aid for comparing board aesthetics.
 - **Looping menu video** — the title screen plays a muted, looping ambience video behind the menu (falls
   back to the `homescreen.webp` still when absent or under reduced-motion).
 - **Career page redesign** — a stats bar (runs · best run · avg wins · win rate) over three columns: a

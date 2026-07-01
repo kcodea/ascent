@@ -33,6 +33,9 @@ export function Game() {
   const [res, setRes] = useState<string>(() => {
     try { return localStorage.getItem('ascent-res') || 'fit'; } catch { return 'fit'; }
   });
+  const [board, setBoard] = useState<string>(() => {
+    try { return localStorage.getItem('ascent-board') || 'board8'; } catch { return 'board8'; }
+  });
 
   // Preload all card/hero art once, on idle, so the first shop renders with art already cached — kills the
   // cold-load "pop-in" (esp. the itch CDN, where each webp is a separate first-appearance round-trip).
@@ -45,6 +48,13 @@ export function Game() {
     else root.setAttribute('data-res', res);
     try { localStorage.setItem('ascent-res', res); } catch { /* ignore */ }
   }, [res]);
+
+  // Apply the chosen board art via a --board-img CSS var the .app + hero-select backgrounds read.
+  // DEV testing aid so different board aesthetics can be A/B'd without a rebuild; persists per-browser.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--board-img', `url('/${board}.webp')`);
+    try { localStorage.setItem('ascent-board', board); } catch { /* ignore */ }
+  }, [board]);
 
   // Esc toggles the menu — but if the menu is closed and a card is being inspected, let the
   // inspect overlay claim Esc (it closes itself) instead of opening the menu. The Minion Book
@@ -96,7 +106,7 @@ export function Game() {
       <div className="version" title={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
-      {menuOpen && <EscMenu res={res} onRes={setRes} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && <EscMenu res={res} onRes={setRes} board={board} onBoard={setBoard} onClose={() => setMenuOpen(false)} />}
       {/* DEV-only live tuners (stripped from production via the static env check). */}
       {import.meta.env.DEV && <SfxMixer />}
       {import.meta.env.DEV && <LungeTuner />}

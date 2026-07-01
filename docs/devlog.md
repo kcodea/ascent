@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-01 (session 12)
+
+### feat: board-art selector in Settings (testing aid)
+
+A quick tool to A/B the illustrated game-board backgrounds without a rebuild. The `.app` and
+`.heroselect` backgrounds now read a `--board-img` CSS variable (falling back to `board8`/`board7`
+respectively). [Game.tsx](packages/ui/src/Game.tsx) owns a `board` state (persisted to
+`localStorage` under `ascent-board`, mirroring the existing `res` scaler) and applies it as
+`--board-img` on `:root`. A new **Board Art** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx)
+renders a thumbnail grid (`BOARD_OPTIONS`) — each tile previews the actual board webp, the active one
+gets the accent ring.
+
+- **Art pipeline:** the source PNGs in `Ascent Art/Game Boards` were encoded to `apps/web/public/boardN.webp`
+  via sharp (1680px wide, q82 — 58–253 KB each). Available boards are the ones present in the folder:
+  **4, 5, 7, 8, 9, 10, 11**. Default board is **board8** (was board7).
+- **Note:** the picker currently ships to players (not DEV-gated). Flagged for review — trivial to wrap in
+  `import.meta.env.DEV` if it should be dev-only.
+- **Verified:** typecheck + lint clean, 441 tests green, `build:web` OK. Live: all 7 boards serve real
+  `image/webp`, the picker renders 7 tiles, switching updates `--board-img` + persists.
+
 ## 2026-07-01 (session 11)
 
 ### fix: Rise retaliation bug, choose-one cards, resume-clock exploit, + content/visual tweaks

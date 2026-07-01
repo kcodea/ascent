@@ -15,11 +15,25 @@ export const RES_OPTIONS: { id: string; label: string; sub: string }[] = [
   { id: 'r3440', label: '3440 × 1440', sub: '21:9 ultrawide' },
 ];
 
+// DEV-ish testing aid: swap the illustrated board art to compare aesthetics. Boards live in
+// apps/web/public as boardN.webp (the id is the filename stem); this list = the ones present.
+export const BOARD_OPTIONS: { id: string; label: string }[] = [
+  { id: 'board4', label: 'Board 4' },
+  { id: 'board5', label: 'Board 5' },
+  { id: 'board7', label: 'Board 7' },
+  { id: 'board8', label: 'Board 8' },
+  { id: 'board9', label: 'Board 9' },
+  { id: 'board10', label: 'Board 10' },
+  { id: 'board11', label: 'Board 11' },
+];
+
 export function EscMenu({
-  res, onRes, onClose,
+  res, onRes, board, onBoard, onClose,
 }: {
   res: string;
   onRes: (r: string) => void;
+  board: string;
+  onBoard: (b: string) => void;
   onClose: () => void;
 }) {
   const startHeroSelect = useGame((s) => s.startHeroSelect);
@@ -99,6 +113,21 @@ export function EscMenu({
             >
               <span className="ebl">{o.label}</span>
               <span className="ebs">{o.sub}</span>
+            </button>
+          ))}
+        </div>
+        <div className="escsec">Board Art</div>
+        <div className="escboardpick">
+          {BOARD_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              className={`escboardtile${board === o.id ? ' on' : ''}`}
+              style={{ backgroundImage: `url('/${o.id}.webp')` }}
+              title={o.label}
+              aria-label={o.label}
+              onPointerDown={() => onBoard(o.id)}
+            >
+              <span className="ebt">{o.label}</span>
             </button>
           ))}
         </div>

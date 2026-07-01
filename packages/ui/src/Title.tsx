@@ -1,12 +1,13 @@
+import { useState } from 'react';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
- * homescreen mockup: a full-bleed sky-castle background, an ornate left-aligned menu (Play / Career /
- * Leaderboard / Settings), the ASCENT wordmark + crest, a rank chip, and the build version. A single
- * store flag (`showTitle`) drives it, no router.
+ * homescreen mockup: a full-bleed sky-castle background, the ASCENT logo + wordmark, an ornate
+ * left-aligned menu (Play / Career / Leaderboard / Settings), an editable account-name chip, and the
+ * build version. A single store flag (`showTitle`) drives it, no router.
  *
  * PLAY starts the scored Ascent climb; CAREER is a placeholder (the career/rating system isn't built
  * yet — see docs/roadmap.md Phase A). Practice + Compendium are kept as secondary links so no mode is
@@ -36,22 +37,41 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startPractice = useGame((s) => s.startPractice);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
   const toggleBook = useGame((s) => s.toggleBook);
+  const playerName = useGame((s) => s.playerName);
+  const setPlayerName = useGame((s) => s.setPlayerName);
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
   if (!showTitle) return null;
+
+  const beginEdit = () => { setDraft(playerName); setEditing(true); };
+  const commit = () => { setPlayerName(draft); setEditing(false); };
 
   return (
     <div className="titlescreen">
-      {/* Rank chip (top-right) — a shell for the future rank/rating system (roadmap A2/A7); decorative for now. */}
-      <div className="titlerank" title="Your Ascender rank — coming with the career system">
-        <Crest />
-        <div className="rankmeta">
-          <span className="ranklabel">Ascender</span>
-          <span className="rankbar"><i style={{ width: '46%' }} /></span>
-        </div>
+      {/* Account name (top-right) — click to set/rename yourself. Wires to the real account once that lands. */}
+      <div className="titleaccount">
+        {editing ? (
+          <input
+            className="acctinput"
+            autoFocus
+            maxLength={24}
+            value={draft}
+            placeholder="Your name"
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+          />
+        ) : (
+          <button className="acctname" onClick={beginEdit} title="Click to set your name">
+            {playerName || 'Set your name'}
+          </button>
+        )}
       </div>
 
       <div className="titlemenu">
         <div className="titlelogo">
-          <Crest />
+          <img className="titlelogoimg" src="/transparentlogo.webp" alt="" />
           <h1 className="disp titleword">ASCENT</h1>
         </div>
 

@@ -1478,21 +1478,21 @@ body:has(.titlescreen) .version { visibility: hidden; }
 /* Shared crest gem — used in the logo, rank chip, and the Play button. */
 .crest { width: 1em; height: 1em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 
-/* Rank chip (top-right) — a styled shell for the future rank/rating system. */
-.titlerank { position: absolute; top: 26px; right: 30px; display: flex; align-items: center; gap: 11px;
-  padding: 9px 18px 9px 12px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.55);
-  background: linear-gradient(180deg, rgba(20, 30, 50, 0.82), rgba(11, 19, 34, 0.86)); box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.6); }
-.titlerank .crest { font-size: 30px; }
-.rankmeta { display: flex; flex-direction: column; gap: 5px; }
-.ranklabel { font-family: 'Outfit'; font-weight: 800; font-size: 15px; letter-spacing: 0.16em; text-transform: uppercase; color: #ecdcb2; }
-.rankbar { width: 108px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
-.rankbar i { display: block; height: 100%; background: linear-gradient(90deg, #4a9fe0, #7fd0ff); }
+/* Account name (top-right) — click to set/rename yourself; wires to the real account when that lands. */
+.titleaccount { position: absolute; top: 24px; right: 30px; }
+.acctname, .acctinput { font-family: 'Outfit'; font-weight: 800; font-size: 26px; letter-spacing: 0.06em; color: #ecdcb2;
+  padding: 8px 20px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.55);
+  background: linear-gradient(180deg, rgba(20, 30, 50, 0.82), rgba(11, 19, 34, 0.86)); box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.6);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.acctname:hover { border-color: rgba(230, 200, 130, 0.95); color: #f4ecda; }
+.acctinput { outline: none; text-align: right; min-width: 220px; cursor: text; }
+.acctinput::placeholder { color: rgba(236, 220, 178, 0.45); }
 
 /* The left menu column. */
 .titlemenu { position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }
-.titlelogo { display: flex; align-items: center; gap: 14px; }
-.titlelogo .crest { font-size: 62px; }
+.titlelogo { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.titlelogoimg { width: clamp(130px, 15vw, 190px); height: auto; margin-left: -8px; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5)); }
 .titleword { font-family: 'Outfit'; font-weight: 900; font-size: 86px; letter-spacing: 0.1em; color: #f4ecda; margin: 0;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), 0 0 40px rgba(120, 175, 255, 0.28); }
 
@@ -1601,7 +1601,7 @@ svg { width: 18px; height: 18px; }
 .escclose:hover { background: var(--acc-dk); }
 
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
-.lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: linear-gradient(rgba(22, 15, 9, 0.8), rgba(22, 15, 9, 0.88)), url('/board7.webp') center / cover no-repeat, var(--bg); animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: linear-gradient(rgba(6, 11, 22, 0.82), rgba(6, 11, 22, 0.9)), url('/homescreen.webp') center / cover no-repeat, var(--bg); animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .lbtopbar { display: flex; align-items: center; gap: 18px; padding: 22px 30px 14px; flex: none; }
 .lbback { display: inline-flex; align-items: center; gap: 8px; font-family: 'Outfit'; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.22); padding: 10px 18px; border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
 .lbback:hover { border-color: var(--acc); color: var(--acc); }

@@ -48,7 +48,7 @@ const DEFAULTS: DragFeel = {
   staticRotate: 0,  // flat when held still
   threshold: 1,     // drag engages almost immediately
   recenter: 0.12,   // a slow, visible glide to centre (was ~0.9)
-  recenterAfter: 10,// only begin recentring after 10 px of drag
+  recenterAfter: 100,// only begin recentring after 100 px of drag
   snapMs: 110,
   magSlideMs: 280,
 };
@@ -65,7 +65,7 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   staticRotate: [-8, 8, 0.5],
   threshold: [0, 30, 1],
   recenter: [0.02, 1, 0.02],
-  recenterAfter: [0, 60, 1],
+  recenterAfter: [0, 200, 5],
   snapMs: [40, 400, 10],
   magSlideMs: [100, 600, 10],
 };

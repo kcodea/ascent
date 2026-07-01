@@ -19,10 +19,15 @@ CSS 3D transforms on the DOM card, not a Pixi mesh, since the card is composed D
   transitions); the normal lean omits `transform` from the style prop so the rAF owns it cleanly. A
   `useLayoutEffect` writes the first frame before paint (no lift flash). All transforms share one function
   list (`dragTransform`) so the snap/magslide transitions interpolate smoothly back to flat.
-- **Tunable + DEV tuner.** `dragFeel.ts` holds the dials — `follow` (lag; lower = heavier), `tiltPerPx`
-  (lean), `tiltMax` (cap), `perspective` — persisted to localStorage and read live each frame. `DragTuner.tsx`
-  (the 🎴 button) lets them be dialed by eye while dragging. Defaults are deliberately *slight*: follow 0.4,
-  tiltPerPx 0.16, tiltMax 6°, perspective 800.
+- **Held-still sits flat.** No static 2D angle by default (`staticRotate` 0) — a card held still is square
+  like one on the table (the lift read is the drop-shadow + scale, not a tilt); it only leans while moving.
+- **Tunable + DEV tuner.** `dragFeel.ts` holds every card-motion dial, persisted to localStorage and read
+  live each frame; `DragTuner.tsx` (the 🎴 button) exposes all 11 as sliders with a hover-tooltip definition
+  on each: `follow` (lag), `tiltPerPx` (lean), `tiltMax` (cap), `tiltDir` (±1 to invert the lean), `perspective`,
+  `scale` (hold size), `staticRotate` (angle while held), `pivot` (grab-point→centre), `threshold`
+  (click→drag px), `snapMs` (snap-back), `magSlideMs` (magnet-slide). Defaults are deliberately *slight*:
+  follow 0.4, tiltPerPx 0.16, tiltMax 6°, perspective 800, scale 1.04. snap/magslide durations are pushed to
+  the CSS transition inline so those dials apply live too.
 
 **Files:** `dragFeel.ts` (new — dials), `DragTuner.tsx` (new — DEV tuner), `Recruit.tsx` (motion rAF +
 `dragTransform` helper + JSX hand-off), `Game.tsx` (mount tuner), `styles.css` (tuner button).

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DRAG_KEYS, DRAG_RANGES, getDragFeel, resetDragFeel, setDragValue, type DragFeel } from './dragFeel';
+import { DRAG_KEYS, DRAG_RANGES, DRAG_DESC, getDragFeel, resetDragFeel, setDragValue, type DragFeel } from './dragFeel';
 import { useDraggablePanel } from './useDraggablePanel';
 
 /**
@@ -13,7 +13,14 @@ const LABELS: Record<keyof DragFeel, string> = {
   follow: 'lag (lower=heavier)',
   tiltPerPx: 'tilt lean',
   tiltMax: 'tilt cap',
+  tiltDir: 'tilt dir (±)',
   perspective: 'perspective',
+  scale: 'hold scale',
+  staticRotate: 'static angle',
+  pivot: 'pivot (grab→center)',
+  threshold: 'drag threshold',
+  snapMs: 'snap-back ms',
+  magSlideMs: 'magnet-slide ms',
 };
 
 export function DragTuner() {
@@ -43,7 +50,7 @@ export function DragTuner() {
             const [min, max, step] = DRAG_RANGES[k];
             return (
               <div className="sfxmix-row" key={k}>
-                <span className="sfxmix-name">{LABELS[k]}</span>
+                <span className="sfxmix-name" title={DRAG_DESC[k]}>{LABELS[k]}</span>
                 <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
                 <span className="sfxmix-val">{cfg[k]}</span>
               </div>

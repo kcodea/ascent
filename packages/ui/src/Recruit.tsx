@@ -53,7 +53,7 @@ const auraFx = (kind: AuraK): typeof pixiFx => (kind === 'taunt' ? tauntFx : pix
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
 
-const DRAG_THRESHOLD = 5; // px the pointer must move before a click becomes a drag
+// px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
@@ -61,9 +61,11 @@ const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at
 const RING = 2 * Math.PI * 17; // countdown ring circumference
 
 /** Build the floating drag-card transform with a CONSISTENT function list, so a CSS transition between the
- *  rAF lean and the snap/magslide states interpolates cleanly. tx/ty = top-left offset; rotX/rotY = tilt deg. */
-function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY: number, scale: number): string {
-  return `perspective(${persp}px) translate(${tx}px, ${ty}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale}) rotate(-1.5deg)`;
+ *  rAF lean and the snap/magslide states interpolates cleanly. tx/ty = top-left offset; rotX/rotY = 3D tilt
+ *  deg; `spin` = the static 2D angle (0 = flat, like a card on the table — the lift read comes from the
+ *  drop-shadow + scale, not an angle). All dials live in `dragFeel.ts` / the DEV Drag tuner. */
+function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY: number, scale: number, spin: number): string {
+  return `perspective(${persp}px) translate(${tx}px, ${ty}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale}) rotate(${spin}deg)`;
 }
 
 /** The countdown ring — subscribes to the turn clock so ONLY this tiny SVG re-renders each second
@@ -827,7 +829,7 @@ export function Recruit() {
     if (d0) {
       m.rx = d0.x; m.ry = d0.y; // start at the cursor so the lift doesn't jump
       const f = getDragFeel();
-      el.style.transform = dragTransform(f.perspective, m.rx - d0.ox, m.ry - d0.oy, 0, 0, 1.04); // before-paint, no flash
+      el.style.transform = dragTransform(f.perspective, m.rx - d0.ox, m.ry - d0.oy, 0, 0, f.scale, f.staticRotate); // before-paint, no flash
     }
     let raf = 0;
     let last = performance.now();
@@ -844,9 +846,9 @@ export function Recruit() {
       m.rx += gx * k;
       m.ry += gy * k;
       const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
-      const rotY = clamp(gx * f.tiltPerPx);  // lean left/right into horizontal motion
-      const rotX = clamp(-gy * f.tiltPerPx); // lean up/down into vertical motion
-      el.style.transform = dragTransform(f.perspective, m.rx - d.ox, m.ry - d.oy, rotX, rotY, 1.04);
+      const rotY = clamp(gx * f.tiltPerPx * f.tiltDir);  // lean left/right into horizontal motion (tiltDir flips)
+      const rotX = clamp(-gy * f.tiltPerPx * f.tiltDir); // lean up/down into vertical motion
+      el.style.transform = dragTransform(f.perspective, m.rx - d.ox, m.ry - d.oy, rotX, rotY, f.scale, f.staticRotate);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -1092,7 +1094,7 @@ export function Recruit() {
       lastMove = null;
       setDrag((d) => {
         if (!d) return d;
-        const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD;
+        const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold;
         return { ...d, x: e.clientX, y: e.clientY, active };
       });
       setOverZone(inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY));
@@ -1105,7 +1107,7 @@ export function Recruit() {
       const d = dragRef.current;
       // Recompute "did it move" from the up event too: with the rAF-throttle a flick completed inside one
       // frame may not have flushed `active` yet, but it's still a drag if the pointer cleared the threshold.
-      const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD);
+      const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold);
       if (!d || !moved) {
         document.body.classList.remove('dragging');
         // a click, not a drag — let onClick (hero targeting) handle it
@@ -1142,7 +1144,7 @@ export function Recruit() {
           setOverZone(null);
           // let the Mech keep crackling a beat past the merge, then settle on the green buff flash
           window.setTimeout(() => setMagTargetUid(null), 120);
-        }, el ? 280 : 0);
+        }, el ? getDragFeel().magSlideMs : 0);
         return;
       }
 
@@ -1159,7 +1161,7 @@ export function Recruit() {
           setSnapping(false);
           setDrag(null);
           setOverZone(null);
-        }, 110);
+        }, getDragFeel().snapMs);
       }
     };
     // Right-click while aiming a spell cancels it (snaps back to the hand).
@@ -2180,16 +2182,19 @@ export function Recruit() {
           style={{
             width: drag.w,
             height: drag.h,
-            // pivot scale/rotate/tilt around the exact grab point so the card stays under the cursor.
-            transformOrigin: `${drag.ox}px ${drag.oy}px`,
+            // pivot scale/rotate/tilt: `pivot` blends the grab point (0, keeps the card under the cursor)
+            // toward the card centre (1).
+            transformOrigin: `${drag.ox + (drag.w / 2 - drag.ox) * getDragFeel().pivot}px ${drag.oy + (drag.h / 2 - drag.oy) * getDragFeel().pivot}px`,
             // Normal drag: the rAF (above) owns `transform` — a weighted lag + tilt-toward-motion, written
             // straight to this node, so React re-renders don't fight it. Snap-back / magnet-slide use a CSS
-            // transition instead, so React drives those transforms here (matching function list).
+            // transition instead, so React drives those transforms here (matching function list); their
+            // durations come from the config too (overriding the CSS class duration).
             transform: magSlide
-              ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 0.06)
+              ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 0.06, 0)
               : snapping
-                ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 1.04)
+                ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, getDragFeel().scale, getDragFeel().staticRotate)
                 : undefined,
+            transitionDuration: magSlide ? `${getDragFeel().magSlideMs}ms` : snapping ? `${getDragFeel().snapMs}ms` : undefined,
             // accelerate + fade fully out as it shrinks in, so it vanishes cleanly into the Mech
             opacity: magSlide ? 0 : 1,
           }}

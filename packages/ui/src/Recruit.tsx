@@ -1574,10 +1574,16 @@ export function Recruit() {
       // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
       // settles snappy. Both durations are live-tunable via the DEV Flip tuner (flipConfig.ts, ms → seconds).
       const flipCfg = getFlipConfig();
-      Flip.from(flipStateRef.current, {
+      const _tl = Flip.from(flipStateRef.current, {
         duration: (dragRef.current?.active ? flipCfg.dragMs : flipCfg.commitMs) / 1000,
         ease: 'power2.out',
       });
+      // DEV: ground-truth readout — did the Flip fire, and did any card actually MOVE? `moved` = number of
+      // tweens GSAP created (0 = nothing moved → no slide to see). Trigger the shop action and read the log.
+      if (import.meta.env.DEV) {
+        const moved = _tl.getChildren(false, true, false).length;
+        console.log('[flip]', { dragging: !!dragRef.current?.active, moved, durMs: Math.round(_tl.duration() * 1000), key: flipKey.slice(-48) });
+      }
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);

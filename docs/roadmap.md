@@ -51,18 +51,13 @@ look because the engine already produces the data.
   `serialize`/`deserialize`. Store seam: `savedRun` + `continueRun` in `store.ts`. **Next:** A4
   (post-combat summary) — the carry-back data is already on `CombatResult`.
 
-### A4. Post-combat summary — **data already carried**
-- **Goal:** after each fight, explain *what happened and what changed permanently* — not what to buy next.
-- **Why:** reflection, not autopilot. Tells luck from a deserved result (the odds panel +
-  `avgLossDamage` already does part of this).
-- **Touches:** the carry-back channels are **already on `CombatResult`** — `playerSpellPower`,
-  `playerMaxGoldGain`, `playerImpBuffGain`/`playerFodderBuffGain`, `playerFodderGrants`,
-  `playerUndeadBuyAtkGain`, engrave `permaGain`, `odds`/`avgLossDamage`, cards-to-hand. This is a
-  **presentation pass** over existing data. Sections: Result (W/L/draw + record + Resolve Δ + course
-  progress), **Permanent Gains** (the carry-backs — the most important section), Major Triggers
-  (shouts/echoes/spells/summons/attachments/overflow counts), Standout Unit, optional gentle Risk Signals.
-- **Size:** M. **Depends:** A1. **Done-when:** the post-combat screen shows the permanent gains + a
-  standout unit, with no next-shop hints.
+### A4. Post-combat summary — ✅ **shipped 2026-06-30** (→ devlog)
+- The post-combat overlay ("Combat Summary", via the **Summary** button) leads with a **Gains** tab — the
+  permanent value the fight left you with, mapped from the `CombatResult` carry-backs by `combatGains.ts`
+  (spell power, max Gold, Undead Attack, Imp/Fodder buffs, per-card enchants, kept/Engraved stats, Fodder →
+  next tavern, free rerolls, cards-to-hand). Keeps the Procs (major triggers) + Log + odds-bar. Unit-tested.
+- **Deferred to a follow-up:** the "Standout Unit" + "Risk Signals" sections (need per-minion damage
+  derivation, not currently on `CombatResult`). **Next:** A5 (build-tag classifier — feeds A6 + A7).
 
 ### A5. Build-tag classifier — **pulled forward (feeds A6 + A7)**
 - **Goal:** a pure function that reads a final board + run history and emits tags: *Spell Engine, Fodder

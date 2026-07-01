@@ -1776,7 +1776,7 @@ export function Recruit() {
         el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
         window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
       }
-      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.5); // +50% — a more noticeable drop cloud
+      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1, 1.5); // original size, +50% denser cloud
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
   };
 

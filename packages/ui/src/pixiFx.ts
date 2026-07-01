@@ -610,12 +610,13 @@ class FxController {
    * alpha so it stays subtle. The caller raises the landed card above the FX layer for the duration,
    * so the dust reads as escaping out from *under* the card on every side. `scale` (default 1) inflates the
    * whole plume — both the ring spread and the puff sizes — for a bigger billow (taunt deploy passes >1).
+   * `density` (default 1) multiplies the puff COUNT for a thicker cloud without changing its size.
    */
-  dust(cx: number, cy: number, w: number, h: number, scale = 1): void {
+  dust(cx: number, cy: number, w: number, h: number, scale = 1, density = 1): void {
     if (!this.ready) return;
     const halfW = w * 0.5 * scale;
     const halfH = h * 0.5 * scale;
-    const puffs = 12;
+    const puffs = Math.max(1, Math.round(12 * density));
     for (let i = 0; i < puffs; i++) {
       const ang = (i / puffs) * Math.PI * 2 + (Math.random() - 0.5) * 0.4; // around the ring
       const dx = Math.cos(ang);

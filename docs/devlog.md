@@ -33,8 +33,9 @@ CSS 3D transforms on the DOM card, not a Pixi mesh, since the card is composed D
   `scale` (hold size), `staticRotate` (angle while held), `threshold` (click→drag px), `snapMs` (snap-back),
   `magSlideMs` (magnet-slide). Defaults are deliberately *slight*: follow 0.4, tiltPerPx 0.16, tiltMax 6°,
   perspective 800, scale 1.04. snap/magslide durations are pushed to the CSS transition inline so they tune live.
-- **Bigger drop cloud.** The dry-dirt dust puff kicked up when a card is placed/moved on the board is +50%
-  (`dust(..., 1.5)` in `puffOnBoard`) — a more noticeable landing.
+- **Denser drop cloud.** The dry-dirt dust puff kicked up when a card is placed/moved on the board keeps its
+  original size but is +50% DENSER — `dust()` gained a `density` arg (multiplies the puff count, not the size);
+  `puffOnBoard` passes `density 1.5` (12 → 18 puffs) so the landing reads more without ballooning.
 
 **Files:** `dragFeel.ts` (new — dials), `DragTuner.tsx` (new — DEV tuner), `Recruit.tsx` (motion rAF +
 `dragTransform` helper + JSX hand-off), `Game.tsx` (mount tuner), `styles.css` (tuner button).

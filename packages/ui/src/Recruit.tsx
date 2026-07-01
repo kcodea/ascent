@@ -1573,11 +1573,10 @@ export function Recruit() {
       const flipCfg = getFlipConfig();
       const dragging = dragRef.current?.active ?? false;
       if (dragging) {
-        // The PRE-EMPTIVE slide: as the drag moves, the row opens/closes the drop slot and the cards glide to
-        // make room. This is the animation you watch. The flip re-fires every frame as the gap tracks the
-        // cursor; the cards' CSS `transition: transform` is off for the whole drag (body.dragging rule in
-        // styles.css), so GSAP animates the slide cleanly without per-frame thrash.
-        Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
+        // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
+        // to make room. dragMs is the slide duration for that boundary crossing.
+        const _tl = Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
+        if (import.meta.env.DEV) console.log('[flip DRAG]', { moved: _tl.getChildren(false, true, false).length, durMs: Math.round(_tl.duration() * 1000), key: flipKey });
       } else if (flipCfg.commitMs > 0) {
         // A COMMITTED move with NO drag (a summoned token, an effect repositioning) — opt-in via commitMs > 0.
         // After a drag-DROP the cards already slid into place during the drag, so the default (commitMs 0) snaps

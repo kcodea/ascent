@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 11)
 
+### feat: Career page redesign — stats bar + Profile / Match History / Insights columns
+
+- **Reworked the Career overlay** (`Career.tsx`) from a flat list into the requested three-column layout:
+  - **Top stats bar** — Runs · Best Run (record of the highest-win run) · Avg Wins · Win Rate.
+  - **Left Profile Card** — a big initial avatar (falls back to the anvil icon), the account name, an
+    **"Unranked"** placeholder pill (no Level/XP — those wait for a real rating system, per the owner), and a
+    Completed / Flawless / Streak mini-stat strip.
+  - **Center Recent Match History** — the match cards are now **click-to-expand** (newest starts open):
+    collapsed shows hero · record · line verdict · tags; expanded reveals the run-stat line (triples · gold ·
+    APT · cards · MVP · most-mechanic · strongest) **and** the final warband. A chevron rotates on toggle.
+  - **Right Insights rail** — Favorite Hero, Favorite Tribe, Favorite Mechanic, Win Rate, Current Streak.
+  - The **By hero** rollup stays below, full-width. Columns stack under 900px.
+- **`careerStats` gains `winRate` (scored wins / all scored rounds, %), `streak` (consecutive newest runs
+  that met their line), and `bestRun` ({wins,losses} of the highest-win run).** Pure; unit-tested (win rate,
+  best run, current streak, streak-breaks-at-newest-miss + the empty-return shape).
+- **Verified:** 434 tests green; typecheck/lint/build green. Live: seeded a varied 4-run history → the stats
+  bar (4 · 12–3 · 9.5 · 63%), profile card, expandable cards (warband + stats render on expand, chevron
+  rotates), and insights (Warden / Beast / Start of Combat / 63% / 2 on line) all render correctly.
+
 ### feat: combat-contribution tracking — MVP minion + most-triggered mechanic
 
 - **New `packages/sim/src/contribution.ts`** — pure helpers that walk a settled combat's event log (+ its

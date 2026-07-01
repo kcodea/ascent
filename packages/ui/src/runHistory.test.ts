@@ -40,7 +40,7 @@ describe('careerStats (A7)', () => {
   });
 
   it('returns zeros for an empty history', () => {
-    expect(careerStats([])).toMatchObject({ runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, topTribes: [], favoriteMechanic: null, perHero: [] });
+    expect(careerStats([])).toMatchObject({ runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, winRate: 0, streak: 0, bestRun: null, topTribes: [], favoriteMechanic: null, perHero: [] });
   });
 
   it('picks the favorite mechanic (most common per-run top mechanic)', () => {
@@ -50,6 +50,15 @@ describe('careerStats (A7)', () => {
       entry('warden', 9, true, { topMechanic: { name: 'Summon', count: 4 } }),
     ]);
     expect(s.favoriteMechanic).toBe('Echo');
+  });
+
+  it('breaks the current streak at the newest run that missed its line', () => {
+    const s = careerStats([
+      entry('rohan', 5, false, { lineStatus: 'missed' }), // newest — breaks the streak immediately
+      entry('rohan', 10, true, { lineStatus: 'covered' }),
+      entry('rohan', 12, true, { lineStatus: 'flawless' }),
+    ]);
+    expect(s.streak).toBe(0);
   });
 
   it('aggregates overall + per-hero + run stats, sorted by runs', () => {
@@ -66,6 +75,9 @@ describe('careerStats (A7)', () => {
     expect(s.triples).toBe(6);
     expect(s.avgGold).toBe(80); // (100+50+90)/3
     expect(s.avgApt).toBe(5); // (6+4+5)/3
+    expect(s.winRate).toBe(60); // 27 wins / 45 scored rounds
+    expect(s.bestRun).toEqual({ wins: 11, losses: 4 }); // the highest-win run
+    expect(s.streak).toBe(3); // all three met their line (flawless/covered/covered)
     expect(s.topTribes[0]).toEqual({ tribe: 'beast', count: 2 });
     expect(s.perHero[0]).toMatchObject({ heroId: 'rohan', runs: 2, bestWins: 11, avgWins: 9, completions: 1 });
   });

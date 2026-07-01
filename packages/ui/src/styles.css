@@ -1676,6 +1676,53 @@ svg { width: 18px; height: 18px; }
 .carverdict.missed, .carverdict.failed { background: #a33; }
 .cartags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 
+/* Career layout (redesign) — a stats bar over three columns: Profile Card · Match History · Insights. */
+.carbar { margin-bottom: 4px; }
+.carcols { display: grid; grid-template-columns: 232px minmax(0, 1fr) 232px; gap: 16px; align-items: start; margin-top: 10px; }
+.carcard { background: rgba(20, 30, 50, 0.5); border: 1.5px solid rgba(196, 160, 92, 0.35); border-radius: 16px; padding: 6px 16px 16px; display: flex; flex-direction: column; gap: 10px; position: sticky; top: 6px; }
+.carcard .carsec { margin: 8px 0 2px; }
+
+/* Left — Profile Card */
+.carprofilecard { align-items: center; text-align: center; }
+.caravatar { width: 84px; height: 84px; border-radius: 50%; margin: 4px auto 2px; display: grid; place-items: center; font-family: 'Outfit'; font-weight: 900; font-size: 38px; color: #1a1208; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 2px solid rgba(255, 255, 255, 0.35); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+.caravatar svg { width: 42px; height: 42px; color: #1a1208; }
+.carpname { font-family: 'Outfit'; font-weight: 900; font-size: 20px; color: #fff; }
+.carrank { align-self: center; padding: 4px 16px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); font-family: 'Outfit'; font-weight: 800; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.carprofmeta { display: flex; width: 100%; gap: 8px; margin-top: 6px; }
+.carprofmeta > div { flex: 1; display: flex; flex-direction: column; gap: 1px; padding: 8px 4px; border-radius: 10px; background: rgba(0, 0, 0, 0.22); }
+.carprofmeta b { font-family: 'Outfit'; font-weight: 900; font-size: 19px; color: #fff; font-variant-numeric: tabular-nums; }
+.carprofmeta span { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+
+/* Center — expandable match cards */
+.carcenter { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.carcenter .carsec { margin-top: 0; }
+.carmatch { padding: 0; overflow: hidden; transition: border-color 0.15s ease; }
+.carmatch.open { border-color: rgba(196, 160, 92, 0.55); }
+.carmatch-head { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 14px 18px; background: none; border: none; color: inherit; font: inherit; }
+.carmatch-head:hover { background: rgba(255, 255, 255, 0.04); }
+.carmatch-head .lbinfo { flex: 1; min-width: 0; }
+.carchev { flex: none; font-size: 15px; color: rgba(255, 255, 255, 0.5); transition: transform 0.18s ease; transform: rotate(-90deg); }
+.carchev.open { transform: rotate(0deg); }
+.carmatch-body { padding: 0 18px 16px; }
+.carmatchstats { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 0 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-family: 'Outfit'; font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
+.carmatchstats b { color: #fff; font-weight: 800; }
+
+/* Right — Insights rail */
+.carinsights { gap: 2px; }
+.carinsight { display: flex; align-items: center; gap: 11px; padding: 9px 2px; }
+.carinsight + .carinsight { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.ci-ico { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
+.ci-ico svg { width: 18px; height: 18px; }
+.ci-text { display: flex; flex-direction: column; min-width: 0; }
+.ci-l { font-family: 'Outfit'; font-weight: 700; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.ci-v { font-family: 'Outfit'; font-weight: 800; font-size: 15px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Stack the three columns on narrow viewports. */
+@media (max-width: 900px) {
+  .carcols { grid-template-columns: 1fr; }
+  .carcard { position: static; }
+}
+
 /* ── Compendium (Tab) — a filterable codex of minions + spells. Blurred overlay styled like an open tome:
    tier filters across the top, tribe/Spells filters down the left, a single scrolling gallery. ── */
 .book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(26, 16, 6, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }

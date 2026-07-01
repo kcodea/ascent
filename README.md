@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Career page redesign** — a stats bar (runs · best run · avg wins · win rate) over three columns: a
+  **Profile Card** (avatar · name · "Unranked" placeholder), the **Recent Match History** (click-to-expand
+  cards with stats + final warband), and an **Insights** rail (favorite hero / tribe / mechanic · win rate ·
+  streak).
 - **Combat-contribution tracking** — the post-run summary now names your **MVP minion** (most damage dealt)
   and **most-triggered mechanic**, and the Career screen shows your **favorite mechanic**. Damage is
   attributed from the combat log (retaliation-aware), with no change to the pure `simulate()`.

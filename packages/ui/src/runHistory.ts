@@ -124,23 +124,31 @@ export interface CareerStats {
   triples: number; // total triples across all runs
   avgGold: number; // avg Gold spent per run
   avgApt: number; // avg actions per round
+  winRate: number; // scored wins / all scored rounds, as a 0–100 integer percent
+  streak: number; // current run streak (from newest) of runs that met their line (covered+)
+  bestRun: { wins: number; losses: number } | null; // record of the highest-win run
   topTribes: { tribe: Tribe; count: number }[]; // most-played final-board tribes
   favoriteMechanic: string | null; // the mechanic most often a run's most-triggered
   perHero: HeroStat[]; // sorted by runs desc
 }
 
+/** A run "met its line" (par) if it covered it or better — used for the current-streak insight. */
+const metLine = (s: LineStatus): boolean => s === 'flawless' || s === 'exceeded' || s === 'covered';
+
 /** Aggregate the match history into overall + per-hero career stats. Pure. */
 export function careerStats(entries: RunHistoryEntry[]): CareerStats {
   const runs = entries.length;
-  const empty: CareerStats = { runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, topTribes: [], favoriteMechanic: null, perHero: [] };
+  const empty: CareerStats = { runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, winRate: 0, streak: 0, bestRun: null, topTribes: [], favoriteMechanic: null, perHero: [] };
   if (runs === 0) return empty;
-  let bestWins = 0, totalWins = 0, completions = 0, flawless = 0, triples = 0, totalGold = 0, goldRuns = 0, totalApt = 0, aptRuns = 0;
+  let bestWins = 0, totalWins = 0, totalLosses = 0, completions = 0, flawless = 0, triples = 0, totalGold = 0, goldRuns = 0, totalApt = 0, aptRuns = 0;
+  let bestRun: { wins: number; losses: number } | null = null;
   const heroes = new Map<string, HeroStat>();
   const tribes = new Map<Tribe, number>();
   const mechanics = new Map<string, number>();
   for (const e of entries) {
-    bestWins = Math.max(bestWins, e.wins);
+    if (e.wins > bestWins || bestRun === null) { bestWins = Math.max(bestWins, e.wins); bestRun = { wins: e.wins, losses: e.losses }; }
     totalWins += e.wins;
+    totalLosses += e.losses;
     if (e.completed) completions++;
     if (e.lineStatus === 'flawless') flawless++;
     triples += e.triples ?? 0;
@@ -160,10 +168,16 @@ export function careerStats(entries: RunHistoryEntry[]): CareerStats {
     .sort((a, b) => b.runs - a.runs);
   const topTribes = [...tribes.entries()].map(([tribe, count]) => ({ tribe, count })).sort((a, b) => b.count - a.count).slice(0, 3);
   const favoriteMechanic = [...mechanics.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const scored = totalWins + totalLosses;
+  // Current streak: consecutive newest runs (entries are newest-first) that met their line.
+  let streak = 0;
+  for (const e of entries) { if (metLine(e.lineStatus)) streak++; else break; }
   return {
     runs, bestWins, avgWins: Math.round((totalWins / runs) * 10) / 10, completions, flawless, triples,
     avgGold: goldRuns ? Math.round(totalGold / goldRuns) : 0,
     avgApt: aptRuns ? Math.round((totalApt / aptRuns) * 10) / 10 : 0,
+    winRate: scored ? Math.round((totalWins / scored) * 100) : 0,
+    streak, bestRun,
     topTribes, favoriteMechanic, perHero,
   };
 }

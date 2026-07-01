@@ -84,8 +84,11 @@ look because the engine already produces the data.
 - ~~**MVP / standout unit** (A4 + A6)~~ — ✓ done (session 11): `packages/sim/src/contribution.ts` attributes
   player damage by cardId + counts mechanic procs from the combat log; end screen shows **MVP** + **Most**,
   Career shows favorite mechanic. Still deferred: biggest permanent-scaling source, Quest choices, Ancient.
-- **Run detail page** (A7) — open a history entry into round-by-round + full post-run summary + replay
-  (the entry already stores the final board; add the replay to enable re-derivation).
+- **Run detail page** (A7) — the Career match cards now **expand in place** (session 11) to show the run's
+  stat line + final warband; the remaining step is a full **round-by-round + replay** view (the entry already
+  stores the final board; add the `{seed,heroId,actions}` replay to enable re-derivation).
+- **Career "Rank"** — the Profile Card shows an **"Unranked"** placeholder (session 11); wire it to a real
+  rank/rating band when that system lands (pairs with the rating-driven par line above).
 - **Goal:** runs stop disappearing. A career surface with: current rating, best record, average wins, total
   runs, recent runs, **per-hero stats**, rating Δ per run, final-board preview, build tags. Match entry e.g.
   *"Rohan · 11–4 · Line 9 · +18 · Spell Engine / Gilded Carry / Flurry Finish."*

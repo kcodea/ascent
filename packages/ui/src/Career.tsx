@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { getHero, type BoardMinion, type LineStatus, type Tribe } from '@game/sim';
 import { Card, type CardView } from './Card';
@@ -26,21 +26,46 @@ const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
 };
 
+/** One row in the right-hand Insights rail — an icon + label + value. */
+function Insight({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div className="carinsight">
+      <span className="ci-ico"><Icon name={icon} /></span>
+      <div className="ci-text">
+        <span className="ci-l">{label}</span>
+        <span className="ci-v">{value}</span>
+      </div>
+    </div>
+  );
+}
+
 /**
- * Career (A7) — a full-page overlay of your LOCAL match history (persisted in `runHistory.ts`): a profile
- * strip (runs / best / avg / completed), per-hero stats, and the run list (record · line verdict · tags ·
- * final warband). Read-only; the story of your climbs. Rating is intentionally absent until the rating
- * system lands. Opened by the title's Career button; self-gates on `showCareer`.
+ * Career (A7) — a full-page overlay of your LOCAL match history (persisted in `runHistory.ts`), laid out as
+ * a **stats bar** (runs · best run · avg wins · win rate) over three columns: a **Profile Card** (avatar,
+ * name, an "Unranked" placeholder until the rating system lands), the **Recent Match History** (large
+ * click-to-expand cards), and an **Insights** rail (favorite hero / tribe / mechanic, win rate, streak).
+ * Read-only; the story of your climbs. Opened by the title's Career button; self-gates on `showCareer`.
  */
 export function Career() {
   const show = useGame((s) => s.showCareer);
   const close = useGame((s) => s.closeCareer);
+  const playerName = useGame((s) => s.playerName);
   // Load once per open (localStorage is synchronous + cheap; `show` gates the read).
   const entries = useMemo(() => (show ? loadRunHistory() : []), [show]);
   const stats = useMemo(() => careerStats(entries), [entries]);
+  const [open, setOpen] = useState<Set<number>>(() => new Set([0])); // newest run starts expanded
   if (!show) return null;
 
   const back = (): void => { sfx.pulse(); close(); };
+  const toggle = (i: number): void => {
+    sfx.pulse();
+    setOpen((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
+  };
+
+  const favHero = stats.perHero[0];
+  const favHeroName = favHero ? getHero(favHero.heroId).name : '—';
+  const favTribe = stats.topTribes[0] ? TRIBE_LABEL[stats.topTribes[0].tribe] : '—';
+  const avatarChar = (playerName.trim()[0] ?? '').toUpperCase();
 
   return (
     <div className="lbpage">
@@ -60,24 +85,86 @@ export function Career() {
           <div className="lbempty">No runs yet — play a run to start your career.</div>
         ) : (
           <>
-            <div className="carprofile">
+            <div className="carprofile carbar">
               <div className="carstat"><span className="cs-v">{stats.runs}</span><span className="cs-l">Runs</span></div>
-              <div className="carstat"><span className="cs-v">{stats.bestWins}</span><span className="cs-l">Best wins</span></div>
-              <div className="carstat"><span className="cs-v">{stats.avgWins}</span><span className="cs-l">Avg wins</span></div>
-              <div className="carstat"><span className="cs-v">{stats.completions}</span><span className="cs-l">Completed</span></div>
-              <div className="carstat"><span className="cs-v">{stats.flawless}</span><span className="cs-l">Flawless</span></div>
-              <div className="carstat"><span className="cs-v">{stats.triples}</span><span className="cs-l">Triples</span></div>
-              <div className="carstat"><span className="cs-v">{stats.avgGold}</span><span className="cs-l">Avg gold</span></div>
-              <div className="carstat"><span className="cs-v">{stats.avgApt}</span><span className="cs-l">Avg APT</span></div>
+              <div className="carstat"><span className="cs-v">{stats.bestRun ? `${stats.bestRun.wins}–${stats.bestRun.losses}` : '—'}</span><span className="cs-l">Best Run</span></div>
+              <div className="carstat"><span className="cs-v">{stats.avgWins}</span><span className="cs-l">Avg Wins</span></div>
+              <div className="carstat"><span className="cs-v">{stats.winRate}%</span><span className="cs-l">Win Rate</span></div>
             </div>
 
-            {(stats.topTribes.length > 0 || stats.favoriteMechanic) && (
-              <div className="cartop">
-                {stats.topTribes.length > 0 && <>Top tribes: {stats.topTribes.map((t) => `${TRIBE_LABEL[t.tribe]} (${t.count})`).join(' · ')}</>}
-                {stats.topTribes.length > 0 && stats.favoriteMechanic ? ' · ' : ''}
-                {stats.favoriteMechanic && <>Favorite mechanic: {stats.favoriteMechanic}</>}
-              </div>
-            )}
+            <div className="carcols">
+              {/* LEFT — Profile Card */}
+              <aside className="carcard carprofilecard">
+                <div className="carsec">Profile</div>
+                <div className="caravatar">{avatarChar || <Icon name="anvil" />}</div>
+                <div className="carpname">{playerName || 'Unnamed Climber'}</div>
+                <div className="carrank">Unranked</div>
+                <div className="carprofmeta">
+                  <div><b>{stats.completions}</b><span>Completed</span></div>
+                  <div><b>{stats.flawless}</b><span>Flawless</span></div>
+                  <div><b>{stats.streak}</b><span>Streak</span></div>
+                </div>
+              </aside>
+
+              {/* CENTER — Recent Match History (expandable cards) */}
+              <section className="carcenter">
+                <div className="carsec">Recent Match History · last {Math.min(25, entries.length)}</div>
+                {entries.slice(0, 25).map((e, i) => {
+                  const expanded = open.has(i);
+                  return (
+                    <div className={`lbentry carmatch${expanded ? ' open' : ''}`} key={i}>
+                      <button className="carmatch-head" onClick={() => toggle(i)}>
+                        <div className="lbportrait">
+                          {heroArt(e.heroId) ? <img src={heroArt(e.heroId)} alt={getHero(e.heroId).name} draggable={false} /> : <Icon name="anvil" />}
+                        </div>
+                        <div className="lbinfo">
+                          <div className="lbname">
+                            {getHero(e.heroId).name}
+                            <span className={`carrec ${e.completed ? 'won' : 'lost'}`}>{e.wins}–{e.losses}</span>
+                            <span className={`carverdict ${e.lineStatus}`}>Line {e.line} · {VERDICT[e.lineStatus]}</span>
+                          </div>
+                          <div className="lbmeta">
+                            {e.completed ? 'Course complete' : `Fell on round ${e.wave}`}{e.date ? ` · ${e.date}` : ''}
+                          </div>
+                          {e.tags.length > 0 && (
+                            <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}</span>)}</div>
+                          )}
+                        </div>
+                        <span className={`carchev${expanded ? ' open' : ''}`} aria-hidden="true">▾</span>
+                      </button>
+                      {expanded && (
+                        <div className="carmatch-body">
+                          <div className="carmatchstats">
+                            {e.triples ? <span><b>{e.triples}</b> triples</span> : null}
+                            {e.goldSpent !== undefined && <span><b>{e.goldSpent}</b> gold</span>}
+                            {e.apt !== undefined && <span><b>{e.apt}</b> APT</span>}
+                            {e.cardsPlayed !== undefined && <span><b>{e.cardsPlayed}</b> cards</span>}
+                            {e.mvp && <span>MVP: <b>{e.mvp.name}</b> ({e.mvp.damage})</span>}
+                            {e.topMechanic && <span>Most: <b>{e.topMechanic.name}</b> ({e.topMechanic.count})</span>}
+                            {e.strongest && <span>Strongest: <b>{e.strongest.name}</b> {e.strongest.attack}/{e.strongest.health}</span>}
+                          </div>
+                          {e.board && e.board.minions.length > 0 && (
+                            <div className="lbwarband">
+                              {e.board.minions.map((m, j) => <Card key={j} card={cardViewOf(m)} suppressPop />)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
+
+              {/* RIGHT — Insights */}
+              <aside className="carcard carinsights">
+                <div className="carsec">Insights</div>
+                <Insight icon="crown" label="Favorite Hero" value={favHeroName} />
+                <Insight icon="paw" label="Favorite Tribe" value={favTribe} />
+                <Insight icon="sc" label="Favorite Mechanic" value={stats.favoriteMechanic ?? '—'} />
+                <Insight icon="up" label="Win Rate" value={`${stats.winRate}%`} />
+                <Insight icon="star" label="Current Streak" value={stats.streak > 0 ? `${stats.streak} on line` : '—'} />
+              </aside>
+            </div>
 
             {stats.perHero.length > 0 && (
               <div className="carheroes">
@@ -95,38 +182,6 @@ export function Career() {
                 </div>
               </div>
             )}
-
-            <div className="carsec">Match history · last {Math.min(25, entries.length)}</div>
-            {entries.slice(0, 25).map((e, i) => (
-              <div className="lbentry" key={i}>
-                <div className="lbentry-head">
-                  <div className="lbportrait">
-                    {heroArt(e.heroId) ? <img src={heroArt(e.heroId)} alt={getHero(e.heroId).name} draggable={false} /> : <Icon name="anvil" />}
-                  </div>
-                  <div className="lbinfo">
-                    <div className="lbname">
-                      {getHero(e.heroId).name}
-                      <span className={`carrec ${e.completed ? 'won' : 'lost'}`}>{e.wins}–{e.losses}</span>
-                      <span className={`carverdict ${e.lineStatus}`}>Line {e.line} · {VERDICT[e.lineStatus]}</span>
-                    </div>
-                    <div className="lbmeta">
-                      {e.completed ? 'Course complete' : `Fell on round ${e.wave}`}{e.date ? ` · ${e.date}` : ''}
-                      {e.triples ? ` · ${e.triples} triples` : ''}
-                      {e.goldSpent !== undefined ? ` · ${e.goldSpent} gold` : ''}
-                      {e.mvp ? ` · MVP: ${e.mvp.name}` : ''}
-                    </div>
-                    {e.tags.length > 0 && (
-                      <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}</span>)}</div>
-                    )}
-                  </div>
-                </div>
-                {e.board && e.board.minions.length > 0 && (
-                  <div className="lbwarband">
-                    {e.board.minions.map((m, j) => <Card key={j} card={cardViewOf(m)} suppressPop />)}
-                  </div>
-                )}
-              </div>
-            ))}
           </>
         )}
       </div>

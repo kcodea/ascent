@@ -5,17 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
-### feat: DEV tuner for the reposition slide speed
+### fix: warband/shop reposition actually slides (GSAP Flip vs CSS transition) + tuner
 
-The warband/shop GSAP Flip durations now read from a live config (`flipConfig.ts`): `dragMs` (the glide while a
-card is dragged across the row) + `commitMs` (the settle after a committed change). `FlipTuner.tsx` (the 🔀
-button, sixth in the DEV cluster) exposes both as sliders with hover defs, persisted to localStorage. Defaults
-dragMs 250, commitMs 180; `Flip.from` converts ms → seconds.
+**Root cause found.** `.card` carries `transition: transform 0.12s` (for hover/buff eases), but GSAP Flip
+animates the reposition slide VIA `transform` — so the CSS transition re-smoothed every frame GSAP set and
+fought the slide into looking like an instant snap. (A DEV probe confirmed it: the committed Flip *was* firing
+with `moved: 2` tweens over the tuned duration, yet nothing visibly moved.) Fix: kill the cards' `transition`
+for the duration of the Flip (`gsap.set(targets, { transition: 'none' })`), restore it on complete/interrupt.
 
-(A committed `absolute: true` Flip was tried to make non-drag repositions slide, and reverted: it didn't
-animate the repositions AND it made the board slide in from the right when a card was picked up. The committed
-reposition still snaps — root cause not yet found; the base Flip's committed path apparently produces no
-position delta for these actions.)
+The Flip durations also now read from a live config (`flipConfig.ts`): `dragMs` (drag-across glide) + `commitMs`
+(committed settle). `FlipTuner.tsx` (the 🔀 button, sixth in the DEV cluster) exposes both as sliders with hover
+defs, persisted to localStorage. Defaults dragMs 250, commitMs 180; `Flip.from` converts ms → seconds.
+
+(An `absolute: true` committed Flip was tried first and reverted — it didn't help and slid the board in from
+the right on card pickup. The real culprit was the CSS transition, above.)
 
 ### feat: board-art selector + dimming slider in Settings
 

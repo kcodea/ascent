@@ -1574,16 +1574,18 @@ export function Recruit() {
       // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
       // settles snappy. Both durations are live-tunable via the DEV Flip tuner (flipConfig.ts, ms → seconds).
       const flipCfg = getFlipConfig();
-      const _tl = Flip.from(flipStateRef.current, {
+      // The cards carry a CSS `transition: transform` (for hover/buff eases). GSAP Flip animates cards VIA
+      // `transform`, so that CSS transition re-smooths every frame GSAP sets and fights the slide into looking
+      // like an instant snap. Kill the transition on the flipped cards for the duration, then restore it.
+      const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+      gsap.set(targets, { transition: 'none' });
+      const restore = (): void => gsap.set(targets, { clearProps: 'transition' });
+      Flip.from(flipStateRef.current, {
         duration: (dragRef.current?.active ? flipCfg.dragMs : flipCfg.commitMs) / 1000,
         ease: 'power2.out',
+        onComplete: restore,
+        onInterrupt: restore,
       });
-      // DEV: ground-truth readout — did the Flip fire, and did any card actually MOVE? `moved` = number of
-      // tweens GSAP created (0 = nothing moved → no slide to see). Trigger the shop action and read the log.
-      if (import.meta.env.DEV) {
-        const moved = _tl.getChildren(false, true, false).length;
-        console.log('[flip]', { dragging: !!dragRef.current?.active, moved, durMs: Math.round(_tl.duration() * 1000), key: flipKey.slice(-48) });
-      }
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);

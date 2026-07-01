@@ -24,10 +24,15 @@ export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
   const openTitle = useGame((s) => s.openTitle);
   const contributed = useGame((s) => s.lastRunBoards);
+  const actions = useGame((s) => s.replayActions);
   const hero = getHero(run.heroId);
   const practice = run.mode === 'practice';
   // Build identity (A5/A6): the tags that describe what you built this run.
   const tags = practice ? [] : buildTags(run);
+  // Run stats (polish): main tribe, triples, gold spent, actions/round, and the biggest final-board minion.
+  const strongest = run.board.reduce<typeof run.board[number] | null>((b, m) => (!b || m.attack + m.health > b.attack + b.health ? m : b), null);
+  const apt = Math.round((actions.length / Math.max(1, run.wave)) * 10) / 10;
+  const cardsPlayed = actions.filter((a) => a.type === 'play').length;
   // Ascent: the score is the W–L record over the scored rounds (calibration rounds don't count).
   const rec = runRecord(run);
   // Practice has no calibration concept — count every round.
@@ -76,6 +81,16 @@ export function EndScreen({ won }: { won: boolean }) {
             {tags.map((t) => (
               <span className="endtag" key={t}>{t}</span>
             ))}
+          </div>
+        )}
+
+        {!practice && (
+          <div className="endstats" aria-label="Run stats">
+            <span className="endstat"><b>{run.triplesMade}</b> triples</span>
+            <span className="endstat"><b>{run.goldSpent}</b> gold spent</span>
+            <span className="endstat"><b>{apt}</b> actions/round</span>
+            <span className="endstat"><b>{cardsPlayed}</b> cards played</span>
+            {strongest && <span className="endstat">Strongest: <b>{CARD_INDEX[strongest.cardId]?.name ?? strongest.cardId}</b> {strongest.attack}/{strongest.health}</span>}
           </div>
         )}
 

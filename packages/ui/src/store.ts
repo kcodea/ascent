@@ -276,8 +276,12 @@ export const useGame = create<GameStore>((set, get) => ({
           void uploadBoards(fresh);
           const finalBoard = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
           const date = new Date().toISOString().slice(0, 10);
-          // A7: append this run to the local match history (win or loss) for the Career screen.
-          saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard }));
+          // A7: append this run to the local match history (win or loss) for the Career screen. APT + cards
+          // played come from the action log (the replay), which the run state itself doesn't track.
+          const actions = replay.actions;
+          const apt = Math.round((actions.length / Math.max(1, next.wave)) * 10) / 10;
+          const cardsPlayed = actions.filter((a) => a.type === 'play').length;
+          saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed }));
           if (won) {
             void uploadVictory({
               heroId: next.heroId, author, wave: next.wave,

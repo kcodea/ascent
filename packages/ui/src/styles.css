@@ -1467,6 +1467,9 @@ body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 /* Build identity (A6): the tags that describe what you built this run. */
 .endtags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 90vw; margin-top: 16px; }
 .endtag { font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, var(--card)); border: 1.5px solid color-mix(in srgb, var(--acc) 55%, transparent); padding: 6px 14px; border-radius: 999px; }
+/* Run stats row (polish): triples · gold · APT · cards · strongest. */
+.endstats { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin-top: 14px; font-family: 'Outfit'; font-weight: 600; font-size: 14px; color: var(--ink3); }
+.endstat b { font-weight: 900; color: var(--ink); }
 /* Run contributions — boards you added to the shared pool. */
 .endcontrib { margin-top: 12px; font-family: 'Outfit'; font-weight: 700; font-size: 14px; letter-spacing: 0.04em; color: var(--ink3); }
 .endpips { display: flex; flex-wrap: nowrap; gap: 9px; justify-content: center; max-width: 96vw; margin: 34px 0 8px; }
@@ -1654,6 +1657,7 @@ svg { width: 18px; height: 18px; }
 .carstat .cs-v { font-family: 'Outfit'; font-weight: 900; font-size: 30px; color: #fff; font-variant-numeric: tabular-nums; }
 .carstat .cs-l { font-family: 'Outfit'; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
 .carsec { font-family: 'Outfit'; font-weight: 900; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(236, 220, 178, 0.75); margin: 18px 0 4px; }
+.cartop { font-family: 'Outfit'; font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 8px; }
 .carherorows { display: flex; flex-direction: column; gap: 6px; }
 .carherorow { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px; background: rgba(20, 30, 50, 0.4); }
 .carhero-portrait { width: 40px; height: 40px; border-radius: 9px; overflow: hidden; flex: none; background: var(--bg2); display: grid; place-items: center; }

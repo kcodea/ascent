@@ -13,6 +13,7 @@ import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState
  *  for buys, rerolls, tier-ups and hero powers. */
 function spendGold(s: RunState, amount: number): void {
   s.embers -= amount;
+  s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
   applyGoldSpent(s, amount);
 }
 

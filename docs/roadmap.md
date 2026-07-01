@@ -72,7 +72,11 @@ look because the engine already produces the data.
   tracking not on `CombatResult` — same gap as A4). **Next:** A7 (career / match history) — the last spine
   piece and the big persistence one.
 
-### A7. Career page / match history — the persistence layer
+### A7. Career page / match history — the persistence layer *(part 1 ✅ shipped 2026-06-30)*
+- **Part 1 (done):** `runHistory.ts` — per-run entries persisted to `localStorage` on run-end (record, line
+  verdict, tags, completed?, tribes, contributions, final board), capped 50; `careerStats` rolls them up
+  (overall + per-hero). Wired into the store's deferred capture. **Part 2 (next):** the Career overlay UI
+  (the title's placeholder Career button) reading `loadRunHistory()` + `careerStats()`.
 - **Goal:** runs stop disappearing. A career surface with: current rating, best record, average wins, total
   runs, recent runs, **per-hero stats**, rating Δ per run, final-board preview, build tags. Match entry e.g.
   *"Rohan · 11–4 · Line 9 · +18 · Spell Engine / Gilded Carry / Flurry Finish."*

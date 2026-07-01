@@ -103,6 +103,13 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
   if (s.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
 
+  // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
+  // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
+  // minimized to read the board without any action invalidating the pending pick.
+  if ((s.discover || s.chooseOne || s.pendingTarget) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget') {
+    return state;
+  }
+
   switch (action.type) {
     case 'buy': {
       // The right-hand spell slot: pays its own (modifiable) cost, into the hand.

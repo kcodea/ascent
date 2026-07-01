@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: B2 — Discover minimize
+
+- A pending **Discover** can now be **minimized** to inspect your board/shop before choosing — a "–" button
+  on the panel collapses it to a floating **"Return to Discover · N options"** pill; the board is fully
+  visible + inspectable (hover / right-click), and restoring reopens the pick.
+- **Safety:** a new reducer guard blocks every other board action (buy / roll / play / sell / …) while a
+  modal recruit state is pending (Discover / Choose One / targeted Battlecry) — so inspecting can't
+  invalidate the pending pick. Only the resolving action (`discover`/`chooseOne`/`battlecryTarget`) passes.
+  The behind-card shield FX stay visible while minimized.
+- **Verified live:** opened a Discover → minimized (board visible, pill shown) → `roll` blocked (embers
+  unchanged) → restored → picked (hand grew). New reducer test; typecheck + lint + `npm test` (421) +
+  build:web green.
+
 ### feat: A7 (part 2) — Career screen — **Phase A spine complete**
 
 - The title's **Career** button (was a placeholder) now opens a full-page **Career** overlay

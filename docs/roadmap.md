@@ -104,11 +104,10 @@ look because the engine already produces the data.
 - **Touches:** the existing pointer-drag system + `heroArmed`/targeting line in the store/`Recruit.tsx`.
   **Size:** M. **Done-when:** a targeted power is cast by dragging from the power onto a valid target.
 
-### B2. Discover minimize
-- **Goal:** while a Discover is open, collapse it to inspect board/shop/hand before choosing; a small
-  "Return to Discover" control restores it. No board-invalidating actions while minimized.
-- **Touches:** the Discover overlay in `Recruit.tsx`. **Size:** S. **Done-when:** Discover can be minimized,
-  the board inspected, and the pick resumed.
+### B2. Discover minimize — ✅ **shipped 2026-06-30** (→ devlog)
+- A pending Discover minimizes to a "Return to Discover · N options" pill; the board is inspectable while
+  minimized. A reducer modal-guard blocks board actions (buy/roll/play/…) while any Discover / Choose One /
+  targeted Battlecry is pending, so inspecting can'''t invalidate the pick.
 
 ### B3. Keyword / terminology pass
 - **Goal:** a player-facing rename for identity: **Battlecry→Shout, Deathrattle→Echo, Golden→Gilded,

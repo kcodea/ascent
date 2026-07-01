@@ -1416,11 +1416,6 @@ body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
 .heroselect .eyebrow { font-family: 'Outfit'; font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
 .hstitle { font-family: 'Outfit'; font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
-.hsname { display: flex; align-items: center; gap: 12px; margin: 0 0 30px; }
-.hsname > span { font-family: 'Outfit'; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #d9cdb8; }
-.hsname input { font-family: 'Outfit'; font-weight: 800; font-size: 18px; color: #f6efe2; background: rgba(0, 0, 0, 0.28); border: 2px solid rgba(255, 255, 255, 0.22); border-radius: 11px; padding: 9px 15px; width: 230px; max-width: 60vw; outline: none; text-align: center; }
-.hsname input:focus { border-color: var(--acc); }
-.hsname input::placeholder { color: rgba(246, 239, 226, 0.42); }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
@@ -1491,8 +1486,8 @@ body:has(.titlescreen) .version { visibility: hidden; }
 /* The left menu column. */
 .titlemenu { position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }
-.titlelogo { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.titlelogoimg { width: clamp(130px, 15vw, 190px); height: auto; margin-left: -8px; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5)); }
+.titlelogo { display: flex; align-items: center; gap: 14px; }
+.titlelogo .crest { font-size: 62px; }
 .titleword { font-family: 'Outfit'; font-weight: 900; font-size: 86px; letter-spacing: 0.1em; color: #f4ecda; margin: 0;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), 0 0 40px rgba(120, 175, 255, 0.28); }
 

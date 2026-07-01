@@ -71,7 +71,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       <div className="titlemenu">
         <div className="titlelogo">
-          <img className="titlelogoimg" src="/transparentlogo.webp" alt="" />
+          <Crest />
           <h1 className="disp titleword">ASCENT</h1>
         </div>
 

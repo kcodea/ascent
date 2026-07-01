@@ -17,6 +17,9 @@ is already `position: relative`, so the absolute flip anchors correctly.
 Not verifiable in the headless preview (React doesn't re-render in a backgrounded pane) — needs a live browser
 window to confirm the slide + check shielded units' aura tracking during the animation.
 
+Also tuned the drag recentre: it now glides onto the cursor slowly (`recenter` 0.12, was ~0.9) and only
+begins after `recenterAfter` 10 px of drag (both new live dials in `dragFeel.ts` / the 🎴 tuner).
+
 A **Board Art** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) to compare the illustrated
 game-board backgrounds without a rebuild: a thumbnail grid (`BOARD_OPTIONS`, active tile ringed) plus a
 **Board dimming** slider. [Game.tsx](packages/ui/src/Game.tsx) owns both bits of state (persisted to

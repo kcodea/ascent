@@ -803,11 +803,13 @@ export function Recruit() {
       if (!d || reactDrivesDragRef.current) return; // snap/magslide → React+CSS own the transform
       const f = getDragFeel();
       const k = f.follow >= 1 ? 1 : 1 - Math.pow(1 - f.follow, dt / 16.667); // frame-rate-independent catch-up
-      // recentre the anchor from the grab point toward the card centre → the card slides to sit centred on the
-      // cursor as the drag begins (a hair quicker than the position catch-up so it settles centred promptly).
-      const kc = Math.min(1, k * 1.4);
-      m.ax += (d.w / 2 - m.ax) * kc;
-      m.ay += (d.h / 2 - m.ay) * kc;
+      // recentre the anchor from the grab point toward the card centre — but only once the pointer has dragged
+      // `recenterAfter` px from the grab point, and at its own (slower) `recenter` rate so the glide reads.
+      if (Math.hypot(d.x - d.startX, d.y - d.startY) >= f.recenterAfter) {
+        const kc = f.recenter >= 1 ? 1 : 1 - Math.pow(1 - f.recenter, dt / 16.667);
+        m.ax += (d.w / 2 - m.ax) * kc;
+        m.ay += (d.h / 2 - m.ay) * kc;
+      }
       const gx = d.x - m.rx;
       const gy = d.y - m.ry;
       m.rx += gx * k;

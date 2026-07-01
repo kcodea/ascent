@@ -201,6 +201,11 @@ look because the engine already produces the data.
 
 ## Standing backlog (carried over — unscheduled, behind the spine)
 
+**Board-art selector follow-up:** the Settings **Board Art** picker + dimming slider (shipped session 12)
+currently shows to players; the board defaults to **board8 @ 15% dimming**. Decide: keep it player-facing or
+DEV-gate it (`import.meta.env.DEV`), and re-confirm the default board once the final board art is locked.
+
+
 **Meta / progression (PvE):** unlocks (cards/heroes gated by a persisted profile — heroes are already
 data), ascension modifiers (difficulty knob), daily seeds (engine threads one seed; seed the hero-choice
 roll, which still uses `Math.random` in the UI), combat replay surface (`serialize`/`deserialize` exist).

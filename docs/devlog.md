@@ -13,13 +13,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   video sits above it (`z-index:0`, `object-fit:cover`); the **left vignette moved to `.titlescreen::before`**
   (`z-index:1`) so it tints the video the same way it tinted the still; the menu / account / version sit at
   `z-index:2`. Hidden under `prefers-reduced-motion` (falls back to the webp base).
-- **Asset pending:** the source `homescreen.mp4` is 115 MB — unshippable. Per the owner, a compressed loop
-  (muted, ≤10 MB, 1080p/720p H.264, seamless) will be dropped at `apps/web/public/homescreen.mp4`; the code
-  degrades to the poster until then. Only the **title** ("main menu area") gets the video; Career/Leaderboard
-  keep the lighter static webp.
-- **Verified:** typecheck/lint/build green. Live: the `<video>` renders with the right attrs
-  (autoplay/loop/muted/playsInline, poster `/homescreen.webp`) and `networkState 3` (no source yet) → the
-  poster shows, so the title is visually identical to before pending the asset.
+- **Asset wired:** `apps/web/public/homescreen.mp4` — a ~31 MB, 28.7s, 3440×1440 (ultrawide) H.264 loop
+  (compressed down from a 115 MB source). `object-fit:cover` fills the viewport and crops the ultrawide
+  frame. Only the **title** ("main menu area") gets the video; Career/Leaderboard keep the lighter static
+  webp. *(Note: 31 MB is above the ~10 MB target — fine for now, worth a further compression pass before a
+  size-sensitive distribution.)*
+- **Verified:** typecheck/lint/build green. Live: the `<video>` plays (`readyState 4`, advancing, looping,
+  `currentSrc` = homescreen.mp4) full-bleed with the menu legible over the vignette; screenshot confirmed.
 
 ### feat: combat-contribution tracking — MVP minion + most-triggered mechanic
 

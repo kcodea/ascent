@@ -813,10 +813,10 @@ export function Recruit() {
       m.rx += gx * k;
       m.ry += gy * k;
       const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
-      // Each axis's lean = a DIRECTIONAL part (signed gap → mirrors direction) + a MAGNITUDE part (|gap| → same
-      // both ways), each with its own live coefficient, so the per-quadrant feel can be dialed in the tuner.
-      const rotY = clamp(f.tiltPerPx * (f.hDir * gx + f.hAbs * Math.abs(gx)));
-      const rotX = clamp(f.tiltPerPx * (f.vDir * gy + f.vAbs * Math.abs(gy)));
+      // Lean INTO the drag direction: each axis tilts by its signed lag-gap (cursor − card). Direction-driven,
+      // so left/right (and up/down) lean opposite ways; when the cursor stops the gap closes and it sits flat.
+      const rotY = clamp(f.tiltPerPx * f.hLean * gx); // horizontal lean
+      const rotX = clamp(f.tiltPerPx * f.vLean * gy); // vertical lean
       el.style.transformOrigin = `${m.ax}px ${m.ay}px`; // pivot tilt/scale around the (recentring) anchor
       el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, rotX, rotY, f.scale, f.staticRotate);
     };

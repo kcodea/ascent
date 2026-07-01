@@ -13,10 +13,8 @@ const LABELS: Record<keyof DragFeel, string> = {
   follow: 'lag (lower=heavier)',
   tiltPerPx: 'tilt lean',
   tiltMax: 'tilt cap',
-  hDir: 'horiz · direction',
-  hAbs: 'horiz · speed',
-  vDir: 'vert · direction',
-  vAbs: 'vert · speed',
+  hLean: 'horiz lean (±flip)',
+  vLean: 'vert lean (±flip)',
   perspective: 'perspective',
   scale: 'hold scale',
   staticRotate: 'static angle',
@@ -49,7 +47,9 @@ export function DragTuner() {
         <div className="sfxmix lunge dragfeel" ref={panelRef} style={panelStyle}>
           <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Drag Feel <span>dev · live · drag a card</span></div>
           {DRAG_KEYS.map((k) => {
-            const [min, max, step] = DRAG_RANGES[k];
+            const range = DRAG_RANGES[k];
+            if (!range) return null; // guard a transient HMR desync (keys vs ranges) so it can't blank the app
+            const [min, max, step] = range;
             return (
               <div className="sfxmix-row" key={k}>
                 <span className="sfxmix-name" title={DRAG_DESC[k]}>{LABELS[k]}</span>

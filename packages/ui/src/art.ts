@@ -68,6 +68,19 @@ const POWER_ART = indexArt(
 );
 export const heroPowerArt = (heroId: string): string | undefined => POWER_ART[heroId];
 
+/** Avatar picker: every bundled art the player can choose as their profile avatar, namespaced by pool
+ *  (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`) so ids never collide across pools. `key` is the raw
+ *  glob key (cardId / heroId), used to resolve a display name from CARD_INDEX / HEROES in the picker. */
+export interface AvatarArt { id: string; src: string; kind: 'hero' | 'minion' | 'power'; key: string; }
+export const AVATAR_ART: AvatarArt[] = [
+  ...Object.entries(HERO_ART).map(([key, src]): AvatarArt => ({ id: `hero:${key}`, src, kind: 'hero', key })),
+  ...Object.entries(MINION_ART).map(([key, src]): AvatarArt => ({ id: `minion:${key}`, src, kind: 'minion', key })),
+  ...Object.entries(POWER_ART).map(([key, src]): AvatarArt => ({ id: `power:${key}`, src, kind: 'power', key })),
+];
+const AVATAR_SRC = new Map(AVATAR_ART.map((a) => [a.id, a.src] as const));
+/** Resolve a stored avatar id (`kind:key`) to its art URL — undefined if unset or no longer bundled. */
+export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATAR_SRC.get(id) : undefined);
+
 /** Every bundled art URL (minions + heroes + powers), deduped — the warm-up set. */
 const ALL_ART_URLS: string[] = [
   ...new Set([...Object.values(MINION_ART), ...Object.values(HERO_ART), ...Object.values(POWER_ART)]),

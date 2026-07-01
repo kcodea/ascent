@@ -27,7 +27,7 @@ export const GameEventSchema = z.enum([
   'cast',
   'spellCast',
   'summonOverflow',
-  'onRoll',
+  'goldSpent',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -111,9 +111,10 @@ export const EffectFactoryIdSchema = z.enum([
   'onAllyAttackBuffAll',
   'onGainAttackBuffAll',
   'spellBuffTavern',
+  'spellBuffNextShop',
   'spellPendingSCBuff',
   'onAllyAttackCastGrowth',
-  'spellDemonConsumeTavern',
+  'spellDemonConsumeFodder',
   'deathrattleGrantRandomSpell',
   'onDamagedGrantRefresh',
   'summonBuffTribeImprove',
@@ -126,9 +127,12 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffUndeadAttack',
   'deathrattleGrantCardToHand',
   'battlecryBuffUndeadAttack',
-  'battlecryFreeRollsAndBuffShop',
-  'onRollConsumeShop',
+  'goldSpentBuffFodderImps',
+  'goldSpentMagnetize',
   'onKillBuffUndeadAttack',
+  'onKillBuffFodderImps',
+  'onDamagedGainAttack',
+  'rallyGrantMagnetic',
   'deathrattleBuffImps',
   'avengeBuffImps',
   'battlecryBonusGoldNextTurn',
@@ -141,6 +145,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellDisplace',
   'spellCopyRecent',
   'spellRefreshToSpells',
+  'battlecryTargetConsumeFodder',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -190,5 +195,14 @@ export const CardDefSchema = z.object({
   chooseOne: z
     .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }))
     .min(2)
+    .optional(),
+  discoverOnPlay: z
+    .object({
+      exactTier: z.number().int().positive().optional(),
+      tierOffset: z.number().int().optional(),
+      filter: z.enum(['battlecry', 'deathrattle']).optional(),
+      tribe: z.union([TribeSchema, z.literal('dominant')]).optional(),
+      topTierFirst: z.boolean().optional(),
+    })
     .optional(),
 });

@@ -65,6 +65,8 @@ export const TOKENS: CardDef[] = [
     // The displayed text is overridden in the UI to name the exact Tier (current + 1, capped) —
     // see `discoverSpellText` in Recruit. This is the fallback if that ever isn't applied.
     text: '**Discover** a minion from one Tier up.',
+    // Peek one tier above the tavern tier, biased to the top of the range — the golden reward's peek-up.
+    discoverOnPlay: { tierOffset: 1, topTierFirst: true },
     token: true,
   },
   {
@@ -87,7 +89,7 @@ export const TOKENS: CardDef[] = [
     id: 'taragosa',
     name: 'Taragosa',
     tribe: 'dragon',
-    tier: 2,
+    tier: 6,
     attack: 3,
     health: 3,
     keywords: ['EG'],
@@ -124,6 +126,20 @@ export const TOKENS: CardDef[] = [
     keywords: ['R'],
     effects: [],
     text: '**Reborn.**',
+    token: true,
+  },
+  {
+    // Wolves Den's Deathrattle summon — a 1/1 dual-type Undead/Beast body. Not in the shop.
+    id: 'cryptwolf',
+    name: 'Crypt Wolf',
+    tribe: 'undead',
+    tribe2: 'beast',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    text: 'A 1/1 Undead Beast.',
     token: true,
   },
   {

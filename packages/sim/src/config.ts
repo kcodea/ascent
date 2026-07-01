@@ -12,14 +12,19 @@ export const CONFIG = {
   // Resolve (HP)
   startResolve: 30,
 
-  // PvE win condition: WIN this many combats to clear the run. A loss costs Resolve but the climb
-  // continues, so wins ≤ waves fought — you only win the run on the 15th *won* combat, not on reaching
-  // wave 15 (the old bug ended a non-perfect run at wave 15 regardless of record). The natural failure
-  // is Resolve hitting 0; the per-wave stat scaling (`curve.statScalePerWave`) is the difficulty dial.
-  winsToWin: 15,
+  // Course structure (A1). A run plays a fixed course of `courseRounds` rounds. The first
+  // `calibrationRounds` are calibration: they still cost Resolve + run the economy, but do NOT count
+  // toward your record. The run ALWAYS completes the course unless Resolve hits 0 (the failure). Your
+  // final W–L record over the scored rounds is the score — see `runRecord`. The per-wave stat scaling
+  // (`curve.statScalePerWave`) is the difficulty dial.
+  calibrationRounds: 2,
+  courseRounds: 17, // 2 calibration + 15 scored
+  // Par / line (A2): the default target number of scored wins a run is graded against. Static for now
+  // (mid-tier); becomes rating-driven with the career system (new ~7 / mid ~9 / high ~11 / elite ~12+).
+  defaultLine: 9,
   // Wave horizon for the balance/curve tools (`npm run curve`) — the difficulty curve is reported over
-  // this many waves. NOT the win condition (see `winsToWin`); runs that lose some combats run longer.
-  maxWave: 15,
+  // the whole course.
+  maxWave: 17,
 
   // Shop
   minionCost: 3,

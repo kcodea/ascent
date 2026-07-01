@@ -336,22 +336,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Taurus — Start of Combat: grant Engraved (EG) to the adjacent minion(s) on self's own side, so they
-   *  keep whatever stats they gain this fight. Base engraves the minion to self's LEFT (the lower board
-   *  index); golden also engraves the one to its RIGHT. Granting EG to the *combat* Minion (not its run
-   *  board CardDef) is clone-safe: the keyword lasts only this fight, and `ctx.buff` then accrues that
-   *  minion's gains into `permaGain` → carried back by `playerPermaBuffs`. Taurus itself is not engraved.
-   *  No-op for a neighbor that already has EG, and for an absent neighbor (Taurus leftmost/rightmost). */
+  /** Taurus — Start of Combat: grant Engraved (EG) to BOTH adjacent minions on self's own side, so they
+   *  keep whatever stats they gain this fight. A GOLDEN Taurus additionally doubles those neighbors' combat
+   *  stat-gains (`gainMult = 2`). Granting EG to the *combat* Minion (not its run board CardDef) is
+   *  clone-safe: the keyword lasts only this fight, and `ctx.buff` then accrues that minion's gains into
+   *  `permaGain` → carried back by `playerPermaBuffs`. Taurus itself is not engraved. No-op for an absent
+   *  neighbor (Taurus leftmost/rightmost). */
   scEngraveNeighbor: (ctx, self, params) => {
     const board = ctx.boards[self.side];
     const i = board.indexOf(self);
     if (i < 0) return;
     const engrave = (m: Minion | undefined): boolean => {
-      if (!m || m.dead || m.health <= 0 || m.keywords.includes('EG')) return false;
-      m.keywords.push('EG'); // mutates the per-combat clone's keywords, never a shared CardDef
+      if (!m || m.dead || m.health <= 0) return false;
+      if (!m.keywords.includes('EG')) m.keywords.push('EG'); // mutates the per-combat clone, never a shared CardDef
+      if (self.golden) m.gainMult = 2; // golden: this neighbor's combat stat-gains are doubled
       return true;
     };
-    const did = [engrave(board[i - 1]), self.golden ? engrave(board[i + 1]) : false];
+    const did = [engrave(board[i - 1]), engrave(board[i + 1])];
     if (did.some(Boolean)) {
       ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} engraves the line` });
     }
@@ -391,13 +392,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side, self.uid);
   },
 
-  /** Deathrattle (Grave Knit): permanently buff a card type run-wide by +atk/+hp (golden doubles).
+  /** Deathrattle (Eternal Knight): permanently buff a card type run-wide by +atk/+hp (golden doubles).
    *  Carried back via `CombatResult.playerCardBuffs` (player-side only), then applied run-wide in
-   *  settleCombat (board / hand / future copies). Each death stacks; `cardId` defaults to self's. */
+   *  settleCombat (board / hand / future copies). Each death stacks; `cardId` defaults to self's.
+   *  Also immediately buffs any surviving copies of that card on the board right now so the aura is
+   *  real-time: 2× Eternal Knights alive → one dies → the survivor gains +3/+2 immediately. */
   deathrattleBuffCardTypeRunWide: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const cardId = str(params.cardId) || self.cardId;
-    ctx.grantCardBuff(cardId, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    ctx.grantCardBuff(cardId, a, h, self.side); // carry-back: run board / hand / future copies
+    // Real-time: buff every living copy of that card still on the board this combat.
+    for (const m of ctx.living(self.side)) {
+      if (m.cardId === cardId) ctx.buff(m, a, h, self.uid);
+    }
   },
 
   /** Deathrattle (Burial Imp): queue `count` Fodder (golden doubles) into your next tavern. Player-side
@@ -442,6 +451,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) ctx.buff(m, attack, health, self.uid);
   },
 
+  /** Mechanical Jouster — Rally: when THIS minion attacks, add a random Magnetic Mech to your hand after
+   *  combat (golden 2 per attack). Mirrors Junkyard Titan's grant pool, filtered to Mech magnetics; fires on
+   *  this minion's own attack (Windfury → per hit). */
+  rallyGrantMagnetic: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const count = num(params.count, 1) * mul(self);
+    const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && (c.tribe === 'mech' || c.tribe2 === 'mech') && !c.token && !c.spell);
+    if (pool.length === 0) return;
+    for (let i = 0; i < count; i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+  },
+
   /** Raptor — when ANOTHER friendly minion of `tribe` attacks, buff it (+atk/+hp) before its hit lands
    *  (onAttack is broadcast pre-damage). Excludes self — a support body, not a self-ramp. Golden doubles. */
   onFriendlyAttackBuffTribe: (ctx, self, params, payload) => {
@@ -452,16 +473,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(minion, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
   },
 
-  /** Crypt Drake — when ANY ally attacks (itself included), buff every living friend +mag/+mag, where mag
-   *  starts at `step` and improves by `step` every `every` ally attacks this combat (1–3: +2/+2, 4–6: +4/+4,
-   *  …). Per-combat counter on `self.attackSeen`. Golden doubles `step`. */
+  /** Crypt Drake — every `every` ally attacks this combat (itself included), buff every living friend a
+   *  FLAT +step/+step (no improvement). Per-combat counter on `self.attackSeen`. Golden doubles `step`. */
   onAllyAttackBuffAll: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion.side !== self.side) return; // any ally's attack (self included)
     self.attackSeen = (self.attackSeen ?? 0) + 1;
-    const every = Math.max(1, num(params.every, 3));
-    const improvements = Math.floor((self.attackSeen - 1) / every);
-    const mag = num(params.step, 2) * (1 + improvements) * mul(self);
+    const every = Math.max(1, num(params.every, 2));
+    if (self.attackSeen % every !== 0) return; // cadence: only proc on every Nth ally attack
+    const mag = num(params.step, 2) * mul(self); // flat buff — no improvement
     for (const m of ctx.living(self.side)) ctx.buff(m, mag, mag, self.uid);
   },
 
@@ -643,12 +663,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) grantShield(ctx, m);
   },
 
-  /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield. */
+  /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield (golden: TWO friends). */
   deathrattleGrantShield: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
-    if (pool.length === 0) return;
-    grantShield(ctx, ctx.rng.pick(pool));
+    const count = self.golden ? 2 : 1;
+    for (let i = 0; i < count; i++) {
+      const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
+      if (pool.length === 0) return;
+      grantShield(ctx, ctx.rng.pick(pool));
+    }
   },
 
   /** Shield Capacitor — when a friendly Shield breaks, give another friend a Shield. */
@@ -737,16 +760,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Thundering Abomination — when a summon on this side OVERFLOWS (board already full), buff all
-   *  living friendly minions of `tribe` by +atk/+hp. */
+   *  living friendly minions of `tribe` by +atk/+hp. With `engrave`, the grant is PERMANENT (recorded as
+   *  `permaGain` on each recipient so it carries back to the run board, like Flowing Monk's gift). */
   onSummonOverflowBuffTribe: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
     const tribe = str(params.tribe) as Tribe | '';
     const a = num(params.attack, 2) * mul(self);
     const h = num(params.health, 2) * mul(self);
+    const engrave = params.engrave === true;
     for (const m of ctx.living(self.side)) {
       if (tribe && m.tribe !== tribe && m.tribe2 !== tribe && !ctx.getCard(m.cardId)?.universalTribe) continue;
       ctx.buff(m, a, h, self.uid);
+      // Engraved overflow: carry the gift back to the run board (ctx.buff already does this for an EG
+      // recipient; record it here for everyone else, mirroring overflowBuffRandom).
+      if (engrave && !m.keywords.includes('EG')) {
+        m.permaGain = { attack: (m.permaGain?.attack ?? 0) + a, health: (m.permaGain?.health ?? 0) + h };
+      }
     }
   },
 
@@ -790,6 +820,35 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (!cardId) return;
     const count = num(params.count, 1) * mul(self);
     for (let i = 0; i < count; i++) ctx.grantToHand(cardId, self.side, self.uid);
+  },
+
+  /** Target Dummy — each time it takes damage (once per hit, regardless of amount), gain +`attack` Attack,
+   *  PERMANENTLY: the gain is recorded as `permaGain` so the wall keeps the Attack across the run (the dummy
+   *  isn't Engraved, so record it directly like Flowing Monk). Golden gains double per hit. */
+  onDamagedGainAttack: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const a = num(params.attack, 1) * mul(self);
+    if (a <= 0) return;
+    ctx.buff(self, a, 0, self.uid);
+    if (!self.keywords.includes('EG')) {
+      self.permaGain = { attack: (self.permaGain?.attack ?? 0) + a, health: self.permaGain?.health ?? 0 };
+    }
+  },
+
+  /** Commander Impala — when this kills an enemy, give your Fodder + Imps +atk/+hp PERMANENTLY (golden ×2).
+   *  Buffs the living Fodder/Imps now and raises BOTH run-wide buffs (carried back), exactly like Bane's
+   *  combat half. The onKill payload carries the killer as `attacker`. */
+  onKillBuffFodderImps: (ctx, self, params, payload) => {
+    const { attacker } = payload as { attacker?: Minion };
+    if (self !== attacker || self.dead) return;
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      const def = ctx.getCard(m.cardId);
+      if (def?.keywords.includes('FD') || def?.imp) ctx.buff(m, a, h, self.uid);
+    }
+    ctx.grantImpBuff(a, h, self.side);
+    ctx.grantFodderBuff(a, h, self.side);
   },
 
   /** Karthus — when this kills an enemy, give your Undead +`attack` permanently (golden ×2).

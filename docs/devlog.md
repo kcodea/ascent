@@ -3,6 +3,860 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-01 (session 11)
+
+### fix: Rise retaliation bug, choose-one cards, resume-clock exploit, + content/visual tweaks
+
+Owner batch (session 12). Done this pass:
+- **Rise retaliation damage bug (combat).** An attacker striking a Rise minion took the *risen* (base) attack
+  back, not the body it clashed with — the main hit killed-and-rebuilt the target within `dealDamage`, then
+  the retaliation read its reset attack. Now the defender's counter-attack (+ venom) is snapshotted **before**
+  the hit ([simulate.ts](packages/core/src/combat/simulate.ts)): hit a 100-attack Knight, take 100 back.
+- **Fleeting Vigor now scales with spell power** (owner-confirmed) — its banked +2/+1 gains the run's spell
+  power on both stats; `spellDisplayText` shows the live value.
+- **Wildwood Shaper → Choose One:** *Give your Beasts +1/+3* **or** *summon a 1/1 Stray* — the first card to
+  use the (previously unused) choose-one engine. Updated its test.
+- **Gilded Selfless Sentinel gives TWO friends a Divine Shield** (`deathrattleGrantShield` golden-aware +
+  goldenText).
+- **Gilded cards are more obvious** — a thicker, brighter gold ring + stronger glow (board + full card).
+- **Resume-clock exploit closed** (#continue): `continueRun` now sets the turn clock to **0**, so resuming a
+  shop turn (or leaving to the title to bank time) starts expired — you can End Turn / reorder but not shop.
+  The next turn's timer returns to normal.
+- **Overlays pause the recruit:** `overlayOpen` now also covers the Career + Compendium, so a saved game never
+  ticks/runs behind them.
+- **Verified:** 439 tests green, typecheck + lint clean. Live: Wildwood's two options render + apply
+  (Shaper → 3/5); resuming shows the clock expired; the golden card's ring/glow reads clearly.
+
+Second pass — the queued items:
+- **Enemy-snapshot auras on Rise** (the flip side of the retaliation bug): `applyAuras` bailed on every
+  non-player minion, so a captured enemy Eternal Knight lost its enchant when it Rose. Now the aggregate
+  run-wide auras (Undead / Imp) stay player-only, but the **per-card enchant re-applies from the minion's own
+  buff breakdown** for BOTH sides — so an enemy Knight (snapshot carries `buffs`) re-gains it on Rise (test:
+  enemy Knight Rises 18/11, not 3/1). [simulate.ts](packages/core/src/combat/simulate.ts).
+- **Godfodder animation** — Drakko re-fires its Battlecry, but each fire *overwrote* `fodderEaten`, so only one
+  ghost animated. `applyBattlecryTarget` now clears `fodderEaten` once up front and the consume **appends** per
+  fire, so N Fodder show N ghosts (verified: a Drakko'd Godfodder feeds 2, target 2/2 → 4/4, 2 events).
+- **Gilded toggle in the Compendium** — [MinionBook.tsx](packages/ui/src/MinionBook.tsx) gets a "Gilded"
+  toggle that flips every card to its tripled form (doubled stats, golden frame, golden text). Verified all
+  116 cards gild.
+
+- **Apples → Choose One** (the last item) — two new mechanics:
+  - **Spell choose-one** — a SPELL choice, its own thing (not a Battlecry). `chooseOne` on the state now carries
+    a `spell` flag; the reducer's spell path pauses (keeping the spell in hand) and the `chooseOne` handler
+    casts the chosen option's effects (a synthetic def, Yazzus-quantity aware) then consumes it. The existing
+    "Choose One — {name}" overlay already reads off the def, so it renders for spells unchanged.
+  - **`spellBuffNextShop`** — banks a `nextShopBuff` that `refreshTavern` folds onto the NEXT roll's offers,
+    then clears (registered in the effect-id schema + type).
+  - Apples is now *Choose One: give the shop **+1/+3**, or the next shop **+2/+4***. Tests for both options
+    (+ the buy-bake-in and the next-roll application); verified live end-to-end (overlay renders "Choose One —
+    Apples", "next shop" banks +2/+4 and lands on the next refresh).
+
+**Batch complete — all 11 items done.** 441 tests green (+ new coverage for choose-one, enemy-Rise auras,
+Apples), typecheck + lint + build:web clean.
+
+### fix: Rise→1 HP, no gilded text on cards, live discover/shop values, reorder after the timer
+
+- **Rise (Reborn) now returns at 1 Health** (Hearthstone-style), regardless of the card's base — a golden
+  minion reborns at 2. Base attack + the run-wide carry-through / auras still apply on top (so Karthus reborns
+  at 7/1, not 7/8). [simulate.ts](packages/core/src/combat/simulate.ts) `killOrReborn`; updated the reborn HP
+  assertions in [simulate.test.ts](packages/core/src/combat/simulate.test.ts). *(Owner-requested rules change.)*
+- **No gilded text on cards.** Removed the "(Golden: +6)" parenthetical baked into Karthus's `text`
+  ([undead.ts](packages/content/src/cards/undead.ts)) — it was the only card leaking a golden hint onto its
+  non-golden face.
+- **Discover + shop always show a card's CURRENT value.** Extracted the full live-text chain into a shared
+  `liveCardText` in [instView.ts](packages/ui/src/instView.ts); `instView` (board/end screen), `shopView`, and
+  the Discover overlay now all use it, so Grim reads **+32/+32**, Guel its live grant, etc. — not the printed
+  base — wherever it's offered. (Previously the shop only did Grim's tally; Discover was fully static.)
+- **Reorder your board after the clock runs out.** When the recruit timer expires you can now still
+  drag-reorder your board minions ([Recruit.tsx](packages/ui/src/Recruit.tsx) — the drag gate allows a `board`
+  source through when `timeUp`); play / buy / **sell** stay locked (sell drop + sell zone gated on `!timeUp`).
+- **Verified:** 439 tests green, typecheck + lint + build:web clean. Live: Discover Grim shows +32/+32; Karthus
+  text has no gilded line; with the timer expired (End Turn `urgent`), dragging a board minion fired a
+  `reposition` (order changed) while the sell zone stayed hidden and no sell/gold change occurred.
+
+### tweak: declutter the combat arena — no team tints/vignette, Skip + speed moved top-right
+
+- **Removed the combat-area coloration.** The two faint team-tint bands (`.app.fighting` — enemy raspberry on
+  the tavern row, player orange on the warband row) and the win/lose **result vignette** (`.app.combat.done::after`,
+  the green-on-win / raspberry-on-lose screen glow) are gone — the arena stays uncoloured through the fight.
+- **Skip button → top-right, smaller.** During the replay the Skip button now lives in a compact top-right
+  **combat HUD** ([Recruit.tsx](packages/ui/src/Recruit.tsx)) instead of the big centred button, with the
+  **replay-speed slider stacked beneath it** (moved out of the HudBar). Sits under the opponent frame in the
+  right column; the run-buffs window is hidden during combat so nothing collides. Post-combat Summary / End
+  Combat still render centred.
+- **Verified live:** in a (slowed) fight the board shows no tint/vignette, and the orange Skip + speed slider
+  sit stacked top-right with no overlap. 439 tests green, typecheck + lint clean.
+
+### tweak: round-bar "Setup" rename + a pre-round notch on the meter
+
+- Renamed the pre-round HUD label **"Calibration" → "Setup"** ([HudBar.tsx](packages/ui/src/HudBar.tsx),
+  tooltip updated to match).
+- Added a **notch on the round meter** at the end of the calibration/Setup rounds
+  (`left: calibrationRounds / courseRounds`, i.e. 2/17 ≈ 11.8%) — a thin card-coloured vertical gap with dark
+  edges so it reads on both the orange fill and the empty track. It visually separates the pre-round Setup
+  segment from the scored climb. Recruit/combat only (hidden in Practice, which has no calibration).
+- **Verified live:** the meter renders the notch at 11.76% and the label shows "Setup"; typecheck + lint clean.
+
+### fix: title menu-video no longer flashes the still image before playing
+
+- On load the `.titlescreen` webp base (also the `<video>` poster) showed until the video decoded its first
+  frame, then **popped** to the video — a visible flash. Fix: the video now starts at `opacity: 0` and only
+  fades in (`.titlevideo.ready`, 0.5s) once it fires its `playing` event (`onPlaying` → `videoReady` state in
+  [Title.tsx](packages/ui/src/Title.tsx)), so it **cross-dissolves from the webp** instead of hard-cutting.
+  Added `preload="auto"` so it's ready sooner. Reduced-motion still hides the video entirely (unchanged).
+- **Verified:** opacity is 0 with no `ready` class until the video plays, then transitions to 1; typecheck +
+  lint clean. (A truly cold, uncached load can't be captured in-preview — the browser caches the 31 MB clip —
+  but the fade path is confirmed.)
+
+### feat: custom build-tag tooltips + unified orange Discover minimize/return button
+
+- **Build-tag tooltips** were the browser's native `title` bubble (plain, OS-styled). Replaced with a custom
+  `.tagtip` — a dark rounded card with a caret, on-theme fonts, fading in above the chip on hover — rendered
+  as a child of each `.endtag` on both the end screen and Career (removed the `title` attrs). Not clipped by
+  the Career match cards' `overflow: hidden` (measured clearance; collapsed rows have more room).
+- **Removed the Discover subtitle** ("Choose a minion from the next tier.") — it was unnecessary and factually
+  wrong (Discover options can be from any tier, not just the next), so the `.disc-sub` line + its CSS are gone;
+  `.disc-cards` gains a small top margin to keep breathing room under the banner.
+- **Discover minimize/return** was two buttons in different spots (a dark "Minimize" pinned top-right of the
+  panel + an orange "Return" pill at the screen bottom). Unified into **one orange `.disc-toggle`** pinned to
+  the **same fixed spot just below the cards** (`top: 66%`) for both states — it flips label/action between
+  Minimize (inspect the board) and "Return to Discover · N options", so the player toggles back and forth
+  **without moving the mouse**. Verified live: the button's center is identical (954, 920) in both states.
+- **Verified:** 439 tests green, typecheck + lint + build:web clean. Live: the Discover toggle is orange,
+  centered under the cards, and swaps in place; the tag tooltip renders the styled card with the right copy.
+
+### feat: Career redesign (Profile+Insights panel, hero W–L), bigger avatars, font dev lab
+
+- **Bigger avatars.** Menu (`.titleavatar`) **+100%** (46→92px); Career (`.caravatar`) **+50%** (84→126px),
+  placeholder glyphs scaled to match.
+- **Career layout rebuilt.** Dropped the 4-square stat bar; the left column is now **one panel** = Profile +
+  Insights + a per-hero record, and it's **wider** (320px). Insights grew from 5 to **11 rows**: Runs, Best
+  Run, Win Rate, Avg Wins, Avg Actions/Round, Avg Gold Spent, Favorite Hero/Tribe/Mechanic/**Minion**, Current
+  Streak. The old bottom "By hero" section moved into the panel as **line W–L** (green W / red L).
+- **New stats** in `careerStats` ([runHistory.ts](packages/ui/src/runHistory.ts)): `favoriteMinion` (the
+  minion most-used across final boards) + per-hero `lineWins`/`lineLosses` (runs that covered par vs fell
+  short — the game's win = cover-your-line). Tests added for both.
+- **Font Lab (dev).** [FontLab.tsx](packages/ui/src/FontLab.tsx) — a bottom-right toggle on the title opens
+  three font pickers (**Titles / UI / Body**) with **Outfit, Sora, Plus Jakarta Sans, Nunito Sans**. To make
+  it work, the stylesheet's `font-family`s were routed through CSS variables — `--font-title` (big display
+  headings: `.disp` / `.hstitle` / `.titleword` / `.over h1`), `--font-ui` (everything else that was Outfit),
+  `--font-body` (was Nunito Sans). The picker sets those vars on `:root` live, persists to `ascent.fonts`, and
+  applies at boot. Loaded Sora + Plus Jakarta Sans via the Google Fonts link.
+- **Verified live:** menu avatar visibly 2×; Career shows the merged panel with all 11 insights + hero W–L
+  (Cassen 1W–1L, Robin 1W–0L, …) and Favorite Minion; Font Lab swaps "ASCENT" to Sora and back, persisting.
+  439 tests green (+2), typecheck + lint + build:web clean.
+
+### fix: avatar picker z-index + custom cursor over avatar buttons and scroll areas
+
+- **Picker opened *behind* the Title/Career.** `.avatarpick` was `z-index: 80`, but `.titlescreen` is 450 and
+  Career (`.lbpage`) is 470 — so clicking the avatar opened the picker underneath them ("nothing pops up").
+  Raised `.avatarpick` to **z-index 520** (above every title/career/leaderboard/compendium overlay). Verified
+  `elementFromPoint` at screen-center now hits the picker over both the Title and Career.
+- **Custom cursor over the avatar buttons.** `.titleavatar` / `.caravatar` / `.avatarpick-opt` /
+  `.avatarpick-close` set plain `cursor: pointer`, which overrode the global `button` rule and reverted to the
+  OS arrow — swapped to the game's `gauntlet_open.svg` cursor.
+- **Custom cursor over scroll areas (hero page, compendium, avatar picker, leaderboard/career, combat log).**
+  Root cause: a native scrollbar *forces* the OS arrow — the browser ignores `cursor` on it, even on a styled
+  `::-webkit-scrollbar` (the compendium already tried that and it didn't work). Fix: **hide the native
+  scrollbar** on those containers (`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`) and
+  scroll by wheel/trackpad — the gauntlet cursor now covers the whole area. Removed the old ineffective
+  book-grid scrollbar-cursor block.
+- **Bonus:** the practice hero picker overflowed (12 heroes, ~1645px in a ~1352px viewport) with
+  `overflow: visible`, so the bottom heroes were **clipped and unreachable**. `.heroselect` is now
+  `place-items: safe center; overflow-y: auto` — it scrolls (heroes reachable) without clipping the top, and
+  the hidden-scrollbar rule keeps the cursor clean. Same win for a tall end screen on short viewports.
+- **Verified live:** picker renders on top of Title + Career; avatar/scroll cursors are the gauntlet SVG;
+  compendium, hero page, and picker all scroll with `nativeBarPx: 0`. 437 tests green, typecheck + lint clean.
+- *Tradeoff flagged to owner:* the native scrollbars are now hidden (wheel-scroll only). If a visible bar is
+  wanted back, the next step is a custom overlay scrollbar element (keeps both the bar and the custom cursor).
+
+### fix: avatar picker could linger into gameplay — gated to Title/Career + reset on run start
+
+- The avatar-picker overlay (`avatarPickerOpen`) had no reset on navigation, so a lingering-true flag could
+  show the picker over a run ("the avatar selection is happening when a game starts"). Two-part fix:
+  **(1)** [AvatarPicker.tsx](packages/ui/src/AvatarPicker.tsx) now renders only when `showTitle || showCareer`
+  (its only entry points) — a defensive gate so it can never cover gameplay regardless of the flag; **(2)**
+  every leave-the-title / run-entry store action (`startAscent`, `startPractice`, `pickHero`, `newRun`,
+  `continueRun`) now sets `avatarPickerOpen: false`. Verified live: forcing the flag true mid-recruit renders
+  nothing; opening it on the title still works and clicking PLAY clears it. 437 tests green, typecheck + lint clean.
+
+### feat: round-board viewer (inline board swap), live final-warband values, avatar picker
+
+- **Round-board viewer.** The end screen's W/L pips are now clickable: clicking a round **swaps the FINAL
+  WARBAND board in place** to show the exact board you fought that round (not a popover — per owner request),
+  and the board label becomes a `Round N · Won/Lost ↩ Final warband` button that returns you. The boards are
+  re-derived deterministically from the run's replay (`replayRun({seed,heroId,actions})` → per-wave
+  `BoardSnapshot`s), memoized once, keyed by wave. Best-effort (a replay hiccup just leaves pips
+  non-clickable), and **gated to Ascent** — `replayRun` re-runs in ascent mode, so a practice replay
+  (unlimited Resolve / 15-round cap) wouldn't reconstruct faithfully. *Note: replay fidelity holds within a
+  session; a run whose early waves were played in a **prior** session can diverge if the opponent pool
+  changed since — the end-screen use (run just finished, same session) is always faithful.*
+- **Live values on the final warband.** Extracted `instView` (the recruit board's live-`CardView` composer)
+  out of `Recruit.tsx` into a shared [instView.ts](packages/ui/src/instView.ts) and pointed the end-screen
+  final warband at it, so scaling cards (Guel, Sergeant, Taragosa, Mama Bear, …) show their **accumulated**
+  magnitude at run's end instead of the printed base "+1/+1". Recruit's behavior is unchanged (same function,
+  same call sites); `EndScreen`'s `boardView` now feeds `instView` the run-wide live inputs
+  (`spellAttackBonus`/`spellHealthBonus`, undeadBuyAtk, soulsmanGold, cardBuffs, …).
+- **Avatar picker.** New [AvatarPicker.tsx](packages/ui/src/AvatarPicker.tsx) modal lets the player pick any
+  bundled art — **heroes / minions / tokens / hero powers** (156 options, enumerated via a new `AVATAR_ART`
+  export in [art.ts](packages/ui/src/art.ts), namespaced `hero:`/`minion:`/`power:`) — as their profile
+  avatar. Persisted, cosmetic, local (`playerAvatar` + `setPlayerAvatar` + `avatarPickerOpen` on the store,
+  `ascent.avatar` in localStorage). The avatar renders on the **Title account chip** and the **Career profile
+  card**, and clicking either opens the picker (a "Default" tile clears back to the name initial).
+- **Verified:** 437 tests green, typecheck + lint clean. Live (drove real in-session runs to gameover):
+  clicking a pip swaps the board in place with the round's real stats and a working back control, no popover;
+  the picker opens with all 156 options, and a pick persists + updates both the Title chip and Career avatar
+  images. *Caveat surfaced to owner: an early live-test consumed the in-progress "Continue" run — use a
+  throwaway `newRun` when driving the store, not the player's saved run.*
+
+### feat: end-screen polish — real APT, tag tooltips, bigger metrics, drop pool text
+
+- **Actions/round is now player decisions only.** APT counted *every* state-changing action ÷ rounds,
+  which included the automatic combat-flow transitions (`faceOmen` / `settleCombat` / `resolveCombat`,
+  ~once per round each) — inflating the number by a flat ~3/round. Added `isPlayerAction` in
+  [state.ts](packages/sim/src/state.ts) (a small `COMBAT_FLOW_ACTIONS` exclusion set) and filtered the APT
+  calc through it in both places it's computed ([store.ts](packages/ui/src/store.ts) for the saved Career
+  entry, [EndScreen.tsx](packages/ui/src/EndScreen.tsx) for the live end screen). It already included the
+  buys/plays/rolls/discovers the owner cared about — this just strips the phase-advance noise.
+- **Build-tag tooltips.** Tags were bare strings. Added `TAG_INFO` in
+  [buildTags.ts](packages/sim/src/buildTags.ts) — a terse one-line description for all 29 tags (tribe
+  archetypes, trigger-density, keyword walls, board-shape, history-arc) — and wired it as a `title` hover on
+  every tag chip on both the end screen and the Career match rows.
+- **Bigger run metrics.** `.endstats` bumped 14→18px and brightened (0.62→0.8 alpha) so the triples / gold /
+  APT / cards / MVP / strongest line reads at a glance. *(The owner also floated "maybe stack them vertically
+  off to the side" — deferred to the end-screen layout pass that lands with the round-board viewer.)*
+- **Removed the "Added N boards to the pool" line** (+ its `.endcontrib` style and the now-unused
+  `lastRunBoards` read in EndScreen). Board capture/upload still happens; it's just no longer surfaced here.
+- **Verified:** 437 tests green, typecheck + lint clean. Live: drove a finished run into the store — metrics
+  render larger, tag chips carry their tooltip text, the pool line is gone. Gold-spent confirmed already
+  correct (single `spendGold` chokepoint sums buys/rerolls/tier-ups/hero powers), so no change there.
+- **Queued next (owner greenlit):** round-board viewer (click a W/L pip → that round's board via
+  `replayRun`), live card values on the final warband (scaling cards show accumulated stats, not base text),
+  and a player-avatar picker (choose any hero/minion/token art). Follow-up PRs.
+
+### fix: par is the win condition — covering the line wins the run even if you then fall
+
+- **Bug (the big one):** `lineResult` in [state.ts](packages/sim/src/state.ts) forced `status = 'failed'` on
+  **any** gameover (Resolve 0), *regardless of wins*. So a run that beat par — e.g. **11 wins against par 9**
+  — but died on round 16 of 17 graded `failed` and the end screen read **FALLEN / COURSE FAILED**. Par is
+  supposed to *be* the objective; covering it should be a win whether or not you survive to the final round.
+- **Fix — grade against par, death only breaks a tie under it.** `lineResult` now grades purely on scored
+  wins vs par (`flawless` = won every scored round, `exceeded` > par, `covered` = par); only **under par** is
+  a loss, split into `failed` (died early) vs `missed` (survived the course but short). Added a single
+  exported source of truth, **`metLine(status)`** (covered/exceeded/flawless = a win), and routed every
+  surface through it:
+  - **End screen** ([EndScreen.tsx](packages/ui/src/EndScreen.tsx)) — win/loss title + gold styling now key
+    off `metLine`, not course-completion. A covered-par-but-died run shows **PAR COVERED** (gold) / "You
+    covered your line" while the sub-line still honestly reads "fell on round N of M". Course actually
+    finished + covered → **COURSE COMPLETE**; under par → **FALLEN**.
+  - **Career** ([Career.tsx](packages/ui/src/Career.tsx)) — the match-row record color (won/lost) is now
+    par-based via `metLine`.
+  - **Build tags** ([buildTags.ts](packages/sim/src/buildTags.ts)) — `Underdog Line` reuses `metLine`.
+- **Also:** removed the **"the tide takes you"** loss eyebrow (now empty for a genuine FALLEN). And folded
+  the earlier Career fix in — `careerStats().winRate` = runs that met their line / total runs (the local
+  `metLine` copy is gone; it imports the shared one). A run of three all-failed climbs reads **0%**.
+- **Verified:** full suite **437 green** (updated `run.test.ts` + `runHistory.test.ts` to the new par
+  semantics — incl. a regression for "died but covered par → exceeded"). typecheck + lint clean. Live: drove
+  a gameover run with 11 wins / par 9 into the store — end screen renders **PAR COVERED / EXCEEDED (+2)**,
+  gold; a 3-win/par-9 death still renders **FALLEN / Course failed** with no leftover eyebrow. Screenshots
+  captured.
+
+### feat: looping menu-ambience video on the title screen
+
+- The title screen now hosts an **autoplaying, looping `<video>`** (`.titlevideo`) behind the menu, sourced
+  from `/homescreen.mp4`. Layering: the `homescreen.webp` is now the title's **base background + the video
+  `poster`** (so if the file is absent or still loading the screen looks exactly as before); the video sits
+  above it (`z-index:0`, `object-fit:cover`); the **left vignette moved to `.titlescreen::before`**
+  (`z-index:1`) so it tints the video the same way it tinted the still; the menu / account / version sit at
+  `z-index:2`. Hidden under `prefers-reduced-motion` (falls back to the webp base).
+- **Audio.** The clip has a soundtrack. Browsers block autoplay *with* sound, so `muted` is controlled
+  imperatively (a Title effect): it starts by trying the desired state and, if the browser blocks unmuted
+  autoplay at cold boot, falls back to muted playback and **unmutes on the first user gesture** (pointer /
+  key). It honors the game's **mute + master-volume** (`isMuted()` / `getVolume()` from `sfx.ts`), so the
+  Settings mute silences the menu too. Returning to the title after a run (audio already unlocked) starts
+  sound immediately.
+- **Asset wired:** `apps/web/public/homescreen.mp4` — a ~31 MB, 28.7s, 3440×1440 (ultrawide) H.264 loop
+  (compressed down from a 115 MB source). `object-fit:cover` fills the viewport and crops the ultrawide
+  frame. Only the **title** ("main menu area") gets the video; Career/Leaderboard keep the lighter static
+  webp. *(Note: 31 MB is above the ~10 MB target — fine for now, worth a further compression pass before a
+  size-sensitive distribution.)*
+- **Verified:** typecheck/lint/build green. Live: the `<video>` plays (`readyState 4`, advancing, looping,
+  `currentSrc` = homescreen.mp4) full-bleed with the menu legible over the vignette; screenshot confirmed.
+### feat: Career page redesign — stats bar + Profile / Match History / Insights columns
+
+- **Reworked the Career overlay** (`Career.tsx`) from a flat list into the requested three-column layout:
+  - **Top stats bar** — Runs · Best Run (record of the highest-win run) · Avg Wins · Win Rate.
+  - **Left Profile Card** — a big initial avatar (falls back to the anvil icon), the account name, an
+    **"Unranked"** placeholder pill (no Level/XP — those wait for a real rating system, per the owner), and a
+    Completed / Flawless / Streak mini-stat strip.
+  - **Center Recent Match History** — the match cards are now **click-to-expand** (newest starts open):
+    collapsed shows hero · record · line verdict · tags; expanded reveals the run-stat line (triples · gold ·
+    APT · cards · MVP · most-mechanic · strongest) **and** the final warband. A chevron rotates on toggle.
+  - **Right Insights rail** — Favorite Hero, Favorite Tribe, Favorite Mechanic, Win Rate, Current Streak.
+  - The **By hero** rollup stays below, full-width. Columns stack under 900px.
+- **`careerStats` gains `winRate` (scored wins / all scored rounds, %), `streak` (consecutive newest runs
+  that met their line), and `bestRun` ({wins,losses} of the highest-win run).** Pure; unit-tested (win rate,
+  best run, current streak, streak-breaks-at-newest-miss + the empty-return shape).
+- **Verified:** 434 tests green; typecheck/lint/build green. Live: seeded a varied 4-run history → the stats
+  bar (4 · 12–3 · 9.5 · 63%), profile card, expandable cards (warband + stats render on expand, chevron
+  rotates), and insights (Warden / Beast / Start of Combat / 63% / 2 on line) all render correctly.
+
+### feat: combat-contribution tracking — MVP minion + most-triggered mechanic
+
+- **New `packages/sim/src/contribution.ts`** — pure helpers that walk a settled combat's event log (+ its
+  `initial` rosters) to attribute **player-side damage by cardId** and count **player mechanic triggers**,
+  then accumulate both across the run. No `simulate`/`core` change: everything is derived from the
+  `CombatResult` the reducer already has.
+  - **Damage.** Combat is *simultaneous* — one `attack A→B` emits a `dmg` to B (dealt by A) **and** a `dmg`
+    to A (B's retaliation). So each `dmg` is credited to whichever of the attack pair *isn't* taking it, and
+    only when the target is an enemy (a card is never credited for damage it soaks). Start-of-Combat `cast`
+    damage is credited to the caster. This correctly attributes retaliation kills (the common killing blow).
+  - **Procs.** Player-side `sc → Start of Combat`, `rally → Rally`, `summon → Summon`, `reborn → Rise`,
+    `shieldUp → Ward`, and a player card's `death` whose `CardDef` has an `onDeath` effect → `Echo`.
+  - `runMvp(runDamage)` → the top-damage card; `topMechanic(runProcs)` → the most-fired mechanic.
+- **`RunState` gains `runDamage` + `runProcs`** (init `{}`, deserialize-healed for old saves); `settleCombat`
+  calls `accumulateContribution(...tallyCombat(result))` after pushing the round result.
+- **Post-run summary** gains **MVP: <card> (N dmg)** and **Most: <mechanic> (N)** in the stats row.
+- **Match history + Career** — each run stores `mvp` + `topMechanic`; the run rows show `· MVP: <card>`, and
+  the profile strip shows **Favorite mechanic** (most-common per-run top mechanic across the career).
+- **Verified:** 433 tests green (new `contribution.test.ts` covers the simultaneous-exchange crediting, the
+  six procs, accumulation + MVP/top-mechanic derivation; `runHistory.test.ts` covers favorite mechanic).
+  Live over 4 real combats: `gnash` accrued 64 dmg incl. retaliation kills → end screen reads
+  *MVP: Gnasher, the Overrun (64 dmg)* · *Most: Start of Combat (6)*. typecheck/lint/build green.
+- **Still deferred (Phase C / needs new signals):** biggest permanent-scaling source, Quest choices taken,
+  Ancient — none are in the combat log; they'll come with the meta systems.
+
+## 2026-06-30 (session 10)
+
+### fix: end screen readability — own dark backdrop, board hidden
+
+- The end-of-run screen no longer renders over the live board (which showed through, killing contrast). It
+  now gets its **own dark backdrop** — the sky-castle art heavily scrimmed (`rgba(6,11,22,0.88→0.93)`) — and
+  the board + status bar behind it are hidden (`body:has(.heroselect) .app/.statusbar { visibility: hidden }`,
+  extended from the hero-picker to the end screen too).
+- Fixed the **run-stats row** + **contributions line** (added this session) that used dark ink colors meant
+  for a light background → now light (`rgba(255,255,255,·)`), readable on the dark backdrop.
+- **Verified live:** the FALLEN screen reads cleanly — record, line verdict, tags, stats (triples · gold ·
+  APT · cards · strongest), pips, and final warband all high-contrast over a clean backdrop.
+
+### feat: run stats — gold spent, APT, triples, strongest + career aggregates
+
+- **New `RunState.goldSpent`** — total Gold spent across the run, incremented at the single `spendGold`
+  chokepoint (buys / rerolls / tier-ups / hero powers). Deserialize-healed for old saves.
+- **Post-run summary** gains a run-stats row: **triples · gold spent · actions/round (APT) · cards played ·
+  strongest minion** (APT + cards computed from the action log).
+- **Match-history entry** now stores those stats plus the run's **dominant tribe** and **strongest minion**;
+  `careerStats` aggregates **flawless count, total triples, avg gold, avg APT, and top tribes**.
+- **Career screen** expands: profile strip adds Flawless / Triples / Avg gold / Avg APT; a **Top tribes**
+  line; the match list is capped to the **last 25** and each row shows triples · gold · strongest.
+- **Deferred (need per-minion combat-damage / proc counts out of `simulate`):** MVP minion, most-triggered
+  mechanic, top *minions* played, Quest choices + Ancient (Phase C).
+- **Verified live:** post-run row (4 triples · 143 gold · 4 APT · 14 cards · Strongest Gnasher 30/12) +
+  Career aggregates (Flawless 1 · Triples 11 · Avg gold 128 · Avg APT 5.7 · Top tribes). Tests updated;
+  typecheck + lint + `npm test` (421) + build:web green.
+
+### feat: expanded build tags (A5+)
+
+- Grew `buildTags` from ~11 to ~24 tags and bumped the display cap 3 → 4, so a run's identity reads richer.
+  New tags, all computed from data we already track (board shape/stats, keywords, `history`, `triplesMade`,
+  per-minion `buffs`, record vs line):
+  - **Board shape:** Carry Stack (one monster holds most stats) · Wide Board (many bodies, no carry) ·
+    Glass Cannon (attack-heavy + Flurry/Toxin) · Fortress Board (health-heavy + Ward/Taunt) · Token Flood ·
+    Keyword Soup · Menagerie (mixed tribes).
+  - **Progression / record:** Triple Hunter · Scaling Engine · Tempo Climber (strong early, fades) ·
+    Late Bloom (weak start, strong finish) · Underdog Line (bad start, still covered) · Low Roll Survivor.
+- History-arc tags need ≥6 scored rounds, so they only fire on a full-ish run.
+- **Deferred** (need per-minion combat-damage / economy tracking we don't have yet): Economy Engine,
+  Sacrifice Engine, Boss Killer, Perfect Curve, Pivot Run, Shop Sculptor, Spell Weaver, MVP-based tags.
+- **Verified:** 5 new unit tests + existing A5 tests green. typecheck + lint + `npm test` (425) + build:web.
+
+### feat: B3 — keyword / terminology pass — **Phase B complete**
+
+- Player-facing keyword rename, **display-time only** (internal ids / keyword codes / card DATA unchanged, so
+  low-risk + reversible): **Battlecry→Shout · Deathrattle→Echo · Divine Shield→Ward · Windfury→Flurry ·
+  Venomous→Toxin · Reborn→Rise · Magnetize→Attach / Magnetic→Attachment · Golden→Gilded.** Kept: Taunt,
+  Avenge, Choose One, Start of Combat, End of Turn, Rally, Cleave, Consume, Discover (Rally stays — not
+  "Charge", per the design flag).
+- New `terms.ts` `renameTerms()` (whole-word, plural-aware — Deathrattles→Echoes, etc.) applied to rendered
+  **card rules text** in `Card.tsx`; the keyword-badge labels (`KW_LABEL`) + trigger pills (`triggerPill`)
+  updated; the **combat-log narration + Procs summary** strings reworded grammatically ("rises at N HP",
+  "Toxin destroys …", "N Wards broken").
+- The tag names A5 already used (Shout/Echo/Ward/…) now match the in-game vocabulary.
+- **Verified live:** the Compendium (114 cards) shows the new terms with **zero** old terms remaining; pills
+  read Shout/Echo/Ward/Toxin/Flurry/Attachment/… `renameTerms` unit tests. typecheck + lint + `npm test`
+  (424) + build:web green. **This closes Phase B (B1–B3).**
+### feat: B1 — hero-power dragging
+
+- Targeted hero powers now use the **same press-drag-release language as card drag**: press the power, drag
+  the aim line onto a valid minion, release to fire; release off-target to cancel. One continuous gesture.
+- The aim-line + fire-on-release logic already existed — the fix is arming on the button's **`pointerdown`**
+  (not click), so the press flows straight into the drag. A quick **tap** (press+release without dragging)
+  still arms it for the existing press-then-click-target flow, so nothing is lost. Untargeted powers still
+  fire on press.
+- **Verified live:** Warden's Fortify — press-drag-release onto a minion applied +1/+1 and cleared armed;
+  release off-target cancelled; a tap still armed. typecheck + lint + `npm test` (421) + build:web green.
+
+### feat: B2 — Discover minimize
+
+- A pending **Discover** can now be **minimized** to inspect your board/shop before choosing — a "–" button
+  on the panel collapses it to a floating **"Return to Discover · N options"** pill; the board is fully
+  visible + inspectable (hover / right-click), and restoring reopens the pick.
+- **Safety:** a new reducer guard blocks every other board action (buy / roll / play / sell / …) while a
+  modal recruit state is pending (Discover / Choose One / targeted Battlecry) — so inspecting can't
+  invalidate the pending pick. Only the resolving action (`discover`/`chooseOne`/`battlecryTarget`) passes.
+  The behind-card shield FX stay visible while minimized.
+- **Verified live:** opened a Discover → minimized (board visible, pill shown) → `roll` blocked (embers
+  unchanged) → restored → picked (hand grew). New reducer test; typecheck + lint + `npm test` (421) +
+  build:web green.
+
+### feat: A7 (part 2) — Career screen — **Phase A spine complete**
+
+- The title's **Career** button (was a placeholder) now opens a full-page **Career** overlay
+  (`Career.tsx`, homescreen bg, reusing the leaderboard page shell) reading the local match history:
+  - **Profile strip:** total runs · best wins · avg wins · courses completed.
+  - **By hero:** per-hero rollups (runs · avg/best wins · completions), sorted by runs.
+  - **Match history:** each run — hero portrait, colour-coded **W–L record**, **line verdict** chip
+    (Exceeded/Covered/Missed/Failed), **build tags**, "Course complete / Fell on round N · date · N boards",
+    and the **final-warband preview** (same `Card` as the leaderboard/end screen).
+  - Empty state: "No runs yet — play a run to start your career." Rating is intentionally absent (no rating
+    system yet).
+- Store: `showCareer` + `openCareer`/`closeCareer`; `<Career/>` rendered in `Game.tsx`.
+- **Verified live:** seeded 3 runs → profile (3 runs / 12 best / 7.7 avg / 2 completed), Rohan/Warden hero
+  rows, 3 match entries with records + verdicts + tags + warband. typecheck + lint + `npm test` (420) +
+  build:web green.
+- **This closes the Phase A run/career spine (A1–A7).** Deferred within it: rating-driven par line (A2),
+  MVP/standout-unit (A4/A6), and a per-run detail page (A7) — all noted in the roadmap.
+
+### feat: A7 (part 1) — run-history persistence layer
+
+- **Runs no longer disappear.** On run-end, a compact per-run entry is appended to `localStorage`
+  (`ascent.history`, capped 50, newest first) — hero, W–L record, line + verdict, completed?, round reached,
+  build tags (A5), tribes, boards contributed, and the final-board snapshot. Ascent runs only (Practice is a
+  sandbox). New `runHistory.ts`: `buildRunHistoryEntry` + `loadRunHistory`/`saveRunHistoryEntry` +
+  `careerStats` (overall + per-hero rollups). All best-effort.
+- Wired into the store's existing deferred run-end capture (alongside the board upload), for both wins and
+  losses. **No UI yet** — that's part 2 (the Career screen, which the title's placeholder Career button
+  opens).
+- **Verified:** unit tests for `buildRunHistoryEntry` (record/line/tags, died-run) + `careerStats`
+  (empty / per-hero aggregation); live-checked a real run-end appends an entry. typecheck + lint + `npm test`
+  (420) + build:web green.
+
+### feat: A6 — post-run summary (build identity + contributions)
+
+- The end screen now shows the run's **build identity** and **contributions**, on top of the record + line
+  verdict already there — so a finished run reads as *authored*, not just completed.
+- **Build tags** (A5's `buildTags`): a row of tag chips ("Beast Swarm · Gilded Carry · Spell Engine")
+  under the line verdict (Ascent only; hidden for Practice / a genuinely mixed board).
+- **Run contributions:** "Added N boards to the pool" — the count of snapshots this run added to the shared
+  opponent pool. New `lastRunBoards` store field, set from `saveRunBoards(...).length` in the deferred
+  run-end capture (0 for Practice / read-only; reset on a new run).
+- **Deferred (same as A4):** MVP / key-unit needs per-minion damage tracking not on `CombatResult` — the
+  final warband is shown, the "standout unit" call-out is a later add.
+- **Verified live:** a completed course renders COURSE COMPLETE · Record 11–4 · Line 9 Exceeded (+2) ·
+  Beast Swarm / Gilded Carry / Spell Engine · "Added 8 boards to the pool". typecheck + lint + `npm test`
+  (416) + build:web green.
+
+### feat: A5 — build-tag classifier
+
+- New pure helper `buildTags(state)` in `@game/sim` (`buildTags.ts`) — reads a run's **final board** + a few
+  run signals and emits up to **3 build tags** that give an emergent build an identity ("Spell Engine ·
+  Gilded Carry · Flurry Finish"). Deterministic + testable; feeds A6 (post-run summary) and A7 (career).
+- **Heuristic + thresholded scoring:** tribe archetypes (Beast Swarm / Dragon Scaling / Undead Army / Mech
+  Battalion / Demon Legion), trigger density (Echo Web / Shout Chain / End-of-Turn Engine / Summon Overflow),
+  keyword walls + finishers (Ward Wall / Toxin Control / Flurry Finish — reads *live* granted keywords),
+  Gilded Carry, Spell Engine (spellsCast or a spell-power/aura carrier), Fodder Economy (fodder cards or
+  run-wide Imp scaling), Attachment Carry (Mech-heavy welded body). Top 3 by score, strongest first; a
+  tribal board that clears no other bar still gets its tribe tag, so identity is rarely blank.
+- **Tag names lead with the intended flavor terms** (Shout/Echo/Ward/Toxin/Flurry/Attachment) even though the
+  mechanic tooltips aren't renamed yet (B3) — tags are build labels, not rules text. **Not surfaced in the UI
+  yet** — that's A6/A7.
+- **Verified:** 8 unit tests (empty / tribe / deathrattle / keyword walls / gilded / spell / fodder / cap-3).
+  typecheck + lint + `npm test` (416) + build:web green.
+
+### feat: A4 — post-combat summary (permanent gains)
+
+- The post-combat overlay (now **"Combat Summary"**, opened by the **Summary** button after a fight) leads
+  with a new **Gains** tab: *"What you keep from this fight"* — the permanent value the fight left you with.
+- Pure presentation over data **already carried** on `CombatResult` — no engine work. New `combatGains.ts`
+  maps the carry-back channels to readable lines, most-impactful first: spell power, max Gold, Undead
+  Attack, Imp/Fodder buffs, per-card run-wide enchants, kept/Engraved stats (aggregated), Fodder → next
+  tavern, banked free rerolls, and cards added to hand. Empty fight → "No lasting gains this fight."
+- The overlay keeps the existing **Procs** (major triggers) + **Log** (blow-by-blow) tabs and the outcome-
+  odds bar; Gains is the default tab. `combatGains` unit-tested.
+- **Scope note:** the roadmap's "Standout Unit" + "Risk Signals" sections are deferred (they need per-minion
+  damage derivation, not currently on `CombatResult`); this ships the "Permanent Gains" core.
+- **Verified live:** drove a real combat, opened Summary → the Gains tab showed the injected carry-backs
+  ("spells +2/+1", "Max Gold +1", "Added to hand: Spirit Fire"). typecheck + lint + `npm test` (408) +
+  build:web green.
+
+### feat: A3 — save & continue
+
+- **Runs now autosave and resume.** The in-progress run is persisted to `localStorage` (`ascent.save`) on
+  every state change — the serialized `RunState` + the action log — and reloaded at boot. Quit mid-run,
+  reopen, and the title shows a **Continue** entry (blue, "{hero} · Round n") that resumes the exact run.
+- A **finished** run (victory/gameover) is not resumable — the save is cleared when the run ends, and
+  starting a new run (Play/Practice) overwrites it. Both modes are saved.
+- **Store** (`store.ts`): `loadSave`/`writeSave`/`clearSave` (best-effort, never throw); boots into the
+  saved run behind the title; `savedRun` + `continueRun`; autosave wired into `dispatch` (clears on finish)
+  + `pickHero`/`newRun`. Built on the existing `serialize`/`deserialize` (which heals older-schema saves).
+- **Title** (`Title.tsx`): the Continue button (with the run's hero + round) appears above Play when a save
+  exists; Play then reads "start a new run (replaces your saved run)".
+- Autosave is per-action (clicks, not per-frame), so no combat-loop perf cost.
+- **Verified live:** played a run, reloaded the page → Continue restored the exact state (embers, actions);
+  Continue resumed; finishing cleared the save. typecheck + lint + `npm test` (405) + build:web green.
+
+### feat: A2 — par / rating line
+
+- Every run now carries a **par line** — a target number of scored wins to cover or beat. `RunState.line`
+  (set at run start from `CONFIG.defaultLine` = **9**; static for now, a clean seam for the future
+  rating-driven line). New `lineResult(state)` helper grades a finished run: **flawless** (won every scored
+  round) · **exceeded** (+delta) · **covered** (met exactly) · **missed** (−delta) · **failed** (died before
+  completing the course).
+- **HUD:** a **"Line N"** label sits beside the record (Ascent only).
+- **End screen:** a verdict row — **"Line 9 · Exceeded (+2)"** (green for flawless/exceeded/covered, threat
+  red for missed/failed).
+- **Verified:** `lineResult` unit tests (covered/exceeded/missed/flawless/failed) + the default-line test;
+  typecheck + lint + `npm test` (405) green; live-checked the HUD line + end-screen verdict.
+
+### feat: A1 — course + record (win-condition reframe)
+
+- **The run is now a fixed course, scored by record.** A run plays `CONFIG.courseRounds` (**17**) rounds; the
+  first `CONFIG.calibrationRounds` (**2**) are calibration — they still cost Resolve + run the economy but do
+  **not** count toward your record. The run **always completes the course** (→ `victory`) unless Resolve hits
+  0 (→ `gameover`). The old "win by 15 combat wins" condition is gone (`winsToWin` removed).
+- **Record = W–L over the scored rounds** (rounds 3–17). New pure helpers in `state.ts`: `runRecord(state)`
+  ({wins, losses, draws}, calibration excluded, draws not counted in W–L) and `isCalibrationRound(wave)`.
+- **HUD:** the wave box reads **ROUND n / 17** (Ascent); the meter fills toward the course end; a
+  **Calibration** badge shows on rounds 1–2, replaced by the **record chip (W–L)** on scored rounds.
+- **End screen:** completion is now **"COURSE COMPLETE" · Record W–L** (not "VICTORY"); a death shows
+  **"FALLEN" · Record W–L · fell on round n of 17**. Calibration pips are dimmed + labelled "not scored".
+- **Config:** `maxWave` → 17 (the balance/curve horizon now covers the whole course). Practice is unchanged
+  (its own 15-round session; no calibration/record concept).
+- **Decisions locked with the owner:** calibration rounds don't count toward record; the course always
+  completes unless Resolve hits 0.
+- **Verified:** rewrote the win-condition tests as course/record tests; typecheck + lint + `npm test` (402) +
+  the bot harness (terminates, no early-win) green; live-checked the HUD + both end screens.
+
+### balance: power-outlier tuning + two cuts
+
+- **Gnasher, the Overrun** — no longer re-attacks on kill (removed `reAttackOnKill`); it keeps only the
+  on-kill run-wide spell-power gain. Removed the two combat re-attack tests.
+- **Front to Back** — reverted the spell-power-scaling escalation: the per-cast improvement is again a flat
+  **+2/+2** (spell power still adds a flat bonus to each grant, but is not part of the step). Dropped the
+  per-stat `frontToBackBonusH` state field + its UI plumbing; `spellDisplayText`'s "Improve this by" shows a
+  constant +2/+2.
+- **Crypt Drake** — now procs **every 2 ally attacks** for a flat **+2/+2** (golden +4/+4); no longer
+  improves. `onAllyAttackBuffAll` became a cadence (`attackSeen % every`) with no growth; live combat text
+  shows the countdown to the next proc.
+- **Wildwood Shaper** — reworked from a Choose One 1/1 to a plain **2/2, Battlecry: summon a Stray** (golden
+  two). Removed the Choose One tests (no card uses `chooseOne` now — the reducer mechanic stays, dormant).
+- **Removed Fodder Feeder** (T1 Demon) — card + its reducer sell-handler (`buffImpsRunWide` import dropped) +
+  art. **Removed Hex Flayer** (T4 Demon) — card + art.
+- Regenerated `docs/cards.csv`. **Verified:** typecheck + lint + `npm test` (401) + build:web green.
+### feat: homescreen title art + mockup menu
+
+- New **homescreen background** wired to the title screen: `C:\Game Assets\Ascent Art\homescreen.png` →
+  `apps/web/public/homescreen.webp` (1915×821, 218 KB via sharp q82); `.titlescreen` now layers it under a
+  left-edge vignette so the menu stays legible over the bright sky.
+- **Title menu restyled to the provided mockup:** left-aligned ornate menu (navy fill + gold rim + bevel,
+  framed gold icon cells, letter-spaced caps) — **Play** (blue active CTA → starts Ascent), **Career**
+  (placeholder, no-op, per owner "doesn't go anywhere yet"), **Leaderboard**, **Settings**. The
+  **transparentlogo** art sits above the ASCENT wordmark; the build **version** is bottom-right.
+  **Practice + Compendium** kept as small secondary links so no mode is lost.
+- **Account name (top-right):** clickable chip → inline edit lets the player name themselves (persists via the
+  existing `playerName`/localStorage). Larger than the old rank chip; the XP bar + icon are gone (a real
+  account/rank binding comes with the career system).
+- **Leaderboard** page now uses the same homescreen background.
+- **Note:** the title screen adopts the mockup's blue/gold palette, which diverges from the Sunward warm
+  identity — intentional for this art; revisit if it should be reconciled.
+- **Verified live:** title renders with the homescreen bg + 4 buttons; Career is a no-op, Leaderboard opens,
+  no console errors; typecheck + lint + build:web green.
+
+## 2026-06-29 (session 9)
+
+### feat: combat odds panel shows average damage on loss
+
+- The outcome-odds panel (estimated from the 1000-sim matchup re-run) now also reports **average damage on
+  loss** — the mean Resolve you'd lose across the *losing* simulations (round-capped, like a real loss), i.e.
+  what a typical loss of this matchup costs. Lets you tell an unlucky loss from a deserved one.
+- Computed in the existing odds loop (no extra sims): the loop now reads each sim's full result and sums
+  `min(playerDamage, lossDamageCap)` over losses → `odds.avgLossDamage` (0 when no sim lost). Shown under the
+  win/draw/loss labels when `lose > 0`.
+- **Touches:** `CombatResult.odds` type (+`avgLossDamage`), the reducer odds loop, `Recruit.tsx` + a small
+  style. **Verified:** new test asserts the field is 0/positive and ≤ the round cap; typecheck + lint +
+  `npm test` (405) + build:web green.
+
+### fix: Front to Back's per-cast improvement scales with spell power
+
+- **Before:** the grant grew only +2/+2 per cast (spell power was a flat add to every grant), while the card
+  advertised "Improve this by +2+power" — so the text overstated the growth.
+- **Now:** the escalation step itself absorbs spell power. Each cast grants +(step + accumulated escalation +
+  spell power), then the escalation climbs by (step + current spell power). So the next grant really is bigger
+  by step+power — matching the displayed "Improve this by". Attack and Health escalate independently (new
+  `frontToBackBonusH`), since spell power can be asymmetric (Cinderwing grants Health only).
+- **Touches:** `state.ts` (new `frontToBackBonusH` + deserialize heal), the `spellBuffTargetEscalating`
+  factory + `spellDisplayText` (per-stat escalation), and the `Recruit.tsx` view plumbing.
+- **Verified:** new tests — escalation climbs by step+power; two casts under +1 power grow +3 then +6.
+  typecheck + lint + `npm test` (403) green.
+### fix: Displacement can never swap a minion for a spell
+
+- **Bug:** Displacement (and Darah's Displace power) picked a *random tavern offer* — including spells — so it
+  could pull a spell onto the board (and stash your minion in the tavern). Spells must never be displaced.
+- **Fix:** `swapWithTavern` now only considers tavern **minion** offers and returns false when there are
+  none. Darah's power already keys its charge off that return (no charge spent on a fizzle). The Displacement
+  **spell** gets a reducer guard so it fizzles and stays in hand when the tavern holds no minion.
+- **Verified:** new tests — swap with a mixed tavern always picks the minion; an all-spell tavern fizzles and
+  keeps the spell. typecheck + lint + `npm test` (404) green.
+
+### art: The Godfodder, Hex Flayer, Wolves Den, Crypt Wolf
+
+- Wired art for the four minions added in #98 — `godfodder`, `hexflayer`, `wolvesden`, and the `cryptwolf`
+  token. Masters from `C:\Game Assets\Ascent Art\Minions` (TheGodfodder/HexFlayer/WolvesDen/CryptWolf.png),
+  copied in under their card ids and run through `npm run optimize-art` (PNG → WebP, ≤512px, q85). Each
+  shrank ~2.2MB → ~50KB.
+- **Verified live:** Compendium renders godfodder/hexflayer/wolvesden at 512px (the token doesn't list in the
+  Compendium but resolves through the same eager glob in combat). Note: the running dev server needs a full
+  restart, not just a reload, to pick up new art (`import.meta.glob` is eager).
+### fix: The Godfodder now actually feeds Fodder
+
+- **Bug:** The Godfodder's Battlecry pulled a Fodder *from the shop* — but Fodder (Fred) is a non-rollable
+  token that's essentially never in the shop, so the Battlecry silently fizzled: no stat gain, no animation.
+- **Fix:** `battlecryTargetConsumeFodder` now **creates** a Fodder and feeds it to the targeted friendly
+  minion (golden: 2), mirroring the Consume spell (`spellDemonConsumeFodder`). The target gains the Fodder's
+  stats × its fodder multiplier, the on-consume pipeline fires, and the eat animation plays
+  (`fodderEaten`/`fodderEatenSeq`, the same source-agnostic swirl + stat-float the UI already drives). Card
+  text updated ("consumes a **Fodder**", dropping "from the shop").
+- **Verified:** headless reduce(play → battlecryTarget) — target +1/+1, `fodderEatenSeq` bumped, `fodderEaten`
+  event recorded. typecheck + lint + `npm test` (402) green.
+
+### feat: Practice mode is read-only against the snapshot DB
+
+- **Practice no longer writes snapshots.** Practice runs still fight real captured boards (the opponent
+  pool loads at startup regardless of mode) but never contribute back: no local capture (`saveRunBoards`),
+  no shared upload (`uploadBoards`), and no leaderboard log (`uploadVictory`). Only scored **Ascent** runs
+  create snapshots and can reach the leaderboard.
+- **Change:** the run-end capture block in `store.ts` now also gates on `next.mode !== 'practice'`. Reading
+  is untouched — `fetchAndRegisterPool` (shared pool) + `loadStoredBoards` (local pool) both run at boot for
+  every mode, so practice keeps facing real boards.
+- **Reverses** the earlier interim decision (devlog: "Ascent win/loss AND Practice round-15, owner's call to
+  let Practice contribute for now").
+- **Verified:** typecheck + lint + `npm test` green.
+### feat: 3 new minions + Eternal Knight real-time aura fix
+
+**New cards:**
+- **The Godfodder** (T2 Demon 3/2) — targeted Battlecry: a chosen friendly minion consumes one Fodder from the shop (golden: 2). Uses a new factory `battlecryTargetConsumeFodder` that pulls Fodder off `state.shop`, applies `offerBuyStats` × the target's `fodderMultiplier`, fires the `onConsume` pipeline, and tracks `fodderConsumedThisTurn`. Card has `target: 'friendly'` for cursor UI. Fizzles if no Fodder is in the shop.
+- **Hex Flayer** (T4 Demon 3/4) — Battlecry: give your Demons +1/+3 (golden +2/+6). Uses existing `battlecryBuffTribe` — no new factory.
+- **Wolves Den** (T3 Undead/Beast 3/3) — Deathrattle: summon 3 Crypt Wolves (golden: 6). New `cryptwolf` token added to `tokens.ts` (1/1 Undead/Beast dual-type). Uses existing `deathrattleSummon` — golden ×2 is the standard path.
+
+**Eternal Knight aura fix:**
+- `deathrattleBuffCardTypeRunWide` previously only called `ctx.grantCardBuff` (run-wide carry-back) — surviving Eternal Knights on the current combat board did NOT receive the +3/+2 immediately. Fixed: after the carry-back call, the factory now iterates `ctx.living(self.side)` and buffs every minion whose `cardId` matches. Future summons are covered by `cardBuffGains` in `applyAuras`, so the three paths (current board, future summons, next-fight run-board) all work correctly.
+
+**Verified:** typecheck + lint + `npm test` (402 pass).
+
+## 2026-06-28 (session 8)
+
+### art: Taragosa, Gnasher the Overrun, Ghostsmith
+
+- New art wired for Taragosa, Gnasher the Overrun (`gnash`), and Ghostsmith (`skullblade`) — confirmed loading
+  live in the Compendium. Art-only (no code/test changes).
+
+### content: Violet Whelpmother + Koron renames; art for Worgen/Karwind/Cleric/Whelpmother/Koron
+
+- **Renames** (ids kept): Twilight Broodmother → **Violet Whelpmother**, Acid → **Koron, the Hungerer**.
+- **Art wired:** Spirit Worgen, Karwind, Hoard Cleric (`cleric`), Violet Whelpmother (`broodmother`), Koron
+  (`acid`) — all confirmed loading live. (The Koron master shipped as `KorokTheHungerer.png` — a one-letter
+  filename typo vs the "Koron" card name; wired by card id regardless.)
+- **Verified:** typecheck + lint + `npm test` (402 pass) + build:web green; CSV regenerated; live Compendium check.
+
+### balance: Taragosa → T6, Cratering Hulk rename, Sergeant/Hulk art
+
+- **Taragosa** (Tara's ascend form) is now a **Tier 6** unit (was T2).
+- **Rename:** Thundering Abomination → **Cratering Hulk** (id `thunderingabomination` kept).
+- **Art wired:** Sergeant and Cratering Hulk (`thunderingabomination.webp`) — confirmed loading live.
+- **Verified:** typecheck + lint + `npm test` (402 pass) + build:web green; pool + CSV regenerated; live
+  Compendium check (Taragosa T6 badge, rename, both art files render).
+
+### balance: follow-up tuning + Violet Whelp rename, Mechanical Jouster, art rewires
+
+- **Rename:** Twilight Whelp → **Violet Whelp** (id `twilightwhelp` kept; Twilight Broodmother's summon text now
+  reads "Violet Whelps").
+- **Stat/buff tuning:** Spirit Pup 6/6, Mama Bear 5/5, Tara 5/6; Spirit Worgen's per-summon gain 1/1 → **3/3**
+  (golden 6/6); Commander Impala → **6/6 + Windfury**, on-kill Fodder/Imp buff 2/2 → **3/3** (golden 6/6).
+- **New minion — Mechanical Jouster** (Mech, T4 4/5): *new combat factory* `rallyGrantMagnetic` — Rally (on each
+  attack) adds a random Magnetic Mech to your hand (golden 2 per attack), carried back after combat.
+- **Art rewired** (new masters): Supporter, Guardian Drake (`bronzewarden`), Violet Whelp (`twilightwhelp`),
+  Taragosa, Spirit Worgen, + Mechanical Jouster. All wired by card id and confirmed loading live in the Compendium.
+- **Verified:** typecheck + lint + `npm test` (402 pass — Spirit Worgen scaling tests updated to base 3) +
+  build:web green; pool + CSV regenerated; live Compendium check (rename, new card, all six art files render).
+
+### balance: big tuning pass + 6 renames, 3 cuts, 5 reworks, 2 new minions, Compendium polish
+
+A broad owner-directed balance + content update. New art for Bane, Acid, Supporter (rewired earlier this
+session) plus the two new minions below.
+
+- **Stat tuning (data only):** Beasts — Gryphon 2/5, Raptor 2/6, Mama Pup 3/2, Kennelmaster 1/4, Wildwood
+  Shaper 1/1, Sea Urchin 3/3. Dragons — Arcane Weaver 4/4, Cinderwing Matron 4/5, Bane 7/9, Crypt Drake 6/6.
+  Mechs — Junkyard Titan → T3, Better Bot → T4 & 5/5. Undead — Sporeling 2/2, Deathswarmer 1/4, Ghostsmith
+  4/2, Karthus 7/8. Demons — Fodder Feeder 2/2, Trickster → T2 & 2/4, Ritualist 5/6. Neutrals — Buddy Buddy
+  3/3, Archmagus Guel 4/4, Blaster 5/3, Flowing Monk 4/5, Sylus 1/7, Yazzus 5/7.
+- **Buff-value tweaks:** Karwind +2/+2 (golden +4/+4), Nanon overflow +3/+4 (golden +6/+8), Brightwing Broker
+  3/4 body giving +1/+2 (golden +2/+4).
+- **Renames (card `id`s kept stable → art/pool/saves intact):** Bronze Warden → **Guardian Drake**, Stuntdrake
+  → **Obsidian Drake**, Spare Part Drone → **Warding Drone**, Deathless Hand → **Footman Leader**, Ghastly
+  Bladesmith → **Ghostsmith**, Taurus the Ancient → **Taurus**.
+- **Removals (cascaded like Sheldon — def + tests + pool + CSV + art + orphan factories):** **Demonic Anomaly**,
+  **Echo Warden** (its summon-multiplier logic in `simulate.ts` + the `echo` summon-event flag + replay handling
+  were live, not deferred as an old comment claimed — all removed), **Cupcakes**.
+- **Reworks:**
+  - **Acid** (8/8, no longer a Consume body) — *new `goldSpent` trigger*: every 7 Gold you spend permanently
+    buffs your Fodder + Imps +1/+1 (golden +2/+2) AND queues 1 Fodder (golden 2) into your next tavern, via a
+    continuous per-instance meter (`BoardCard.goldTick`) fired from a single `spendGold` chokepoint in the
+    reducer (buys, rerolls, tier-ups, hero powers).
+  - **Banksly** (new Mech, T5 5/6) — same `goldSpent` meter: every 10 Gold spent welds a random Magnetic onto
+    itself (golden 2).
+  - **Commander Impala** (new Demon, T5 6/4) — *new combat factory* `onKillBuffFodderImps`: each kill
+    permanently buffs Fodder + Imps +2/+2 (golden +4/+4), carried back like Bane.
+  - **Target Dummy** (0/4) — *new combat factory* `onDamagedGainAttack`: gains +1 Attack per hit (any damage
+    amount), permanent (carried back via `permaGain`).
+  - **Thundering Abomination** — dropped Engraved; its overflow grant to Undead is now the engraved (permanent)
+    part (`onSummonOverflowBuffTribe` gained an `engrave` param).
+  - **Taurus** — base now Engraves BOTH neighbors; a golden Taurus additionally **doubles** their combat
+    stat-gains via a new per-minion `Minion.gainMult` applied at the top of `ctx.buff`.
+  - **Lantern Light** — now folds run spell power onto both stats on top of +Tier/+Tier.
+  - **Consume** (→ 3 cost) — instead of eating a tavern minion, the chosen Demon now **creates and eats a
+    Fodder** (new `spellDemonConsumeFodder`), playing the fodder-eat animation; the Fodder carries the run-wide
+    Fodder enchant.
+- **Compendium:** cursor fixes — the inspect overlay's enlarged card and the book's scrollbar pseudo-elements
+  now keep the themed gauntlet cursor (were falling back to the OS arrow). **Evolution units** (Spirit Worgen,
+  Taragosa) now appear in the book — detected as ascend/transform targets even though they're non-buyable tokens.
+- **Verified:** typecheck + lint + `npm test` (402 pass — many combat/run tests updated: Echo/Cupcakes/Demonic
+  Anomaly deleted, Karwind/Nanon/Brightwing/Acid/Consume/Taurus expectations rewritten, and several scaffold
+  tests switched off `sandbag` since Target Dummy is no longer an inert wall) + build:web all green. Pool + CSV
+  regenerated.
+
+### content: remove Sheldon from the card set
+
+- **Cut the `sheldon` Mech** (tier-3, 2/4, Divine Shield + Magnetic) from `packages/content/src/cards/mechs.ts`.
+  It was one of five Magnetic mechs; the others (Cling Drone, Money Bot, Speedy, Harry Botter, Better Bot) stay.
+- **Cascading cleanup:** deleted the art build copy (`packages/ui/src/art/minions/sheldon.webp`); regenerated
+  `docs/cards.csv` (`npm run dump-cards` → 80 minions) and the opponent pool (`npm run pool`, which sources the
+  live card set). Pruned the Sheldon-specific assertion from the Magnetic-weld test (`run.test.ts`) and broadened
+  the Combinator random-weld test's expected profiles to cover the **full** current Magnetic-mech pool (it had
+  hardcoded a 3-of-5 subset, so dropping Sheldon shifted the seeded RNG onto Harry Botter and failed the stale
+  list).
+- **Verified:** `npm run typecheck`, `npm test` (406 pass), lint, build:web all green.
+
+### feat(ui): Compendium button on the title + Ascent win-condition copy
+
+- **Title-screen Compendium button** (`Title.tsx`) — a third centered action (`Leaderboard · Compendium ·
+  Settings`; the row was already `justify-content: center`) that opens the Compendium. Opened from the title
+  (no committed run), the book now browses the **whole card set** — `MinionBook` uses all six tribes + Neutral +
+  Spells and the subtitle reads "… cards in the game" (vs "… findable this run" mid-run). The global **Tab**
+  hotkey now also works from the title (still suppressed during hero select).
+- **Ascent description** — reworded from the vague "survive the rising threat as long as you can" to the real
+  win/lose condition: *"Climb the rising threat — win 15 rounds to ascend, or fall when your Resolve runs out."*
+  (Matches `CONFIG.winsToWin = 15` → victory on the 15th won combat; gameover when Resolve hits 0.)
+- **Verified** live: title shows three centered buttons + the new copy; the Compendium opens from the title at
+  "114 of 114 cards in the game" (all tribes). typecheck + lint + build:web green.
+
+### tweak(ui): Minion Book → "Compendium" — 6-wide, +15%, single scroll (no pages)
+
+Per owner feedback: renamed the overlay title **Bestiary → Compendium**; the gallery is **6 columns wide**
+(was 5); the whole thing is ~15% larger — the book panel grew to `min(1700px, 96vw)` × `min(1000px, 92vh)` and
+the card size to `--ch: clamp(212px, 26vh, 276px)`; and **pagination is replaced with a single vertical scroll**
+so you can skim the whole filtered list at once (dropped `PAGE_SIZE` + page state + the Prev/Next footer + the
+arrow-key page flip; `.book-grid` was already `overflow-y: auto`). Verified live: all 114 cards render in one
+scrollable 6-wide grid, scrollbar present, no footer. **Themed the scroll areas' scrollbars** (`.book-grid` /
+`.book-rail`) — a native scrollbar reverts the cursor to the OS arrow, so a styled webkit scrollbar (+ Firefox
+`scrollbar-color`) renders as part of the element, keeping the gauntlet cursor and matching the accent theme.
+typecheck + lint + build:web green.
+### feat: unify run-wide buffs as "auras" — apply everywhere (incl. resummon) + consistent naming
+
+Run-wide buffs ("Undead everywhere", Fodder, Imp, Eternal Knight) are now treated as **auras** that follow a
+player minion everywhere — the warband, the shop, and every combat body (start, summon, Reborn, **resummon**).
+This fixes several inconsistencies where a fresh combat body silently shed a buff it should keep.
+
+- **Combat (`core/combat/simulate.ts`)** — replaced the three ad-hoc helpers (`applyUndeadBonus` /
+  `applyImpBonus` / `applyCardTypeCarryThrough`) with a declarative `AURAS` registry + one `applyAuras(m, fromBase)`,
+  applied at combat start, summon, and Reborn. New aggregate auras are now one registry entry; per-card enchants
+  (Fodder, Eternal Knight) flow from `cardBuffs`, which is now **threaded into `simulate()`** (new trailing param;
+  both reducer call sites pass `s.cardBuffs`). The per-card prior total reads `cardBuffs[id]` (authoritative) and
+  falls back to the minion's own buff breakdown, so existing Eternal Knight / Lantern tests stay byte-identical.
+  - **Bug fixes via the unified path:** a **summoned** token now inherits its per-card enchant (a summoned Fodder
+    gets the Ritualist buff); a **Reborn** body now also re-gains the Imp aura + non-undead enchants (Fodder);
+    a **resummoned** body (Soren's Reclaim) now re-applies the per-card stacks banked *this fight* via a dedicated
+    `applyCombatGains` — its start-of-combat copy already carries the live auras + prior stacks, so only the
+    later gains were missing (this is the "resummoned Eternal Knight doesn't gain the buff" report).
+- **Recruit display** — `instView` (warband/hand) now folds the Undead aura onto `universalTribe` minions too
+  (it already did for plain Undead; shop + combat already did). The run-buffs window (`runBuffs.ts`) renames the
+  rows to the aura vocabulary: **Undead Aura · Fodder Aura · Imp Aura · Eternal Knight Aura**.
+- **Verified**: typecheck + lint + `build:web` green; full suite **405** (2 new — a resummoned Knight carries the
+  Undead Aura with the exact +Attack delta, not doubled/dropped; a combat-summoned token inherits its per-card
+  enchant); `npm run harness` re-confirms identical-seed determinism. Existing golden/Eternal-Knight/Lantern
+  tests unchanged.
+- **Note (combat-determinism boundary):** `simulate()` gained a trailing `cardBuffs` param — coordinate before
+  further signature changes.
+### fix: magnetic can weld onto a Chaos Attachment host + Minion Book pop-in animation
+
+Two small fixes from a feedback batch.
+
+- **Magnetic → Chaos Attachment.** A normal Mech Magnetic minion couldn't weld onto a Chaos Attachment (the
+  `universalTribe` all-type body). Cause: the attachment's printed `tribe` is `'neutral'`, so the tribe-match in
+  `magnetizesTo` (`reducer.ts`) missed it. Fix: a `universalTribe` **host** counts as every tribe (incl. Mech),
+  so it now accepts any Magnetic — the mirror of the already-handled magnetic-*side* universalTribe case. Added a
+  regression test (`run.test.ts`: a Cling Drone welds onto a Chaos Attachment → merges, 1/1 + 2/2 = 3/3).
+- **Minion Book pop-in.** The book reused `inspectpop` (animates `scale(1.45)→1.9`, correct for the inspect card
+  which *rests* at scale 1.9); the book rests at scale 1, so it ballooned then snapped down. New `bookpop`
+  keyframe: opacity 0→1 + `scale(0.97)→1`. Verified live (computed `animation-name: bookpop`).
+- **Verified**: typecheck + lint + test (404) + build:web green.
+
+### feat: Minion Book (Tab) — a filterable bestiary of every card findable this run
+
+A new reference overlay so players can browse the run's card pool. Tab toggles a blurred full-screen "tome":
+tier filters (1–6) across the top, tribe + Spells filters down the left, and a paged gallery of cards you
+flip through. Both filter axes are **multi-select** and combine (OR within an axis, AND across axes), e.g.
+tiers 1+2 ∧ Beasts+Dragons. Pure presentation — no engine changes.
+
+- **`ui/MinionBook.tsx`** (new) — derives contents from the same eligibility rule as `stockPool` (neutral +
+  active-tribe minions off `BUYABLE_CARDS`, so the list is stable as you buy/sell) plus all `SPELL_CARDS`;
+  tokens are excluded. Cards render via the existing `<Card forceFull>` (base/printed stats — it's a static
+  reference, no run buffs); right-click still opens the global Inspect (which layers above the book at z 500 vs
+  480). Page size 10; ArrowLeft/Right flip pages; filters reset to page 1 on change.
+- **`ui/store.ts`** — added UI-only `showBook` + `toggleBook`/`closeBook` (mirrors the leaderboard toggle).
+- **`ui/Game.tsx`** — a global **Tab** handler toggles the book (gated to an active run — not the title/hero
+  picker; `preventDefault` stops focus-cycling). The existing **Esc** handler now lets the book claim Esc
+  (closes itself) before the menu would open, matching how Inspect already does.
+- **`ui/styles.css`** — `.book-ov` / `.book` + the head / tier row / left rail / grid / footer; the grid sets a
+  compact `--cw`/`--ch` so cards tile 5×2, with a hover scale-up on each cell.
+- **Scope note (per owner):** contents are *this run's* findable cards (active tribes + neutral), tokens
+  excluded. When future set/RNG cards land we'll revisit whether/how run-variable cards appear.
+- **Verified** live in the preview: Tab opens/closes; Esc closes without opening the menu; tier∧tribe and
+  multi-select filtering produce correct counts (tier1∧Beast → 2; tiers1,2 ∧ Beast,Dragon → 8); right-click
+  inspect layers on top; no console errors. typecheck + lint + test (403) + build:web all green.
+### refactor: data-driven Discover-on-play + opponent-frame intel + cursor fix
+
+Three small, independent changes (UI polish + an engine de-coupling).
+
+- **`discoverOnPlay` — Discover spells are now data, not a reducer card-id chain.** The `play` action in
+  `sim/reducer.ts` special-cased five card ids (`discoverspell`, `sprout`, `helpwanted`, `tribeportal`,
+  `corpseboard`), each calling `queueDiscover` with bespoke params. Replaced by a single generic handler that
+  reads a new optional `CardDef.discoverOnPlay` spec (`core/types.ts`, zod-validated in `content/schema.ts`):
+  `{ exactTier?, tierOffset?, filter?, tribe?: Tribe | 'dominant', topTierFirst? }`. The reducer resolves the
+  offer tier (`exactTier ?? tavernTier + tierOffset`) and tribe (`'dominant'` → `dominantBoardTribe(s)`) at
+  play time, then builds the same `DiscoverSpec`. The five cards now carry the field; the golden Triple Reward
+  token keeps its peek-up bias via `{ tierOffset: 1, topTierFirst: true }`. New Discover spells are now
+  data-only — no reducer change. Behaviour is byte-identical (untargeted → still not multiplied by Yazzus,
+  still consumed with no board slot). **Verified**: full `npm test` green (403 tests, incl. the existing
+  sprout/helpwanted/tribeportal/corpseboard/discoverspell coverage) + typecheck + lint + build:web.
+- **Opponent frame — wins + tavern tier now in the thumbnail itself.** `OpponentFrame.tsx` previously showed
+  only name + hero portrait + life in the always-visible badge (the rest was hover-only). Added a stats
+  column: life (♥) on top, then a meta row of wins (crown, accent) + tavern tier (star) — both already on
+  `BoardSnapshot`. The hover tooltip is unchanged (still hero name / HP / tier / triples / top tribe /
+  author). New CSS: `.opp-stats`, `.opp-meta`, `.opp-wins`, `.opp-tier`. **Verified** live in the preview:
+  badge reads "LEMON · ♥30 · 👑0 · ★1", tooltip intact.
+- **Opponent frame cursor.** `.oppframe` used the bare OS `cursor: default` on hover; switched to the custom
+  `url('/cursors/gauntlet_default.svg') 6 2, help` (matching `.chip` — it's an informational hover surface).
+
 ## 2026-06-27 (session 7)
 
 ### feat: weighted card-drag — perspective tilt + a slight lag for heft
@@ -42,6 +896,33 @@ CSS 3D transforms on the DOM card, not a Pixi mesh, since the card is composed D
 
 **Verification:** `typecheck + lint + build:web` green; page loads with no console errors, tuner mounts. The
 tilt/lag feel itself is for live by-eye tuning (the headless preview throttles rAF).
+
+### fix: the round timer kept ticking under the title / leaderboard overlays
+
+`<Recruit />` stays mounted across every phase (combat plays out in place), and the title screen, hero
+picker, and Hall of Champions render *on top* of it (see `Game.tsx`). The recruit round-timer loop only
+paused for an open Discover + the hero picker — not the title or leaderboard — so the clock kept counting
+down (and the last-5-seconds `sfx.tick` kept firing) on those screens, where there's no active turn.
+
+- **`Recruit.tsx`** — the countdown effect now also pauses while an overlay is open (`showTitle ||
+  showLeaderboard`), added to its guard + deps. The clock freezes where it was and resumes when the overlay
+  closes (no refill). The hero-picker pause was already handled (`heroSelecting`).
+- **Verified**: typecheck + lint + `build:web` green; dev server HMR'd clean. (The symptom was the audible
+  tick + visible countdown on the Hall of Champions — now silent/frozen there.)
+### feat: Hall of Champions shows each minion's buff breakdown (right-click inspect)
+
+Right-clicking a champion's minion in the leaderboard now itemizes HOW it was buffed ("Spirit Fire ×2:
++6/+6", "Golden Touch", etc.) in the inspect panel — the same breakdown the shop + combat already show
+(PR #77). Board snapshots didn't carry the breakdown, so this captures it.
+
+- **`sim/snapshot.ts`** (`cleanBoard`) — carries each board card's per-source `buffs` into the snapshot
+  (cloned, omitted when empty). So captured/served/leaderboard boards keep the breakdown, not just final stats.
+- **`ui/Leaderboard.tsx`** (`cardViewOf`) — passes `buffs` into the card view; the existing right-click
+  `<Inspect>` overlay renders it unchanged.
+- **Caveat**: only boards captured AFTER this ships carry the breakdown — older leaderboard rows (captured
+  before now) simply show no Buffs panel (graceful).
+- **Verified**: typecheck + lint + `build:web` + full suite green (**402 tests**). New snapshot test:
+  `snapshotBoard` captures the buff breakdown (cloned, not shared) and omits it for buff-less minions.
 
 ### feat: opponent selection — fully random within a source-priority cascade (Supabase → local → synthetic)
 

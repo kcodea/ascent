@@ -46,6 +46,7 @@ export function simulate(
   spellPowerHp = 0,
   playerTier = 1,
   playerTribes: string[] = [],
+  cardBuffs: Record<string, { attack: number; health: number }> = {},
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -70,59 +71,82 @@ export function simulate(
   const deferredBattlecries: { cardId: string; golden: boolean }[] = [];
 
   /**
-   * Lantern of Souls: every PLAYER-side Undead gets +`undeadAttackBonus`/+`undeadHealthBonus` for the
-   * rest of the run, wherever it is — the recruit UI already shows the same bump on the board, so this
-   * just re-derives it for the combat instance (no event — a baseline like the recruit buffs folded
-   * into stats). Applies at combat start AND to anything summoned or Reborn mid-fight (Reborn resets to
-   * base stats, dropping the bonus, so it's re-applied there too). Pure: keyed only on side + tribe.
+   * AURAS — run-wide buffs that follow a player minion EVERYWHERE: the warband + shop (folded into the
+   * recruit card view) and every combat body (start, summon, Reborn, resummon). Two storage styles feed them:
+   *   • aggregate bonuses — the **Undead Aura** (Lantern of Souls' +A/+H, plus the buy-time Attack from
+   *     Deathswarmer / Forsaken Weaver / Karthus) and the **Imp Aura** (Fodder Feeder / Ritualist / Bane);
+   *   • per-card enchants in `cardBuffs` — the **Fodder Aura** (Ritualist / Bane / Staff of Guel) and the
+   *     **Eternal Knight** card-type enchant.
+   *
+   * `fromBase` distinguishes a body built from BASE card stats (a summon or a Reborn — nothing baked in) from
+   * one built off the run board (combat start, resummon — the buy-time Attack + prior per-card enchant are
+   * already folded into its stats, so they must NOT be re-added). The stacks banked THIS fight (`cardBuffGains`)
+   * apply to every fresh body regardless. To DECLARE a new aggregate aura, add an entry to `AURAS`; per-card
+   * enchants flow automatically from `cardBuffs`.
    */
-  const hasUndeadBonus = undeadAttackBonus > 0 || undeadHealthBonus > 0; // Lantern of Souls active?
-  // `includeBuyAtk`: pass true for mid-combat summons and Reborn, which start from base CardDef stats
-  // and therefore haven't had the buy-time bonus baked in yet. Starting minions already have it.
-  const applyUndeadBonus = (m: Minion, includeBuyAtk = false): void => {
-    const extraAtk = includeBuyAtk ? undeadBuyAtk : 0;
-    if (!hasUndeadBonus && extraAtk === 0) return;
-    if (m.side !== 'player') return;
-    if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !cards[m.cardId]?.universalTribe) return;
-    if (undeadAttackBonus + extraAtk > 0) m.attack = Math.max(0, m.attack + undeadAttackBonus + extraAtk);
-    if (undeadHealthBonus > 0) {
-      m.health += undeadHealthBonus;
-      m.maxHealth += undeadHealthBonus;
+  const isUndeadMinion = (m: Minion): boolean =>
+    m.tribe === 'undead' || m.tribe2 === 'undead' || !!cards[m.cardId]?.universalTribe;
+
+  // Each aura yields the +atk/+hp it grants a given minion (0/0 = doesn't apply). `bakedAtk` is the slice of
+  // Attack already folded into run-board stats at buy time (re-added only to a from-base body).
+  const AURAS: { label: string; grant: (m: Minion) => { attack: number; health: number; bakedAtk?: number } }[] = [
+    {
+      label: 'Undead Aura',
+      grant: (m) =>
+        isUndeadMinion(m)
+          ? { attack: undeadAttackBonus, health: undeadHealthBonus, bakedAtk: undeadBuyAtk }
+          : { attack: 0, health: 0 },
+    },
+    {
+      label: 'Imp Aura',
+      grant: (m) =>
+        cards[m.cardId]?.imp ? { attack: impAtkBonus, health: impHpBonus } : { attack: 0, health: 0 },
+    },
+  ];
+
+  const applyAuras = (m: Minion, fromBase: boolean): void => {
+    const isPlayer = m.side === 'player';
+    // Aggregate run-wide auras (Undead / Imp) are keyed to the PLAYER's run state — an enemy snapshot has no
+    // run state, so it doesn't inherit these.
+    if (isPlayer) {
+      for (const aura of AURAS) {
+        const g = aura.grant(m);
+        const a = g.attack + (fromBase ? g.bakedAtk ?? 0 : 0);
+        if (a > 0) m.attack = Math.max(0, m.attack + a);
+        if (g.health > 0) { m.health += g.health; m.maxHealth += g.health; }
+      }
     }
-  };
-
-  // Imps (combat-summoned tokens — Brood Matron / Imp King) inherit the run-wide Imp buff
-  // (Fodder Feeder / Ritualist / Bane). Applied to player-side Imp-tagged minions at start AND on summon.
-  const hasImpBonus = impAtkBonus > 0 || impHpBonus > 0;
-  const applyImpBonus = (m: Minion): void => {
-    if (!hasImpBonus || m.side !== 'player' || !cards[m.cardId]?.imp) return;
-    if (impAtkBonus > 0) m.attack = Math.max(0, m.attack + impAtkBonus);
-    if (impHpBonus > 0) { m.health += impHpBonus; m.maxHealth += impHpBonus; }
-  };
-
-  // Carry-through buff for Reborn: the run-wide Eternal-Knight enchant (a card-type +A/+H banked from Knight
-  // deaths) persists THROUGH a Reborn — re-applied on top of base stats so the reborn body keeps the buff.
-  // Gated to Undead cards (it's an "Undead buff"), so general stat / Imp / Fodder buffs do NOT carry.
-  // The total has TWO parts: (1) the stacks accrued in PRIOR fights, baked into the run-board stats and
-  // carried into combat on the minion's buff breakdown under the card's own name (the label settleCombat
-  // gives the run-wide card buff); and (2) the stacks banked THIS fight (`cardBuffGains`). Without part (1)
-  // a Reborn shed every prior stack — a 6-stack Knight came back at 1 stack. Re-apply both on top of base.
-  const applyCardTypeCarryThrough = (m: Minion): void => {
+    // Per-card run enchant (Fodder Aura + Eternal Knight). The player's prior-run total is authoritative in
+    // `cardBuffs`; for BOTH sides the minion's own buff breakdown (keyed under the card's name) carries it
+    // inline — so a captured ENEMY Eternal Knight re-gains its enchant when it Rises (built from base). The
+    // stacks banked THIS fight (`cardBuffGains`) are the player's own tracking, so they only fold onto players.
     const def = cards[m.cardId];
-    if (!def || (def.tribe !== 'undead' && def.tribe2 !== 'undead')) return;
-    const prior = m.buffs?.find((b) => b.source === def.name); // prior-fight stacks baked into the run board
-    const g = cardBuffGains.find((c) => c.cardId === m.cardId); // stacks added this fight (the death just now)
-    const atk = (prior?.attack ?? 0) + (g?.attack ?? 0);
-    const hp = (prior?.health ?? 0) + (g?.health ?? 0);
-    if (atk > 0) m.attack = Math.max(0, m.attack + atk);
-    if (hp > 0) { m.health += hp; m.maxHealth += hp; }
+    const prior = fromBase
+      ? (isPlayer ? cardBuffs[m.cardId] : undefined) ?? (def ? m.buffs?.find((b) => b.source === def.name) : undefined)
+      : undefined;
+    const gain = isPlayer ? cardBuffGains.find((c) => c.cardId === m.cardId) : undefined;
+    const a = (prior?.attack ?? 0) + (gain?.attack ?? 0);
+    const h = (prior?.health ?? 0) + (gain?.health ?? 0);
+    if (a > 0) m.attack = Math.max(0, m.attack + a);
+    if (h > 0) { m.health += h; m.maxHealth += h; }
+  };
+
+  // A resummon (The Reclaimer) copies the minion's START-of-combat body, which ALREADY carries the live
+  // auras + its prior per-card enchant (they were folded in before the copy was taken). So it only needs the
+  // per-card stacks banked LATER this fight (e.g. its own destroy + other Eternal Knight deaths) re-applied.
+  const applyCombatGains = (m: Minion): void => {
+    if (m.side !== 'player') return;
+    const gain = cardBuffGains.find((c) => c.cardId === m.cardId);
+    if (!gain) return;
+    if (gain.attack > 0) m.attack = Math.max(0, m.attack + gain.attack);
+    if (gain.health > 0) { m.health += gain.health; m.maxHealth += gain.health; }
   };
 
   const boards: Record<Side, Minion[]> = {
     player: player.map((b) => instantiate(b, 'player', cards, mkUid)),
     enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
   };
-  for (const m of boards.player) { applyUndeadBonus(m); applyImpBonus(m); } // bake run-wide auras into starting minions
+  for (const m of boards.player) applyAuras(m, false); // fold run-wide auras into starting minions (already baked → live part only)
 
   // Persistent tribe buffs (Grim's Deathrattle): registered when it fires, then applied to every matching
   // friend summoned for the *rest of combat*. Side-scoped; multiple Grims stack.
@@ -185,6 +209,9 @@ export function simulate(
     },
     allCards: () => Object.values(cards),
     buff: (target, attack, health, source) => {
+      // Golden Taurus doubles every combat stat-gain its engraved neighbors receive (`gainMult`).
+      const gm = target.gainMult ?? 1;
+      if (gm !== 1) { attack *= gm; health *= gm; }
       target.attack = Math.max(0, target.attack + attack); // Attack never drops below 0
       target.health += health;
       if (health > 0) target.maxHealth += health;
@@ -220,7 +247,7 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
-    summon: (side, card, nearUid, grantKeywords) => summonMinion(side, card, nearUid, false, grantKeywords),
+    summon: (side, card, nearUid, grantKeywords) => summonMinion(side, card, nearUid, grantKeywords),
     flushImmediateAttacks: () => flushImmediateAttacks(),
     grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
@@ -312,12 +339,11 @@ export function simulate(
   };
 
   /**
-   * Summon one minion (the single summon chokepoint). Echo Warden: each summoned unit gets one more
-   * copy per living Echo Warden (golden = 2) — recursion-guarded by `isEcho` so the copies don't echo
-   * themselves. Because this lives in the summon path, it applies to *any* summon (token Deathrattles,
-   * `deathrattleFillTribe`'s real minions, Brood Matron, future effects), not just token effects.
+   * Summon one minion (the single summon chokepoint). Because this lives in the summon path, run-wide
+   * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
+   * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, isEcho: boolean, grantKeywords?: Keyword[]): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[]): Minion {
     const minion = instantiate({ cardId: card.id, attack: card.attack, health: card.health }, side, cards, mkUid);
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff).
@@ -332,8 +358,7 @@ export function simulate(
       if (near >= 0) index = near + 1;
     }
     arr.splice(index, 0, minion);
-    applyUndeadBonus(minion, true); // Lantern + buy-time bonus — summoned minions start from base stats
-    applyImpBonus(minion); // run-wide Imp buff — combat-summoned Imps (Brood / Imp King) inherit it
+    applyAuras(minion, true); // run-wide auras — a summon starts from base stats, so re-apply all of them
     // Grant keywords (e.g. Taunt from Broodmother) BEFORE snapshotting so the UI sees them from frame 1.
     if (grantKeywords) {
       for (const kw of grantKeywords) {
@@ -344,18 +369,13 @@ export function simulate(
       }
     }
     registerEffects(minion);
-    events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid, ...(isEcho && { echo: true }) });
+    events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
     bus.emit('onSummon', { minion, side });
     // Persistent tribe auras (Grim) catch minions summoned after they were registered.
     for (const aura of tribeAuras) {
       if (aura.side === side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!cards[minion.cardId]?.universalTribe))) {
         ctx.buff(minion, aura.attack, aura.health, aura.source);
       }
-    }
-    if (!isEcho) {
-      let echoes = 0; // count Echo Wardens without allocating a living() array on every summon
-      for (const m of boards[side]) if (!m.dead && m.health > 0 && m.cardId === 'echo') echoes += m.golden ? 2 : 1;
-      for (let i = 0; i < echoes && countLiving(side) < 7; i++) summonMinion(side, card, minion.uid, true);
     }
     // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
     // already returned above, so only minions actually placed on the board reach here.
@@ -439,11 +459,11 @@ export function simulate(
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
     // Reborn (A.3 step 6): a minion's FIRST death fires its Deathrattle / on-death effects, then it returns
-    // ONCE at its *base* card stats — shedding combat buffs + granted keywords (Divine Shield, etc.), keeping
-    // printed keywords (minus the spent Reborn). Golden → doubled base. So a 2/1 buffed to a 10/3 Divine-Shield
-    // body comes back a plain 2/1, but a Twilight Whelp leaves a Whelp on each death. Undead carry-through buffs
-    // are re-applied on top (Lantern/buy-time "everywhere" + the run-wide Eternal-Knight enchant); general stat
-    // / Imp / Fodder buffs do NOT carry. (Recruit-permanent run-board stats are untouched — instance only.)
+    // ONCE at its *base ATTACK* with **1 Health** (Hearthstone-style — regardless of its printed Health),
+    // shedding combat buffs + granted keywords (Divine Shield, etc.), keeping printed keywords (minus the spent
+    // Reborn). Golden → doubled (base attack ×2, 2 Health). So a 7/8 buffed to a 13/10 body comes back a 7/1.
+    // Undead carry-through + run-wide auras are still re-applied on top (Lantern/buy-time "everywhere" + the
+    // Eternal-Knight enchant); general stat / Imp / Fodder buffs do NOT carry.
     if (minion.rebornAvailable) {
       minion.rebornAvailable = false;
       // It really died: proc the unit's own Deathrattle / on-death effects (each death procs them) BEFORE the
@@ -454,7 +474,7 @@ export function simulate(
       const mul = minion.golden ? 2 : 1;
       if (def) {
         minion.attack = Math.max(0, def.attack * mul);
-        minion.health = Math.max(1, def.health * mul);
+        minion.health = mul; // Rise returns at 1 Health (2 golden), regardless of the card's base Health
         minion.maxHealth = minion.health;
         minion.keywords = def.keywords.filter((k) => k !== 'R');
         minion.divineShield = def.keywords.includes('DS');
@@ -463,8 +483,7 @@ export function simulate(
         minion.health = 1;
         minion.maxHealth = 1;
       }
-      applyUndeadBonus(minion, true); // Reborn reset stats to base — re-apply Lantern + buy-time bonus
-      applyCardTypeCarryThrough(minion); // …and the run-wide Eternal-Knight enchant (Undead carry-through)
+      applyAuras(minion, true); // Reborn reset stats to base — re-apply every run-wide aura on top
       events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords] });
       return;
     }
@@ -501,6 +520,7 @@ export function simulate(
     while (pendingResummons.length > 0 && living('player').length < 7) {
       const { anchor, board } = pendingResummons.shift()!;
       const copy = instantiate(board, 'player', cards, mkUid);
+      applyCombatGains(copy); // re-apply per-card stacks banked this fight (its own destroy + other deaths)
       const at = boards.player.indexOf(anchor);
       boards.player.splice(at >= 0 ? at + 1 : boards.player.length, 0, copy);
       registerEffects(copy);
@@ -596,8 +616,14 @@ export function simulate(
         for (const n of neighbours) dealDamage(n, attacker.attack, poison, false, attacker);
       }
 
+      // Snapshot the defender's counter-attack BEFORE the hit: combat is simultaneous, but the main hit can
+      // kill a Rise target and rebuild it at base stats within `dealDamage` — so reading target.attack after
+      // would retaliate with the *risen* (reset) attack, not the body that actually clashed. (Bug: an attacker
+      // struck a 100-attack Eternal Knight and only took 6 back, its post-Rise base.)
+      const counterAttack = target.attack;
+      const counterVenom = target.keywords.includes('V');
       dealDamage(target, attacker.attack, poison, false, attacker); // main hit
-      dealDamage(attacker, target.attack, target.keywords.includes('V'), false, target); // retaliation
+      dealDamage(attacker, counterAttack, counterVenom, false, target); // retaliation (pre-Rise counter)
 
       // On-kill re-attack (Gnasher). Dropping a Reborn target to 0 counts as a kill even though it
       // returns to life — it spent its Reborn — so detect a consumed Reborn alongside an outright death.

@@ -25,6 +25,45 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Looping menu video** — the title screen plays a muted, looping ambience video behind the menu (falls
+  back to the `homescreen.webp` still when absent or under reduced-motion).
+- **Career page redesign** — a stats bar (runs · best run · avg wins · win rate) over three columns: a
+  **Profile Card** (avatar · name · "Unranked" placeholder), the **Recent Match History** (click-to-expand
+  cards with stats + final warband), and an **Insights** rail (favorite hero / tribe / mechanic · win rate ·
+  streak).
+- **Combat-contribution tracking** — the post-run summary now names your **MVP minion** (most damage dealt)
+  and **most-triggered mechanic**, and the Career screen shows your **favorite mechanic**. Damage is
+  attributed from the combat log (retaliation-aware), with no change to the pure `simulate()`.
+- **Taragosa → Tier 6**, Thundering Abomination → **Cratering Hulk**, plus new art for Sergeant and Cratering Hulk.
+- **More tuning + a new Mech.** Twilight Whelp → **Violet Whelp**; Spirit Pup 6/6, Mama Bear 5/5, Tara 5/6,
+  Spirit Worgen +3/+3 per summon; Commander Impala now 6/6 with **Windfury** and a +3/+3 on-kill buff. New
+  **Mechanical Jouster** (Mech T4 — Rally: get a random Magnetic Mech). Fresh art for Supporter, Guardian Drake,
+  Violet Whelp, Taragosa, Spirit Worgen, and the Jouster.
+- **Balance + content batch.** A broad tuning pass (stat tweaks across every tribe), 6 renames (Bronze Warden →
+  Guardian Drake, Stuntdrake → Obsidian Drake, Spare Part Drone → Warding Drone, Deathless Hand → Footman Leader,
+  Ghastly Bladesmith → Ghostsmith, Taurus the Ancient → Taurus), 3 cuts (Demonic Anomaly, Echo Warden, Cupcakes),
+  and reworks: **Acid** (spend 7 Gold → buff Fodder/Imps), **Banksly** (new Mech — spend 10 Gold → magnetize),
+  **Commander Impala** (new Demon — on-kill buff Fodder/Imps), **Target Dummy** (gains Attack when hit), **Taurus**
+  (engraves both neighbors; golden doubles their combat gains), **Thundering Abomination**, **Lantern Light**
+  (now scales with spell power) and **Consume** (creates & eats a Fodder). Compendium now shows evolution units
+  (Spirit Worgen, Taragosa) and keeps the themed cursor on the scrollbar + right-click inspect.
+- **Sheldon removed.** The tier-3 Divine-Shield Magnetic mech was cut from the card set; the remaining Magnetic
+  mechs (Cling, Money Bot, Speedy, Harry Botter, Better Bot) are unchanged.
+- **Compendium (Tab / title button).** A blurred-overlay reference of minions + spells — the whole card set
+  from the title screen, or scoped to your run once playing. Tier filters across the top, tribe/Spells filters
+  down the left (both multi-select), a single scrolling 6-wide gallery. Right-click any card for the full inspect.
+- **Auras.** Run-wide buffs (Undead Aura, Fodder Aura, Imp Aura, Eternal Knight Aura) now apply *everywhere* —
+  warband, shop, and every combat body including summons, Reborns, and Soren's resummons (which previously shed
+  them). New auras are a one-line registry entry.
+- **Minion Book (Tab).** A new blurred-overlay bestiary of every minion + spell findable this run — tier
+  filters across the top, tribe/Spells filters down the left (both multi-select), a paged card gallery you flip
+  through. Right-click any card for the full inspect.
+- **Opponent intel + Discover refactor.** The next-opponent badge now shows wins + tavern tier right in the
+  thumbnail (alongside name, hero, life), with the gauntlet cursor on hover. Under the hood, Discover spells
+  (Sprout, Help Wanted, Tribe Portal, Corpse Board, Triple Reward) are now driven by a data-only
+  `discoverOnPlay` card field instead of hardcoded card-ids in the reducer.
+- **Leaderboard buff breakdown.** Right-clicking a champion's minion in the Hall of Champions now shows how it
+  was buffed (Spirit Fire ×2, Golden Touch, …) in the inspect panel — for boards captured from here on.
 - **Opponents: real player boards, random.** You now face real player boards whenever any exist for your wave
   — the live Supabase shared pool first, then your local/friend boards, then the synthetic floor — picked at
   random (no power-matching) within the highest available tier.

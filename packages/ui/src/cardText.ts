@@ -130,26 +130,19 @@ export function guelProgressText(cardId: string, golden: boolean, spellsCast: nu
 }
 
 /**
- * Crypt Drake: "When an ally attacks, give your minions +N/+N. Improve this every 3 attacks." —
- * highlights the *current* buff magnitude (green) and the countdown to the next step-up. Returns
- * null when no attacks have been seen yet (falls back to printed text). Golden doubles `step`.
+ * Crypt Drake: "Every N ally attacks, give your minions +X/+X." — appends the live countdown to the next
+ * proc. The buff is flat (no improvement), so the magnitude in the printed text is already correct. Returns
+ * null when no attacks have been seen yet (falls back to printed text).
  */
 export function cryptDrakeText(cardId: string, golden: boolean, attackSeen: number): string | null {
   if (attackSeen <= 0) return null;
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onAllyAttackBuffAll');
   if (!def || !eff) return null;
-  const p = eff.params as { step?: number; every?: number } | undefined;
-  const base = Number(p?.step ?? 2);
-  const every = Math.max(1, Number(p?.every ?? 3));
-  const step = base * (golden ? 2 : 1);
-  const improvements = Math.floor((attackSeen - 1) / every);
-  const cur = step * (1 + improvements);
-  const nextImprovement = 1 + every * (improvements + 1);
-  const toNext = nextImprovement - attackSeen;
+  const every = Math.max(1, Number((eff.params as { every?: number } | undefined)?.every ?? 2));
+  const toNext = every - (attackSeen % every); // attacks until the next proc (= `every` right after a proc)
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  const upgraded = src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`);
-  return `${upgraded} {{${toNext} to go}}`;
+  return `${src} {{${toNext} to go}}`;
 }
 
 /**

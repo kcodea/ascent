@@ -108,9 +108,10 @@ export interface BoardCard {
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that
    *  wasn't bought sells for the base 1, since it has no held-since wave). */
   boughtWave?: number;
-  /** Acid's per-instance refresh counter: how many times the shop has been rolled since this card entered
-   *  the board. Fires the consume at every `every`-th roll. Reset to 0 in advanceCombat each wave. */
-  rollTick?: number;
+  /** Gold-spend meter for `goldSpent` effects (Acid, Banksly): accrues the Gold spent while this card is on
+   *  the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
+   *  remainder), per-instance; absent = 0. */
+  goldTick?: number;
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
    *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
   eotTick?: number;
@@ -148,6 +149,9 @@ export interface RunState {
   best: number;
   /** Result of each combat resolved this run, in order — drives the end-screen W-L-W summary. */
   history: CombatOutcome[];
+  /** Par (A2): the target number of scored wins for this run — cover or beat it. Set at run start (static
+   *  today; becomes rating-driven with the career system). See `lineResult`. */
+  line: number;
   phase: Phase;
   embers: number;
   maxEmbers: number;
@@ -182,12 +186,19 @@ export interface RunState {
   deathrattlesTriggered: number;
   /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */
   triplesMade: number;
+  /** Total Gold spent across the run (buys, rerolls, tier-ups, hero powers) — a career/post-run stat. */
+  goldSpent: number;
+  /** Combat contribution across the run (see `contribution.ts`): per-card attack damage (→ MVP minion) and
+   *  mechanic-trigger counts (→ most-triggered mechanic). Accumulated in `settleCombat`. */
+  runDamage: Record<string, { name: string; damage: number }>;
+  runProcs: Record<string, number>;
   /** True once the just-fought combat's outcome (damage + carry-backs) has been applied, while still in the
    *  combat view — so the Resolve hit lands before returning to the shop. Reset when a combat starts. */
   combatSettled: boolean;
   /** Free rerolls banked (Refreshing Texts) — a roll spends these before charging Mana. */
   freeRolls: number;
-  /** Front to Back's accumulated escalation: each cast applies +(2 + this + spell power), then this += 2. */
+  /** Front to Back's accumulated escalation: each cast grants +(2 + this + spell power), then this += 2
+   *  (a flat step — the per-cast improvement is always +2/+2). */
   frontToBackBonus: number;
   /** Fleeting Vigor — a one-shot Start-of-Combat buff banked for the NEXT combat only (your minions enter
    *  that fight at +this; spent in `faceOmen`, win or lose). Absent = none. */
@@ -209,6 +220,9 @@ export interface RunState {
   /** Staff of Guel — a run-wide buff baked onto every minion BOUGHT from the tavern (not Discovered or
    *  conjured). Persists for the rest of the run; stacks (and picks up spell power) if cast again. */
   tavernBuyBonus: { atk: number; hp: number };
+  /** Apples (Choose One) — a one-shot buff folded into the offers of the NEXT tavern roll (refresh or turn
+   *  advance), then cleared. Stacks if cast more than once before the next roll. */
+  nextShopBuff?: { attack: number; health: number };
   /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
   drakkoBuys: number;
   /** Cassen hero: enemy minions killed since the last Collision payoff — at 5 it grants a minion of the
@@ -278,9 +292,10 @@ export interface RunState {
    *  Black Belt Brian queues a 2nd spell Discover, Yazzus multiplies Help Wanted / Sprout, and a
    *  Drakko-doubled Brian queues one spell Discover per Battlecry fire. */
   discoverQueue?: DiscoverSpec[];
-  /** A pending Choose One — a played card waiting for the player to pick an option. The
-   *  options live on the card def (`CARD_INDEX[cardId].chooseOne`). */
-  chooseOne?: { uid: string; cardId: string };
+  /** A pending Choose One — a played card waiting for the player to pick an option. The options live on the
+   *  card def (`CARD_INDEX[cardId].chooseOne`). `spell` marks a SPELL choose-one (its own thing, not a
+   *  battlecry): the card is still in HAND and its chosen effect is cast (then consumed) on pick. */
+  chooseOne?: { uid: string; cardId: string; spell?: boolean };
   /** A played minion with a *targeted* Battlecry (`CardDef.target === 'friendly'`, e.g. Toxin Tender),
    *  on the board and waiting for the player to pick the friendly minion its Battlecry hits. Resolved
    *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. */
@@ -306,6 +321,56 @@ export type Action =
   | { type: 'settleCombat' }
   | { type: 'resolveCombat' };
 
+/** The automatic combat-flow transitions — they fire ~once per round regardless of how the player
+ *  builds, so they're excluded from the "actions per round" stat (which measures player decisions). */
+const COMBAT_FLOW_ACTIONS = new Set<Action['type']>(['faceOmen', 'settleCombat', 'resolveCombat']);
+/** Is this a player-initiated decision (buy / sell / play / roll / freeze / tier-up / reposition /
+ *  discover / choose / hero power / targeting) vs. an automatic combat-flow transition? Basis for APT. */
+export const isPlayerAction = (a: Action): boolean => !COMBAT_FLOW_ACTIONS.has(a.type);
+
+/** A run's W–L record over the SCORED rounds only (A1). The first `CONFIG.calibrationRounds` rounds are
+ *  calibration and don't count; draws are excluded from both wins and losses. `history[i]` is round i+1's
+ *  result, so scored results = `history.slice(calibrationRounds)`. */
+export function runRecord(state: RunState): { wins: number; losses: number; draws: number } {
+  let wins = 0, losses = 0, draws = 0;
+  for (const r of state.history.slice(CONFIG.calibrationRounds)) {
+    if (r === 'win') wins++;
+    else if (r === 'lose') losses++;
+    else draws++;
+  }
+  return { wins, losses, draws };
+}
+
+/** Whether a given round (1-based wave) is a calibration round — the opening rounds that don't count
+ *  toward the record (they still cost Resolve + run the economy). */
+export function isCalibrationRound(wave: number): boolean {
+  return wave <= CONFIG.calibrationRounds;
+}
+
+/** How a run graded against its par (A2). Par is the win condition: covering it is a win even if you
+ *  then fell before the final round. `covered` = met the line exactly, `exceeded` = beat it, `flawless`
+ *  = won every scored round. Falling short is a loss: `failed` = under par *and* died (Resolve 0) before
+ *  finishing the course, `missed` = under par but survived to the end. `delta` = scored wins − line. */
+export type LineStatus = 'flawless' | 'exceeded' | 'covered' | 'missed' | 'failed';
+export function lineResult(state: RunState): { line: number; wins: number; delta: number; status: LineStatus } {
+  const { wins } = runRecord(state);
+  const line = state.line;
+  const delta = wins - line;
+  const scoredRounds = CONFIG.courseRounds - CONFIG.calibrationRounds;
+  let status: LineStatus;
+  if (wins >= scoredRounds) status = 'flawless';
+  else if (wins > line) status = 'exceeded';
+  else if (wins >= line) status = 'covered';
+  // Under par — a loss. Distinguish dying early (`failed`) from surviving the course short (`missed`).
+  else status = state.phase === 'gameover' ? 'failed' : 'missed';
+  return { line, wins, delta, status };
+}
+
+/** Did the run cover its par? `covered` / `exceeded` / `flawless` are wins; `missed` / `failed` are losses.
+ *  The single source of truth for "was this run a win" across the end screen, Career, and build tags. */
+export const metLine = (status: LineStatus): boolean =>
+  status === 'covered' || status === 'exceeded' || status === 'flawless';
+
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. */
 export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent'): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
@@ -317,6 +382,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     wave: 1,
     best: 1,
     history: [],
+    line: CONFIG.defaultLine,
     phase: 'recruit',
     embers: CONFIG.startEmbers,
     maxEmbers: CONFIG.startEmbers,
@@ -331,6 +397,9 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     spellsThisTurn: 0,
     deathrattlesTriggered: 0,
     triplesMade: 0,
+    goldSpent: 0,
+    runDamage: {},
+    runProcs: {},
     combatSettled: false,
     freeRolls: 0,
     frontToBackBonus: 0,
@@ -388,6 +457,10 @@ export function deserialize(json: string): RunState {
   state.turnStartPower ??= 0; // heal saves from before the pinned-opponent power
   state.spellBonus ??= { attack: 0, health: 0 }; // heal saves from before card-driven spell power
   state.undeadBuyAtk ??= 0; // heal saves from before Deathswarmer / Forsaken Weaver
+  state.line ??= CONFIG.defaultLine; // heal saves from before the par/line (A2)
+  state.goldSpent ??= 0; // heal saves from before gold-spent tracking
+  state.runDamage ??= {}; // heal saves from before combat-contribution tracking
+  state.runProcs ??= {};
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (state.pendingSpellDiscovers && state.pendingSpellDiscovers > 0) {

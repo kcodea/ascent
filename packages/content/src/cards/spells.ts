@@ -167,6 +167,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 3,
     effects: [],
+    discoverOnPlay: { exactTier: 1 },
     text: '**Discover** a Tier 1 minion.',
   },
   {
@@ -224,6 +225,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 3,
     effects: [],
+    discoverOnPlay: { filter: 'battlecry' },
     text: '**Discover** a Battlecry minion.',
   },
   {
@@ -299,6 +301,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 4,
     effects: [],
+    discoverOnPlay: { tribe: 'dominant' },
     text: '**Discover** a minion from your most common type.',
   },
   {
@@ -313,6 +316,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 3,
     effects: [],
+    discoverOnPlay: { filter: 'deathrattle' },
     text: '**Discover** a **Deathrattle** minion.',
   },
   {
@@ -332,8 +336,8 @@ export const SPELLS: CardDef[] = [
     text: "Set a friendly minion's stats to **20/20**.",
   },
   {
-    // Bank a one-shot Start-of-Combat buff: your minions enter the NEXT combat at +2/+1, spent after that
-    // fight (win or lose). Flat — no spell-power scaling. (Applied to the combat board in `faceOmen`.)
+    // Bank a one-shot Start-of-Combat buff: your minions enter the NEXT combat at +2/+1 (+ spell power on
+    // both stats), spent after that fight (win or lose). Applied to the combat board in `faceOmen`.
     id: 'fleetingvigor',
     name: 'Fleeting Vigor',
     tribe: 'neutral',
@@ -347,8 +351,8 @@ export const SPELLS: CardDef[] = [
     text: '**Start of combat:** give your minions **+2/+1** (next combat only).',
   },
   {
-    // Buff every minion currently in the tavern by +2/+3 — rides on each offer, so a buy bakes it in. Lost
-    // on a refresh (new offers), kept if you freeze (same offers). Flat — no spell-power scaling.
+    // Choose One: buff THIS tavern's offers by +1/+3 (rides on each offer, so a buy bakes it in — lost on
+    // refresh, kept if frozen), OR bank +2/+4 onto the NEXT tavern roll. Flat — no spell-power scaling.
     id: 'apples',
     name: 'Apples',
     tribe: 'neutral',
@@ -358,27 +362,16 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 1,
-    effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 2, health: 3 } }],
-    text: 'Give minions in this tavern **+2/+3** (lost on refresh; kept if frozen).',
+    effects: [],
+    chooseOne: [
+      { text: 'Give the shop **+1/+3**.', effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 1, health: 3 } }] },
+      { text: 'Give the next shop **+2/+4**.', effects: [{ on: 'cast', do: 'spellBuffNextShop', params: { attack: 2, health: 4 } }] },
+    ],
+    text: '**Choose One:** Give the shop **+1/+3**, or the next shop **+2/+4**.',
   },
   {
-    // Targeted at a friendly Demon — it devours 3 random tavern minions (the real Consume pipeline: stats ×
-    // the Demon's multiplier + its on-consume effects). Fizzles on a non-Demon target.
-    id: 'cupcakes',
-    name: 'Cupcakes',
-    tribe: 'neutral',
-    tier: 5,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 4,
-    target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellDemonConsumeTavern', params: { count: 3 } }],
-    text: 'Choose a **Demon** — it consumes **3** minions in the tavern.',
-  },
-  {
-    // Tier-scaled buff: +Tavern Tier / +Tavern Tier. Scales with Tier (not spell power) by design.
+    // Tier-scaled buff: +Tavern Tier / +Tavern Tier, plus the run's spell power on top of both stats
+    // (so at T4 with +1/+0 spell power it gives +5/+4).
     id: 'lanternlight',
     name: 'Lantern Light',
     tribe: 'neutral',
@@ -449,10 +442,10 @@ export const SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 2,
+    cost: 3,
     target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellDemonConsumeTavern', params: { count: 1 } }],
-    text: 'Choose a **Demon** — it consumes a random minion in the tavern.',
+    effects: [{ on: 'cast', do: 'spellDemonConsumeFodder', params: { count: 1 } }],
+    text: 'Choose a **Demon** — it consumes a **Fodder**.',
   },
   {
     // Make a random tavern minion Golden — an offer-level golden flag the buy bakes in (goldens store base

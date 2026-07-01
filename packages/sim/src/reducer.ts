@@ -1,13 +1,22 @@
 import { makeRng, simulate, type BoardMinion, type CombatResult, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
+import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyOnRoll, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, buffImpsRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
+
+/** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
+ *  for buys, rerolls, tier-ups and hero powers. */
+function spendGold(s: RunState, amount: number): void {
+  s.embers -= amount;
+  s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
+  applyGoldSpent(s, amount);
+}
 
 /**
  * The board the *next* combat will serve: a wave-matched real opponent from the pool (same development stage),
@@ -44,8 +53,11 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
   const m = CARD_INDEX[magneticCardId];
   const t = CARD_INDEX[targetCardId];
   if (!m || !t) return false;
-  // universalTribe Magnetic cards (Chaos Attachment) can weld onto any non-neutral target.
-  if (m.universalTribe) return t.tribe !== 'neutral';
+  // universalTribe Magnetic cards (Chaos Attachment) can weld onto any non-neutral target (or another all-type).
+  if (m.universalTribe) return t.tribe !== 'neutral' || !!t.universalTribe;
+  // A universalTribe HOST counts as every tribe (incl. Mech), so it accepts any Magnetic — e.g. a normal Mech
+  // magnetic welding onto a Chaos Attachment (whose printed tribe is 'neutral', so the tribe match below misses).
+  if (t.universalTribe) return true;
   const mag: Tribe[] = [m.tribe, m.tribe2].filter((x): x is Tribe => !!x);
   const tgt: Tribe[] = [t.tribe, t.tribe2].filter((x): x is Tribe => !!x);
   return mag.some((x) => tgt.includes(x));
@@ -93,6 +105,13 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
   if (s.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
 
+  // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
+  // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
+  // minimized to read the board without any action invalidating the pending pick.
+  if ((s.discover || s.chooseOne || s.pendingTarget) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget') {
+    return state;
+  }
+
   switch (action.type) {
     case 'buy': {
       // The right-hand spell slot: pays its own (modifiable) cost, into the hand.
@@ -102,7 +121,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!spellDef) return state;
         const cost = Math.max(0, (spellDef.cost ?? 0) - s.spellCostMod);
         if (s.embers < cost || s.hand.length >= CONFIG.handMax) return state;
-        s.embers -= cost;
+        spendGold(s, cost);
         s.hand.push({
           uid: `b${s.uidSeq++}`,
           cardId: spellDef.id,
@@ -125,7 +144,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (card.spell) {
         const sCost = Math.max(0, (card.cost ?? 0) - s.spellCostMod);
         if (s.embers < sCost || s.hand.length >= CONFIG.handMax) return state;
-        s.embers -= sCost;
+        spendGold(s, sCost);
         s.shop.splice(i, 1);
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         return s;
@@ -133,7 +152,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression.
       if (offer.held) {
         if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
-        s.embers -= CONFIG.minionCost;
+        spendGold(s, CONFIG.minionCost);
         s.shop.splice(i, 1);
         s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}` });
         checkTriples(s); // a restored copy can still complete a triple
@@ -141,7 +160,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
-      s.embers -= CONFIG.minionCost;
+      spendGold(s, CONFIG.minionCost);
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
       const isUndead = card.tribe === 'undead' || card.tribe2 === 'undead' || !!card.universalTribe;
       const uBuyAtk = isUndead ? (s.undeadBuyAtk ?? 0) : 0;
@@ -200,47 +219,37 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (i < 0) return state;
       const card = s.hand[i]!;
 
-      // A Discover spell isn't a minion: playing it opens the Discover (a peek one tier up) and is
-      // consumed — no board slot. Triple Reward is NOT a player-cast spell (it's a golden's reward), so
-      // Yazzus does NOT multiply it — exactly one Discover.
-      if (card.cardId === 'discoverspell') {
-        s.hand.splice(i, 1);
-        // The golden/triple reward keeps its high-tier bias (`topTierFirst`) — it's a reward to PEEK one tier
-        // above your tavern tier, unlike card-driven Discovers which weigh every eligible tier evenly.
-        queueDiscover(s, { kind: 'minion', tier: s.tier + 1, topTierFirst: true });
-        return s;
-      }
+      const def = CARD_INDEX[card.cardId];
 
-      // Sprout: Discover a Tier 1 minion (fixed tier). Help Wanted: Discover a Battlecry minion (up to the
-      // tavern tier). Both are untargeted Discover spells, so Yazzus does NOT multiply them — one Discover
-      // each. Consumed — no board slot.
-      if (card.cardId === 'sprout') {
+      // Discover-on-play (data-driven): playing this card isn't a minion — it opens a Discover (a peek) and
+      // is consumed (no board slot). The offer is resolved from the card's `discoverOnPlay` spec against the
+      // live run. These are untargeted, so Yazzus does NOT multiply them (we return before `spellCasts`) —
+      // exactly one Discover. Covers Sprout / Help Wanted / Tribe Portal / Corpse Board and the golden
+      // Triple Reward token; new Discover spells need only the data field, no reducer change.
+      if (def?.discoverOnPlay) {
+        const dop = def.discoverOnPlay;
         s.hand.splice(i, 1);
-        queueDiscover(s, { kind: 'minion', tier: 1, exactTier: 1 });
-        return s;
-      }
-      if (card.cardId === 'helpwanted') {
-        s.hand.splice(i, 1);
-        queueDiscover(s, { kind: 'minion', tier: s.tier, filter: 'battlecry' });
-        return s;
-      }
-      // Tribe Portal: Discover a minion of your most common board tribe (neutral isn't a type → falls back
-      // to an unfiltered Discover on a tribe-less board). Corpse Board: Discover a Deathrattle minion (up to
-      // the tavern tier). Both untargeted Discover spells → Yazzus doesn't multiply them. Consumed, no slot.
-      if (card.cardId === 'tribeportal') {
-        s.hand.splice(i, 1);
-        queueDiscover(s, { kind: 'minion', tier: s.tier, tribe: dominantBoardTribe(s) ?? undefined });
-        return s;
-      }
-      if (card.cardId === 'corpseboard') {
-        s.hand.splice(i, 1);
-        queueDiscover(s, { kind: 'minion', tier: s.tier, filter: 'deathrattle' });
+        const tier = dop.exactTier ?? s.tier + (dop.tierOffset ?? 0);
+        const tribe = dop.tribe === 'dominant' ? (dominantBoardTribe(s) ?? undefined) : dop.tribe;
+        queueDiscover(s, {
+          kind: 'minion',
+          tier,
+          ...(dop.exactTier !== undefined ? { exactTier: dop.exactTier } : {}),
+          ...(dop.filter ? { filter: dop.filter } : {}),
+          ...(tribe ? { tribe } : {}),
+          ...(dop.topTierFirst ? { topTierFirst: true } : {}),
+        });
         return s;
       }
 
       // Other spells: cast on the chosen target, then consume — no board slot.
-      const def = CARD_INDEX[card.cardId];
       if (def?.spell) {
+        // Spell Choose One (Apples): a SPELL choice — its own thing, NOT a Battlecry. Pause for the pick,
+        // keeping the spell in hand; the chosen effect is cast (and the spell consumed) in `chooseOne`.
+        if (def.chooseOne?.length) {
+          s.chooseOne = { uid: card.uid, cardId: def.id, spell: true };
+          return s;
+        }
         // Yazzus: while it's on the board, an *aimed* spell's effect resolves N times (2, or 3 if golden)
         // — the card is still consumed once. Untargeted economy/utility spells and `singleCast` spells
         // (Channeling the Devourer) never multi-fire (see `spellCasts`). The Discover-spells returned early
@@ -253,6 +262,10 @@ function reduceCore(state: RunState, action: Action): RunState {
               !CARD_INDEX[boardTarget.cardId]?.effects.some((e) => e.on === 'onPlay')) return state;
           // Displacement (targetNoGolden): can't trade away a golden (triple) — fizzles, spell kept in hand.
           if (boardTarget && def.targetNoGolden && boardTarget.golden) return state;
+          // Displacement needs a tavern MINION to swap with (spells can't be displaced) — with none in the
+          // tavern the swap can't happen, so the spell fizzles and stays in hand.
+          if (boardTarget && def.effects.some((e) => e.do === 'spellDisplace') &&
+              !s.shop.some((o) => !CARD_INDEX[o.cardId]?.spell)) return state;
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
           const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : undefined;
           if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);
@@ -335,9 +348,24 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'chooseOne': {
       if (!s.chooseOne) return state;
-      const card = s.board.find((c) => c.uid === s.chooseOne!.uid);
-      const option = CARD_INDEX[s.chooseOne.cardId]?.chooseOne?.[action.index];
-      if (!card || !option) return state;
+      const co = s.chooseOne;
+      const def = CARD_INDEX[co.cardId];
+      const option = def?.chooseOne?.[action.index];
+      if (!def || !option) return state;
+      // A SPELL choose-one (Apples): the spell is still in hand — cast its chosen effect (a synthetic def with
+      // just that option's effects, respecting Yazzus quantity), then consume it. Not a Battlecry.
+      if (co.spell) {
+        const hi = s.hand.findIndex((c) => c.uid === co.uid);
+        if (hi < 0) { s.chooseOne = undefined; return s; }
+        const casts = spellCasts(s, def);
+        for (let n = 0; n < casts; n++) castSpell(s, { ...def, effects: option.effects }, undefined);
+        s.hand.splice(hi, 1);
+        s.chooseOne = undefined;
+        checkTriples(s);
+        return s;
+      }
+      const card = s.board.find((c) => c.uid === co.uid);
+      if (!card) return state;
       applyChooseOne(s, card, option.effects); // the chosen Battlecry resolves now
       s.chooseOne = undefined;
       checkTriples(s);
@@ -377,13 +405,6 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
       // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
       if (sold && getHero(s.heroId).power.kind === 'sellGold') s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
-      // Fodder Feeder — when SOLD: queue a Fodder into your next tavern + buff your Imps everywhere
-      // (golden doubles both). The sell still pays the base sell value above.
-      if (sold && sold.cardId === 'fodderfeeder') {
-        const n = sold.golden ? 2 : 1;
-        (s.pendingTavern ??= []).push(...Array(n).fill('fred'));
-        buffImpsRunWide(s, n, n, 'Fodder Feeder');
-      }
       // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
       if (sold) returnToPool(s, sold.cardId, sold.golden ? 3 : 1);
       return s;
@@ -395,11 +416,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.freeRolls -= 1;
       } else {
         if (s.embers < CONFIG.refreshCost) return state;
-        s.embers -= CONFIG.refreshCost;
+        spendGold(s, CONFIG.refreshCost); // gold spent → Acid / Banksly meter
       }
       s.frozen = false;
       refreshTavern(s);
-      applyOnRoll(s); // Acid: every-N-refresh consume
       return s;
     }
 
@@ -410,7 +430,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'upgrade': {
       if (s.tier >= CONFIG.maxTier || s.embers < s.upgradeCost) return state;
-      s.embers -= s.upgradeCost;
+      spendGold(s, s.upgradeCost);
       s.tier += 1;
       s.upgradeCost = s.tier >= CONFIG.maxTier ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
       return s;
@@ -497,7 +517,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       if (power.oncePerGame) s.heroPowerSpent = true;
       else s.heroReady = false;
-      if (power.cost) s.embers = Math.max(0, s.embers - power.cost);
+      if (power.cost) spendGold(s, Math.min(s.embers, power.cost)); // gold spent → Acid / Banksly meter
       // A power that summons or generates a minion (Myra's Battlecry replay → an Alleycat's Stray,
       // Dusk's End-of-Turn replay) can complete a triple — check now, like buy / play / discover do.
       checkTriples(s);
@@ -591,17 +611,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes);
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {});
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
-        let win = 0, draw = 0, lose = 0;
+        let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
+        const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes).result;
-          if (r === 'win') win++;
-          else if (r === 'draw') draw++;
-          else lose++;
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {});
+          if (r.result === 'win') win++;
+          else if (r.result === 'draw') draw++;
+          else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
         }
-        combat.odds = { win: win / ODDS_SIMS, draw: draw / ODDS_SIMS, lose: lose / ODDS_SIMS };
+        combat.odds = { win: win / ODDS_SIMS, draw: draw / ODDS_SIMS, lose: lose / ODDS_SIMS, avgLossDamage: lose > 0 ? lossDamageTotal / lose : 0 };
         return combat;
       };
       // Belt-and-suspenders: a stale served board is filtered at load (`registerOpponents`), but if one ever
@@ -796,6 +817,8 @@ function checkTriples(s: RunState): void {
 function settleCombat(s: RunState, result: CombatResult): void {
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
+  // Attribute this combat's player damage + mechanic procs into the run-wide tallies (→ MVP + most-triggered).
+  accumulateContribution((s.runDamage ??= {}), (s.runProcs ??= {}), tallyCombat(result));
   // Accumulate this combat's player Deathrattles into the run-wide "this game" count (Grim scales off it).
   s.deathrattlesTriggered += result.playerDeathrattles;
   // Persist per-instance combat state (Kennelmaster's Avenge permanently improves its
@@ -961,12 +984,10 @@ function advanceCombat(s: RunState): void {
     return;
   }
 
-  // PvE win condition: WIN `winsToWin` combats. `settleCombat` already pushed this combat's result to
-  // history, so the just-fought win is counted here — the run ends in victory the moment the 15th win
-  // lands, at whatever wave that is. (A loss costs Resolve but keeps climbing, so you can reach wave 15
-  // with fewer than 15 wins and must keep going; the old `wave >= maxWave` check wrongly ended there.)
-  const wins = s.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0);
-  if (s.mode !== 'practice' && wins >= CONFIG.winsToWin) {
+  // Course complete (A1): a run plays a fixed course of `courseRounds` rounds; survive them all and the
+  // run is done — the record IS the score, whatever it is. The just-fought round's result is already in
+  // history. The only early exit is Resolve 0 (handled above); you never "win early" by a win count.
+  if (s.mode !== 'practice' && s.wave >= CONFIG.courseRounds) {
     s.best = Math.max(s.best, s.wave);
     s.phase = 'victory';
     return;
@@ -991,7 +1012,6 @@ function advanceCombat(s: RunState): void {
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
-    c.rollTick = undefined; // Acid's every-N-refresh counter is wave-scoped
   }
   if (s.tier < CONFIG.maxTier) {
     s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - CONFIG.upgradeDiscountPerWave);
@@ -1048,6 +1068,15 @@ function advanceCombat(s: RunState): void {
  */
 function refreshTavern(s: RunState): void {
   rollShop(s);
+  // Apples (Choose One → "the next shop"): fold the banked buff onto the freshly-rolled offers, then clear it.
+  const nb = s.nextShopBuff;
+  if (nb && (nb.attack || nb.health)) {
+    for (const offer of s.shop) {
+      offer.atk = (offer.atk ?? 0) + nb.attack;
+      offer.hp = (offer.hp ?? 0) + nb.health;
+    }
+    s.nextShopBuff = undefined;
+  }
   injectPendingTavern(s);
 }
 

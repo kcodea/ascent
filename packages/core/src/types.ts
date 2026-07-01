@@ -43,7 +43,7 @@ export type GameEvent =
   | 'cast' // a spell's own effect resolves (its chosen target is in the payload)
   | 'spellCast' // recruit phase: any spell was cast (for spell-tracking minions)
   | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
-  | 'onRoll'; // recruit phase: the shop was refreshed (Acid's every-N-refreshes consume)
+  | 'goldSpent'; // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -71,6 +71,7 @@ export type EffectFactoryId =
   | 'deathrattleBuffAllRandomStat' // Deathrattle: coin-flip a stat, buff every friend +amount of it (Sporeling)
   | 'onFriendDeathBuffRandom'
   | 'rallyBuff' // Rally: when this attacks, buff your other minions (combat)
+  | 'rallyGrantMagnetic' // Mechanical Jouster — Rally: when this attacks, add a random Magnetic Mech to hand
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'deathrattleGrantMagnetic' // Deathrattle: add a random Magnetic minion to your hand after combat (Junkyard Titan)
@@ -119,9 +120,10 @@ export type EffectFactoryId =
   | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (+ optional keyword: Spirit Fire, Bulwark)
   | 'spellBuffAll' // cast: buff every friendly minion on the board (Growth) — scales with spell power
   | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
-  | 'spellBuffTavern' // Apples: cast — buff every current tavern offer (lost on refresh, kept on freeze)
+  | 'spellBuffTavern' // Apples (Choose One): cast — buff every current tavern offer (lost on refresh, kept on freeze)
+  | 'spellBuffNextShop' // Apples (Choose One): cast — bank a buff folded onto the NEXT tavern roll's offers
   | 'spellPendingSCBuff' // Fleeting Vigor: cast — bank a one-shot Start-of-Combat buff for the next combat
-  | 'spellDemonConsumeTavern' // Cupcakes: cast — a chosen Demon consumes N random tavern minions
+  | 'spellDemonConsumeFodder' // Consume: cast — a chosen Demon creates and eats N Fodder
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)
   | 'summonBuffTribeImprove' // Mama Bear: on summoning a beast, buff it + improve the buff in/out of combat (Beast)
@@ -155,14 +157,16 @@ export type EffectFactoryId =
   | 'spellCastBuffUndeadAttack' // Forsaken Weaver (combat): on spell cast, give your Undead +Attack
   | 'deathrattleGrantCardToHand' // Pillager: Deathrattle — add a specific card to hand after combat
   | 'onKillBuffUndeadAttack' // Karthus: when this kills an enemy, give your Undead +Attack permanently
+  | 'onKillBuffFodderImps' // Commander Impala: when this kills an enemy, buff your Fodder + Imps permanently
+  | 'onDamagedGainAttack' // Target Dummy: on taking damage, gain +Attack permanently (once per hit)
   | 'deathrattleBuffImps' // Imp King: Deathrattle — buff all friendly Imps +atk/+hp (combat)
   | 'avengeBuffImps' // Brood Matron: Avenge (X) — buff all friendly Imps +atk/+hp (combat)
   | 'deathrattleReplayAdjacentBattlecry' // Ryme: Deathrattle — re-fire an adjacent minion's Battlecry in combat
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
-  | 'battlecryFreeRollsAndBuffShop' // Demonic Anomaly: Battlecry — gain free refreshes + buff the current tavern
-  | 'onRollConsumeShop' // Acid: every N refreshes, consume a random tavern minion (stats gained × golden)
+  | 'goldSpentBuffFodderImps' // Acid: every N Gold spent, permanently buff your Fodder + Imps run-wide
+  | 'goldSpentMagnetize' // Banksly: every N Gold spent, weld a random Magnetic onto self
   // --- tavern-spell batch (2026-06-26) ---
   | 'spellBuffByTier' // Lantern Light: cast — give the target +Tavern Tier / +Tavern Tier (recruit)
   | 'spellSellToDemon' // Fodder Treatment: cast — sell the target, give its stats to your left-most Demon (recruit)
@@ -171,7 +175,8 @@ export type EffectFactoryId =
   | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)
   | 'spellDisplace' // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)
   | 'spellCopyRecent' // Steward of Spells: End of Turn — copy the most recent spell cast to hand (recruit)
-  | 'spellRefreshToSpells'; // Spell Cart: cast — refresh the tavern full of spells (recruit)
+  | 'spellRefreshToSpells' // Spell Cart: cast — refresh the tavern full of spells (recruit)
+  | 'battlecryTargetConsumeFodder'; // Godfodder: Battlecry — targeted friendly minion consumes a Fodder from the shop
 
 export interface EffectDef {
   on: GameEvent;
@@ -250,6 +255,29 @@ export interface CardDef {
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; effects: EffectDef[] }[];
+  /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
+   *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
+   *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe
+   *  are resolved at play time from the live run (see `DiscoverOnPlay`). Replaces what was a per-card-id
+   *  branch in the reducer — new Discover spells are now data-only. */
+  discoverOnPlay?: DiscoverOnPlay;
+}
+
+/** Declarative spec for {@link CardDef.discoverOnPlay}. The offer tier is `exactTier` if set, otherwise the
+ *  current tavern tier plus `tierOffset` (default 0). All fields optional → a bare `{}` Discovers from the
+ *  current tier with no filter. */
+export interface DiscoverOnPlay {
+  /** Fixed offer tier, ignoring the tavern tier (Sprout = always Tier 1). */
+  exactTier?: number;
+  /** Added to the current tavern tier to choose the offer tier, engine-capped (Triple Reward = +1). */
+  tierOffset?: number;
+  /** Narrow the pool to minions with this trigger. */
+  filter?: 'battlecry' | 'deathrattle';
+  /** Restrict to one tribe; `'dominant'` resolves to the player's most-common board tribe at play time
+   *  (Tribe Portal). A tribe-less board falls back to an unfiltered Discover. */
+  tribe?: Tribe | 'dominant';
+  /** Bias the offer toward the highest eligible tier when the pool spans tiers (the reward's peek-up bias). */
+  topTierFirst?: boolean;
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown
@@ -327,6 +355,9 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** Multiplier on every combat stat-gain this minion receives (golden Taurus doubles its neighbors'
+   *  combat gains). Applied at the top of `ctx.buff`; absent/1 = normal. */
+  gainMult?: number;
   /** Crypt Drake: how many ally attacks this minion has seen this combat — drives its "improve every N
    *  attacks" buff. Per-combat (reset each fight); absent = 0. */
   attackSeen?: number;
@@ -390,7 +421,7 @@ export type CombatEvent =
   | { type: 'death'; target: string; side: Side } // `side` lets the UI count enemy kills (Cassen) without uid-matching
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
-  | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; echo?: boolean }
+  | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string }
   | { type: 'ascend'; target: string; into: string } // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
   | { type: 'buff'; target: string; attack: number; health: number; source: string }
   | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
@@ -465,8 +496,10 @@ export interface CombatResult {
    *  recruit-phase Bane. Absent if 0/0. */
   playerFodderBuffGain?: { attack: number; health: number };
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
-   *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it. */
-  odds?: { win: number; draw: number; lose: number };
+   *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
+   *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage
+   *  you'd take on a typical loss of this matchup — 0 when no sim lost. */
+  odds?: { win: number; draw: number; lose: number; avgLossDamage: number };
 }
 
 /**

@@ -51,7 +51,7 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
     ];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'cleric', attack: 3, health: 20 }]; // inert 3-Attack wall (battlecry no-ops in combat)
     const r = run(p, e, 7);
     expect(r.result).toBe('win'); // Kennelmaster outlasts the attacker
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
@@ -122,7 +122,9 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'pack', attack: 1, health: 20, resummon: true },
       ...Array.from({ length: 6 }, () => ({ cardId: 'sandbag', attack: 1, health: 20 })),
     ];
-    const r = run(p, [{ cardId: 'sandbag', attack: 0, health: 1 }], 1);
+    // Inert enemy (sabercub: 0-Attack, no on-damage growth) so it never retaliates → no friendly dies → the
+    // board stays full and the deferred copy can't reclaim a slot.
+    const r = run(p, [{ cardId: 'sabercub', attack: 0, health: 1 }], 1);
     const packCopies = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pack').length;
     const pups = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup').length;
     expect(pups).toBeGreaterThanOrEqual(1); // a Pup took the one freed slot; the rest overflowed
@@ -146,25 +148,25 @@ describe('simulate (handoff A.3)', () => {
     ];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
     expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
-    // 5 overflow × +2/+2 = +10/+10 to each Mech (the only buffs this fight).
-    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 10 && ev.health === 10);
+    // 5 overflow × +3/+4 = +15/+20 to each Mech (the only buffs this fight).
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 15 && ev.health === 20);
     expect(buffs.length).toBeGreaterThan(0);
   });
 
   it('a golden Nanon doubles the overflow buff (+4/+4 each), summon count unchanged', () => {
-    // Same full board → still 5 overflow (golden does NOT summon more), but each Mech gets +20/+20 (5 × +4/+4).
+    // Same full board → still 5 overflow (golden does NOT summon more), but each Mech gets +30/+40 (5 × +6/+8).
     const p: BoardMinion[] = [
       { cardId: 'nanon', attack: 1, health: 1, golden: true },
       ...Array.from({ length: 6 }, () => ({ cardId: 'drone', attack: 1, health: 50 })),
     ];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
     expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
-    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 20 && ev.health === 20);
-    expect(buffs.length).toBeGreaterThan(0); // +20/+20 confirms golden keeps 6 summons (5 overflow × +4/+4)
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 30 && ev.health === 40);
+    expect(buffs.length).toBeGreaterThan(0); // +30/+40 confirms golden keeps 6 summons (5 overflow × +6/+8)
   });
 
-  it('Spirit Worgen procs in combat: +X/+X per Beast/Dragon summoned, X = 1 + spellsThisTurn', () => {
-    // spellsThisTurn = 4 → X = 5. Pack Scrounger (Deathrattle: 2 Beast Pups) dies → 2 summons → +5/+5 each.
+  it('Spirit Worgen procs in combat: +X/+X per Beast/Dragon summoned, X = 3 + spellsThisTurn', () => {
+    // spellsThisTurn = 4 → X = 7. Pack Scrounger (Deathrattle: 2 Beast Pups) dies → 2 summons → +7/+7 each.
     const p: BoardMinion[] = [
       { cardId: 'spiritworgen', attack: 4, health: 50 }, // tanky so it survives to receive both buffs
       { cardId: 'pack', attack: 1, health: 1 }, // dies fast → 2 Pups (Beasts)
@@ -172,10 +174,10 @@ describe('simulate (handoff A.3)', () => {
     const r = simulate(p, [{ cardId: 'sandbag', attack: 2, health: 10 }], makeRng(7), CARD_INDEX, 4);
     const worgenBuffs = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen');
     expect(worgenBuffs.length).toBe(2); // one per summoned Pup
-    expect(worgenBuffs.every((b) => b.type === 'buff' && b.attack === 5 && b.health === 5)).toBe(true);
-    // With no spells that turn, the same board gives +1/+1 each.
+    expect(worgenBuffs.every((b) => b.type === 'buff' && b.attack === 7 && b.health === 7)).toBe(true);
+    // With no spells that turn, the same board gives +3/+3 each.
     const base = simulate(p, [{ cardId: 'sandbag', attack: 2, health: 10 }], makeRng(7), CARD_INDEX);
-    expect(base.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen' && ev.attack === 1).length).toBe(2);
+    expect(base.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen' && ev.attack === 3).length).toBe(2);
   });
 
   it('a golden Arcane Weaver grants two Spirit Fires; an enemy Weaver grants the player none', () => {
@@ -390,10 +392,10 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'reborn')).toBe(true);
   });
 
-  it('Reborn returns at BASE stats — sheds combat buffs + granted keywords, keeps the Undead carry-through', () => {
+  it('Reborn returns at base ATTACK with 1 Health — sheds combat buffs + granted keywords, keeps the carry-through', () => {
     // An Eternal Knight (base 3/2) that entered combat buffed to a 10/3 Divine-Shield body. On death it sheds
-    // the combat buff + granted DS back to base — then its own Deathrattle's +3/+2 Eternal-Knight enchant
-    // carries through, so it returns 6/4 (not the buffed 10/3, not bare 3/2, and not Hearthstone's 1 HP).
+    // the combat buff + granted DS, returning at base attack with 1 Health — then its own Deathrattle's +3/+2
+    // Eternal-Knight enchant carries through, so it returns 6/3 (base 3 + 3 attack, 1 + 2 health).
     const a = run(
       [{ cardId: 'knit', attack: 10, health: 3, keywords: ['R', 'DS'] }],
       [{ cardId: 'omen', attack: 4, health: 40, keywords: [] }],
@@ -403,21 +405,34 @@ describe('simulate (handoff A.3)', () => {
     expect(reborn).toBeDefined();
     if (reborn && reborn.type === 'reborn') {
       expect(reborn.attack).toBe(6); // base 3 + its own death's +3 Eternal-Knight enchant (not the buffed 10)
-      expect(reborn.hp).toBe(4); // base 2 + the +2 enchant (not 3, and not Hearthstone's 1)
+      expect(reborn.hp).toBe(3); // 1 (Rise base Health) + the +2 enchant
       expect(reborn.keywords).not.toContain('DS'); // granted Divine Shield is gone
       expect(reborn.keywords).not.toContain('R'); // Reborn itself is spent
     }
   });
 
-  it('a golden Reborn minion returns at doubled base stats (+ its doubled Undead carry-through)', () => {
+  it('a golden Reborn minion returns at 2 Health + doubled base attack + doubled carry-through', () => {
     const a = run(
       [{ cardId: 'knit', attack: 20, health: 9, keywords: ['R'], golden: true }],
       [{ cardId: 'omen', attack: 4, health: 60, keywords: [] }],
       3,
     );
-    // 3/2 base × 2 = 6/4, plus the golden Eternal-Knight enchant from its own death (+6/+4) → 12/8.
+    // Golden: base attack 3×2 = 6 + golden enchant +6 → 12; Health 2 (golden Rise base) + golden enchant +4 → 6.
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([12, 8]);
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([12, 6]);
+  });
+
+  it('a captured ENEMY Eternal Knight re-gains its OWN enchant when it Rises (snapshot auras intact)', () => {
+    // An enemy snapshot Knight carrying a +15/+10 Eternal-Knight enchant on its buff breakdown (base 3/2 →
+    // 18/12) with Rise. On death it Rises from base — applyAuras must re-fold its own enchant even for the
+    // enemy side: base attack 3 + 15 = 18, Rise Health 1 + 10 = 11 (NOT bare 3/1).
+    const a = run(
+      [{ cardId: 'omen', attack: 30, health: 90, keywords: [] }],
+      [{ cardId: 'knit', attack: 18, health: 12, keywords: ['R'], buffs: [{ source: 'Eternal Knight', attack: 15, health: 10, count: 5 }] }],
+      3,
+    );
+    const reborn = a.events.find((e) => e.type === 'reborn');
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([18, 11]);
   });
 
   it('Reborn fires the unit\'s Deathrattle on EVERY death — Twilight Whelp + Reborn leaves a Whelp per death', () => {
@@ -433,15 +448,16 @@ describe('simulate (handoff A.3)', () => {
     expect(whelps.length).toBe(2);
   });
 
-  it('Reborn carries the Eternal-Knight enchant — a fresh Reborn Knight returns at base + its own +3/+2', () => {
-    // Example: a 3/2 Eternal Knight with Reborn dies, banks its own +3/+2, and reborns as a 6/4.
+  it('Reborn carries the Eternal-Knight enchant — a fresh Reborn Knight returns at base attack + 1 Health + its own +3/+2', () => {
+    // Example: a 3/2 Eternal Knight with Reborn dies, banks its own +3/+2, and reborns as a 6/3 (base 3 + 3
+    // attack; 1 Rise Health + 2 enchant).
     const a = run(
       [{ cardId: 'knit', attack: 3, health: 2, keywords: ['R'] }],
       [{ cardId: 'omen', attack: 4, health: 24, keywords: [] }],
       1,
     );
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([6, 4]);
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([6, 3]);
   });
 
   it('a minion that Reborns from its own attack is next in line to attack again', () => {
@@ -604,7 +620,7 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(1); // 1 trigger narrated
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 2)).toBe(true); // Karwind procced
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // Karwind procced (+2/+2)
   });
 
   it('a golden Ryme + Drakko triggers both neighbours twice each (4 triggers → Karwind 4×)', () => {
@@ -622,8 +638,8 @@ describe('simulate (handoff A.3)', () => {
     );
     // 2 neighbours × 2 (Drakko) = 4 triggers — one sc narration each.
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(4);
-    // Karwind procs once per trigger → +1/+2 to both Dragons (Karwind + Hoard Cleric), 4× = 8 buff events.
-    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 2).length).toBe(8);
+    // Karwind procs once per trigger → +2/+2 to both Dragons (Karwind + Hoard Cleric), 4× = 8 buff events.
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(8);
   });
 
   it("Bane reacting to Ryme's battlecry trigger carries the Fodder enchant back to the run", () => {
@@ -776,24 +792,6 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerUndeadBuyAtkGain).toBeGreaterThan(0); // each Growth = a spell cast → Forsaken Weaver banks +2 permanently
   });
 
-  it('Gnasher keeps attacking after killing a Reborn target', () => {
-    // Gnasher (more minions → goes first) drops a Reborn Grave Knit to 0; it returns at base stats,
-    // but spending its Reborn still counts as a kill, so Gnasher re-attacks and finishes the returned
-    // body off — clearing the board on its own turn (exactly 2 swings, the enemy never gets to attack).
-    // With the bug the kill wasn't registered, the turn passed, and combat ran far longer.
-    const a = run(
-      [
-        { cardId: 'gnash', attack: 6, health: 6 },
-        { cardId: 'sandbag', attack: 0, health: 30, keywords: ['T'] }, // inert filler so Gnasher goes first
-      ],
-      [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }],
-      1,
-    );
-    expect(a.events.some((e) => e.type === 'reborn')).toBe(true);
-    expect(a.events.filter((e) => e.type === 'attack').length).toBe(2); // both swings are Gnasher's
-    expect(a.result).toBe('win');
-  });
-
   it('a golden minion fires its effect at doubled magnitude', () => {
     const a = run(
       [
@@ -810,32 +808,6 @@ describe('simulate (handoff A.3)', () => {
       expect(buff.attack + buff.health).toBe(2);
       expect(Math.min(buff.attack, buff.health)).toBe(0);
     }
-  });
-
-  it('Echo Warden echoes each summoned unit (one more copy per Echo Warden)', () => {
-    const a = run(
-      [
-        { cardId: 'pack', attack: 2, health: 1 }, // Deathrattle: summon two 1/1 Pups
-        { cardId: 'echo', attack: 2, health: 12 },
-      ],
-      [{ cardId: 'omen', attack: 5, health: 30 }],
-      1,
-    );
-    const pups = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
-    expect(pups).toBe(4); // 2 Pups, each echoed once → 4
-  });
-
-  it('a golden Echo Warden echoes each summoned unit twice', () => {
-    const a = run(
-      [
-        { cardId: 'pack', attack: 2, health: 1 }, // Deathrattle: summon two 1/1 Pups
-        { cardId: 'echo', attack: 2, health: 12, golden: true },
-      ],
-      [{ cardId: 'omen', attack: 5, health: 30 }],
-      1,
-    );
-    const pups = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
-    expect(pups).toBe(6); // 2 Pups, each echoed twice → 6 (board fills: Echo + 6 = 7)
   });
 
   it('Sylus the Reaper procs a Deathrattle one extra time', () => {
@@ -1045,17 +1017,17 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.target === raptorUid)).toBe(false); // Raptor never self-buffs
   });
 
-  it('Crypt Drake buffs your whole board +2/+2 per ally attack, improving to +4/+4 after 3', () => {
+  it('Crypt Drake buffs your whole board a flat +2/+2 every 2 ally attacks (no improvement)', () => {
     const a = run(
       [
         { cardId: 'cryptdrake', attack: 4, health: 80 },
         { cardId: 'sandbag', attack: 1, health: 80, keywords: [] }, // a second attacker → more ally attacks
       ],
-      [{ cardId: 'omen', attack: 0, health: 200 }], // 0-atk wall → the fight runs long enough to improve
+      [{ cardId: 'omen', attack: 0, health: 200 }], // 0-atk wall → the fight runs long
       3,
     );
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // attacks 1–3
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true); // improved after 3
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // fires every 2nd attack
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(false); // flat — never improves
   });
 
   it('Taragosa casts Growth (+3/+4 to all your minions) on each ally attack', () => {
@@ -1289,7 +1261,7 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('counts enemy-side deaths in enemyDeaths (Cassen Collision) — player losses excluded', () => {
-    // Gnasher (re-attacks on kill) clears two 1/1 enemies on its own turn; the player loses nothing.
+    // Gnasher (6/6) clears two 1/1 enemies over its turns; the player loses nothing (sandbag Taunt absorbs).
     const a = run(
       [
         { cardId: 'gnash', attack: 6, health: 6 },
@@ -1358,7 +1330,7 @@ describe('simulate (handoff A.3)', () => {
     // Full board (7): Flowing Monk + a golden Mama Pup (Deathrattle → 4 Pups). The Pups that can't fit
     // overflow, so the Monk hands a random friend +3/+3 each time — recorded for carry-back to the run
     // board (only real minions, which carry a sourceUid; summoned Pup tokens are gone after combat).
-    const filler: BoardMinion[] = Array.from({ length: 5 }, (_, i) => ({ cardId: 'sandbag', attack: 1, health: 20, sourceUid: `f${i}` }));
+    const filler: BoardMinion[] = Array.from({ length: 5 }, (_, i) => ({ cardId: 'sabercub', attack: 1, health: 20, keywords: [], sourceUid: `f${i}` }));
     const player: BoardMinion[] = [
       { cardId: 'monk', attack: 1, health: 20, sourceUid: 'monk' },
       { cardId: 'pack', attack: 8, health: 8, golden: true, sourceUid: 'pack' },
@@ -1373,13 +1345,13 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
-  it('Taurus engraves the minion to its LEFT — that minion keeps its combat gains (carry-back)', () => {
+  it('Taurus engraves an adjacent minion — that minion keeps its combat gains (carry-back)', () => {
     // A Sporeling dies and buffs every friend +1 of one stat (combat-only). The target wall has its keywords
     // stripped, so its +1 would NOT normally carry back; Taurus sits to its right and engraves it at Start of
     // Combat → the +1 is recorded as a permaGain (engraved: true), carried back even though it later dies.
     const a = run(
       [
-        { cardId: 'sandbag', attack: 0, health: 30, keywords: [], sourceUid: 'G' }, // engraved target (Taurus's left)
+        { cardId: 'sabercub', attack: 0, health: 30, keywords: [], sourceUid: 'G' }, // engraved target (Taurus's left) — inert wall
         { cardId: 'taurus', attack: 6, health: 30, sourceUid: 'T' },
         { cardId: 'spore', attack: 1, health: 1, sourceUid: 'S' }, // dies → buffs all friends +1 (random stat)
       ],
@@ -1400,7 +1372,7 @@ describe('simulate (handoff A.3)', () => {
     // left neighbor — its +1 is combat-only and must NOT carry back.
     const a = run(
       [
-        { cardId: 'sandbag', attack: 0, health: 30, keywords: [], sourceUid: 'G' }, // NOT adjacent to Taurus
+        { cardId: 'sabercub', attack: 0, health: 30, keywords: [], sourceUid: 'G' }, // NOT adjacent to Taurus — inert wall
         { cardId: 'sandbag', attack: 0, health: 30, keywords: ['T'] }, // wedge between the target and Taurus
         { cardId: 'taurus', attack: 6, health: 30, sourceUid: 'T' },
         { cardId: 'spore', attack: 1, health: 1, sourceUid: 'S' },
@@ -1418,11 +1390,11 @@ describe('simulate (handoff A.3)', () => {
     // so it must NOT carry back. (Carry-back applies win or lose — here the tanky omen wins.)
     const a = run(
       [
-        { cardId: 'sandbag', attack: 0, health: 30, keywords: [], sourceUid: 'L' }, // left neighbor
+        { cardId: 'sabercub', attack: 0, health: 30, keywords: [], sourceUid: 'L' }, // left neighbor — inert wall
         { cardId: 'taurus', attack: 6, health: 40, golden: true, sourceUid: 'T' },
-        { cardId: 'sandbag', attack: 0, health: 30, keywords: [], sourceUid: 'R' }, // right neighbor
+        { cardId: 'sabercub', attack: 0, health: 30, keywords: [], sourceUid: 'R' }, // right neighbor — inert wall
         { cardId: 'spore', attack: 1, health: 2, sourceUid: 'S' }, // dies → buffs all friends +1 (random stat)
-        { cardId: 'sandbag', attack: 0, health: 30, sourceUid: 'X' }, // NON-adjacent friend (guard)
+        { cardId: 'sabercub', attack: 0, health: 30, keywords: [], sourceUid: 'X' }, // NON-adjacent friend (guard)
       ],
       [{ cardId: 'omen', attack: 3, health: 200 }],
       3,
@@ -1431,8 +1403,9 @@ describe('simulate (handoff A.3)', () => {
     const right = a.playerPermaBuffs?.find((p) => p.sourceUid === 'R');
     expect(left).toBeDefined();
     expect(right).toBeDefined();
-    expect(left!.attack + left!.health).toBe(1); // exactly one +1 (Attack or Health) kept...
-    expect(right!.attack + right!.health).toBe(1);
+    // Golden Taurus DOUBLES its neighbors' combat gains, so the Sporeling's +1 (one stat) carries back as +2.
+    expect(left!.attack + left!.health).toBe(2);
+    expect(right!.attack + right!.health).toBe(2);
     expect(left!.engraved && right!.engraved).toBe(true); // ...labelled Engraved
     expect(a.playerPermaBuffs?.find((p) => p.sourceUid === 'X')).toBeUndefined(); // non-neighbor: gain dropped
   });
@@ -1443,7 +1416,7 @@ describe('simulate (handoff A.3)', () => {
     // engraved: true, no Taurus involved.
     const a = run(
       [
-        { cardId: 'sandbag', attack: 0, health: 30, keywords: ['EG'], sourceUid: 'G' },
+        { cardId: 'sabercub', attack: 0, health: 30, keywords: ['EG'], sourceUid: 'G' }, // inert wall with native EG
         { cardId: 'spore', attack: 1, health: 1, sourceUid: 'S' },
       ],
       [{ cardId: 'omen', attack: 3, health: 200 }],
@@ -1499,7 +1472,7 @@ describe('simulate (handoff A.3)', () => {
   it('Eternal Knight Reborn keeps its accrued stacks: a 5-stack Knight dies (→6) and Reborns at 6 stacks', () => {
     // A Knight that entered with 5 prior stacks of its run-wide enchant (+3/+2 each = +15/+10, carried into
     // combat on its buff breakdown under the card's own name) at base 3/2 → 18/12. It dies, banking a 6th
-    // stack this fight, and Reborns: base 3/2 + 6 stacks (15/10 prior + 3/2 this fight = 18/12) = 21/14.
+    // stack this fight, and Reborns at base attack 3 + 6 stacks and 1 Health + the enchant health = 21/13.
     const p: BoardMinion[] = [{
       cardId: 'knit', attack: 18, health: 12, keywords: ['R'],
       buffs: [{ source: 'Eternal Knight', attack: 15, health: 10, count: 5 }],
@@ -1508,7 +1481,38 @@ describe('simulate (handoff A.3)', () => {
     const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1);
     const reborn = a.events.find((ev) => ev.type === 'reborn');
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(21); // base 3 + (15 prior + 3 this fight)
-    expect(reborn && reborn.type === 'reborn' && reborn.hp).toBe(14); // base 2 + (10 prior + 2 this fight)
+    expect(reborn && reborn.type === 'reborn' && reborn.hp).toBe(13); // 1 (Rise) + (10 prior + 2 this fight)
+  });
+
+  it('Soren resummon re-applies run-wide auras (regression: a resummoned body used to shed the Undead Aura)', () => {
+    // A marked minion is destroyed at Start of Combat and resummoned later. It used to come back with NO
+    // run-wide auras re-applied (flushResummons skipped them) — so a resummoned Undead lost its Lantern aura.
+    // Compare the resummoned Eternal Knight's Attack with the aura off vs on: the delta must be the +Attack.
+    const mk = (): BoardMinion[] => [
+      { cardId: 'knit', attack: 3, health: 2, resummon: true },
+      { cardId: 'sandbag', attack: 0, health: 50 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
+    const resummonAtk = (undeadAtk: number): number => {
+      const a = simulate(mk(), e, makeRng(5), CARD_INDEX, 0, 0, 1, undeadAtk, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES);
+      const ev = a.events.filter((x) => x.type === 'summon' && x.minion.cardId === 'knit').pop();
+      return ev && ev.type === 'summon' ? ev.minion.attack : -1;
+    };
+    // The resummoned Knight returns with the live Undead Aura (captured at Start of Combat) — the delta from
+    // turning the aura on must be exactly its +Attack, not doubled and not dropped.
+    expect(resummonAtk(4) - resummonAtk(0)).toBe(4);
+  });
+
+  it('a combat-summoned token inherits its run-wide per-card enchant (the Fodder Aura mechanism)', () => {
+    // Per-card run enchants (the channel Ritualist uses for Fodder, and Eternal Knight for its type) now
+    // re-apply to bodies summoned mid-combat. Mama Pup summons 1/1 Pups; a +2/+3 enchant on the Pup type
+    // means the summoned Pups arrive at 3/4.
+    const p: BoardMinion[] = [{ cardId: 'pack', attack: 1, health: 1 }]; // dies → Deathrattle summons Pups
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 50 }];
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, { pup: { attack: 2, health: 3 } });
+    const pup = a.events.find((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup');
+    expect(pup && pup.type === 'summon' && pup.minion.attack).toBe(3); // base 1 + 2
+    expect(pup && pup.type === 'summon' && pup.minion.health).toBe(4); // base 1 + 3
   });
 
   it('Lantern of Souls: the spell-power component also raises Undead Health', () => {

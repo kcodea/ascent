@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, reduce, type Action, type BoardSnapshot, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, isPlayerAction, reduce, serialize, type Action, type BoardSnapshot, type Replay, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 import { fetchAndRegisterPool, uploadBoards, uploadVictory } from './remoteBoards';
+import { buildRunHistoryEntry, saveRunHistoryEntry } from './runHistory';
+import { turnClock } from './turnClock';
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
 // `npm run pool` from seeded bot runs + any imported you/friend board exports) plus this browser's own
@@ -120,6 +122,14 @@ interface GameStore {
    *  and when exported for a friend's pool. Persisted; set in Settings. Empty = anonymous. */
   playerName: string;
   setPlayerName: (name: string) => void;
+  /** The player's chosen profile avatar — an art id (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`),
+   *  or null for the default initial glyph. Cosmetic, local, persisted. Set via the avatar picker. */
+  playerAvatar: string | null;
+  setPlayerAvatar: (id: string | null) => void;
+  /** Whether the avatar picker overlay is open (openable from the Title chip + Career profile card). */
+  avatarPickerOpen: boolean;
+  openAvatarPicker: () => void;
+  closeAvatarPicker: () => void;
   /** Combat replay speed multiplier (0.5×–5×). 1 = the tuned default. Set by the in-combat slider; persisted. */
   combatSpeed: number;
   setCombatSpeed: (speed: number) => void;
@@ -142,6 +152,14 @@ interface GameStore {
   pickHero: (heroId: string) => void;
   /** Start a fresh run directly (optionally with a seed / hero), bypassing the picker. */
   newRun: (seed?: number, heroId?: string) => void;
+  /** Boards this run contributed to the pool (captured on run-end) — shown on the post-run summary (A6).
+   *  0 until the deferred capture runs; stays 0 for Practice (read-only). */
+  lastRunBoards: number;
+  /** A resumable in-progress run (loaded from localStorage at boot, kept in sync during play), or null when
+   *  there's nothing to continue. Drives the title's "Continue" entry. */
+  savedRun: RunState | null;
+  /** Resume the saved in-progress run (from the title). */
+  continueRun: () => void;
   /** The title screen is shown at boot + after a run ends — the front door to the modes. */
   showTitle: boolean;
   /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
@@ -156,11 +174,23 @@ interface GameStore {
   showLeaderboard: boolean;
   openLeaderboard: () => void;
   closeLeaderboard: () => void;
+  /** The Career overlay (your local match history + per-hero stats) is open. */
+  showCareer: boolean;
+  openCareer: () => void;
+  closeCareer: () => void;
+  /** The Minion Book codex overlay (Tab) is open — a filterable reference of every minion + spell
+   *  findable this run. UI-only; reads the run's pool + active tribes. */
+  showBook: boolean;
+  toggleBook: () => void;
+  closeBook: () => void;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
 
 /** Your persisted display name (empty if unset). Best-effort — localStorage may be unavailable. */
+function loadPlayerAvatar(): string | null {
+  try { return localStorage.getItem('ascent.avatar') || null; } catch { return null; }
+}
 function loadPlayerName(): string {
   try { return localStorage.getItem('ascent.playername') ?? ''; } catch { return ''; }
 }
@@ -173,8 +203,40 @@ function loadCombatSpeed(): number {
   } catch { return 1; }
 }
 
+// Save & continue (A3): the in-progress run is persisted to localStorage on every state change, so the
+// player can quit mid-run and resume from the title. A finished run (victory/gameover) is not resumable —
+// the save is cleared when the run ends. The run's action log rides along so board capture still works on a
+// resumed run's finish. All best-effort — localStorage may be unavailable; failures never break play.
+const SAVE_KEY = 'ascent.save';
+interface SavedGame { run: RunState; actions: Action[]; }
+function loadSave(): SavedGame | null {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw) as { run: string; actions?: Action[] };
+    const run = deserialize(o.run); // heals older-schema saves
+    if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
+    return { run, actions: o.actions ?? [] };
+  } catch { return null; }
+}
+function writeSave(run: RunState, actions: Action[]): void {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions })); } catch { /* ignore */ }
+}
+function clearSave(): void {
+  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+}
+const BOOT_SAVE = loadSave();
+
 export const useGame = create<GameStore>((set, get) => ({
-  run: createRun(randomSeed()),
+  // Boot into the saved in-progress run if there is one (behind the title, which shows a Continue entry);
+  // otherwise a throwaway fresh run that Play/Practice will replace.
+  run: BOOT_SAVE?.run ?? createRun(randomSeed()),
+  savedRun: BOOT_SAVE?.run ?? null,
+  lastRunBoards: 0,
+  // Resuming a run starts the turn with the clock ALREADY expired (you can End Turn / reorder, but not shop),
+  // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat
+  // resume is unaffected; the next recruit turn (wave change) gets its full timer back via Recruit's reset.
+  continueRun: () => { turnClock.set(0); set({ showTitle: false, heroChoices: null, avatarPickerOpen: false }); },
   heroArmed: false,
   endTurnAnimating: false,
   combatEnemyDeaths: 0,
@@ -195,13 +257,21 @@ export const useGame = create<GameStore>((set, get) => ({
     try { localStorage.setItem('ascent.playername', playerName); } catch { /* ignore */ }
     set({ playerName });
   },
+  playerAvatar: loadPlayerAvatar(),
+  setPlayerAvatar: (id) => {
+    try { if (id) localStorage.setItem('ascent.avatar', id); else localStorage.removeItem('ascent.avatar'); } catch { /* ignore */ }
+    set({ playerAvatar: id });
+  },
+  avatarPickerOpen: false,
+  openAvatarPicker: () => set({ avatarPickerOpen: true }),
+  closeAvatarPicker: () => set({ avatarPickerOpen: false }),
   combatSpeed: loadCombatSpeed(),
   setCombatSpeed: (speed) => {
     const combatSpeed = Math.min(5, Math.max(0.5, Math.round(speed * 10) / 10)); // clamp 0.5–5×, snap to 0.1
     try { localStorage.setItem('ascent.combatspeed', String(combatSpeed)); } catch { /* ignore */ }
     set({ combatSpeed });
   },
-  replayActions: [],
+  replayActions: BOOT_SAVE?.actions ?? [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, actions: get().replayActions }),
   dispatch: (action) =>
     set((s) => {
@@ -209,10 +279,13 @@ export const useGame = create<GameStore>((set, get) => ({
       actionSfx(action, s.run, next);
       // A run just ended → capture its boards into the library (loaded into the opponent pool next
       // startup, so you face boards you actually built). Deferred so it never hitches the end screen.
+      // PRACTICE runs are read-only against the snapshot DB: they fight real captured boards but never
+      // write back (no local capture, no shared upload, no leaderboard) — only scored Ascent runs do.
       if (
         (next.phase === 'gameover' || next.phase === 'victory') &&
         s.run.phase !== 'gameover' &&
-        s.run.phase !== 'victory'
+        s.run.phase !== 'victory' &&
+        next.mode !== 'practice'
       ) {
         const replay = { seed: next.seed, heroId: next.heroId, actions: [...s.replayActions, action] };
         const author = s.playerName || undefined;
@@ -222,25 +295,46 @@ export const useGame = create<GameStore>((set, get) => ({
         // the end screen; all best-effort and never throw.
         setTimeout(() => {
           const fresh = saveRunBoards(replay, author);
+          set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
           void uploadBoards(fresh);
+          const finalBoard = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
+          const date = new Date().toISOString().slice(0, 10);
+          // A7: append this run to the local match history (win or loss) for the Career screen. APT + cards
+          // played come from the action log (the replay), which the run state itself doesn't track.
+          const actions = replay.actions;
+          // APT = player decisions per round (buys, plays, rolls, discovers, …) — exclude the automatic
+          // combat-flow transitions, which fire ~once/round regardless of how you build.
+          const apt = Math.round((actions.filter(isPlayerAction).length / Math.max(1, next.wave)) * 10) / 10;
+          const cardsPlayed = actions.filter((a) => a.type === 'play').length;
+          saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed }));
           if (won) {
-            const finalBoard = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
             void uploadVictory({
               heroId: next.heroId, author, wave: next.wave,
               wins: next.history.filter((r) => r === 'win').length, seed: next.seed,
               board: finalBoard, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-              capturedAt: new Date().toISOString().slice(0, 10),
+              capturedAt: date,
             });
           }
         }, 0);
       }
+      const changed = next !== s.run;
+      const replayActions = changed ? [...s.replayActions, action] : s.replayActions;
+      const finished = next.phase === 'gameover' || next.phase === 'victory';
+      // Autosave (A3): persist an in-progress run on every change; clear it once the run finishes (a
+      // finished run isn't resumable). `savedRun` mirrors the persisted state so the title's Continue works.
+      let savedRun = s.savedRun;
+      if (changed) {
+        if (finished) { clearSave(); savedRun = null; }
+        else { writeSave(next, replayActions); savedRun = next; }
+      }
       return {
         run: next,
+        savedRun,
         heroArmed: false, // any action clears targeting
         inspect: null, // …and closes the inspect overlay
         sellTick: action.type === 'sell' ? s.sellTick + 1 : s.sellTick,
         // Record only state-changing actions — together with the seed they replay the run deterministically.
-        replayActions: next === s.run ? s.replayActions : [...s.replayActions, action],
+        replayActions,
       };
     }),
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
@@ -251,14 +345,28 @@ export const useGame = create<GameStore>((set, get) => ({
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
   pickHero: (heroId) =>
-    set((s) => ({ run: createRun(randomSeed(), heroId, s.pendingMode), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] })),
+    set((s) => {
+      const run = createRun(randomSeed(), heroId, s.pendingMode);
+      writeSave(run, []); // the new run is now the resumable save
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
+    }),
   newRun: (seed, heroId) =>
-    set((s) => ({ run: createRun(seed ?? randomSeed(), heroId, s.pendingMode), heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, replayActions: [] })),
-  startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices() }),
-  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id) }),
+    set((s) => {
+      const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode);
+      writeSave(run, []);
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
+    }),
+  startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id), avatarPickerOpen: false }),
   openTitle: () => set({ showTitle: true, heroChoices: null }),
   openLeaderboard: () => set({ showLeaderboard: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
+  showCareer: false,
+  openCareer: () => set({ showCareer: true }),
+  closeCareer: () => set({ showCareer: false }),
+  showBook: false,
+  toggleBook: () => set((s) => ({ showBook: !s.showBook })),
+  closeBook: () => set({ showBook: false }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

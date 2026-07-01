@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { pixiFx, discoverFx, tauntFx } from './pixiFx';
 import { getDragFeel } from './dragFeel';
+import { getFlipConfig } from './flipConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -1571,11 +1572,12 @@ export function Recruit() {
     if (flipStateRef.current) {
       // Two feels: while a drag is live, the warband cards slide aside under the cursor — a slightly-eased
       // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
-      // settles snappy.
-      Flip.from(
-        flipStateRef.current,
-        dragRef.current?.active ? { duration: 0.25, ease: 'power2.out' } : { duration: 0.18, ease: 'power2.out' },
-      );
+      // settles snappy. Both durations are live-tunable via the DEV Flip tuner (flipConfig.ts, ms → seconds).
+      const flipCfg = getFlipConfig();
+      Flip.from(flipStateRef.current, {
+        duration: (dragRef.current?.active ? flipCfg.dragMs : flipCfg.commitMs) / 1000,
+        ease: 'power2.out',
+      });
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);

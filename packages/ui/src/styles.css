@@ -1687,6 +1687,9 @@ svg { width: 18px; height: 18px; }
 .dragfeel-btn { position: fixed; right: calc(var(--bar-x) + 288px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.dragfeel .sfxmix-name { flex-basis: 120px; }
 .sfxmix.dragfeel .sfxmix-val { flex-basis: 46px; }
+/* DEV reposition-slide (Flip) tuner — sixth button in the bottom-right cluster. */
+.flip-btn { position: fixed; right: calc(var(--bar-x) + 336px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.sfxmix.flip .sfxmix-name { flex-basis: 100px; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
 .escvol .evl { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }

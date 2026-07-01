@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### feat: DEV tuner for the reposition slide speed
+
+The warband/shop GSAP Flip (cards sliding when they reorder / close a sold gap / make room) now reads its
+durations from a live config (`flipConfig.ts`): `dragMs` (the glide while a card is dragged across the row) and
+`commitMs` (the settle after a drop / play / sell / auto-reposition). `FlipTuner.tsx` (the 🔀 button, sixth in
+the DEV cluster) exposes both as sliders with hover definitions; values persist to localStorage and apply to
+the next reposition. Defaults unchanged (dragMs 250, commitMs 180); `Recruit.tsx`'s `Flip.from` converts
+ms → seconds at animation time.
+
 ### feat: board-art selector + dimming slider in Settings
 
 A **Board Art** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) to compare the illustrated

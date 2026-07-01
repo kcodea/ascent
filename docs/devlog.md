@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: A7 (part 2) — Career screen — **Phase A spine complete**
+
+- The title's **Career** button (was a placeholder) now opens a full-page **Career** overlay
+  (`Career.tsx`, homescreen bg, reusing the leaderboard page shell) reading the local match history:
+  - **Profile strip:** total runs · best wins · avg wins · courses completed.
+  - **By hero:** per-hero rollups (runs · avg/best wins · completions), sorted by runs.
+  - **Match history:** each run — hero portrait, colour-coded **W–L record**, **line verdict** chip
+    (Exceeded/Covered/Missed/Failed), **build tags**, "Course complete / Fell on round N · date · N boards",
+    and the **final-warband preview** (same `Card` as the leaderboard/end screen).
+  - Empty state: "No runs yet — play a run to start your career." Rating is intentionally absent (no rating
+    system yet).
+- Store: `showCareer` + `openCareer`/`closeCareer`; `<Career/>` rendered in `Game.tsx`.
+- **Verified live:** seeded 3 runs → profile (3 runs / 12 best / 7.7 avg / 2 completed), Rohan/Warden hero
+  rows, 3 match entries with records + verdicts + tags + warband. typecheck + lint + `npm test` (420) +
+  build:web green.
+- **This closes the Phase A run/career spine (A1–A7).** Deferred within it: rating-driven par line (A2),
+  MVP/standout-unit (A4/A6), and a per-run detail page (A7) — all noted in the roadmap.
+
 ### feat: A7 (part 1) — run-history persistence layer
 
 - **Runs no longer disappear.** On run-end, a compact per-run entry is appended to `localStorage`

@@ -5,6 +5,7 @@ import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
 import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
+import { Career } from './Career';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
@@ -113,6 +114,7 @@ export function Game() {
       <HeroSelect />
       <Title onSettings={() => setMenuOpen(true)} />
       <Leaderboard />
+      <Career />
     </ErrorBoundary>
   );
 }

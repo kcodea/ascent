@@ -37,6 +37,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
+  const openCareer = useGame((s) => s.openCareer);
   const toggleBook = useGame((s) => s.toggleBook);
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
@@ -90,7 +91,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mbicon"><Crest /></span>
             <span className="mblabel">Play</span>
           </button>
-          <button className="menubtn disabled" title="Career — coming soon" onClick={() => sfx.deny()}>
+          <button className="menubtn" onClick={() => { sfx.pulse(); openCareer(); }} title="Your match history + per-hero stats">
             <span className="mbicon"><IconHelm /></span>
             <span className="mblabel">Career</span>
           </button>

@@ -1,10 +1,12 @@
 import { CARD_INDEX } from '@game/content';
 import type { CardDef, GameEvent, Tribe } from '@game/core';
-import type { RunState } from './state';
+import { CONFIG } from './config';
+import { lineResult, runRecord, type RunState } from './state';
 
 /**
- * Build-tag classifier (A5). Reads a run's FINAL board (+ a few run signals) and emits up to 3 build tags
- * — the language that gives an emergent build an identity ("Spell Engine · Gilded Carry · Flurry Finish").
+ * Build-tag classifier (A5, expanded). Reads a run's FINAL board + run signals (history, triples, buffs,
+ * record vs line) and emits up to 4 build tags — the language that gives an emergent build an identity
+ * ("Carry Stack · Gilded Carry · Late Bloom").
  * Pure + deterministic, so it's testable and reusable by the post-run summary (A6) and career (A7).
  *
  * Heuristic + thresholded: every candidate tag scores off real board/run signals; the top few above their
@@ -83,6 +85,62 @@ export function buildTags(state: RunState): string[] {
   const bigWeld = rows.find((x) => (x.def.tribe === 'mech' || x.def.tribe2 === 'mech') && (x.m.attack >= 25 || (x.m.rallyMechAtk ?? 0) > 0 || (x.m.spellAuraBonus ?? 0) > 0));
   if ((tribeCount.get('mech') ?? 0) >= 3 && bigWeld) add('Attachment Carry', 5);
 
+  // ── Board shape ─────────────────────────────────────────────────────────────
+  const statOf = (m: { attack: number; health: number }): number => m.attack + m.health;
+  const totalStats = rows.reduce((s, x) => s + statOf(x.m), 0);
+  const totalAtk = rows.reduce((s, x) => s + x.m.attack, 0);
+  const totalHp = rows.reduce((s, x) => s + x.m.health, 0);
+  const top = rows.reduce((best, x) => (statOf(x.m) > statOf(best.m) ? x : best), rows[0]!);
+  const topShare = totalStats > 0 ? statOf(top.m) / totalStats : 0;
+  // Carry Stack — one unit holds most of the board's stats (you made one monster).
+  if (n >= 3 && topShare >= 0.5 && statOf(top.m) >= 24) add('Carry Stack', Math.round(topShare * 10) + 4);
+  // Wide Board — many bodies, no dominant carry (the opposite shape).
+  else if (n >= 6 && topShare <= 0.34) add('Wide Board', n);
+
+  // Glass Cannon — attack-heavy with aggressive keywords (Flurry / Toxin pressure).
+  const aggressive = rows.some((x) => x.m.keywords.includes('W') || x.m.keywords.includes('V'));
+  if (totalAtk >= totalHp * 1.5 && totalAtk >= 30 && aggressive) add('Glass Cannon', 6);
+  // Fortress Board — health-heavy + defensive keywords (Ward / Taunt).
+  const defensive = rows.filter((x) => x.m.keywords.includes('DS') || x.m.keywords.includes('T')).length;
+  if (totalHp >= totalAtk * 1.4 && totalHp >= 30 && defensive >= 2) add('Fortress Board', 6);
+
+  // Token Flood — lots of small bodies.
+  const smalls = rows.filter((x) => statOf(x.m) <= 6).length;
+  if (smalls >= 4) add('Token Flood', smalls);
+
+  // Keyword Soup — many distinct keywords across the board (messy-but-powerful).
+  const kwSet = new Set<string>();
+  for (const x of rows) for (const k of x.m.keywords) kwSet.add(k);
+  if (kwSet.size >= 5) add('Keyword Soup', kwSet.size);
+
+  // Menagerie — several non-neutral tribes sharing the board.
+  const distinctTribes = [...tribeCount.keys()].filter((t) => t !== 'neutral').length;
+  if (distinctTribes >= 4) add('Menagerie', distinctTribes);
+
+  // Triple Hunter — chased upgrades (many triples / gilded units).
+  if (state.triplesMade >= 3 || goldens.length >= 3) add('Triple Hunter', state.triplesMade + goldens.length);
+
+  // Scaling Engine — big permanent run-wide growth, or a heavily-enchanted board.
+  const buffSum = rows.reduce((s, x) => s + (x.m.buffs?.reduce((a, b) => a + b.attack + b.health, 0) ?? 0), 0);
+  const runWideScale = (state.spellBonus?.attack ?? 0) + (state.spellBonus?.health ?? 0) + (state.undeadBuyAtk ?? 0) + impScale;
+  if (buffSum >= 40 || runWideScale >= 8) add('Scaling Engine', Math.min(10, Math.round(buffSum / 12) + runWideScale));
+
+  // ── Record / history narrative (needs enough scored rounds to read the arc) ──
+  const scoredResults = state.history.slice(CONFIG.calibrationRounds);
+  if (scoredResults.length >= 6) {
+    const half = Math.floor(scoredResults.length / 2);
+    const winRate = (arr: string[]): number => (arr.length ? arr.filter((r) => r === 'win').length / arr.length : 0);
+    const early = winRate(scoredResults.slice(0, half));
+    const late = winRate(scoredResults.slice(half));
+    if (early - late >= 0.34) add('Tempo Climber', 4);
+    else if (late - early >= 0.34) add('Late Bloom', 5);
+    const lr = lineResult(state);
+    const covered = lr.status === 'covered' || lr.status === 'exceeded' || lr.status === 'flawless';
+    if (covered && early <= 0.34) add('Underdog Line', 6); // bad start, still covered the line
+    const rec = runRecord(state);
+    if (rec.wins >= state.line && state.triplesMade <= 1 && goldens.length <= 1) add('Low Roll Survivor', 4);
+  }
+
   scored.sort((a, b) => b.score - a.score);
   const out: string[] = [];
   const seen = new Set<string>();
@@ -90,7 +148,7 @@ export function buildTags(state: RunState): string[] {
     if (seen.has(tag)) continue;
     seen.add(tag);
     out.push(tag);
-    if (out.length >= 3) break;
+    if (out.length >= 4) break;
   }
   // Fallback: a tribal board that cleared no bar still gets its plurality tribe tag, so identity is rarely blank.
   if (out.length === 0 && topTribe && topTribe.count >= 3 && TRIBE_TAG[topTribe.tribe]) out.push(TRIBE_TAG[topTribe.tribe]!);

@@ -278,7 +278,10 @@ interface DragState {
   uid: string;
   source: DragSource;
   view: CardView;
-  ox: number; oy: number; // pointer offset within the card
+  ox: number; oy: number; // anchor offset within the card — set to the CENTRE so the card rides centred on
+                          // the cursor once dragging (all drop/insertion math is `x - ox + w/2` = cursor).
+  grabOx: number; grabOy: number; // the ACTUAL grab point within the card — the floating card starts here
+                                  // (no pickup pop) then smoothly recentres to the cursor over the first frames.
   w: number; h: number; // the source card's size, so the floating card matches exactly
   startX: number; startY: number; // pointer position at press
   x: number; y: number; // current pointer
@@ -811,7 +814,7 @@ export function Recruit() {
   // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
   // When the card is snapping back or magnet-sliding, React/CSS own the transform instead (see the JSX).
   const dragCardRef = useRef<HTMLDivElement>(null);
-  const dragMotionRef = useRef({ rx: 0, ry: 0 });
+  const dragMotionRef = useRef({ rx: 0, ry: 0, ax: 0, ay: 0 }); // rx/ry = smoothed position; ax/ay = anchor (grab→centre)
   const reactDrivesDrag = snapping || magSlide; // these use a CSS transition, not the rAF lean
   const reactDrivesDragRef = useRef(reactDrivesDrag);
   reactDrivesDragRef.current = reactDrivesDrag;
@@ -827,9 +830,11 @@ export function Recruit() {
     const m = dragMotionRef.current;
     const d0 = dragRef.current;
     if (d0) {
-      m.rx = d0.x; m.ry = d0.y; // start at the cursor so the lift doesn't jump
+      m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
+      m.ax = d0.grabOx; m.ay = d0.grabOy; // anchor starts at the grab point → the card appears where you grabbed
       const f = getDragFeel();
-      el.style.transform = dragTransform(f.perspective, m.rx - d0.ox, m.ry - d0.oy, 0, 0, f.scale, f.staticRotate); // before-paint, no flash
+      el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
+      el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, 0, 0, f.scale, f.staticRotate); // before-paint, no flash
     }
     let raf = 0;
     let last = performance.now();
@@ -841,6 +846,11 @@ export function Recruit() {
       if (!d || reactDrivesDragRef.current) return; // snap/magslide → React+CSS own the transform
       const f = getDragFeel();
       const k = f.follow >= 1 ? 1 : 1 - Math.pow(1 - f.follow, dt / 16.667); // frame-rate-independent catch-up
+      // recentre the anchor from the grab point toward the card centre → the card slides to sit centred on the
+      // cursor as the drag begins (a hair quicker than the position catch-up so it settles centred promptly).
+      const kc = Math.min(1, k * 1.4);
+      m.ax += (d.w / 2 - m.ax) * kc;
+      m.ay += (d.h / 2 - m.ay) * kc;
       const gx = d.x - m.rx;
       const gy = d.y - m.ry;
       m.rx += gx * k;
@@ -848,7 +858,8 @@ export function Recruit() {
       const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
       const rotY = clamp(gx * f.tiltPerPx * f.tiltDir);  // lean left/right into horizontal motion (tiltDir flips)
       const rotX = clamp(-gy * f.tiltPerPx * f.tiltDir); // lean up/down into vertical motion
-      el.style.transform = dragTransform(f.perspective, m.rx - d.ox, m.ry - d.oy, rotX, rotY, f.scale, f.staticRotate);
+      el.style.transformOrigin = `${m.ax}px ${m.ay}px`; // pivot tilt/scale around the (recentring) anchor
+      el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, rotX, rotY, f.scale, f.staticRotate);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -1020,7 +1031,8 @@ export function Recruit() {
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
       setDrag({
         uid, source, view,
-        ox: e.clientX - r.left, oy: e.clientY - r.top,
+        ox: r.width / 2, oy: r.height / 2,           // anchor = centre → the card rides centred on the cursor
+        grabOx: e.clientX - r.left, grabOy: e.clientY - r.top, // where you actually grabbed (recentre starts here)
         w: r.width, h: r.height,
         startX: e.clientX, startY: e.clientY,
         x: e.clientX, y: e.clientY,
@@ -1154,9 +1166,10 @@ export function Recruit() {
         setDrag(null);
         setOverZone(null);
       } else {
-        // invalid drop — snap the card cleanly + quickly back to where it came from
+        // invalid drop — snap the card cleanly + quickly back to its original slot. The card rides CENTRED on
+        // the cursor, so aim its centre at the slot centre (press point − grab offset + half-card).
         setSnapping(true);
-        setDrag((cur) => (cur ? { ...cur, x: cur.startX, y: cur.startY } : cur));
+        setDrag((cur) => (cur ? { ...cur, x: cur.startX - cur.grabOx + cur.w / 2, y: cur.startY - cur.grabOy + cur.h / 2 } : cur));
         window.setTimeout(() => {
           setSnapping(false);
           setDrag(null);
@@ -1763,7 +1776,7 @@ export function Recruit() {
         el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
         window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
       }
-      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.5); // +50% — a more noticeable drop cloud
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
   };
 
@@ -2182,13 +2195,11 @@ export function Recruit() {
           style={{
             width: drag.w,
             height: drag.h,
-            // pivot scale/rotate/tilt: `pivot` blends the grab point (0, keeps the card under the cursor)
-            // toward the card centre (1).
-            transformOrigin: `${drag.ox + (drag.w / 2 - drag.ox) * getDragFeel().pivot}px ${drag.oy + (drag.h / 2 - drag.oy) * getDragFeel().pivot}px`,
-            // Normal drag: the rAF (above) owns `transform` — a weighted lag + tilt-toward-motion, written
-            // straight to this node, so React re-renders don't fight it. Snap-back / magnet-slide use a CSS
-            // transition instead, so React drives those transforms here (matching function list); their
-            // durations come from the config too (overriding the CSS class duration).
+            // Normal drag: the rAF (above) owns `transform` + `transform-origin` (a weighted lag, a recentre
+            // onto the cursor, and a tilt-toward-motion), written straight to this node so React re-renders
+            // don't fight it. Snap-back / magnet-slide use a CSS transition, so React drives those here — the
+            // origin is the card centre (matching the recentred anchor), the durations come from the config.
+            transformOrigin: reactDrivesDrag ? `${drag.w / 2}px ${drag.h / 2}px` : undefined,
             transform: magSlide
               ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 0.06, 0)
               : snapping

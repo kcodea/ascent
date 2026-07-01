@@ -17,7 +17,6 @@ const LABELS: Record<keyof DragFeel, string> = {
   perspective: 'perspective',
   scale: 'hold scale',
   staticRotate: 'static angle',
-  pivot: 'pivot (grab→center)',
   threshold: 'drag threshold',
   snapMs: 'snap-back ms',
   magSlideMs: 'magnet-slide ms',

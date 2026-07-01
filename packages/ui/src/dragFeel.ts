@@ -21,8 +21,6 @@ export interface DragFeel {
   scale: number;
   /** A fixed 2D angle (deg) while held; 0 = sits flat like a card on the table. */
   staticRotate: number;
-  /** Tilt/scale pivot: 0 = the point you grabbed (stays under the cursor), 1 = the card's centre. */
-  pivot: number;
   /** Pixels the pointer must move before a click becomes a drag. */
   threshold: number;
   /** How fast an invalid drop springs back to its slot (ms). */
@@ -39,7 +37,6 @@ const DEFAULTS: DragFeel = {
   perspective: 800,
   scale: 1.04,      // lifted a touch off the table
   staticRotate: 0,  // flat when held still
-  pivot: 0,         // pivot at the grab point (card stays under the cursor)
   threshold: 5,
   snapMs: 110,
   magSlideMs: 280,
@@ -54,7 +51,6 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   perspective: [200, 1600, 50],
   scale: [1, 1.3, 0.01],
   staticRotate: [-8, 8, 0.5],
-  pivot: [0, 1, 0.1],
   threshold: [0, 30, 1],
   snapMs: [40, 400, 10],
   magSlideMs: [100, 600, 10],
@@ -69,7 +65,6 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   perspective: 'CSS 3D depth (px). Smaller = stronger foreshortening / more dramatic tilt.',
   scale: 'How much the card grows while held — the “lifted off the table” size.',
   staticRotate: 'A fixed 2D angle (deg) while held. 0 = sits flat like a card on the table.',
-  pivot: 'Where tilt/scale pivot: 0 = the point you grabbed (stays under the cursor), 1 = the card centre.',
   threshold: 'Pixels the pointer must move before a click turns into a drag.',
   snapMs: 'How fast an invalid drop springs back to its slot (milliseconds).',
   magSlideMs: 'Duration of the Mech “absorb” slide when a Magnetic minion merges (milliseconds).',

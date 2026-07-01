@@ -19,6 +19,8 @@ const LABELS: Record<keyof DragFeel, string> = {
   scale: 'hold scale',
   staticRotate: 'static angle',
   threshold: 'drag threshold',
+  recenter: 'recenter speed',
+  recenterAfter: 'recenter after px',
   snapMs: 'snap-back ms',
   magSlideMs: 'magnet-slide ms',
 };

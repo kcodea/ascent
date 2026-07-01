@@ -5,7 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
-### feat: board-art selector + dimming slider in Settings
+### tweak: slower drag recentre, gated to 10 px of drag
+
+The dragged card's recentre onto the cursor now glides slowly (`recenter` 0.12, was ~0.9) and only begins
+after the pointer has dragged `recenterAfter` 10 px from the grab point. Both are new live dials in
+`dragFeel.ts` / the 🎴 tuner. (A speculative `absolute: true` board-slide Flip for committed moves was tried
+and reverted — it snapped auras during the reflow; committed board moves keep their prior snappy 0.18 s Flip.)
 
 A **Board Art** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) to compare the illustrated
 game-board backgrounds without a rebuild: a thumbnail grid (`BOARD_OPTIONS`, active tile ringed) plus a

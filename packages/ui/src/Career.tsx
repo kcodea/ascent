@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { getHero, type BoardMinion, type LineStatus } from '@game/sim';
+import { getHero, type BoardMinion, type LineStatus, type Tribe } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { heroArt } from './art';
 import { Icon } from './Icon';
@@ -21,6 +21,9 @@ function cardViewOf(m: BoardMinion): CardView {
 
 const VERDICT: Record<LineStatus, string> = {
   flawless: 'Flawless', exceeded: 'Exceeded', covered: 'Covered', missed: 'Missed', failed: 'Failed',
+};
+const TRIBE_LABEL: Record<Tribe, string> = {
+  beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
 };
 
 /**
@@ -62,7 +65,15 @@ export function Career() {
               <div className="carstat"><span className="cs-v">{stats.bestWins}</span><span className="cs-l">Best wins</span></div>
               <div className="carstat"><span className="cs-v">{stats.avgWins}</span><span className="cs-l">Avg wins</span></div>
               <div className="carstat"><span className="cs-v">{stats.completions}</span><span className="cs-l">Completed</span></div>
+              <div className="carstat"><span className="cs-v">{stats.flawless}</span><span className="cs-l">Flawless</span></div>
+              <div className="carstat"><span className="cs-v">{stats.triples}</span><span className="cs-l">Triples</span></div>
+              <div className="carstat"><span className="cs-v">{stats.avgGold}</span><span className="cs-l">Avg gold</span></div>
+              <div className="carstat"><span className="cs-v">{stats.avgApt}</span><span className="cs-l">Avg APT</span></div>
             </div>
+
+            {stats.topTribes.length > 0 && (
+              <div className="cartop">Top tribes: {stats.topTribes.map((t) => `${TRIBE_LABEL[t.tribe]} (${t.count})`).join(' · ')}</div>
+            )}
 
             {stats.perHero.length > 0 && (
               <div className="carheroes">
@@ -81,8 +92,8 @@ export function Career() {
               </div>
             )}
 
-            <div className="carsec">Match history</div>
-            {entries.map((e, i) => (
+            <div className="carsec">Match history · last {Math.min(25, entries.length)}</div>
+            {entries.slice(0, 25).map((e, i) => (
               <div className="lbentry" key={i}>
                 <div className="lbentry-head">
                   <div className="lbportrait">
@@ -96,7 +107,9 @@ export function Career() {
                     </div>
                     <div className="lbmeta">
                       {e.completed ? 'Course complete' : `Fell on round ${e.wave}`}{e.date ? ` · ${e.date}` : ''}
-                      {e.boardsContributed > 0 ? ` · ${e.boardsContributed} board${e.boardsContributed === 1 ? '' : 's'}` : ''}
+                      {e.triples ? ` · ${e.triples} triples` : ''}
+                      {e.goldSpent !== undefined ? ` · ${e.goldSpent} gold` : ''}
+                      {e.strongest ? ` · best: ${e.strongest.name} ${e.strongest.attack}/${e.strongest.health}` : ''}
                     </div>
                     {e.tags.length > 0 && (
                       <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}</span>)}</div>

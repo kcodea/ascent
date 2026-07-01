@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: run stats — gold spent, APT, triples, strongest + career aggregates
+
+- **New `RunState.goldSpent`** — total Gold spent across the run, incremented at the single `spendGold`
+  chokepoint (buys / rerolls / tier-ups / hero powers). Deserialize-healed for old saves.
+- **Post-run summary** gains a run-stats row: **triples · gold spent · actions/round (APT) · cards played ·
+  strongest minion** (APT + cards computed from the action log).
+- **Match-history entry** now stores those stats plus the run's **dominant tribe** and **strongest minion**;
+  `careerStats` aggregates **flawless count, total triples, avg gold, avg APT, and top tribes**.
+- **Career screen** expands: profile strip adds Flawless / Triples / Avg gold / Avg APT; a **Top tribes**
+  line; the match list is capped to the **last 25** and each row shows triples · gold · strongest.
+- **Deferred (need per-minion combat-damage / proc counts out of `simulate`):** MVP minion, most-triggered
+  mechanic, top *minions* played, Quest choices + Ancient (Phase C).
+- **Verified live:** post-run row (4 triples · 143 gold · 4 APT · 14 cards · Strongest Gnasher 30/12) +
+  Career aggregates (Flawless 1 · Triples 11 · Avg gold 128 · Avg APT 5.7 · Top tribes). Tests updated;
+  typecheck + lint + `npm test` (421) + build:web green.
+
 ### feat: expanded build tags (A5+)
 
 - Grew `buildTags` from ~11 to ~24 tags and bumped the display cap 3 → 4, so a run's identity reads richer.

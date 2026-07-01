@@ -186,6 +186,8 @@ export interface RunState {
   deathrattlesTriggered: number;
   /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */
   triplesMade: number;
+  /** Total Gold spent across the run (buys, rerolls, tier-ups, hero powers) — a career/post-run stat. */
+  goldSpent: number;
   /** True once the just-fought combat's outcome (damage + carry-backs) has been applied, while still in the
    *  combat view — so the Resolve hit lands before returning to the shop. Reset when a combat starts. */
   combatSettled: boolean;
@@ -374,6 +376,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     spellsThisTurn: 0,
     deathrattlesTriggered: 0,
     triplesMade: 0,
+    goldSpent: 0,
     combatSettled: false,
     freeRolls: 0,
     frontToBackBonus: 0,
@@ -432,6 +435,7 @@ export function deserialize(json: string): RunState {
   state.spellBonus ??= { attack: 0, health: 0 }; // heal saves from before card-driven spell power
   state.undeadBuyAtk ??= 0; // heal saves from before Deathswarmer / Forsaken Weaver
   state.line ??= CONFIG.defaultLine; // heal saves from before the par/line (A2)
+  state.goldSpent ??= 0; // heal saves from before gold-spent tracking
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (state.pendingSpellDiscovers && state.pendingSpellDiscovers > 0) {

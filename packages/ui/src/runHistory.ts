@@ -1,3 +1,4 @@
+import { CARD_INDEX } from '@game/content';
 import type { Tribe } from '@game/core';
 import { buildTags, lineResult, runRecord, type BoardSnapshot, type LineStatus, type RunState } from '@game/sim';
 
@@ -24,15 +25,36 @@ export interface RunHistoryEntry {
   tribes: Tribe[];
   boardsContributed: number;
   board: BoardSnapshot | null; // final warband, for the list preview
+  // Run stats (added later; may be absent on older saved entries — default when reading).
+  triples?: number;
+  goldSpent?: number;
+  apt?: number; // actions per round
+  cardsPlayed?: number;
+  dominantTribe?: Tribe | null; // the final board's top non-neutral tribe
+  strongest?: { name: string; attack: number; health: number } | null; // biggest final-board minion
 }
 
-/** Build a history entry from a finished run + the run-end extras (capture count, final board, date). */
+/** The final board's top non-neutral tribe (both tribes counted), or null for an empty/all-neutral board. */
+function dominantTribeOf(run: RunState): Tribe | null {
+  const count = new Map<Tribe, number>();
+  for (const m of run.board) {
+    const def = CARD_INDEX[m.cardId];
+    for (const t of [def?.tribe, def?.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral')) count.set(t, (count.get(t) ?? 0) + 1);
+  }
+  let top: Tribe | null = null;
+  let best = 0;
+  for (const [t, c] of count) if (c > best) { best = c; top = t; }
+  return top;
+}
+
+/** Build a history entry from a finished run + the run-end extras (capture count, final board, date, APT). */
 export function buildRunHistoryEntry(
   run: RunState,
-  extra: { date: string; boardsContributed: number; board: BoardSnapshot | null },
+  extra: { date: string; boardsContributed: number; board: BoardSnapshot | null; apt: number; cardsPlayed: number },
 ): RunHistoryEntry {
   const rec = runRecord(run);
   const lr = lineResult(run);
+  const big = run.board.reduce<RunState['board'][number] | null>((b, m) => (!b || m.attack + m.health > b.attack + b.health ? m : b), null);
   return {
     v: 1,
     date: extra.date,
@@ -49,6 +71,12 @@ export function buildRunHistoryEntry(
     tribes: run.tribes,
     boardsContributed: extra.boardsContributed,
     board: extra.board,
+    triples: run.triplesMade,
+    goldSpent: run.goldSpent,
+    apt: extra.apt,
+    cardsPlayed: extra.cardsPlayed,
+    dominantTribe: dominantTribeOf(run),
+    strongest: big ? { name: CARD_INDEX[big.cardId]?.name ?? big.cardId, attack: big.attack, health: big.health } : null,
   };
 }
 
@@ -88,21 +116,31 @@ export interface CareerStats {
   bestWins: number;
   avgWins: number;
   completions: number;
+  flawless: number; // runs with a flawless line result (won every scored round)
+  triples: number; // total triples across all runs
+  avgGold: number; // avg Gold spent per run
+  avgApt: number; // avg actions per round
+  topTribes: { tribe: Tribe; count: number }[]; // most-played final-board tribes
   perHero: HeroStat[]; // sorted by runs desc
 }
 
 /** Aggregate the match history into overall + per-hero career stats. Pure. */
 export function careerStats(entries: RunHistoryEntry[]): CareerStats {
   const runs = entries.length;
-  if (runs === 0) return { runs: 0, bestWins: 0, avgWins: 0, completions: 0, perHero: [] };
-  let bestWins = 0;
-  let totalWins = 0;
-  let completions = 0;
+  const empty: CareerStats = { runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, topTribes: [], perHero: [] };
+  if (runs === 0) return empty;
+  let bestWins = 0, totalWins = 0, completions = 0, flawless = 0, triples = 0, totalGold = 0, goldRuns = 0, totalApt = 0, aptRuns = 0;
   const heroes = new Map<string, HeroStat>();
+  const tribes = new Map<Tribe, number>();
   for (const e of entries) {
     bestWins = Math.max(bestWins, e.wins);
     totalWins += e.wins;
     if (e.completed) completions++;
+    if (e.lineStatus === 'flawless') flawless++;
+    triples += e.triples ?? 0;
+    if (e.goldSpent !== undefined) { totalGold += e.goldSpent; goldRuns++; }
+    if (e.apt !== undefined) { totalApt += e.apt; aptRuns++; }
+    if (e.dominantTribe) tribes.set(e.dominantTribe, (tribes.get(e.dominantTribe) ?? 0) + 1);
     const h = heroes.get(e.heroId) ?? { heroId: e.heroId, runs: 0, wins: 0, bestWins: 0, avgWins: 0, completions: 0 };
     h.runs++;
     h.wins += e.wins;
@@ -113,5 +151,11 @@ export function careerStats(entries: RunHistoryEntry[]): CareerStats {
   const perHero = [...heroes.values()]
     .map((h) => ({ ...h, avgWins: Math.round((h.wins / h.runs) * 10) / 10 }))
     .sort((a, b) => b.runs - a.runs);
-  return { runs, bestWins, avgWins: Math.round((totalWins / runs) * 10) / 10, completions, perHero };
+  const topTribes = [...tribes.entries()].map(([tribe, count]) => ({ tribe, count })).sort((a, b) => b.count - a.count).slice(0, 3);
+  return {
+    runs, bestWins, avgWins: Math.round((totalWins / runs) * 10) / 10, completions, flawless, triples,
+    avgGold: goldRuns ? Math.round(totalGold / goldRuns) : 0,
+    avgApt: aptRuns ? Math.round((totalApt / aptRuns) * 10) / 10 : 0,
+    topTribes, perHero,
+  };
 }

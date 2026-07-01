@@ -1570,21 +1570,19 @@ export function Recruit() {
   // transforms on complete and manages interruptions, so a fast drag blends rather than flinging cards.
   useLayoutEffect(() => {
     if (flipStateRef.current) {
-      // Two feels: while a drag is live, the warband cards slide aside under the cursor — a slightly-eased
-      // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
-      // settles snappy. Both durations are live-tunable via the DEV Flip tuner (flipConfig.ts, ms → seconds).
       const flipCfg = getFlipConfig();
       const dragging = dragRef.current?.active ?? false;
       if (dragging) {
-        // Live drag: the flip re-fires every frame as the gap tracks the cursor. Leave the cards' CSS
-        // transition alone — GSAP blends the continuous flips fine, and touching the transition per-frame
-        // would thrash it. (This path already read smoothly.)
+        // The PRE-EMPTIVE slide: as the drag moves, the row opens/closes the drop slot and the cards glide to
+        // make room. This is the animation you watch. The flip re-fires every frame as the gap tracks the
+        // cursor; the cards' CSS `transition: transform` is off for the whole drag (body.dragging rule in
+        // styles.css), so GSAP animates the slide cleanly without per-frame thrash.
         Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
-      } else {
-        // Committed one-shot (play / sell / summon / auto-reposition): `.card` carries `transition: transform`
-        // (hover/buff eases) and GSAP animates the slide VIA transform, so that CSS transition re-smooths every
-        // GSAP frame and mashes the slide into an instant snap. Kill it on the cards that MOVE for the slide's
-        // duration, then restore — a single one-shot, so no per-frame thrash.
+      } else if (flipCfg.commitMs > 0) {
+        // A COMMITTED move with NO drag (a summoned token, an effect repositioning) — opt-in via commitMs > 0.
+        // After a drag-DROP the cards already slid into place during the drag, so the default (commitMs 0) snaps
+        // here — no redundant post-commit slide. `.card`'s CSS transform-transition would fight GSAP, so kill it
+        // for this one-shot and restore after.
         const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
         gsap.set(targets, { transition: 'none' });
         const restore = (): void => gsap.set(targets, { clearProps: 'transition' });
@@ -1595,6 +1593,7 @@ export function Recruit() {
           onInterrupt: restore,
         });
       }
+      // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);

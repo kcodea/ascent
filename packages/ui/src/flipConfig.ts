@@ -14,24 +14,26 @@ export interface FlipConfig {
 }
 
 const DEFAULTS: FlipConfig = {
-  dragMs: 250,
-  commitMs: 180,
+  dragMs: 180,  // the PRE-EMPTIVE slide as you drag a card across the row — the one you actually watch
+  commitMs: 0,  // the settle AFTER dropping — 0 = instant (cards already slid into place during the drag)
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const FLIP_RANGES: Record<keyof FlipConfig, [number, number, number]> = {
   dragMs: [40, 800, 10],
-  commitMs: [40, 800, 10],
+  commitMs: [0, 800, 10],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
 export const FLIP_DESC: Record<keyof FlipConfig, string> = {
-  dragMs: 'How long cards take to slide aside while you drag a card across the row (milliseconds).',
-  commitMs: 'How long cards take to settle after a committed move — drop / play / sell / auto-reposition (ms).',
+  dragMs: 'Pre-emptive slide: how long cards take to open the slot as you DRAG a card across the row (ms).',
+  commitMs: 'Settle after DROPPING — 0 = instant (the cards already slid into place during the drag).',
 };
 export const FLIP_KEYS = Object.keys(DEFAULTS) as (keyof FlipConfig)[];
 
-const KEY = 'ascent.flip';
+// v2: bump the key so the earlier hand-tuned values (which had drag near-0 and commit slow — backwards) are
+// discarded and these corrected defaults take effect. Re-tune from here.
+const KEY = 'ascent.flip.v2';
 let cfg: FlipConfig = (() => {
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');

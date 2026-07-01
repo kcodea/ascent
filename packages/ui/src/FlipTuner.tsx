@@ -11,7 +11,7 @@ import { useDraggablePanel } from './useDraggablePanel';
  */
 const LABELS: Record<keyof FlipConfig, string> = {
   dragMs: 'drag slide ms',
-  commitMs: 'settle ms',
+  commitMs: 'commit settle ms (0=off)',
 };
 
 export function FlipTuner() {

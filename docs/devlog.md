@@ -17,9 +17,12 @@ with `moved: 2` tweens over the tuned duration, yet nothing visibly moved.) Fix,
 - **Committed one-shot** (play / sell / summon / auto-reposition, no drag): `gsap.set(targets, { transition:
   'none' })` for the slide, restored on complete/interrupt.
 
-The Flip durations also now read from a live config (`flipConfig.ts`): `dragMs` (drag-across glide) + `commitMs`
-(committed settle). `FlipTuner.tsx` (the 🔀 button, sixth in the DEV cluster) exposes both as sliders with hover
-defs, persisted to localStorage. Defaults dragMs 250, commitMs 180; `Flip.from` converts ms → seconds.
+The slide is the PRE-EMPTIVE one you watch while dragging (the row opening the drop slot); after the drop the
+cards are already in place, so the committed settle now defaults to **instant**. Durations live in
+`flipConfig.ts`: `dragMs` (the drag-across preview slide, default 180) + `commitMs` (post-commit settle, default
+**0 = off**; a non-drag summon/effect can opt into a slide by raising it). `FlipTuner.tsx` (the 🔀 button)
+exposes both. The localStorage key was bumped to `ascent.flip.v2` to discard earlier hand-tuned values that had
+these backwards (drag near-0, commit slow).
 
 (An `absolute: true` committed Flip was tried first and reverted — it didn't help and slid the board in from
 the right on card pickup. The real culprit was the CSS transition, above.)

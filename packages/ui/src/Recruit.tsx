@@ -2318,7 +2318,9 @@ export function Recruit() {
               golden magic reads white-hot without covering the UI. Driven by discoverFx (see the effect). */}
           <div className="disc-burst" ref={discoverBurstRef} aria-hidden="true" />
           <div className="disc-panel">
-            <button className="disc-min" onClick={() => setDiscoverMin(true)} title="Minimize — inspect your board, then return">–</button>
+            <button className="disc-min" onClick={() => setDiscoverMin(true)} title="Inspect your board, then return to choose">
+              <Icon name="eye" /> Minimize
+            </button>
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
             <div className="disc-banner"><span className="disp">Discover</span></div>
             <div className="disc-sub">Choose a minion from the next tier.</div>

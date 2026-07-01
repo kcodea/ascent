@@ -25,6 +25,9 @@ export const BOARD_OPTIONS: { id: string; label: string }[] = [
   { id: 'board9', label: 'Board 9' },
   { id: 'board10', label: 'Board 10' },
   { id: 'board11', label: 'Board 11' },
+  { id: 'board12', label: 'Board 12' },
+  { id: 'board13', label: 'Board 13' },
+  { id: 'board14', label: 'Board 14' },
 ];
 
 export function EscMenu({

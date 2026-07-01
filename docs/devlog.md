@@ -22,7 +22,8 @@ scrim, so the slider scales the overlay live.
   readability — the slider/default only affect the in-game board.
 - **Art pipeline:** the source PNGs in `Ascent Art/Game Boards` were encoded to `apps/web/public/boardN.webp`
   via sharp (1680px wide, q82 — 58–253 KB each; both source + webp are plain sRGB, no profile loss). Available
-  boards are the ones present in the folder: **4, 5, 7, 8, 9, 10, 11**.
+  boards are the ones present in the folder: **4, 5, 7, 8, 9, 10, 11, 12, 13, 14** (board14 kept at full native
+  1915×821 per owner request; the rest downscaled to 1680w).
 - **Note:** the picker currently ships to players (not DEV-gated). Flagged for review — trivial to wrap in
   `import.meta.env.DEV` if it should be dev-only.
 - **Verified:** typecheck + lint clean, 441 tests green, `build:web` OK. Live: all 7 boards serve real

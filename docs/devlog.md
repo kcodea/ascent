@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-06-30 (session 10)
 
+### feat: A6 — post-run summary (build identity + contributions)
+
+- The end screen now shows the run's **build identity** and **contributions**, on top of the record + line
+  verdict already there — so a finished run reads as *authored*, not just completed.
+- **Build tags** (A5's `buildTags`): a row of tag chips ("Beast Swarm · Gilded Carry · Spell Engine")
+  under the line verdict (Ascent only; hidden for Practice / a genuinely mixed board).
+- **Run contributions:** "Added N boards to the pool" — the count of snapshots this run added to the shared
+  opponent pool. New `lastRunBoards` store field, set from `saveRunBoards(...).length` in the deferred
+  run-end capture (0 for Practice / read-only; reset on a new run).
+- **Deferred (same as A4):** MVP / key-unit needs per-minion damage tracking not on `CombatResult` — the
+  final warband is shown, the "standout unit" call-out is a later add.
+- **Verified live:** a completed course renders COURSE COMPLETE · Record 11–4 · Line 9 Exceeded (+2) ·
+  Beast Swarm / Gilded Carry / Spell Engine · "Added 8 boards to the pool". typecheck + lint + `npm test`
+  (416) + build:web green.
+
 ### feat: A5 — build-tag classifier
 
 - New pure helper `buildTags(state)` in `@game/sim` (`buildTags.ts`) — reads a run's **final board** + a few

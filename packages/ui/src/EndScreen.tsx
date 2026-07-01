@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, getHero, isCalibrationRound, lineResult, runRecord, type BoardCard, type LineStatus } from '@game/sim';
+import { buildTags, CONFIG, getHero, isCalibrationRound, lineResult, runRecord, type BoardCard, type LineStatus } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { heroArt } from './art';
 import { Icon } from './Icon';
@@ -23,8 +23,11 @@ function boardView(m: BoardCard): CardView {
 export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
   const openTitle = useGame((s) => s.openTitle);
+  const contributed = useGame((s) => s.lastRunBoards);
   const hero = getHero(run.heroId);
   const practice = run.mode === 'practice';
+  // Build identity (A5/A6): the tags that describe what you built this run.
+  const tags = practice ? [] : buildTags(run);
   // Ascent: the score is the W–L record over the scored rounds (calibration rounds don't count).
   const rec = runRecord(run);
   // Practice has no calibration concept — count every round.
@@ -68,6 +71,14 @@ export function EndScreen({ won }: { won: boolean }) {
           </div>
         )}
 
+        {tags.length > 0 && (
+          <div className="endtags" aria-label="Build identity">
+            {tags.map((t) => (
+              <span className="endtag" key={t}>{t}</span>
+            ))}
+          </div>
+        )}
+
         {run.history.length > 0 && (
           <div className="endpips" aria-label="Round results">
             {run.history.map((r, i) => {
@@ -89,6 +100,12 @@ export function EndScreen({ won }: { won: boolean }) {
             run.board.map((m) => <Card key={m.uid} card={boardView(m)} suppressPop />)
           )}
         </div>
+
+        {!practice && contributed > 0 && (
+          <div className="endcontrib" title="Snapshots of your boards, added to the shared opponent pool — other players may face them.">
+            Added {contributed} board{contributed === 1 ? '' : 's'} to the pool
+          </div>
+        )}
 
         <button className="endplay" onClick={() => openTitle()}>Play Again</button>
       </div>

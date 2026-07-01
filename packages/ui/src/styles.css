@@ -1458,6 +1458,11 @@ body:has(.heroselect:not(.endscreen)) .statusbar { visibility: hidden; }
 .endline-verdict { padding: 4px 14px; border-radius: 10px; color: #fff; }
 .endline.flawless .endline-verdict, .endline.exceeded .endline-verdict, .endline.covered .endline-verdict { background: #3b9e57; }
 .endline.missed .endline-verdict, .endline.failed .endline-verdict { background: var(--threat); }
+/* Build identity (A6): the tags that describe what you built this run. */
+.endtags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 90vw; margin-top: 16px; }
+.endtag { font-family: 'Outfit'; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, var(--card)); border: 1.5px solid color-mix(in srgb, var(--acc) 55%, transparent); padding: 6px 14px; border-radius: 999px; }
+/* Run contributions — boards you added to the shared pool. */
+.endcontrib { margin-top: 12px; font-family: 'Outfit'; font-weight: 700; font-size: 14px; letter-spacing: 0.04em; color: var(--ink3); }
 .endpips { display: flex; flex-wrap: nowrap; gap: 9px; justify-content: center; max-width: 96vw; margin: 34px 0 8px; }
 .endpip { flex: none; width: 44px; height: 44px; border-radius: 11px; font-family: 'Outfit'; font-weight: 800; font-size: 22px; color: #fff; display: grid; place-items: center; }
 .endpip.win { background: #3b9e57; }

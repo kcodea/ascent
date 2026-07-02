@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### polish: reposition slide — no pickup jerk, shop too, longer settle
+
+Three refinements (all verified live via in-browser transform sampling):
+- **No pickup re-centre jerk.** The dragged card no longer leaves the row; it stays rendered invisible
+  (`dimmed`) so its slot holds the row width — the neighbours don't snap inward on lift. The gap moves only
+  when the drag actually crosses a card: each other card shifts a WHOLE slot via `boardSlide(i)` (its index
+  among the non-dragged cards → its index once the dragged card reinserts at the gap). On pickup gap==origin,
+  so nothing moves. Verified: grabbing the middle card, the neighbour holds `tx=0` until dragged clear, then
+  glides one full slot.
+- **Shop row too.** Same model via `shopSlide(i)` — the tavern offers slide/hold-slot on reorder (drop-slots
+  removed from both rows).
+- **Longer ease-out.** Transition `0.36s cubic-bezier(0.12, 0.82, 0.12, 1)` — a more gradual settle.
+- Hand-play still opens a half-slot gap each side at the insertion point.
+
 ### fix: reposition slide FINALLY works — deterministic CSS-transform gap (GSAP Flip abandoned)
 
 Confirmed via live in-browser transform sampling (focused tab so rAF runs): GSAP Flip applied **no transform

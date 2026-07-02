@@ -367,7 +367,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
    `!important` beats the base 0.12s rule. On release `body.dragging` drops, so the transform resets INSTANTLY
    (no transition) exactly as the card commits to its final slot — no post-drop jump. */
 body.dragging .zone[data-zone='warband'] .card,
-body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important; }
+body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubic-bezier(0.12, 0.82, 0.12, 1) !important; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }

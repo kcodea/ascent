@@ -1539,12 +1539,12 @@ export function Recruit() {
     !wouldMagnetize &&
     !drag.view.spell &&
     (drag.source === 'board' || (drag.source === 'hand' && run.board.length < CONFIG.boardMax));
-  // The dragged board minion leaves the row immediately and stays out for the whole drag.
-  const displayBoard = draggingBoard ? run.board.filter((m) => m.uid !== drag!.uid) : run.board;
-  // Same lift-out for the shop: a dragged offer leaves the row and the rest close up (FLIP),
-  // instead of leaving a dimmed "shadow" card in place while you buy.
+  // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
+  // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").
+  // The gap moves via per-card slide transforms (see `boardSlide`/`shopSlide`), not by removing the card.
+  const displayBoard = run.board;
   const draggingShop = !!drag?.active && drag.source === 'shop';
-  const displayShop = draggingShop ? run.shop.filter((o) => o.uid !== drag!.uid) : run.shop;
+  const displayShop = run.shop;
   // A dragged offer (not the pinned spell) over the tavern reorders the shop — open a slot.
   const overShop = draggingShop && overZone === 'tavern' && drag!.uid !== run.spell?.uid;
   const shopGapIndex = overShop ? shopIndexAt(dragCx, drag!.uid) : -1;
@@ -1555,6 +1555,28 @@ export function Recruit() {
       ? warbandIndexAt(dragCx, drag!.source === 'board' ? drag!.uid : undefined)
       : -1;
   const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
+  // Per-card slide offset (in slots) that opens the drop gap by shifting the cards themselves. A CSS
+  // `transition: transform` (while dragging) glides these — the pre-emptive "make room" animation.
+  const draggedBoardIdx = draggingBoard ? run.board.findIndex((m) => m.uid === drag!.uid) : -1;
+  const boardSlide = (i: number): number => {
+    if (gapIndex < 0) return 0;
+    if (draggingBoard) {
+      // Reordering an existing minion: the dragged card holds its slot (invisible). Every OTHER card shifts by
+      // a whole slot only when the gap crosses it — so nothing moves until the card is dragged clear.
+      if (i === draggedBoardIdx) return 0;
+      const p = i < draggedBoardIdx ? i : i - 1;      // its index among the non-dragged cards
+      return (p < gapIndex ? p : p + 1) - i;          // its index once the dragged card reinserts at the gap
+    }
+    // Playing a new card from hand: open a half-slot gap each side at the insertion point.
+    return i < gapIndex ? -0.5 : 0.5;
+  };
+  const draggedShopIdx = draggingShop ? run.shop.findIndex((o) => o.uid === drag!.uid) : -1;
+  const shopSlide = (i: number): number => {
+    if (shopGapIndex < 0 || !draggingShop) return 0;
+    if (i === draggedShopIdx) return 0;
+    const p = i < draggedShopIdx ? i : i - 1;
+    return (p < shopGapIndex ? p : p + 1) - i;
+  };
   // FLIP key tracks row composition + order AND the live drop-slot index, so cards slide smoothly *as the
   // gap moves during a drag* (not just on drop). GSAP Flip animates this robustly — it reads in a batch,
   // uses GPU transforms, and blends interruptions natively, so rapid gap moves don't storm the way the old
@@ -2004,11 +2026,12 @@ export function Recruit() {
           <>
           {displayShop.map((o, i) => (
             <Fragment key={o.uid}>
-              {/* Keyed so the drop-slot toggle doesn't remount the Card (see the warband row for why). */}
-              {shopGapIndex === i && <span key="slot" className="dropslot" aria-hidden="true" />}
+              {/* Gap opened by sliding the offers (`slideDir`); the dragged offer stays here invisible
+                  (`dimmed`) to hold its slot — same model as the warband, no re-centre jerk. */}
               <Card
-                key="card"
                 uid={o.uid}
+                slideDir={shopSlide(i)}
+                dimmed={isDragging(o.uid)}
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
                 dragging={!!drag?.active}
@@ -2020,7 +2043,6 @@ export function Recruit() {
               />
             </Fragment>
           ))}
-          {shopGapIndex >= displayShop.length && <span className="dropslot" aria-hidden="true" />}
           {run.spell && !(draggingShop && drag!.uid === run.spell.uid) && (
             <Card
               key={run.spell.uid}
@@ -2057,12 +2079,13 @@ export function Recruit() {
               )}
               {displayBoard.map((m, i) => (
                 <Fragment key={m.uid}>
-                  {/* No drop-slot element: the gap is opened by shifting the cards themselves via `slideDir`
-                      (cards before the gap go half a slot left, cards at/after go half right). A CSS transition
-                      glides that shift as the gap moves — the pre-emptive "make room" slide. */}
+                  {/* No drop-slot element: the gap is opened by shifting the cards via `slideDir` (a CSS
+                      transition glides it). The dragged card stays here rendered invisible (`dimmed`) so its
+                      slot holds the row width — no re-centre jerk on pickup. */}
                   <Card
                     uid={m.uid}
-                    slideDir={gapIndex < 0 ? 0 : (i < gapIndex ? -1 : 1)}
+                    slideDir={boardSlide(i)}
+                    dimmed={isDragging(m.uid)}
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}
                     dragging={!!drag?.active}

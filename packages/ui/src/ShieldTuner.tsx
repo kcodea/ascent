@@ -7,14 +7,13 @@ import { useDraggablePanel } from './useDraggablePanel';
  * tiles). Combat units centre perfectly; recruit tiles hang their badges below the art, so this dials the
  * vertical offset by eye. Values persist to localStorage and apply on the next reconcile (hover/refresh a
  * shielded shop card to judge). "Copy" grabs the JSON to paste as the shipped default in `shieldConfig.ts`.
- * Mounted only in dev (see Game.tsx), so it's stripped from production.
+ * Panel-only: opened from the Dev Tuning Menu (DevMenu.tsx); dev-only, so it's stripped from production.
  */
 const LABELS: Record<keyof ShieldConfig, string> = {
   recruitDy: 'shop Y offset (×h)',
 };
 
 export function ShieldTuner() {
-  const [open, setOpen] = useState(false);
   const [cfg, setCfg] = useState<ShieldConfig>(getShieldConfig());
   const [copied, setCopied] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('shield');
@@ -35,27 +34,22 @@ export function ShieldTuner() {
   const reset = (): void => { resetShieldConfig(); setCfg({ ...getShieldConfig() }); poke(); };
 
   return (
-    <>
-      <button className="shield-btn" onClick={() => setOpen((o) => !o)} title="Divine-shield placement tuner (dev)">🛡</button>
-      {open && (
-        <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-          <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Shield Placement <span>dev · shop cards · drag</span></div>
-          {SHIELD_KEYS.map((k) => {
-            const [min, max, step] = SHIELD_RANGES[k];
-            return (
-              <div className="sfxmix-row" key={k}>
-                <span className="sfxmix-name" title={SHIELD_DESC[k]}>{LABELS[k]}</span>
-                <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-                <span className="sfxmix-val">{cfg[k]}</span>
-              </div>
-            );
-          })}
-          <div className="lunge-btns">
-            <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-            <button className="sfxmix-copy" onClick={reset}>Reset</button>
+    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
+      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Shield Placement <span>dev · shop cards · drag</span></div>
+      {SHIELD_KEYS.map((k) => {
+        const [min, max, step] = SHIELD_RANGES[k];
+        return (
+          <div className="sfxmix-row" key={k}>
+            <span className="sfxmix-name" title={SHIELD_DESC[k]}>{LABELS[k]}</span>
+            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
+            <span className="sfxmix-val">{cfg[k]}</span>
           </div>
-        </div>
-      )}
-    </>
+        );
+      })}
+      <div className="lunge-btns">
+        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
+        <button className="sfxmix-copy" onClick={reset}>Reset</button>
+      </div>
+    </div>
   );
 }

@@ -12,16 +12,10 @@ import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
 import { EscMenu } from './EscMenu';
-import { SfxMixer } from './SfxMixer';
-import { LungeTuner } from './LungeTuner';
-import { TauntTuner } from './TauntTuner';
-import { DragTuner } from './DragTuner';
-import { FlipTuner } from './FlipTuner';
-import { ShieldTuner } from './ShieldTuner';
+import { DevMenu } from './DevMenu';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PixiFxLayer } from './PixiFxLayer';
-import { pixiFx } from './pixiFx';
 import { warmArt } from './art';
 import { useGame } from './store';
 
@@ -112,23 +106,8 @@ export function Game() {
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
       {menuOpen && <EscMenu res={res} onRes={setRes} scrim={scrim} onScrim={setScrim} onClose={() => setMenuOpen(false)} />}
-      {/* DEV-only live tuners (stripped from production via the static env check). */}
-      {import.meta.env.DEV && <SfxMixer />}
-      {import.meta.env.DEV && <LungeTuner />}
-      {import.meta.env.DEV && <TauntTuner />}
-      {import.meta.env.DEV && <DragTuner />}
-      {import.meta.env.DEV && <FlipTuner />}
-      {import.meta.env.DEV && <ShieldTuner />}
-      {/* DEV: fire an unmissable Pixi FX burst at screen center + log diagnostics. */}
-      {import.meta.env.DEV && (
-        <button
-          className="fxtest-btn"
-          onPointerDown={() => pixiFx.test()}
-          title="Fire a test Pixi effect at screen center"
-        >
-          Test FX
-        </button>
-      )}
+      {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
+      {import.meta.env.DEV && <DevMenu />}
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}
       <HeroSelect />

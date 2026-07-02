@@ -9,7 +9,8 @@ import { useDraggablePanel } from './useDraggablePanel';
  * silver tint, the footprint size, and the deploy "thwap" speed by eye — values persist to localStorage and
  * drive the shader LIVE (a held demo bubble updates as you slide). "Hold demo" parks a bulwark at screen
  * centre so shape/colour edits show instantly; "Deploy ▸" re-fires the thwap. "Copy" grabs the JSON to paste
- * back as the shipped defaults in `tauntConfig.ts`; "Reset" clears to defaults. Mounted only in dev (Game.tsx).
+ * back as the shipped defaults in `tauntConfig.ts`; "Reset" clears to defaults. Panel-only: opened from
+ * the Dev Tuning Menu (DevMenu.tsx); dev-only, so it's stripped from production.
  */
 const LABELS: Record<keyof TauntConfig, string> = {
   topY: 'top edge',
@@ -34,7 +35,6 @@ function demoRect(): { cx: number; cy: number; cw: number; ch: number } {
 }
 
 export function TauntTuner() {
-  const [open, setOpen] = useState(false);
   const [cfg, setCfg] = useState<TauntConfig>(getTauntConfig());
   const [held, setHeld] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -65,34 +65,29 @@ export function TauntTuner() {
   const swatch = `rgb(${Math.round(cfg.colorR * 255)}, ${Math.round(cfg.colorG * 255)}, ${Math.round(cfg.colorB * 255)})`;
 
   return (
-    <>
-      <button className="taunt-btn" onClick={() => setOpen((o) => !o)} title="Taunt bulwark tuner (dev)">🛡️</button>
-      {open && (
-        <div className="sfxmix lunge taunt" ref={panelRef} style={panelStyle}>
-          <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>
-            Taunt Bulwark <span>dev · live · drag</span>
-            <span className="taunt-swatch" style={{ background: swatch }} aria-hidden="true" />
+    <div className="sfxmix lunge taunt" ref={panelRef} style={panelStyle}>
+      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>
+        Taunt Bulwark <span>dev · live · drag</span>
+        <span className="taunt-swatch" style={{ background: swatch }} aria-hidden="true" />
+      </div>
+      {TAUNT_KEYS.map((k) => {
+        const [min, max, step] = TAUNT_RANGES[k];
+        return (
+          <div className="sfxmix-row" key={k}>
+            <span className="sfxmix-name">{LABELS[k]}</span>
+            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
+            <span className="sfxmix-val">{cfg[k]}</span>
           </div>
-          {TAUNT_KEYS.map((k) => {
-            const [min, max, step] = TAUNT_RANGES[k];
-            return (
-              <div className="sfxmix-row" key={k}>
-                <span className="sfxmix-name">{LABELS[k]}</span>
-                <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-                <span className="sfxmix-val">{cfg[k]}</span>
-              </div>
-            );
-          })}
-          <div className="lunge-btns">
-            <button className="sfxmix-copy" onClick={hold}>{held ? 'Hide demo' : 'Hold demo'}</button>
-            <button className="sfxmix-copy" onClick={deploy}>Deploy ▸</button>
-          </div>
-          <div className="lunge-btns">
-            <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-            <button className="sfxmix-copy" onClick={reset}>Reset</button>
-          </div>
-        </div>
-      )}
-    </>
+        );
+      })}
+      <div className="lunge-btns">
+        <button className="sfxmix-copy" onClick={hold}>{held ? 'Hide demo' : 'Hold demo'}</button>
+        <button className="sfxmix-copy" onClick={deploy}>Deploy ▸</button>
+      </div>
+      <div className="lunge-btns">
+        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
+        <button className="sfxmix-copy" onClick={reset}>Reset</button>
+      </div>
+    </div>
   );
 }

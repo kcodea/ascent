@@ -24,7 +24,7 @@ function isValid(p: unknown): p is PlayerProfile {
   );
 }
 
-/** Load the player profile, or a fresh one (rating 1200 / Line 9) on anything missing/corrupt. */
+/** Load the player profile, or a fresh one (rating 0 / Line 7) on anything missing/corrupt. */
 export function loadProfile(): PlayerProfile {
   try {
     const raw = localStorage.getItem(KEY);

@@ -26,8 +26,8 @@ export interface PlayerProfile {
   lineGrace?: { line: number; missesRemaining: number };
 }
 
-/** The recommended starting rating (→ Line 9, reproducing the pre-rating default Line). */
-export const STARTING_RATING = 1200;
+/** Starting rating for a new player: 0 → **Line 7** (the bottom band), so everyone climbs up from the floor. */
+export const STARTING_RATING = 0;
 export const MIN_LINE = 7;
 export const MAX_LINE = 12;
 /** Bonus rating for finishing all 17 rounds (the summit), on top of the line result. */
@@ -48,7 +48,7 @@ export function lineForRating(rating: number): number {
   return MIN_LINE;
 }
 
-/** A fresh profile: {@link STARTING_RATING} (1200 → Line 9), matching the game's pre-rating default. */
+/** A fresh profile: {@link STARTING_RATING} (0 → Line 7) — a new player starts at the bottom of the ladder. */
 export function initialProfile(): PlayerProfile {
   const line = lineForRating(STARTING_RATING);
   return { rating: STARTING_RATING, currentLine: line, highestRating: STARTING_RATING, highestLine: line };

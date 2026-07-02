@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### tweak: new players start at rating 0 (Line 7), not 1200 (Line 9)
+
+`STARTING_RATING` 1200 → **0** in [playerRating.ts](packages/sim/src/playerRating.ts). By the existing bands
+(0–799 → Line 7) a fresh player now begins at the **bottom of the ladder — Line 7** — and climbs, instead of
+starting mid-tier. Only the *starting* rating changed; the band thresholds, delta table, and promotion/demotion
+buffer are untouched. Rating still floors at 0. Updated the `initialProfile` test (0 / Line 7) + the doc
+comments in playerRating.ts / profileStore.ts. Note: existing stored `ascent.profile`s keep their value — this
+only affects new/reset profiles. Verified: 456 tests green (incl. the updated starting-profile case), typecheck
++ lint + build clean; live — a fresh profile loads 0 / Line 7 and hero-select reads "Rating 0 · Line 7 · Cover 7
+wins · Strong 9+".
 ### feat: settle on board1 as the game board; drop the board picker, keep the dimmer
 
 With the board aesthetics chosen, the multi-board selector (a testing aid) is retired: **board1** is now the

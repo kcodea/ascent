@@ -24,13 +24,13 @@ describe('player rating — Line bands', () => {
     expect(lineForRating(9999)).toBe(12);
   });
 
-  it('starts a new player at rating 1200 / Line 9', () => {
+  it('starts a new player at rating 0 / Line 7 (bottom of the ladder)', () => {
     const p = initialProfile();
     expect(p.rating).toBe(STARTING_RATING);
-    expect(p.rating).toBe(1200);
-    expect(p.currentLine).toBe(9);
-    expect(p.highestRating).toBe(1200);
-    expect(p.highestLine).toBe(9);
+    expect(p.rating).toBe(0);
+    expect(p.currentLine).toBe(7);
+    expect(p.highestRating).toBe(0);
+    expect(p.highestLine).toBe(7);
   });
 });
 

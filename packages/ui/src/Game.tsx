@@ -34,9 +34,6 @@ export function Game() {
   const [res, setRes] = useState<string>(() => {
     try { return localStorage.getItem('ascent-res') || 'fit'; } catch { return 'fit'; }
   });
-  const [board, setBoard] = useState<string>(() => {
-    try { return localStorage.getItem('ascent-board') || 'board8'; } catch { return 'board8'; }
-  });
   // Scrim strength: a multiplier on the board's readability overlay. Default 0.15 (a light dim that lets the
   // board art stay vibrant); a slider in Settings dials it brighter/darker. Note 0 is a valid pick (no dim),
   // so distinguish "unset" from 0 rather than truthiness-checking.
@@ -55,13 +52,6 @@ export function Game() {
     else root.setAttribute('data-res', res);
     try { localStorage.setItem('ascent-res', res); } catch { /* ignore */ }
   }, [res]);
-
-  // Apply the chosen board art via a --board-img CSS var the .app + hero-select backgrounds read.
-  // DEV testing aid so different board aesthetics can be A/B'd without a rebuild; persists per-browser.
-  useEffect(() => {
-    document.documentElement.style.setProperty('--board-img', `url('/${board}.webp')`);
-    try { localStorage.setItem('ascent-board', board); } catch { /* ignore */ }
-  }, [board]);
 
   // Apply the board-scrim multiplier (the --scrim var the .app board gradient reads) + persist it.
   useEffect(() => {
@@ -119,7 +109,7 @@ export function Game() {
       <div className="version" title={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
-      {menuOpen && <EscMenu res={res} onRes={setRes} board={board} onBoard={setBoard} scrim={scrim} onScrim={setScrim} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && <EscMenu res={res} onRes={setRes} scrim={scrim} onScrim={setScrim} onClose={() => setMenuOpen(false)} />}
       {/* DEV-only live tuners (stripped from production via the static env check). */}
       {import.meta.env.DEV && <SfxMixer />}
       {import.meta.env.DEV && <LungeTuner />}

@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### feat(ui): new play backdrops — board2b (16:9 default) + board2 (21:9), aspect-switched
+
+Replaced the `board1` backdrop with two new boards, picked by the stage's aspect. Converted both masters with
+sharp (WebP q82): `board 2.png` (1933×814) → `board2.webp` (1680×707 ≈ 21:9, 54 KB) and `board2b.png`
+(1672×941) → `board2b.webp` (1672×941 = 16:9, 133 KB). The `.app` background now reads a `--board` CSS var:
+default is `board2b` (16:9); it swaps to `board2` for the ultrawide resolution (`[data-res="r3440"]`) and for a
+"fit" window that is itself ≥2:1 (`@media (min-aspect-ratio: 2/1)` on `:root:not([data-res])`). Fixed 16:9 res
+(r1920/r2560) stays letterboxed to 16:9 so it correctly keeps board2b regardless of monitor. `board1.webp` is
+left in public but is now unreferenced. Verified live: both assets serve 200; the computed `.app` background
+resolves to board2b for fit/r1920/r2560 and to board2 for r3440 and a 2.37:1 fit window.
+
 ### fix(ui): reposition slide no longer replays the dragged card's move on drop
 
 **Symptom.** Dragging a card to a new slot and dropping it — in **both** the warband and the shop — replayed

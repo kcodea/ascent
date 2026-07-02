@@ -957,7 +957,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
       s.cassenKills -= 5;
     }
   }
-  if (result.result === 'lose' && s.mode !== 'practice') s.resolve = Math.max(0, s.resolve - result.playerDamage); // Practice: unlimited health
+  if (result.result === 'lose' && s.mode !== 'practice') {
+    // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
+    const absorbed = Math.min(s.armor, result.playerDamage);
+    s.armor -= absorbed;
+    s.resolve = Math.max(0, s.resolve - (result.playerDamage - absorbed));
+  }
   // Maw of the Pit's one-combat Divine Shield is spent — strip the temp DS so it doesn't carry to the
   // next fight (consuming again re-arms it).
   for (const c of s.board) {

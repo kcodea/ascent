@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### feat: Armor — a per-hero effective-HP buffer on top of Resolve
+
+A new **Armor** stat: extra effective HP that sits on top of the hero's Resolve. Functionally identical to
+health — a lost combat chips **Armor first, then Resolve** — it just doesn't regenerate (no heal touches it).
+Every hero starts with **15 Armor** except **Warden, Robin, Chaos** (8). *(The handoff also named "Brann",
+which isn't a hero in the current roster — the roster is warden/indy/myra/soren/rohan/djinn/nadja/cassen/
+drakko/chaos/robin/darah — so it couldn't be applied; flagged for the owner.)*
+
+- **Engine:** `HeroDef.armor` ([heroes.ts](packages/sim/src/heroes.ts)); `RunState.armor` + `maxArmor`, seeded
+  from the hero in `createRun` ([state.ts](packages/sim/src/state.ts)); `deserialize` heals pre-Armor saves to
+  0 (an in-progress run gets no retroactive Armor). Loss absorption in `settleCombat`
+  ([reducer.ts](packages/sim/src/reducer.ts)): `absorbed = min(armor, dmg); armor -= absorbed; resolve -=
+  overflow` — game over still fires only when Resolve hits 0 (i.e. after Armor is gone). Combat `simulate` is
+  untouched (Armor is a post-combat run-state buffer, not a combat-minion concept).
+- **UI:** the StatusBar HP bar now renders Armor as a **steel segment stacked on the red Resolve fill** over a
+  shared capacity (`maxResolve + maxArmor`), with the value shown as `30 +8`; the damage-float + shake now
+  trigger when *either* Armor or Resolve drops. Hero-select cards show a steel `+N` Armor chip beside Resolve.
+- **Verified:** 460 tests green (incl. 4 new — hero values, absorb-then-overflow, game-over needs both gone,
+  deserialize heal), typecheck + lint clean. Live: a Warden run started 30 / +8; losses chipped Armor 8→4→0
+  then overflowed onto Resolve (29 → 24); the HUD bar + `30+8` + hero-select `+15`/`+8` chips render.
+
 ### tweak: new players start at rating 0 (Line 7), not 1200 (Line 9)
 
 `STARTING_RATING` 1200 → **0** in [playerRating.ts](packages/sim/src/playerRating.ts). By the existing bands

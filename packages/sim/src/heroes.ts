@@ -47,7 +47,7 @@ export interface HeroDef {
   resolve: number;
   /** Starting Armor — extra effective HP that sits ON TOP of Resolve. Functionally identical to health: loss
    *  damage chips Armor first, then Resolve; it just doesn't regenerate (no max/heal). Most heroes start with
-   *  15; a few tougher-kitted ones (Warden, Robin, Chaos) start with 8. */
+   *  15; Warden, Robin, Chaos, and Drakko start with 8. */
   armor: number;
   power: HeroPower;
 }
@@ -160,7 +160,7 @@ export const HEROES: HeroDef[] = [
     name: 'Drakko',
     blurb: 'Every entrance is a downbeat — buy enough, and he joins the band.',
     resolve: 30,
-    armor: 15,
+    armor: 8,
     power: {
       name: 'Drumline',
       kind: 'quest',

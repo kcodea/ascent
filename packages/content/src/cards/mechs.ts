@@ -126,7 +126,7 @@ export const MECHS: CardDef[] = [
     id: 'harrybotter',
     name: 'Harry Botter',
     tribe: 'mech',
-    tier: 4,
+    tier: 3,
     attack: 1,
     health: 5,
     keywords: ['M'],

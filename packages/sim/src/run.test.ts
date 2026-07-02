@@ -429,20 +429,20 @@ describe('run loop (@game/sim)', () => {
     expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred', attack: 3, health: 3 });
   });
 
-  it('Acid (reworked) — every 7 Gold spent, buffs Fodder/Imps +1/+1 and queues a Fodder', () => {
+  it('Koron — every 7 Gold spent, buffs Fodder +1/+1 and queues a Fodder (no longer touches Imps)', () => {
     // Drive applyGoldSpent directly: the reducer's roll path would refresh the tavern (draining
-    // pendingTavern into the shop, where the on-board Acid Demon eats it), hiding the queued Fodder.
+    // pendingTavern into the shop, where the on-board Koron eats it), hiding the queued Fodder.
     const s: RunState = {
       ...createRun(1),
       pendingTavern: [],
       board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 8, health: 8, keywords: [], golden: false }],
     };
     applyGoldSpent(s, 6); // 6 Gold — under the 7-Gold threshold
-    expect(s.impBuff ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // not yet
-    applyGoldSpent(s, 1); // crosses 7 → Acid procs once
-    expect(s.impBuff).toEqual({ attack: 1, health: 1 }); // Imps buffed run-wide
+    expect(s.cardBuffs?.fred ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // not yet
+    applyGoldSpent(s, 1); // crosses 7 → Koron procs once
     expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 }); // Fodder enchant run-wide
     expect(s.pendingTavern).toEqual(['fred']); // a Fodder queued into the next tavern
+    expect(s.impBuff ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // Imps NOT affected
   });
 
   it('a frozen tavern tops up empty slots + a missing spell after combat', () => {

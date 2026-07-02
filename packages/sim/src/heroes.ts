@@ -45,6 +45,10 @@ export interface HeroDef {
   blurb: string;
   /** Starting + max Resolve (the hero's HP). All 30 today; will diverge per hero over time. */
   resolve: number;
+  /** Starting Armor — extra effective HP that sits ON TOP of Resolve. Functionally identical to health: loss
+   *  damage chips Armor first, then Resolve; it just doesn't regenerate (no max/heal). Most heroes start with
+   *  15; Warden, Robin, Chaos, and Drakko start with 8. */
+  armor: number;
   power: HeroPower;
 }
 
@@ -54,6 +58,7 @@ export const HEROES: HeroDef[] = [
     name: 'Warden',
     blurb: 'Steady, scaling muscle — every wave a minion grows with you.',
     resolve: 30,
+    armor: 8,
     power: {
       name: 'Fortify',
       kind: 'fortify',
@@ -65,6 +70,7 @@ export const HEROES: HeroDef[] = [
     name: 'Indy',
     blurb: 'One perfect moment — gild a single minion and make it count.',
     resolve: 30,
+    armor: 15,
     power: {
       name: 'Gild',
       kind: 'gild',
@@ -77,6 +83,7 @@ export const HEROES: HeroDef[] = [
     name: 'Myra',
     blurb: 'A conductor of entrances — call a minion to take its bow again.',
     resolve: 30,
+    armor: 15,
     power: {
       name: 'Pulse',
       kind: 'replayBattlecry',
@@ -89,6 +96,7 @@ export const HEROES: HeroDef[] = [
     name: 'Soren',
     blurb: 'Death is a doorway — send a minion through it and it blooms back.',
     resolve: 30,
+    armor: 15,
     power: {
       name: 'Reclaim',
       kind: 'resummon',
@@ -100,6 +108,7 @@ export const HEROES: HeroDef[] = [
     name: 'Rohan',
     blurb: 'Words sharpen in skilled hands — and sharpen further as the climb wears on.',
     resolve: 30,
+    armor: 15,
     power: {
       name: 'Attunement',
       kind: 'spellAmplify',
@@ -112,6 +121,7 @@ export const HEROES: HeroDef[] = [
     name: 'Djinn',
     blurb: 'Calls the day to its close early — once a turn, on your terms.',
     resolve: 30,
+    armor: 15,
     power: {
       name: 'Cadence',
       kind: 'replayEndOfTurn',
@@ -123,6 +133,7 @@ export const HEROES: HeroDef[] = [
     name: 'Nadja',
     blurb: 'The well runs deeper each turn — more Gold, more room to scheme.',
     resolve: 30,
+    armor: 15,
     power: {
       name: 'Gold Font',
       kind: 'gainMaxMana',
@@ -136,6 +147,7 @@ export const HEROES: HeroDef[] = [
     name: 'Cassen',
     blurb: 'Every clash leaves a mark — break enough of them and the spoils find you.',
     resolve: 30,
+    armor: 15,
     power: {
       name: 'Collision',
       kind: 'collision',
@@ -148,6 +160,7 @@ export const HEROES: HeroDef[] = [
     name: 'Drakko',
     blurb: 'Every entrance is a downbeat — buy enough, and he joins the band.',
     resolve: 30,
+    armor: 8,
     power: {
       name: 'Drumline',
       kind: 'quest',
@@ -161,6 +174,7 @@ export const HEROES: HeroDef[] = [
     name: 'Chaos',
     blurb: 'A bond that transcends all tribes — every kind bends to the connection.',
     resolve: 30,
+    armor: 8,
     power: {
       name: 'Chaos Bond',
       kind: 'chaos',
@@ -173,6 +187,7 @@ export const HEROES: HeroDef[] = [
     name: 'Robin',
     blurb: 'Patience pays — every minion sold lines next turn\'s purse.',
     resolve: 30,
+    armor: 8,
     power: {
       name: 'Spoils',
       kind: 'sellGold',
@@ -185,6 +200,7 @@ export const HEROES: HeroDef[] = [
     name: 'Darah',
     blurb: 'A sleight of fate — trade a piece on your board for a stranger from the tavern.',
     resolve: 30,
+    armor: 15,
     power: {
       name: 'Displace',
       kind: 'displace',

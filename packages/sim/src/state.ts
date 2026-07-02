@@ -166,6 +166,11 @@ export interface RunState {
   bonusEmbersNextTurn?: number;
   resolve: number;
   maxResolve: number;
+  /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't
+   *  regenerate (no heal touches it). Set from the hero at run start. `maxArmor` is the starting value, kept
+   *  for the HUD's stacked HP bar. */
+  armor: number;
+  maxArmor: number;
   tier: number;
   upgradeCost: number;
   frozen: boolean;
@@ -376,8 +381,9 @@ export const metLine = (status: LineStatus): boolean =>
  *  don't track rating — tests, tools, the boot throwaway — keep the historic mid-tier Line 9). */
 export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent', line: number = CONFIG.defaultLine): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
-  // The hero's Resolve is the run's starting (and max) HP — all 30 today, diverging per hero later.
-  const startResolve = getHero(heroId).resolve;
+  // The hero's Resolve is the run's starting (and max) HP; Armor is extra effective HP layered on top.
+  const hero = getHero(heroId);
+  const startResolve = hero.resolve;
   const state: RunState = {
     seed,
     mode,
@@ -390,6 +396,8 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     maxEmbers: CONFIG.startEmbers,
     resolve: startResolve,
     maxResolve: startResolve,
+    armor: hero.armor,
+    maxArmor: hero.armor,
     tier: 1,
     upgradeCost: CONFIG.upgradeCost[2] ?? 5,
     frozen: false,
@@ -460,6 +468,7 @@ export function deserialize(json: string): RunState {
   state.spellBonus ??= { attack: 0, health: 0 }; // heal saves from before card-driven spell power
   state.undeadBuyAtk ??= 0; // heal saves from before Deathswarmer / Forsaken Weaver
   state.line ??= CONFIG.defaultLine; // heal saves from before the par/line (A2)
+  state.armor ??= 0; state.maxArmor ??= 0; // heal saves from before Armor (an in-progress run gets none)
   state.goldSpent ??= 0; // heal saves from before gold-spent tracking
   state.runDamage ??= {}; // heal saves from before combat-contribution tracking
   state.runProcs ??= {};

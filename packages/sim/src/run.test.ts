@@ -429,20 +429,20 @@ describe('run loop (@game/sim)', () => {
     expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred', attack: 3, health: 3 });
   });
 
-  it('Acid (reworked) — every 7 Gold spent, buffs Fodder/Imps +1/+1 and queues a Fodder', () => {
+  it('Koron — every 7 Gold spent, buffs Fodder +1/+1 and queues a Fodder (no longer touches Imps)', () => {
     // Drive applyGoldSpent directly: the reducer's roll path would refresh the tavern (draining
-    // pendingTavern into the shop, where the on-board Acid Demon eats it), hiding the queued Fodder.
+    // pendingTavern into the shop, where the on-board Koron eats it), hiding the queued Fodder.
     const s: RunState = {
       ...createRun(1),
       pendingTavern: [],
       board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 8, health: 8, keywords: [], golden: false }],
     };
     applyGoldSpent(s, 6); // 6 Gold — under the 7-Gold threshold
-    expect(s.impBuff ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // not yet
-    applyGoldSpent(s, 1); // crosses 7 → Acid procs once
-    expect(s.impBuff).toEqual({ attack: 1, health: 1 }); // Imps buffed run-wide
+    expect(s.cardBuffs?.fred ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // not yet
+    applyGoldSpent(s, 1); // crosses 7 → Koron procs once
     expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 }); // Fodder enchant run-wide
     expect(s.pendingTavern).toEqual(['fred']); // a Fodder queued into the next tavern
+    expect(s.impBuff ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // Imps NOT affected
   });
 
   it('a frozen tavern tops up empty slots + a missing spell after combat', () => {
@@ -2974,8 +2974,50 @@ describe('PvE course + record (@game/sim)', () => {
   });
 
   it('losing with Resolve to 0 is a game over, before the course completes', () => {
-    const s = resolveWith({ wave: 8, resolve: 1, maxResolve: 1, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 5 });
+    const s = resolveWith({ wave: 8, resolve: 1, maxResolve: 1, armor: 0, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 5 });
     expect(s.phase).toBe('gameover');
+  });
+
+  it('Armor: heroes start with 15 (Warden / Robin / Chaos / Drakko start with 8)', () => {
+    expect(getHero('warden').armor).toBe(8);
+    expect(getHero('robin').armor).toBe(8);
+    expect(getHero('chaos').armor).toBe(8);
+    expect(getHero('drakko').armor).toBe(8);
+    expect(getHero('indy').armor).toBe(15);
+    expect(getHero('darah').armor).toBe(15);
+    const s = createRun(1, 'indy');
+    expect(s.armor).toBe(15);
+    expect(s.maxArmor).toBe(15);
+  });
+
+  it('Armor absorbs a loss before Resolve; overflow chips Resolve', () => {
+    // Armor 8 vs a 5-damage loss → armor 3, Resolve untouched.
+    const a = resolveWith({ wave: 8, resolve: 30, maxResolve: 30, armor: 8, maxArmor: 8, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 5 });
+    expect(a.armor).toBe(3);
+    expect(a.resolve).toBe(30);
+    expect(a.phase).toBe('recruit');
+    // Armor 8 vs a 12-damage loss → armor 0, 4 overflows onto Resolve.
+    const b = resolveWith({ wave: 8, resolve: 30, maxResolve: 30, armor: 8, maxArmor: 8, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 12 });
+    expect(b.armor).toBe(0);
+    expect(b.resolve).toBe(26);
+  });
+
+  it('Armor: game over needs both Armor and Resolve gone', () => {
+    // Resolve 3 + Armor 5: a 4-damage hit is fully eaten by Armor → survive.
+    const survive = resolveWith({ wave: 8, resolve: 3, maxResolve: 3, armor: 5, maxArmor: 5, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 4 });
+    expect(survive.phase).toBe('recruit');
+    // A hit through both → game over.
+    const dead = resolveWith({ wave: 8, resolve: 3, maxResolve: 3, armor: 5, maxArmor: 5, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 20 });
+    expect(dead.phase).toBe('gameover');
+    expect(dead.resolve).toBe(0);
+  });
+
+  it('Armor: deserialize heals pre-Armor saves to 0', () => {
+    const old: Record<string, unknown> = { ...createRun(1) };
+    delete old.armor; delete old.maxArmor;
+    const healed = deserialize(JSON.stringify(old));
+    expect(healed.armor).toBe(0);
+    expect(healed.maxArmor).toBe(0);
   });
 
   it('runRecord counts only the scored rounds — calibration rounds (1–2) do not count', () => {

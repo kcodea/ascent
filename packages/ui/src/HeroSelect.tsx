@@ -47,6 +47,7 @@ export function HeroSelect() {
                 <div className="hchp" title="Starting Resolve (HP)">
                   <Icon name="heart" />
                   {hero.resolve}
+                  {hero.armor > 0 && <span className="hcarmor" title="Starting Armor — extra effective HP on top of Resolve">+{hero.armor}</span>}
                 </div>
                 <div className="hcpw">
                   <b>{power.name}</b> · {power.text}

@@ -1152,14 +1152,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
   },
 
-  /** Acid — every `every` Gold you spend (the per-instance gold meter), permanently buff your Fodder + Imps
-   *  run-wide (like Bane's enchant) AND queue `fodder` Fodder into your next tavern. Golden doubles both the
-   *  stat grant and the Fodder count. Fired by `applyGoldSpent` once per threshold. */
-  goldSpentBuffFodderImps: (ctx, self, params) => {
+  /** Koron — every `every` Gold you spend (the per-instance gold meter), permanently buff your Fodder run-wide
+   *  (like Bane's enchant) AND queue `fodder` Fodder into your next tavern. Golden doubles both the stat grant
+   *  and the Fodder count. Fired by `applyGoldSpent` once per threshold. (Imps are no longer affected.) */
+  goldSpentBuffFodder: (ctx, self, params) => {
     const a = num(params.attack, 1) * gold(self);
     const h = num(params.health, 1) * gold(self);
     buffFodderRunWide(ctx.state, a, h, nameOf(self));
-    buffImpsRunWide(ctx.state, a, h, nameOf(self));
     const fodder = num(params.fodder, 0) * gold(self);
     if (fodder > 0) (ctx.state.pendingTavern ??= []).push(...Array(fodder).fill('fred'));
   },

@@ -206,6 +206,38 @@ these backwards (drag near-0, commit slow).
 (An `absolute: true` committed Flip was tried first and reverted — it didn't help and slid the board in from
 the right on card pickup. The real culprit was the CSS transition, above.)
 
+### tweak: card retiers + Koron rework + Choose One cursor fix
+
+- **Choose One cursor:** the `.chooseopt` option buttons set a plain `cursor: pointer`, which overrode the
+  game's gauntlet cursor and showed the OS default. Now `url('/cursors/gauntlet_open.svg') 6 2, pointer`, matching
+  every other clickable ([styles.css](packages/ui/src/styles.css)). Verified live: computed cursor resolves to the
+  gauntlet SVG.
+- **Retiers (content):** Arcane Weaver **T4 → T3**, Harry Botter **T4 → T3**, Ghostsmith **T3 → T2**.
+- **Koron, the Hungerer** now buffs **only Fodder** (+1/+1) + queues a Fodder to the next tavern — **no longer
+  touches Imps**. Dropped the `buffImpsRunWide` call from the effect and renamed it `goldSpentBuffFodderImps` →
+  `goldSpentBuffFodder` across the type union / schema / buildTags / handler / card; card text updated. Its Koron
+  test now asserts Fodder + queued-Fodder and that `impBuff` stays untouched.
+- **Verified:** 456 tests green (updated the Koron test), typecheck + lint clean. No opponent-pool regen needed —
+  snapshots store card id + stats, not tier.
+### feat: Armor — a per-hero effective-HP buffer on top of Resolve
+
+A new **Armor** stat: extra effective HP that sits on top of the hero's Resolve. Functionally identical to
+health — a lost combat chips **Armor first, then Resolve** — it just doesn't regenerate (no heal touches it).
+Every hero starts with **15 Armor** except **Warden, Robin, Chaos, Drakko** (8). *(The original handoff named
+"Brann" for the 4th 8-Armor hero; the owner clarified that meant **Drakko** — set to 8 in a follow-up.)*
+
+- **Engine:** `HeroDef.armor` ([heroes.ts](packages/sim/src/heroes.ts)); `RunState.armor` + `maxArmor`, seeded
+  from the hero in `createRun` ([state.ts](packages/sim/src/state.ts)); `deserialize` heals pre-Armor saves to
+  0 (an in-progress run gets no retroactive Armor). Loss absorption in `settleCombat`
+  ([reducer.ts](packages/sim/src/reducer.ts)): `absorbed = min(armor, dmg); armor -= absorbed; resolve -=
+  overflow` — game over still fires only when Resolve hits 0 (i.e. after Armor is gone). Combat `simulate` is
+  untouched (Armor is a post-combat run-state buffer, not a combat-minion concept).
+- **UI:** the StatusBar HP bar now renders Armor as a **steel segment stacked on the red Resolve fill** over a
+  shared capacity (`maxResolve + maxArmor`), with the value shown as `30 +8`; the damage-float + shake now
+  trigger when *either* Armor or Resolve drops. Hero-select cards show a steel `+N` Armor chip beside Resolve.
+- **Verified:** 460 tests green (incl. 4 new — hero values, absorb-then-overflow, game-over needs both gone,
+  deserialize heal), typecheck + lint clean. Live: a Warden run started 30 / +8; losses chipped Armor 8→4→0
+  then overflowed onto Resolve (29 → 24); the HUD bar + `30+8` + hero-select `+15`/`+8` chips render.
 ### fix: pin the combat HUD (Skip + speed slider) to the stage box
 
 The in-combat HUD (`.combathud` — the Skip button + replay-speed slider) was anchored to the raw window

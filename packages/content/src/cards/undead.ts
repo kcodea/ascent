@@ -37,7 +37,7 @@ export const UNDEAD: CardDef[] = [
     id: 'skullblade',
     name: 'Ghostsmith',
     tribe: 'undead',
-    tier: 3,
+    tier: 2,
     attack: 4,
     health: 2,
     keywords: [],

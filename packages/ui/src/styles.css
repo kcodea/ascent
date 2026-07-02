@@ -20,6 +20,10 @@
      All sizing keys off the box (--gw/--gh), not the raw viewport, so the board scales inside it. */
   --gw: 100vw; --gh: 100vh;
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
+  /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art (board2b);
+     the 21:9 art (board2) is swapped in for the ultrawide resolution + a fit window that's actually ultrawide.
+     Only the URL changes — the gradient scrim + fallback colour stay in the .app shorthand. */
+  --board: url('/board2b.webp');
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds */
   --ch: clamp(220px, calc(var(--gh) * 0.27), 384px); --cw: calc(var(--ch) * 0.752);
@@ -37,6 +41,11 @@
 :root[data-res="r1920"] { --gw: min(100vw, calc(100vh * 16 / 9), 1920px); --gh: min(100vh, calc(100vw * 9 / 16), 1080px); }
 :root[data-res="r2560"] { --gw: min(100vw, calc(100vh * 16 / 9), 2560px); --gh: min(100vh, calc(100vw * 9 / 16), 1440px); }
 :root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 21 / 9), 3440px); --gh: min(100vh, calc(100vw * 9 / 21), 1440px); }
+/* 21:9 stage → the ultrawide board art. The forced 3440 res is always 21:9; a "fit" window (no data-res,
+   so the stage = the window) uses the 21:9 art only when the window itself is actually ultrawide. Fixed 16:9
+   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board2b. */
+:root[data-res="r3440"] { --board: url('/board2.webp'); }
+@media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board2.webp'); } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */
@@ -67,7 +76,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The stage box: centred in the window via absolute inset:0 + margin auto + a fixed --gw/--gh.
    By default it fills the window; the resolution scaler shrinks it. The illustrated board art +
    readability scrim live here (so letterbox bars stay the dark body frame). */
-.app { position: relative; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0.15))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0.15)))), url('/board2.webp') center / cover no-repeat, var(--bg); border-radius: 2px; }
+.app { position: relative; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0.15))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0.15)))), var(--board) center / cover no-repeat, var(--bg); border-radius: 2px; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half

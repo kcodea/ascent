@@ -67,7 +67,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The stage box: centred in the window via absolute inset:0 + margin auto + a fixed --gw/--gh.
    By default it fills the window; the resolution scaler shrinks it. The illustrated board art +
    readability scrim live here (so letterbox bars stay the dark body frame). */
-.app { position: relative; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0.15))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0.15)))), var(--board-img, url('/board8.webp')) center / cover no-repeat, var(--bg); border-radius: 2px; }
+.app { position: relative; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0.15))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0.15)))), url('/board1.webp') center / cover no-repeat, var(--bg); border-radius: 2px; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
@@ -1435,7 +1435,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Pre-run hero picker — first slice of the Title→Mode→Hero flow (one store flag drives it). */
 .heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: safe center; overflow-y: auto; padding: 24px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The pre-run picker uses the board art, heavily dimmed, as its textured backdrop. */
-.heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), var(--board-img, url('/board7.webp')) center / cover no-repeat, var(--bg); }
+.heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), url('/board1.webp') center / cover no-repeat, var(--bg); }
 /* The end screen gets its OWN dark backdrop (the sky-castle art, heavily scrimmed) so the run's stats read
    over a clean, high-contrast surface — never over the busy live board behind it. */
 .heroselect.endscreen { background: linear-gradient(rgba(6, 11, 22, 0.88), rgba(6, 11, 22, 0.93)), url('/homescreen.webp') center / cover no-repeat, var(--bg); }
@@ -1663,13 +1663,6 @@ svg { width: 18px; height: 18px; }
 .escpanel .esch { font-weight: 800; font-size: 28px; color: var(--ink); text-align: center; }
 .escsec { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
 .escres { display: grid; gap: 8px; }
-/* Board-art picker: a grid of preview thumbnails (the actual board webp, cover-cropped) so aesthetics
-   can be compared at a glance. Selected tile gets the accent ring. */
-.escboardpick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.escboardtile { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; border: 2px solid var(--line); background-size: cover; background-position: center; cursor: pointer; overflow: hidden; padding: 0; }
-.escboardtile:hover { border-color: var(--acc); }
-.escboardtile.on { border-color: var(--acc); box-shadow: inset 0 0 0 2px var(--acc), 0 0 0 2px var(--acc); }
-.escboardtile .ebt { position: absolute; left: 0; right: 0; bottom: 0; font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); padding: 3px 5px; background: linear-gradient(transparent, rgba(0, 0, 0, 0.55)); text-align: left; }
 .escboards { display: grid; gap: 8px; }
 .escboards-msg { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
 /* DEV dev-tool buttons — bottom-right cluster, left of the settings gear: [lunge][sfx][gear]. */

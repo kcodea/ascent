@@ -11,6 +11,7 @@ import { pixiFx, discoverFx, tauntFx } from './pixiFx';
 import { getDragFeel } from './dragFeel';
 import { getFlipConfig } from './flipConfig';
 import { getShieldConfig } from './shieldConfig';
+import { getTrailConfig } from './trailConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -1126,6 +1127,8 @@ export function Recruit() {
     // often than the screen repaints, and each event re-renders Recruit (the live insertion gap + spell
     // line read drag.x/y, so we can't ref them out). Coalesce — keep only the latest position and apply
     // it once per frame, capping re-renders at the refresh rate.
+    // Motion-trail bookkeeping: the viewport point of the last wisp emit (null until the drag goes active).
+    let trailLast: { x: number; y: number } | null = null;
     let moveRaf = 0;
     let lastMove: PointerEvent | null = null;
     const flushMove = (): void => {
@@ -1139,6 +1142,21 @@ export function Recruit() {
         return { ...d, x: e.clientX, y: e.clientY, active };
       });
       setOverZone(inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY));
+      // Wind-whoosh trail: distance-gated wisps behind the dragged card (gold when it has Divine Shield).
+      const dNow = dragRef.current;
+      if (dNow?.active) {
+        const cx = e.clientX; // the card rides centred on the cursor (ox/oy are the centre)
+        const cy = e.clientY;
+        if (!trailLast) trailLast = { x: cx, y: cy };
+        const tdx = cx - trailLast.x;
+        const tdy = cy - trailLast.y;
+        if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {
+          pixiFx.trail(cx, cy, tdx, tdy, dNow.view.keywords.includes('DS'));
+          trailLast = { x: cx, y: cy };
+        }
+      } else {
+        trailLast = null;
+      }
     };
     const onMove = (e: PointerEvent): void => {
       lastMove = e;

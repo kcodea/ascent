@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: pin the combat HUD (Skip + speed slider) to the stage box
+
+The in-combat HUD (`.combathud` — the Skip button + replay-speed slider) was anchored to the raw window
+(`top: 146u; right: 16u`) instead of the letterboxed stage box, so with a fixed-resolution / non-16:9 window
+it drifted into the letterbox, out of line with every other pinned element. Now uses `top: calc(var(--bar-y)
++ 146u); right: calc(var(--bar-x) + 16u)` — the same stage-box anchor as `.gearbtn` / `.statusbar`. Verified
+live under a forced letterbox (bar-x = 238): the HUD's right edge measured 254px (= bar-x + 16), exactly
+matching the gear button (was 16px, 238px adrift).
+
 ### tweak: new players start at rating 0 (Line 7), not 1200 (Line 9)
 
 `STARTING_RATING` 1200 → **0** in [playerRating.ts](packages/sim/src/playerRating.ts). By the existing bands

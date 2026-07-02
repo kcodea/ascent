@@ -52,6 +52,7 @@ export function Career() {
   const playerName = useGame((s) => s.playerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
+  const profile = useGame((s) => s.profile);
   // Load once per open (localStorage is synchronous + cheap; `show` gates the read).
   const entries = useMemo(() => (show ? loadRunHistory() : []), [show]);
   const stats = useMemo(() => careerStats(entries), [entries]);
@@ -85,7 +86,10 @@ export function Career() {
 
       <div className="lbscroll">
         {entries.length === 0 ? (
-          <div className="lbempty">No runs yet — play a run to start your career.</div>
+          <div className="lbempty">
+            <div className="carempty-rating">Rating {profile.rating} · Line {profile.currentLine}</div>
+            No runs yet — play a run to start your career.
+          </div>
         ) : (
           <>
             <div className="carcols">
@@ -96,7 +100,8 @@ export function Career() {
                   {avatarImg ? <img src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
                 </button>
                 <div className="carpname">{playerName || 'Unnamed Climber'}</div>
-                <div className="carrank">Unranked</div>
+                <div className="carrank">Rating {profile.rating} · Line {profile.currentLine}</div>
+                <div className="carranksub">Highest {profile.highestRating} · Line {profile.highestLine}</div>
                 <div className="carprofmeta">
                   <div><b>{stats.completions}</b><span>Completed</span></div>
                   <div><b>{stats.flawless}</b><span>Flawless</span></div>

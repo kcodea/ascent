@@ -1450,6 +1450,11 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
 .heroselect .eyebrow { font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
 .hstitle { font-family: var(--font-title); font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
+/* Run-start Line telegraph on the hero picker (ascent only). */
+.hsline { display: inline-flex; align-items: center; gap: 10px; margin: -8px 0 20px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+.hsline-rat { color: rgba(255, 255, 255, 0.6); }
+.hsline-line { padding: 3px 12px; border-radius: 999px; background: var(--acc); color: #2a1c0c; }
+.hsline-note { color: rgba(255, 255, 255, 0.5); text-transform: none; letter-spacing: 0.02em; font-weight: 700; }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
@@ -1485,6 +1490,16 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .endline-verdict { padding: 4px 14px; border-radius: 10px; color: #fff; }
 .endline.flawless .endline-verdict, .endline.exceeded .endline-verdict, .endline.covered .endline-verdict { background: #3b9e57; }
 .endline.missed .endline-verdict, .endline.failed .endline-verdict { background: var(--threat); }
+/* Rating change (career): the summit bonus, the delta, and the new rating, with a promo/demo tag. */
+.endrating { display: inline-flex; align-items: center; gap: 10px; margin-top: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
+.endrating-bonus { color: #c9a23a; }
+.endrating-delta { color: var(--ink2); }
+.endrating.up .endrating-delta { color: #3b9e57; }
+.endrating.down .endrating-delta { color: var(--threat); }
+.endrating-now { padding: 3px 10px; border-radius: 9px; background: rgba(0, 0, 0, 0.28); color: #fff; }
+.endrating-move { padding: 3px 10px; border-radius: 9px; color: #fff; }
+.endrating-move.promo { background: #3b9e57; }
+.endrating-move.demo { background: var(--threat); }
 /* Build identity (A6): the tags that describe what you built this run. */
 .endtags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 90vw; margin-top: 16px; }
 .endtag { position: relative; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, var(--card)); border: 1.5px solid color-mix(in srgb, var(--acc) 55%, transparent); padding: 6px 14px; border-radius: 999px; }
@@ -1720,7 +1735,8 @@ svg { width: 18px; height: 18px; }
 .lbtitle .esch { color: #fff; font-size: 26px; text-align: left; line-height: 1.05; }
 .lbsub { font-family: var(--font-ui); font-weight: 600; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.62); }
 .lbscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: flex; flex-direction: column; gap: 14px; }
-.lbempty { margin: 56px auto; color: rgba(255, 255, 255, 0.72); font-family: var(--font-ui); font-weight: 700; font-size: 18px; }
+.lbempty { margin: 56px auto; color: rgba(255, 255, 255, 0.72); font-family: var(--font-ui); font-weight: 700; font-size: 18px; text-align: center; }
+.carempty-rating { margin-bottom: 12px; font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--acc); }
 .lbentry { background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 18px; padding: 14px 18px; }
 .lbentry-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
 .lbrank { min-width: 30px; text-align: center; font-family: var(--font-ui); font-weight: 800; font-size: 20px; color: var(--acc); flex: none; }
@@ -1773,7 +1789,8 @@ svg { width: 18px; height: 18px; }
 .caravatar svg { width: 42px; height: 42px; color: #1a1208; }
 .caravatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .carpname { font-family: var(--font-ui); font-weight: 900; font-size: 20px; color: #fff; }
-.carrank { align-self: center; padding: 4px 16px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.carrank { align-self: center; padding: 4px 16px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.82); }
+.carranksub { align-self: center; margin-top: 4px; font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
 .carprofmeta { display: flex; width: 100%; gap: 8px; margin-top: 6px; }
 .carprofmeta > div { flex: 1; display: flex; flex-direction: column; gap: 1px; padding: 8px 4px; border-radius: 10px; background: rgba(0, 0, 0, 0.22); }
 .carprofmeta b { font-family: var(--font-ui); font-weight: 900; font-size: 19px; color: #fff; font-variant-numeric: tabular-nums; }

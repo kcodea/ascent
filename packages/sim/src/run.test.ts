@@ -2978,10 +2978,11 @@ describe('PvE course + record (@game/sim)', () => {
     expect(s.phase).toBe('gameover');
   });
 
-  it('Armor: heroes start with 15 (Warden / Robin / Chaos start with 8)', () => {
+  it('Armor: heroes start with 15 (Warden / Robin / Chaos / Drakko start with 8)', () => {
     expect(getHero('warden').armor).toBe(8);
     expect(getHero('robin').armor).toBe(8);
     expect(getHero('chaos').armor).toBe(8);
+    expect(getHero('drakko').armor).toBe(8);
     expect(getHero('indy').armor).toBe(15);
     expect(getHero('darah').armor).toBe(15);
     const s = createRun(1, 'indy');

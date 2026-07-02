@@ -22,9 +22,8 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 A new **Armor** stat: extra effective HP that sits on top of the hero's Resolve. Functionally identical to
 health — a lost combat chips **Armor first, then Resolve** — it just doesn't regenerate (no heal touches it).
-Every hero starts with **15 Armor** except **Warden, Robin, Chaos** (8). *(The handoff also named "Brann",
-which isn't a hero in the current roster — the roster is warden/indy/myra/soren/rohan/djinn/nadja/cassen/
-drakko/chaos/robin/darah — so it couldn't be applied; flagged for the owner.)*
+Every hero starts with **15 Armor** except **Warden, Robin, Chaos, Drakko** (8). *(The original handoff named
+"Brann" for the 4th 8-Armor hero; the owner clarified that meant **Drakko** — set to 8 in a follow-up.)*
 
 - **Engine:** `HeroDef.armor` ([heroes.ts](packages/sim/src/heroes.ts)); `RunState.armor` + `maxArmor`, seeded
   from the hero in `createRun` ([state.ts](packages/sim/src/state.ts)); `deserialize` heals pre-Armor saves to

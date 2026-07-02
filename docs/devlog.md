@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: divine-shield/reborn bubble renders BELOW the card chrome (badges on top)
+
+The persistent shield bubble drew over the attack/health/tier/effect badges (all FX share the `.pixifx` canvas
+at z110, above the cards' root-context chrome at z4–9). Split the front `FxController` into two canvases: the
+persistent bubbles now render on a new `.pixifx-under` canvas at **z3** (over the card art but below the badge
+chrome), while the particle layer — dust, impacts, and the shield **break shatter** — stays on `.pixifx`
+(z110), so the break still bursts over the chrome as before. `attach(parent, underParent?)` gains an optional
+under-parent; when present the bubbles' `shieldLayer` mounts on a second `Application` there (the bubble mesh is
+procedural/textureless, so it renders cleanly in the second GL context). The taunt back layer passes no
+under-parent and is unchanged. Verified in-browser: `shieldLayer.parent === shieldApp.stage`, the bubble sits
+over the sprite with tier/attack/health/medallion all readable on top. Typecheck + lint + build:web green.
+
 ### feat/fix: hover glow, denser dust, divine-shield fixes, attack windup swell
 
 Batch of feel polish:

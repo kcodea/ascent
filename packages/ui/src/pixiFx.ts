@@ -396,6 +396,9 @@ class FxController {
   private rimTex: Texture | null = null;        // bright ring — shield rim highlight
   private veinTex: Texture | null = null;       // thin streak — shield energy vein
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
+  private shieldApp: Application | null = null;  // OPTIONAL 2nd canvas for the persistent bubbles, mounted at a
+  private underParent: HTMLElement | null = null; // low z (below the card badges) so the chrome reads on top; the
+  //                                                 break burst still fires on the main (z110) canvas, over them.
   private shieldGeo: MeshGeometry | null = null; // shared quad geometry (−R..R, uv 0..1) for every bubble mesh
   private readonly shields = new Map<string, ShieldBubble>();
   private readonly live: Particle[] = [];
@@ -403,12 +406,14 @@ class FxController {
 
   /** Mount the overlay canvas into `parent` (a fixed, full-viewport, pointer-events:none div).
    *  Lazily creates the PixiJS Application on first call and reuses it thereafter. */
-  attach(parent: HTMLElement): Promise<void> {
+  attach(parent: HTMLElement, underParent?: HTMLElement): Promise<void> {
     if (typeof window === 'undefined') return Promise.resolve(); // SSR guard
     if (this.app) {
       parent.appendChild(this.app.canvas); // re-mount the existing canvas (e.g. after a remount)
+      if (this.shieldApp && underParent) underParent.appendChild(this.shieldApp.canvas);
       return Promise.resolve();
     }
+    this.underParent = underParent ?? null;
     if (this.initing) return this.initing;
     this.initing = this.init(parent).catch((e) => {
       // A failed init (e.g. no WebGL context) otherwise fails silently and every impact() no-ops.
@@ -437,11 +442,30 @@ class FxController {
     canvas.style.display = 'block';
     parent.appendChild(canvas);
 
-    // Bubbles sit on their own layer BENEATH the particle layer, so break shards/flash draw over them.
     const shieldLayer = new Container();
-    app.stage.addChild(shieldLayer);
     const layer = new Container();
     app.stage.addChild(layer);
+
+    // If an under-parent was provided, the persistent bubbles render on a SEPARATE canvas mounted at a low
+    // z-index (below the card badges), so attack/health/tier/effect chrome always reads over the shield —
+    // while the break burst (shards/flash) stays on THIS main canvas (z110) and still draws over the chrome.
+    // The bubble mesh is procedural (no textures), so it renders cleanly in the second GL context.
+    if (this.underParent) {
+      const sApp = new Application();
+      await sApp.init({
+        resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
+        resolution: window.devicePixelRatio || 1, preference: 'webgl', powerPreference: 'high-performance',
+      });
+      const sc = sApp.canvas;
+      sc.style.position = 'absolute'; sc.style.top = '0'; sc.style.left = '0';
+      sc.style.pointerEvents = 'none'; sc.style.display = 'block';
+      this.underParent.appendChild(sc);
+      sApp.stage.addChild(shieldLayer);
+      this.shieldApp = sApp;
+    } else {
+      // Single-canvas mode (e.g. the taunt back layer): bubbles beneath the particle layer on the same canvas.
+      app.stage.addChildAt(shieldLayer, 0);
+    }
 
     this.app = app;
     this.layer = layer;
@@ -476,6 +500,10 @@ class FxController {
     this.shieldGeo = null;
     this.app.ticker.remove(this.update);
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
+    if (this.shieldApp) {
+      this.shieldApp.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
+      this.shieldApp = null;
+    }
     this.app = null;
     this.layer = null;
     this.shieldLayer = null;

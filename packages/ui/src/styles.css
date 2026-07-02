@@ -1256,6 +1256,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    in FRONT of a held/hovered card; still below the modal overlays (end-run z400, inspect z500, dev panels
    z200). The card-landing dust still tucks behind its own card by raising that card above this (see puffOnBoard). */
 .pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 110; }
+/* Persistent shield/reborn bubbles render here — over the card art but BELOW the badges/tier/effect chrome
+   (which sit at z4–9 in the root stacking context). The break burst stays on .pixifx (z110), over the chrome. */
+.pixifx-under { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
 /* Loss-damage tally — the damage counter that assembles above the enemy board on a defeat, plus the
    tier numbers that fly up into it. The Pixi blast bolt (z41) launches from the counter into the Resolve
    bar. Counter z-index sits above the board but below the bolt. */

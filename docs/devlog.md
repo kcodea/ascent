@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### feat: settle on board1 as the game board; drop the board picker, keep the dimmer
+
+With the board aesthetics chosen, the multi-board selector (a testing aid) is retired: **board1** is now the
+single game board (`.app` + hero-select), and the **Board dimming** slider stays (still `--scrim`,
+default 15%). Removed `BOARD_OPTIONS` + the thumbnail-grid picker from [EscMenu.tsx](packages/ui/src/EscMenu.tsx)
+(the section is now just **Board** → the dimmer), the `board`/`--board-img` state + effect from
+[Game.tsx](packages/ui/src/Game.tsx), and the `.escboardpick`/`.escboardtile` styles. The `.app` and
+hero-select backgrounds point straight at `board1.webp`. Encoded `board1.webp` (1680w, q82, 104 KB) and
+deleted the now-orphaned `board4/5/7/8/9/10/11.webp` from `apps/web/public`. The stale `ascent-board`
+localStorage key is simply ignored. Verified: typecheck + lint + `build:web` clean; live — `.app` uses
+board1, Settings shows only the dimmer (15%), no thumbnails.
+
 ### feat: rating system — rating-derived Line, run-end delta, Career/end-screen surfaces
 
 The career skill-pressure layer (handoff "Rating System") on top of the existing course/Line scaffolding

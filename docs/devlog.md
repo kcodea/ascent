@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### fix(ui): restore the lost drag recentre glide (recenter/recenterAfter)
+
+The player reported the card-drag feel as "accidentally reverted" — investigation found the work was never
+merged: the local branch `fix/board-move-slide` (4 commits, never PR'd) held the drag **recentre glide** —
+a grabbed card keeps its grab-point anchor until the pointer has dragged `recenterAfter` px (100), then
+glides to sit centred on the cursor at its own slow `recenter` rate (0.12/frame) instead of snapping there
+almost immediately (the old `kc = k×1.4`). Re-applied the branch's net diff onto current `main` by hand
+(the branch's other experiment, an absolute board-slide Flip, had been reverted within the branch itself
+and is NOT restored): two new `DragFeel` dials (`recenter`, `recenterAfter`) with ranges/descriptions +
+Drag Feel tuner labels + the gated recentre in the drag rAF. The stale local branch was deleted after
+extraction. Verified: lint + test (460) + build:web green; `typecheck:web` confirmed at the same 56
+pre-existing errors as `main` (zero new — NB: root `typecheck` excludes packages/ui and CI never runs
+`typecheck:web`; flagged as a follow-up task).
+
 ### feat(ui): DEV Smoke & Dust tuner
 
 Extracted the previously-hardcoded parameters of the combat **impact smoke** (`pixiFx.impact` — the warm-

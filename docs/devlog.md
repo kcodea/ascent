@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### feat: "Reset my career" control in Settings
+
+A **Career** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) with a two-tap-confirm **Reset my career**
+button (mirrors "Clear my boards") that wipes the **local** career — the persisted `ascent.profile` (rating +
+Line back to 0 / Line 7) and `ascent.history` (match history). New store action `resetCareer` calls
+`clearProfile` ([profileStore.ts](packages/ui/src/profileStore.ts)) + `clearRunHistory`
+([runHistory.ts](packages/ui/src/runHistory.ts)) and sets `profile: initialProfile()` / `lastRating: null`.
+Deliberately scoped to local career only — it does **not** touch the in-progress run, captured boards (the
+separate "Clear my boards"), or the shared Supabase pool/leaderboard (those reset via SQL, admin-side; see the
+handoff notes). Verified: typecheck + lint clean; live — seeded a 1450/Line 9 profile + a history entry, tapped
+reset → profile back to 0/Line 7, both localStorage keys removed, `lastRating` cleared; the two-tap confirm +
+"Career reset" message render.
+
 ### tweak: new players start at rating 0 (Line 7), not 1200 (Line 9)
 
 `STARTING_RATING` 1200 → **0** in [playerRating.ts](packages/sim/src/playerRating.ts). By the existing bands

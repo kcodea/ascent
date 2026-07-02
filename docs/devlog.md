@@ -12,6 +12,9 @@ Batch of feel polish:
   rgba(255,226,110,.95)`) instead of the `translateY(-3px)` lift — the card stays flat, no elevation/tilt.
   Applied to `.card.dual:hover` too; neutralized under a live drag (cursor "hovers" cards beneath the
   pointer-events:none floating card, so their glow is reset to the base shadow). Hand keeps its fan-lift.
+  Follow-up: the glow was invisible at first because recruit cards are `.card.compact`, whose `box-shadow: none`
+  (equal specificity, later in the file) won — fixed with a `.card.compact:hover` selector + `!important` (also
+  future-proofs against the venom/triple/tripready special-card shadows); the drag neutralizer is `!important` too.
 - **Placement dust +25% apparent.** `pixiFx.dust` peakAlpha 0.2+r*0.12 → 0.25+r*0.15 (more visible, same size).
 - **Divine shield askew in shop.** The aura's first measure could catch a card mid `cardpop`
   (translateY(8px)/scale .96), placing the bubble low/small until the next interaction re-synced it. Added a

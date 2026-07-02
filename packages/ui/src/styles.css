@@ -371,7 +371,7 @@ body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubi
 /* While dragging, the cursor still "hovers" the cards under the (pointer-events:none) floating card — don't
    flash their hover glow. Reset to the base card shadow. */
 body.dragging .zone[data-zone='warband'] .card:hover,
-body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); }
+body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent) !important; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }
@@ -382,8 +382,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
 /* A battlecry-summoned token waits ~0.2s before popping in, so the trigger pulse reads first, THEN the
    token appears (e.g. Alleycat → Stray). `backwards` holds the invisible `from` frame during the delay. */
 .card.popin.popdelay { animation-delay: 0.2s; animation-fill-mode: backwards; }
-/* Hover = a bright white/gold glow that surrounds the card. No lift/tilt — the card stays flat in place. */
-.card:hover { z-index: 20; box-shadow: 0 0 0 3px #fff7d1, 0 0 24px 7px rgba(255, 226, 110, 0.95), 0 3px 0 var(--shadow); }
+/* Hover = a bright white/gold glow that surrounds the card. No lift/tilt — the card stays flat in place.
+   `!important` + `.compact` so it beats `.card.compact { box-shadow: none }` and the special-card shadows
+   (venom / triple / tripready), which are equal/greater specificity and appear later in the file. */
+.card:hover, .card.compact:hover { z-index: 20; box-shadow: 0 0 0 3px #fff7d1, 0 0 24px 7px rgba(255, 226, 110, 0.95), 0 3px 0 var(--shadow) !important; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */

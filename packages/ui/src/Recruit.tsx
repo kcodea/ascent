@@ -2,7 +2,6 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
-import { GoldChip } from './GoldChip';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
@@ -63,7 +62,6 @@ type Zone = 'tavern' | 'warband' | 'hand';
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
-const RING = 2 * Math.PI * 17; // countdown ring circumference
 
 /** Build the floating drag-card transform with a CONSISTENT function list, so a CSS transition between the
  *  rAF lean and the snap/magslide states interpolates cleanly. tx/ty = top-left offset; rotX/rotY = 3D tilt
@@ -73,38 +71,13 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
   return `perspective(${persp}px) translate(${tx}px, ${ty}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale}) rotate(${spin}deg)`;
 }
 
-/** The countdown ring — subscribes to the turn clock so ONLY this tiny SVG re-renders each second
- *  (not the whole recruit tree). See turnClock.ts. */
-function TurnRing({ turnSeconds }: { turnSeconds: number }) {
-  const seconds = useTurnSeconds();
+/** Turn countdown (M:SS) shown above the SHOP label. Subscribes to the clock so ONLY this reads per-second;
+ *  turns red in the last 5s. */
+function ShopTimer() {
+  const s = Math.max(0, useTurnSeconds());
   return (
-    <div className="rtimer" data-low={seconds <= 5} title="Time left this turn — at 0 your actions lock; hit End Turn to fight">
-      <svg viewBox="0 0 40 40">
-        <circle className="rt-bg" cx="20" cy="20" r="17" />
-        <circle className="rt-fg" cx="20" cy="20" r="17" style={{ strokeDasharray: RING, strokeDashoffset: RING * (1 - Math.max(0, seconds) / turnSeconds) }} />
-      </svg>
-      <span className="rt-n">{Math.max(0, seconds)}</span>
-    </div>
-  );
-}
-
-/** The burn-down rope (last 15s) — also a clock subscriber, so its per-second update doesn't re-render
- *  the board it floats over. */
-function TurnRope() {
-  const seconds = useTurnSeconds();
-  if (seconds > 15) return null;
-  const pct = ((15 - Math.max(0, seconds)) / 15) * 100;
-  return (
-    <div className="rope" title={`${seconds}s left`}>
-      <div className="rope-lit" style={{ width: `${pct}%` }} />
-      <div className="rope-flame" style={{ left: `${pct}%` }}>
-        <span className="fl-glow" />
-        <span className="fl-body" />
-        <span className="fl-core" />
-        <span className="fl-ember" style={{ '--ex': '-6px', animationDelay: '0s' } as CSSProperties} />
-        <span className="fl-ember" style={{ '--ex': '5px', animationDelay: '0.33s' } as CSSProperties} />
-        <span className="fl-ember" style={{ '--ex': '-1px', animationDelay: '0.66s' } as CSSProperties} />
-      </div>
+    <div className={`shoptimer${s <= 5 ? ' low' : ''}`} title="Time left this turn — at 0 your actions lock; hit End Turn">
+      <Icon name="clock" />{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}
     </div>
   );
 }
@@ -1865,7 +1838,7 @@ export function Recruit() {
     const t = e.target as HTMLElement;
     if (t.closest('[data-zone] .card')) { sfx.cardTouch(); return; }
     if (heroArmed || drag) return;
-    if (t.closest('button, a, input, [role="dialog"], .bar, .rtimer, .shopctl')) return;
+    if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar, .endturn-side')) return;
     sfx.clickThock();
     pixiFx.clickPuff(e.clientX, e.clientY); // small Pixi dust at the cursor (sibling of the card-landing dust)
   };
@@ -2054,8 +2027,8 @@ export function Recruit() {
         setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card) }]);
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
       }
-      // Sprinkle gold coins out of the Gold counter (now in the shop control frame up top) to sell the income.
-      const goldEl = document.querySelector('.shopctl .chip.g');
+      // Sprinkle gold coins out of the Gold counter (the GOLD plaque in the shop row up top) to sell the income.
+      const goldEl = document.querySelector('.shopbtn.gold');
       if (goldEl) {
         const gr = goldEl.getBoundingClientRect();
         pixiFx.coins(gr.left + gr.width / 2, gr.top + gr.height * 0.4);
@@ -2145,45 +2118,60 @@ export function Recruit() {
       <HudBar />
 
       {!fighting ? (
-      <div className={`shopctl frame${inCombat ? ' closing' : ''}`}>
-        {/* Gold — anchored at the LEFT of the control frame, opposite the End Turn button on the right. */}
-        <GoldChip />
-        {/* left of the timer: current tavern tier (a slick number), with Tavern Up (↑ + cost) under it */}
-        <div className="ctl-col">
-          <span className="ctlbtn tier" data-tier={run.tier}>
-            <Icon name="house" />
-            {run.tier}
-            <span className="ctltip">Current tavern tier</span>
-          </span>
+      <>
+      {/* SHOP controls — a labelled row of gold plaque buttons (Gold · Tavern · Reroll · Freeze) framed by
+          shopbutton.webp. The turn timer now lives in the header; End Turn is a standalone button (right). */}
+      <div className={`shopbar${inCombat ? ' closing' : ''}`}>
+        <ShopTimer />
+        <div className="shoplabel">Shop</div>
+        <div className="shoprow">
+          {/* Gold — a display (current Gold this turn), not an action. */}
+          <div className="shopbtn gold" title="Your Gold this turn">
+            <span className="sb-l">Gold</span>
+            <span className="sb-ic"><Icon name="mana" /></span>
+            <span className="sb-v">{run.embers}</span>
+          </div>
+          {/* Tavern Up — cost = upgradeCost; disabled at max tier / can't afford / time up. */}
           <button
-            className="ctlbtn up"
+            className="shopbtn"
             disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp || eotAnimating}
             onClick={() => dispatch({ type: 'upgrade' })}
+            title={run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : `Tavern Up — to tier ${run.tier + 1}`}
           >
-            <Icon name="up" />
-            {run.tier < CONFIG.maxTier && <span className="c">{run.upgradeCost}</span>}
-            <span className="ctltip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : 'Tavern Up'}</span>
+            <span className="sb-l">Tavern</span>
+            <span className="sb-ic"><Icon name="star" /></span>
+            <span className="sb-v">{run.tier < CONFIG.maxTier ? run.upgradeCost : '★'}</span>
+          </button>
+          {/* Reroll — free rolls show 0. */}
+          <button
+            className="shopbtn"
+            disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp || eotAnimating}
+            onClick={() => dispatch({ type: 'roll' })}
+            title={run.freeRolls > 0 ? `Refresh — free (${run.freeRolls} left)` : 'Refresh the tavern'}
+          >
+            <span className="sb-l">Reroll</span>
+            <span className="sb-ic"><Icon name="refresh" /></span>
+            <span className="sb-v">{run.freeRolls > 0 ? 0 : CONFIG.refreshCost}</span>
+          </button>
+          {/* Freeze — toggle; highlighted when active. */}
+          <button
+            className={`shopbtn freeze${run.frozen ? ' on' : ''}`}
+            disabled={timeUp || eotAnimating}
+            onClick={() => dispatch({ type: 'freeze' })}
+            title={run.frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}
+          >
+            <span className="sb-l">Freeze</span>
+            <span className="sb-ic"><Icon name="freeze" /></span>
           </button>
         </div>
-        {!inCombat && <TurnRing turnSeconds={turnSeconds} />}
-        {/* right of the timer: Refresh (↻ + cost), with Freeze (icon only) under it */}
-        <div className="ctl-col">
-          <button className="ctlbtn" disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp || eotAnimating} onClick={() => dispatch({ type: 'roll' })}>
-            <Icon name="refresh" />
-            <span className="c">{run.freeRolls > 0 ? 0 : CONFIG.refreshCost}</span>
-            <span className="ctltip">{run.freeRolls > 0 ? `Refresh — free (${run.freeRolls} left)` : 'Refresh tavern'}</span>
-          </button>
-          <button className={`ctlbtn${run.frozen ? ' frozen' : ''}`} disabled={timeUp || eotAnimating} onClick={() => dispatch({ type: 'freeze' })}>
-            <Icon name="freeze" />
-            <span className="ctltip">{run.frozen ? 'Frozen — click to unfreeze' : 'Freeze tavern'}</span>
-          </button>
-        </div>
-        {/* End Turn — the primary action, at the right of the control frame */}
-        <button className={`ctlbtn endturn-top${timeUp ? ' urgent' : ''}`} onClick={endTurn}>
-          <Icon name="sword" />
-          End Turn
-        </button>
       </div>
+      {/* End Turn — standalone, vertically-centred on the right edge (→ Start Combat). */}
+      <button className={`endturn-side${timeUp ? ' urgent' : ''}`} onClick={endTurn}>
+        <Icon name="sword" />
+        <span className="et-t">End Turn</span>
+        <span className="et-s">Start Combat</span>
+      </button>
+      </>
       ) : (
         <div className="combatctl">
           {/* Post-combat actions stay centred. During the replay the Skip button + speed slider live in the
@@ -2295,9 +2283,6 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        {/* The burn-down rope floats over the top of the warband (position:absolute) so it never
-            shifts the row — the minions hold the same spot whether it's showing or not. */}
-        {!inCombat && <TurnRope />}
         <div className="row warband">
           {inCombat ? (
             replay.frame.player.map((u) => (

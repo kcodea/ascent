@@ -14,6 +14,7 @@
   --bg: #8c857a; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
   --acc: #f0902e; --acc-dk: #c46f17; --threat: #e5446b; --threat-dk: #b32c50; --shadow: rgba(90, 66, 30, 0.16);
+  --gold: #c8922e; --gold-lt: #e6b45a; /* HUD plaque trim (matches the shopbutton frame) */
   --mana: #f4be35; --mana-dk: #a8780f; /* Gold (the economy / cost color). --mana var kept internally */
   /* the game renders into a centred "stage" box. By default it fills the window; the Esc-menu
      resolution scaler shrinks it to a fixed aspect/size, letterboxing the rest (see [data-res]).
@@ -94,11 +95,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 
 /* HUD */
 .bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; }
-.wm { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: calc(7 * var(--u)) calc(15 * var(--u)); border-radius: calc(11 * var(--u)); }
-/* The player's name on its own pill, hanging below the ASCENT/Wave row (left), mirroring the opponent
-   frame on the right. Absolutely positioned off `.bar` so it never reflows the top row. */
-.barplayer { position: absolute; top: calc(100% + 8 * var(--u)); left: 0; z-index: 60; font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; color: var(--acc); background: var(--ink); padding: calc(5 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); max-width: calc(220 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); }
-.alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); }
+.alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
 .alt .wavecol { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3 * var(--u)); }
 .alt .w { font-family: var(--font-ui); font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
 /* Round damage cap — the most Resolve a loss this wave can cost, threat-coloured under the wave. */
@@ -112,19 +109,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .alt .lbl.calib { color: var(--ink3); font-size: calc(11 * var(--u)); opacity: 0.85; }
 /* Par / line — the run's target wins. */
 .alt .lbl.line { color: var(--ink2); }
-.tribes { margin-left: auto; display: flex; align-items: center; gap: calc(6 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(12 * var(--u)); }
-.mutebtn { width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: var(--card); color: var(--ink2); display: grid; place-items: center; cursor: pointer; flex: none; }
-.mutebtn:hover { border-color: var(--acc); color: var(--ink); }
-.mutebtn svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); }
-.tribes .tl { font-family: var(--font-ui); font-weight: 700; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; margin-right: 2px; }
-.tribes .tb { width: calc(24 * var(--u)); height: calc(24 * var(--u)); border-radius: calc(7 * var(--u)); display: grid; place-items: center; background: color-mix(in srgb, var(--c) 20%, var(--card)); }
-.tribes .tb svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--c); }
 /* Next-opponent intel frame — hangs under the top bar's right edge (below the tribes). Portrait + HP
    visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
-.topright { position: absolute; top: calc(100% + 8 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(40 * var(--u)); }
+.topright { position: absolute; top: 0; right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(14 * var(--u)); }
 /* Next-enemy frame — sized ~30% larger than the base chips for emphasis. */
-.oppframe { position: relative; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(17 * var(--u)); padding: calc(7 * var(--u)) calc(16 * var(--u)) calc(7 * var(--u)) calc(12 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
+.oppframe { position: relative; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(17 * var(--u)); padding: calc(7 * var(--u)) calc(16 * var(--u)) calc(7 * var(--u)) calc(12 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; transform: scale(1.15); transform-origin: top right; }
 /* Run-buffs window — a compact list of active permanent buffs; collapsible header. Normal (system) cursor,
    not the custom gauntlet, so the panel reads as plain UI chrome. */
 .buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
@@ -153,14 +143,6 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .oppframe:hover .opp-tip { opacity: 1; transform: translateY(0); }
 .oppframe .opp-tip b { color: var(--acc); }
 .oppframe .opp-by { margin-top: 3px; font-size: 11px; font-style: italic; color: var(--ink3); }
-/* round turn timer, top centre */
-.rtimer { position: relative; flex: none; width: calc(74 * var(--u)); height: calc(74 * var(--u)); z-index: 80; display: grid; place-items: center; }
-.rtimer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
-.rtimer .rt-bg { fill: var(--card); stroke: var(--line); stroke-width: 4; }
-.rtimer .rt-fg { fill: none; stroke: var(--acc); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.95s linear; }
-.rtimer .rt-n { position: relative; font-family: var(--font-ui); font-weight: 800; font-size: calc(26 * var(--u)); color: var(--ink); }
-.rtimer[data-low='true'] .rt-fg { stroke: var(--threat); }
-.rtimer[data-low='true'] .rt-n { color: var(--threat); }
 .meter { position: relative; width: calc(104 * var(--u)); height: calc(9 * var(--u)); border-radius: 6px; background: var(--bg2); overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--acc); border-radius: 6px; }
 /* Pre-round (Setup) notch — a gap cut into the bar at the end of the calibration rounds, so the setup
@@ -175,7 +157,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .chip.mana .ic { background: var(--mana); } /* Mana economy reads teal, not tangerine */
 .chip .v { font-family: var(--font-ui); font-weight: 800; font-size: calc(20 * var(--u)); line-height: 1; }
 .chip .l { font-family: var(--font-ui); font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
-.hero { display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(4 * var(--u)) calc(14 * var(--u)) calc(4 * var(--u)) calc(5 * var(--u)); }
+.hero { display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); padding: calc(4 * var(--u)) calc(14 * var(--u)) calc(4 * var(--u)) calc(5 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow); }
 /* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
    arrow) so moving onto a spent/passive hero doesn't visibly switch/flicker the cursor */
 .hero.spent, .hero.passive { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
@@ -220,41 +202,41 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .btn:hover:not(:disabled) { border-color: var(--acc); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--ink2); }
-.shopctl { display: flex; align-items: center; justify-content: center; align-self: center; width: fit-content; gap: calc(16 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; position: relative; z-index: 6; }
-/* a minimal frame grouping the whole top control cluster into one clean panel */
-.shopctl.frame { gap: calc(14 * var(--u)); padding: calc(9 * var(--u)) calc(14 * var(--u)); background: color-mix(in srgb, var(--card) 52%, transparent); border: 2px solid color-mix(in srgb, var(--line) 75%, transparent); border-radius: calc(24 * var(--u)); box-shadow: 0 10px 26px -14px rgba(0, 0, 0, 0.45); backdrop-filter: blur(3px); }
-/* two stacked, equal-width control columns flanking the timer (tier + up · refresh + freeze) */
-.ctl-col { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: calc(64 * var(--u)); }
-/* one compact, uniform icon control */
-.ctlbtn { position: relative; width: 100%; height: calc(46 * var(--u)); display: flex; align-items: center; justify-content: center; gap: calc(5 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(18 * var(--u)); color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: calc(14 * var(--u)); box-shadow: 0 3px 0 var(--shadow); transition: filter 0.1s, border-color 0.1s; }
-/* styled hover tooltip (replaces the native title) — the game's dark rounded pill, dropping below the button */
-.ctltip { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.01em; padding: calc(6 * var(--u)) calc(12 * var(--u)); border-radius: calc(10 * var(--u)); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 90; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.55); transition: opacity 0.14s; }
-.ctltip::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-bottom-color: var(--ink); }
-.ctlbtn:hover .ctltip { opacity: 1; transition-delay: 0.3s; }
-/* Hovering applies a `filter` (below), which makes the button its own stacking context and would trap
-   the tooltip behind the neighbouring buttons + the timer. Lift the hovered control above them all. */
-.ctlbtn:hover { z-index: 85; }
-.ctlbtn svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); color: var(--ink2); }
-.ctlbtn .c { font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); color: var(--mana-dk); }
-.ctlbtn:not(:disabled):hover { filter: brightness(1.04); border-color: color-mix(in srgb, var(--ink3) 40%, var(--line)); }
-.ctlbtn:disabled { opacity: 0.45; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-/* tier — same squared button as the others (house icon + tier number), tier-accent tint; the tooltip
-   carries the "current tavern tier" label and it keeps the gauntlet cursor (it's info, not an action) */
-.ctlbtn.tier { cursor: url('/cursors/gauntlet_default.svg') 6 2, help; color: var(--acc); background: var(--bg2); border-color: color-mix(in srgb, var(--acc) 30%, var(--line)); }
-.ctlbtn.tier svg { color: var(--acc); }
-.ctlbtn.up svg { color: var(--acc); }
-.ctlbtn.frozen { background: color-mix(in srgb, #5bb4e8 20%, var(--card)); border-color: #5bb4e8; }
-.ctlbtn.frozen svg { color: #2b8fd0; }
-/* End Turn — the primary action: a tall accent button hanging off the frame's right edge. Taken OUT of
-   the flex flow (absolute) so the framed cluster stays symmetric and the timer sits dead-centre screen. */
-.ctlbtn.endturn-top { position: absolute; left: 100%; top: 50%; margin: calc(-50 * var(--u)) 0 0 calc(13 * var(--u)); width: auto; min-width: calc(98 * var(--u)); height: calc(100 * var(--u)); flex-direction: column; gap: calc(4 * var(--u)); padding: 0 calc(20 * var(--u)); font-size: calc(16 * var(--u)); letter-spacing: 0.02em; color: #fff; background: var(--acc); border-color: var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); }
-.ctlbtn.endturn-top svg { width: calc(27 * var(--u)); height: calc(27 * var(--u)); color: #fff; }
-.ctlbtn.endturn-top:not(:disabled):hover { filter: brightness(1.05); border-color: var(--acc-dk); }
-.ctlbtn.endturn-top.urgent { animation: endpulse 0.9s ease-in-out infinite; }
-/* Gold sits in its OWN box floating just LEFT of the shop frame — the mirror of the End Turn button on the
-   right (out of the frame's flow), so the frame stays centred on the timer with gold + End Turn flanking it.
-   Sized up to a tall pill to balance the End Turn button. */
-.shopctl .chip.g { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: calc(13 * var(--u)); height: calc(100 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(20 * var(--u)); background: color-mix(in srgb, var(--card) 52%, transparent); border: 2px solid color-mix(in srgb, var(--line) 75%, transparent); box-shadow: 0 10px 26px -14px rgba(0, 0, 0, 0.45); backdrop-filter: blur(3px); }
+/* ── Shop controls: a labelled row of gold-trimmed cream plaque buttons (Gold · Tavern · Reroll · Freeze) ── */
+.shopbar { align-self: center; display: flex; flex-direction: column; align-items: center; gap: calc(5 * var(--u)); margin-top: calc(70 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+.shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
+.shoplabel { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink3); }
+/* Turn timer, sitting just above the SHOP label. */
+.shoptimer { display: inline-flex; align-items: center; gap: calc(5 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); color: var(--ink2); font-variant-numeric: tabular-nums; line-height: 1; }
+.shoptimer svg { width: calc(17 * var(--u)); height: calc(17 * var(--u)); }
+.shoptimer.low { color: var(--threat); }
+.shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
+/* Each button is the plaque art stretched to a fixed 3:1 (matches the source, so the corners don't distort). */
+.shopbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(9 * var(--u)); height: calc(50 * var(--u)); padding: 0 calc(20 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); font-family: var(--font-ui); font-weight: 800; color: #5a3d12; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease; }
+button.shopbtn:not(:disabled):hover { filter: brightness(1.05); }
+button.shopbtn:not(:disabled):active { transform: translateY(calc(2 * var(--u))) scale(0.98); filter: brightness(0.94); }
+/* Drop the browser's rectangular focus ring (it boxes the element outside the octagon plaque); use a
+   drop-shadow glow instead, which follows the plaque's alpha so the highlight hugs the button's actual shape. */
+.shopbtn:focus { outline: none; }
+.shopbtn:focus-visible { outline: none; filter: drop-shadow(0 0 calc(4 * var(--u)) var(--acc)) brightness(1.04); }
+button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.shopbtn .sb-l { font-size: calc(15 * var(--u)); letter-spacing: 0.03em; text-transform: uppercase; color: #7a5a24; }
+.shopbtn .sb-ic { display: grid; place-items: center; }
+.shopbtn .sb-ic svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); color: var(--acc-dk); }
+.shopbtn .sb-v { font-size: calc(25 * var(--u)); line-height: 1; color: #4a3410; font-variant-numeric: tabular-nums; }
+.shopbtn.gold .sb-ic svg { color: var(--acc); }
+.shopbtn.freeze.on { filter: drop-shadow(0 0 calc(7 * var(--u)) rgba(43, 143, 208, 0.85)); }
+.shopbtn.freeze.on .sb-ic svg { color: #2b8fd0; }
+
+/* End Turn — a standalone button anchored vertically-centred on the right edge of the stage. */
+.endturn-side { position: absolute; right: calc(24 * var(--u)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u)); width: calc(90 * var(--u)); padding: calc(12 * var(--u)) calc(9 * var(--u)); background: var(--acc); border: 2px solid var(--acc-dk); border-radius: calc(12 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk), 0 calc(8 * var(--u)) calc(16 * var(--u)) calc(-7 * var(--u)) rgba(0, 0, 0, 0.5); color: #fff; font-family: var(--font-ui); font-weight: 900; z-index: 20; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: filter 0.1s ease, transform 0.1s ease; }
+.endturn-side svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); color: #fff; }
+.endturn-side .et-t { font-size: calc(16 * var(--u)); letter-spacing: 0.03em; text-transform: uppercase; }
+.endturn-side .et-s { font-size: calc(9 * var(--u)); font-weight: 700; opacity: 0.85; }
+.endturn-side:hover { filter: brightness(1.05); }
+.endturn-side:active { transform: translateY(calc(-50% + 2px)); box-shadow: 0 calc(3 * var(--u)) 0 var(--acc-dk); }
+.endturn-side.urgent { animation: endpulse 0.9s ease-in-out infinite; }
+.app.combat .endturn-side { display: none; }
 /* Hero-power button — a circle attached to the RIGHT side of the hero frame (in the status bar). It sits
    as the frame's right-most flex child (parent gap spaces it off the text); clicking it bubbles to the
    .hero arm/fire handler. Placeholder glyph for now; dedicated hero-power artwork to come. */
@@ -281,75 +263,6 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }
 .tavernbox svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--ink2); }
 .tavernbox b { color: var(--acc); font-size: calc(21 * var(--u)); }
-.warband-hint { color: var(--ink3); font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.02em; }
-/* burning rope (last 15s of the turn) — a braided fuse on the board's centre line (in flow between
-   the offers and the warband, so it lands on the split at any viewport) that burns left→right with
-   a live flame (halo + hot core + rising embers) and a glowing char edge trailing behind it. The
-   extra vertical margin gives the flame room to lick up without crowding the tavern row. */
-.rope {
-  /* Capped width (matches the board's content frame) so it doesn't stretch to the monitor edge on
-     wide screens — it ends around the card row rather than running the full viewport. */
-  /* Centre via left/right + auto margins (NOT translateX) — the `ropein` entry animation owns the
-     element's transform, so a transform-based centre would get clobbered the moment it plays. */
-  /* --rope-y (set on the warband zone in JS) = offset from the warband top down to the board midline, so the
-     rope sits on the background divider; subtract half the rope height to centre it on the line. */
-  position: absolute; top: calc(var(--rope-y, 11 * var(--u)) - 4 * var(--u)); left: 0; right: 0; width: min(1180px, 92vw); height: calc(8 * var(--u));
-  margin: 0 auto; z-index: 4; border-radius: 999px; overflow: visible;
-  background:
-    repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
-    linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  animation: ropein 0.4s ease both;
-}
-@keyframes ropein { from { opacity: 0; transform: scaleX(0.96); } to { opacity: 1; transform: none; } }
-.rope-lit {
-  position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px; transition: width 1s linear;
-  background:
-    repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 3px, rgba(12, 7, 3, 0.55) 3px 7px),
-    linear-gradient(to bottom, #3a2517, #140b05);
-  box-shadow: inset calc(-11 * var(--u)) 0 calc(10 * var(--u)) calc(-5 * var(--u)) rgba(255, 135, 45, 0.95);
-}
-/* the live flame, anchored to the burn point and rising from the rope */
-.rope-flame { position: absolute; top: 50%; left: 0; width: 0; height: 0; transform: translate(-50%, -50%); transition: left 1s linear; z-index: 6; pointer-events: none; }
-.rope-flame .fl-glow {
-  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
-  width: calc(58 * var(--u)); height: calc(26 * var(--u)); border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(255, 185, 75, 0.8), rgba(255, 95, 25, 0.3) 45%, transparent 70%);
-  animation: ropeglow 0.5s ease-in-out infinite alternate;
-}
-.rope-flame .fl-body {
-  position: absolute; left: 0; bottom: 0; transform: translateX(-50%); transform-origin: 50% 100%;
-  width: calc(17 * var(--u)); height: calc(18 * var(--u));
-  background: radial-gradient(ellipse at 50% 82%, #fff3b0 0%, #ffd34a 26%, #ff9a2e 56%, #ff5a1e 80%, rgba(255, 70, 20, 0.12) 100%);
-  border-radius: 50% 50% 48% 52% / 70% 70% 36% 36%;
-  filter: drop-shadow(0 0 calc(7 * var(--u)) rgba(255, 140, 40, 0.85));
-  animation: ropeflame 0.16s ease-in-out infinite alternate;
-}
-.rope-flame .fl-core {
-  position: absolute; left: 0; bottom: calc(1 * var(--u)); transform: translateX(-50%); transform-origin: 50% 100%;
-  width: calc(8 * var(--u)); height: calc(11 * var(--u));
-  background: radial-gradient(ellipse at 50% 80%, #fffbe0 0%, #ffe07a 55%, rgba(255, 205, 90, 0.3) 100%);
-  border-radius: 50% 50% 48% 52% / 70% 70% 36% 36%;
-  animation: ropeflame 0.13s ease-in-out infinite alternate-reverse;
-}
-.rope-flame .fl-ember {
-  position: absolute; left: 0; bottom: calc(5 * var(--u)); width: calc(4 * var(--u)); height: calc(4 * var(--u));
-  border-radius: 50%; background: radial-gradient(circle, #ffe3a0, #ff8a2e 70%, transparent);
-  animation: ropeember 1s ease-out infinite;
-}
-@keyframes ropeflame {
-  0% { transform: translateX(-50%) scale(1.05, 0.9) skewX(-5deg); opacity: 0.92; }
-  100% { transform: translateX(-50%) scale(0.93, 1.16) skewX(5deg); opacity: 1; }
-}
-@keyframes ropeglow {
-  0% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.92); }
-  100% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
-}
-@keyframes ropeember {
-  0% { transform: translate(-50%, 0) scale(1); opacity: 0; }
-  25% { opacity: 1; }
-  100% { transform: translate(calc(-50% + var(--ex, 0px)), calc(-28 * var(--u))) scale(0.2); opacity: 0; }
-}
 .btn.big svg { width: 23px; height: 23px; }
 /* Tavern-control costs + tier number: large, bold, colored inline numbers — no pill (matches the
    Pixel Arena mockup). Costs are teal Mana; the Tavern's next-tier number is tangerine. */
@@ -375,14 +288,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Hand overlap = 20% of a card's width (relative, not a fixed px, so it stays ~20% across viewport sizes
    where the card width --ccw scales). Lower magnitude = more spread; a full 10-card hand widens toward the
    screen edges (accepted tradeoff). Was -84px (~35-60% depending on screen). */
-.row.hand .card { margin-left: calc(var(--ccw) * -0.2); transform: translateY(11%); transition: transform 0.08s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+.row.hand .card { margin-left: calc(var(--ccw) * -0.2); transform: translateY(42%); transition: transform 0.12s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* hover lifts just enough to reveal the whole card + bring it forward — small so the card
    stays under the cursor (no bounce-out). */
-.row.hand .card:hover { transform: translateY(-5%); z-index: 45; }
+.row.hand .card:hover { transform: translateY(8%); z-index: 45; }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
-body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto; }
+body.dragging .row.hand .card:hover { transform: translateY(42%); z-index: auto; }
 /* The PRE-EMPTIVE reorder slide. During a drag, the board/shop cards open the drop slot via an inline
    `transform: translateX(±half-slot)` (Card's `slideDir`, set from the live gap index). This ease-out
    transition glides that transform as the gap moves — fast then settling — the "make room" animation.
@@ -1084,10 +997,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
    bottom-centre: Embers + Hero on the top row, the Resolve HP bar across the bottom.
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */
 .statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px); left: calc(var(--bar-x) + 16px); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
+/* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
+.statusbar .playername { align-self: flex-start; margin-left: calc(5 * var(--u)); background: #fff; color: var(--ink); border: 2px solid var(--gold); border-radius: calc(10 * var(--u)); padding: calc(3 * var(--u)) calc(13 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; max-width: calc(260 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 /* stretch so the Embers chip is as tall as the (taller) hero panel */
 .statusrow { display: flex; align-items: stretch; justify-content: center; gap: 9px; }
 /* Health as a compact WHITE box beside the hero power (replaces the old HP bar): heart + Resolve (+Armor). */
-.hero .hpbox { position: relative; align-self: center; display: flex; align-items: center; gap: calc(7 * var(--u)); background: #fff; border: 2px solid var(--line); border-radius: calc(16 * var(--u)); padding: calc(9 * var(--u)) calc(15 * var(--u)); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14); pointer-events: none; }
+.hero .hpbox { position: relative; align-self: center; display: flex; align-items: center; gap: calc(7 * var(--u)); background: #fff; border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); padding: calc(9 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14); pointer-events: none; }
 .hero .hpbox svg { flex: none; width: calc(30 * var(--u)); height: calc(30 * var(--u)); color: var(--threat); }
 .hero .hpbox .hpval { font-family: var(--font-ui); font-weight: 800; font-size: calc(30 * var(--u)); line-height: 1; color: var(--threat-dk); }
 .hero .hpbox .armval { margin-left: calc(3 * var(--u)); font-size: calc(21 * var(--u)); color: #7c8996; }
@@ -1347,7 +1262,6 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .taunt-back canvas { pointer-events: none; }
 
 /* the shop closing: the control bar + the tavern offers fold up and fade out */
-.shopctl.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .app.combat:not(.fighting) .zone[data-zone='tavern'] .row { animation: shopclose 0.45s ease forwards; }
 @keyframes shopclose {
   0% { opacity: 1; transform: translateY(0) scale(1); }

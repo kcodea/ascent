@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### feat(ui): HUD redesign — shop-control plaques, timer, standalone End Turn, tucked hand
+
+A recruit-screen HUD reshape toward the owner's mockup (iterated live):
+
+- **Shop controls** are now a labelled **row of gold-trimmed cream plaque buttons** (Gold · Tavern · Reroll ·
+  Freeze) centred under a "SHOP" label, above the shop cards, with the turn **timer (M:SS + clock icon) sitting
+  just above the SHOP label**. (Started from the `shopbutton.png` art, but its baked-white background keyed to a
+  dithered fringe under the board dimmer, so the buttons are built in pure CSS to match the rest of the HUD.)
+  Hover just brightens (no pop); click depresses; focus uses a shape-following glow (no square focus ring).
+- **End Turn** is a **standalone button on the right edge** (vertically centred, "Start Combat" subtitle),
+  shrunk to ~60%. The old framed control cluster + the on-board **burn-rope** are gone.
+- **Gold-plaque trim pass:** the header info plaque, opponent frame, hero panel, and HP box all share the new
+  `--gold` trim + inset bevel, matching the shop buttons.
+- **Top bar:** removed the **ASCENT wordmark** and the **Tribes** strip; the **next-opponent frame moved to the
+  top-right corner** (aligned with the header) and is **+15%**; the **mute button was removed** (it lives in the
+  Esc menu). The **player name moved** to a small white box (black text) **above the hero panel**, bottom-left.
+- **Hand cards seat much lower** (≈half tucked below the fold, clear of the warband) and **pop up on hover** to
+  reveal ~82% while keeping their bottom at/below the screen edge.
+- **Fixes** surfaced by the refactor: the sell-coin animation retargeted to the new Gold plaque (`.shopbtn.gold`),
+  and the recruit pointer-down guard updated to the new `.shopbar`/`.endturn-side`.
+- Pruned the now-dead CSS/JSX (`TurnRing`/`TurnRope`/`GoldChip`, `.wm`/`.tribes`/`.barplayer`/`.mutebtn`/
+  `.rtimer`/`.rope*`/`.shopctl`/`.ctlbtn*`/old header timer) and removed the unused `shopbutton.webp`.
+
+Verified: typecheck + lint + 460 tests + `build:web` all green; the recruit HUD checked live via screenshots +
+computed styles across the changes (a real pointer-drag can't be driven headlessly — owner to confirm feel).
+
 ### feat(ui): recruit HUD + drag/play polish, board2upscaled2 (21:9), HP box
 
 A batch of recruit-screen presentation work (owner-directed, iterated live):

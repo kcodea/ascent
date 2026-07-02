@@ -65,6 +65,12 @@ const ICONS: Record<string, ReactNode> = {
   skull: <path fill="currentColor" d="M12 3a7 7 0 017 7c0 2.2-1 4.1-2.6 5.3v2.2a1.5 1.5 0 01-1.5 1.5h-1v-2h-2v2H9.1a1.5 1.5 0 01-1.5-1.5v-2.2A7 7 0 015 10a7 7 0 017-7zm-3 7.5a1.6 1.6 0 100 3.2 1.6 1.6 0 000-3.2zm6 0a1.6 1.6 0 100 3.2 1.6 1.6 0 000-3.2z" />,
   eye: <path fill="currentColor" d="M2 12c3-4.5 7-6.5 10-6.5S19 7.5 22 12c-3 4.5-7 6.5-10 6.5S5 16.5 2 12zm10 3a3 3 0 100-6 3 3 0 000 6z" />,
   star: <path fill="currentColor" d="M12 2l2.3 7.2H22l-6.1 4.5 2.3 7.3-6.2-4.5-6.2 4.5 2.3-7.3L2 9.2h7.7z" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2.4" />
+      <path fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3.5 2" />
+    </>
+  ),
   crown: (
     <>
       <path fill="currentColor" d="M4 9l3.4 3.3L12 6l4.6 6.3L20 9l-1.4 8.4H5.4L4 9z" />

@@ -8,6 +8,7 @@ import { useGame } from './store';
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
   const run = useGame((s) => s.run);
+  const playerName = useGame((s) => s.playerName);
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
   const dispatch = useGame((s) => s.dispatch);
@@ -79,6 +80,8 @@ export function StatusBar() {
 
   return (
     <div className="statusbar">
+      {/* Player name — a small white box above the hero panel (mirrors the opponent name, top-right). */}
+      {playerName && <div className="playername" title="You">{playerName}</div>}
       <div className="statusrow">
         <div
           className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}

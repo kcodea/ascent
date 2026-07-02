@@ -1046,9 +1046,12 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 .hprow { position: relative; display: flex; align-items: center; gap: calc(12 * var(--u)); padding: 0 calc(8 * var(--u)); }
 .hprow .ic { flex: none; display: grid; place-items: center; }
 .hprow .ic svg { width: calc(32 * var(--u)); height: calc(32 * var(--u)); color: var(--threat); }
-.hprow .hpbar { flex: 1; height: calc(20 * var(--u)); border-radius: 10px; background: color-mix(in srgb, var(--threat) 18%, var(--card)); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18); }
-.hprow .hpbar i { display: block; height: 100%; background: var(--hpc); border-radius: 10px; transition: width 0.35s ease; }
+.hprow .hpbar { flex: 1; display: flex; height: calc(20 * var(--u)); border-radius: 10px; background: color-mix(in srgb, var(--threat) 18%, var(--card)); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18); }
+.hprow .hpbar i { display: block; height: 100%; background: var(--hpc); transition: width 0.35s ease; }
+/* Armor segment — a steel layer stacked to the right of the red Resolve fill (extra effective HP). */
+.hprow .hpbar i.arm { background: linear-gradient(#c2ccd6, #8d9aa8); box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.35); }
 .hprow .hpval { flex: none; min-width: 1.4em; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(28 * var(--u)); color: var(--threat-dk); }
+.hprow .hpval .armval { margin-left: calc(3 * var(--u)); font-size: calc(20 * var(--u)); color: #7c8996; }
 .statusbar .hero { pointer-events: auto; }
 /* the Embers chip captures hover too (for its projection popup) */
 .statusbar .chip.g { pointer-events: auto; }
@@ -1464,6 +1467,8 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .hcname { font-family: var(--font-ui); font-weight: 900; font-size: 31px; letter-spacing: 0.02em; }
 .hchp { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-weight: 800; font-size: 23px; color: var(--ink); margin: -2px 0 2px; }
 .hchp svg { width: 22px; height: 22px; color: var(--hpc); }
+/* Starting Armor on a hero card — a steel chip beside the Resolve value. */
+.hcarmor { font-size: 17px; font-weight: 800; color: #fff; background: linear-gradient(#aab6c2, #7c8996); padding: 1px 8px; border-radius: 8px; }
 .hcpw { font-size: 17.5px; font-weight: 600; color: var(--ink2); line-height: 1.35; }
 .hcpw b { color: var(--acc-dk); font-weight: 800; }
 .hclock { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 4px 13px; border-radius: 8px; }

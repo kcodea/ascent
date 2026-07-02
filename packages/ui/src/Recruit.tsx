@@ -792,6 +792,9 @@ export function Recruit() {
   // commit can FLIP each one from exactly where it sat to its final slot — no teleport if the release point
   // outran the rAF-throttled live preview (the "land it far over and a card jumps" bug).
   const handFlipRef = useRef<Map<string, number> | null>(null);
+  // Which row (warband or tavern) the captured `handFlipRef` rects belong to — so the commit FLIPs the right
+  // row. A board/hand drop targets the warband; a shop-offer reorder targets the tavern.
+  const handFlipSelRef = useRef<string | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
@@ -1158,16 +1161,30 @@ export function Recruit() {
       // A board minion released anywhere above the warband sells (the whole upper screen); a shop card
       // released anywhere below the warband line buys (the whole lower screen).
       const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAt(e.clientX, e.clientY);
-      // Snapshot the board cards' live positions BEFORE the row reflows (and before body.dragging removal snaps
-      // their transforms) so a hand-play commit can FLIP each neighbour from where it actually sits to its final
-      // slot — no jump when a fast "land it far over" release outran the throttled preview.
-      if (d.source === 'hand' && !d.view.spell && zone === 'warband') {
+      // Snapshot the row's live positions BEFORE it reflows (and before body.dragging removal snaps their
+      // transforms) so a hand-play / board-reorder / shop-reorder commit can FLIP each neighbour from where it
+      // actually sits to its final slot — no jump when a fast "land it far over" release outran the throttled
+      // preview, and no replay of the dragged card's whole move.
+      const handMinionDrop = d.source === 'hand' && !d.view.spell && zone === 'warband';
+      const boardReorderDrop = d.source === 'board' && zone === 'warband';
+      const shopReorderDrop = d.source === 'shop' && zone === 'tavern' && d.uid !== run.spell?.uid;
+      const flipZoneSel =
+        handMinionDrop || boardReorderDrop
+          ? '[data-zone="warband"] .row .card[data-uid]'
+          : shopReorderDrop
+            ? '[data-zone="tavern"] .row .card[data-uid]'
+            : null;
+      if (flipZoneSel) {
         const m = new Map<string, number>();
-        document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]').forEach((el) => {
+        document.querySelectorAll<HTMLElement>(flipZoneSel).forEach((el) => {
           const uid = el.dataset.uid;
-          if (uid) m.set(uid, el.getBoundingClientRect().left);
+          // Exclude the dragged card itself on a reorder: it rode the drag overlay, so its in-row element still
+          // sits at its OLD slot. Capturing it would make the commit FLIP replay the whole move (the "swap
+          // replays after the drop" bug). Left out → it just appears at its committed slot with no slide.
+          if (uid && uid !== d.uid) m.set(uid, el.getBoundingClientRect().left);
         });
         handFlipRef.current = m;
+        handFlipSelRef.current = flipZoneSel; // remember which row to FLIP when the commit lands
       }
       document.body.classList.remove('dragging'); // cursor reverts on release
 
@@ -1198,9 +1215,12 @@ export function Recruit() {
       }
 
       const acted = applyDrop(d, zone, e.clientX, e.clientY);
-      // A played hand minion enters the board as a NEW flex element — snap the resulting FLIP commit (see
-      // `handPlaySnapRef`) so GSAP doesn't thrash the row as it makes space.
-      if (acted && d.source === 'hand' && !d.view.spell) handPlaySnapRef.current = true;
+      // Route drag-drop commits through the manual per-card FLIP (see `handPlaySnapRef`) instead of the
+      // whole-row Flip.from, which would replay the dragged card's move after the drop. Covers a played hand
+      // minion entering the board, a board reorder, AND a shop-offer reorder — each snapshotted its row's live
+      // spots above and glides only the cards that actually shifted (the dragged card is excluded, so it never
+      // re-slides).
+      if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop)) handPlaySnapRef.current = true;
       if (acted || d.view.spell) {
         // a spell that misses just ends — it was never lifted from the hand
         setDrag(null);
@@ -1716,16 +1736,20 @@ export function Recruit() {
         // whole drag (body.dragging rule in styles.css) so GSAP's transform animation isn't masked.
         Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
       } else if (handPlaySnapRef.current) {
-        // A hand card just landed. We do a MANUAL FLIP on the existing board cards only (never a full
-        // Flip.from — the freshly played card is an entering element and GSAP Flip would fight the reflow and
-        // jolt the row; it pops in via CSS instead). First kill the base `.card { transition: transform 0.12s }`
+        // A drag-drop just committed (a hand card landed, or a board / shop card was reordered). We do a MANUAL
+        // FLIP on the settled row's cards only (never a full Flip.from — for a hand-play the freshly played card
+        // is an entering element GSAP would jolt; for a reorder the dragged card would replay its whole move). All
+        // exclude the dragged/played card from the captured rects, so it just appears at its committed slot while
+        // its neighbours glide from where they sat. First kill the base `.card { transition: transform 0.12s }`
         // so the slideDir→0 reset is instant (else it animates the reset over the reflow = a rebound). Then, for
         // any neighbour whose real pre-commit spot (captured at drop) differs from its final slot — i.e. the
         // release outran the throttled preview — glide it from there to home so it settles instead of jumping.
         handPlaySnapRef.current = false;
         const rects = handFlipRef.current;
         handFlipRef.current = null;
-        const targets = gsap.utils.toArray<HTMLElement>('[data-zone="warband"] .row .card[data-uid]');
+        const sel = handFlipSelRef.current ?? '[data-zone="warband"] .row .card[data-uid]';
+        handFlipSelRef.current = null;
+        const targets = gsap.utils.toArray<HTMLElement>(sel);
         gsap.set(targets, { transition: 'none' });
         void document.body.offsetWidth; // reflow so transform:0 is the instant baseline (no rebound)
         for (const el of targets) {

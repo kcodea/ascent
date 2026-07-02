@@ -33,8 +33,8 @@ const DEFAULTS: TrailConfig = {
   stretch: 1.1,
   drift: 68,
   goldAlpha: 0.13,
-  blueAlpha: 0.13,
-  sparkChance: 0.45,
+  blueAlpha: 0.14,
+  sparkChance: 0.4,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

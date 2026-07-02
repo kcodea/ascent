@@ -640,7 +640,7 @@ class FxController {
         spin: (Math.random() - 0.5) * 1.2,
         tint: tan,
         blend: 'normal',
-        peakAlpha: 0.2 + Math.random() * 0.12,             // subtle
+        peakAlpha: 0.25 + Math.random() * 0.15,            // +25% more apparent (was 0.2 + r*0.12), same size
       });
     }
   }

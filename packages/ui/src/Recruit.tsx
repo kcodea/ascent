@@ -572,8 +572,14 @@ export function Recruit() {
     shieldUidsRef.current = seen;
   }, []);
   // Reconcile after any render that can change the shielded set or card positions.
-  useLayoutEffect(() => { syncShields(); },
-    [syncShields, run.board, run.hand, run.shop, replay.frame, inCombat, fighting, compactCards]);
+  useLayoutEffect(() => {
+    syncShields();
+    // The first measure can catch a freshly-mounted card mid `cardpop` (scale/translate) — placing its aura
+    // slightly askew until the next interaction re-syncs it (the "shield off in shop until you click it" bug).
+    // A delayed pass after the pop settles re-measures the resting rect and corrects it.
+    const t = window.setTimeout(syncShields, 240);
+    return () => window.clearTimeout(t);
+  }, [syncShields, run.board, run.hand, run.shop, replay.frame, inCombat, fighting, compactCards]);
   // A drop opens a brief settle window so the bubble keeps tracking the card through its Flip animation.
   useEffect(() => {
     const active = drag?.active ?? false;

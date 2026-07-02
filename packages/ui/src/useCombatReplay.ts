@@ -210,8 +210,8 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
   const tl = gsap
     .timeline({ onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }) })
-    .to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: -5, duration: c.windupDur, ease: 'power1.out' })  // wind up (anticipation lean-back)
-    .to(attacker, { x: dx * c.strikeDist, y: dy * c.strikeDist, rotation: 0, duration: c.strikeDur, ease: 'power3.in' })          // strike (overdrives into the target → a full, overlapping connecting hit)
+    .to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: -5, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' })  // wind up (anticipation lean-back + swell)
+    .to(attacker, { x: dx * c.strikeDist, y: dy * c.strikeDist, rotation: 0, scale: 1, duration: c.strikeDur, ease: 'power3.in' })          // strike (overdrives into the target → a full, overlapping connecting hit)
     .add(() => {
       // Smack lands HERE — frame-accurate at the moment of contact. The beat-driven sfx (a React
       // effect ~2 frames behind setBeatIdx) ran late and drifted further as the lunge grew; firing

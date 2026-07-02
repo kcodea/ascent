@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { clearStoredBoards, loadStoredBoards } from './boardLibrary';
+import { loadRunHistory } from './runHistory';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
 
@@ -15,25 +16,11 @@ export const RES_OPTIONS: { id: string; label: string; sub: string }[] = [
   { id: 'r3440', label: '3440 × 1440', sub: '21:9 ultrawide' },
 ];
 
-// DEV-ish testing aid: swap the illustrated board art to compare aesthetics. Boards live in
-// apps/web/public as boardN.webp (the id is the filename stem); this list = the ones present.
-export const BOARD_OPTIONS: { id: string; label: string }[] = [
-  { id: 'board4', label: 'Board 4' },
-  { id: 'board5', label: 'Board 5' },
-  { id: 'board7', label: 'Board 7' },
-  { id: 'board8', label: 'Board 8' },
-  { id: 'board9', label: 'Board 9' },
-  { id: 'board10', label: 'Board 10' },
-  { id: 'board11', label: 'Board 11' },
-];
-
 export function EscMenu({
-  res, onRes, board, onBoard, scrim, onScrim, onClose,
+  res, onRes, scrim, onScrim, onClose,
 }: {
   res: string;
   onRes: (r: string) => void;
-  board: string;
-  onBoard: (b: string) => void;
   scrim: number;
   onScrim: (s: number) => void;
   onClose: () => void;
@@ -41,6 +28,8 @@ export function EscMenu({
   const startHeroSelect = useGame((s) => s.startHeroSelect);
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
+  const profile = useGame((s) => s.profile);
+  const resetCareer = useGame((s) => s.resetCareer);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -58,6 +47,18 @@ export function EscMenu({
     setBoardCount(0);
     setConfirmClear(false);
     setBoardMsg('Cleared your captured boards.');
+  };
+  // Reset the local career: rating (→ 0 / Line 7) + match history. Two-tap confirm — it can't be undone.
+  // Doesn't touch captured boards or the shared pool/leaderboard (those are separate resets).
+  const [runCount, setRunCount] = useState(() => loadRunHistory().length);
+  const [careerMsg, setCareerMsg] = useState<string | null>(null);
+  const [confirmCareer, setConfirmCareer] = useState(false);
+  const doResetCareer = (): void => {
+    if (!confirmCareer) { setConfirmCareer(true); setCareerMsg('Wipe rating, match history, insights + hero stats? Tap again to confirm.'); return; }
+    resetCareer();
+    setRunCount(0);
+    setConfirmCareer(false);
+    setCareerMsg('Career reset — rating, past games + all stats cleared.');
   };
 
   return (
@@ -118,21 +119,7 @@ export function EscMenu({
             </button>
           ))}
         </div>
-        <div className="escsec">Board Art</div>
-        <div className="escboardpick">
-          {BOARD_OPTIONS.map((o) => (
-            <button
-              key={o.id}
-              className={`escboardtile${board === o.id ? ' on' : ''}`}
-              style={{ backgroundImage: `url('/${o.id}.webp')` }}
-              title={o.label}
-              aria-label={o.label}
-              onPointerDown={() => onBoard(o.id)}
-            >
-              <span className="ebt">{o.label}</span>
-            </button>
-          ))}
-        </div>
+        <div className="escsec">Board</div>
         <div className="escvol">
           <span className="evl">Board dimming</span>
           <input
@@ -153,6 +140,14 @@ export function EscMenu({
             <span className="ebs">{confirmClear ? `Wipes all ${boardCount} captures` : `${boardCount} saved · wipe stale captures`}</span>
           </button>
           {boardMsg && <div className="escboards-msg">{boardMsg}</div>}
+        </div>
+        <div className="escsec">Career</div>
+        <div className="escboards">
+          <button className={`escbtn${confirmCareer ? ' danger' : ''}`} onPointerDown={doResetCareer}>
+            <span className="ebl">{confirmCareer ? 'Tap again to reset' : 'Reset my career'}</span>
+            <span className="ebs">{confirmCareer ? 'Wipes rating + past games + all stats' : `Rating ${profile.rating} · ${runCount} run${runCount === 1 ? '' : 's'} · wipes history + stats`}</span>
+          </button>
+          {careerMsg && <div className="escboards-msg">{careerMsg}</div>}
         </div>
         <div className="escsec">Run</div>
         <button

@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, isPlayerAction, reduce, serialize, type Action, type BoardSnapshot, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, reduce, resolveRunRating, runRecord, serialize, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 import { fetchAndRegisterPool, uploadBoards, uploadVictory } from './remoteBoards';
-import { buildRunHistoryEntry, saveRunHistoryEntry } from './runHistory';
+import { buildRunHistoryEntry, clearRunHistory, saveRunHistoryEntry } from './runHistory';
+import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
@@ -155,6 +156,18 @@ interface GameStore {
   /** Boards this run contributed to the pool (captured on run-end) — shown on the post-run summary (A6).
    *  0 until the deferred capture runs; stays 0 for Practice (read-only). */
   lastRunBoards: number;
+  /** The player's career profile (rating + Line + high-water marks). Loaded at boot, updated on each scored
+   *  run's finish. The run's par is set from `profile.currentLine` at start. See `@game/sim` playerRating. */
+  profile: PlayerProfile;
+  /** The most recent scored run's rating change, for the end screen to show (+N / −N, promotion, etc.).
+   *  null until a scored run finishes this session; stays null for Practice. */
+  lastRating: RatingChange | null;
+  /** Reset the local career: wipe the persisted profile (rating/Line) + match history back to a fresh start.
+   *  Does NOT touch the in-progress run, captured boards, or the shared Supabase pool/leaderboard. */
+  resetCareer: () => void;
+  /** Bumps whenever the career data changes out-of-band (a reset) — the Career page keys its history read on
+   *  it so an open view refreshes immediately instead of showing stale insights / hero stats. */
+  careerVersion: number;
   /** A resumable in-progress run (loaded from localStorage at boot, kept in sync during play), or null when
    *  there's nothing to continue. Drives the title's "Continue" entry. */
   savedRun: RunState | null;
@@ -233,6 +246,17 @@ export const useGame = create<GameStore>((set, get) => ({
   run: BOOT_SAVE?.run ?? createRun(randomSeed()),
   savedRun: BOOT_SAVE?.run ?? null,
   lastRunBoards: 0,
+  profile: loadProfile(),
+  lastRating: null,
+  // Reset the local career (rating + match history) to a fresh start. Doesn't touch the in-progress run,
+  // captured boards, or the shared backend (those are separate resets). The Career reads history fresh on
+  // open, so wiping the store fields + localStorage is enough.
+  careerVersion: 0,
+  resetCareer: () => {
+    clearProfile();
+    clearRunHistory();
+    set((s) => ({ profile: initialProfile(), lastRating: null, careerVersion: s.careerVersion + 1 }));
+  },
   // Resuming a run starts the turn with the clock ALREADY expired (you can End Turn / reorder, but not shop),
   // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat
   // resume is unaffected; the next recruit turn (wave change) gets its full timer back via Recruit's reset.
@@ -306,7 +330,12 @@ export const useGame = create<GameStore>((set, get) => ({
           // combat-flow transitions, which fire ~once/round regardless of how you build.
           const apt = Math.round((actions.filter(isPlayerAction).length / Math.max(1, next.wave)) * 10) / 10;
           const cardsPlayed = actions.filter((a) => a.type === 'play').length;
-          saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed }));
+          // Rating (career): grade this scored run against its Line and update the persisted profile. Pure
+          // math in @game/sim; the change is surfaced on the end screen (lastRating) + stamped into history.
+          const change = resolveRunRating(s.profile, { scoredWins: runRecord(next).wins, line: next.line, completed: won });
+          saveProfile(change.profile);
+          set({ profile: change.profile, lastRating: change });
+          saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change }));
           if (won) {
             void uploadVictory({
               heroId: next.heroId, author, wave: next.wave,
@@ -346,13 +375,14 @@ export const useGame = create<GameStore>((set, get) => ({
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
   pickHero: (heroId) =>
     set((s) => {
-      const run = createRun(randomSeed(), heroId, s.pendingMode);
+      // The run's par comes from the player's rating-derived Line (career skill pressure).
+      const run = createRun(randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []); // the new run is now the resumable save
       return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
     }),
   newRun: (seed, heroId) =>
     set((s) => {
-      const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode);
+      const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []);
       return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
     }),

@@ -38,6 +38,90 @@ these backwards (drag near-0, commit slow).
 (An `absolute: true` committed Flip was tried first and reverted — it didn't help and slid the board in from
 the right on card pickup. The real culprit was the CSS transition, above.)
 
+### fix: pin the combat HUD (Skip + speed slider) to the stage box
+
+The in-combat HUD (`.combathud` — the Skip button + replay-speed slider) was anchored to the raw window
+(`top: 146u; right: 16u`) instead of the letterboxed stage box, so with a fixed-resolution / non-16:9 window
+it drifted into the letterbox, out of line with every other pinned element. Now uses `top: calc(var(--bar-y)
++ 146u); right: calc(var(--bar-x) + 16u)` — the same stage-box anchor as `.gearbtn` / `.statusbar`. Verified
+live under a forced letterbox (bar-x = 238): the HUD's right edge measured 254px (= bar-x + 16), exactly
+matching the gear button (was 16px, 238px adrift).
+### feat: "Reset my career" control in Settings
+
+A **Career** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) with a two-tap-confirm **Reset my career**
+button (mirrors "Clear my boards") that wipes the **local** career — the persisted `ascent.profile` (rating +
+Line back to 0 / Line 7) and `ascent.history` (match history). New store action `resetCareer` calls
+`clearProfile` ([profileStore.ts](packages/ui/src/profileStore.ts)) + `clearRunHistory`
+([runHistory.ts](packages/ui/src/runHistory.ts)) and sets `profile: initialProfile()` / `lastRating: null`.
+Clearing `ascent.history` wipes **past games, insights, and per-hero stats in one go** — they're all derived
+from that log by `careerStats`, not stored separately. A `careerVersion` counter (bumped by `resetCareer`)
+keys the Career page's history read, so an **open** Career view drops its stale insights/hero rows immediately
+instead of only on reopen. Copy spells out the full scope ("wipes rating + past games + all stats").
+Deliberately scoped to local career only — it does **not** touch the in-progress run, captured boards (the
+separate "Clear my boards"), or the shared Supabase pool/leaderboard (those reset via SQL, admin-side; see the
+handoff notes). Verified: typecheck + lint clean; live — seeded a 3-run/2-hero history, opened Career (insights
++ hero rows populated), tapped reset → the open view fell to the empty state, hero rows + past games gone,
+`ascent.history`/`ascent.profile` removed, profile back to 0/Line 7.
+
+### tweak: new players start at rating 0 (Line 7), not 1200 (Line 9)
+
+`STARTING_RATING` 1200 → **0** in [playerRating.ts](packages/sim/src/playerRating.ts). By the existing bands
+(0–799 → Line 7) a fresh player now begins at the **bottom of the ladder — Line 7** — and climbs, instead of
+starting mid-tier. Only the *starting* rating changed; the band thresholds, delta table, and promotion/demotion
+buffer are untouched. Rating still floors at 0. Updated the `initialProfile` test (0 / Line 7) + the doc
+comments in playerRating.ts / profileStore.ts. Note: existing stored `ascent.profile`s keep their value — this
+only affects new/reset profiles. Verified: 456 tests green (incl. the updated starting-profile case), typecheck
++ lint + build clean; live — a fresh profile loads 0 / Line 7 and hero-select reads "Rating 0 · Line 7 · Cover 7
+wins · Strong 9+".
+### feat: settle on board1 as the game board; drop the board picker, keep the dimmer
+
+With the board aesthetics chosen, the multi-board selector (a testing aid) is retired: **board1** is now the
+single game board (`.app` + hero-select), and the **Board dimming** slider stays (still `--scrim`,
+default 15%). Removed `BOARD_OPTIONS` + the thumbnail-grid picker from [EscMenu.tsx](packages/ui/src/EscMenu.tsx)
+(the section is now just **Board** → the dimmer), the `board`/`--board-img` state + effect from
+[Game.tsx](packages/ui/src/Game.tsx), and the `.escboardpick`/`.escboardtile` styles. The `.app` and
+hero-select backgrounds point straight at `board1.webp`. Encoded `board1.webp` (1680w, q82, 104 KB) and
+deleted the now-orphaned `board4/5/7/8/9/10/11.webp` from `apps/web/public`. The stale `ascent-board`
+localStorage key is simply ignored. Verified: typecheck + lint + `build:web` clean; live — `.app` uses
+board1, Settings shows only the dimmer (15%), no thumbnails.
+
+### feat: rating system — rating-derived Line, run-end delta, Career/end-screen surfaces
+
+The career skill-pressure layer (handoff "Rating System") on top of the existing course/Line scaffolding
+(A1/A2). A run's **Line** (par) now comes from the player's **rating** instead of the static
+`CONFIG.defaultLine`, and finishing a scored run moves the rating by how the scored-win count compared to
+the Line, plus a summit bonus. Built local-first but structured so the eventual move to Supabase-backed
+accounts is a swap of the persistence layer, not a rewrite.
+
+- **Pure math in `@game/sim`** — new [playerRating.ts](packages/sim/src/playerRating.ts): `PlayerProfile`
+  (`rating`, `currentLine`, `highestRating`, `highestLine`, reserved `lineGrace?`), `lineForRating`,
+  `resolveLine` (promotion/demotion hysteresis — a 75-pt buffer so a player near a band edge doesn't yo-yo),
+  `lineRatingDelta` (the handoff table: +36/+30/+22/+14/+6/−8/−16/−24/−32), and `resolveRunRating(profile,
+  outcome)` returning the new profile + a breakdown. Deterministic + side-effect-free (no storage, no
+  `Math.random`), so the *same function* can run server-side later to re-verify a delta from the replay.
+- **Line from rating** — `createRun` takes an optional `line` (defaults to `CONFIG.defaultLine` for
+  tests/tools/boot); the store passes `profile.currentLine`. Starting rating **1200 → Line 9** reproduces
+  today's default exactly.
+- **Persistence seam** — new [profileStore.ts](packages/ui/src/profileStore.ts): one `ascent.profile`
+  localStorage object (maps 1:1 to a future `profiles` row), the single read/write point. Run history
+  (`RunHistoryEntry`, still `v:1`) gains optional `ratingBefore/After/Delta` + `lineDelta`.
+- **Store wiring** — `store.ts` loads the profile at boot, sets the run's Line from it, and on each scored
+  run's finish computes `resolveRunRating`, persists the profile, exposes `lastRating` for the end screen,
+  and stamps the rating fields into history. Practice stays unscored.
+- **UI surfaces** — end screen shows the rating delta + summit bonus + promo/demo tag and its copy is
+  standardized on **"Line"** ("PAR COVERED" → "LINE COVERED", verdicts read "Line 9 · Covered / Exceeded +2
+  / Missed −2"); Career replaces the "Unranked" placeholder with rating + Line + high-water marks (and shows
+  the rating on the empty state); hero-select telegraphs the run's Line ("Rating 1200 · Line 9 · Cover 9
+  wins · Strong 11+").
+- **Deliberately NOT touched:** matchmaking (stays wave/power-first — rating is expectation, not difficulty)
+  and the new-Line grace buffer (reserved field; a follow-up).
+- **Verified:** 456 tests green (incl. 15 new — the 5 handoff worked examples + band/hysteresis/floor cases),
+  typecheck + lint + `build:web` clean. Live (throwaway run, real save/profile backed up + restored): a fresh
+  profile loads 1200/Line 9; `run.line` = 9; an empty-board loss to round 5 graded 0 wins → `−32` → rating
+  1200→1168 with no demotion (held above the 1125 buffer) and the high-water mark held at 1200; end screen
+  rendered "LINE 9 · MISSED −9" + "RATING −32 · 1168"; the history entry carried the rating fields; the
+  hero-select + Career surfaces rendered the rating.
+
 ### feat: board-art selector + dimming slider in Settings
 
 A **Board Art** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) to compare the illustrated

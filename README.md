@@ -25,9 +25,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Board-art selector + dimming** — a **Board Art** section in Settings swaps the illustrated game-board
-  background (boards 4/5/7/8/9/10/11) and a **Board dimming** slider tunes the readability scrim, both
-  persisted per-browser. The board now defaults to **board8 at 15% dimming** (brighter, more vibrant art).
+- **Rating system** — your **Line** (the scored wins a run must cover) is now set by a persistent **rating**;
+  finishing a scored run moves the rating by how you did vs. the Line (+ a summit bonus), shown on the end
+  screen and Career. New players start at **1200 / Line 9**. Matchmaking is unaffected (rating is expectation,
+  not difficulty). Built local-first, structured for a later move to Supabase-backed accounts.
+- **Board art + dimming** — the game uses **board1** as its illustrated backdrop, with a **Board dimming**
+  slider in Settings to tune the readability scrim (default 15%, persisted per-browser). (The earlier
+  multi-board selector was a testing aid and has been retired now that the art is chosen.)
 - **Looping menu video** — the title screen plays a muted, looping ambience video behind the menu (falls
   back to the `homescreen.webp` still when absent or under reduced-motion).
 - **Career page redesign** — a stats bar (runs · best run · avg wins · win rate) over three columns: a

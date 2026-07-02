@@ -13,6 +13,8 @@ export function HeroSelect() {
   const choices = useGame((s) => s.heroChoices);
   const pickHero = useGame((s) => s.pickHero);
   const openTitle = useGame((s) => s.openTitle);
+  const mode = useGame((s) => s.pendingMode);
+  const profile = useGame((s) => s.profile);
   if (!choices) return null;
 
   return (
@@ -21,6 +23,15 @@ export function HeroSelect() {
       <div className="hsbox">
         <div className="eyebrow">Choose your champion</div>
         <h1 className="disp hstitle">THE ASCENT</h1>
+        {/* Run-start telegraph (ascent only): your rating-derived Line — the wins this run is expected to
+            cover. Practice is unscored, so it's hidden there. */}
+        {mode === 'ascent' && (
+          <div className="hsline" aria-label="Your Line for this run">
+            <span className="hsline-rat">Rating {profile.rating}</span>
+            <span className="hsline-line">Line {profile.currentLine}</span>
+            <span className="hsline-note">Cover {profile.currentLine} wins · Strong {profile.currentLine + 2}+</span>
+          </div>
+        )}
         {/* Naming yourself now lives on the home screen (the account chip). */}
         <div className="hsrow">
           {choices.map((id) => {

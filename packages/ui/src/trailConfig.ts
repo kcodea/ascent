@@ -9,12 +9,12 @@ export interface TrailConfig {
   emitSpacing: number;
   /** Wisp lifetime (ms). */
   lifeMs: number;
-  /** Band width as a fraction of the card's width (1 = full card width) — the wake is this wide at the card. */
-  width: number;
+  /** Wisp size — the sprite's starting scale. */
+  size: number;
   /** Base (wind) wisp peak alpha. */
   alpha: number;
-  /** Band depth (px) along the direction of travel — keep ≳ emitSpacing so bands overlap into a smooth wake. */
-  depth: number;
+  /** Streak elongation — X-axis stretch multiplier on the wisp texture. */
+  stretch: number;
   /** Lateral drift speed (px/s) — sideways wander that sells "displaced air". */
   drift: number;
   /** Gold (divine-shield) wisp peak alpha. */
@@ -25,12 +25,12 @@ export interface TrailConfig {
 
 const DEFAULTS: TrailConfig = {
   emitSpacing: 14,
-  lifeMs: 320,
-  width: 0.9,
-  alpha: 0.24,
-  depth: 22,
-  drift: 18,
-  goldAlpha: 0.4,
+  lifeMs: 300,
+  size: 1.0,
+  alpha: 0.3,
+  stretch: 1.0,
+  drift: 30,
+  goldAlpha: 0.45,
   sparkChance: 0.25,
 };
 
@@ -38,9 +38,9 @@ const DEFAULTS: TrailConfig = {
 export const TRAIL_RANGES: Record<keyof TrailConfig, [number, number, number]> = {
   emitSpacing: [4, 60, 1],
   lifeMs: [80, 900, 10],
-  width: [0.2, 1.6, 0.05],
+  size: [0.3, 2.5, 0.05],
   alpha: [0.05, 1, 0.01],
-  depth: [4, 80, 2],
+  stretch: [0.5, 3, 0.05],
   drift: [0, 120, 2],
   goldAlpha: [0.05, 1, 0.01],
   sparkChance: [0, 1, 0.05],

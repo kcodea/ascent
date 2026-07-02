@@ -1151,7 +1151,7 @@ export function Recruit() {
         const tdx = cx - trailLast.x;
         const tdy = cy - trailLast.y;
         if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {
-          pixiFx.trail(cx, cy, tdx, tdy, dNow.view.keywords.includes('DS'), dNow.w);
+          pixiFx.trail(cx, cy, tdx, tdy, dNow.view.keywords.includes('DS'));
           trailLast = { x: cx, y: cy };
         }
       } else {

@@ -11,9 +11,9 @@ import { useDraggablePanel } from './useDraggablePanel';
 const LABELS: Record<keyof TrailConfig, string> = {
   emitSpacing: 'emit spacing px',
   lifeMs: 'wisp life ms',
-  width: 'band width (×card)',
+  size: 'wisp size',
   alpha: 'wind alpha',
-  depth: 'band depth px',
+  stretch: 'streak stretch',
   drift: 'lateral drift',
   goldAlpha: 'gold alpha',
   sparkChance: 'gold sparks',

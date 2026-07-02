@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: hand-play neighbour jump on a fast "land far over" drop — manual FLIP
+
+The instant snap on a hand-play commit teleported a neighbour when the release point outran the live preview:
+the drop index uses the release `cx`, but the last render's gap used the rAF-throttled `drag.x` (up to a frame
+behind), so on a fast left→right "land it far over" the preview hadn't opened the gap where the card actually
+landed — the row snapped the difference on commit. Now the commit does a MANUAL FLIP: `onUp` snapshots the
+board cards' live left-edges the instant before the row reflows (`handFlipRef`), and the FLIP `useLayoutEffect`
+glides each existing neighbour from its captured spot to its final slot (`gsap.fromTo({x:delta},{x:0})`). The
+freshly played card is skipped (it pops in via CSS — a full `Flip.from` would fight the entering element and
+jolt the row). Cards already home (delta < 0.5) just restore their base transition; the base
+`.card transition: transform 0.12s` is killed for the commit so the reset never rebounds. Typecheck + lint +
+build:web green.
+
 ### fix: reorder swap asymmetry — measure neighbours at their shifted spots
 
 Reordering a warband/shop card felt lopsided: dragging one aside needed ~50% of a neighbour's width to open

@@ -770,6 +770,10 @@ export function Recruit() {
   // fights the reflow (siblings close, then the new card shoves them back open = a jolt). The neighbours are
   // already parted to their final spots by the drag, so we let the card just pop in (CSS `popin`) and hold.
   const handPlaySnapRef = useRef(false);
+  // Neighbours' visual left-edges captured at the instant of a hand-play drop (before the row reflows), so the
+  // commit can FLIP each one from exactly where it sat to its final slot — no teleport if the release point
+  // outran the rAF-throttled live preview (the "land it far over and a card jumps" bug).
+  const handFlipRef = useRef<Map<string, number> | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
@@ -1136,6 +1140,17 @@ export function Recruit() {
       // A board minion released anywhere above the warband sells (the whole upper screen); a shop card
       // released anywhere below the warband line buys (the whole lower screen).
       const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAt(e.clientX, e.clientY);
+      // Snapshot the board cards' live positions BEFORE the row reflows (and before body.dragging removal snaps
+      // their transforms) so a hand-play commit can FLIP each neighbour from where it actually sits to its final
+      // slot — no jump when a fast "land it far over" release outran the throttled preview.
+      if (d.source === 'hand' && !d.view.spell && zone === 'warband') {
+        const m = new Map<string, number>();
+        document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]').forEach((el) => {
+          const uid = el.dataset.uid;
+          if (uid) m.set(uid, el.getBoundingClientRect().left);
+        });
+        handFlipRef.current = m;
+      }
       document.body.classList.remove('dragging'); // cursor reverts on release
 
       // Magnetic merge: a Magnetic minion dropped onto a friendly minion sharing one of its tribes
@@ -1675,17 +1690,32 @@ export function Recruit() {
         // whole drag (body.dragging rule in styles.css) so GSAP's transform animation isn't masked.
         Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
       } else if (handPlaySnapRef.current) {
-        // A hand card just landed. Its neighbours already slid to their final spots during the drag, and the
-        // new card pops in via CSS — running GSAP here would fight the entering element and jolt the row. So we
-        // snap. BUT the base `.card { transition: transform 0.12s }` (now that body.dragging is off) would
-        // animate the neighbours' slideDir→0 reset while the row has already reflowed — snapping them a slot
-        // left then gliding back (the "rebound"). Kill the transition for this one commit so the reset is
-        // instant: they're already exactly where they belong, so nothing should move.
+        // A hand card just landed. We do a MANUAL FLIP on the existing board cards only (never a full
+        // Flip.from — the freshly played card is an entering element and GSAP Flip would fight the reflow and
+        // jolt the row; it pops in via CSS instead). First kill the base `.card { transition: transform 0.12s }`
+        // so the slideDir→0 reset is instant (else it animates the reset over the reflow = a rebound). Then, for
+        // any neighbour whose real pre-commit spot (captured at drop) differs from its final slot — i.e. the
+        // release outran the throttled preview — glide it from there to home so it settles instead of jumping.
         handPlaySnapRef.current = false;
-        const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        const rects = handFlipRef.current;
+        handFlipRef.current = null;
+        const targets = gsap.utils.toArray<HTMLElement>('[data-zone="warband"] .row .card[data-uid]');
         gsap.set(targets, { transition: 'none' });
-        void document.body.offsetWidth; // force reflow so transform:0 locks in with no transition
-        gsap.set(targets, { clearProps: 'transition' });
+        void document.body.offsetWidth; // reflow so transform:0 is the instant baseline (no rebound)
+        for (const el of targets) {
+          const uid = el.dataset.uid;
+          const old = uid ? rects?.get(uid) : undefined;
+          const delta = old === undefined ? 0 : old - el.getBoundingClientRect().left;
+          if (Math.abs(delta) < 0.5) {
+            el.style.transition = ''; // static card (or the new one) — restore its base transition
+            continue;
+          }
+          gsap.fromTo(
+            el,
+            { x: delta },
+            { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
+          );
+        }
       } else if (flipCfg.commitMs > 0) {
         // A COMMITTED move with NO drag (a summoned token, an effect repositioning) — opt-in via commitMs > 0.
         // After a drag-DROP the cards already slid into place during the drag, so the default (commitMs 0) snaps

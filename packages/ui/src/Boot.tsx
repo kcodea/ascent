@@ -7,15 +7,13 @@ import { preloadAllArt, ART_COUNT } from './art';
  * never renders a card before its illustration is ready — no pop-in (the owner would rather wait a beat at boot
  * than see art appear late in the shop). Children (the actual <Game/>) don't mount until art is ready, so no
  * card can render early. A hard cap resolves the gate anyway if preloading stalls (offline / a broken CDN), so
- * boot can never hang. A `sessionStorage` flag skips the wait on in-session reloads (art is already HTTP-cached).
+ * boot can never hang. The loader runs on EVERY load (no skip flag) — cheap when art is already HTTP-cached
+ * (onload fires instantly), and it always re-verifies art is ready before a card can render.
  */
-const SKIP_KEY = 'ascent.artWarmed';
 const HARD_CAP_MS = 20000;
 
 export function Boot({ children }: { children: ReactNode }): React.ReactElement {
-  const [ready, setReady] = useState<boolean>(() => {
-    try { return sessionStorage.getItem(SKIP_KEY) === '1' || ART_COUNT === 0; } catch { return ART_COUNT === 0; }
-  });
+  const [ready, setReady] = useState<boolean>(() => ART_COUNT === 0);
   const [pct, setPct] = useState(0);
 
   useEffect(() => {
@@ -26,7 +24,6 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     let alive = true;
     const finish = (): void => {
       if (!alive) return;
-      try { sessionStorage.setItem(SKIP_KEY, '1'); } catch { /* ignore */ }
       setReady(true);
     };
     const cap = window.setTimeout(finish, HARD_CAP_MS); // never hang the boot

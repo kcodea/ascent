@@ -5,6 +5,49 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: reposition slide — let the DROP settle animate (video-frame diagnosis)
+
+Extracting frames from an owner screen-recording (portable ffmpeg via `ffmpeg-static`) finally made it
+observable: on a quick drag the insertion gap only changes at the moment of DROP, so the whole reorder lands
+on the commit — and `commitMs` was 0 (instant), so it snapped (a neighbour jumped index 0→1 in one 33 ms
+frame). Set `commitMs` 0 → 200 so the drop settle slides. GSAP Flip only animates cards not already in place,
+so a slow drag that already slid pre-emptively won't double-animate. Bumped the localStorage key to
+`ascent.flip.v3` so the stale `commitMs: 0` is discarded. (The remount fix below is what lets the commit Flip
+actually move the cards rather than pop them.)
+
+### fix: THE reposition-slide root cause — drop-slot toggle was remounting cards
+
+The real bug behind "cards don't pre-emptively slide, they pop." In the warband/shop maps the drop-slot was
+rendered as an UNKEYED positional sibling inside each card's `<Fragment>`: `{gap === i && <span/>}<Card/>`.
+When the slot appeared/disappeared at a card's index, React reconciled the Fragment's children by position, so
+the `<Card>` went from child-0 to child-1 → **unmount + remount**. A remounted card is a new DOM node, so GSAP
+Flip saw it *entering* (a scale+vertical pop) instead of *moving* (a horizontal slide) — and the remount also
+replayed the `.popin` animation. A DEV transform probe nailed it: during a drag the cards showed
+`matrix(0.96…, 0, 8)` (scale + translateY) with the **horizontal translate always 0** — i.e. never sliding
+sideways. Fix: key the Fragment's inner children (`key="slot"` / `key="card"`) so the Card is matched across
+the slot toggle and never remounts → GSAP Flip now animates it as a horizontal move. (Kept the
+`body.dragging` transition-off so the CSS transform-transition doesn't re-mask GSAP's slide.)
+
+**Root cause found.** `.card` carries `transition: transform 0.12s` (for hover/buff eases), but GSAP Flip
+animates the reposition slide VIA `transform` — so the CSS transition re-smoothed every frame GSAP set and
+fought the slide into looking like an instant snap. (A DEV probe confirmed it: the committed Flip *was* firing
+with `moved: 2` tweens over the tuned duration, yet nothing visibly moved.) Fix, two paths:
+- **Live drag** (cards preemptively sliding aside to open the drop gap): the flip re-fires every frame, so a
+  per-frame JS transition toggle thrashed every card. Instead, kill the transition for the WHOLE drag via one
+  CSS rule (`body.dragging .zone[warband/tavern] .card { transition: none }`) — restored on release.
+- **Committed one-shot** (play / sell / summon / auto-reposition, no drag): `gsap.set(targets, { transition:
+  'none' })` for the slide, restored on complete/interrupt.
+
+The slide is the PRE-EMPTIVE one you watch while dragging (the row opening the drop slot); after the drop the
+cards are already in place, so the committed settle now defaults to **instant**. Durations live in
+`flipConfig.ts`: `dragMs` (the drag-across preview slide, default 180) + `commitMs` (post-commit settle, default
+**0 = off**; a non-drag summon/effect can opt into a slide by raising it). `FlipTuner.tsx` (the 🔀 button)
+exposes both. The localStorage key was bumped to `ascent.flip.v2` to discard earlier hand-tuned values that had
+these backwards (drag near-0, commit slow).
+
+(An `absolute: true` committed Flip was tried first and reverted — it didn't help and slid the board in from
+the right on card pickup. The real culprit was the CSS transition, above.)
+
 ### fix: pin the combat HUD (Skip + speed slider) to the stage box
 
 The in-combat HUD (`.combathud` — the Skip button + replay-speed slider) was anchored to the raw window

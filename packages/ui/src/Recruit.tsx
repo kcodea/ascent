@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { pixiFx, discoverFx, tauntFx } from './pixiFx';
 import { getDragFeel } from './dragFeel';
+import { getFlipConfig } from './flipConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -1569,13 +1570,29 @@ export function Recruit() {
   // transforms on complete and manages interruptions, so a fast drag blends rather than flinging cards.
   useLayoutEffect(() => {
     if (flipStateRef.current) {
-      // Two feels: while a drag is live, the warband cards slide aside under the cursor — a slightly-eased
-      // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
-      // settles snappy.
-      Flip.from(
-        flipStateRef.current,
-        dragRef.current?.active ? { duration: 0.25, ease: 'power2.out' } : { duration: 0.18, ease: 'power2.out' },
-      );
+      const flipCfg = getFlipConfig();
+      const dragging = dragRef.current?.active ?? false;
+      if (dragging) {
+        // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
+        // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
+        // whole drag (body.dragging rule in styles.css) so GSAP's transform animation isn't masked.
+        Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
+      } else if (flipCfg.commitMs > 0) {
+        // A COMMITTED move with NO drag (a summoned token, an effect repositioning) — opt-in via commitMs > 0.
+        // After a drag-DROP the cards already slid into place during the drag, so the default (commitMs 0) snaps
+        // here — no redundant post-commit slide. `.card`'s CSS transform-transition would fight GSAP, so kill it
+        // for this one-shot and restore after.
+        const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        gsap.set(targets, { transition: 'none' });
+        const restore = (): void => gsap.set(targets, { clearProps: 'transition' });
+        Flip.from(flipStateRef.current, {
+          duration: flipCfg.commitMs / 1000,
+          ease: 'power2.out',
+          onComplete: restore,
+          onInterrupt: restore,
+        });
+      }
+      // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);
@@ -1987,8 +2004,10 @@ export function Recruit() {
           <>
           {displayShop.map((o, i) => (
             <Fragment key={o.uid}>
-              {shopGapIndex === i && <span className="dropslot" aria-hidden="true" />}
+              {/* Keyed so the drop-slot toggle doesn't remount the Card (see the warband row for why). */}
+              {shopGapIndex === i && <span key="slot" className="dropslot" aria-hidden="true" />}
               <Card
+                key="card"
                 uid={o.uid}
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
@@ -2038,8 +2057,12 @@ export function Recruit() {
               )}
               {displayBoard.map((m, i) => (
                 <Fragment key={m.uid}>
-                  {gapIndex === i && <span className="dropslot" aria-hidden="true" />}
+                  {/* Keyed so toggling the drop-slot does NOT remount the Card (an unkeyed positional sibling
+                      change makes React unmount+remount the card → GSAP Flip sees a NEW element and pops it in
+                      instead of sliding it → the pre-emptive reorder slide never plays). */}
+                  {gapIndex === i && <span key="slot" className="dropslot" aria-hidden="true" />}
                   <Card
+                    key="card"
                     uid={m.uid}
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}

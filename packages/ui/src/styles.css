@@ -361,6 +361,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto; }
+/* During a drag the board/shop cards slide aside via GSAP Flip, which animates `transform`. The `.card`
+   `transition: transform` below would re-smooth every GSAP frame and mask the slide into looking like nothing
+   moved (confirmed via a DEV probe: the Flip fires with moved:2 over the tuned duration, yet no visible slide).
+   Kill the transition for the whole drag — `!important` so it beats the base rule — restored on release. */
+body.dragging .zone[data-zone='warband'] .card,
+body.dragging .zone[data-zone='tavern'] .card { transition: none !important; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }
@@ -1695,6 +1701,9 @@ svg { width: 18px; height: 18px; }
 .dragfeel-btn { position: fixed; right: calc(var(--bar-x) + 288px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.dragfeel .sfxmix-name { flex-basis: 120px; }
 .sfxmix.dragfeel .sfxmix-val { flex-basis: 46px; }
+/* DEV reposition-slide (Flip) tuner — sixth button in the bottom-right cluster. */
+.flip-btn { position: fixed; right: calc(var(--bar-x) + 336px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.sfxmix.flip .sfxmix-name { flex-basis: 100px; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
 .escvol .evl { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }

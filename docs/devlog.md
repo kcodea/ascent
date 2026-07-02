@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### feat(ui): blocking art preload at boot — no more sprite pop-in
+
+Card/hero art could still pop in a beat late: `warmArt` only warmed on idle (fire-and-forget), and each `<img>`
+still loaded on demand, so reaching the shop before an art file decoded showed a blank-then-fill. Per the
+owner's preference (wait up front, guarantee it), added a **boot loading screen** that blocks until every
+bundled art file (133 minions + 12 heroes + 12 powers = 157, ~8.6 MB) is fetched:
+- `art.ts` — new `preloadAllArt(onProgress)`: creates an `Image` per URL, resolves each on `onload` (the network
+  round-trip is the real pop-in cause; `decode()` runs in the background, best-effort, since it can stall in a
+  throttled tab). Per-image 12 s safety timeout; `ART_COUNT` exports the total.
+- `Boot.tsx` — a gate component wrapping `<Game/>` (in `main.tsx`): shows a themed `ASCENT` + progress-bar
+  loader until preload resolves, with a 20 s hard cap so boot can never hang, and a `sessionStorage` skip so
+  in-session reloads don't re-wait. Children (Game) don't mount until art is ready, so no card renders early.
+- Gotcha fixed: a `startedRef` guard deadlocked under StrictMode (run 1's cleanup flips `alive=false`; the guard
+  blocked run 2 from re-wiring state) — dropped it; the second pass is harmless (art already HTTP-cached).
+- Verified in a real browser tab: loader renders + gates, `onload` fires (0 ms cached), then hands off to the
+  game (`artWarmed` set); 342 art requests all 200/304, no 404s. Typecheck + lint + 460 tests + build green.
+
 ### feat(ui): new play backdrops — board2b (16:9 default) + board2 (21:9), aspect-switched
 
 Replaced the `board1` backdrop with two new boards, picked by the stage's aspect. Converted both masters with

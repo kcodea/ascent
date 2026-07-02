@@ -111,3 +111,42 @@ export function warmArt(): void {
   if (typeof ric === 'function') ric(run);
   else setTimeout(run, 200);
 }
+
+/** Total number of bundled art files (minions + heroes + powers) — the denominator for a boot progress bar. */
+export const ART_COUNT = ALL_ART_URLS.length;
+
+/**
+ * BLOCKING preload: fetch AND decode every bundled art file, resolving only once they're all cached (or have
+ * individually failed / timed out). Unlike `warmArt` (fire-and-forget on idle), this is meant to gate a boot
+ * loading screen so the game never renders a card before its art is decoded — no pop-in, guaranteed. Each image
+ * has its own hard timeout so one stuck request can't hang the whole boot, and `onProgress(loaded, total)` fires
+ * as each settles. Marks the warm-up done so a later `warmArt()` no-ops.
+ */
+export function preloadAllArt(onProgress?: (loaded: number, total: number) => void): Promise<void> {
+  if (typeof Image === 'undefined') return Promise.resolve();
+  warmed = true;
+  const urls = ALL_ART_URLS;
+  const total = urls.length;
+  let loaded = 0;
+  const one = (url: string): Promise<void> =>
+    new Promise<void>((resolve) => {
+      let settled = false;
+      const done = (): void => {
+        if (settled) return;
+        settled = true;
+        loaded += 1;
+        onProgress?.(loaded, total);
+        resolve();
+      };
+      const img = new Image();
+      img.decoding = 'async';
+      // Resolve as soon as the bytes are cached (`onload`) — the network round-trip is what causes the pop-in.
+      // Kick `decode()` in the background too (best-effort) so first paint is instant, but never GATE on it:
+      // `decode()` can stall in a backgrounded/throttled tab, and onload is the reliable signal.
+      img.onload = (): void => { void img.decode?.().catch(() => {}); done(); };
+      img.onerror = done; // a missing/broken file shouldn't block the boot
+      img.src = url;
+      window.setTimeout(done, 12000); // safety: never hang on a stuck fetch
+    });
+  return Promise.all(urls.map(one)).then(() => undefined);
+}

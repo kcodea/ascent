@@ -712,21 +712,29 @@ class FxController {
   }
 
   /**
-   * One step of a motion trail behind a moving card — a wind-whoosh wisp left at (x, y), oriented along
-   * the movement vector (dx, dy). Callers distance-gate on `getTrailConfig().emitSpacing` (the drag rAF
-   * handler + the combat lunge's onUpdate), so emission density tracks speed — no movement, no trail.
-   * `gold` = the card has Divine Shield → the glassy gold variant (replaces, never layers on, the wind).
+   * One step of a motion trail behind a moving card — a soft, card-WIDTH "wind wake" band left at (x, y).
+   * The feathered wisp texture is laid ACROSS the direction of travel (dx, dy) and sized to the card's width
+   * (`cardW` × the `width` dial), so it reads as a broad plume rather than a thin line. Each band shrinks over
+   * its life, so the freshest bands (nearest the card) stay widest while older ones recede and taper to a point
+   * — a comet-tail wake. Callers distance-gate on `getTrailConfig().emitSpacing` (the drag rAF handler + the
+   * combat lunge's onUpdate), so density tracks speed. `gold` = Divine Shield → the glassy gold variant.
    */
-  trail(x: number, y: number, dx: number, dy: number, gold: boolean): void {
+  trail(x: number, y: number, dx: number, dy: number, gold: boolean, cardW = 140): void {
     if (!this.ready) return;
     const c = getTrailConfig();
     const len = Math.hypot(dx, dy) || 1;
     const ux = dx / len;
     const uy = dy / len;
-    const angle = Math.atan2(uy, ux) + (Math.random() - 0.5) * 0.16;
+    // lay the streak ACROSS motion (+90°) so its long feathered axis spans the card's width as a soft band
+    const across = Math.atan2(uy, ux) + Math.PI / 2 + (Math.random() - 0.5) * 0.1;
     // left behind the card: a touch of backward velocity + lateral drift (displaced air swirling off)
     const back = 30 + Math.random() * 40;
     const side = (Math.random() - 0.5) * 2 * c.drift;
+    // wisp texture half-extents: long(X)=26, short(Y)=5. fromScale drives the along-travel DEPTH (short axis);
+    // stretchX widens the long axis to ≈ cardW × width. Both shrink fromScale→toScale over life → the taper.
+    const fromScale = (c.depth / 10) * (0.85 + Math.random() * 0.3);
+    const widthPx = cardW * c.width * (0.9 + Math.random() * 0.2);
+    const stretchX = widthPx / (52 * fromScale);
     this.spawn(this.wispTex!, {
       x: x - ux * 8 + (Math.random() - 0.5) * 6,
       y: y - uy * 8 + (Math.random() - 0.5) * 6,
@@ -734,11 +742,11 @@ class FxController {
       vy: -uy * back + ux * side,
       drag: 0.3, // the whoosh settles quickly
       life: c.lifeMs * (0.8 + Math.random() * 0.4),
-      fromScale: c.size * (0.85 + Math.random() * 0.3),
+      fromScale,
       toScale: 0.05,
       spin: 0,
-      rotation: angle,
-      stretchX: c.stretch,
+      rotation: across,
+      stretchX,
       tint: gold ? 0xffe9a8 : 0xf5efe0,
       blend: gold ? 'add' : 'normal',
       peakAlpha: (gold ? c.goldAlpha : c.alpha) * (0.85 + Math.random() * 0.3),

@@ -229,7 +229,7 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
         const tdx = cx - trailLast.x;
         const tdy = cy - trailLast.y;
         if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {
-          pixiFx.trail(cx, cy, tdx, tdy, gold);
+          pixiFx.trail(cx, cy, tdx, tdy, gold, rest.width);
           trailLast = { x: cx, y: cy };
         }
       },

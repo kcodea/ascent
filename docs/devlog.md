@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### tweak(ui): widen the motion trail into a card-width tapering wake
+
+Follow-up feel tweak on the open PR (#146). The first cut read as a thin pencil-stroke line because the
+feathered wisp texture was rotated so its **long** axis pointed *along* the drag direction. Reoriented each
+wisp 90° so the long feathered axis lies **across** the motion, and sized that width from the card's actual
+width — so the band is ~card-wide right behind the card. Because each band still shrinks over its life (fresh
+bands near the card stay widest, older ones recede and shrink toward a point), the overall trail now reads as
+a comet-tail wake: wide at the card, tapering to nothing behind. `trail()` gained a `cardW` argument (drag
+passes the drag-state card width, combat passes the up-front lunge rect width). The two tuner dials changed
+to match: `size`→**`width`** (fraction of card width) and `stretch`→**`depth`** (band thickness along travel,
+kept ≳ `emitSpacing` so consecutive bands overlap smoothly); companion default nudges (`alpha` 0.3→0.24 since
+the wider band covers more pixels, `drift` 30→18, `lifeMs` 300→320). All live-tunable in the DEV Trail panel.
+Verified: `typecheck` + `lint` + `test` (460) + `build:web` all green; visual feel left for eyeball/tuning in
+the running app (the trail is dynamic particle motion, not a static screenshot check).
+
 ### feat(ui): card motion trails (wind + divine-shield gold) + Dev Tuning Menu
 
 Two threads landed together — a UI-only motion-feedback pass and a dev-tooling cleanup — spanning 6

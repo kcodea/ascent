@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **New play backdrop** — the in-game board art is now **board2** (a bright castle-in-the-clouds vista),
+  shipped as an optimized 54 KB WebP.
 - **Reorder-slide fix** — dragging a card to a new slot (warband **or** shop) no longer replays the swap after
   you drop it; the card settles in place while its neighbours glide, on both slow drags and quick flicks.
 - **Rating system** — your **Line** (the scored wins a run must cover) is now set by a persistent **rating**;

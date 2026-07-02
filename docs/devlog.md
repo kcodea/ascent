@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### feat(ui): swap the in-game backdrop to board2
+
+Wired the new board art as the play-screen backdrop. Converted the master
+`C:\Game Assets\Ascent Art\Game Boards\board 2.png` (1933×814, 1.3 MB) → `apps/web/public/board2.webp`
+(1680×707, 54 KB) with sharp (resize to 1680 wide, WebP quality 82) — matching board1's treatment/size.
+Pointed the `.app` background at `/board2.webp` (was `/board1.webp`) in `styles.css`. `board1.webp` is left in
+public but is now unreferenced. Verified live: `/board2.webp` serves 200 (54 KB), the `.app` computed
+background resolves to board2, and the scene renders on the title/play screen.
+
 ### fix(ui): reposition slide no longer replays the dragged card's move on drop
 
 **Symptom.** Dragging a card to a new slot and dropping it — in **both** the warband and the shop — replayed

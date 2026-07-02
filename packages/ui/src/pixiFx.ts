@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
 import { getTauntConfig } from './tauntConfig';
+import { getSmokeConfig } from './smokeConfig';
 import { getTrailConfig } from './trailConfig';
 
 /**
@@ -585,10 +586,11 @@ class FxController {
     // Smoke — a few soft warm-grey puffs that rise, expand, and fade. Normal blend + low peak alpha
     // so they tint the cream board like a wisp rather than blasting it; slow + long-lived so they
     // linger after the sparks have burned out.
-    const puffs = 4;
+    const sm = getSmokeConfig(); // live-tunable (DEV Smoke tuner); defaults reproduce the original look
+    const puffs = Math.round(sm.smokeCount);
     for (let i = 0; i < puffs; i++) {
-      const driftX = (Math.random() - 0.5) * 90; // gentle horizontal spread
-      const rise = -40 - Math.random() * 70;      // drift upward
+      const driftX = (Math.random() - 0.5) * sm.smokeDrift; // gentle horizontal spread
+      const rise = -sm.smokeRise * (0.53 + Math.random() * 0.93); // drift upward, varied
       const grey = Math.random() < 0.5 ? 0x9c9088 : 0x847a70; // warm smoke greys
       this.spawn(this.glowTex!, {
         x: x + (Math.random() - 0.5) * 22,
@@ -596,13 +598,13 @@ class FxController {
         vx: driftX,
         vy: rise,
         drag: 0.5,                 // slows as it billows
-        life: 620 + Math.random() * 480,
+        life: sm.smokeLife * (1 + Math.random() * 0.77),
         fromScale: 0.4 + Math.random() * 0.3,
-        toScale: 1.7 + Math.random() * 0.8, // expands as it dissipates
+        toScale: sm.smokeGrow * (0.81 + Math.random() * 0.38), // expands as it dissipates
         spin: (Math.random() - 0.5) * 1.5,
         tint: grey,
         blend: 'normal',
-        peakAlpha: 0.28 + Math.random() * 0.12, // wispy, semi-transparent
+        peakAlpha: sm.smokeAlpha * (0.82 + Math.random() * 0.35), // wispy, semi-transparent
       });
     }
   }
@@ -647,9 +649,10 @@ class FxController {
    */
   dust(cx: number, cy: number, w: number, h: number, scale = 1, density = 1): void {
     if (!this.ready) return;
+    const sm = getSmokeConfig(); // live-tunable (DEV Smoke tuner); defaults reproduce the original look
     const halfW = w * 0.5 * scale;
     const halfH = h * 0.5 * scale;
-    const puffs = Math.max(1, Math.round(12 * density));
+    const puffs = Math.max(1, Math.round(sm.dustCount * density));
     for (let i = 0; i < puffs; i++) {
       const ang = (i / puffs) * Math.PI * 2 + (Math.random() - 0.5) * 0.4; // around the ring
       const dx = Math.cos(ang);
@@ -658,7 +661,7 @@ class FxController {
       const edge = 1 / Math.max(Math.abs(dx) / halfW, Math.abs(dy) / halfH);
       const ex = cx + dx * edge;
       const ey = cy + dy * edge;
-      const speed = 50 + Math.random() * 120;
+      const speed = sm.dustSpeed * (0.42 + Math.random());
       const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans
       this.spawn(this.glowTex!, {
         x: ex + (Math.random() - 0.5) * 8,
@@ -667,13 +670,13 @@ class FxController {
         vy: dy * speed * 0.45 - (4 + Math.random() * 14), // vertical damped + a slight lift → stays flat
         drag: 0.2,                                         // dust slows quickly
         gravity: 130,                                      // gentle settle — no rising column
-        life: 380 + Math.random() * 260,
+        life: sm.dustLife * (1 + Math.random() * 0.68),
         fromScale: (0.3 + Math.random() * 0.2) * scale,
-        toScale: (0.9 + Math.random() * 0.5) * scale,      // billow as it dissipates
+        toScale: sm.dustGrow * (0.75 + Math.random() * 0.42) * scale, // billow as it dissipates
         spin: (Math.random() - 0.5) * 1.2,
         tint: tan,
         blend: 'normal',
-        peakAlpha: 0.25 + Math.random() * 0.15,            // +25% more apparent (was 0.2 + r*0.12), same size
+        peakAlpha: sm.dustAlpha * (0.78 + Math.random() * 0.47),
       });
     }
   }

@@ -6,6 +6,7 @@ import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
 import { TrailTuner } from './TrailTuner';
+import { SmokeTuner } from './SmokeTuner';
 import { pixiFx } from './pixiFx';
 
 /**
@@ -22,6 +23,7 @@ const TUNERS = [
   { key: 'flip', label: '🔀 Reposition', C: FlipTuner },
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },
   { key: 'trail', label: '💨 Trail', C: TrailTuner },
+  { key: 'smoke', label: '🌫️ Smoke & Dust', C: SmokeTuner },
 ] as const;
 
 export function DevMenu() {

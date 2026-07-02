@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: reposition slide FINALLY works — deterministic CSS-transform gap (GSAP Flip abandoned)
+
+Confirmed via live in-browser transform sampling (focused tab so rAF runs): GSAP Flip applied **no transform
+at all** during a warband drag — the neighbour card jumped 753→941 px in one frame with transform identity the
+whole time (pure flex snap). GSAP Flip simply doesn't animate the reorder in this app. Replaced it (for the
+warband) with a deterministic approach: the drop slot is gone; instead each card gets a `slideDir` (−1/0/+1)
+that shifts it half a slot left/right of the gap via `transform: translateX(calc((var(--ccw)+22px)*dir/2))`,
+and a `body.dragging` CSS `transition: transform 0.28s cubic-bezier(0.16,1,0.3,1)` (ease-out) glides it as the
+gap moves. Half-slot each side keeps the row centred AND matches the final drop position, so on release
+(`body.dragging` drops → transition off) the transform resets instantly with no post-drop jump. Live sampling
+confirmed bA's translateX ramps 0→~94 with decelerating steps (the requested fast-then-settle glide).
+
 ### fix: reposition slide — let the DROP settle animate (video-frame diagnosis)
 
 Extracting frames from an owner screen-recording (portable ffmpeg via `ffmpeg-static`) finally made it

@@ -361,12 +361,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto; }
-/* During a drag the board/shop cards slide aside via GSAP Flip, which animates `transform`. The `.card`
-   `transition: transform` below would re-smooth every GSAP frame and mask the slide into looking like nothing
-   moved (confirmed via a DEV probe: the Flip fires with moved:2 over the tuned duration, yet no visible slide).
-   Kill the transition for the whole drag — `!important` so it beats the base rule — restored on release. */
+/* The PRE-EMPTIVE reorder slide. During a drag, the board/shop cards open the drop slot via an inline
+   `transform: translateX(±half-slot)` (Card's `slideDir`, set from the live gap index). This ease-out
+   transition glides that transform as the gap moves — fast then settling — the "make room" animation.
+   `!important` beats the base 0.12s rule. On release `body.dragging` drops, so the transform resets INSTANTLY
+   (no transition) exactly as the card commits to its final slot — no post-drop jump. */
 body.dragging .zone[data-zone='warband'] .card,
-body.dragging .zone[data-zone='tavern'] .card { transition: none !important; }
+body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }

@@ -2057,13 +2057,12 @@ export function Recruit() {
               )}
               {displayBoard.map((m, i) => (
                 <Fragment key={m.uid}>
-                  {/* Keyed so toggling the drop-slot does NOT remount the Card (an unkeyed positional sibling
-                      change makes React unmount+remount the card → GSAP Flip sees a NEW element and pops it in
-                      instead of sliding it → the pre-emptive reorder slide never plays). */}
-                  {gapIndex === i && <span key="slot" className="dropslot" aria-hidden="true" />}
+                  {/* No drop-slot element: the gap is opened by shifting the cards themselves via `slideDir`
+                      (cards before the gap go half a slot left, cards at/after go half right). A CSS transition
+                      glides that shift as the gap moves — the pre-emptive "make room" slide. */}
                   <Card
-                    key="card"
                     uid={m.uid}
+                    slideDir={gapIndex < 0 ? 0 : (i < gapIndex ? -1 : 1)}
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}
                     dragging={!!drag?.active}
@@ -2084,7 +2083,6 @@ export function Recruit() {
                   />
                 </Fragment>
               ))}
-              {gapIndex >= displayBoard.length && <span className="dropslot" aria-hidden="true" />}
             </>
           )}
         </div>

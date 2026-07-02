@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: collapse over-shift (buy/sell) + hand-play rebound
+
+Two follow-ups to the vertical-lift collapse:
+- **Over-shift.** The collapse shifted survivors a FULL slot (`-1`) toward the lifted card's old spot. But
+  removing a card takes the row N → N-1 and RE-CENTERS it, so each survivor should move only a HALF slot toward
+  centre: cards before the lifted one `+0.5`, cards after `-0.5` (the exact mirror of a hand-play insert).
+  Applied to both `boardSlide` and `shopSlide`. (Confirmed the slot unit is right: recruit cards are
+  `.card.compact` → width `--ccw`, so the transforms' `--ccw + 22px` really is one slot.) Also added
+  `collapsedLift` to `flipKey` so the GSAP buy/sell commit captures the collapsed layout instead of a stale
+  pre-collapse one.
+- **Place rebound.** After a hand card lands we snap the FLIP commit (no GSAP), but the base
+  `.card { transition: transform 0.12s }` (active once `body.dragging` is off) still animated the neighbours'
+  `slideDir → 0` reset while the row had already reflowed — snapping them a slot left then gliding back. Kill the
+  transition for that one commit (`transition:none` → force reflow → restore) so the reset is instant: the
+  neighbours are already exactly where they belong, so nothing moves. Typecheck + lint green.
+
 ### fix: hand-play jolt — snap the FLIP commit when a card lands (no GSAP thrash)
 
 Placing a card from hand jolted: the row would quickly close then reopen as it made space. Cause — a played

@@ -1575,9 +1575,12 @@ export function Recruit() {
   const boardSlide = (i: number): number => {
     if (draggingBoard) {
       if (gapIndex < 0) {
-        // Not reordering within the warband. Once lifted vertically clear of the row, close the gap:
-        // every card after the lifted one slides in a slot to fill its spot.
-        if (collapsedLift && draggedBoardIdx >= 0) return i > draggedBoardIdx ? -1 : 0;
+        // Not reordering within the warband. Once lifted vertically clear of the row, close the gap. The row
+        // loses a card (N → N-1) and RE-CENTERS, so every survivor moves a HALF slot toward centre — cards
+        // before the lifted one shift right (+0.5), cards after shift left (-0.5). (The mirror of a hand-play
+        // insert.) A full-slot shift would fling them all the way to the lifted card's spot — the reported bug.
+        if (collapsedLift && draggedBoardIdx >= 0)
+          return i === draggedBoardIdx ? 0 : i < draggedBoardIdx ? 0.5 : -0.5;
         return 0;
       }
       // Reordering an existing minion: the dragged card holds its slot (invisible). Every OTHER card shifts by
@@ -1594,8 +1597,11 @@ export function Recruit() {
   const shopSlide = (i: number): number => {
     if (!draggingShop) return 0;
     if (shopGapIndex < 0) {
-      // Buying: dragged up/down out of the shop far enough — close the gap the offer leaves behind.
-      if (collapsedLift && draggedShopIdx >= 0) return i > draggedShopIdx ? -1 : 0;
+      // Buying: dragged up/down out of the shop far enough — close the gap the offer leaves behind. Same as the
+      // warband: the row loses a card and re-centres, so survivors move a HALF slot toward centre (+0.5 before,
+      // -0.5 after), not a full slot to the bought card's old spot.
+      if (collapsedLift && draggedShopIdx >= 0)
+        return i === draggedShopIdx ? 0 : i < draggedShopIdx ? 0.5 : -0.5;
       return 0;
     }
     if (i === draggedShopIdx) return 0;
@@ -1608,7 +1614,7 @@ export function Recruit() {
   // hand-rolled FLIP did (which is why that one had to be limited to discrete changes).
   const flipKey =
     displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
-    displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
+    displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
 
   // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* run (the
   // cards' old spots); after React commits the new order, `Flip.from` animates each card from there to its
@@ -1626,8 +1632,16 @@ export function Recruit() {
         Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
       } else if (handPlaySnapRef.current) {
         // A hand card just landed. Its neighbours already slid to their final spots during the drag, and the
-        // new card pops in via CSS — running GSAP here would fight the entering element and jolt the row. Snap.
+        // new card pops in via CSS — running GSAP here would fight the entering element and jolt the row. So we
+        // snap. BUT the base `.card { transition: transform 0.12s }` (now that body.dragging is off) would
+        // animate the neighbours' slideDir→0 reset while the row has already reflowed — snapping them a slot
+        // left then gliding back (the "rebound"). Kill the transition for this one commit so the reset is
+        // instant: they're already exactly where they belong, so nothing should move.
         handPlaySnapRef.current = false;
+        const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        gsap.set(targets, { transition: 'none' });
+        void document.body.offsetWidth; // force reflow so transform:0 locks in with no transition
+        gsap.set(targets, { clearProps: 'transition' });
       } else if (flipCfg.commitMs > 0) {
         // A COMMITTED move with NO drag (a summoned token, an effect repositioning) — opt-in via commitMs > 0.
         // After a drag-DROP the cards already slid into place during the drag, so the default (commitMs 0) snaps

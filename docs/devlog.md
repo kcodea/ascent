@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### tweak(ui): boot loader runs on every load (drop the sessionStorage skip)
+
+Removed the `ascent.artWarmed` sessionStorage skip from `Boot.tsx` — the loader now runs on every page load
+instead of skipping after the first in-session pass. Cheap when art is already HTTP-cached (`onload` fires
+instantly, so the loader just flashes), and it always re-verifies art is ready before a card can render — and it
+makes a "cold cache" test as simple as a reload (no need to clear sessionStorage first). Typecheck + lint +
+build green.
+
 ### feat(ui): blocking art preload at boot — no more sprite pop-in
 
 Card/hero art could still pop in a beat late: `warmArt` only warmed on idle (fire-and-forget), and each `<img>`

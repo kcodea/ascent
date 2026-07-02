@@ -206,6 +206,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .shopbar { align-self: center; display: flex; flex-direction: column; align-items: center; gap: calc(5 * var(--u)); margin-top: calc(70 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoplabel { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink3); }
+.shoplabel .shoptier { color: var(--acc-dk); }
 /* Turn timer, sitting just above the SHOP label. */
 .shoptimer { display: inline-flex; align-items: center; gap: calc(5 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); color: var(--ink2); font-variant-numeric: tabular-nums; line-height: 1; }
 .shoptimer svg { width: calc(17 * var(--u)); height: calc(17 * var(--u)); }

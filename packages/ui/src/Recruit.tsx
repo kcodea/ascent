@@ -2123,7 +2123,7 @@ export function Recruit() {
           shopbutton.webp. The turn timer now lives in the header; End Turn is a standalone button (right). */}
       <div className={`shopbar${inCombat ? ' closing' : ''}`}>
         <ShopTimer />
-        <div className="shoplabel">Shop</div>
+        <div className="shoplabel">Shop <span className="shoptier">Tier {run.tier}</span></div>
         <div className="shoprow">
           {/* Gold — a display (current Gold this turn), not an action. */}
           <div className="shopbtn gold" title="Your Gold this turn">

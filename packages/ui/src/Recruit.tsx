@@ -1142,7 +1142,7 @@ export function Recruit() {
         return { ...d, x: e.clientX, y: e.clientY, active };
       });
       setOverZone(inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY));
-      // Wind-whoosh trail: distance-gated wisps behind the dragged card (gold when it has Divine Shield).
+      // Wind-whoosh trail: distance-gated wisps behind the dragged card (gold for Divine Shield, blue for Reborn).
       const dNow = dragRef.current;
       if (dNow?.active) {
         const cx = e.clientX; // the card rides centred on the cursor (ox/oy are the centre)
@@ -1151,7 +1151,9 @@ export function Recruit() {
         const tdx = cx - trailLast.x;
         const tdy = cy - trailLast.y;
         if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {
-          pixiFx.trail(cx, cy, tdx, tdy, dNow.view.keywords.includes('DS'));
+          const kw = dNow.view.keywords;
+          const variant = kw.includes('DS') ? 'gold' : kw.includes('R') ? 'blue' : 'wind';
+          pixiFx.trail(cx, cy, tdx, tdy, variant);
           trailLast = { x: cx, y: cy };
         }
       } else {

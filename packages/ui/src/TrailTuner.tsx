@@ -16,7 +16,8 @@ const LABELS: Record<keyof TrailConfig, string> = {
   stretch: 'streak stretch',
   drift: 'lateral drift',
   goldAlpha: 'gold alpha',
-  sparkChance: 'gold sparks',
+  blueAlpha: 'blue alpha',
+  sparkChance: 'aura sparks',
 };
 
 export function TrailTuner() {

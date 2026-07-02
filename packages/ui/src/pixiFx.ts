@@ -715,9 +715,10 @@ class FxController {
    * One step of a motion trail behind a moving card — a wind-whoosh wisp left at (x, y), oriented along
    * the movement vector (dx, dy). Callers distance-gate on `getTrailConfig().emitSpacing` (the drag rAF
    * handler + the combat lunge's onUpdate), so emission density tracks speed — no movement, no trail.
-   * `gold` = the card has Divine Shield → the glassy gold variant (replaces, never layers on, the wind).
+   * `variant` picks the look: `'wind'` = pale cream (normal blend); `'gold'` = Divine Shield; `'blue'` =
+   * Reborn — both tinted + additive with an occasional glint mote. The variant replaces the wind, never layers.
    */
-  trail(x: number, y: number, dx: number, dy: number, gold: boolean): void {
+  trail(x: number, y: number, dx: number, dy: number, variant: 'wind' | 'gold' | 'blue'): void {
     if (!this.ready) return;
     const c = getTrailConfig();
     const len = Math.hypot(dx, dy) || 1;
@@ -727,6 +728,9 @@ class FxController {
     // left behind the card: a touch of backward velocity + lateral drift (displaced air swirling off)
     const back = 30 + Math.random() * 40;
     const side = (Math.random() - 0.5) * 2 * c.drift;
+    const special = variant !== 'wind'; // gold/blue are tinted + additive with a glint; wind is pale + normal
+    const tint = variant === 'gold' ? 0xffe9a8 : variant === 'blue' ? 0x8ec7ff : 0xf5efe0;
+    const peak = variant === 'gold' ? c.goldAlpha : variant === 'blue' ? c.blueAlpha : c.alpha;
     this.spawn(this.wispTex!, {
       x: x - ux * 8 + (Math.random() - 0.5) * 6,
       y: y - uy * 8 + (Math.random() - 0.5) * 6,
@@ -739,12 +743,12 @@ class FxController {
       spin: 0,
       rotation: angle,
       stretchX: c.stretch,
-      tint: gold ? 0xffe9a8 : 0xf5efe0,
-      blend: gold ? 'add' : 'normal',
-      peakAlpha: (gold ? c.goldAlpha : c.alpha) * (0.85 + Math.random() * 0.3),
+      tint,
+      blend: special ? 'add' : 'normal',
+      peakAlpha: peak * (0.85 + Math.random() * 0.3),
     });
-    // gold only: an occasional tiny glint mote, mimicking the shield bubble's glassy sparkle
-    if (gold && Math.random() < c.sparkChance) {
+    // gold/blue only: an occasional tiny glint mote, mimicking the aura's glassy sparkle
+    if (special && Math.random() < c.sparkChance) {
       this.spawn(this.sparkTex!, {
         x: x + (Math.random() - 0.5) * 14,
         y: y + (Math.random() - 0.5) * 14,
@@ -755,7 +759,7 @@ class FxController {
         fromScale: 0.5 + Math.random() * 0.4,
         toScale: 0.05,
         spin: 0,
-        tint: 0xffd24a,
+        tint: variant === 'blue' ? 0xdfefff : 0xffd24a,
         blend: 'add',
         peakAlpha: 0.9,
       });

@@ -1557,22 +1557,38 @@ export function Recruit() {
   const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
   // Per-card slide offset (in slots) that opens the drop gap by shifting the cards themselves. A CSS
   // `transition: transform` (while dragging) glides these — the pre-emptive "make room" animation.
+  // Vertical lift of the dragged card from its press point — once it clears `collapseY`, the source row
+  // closes the hole behind it (cards after the lifted one slide in one slot). This is what makes a card
+  // pulled straight *up* (to play/sell) or *down* out of the row read as "the gap fills in".
+  const dragLiftY = drag?.active ? Math.abs(drag.y - drag.startY) : 0;
+  const collapsedLift = dragLiftY > getDragFeel().collapseY;
   const draggedBoardIdx = draggingBoard ? run.board.findIndex((m) => m.uid === drag!.uid) : -1;
   const boardSlide = (i: number): number => {
-    if (gapIndex < 0) return 0;
     if (draggingBoard) {
+      if (gapIndex < 0) {
+        // Not reordering within the warband. Once lifted vertically clear of the row, close the gap:
+        // every card after the lifted one slides in a slot to fill its spot.
+        if (collapsedLift && draggedBoardIdx >= 0) return i > draggedBoardIdx ? -1 : 0;
+        return 0;
+      }
       // Reordering an existing minion: the dragged card holds its slot (invisible). Every OTHER card shifts by
       // a whole slot only when the gap crosses it — so nothing moves until the card is dragged clear.
       if (i === draggedBoardIdx) return 0;
       const p = i < draggedBoardIdx ? i : i - 1;      // its index among the non-dragged cards
       return (p < gapIndex ? p : p + 1) - i;          // its index once the dragged card reinserts at the gap
     }
+    if (gapIndex < 0) return 0;
     // Playing a new card from hand: open a half-slot gap each side at the insertion point.
     return i < gapIndex ? -0.5 : 0.5;
   };
   const draggedShopIdx = draggingShop ? run.shop.findIndex((o) => o.uid === drag!.uid) : -1;
   const shopSlide = (i: number): number => {
-    if (shopGapIndex < 0 || !draggingShop) return 0;
+    if (!draggingShop) return 0;
+    if (shopGapIndex < 0) {
+      // Buying: dragged up/down out of the shop far enough — close the gap the offer leaves behind.
+      if (collapsedLift && draggedShopIdx >= 0) return i > draggedShopIdx ? -1 : 0;
+      return 0;
+    }
     if (i === draggedShopIdx) return 0;
     const p = i < draggedShopIdx ? i : i - 1;
     return (p < shopGapIndex ? p : p + 1) - i;

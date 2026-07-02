@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### feat: vertical-lift collapse — the row fills the gap when a card is pulled out up/down
+
+The reorder slide already parted the row horizontally, but pulling a card straight *up* (to play/sell) or
+*down* left a visible hole where the lifted card sat (it stays rendered invisible to hold row width). Now,
+once the drag clears a vertical distance (`collapseY`, default 70 px), the source row closes up: every card
+*after* the lifted one slides in one slot (`slideDir −1`) to fill the gap, glided by the same
+`body.dragging` `transition: transform`. Applies to both the **warband** (`boardSlide`) and the **shop**
+(`shopSlide` — the buy motion pulls an offer up out of the row). Gated on `gapIndex < 0` so an in-row
+horizontal reorder is unaffected. New tunable `collapseY` added to the drag-feel config + 🎴 DragTuner
+(range 0–200 px) with a hover definition. Verified: typecheck + lint green, no console errors.
+
 ### polish: reposition slide — no pickup jerk, shop too, longer settle
 
 Three refinements (all verified live via in-browser transform sampling):

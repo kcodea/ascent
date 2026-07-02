@@ -483,6 +483,10 @@ export function Recruit() {
     const ay = (kind: AuraK): number => (kind === 'taunt' && back ? back.top : 0);
     const set = (uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK): void =>
       auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind);
+    // Recruit cards hang their stat badges BELOW the square art tile, so an aura centred on the art alone reads
+    // a touch high vs the full card silhouette. Nudge shield/reborn down slightly (recruit only; combat units
+    // are a clean square, and taunt carries its own tuner offset).
+    const auraDy = (h: number, kind: AuraK): number => (inCombatRef.current || kind === 'taunt' ? 0 : h * 0.07);
     // PASS 1 — for each aura kind, register + position every marked card; the dragged card follows from drag
     // state (works from ANY source — its CardView keywords say if it has the aura). DURING COMBAT only combat
     // UNITS (`.unit`) get auras, so a frozen shop/hand card can't float its aura over the arena.
@@ -505,11 +509,11 @@ export function Recruit() {
         if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(ckey('taunt', uid))) {
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
-        set(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, false, cfg.kind);
+        set(uid, r.left + r.width / 2, r.top + r.height / 2 + auraDy(r.height, cfg.kind), r.width, r.height, false, cfg.kind);
       }
       if (d?.active && dragUid && draggedHas) {
         seen.add(ckey(cfg.kind, dragUid));
-        set(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h, /* mini */ true, cfg.kind);
+        set(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2 + auraDy(d.h, cfg.kind), d.w, d.h, /* mini */ true, cfg.kind);
       }
     }
     // PASS 2 — an aura that just vanished from `seen`: a combat break vs a quiet clear (per kind).

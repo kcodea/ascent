@@ -17,8 +17,12 @@ Batch of feel polish:
   future-proofs against the venom/triple/tripready special-card shadows); the drag neutralizer is `!important` too.
 - **Placement dust +25% apparent.** `pixiFx.dust` peakAlpha 0.2+r*0.12 → 0.25+r*0.15 (more visible, same size).
 - **Divine shield askew in shop.** The aura's first measure could catch a card mid `cardpop`
-  (translateY(8px)/scale .96), placing the bubble low/small until the next interaction re-synced it. Added a
-  delayed `syncShields` (240 ms, after the pop settles) to the reconcile effect so it corrects on its own.
+  (translateY(8px)/scale .96), placing the bubble low until the next interaction re-synced it. Added a delayed
+  `syncShields` (240 ms, after the pop settles) so it corrects on its own. Follow-up: with that fixed the bubble
+  was centred on the square art tile (verified in-browser: shield container == archbox centre, delta 0) but the
+  stat badges hang BELOW the tile, so it read slightly high vs the full card. Nudged recruit shield/reborn auras
+  down `0.07·h` (~12 px, verified live) so they centre on the whole card; combat units (clean square) and taunt
+  (own tuner offset) are unaffected.
 - **Dragged card over auras.** `.dragcard` z 100 → 115 (above `.pixifx` z110), so a card dragged past a
   shielded/reborn unit rides on top of that unit's aura instead of under it. (Its own aura sits behind it; the
   bubble still reads around the card edges.)

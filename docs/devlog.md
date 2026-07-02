@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: hand-play jolt — snap the FLIP commit when a card lands (no GSAP thrash)
+
+Placing a card from hand jolted: the row would quickly close then reopen as it made space. Cause — a played
+minion is a NEW element entering the flex row, and GSAP Flip doesn't take entering elements out of flow, so on
+the commit it fights the reflow (siblings collapse, then the new card shoves them back open). Board-reorder and
+shop drops never hit this because every card already exists. Fix: `handPlaySnapRef` is set on a hand-play drop
+(`acted && source==='hand' && !spell`) and the FLIP `useLayoutEffect` SNAPS that commit (skips GSAP) — the
+neighbours are already parted to their final spots by the drag, and the new card pops in via CSS `popin`, so no
+animation is needed. Genuine no-drag repositions (summons, effects) still use the `commitMs` slide. (Trade-off:
+a very fast hand *flick* now opens the slot instantly rather than sliding — clean, no jolt.) Typecheck + lint green.
+
 ### feat: vertical-lift collapse — the row fills the gap when a card is pulled out up/down
 
 The reorder slide already parted the row horizontally, but pulling a card straight *up* (to play/sell) or

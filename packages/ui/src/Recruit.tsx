@@ -765,6 +765,11 @@ export function Recruit() {
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // Set true when a hand card is just PLAYED onto the board, so the next FLIP commit SNAPS instead of running
+  // GSAP. A played card is a NEW element entering the flex row: GSAP Flip doesn't take it out of flow, so it
+  // fights the reflow (siblings close, then the new card shoves them back open = a jolt). The neighbours are
+  // already parted to their final spots by the drag, so we let the card just pop in (CSS `popin`) and hold.
+  const handPlaySnapRef = useRef(false);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
@@ -1124,6 +1129,9 @@ export function Recruit() {
       }
 
       const acted = applyDrop(d, zone, e.clientX, e.clientY);
+      // A played hand minion enters the board as a NEW flex element — snap the resulting FLIP commit (see
+      // `handPlaySnapRef`) so GSAP doesn't thrash the row as it makes space.
+      if (acted && d.source === 'hand' && !d.view.spell) handPlaySnapRef.current = true;
       if (acted || d.view.spell) {
         // a spell that misses just ends — it was never lifted from the hand
         setDrag(null);
@@ -1616,6 +1624,10 @@ export function Recruit() {
         // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
         // whole drag (body.dragging rule in styles.css) so GSAP's transform animation isn't masked.
         Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
+      } else if (handPlaySnapRef.current) {
+        // A hand card just landed. Its neighbours already slid to their final spots during the drag, and the
+        // new card pops in via CSS — running GSAP here would fight the entering element and jolt the row. Snap.
+        handPlaySnapRef.current = false;
       } else if (flipCfg.commitMs > 0) {
         // A COMMITTED move with NO drag (a summoned token, an effect repositioning) — opt-in via commitMs > 0.
         // After a drag-DROP the cards already slid into place during the drag, so the default (commitMs 0) snaps

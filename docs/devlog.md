@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### fix(ui): art pop-in hardening — sync decode + preload the public backdrops/cursors
+
+The player still saw art pop-in "plenty" after the #144/#145 boot preloader. Root causes found:
+(1) `Card.tsx` rendered its art `<img decoding="async">` — that attribute explicitly lets the browser paint
+the card frame BEFORE the image is decoded, so every newly mounted card (each shop refresh, each combat
+start) could flash frame-without-art for a frame or two even with all bytes preloaded → now `decoding="sync"`
+(the art paints WITH the frame; decode cost is small for ≤512px webps). (2) The preload set only covered the
+three `packages/ui/src/art/*` globs — the board backdrops (`board2b.webp` / `board2.webp`), the title
+`homescreen.webp`, and the three drag-cursor SVGs are `apps/web/public/` assets referenced from CSS `url()`,
+loaded lazily on first use (first combat entry / first drag) → added a `PUBLIC_ART_URLS` list to the warm-up
+set. (3) The preloader discarded its `Image` objects after boot, inviting decoded-bitmap eviction on weaker
+devices → a session-long `KEEP_ALIVE` array now holds them. Verified: lint + test (460) + build:web green;
+`typecheck:web` unchanged at the 56 pre-existing errors; live preview confirmed the boot gate completes,
+every card `<img>` reports `decoding === 'sync'`, and `/board2b.webp` answers a `cache: 'only-if-cached'`
+fetch with 200 (i.e. genuinely pre-warmed — the resource-timing buffer maxes at 250 entries, so it's absent
+from `getEntriesByType` but IS cached).
+
 ### fix(ui): restore the lost drag recentre glide (recenter/recenterAfter)
 
 The player reported the card-drag feel as "accidentally reverted" — investigation found the work was never

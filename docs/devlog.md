@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: reorder swap asymmetry — measure neighbours at their shifted spots
+
+Reordering a warband/shop card felt lopsided: dragging one aside needed ~50% of a neighbour's width to open
+the gap, but nudging back needed only ~5% to close it. Cause — `insertRectsRef` caches each slot's RESTING
+position, and the insertion index counted those fixed midpoints. Once a neighbour slides a whole slot away to
+make room, its trigger midpoint stays where the card *used to be*, so on the way back the dragged card is
+already past it → instant re-trigger. New `reorderIndexFromSlots` counts each non-dragged card at its CURRENT
+(shifted) centre instead: with the gap at `prevGap`, the p-th neighbour sits in slot `(p < prevGap ? p : p+1)`,
+so the swap threshold follows the card's real position — symmetric both directions. Carried frame-to-frame via
+`prevWarbandGapRef` / `prevShopGapRef` (reset at drag start; fall back to the dragged card's home slot on frame
+one). Only the reorder path (excludeUid) uses it; hand-play insert keeps the plain midpoint count. Typecheck +
+lint green.
+
 ### fix: collapse over-shift (buy/sell) + hand-play rebound
 
 Two follow-ups to the vertical-lift collapse:

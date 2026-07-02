@@ -839,6 +839,11 @@ export function Recruit() {
   // every frame. That live read was the last drag path still forcing a synchronous reflow per frame (a
   // read-after-Flip-write thrash); arithmetic against the cache removes it. Null outside a drag.
   const insertRectsRef = useRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[] } | null>(null);
+  // Last frame's reorder gap index (warband / shop). A reorder swap must trigger against each neighbour's
+  // CURRENT (shifted) position, and that depends on where the gap currently is — hence we carry it frame to
+  // frame. -1 = not reordering yet (falls back to the dragged card's home slot).
+  const prevWarbandGapRef = useRef(-1);
+  const prevShopGapRef = useRef(-1);
   const timeUp = useTurnTimeUp(); // turn timer expired: lock everything but End Turn (flips once/turn — see turnClock)
 
   const zoneAt = (x: number, y: number): Zone | null => {
@@ -876,9 +881,34 @@ export function Recruit() {
     }
     return i;
   };
+  // Reorder insertion index that measures against each neighbour's CURRENT (shifted) position, not its resting
+  // slot. As you drag a card aside, its neighbour slides a whole slot to make room; the swap-back trigger must
+  // follow the neighbour's NEW spot — otherwise (measuring resting midpoints) you'd have to drag ~half a card
+  // OUT to open the gap but only a sliver BACK to close it (the reported asymmetry). With the gap currently at
+  // `prevGap`, the p-th non-dragged card sits in slot (p < prevGap ? p : p+1); count those whose centre is < x.
+  const reorderIndexFromSlots = (
+    slots: { uid: string; left: number; width: number }[],
+    x: number,
+    excludeUid: string,
+    prevGap: number,
+  ): number => {
+    const g = prevGap >= 0 ? prevGap : Math.max(0, slots.findIndex((s) => s.uid === excludeUid));
+    let p = 0;
+    let count = 0;
+    for (const c of slots) {
+      if (c.uid === excludeUid) continue;
+      const slot = slots[p < g ? p : p + 1] ?? c;
+      if (x > slot.left + slot.width * INSERT_FRAC) count++;
+      p++;
+    }
+    return count;
+  };
   const warbandIndexAt = (x: number, excludeUid?: string): number => {
     const cached = insertRectsRef.current;
-    if (cached) return indexFromSlots(cached.warband, x, excludeUid);
+    if (cached)
+      return excludeUid
+        ? reorderIndexFromSlots(cached.warband, x, excludeUid, prevWarbandGapRef.current)
+        : indexFromSlots(cached.warband, x);
     const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]')];
     let i = 0;
     for (const c of cards) {
@@ -891,7 +921,10 @@ export function Recruit() {
   // Insertion index among the shop's *minion* offers (the spell stays pinned at the end).
   const shopIndexAt = (x: number, excludeUid?: string): number => {
     const cached = insertRectsRef.current;
-    if (cached) return indexFromSlots(cached.shop, x, excludeUid);
+    if (cached)
+      return excludeUid
+        ? reorderIndexFromSlots(cached.shop, x, excludeUid, prevShopGapRef.current)
+        : indexFromSlots(cached.shop, x);
     const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .row .card[data-uid]')].filter(
       (c) => c.getAttribute('data-uid') !== run.spell?.uid,
     );
@@ -1055,6 +1088,9 @@ export function Recruit() {
       warband: measureSlots('[data-zone="warband"] .row .card[data-uid]'),
       shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
     };
+    // Fresh drag → no prior gap yet; the index fns fall back to the dragged card's home slot for frame one.
+    prevWarbandGapRef.current = -1;
+    prevShopGapRef.current = -1;
     const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && !timeUp && y < wbTop;
     if (drag.source === 'board' && !drag.view.spell) setSellTop(wbTop);
     if (drag.source === 'shop') setBuyTop(wbTop);
@@ -1615,6 +1651,14 @@ export function Recruit() {
   const flipKey =
     displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
     displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
+  // Carry each row's live gap to the next frame so `reorderIndexFromSlots` can place neighbours at their
+  // CURRENT (shifted) spots (symmetric swap thresholds). Only while actually reordering (gap >= 0).
+  useEffect(() => {
+    if (gapIndex >= 0) prevWarbandGapRef.current = gapIndex;
+  }, [gapIndex]);
+  useEffect(() => {
+    if (shopGapIndex >= 0) prevShopGapRef.current = shopGapIndex;
+  }, [shopGapIndex]);
 
   // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* run (the
   // cards' old spots); after React commits the new order, `Flip.from` animates each card from there to its

@@ -214,8 +214,7 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
   const rest = attacker.getBoundingClientRect();
   const cx0 = rest.left + rest.width / 2;
   const cy0 = rest.top + rest.height / 2;
-  const el = attacker as HTMLElement;
-  const gold = el.classList.contains('dscard') || !!el.querySelector('.dscard');
+  const gold = attacker.classList.contains('dscard');
   let trailLast = { x: cx0, y: cy0 };
   const trailCutoff = c.windupDur + c.strikeDur;
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean

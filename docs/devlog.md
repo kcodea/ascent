@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: place rebound (drop = shown gap) + spell-buy collapse slide
+
+- **Rebound, really fixed.** The drop recomputed its target index from the *release* point, but the neighbours
+  had opened for the last *rendered* gap (from the rAF-throttled `drag.x`). On a fast left→right placement the
+  two disagreed, so a neighbour that had shifted one way during the drag reversed on commit — the "rebound". No
+  settle animation can hide a wrong-side preview. Now every drop (hand-play, warband reposition, shop reorder)
+  lands at the **last-rendered gap** (`prevWarbandGapRef` / `prevShopGapRef`, fallback to the recomputed index):
+  WYSIWYG — the card goes exactly where the gap was shown, so neighbours never reverse.
+- **Spell-buy slide.** Buying a spell now collapses the shop like buying a minion. The pinned spell stays
+  rendered (dimmed) while dragged so the row holds its width, and it's treated as the end-of-row index
+  (`draggedShopIdx = run.shop.length`), so every offer recentres a half slot to fill its gap. `spellShown` is
+  now always the spell uid until the buy commits. Typecheck + lint + build:web green.
+
 ### fix: hand-play neighbour jump on a fast "land far over" drop — manual FLIP
 
 The instant snap on a hand-play commit teleported a neighbour when the release point outran the live preview:

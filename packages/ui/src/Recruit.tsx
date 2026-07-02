@@ -1619,7 +1619,9 @@ export function Recruit() {
     overWarband || wouldMagnetize
       ? warbandIndexAt(dragCx, drag!.source === 'board' ? drag!.uid : undefined)
       : -1;
-  const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
+  // The spell stays rendered (dimmed) while being bought — like a minion offer — so the row keeps its width and
+  // the offers slide to fill its slot. So it's always "shown" for FLIP-key purposes until the buy commits.
+  const spellShown = run.spell?.uid ?? '';
   // Per-card slide offset (in slots) that opens the drop gap by shifting the cards themselves. A CSS
   // `transition: transform` (while dragging) glides these — the pre-emptive "make room" animation.
   const draggedBoardIdx = draggingBoard ? run.board.findIndex((m) => m.uid === drag!.uid) : -1;
@@ -1644,7 +1646,13 @@ export function Recruit() {
     // Playing a new card from hand: open a half-slot gap each side at the insertion point.
     return i < gapIndex ? -0.5 : 0.5;
   };
-  const draggedShopIdx = draggingShop ? run.shop.findIndex((o) => o.uid === drag!.uid) : -1;
+  // The spell is pinned at the END of the shop row, so buying it collapses like removing the last offer: treat
+  // its index as the row length, and every minion offer (all before it) recentres a half slot to fill the gap.
+  const draggedShopIdx = draggingShop
+    ? drag!.uid === run.spell?.uid
+      ? run.shop.length
+      : run.shop.findIndex((o) => o.uid === drag!.uid)
+    : -1;
   const shopSlide = (i: number): number => {
     if (!draggingShop) return 0;
     if (shopGapIndex < 0) {
@@ -1925,7 +1933,10 @@ export function Recruit() {
     // A shop offer dropped back in the tavern reorders it (so it lands where you drop it,
     // like the warband, instead of snapping back). The spell stays pinned at the end.
     if (d.source === 'shop' && zone === 'tavern' && d.uid !== run.spell?.uid) {
-      dispatch({ type: 'reorderShop', uid: d.uid, toIndex: shopIndexAt(cx, d.uid) });
+      // Land it exactly where the preview showed the gap (last rendered), not at a freshly recomputed release
+      // point — otherwise a fast drop resolves a different slot than the neighbours opened for, so they visibly
+      // reverse (the "rebound"). Fall back to the release point only if no gap was rendered.
+      dispatch({ type: 'reorderShop', uid: d.uid, toIndex: prevShopGapRef.current >= 0 ? prevShopGapRef.current : shopIndexAt(cx, d.uid) });
       return true;
     }
     // Sell a *board* minion by dropping it on the tavern. A minion must be played to the board first
@@ -1995,12 +2006,16 @@ export function Recruit() {
       return false;
     }
     if (d.source === 'hand' && zone === 'warband') {
-      playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(cx) });
+      // Land where the preview's gap was last rendered (WYSIWYG) — not a freshly recomputed release point,
+      // which on a fast drop resolves a different slot than the neighbours opened for → they reverse (rebound).
+      const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
+      playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
       puffOnBoard(d.uid); // dust around the minion where it lands
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {
-      dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(cx, d.uid) });
+      const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx, d.uid);
+      dispatch({ type: 'reposition', uid: d.uid, toIndex: to });
       puffOnBoard(d.uid); // dust around the minion at its landed slot
       return true;
     }
@@ -2160,11 +2175,13 @@ export function Recruit() {
               />
             </Fragment>
           ))}
-          {run.spell && !(draggingShop && drag!.uid === run.spell.uid) && (
+          {run.spell && (
             <Card
               key={run.spell.uid}
               uid={run.spell.uid}
+              dimmed={draggingShop && drag!.uid === run.spell.uid}
               card={spellView!}
+              dragging={!!drag?.active}
               onPointerDown={heroArmed ? undefined : onCardPointerDown}
             />
           )}

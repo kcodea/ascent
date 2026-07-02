@@ -165,6 +165,9 @@ interface GameStore {
   /** Reset the local career: wipe the persisted profile (rating/Line) + match history back to a fresh start.
    *  Does NOT touch the in-progress run, captured boards, or the shared Supabase pool/leaderboard. */
   resetCareer: () => void;
+  /** Bumps whenever the career data changes out-of-band (a reset) — the Career page keys its history read on
+   *  it so an open view refreshes immediately instead of showing stale insights / hero stats. */
+  careerVersion: number;
   /** A resumable in-progress run (loaded from localStorage at boot, kept in sync during play), or null when
    *  there's nothing to continue. Drives the title's "Continue" entry. */
   savedRun: RunState | null;
@@ -248,10 +251,11 @@ export const useGame = create<GameStore>((set, get) => ({
   // Reset the local career (rating + match history) to a fresh start. Doesn't touch the in-progress run,
   // captured boards, or the shared backend (those are separate resets). The Career reads history fresh on
   // open, so wiping the store fields + localStorage is enough.
+  careerVersion: 0,
   resetCareer: () => {
     clearProfile();
     clearRunHistory();
-    set({ profile: initialProfile(), lastRating: null });
+    set((s) => ({ profile: initialProfile(), lastRating: null, careerVersion: s.careerVersion + 1 }));
   },
   // Resuming a run starts the turn with the clock ALREADY expired (you can End Turn / reorder, but not shop),
   // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat

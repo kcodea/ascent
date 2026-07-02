@@ -54,11 +54,11 @@ export function EscMenu({
   const [careerMsg, setCareerMsg] = useState<string | null>(null);
   const [confirmCareer, setConfirmCareer] = useState(false);
   const doResetCareer = (): void => {
-    if (!confirmCareer) { setConfirmCareer(true); setCareerMsg('Reset your rating + match history? Tap again to confirm.'); return; }
+    if (!confirmCareer) { setConfirmCareer(true); setCareerMsg('Wipe rating, match history, insights + hero stats? Tap again to confirm.'); return; }
     resetCareer();
     setRunCount(0);
     setConfirmCareer(false);
-    setCareerMsg('Career reset — rating back to 0.');
+    setCareerMsg('Career reset — rating, past games + all stats cleared.');
   };
 
   return (
@@ -145,7 +145,7 @@ export function EscMenu({
         <div className="escboards">
           <button className={`escbtn${confirmCareer ? ' danger' : ''}`} onPointerDown={doResetCareer}>
             <span className="ebl">{confirmCareer ? 'Tap again to reset' : 'Reset my career'}</span>
-            <span className="ebs">{confirmCareer ? 'Wipes rating + match history' : `Rating ${profile.rating} · ${runCount} run${runCount === 1 ? '' : 's'} · reset to 0`}</span>
+            <span className="ebs">{confirmCareer ? 'Wipes rating + past games + all stats' : `Rating ${profile.rating} · ${runCount} run${runCount === 1 ? '' : 's'} · wipes history + stats`}</span>
           </button>
           {careerMsg && <div className="escboards-msg">{careerMsg}</div>}
         </div>

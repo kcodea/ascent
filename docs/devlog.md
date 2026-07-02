@@ -25,6 +25,30 @@ drakko/chaos/robin/darah — so it couldn't be applied; flagged for the owner.)*
 - **Verified:** 460 tests green (incl. 4 new — hero values, absorb-then-overflow, game-over needs both gone,
   deserialize heal), typecheck + lint clean. Live: a Warden run started 30 / +8; losses chipped Armor 8→4→0
   then overflowed onto Resolve (29 → 24); the HUD bar + `30+8` + hero-select `+15`/`+8` chips render.
+### fix: pin the combat HUD (Skip + speed slider) to the stage box
+
+The in-combat HUD (`.combathud` — the Skip button + replay-speed slider) was anchored to the raw window
+(`top: 146u; right: 16u`) instead of the letterboxed stage box, so with a fixed-resolution / non-16:9 window
+it drifted into the letterbox, out of line with every other pinned element. Now uses `top: calc(var(--bar-y)
++ 146u); right: calc(var(--bar-x) + 16u)` — the same stage-box anchor as `.gearbtn` / `.statusbar`. Verified
+live under a forced letterbox (bar-x = 238): the HUD's right edge measured 254px (= bar-x + 16), exactly
+matching the gear button (was 16px, 238px adrift).
+### feat: "Reset my career" control in Settings
+
+A **Career** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) with a two-tap-confirm **Reset my career**
+button (mirrors "Clear my boards") that wipes the **local** career — the persisted `ascent.profile` (rating +
+Line back to 0 / Line 7) and `ascent.history` (match history). New store action `resetCareer` calls
+`clearProfile` ([profileStore.ts](packages/ui/src/profileStore.ts)) + `clearRunHistory`
+([runHistory.ts](packages/ui/src/runHistory.ts)) and sets `profile: initialProfile()` / `lastRating: null`.
+Clearing `ascent.history` wipes **past games, insights, and per-hero stats in one go** — they're all derived
+from that log by `careerStats`, not stored separately. A `careerVersion` counter (bumped by `resetCareer`)
+keys the Career page's history read, so an **open** Career view drops its stale insights/hero rows immediately
+instead of only on reopen. Copy spells out the full scope ("wipes rating + past games + all stats").
+Deliberately scoped to local career only — it does **not** touch the in-progress run, captured boards (the
+separate "Clear my boards"), or the shared Supabase pool/leaderboard (those reset via SQL, admin-side; see the
+handoff notes). Verified: typecheck + lint clean; live — seeded a 3-run/2-hero history, opened Career (insights
++ hero rows populated), tapped reset → the open view fell to the empty state, hero rows + past games gone,
+`ascent.history`/`ascent.profile` removed, profile back to 0/Line 7.
 
 ### tweak: new players start at rating 0 (Line 7), not 1200 (Line 9)
 

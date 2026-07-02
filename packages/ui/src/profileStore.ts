@@ -42,3 +42,8 @@ export function saveProfile(profile: PlayerProfile): void {
     localStorage.setItem(KEY, JSON.stringify(profile));
   } catch { /* ignore */ }
 }
+
+/** Wipe the stored profile (rating + Line + high-water marks) — next load returns a fresh one. Best-effort. */
+export function clearProfile(): void {
+  try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+}

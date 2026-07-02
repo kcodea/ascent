@@ -1328,7 +1328,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
 /* Top-right combat HUD (replay only): a small Skip button with the speed slider stacked beneath it, tucked
    under the tribes bar so the arena stays clear. */
-.combathud { position: fixed; top: calc(146 * var(--u)); right: calc(16 * var(--u)); z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }
+.combathud { position: fixed; top: calc(var(--bar-y) + 146 * var(--u)); right: calc(var(--bar-x) + 16 * var(--u)); z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }
 /* Hide the run-buffs window during combat so it never collides with the combat HUD below the opponent frame
    (buffs aren't actionable mid-replay; it returns in recruit). */
 .app.combat .buffsframe { display: none; }

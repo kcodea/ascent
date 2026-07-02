@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### feat/fix: divine-shield placement tuner + persist bubble on hover
+
+Two follow-ups to the shield-under-chrome work:
+- **Placement tuner.** The hardcoded recruit down-nudge (`0.07·h`) overshot (shop bubble too low). Moved it to
+  a live-tunable `shieldConfig.recruitDy` (default lowered to `0.03·h`) with a DEV 🛡 Shield tuner (mirrors the
+  lunge/flip tuners). Combat is untouched (offset only applies out of combat). Dial + Copy the value to bake.
+- **Bubble vanished on hover.** With the persistent bubble now on the z3 `.pixifx-under` canvas, `.card:hover`'s
+  `z-index: 20` turned the hovered card into a stacking context that lifted it ABOVE the bubble canvas — hiding
+  the aura while hovered. Dropped the hover `z-index` (the glow no longer needs it — there's no lift anymore),
+  so the card stays context-less on hover and the bubble keeps rendering between the art and the badges.
+  Typecheck + lint + build:web green.
+
 ### fix: divine-shield/reborn bubble renders BELOW the card chrome (badges on top)
 
 The persistent shield bubble drew over the attack/health/tier/effect badges (all FX share the `.pixifx` canvas

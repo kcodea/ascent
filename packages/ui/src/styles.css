@@ -384,8 +384,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
 .card.popin.popdelay { animation-delay: 0.2s; animation-fill-mode: backwards; }
 /* Hover = a bright white/gold glow that surrounds the card. No lift/tilt — the card stays flat in place.
    `!important` + `.compact` so it beats `.card.compact { box-shadow: none }` and the special-card shadows
-   (venom / triple / tripready), which are equal/greater specificity and appear later in the file. */
-.card:hover, .card.compact:hover { z-index: 20; box-shadow: 0 0 0 3px #fff7d1, 0 0 24px 7px rgba(255, 226, 110, 0.95), 0 3px 0 var(--shadow) !important; }
+   (venom / triple / tripready), which are equal/greater specificity and appear later in the file.
+   NO z-index bump: raising it makes the card a stacking context that lifts it ABOVE the z3 shield-bubble
+   canvas (hiding the divine-shield/reborn aura on hover). Staying context-less keeps the bubble between the
+   art and the badges. */
+.card:hover, .card.compact:hover { box-shadow: 0 0 0 3px #fff7d1, 0 0 24px 7px rgba(255, 226, 110, 0.95), 0 3px 0 var(--shadow) !important; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */
@@ -1717,6 +1720,8 @@ svg { width: 18px; height: 18px; }
 .sfxmix.dragfeel .sfxmix-val { flex-basis: 46px; }
 /* DEV reposition-slide (Flip) tuner — sixth button in the bottom-right cluster. */
 .flip-btn { position: fixed; right: calc(var(--bar-x) + 336px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+/* DEV divine-shield placement tuner — seventh button in the bottom-right cluster. */
+.shield-btn { position: fixed; right: calc(var(--bar-x) + 384px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.flip .sfxmix-name { flex-basis: 100px; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }

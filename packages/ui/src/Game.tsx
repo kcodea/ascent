@@ -17,6 +17,7 @@ import { LungeTuner } from './LungeTuner';
 import { TauntTuner } from './TauntTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
+import { ShieldTuner } from './ShieldTuner';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PixiFxLayer } from './PixiFxLayer';
@@ -117,6 +118,7 @@ export function Game() {
       {import.meta.env.DEV && <TauntTuner />}
       {import.meta.env.DEV && <DragTuner />}
       {import.meta.env.DEV && <FlipTuner />}
+      {import.meta.env.DEV && <ShieldTuner />}
       {/* DEV: fire an unmissable Pixi FX burst at screen center + log diagnostics. */}
       {import.meta.env.DEV && (
         <button

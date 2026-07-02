@@ -10,6 +10,7 @@ import { sfx } from './sfx';
 import { pixiFx, discoverFx, tauntFx } from './pixiFx';
 import { getDragFeel } from './dragFeel';
 import { getFlipConfig } from './flipConfig';
+import { getShieldConfig } from './shieldConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -484,9 +485,10 @@ export function Recruit() {
     const set = (uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK): void =>
       auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind);
     // Recruit cards hang their stat badges BELOW the square art tile, so an aura centred on the art alone reads
-    // a touch high vs the full card silhouette. Nudge shield/reborn down slightly (recruit only; combat units
-    // are a clean square, and taunt carries its own tuner offset).
-    const auraDy = (h: number, kind: AuraK): number => (inCombatRef.current || kind === 'taunt' ? 0 : h * 0.07);
+    // a touch high vs the full card silhouette. Nudge shield/reborn (recruit only; combat units are a clean
+    // square, and taunt carries its own tuner offset) — the amount is live-tunable via the DEV Shield tuner.
+    const auraDy = (h: number, kind: AuraK): number =>
+      inCombatRef.current || kind === 'taunt' ? 0 : h * getShieldConfig().recruitDy;
     // PASS 1 — for each aura kind, register + position every marked card; the dragged card follows from drag
     // state (works from ANY source — its CardView keywords say if it has the aura). DURING COMBAT only combat
     // UNITS (`.unit`) get auras, so a frozen shop/hand card can't float its aura over the arena.

@@ -5,6 +5,207 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### feat/fix: divine-shield placement tuner + persist bubble on hover
+
+Two follow-ups to the shield-under-chrome work:
+- **Placement tuner.** The hardcoded recruit down-nudge (`0.07·h`) overshot (shop bubble too low). Moved it to
+  a live-tunable `shieldConfig.recruitDy` (default lowered to `0.03·h`) with a DEV 🛡 Shield tuner (mirrors the
+  lunge/flip tuners). Combat is untouched (offset only applies out of combat). Dial + Copy the value to bake.
+- **Bubble vanished on hover.** With the persistent bubble now on the z3 `.pixifx-under` canvas, `.card:hover`'s
+  `z-index: 20` turned the hovered card into a stacking context that lifted it ABOVE the bubble canvas — hiding
+  the aura while hovered. Dropped the hover `z-index` (the glow no longer needs it — there's no lift anymore),
+  so the card stays context-less on hover and the bubble keeps rendering between the art and the badges.
+  Typecheck + lint + build:web green.
+
+### fix: divine-shield/reborn bubble renders BELOW the card chrome (badges on top)
+
+The persistent shield bubble drew over the attack/health/tier/effect badges (all FX share the `.pixifx` canvas
+at z110, above the cards' root-context chrome at z4–9). Split the front `FxController` into two canvases: the
+persistent bubbles now render on a new `.pixifx-under` canvas at **z3** (over the card art but below the badge
+chrome), while the particle layer — dust, impacts, and the shield **break shatter** — stays on `.pixifx`
+(z110), so the break still bursts over the chrome as before. `attach(parent, underParent?)` gains an optional
+under-parent; when present the bubbles' `shieldLayer` mounts on a second `Application` there (the bubble mesh is
+procedural/textureless, so it renders cleanly in the second GL context). The taunt back layer passes no
+under-parent and is unchanged. Verified in-browser: `shieldLayer.parent === shieldApp.stage`, the bubble sits
+over the sprite with tier/attack/health/medallion all readable on top. Typecheck + lint + build:web green.
+
+### feat/fix: hover glow, denser dust, divine-shield fixes, attack windup swell
+
+Batch of feel polish:
+- **Card hover glow.** `.card:hover` now shows a bright white/gold surround (`0 0 0 3px #fff7d1, 0 0 24px 7px
+  rgba(255,226,110,.95)`) instead of the `translateY(-3px)` lift — the card stays flat, no elevation/tilt.
+  Applied to `.card.dual:hover` too; neutralized under a live drag (cursor "hovers" cards beneath the
+  pointer-events:none floating card, so their glow is reset to the base shadow). Hand keeps its fan-lift.
+  Follow-up: the glow was invisible at first because recruit cards are `.card.compact`, whose `box-shadow: none`
+  (equal specificity, later in the file) won — fixed with a `.card.compact:hover` selector + `!important` (also
+  future-proofs against the venom/triple/tripready special-card shadows); the drag neutralizer is `!important` too.
+- **Placement dust +25% apparent.** `pixiFx.dust` peakAlpha 0.2+r*0.12 → 0.25+r*0.15 (more visible, same size).
+- **Divine shield askew in shop.** The aura's first measure could catch a card mid `cardpop`
+  (translateY(8px)/scale .96), placing the bubble low until the next interaction re-synced it. Added a delayed
+  `syncShields` (240 ms, after the pop settles) so it corrects on its own. Follow-up: with that fixed the bubble
+  was centred on the square art tile (verified in-browser: shield container == archbox centre, delta 0) but the
+  stat badges hang BELOW the tile, so it read slightly high vs the full card. Nudged recruit shield/reborn auras
+  down `0.07·h` (~12 px, verified live) so they centre on the whole card; combat units (clean square) and taunt
+  (own tuner offset) are unaffected.
+- **Dragged card over auras.** `.dragcard` z 100 → 115 (above `.pixifx` z110), so a card dragged past a
+  shielded/reborn unit rides on top of that unit's aura instead of under it. (Its own aura sits behind it; the
+  bubble still reads around the card edges.)
+- **Attack windup swell.** New tunable `windupScale` (default 1.2) in `lungeConfig` + LungeTuner; the lunge
+  timeline swells the attacker +20% during the wind-up and returns to 1 on the strike. Typecheck + lint +
+  build:web green.
+
+### fix: place rebound (drop = shown gap) + spell-buy collapse slide
+
+- **Rebound, really fixed.** The drop recomputed its target index from the *release* point, but the neighbours
+  had opened for the last *rendered* gap (from the rAF-throttled `drag.x`). On a fast left→right placement the
+  two disagreed, so a neighbour that had shifted one way during the drag reversed on commit — the "rebound". No
+  settle animation can hide a wrong-side preview. Now every drop (hand-play, warband reposition, shop reorder)
+  lands at the **last-rendered gap** (`prevWarbandGapRef` / `prevShopGapRef`, fallback to the recomputed index):
+  WYSIWYG — the card goes exactly where the gap was shown, so neighbours never reverse.
+- **Spell-buy slide.** Buying a spell now collapses the shop like buying a minion. The pinned spell stays
+  rendered (dimmed) while dragged so the row holds its width, and it's treated as the end-of-row index
+  (`draggedShopIdx = run.shop.length`), so every offer recentres a half slot to fill its gap. `spellShown` is
+  now always the spell uid until the buy commits. Typecheck + lint + build:web green.
+
+### fix: hand-play neighbour jump on a fast "land far over" drop — manual FLIP
+
+The instant snap on a hand-play commit teleported a neighbour when the release point outran the live preview:
+the drop index uses the release `cx`, but the last render's gap used the rAF-throttled `drag.x` (up to a frame
+behind), so on a fast left→right "land it far over" the preview hadn't opened the gap where the card actually
+landed — the row snapped the difference on commit. Now the commit does a MANUAL FLIP: `onUp` snapshots the
+board cards' live left-edges the instant before the row reflows (`handFlipRef`), and the FLIP `useLayoutEffect`
+glides each existing neighbour from its captured spot to its final slot (`gsap.fromTo({x:delta},{x:0})`). The
+freshly played card is skipped (it pops in via CSS — a full `Flip.from` would fight the entering element and
+jolt the row). Cards already home (delta < 0.5) just restore their base transition; the base
+`.card transition: transform 0.12s` is killed for the commit so the reset never rebounds. Typecheck + lint +
+build:web green.
+
+### fix: reorder swap asymmetry — measure neighbours at their shifted spots
+
+Reordering a warband/shop card felt lopsided: dragging one aside needed ~50% of a neighbour's width to open
+the gap, but nudging back needed only ~5% to close it. Cause — `insertRectsRef` caches each slot's RESTING
+position, and the insertion index counted those fixed midpoints. Once a neighbour slides a whole slot away to
+make room, its trigger midpoint stays where the card *used to be*, so on the way back the dragged card is
+already past it → instant re-trigger. New `reorderIndexFromSlots` counts each non-dragged card at its CURRENT
+(shifted) centre instead: with the gap at `prevGap`, the p-th neighbour sits in slot `(p < prevGap ? p : p+1)`,
+so the swap threshold follows the card's real position — symmetric both directions. Carried frame-to-frame via
+`prevWarbandGapRef` / `prevShopGapRef` (reset at drag start; fall back to the dragged card's home slot on frame
+one). Only the reorder path (excludeUid) uses it; hand-play insert keeps the plain midpoint count. Typecheck +
+lint green.
+
+### fix: collapse over-shift (buy/sell) + hand-play rebound
+
+Two follow-ups to the vertical-lift collapse:
+- **Over-shift.** The collapse shifted survivors a FULL slot (`-1`) toward the lifted card's old spot. But
+  removing a card takes the row N → N-1 and RE-CENTERS it, so each survivor should move only a HALF slot toward
+  centre: cards before the lifted one `+0.5`, cards after `-0.5` (the exact mirror of a hand-play insert).
+  Applied to both `boardSlide` and `shopSlide`. (Confirmed the slot unit is right: recruit cards are
+  `.card.compact` → width `--ccw`, so the transforms' `--ccw + 22px` really is one slot.) Also added
+  `collapsedLift` to `flipKey` so the GSAP buy/sell commit captures the collapsed layout instead of a stale
+  pre-collapse one.
+- **Place rebound.** After a hand card lands we snap the FLIP commit (no GSAP), but the base
+  `.card { transition: transform 0.12s }` (active once `body.dragging` is off) still animated the neighbours'
+  `slideDir → 0` reset while the row had already reflowed — snapping them a slot left then gliding back. Kill the
+  transition for that one commit (`transition:none` → force reflow → restore) so the reset is instant: the
+  neighbours are already exactly where they belong, so nothing moves. Typecheck + lint green.
+
+### fix: hand-play jolt — snap the FLIP commit when a card lands (no GSAP thrash)
+
+Placing a card from hand jolted: the row would quickly close then reopen as it made space. Cause — a played
+minion is a NEW element entering the flex row, and GSAP Flip doesn't take entering elements out of flow, so on
+the commit it fights the reflow (siblings collapse, then the new card shoves them back open). Board-reorder and
+shop drops never hit this because every card already exists. Fix: `handPlaySnapRef` is set on a hand-play drop
+(`acted && source==='hand' && !spell`) and the FLIP `useLayoutEffect` SNAPS that commit (skips GSAP) — the
+neighbours are already parted to their final spots by the drag, and the new card pops in via CSS `popin`, so no
+animation is needed. Genuine no-drag repositions (summons, effects) still use the `commitMs` slide. (Trade-off:
+a very fast hand *flick* now opens the slot instantly rather than sliding — clean, no jolt.) Typecheck + lint green.
+
+### feat: vertical-lift collapse — the row fills the gap when a card is pulled out up/down
+
+The reorder slide already parted the row horizontally, but pulling a card straight *up* (to play/sell) or
+*down* left a visible hole where the lifted card sat (it stays rendered invisible to hold row width). Now,
+once the drag clears a vertical distance (`collapseY`, default 70 px), the source row closes up: every card
+*after* the lifted one slides in one slot (`slideDir −1`) to fill the gap, glided by the same
+`body.dragging` `transition: transform`. Applies to both the **warband** (`boardSlide`) and the **shop**
+(`shopSlide` — the buy motion pulls an offer down out of the row). Gated on `gapIndex < 0` so an in-row
+horizontal reorder is unaffected. New tunable `collapseY` added to the drag-feel config + 🎴 DragTuner
+(range 0–200 px) with a hover definition.
+
+Follow-up fix: the shop wasn't collapsing on a buy. Unlike the warband sell (which flips `overZone` off
+`'warband'` the instant you cross the `wbTop` line), a buy pull-down stays over the tall tavern zone, so
+`overShop` kept the row in reorder-hold (no gap-fill) for most of the gesture. Now `overShop` also requires
+`!collapsedLift` — once the offer is lifted past `collapseY` it's a buy, not a reorder, so the collapse
+takes over immediately, matching the warband feel. Verified: typecheck + lint green.
+
+### polish: reposition slide — no pickup jerk, shop too, longer settle
+
+Three refinements (all verified live via in-browser transform sampling):
+- **No pickup re-centre jerk.** The dragged card no longer leaves the row; it stays rendered invisible
+  (`dimmed`) so its slot holds the row width — the neighbours don't snap inward on lift. The gap moves only
+  when the drag actually crosses a card: each other card shifts a WHOLE slot via `boardSlide(i)` (its index
+  among the non-dragged cards → its index once the dragged card reinserts at the gap). On pickup gap==origin,
+  so nothing moves. Verified: grabbing the middle card, the neighbour holds `tx=0` until dragged clear, then
+  glides one full slot.
+- **Shop row too.** Same model via `shopSlide(i)` — the tavern offers slide/hold-slot on reorder (drop-slots
+  removed from both rows).
+- **Longer ease-out.** Transition `0.36s cubic-bezier(0.12, 0.82, 0.12, 1)` — a more gradual settle.
+- Hand-play still opens a half-slot gap each side at the insertion point.
+
+### fix: reposition slide FINALLY works — deterministic CSS-transform gap (GSAP Flip abandoned)
+
+Confirmed via live in-browser transform sampling (focused tab so rAF runs): GSAP Flip applied **no transform
+at all** during a warband drag — the neighbour card jumped 753→941 px in one frame with transform identity the
+whole time (pure flex snap). GSAP Flip simply doesn't animate the reorder in this app. Replaced it (for the
+warband) with a deterministic approach: the drop slot is gone; instead each card gets a `slideDir` (−1/0/+1)
+that shifts it half a slot left/right of the gap via `transform: translateX(calc((var(--ccw)+22px)*dir/2))`,
+and a `body.dragging` CSS `transition: transform 0.28s cubic-bezier(0.16,1,0.3,1)` (ease-out) glides it as the
+gap moves. Half-slot each side keeps the row centred AND matches the final drop position, so on release
+(`body.dragging` drops → transition off) the transform resets instantly with no post-drop jump. Live sampling
+confirmed bA's translateX ramps 0→~94 with decelerating steps (the requested fast-then-settle glide).
+
+### fix: reposition slide — let the DROP settle animate (video-frame diagnosis)
+
+Extracting frames from an owner screen-recording (portable ffmpeg via `ffmpeg-static`) finally made it
+observable: on a quick drag the insertion gap only changes at the moment of DROP, so the whole reorder lands
+on the commit — and `commitMs` was 0 (instant), so it snapped (a neighbour jumped index 0→1 in one 33 ms
+frame). Set `commitMs` 0 → 200 so the drop settle slides. GSAP Flip only animates cards not already in place,
+so a slow drag that already slid pre-emptively won't double-animate. Bumped the localStorage key to
+`ascent.flip.v3` so the stale `commitMs: 0` is discarded. (The remount fix below is what lets the commit Flip
+actually move the cards rather than pop them.)
+
+### fix: THE reposition-slide root cause — drop-slot toggle was remounting cards
+
+The real bug behind "cards don't pre-emptively slide, they pop." In the warband/shop maps the drop-slot was
+rendered as an UNKEYED positional sibling inside each card's `<Fragment>`: `{gap === i && <span/>}<Card/>`.
+When the slot appeared/disappeared at a card's index, React reconciled the Fragment's children by position, so
+the `<Card>` went from child-0 to child-1 → **unmount + remount**. A remounted card is a new DOM node, so GSAP
+Flip saw it *entering* (a scale+vertical pop) instead of *moving* (a horizontal slide) — and the remount also
+replayed the `.popin` animation. A DEV transform probe nailed it: during a drag the cards showed
+`matrix(0.96…, 0, 8)` (scale + translateY) with the **horizontal translate always 0** — i.e. never sliding
+sideways. Fix: key the Fragment's inner children (`key="slot"` / `key="card"`) so the Card is matched across
+the slot toggle and never remounts → GSAP Flip now animates it as a horizontal move. (Kept the
+`body.dragging` transition-off so the CSS transform-transition doesn't re-mask GSAP's slide.)
+
+**Root cause found.** `.card` carries `transition: transform 0.12s` (for hover/buff eases), but GSAP Flip
+animates the reposition slide VIA `transform` — so the CSS transition re-smoothed every frame GSAP set and
+fought the slide into looking like an instant snap. (A DEV probe confirmed it: the committed Flip *was* firing
+with `moved: 2` tweens over the tuned duration, yet nothing visibly moved.) Fix, two paths:
+- **Live drag** (cards preemptively sliding aside to open the drop gap): the flip re-fires every frame, so a
+  per-frame JS transition toggle thrashed every card. Instead, kill the transition for the WHOLE drag via one
+  CSS rule (`body.dragging .zone[warband/tavern] .card { transition: none }`) — restored on release.
+- **Committed one-shot** (play / sell / summon / auto-reposition, no drag): `gsap.set(targets, { transition:
+  'none' })` for the slide, restored on complete/interrupt.
+
+The slide is the PRE-EMPTIVE one you watch while dragging (the row opening the drop slot); after the drop the
+cards are already in place, so the committed settle now defaults to **instant**. Durations live in
+`flipConfig.ts`: `dragMs` (the drag-across preview slide, default 180) + `commitMs` (post-commit settle, default
+**0 = off**; a non-drag summon/effect can opt into a slide by raising it). `FlipTuner.tsx` (the 🔀 button)
+exposes both. The localStorage key was bumped to `ascent.flip.v2` to discard earlier hand-tuned values that had
+these backwards (drag near-0, commit slow).
+
+(An `absolute: true` committed Flip was tried first and reverted — it didn't help and slid the board in from
+the right on card pickup. The real culprit was the CSS transition, above.)
+
 ### tweak: card retiers + Koron rework + Choose One cursor fix
 
 - **Choose One cursor:** the `.chooseopt` option buttons set a plain `cursor: pointer`, which overrode the

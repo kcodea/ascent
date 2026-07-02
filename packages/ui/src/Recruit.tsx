@@ -9,6 +9,8 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { pixiFx, discoverFx, tauntFx } from './pixiFx';
 import { getDragFeel } from './dragFeel';
+import { getFlipConfig } from './flipConfig';
+import { getShieldConfig } from './shieldConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -482,6 +484,11 @@ export function Recruit() {
     const ay = (kind: AuraK): number => (kind === 'taunt' && back ? back.top : 0);
     const set = (uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK): void =>
       auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind);
+    // Recruit cards hang their stat badges BELOW the square art tile, so an aura centred on the art alone reads
+    // a touch high vs the full card silhouette. Nudge shield/reborn (recruit only; combat units are a clean
+    // square, and taunt carries its own tuner offset) — the amount is live-tunable via the DEV Shield tuner.
+    const auraDy = (h: number, kind: AuraK): number =>
+      inCombatRef.current || kind === 'taunt' ? 0 : h * getShieldConfig().recruitDy;
     // PASS 1 — for each aura kind, register + position every marked card; the dragged card follows from drag
     // state (works from ANY source — its CardView keywords say if it has the aura). DURING COMBAT only combat
     // UNITS (`.unit`) get auras, so a frozen shop/hand card can't float its aura over the arena.
@@ -504,11 +511,11 @@ export function Recruit() {
         if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(ckey('taunt', uid))) {
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
-        set(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, false, cfg.kind);
+        set(uid, r.left + r.width / 2, r.top + r.height / 2 + auraDy(r.height, cfg.kind), r.width, r.height, false, cfg.kind);
       }
       if (d?.active && dragUid && draggedHas) {
         seen.add(ckey(cfg.kind, dragUid));
-        set(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2, d.w, d.h, /* mini */ true, cfg.kind);
+        set(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2 + auraDy(d.h, cfg.kind), d.w, d.h, /* mini */ true, cfg.kind);
       }
     }
     // PASS 2 — an aura that just vanished from `seen`: a combat break vs a quiet clear (per kind).
@@ -571,8 +578,14 @@ export function Recruit() {
     shieldUidsRef.current = seen;
   }, []);
   // Reconcile after any render that can change the shielded set or card positions.
-  useLayoutEffect(() => { syncShields(); },
-    [syncShields, run.board, run.hand, run.shop, replay.frame, inCombat, fighting, compactCards]);
+  useLayoutEffect(() => {
+    syncShields();
+    // The first measure can catch a freshly-mounted card mid `cardpop` (scale/translate) — placing its aura
+    // slightly askew until the next interaction re-syncs it (the "shield off in shop until you click it" bug).
+    // A delayed pass after the pop settles re-measures the resting rect and corrects it.
+    const t = window.setTimeout(syncShields, 240);
+    return () => window.clearTimeout(t);
+  }, [syncShields, run.board, run.hand, run.shop, replay.frame, inCombat, fighting, compactCards]);
   // A drop opens a brief settle window so the bubble keeps tracking the card through its Flip animation.
   useEffect(() => {
     const active = drag?.active ?? false;
@@ -764,6 +777,15 @@ export function Recruit() {
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // Set true when a hand card is just PLAYED onto the board, so the next FLIP commit SNAPS instead of running
+  // GSAP. A played card is a NEW element entering the flex row: GSAP Flip doesn't take it out of flow, so it
+  // fights the reflow (siblings close, then the new card shoves them back open = a jolt). The neighbours are
+  // already parted to their final spots by the drag, so we let the card just pop in (CSS `popin`) and hold.
+  const handPlaySnapRef = useRef(false);
+  // Neighbours' visual left-edges captured at the instant of a hand-play drop (before the row reflows), so the
+  // commit can FLIP each one from exactly where it sat to its final slot — no teleport if the release point
+  // outran the rAF-throttled live preview (the "land it far over and a card jumps" bug).
+  const handFlipRef = useRef<Map<string, number> | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
@@ -833,6 +855,11 @@ export function Recruit() {
   // every frame. That live read was the last drag path still forcing a synchronous reflow per frame (a
   // read-after-Flip-write thrash); arithmetic against the cache removes it. Null outside a drag.
   const insertRectsRef = useRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[] } | null>(null);
+  // Last frame's reorder gap index (warband / shop). A reorder swap must trigger against each neighbour's
+  // CURRENT (shifted) position, and that depends on where the gap currently is — hence we carry it frame to
+  // frame. -1 = not reordering yet (falls back to the dragged card's home slot).
+  const prevWarbandGapRef = useRef(-1);
+  const prevShopGapRef = useRef(-1);
   const timeUp = useTurnTimeUp(); // turn timer expired: lock everything but End Turn (flips once/turn — see turnClock)
 
   const zoneAt = (x: number, y: number): Zone | null => {
@@ -870,9 +897,34 @@ export function Recruit() {
     }
     return i;
   };
+  // Reorder insertion index that measures against each neighbour's CURRENT (shifted) position, not its resting
+  // slot. As you drag a card aside, its neighbour slides a whole slot to make room; the swap-back trigger must
+  // follow the neighbour's NEW spot — otherwise (measuring resting midpoints) you'd have to drag ~half a card
+  // OUT to open the gap but only a sliver BACK to close it (the reported asymmetry). With the gap currently at
+  // `prevGap`, the p-th non-dragged card sits in slot (p < prevGap ? p : p+1); count those whose centre is < x.
+  const reorderIndexFromSlots = (
+    slots: { uid: string; left: number; width: number }[],
+    x: number,
+    excludeUid: string,
+    prevGap: number,
+  ): number => {
+    const g = prevGap >= 0 ? prevGap : Math.max(0, slots.findIndex((s) => s.uid === excludeUid));
+    let p = 0;
+    let count = 0;
+    for (const c of slots) {
+      if (c.uid === excludeUid) continue;
+      const slot = slots[p < g ? p : p + 1] ?? c;
+      if (x > slot.left + slot.width * INSERT_FRAC) count++;
+      p++;
+    }
+    return count;
+  };
   const warbandIndexAt = (x: number, excludeUid?: string): number => {
     const cached = insertRectsRef.current;
-    if (cached) return indexFromSlots(cached.warband, x, excludeUid);
+    if (cached)
+      return excludeUid
+        ? reorderIndexFromSlots(cached.warband, x, excludeUid, prevWarbandGapRef.current)
+        : indexFromSlots(cached.warband, x);
     const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]')];
     let i = 0;
     for (const c of cards) {
@@ -885,7 +937,10 @@ export function Recruit() {
   // Insertion index among the shop's *minion* offers (the spell stays pinned at the end).
   const shopIndexAt = (x: number, excludeUid?: string): number => {
     const cached = insertRectsRef.current;
-    if (cached) return indexFromSlots(cached.shop, x, excludeUid);
+    if (cached)
+      return excludeUid
+        ? reorderIndexFromSlots(cached.shop, x, excludeUid, prevShopGapRef.current)
+        : indexFromSlots(cached.shop, x);
     const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .row .card[data-uid]')].filter(
       (c) => c.getAttribute('data-uid') !== run.spell?.uid,
     );
@@ -1049,6 +1104,9 @@ export function Recruit() {
       warband: measureSlots('[data-zone="warband"] .row .card[data-uid]'),
       shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
     };
+    // Fresh drag → no prior gap yet; the index fns fall back to the dragged card's home slot for frame one.
+    prevWarbandGapRef.current = -1;
+    prevShopGapRef.current = -1;
     const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && !timeUp && y < wbTop;
     if (drag.source === 'board' && !drag.view.spell) setSellTop(wbTop);
     if (drag.source === 'shop') setBuyTop(wbTop);
@@ -1094,6 +1152,17 @@ export function Recruit() {
       // A board minion released anywhere above the warband sells (the whole upper screen); a shop card
       // released anywhere below the warband line buys (the whole lower screen).
       const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAt(e.clientX, e.clientY);
+      // Snapshot the board cards' live positions BEFORE the row reflows (and before body.dragging removal snaps
+      // their transforms) so a hand-play commit can FLIP each neighbour from where it actually sits to its final
+      // slot — no jump when a fast "land it far over" release outran the throttled preview.
+      if (d.source === 'hand' && !d.view.spell && zone === 'warband') {
+        const m = new Map<string, number>();
+        document.querySelectorAll<HTMLElement>('[data-zone="warband"] .row .card[data-uid]').forEach((el) => {
+          const uid = el.dataset.uid;
+          if (uid) m.set(uid, el.getBoundingClientRect().left);
+        });
+        handFlipRef.current = m;
+      }
       document.body.classList.remove('dragging'); // cursor reverts on release
 
       // Magnetic merge: a Magnetic minion dropped onto a friendly minion sharing one of its tribes
@@ -1123,6 +1192,9 @@ export function Recruit() {
       }
 
       const acted = applyDrop(d, zone, e.clientX, e.clientY);
+      // A played hand minion enters the board as a NEW flex element — snap the resulting FLIP commit (see
+      // `handPlaySnapRef`) so GSAP doesn't thrash the row as it makes space.
+      if (acted && d.source === 'hand' && !d.view.spell) handPlaySnapRef.current = true;
       if (acted || d.view.spell) {
         // a spell that misses just ends — it was never lifted from the hand
         setDrag(null);
@@ -1538,14 +1610,20 @@ export function Recruit() {
     !wouldMagnetize &&
     !drag.view.spell &&
     (drag.source === 'board' || (drag.source === 'hand' && run.board.length < CONFIG.boardMax));
-  // The dragged board minion leaves the row immediately and stays out for the whole drag.
-  const displayBoard = draggingBoard ? run.board.filter((m) => m.uid !== drag!.uid) : run.board;
-  // Same lift-out for the shop: a dragged offer leaves the row and the rest close up (FLIP),
-  // instead of leaving a dimmed "shadow" card in place while you buy.
+  // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
+  // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").
+  // The gap moves via per-card slide transforms (see `boardSlide`/`shopSlide`), not by removing the card.
+  const displayBoard = run.board;
   const draggingShop = !!drag?.active && drag.source === 'shop';
-  const displayShop = draggingShop ? run.shop.filter((o) => o.uid !== drag!.uid) : run.shop;
-  // A dragged offer (not the pinned spell) over the tavern reorders the shop — open a slot.
-  const overShop = draggingShop && overZone === 'tavern' && drag!.uid !== run.spell?.uid;
+  const displayShop = run.shop;
+  // Vertical lift of the dragged card from its press point — once it clears `collapseY`, it's a pull-OUT
+  // (buy / sell / play), not an in-row reorder: the source row closes the hole behind it (cards after the
+  // lifted one slide in one slot). This is what makes a card pulled *up* or *down* read as "the gap fills in".
+  const dragLiftY = drag?.active ? Math.abs(drag.y - drag.startY) : 0;
+  const collapsedLift = dragLiftY > getDragFeel().collapseY;
+  // A dragged offer (not the pinned spell) reorders the shop while it stays near the row — but once it's
+  // lifted clear (a buy), stop reordering so the collapse takes over (mirrors the warband's sell gesture).
+  const overShop = draggingShop && overZone === 'tavern' && !collapsedLift && drag!.uid !== run.spell?.uid;
   const shopGapIndex = overShop ? shopIndexAt(dragCx, drag!.uid) : -1;
   // Where the empty drop-slot opens (insertion index among the displayed cards), or -1.
   // A magnetizing Cling Drone also shoves cards aside (a slot opens beside the target Mech).
@@ -1553,14 +1631,69 @@ export function Recruit() {
     overWarband || wouldMagnetize
       ? warbandIndexAt(dragCx, drag!.source === 'board' ? drag!.uid : undefined)
       : -1;
-  const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
+  // The spell stays rendered (dimmed) while being bought — like a minion offer — so the row keeps its width and
+  // the offers slide to fill its slot. So it's always "shown" for FLIP-key purposes until the buy commits.
+  const spellShown = run.spell?.uid ?? '';
+  // Per-card slide offset (in slots) that opens the drop gap by shifting the cards themselves. A CSS
+  // `transition: transform` (while dragging) glides these — the pre-emptive "make room" animation.
+  const draggedBoardIdx = draggingBoard ? run.board.findIndex((m) => m.uid === drag!.uid) : -1;
+  const boardSlide = (i: number): number => {
+    if (draggingBoard) {
+      if (gapIndex < 0) {
+        // Not reordering within the warband. Once lifted vertically clear of the row, close the gap. The row
+        // loses a card (N → N-1) and RE-CENTERS, so every survivor moves a HALF slot toward centre — cards
+        // before the lifted one shift right (+0.5), cards after shift left (-0.5). (The mirror of a hand-play
+        // insert.) A full-slot shift would fling them all the way to the lifted card's spot — the reported bug.
+        if (collapsedLift && draggedBoardIdx >= 0)
+          return i === draggedBoardIdx ? 0 : i < draggedBoardIdx ? 0.5 : -0.5;
+        return 0;
+      }
+      // Reordering an existing minion: the dragged card holds its slot (invisible). Every OTHER card shifts by
+      // a whole slot only when the gap crosses it — so nothing moves until the card is dragged clear.
+      if (i === draggedBoardIdx) return 0;
+      const p = i < draggedBoardIdx ? i : i - 1;      // its index among the non-dragged cards
+      return (p < gapIndex ? p : p + 1) - i;          // its index once the dragged card reinserts at the gap
+    }
+    if (gapIndex < 0) return 0;
+    // Playing a new card from hand: open a half-slot gap each side at the insertion point.
+    return i < gapIndex ? -0.5 : 0.5;
+  };
+  // The spell is pinned at the END of the shop row, so buying it collapses like removing the last offer: treat
+  // its index as the row length, and every minion offer (all before it) recentres a half slot to fill the gap.
+  const draggedShopIdx = draggingShop
+    ? drag!.uid === run.spell?.uid
+      ? run.shop.length
+      : run.shop.findIndex((o) => o.uid === drag!.uid)
+    : -1;
+  const shopSlide = (i: number): number => {
+    if (!draggingShop) return 0;
+    if (shopGapIndex < 0) {
+      // Buying: dragged up/down out of the shop far enough — close the gap the offer leaves behind. Same as the
+      // warband: the row loses a card and re-centres, so survivors move a HALF slot toward centre (+0.5 before,
+      // -0.5 after), not a full slot to the bought card's old spot.
+      if (collapsedLift && draggedShopIdx >= 0)
+        return i === draggedShopIdx ? 0 : i < draggedShopIdx ? 0.5 : -0.5;
+      return 0;
+    }
+    if (i === draggedShopIdx) return 0;
+    const p = i < draggedShopIdx ? i : i - 1;
+    return (p < shopGapIndex ? p : p + 1) - i;
+  };
   // FLIP key tracks row composition + order AND the live drop-slot index, so cards slide smoothly *as the
   // gap moves during a drag* (not just on drop). GSAP Flip animates this robustly — it reads in a batch,
   // uses GPU transforms, and blends interruptions natively, so rapid gap moves don't storm the way the old
   // hand-rolled FLIP did (which is why that one had to be limited to discrete changes).
   const flipKey =
     displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
-    displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex;
+    displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
+  // Carry each row's live gap to the next frame so `reorderIndexFromSlots` can place neighbours at their
+  // CURRENT (shifted) spots (symmetric swap thresholds). Only while actually reordering (gap >= 0).
+  useEffect(() => {
+    if (gapIndex >= 0) prevWarbandGapRef.current = gapIndex;
+  }, [gapIndex]);
+  useEffect(() => {
+    if (shopGapIndex >= 0) prevShopGapRef.current = shopGapIndex;
+  }, [shopGapIndex]);
 
   // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* run (the
   // cards' old spots); after React commits the new order, `Flip.from` animates each card from there to its
@@ -1569,13 +1702,56 @@ export function Recruit() {
   // transforms on complete and manages interruptions, so a fast drag blends rather than flinging cards.
   useLayoutEffect(() => {
     if (flipStateRef.current) {
-      // Two feels: while a drag is live, the warband cards slide aside under the cursor — a slightly-eased
-      // glide so the side-to-side tracks smoothly, not janky. A committed change (drop / play / buy / sell)
-      // settles snappy.
-      Flip.from(
-        flipStateRef.current,
-        dragRef.current?.active ? { duration: 0.25, ease: 'power2.out' } : { duration: 0.18, ease: 'power2.out' },
-      );
+      const flipCfg = getFlipConfig();
+      const dragging = dragRef.current?.active ?? false;
+      if (dragging) {
+        // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
+        // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
+        // whole drag (body.dragging rule in styles.css) so GSAP's transform animation isn't masked.
+        Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
+      } else if (handPlaySnapRef.current) {
+        // A hand card just landed. We do a MANUAL FLIP on the existing board cards only (never a full
+        // Flip.from — the freshly played card is an entering element and GSAP Flip would fight the reflow and
+        // jolt the row; it pops in via CSS instead). First kill the base `.card { transition: transform 0.12s }`
+        // so the slideDir→0 reset is instant (else it animates the reset over the reflow = a rebound). Then, for
+        // any neighbour whose real pre-commit spot (captured at drop) differs from its final slot — i.e. the
+        // release outran the throttled preview — glide it from there to home so it settles instead of jumping.
+        handPlaySnapRef.current = false;
+        const rects = handFlipRef.current;
+        handFlipRef.current = null;
+        const targets = gsap.utils.toArray<HTMLElement>('[data-zone="warband"] .row .card[data-uid]');
+        gsap.set(targets, { transition: 'none' });
+        void document.body.offsetWidth; // reflow so transform:0 is the instant baseline (no rebound)
+        for (const el of targets) {
+          const uid = el.dataset.uid;
+          const old = uid ? rects?.get(uid) : undefined;
+          const delta = old === undefined ? 0 : old - el.getBoundingClientRect().left;
+          if (Math.abs(delta) < 0.5) {
+            el.style.transition = ''; // static card (or the new one) — restore its base transition
+            continue;
+          }
+          gsap.fromTo(
+            el,
+            { x: delta },
+            { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
+          );
+        }
+      } else if (flipCfg.commitMs > 0) {
+        // A COMMITTED move with NO drag (a summoned token, an effect repositioning) — opt-in via commitMs > 0.
+        // After a drag-DROP the cards already slid into place during the drag, so the default (commitMs 0) snaps
+        // here — no redundant post-commit slide. `.card`'s CSS transform-transition would fight GSAP, so kill it
+        // for this one-shot and restore after.
+        const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        gsap.set(targets, { transition: 'none' });
+        const restore = (): void => gsap.set(targets, { clearProps: 'transition' });
+        Flip.from(flipStateRef.current, {
+          duration: flipCfg.commitMs / 1000,
+          ease: 'power2.out',
+          onComplete: restore,
+          onInterrupt: restore,
+        });
+      }
+      // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
   }, [flipKey]);
@@ -1769,7 +1945,10 @@ export function Recruit() {
     // A shop offer dropped back in the tavern reorders it (so it lands where you drop it,
     // like the warband, instead of snapping back). The spell stays pinned at the end.
     if (d.source === 'shop' && zone === 'tavern' && d.uid !== run.spell?.uid) {
-      dispatch({ type: 'reorderShop', uid: d.uid, toIndex: shopIndexAt(cx, d.uid) });
+      // Land it exactly where the preview showed the gap (last rendered), not at a freshly recomputed release
+      // point — otherwise a fast drop resolves a different slot than the neighbours opened for, so they visibly
+      // reverse (the "rebound"). Fall back to the release point only if no gap was rendered.
+      dispatch({ type: 'reorderShop', uid: d.uid, toIndex: prevShopGapRef.current >= 0 ? prevShopGapRef.current : shopIndexAt(cx, d.uid) });
       return true;
     }
     // Sell a *board* minion by dropping it on the tavern. A minion must be played to the board first
@@ -1839,12 +2018,16 @@ export function Recruit() {
       return false;
     }
     if (d.source === 'hand' && zone === 'warband') {
-      playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: warbandIndexAt(cx) });
+      // Land where the preview's gap was last rendered (WYSIWYG) — not a freshly recomputed release point,
+      // which on a fast drop resolves a different slot than the neighbours opened for → they reverse (rebound).
+      const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
+      playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
       puffOnBoard(d.uid); // dust around the minion where it lands
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {
-      dispatch({ type: 'reposition', uid: d.uid, toIndex: warbandIndexAt(cx, d.uid) });
+      const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx, d.uid);
+      dispatch({ type: 'reposition', uid: d.uid, toIndex: to });
       puffOnBoard(d.uid); // dust around the minion at its landed slot
       return true;
     }
@@ -1987,9 +2170,12 @@ export function Recruit() {
           <>
           {displayShop.map((o, i) => (
             <Fragment key={o.uid}>
-              {shopGapIndex === i && <span className="dropslot" aria-hidden="true" />}
+              {/* Gap opened by sliding the offers (`slideDir`); the dragged offer stays here invisible
+                  (`dimmed`) to hold its slot — same model as the warband, no re-centre jerk. */}
               <Card
                 uid={o.uid}
+                slideDir={shopSlide(i)}
+                dimmed={isDragging(o.uid)}
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
                 dragging={!!drag?.active}
@@ -2001,12 +2187,13 @@ export function Recruit() {
               />
             </Fragment>
           ))}
-          {shopGapIndex >= displayShop.length && <span className="dropslot" aria-hidden="true" />}
-          {run.spell && !(draggingShop && drag!.uid === run.spell.uid) && (
+          {run.spell && (
             <Card
               key={run.spell.uid}
               uid={run.spell.uid}
+              dimmed={draggingShop && drag!.uid === run.spell.uid}
               card={spellView!}
+              dragging={!!drag?.active}
               onPointerDown={heroArmed ? undefined : onCardPointerDown}
             />
           )}
@@ -2038,9 +2225,13 @@ export function Recruit() {
               )}
               {displayBoard.map((m, i) => (
                 <Fragment key={m.uid}>
-                  {gapIndex === i && <span className="dropslot" aria-hidden="true" />}
+                  {/* No drop-slot element: the gap is opened by shifting the cards via `slideDir` (a CSS
+                      transition glides it). The dragged card stays here rendered invisible (`dimmed`) so its
+                      slot holds the row width — no re-centre jerk on pickup. */}
                   <Card
                     uid={m.uid}
+                    slideDir={boardSlide(i)}
+                    dimmed={isDragging(m.uid)}
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}
                     dragging={!!drag?.active}
@@ -2061,7 +2252,6 @@ export function Recruit() {
                   />
                 </Fragment>
               ))}
-              {gapIndex >= displayBoard.length && <span className="dropslot" aria-hidden="true" />}
             </>
           )}
         </div>

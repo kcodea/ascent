@@ -361,6 +361,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto; }
+/* The PRE-EMPTIVE reorder slide. During a drag, the board/shop cards open the drop slot via an inline
+   `transform: translateX(±half-slot)` (Card's `slideDir`, set from the live gap index). This ease-out
+   transition glides that transform as the gap moves — fast then settling — the "make room" animation.
+   `!important` beats the base 0.12s rule. On release `body.dragging` drops, so the transform resets INSTANTLY
+   (no transition) exactly as the card commits to its final slot — no post-drop jump. */
+body.dragging .zone[data-zone='warband'] .card,
+body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubic-bezier(0.12, 0.82, 0.12, 1) !important; }
+/* While dragging, the cursor still "hovers" the cards under the (pointer-events:none) floating card — don't
+   flash their hover glow. Reset to the base card shadow. */
+body.dragging .zone[data-zone='warband'] .card:hover,
+body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent) !important; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }
@@ -371,7 +382,13 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* A battlecry-summoned token waits ~0.2s before popping in, so the trigger pulse reads first, THEN the
    token appears (e.g. Alleycat → Stray). `backwards` holds the invisible `from` frame during the delay. */
 .card.popin.popdelay { animation-delay: 0.2s; animation-fill-mode: backwards; }
-.card:hover { transform: translateY(-3px); z-index: 20; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 26px 2px color-mix(in srgb, var(--c) 90%, transparent); }
+/* Hover = a bright white/gold glow that surrounds the card. No lift/tilt — the card stays flat in place.
+   `!important` + `.compact` so it beats `.card.compact { box-shadow: none }` and the special-card shadows
+   (venom / triple / tripready), which are equal/greater specificity and appear later in the file.
+   NO z-index bump: raising it makes the card a stacking context that lifts it ABOVE the z3 shield-bubble
+   canvas (hiding the divine-shield/reborn aura on hover). Staying context-less keeps the bubble between the
+   art and the badges. */
+.card:hover, .card.compact:hover { box-shadow: 0 0 0 3px #fff7d1, 0 0 24px 7px rgba(255, 226, 110, 0.95), 0 3px 0 var(--shadow) !important; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */
@@ -473,7 +490,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
   -webkit-mask-composite: xor; mask-composite: exclude;
 }
 /* Dual cards get the same boosted glow on hover as single cards (no solid ring, so the split rim shows). */
-.card.dual:hover { box-shadow: 0 3px 0 var(--shadow), 0 0 26px 2px color-mix(in srgb, var(--c) 90%, transparent); }
+.card.dual:hover { box-shadow: 0 0 0 3px #fff7d1, 0 0 24px 7px rgba(255, 226, 110, 0.95), 0 3px 0 var(--shadow); }
 .card.golden.dual::before, .card.spellcard::before, .card.triplecard::before { display: none; } /* special frames win */
 .cbody { padding: 0 9px 8px; margin-top: -20px; position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .cn { flex: none; align-self: center; max-width: 100%; font-family: var(--font-ui); font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
@@ -751,7 +768,10 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 /* custom drag: a solid card pinned to the cursor; the source dims; invalid drops snap back.
    No base transition — the card tracks the cursor 1:1 for a snappy feel (not floaty); .snap / .magslide
    below add their own transitions for the release animations. */
-.dragcard { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
+/* z115: above the FX overlay (.pixifx z110) so the dragged card always rides ON TOP of other units' auras
+   (divine-shield bubbles, reborn wisps) as it passes over them. Its own aura sits on the FX canvas behind it —
+   the bubble still reads around the card's edges. Below discover (z160) / inspect (z500). */
+.dragcard { position: fixed; left: 0; top: 0; z-index: 115; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
 .dragcard.snap { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
 /* a Magnetic card shrinking straight into its Mech before it merges — snappy, so it reads as an
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */
@@ -1242,6 +1262,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    in FRONT of a held/hovered card; still below the modal overlays (end-run z400, inspect z500, dev panels
    z200). The card-landing dust still tucks behind its own card by raising that card above this (see puffOnBoard). */
 .pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 110; }
+/* Persistent shield/reborn bubbles render here — over the card art but BELOW the badges/tier/effect chrome
+   (which sit at z4–9 in the root stacking context). The break burst stays on .pixifx (z110), over the chrome. */
+.pixifx-under { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
 /* Loss-damage tally — the damage counter that assembles above the enemy board on a defeat, plus the
    tier numbers that fly up into it. The Pixi blast bolt (z41) launches from the counter into the Resolve
    bar. Counter z-index sits above the board but below the bolt. */
@@ -1700,6 +1723,11 @@ svg { width: 18px; height: 18px; }
 .dragfeel-btn { position: fixed; right: calc(var(--bar-x) + 288px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.dragfeel .sfxmix-name { flex-basis: 120px; }
 .sfxmix.dragfeel .sfxmix-val { flex-basis: 46px; }
+/* DEV reposition-slide (Flip) tuner — sixth button in the bottom-right cluster. */
+.flip-btn { position: fixed; right: calc(var(--bar-x) + 336px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+/* DEV divine-shield placement tuner — seventh button in the bottom-right cluster. */
+.shield-btn { position: fixed; right: calc(var(--bar-x) + 384px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.sfxmix.flip .sfxmix-name { flex-basis: 100px; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
 .escvol .evl { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }

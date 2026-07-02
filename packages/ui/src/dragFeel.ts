@@ -31,6 +31,9 @@ export interface DragFeel {
   snapMs: number;
   /** Duration of the Mech 'absorb' slide on a magnetic merge (ms). */
   magSlideMs: number;
+  /** Vertical drag distance (px) before the row closes up behind a lifted card — when you pull a board
+   *  minion (or shop offer) up/down out of its slot this far, the others slide in to fill the gap. */
+  collapseY: number;
 }
 
 const DEFAULTS: DragFeel = {
@@ -45,6 +48,7 @@ const DEFAULTS: DragFeel = {
   threshold: 1,     // drag engages almost immediately
   snapMs: 110,
   magSlideMs: 280,
+  collapseY: 70,    // ~lift half a card vertically before the row fills the gap
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -60,6 +64,7 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   threshold: [0, 30, 1],
   snapMs: [40, 400, 10],
   magSlideMs: [100, 600, 10],
+  collapseY: [0, 200, 5],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -75,6 +80,7 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   threshold: 'Pixels the pointer must move before a click turns into a drag.',
   snapMs: 'How fast an invalid drop springs back to its slot (milliseconds).',
   magSlideMs: 'Duration of the Mech “absorb” slide when a Magnetic minion merges (milliseconds).',
+  collapseY: 'Vertical distance (px) you must lift a card out of its row before the others slide in to fill the gap.',
 };
 export const DRAG_KEYS = Object.keys(DEFAULTS) as (keyof DragFeel)[];
 

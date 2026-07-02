@@ -14,6 +14,8 @@ export interface LungeConfig {
   windupDur: number;
   /** Wind-up depth — fraction of the attacker→defender vector to lean back. */
   windupDepth: number;
+  /** Wind-up scale — how much the attacker swells during the anticipation lean-back (1.2 = +20%). */
+  windupScale: number;
   /** Strike duration (s) — the drive into the defender (lower = faster/snappier). */
   strikeDur: number;
   /** Strike distance — fraction of the full vector the attacker covers (>1 overdrives into the target). */
@@ -30,6 +32,7 @@ export interface LungeConfig {
 const DEFAULTS: LungeConfig = {
   windupDur: 0.37,   // longer, weightier wind-up (tuned by eye in the DEV Lunge tuner)
   windupDepth: 0.1,
+  windupScale: 1.2,  // swell +20% during the wind-up, then return to 1 on the strike
   strikeDur: 0.16,   // a heavier drive into the target
   strikeDist: 1.44,  // a deeper lunge that punches further into the defender
   smackLead: 0.005,  // smack ~5ms before the strike lands (near-on-contact)
@@ -43,6 +46,7 @@ const DEFAULTS: LungeConfig = {
 export const LUNGE_RANGES: Record<keyof LungeConfig, [number, number, number]> = {
   windupDur: [0.05, 0.5, 0.01],
   windupDepth: [0, 0.4, 0.01],
+  windupScale: [1, 1.5, 0.01],
   strikeDur: [0.04, 0.3, 0.01],
   strikeDist: [0.8, 1.8, 0.01],
   smackLead: [0, 0.12, 0.005],

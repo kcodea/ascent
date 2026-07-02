@@ -31,15 +31,15 @@ export interface SmokeConfig {
 }
 
 const DEFAULTS: SmokeConfig = {
-  smokeCount: 4,
-  smokeRise: 75,
-  smokeDrift: 90,
-  smokeLife: 620,
-  smokeGrow: 2.1,
-  smokeAlpha: 0.34,
-  dustCount: 12,
-  dustSpeed: 120,
-  dustLife: 380,
+  smokeCount: 7,
+  smokeRise: 150,
+  smokeDrift: 170,
+  smokeLife: 1720,
+  smokeGrow: 4.5,
+  smokeAlpha: 0.09,
+  dustCount: 22,
+  dustSpeed: 195,
+  dustLife: 1180,
   dustGrow: 1.2,
   dustAlpha: 0.32,
 };

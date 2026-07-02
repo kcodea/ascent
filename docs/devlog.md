@@ -11,10 +11,13 @@ Extracted the previously-hardcoded parameters of the combat **impact smoke** (`p
 grey puffs that rise on a hit) and the **card-drop dust** (`pixiFx.dust` — the tan ring kicked up under a
 placed/moved card) into a new localStorage-persisted `smokeConfig.ts`, and added a panel-only `SmokeTuner`
 under the Dev Tuning Menu (🌫️ Smoke & Dust). 11 live sliders: per-effect count / rise or speed / spread /
-lifetime / expansion (grow) / alpha, read at spawn time so they apply to the next impact/drop. The DEFAULTS
-are calibrated to reproduce the old hardcoded look *exactly* (the randomized ranges were re-expressed as
-`base × jitter` so nothing changes until a slider moves), letting the smoke be amped up by eye without a code
-round-trip. Verified: `typecheck` + `lint` + `test` (460) + `build:web` green; a preview smoke test fired
+lifetime / expansion (grow) / alpha, read at spawn time so they apply to the next impact/drop. The randomized
+ranges were re-expressed as `base × jitter` (so a single dial cleanly scales its part of the effect); the
+tuner was then used to **amp the smoke up** and the player-tuned result baked in as the shipped DEFAULTS —
+bigger + longer-lived + more billowing combat smoke (`smokeCount` 4→7, `smokeRise` 75→150, `smokeDrift`
+90→170, `smokeLife` 620→1720, `smokeGrow` 2.1→4.5, `smokeAlpha` 0.34→0.09 so the larger cloud stays wispy),
+and a thicker/faster/longer card-drop dust (`dustCount` 12→22, `dustSpeed` 120→195, `dustLife` 380→1180).
+Verified: `typecheck` + `lint` + `test` (460) + `build:web` green; a preview smoke test fired
 `impact()` + `dust()` (incl. the scaled/dense taunt-deploy variant) with no runtime errors. Purely additive +
 DEV-only — no player-facing behavior change at the shipped defaults.
 

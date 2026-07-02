@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: reposition slide — let the DROP settle animate (video-frame diagnosis)
+
+Extracting frames from an owner screen-recording (portable ffmpeg via `ffmpeg-static`) finally made it
+observable: on a quick drag the insertion gap only changes at the moment of DROP, so the whole reorder lands
+on the commit — and `commitMs` was 0 (instant), so it snapped (a neighbour jumped index 0→1 in one 33 ms
+frame). Set `commitMs` 0 → 200 so the drop settle slides. GSAP Flip only animates cards not already in place,
+so a slow drag that already slid pre-emptively won't double-animate. Bumped the localStorage key to
+`ascent.flip.v3` so the stale `commitMs: 0` is discarded. (The remount fix below is what lets the commit Flip
+actually move the cards rather than pop them.)
+
 ### fix: THE reposition-slide root cause — drop-slot toggle was remounting cards
 
 The real bug behind "cards don't pre-emptively slide, they pop." In the warband/shop maps the drop-slot was

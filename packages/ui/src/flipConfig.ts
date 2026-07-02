@@ -14,8 +14,10 @@ export interface FlipConfig {
 }
 
 const DEFAULTS: FlipConfig = {
-  dragMs: 180,  // the PRE-EMPTIVE slide as you drag a card across the row — the one you actually watch
-  commitMs: 0,  // the settle AFTER dropping — 0 = instant (cards already slid into place during the drag)
+  dragMs: 180,   // the PRE-EMPTIVE slide as you drag a card across the row (visible on a deliberate hover)
+  commitMs: 200, // the reorder settle on DROP. Must be > 0: on a quick drag the gap only changes at the drop,
+                 // so the reorder actually happens here — instant would snap. GSAP Flip only animates the cards
+                 // that aren't already in place, so a slow drag (already slid pre-emptively) won't double-animate.
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -33,7 +35,7 @@ export const FLIP_KEYS = Object.keys(DEFAULTS) as (keyof FlipConfig)[];
 
 // v2: bump the key so the earlier hand-tuned values (which had drag near-0 and commit slow — backwards) are
 // discarded and these corrected defaults take effect. Re-tune from here.
-const KEY = 'ascent.flip.v2';
+const KEY = 'ascent.flip.v3';
 let cfg: FlipConfig = (() => {
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');

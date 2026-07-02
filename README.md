@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Recruit HUD + drag polish** — play a minion by releasing it anywhere in the board area (a play floor lets you
+  cancel back to the hand), with a soft gold "will play" glow on the card; Gold moved into its own box at the
+  left of the shop controls (opposite End Turn), health is now a compact box by the hero power (bar removed), and
+  a lot of drag clutter (labels, drop-boxes, the empty hint) is gone. The 21:9 board is now **board2upscaled2**.
 - **Card motion trails + Dev Tuning Menu** — dragging a card or watching an attack lunge now trails a soft
   wind-whoosh wisp (gold for divine-shield); the six separate floating DEV tuner buttons + the Test FX
   button are consolidated into one 🛠️ Dev Tuning Menu.

@@ -87,7 +87,7 @@ export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATA
  *  they're listed by URL — keep in sync with `styles.css` `url()` refs + `apps/web/public/`. */
 const PUBLIC_ART_URLS: string[] = [
   '/board2b.webp',
-  '/board2.webp',
+  '/board2upscaled2.webp',
   '/homescreen.webp',
   '/cursors/gauntlet_default.svg',
   '/cursors/gauntlet_open.svg',

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CONFIG, boardManaBonus, getHero, spellAmplifyBonus } from '@game/sim';
+import { getHero, spellAmplifyBonus } from '@game/sim';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -62,19 +62,6 @@ export function StatusBar() {
             ? ` Click to use.${power.cost ? ` Costs ${power.cost} Gold.` : ''}`
             : ' Drag onto a minion (or click, then click a minion).'
           : ' Used this wave.';
-  // Projected starting Embers for the next two waves (each wave grows maxEmbers by
-  // embersPerWave, capped), plus any board mana income (Money Bot) on top of the cap —
-  // assuming the source stays on board.
-  const manaBonus = boardManaBonus(run);
-  // Hoarder's Battlecry banks Gold for next turn only — fold it into the Wave+1 projection (not Wave+2).
-  const nextEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + manaBonus + (run.bonusEmbersNextTurn ?? 0);
-  const afterEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + manaBonus;
-  // The HP bar shows Resolve + Armor stacked over a shared capacity (maxResolve + maxArmor), so Armor reads as
-  // the extra HP layer on top: the red Resolve fill, then the steel Armor fill, then the empty track.
-  const hpCap = Math.max(1, run.maxResolve + run.maxArmor);
-  const hpPct = Math.max(0, Math.min(100, (run.resolve / hpCap) * 100));
-  const armPct = Math.max(0, Math.min(100, (run.armor / hpCap) * 100));
-
   // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
   const prevHp = useRef(run.resolve + run.armor);
   const [hit, setHit] = useState<{ amt: number; key: number } | null>(null);
@@ -93,20 +80,6 @@ export function StatusBar() {
   return (
     <div className="statusbar">
       <div className="statusrow">
-        <div className="chip g mana">
-          <span className="ic"><Icon name="mana" /></span>
-          <div>
-            <div className="v">{run.embers}</div>
-            <div className="l">Gold</div>
-          </div>
-          {/* hover: how much Gold you'll start the next two waves with (cascading up) */}
-          <div className="emberproj" role="tooltip">
-            <div className="ept">Gold · coming up</div>
-            <div className="epr"><span>Wave {run.wave + 2}</span><b><Icon name="mana" />{afterEmbers}</b></div>
-            <div className="epr"><span>Wave {run.wave + 1}</span><b><Icon name="mana" />{nextEmbers}</b></div>
-          </div>
-        </div>
-
         <div
           className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
         >
@@ -146,23 +119,21 @@ export function StatusBar() {
             </button>
             {power.cost ? <span className="hpcost"><Icon name="mana" />{power.cost}</span> : null}
           </div>
+          {/* Health as a compact white box beside the hero power — the number is Resolve (+Armor). Replaces the
+              old HP bar; keeps the hit-shake + −X float when a wave breaks through. */}
+          <div
+            className={`hpbox${hit ? ' hit' : ''}`}
+            title={`Resolve: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
+          >
+            <Icon name="heart" />
+            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" title="Armor — extra effective HP">+{run.armor}</b>}</span>
+            {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
+          </div>
           <div className="herotip" role="tooltip">
             <b>{power.name}</b> — {power.text}
             {powerNote}
           </div>
         </div>
-      </div>
-
-      {/* Resolve as an HP bar across the bottom: red heart on the left, current health on the right. Armor
-          (when the hero has any) stacks as a steel segment on top of the red Resolve fill. */}
-      <div className={`hprow${hit ? ' hit' : ''}`} aria-label={`Resolve: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}>
-        <span className="ic"><Icon name="heart" /></span>
-        <div className="hpbar">
-          <i style={{ width: `${hpPct}%` }} />
-          {run.maxArmor > 0 && <i className="arm" style={{ width: `${armPct}%` }} />}
-        </div>
-        <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" title="Armor — extra effective HP">+{run.armor}</b>}</span>
-        {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
       </div>
     </div>
   );

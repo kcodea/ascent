@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
+import { GoldChip } from './GoldChip';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
@@ -796,6 +797,9 @@ export function Recruit() {
   // Which row (warband or tavern) the captured `handFlipRef` rects belong to — so the commit FLIPs the right
   // row. A board/hand drop targets the warband; a shop-offer reorder targets the tavern.
   const handFlipSelRef = useRef<string | null>(null);
+  // The Y (viewport px) below which releasing a dragged HAND minion cancels back to hand instead of playing —
+  // the "minimum play height". Measured once per drag (see the drag effect); Infinity until then = play anywhere.
+  const playFloorRef = useRef(Infinity);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
@@ -1080,6 +1084,10 @@ export function Recruit() {
     // calling elementFromPoint / getBoundingClientRect every frame — both force a synchronous layout,
     // the main source of drag micro-stutter.
     const wbTop = document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0;
+    // The board's horizontal midline (background divider): the .app's vertical centre, since the board art is
+    // cover-centred so its centre split maps there. Buying requires releasing a shop card BELOW this line.
+    const appR = document.querySelector('.app')?.getBoundingClientRect();
+    const midlineY = appR ? appR.top + appR.height / 2 : wbTop;
     const zoneRects = [...document.querySelectorAll<HTMLElement>('[data-zone]')].map((el) => ({
       zone: el.getAttribute('data-zone') as Zone,
       r: el.getBoundingClientRect(),
@@ -1090,6 +1098,14 @@ export function Recruit() {
       }
       return null;
     };
+    // Minimum play height for a HAND minion: release above this line plays it, below (nearer the hand) cancels
+    // back to hand. Sit it 10% of the play area (tavern top → warband bottom) up from the warband's bottom, so
+    // the low band by the hand no longer counts as playable. Fallback = Infinity (play anywhere) if unmeasured.
+    const wbRect = zoneRects.find((z) => z.zone === 'warband')?.r;
+    const tvRect = zoneRects.find((z) => z.zone === 'tavern')?.r;
+    playFloorRef.current = wbRect
+      ? wbRect.bottom - 0.1 * (tvRect ? wbRect.bottom - tvRect.top : wbRect.height)
+      : Infinity;
     // For a spell drag (targeting a friendly minion / any offer), cache the candidate card rects up front:
     // the board/shop don't shift during a spell drag, so targeting hit-tests these instead of elementFromPoint.
     const measureCards = (sel: string): { uid: string; r: DOMRect }[] =>
@@ -1121,10 +1137,10 @@ export function Recruit() {
     prevShopGapRef.current = -1;
     const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && !timeUp && y < wbTop;
     if (drag.source === 'board' && !drag.view.spell) setSellTop(wbTop);
-    if (drag.source === 'shop') setBuyTop(wbTop);
-    // Mirror for buying: a shop card released anywhere *below* the warband line — the whole lower screen
-    // (warband row, the gap, or the hand) — buys it, instead of only when dropped squarely on the hand.
-    const inBuyRegion = (y: number): boolean => drag.source === 'shop' && y > wbTop;
+    if (drag.source === 'shop') setBuyTop(midlineY);
+    // Buying: a shop card released BELOW the board's midline (the background divider) buys it — the whole lower
+    // half (warband row + hand). Above the line it snaps back, so a card hovered up by the offers won't buy.
+    const inBuyRegion = (y: number): boolean => drag.source === 'shop' && y > midlineY;
     // rAF-throttle the move: a high-Hz pointer (120/144Hz mice, trackpads) fires pointermove far more
     // often than the screen repaints, and each event re-renders Recruit (the live insertion gap + spell
     // line read drag.x/y, so we can't ref them out). Coalesce — keep only the latest position and apply
@@ -1289,6 +1305,25 @@ export function Recruit() {
     document.body.classList.add('dragging');
     return () => document.body.classList.remove('dragging');
   }, [drag?.active]);
+
+  // Align the burn-rope to the board's midline (the background divider) at any resolution/aspect: --rope-y is
+  // the offset from the warband zone's top down to the .app's vertical centre (where the cover-centred board's
+  // split lands). A ResizeObserver re-measures on window / letterbox / resolution changes.
+  useLayoutEffect(() => {
+    const wb = document.querySelector<HTMLElement>('[data-zone="warband"]');
+    const app = document.querySelector('.app');
+    if (!wb || !app) return;
+    const update = (): void => {
+      const ar = app.getBoundingClientRect();
+      const wr = wb.getBoundingClientRect();
+      // The art divider sits a touch above the exact centre, so bias the rope up a smidge to land on it.
+      wb.style.setProperty('--rope-y', `${ar.top + ar.height / 2 - wr.top - 14}px`);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(app);
+    return () => ro.disconnect();
+  }, [inCombat]);
 
   // Hero Power targeting: arm by pressing the hero, then drag a glowing line to a minion
   // and release on it. Fortify targets "a minion" — your warband OR a tavern offer (not the
@@ -1654,10 +1689,14 @@ export function Recruit() {
   const overWarband =
     !!drag?.active &&
     !magSlide &&
-    overZone === 'warband' &&
     !wouldMagnetize &&
     !drag.view.spell &&
-    (drag.source === 'board' || (drag.source === 'hand' && run.board.length < CONFIG.boardMax));
+    // A board minion reorders only while actually over the warband row (dragging it up = sell). A HAND minion
+    // plays anywhere ABOVE the play floor (see playFloorRef) — it needn't hit the row exactly; the preview
+    // tracks the drag there (slot keyed off x). Once the cursor drops below the floor (nearer the hand) the
+    // preview clears, signalling a release there cancels the play back to hand.
+    ((drag.source === 'board' && overZone === 'warband') ||
+      (drag.source === 'hand' && drag.y < playFloorRef.current && run.board.length < CONFIG.boardMax));
   // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
   // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").
   // The gap moves via per-card slide transforms (see `boardSlide`/`shopSlide`), not by removing the card.
@@ -2015,8 +2054,8 @@ export function Recruit() {
         setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card) }]);
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
       }
-      // Sprinkle gold coins out of the Gold counter (bottom-left) to sell the income.
-      const goldEl = document.querySelector('.statusbar .chip.g');
+      // Sprinkle gold coins out of the Gold counter (now in the shop control frame up top) to sell the income.
+      const goldEl = document.querySelector('.shopctl .chip.g');
       if (goldEl) {
         const gr = goldEl.getBoundingClientRect();
         pixiFx.coins(gr.left + gr.width / 2, gr.top + gr.height * 0.4);
@@ -2069,9 +2108,12 @@ export function Recruit() {
       }
       return false;
     }
-    if (d.source === 'hand' && zone === 'warband') {
-      // Land where the preview's gap was last rendered (WYSIWYG) — not a freshly recomputed release point,
-      // which on a fast drop resolves a different slot than the neighbours opened for → they reverse (rebound).
+    if (d.source === 'hand' && !d.view.spell && y < playFloorRef.current) {
+      // A minion plays anywhere ABOVE the play floor (see playFloorRef) — you needn't hit the warband row
+      // exactly. Releasing below it (down toward the hand) falls through to the snap-back at the end of
+      // applyDrop: it drops back into the hand — the cancel gesture. Board full → snap back too. Land where the
+      // preview's gap was last rendered (WYSIWYG) so neighbours don't rebound.
+      if (run.board.length >= CONFIG.boardMax) return false;
       const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
       playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
       puffOnBoard(d.uid); // dust around the minion where it lands
@@ -2104,6 +2146,8 @@ export function Recruit() {
 
       {!fighting ? (
       <div className={`shopctl frame${inCombat ? ' closing' : ''}`}>
+        {/* Gold — anchored at the LEFT of the control frame, opposite the End Turn button on the right. */}
+        <GoldChip />
         {/* left of the timer: current tavern tier (a slick number), with Tavern Up (↑ + cost) under it */}
         <div className="ctl-col">
           <span className="ctlbtn tier" data-tier={run.tier}>
@@ -2191,17 +2235,13 @@ export function Recruit() {
       {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and
           releasing anywhere in it sells (handled by inSellRegion in the drop handler). */}
       {drag?.active && drag.source === 'board' && !drag.view.spell && !timeUp && (
-        <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: sellTop } as CSSProperties} aria-hidden="true">
-          <span className="sellzone-tag">Sell +1</span>
-        </div>
+        <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: sellTop } as CSSProperties} aria-hidden="true" />
       )}
 
       {/* Buy zone — mirror of the sell zone: the whole screen *below* the warband lights up while dragging
           a shop card, and releasing anywhere in it buys (handled by inBuyRegion in the drop handler). */}
       {drag?.active && drag.source === 'shop' && (
-        <div className={`buyzone${overZone === 'hand' ? ' on' : ''}`} style={{ top: buyTop } as CSSProperties} aria-hidden="true">
-          <span className="buyzone-tag">Buy</span>
-        </div>
+        <div className={`buyzone${overZone === 'hand' ? ' on' : ''}`} style={{ top: buyTop } as CSSProperties} aria-hidden="true" />
       )}
 
       <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
@@ -2272,9 +2312,6 @@ export function Recruit() {
             ))
           ) : (
             <>
-              {run.board.length === 0 && !drag?.active && (
-                <div className="warband-hint">Drag minions up from your hand to play them here.</div>
-              )}
               {displayBoard.map((m, i) => (
                 <Fragment key={m.uid}>
                   {/* No drop-slot element: the gap is opened by shifting the cards via `slideDir` (a CSS
@@ -2413,7 +2450,7 @@ export function Recruit() {
       {drag?.active && !castingSpell && (
         <div
           ref={dragCardRef}
-          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}`}
+          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}`}
           style={{
             width: drag.w,
             height: drag.h,

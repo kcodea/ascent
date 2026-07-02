@@ -20,9 +20,9 @@
      All sizing keys off the box (--gw/--gh), not the raw viewport, so the board scales inside it. */
   --gw: 100vw; --gh: 100vh;
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
-  /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art (board2b);
-     the 21:9 art (board2) is swapped in for the ultrawide resolution + a fit window that's actually ultrawide.
-     Only the URL changes — the gradient scrim + fallback colour stay in the .app shorthand. */
+  /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art (board2b); the
+     21:9 art (board2upscaled2, native 3440×1440) is swapped in for the ultrawide resolution + a fit window
+     that's actually ultrawide. Only the URL changes — the gradient scrim + fallback colour stay in .app. */
   --board: url('/board2b.webp');
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds */
@@ -44,8 +44,8 @@
 /* 21:9 stage → the ultrawide board art. The forced 3440 res is always 21:9; a "fit" window (no data-res,
    so the stage = the window) uses the 21:9 art only when the window itself is actually ultrawide. Fixed 16:9
    res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board2b. */
-:root[data-res="r3440"] { --board: url('/board2.webp'); }
-@media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board2.webp'); } }
+:root[data-res="r3440"] { --board: url('/board2upscaled2.webp'); }
+@media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board2upscaled2.webp'); } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */
@@ -251,6 +251,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .ctlbtn.endturn-top svg { width: calc(27 * var(--u)); height: calc(27 * var(--u)); color: #fff; }
 .ctlbtn.endturn-top:not(:disabled):hover { filter: brightness(1.05); border-color: var(--acc-dk); }
 .ctlbtn.endturn-top.urgent { animation: endpulse 0.9s ease-in-out infinite; }
+/* Gold sits in its OWN box floating just LEFT of the shop frame — the mirror of the End Turn button on the
+   right (out of the frame's flow), so the frame stays centred on the timer with gold + End Turn flanking it.
+   Sized up to a tall pill to balance the End Turn button. */
+.shopctl .chip.g { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: calc(13 * var(--u)); height: calc(100 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(20 * var(--u)); background: color-mix(in srgb, var(--card) 52%, transparent); border: 2px solid color-mix(in srgb, var(--line) 75%, transparent); box-shadow: 0 10px 26px -14px rgba(0, 0, 0, 0.45); backdrop-filter: blur(3px); }
 /* Hero-power button — a circle attached to the RIGHT side of the hero frame (in the status bar). It sits
    as the frame's right-most flex child (parent gap spaces it off the text); clicking it bubbles to the
    .hero arm/fire handler. Placeholder glyph for now; dedicated hero-power artwork to come. */
@@ -287,7 +291,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
      wide screens — it ends around the card row rather than running the full viewport. */
   /* Centre via left/right + auto margins (NOT translateX) — the `ropein` entry animation owns the
      element's transform, so a transform-based centre would get clobbered the moment it plays. */
-  position: absolute; top: calc(11 * var(--u)); left: 0; right: 0; width: min(1180px, 92vw); height: calc(8 * var(--u));
+  /* --rope-y (set on the warband zone in JS) = offset from the warband top down to the board midline, so the
+     rope sits on the background divider; subtract half the rope height to centre it on the line. */
+  position: absolute; top: calc(var(--rope-y, 11 * var(--u)) - 4 * var(--u)); left: 0; right: 0; width: min(1180px, 92vw); height: calc(8 * var(--u));
   margin: 0 auto; z-index: 4; border-radius: 999px; overflow: visible;
   background:
     repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
@@ -793,6 +799,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */
 .dragcard.magslide { transition: transform 0.28s cubic-bezier(0.5, 0, 0.85, 0.4), opacity 0.28s cubic-bezier(0.7, 0, 1, 1); }
 .dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
+/* While a dragged hand minion is over the playable area (see Recruit's `willplay`), the floating card gets the
+   SAME gold mouseover glow a hovered card has (matches .card:hover), signalling releasing there plays it. */
+.dragcard.willplay .card { box-shadow: 0 0 0 3px #fff7d1, 0 0 24px 7px rgba(255, 226, 110, 0.95), 0 3px 0 var(--shadow); transition: box-shadow 0.14s ease; }
 /* Magnetic: an electric crackle while a Magnetic card hovers a friendly Mech (.electric, the floating drag
    card) and on the host Mech as it's welded (.electrify — drop + Combinator's End of Turn). PERF: a STATIC
    cyan halo on a ::before whose OPACITY breathes — compositor-only, zero per-frame paint. This was an animated
@@ -1038,17 +1047,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
 .zone.sellglow .row::after { content: 'Sell +1'; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; color: var(--acc-dk); text-transform: uppercase; }
 /* Sell zone — the entire screen above the warband, lit while dragging a board minion. Releasing
    anywhere in it sells (handled in JS). Sits below the floating drag card (z 100), above the board. */
-.sellzone { position: absolute; top: 0; left: 0; right: 0; z-index: 40; pointer-events: none; display: flex; align-items: flex-start; justify-content: center; padding-top: calc(34 * var(--u)); background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 20%, transparent), transparent 78%); border-bottom: 3px dashed color-mix(in srgb, var(--acc) 45%, transparent); opacity: 0.55; transition: opacity 0.12s, background 0.12s; }
-.sellzone.on { opacity: 1; background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 34%, transparent), transparent 82%); border-bottom-color: var(--acc); }
+.sellzone { position: absolute; top: 0; left: 0; right: 0; z-index: 40; pointer-events: none; display: flex; align-items: flex-start; justify-content: center; padding-top: calc(34 * var(--u)); background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 13%, transparent), transparent 78%); opacity: 0.55; transition: opacity 0.12s, background 0.12s; }
+.sellzone.on { opacity: 1; background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 22%, transparent), transparent 82%); }
 .sellzone-tag { font-family: var(--font-ui); font-weight: 800; font-size: calc(20 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: var(--acc); padding: calc(7 * var(--u)) calc(22 * var(--u)); border-radius: calc(12 * var(--u)); box-shadow: 0 5px 16px rgba(0, 0, 0, 0.3); }
 /* Buy zone — vertical mirror of the sell zone: anchored to the bottom, tint strongest at the bottom (hand),
    dashed boundary at the top (the warband line). `top` is set inline to the warband line; bottom pins to screen. */
-.buyzone { position: absolute; bottom: 0; left: 0; right: 0; z-index: 40; pointer-events: none; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(34 * var(--u)); background: linear-gradient(0deg, color-mix(in srgb, var(--acc) 20%, transparent), transparent 78%); border-top: 3px dashed color-mix(in srgb, var(--acc) 45%, transparent); opacity: 0.55; transition: opacity 0.12s, background 0.12s; }
-.buyzone.on { opacity: 1; background: linear-gradient(0deg, color-mix(in srgb, var(--acc) 34%, transparent), transparent 82%); border-top-color: var(--acc); }
+.buyzone { position: absolute; bottom: 0; left: 0; right: 0; z-index: 40; pointer-events: none; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(34 * var(--u)); background: linear-gradient(0deg, color-mix(in srgb, var(--acc) 13%, transparent), transparent 78%); opacity: 0.55; transition: opacity 0.12s, background 0.12s; }
+.buyzone.on { opacity: 1; background: linear-gradient(0deg, color-mix(in srgb, var(--acc) 22%, transparent), transparent 82%); }
 .buyzone-tag { font-family: var(--font-ui); font-weight: 800; font-size: calc(20 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: var(--acc); padding: calc(7 * var(--u)) calc(22 * var(--u)); border-radius: calc(12 * var(--u)); box-shadow: 0 5px 16px rgba(0, 0, 0, 0.3); }
 .zone[data-zone='tavern'] .row { position: relative; transition: box-shadow 0.12s, background 0.12s; }
-/* valid drop target (buy onto hand, play/reorder onto warband) — a soft accent frame */
-.zone.dropok .row { background: color-mix(in srgb, var(--acc) 9%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent); border-radius: 16px; transition: box-shadow 0.12s, background 0.12s; }
+/* Buying (dragging a shop card over the hand) shows ONLY the .buyzone gradient — no box/tint on the hand row. */
 /* live insertion bar — the exact slot a played / reordered minion will drop into */
 .row.warband { position: relative; }
 /* the live drop slot a dragged / played minion will land in — the row's other cards
@@ -1075,19 +1083,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
 /* The status tray, tucked into the bottom-LEFT corner so the hand owns the whole
    bottom-centre: Embers + Hero on the top row, the Resolve HP bar across the bottom.
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */
-.statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px); left: calc(var(--bar-x) + 16px); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; background: color-mix(in srgb, var(--card) 90%, transparent); border: 2px solid var(--line); border-radius: 24px; box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.45); }
+.statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px); left: calc(var(--bar-x) + 16px); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* stretch so the Embers chip is as tall as the (taller) hero panel */
 .statusrow { display: flex; align-items: stretch; justify-content: center; gap: 9px; }
-/* Resolve HP bar: red heart on the left, fill in the middle, current health on the right */
-.hprow { position: relative; display: flex; align-items: center; gap: calc(12 * var(--u)); padding: 0 calc(8 * var(--u)); }
-.hprow .ic { flex: none; display: grid; place-items: center; }
-.hprow .ic svg { width: calc(32 * var(--u)); height: calc(32 * var(--u)); color: var(--threat); }
-.hprow .hpbar { flex: 1; display: flex; height: calc(20 * var(--u)); border-radius: 10px; background: color-mix(in srgb, var(--threat) 18%, var(--card)); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18); }
-.hprow .hpbar i { display: block; height: 100%; background: var(--hpc); transition: width 0.35s ease; }
-/* Armor segment — a steel layer stacked to the right of the red Resolve fill (extra effective HP). */
-.hprow .hpbar i.arm { background: linear-gradient(#c2ccd6, #8d9aa8); box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.35); }
-.hprow .hpval { flex: none; min-width: 1.4em; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(28 * var(--u)); color: var(--threat-dk); }
-.hprow .hpval .armval { margin-left: calc(3 * var(--u)); font-size: calc(20 * var(--u)); color: #7c8996; }
+/* Health as a compact WHITE box beside the hero power (replaces the old HP bar): heart + Resolve (+Armor). */
+.hero .hpbox { position: relative; align-self: center; display: flex; align-items: center; gap: calc(7 * var(--u)); background: #fff; border: 2px solid var(--line); border-radius: calc(16 * var(--u)); padding: calc(9 * var(--u)) calc(15 * var(--u)); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14); pointer-events: none; }
+.hero .hpbox svg { flex: none; width: calc(30 * var(--u)); height: calc(30 * var(--u)); color: var(--threat); }
+.hero .hpbox .hpval { font-family: var(--font-ui); font-weight: 800; font-size: calc(30 * var(--u)); line-height: 1; color: var(--threat-dk); }
+.hero .hpbox .armval { margin-left: calc(3 * var(--u)); font-size: calc(21 * var(--u)); color: #7c8996; }
 .statusbar .hero { pointer-events: auto; }
 /* the Embers chip captures hover too (for its projection popup) */
 .statusbar .chip.g { pointer-events: auto; }
@@ -1096,7 +1099,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* The hero-power READY/ARMED cue now lives entirely on the power button (.heropowerbtn) — the frame no longer
    gets a golden outline/pulse (it's not the click target anymore). */
 /* resolve took a hit */
-.hprow.hit { animation: hitshake 0.5s ease; }
+.hero .hpbox.hit { animation: hitshake 0.5s ease; }
 @keyframes hitshake { 0%, 100% { transform: none; } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
 .resfx { position: absolute; top: -10px; right: 14px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 /* compact sizing for the corner tray (was hero-sized when it was the centrepiece); the
@@ -1477,7 +1480,8 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Pre-run hero picker — first slice of the Title→Mode→Hero flow (one store flag drives it). */
 .heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: safe center; overflow-y: auto; padding: 24px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The pre-run picker uses the board art, heavily dimmed, as its textured backdrop. */
-.heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), url('/board1.webp') center / cover no-repeat, var(--bg); }
+/* Same aspect-switched board the player will actually play on (see --board), so the champion pick previews it. */
+.heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg); }
 /* The end screen gets its OWN dark backdrop (the sky-castle art, heavily scrimmed) so the run's stats read
    over a clean, high-contrast surface — never over the busy live board behind it. */
 .heroselect.endscreen { background: linear-gradient(rgba(6, 11, 22, 0.88), rgba(6, 11, 22, 0.93)), url('/homescreen.webp') center / cover no-repeat, var(--bg); }

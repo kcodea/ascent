@@ -5,7 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
-### fix: warband/shop reposition actually slides (GSAP Flip vs CSS transition) + tuner
+### fix: THE reposition-slide root cause — drop-slot toggle was remounting cards
+
+The real bug behind "cards don't pre-emptively slide, they pop." In the warband/shop maps the drop-slot was
+rendered as an UNKEYED positional sibling inside each card's `<Fragment>`: `{gap === i && <span/>}<Card/>`.
+When the slot appeared/disappeared at a card's index, React reconciled the Fragment's children by position, so
+the `<Card>` went from child-0 to child-1 → **unmount + remount**. A remounted card is a new DOM node, so GSAP
+Flip saw it *entering* (a scale+vertical pop) instead of *moving* (a horizontal slide) — and the remount also
+replayed the `.popin` animation. A DEV transform probe nailed it: during a drag the cards showed
+`matrix(0.96…, 0, 8)` (scale + translateY) with the **horizontal translate always 0** — i.e. never sliding
+sideways. Fix: key the Fragment's inner children (`key="slot"` / `key="card"`) so the Card is matched across
+the slot toggle and never remounts → GSAP Flip now animates it as a horizontal move. (Kept the
+`body.dragging` transition-off so the CSS transform-transition doesn't re-mask GSAP's slide.)
 
 **Root cause found.** `.card` carries `transition: transform 0.12s` (for hover/buff eases), but GSAP Flip
 animates the reposition slide VIA `transform` — so the CSS transition re-smoothed every frame GSAP set and

@@ -2004,8 +2004,10 @@ export function Recruit() {
           <>
           {displayShop.map((o, i) => (
             <Fragment key={o.uid}>
-              {shopGapIndex === i && <span className="dropslot" aria-hidden="true" />}
+              {/* Keyed so the drop-slot toggle doesn't remount the Card (see the warband row for why). */}
+              {shopGapIndex === i && <span key="slot" className="dropslot" aria-hidden="true" />}
               <Card
+                key="card"
                 uid={o.uid}
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
@@ -2055,8 +2057,12 @@ export function Recruit() {
               )}
               {displayBoard.map((m, i) => (
                 <Fragment key={m.uid}>
-                  {gapIndex === i && <span className="dropslot" aria-hidden="true" />}
+                  {/* Keyed so toggling the drop-slot does NOT remount the Card (an unkeyed positional sibling
+                      change makes React unmount+remount the card → GSAP Flip sees a NEW element and pops it in
+                      instead of sliding it → the pre-emptive reorder slide never plays). */}
+                  {gapIndex === i && <span key="slot" className="dropslot" aria-hidden="true" />}
                   <Card
+                    key="card"
                     uid={m.uid}
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}

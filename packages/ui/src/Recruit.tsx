@@ -1545,8 +1545,14 @@ export function Recruit() {
   const displayBoard = run.board;
   const draggingShop = !!drag?.active && drag.source === 'shop';
   const displayShop = run.shop;
-  // A dragged offer (not the pinned spell) over the tavern reorders the shop — open a slot.
-  const overShop = draggingShop && overZone === 'tavern' && drag!.uid !== run.spell?.uid;
+  // Vertical lift of the dragged card from its press point — once it clears `collapseY`, it's a pull-OUT
+  // (buy / sell / play), not an in-row reorder: the source row closes the hole behind it (cards after the
+  // lifted one slide in one slot). This is what makes a card pulled *up* or *down* read as "the gap fills in".
+  const dragLiftY = drag?.active ? Math.abs(drag.y - drag.startY) : 0;
+  const collapsedLift = dragLiftY > getDragFeel().collapseY;
+  // A dragged offer (not the pinned spell) reorders the shop while it stays near the row — but once it's
+  // lifted clear (a buy), stop reordering so the collapse takes over (mirrors the warband's sell gesture).
+  const overShop = draggingShop && overZone === 'tavern' && !collapsedLift && drag!.uid !== run.spell?.uid;
   const shopGapIndex = overShop ? shopIndexAt(dragCx, drag!.uid) : -1;
   // Where the empty drop-slot opens (insertion index among the displayed cards), or -1.
   // A magnetizing Cling Drone also shoves cards aside (a slot opens beside the target Mech).
@@ -1557,11 +1563,6 @@ export function Recruit() {
   const spellShown = run.spell && !(draggingShop && drag!.uid === run.spell.uid) ? run.spell.uid : '';
   // Per-card slide offset (in slots) that opens the drop gap by shifting the cards themselves. A CSS
   // `transition: transform` (while dragging) glides these — the pre-emptive "make room" animation.
-  // Vertical lift of the dragged card from its press point — once it clears `collapseY`, the source row
-  // closes the hole behind it (cards after the lifted one slide in one slot). This is what makes a card
-  // pulled straight *up* (to play/sell) or *down* out of the row read as "the gap fills in".
-  const dragLiftY = drag?.active ? Math.abs(drag.y - drag.startY) : 0;
-  const collapsedLift = dragLiftY > getDragFeel().collapseY;
   const draggedBoardIdx = draggingBoard ? run.board.findIndex((m) => m.uid === drag!.uid) : -1;
   const boardSlide = (i: number): number => {
     if (draggingBoard) {

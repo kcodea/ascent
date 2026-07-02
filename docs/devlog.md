@@ -12,9 +12,15 @@ The reorder slide already parted the row horizontally, but pulling a card straig
 once the drag clears a vertical distance (`collapseY`, default 70 px), the source row closes up: every card
 *after* the lifted one slides in one slot (`slideDir −1`) to fill the gap, glided by the same
 `body.dragging` `transition: transform`. Applies to both the **warband** (`boardSlide`) and the **shop**
-(`shopSlide` — the buy motion pulls an offer up out of the row). Gated on `gapIndex < 0` so an in-row
+(`shopSlide` — the buy motion pulls an offer down out of the row). Gated on `gapIndex < 0` so an in-row
 horizontal reorder is unaffected. New tunable `collapseY` added to the drag-feel config + 🎴 DragTuner
-(range 0–200 px) with a hover definition. Verified: typecheck + lint green, no console errors.
+(range 0–200 px) with a hover definition.
+
+Follow-up fix: the shop wasn't collapsing on a buy. Unlike the warband sell (which flips `overZone` off
+`'warband'` the instant you cross the `wbTop` line), a buy pull-down stays over the tall tavern zone, so
+`overShop` kept the row in reorder-hold (no gap-fill) for most of the gesture. Now `overShop` also requires
+`!collapsedLift` — once the offer is lifted past `collapseY` it's a buy, not a reorder, so the collapse
+takes over immediately, matching the warband feel. Verified: typecheck + lint green.
 
 ### polish: reposition slide — no pickup jerk, shop too, longer settle
 

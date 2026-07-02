@@ -586,6 +586,12 @@ export function Recruit() {
     const t = window.setTimeout(syncShields, 240);
     return () => window.clearTimeout(t);
   }, [syncShields, run.board, run.hand, run.shop, replay.frame, inCombat, fighting, compactCards]);
+  // DEV shield tuner: re-sync live when its slider changes so the bubble moves as you drag (see ShieldTuner).
+  useEffect(() => {
+    const h = (): void => syncShields();
+    window.addEventListener('ascent:shieldcfg', h);
+    return () => window.removeEventListener('ascent:shieldcfg', h);
+  }, [syncShields]);
   // A drop opens a brief settle window so the bubble keeps tracking the card through its Flip animation.
   useEffect(() => {
     const active = drag?.active ?? false;

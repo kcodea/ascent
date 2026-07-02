@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### fix: divine-shield tuner slider now updates the bubble live
+
+The 🛡 Shield tuner slider saved its value (localStorage) but the on-screen bubble didn't move — `syncShields`
+only re-runs on run-state / layout changes, and dragging the slider touches neither, so nothing re-synced until
+you next interacted with a card. The tuner now dispatches an `ascent:shieldcfg` window event on every slider
+change (and Reset); Recruit listens for it and re-runs `syncShields`, so the bubble tracks the slider in real
+time. Verified live in-browser: driving the slider to 0.16 moved the shield to delta 27 px (=0.16·h) with no
+card interaction. Typecheck + lint green.
+
 ### feat/fix: divine-shield placement tuner + persist bubble on hover
 
 Two follow-ups to the shield-under-chrome work:

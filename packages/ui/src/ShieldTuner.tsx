@@ -19,16 +19,20 @@ export function ShieldTuner() {
   const [copied, setCopied] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('shield');
 
+  // Nudge Recruit to re-run syncShields so the on-screen bubble moves LIVE as the slider drags (a config change
+  // alone doesn't touch run state, so nothing would otherwise re-sync until you interact with a card).
+  const poke = (): void => window.dispatchEvent(new Event('ascent:shieldcfg'));
   const set = (k: keyof ShieldConfig, v: number): void => {
     setShieldValue(k, v);
     setCfg({ ...getShieldConfig() });
+    poke();
   };
   const copy = (): void => {
     void navigator.clipboard?.writeText(JSON.stringify(getShieldConfig(), null, 2));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   };
-  const reset = (): void => { resetShieldConfig(); setCfg({ ...getShieldConfig() }); };
+  const reset = (): void => { resetShieldConfig(); setCfg({ ...getShieldConfig() }); poke(); };
 
   return (
     <>

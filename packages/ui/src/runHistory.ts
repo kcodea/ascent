@@ -116,6 +116,11 @@ export function saveRunHistoryEntry(entry: RunHistoryEntry): RunHistoryEntry[] {
   } catch { return []; }
 }
 
+/** Wipe the local match history (the Career then reads []). Best-effort — never throws. */
+export function clearRunHistory(): void {
+  try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+}
+
 export interface HeroStat {
   heroId: string;
   runs: number;

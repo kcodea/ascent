@@ -2974,8 +2974,49 @@ describe('PvE course + record (@game/sim)', () => {
   });
 
   it('losing with Resolve to 0 is a game over, before the course completes', () => {
-    const s = resolveWith({ wave: 8, resolve: 1, maxResolve: 1, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 5 });
+    const s = resolveWith({ wave: 8, resolve: 1, maxResolve: 1, armor: 0, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 5 });
     expect(s.phase).toBe('gameover');
+  });
+
+  it('Armor: heroes start with 15 (Warden / Robin / Chaos start with 8)', () => {
+    expect(getHero('warden').armor).toBe(8);
+    expect(getHero('robin').armor).toBe(8);
+    expect(getHero('chaos').armor).toBe(8);
+    expect(getHero('indy').armor).toBe(15);
+    expect(getHero('darah').armor).toBe(15);
+    const s = createRun(1, 'indy');
+    expect(s.armor).toBe(15);
+    expect(s.maxArmor).toBe(15);
+  });
+
+  it('Armor absorbs a loss before Resolve; overflow chips Resolve', () => {
+    // Armor 8 vs a 5-damage loss → armor 3, Resolve untouched.
+    const a = resolveWith({ wave: 8, resolve: 30, maxResolve: 30, armor: 8, maxArmor: 8, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 5 });
+    expect(a.armor).toBe(3);
+    expect(a.resolve).toBe(30);
+    expect(a.phase).toBe('recruit');
+    // Armor 8 vs a 12-damage loss → armor 0, 4 overflows onto Resolve.
+    const b = resolveWith({ wave: 8, resolve: 30, maxResolve: 30, armor: 8, maxArmor: 8, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 12 });
+    expect(b.armor).toBe(0);
+    expect(b.resolve).toBe(26);
+  });
+
+  it('Armor: game over needs both Armor and Resolve gone', () => {
+    // Resolve 3 + Armor 5: a 4-damage hit is fully eaten by Armor → survive.
+    const survive = resolveWith({ wave: 8, resolve: 3, maxResolve: 3, armor: 5, maxArmor: 5, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 4 });
+    expect(survive.phase).toBe('recruit');
+    // A hit through both → game over.
+    const dead = resolveWith({ wave: 8, resolve: 3, maxResolve: 3, armor: 5, maxArmor: 5, history: Array(5).fill('win') }, { ...loseShell, playerDamage: 20 });
+    expect(dead.phase).toBe('gameover');
+    expect(dead.resolve).toBe(0);
+  });
+
+  it('Armor: deserialize heals pre-Armor saves to 0', () => {
+    const old: Record<string, unknown> = { ...createRun(1) };
+    delete old.armor; delete old.maxArmor;
+    const healed = deserialize(JSON.stringify(old));
+    expect(healed.armor).toBe(0);
+    expect(healed.maxArmor).toBe(0);
   });
 
   it('runRecord counts only the scored rounds — calibration rounds (1–2) do not count', () => {

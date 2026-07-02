@@ -69,21 +69,26 @@ export function StatusBar() {
   // Hoarder's Battlecry banks Gold for next turn only — fold it into the Wave+1 projection (not Wave+2).
   const nextEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + manaBonus + (run.bonusEmbersNextTurn ?? 0);
   const afterEmbers = Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + manaBonus;
-  const hpPct = Math.max(0, Math.min(100, (run.resolve / run.maxResolve) * 100));
+  // The HP bar shows Resolve + Armor stacked over a shared capacity (maxResolve + maxArmor), so Armor reads as
+  // the extra HP layer on top: the red Resolve fill, then the steel Armor fill, then the empty track.
+  const hpCap = Math.max(1, run.maxResolve + run.maxArmor);
+  const hpPct = Math.max(0, Math.min(100, (run.resolve / hpCap) * 100));
+  const armPct = Math.max(0, Math.min(100, (run.armor / hpCap) * 100));
 
-  // When Resolve drops (a wave broke through), shake the chip + float the −X.
-  const prevResolve = useRef(run.resolve);
+  // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
+  const prevHp = useRef(run.resolve + run.armor);
   const [hit, setHit] = useState<{ amt: number; key: number } | null>(null);
   useEffect(() => {
-    const prev = prevResolve.current;
-    prevResolve.current = run.resolve;
-    if (run.resolve < prev) {
-      setHit({ amt: prev - run.resolve, key: prev });
+    const prev = prevHp.current;
+    const now = run.resolve + run.armor;
+    prevHp.current = now;
+    if (now < prev) {
+      setHit({ amt: prev - now, key: prev });
       const t = window.setTimeout(() => setHit(null), 1100);
       return () => window.clearTimeout(t);
     }
     return undefined;
-  }, [run.resolve]);
+  }, [run.resolve, run.armor]);
 
   return (
     <div className="statusbar">
@@ -148,11 +153,15 @@ export function StatusBar() {
         </div>
       </div>
 
-      {/* Resolve as an HP bar across the bottom: red heart on the left, current health on the right. */}
-      <div className={`hprow${hit ? ' hit' : ''}`} aria-label={`Resolve: ${run.resolve} of ${run.maxResolve}`}>
+      {/* Resolve as an HP bar across the bottom: red heart on the left, current health on the right. Armor
+          (when the hero has any) stacks as a steel segment on top of the red Resolve fill. */}
+      <div className={`hprow${hit ? ' hit' : ''}`} aria-label={`Resolve: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}>
         <span className="ic"><Icon name="heart" /></span>
-        <div className="hpbar"><i style={{ width: `${hpPct}%` }} /></div>
-        <span className="hpval">{run.resolve}</span>
+        <div className="hpbar">
+          <i style={{ width: `${hpPct}%` }} />
+          {run.maxArmor > 0 && <i className="arm" style={{ width: `${armPct}%` }} />}
+        </div>
+        <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" title="Armor — extra effective HP">+{run.armor}</b>}</span>
         {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
       </div>
     </div>

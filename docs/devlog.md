@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### feat(ui): DEV Smoke & Dust tuner
+
+Extracted the previously-hardcoded parameters of the combat **impact smoke** (`pixiFx.impact` — the warm-
+grey puffs that rise on a hit) and the **card-drop dust** (`pixiFx.dust` — the tan ring kicked up under a
+placed/moved card) into a new localStorage-persisted `smokeConfig.ts`, and added a panel-only `SmokeTuner`
+under the Dev Tuning Menu (🌫️ Smoke & Dust). 11 live sliders: per-effect count / rise or speed / spread /
+lifetime / expansion (grow) / alpha, read at spawn time so they apply to the next impact/drop. The DEFAULTS
+are calibrated to reproduce the old hardcoded look *exactly* (the randomized ranges were re-expressed as
+`base × jitter` so nothing changes until a slider moves), letting the smoke be amped up by eye without a code
+round-trip. Verified: `typecheck` + `lint` + `test` (460) + `build:web` green; a preview smoke test fired
+`impact()` + `dust()` (incl. the scaled/dense taunt-deploy variant) with no runtime errors. Purely additive +
+DEV-only — no player-facing behavior change at the shipped defaults.
+
 ### tweak(ui): retune the motion trail + add a blue Reborn variant
 
 Player-tuned the wisp trail live via the DEV Trail panel and baked the result in as the shipped

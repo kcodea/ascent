@@ -1709,8 +1709,14 @@ svg { width: 18px; height: 18px; }
 .escres { display: grid; gap: 8px; }
 .escboards { display: grid; gap: 8px; }
 .escboards-msg { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
-/* DEV dev-tool buttons — bottom-right cluster, left of the settings gear: [lunge][sfx][gear]. */
-.sfxmix-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+/* ── Dev Tuning Menu (DEV only) — one 🛠️ button replacing the old row of floating tuner buttons ── */
+.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.devmenu { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 64px); z-index: 201; width: 190px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 8px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: var(--font-ui); box-sizing: border-box; }
+.devmenu-h { font-weight: 800; font-size: 12px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 6px 6px; }
+.devmenu-item { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 7px 8px; margin: 1px 0; border: 0; border-radius: 8px; background: transparent; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: var(--ink); cursor: pointer; text-align: left; }
+.devmenu-item:hover { background: var(--bg2); }
+.devmenu-item.on { background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); }
+.devmenu-item span { font-size: 11px; color: var(--acc-dk); }
 .sfxmix { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200; width: 290px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: var(--font-ui); box-sizing: border-box; resize: both; overflow: auto; min-width: 220px; max-width: 92vw; min-height: 110px; max-height: 88vh; }
 .sfxmix-h { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 8px; }
 .sfxmix-h.drag { cursor: move; user-select: none; touch-action: none; }
@@ -1722,27 +1728,15 @@ svg { width: 18px; height: 18px; }
 .sfxmix-val { flex: 0 0 26px; text-align: right; font-size: 12px; font-weight: 800; color: var(--acc-dk); font-variant-numeric: tabular-nums; }
 .sfxmix-play { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg2); cursor: pointer; font-size: 10px; color: var(--ink); }
 .sfxmix-copy { width: 100%; margin-top: 10px; padding: 7px; border-radius: 9px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }
-/* DEV lunge tuner — third button in the bottom-right cluster, left of the SFX mixer. */
-.lunge-btn { position: fixed; right: calc(var(--bar-x) + 112px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
-/* DEV: Pixi FX test trigger — fires an unmissable burst at screen center. */
-.fxtest-btn { position: fixed; right: calc(var(--bar-x) + 160px); bottom: calc(var(--bar-y) + 16px); z-index: 200; height: 40px; padding: 0 14px; border-radius: 20px; border: 2px solid var(--line); background: var(--card); font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: var(--ink); cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
 .sfxmix.lunge .sfxmix-val { flex-basis: 42px; }
 .lunge-btns { display: flex; gap: 8px; }
 .lunge-btns .sfxmix-copy { flex: 1; }
-/* DEV taunt-bulwark tuner — fourth button in the bottom-right cluster, left of the FX test pill. */
-.taunt-btn { position: fixed; right: calc(var(--bar-x) + 240px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.taunt .sfxmix-name { flex-basis: 86px; }
 .taunt-swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--line); margin-left: auto; align-self: center; }
 .sfxmix.taunt .sfxmix-h { display: flex; align-items: center; gap: 6px; }
-/* DEV card-drag-feel tuner — fifth button in the bottom-right cluster. */
-.dragfeel-btn { position: fixed; right: calc(var(--bar-x) + 288px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.dragfeel .sfxmix-name { flex-basis: 120px; }
 .sfxmix.dragfeel .sfxmix-val { flex-basis: 46px; }
-/* DEV reposition-slide (Flip) tuner — sixth button in the bottom-right cluster. */
-.flip-btn { position: fixed; right: calc(var(--bar-x) + 336px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
-/* DEV divine-shield placement tuner — seventh button in the bottom-right cluster. */
-.shield-btn { position: fixed; right: calc(var(--bar-x) + 384px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 17px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .sfxmix.flip .sfxmix-name { flex-basis: 100px; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }

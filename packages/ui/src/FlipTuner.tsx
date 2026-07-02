@@ -7,7 +7,7 @@ import { useDraggablePanel } from './useDraggablePanel';
  * gap, make room). Drag the sliders to dial the live-drag glide (`dragMs`) and the committed settle (`commitMs`)
  * by eye — values persist to localStorage and apply to the NEXT reposition (drag a card or sell one to judge).
  * "Copy" grabs the JSON to paste back as the shipped defaults in `flipConfig.ts`; "Reset" clears to defaults.
- * Mounted only in dev (see Game.tsx), so it's stripped from production.
+ * Panel-only: opened from the Dev Tuning Menu (DevMenu.tsx); dev-only, so it's stripped from production.
  */
 const LABELS: Record<keyof FlipConfig, string> = {
   dragMs: 'drag slide ms',
@@ -15,7 +15,6 @@ const LABELS: Record<keyof FlipConfig, string> = {
 };
 
 export function FlipTuner() {
-  const [open, setOpen] = useState(false);
   const [cfg, setCfg] = useState<FlipConfig>(getFlipConfig());
   const [copied, setCopied] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('flip');
@@ -32,27 +31,22 @@ export function FlipTuner() {
   const reset = (): void => { resetFlipConfig(); setCfg({ ...getFlipConfig() }); };
 
   return (
-    <>
-      <button className="flip-btn" onClick={() => setOpen((o) => !o)} title="Reposition-slide tuner (dev)">🔀</button>
-      {open && (
-        <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-          <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Reposition Slide <span>dev · next move · drag</span></div>
-          {FLIP_KEYS.map((k) => {
-            const [min, max, step] = FLIP_RANGES[k];
-            return (
-              <div className="sfxmix-row" key={k}>
-                <span className="sfxmix-name" title={FLIP_DESC[k]}>{LABELS[k]}</span>
-                <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-                <span className="sfxmix-val">{cfg[k]}</span>
-              </div>
-            );
-          })}
-          <div className="lunge-btns">
-            <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-            <button className="sfxmix-copy" onClick={reset}>Reset</button>
+    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
+      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Reposition Slide <span>dev · next move · drag</span></div>
+      {FLIP_KEYS.map((k) => {
+        const [min, max, step] = FLIP_RANGES[k];
+        return (
+          <div className="sfxmix-row" key={k}>
+            <span className="sfxmix-name" title={FLIP_DESC[k]}>{LABELS[k]}</span>
+            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
+            <span className="sfxmix-val">{cfg[k]}</span>
           </div>
-        </div>
-      )}
-    </>
+        );
+      })}
+      <div className="lunge-btns">
+        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
+        <button className="sfxmix-copy" onClick={reset}>Reset</button>
+      </div>
+    </div>
   );
 }

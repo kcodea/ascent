@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Card motion trails + Dev Tuning Menu** — dragging a card or watching an attack lunge now trails a soft
+  wind-whoosh wisp (gold for divine-shield); the six separate floating DEV tuner buttons + the Test FX
+  button are consolidated into one 🛠️ Dev Tuning Menu.
 - **New play backdrops** — the in-game board art is refreshed to a bright castle-in-the-clouds vista, shipped
   as optimized WebP and picked by aspect: **board2b** on 16:9 (the default) and the wider **board2** on 21:9
   (ultrawide resolution or a fit window that's actually ultrawide).

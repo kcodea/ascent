@@ -19,30 +19,34 @@ export interface TrailConfig {
   drift: number;
   /** Gold (divine-shield) wisp peak alpha. */
   goldAlpha: number;
-  /** Gold only: chance per emit of an extra tiny spark mote (the glassy glint). */
+  /** Blue (reborn) wisp peak alpha. */
+  blueAlpha: number;
+  /** Gold/blue only: chance per emit of an extra tiny spark mote (the glassy glint). */
   sparkChance: number;
 }
 
 const DEFAULTS: TrailConfig = {
-  emitSpacing: 14,
-  lifeMs: 300,
-  size: 1.0,
-  alpha: 0.3,
-  stretch: 1.0,
-  drift: 30,
-  goldAlpha: 0.45,
-  sparkChance: 0.25,
+  emitSpacing: 4,
+  lifeMs: 900,
+  size: 1.05,
+  alpha: 0.1,
+  stretch: 1.1,
+  drift: 68,
+  goldAlpha: 0.13,
+  blueAlpha: 0.14,
+  sparkChance: 0.4,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const TRAIL_RANGES: Record<keyof TrailConfig, [number, number, number]> = {
   emitSpacing: [4, 60, 1],
-  lifeMs: [80, 900, 10],
+  lifeMs: [80, 1500, 10],
   size: [0.3, 2.5, 0.05],
   alpha: [0.05, 1, 0.01],
   stretch: [0.5, 3, 0.05],
   drift: [0, 120, 2],
   goldAlpha: [0.05, 1, 0.01],
+  blueAlpha: [0.05, 1, 0.01],
   sparkChance: [0, 1, 0.05],
 };
 export const TRAIL_KEYS = Object.keys(DEFAULTS) as (keyof TrailConfig)[];

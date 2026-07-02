@@ -7,7 +7,8 @@ import { useDraggablePanel } from './useDraggablePanel';
  * lag (`follow` — lower = heavier), the tilt lean (`tiltPerPx`), the tilt cap (`tiltMax`), and the 3D
  * `perspective` by eye while dragging a card — values persist to localStorage and apply live (the drag rAF
  * reads them every frame). "Copy" grabs the JSON to paste back as the shipped defaults in `dragFeel.ts`;
- * "Reset" clears to defaults. Mounted only in dev (see Game.tsx), so it's stripped from production.
+ * "Reset" clears to defaults. Panel-only: opened from the Dev Tuning Menu (DevMenu.tsx); dev-only, so
+ * it's stripped from production.
  */
 const LABELS: Record<keyof DragFeel, string> = {
   follow: 'lag (lower=heavier)',
@@ -24,7 +25,6 @@ const LABELS: Record<keyof DragFeel, string> = {
 };
 
 export function DragTuner() {
-  const [open, setOpen] = useState(false);
   const [cfg, setCfg] = useState<DragFeel>(getDragFeel());
   const [copied, setCopied] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('dragfeel');
@@ -41,29 +41,24 @@ export function DragTuner() {
   const reset = (): void => { resetDragFeel(); setCfg({ ...getDragFeel() }); };
 
   return (
-    <>
-      <button className="dragfeel-btn" onClick={() => setOpen((o) => !o)} title="Card-drag feel tuner (dev)">🎴</button>
-      {open && (
-        <div className="sfxmix lunge dragfeel" ref={panelRef} style={panelStyle}>
-          <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Drag Feel <span>dev · live · drag a card</span></div>
-          {DRAG_KEYS.map((k) => {
-            const range = DRAG_RANGES[k];
-            if (!range) return null; // guard a transient HMR desync (keys vs ranges) so it can't blank the app
-            const [min, max, step] = range;
-            return (
-              <div className="sfxmix-row" key={k}>
-                <span className="sfxmix-name" title={DRAG_DESC[k]}>{LABELS[k]}</span>
-                <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-                <span className="sfxmix-val">{cfg[k]}</span>
-              </div>
-            );
-          })}
-          <div className="lunge-btns">
-            <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-            <button className="sfxmix-copy" onClick={reset}>Reset</button>
+    <div className="sfxmix lunge dragfeel" ref={panelRef} style={panelStyle}>
+      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Drag Feel <span>dev · live · drag a card</span></div>
+      {DRAG_KEYS.map((k) => {
+        const range = DRAG_RANGES[k];
+        if (!range) return null; // guard a transient HMR desync (keys vs ranges) so it can't blank the app
+        const [min, max, step] = range;
+        return (
+          <div className="sfxmix-row" key={k}>
+            <span className="sfxmix-name" title={DRAG_DESC[k]}>{LABELS[k]}</span>
+            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
+            <span className="sfxmix-val">{cfg[k]}</span>
           </div>
-        </div>
-      )}
-    </>
+        );
+      })}
+      <div className="lunge-btns">
+        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
+        <button className="sfxmix-copy" onClick={reset}>Reset</button>
+      </div>
+    </div>
   );
 }

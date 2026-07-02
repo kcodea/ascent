@@ -5,6 +5,68 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### tweak(ui): retune the motion trail + add a blue Reborn variant
+
+Player-tuned the wisp trail live via the DEV Trail panel and baked the result in as the shipped
+defaults (`trailConfig.ts`): denser + longer-lived + wispier (`emitSpacing` 14→4, `lifeMs` 300→900,
+`alpha` 0.3→0.1, `drift` 30→68, `sparkChance` 0.25→0.4, `size`/`stretch` nudged, `goldAlpha`
+0.45→0.13). Also raised the tuner's `lifeMs` ceiling 900→1500 for headroom. The earlier ribbon /
+card-width-wake experiments were both rejected and reverted — the original per-particle wisp trail was
+the right look all along, it just needed different dials.
+
+Added a **blue Reborn trail variant** alongside the gold Divine-Shield one: `pixiFx.trail`'s last arg
+changed from `gold: boolean` to `variant: 'wind' | 'gold' | 'blue'`. A dragged/attacking card picks
+its variant from keywords/marker classes — `DS` → gold, else `R` → blue (spectral blue `0x8ec7ff` +
+a pale-blue glint mote), else the pale-cream wind. Gold takes precedence when a unit has both. New
+`blueAlpha` dial (default 0.14) parallels `goldAlpha`; the drag hookup (`Recruit.tsx`) and the lunge
+hookup (`useCombatReplay.ts`, reading `.dscard`/`.reborncard`) both compute the variant. Verified:
+`typecheck` + `lint` + `test` (460) + `build:web` green; a preview smoke test drove all three variants
+(`wind`/`gold`/`blue`) with no runtime errors. Visual feel is dialed live in the Trail panel.
+
+### feat(ui): card motion trails (wind + divine-shield gold) + Dev Tuning Menu
+
+Two threads landed together — a UI-only motion-feedback pass and a dev-tooling cleanup — spanning 6
+commits (`e0b4706`..`cabfc39`). Spec: `docs/superpowers/specs/2026-07-02-card-trail-fx-design.md` (the
+spec + plan + `trailConfig.ts` themselves rode along on `main` already via #144; this batch is the rest
+of the implementation).
+
+- **`pixiFx.ts` — the `trail(x, y, dx, dy, gold)` emitter.** A new pooled-particle emitter draws soft,
+  feathered "wind-whoosh" wisp streaks oriented along the motion vector, via a new `makeWispTexture` and
+  non-uniform `stretchX` support threaded through the existing particle pool (previously particles only
+  scaled uniformly). Two visual variants, mutually exclusive — gold **replaces** wind, it never layers:
+  wind is pale cream (`0xf5efe0`, normal blend), divine-shield is shield-rim gold (`0xffe9a8`, additive)
+  with an occasional spark-mote glint (`sparkChance`).
+- **`Recruit.tsx` — drag trails.** The existing rAF-throttled drag handler now emits distance-gated wisps
+  (one every `emitSpacing` px of cursor travel) while a drag is active, gold when the dragged card's
+  keywords include Divine Shield (`DS`). No new layout reads — reuses the drag handler's existing
+  position tracking.
+- **`useCombatReplay.ts` — attack-lunge trails.** `playAttackLunge`'s GSAP timeline gained an `onUpdate`
+  hook that emits wisps only during windup + strike (cutoff at `tl.time() > windupDur + strikeDur`, so it
+  stays correct at any combat speed slider setting). Positions come from one up-front rect read plus
+  GSAP's already-animated x/y — no per-frame layout reads. Gold when the attacker carries the `.dscard`
+  marker.
+- **`TrailTuner.tsx` (new).** A DEV panel with 8 live sliders over `trailConfig.ts`
+  (emitSpacing/lifeMs/size/alpha/stretch/drift/goldAlpha/sparkChance) plus Copy (bakes the dialed values)
+  and Reset.
+- **`DevMenu.tsx` (new) — tuner consolidation.** The six previously-separate floating DEV tuner buttons
+  (SFX Mixer, Lunge, Taunt, Drag Feel, Reposition, Shield Place) plus the standalone Test FX button are
+  gone; one 🛠️ button opens a compact menu that toggles each panel (now panel-only, no individual
+  buttons) plus the new Trail panel and a Test FX one-shot action. Dead per-button CSS was removed and
+  replaced with `.devmenu*` styles.
+- **Fix folded in:** `TauntTuner` now clears its held demo bulwark on unmount — it previously assumed it
+  would never unmount (there was always exactly one always-visible button); now that it lives inside a
+  toggleable menu panel, closing the panel could leave a demo bulwark stuck on screen without this.
+
+**Why.** Subtle motion feedback on drags and attacks (the "wind" reads as momentum); divine-shield
+identity is now carried into motion, not just the static card badge; and the six-button dev-tuner sprawl
+was becoming its own source of UI clutter, so it's now one discoverable menu.
+
+**Verified.** `npm run typecheck`, `npm run lint`, `npm test` (460 tests), and `npm run build:web` all
+green at every commit and again on the final rebased branch. Each task went through a two-stage subagent
+review (spec-fidelity + code-quality) before moving on. The Dev Menu + panel toggles and trail emission
+(wind on drag, gold on divine-shield attacks) were live-verified in the browser preview; the 8 Trail
+dials were confirmed live-tunable via the new panel.
+
 ### tweak(ui): boot loader runs on every load (drop the sessionStorage skip)
 
 Removed the `ascent.artWarmed` sessionStorage skip from `Boot.tsx` — the loader now runs on every page load

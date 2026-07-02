@@ -5,6 +5,7 @@ import { CARD_INDEX } from '@game/content';
 import { sfx } from './sfx';
 import { pixiFx } from './pixiFx';
 import { getLungeConfig } from './lungeConfig';
+import { getTrailConfig } from './trailConfig';
 import { buildBeats, RESULT_TYPES } from './combatBeats';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 
@@ -206,10 +207,37 @@ const FINAL_HOLD_MS = 900; // hold on the last beat (death anim + damage float) 
  *  transform for the whole lunge — React renders no transform on combat units, so they never fight. */
 function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number, speed = 1): void {
   const c = getLungeConfig(); // live-tunable (DEV Lunge tuner) → applies to the next attack
+  // Motion trail: one up-front rect read gives the resting center; per-frame positions come from GSAP's
+  // animated x/y (no per-frame getBoundingClientRect). Wisps fire during windup + strike only — the slow
+  // elastic settle shouldn't smear. Gold when the attacker has Divine Shield / blue for Reborn (the `.dscard`
+  // / `.reborncard` marker classes the aura tracker also reads).
+  const rest = attacker.getBoundingClientRect();
+  const cx0 = rest.left + rest.width / 2;
+  const cy0 = rest.top + rest.height / 2;
+  const variant = attacker.classList.contains('dscard')
+    ? 'gold'
+    : attacker.classList.contains('reborncard')
+      ? 'blue'
+      : 'wind';
+  let trailLast = { x: cx0, y: cy0 };
+  const trailCutoff = c.windupDur + c.strikeDur;
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
   const tl = gsap
-    .timeline({ onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }) })
+    .timeline({
+      onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }),
+      onUpdate: () => {
+        if (tl.time() > trailCutoff) return; // no trail on the elastic settle
+        const cx = cx0 + Number(gsap.getProperty(attacker, 'x'));
+        const cy = cy0 + Number(gsap.getProperty(attacker, 'y'));
+        const tdx = cx - trailLast.x;
+        const tdy = cy - trailLast.y;
+        if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {
+          pixiFx.trail(cx, cy, tdx, tdy, variant);
+          trailLast = { x: cx, y: cy };
+        }
+      },
+    })
     .to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: -5, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' })  // wind up (anticipation lean-back + swell)
     .to(attacker, { x: dx * c.strikeDist, y: dy * c.strikeDist, rotation: 0, scale: 1, duration: c.strikeDur, ease: 'power3.in' })          // strike (overdrives into the target → a full, overlapping connecting hit)
     .add(() => {

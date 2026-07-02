@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
 import { getTauntConfig } from './tauntConfig';
+import { getTrailConfig } from './trailConfig';
 
 /**
  * Vertex shader for the shield Mesh (WebGL2 / GLSL ES 3.0). Pixi's GlMeshAdaptor binds the global-uniform
@@ -333,6 +334,7 @@ interface Particle {
   spin: number; // rad/sec
   peakAlpha: number; // opacity at birth; fades to 0 over life (smoke is semi-transparent)
   gravity: number;   // downward accel px/sec² (coins arc up then fall); 0 = none
+  stretchX: number;  // X-axis scale multiplier (1 = uniform) — elongates streak wisps along their heading
 }
 
 /**
@@ -395,6 +397,7 @@ class FxController {
   private bubbleTex: Texture | null = null;     // soft translucent disc — shield body
   private rimTex: Texture | null = null;        // bright ring — shield rim highlight
   private veinTex: Texture | null = null;       // thin streak — shield energy vein
+  private wispTex: Texture | null = null;
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
   private shieldApp: Application | null = null;  // OPTIONAL 2nd canvas for the persistent bubbles, mounted at a
   private underParent: HTMLElement | null = null; // low z (below the card badges) so the chrome reads on top; the
@@ -484,6 +487,7 @@ class FxController {
     this.bubbleTex = this.makeBubbleTexture(app);
     this.rimTex = this.makeRimTexture(app);
     this.veinTex = this.makeVeinTexture(app);
+    this.wispTex = this.makeWispTexture(app);
     app.ticker.add(this.update);
     this.ready = true;
   }
@@ -515,6 +519,7 @@ class FxController {
     this.bubbleTex = null;
     this.rimTex = null;
     this.veinTex = null;
+    this.wispTex = null;
     this.ready = false;
     this.initing = null;
   }
@@ -702,6 +707,61 @@ class FxController {
         tint: tan,
         blend: 'normal',
         peakAlpha: 0.16 + Math.random() * 0.1,           // subtle
+      });
+    }
+  }
+
+  /**
+   * One step of a motion trail behind a moving card — a wind-whoosh wisp left at (x, y), oriented along
+   * the movement vector (dx, dy). Callers distance-gate on `getTrailConfig().emitSpacing` (the drag rAF
+   * handler + the combat lunge's onUpdate), so emission density tracks speed — no movement, no trail.
+   * `variant` picks the look: `'wind'` = pale cream (normal blend); `'gold'` = Divine Shield; `'blue'` =
+   * Reborn — both tinted + additive with an occasional glint mote. The variant replaces the wind, never layers.
+   */
+  trail(x: number, y: number, dx: number, dy: number, variant: 'wind' | 'gold' | 'blue'): void {
+    if (!this.ready) return;
+    const c = getTrailConfig();
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const angle = Math.atan2(uy, ux) + (Math.random() - 0.5) * 0.16;
+    // left behind the card: a touch of backward velocity + lateral drift (displaced air swirling off)
+    const back = 30 + Math.random() * 40;
+    const side = (Math.random() - 0.5) * 2 * c.drift;
+    const special = variant !== 'wind'; // gold/blue are tinted + additive with a glint; wind is pale + normal
+    const tint = variant === 'gold' ? 0xffe9a8 : variant === 'blue' ? 0x8ec7ff : 0xf5efe0;
+    const peak = variant === 'gold' ? c.goldAlpha : variant === 'blue' ? c.blueAlpha : c.alpha;
+    this.spawn(this.wispTex!, {
+      x: x - ux * 8 + (Math.random() - 0.5) * 6,
+      y: y - uy * 8 + (Math.random() - 0.5) * 6,
+      vx: -ux * back + -uy * side,
+      vy: -uy * back + ux * side,
+      drag: 0.3, // the whoosh settles quickly
+      life: c.lifeMs * (0.8 + Math.random() * 0.4),
+      fromScale: c.size * (0.85 + Math.random() * 0.3),
+      toScale: 0.05,
+      spin: 0,
+      rotation: angle,
+      stretchX: c.stretch,
+      tint,
+      blend: special ? 'add' : 'normal',
+      peakAlpha: peak * (0.85 + Math.random() * 0.3),
+    });
+    // gold/blue only: an occasional tiny glint mote, mimicking the aura's glassy sparkle
+    if (special && Math.random() < c.sparkChance) {
+      this.spawn(this.sparkTex!, {
+        x: x + (Math.random() - 0.5) * 14,
+        y: y + (Math.random() - 0.5) * 14,
+        vx: -ux * back * 0.5 + (Math.random() - 0.5) * 30,
+        vy: -uy * back * 0.5 + (Math.random() - 0.5) * 30,
+        drag: 0.3,
+        life: c.lifeMs * 0.8,
+        fromScale: 0.5 + Math.random() * 0.4,
+        toScale: 0.05,
+        spin: 0,
+        tint: variant === 'blue' ? 0xdfefff : 0xffd24a,
+        blend: 'add',
+        peakAlpha: 0.9,
       });
     }
   }
@@ -1085,8 +1145,8 @@ class FxController {
   /** Pull a sprite from the pool (or make one), configure it as a live particle. */
   private spawn(
     tex: Texture,
-    cfg: Omit<Particle, 'sprite' | 'peakAlpha' | 'gravity'> &
-      { tint: number; blend?: BLEND_MODES; peakAlpha?: number; rotation?: number; gravity?: number },
+    cfg: Omit<Particle, 'sprite' | 'peakAlpha' | 'gravity' | 'stretchX'> &
+      { tint: number; blend?: BLEND_MODES; peakAlpha?: number; rotation?: number; gravity?: number; stretchX?: number },
   ): void {
     const layer = this.layer;
     if (!layer) return;
@@ -1099,7 +1159,7 @@ class FxController {
     sprite.alpha = peakAlpha;
     sprite.x = cfg.x;
     sprite.y = cfg.y;
-    sprite.scale.set(cfg.fromScale);
+    sprite.scale.set(cfg.fromScale * (cfg.stretchX ?? 1), cfg.fromScale);
     sprite.rotation = cfg.rotation ?? 0;
     sprite.visible = true;
     layer.addChild(sprite);
@@ -1107,6 +1167,7 @@ class FxController {
       sprite, x: cfg.x, y: cfg.y, vx: cfg.vx, vy: cfg.vy, drag: cfg.drag,
       life: cfg.life, maxLife: cfg.life, fromScale: cfg.fromScale, toScale: cfg.toScale, spin: cfg.spin, peakAlpha,
       gravity: cfg.gravity ?? 0,
+      stretchX: cfg.stretchX ?? 1,
     });
   }
 
@@ -1136,7 +1197,8 @@ class FxController {
       s.x = p.x;
       s.y = p.y;
       s.rotation += p.spin * dt;
-      s.scale.set(p.fromScale + (p.toScale - p.fromScale) * t);
+      const sc = p.fromScale + (p.toScale - p.fromScale) * t;
+      s.scale.set(sc * p.stretchX, sc);
       s.alpha = p.peakAlpha * (1 - t * t); // ease-out fade from its peak (lingers, then drops)
     }
 
@@ -1286,6 +1348,18 @@ class FxController {
     const g = new Graphics();
     g.ellipse(0, 0, 26, 2.4).fill({ color: 0xffffff, alpha: 0.4 }); // soft halo
     g.ellipse(0, 0, 22, 1.1).fill({ color: 0xffffff, alpha: 0.95 }); // bright core
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return tex;
+  }
+
+  /** A wind wisp — a soft, heavily feathered horizontal streak (layered ellipses → airy falloff), drawn
+   *  pointing +X so a spawn rotation aligns it along the card's motion. Softer sibling of the vein. */
+  private makeWispTexture(app: Application): Texture {
+    const g = new Graphics();
+    g.ellipse(0, 0, 26, 5).fill({ color: 0xffffff, alpha: 0.10 }); // outer haze
+    g.ellipse(0, 0, 22, 3.2).fill({ color: 0xffffff, alpha: 0.18 });
+    g.ellipse(-2, 0, 16, 1.8).fill({ color: 0xffffff, alpha: 0.30 }); // brighter core, biased to the tail
     const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     return tex;

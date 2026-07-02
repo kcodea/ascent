@@ -53,8 +53,10 @@ export function Career() {
   const playerAvatar = useGame((s) => s.playerAvatar);
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const profile = useGame((s) => s.profile);
-  // Load once per open (localStorage is synchronous + cheap; `show` gates the read).
-  const entries = useMemo(() => (show ? loadRunHistory() : []), [show]);
+  const careerVersion = useGame((s) => s.careerVersion);
+  // Load once per open (localStorage is synchronous + cheap; `show` gates the read). `careerVersion` re-reads
+  // it after a career reset, so an open view drops its stale past games / insights / hero stats immediately.
+  const entries = useMemo(() => (show ? loadRunHistory() : []), [show, careerVersion]);
   const stats = useMemo(() => careerStats(entries), [entries]);
   const [open, setOpen] = useState<Set<number>>(() => new Set([0])); // newest run starts expanded
   if (!show) return null;

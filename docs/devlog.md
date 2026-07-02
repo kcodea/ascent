@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### feat: "Reset my career" control in Settings
+
+A **Career** section in [EscMenu.tsx](packages/ui/src/EscMenu.tsx) with a two-tap-confirm **Reset my career**
+button (mirrors "Clear my boards") that wipes the **local** career — the persisted `ascent.profile` (rating +
+Line back to 0 / Line 7) and `ascent.history` (match history). New store action `resetCareer` calls
+`clearProfile` ([profileStore.ts](packages/ui/src/profileStore.ts)) + `clearRunHistory`
+([runHistory.ts](packages/ui/src/runHistory.ts)) and sets `profile: initialProfile()` / `lastRating: null`.
+Clearing `ascent.history` wipes **past games, insights, and per-hero stats in one go** — they're all derived
+from that log by `careerStats`, not stored separately. A `careerVersion` counter (bumped by `resetCareer`)
+keys the Career page's history read, so an **open** Career view drops its stale insights/hero rows immediately
+instead of only on reopen. Copy spells out the full scope ("wipes rating + past games + all stats").
+Deliberately scoped to local career only — it does **not** touch the in-progress run, captured boards (the
+separate "Clear my boards"), or the shared Supabase pool/leaderboard (those reset via SQL, admin-side; see the
+handoff notes). Verified: typecheck + lint clean; live — seeded a 3-run/2-hero history, opened Career (insights
++ hero rows populated), tapped reset → the open view fell to the empty state, hero rows + past games gone,
+`ascent.history`/`ascent.profile` removed, profile back to 0/Line 7.
+
 ### tweak: new players start at rating 0 (Line 7), not 1200 (Line 9)
 
 `STARTING_RATING` 1200 → **0** in [playerRating.ts](packages/sim/src/playerRating.ts). By the existing bands

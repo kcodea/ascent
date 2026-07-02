@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TAUNT_KEYS, TAUNT_RANGES, getTauntConfig, resetTauntConfig, setTauntValue, type TauntConfig } from './tauntConfig';
 import { tauntFx } from './pixiFx';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -39,6 +39,9 @@ export function TauntTuner() {
   const [held, setHeld] = useState(false);
   const [copied, setCopied] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('taunt');
+
+  // The DevMenu unmounts this panel when toggled off — clear any held demo bulwark so it can't be orphaned.
+  useEffect(() => () => tauntFx.clearShield(DEMO, 'taunt'), []);
 
   const set = (k: keyof TauntConfig, v: number): void => {
     setTauntValue(k, v);

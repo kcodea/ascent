@@ -1,31 +1,18 @@
-import { useState, type CSSProperties } from 'react';
-import type { Tribe } from '@game/core';
 import { CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@game/sim';
 import { BuffsFrame } from './BuffsFrame';
 import { Icon } from './Icon';
 import { OpponentFrame } from './OpponentFrame';
-import { isMuted, toggleMute } from './sfx';
 import { useGame } from './store';
 
-const TRIBE_ICON: Record<Tribe, string> = {
-  beast: 'paw', dragon: 'flame', undead: 'skull', mech: 'gear', demon: 'eye', neutral: 'star',
-};
-const TRIBE_LABEL: Record<Tribe, string> = {
-  beast: 'Beast', dragon: 'Dragon', undead: 'Undead', mech: 'Mech', demon: 'Demon', neutral: 'Neutral',
-};
-
-/** Top bar: wordmark + altitude (wave) meter + the tribes in play this run. */
+/** Top bar: the round/altitude plaque (left) and the next-enemy frame (top-right). */
 export function HudBar() {
   const run = useGame((s) => s.run);
-  const playerName = useGame((s) => s.playerName);
-  const [muted, setMuted] = useState(isMuted());
   // Your W–L record over the SCORED rounds (calibration rounds 1–2 don't count) — the run's score (A1).
   const { wins, losses } = runRecord(run);
   const practice = run.mode === 'practice';
   const calibration = !practice && isCalibrationRound(run.wave);
   return (
     <div className="bar">
-      <div className="wm disp">ASCENT</div>
       <div className="alt">
         <span className="wavecol">
           <span className="w">{practice ? `WAVE ${run.wave}` : `ROUND ${run.wave} / ${CONFIG.courseRounds}`}</span>
@@ -51,21 +38,7 @@ export function HudBar() {
         )}
         {!practice && <span className="lbl line" title={`Your par for this run — cover or beat ${run.line} wins`}>Line {run.line}</span>}
       </div>
-      <div className="tribes" title="Tribes in play this run">
-        <span className="tl">Tribes</span>
-        {run.tribes.map((t) => (
-          <span className="tb" key={t} style={{ '--c': `var(--t-${t})` } as CSSProperties} title={TRIBE_LABEL[t]}>
-            <Icon name={TRIBE_ICON[t]} />
-          </span>
-        ))}
-      </div>
-      <button className="mutebtn" title={muted ? 'Unmute' : 'Mute'} onClick={() => setMuted(toggleMute())}>
-        <Icon name={muted ? 'mute' : 'sound'} />
-      </button>
-      {/* The player's name on its own line, below the ASCENT/Wave boxes — mirrors the opponent frame
-          (below-right). Absolutely positioned so it never reflows the bar. */}
-      {playerName && <div className="barplayer" title="You">{playerName}</div>}
-      {/* Top-right column: the next-enemy frame (recruit only) with the run-buffs window stacked below it. */}
+      {/* Top-right: the next-enemy frame (recruit only) with the run-buffs window stacked below it. */}
       <div className="topright">
         <OpponentFrame />
         <BuffsFrame />

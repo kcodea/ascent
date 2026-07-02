@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **HUD redesign** — the shop controls are a labelled row of gold plaque buttons (Gold · Tavern · Reroll ·
+  Freeze) with the turn timer above them; End Turn is a standalone button on the right; the next-opponent frame
+  sits in the top-right corner; the player name is a small box above the hero panel; hand cards seat lower and
+  pop up on hover. Removed the ASCENT wordmark, the Tribes strip, the mute button (now in Esc), and the burn-rope.
 - **Recruit HUD + drag polish** — play a minion by releasing it anywhere in the board area (a play floor lets you
   cancel back to the hand), with a soft gold "will play" glow on the card; Gold moved into its own box at the
   left of the shop controls (opposite End Turn), health is now a compact box by the hero power (bar removed), and

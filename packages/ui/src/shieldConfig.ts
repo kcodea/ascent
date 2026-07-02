@@ -11,7 +11,7 @@ export interface ShieldConfig {
 }
 
 const DEFAULTS: ShieldConfig = {
-  recruitDy: 0.03, // between "too high" (0) and "too low" (0.07) — dial to taste
+  recruitDy: 0.01, // dialed by eye: perfect alignment on shop/warband cards
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

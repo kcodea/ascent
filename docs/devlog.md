@@ -5,6 +5,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### tweak: divine-shield shop default recruitDy → 0.01 (dialed by eye)
+
+Baked the owner's tuned value: `shieldConfig.recruitDy` default `0.03 → 0.01` — perfect bubble alignment on
+shop/warband cards. (Existing localStorage values still win; fresh installs get 0.01.)
+
 ### fix: divine-shield tuner slider now updates the bubble live
 
 The 🛡 Shield tuner slider saved its value (localStorage) but the on-screen bubble didn't move — `syncShields`

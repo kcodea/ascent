@@ -81,12 +81,28 @@ const AVATAR_SRC = new Map(AVATAR_ART.map((a) => [a.id, a.src] as const));
 /** Resolve a stored avatar id (`kind:key`) to its art URL — undefined if unset or no longer bundled. */
 export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATAR_SRC.get(id) : undefined);
 
-/** Every bundled art URL (minions + heroes + powers), deduped — the warm-up set. */
+/** App-level public assets (served from `apps/web/public/` at the site root) that also pop in when loaded
+ *  lazily: the board backdrops + title art (CSS `url()` / title <img>) and the custom drag cursors (a cursor
+ *  swap flashes the default arrow until its SVG is fetched). They live outside the ui package's globs, so
+ *  they're listed by URL — keep in sync with `styles.css` `url()` refs + `apps/web/public/`. */
+const PUBLIC_ART_URLS: string[] = [
+  '/board2b.webp',
+  '/board2.webp',
+  '/homescreen.webp',
+  '/cursors/gauntlet_default.svg',
+  '/cursors/gauntlet_open.svg',
+  '/cursors/hand_closed.svg',
+];
+
+/** Every bundled art URL (minions + heroes + powers) + the public backdrops/cursors, deduped — the warm-up set. */
 const ALL_ART_URLS: string[] = [
-  ...new Set([...Object.values(MINION_ART), ...Object.values(HERO_ART), ...Object.values(POWER_ART)]),
+  ...new Set([...Object.values(MINION_ART), ...Object.values(HERO_ART), ...Object.values(POWER_ART), ...PUBLIC_ART_URLS]),
 ];
 
 let warmed = false;
+/** The preloader's Image objects, held for the session — dropping them lets the browser GC the elements and,
+ *  with them, more eagerly evict the decoded bitmaps, re-introducing mid-run decode flashes on weaker devices. */
+const KEEP_ALIVE: HTMLImageElement[] = [];
 /**
  * Preload (fetch + decode) every bundled art file so cards render with their art already cached — no
  * "pop-in" a beat after the card frame on a cold load (the itch CDN especially: each webp is a separate
@@ -101,6 +117,7 @@ export function warmArt(): void {
   const run = (): void => {
     for (const url of ALL_ART_URLS) {
       const img = new Image();
+      KEEP_ALIVE.push(img); // same session-long hold as the blocking preloader
       img.decoding = 'async';
       img.src = url;
       // decode() pre-decodes off the main thread where supported; best-effort (ignore failures / abort).
@@ -139,6 +156,7 @@ export function preloadAllArt(onProgress?: (loaded: number, total: number) => vo
         resolve();
       };
       const img = new Image();
+      KEEP_ALIVE.push(img); // hold the element for the session so its decoded bitmap isn't eagerly evicted
       img.decoding = 'async';
       // Resolve as soon as the bytes are cached (`onload`) — the network round-trip is what causes the pop-in.
       // Kick `decode()` in the background too (best-effort) so first paint is instant, but never GATE on it:

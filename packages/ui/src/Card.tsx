@@ -309,7 +309,10 @@ export const Card = memo(function Card({
       <div className="archbox">
         <div className="art">
           {artUrl ? (
-            <img className="artimg" src={artUrl} alt="" draggable={false} decoding="async" />
+            /* decoding="sync": paint the art WITH the frame in the same frame. `async` let the browser
+               commit the card before the (already-preloaded, cached) image finished decoding — the residual
+               per-mount pop-in the boot preloader couldn't fix. Decode cost is small (≤512px webp). */
+            <img className="artimg" src={artUrl} alt="" draggable={false} decoding="sync" />
           ) : (
             <Sprite name={spriteForTribe(card.tribe)} scale={5} />
           )}

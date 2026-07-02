@@ -5,6 +5,39 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-02 (session 13)
 
+### feat(ui): recruit HUD + drag/play polish, board2upscaled2 (21:9), HP box
+
+A batch of recruit-screen presentation work (owner-directed, iterated live):
+
+- **Play a minion at any height (with a play floor).** A hand minion now plays when released anywhere in the
+  board area, not only on the warband row — you no longer have to hit the row exactly. A measured "play floor"
+  (`playFloorRef`, 10% of the play area above the warband bottom, biased so it's not too low) is the minimum:
+  release **below** it (toward the hand) and the card snaps back to hand (the cancel gesture). The insertion
+  preview + a soft gold "will play" glow on the floating card track the drag while it's above the floor; both
+  clear below it. The glow reuses the exact `.card:hover` gold highlight.
+- **Removed the drag clutter.** No more "Drag minions up…" empty-board hint; the BUY / Sell +1 text labels are
+  gone; the buy/sell **gradients stay but toned down** with their dashed borders removed; the warband and hand
+  drop-target **boxes/tints removed** (buying shows only the buyzone gradient now).
+- **Buy requires crossing the midline.** A shop card only buys when released **below the board's midline** (the
+  background divider = the `.app` vertical centre), not merely below the warband top — so a card hovered up by
+  the offers won't buy. The burn-rope is aligned to that same midline (JS-measured `--rope-y`, nudged up a hair
+  to sit on the art divider).
+- **Gold moved up top.** Extracted the Gold counter into `GoldChip` and placed it as its own box at the LEFT of
+  the shop control frame — opposite End Turn on the right — so the frame stays centred on the timer. Removed it
+  from the bottom bar; retargeted the sell-coin animation to `.shopctl .chip.g`.
+- **HP as a white box.** Dropped the Resolve HP bar; health now shows as a compact white box beside the hero
+  power inside the hero panel (heart + Resolve `+Armor`), keeping the hit-shake + −X float. Also removed the
+  bottom player-panel container box (background/border/shadow) so the hero/gold read as standalone HUD pills.
+- **Board art:** wired **board2upscaled2** (native 3440×1440) as the 21:9 backdrop (`[data-res="r3440"]` + a fit
+  window ≥2:1), keeping **board2b** as the 16:9 default; the hero-select screen previews the same `--board`.
+  Removed the superseded `board2.webp` and updated the art preload list to the current backdrops.
+- **Fix:** a board/shop **reorder no longer replays the mount-pop** on the displaced card — `popin` is dropped
+  ~500ms after it plays, so a DOM move (reorder) can't restart the `cardpop` animation (was most obvious as a
+  Battlecry card like Alleycat "re-summoning" when dragged past a neighbour).
+
+Verified: typecheck + lint + 460 tests + `build:web` all green; the drag/HUD states checked live via computed
+styles + DOM (a real pointer-drag couldn't be driven headlessly — owner to confirm feel). Rebased onto #148/#149.
+
 ### fix(ui): art pop-in hardening — sync decode + preload the public backdrops/cursors
 
 The player still saw art pop-in "plenty" after the #144/#145 boot preloader. Root causes found:

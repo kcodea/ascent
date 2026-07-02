@@ -199,7 +199,16 @@ export const Card = memo(function Card({
   // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.
   const showText = forceFull || !useGame((s) => s.compactCards);
   // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
-  const [popin] = useState(() => !suppressPop);
+  const [popin, setPopin] = useState(() => !suppressPop);
+  // Drop the `popin` class once the mount-pop has played. It must not linger: `.card.popin` carries the
+  // `cardpop` animation, and when a board REORDER physically moves a card's DOM node the browser RE-TRIGGERS
+  // that animation — so an untouched neighbour "popped" as if it were just played (most obvious on a Battlecry
+  // card like Alleycat). 500ms covers the pop (0.15s) plus the summon-delay variant (0.2s delay) with margin.
+  useEffect(() => {
+    if (!popin) return;
+    const t = window.setTimeout(() => setPopin(false), 500);
+    return () => window.clearTimeout(t);
+  }, [popin]);
   // Pills row: the trigger (Battlecry / Deathrattle, derived from the text) then any
   // keyword pills. Always rendered (reserves a row) so the description starts on a
   // fixed line whether or not the card has pills.

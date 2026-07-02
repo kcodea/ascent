@@ -3,6 +3,38 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-02 (session 13)
+
+### fix(ui): reposition slide no longer replays the dragged card's move on drop
+
+**Symptom.** Dragging a card to a new slot and dropping it — in **both** the warband and the shop — replayed
+the swap: the dragged card teleported back to its old slot and re-slid to the new one *after* the drop.
+
+**Root cause.** A regression from #131 (`fb4060e`), which set the committed Flip `commitMs 0 → 200` to fix
+quick-flick reorders snapping. During a reorder the neighbours slide aside live (CSS `boardSlide`/`shopSlide`
+transforms) while the dragged card holds its old slot invisibly (it rides the drag overlay). On drop, the
+`reposition`/`reorderShop` dispatch reorders the array and the `flipKey` layout effect runs — but by then
+`dragRef.current.active` is already `false` (from `setDrag(null)`), so the effect couldn't tell the commit came
+from a drag. It fell into the `commitMs > 0` branch and ran a whole-row `Flip.from`, which animated the dragged
+card from its captured *old* rect to its *new* one = the replay. (Neighbours didn't visibly double-animate —
+they were already slid, so their delta ≈ 0 — but the dragged card always did.)
+
+**Fix.** Route drag-drop commits through the same manual per-card FLIP that hand-plays already use, generalized
+to whichever row the drop landed in:
+- At drop, snapshot the row's live card lefts **excluding the dragged card** (it's stale at its old slot; a new
+  `handFlipSelRef` records whether the row is the warband or the tavern).
+- Set the existing `handPlaySnapRef` for hand-play, board reorder, and shop reorder.
+- The commit branch then glides only the cards whose captured spot differs from their final slot; the dragged
+  card, absent from the snapshot, simply appears at its committed slot with no slide.
+
+This fixes both cases at once — slow drag (neighbours already home → snap; dragged card excluded → no replay)
+*and* quick flick (neighbours glide from their pre-slide spots), so it's strictly better than either `commitMs`
+value. `commitMs` now only governs genuine non-drag commits (summons / effects / auto-reposition).
+
+**Verified.** `npm run typecheck` green; HMR clean (no console errors); owner confirmed both rows live — the
+drop settles with neighbours gliding and no post-drop replay. **Follow-up:** board-*sell* drags still route
+through the `commitMs` Flip and could show a milder version of this on the gap-close — not folded in here.
+
 ## 2026-07-01 (session 12)
 
 ### tweak: divine-shield shop default recruitDy → 0.01 (dialed by eye)

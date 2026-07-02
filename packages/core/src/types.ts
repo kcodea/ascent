@@ -165,7 +165,7 @@ export type EffectFactoryId =
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
-  | 'goldSpentBuffFodderImps' // Acid: every N Gold spent, permanently buff your Fodder + Imps run-wide
+  | 'goldSpentBuffFodder' // Koron: every N Gold spent, permanently buff your Fodder run-wide (+ queue a Fodder)
   | 'goldSpentMagnetize' // Banksly: every N Gold spent, weld a random Magnetic onto self
   // --- tavern-spell batch (2026-06-26) ---
   | 'spellBuffByTier' // Lantern Light: cast — give the target +Tavern Tier / +Tavern Tier (recruit)

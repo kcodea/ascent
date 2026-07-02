@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-01 (session 12)
 
+### tweak: card retiers + Koron rework + Choose One cursor fix
+
+- **Choose One cursor:** the `.chooseopt` option buttons set a plain `cursor: pointer`, which overrode the
+  game's gauntlet cursor and showed the OS default. Now `url('/cursors/gauntlet_open.svg') 6 2, pointer`, matching
+  every other clickable ([styles.css](packages/ui/src/styles.css)). Verified live: computed cursor resolves to the
+  gauntlet SVG.
+- **Retiers (content):** Arcane Weaver **T4 → T3**, Harry Botter **T4 → T3**, Ghostsmith **T3 → T2**.
+- **Koron, the Hungerer** now buffs **only Fodder** (+1/+1) + queues a Fodder to the next tavern — **no longer
+  touches Imps**. Dropped the `buffImpsRunWide` call from the effect and renamed it `goldSpentBuffFodderImps` →
+  `goldSpentBuffFodder` across the type union / schema / buildTags / handler / card; card text updated. Its Koron
+  test now asserts Fodder + queued-Fodder and that `impBuff` stays untouched.
+- **Verified:** 456 tests green (updated the Koron test), typecheck + lint clean. No opponent-pool regen needed —
+  snapshots store card id + stats, not tier.
+
 ### tweak: new players start at rating 0 (Line 7), not 1200 (Line 9)
 
 `STARTING_RATING` 1200 → **0** in [playerRating.ts](packages/sim/src/playerRating.ts). By the existing bands

@@ -724,7 +724,7 @@ body.dragging .row.hand .card:hover { transform: translateY(11%); z-index: auto;
 }
 /* Choose One — two big option buttons */
 .chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
-.chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }
+.chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }
 .chooseopt:hover { border-color: var(--acc); transform: translateY(-3px); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35); }
 .chooseopt b { color: var(--acc-dk); font-weight: 800; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }

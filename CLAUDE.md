@@ -56,6 +56,11 @@ The game is a **deterministic simulation, fully decoupled from the UI.**
   runs, and cheap exact balance sims.
 - **Cards are data + effect subscriptions**, never bespoke classes. New cards = data only unless
   they need a genuinely new effect primitive.
+- **Card text always states the card's CURRENT value** (owner ruling 2026-07-02). Any card whose
+  magnitude scales (quests, tallies, auras, per-N improvements) must surface its live value + the
+  countdown to the next step via the `cardText.ts` helpers, wired into BOTH chains: `liveCardText`
+  (shop / board / hand / Discover / end screen) and `Unit.tsx` (combat). A stale printed number is
+  a defect — add the helper in the same PR that adds the scaling effect.
 - **Never mutate shared `CardDef`s** — clone into combat `Minion` instances.
 - Recruit-phase effects (Battlecry, buff-on-summon, consume) bake into stats before combat; the
   combat simulator runs combat-time effects (Start-of-Combat, Deathrattle, on-shield-break,

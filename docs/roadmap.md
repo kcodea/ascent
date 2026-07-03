@@ -208,6 +208,14 @@ look because the engine already produces the data.
 
 ## Standing backlog (carried over — unscheduled, behind the spine)
 
+**Welded-host live text:** the accrued magnitude a host carries from welded magnetics (Better Bot's
+`rallyMechAtk`, Harry Botter's `spellAuraBonus`, Heckbinder's `fodderAuraBonus`) is invisible on the host's
+card (it renders a different def's text) — needs host-side weld-text infra to fully satisfy the CLAUDE.md
+"card text always states current values" rule.
+
+**Enemy Start-of-Combat effects** never fire (`simulate` runs the SC loop over the player board only, per
+A.3 step 1) — confirm against the handoff whether pool-captured enemy boards with SC minions should stay
+inert; owner to rule.
 
 **Meta / progression (PvE):** unlocks (cards/heroes gated by a persisted profile — heroes are already
 data), ascension modifiers (difficulty knob), daily seeds (engine threads one seed; seed the hero-choice

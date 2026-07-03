@@ -14,10 +14,14 @@ export const UNDEAD: CardDef[] = [
     tribe: 'undead',
     tier: 1,
     attack: 2,
-    health: 2,
+    health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffAllRandomStat', params: { amount: 1 } }],
-    text: '**Deathrattle:** Give all friends **+1 Attack** or **+1 Health** (random).',
+    effects: [
+      { on: 'onDeath', do: 'deathrattleBuffAll', params: { attack: 1, health: 1 } },
+      { on: 'battlecryTriggered', do: 'battlecryTriggeredOwnDeathrattle' },
+    ],
+    text: '**Deathrattle:** Give your minions **+1/+1**. Triggers each time you play a **Battlecry**.',
+    goldenText: '**Deathrattle:** Give your minions **+2/+2**. Triggers each time you play a **Battlecry**.',
   },
   {
     id: 'knit',
@@ -128,6 +132,20 @@ export const UNDEAD: CardDef[] = [
     goldenText: '**Deathrattle:** Get **2 Gold Pouches**.',
   },
   {
+    // Rise-spreader: a fragile glass body whose Deathrattle hands a random friendly Undead a Rise
+    // (skipping ones that already have — or already spent — it). Golden grants two.
+    id: 'mumi',
+    name: 'Mumi',
+    tribe: 'undead',
+    tier: 3,
+    attack: 5,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantReborn', params: { tribe: 'undead' } }],
+    text: '**Deathrattle:** give a friendly **Undead** **Rise**.',
+    goldenText: '**Deathrattle:** give **two** friendly **Undead** **Rise**.',
+  },
+  {
     // Engraved: stat gains carry back to the run board. Gains +3/+3 per friendly summon in combat.
     // Overflow summons (board full) also buff your Undead +2/+2. Golden doubles both gains.
     id: 'thunderingabomination',
@@ -163,7 +181,7 @@ export const UNDEAD: CardDef[] = [
     goldenText: '**Deathrattle:** Give your minions **+4 Health**. Improves **+4** each time Sergeant gains Attack.',
   },
   {
-    // When you cast a spell, give your Undead +2 Attack wherever they are (board + hand) and stack the
+    // When you cast a spell, give your Undead +3 Attack wherever they are (board + hand) and stack the
     // bonus into undeadBuyAtk for future buys. Golden doubles the per-cast grant.
     id: 'forsakenweaver',
     name: 'Forsaken Weaver',
@@ -172,9 +190,9 @@ export const UNDEAD: CardDef[] = [
     attack: 5,
     health: 8,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 2 } }],
-    text: 'When you cast a spell, give your Undead **+2 Attack** wherever they are.',
-    goldenText: 'When you cast a spell, give your Undead **+4 Attack** wherever they are.',
+    effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 3 } }],
+    text: 'When you cast a spell, give your Undead **+3 Attack** wherever they are.',
+    goldenText: 'When you cast a spell, give your Undead **+6 Attack** wherever they are.',
   },
   {
     // Dual-type Undead/Beast. Deathrattle: summon 3 Crypt Wolves (1/1 undead beasts). Golden

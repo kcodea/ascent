@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, cryptDrakeText, engraveTallyText, guelProgressText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText } from './cardText';
+import { ascendProgressText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText } from './cardText';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -47,6 +47,7 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
     ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
     ?? tallyBuffText(u.cardId, drTally) // Grim: live "+N/+N" from the run Deathrattle tally
     ?? guelProgressText(u.cardId, u.golden, spellsCast) // Guel: live grant + countdown from spells cast this run
+    ?? monkProgressText(u.cardId, u.golden, u.summonBonus, u.overflowBonus ?? 0) // Flowing Monk: live grant + overflow countdown (climbs via improve events)
     ?? taragosaText(u.cardId, u.golden, spA, spH)
     ?? engraveTallyText(u.cardId, u.permaGain)
     ?? def?.text ?? '';

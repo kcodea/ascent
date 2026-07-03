@@ -66,17 +66,20 @@ export const DEMONS: CardDef[] = [
   },
   {
     // Dual-type Demon/Mech. Magnetic — and because it's also a Mech it can weld onto a friendly
-    // Mech *or* Demon, merging its 3/3 in. A flexible glue body for either tribe.
+    // Mech *or* Demon, merging its 3/3 in. While on the board (or welded onto a host that is), it
+    // enriches every NEW Fodder by +1/+2 (a live aura — leaves when it does; golden ×2).
     id: 'heckbinder',
     name: 'Heckbinder',
     tribe: 'demon',
     tribe2: 'mech',
-    tier: 4,
+    tier: 3,
     attack: 3,
     health: 3,
     keywords: ['M'],
+    fodderAura: { attack: 1, health: 2 },
     effects: [],
-    text: 'Magnetize onto a friendly **Mech** or **Demon**.',
+    text: 'Magnetize onto a friendly **Mech** or **Demon**. While on your board, your **Fodder** gets **+1/+2**.',
+    goldenText: 'Magnetize onto a friendly **Mech** or **Demon**. While on your board, your **Fodder** gets **+2/+4**.',
   },
   {
     id: 'maw',

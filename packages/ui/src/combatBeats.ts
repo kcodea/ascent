@@ -17,9 +17,10 @@ import type { CombatEvent } from '@game/core';
  *   state derivation (`computeFrame`, which folds events in order) stays correct.
  */
 
-/** Result events — the "impact" of an action. A contiguous run becomes one beat. */
+/** Result events — the "impact" of an action. A contiguous run becomes one beat. `keyword` rides here so a
+ *  grant fired mid-death-cascade (Mumi's Rise) never splits the impact run (the dmg/death beat). */
 export const RESULT_TYPES = new Set<CombatEvent['type']>([
-  'dmg', 'shield', 'shieldUp', 'poison', 'venomLost', 'death',
+  'dmg', 'shield', 'shieldUp', 'poison', 'venomLost', 'death', 'keyword',
 ]);
 
 /** On-attack "flash" events the sim emits between an `attack` and its damage — pulled into the attack's

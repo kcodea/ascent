@@ -1,7 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, sergeantText, soulsmanText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, monkProgressText, sergeantText, soulsmanText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText } from './cardText';
 
 describe('cardText helpers', () => {
+  it("monkProgressText shows Flowing Monk's live grant + countdown to the next step (golden-aware)", () => {
+    // 0 overflows: grant +2/+2, 5 to the next step — the current value shows from the very start.
+    expect(monkProgressText('monk', false, 0)).toContain('{{+2/+2}}');
+    expect(monkProgressText('monk', false, 0)).toContain('{{5 to go}}');
+    // 7 overflows: floor(7/5)=1 → grant +4/+4; 7%5=2 → 3 to the next step.
+    expect(monkProgressText('monk', false, 7)).toContain('{{+4/+4}}');
+    expect(monkProgressText('monk', false, 7)).toContain('{{3 to go}}');
+    // Golden, 5 overflows: 2 × (1 + 1) × 2 = +8/+8; per-step shows +4/+4.
+    expect(monkProgressText('monk', true, 5)).toContain('{{+8/+8}}');
+    expect(monkProgressText('monk', true, 5)).toContain('**+4/+4**');
+    // A tripled golden carrying a flat combine bonus (+10) reads base 4 + 10 = +14/+14.
+    expect(monkProgressText('monk', true, 0, 10)).toContain('{{+14/+14}}');
+    expect(monkProgressText('monk', true, 0, 10)).toContain('{{5 to go}}');
+    // Non-Monk card → null (falls back to printed text).
+    expect(monkProgressText('sandbag', false, 3)).toBeNull();
+  });
   it('guelProgressText shows Guel’s live grant + countdown to the next step (golden-aware)', () => {
     // 0 spells cast: grant +1/+1, 4 to the next step.
     expect(guelProgressText('guel', false, 0)).toContain('{{+1/+1}}');

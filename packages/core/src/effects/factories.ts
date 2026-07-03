@@ -84,6 +84,8 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
         for (const kw of kws) if (!target.keywords.includes(kw)) {
           target.keywords.push(kw);
           if (kw === 'DS') target.divineShield = true;
+          if (kw === 'R') target.rebornAvailable = true;
+          ctx.log({ type: 'keyword', target: target.uid, keyword: kw, source: m.uid }); // the pill shows in the replay
         }
       }
     } else if (eff.do === 'battlecryDiscoverSpell') {
@@ -104,6 +106,8 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   // settleCombat re-fires its economy onPlay effects through the real recruit factory. Player-only (gated in
   // ctx.deferBattlecry). Recorded once per re-fire, so Drakko's doubling carries through to the settle replay.
   if (economy) ctx.deferBattlecry(m.cardId, m.golden, m.side);
+  // NB: the `battlecryTriggered` notify (procs Karwind / Bane / Sporeling) is emitted by the CALLER
+  // (deathrattleReplayAdjacentBattlecry) once per re-fire — not here, or every watcher would double-proc.
 }
 
 /**
@@ -122,8 +126,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const total = num(params.count, 1) * (params.fixed ? 1 : mul(self));
     const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
     const grantKws = kw ? [kw] : undefined; // passed into summon so the keyword is in the snapshot from the start
+    // `goldenTokens`: a golden summoner upgrades the TOKENS to gilded (doubled stats) instead of the count
+    // (Manasaber: two 0/2 cubs → two 0/4 gilded cubs). Pair with `fixed` so the count stays put.
+    const golden = !!params.goldenTokens && self.golden;
     for (let i = 0; i < total; i++) {
-      ctx.summon(self.side, card, self.uid, grantKws);
+      ctx.summon(self.side, card, self.uid, grantKws, golden);
       // Sequential spawning for attack-on-summon tokens (Twilight Whelp → Whelp): each Whelp attacks
       // immediately after spawning. Only spawn the next one if there's room after the first has attacked
       // (if the first dies, it frees a slot; if it lives and the board was full, the next overflows).
@@ -384,6 +391,63 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
   },
 
+  /** Deathrattle (Sporeling): give ALL living friends +atk/+hp (golden doubles). On a true death the dying
+   *  body is already excluded from living(); when Battlecry-proc'd while alive (below) it buffs itself too. */
+  deathrattleBuffAll: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    for (const f of ctx.living(self.side)) ctx.buff(f, a, h, self.uid);
+  },
+
+  /** Sporeling — every Battlecry fired on this side (Ryme's combat replay emits `battlecryTriggered`) procs
+   *  this minion's OWN Deathrattle effects while it lives, and counts toward the Deathrattle tally (Grim).
+   *  Single proc per Battlecry fire (no Sylus multiplication — he amplifies deaths, not echoes). */
+  battlecryTriggeredOwnDeathrattle: (ctx, self, _params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || self.health <= 0 || side !== self.side) return;
+    ctx.countDeathrattle?.(self.side);
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name}'s Deathrattle triggers` });
+    for (const eff of self.effects) {
+      if (eff.on !== 'onDeath' || !eff.do.startsWith('deathrattle')) continue;
+      FACTORIES[eff.do]?.(ctx, self, eff.params ?? {}, { minion: self, side: self.side });
+    }
+  },
+
+  /** Deathrattle (Mumi): grant a random living friend of `tribe` (default any) **Rise** — it comes back
+   *  once at base Attack / 1 Health when it dies. Skips minions that already have Rise (printed or granted,
+   *  spent Rise included: it was "used up", not re-grantable by a rattle). Golden grants it to two friends.
+   *  Logs a `keyword` event so the target's card gains the Rise pill in the replay the moment it's granted
+   *  (the Rise itself then replays through the normal `reborn` event when it procs). */
+  deathrattleGrantReborn: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const tribe = str(params.tribe);
+    for (let i = 0; i < mul(self); i++) {
+      const candidates = ctx.living(self.side).filter((m) => {
+        if (m === self || m.rebornAvailable || m.keywords.includes('R')) return false;
+        if (!tribe) return true;
+        const def = ctx.getCard(m.cardId);
+        return m.tribe === tribe || m.tribe2 === tribe || !!def.universalTribe;
+      });
+      if (candidates.length === 0) return;
+      const target = ctx.rng.pick(candidates);
+      target.keywords.push('R');
+      target.rebornAvailable = true;
+      ctx.log({ type: 'keyword', target: target.uid, keyword: 'R', source: self.uid });
+    }
+  },
+
+  /** Avenge (X) — Arcane Weaver: after every `count` friendly deaths, add a copy of a spell to your hand
+   *  after combat (golden grants two per proc). Routed through grantToHand so the replay shows the card
+   *  flying to your hand as it triggers. */
+  avengeGrantSpell: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 2));
+    if (count % x !== 0) return;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
+  },
+
   /** Deathrattle (Skullblade): permanently raise the run-wide spell power by +atk/+hp (golden doubles).
    *  Carried back via `CombatResult.playerSpellPower` (player-side only — `grantSpellPower` guards it),
    *  then applied to the run's spell bonus in settleCombat. Each Skullblade death stacks another +atk/+hp. */
@@ -564,22 +628,33 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Flowing Monk: when a summon on this minion's side can't fit the full board (a `summonOverflow`),
-   *  buff a random living friend (+3/+3; golden doubles). The combat half of its recruit overflow buff —
-   *  and PERMANENT: the gift is recorded on the recipient (`permaGain`) so it carries back to the run
-   *  board after combat, not just for this fight. */
+   *  Engrave `count` random living friends +atk/+hp (golden doubles) — PERMANENT via `permaGain`, so the
+   *  gifts carry back to the run board. The magnitude improves by another +atk/+hp for every `improveEvery`
+   *  overflows this Monk has seen (its running tally rides in `summonBonus`, the generic per-instance
+   *  accrual carried across combats — the recruit half shares it). */
   overflowBuffRandom: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side?: Side }).side !== self.side) return;
-    const friends = ctx.living(self.side);
-    if (friends.length === 0) return;
-    const recipient = ctx.rng.pick(friends);
-    const a = num(params.attack, 3) * mul(self);
-    const h = num(params.health, 3) * mul(self);
-    ctx.buff(recipient, a, h, self.uid);
-    // ctx.buff already accrues permaGain for an Engraved recipient; record it here for everyone else
-    // (Flowing Monk's gift is permanent regardless of the recipient's keywords).
-    if (!recipient.keywords.includes('EG')) {
-      recipient.permaGain = { attack: (recipient.permaGain?.attack ?? 0) + a, health: (recipient.permaGain?.health ?? 0) + h };
+    const every = Math.max(1, num(params.improveEvery, 5));
+    const step = Math.floor(self.summonBonus / every);
+    // `overflowBonus` is the flat top-up a TRIPLE created (golden = sum of the two highest copies' grants).
+    const flat = self.overflowBonus ?? 0;
+    const a = num(params.attack, 2) * (1 + step) * mul(self) + flat;
+    const h = num(params.health, 2) * (1 + step) * mul(self) + flat;
+    const pickable = ctx.living(self.side);
+    for (let i = 0; i < num(params.count, 2) && pickable.length > 0; i++) {
+      const recipient = ctx.rng.pick(pickable);
+      pickable.splice(pickable.indexOf(recipient), 1);
+      ctx.buff(recipient, a, h, self.uid);
+      // ctx.buff already accrues permaGain for an Engraved recipient; record it here for everyone else
+      // (Flowing Monk's gift is permanent regardless of the recipient's keywords).
+      if (!recipient.keywords.includes('EG')) {
+        recipient.permaGain = { attack: (recipient.permaGain?.attack ?? 0) + a, health: (recipient.permaGain?.health ?? 0) + h };
+      }
     }
+    // Log the tally increment as an `improve` (amount = +1 to the accrual, matching Kennelmaster's
+    // semantics) — the replay folds it into the unit's summonBonus so the card's live text climbs in-fight.
+    self.summonBonus += 1;
+    ctx.log({ type: 'improve', target: self.uid, amount: 1 });
   },
 
   /** Avenge (X): after every `count` friendly deaths in combat, buff self (+atk/+hp). */

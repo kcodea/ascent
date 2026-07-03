@@ -60,7 +60,7 @@ export const NEUTRAL: CardDef[] = [
     goldenText: '**Battlecry:** add **two** random **Tier 1** minions to your hand.',
   },
   {
-    // Spell payoff. Each tavern spell you cast pumps two *other* friends (the triple-reward Discover
+    // Spell payoff. Each tavern spell you cast pumps three *other* friends (the triple-reward Discover
     // is not a tavern spell, so it doesn't proc). Targets are chosen randomly among your other minions.
     id: 'guel',
     name: 'Archmagus Guel',
@@ -69,13 +69,14 @@ export const NEUTRAL: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastBuffOthers', params: { attack: 1, health: 1, count: 2 } }],
-    text: 'After **a spell is cast** (shop or combat), give 2 other friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast.',
-    goldenText: 'After **a spell is cast** (shop or combat), give 2 other friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast.',
+    effects: [{ on: 'spellCast', do: 'spellCastBuffOthers', params: { attack: 1, health: 1, count: 3 } }],
+    text: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast.',
+    goldenText: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast.',
   },
   {
-    // Overflow payoff. When a summon can't fit your full board, a random friend gets the wasted body's
-    // worth of stats instead — turning board-cap overflow into value.
+    // Overflow payoff. When a summon can't fit your full board, TWO random friends get Engraved stats
+    // instead — turning board-cap overflow into value. The grant improves every 3 overflows (the tally
+    // rides in summonBonus, shared across recruit + combat via the carry-back).
     id: 'monk',
     name: 'Flowing Monk',
     tribe: 'neutral',
@@ -83,9 +84,9 @@ export const NEUTRAL: CardDef[] = [
     attack: 4,
     health: 5,
     keywords: [],
-    effects: [{ on: 'summonOverflow', do: 'overflowBuffRandom', params: { attack: 3, health: 3 } }],
-    text: "When you summon a minion that doesn't fit, give a random friendly minion **+3/+3** (Engraved — kept after combat).",
-    goldenText: "When you summon a minion that doesn't fit, give a random friendly minion **+6/+6** (Engraved — kept after combat).",
+    effects: [{ on: 'summonOverflow', do: 'overflowBuffRandom', params: { attack: 2, health: 2, count: 2, improveEvery: 5 } }],
+    text: "When you summon a minion that doesn't fit, Engrave 2 friendly minions **+2/+2** (kept after combat). Improves by **+2/+2** every 5 overflows.",
+    goldenText: "When you summon a minion that doesn't fit, Engrave 2 friendly minions **+4/+4** (kept after combat). Improves by **+4/+4** every 5 overflows.",
   },
   {
     // Battlecry doubler (recruit). While on your board, each Battlecry minion you play fires its

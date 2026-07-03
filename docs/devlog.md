@@ -3,6 +3,63 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-03 (session 14)
+
+### feat: combat exchange rules + card batch (Mumi) + Flowing Monk rework + shop-button polish
+
+One large owner-directed session, three bundles (shipped together — the engine files interleave heavily):
+
+**1. Combat exchange rules (engine).** Triaged the full combat ordering (rules writeup relayed in-session)
+and fixed the findings, all owner-ruled:
+- **Two-phase simultaneous exchange** — cleave + main hit + retaliation all APPLY before any death resolves
+  (split `applyDamage` from `dealDamage`); deaths then resolve in damage order. Fixes the reported bug where
+  an attacker trading into a Deathrattle minion took its damage only AFTER the rattle's summons — and because
+  the retaliation `dmg` is now contiguous with the defender's, the replay shows dealt + taken damage in ONE
+  impact beat (locked in with a real-log `combatBeats` test). Mutual kills now count both bodies down before
+  either rattle fires; cleave neighbours no longer cascade before the main target is even hit.
+- **Board cap gates the Rise** — the rattle resolves first (its summons can take the last slots); at 7 living
+  the minion stays dead — a real death that **counts toward Avenge** (owner ruling). One-death event, no
+  double-rattle (no onDeath re-broadcast).
+- **Golden Rise = 1 Health** (owner ruling) — same as normal; auras still apply on top. Base-attack ×2 stays.
+- **Rotation + immediate-attack rules verified as already correct** (deathrattle-summoned tokens attack next;
+  a surviving Whelp that struck on summon still takes its rotation turn) — locked in with tests.
+
+**2. Card batch (owner-directed).** Kennelmaster Avenge 3→2 · Manasaber summons two 0/2 Taunt cubs (golden
+keeps the count, GILDS them 0/4 — new `goldenTokens` summon capability) · Sporeling 2/1, rattle = +1/+1 all
+friends, **procs on every Battlecry you trigger in AND out of combat** and ticks the Deathrattle tally
+(rides the existing `battlecryTriggered` event both sides; a Consumed Sporeling now also fires) · Forsaken
+Weaver +3 Attack (golden +6) · Arcane Weaver → Avenge (2): Spirit Fire (new `avengeGrantSpell`) · Heckbinder
+T3 + a LIVE +1/+2 Fodder aura while on board/welded (mirrors the Harry Botter aura end-to-end: weld payload,
+triple-merge, live read in `cardBuff`) · Guel 3 targets · **Mumi** (new T3 Undead 5/1, Deathrattle: give a
+friendly Undead Rise; golden two) + name-matched art wired (`Mumi.png` → 71 KB webp). Banksly → T6.
+`docs/cards.csv` regenerated. Caught mid-batch: the first combat wiring double-emitted `battlecryTriggered`
+(Karwind would have double-procced on Ryme) — fixed by riding the existing emit.
+
+**3. Flowing Monk rework + the live-text standard.**
+- Monk: Engraves **2** friends per overflow; owner-nerfed to **+2/+2, improving every 5 overflows** (golden
+  +4/+4). The overflow tally rides `summonBonus` across recruit + combat.
+- **Triple combine (owner ruling 2026-07-03): the golden starts at the SUM of the two highest copies' current
+  grants** (+10/+10 + +4/+4 → +14/+14). The surplus over the golden base rides a new flat `overflowBonus`
+  field threaded through BoardCard → combat → snapshot → UnitFrame; countdown resets ("5 to go").
+- **Live card text is now a hard rule** (owner: "ALWAYS print the current value, everywhere") — codified in
+  CLAUDE.md's Architecture section. `monkProgressText` shows the live grant + countdown on every surface
+  (shop/board/hand/Discover via `liveCardText`, combat via `Unit.tsx`, climbing mid-fight via per-overflow
+  `improve` events).
+- **New `keyword` combat event** (shared vocab — flagged for Mike): Mumi's Rise grant now visibly lands on
+  the target (pill + float + log) instead of being engine-only; also fixed Ryme-replayed keyword battlecries
+  granting keywords invisibly AND a latent bug where a Ryme-granted 'R' never set `rebornAvailable`. The
+  event rides `RESULT_TYPES` so a mid-cascade grant never splits the impact beat.
+
+**4. Shop-button polish (follow-up to #151).** Styled dark-pill tooltips (`.sbtip`) replace the native titles
+on the shop row + timer; "SHOP TIER N" takes the tier-badge colour (palette promoted to `--tier-1…6` vars);
+the Gold plaque is gold-tinted; Freeze is blue-tinted and fills solid blue while frozen.
+
+Verified: **472 tests** (up from 460 — exchange ordering, Rise gates, rotation, Manasaber gilded cubs,
+Sporeling shop-proc + tally, Heckbinder live aura, Mumi grant→Rise incl. the keyword event, Monk magnitudes +
+triple combine, monkProgressText, beat grouping), typecheck + lint + perf harness (unchanged, within budget)
+all green; live DOM checks for the Monk text (+2/+2 → +4/+4 → +14/+14 golden), Mumi's art + in-combat Rise
+pill (`.reborncard` appears mid-replay), and the shop-button states.
+
 ## 2026-07-02 (session 13)
 
 ### feat(ui): HUD redesign — shop-control plaques, timer, standalone End Turn, tucked hand

@@ -77,12 +77,15 @@ describe('simulate (handoff A.3)', () => {
     expect(survives.playerHpGrantBonus).toContainEqual({ sourceUid: 'S', bonus: 4 });
   });
 
-  it('Arcane Weaver Deathrattle reports a Spirit Fire to grant to the hand after combat', () => {
-    // The Weaver dies to retaliation; its Deathrattle queues a Spirit Fire for the player's hand.
-    const p: BoardMinion[] = [{ cardId: 'weaver', attack: 1, health: 1 }];
+  it('Arcane Weaver Avenge (2) reports a Spirit Fire to grant to the hand after combat', () => {
+    // Two friends die with the Weaver alive → Avenge (2) fires once → one Spirit Fire queued for the hand.
+    const p: BoardMinion[] = [
+      { cardId: 'weaver', attack: 0, health: 30 },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+    ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 5 }];
     const r = run(p, e, 5);
-    expect(r.result).toBe('lose');
     expect(r.playerHandGrants).toEqual(['spiritfire']);
   });
 
@@ -180,11 +183,25 @@ describe('simulate (handoff A.3)', () => {
     expect(base.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen' && ev.attack === 3).length).toBe(2);
   });
 
-  it('a golden Arcane Weaver grants two Spirit Fires; an enemy Weaver grants the player none', () => {
-    const golden = run([{ cardId: 'weaver', attack: 1, health: 1, golden: true }], [{ cardId: 'sandbag', attack: 5, health: 5 }], 5);
+  it('a golden Arcane Weaver grants two Spirit Fires per Avenge; an enemy Weaver grants the player none', () => {
+    const golden = run(
+      [
+        { cardId: 'weaver', attack: 0, health: 30, golden: true },
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      ],
+      [{ cardId: 'sandbag', attack: 5, health: 5 }], 5,
+    );
     expect(golden.playerHandGrants).toEqual(['spiritfire', 'spiritfire']);
-    // An enemy Weaver dying must not stuff the *player's* hand.
-    const enemySide = run([{ cardId: 'sandbag', attack: 5, health: 5 }], [{ cardId: 'weaver', attack: 1, health: 1 }], 5);
+    // An enemy Weaver's Avenge must not stuff the *player's* hand.
+    const enemySide = run(
+      [{ cardId: 'sandbag', attack: 5, health: 40 }],
+      [
+        { cardId: 'weaver', attack: 0, health: 30 },
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      ], 5,
+    );
     expect(enemySide.playerHandGrants).toBeUndefined();
   });
 
@@ -411,15 +428,90 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
-  it('a golden Reborn minion returns at 2 Health + doubled base attack + doubled carry-through', () => {
+  it('a golden Reborn minion returns at 1 Health (same as normal) + doubled base attack + doubled carry-through', () => {
     const a = run(
       [{ cardId: 'knit', attack: 20, health: 9, keywords: ['R'], golden: true }],
       [{ cardId: 'omen', attack: 4, health: 60, keywords: [] }],
       3,
     );
-    // Golden: base attack 3×2 = 6 + golden enchant +6 → 12; Health 2 (golden Rise base) + golden enchant +4 → 6.
+    // Golden: base attack 3×2 = 6 + golden enchant +6 → 12; Health 1 (Rise base — golden does NOT double it,
+    // owner ruling 2026-07-02) + golden enchant +4 → 5. Auras/enchants still apply on top of the 1.
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([12, 6]);
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([12, 5]);
+  });
+
+  it('an attack exchange is simultaneous — retaliation damage lands BEFORE the dead defender\'s Deathrattle resolves', () => {
+    // The reported bug: trading into a Deathrattle minion logged the attacker's retaliation damage AFTER the
+    // rattle's summons (the defender's whole death cascade ran inline inside the main hit). Two-phase rule
+    // (owner ruling 2026-07-02): all damage of the clash applies first, then deaths/rattles resolve.
+    const p: BoardMinion[] = [
+      { cardId: 'stray', attack: 3, health: 10 },
+      { cardId: 'sandbag', attack: 0, health: 5 },
+    ];
+    const a = run(p, [{ cardId: 'pack', attack: 2, health: 2 }], 3); // Mama Pup: Deathrattle summons 2 Pups
+    const strayUid = a.initial.player[0]!.uid;
+    const packUid = a.initial.enemy[0]!.uid;
+    const idx = (pred: (e: CombatEvent) => boolean): number => a.events.findIndex(pred);
+    const retaliation = idx((e) => e.type === 'dmg' && e.target === strayUid);
+    const packDeath = idx((e) => e.type === 'death' && e.target === packUid);
+    const firstPup = idx((e) => e.type === 'summon' && e.minion.cardId === 'pup');
+    expect(retaliation).toBeGreaterThanOrEqual(0);
+    expect(retaliation).toBeLessThan(packDeath); // the counter-hit lands with the clash…
+    expect(packDeath).toBeLessThan(firstPup); // …and only then does the rattle summon
+  });
+
+  it('a full board blocks the Rise — the Deathrattle resolves first, and if its summons fill the board the minion stays dead', () => {
+    // Board cap rule (owner ruling 2026-07-02): Rattle procs BEFORE the Rise; the dying body holds no slot
+    // during the rattle. Mama Pup (R) + 5 sandbags: she dies attacking the 20/20 wall → her 2 Pups take the
+    // board to 7 living → no room → she does NOT return (a real death, exactly one death event, no reborn).
+    const p: BoardMinion[] = [
+      { cardId: 'pack', attack: 1, health: 1, keywords: ['R'] },
+      { cardId: 'sandbag', attack: 0, health: 1 },
+      { cardId: 'sandbag', attack: 0, health: 1 },
+      { cardId: 'sandbag', attack: 0, health: 1 },
+      { cardId: 'sandbag', attack: 0, health: 1 },
+      { cardId: 'sandbag', attack: 0, health: 1 },
+    ];
+    const a = run(p, [{ cardId: 'omen', attack: 20, health: 20 }], 3);
+    const packUid = a.initial.player[0]!.uid;
+    expect(a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length).toBe(2); // rattle fired
+    expect(a.events.some((e) => e.type === 'reborn')).toBe(false); // …but the board was full → no Rise
+    expect(a.events.filter((e) => e.type === 'death' && e.target === packUid).length).toBe(1); // one real death
+    // Contrast: with only 3 sandbags there's room after the Pups (4+2 = 6 living) → the Rise happens.
+    const b = run(p.slice(0, 4), [{ cardId: 'omen', attack: 20, health: 20 }], 3);
+    expect(b.events.some((e) => e.type === 'reborn')).toBe(true);
+  });
+
+  it('a Deathrattle-summoned token next to the dead attacker attacks next — before the minion to its right', () => {
+    // Rotation rule: summons insert beside their source, and the pointer resumes after the dead attacker —
+    // so Mama Pup's Pups (spawned in her slot) swing before the pre-existing right neighbour. The Taunt on
+    // the neighbour pins the enemy's swings, keeping the 1/1 Pups alive for a deterministic order read.
+    const p: BoardMinion[] = [
+      { cardId: 'pack', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 3, health: 10, keywords: ['T'] },
+    ];
+    const a = run(p, [{ cardId: 'omen', attack: 1, health: 30 }], 3);
+    const pupUids = a.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'pup' ? [e.minion.uid] : []));
+    expect(pupUids.length).toBe(2);
+    const pUids = [a.initial.player[0]!.uid, a.initial.player[1]!.uid, ...pupUids];
+    const playerAttackers = a.events.flatMap((e) => (e.type === 'attack' && pUids.includes(e.attacker) ? [e.attacker] : []));
+    expect(playerAttackers[0]).toBe(pUids[0]); // Mama Pup (leftmost) swings first and dies
+    expect(pupUids).toContain(playerAttackers[1]); // a fresh Pup — NOT the taunt stray — swings next
+  });
+
+  it('a Whelp that attacked immediately on summon still attacks in rotation when it is next in line', () => {
+    // Immediate attacks are out-of-band: they do not consume the rotation slot. Twilight Whelp dies attacking →
+    // its 3/3 Whelp spawns in her slot, strikes immediately, survives — and being next after the dead attacker,
+    // it swings AGAIN on the side's next turn (two attacks before any other friendly acts).
+    const p: BoardMinion[] = [
+      { cardId: 'twilightwhelp', attack: 1, health: 1 },
+      { cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] }, // Taunt soaks the enemy swings
+    ];
+    const a = run(p, [{ cardId: 'omen', attack: 1, health: 30 }], 3);
+    const whelpUid = a.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'whelpling' ? [e.minion.uid] : []))[0];
+    expect(whelpUid).toBeDefined();
+    const whelpAttacks = a.events.filter((e) => e.type === 'attack' && e.attacker === whelpUid);
+    expect(whelpAttacks.length).toBeGreaterThanOrEqual(2); // the immediate strike + its own rotation turn
   });
 
   it('a captured ENEMY Eternal Knight re-gains its OWN enchant when it Rises (snapshot auras intact)', () => {
@@ -804,9 +896,9 @@ describe('simulate (handoff A.3)', () => {
     const buff = a.events.find((e) => e.type === 'buff');
     expect(buff).toBeDefined();
     if (buff?.type === 'buff') {
-      // Golden doubles the amount (1 → 2); Sporeling now applies it to ONE random stat, so +2/+0 or +0/+2.
-      expect(buff.attack + buff.health).toBe(2);
-      expect(Math.min(buff.attack, buff.health)).toBe(0);
+      // Golden doubles the amount: Sporeling's rattle gives all friends +1/+1 → golden +2/+2.
+      expect(buff.attack).toBe(2);
+      expect(buff.health).toBe(2);
     }
   });
 
@@ -990,15 +1082,56 @@ describe('simulate (handoff A.3)', () => {
     expect(gifts.length).toBe(2);
   });
 
-  it('Manasaber Deathrattle summons a Saber Cub; golden summons two', () => {
-    const cubs = (golden: boolean): number =>
+  it('Manasaber Deathrattle summons two 0/2 Saber Cubs; golden keeps the count and GILDS them (0/4)', () => {
+    const cubEvents = (golden: boolean) =>
       run(
         [{ cardId: 'manasaber', attack: 4, health: 1, golden }],
         [{ cardId: 'omen', attack: 5, health: 30 }],
         3,
-      ).events.filter((e) => e.type === 'summon' && e.minion.cardId === 'sabercub').length;
-    expect(cubs(false)).toBe(1);
-    expect(cubs(true)).toBe(2);
+      ).events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'sabercub' ? [e.minion] : []));
+    const base = cubEvents(false);
+    expect(base.length).toBe(2); // two cubs either way — golden upgrades the BODY, not the count
+    expect(base.map((m) => [m.attack, m.health, m.golden ?? false])).toEqual([[0, 2, false], [0, 2, false]]);
+    const gilded = cubEvents(true);
+    expect(gilded.length).toBe(2);
+    expect(gilded.map((m) => [m.attack, m.health, m.golden])).toEqual([[0, 4, true], [0, 4, true]]);
+  });
+
+  it('Mumi Deathrattle grants a friendly Undead Rise — the keyword event fires and the Rise later procs', () => {
+    // Mumi (5/1, leftmost) attacks the wall and dies to retaliation → its rattle hands the Eternal Knight
+    // Rise (a `keyword` event, so the replay shows the pill). When the Knight later dies, the Rise procs.
+    const a = run(
+      [
+        { cardId: 'mumi', attack: 5, health: 1 },
+        { cardId: 'knit', attack: 3, health: 2 },
+      ],
+      [{ cardId: 'omen', attack: 10, health: 40 }],
+      3,
+    );
+    const mumiUid = a.initial.player[0]!.uid;
+    const knitUid = a.initial.player[1]!.uid;
+    expect(a.events.some((e) => e.type === 'keyword' && e.keyword === 'R' && e.target === knitUid && e.source === mumiUid)).toBe(true);
+    expect(a.events.some((e) => e.type === 'reborn' && e.target === knitUid)).toBe(true);
+  });
+
+  it('Flowing Monk Engraves TWO friends per overflow, at the improved magnitude once past the every-5 step', () => {
+    // Monk seeded at 5 prior overflows (summonBonus 5 → step 1 → 4/4) plus a flat +10 from a triple combine
+    // (overflowBonus) → 14/14 grants. Full board; the golden Mama Pup dies → 4 Pups; one fits the freed
+    // slot, three overflow → 3 procs × 2 recipients, all +14/+14.
+    const cubs: BoardMinion[] = Array.from({ length: 5 }, (): BoardMinion => ({ cardId: 'sabercub', attack: 0, health: 30, keywords: ['T'] }));
+    const a = run(
+      [
+        { cardId: 'monk', attack: 4, health: 30, summonBonus: 5, overflowBonus: 10 },
+        { cardId: 'pack', attack: 1, health: 1, golden: true },
+        ...cubs,
+      ],
+      [{ cardId: 'omen', attack: 20, health: 60 }],
+      3,
+    );
+    const monkUid = a.initial.player[0]!.uid;
+    const monkBuffs = a.events.filter((e) => e.type === 'buff' && e.source === monkUid);
+    expect(monkBuffs.length).toBe(6); // 3 overflows × 2 Engraved friends
+    expect(monkBuffs.every((b) => b.type === 'buff' && b.attack === 14 && b.health === 14)).toBe(true);
   });
 
   it('Raptor buffs another friendly Beast +3/+1 when it attacks — but never itself', () => {
@@ -1182,7 +1315,7 @@ describe('simulate (handoff A.3)', () => {
   it('Flowing Monk buffs a friend when a combat summon overflows the full board', () => {
     // 7 living (0-Attack Monk + Imp King + 5 walls). Imp King (the only attacker) strikes the big omen and
     // dies to retaliation → its Deathrattle summons 2 Imps: the first fits (back to 7), the second overflows
-    // → Monk procs +3/+3. (The walls + Monk have 0 Attack, so only Imp King ever swings or dies.)
+    // → Monk procs +2/+2. (The walls + Monk have 0 Attack, so only Imp King ever swings or dies.)
     const wall = (): BoardMinion => ({ cardId: 'sandbag', attack: 0, health: 100 });
     const p: BoardMinion[] = [
       { cardId: 'monk', attack: 0, health: 200 },
@@ -1191,7 +1324,7 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 50, health: 400 }];
     const a = run(p, e, 5);
-    expect(a.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 3)).toBe(true);
+    expect(a.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
   });
 
   it('Deathsayer Rally fires the leftmost Deathrattle before its attack lands', () => {
@@ -1250,7 +1383,11 @@ describe('simulate (handoff A.3)', () => {
 
   it('a combat card grant logs a toHand event (Arcane Weaver → Spirit Fire)', () => {
     const a = run(
-      [{ cardId: 'weaver', attack: 1, health: 1 }],
+      [
+        { cardId: 'weaver', attack: 0, health: 30 },
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      ],
       [{ cardId: 'omen', attack: 5, health: 20 }],
       1,
     );
@@ -1301,15 +1438,20 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
-  it('golden doubles Deathrattle summon + grant counts (Pack Scrounger 2→4 Pups, Arcane Weaver 1→2 Spirit Fires)', () => {
+  it('golden doubles Deathrattle summon + grant counts (Pack Scrounger 2→4 Pups, Arcane Weaver 1→2 Spirit Fires per Avenge)', () => {
     const killer: BoardMinion[] = [{ cardId: 'pack', attack: 12, health: 30 }]; // lethal enough to drop the carrier
     const pups = (b: BoardMinion[]): number =>
       run(b, killer, 5).events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
     expect(pups([{ cardId: 'pack', attack: 4, health: 4, golden: true }])).toBe(4);
     expect(pups([{ cardId: 'pack', attack: 2, health: 2 }])).toBe(2);
-    const grants = (b: BoardMinion[]): number => (run(b, killer, 5).playerHandGrants ?? []).filter((c) => c === 'spiritfire').length;
-    expect(grants([{ cardId: 'weaver', attack: 6, health: 8, golden: true }])).toBe(2);
-    expect(grants([{ cardId: 'weaver', attack: 3, health: 4 }])).toBe(1);
+    // Weaver's grant is Avenge (2) now: two 1-HP taunts die → one proc → 1 Spirit Fire (golden 2).
+    const grants = (weaver: BoardMinion): number =>
+      (run(
+        [weaver, { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] }, { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] }],
+        killer, 5,
+      ).playerHandGrants ?? []).filter((c) => c === 'spiritfire').length;
+    expect(grants({ cardId: 'weaver', attack: 0, health: 60, golden: true })).toBe(2);
+    expect(grants({ cardId: 'weaver', attack: 0, health: 60 })).toBe(1);
   });
 
   it('The Reclaimer reclaims its slot mid-combat: a full board overflows, then the copy returns once a friend dies', () => {
@@ -1328,7 +1470,7 @@ describe('simulate (handoff A.3)', () => {
 
   it("Flowing Monk's overflow gift is permanent — simulate returns playerPermaBuffs to carry back", () => {
     // Full board (7): Flowing Monk + a golden Mama Pup (Deathrattle → 4 Pups). The Pups that can't fit
-    // overflow, so the Monk hands a random friend +3/+3 each time — recorded for carry-back to the run
+    // overflow, so the Monk Engraves two friends +2/+2 each time — recorded for carry-back to the run
     // board (only real minions, which carry a sourceUid; summoned Pup tokens are gone after combat).
     const filler: BoardMinion[] = Array.from({ length: 5 }, (_, i) => ({ cardId: 'sabercub', attack: 1, health: 20, keywords: [], sourceUid: `f${i}` }));
     const player: BoardMinion[] = [
@@ -1340,8 +1482,8 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs).toBeDefined();
     expect(r.playerPermaBuffs!.length).toBeGreaterThan(0);
     for (const b of r.playerPermaBuffs!) {
-      expect(b.attack % 3).toBe(0); // each gift is +3/+3 (or a multiple if a minion was picked twice)
-      expect(b.health % 3).toBe(0);
+      expect(b.attack % 2).toBe(0); // each gift is +2/+2 (or a multiple if a minion was picked twice)
+      expect(b.health % 2).toBe(0);
     }
   });
 
@@ -1353,14 +1495,14 @@ describe('simulate (handoff A.3)', () => {
       [
         { cardId: 'sabercub', attack: 0, health: 30, keywords: [], sourceUid: 'G' }, // engraved target (Taurus's left) — inert wall
         { cardId: 'taurus', attack: 6, health: 30, sourceUid: 'T' },
-        { cardId: 'spore', attack: 1, health: 1, sourceUid: 'S' }, // dies → buffs all friends +1 (random stat)
+        { cardId: 'spore', attack: 1, health: 1, sourceUid: 'S' }, // dies → buffs all friends +1/+1
       ],
       [{ cardId: 'omen', attack: 3, health: 200 }],
       3,
     );
     const perma = a.playerPermaBuffs?.find((p) => p.sourceUid === 'G');
     expect(perma).toBeDefined();
-    expect(perma!.attack + perma!.health).toBe(1); // the +1 (Attack or Health) carried back...
+    expect(perma!.attack + perma!.health).toBe(2); // Sporeling's +1/+1 carried back...
     expect(perma!.engraved).toBe(true); // ...labelled Engraved (sc-granted EG on the combat minion)
     // A Start-of-Combat `sc` event was logged for Taurus's engrave (source = Taurus's combat uid).
     const taurusUid = a.initial.player.find((m) => m.cardId === 'taurus')!.uid;
@@ -1393,7 +1535,7 @@ describe('simulate (handoff A.3)', () => {
         { cardId: 'sabercub', attack: 0, health: 30, keywords: [], sourceUid: 'L' }, // left neighbor — inert wall
         { cardId: 'taurus', attack: 6, health: 40, golden: true, sourceUid: 'T' },
         { cardId: 'sabercub', attack: 0, health: 30, keywords: [], sourceUid: 'R' }, // right neighbor — inert wall
-        { cardId: 'spore', attack: 1, health: 2, sourceUid: 'S' }, // dies → buffs all friends +1 (random stat)
+        { cardId: 'spore', attack: 1, health: 2, sourceUid: 'S' }, // dies → buffs all friends +1/+1
         { cardId: 'sabercub', attack: 0, health: 30, keywords: [], sourceUid: 'X' }, // NON-adjacent friend (guard)
       ],
       [{ cardId: 'omen', attack: 3, health: 200 }],
@@ -1403,16 +1545,16 @@ describe('simulate (handoff A.3)', () => {
     const right = a.playerPermaBuffs?.find((p) => p.sourceUid === 'R');
     expect(left).toBeDefined();
     expect(right).toBeDefined();
-    // Golden Taurus DOUBLES its neighbors' combat gains, so the Sporeling's +1 (one stat) carries back as +2.
-    expect(left!.attack + left!.health).toBe(2);
-    expect(right!.attack + right!.health).toBe(2);
+    // Golden Taurus DOUBLES its neighbors' combat gains, so the Sporeling's +1/+1 carries back as +2/+2.
+    expect(left!.attack + left!.health).toBe(4);
+    expect(right!.attack + right!.health).toBe(4);
     expect(left!.engraved && right!.engraved).toBe(true); // ...labelled Engraved
     expect(a.playerPermaBuffs?.find((p) => p.sourceUid === 'X')).toBeUndefined(); // non-neighbor: gain dropped
   });
 
   it('native Engraved keeps a minion combat gain (carry-back, no Taurus)', () => {
     // Regression guard for the carry-back refactor: a wall with the native EG keyword keeps whatever it
-    // gains — a Sporeling dies and buffs all friends +1 of one stat; the EG wall's +1 carries back with
+    // gains — a Sporeling dies and buffs all friends +1/+1; the EG wall's +1 carries back with
     // engraved: true, no Taurus involved.
     const a = run(
       [
@@ -1424,7 +1566,7 @@ describe('simulate (handoff A.3)', () => {
     );
     const perma = a.playerPermaBuffs?.find((p) => p.sourceUid === 'G');
     expect(perma).toBeDefined();
-    expect(perma!.attack + perma!.health).toBe(1);
+    expect(perma!.attack + perma!.health).toBe(2); // Sporeling's +1/+1
     expect(perma!.engraved).toBe(true);
   });
 

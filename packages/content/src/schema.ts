@@ -79,6 +79,10 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleAddFodder',
   'avengeImproveSummon',
   'avengeMaxGold',
+  'avengeGrantSpell',
+  'deathrattleGrantReborn',
+  'deathrattleBuffAll',
+  'battlecryTriggeredOwnDeathrattle',
   'onConsumeBuffSelf',
   'onConsumeGrantSelfKeyword',
   'onConsumeShieldNextCombat',
@@ -192,6 +196,7 @@ export const CardDefSchema = z.object({
   manaPerTurn: z.number().int().positive().optional(),
   rallyMechAtk: z.number().int().positive().optional(),
   spellAura: z.number().int().positive().optional(),
+  fodderAura: z.object({ attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).optional(),
   chooseOne: z
     .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }))
     .min(2)

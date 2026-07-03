@@ -23,6 +23,7 @@ import {
   boardManaBonus,
   THREAT_IDS,
   addBuff,
+  cardBuff,
   endOfTurnRepeats,
   offerBuyStats,
   undeadBuyBonus,
@@ -292,6 +293,38 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
     const golden = s.hand.find((c) => c.cardId === 'kennel' && c.golden);
     expect(golden?.summonBonus).toBe(9); // base 1 + (5 + 3) → grants +10/+10
+  });
+
+  it("tripling a Flowing Monk combines the two highest copies' CURRENT grants into the golden's start", () => {
+    // Copies granting +10/+10 (summonBonus 20 → step 4) and +4/+4 (summonBonus 5 → step 1) + a fresh third →
+    // the golden grants 10 + 4 = +14/+14: its own golden base 4 plus a flat overflowBonus of 10. The overflow
+    // countdown starts fresh (summonBonus unset → "5 to go").
+    let s: RunState = {
+      ...createRun(1),
+      embers: 3,
+      hand: [
+        { uid: 'm1', cardId: 'monk', tribe: 'neutral', attack: 4, health: 5, keywords: [], golden: false, summonBonus: 20 },
+        { uid: 'm2', cardId: 'monk', tribe: 'neutral', attack: 4, health: 5, keywords: [], golden: false, summonBonus: 5 },
+      ],
+      shop: [{ uid: 'x', cardId: 'monk' }],
+    };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
+    const golden = s.hand.find((c) => c.cardId === 'monk' && c.golden);
+    expect(golden).toBeDefined();
+    expect(golden?.overflowBonus).toBe(10); // (10 + 4) − the golden's own base grant of 4
+    expect(golden?.summonBonus).toBeUndefined(); // countdown resets — 5 overflows to the next step
+    // A fresh triple carries NO flat bonus — three +2/+2 monks combine to exactly the +4/+4 golden base.
+    let f: RunState = {
+      ...createRun(2),
+      embers: 3,
+      hand: [
+        { uid: 'f1', cardId: 'monk', tribe: 'neutral', attack: 4, health: 5, keywords: [], golden: false },
+        { uid: 'f2', cardId: 'monk', tribe: 'neutral', attack: 4, health: 5, keywords: [], golden: false },
+      ],
+      shop: [{ uid: 'y', cardId: 'monk' }],
+    };
+    f = reduce(f, { type: 'buy', uid: 'y' });
+    expect(f.hand.find((c) => c.cardId === 'monk' && c.golden)?.overflowBonus).toBeUndefined();
   });
 
   it('a golden Kennelmaster grants its full combined buff (no golden double-counting)', () => {
@@ -1876,7 +1909,30 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'discover', index: 0 });
     const got = s.hand.find((c) => c.cardId === 'spore')!;
     expect(got.attack).toBe(2 + 3); // Sporeling base 2 + undeadBuyAtk 3
-    expect(got.health).toBe(2); // Health unaffected
+    expect(got.health).toBe(1); // Health unaffected (Sporeling is a 2/1)
+  });
+
+  it("Sporeling's Deathrattle procs on every Battlecry you trigger in the shop — and counts toward the Deathrattle tally", () => {
+    let s: RunState = createRun(1);
+    s.board = [{ uid: 'sp', cardId: 'spore', tribe: 'undead', attack: 2, health: 1, keywords: [], golden: false }];
+    s.hand = [{ uid: 'h1', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'h1' }); // Alleycat's Battlecry fires → Sporeling's rattle procs
+    const spore = s.board.find((c) => c.uid === 'sp')!;
+    expect([spore.attack, spore.health]).toEqual([3, 2]); // fed the board (incl. itself) +1/+1
+    expect(s.board.find((c) => c.cardId === 'alley')!.attack).toBe(2); // Alleycat got it too (1 → 2)
+    expect(s.deathrattlesTriggered).toBe(1); // the proc counts as a played Deathrattle (feeds Grim)
+  });
+
+  it("Heckbinder's Fodder aura is LIVE: new Fodder reads +1/+2 while it's on the board, back to base once it's gone", () => {
+    const s: RunState = createRun(1);
+    s.board = [{ uid: 'hb', cardId: 'heckbinder', tribe: 'demon', attack: 3, health: 3, keywords: ['M'], golden: false }];
+    expect(cardBuff(s, 'fred')).toEqual({ attack: 1, health: 2 });
+    // Golden doubles; a welded host (fodderAuraBonus) counts the same way.
+    s.board = [{ uid: 'host', cardId: 'drone', tribe: 'mech', attack: 5, health: 5, keywords: [], golden: false, fodderAuraBonus: { attack: 1, health: 2 } }];
+    expect(cardBuff(s, 'fred')).toEqual({ attack: 1, health: 2 });
+    s.board = []; // aura leaves with the body — future Fodder is back to base
+    expect(cardBuff(s, 'fred')).toEqual({ attack: 0, health: 0 });
+    expect(cardBuff(s, 'alley')).toEqual({ attack: 0, health: 0 }); // non-Fodder never reads the aura
   });
 
   it('Chaos hero power grants a token at the START of every 5th turn, tripling it on the spot', () => {

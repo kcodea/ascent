@@ -171,7 +171,7 @@ export const MECHS: CardDef[] = [
     id: 'banksly',
     name: 'Banksly',
     tribe: 'mech',
-    tier: 5,
+    tier: 6,
     attack: 5,
     health: 6,
     keywords: [],

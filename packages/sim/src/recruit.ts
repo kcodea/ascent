@@ -89,12 +89,34 @@ export function isTribe(card: BoardCard, tribe: Tribe): boolean {
 }
 
 /**
+ * Heckbinder's LIVE Fodder aura: +a/+h for every Heckbinder currently on the board (golden ×2) plus any
+ * welded onto a host (`fodderAuraBonus`, set by `applyWeld`). Unlike Ritualist's permanent enchant this is
+ * presence-based — sell the Heckbinder (or its host) and future Fodder loses the bonus; Fodder already
+ * created keeps its baked stats. Generic over `def.fodderAura` so future aura cards fold in automatically.
+ */
+export function fodderAuraLiveBonus(state: RunState): { attack: number; health: number } {
+  const total = { attack: 0, health: 0 };
+  for (const c of state.board) {
+    const own = CARD_INDEX[c.cardId]?.fodderAura;
+    const g = c.golden ? 2 : 1;
+    if (own) { total.attack += own.attack * g; total.health += own.health * g; }
+    if (c.fodderAuraBonus) { total.attack += c.fodderAuraBonus.attack; total.health += c.fodderAuraBonus.health; }
+  }
+  return total;
+}
+
+/**
  * The persistent per-cardId run buff (Ritualist enchants all Fodder). Applied to *every* new
  * instance of the card — bought, summoned, conjured, discovered — and read live by the tavern
  * display, so a copy from any source carries the accrued buff. Optional-chained for old saves.
+ * Fodder cards additionally carry Heckbinder's LIVE aura (`fodderAuraLiveBonus`) while it's on the board.
  */
 export function cardBuff(state: RunState, cardId: string): { attack: number; health: number } {
-  return state.cardBuffs?.[cardId] ?? { attack: 0, health: 0 };
+  const base = state.cardBuffs?.[cardId] ?? { attack: 0, health: 0 };
+  if (!CARD_INDEX[cardId]?.keywords.includes('FD')) return base;
+  const live = fodderAuraLiveBonus(state);
+  if (live.attack === 0 && live.health === 0) return base;
+  return { attack: base.attack + live.attack, health: base.health + live.health };
 }
 
 /**
@@ -239,6 +261,8 @@ export interface MagnetPayload {
   mana: number;
   /** Better Bot: Rally-Mech Attack this magnetic carries onto its host (already golden-baked). */
   rallyMechAtk?: number;
+  /** Heckbinder: Fodder aura this magnetic carries onto its host (already golden-baked). */
+  fodderAura?: { attack: number; health: number };
   /** Harry Botter: spell-power aura this magnetic carries onto its host (already golden-baked). */
   spellAura?: number;
 }
@@ -253,6 +277,11 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
   if (mag.mana > 0) host.manaBonus = (host.manaBonus ?? 0) + mag.mana * mult;
   if (mag.rallyMechAtk) host.rallyMechAtk = (host.rallyMechAtk ?? 0) + mag.rallyMechAtk * mult;
   if (mag.spellAura) host.spellAuraBonus = (host.spellAuraBonus ?? 0) + mag.spellAura * mult;
+  if (mag.fodderAura) {
+    const cur = (host.fodderAuraBonus ??= { attack: 0, health: 0 });
+    cur.attack += mag.fodderAura.attack * mult;
+    cur.health += mag.fodderAura.health * mult;
+  }
 }
 
 /**
@@ -625,12 +654,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const m of picks) addBuff(m, nameOf(self), a, h);
   },
 
-  /** Flowing Monk: when a summon can't fit the full board, give a random friendly minion +atk/+hp. */
+  /** Flowing Monk (recruit half): when a summon can't fit the full board, Engrave `count` random friendly
+   *  minions +atk/+hp (recruit buffs are inherently permanent). The magnitude improves by another +atk/+hp
+   *  per `improveEvery` overflows — the tally rides in `summonBonus` (the per-instance accrual shared with
+   *  the combat half via the carry-back), so both halves grow the same counter. */
   overflowBuffRandom: (ctx, self, params) => {
-    const picks = pickRandom(ctx.state, [...ctx.state.board], 1);
-    const a = num(params.attack, 3) * gold(self);
-    const h = num(params.health, 3) * gold(self);
+    const every = Math.max(1, num(params.improveEvery, 5));
+    const step = Math.floor((self.summonBonus ?? 0) / every);
+    // `overflowBonus` is the flat top-up a TRIPLE created (golden = sum of the two highest copies' grants).
+    const flat = self.overflowBonus ?? 0;
+    const a = num(params.attack, 2) * (1 + step) * gold(self) + flat;
+    const h = num(params.health, 2) * (1 + step) * gold(self) + flat;
+    const picks = pickRandom(ctx.state, [...ctx.state.board], num(params.count, 2));
     for (const m of picks) addBuff(m, nameOf(self), a, h);
+    self.summonBonus = (self.summonBonus ?? 0) + 1;
   },
 
   /** End of Turn: buff self (+atk/+hp) when the recruit turn ends. */
@@ -698,6 +735,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         mana: pick.manaPerTurn ?? 0,
         rallyMechAtk: pick.rallyMechAtk,
         spellAura: pick.spellAura,
+        fodderAura: pick.fodderAura,
       }, clings);
     }
   },
@@ -736,6 +774,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Sporeling (recruit half) — every Battlecry you trigger procs this minion's OWN Deathrattle (its
+   *  `deathrattleBuffAll` bakes +1/+1, golden +2/+2, into every board minion) and counts toward the run's
+   *  Deathrattle tally (`deathrattlesTriggered` — feeds Grim). Fires once per Battlecry *fire*, so Drakko's
+   *  repeats proc it per repeat (fireBattlecryTriggered notifies per fire), matching Bane/Karwind. */
+  battlecryTriggeredOwnDeathrattle: (ctx, self) => {
+    const def = CARD_INDEX[self.cardId];
+    for (const eff of def?.effects ?? []) {
+      if (eff.on !== 'onDeath' || eff.do !== 'deathrattleBuffAll') continue;
+      const a = num(eff.params?.attack, 1) * gold(self);
+      const h = num(eff.params?.health, 1) * gold(self);
+      for (const m of ctx.state.board) addBuff(m, nameOf(self), a, h);
+    }
+    ctx.state.deathrattlesTriggered += 1;
+  },
+
   // --- Deathrattles that can also resolve out of combat (e.g. when Consumed). The
   //     combat versions live in @game/core; these bake into the board's stats. Out
   //     of combat there's no RNG, so "random" picks become the highest-Attack carry. ---
@@ -749,6 +802,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const m = ctx.summon(token, self.uid);
       if (kw && m && !m.keywords.includes(kw)) m.keywords.push(kw);
     }
+  },
+
+  /** Deathrattle: give every board minion +atk/+hp (Sporeling — golden doubles). Out-of-combat resolution
+   *  (a Consumed Sporeling still feeds the board). */
+  deathrattleBuffAll: (ctx, self, params) => {
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    for (const m of ctx.state.board) addBuff(m, nameOf(self), a, h);
   },
 
   /** Deathrattle: buff all friends of `tribe` (+atk/+hp). */
@@ -1183,6 +1244,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         mana: pick.manaPerTurn ?? 0,
         rallyMechAtk: pick.rallyMechAtk,
         spellAura: pick.spellAura,
+        fodderAura: pick.fodderAura,
       }, clings);
     }
     ctx.state.rngCursor = rng.state();

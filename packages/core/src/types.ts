@@ -106,6 +106,10 @@ export type EffectFactoryId =
   | 'deathrattleAddFodder' // Burial Imp: Deathrattle queues Fodder into your next tavern, carried back (Demon)
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
+  | 'avengeGrantSpell' // Arcane Weaver: Avenge (X) adds a copy of a spell to your hand after combat (Dragon)
+  | 'deathrattleGrantReborn' // Mumi: Deathrattle — grant a random friendly Undead Rise (Undead)
+  | 'deathrattleBuffAll' // Sporeling: Deathrattle — give all friendly minions +atk/+hp (Undead)
+  | 'battlecryTriggeredOwnDeathrattle' // Sporeling: every Battlecry you trigger procs this minion's own Deathrattle (counts toward the tally)
   | 'avengeGiveAttack' // Stuntdrake: Avenge (X) hands this minion's Attack to N friends (Dragon)
   | 'endOfTurnGrantTribe' // Frontdrake: every N End-of-Turns, conjure a random minion of a tribe to hand (Dragon)
   | 'onFriendlyAttackBuffTribe' // Raptor: when another friendly minion of a tribe attacks, buff it (Beast)
@@ -252,6 +256,10 @@ export interface CardDef {
   /** Harry Botter: passive spell-power aura — while this (or a Mech it magnetized into) is on the board,
    *  stat-granting spells get +this/+this (golden doubles). Recruit-only; read by `spellStatBonus`. */
   spellAura?: number;
+  /** Heckbinder: passive Fodder aura — while this (or a host it magnetized into) is on the board, every
+   *  NEW Fodder (tavern offer, conjure, steal) gets +attack/+health more (golden doubles). Recruit-only;
+   *  folded into `cardBuff` via `fodderAuraLiveBonus`. */
+  fodderAura?: { attack: number; health: number };
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; effects: EffectDef[] }[];
@@ -310,6 +318,9 @@ export interface BoardMinion {
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
+  /** Flowing Monk: flat +X/+X on top of the stepped overflow grant — created by the TRIPLE combine (the
+   *  golden starts at the SUM of the two highest copies' current grants). Static during combat. */
+  overflowBonus?: number;
   /** Sergeant: accrued Deathrattle HP-grant bonus, seeded from the run board so combat continues from the
    *  shop-accumulated value (raised every time Sergeant gains Attack). Default 0. */
   hpGrantBonus?: number;
@@ -348,6 +359,8 @@ export interface Minion {
   /** Extra magnitude on this minion's summon-buff (Kennelmaster), grown by Avenge in
    *  combat and carried back to the run board afterwards. */
   summonBonus: number;
+  /** Flowing Monk: flat grant bonus from the triple combine (see BoardMinion.overflowBonus). Static. */
+  overflowBonus?: number;
   /** The originating run board card's uid (if any), for per-instance carry-back. */
   sourceUid?: string;
   /** Better Bot: total Rally-Mech Attack granted to other Mechs when this attacks (own base + welds). */
@@ -395,6 +408,8 @@ export interface MinionSnapshot {
   golden?: boolean;
   /** Current summon-buff bonus (Kennelmaster) — for the live combat card text. */
   summonBonus?: number;
+  /** Flowing Monk's flat grant bonus (triple combine) — for the live combat card text. */
+  overflowBonus?: number;
   /** Current Sergeant Deathrattle HP-grant bonus (seeded value) — for the live combat card text from frame 1. */
   hpGrantBonus?: number;
   /** Tara's prior ascend progress (seeded from the run board) — so the live combat "N to ascend" tracker
@@ -420,6 +435,7 @@ export type CombatEvent =
   | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[] } // returns at base stats
   | { type: 'death'; target: string; side: Side } // `side` lets the UI count enemy kills (Cassen) without uid-matching
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
+  | { type: 'keyword'; target: string; keyword: Keyword; source?: string } // a combat effect grants a keyword (Mumi → Rise, Ryme-replayed keyword battlecries) — the UI folds it into the unit's pills
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string }
   | { type: 'ascend'; target: string; into: string } // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
@@ -531,11 +547,16 @@ export interface CombatContext {
   addTribeAura(side: Side, tribe: Tribe | 'any', attack: number, health: number, source: string): void;
   /** Summon `card` onto `side`. `nearUid` positions it beside an existing unit.
    *  `grantKeywords` are applied to the minion BEFORE the `summon` event is emitted, so the UI
-   *  sees the correct keyword set from the first frame (Broodmother → Taunt on her Whelps). */
-  summon(side: Side, card: CardDef, nearUid?: string, grantKeywords?: Keyword[]): Minion;
+   *  sees the correct keyword set from the first frame (Broodmother → Taunt on her Whelps).
+   *  `golden` summons the token GILDED — doubled base stats + the golden flag (Manasaber's golden
+   *  cubs are 0/4) — for summoners whose golden form upgrades the token instead of the count. */
+  summon(side: Side, card: CardDef, nearUid?: string, grantKeywords?: Keyword[], golden?: boolean): Minion;
   /** Flush the attack-on-summon queue immediately (Twilight Whelp: each spawned Whelp attacks
    *  before the next one may spawn, so a full board doesn't block the second if the first dies). */
   flushImmediateAttacks?(): void;
+  /** Count a Deathrattle *triggered without a death* (Sporeling's Battlecry-proc'd rattle) toward the
+   *  side's Deathrattle tally — feeds Grim + the run's deathrattlesTriggered carry-back. Player-side only. */
+  countDeathrattle?(side: Side): void;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
   /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;

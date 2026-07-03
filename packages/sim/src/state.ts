@@ -80,6 +80,9 @@ export interface BoardCard {
   /** Extra magnitude on this card's summon-buff effect, accrued permanently across the run
    *  (Kennelmaster's Avenge improvements). Default/absent = 0. */
   summonBonus?: number;
+  /** Flowing Monk: flat +X/+X on top of its stepped overflow grant — created by the TRIPLE combine (the
+   *  golden starts at the SUM of the two highest copies' current grants). Default/absent = 0. */
+  overflowBonus?: number;
   /** Sergeant: accrued bonus on its Deathrattle HP grant, raised permanently EVERY time Sergeant gains
    *  Attack — in the shop (via addBuff) AND in combat (carried back). Seeds the combat instance + shown
    *  live on the card. Default/absent = 0. */
@@ -94,6 +97,10 @@ export interface BoardCard {
   /** Harry Botter: accrued spell-power aura welded onto this card (1 per Harry Botter magnetized, golden ×2).
    *  Read by `spellStatBonus` alongside the card's own `spellAura`, so a welded host keeps boosting spells. */
   spellAuraBonus?: number;
+  /** Heckbinder: accrued Fodder aura welded onto this card (+1/+2 per Heckbinder magnetized, golden ×2).
+   *  Read by `fodderAuraLiveBonus` alongside the card's own `fodderAura`, so a welded host keeps enriching
+   *  every new Fodder while it stays on the board. */
+  fodderAuraBonus?: { attack: number; health: number };
   /** Maw of the Pit: a one-combat Divine Shield earned by consuming. The 'DS' keyword is added for
    *  display + the snapshot; this flag marks it temporary so `resolveCombat` strips it after the next
    *  fight (gain it again by consuming again). */

@@ -44,9 +44,9 @@ export const BEASTS: CardDef[] = [
     keywords: [],
     effects: [
       { on: 'onSummon', do: 'buffOnSummon', params: { tribe: 'beast', attack: 1, health: 1 } },
-      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 2 } },
     ],
-    text: 'Each **Beast** you summon gains **+1/+1**. **Avenge (3):** Improve this.',
+    text: 'Each **Beast** you summon gains **+1/+1**. **Avenge (2):** Improve this.',
   },
   {
     id: 'gnash',
@@ -124,7 +124,8 @@ export const BEASTS: CardDef[] = [
   // --- New beasts (2026-06-24 content batch). Manasaber is a token-summoner (data only); Raptor and Sea
   //     Urchin use new effect factories on existing triggers (broadcast onAttack / a tribe-filtered Discover). ---
   {
-    // Deathrattle cub-summoner — a fragile 4/1 that leaves a 0/2 Taunt body behind. Golden → 2 cubs.
+    // Deathrattle cub-summoner — a fragile 4/1 that leaves two 0/2 Taunt bodies behind. Golden keeps the
+    // count and GILDS the cubs instead (0/4 each — `fixed` + `goldenTokens`).
     id: 'manasaber',
     name: 'Manasaber',
     tribe: 'beast',
@@ -132,9 +133,9 @@ export const BEASTS: CardDef[] = [
     attack: 4,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'sabercub', count: 1 } }],
-    text: '**Deathrattle:** summon a 0/2 Saber Cub with **Taunt**.',
-    goldenText: '**Deathrattle:** summon two 0/2 Saber Cubs with **Taunt**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'sabercub', count: 2, fixed: true, goldenTokens: true } }],
+    text: '**Deathrattle:** summon two 0/2 Saber Cubs with **Taunt**.',
+    goldenText: '**Deathrattle:** summon two 0/4 Saber Cubs with **Taunt**.',
   },
   {
     // Combat support: when ANOTHER friendly Beast attacks, pump it +3/+1 before the hit lands (onAttack

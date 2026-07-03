@@ -39,9 +39,9 @@ export const DRAGONS: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'spiritfire' } }],
-    text: '**Deathrattle:** add a copy of **Spirit Fire** to your hand.',
-    goldenText: '**Deathrattle:** add two copies of **Spirit Fire** to your hand.',
+    effects: [{ on: 'avenge', do: 'avengeGrantSpell', params: { count: 2, cardId: 'spiritfire' } }],
+    text: '**Avenge (2):** add a copy of **Spirit Fire** to your hand.',
+    goldenText: '**Avenge (2):** add two copies of **Spirit Fire** to your hand.',
   },
   {
     // Each Battlecry *resolution* pumps your Dragons — so Drakko (which fires Battlecries an extra

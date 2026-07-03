@@ -15,6 +15,8 @@
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
   --acc: #f0902e; --acc-dk: #c46f17; --threat: #e5446b; --threat-dk: #b32c50; --shadow: rgba(90, 66, 30, 0.16);
   --gold: #c8922e; --gold-lt: #e6b45a; /* HUD plaque trim (matches the shopbutton frame) */
+  /* Tier palette — one source of truth for the card tier badges + the SHOP TIER label. */
+  --tier-1: #74809a; --tier-2: #1f9d6b; --tier-3: #2b82d4; --tier-4: #7b54c8; --tier-5: #ef8a25; --tier-6: #e0395f;
   --mana: #f4be35; --mana-dk: #a8780f; /* Gold (the economy / cost color). --mana var kept internally */
   /* the game renders into a centred "stage" box. By default it fills the window; the Esc-menu
      resolution scaler shrinks it to a fixed aspect/size, letterboxing the rest (see [data-res]).
@@ -206,13 +208,20 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .shopbar { align-self: center; display: flex; flex-direction: column; align-items: center; gap: calc(5 * var(--u)); margin-top: calc(70 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoplabel { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink3); }
+/* "Tier N" takes the shop tier's colour (the card tier-badge palette) so the current tier reads at a glance. */
 .shoplabel .shoptier { color: var(--acc-dk); }
+.shoplabel .shoptier[data-tier='1'] { color: var(--tier-1); }
+.shoplabel .shoptier[data-tier='2'] { color: var(--tier-2); }
+.shoplabel .shoptier[data-tier='3'] { color: var(--tier-3); }
+.shoplabel .shoptier[data-tier='4'] { color: var(--tier-4); }
+.shoplabel .shoptier[data-tier='5'] { color: var(--tier-5); }
+.shoplabel .shoptier[data-tier='6'] { color: var(--tier-6); }
 /* Turn timer, sitting just above the SHOP label. */
-.shoptimer { display: inline-flex; align-items: center; gap: calc(5 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); color: var(--ink2); font-variant-numeric: tabular-nums; line-height: 1; }
+.shoptimer { position: relative; display: inline-flex; align-items: center; gap: calc(5 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); color: var(--ink2); font-variant-numeric: tabular-nums; line-height: 1; }
 .shoptimer svg { width: calc(17 * var(--u)); height: calc(17 * var(--u)); }
 .shoptimer.low { color: var(--threat); }
+.shoptimer:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
-/* Each button is the plaque art stretched to a fixed 3:1 (matches the source, so the corners don't distort). */
 .shopbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(9 * var(--u)); height: calc(50 * var(--u)); padding: 0 calc(20 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); font-family: var(--font-ui); font-weight: 800; color: #5a3d12; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease; }
 button.shopbtn:not(:disabled):hover { filter: brightness(1.05); }
 button.shopbtn:not(:disabled):active { transform: translateY(calc(2 * var(--u))) scale(0.98); filter: brightness(0.94); }
@@ -225,9 +234,22 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .shopbtn .sb-ic { display: grid; place-items: center; }
 .shopbtn .sb-ic svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); color: var(--acc-dk); }
 .shopbtn .sb-v { font-size: calc(25 * var(--u)); line-height: 1; color: #4a3410; font-variant-numeric: tabular-nums; }
+/* Gold plaque — a soft gold tint sets the currency box apart from the action buttons. */
+.shopbtn.gold { background: color-mix(in srgb, var(--gold-lt) 18%, var(--card)); }
 .shopbtn.gold .sb-ic svg { color: var(--acc); }
-.shopbtn.freeze.on { filter: drop-shadow(0 0 calc(7 * var(--u)) rgba(43, 143, 208, 0.85)); }
-.shopbtn.freeze.on .sb-ic svg { color: #2b8fd0; }
+/* Freeze — tinted blue at rest; fills SOLID blue (white text) while the tavern is frozen. */
+.shopbtn.freeze { background: color-mix(in srgb, #5bb4e8 12%, var(--card)); }
+.shopbtn.freeze .sb-ic svg { color: #2b8fd0; }
+.shopbtn.freeze.on { background: #5bb4e8; border-color: #2b8fd0; filter: drop-shadow(0 0 calc(7 * var(--u)) rgba(43, 143, 208, 0.65)); }
+.shopbtn.freeze.on .sb-l { color: #fff; }
+.shopbtn.freeze.on .sb-ic svg { color: #fff; }
+/* Styled hover tooltip (replaces the native title): the game's dark rounded pill, dropping below the control
+   with a small arrow — same format as the hero/opponent tips. The hovered control lifts above its neighbours
+   so the pill never gets trapped behind the next plaque. */
+.sbtip { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.01em; text-transform: none; padding: calc(6 * var(--u)) calc(12 * var(--u)); border-radius: calc(10 * var(--u)); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 90; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.55); transition: opacity 0.14s; }
+.sbtip::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-bottom-color: var(--ink); }
+.shopbtn:hover { z-index: 85; }
+.shopbtn:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
 
 /* End Turn — a standalone button anchored vertically-centred on the right edge of the stage. */
 .endturn-side { position: absolute; right: calc(24 * var(--u)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u)); width: calc(90 * var(--u)); padding: calc(12 * var(--u)) calc(9 * var(--u)); background: var(--acc); border: 2px solid var(--acc-dk); border-radius: calc(12 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk), 0 calc(8 * var(--u)) calc(16 * var(--u)) calc(-7 * var(--u)) rgba(0, 0, 0, 0.5); color: #fff; font-family: var(--font-ui); font-weight: 900; z-index: 20; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: filter 0.1s ease, transform 0.1s ease; }
@@ -385,12 +407,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
 .cost .costn { font-family: var(--font-ui); font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
 .tierbadge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
-.tierbadge[data-tier="1"] { background: #74809a; }
-.tierbadge[data-tier="2"] { background: #1f9d6b; }
-.tierbadge[data-tier="3"] { background: #2b82d4; }
-.tierbadge[data-tier="4"] { background: #7b54c8; }
-.tierbadge[data-tier="5"] { background: #ef8a25; }
-.tierbadge[data-tier="6"] { background: #e0395f; }
+.tierbadge[data-tier="1"] { background: var(--tier-1); }
+.tierbadge[data-tier="2"] { background: var(--tier-2); }
+.tierbadge[data-tier="3"] { background: var(--tier-3); }
+.tierbadge[data-tier="4"] { background: var(--tier-4); }
+.tierbadge[data-tier="5"] { background: var(--tier-5); }
+.tierbadge[data-tier="6"] { background: var(--tier-6); }
 /* Taunt signifies via its silver bulwark Pixi AURA (behind the card) — no badge. */
 /* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth); edge stays tribe-coloured. */
 .card.stealth { opacity: 0.8; }

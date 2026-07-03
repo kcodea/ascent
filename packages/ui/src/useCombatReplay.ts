@@ -26,6 +26,8 @@ export interface UnitFrame {
   golden: boolean;
   /** Live summon-buff bonus (Kennelmaster) — climbs via `improve` events mid-fight. */
   summonBonus: number;
+  /** Flowing Monk's flat grant bonus (triple combine) — static; feeds the live card text. */
+  overflowBonus?: number;
   /** Crypt Drake: ally attacks seen this combat — drives the live "current buff / N to go" text. */
   attackSeen?: number;
   /** Tara: how many stat-grants have accumulated toward ascension this combat. */
@@ -72,7 +74,7 @@ const EMPTY_FLOATS: Float[] = [];
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
-  golden: s.golden ?? false, summonBonus: s.summonBonus ?? 0,
+  golden: s.golden ?? false, summonBonus: s.summonBonus ?? 0, overflowBonus: s.overflowBonus,
   hpGrantBonus: s.hpGrantBonus, // Sergeant: seed the live combat text from the run-board accrual (frame 1)
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   baseAttack: s.attack, baseHealth: s.health, // the stats it entered the fight (or was summoned) with
@@ -135,6 +137,14 @@ function computeFrame(
     } else if (e.type === 'reveal') {
       const u = find(e.target);
       if (u) u.keywords = u.keywords.filter((k) => k !== 'ST'); // Stealth lost on attack
+    } else if (e.type === 'keyword') {
+      // A combat effect granted a keyword (Mumi → Rise, a Ryme-replayed keyword battlecry) — the
+      // pill appears on the card from this beat on. DS also raises the shield flag (bubble).
+      const u = find(e.target);
+      if (u && !u.keywords.includes(e.keyword)) {
+        u.keywords = [...u.keywords, e.keyword];
+        if (e.keyword === 'DS') u.divineShield = true;
+      }
     } else if (e.type === 'venomLost') {
       const u = find(e.target);
       if (u) u.keywords = u.keywords.filter((k) => k !== 'V'); // Venomous spent on its first proc
@@ -273,6 +283,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'reborn': return { [e.target]: 'reborn' };
     case 'buff': return { [e.target]: 'buffed' };
     case 'improve': return { [e.target]: 'buffed' };
+    case 'keyword': return { [e.target]: 'buffed' }; // a granted keyword pulses like a buff landing
     case 'maxGold': return { [e.target]: 'goldproc' };
     case 'sc': return e.cast ? { [e.source]: 'sccast' } : {}; // only a genuine SoC cast flashes; narration (spell power, etc.) is silent
     case 'death': return { [e.target]: 'dying' };
@@ -281,6 +292,11 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     default: return {};
   }
 }
+
+/** Player-facing labels for granted keywords (the renamed terms — Reborn → Rise, etc.). */
+const KW_FLOAT: Partial<Record<string, string>> = {
+  R: 'Rise', DS: 'Ward', T: 'Taunt', V: 'Toxin', W: 'Flurry', C: 'Cleave', ST: 'Stealth', IMM: 'Immune',
+};
 
 /** A floating number/glyph over the unit the active event acts on. */
 function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind: string } | null {
@@ -293,6 +309,7 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
     case 'shieldUp': return { uid: e.target, text: '◇', kind: 'shieldup' };
     case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
     case 'improve': return { uid: e.target, text: '✦', kind: 'buff' };
+    case 'keyword': return { uid: e.target, text: KW_FLOAT[e.keyword] ?? e.keyword, kind: 'buff' };
     case 'maxGold': return { uid: e.target, text: `+${e.amount} max gold`, kind: 'gold' };
     case 'rally': return { uid: e.target, text: '☠', kind: 'rally' }; // marks whose Deathrattle is firing
     default: return null;
@@ -317,6 +334,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'improve': return { text: `${n(e.target)}'s summon aura strengthens by +${e.amount}/+${e.amount}.`, kind: 'buff' };
+    case 'keyword': return { text: `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` from ${n(e.source)}` : ''}.`, kind: 'buff' };
     case 'maxGold': return { text: `${n(e.target)}'s Avenge raises your max Gold by ${e.amount}.`, kind: 'buff' };
     case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Echo.`, kind: 'sc' };
     case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
@@ -337,6 +355,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'summon': return `${e.minion.name} joins the fray.`;
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
     case 'improve': return `${n(e.target)}'s aura strengthens (+${e.amount}/+${e.amount}).`;
+    case 'keyword': return `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}!`;
     case 'maxGold': return `${n(e.target)} raises your max Gold by ${e.amount}!`;
     case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Echo!`;
     case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;

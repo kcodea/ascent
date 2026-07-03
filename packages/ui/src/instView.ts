@@ -3,8 +3,8 @@ import { CONFIG, spellDisplayText, type BoardCard } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
-  guelProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText,
-  tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText,
+  guelProgressText, monkProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText,
+  summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -17,7 +17,7 @@ export interface LiveTextParams {
   clingEnchant?: { attack: number; health: number };
   fodderConsumed?: { attack: number; health: number };
   undeadBuyAtk: number; soulsmanGold: number; cardBuffs?: Record<string, { attack: number; health: number }>;
-  spellProgress?: number; ascendProgress?: number; summonBonus?: number; hpGrantBonus?: number; eotTick?: number;
+  spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number;
 }
 
 /**
@@ -42,6 +42,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             tallyBuffText(c.id, p.deathrattlesTriggered) ??
             guelProgressText(c.id, p.golden, p.spellsCast) ??
+            monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
             cadenceProgressText(c.id, p.eotTick ?? 0) ??
             c.text;
@@ -89,6 +90,7 @@ export function instView(
     deathrattlesTriggered, clingEnchant, fodderConsumed,
     undeadBuyAtk: live?.undeadBuyAtk ?? 0, soulsmanGold: live?.soulsmanGold ?? 0, cardBuffs: live?.cardBuffs,
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
+    overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: inst.eotTick,
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion

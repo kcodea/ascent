@@ -76,8 +76,9 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 function ShopTimer() {
   const s = Math.max(0, useTurnSeconds());
   return (
-    <div className={`shoptimer${s <= 5 ? ' low' : ''}`} title="Time left this turn — at 0 your actions lock; hit End Turn">
+    <div className={`shoptimer${s <= 5 ? ' low' : ''}`}>
       <Icon name="clock" />{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}
+      <span className="sbtip">Time left this turn — at 0 your actions lock; hit End Turn</span>
     </div>
   );
 }
@@ -2123,45 +2124,48 @@ export function Recruit() {
           shopbutton.webp. The turn timer now lives in the header; End Turn is a standalone button (right). */}
       <div className={`shopbar${inCombat ? ' closing' : ''}`}>
         <ShopTimer />
-        <div className="shoplabel">Shop <span className="shoptier">Tier {run.tier}</span></div>
+        {/* The tier number takes the SHOP's current tier colour (the card tier-badge palette). */}
+        <div className="shoplabel">Shop <span className="shoptier" data-tier={run.tier}>Tier {run.tier}</span></div>
         <div className="shoprow">
-          {/* Gold — a display (current Gold this turn), not an action. */}
-          <div className="shopbtn gold" title="Your Gold this turn">
+          {/* Gold — a display (current Gold this turn), not an action. Styled tooltips (.sbtip) replace the
+              native title so the hover hints match the game's dark-pill format. */}
+          <div className="shopbtn gold">
             <span className="sb-l">Gold</span>
             <span className="sb-ic"><Icon name="mana" /></span>
             <span className="sb-v">{run.embers}</span>
+            <span className="sbtip">Your Gold this turn</span>
           </div>
           {/* Tavern Up — cost = upgradeCost; disabled at max tier / can't afford / time up. */}
           <button
             className="shopbtn"
             disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp || eotAnimating}
             onClick={() => dispatch({ type: 'upgrade' })}
-            title={run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : `Tavern Up — to tier ${run.tier + 1}`}
           >
             <span className="sb-l">Tavern</span>
             <span className="sb-ic"><Icon name="star" /></span>
             <span className="sb-v">{run.tier < CONFIG.maxTier ? run.upgradeCost : '★'}</span>
+            <span className="sbtip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : `Tavern Up — to tier ${run.tier + 1}`}</span>
           </button>
           {/* Reroll — free rolls show 0. */}
           <button
             className="shopbtn"
             disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp || eotAnimating}
             onClick={() => dispatch({ type: 'roll' })}
-            title={run.freeRolls > 0 ? `Refresh — free (${run.freeRolls} left)` : 'Refresh the tavern'}
           >
             <span className="sb-l">Reroll</span>
             <span className="sb-ic"><Icon name="refresh" /></span>
             <span className="sb-v">{run.freeRolls > 0 ? 0 : CONFIG.refreshCost}</span>
+            <span className="sbtip">{run.freeRolls > 0 ? `Refresh — free (${run.freeRolls} left)` : 'Refresh the tavern'}</span>
           </button>
-          {/* Freeze — toggle; highlighted when active. */}
+          {/* Freeze — toggle; tinted blue, filling solid blue while the tavern is frozen. */}
           <button
             className={`shopbtn freeze${run.frozen ? ' on' : ''}`}
             disabled={timeUp || eotAnimating}
             onClick={() => dispatch({ type: 'freeze' })}
-            title={run.frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}
           >
             <span className="sb-l">Freeze</span>
             <span className="sb-ic"><Icon name="freeze" /></span>
+            <span className="sbtip">{run.frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}</span>
           </button>
         </div>
       </div>

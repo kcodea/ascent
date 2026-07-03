@@ -307,6 +307,14 @@ function reduceCore(state: RunState, action: Action): RunState {
             rallyMechAtk: (mDef?.rallyMechAtk ?? 0) * (card.golden ? 2 : 1) || undefined,
             // Harry Botter: weld its spell-power aura (+1/+1 to spells, golden ×2) onto the host — stacks.
             spellAura: (mDef?.spellAura ?? 0) * (card.golden ? 2 : 1) + (card.spellAuraBonus ?? 0) || undefined,
+            // Heckbinder: weld its Fodder aura (+1/+2 to new Fodder, golden ×2) onto the host — stacks, and
+            // carries any aura already welded onto the magnetic itself (a hosted Heckbinder re-welded).
+            fodderAura: mDef?.fodderAura || card.fodderAuraBonus
+              ? {
+                  attack: (mDef?.fodderAura?.attack ?? 0) * (card.golden ? 2 : 1) + (card.fodderAuraBonus?.attack ?? 0),
+                  health: (mDef?.fodderAura?.health ?? 0) * (card.golden ? 2 : 1) + (card.fodderAuraBonus?.health ?? 0),
+                }
+              : undefined,
           }, card.cardId === 'cling' ? 1 : 0); // a magnetized Cling stacks the improvement (via weldMagnetic)
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
           if (card.golden) grantGoldenDiscover(s);
@@ -582,6 +590,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         keywords: [...b.keywords],
         golden: b.golden,
         summonBonus: b.summonBonus ?? 0,
+        overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
         ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
@@ -750,6 +759,22 @@ function checkTriples(s: RunState): void {
       const maxBonus = Math.max(...combined.map((c) => c.summonBonus ?? 0));
       summonBonus = maxBonus > 0 ? maxBonus : undefined;
     }
+    // Flowing Monk (owner ruling 2026-07-03): the golden COMBINES the two highest copies' CURRENT grants —
+    // e.g. +10/+10 and +4/+4 copies triple into a golden granting +14/+14. Since the stepped formula can't
+    // express an arbitrary start, the surplus over the golden base rides in a flat `overflowBonus`; the
+    // overflow countdown starts fresh (summonBonus stays unset → "5 to go").
+    const overflowEffect = def.effects.find((e) => e.do === 'overflowBuffRandom');
+    let overflowBonus: number | undefined;
+    if (overflowEffect) {
+      const p = overflowEffect.params as { attack?: number; improveEvery?: number } | undefined;
+      const base = Number(p?.attack ?? 2);
+      const every = Math.max(1, Number(p?.improveEvery ?? 5));
+      const grants = combined
+        .map((c) => base * (1 + Math.floor((c.summonBonus ?? 0) / every)) + (c.overflowBonus ?? 0))
+        .sort((a, b) => b - a);
+      const surplus = (grants[0] ?? base) + (grants[1] ?? base) - base * 2; // over the golden's own base grant
+      overflowBonus = surplus > 0 ? surplus : undefined;
+    }
     // Sergeant: the golden keeps the HIGHEST accrued Deathrattle HP-grant bonus of the three copies (not
     // summed/reset) — the bigger per-Attack step (+4) comes from gold(self) in the factory, so the triple
     // only preserves where the accrual already is.
@@ -777,6 +802,10 @@ function checkTriples(s: RunState): void {
     // through a triple (the golden's own def handles a standalone Better Bot's Rally at instantiate time).
     const absorbedRally = combined.reduce((sum, c) => sum + (c.rallyMechAtk ?? 0), 0);
     const absorbedSpellAura = combined.reduce((sum, c) => sum + (c.spellAuraBonus ?? 0), 0);
+    const absorbedFodderAura = combined.reduce(
+      (sum, c) => ({ attack: sum.attack + (c.fodderAuraBonus?.attack ?? 0), health: sum.health + (c.fodderAuraBonus?.health ?? 0) }),
+      { attack: 0, health: 0 },
+    );
     // Spirit Pup: the golden keeps the *highest* spell progress of the three (= the lowest spells-left),
     // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve.
     const goldenProgress = Math.max(...combined.map((c) => c.spellProgress ?? 0));
@@ -798,10 +827,12 @@ function checkTriples(s: RunState): void {
       keywords,
       golden: true,
       summonBonus,
+      overflowBonus,
       hpGrantBonus,
       manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
       rallyMechAtk: absorbedRally > 0 ? absorbedRally : undefined,
       spellAuraBonus: absorbedSpellAura > 0 ? absorbedSpellAura : undefined,
+      fodderAuraBonus: absorbedFodderAura.attack > 0 || absorbedFodderAura.health > 0 ? absorbedFodderAura : undefined,
       buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
       spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
       ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,

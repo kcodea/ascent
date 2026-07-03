@@ -130,6 +130,28 @@ export function guelProgressText(cardId: string, golden: boolean, spellsCast: nu
 }
 
 /**
+ * Flowing Monk scales with overflows seen: each overflow Engraves `count` friends +X/+X where X = base ×
+ * (1 + floor(overflows / every)) (×2 golden) — the tally rides in `summonBonus`. Show the live current
+ * grant AND the countdown to the next step (both green), so the card always states its current value.
+ * Generic over the `overflowBuffRandom` effect; null for other cards (fall back to printed text).
+ */
+export function monkProgressText(cardId: string, golden: boolean, summonBonus: number, overflowBonus = 0): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'overflowBuffRandom');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; count?: number; improveEvery?: number } | undefined;
+  const base = Number(p?.attack ?? 2);
+  const count = Number(p?.count ?? 2);
+  const every = Math.max(1, Number(p?.improveEvery ?? 5));
+  const mult = golden ? 2 : 1;
+  // Current grant = the stepped magnitude + the flat triple top-up (golden combine of the two highest copies).
+  const cur = base * (1 + Math.floor(summonBonus / every)) * mult + overflowBonus;
+  const per = base * mult; // the per-step improvement size (golden ×2)
+  const toNext = every - (summonBonus % every); // overflows until the next step
+  return `When you summon a minion that doesn't fit, Engrave ${count} friendly minions {{+${cur}/+${cur}}} (kept after combat). Improves **+${per}/+${per}** every ${every} overflows — {{${toNext} to go}}.`;
+}
+
+/**
  * Crypt Drake: "Every N ally attacks, give your minions +X/+X." — appends the live countdown to the next
  * proc. The buff is flat (no improvement), so the magnitude in the printed text is already correct. Returns
  * null when no attacks have been seen yet (falls back to printed text).

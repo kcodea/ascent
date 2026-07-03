@@ -169,6 +169,7 @@ export function simulate(
     keywords: [...m.keywords],
     golden: m.golden,
     summonBonus: m.summonBonus,
+    overflowBonus: m.overflowBonus,
     hpGrantBonus: m.hpGrantBonus,
     ascendProgress: m.ascendProgress,
     buffs: m.buffs, // recruit-phase buff breakdown → the combat inspect panel (absent on summoned tokens)
@@ -247,8 +248,13 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
-    summon: (side, card, nearUid, grantKeywords) => summonMinion(side, card, nearUid, grantKeywords),
+    summon: (side, card, nearUid, grantKeywords, golden) => summonMinion(side, card, nearUid, grantKeywords, golden),
     flushImmediateAttacks: () => flushImmediateAttacks(),
+    countDeathrattle: (side) => {
+      // A Deathrattle triggered WITHOUT a death (Sporeling's Battlecry proc) still counts toward the tally
+      // that feeds Grim + the run's deathrattlesTriggered (carried back via playerDeathrattles).
+      if (side === 'player') playerDeathrattles++;
+    },
     grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
       // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a
@@ -343,8 +349,13 @@ export function simulate(
    * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
    * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[]): Minion {
-    const minion = instantiate({ cardId: card.id, attack: card.attack, health: card.health }, side, cards, mkUid);
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false): Minion {
+    // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
+    // upgrades the token rather than the count (Manasaber's 0/4 cubs).
+    const minion = instantiate(
+      { cardId: card.id, attack: card.attack * (golden ? 2 : 1), health: card.health * (golden ? 2 : 1), golden },
+      side, cards, mkUid,
+    );
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff).
     if (living(side).length >= 7) {
@@ -461,7 +472,8 @@ export function simulate(
     // Reborn (A.3 step 6): a minion's FIRST death fires its Deathrattle / on-death effects, then it returns
     // ONCE at its *base ATTACK* with **1 Health** (Hearthstone-style — regardless of its printed Health),
     // shedding combat buffs + granted keywords (Divine Shield, etc.), keeping printed keywords (minus the spent
-    // Reborn). Golden → doubled (base attack ×2, 2 Health). So a 7/8 buffed to a 13/10 body comes back a 7/1.
+    // Reborn). Golden → base attack ×2, but STILL 1 Health (owner ruling 2026-07-02) — auras apply on top after.
+    // So a 7/8 buffed to a 13/10 body comes back a 7/1.
     // Undead carry-through + run-wide auras are still re-applied on top (Lantern/buy-time "everywhere" + the
     // Eternal-Knight enchant); general stat / Imp / Fodder buffs do NOT carry.
     if (minion.rebornAvailable) {
@@ -470,11 +482,25 @@ export function simulate(
       // body returns — so the Whelp's spawn + the Eternal Knight's +3/+2 land per death, not just on the last.
       if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles++;
       fireOwnDeathrattles(minion);
+      // Board cap gates the Rise (owner ruling 2026-07-02): the Deathrattle resolves FIRST — its summons can
+      // take the last slots, since the dying body doesn't hold one — and if the side is at 7 living the minion
+      // does NOT return: it stays dead for real. Its own rattles already fired above (incl. Sylus re-procs), so
+      // this is a minimal true death — death event + Avenge/kill tallies, but NO `onDeath` broadcast (watchers
+      // treat Rise deaths as non-deaths, and a re-broadcast would double-fire the rattle just fired).
+      if (living(minion.side).length >= 7) {
+        minion.dead = true;
+        minion.health = 0;
+        events.push({ type: 'death', target: minion.uid, side: minion.side });
+        if (minion.side === 'enemy') enemyDeaths++;
+        deaths[minion.side] += 1;
+        bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
+        return;
+      }
       const def = cards[minion.cardId];
       const mul = minion.golden ? 2 : 1;
       if (def) {
         minion.attack = Math.max(0, def.attack * mul);
-        minion.health = mul; // Rise returns at 1 Health (2 golden), regardless of the card's base Health
+        minion.health = 1; // Rise returns at 1 Health — golden included — regardless of the card's base Health
         minion.maxHealth = minion.health;
         minion.keywords = def.keywords.filter((k) => k !== 'R');
         minion.divineShield = def.keywords.includes('DS');
@@ -529,7 +555,13 @@ export function simulate(
     }
   }
 
-  function dealDamage(
+  /**
+   * Apply one damage instance WITHOUT resolving a resulting death — phase 1 of an attack's simultaneous
+   * exchange (see performAttack). The HP change, dmg/shield/poison events, and on-damaged notifications all
+   * land here; a victim left at ≤0 Health stays on the board (excluded from living()) until the caller
+   * resolves it with killOrReborn.
+   */
+  function applyDamage(
     target: Minion,
     amount: number,
     poison: boolean,
@@ -564,7 +596,19 @@ export function simulate(
         events.push({ type: 'venomLost', target: poisoner.uid });
       }
     }
-    if (target.health <= 0) killOrReborn(target, poisoner);
+  }
+
+  /** One-shot damage (effects, bolts, Deathrattle damage): apply + resolve any death immediately. Attack
+   *  exchanges use the two-phase form instead (applyDamage × N, then killOrReborn per victim). */
+  function dealDamage(
+    target: Minion,
+    amount: number,
+    poison: boolean,
+    bypassShield: boolean,
+    poisoner?: Minion,
+  ): void {
+    applyDamage(target, amount, poison, bypassShield, poisoner);
+    if (!target.dead && target.health <= 0) killOrReborn(target, poisoner);
   }
 
   // Targeting: random among living enemies, Taunts first if any (A.3 step 4).
@@ -606,24 +650,43 @@ export function simulate(
       const targetCouldReborn = target.rebornAvailable; // a Reborn target that "dies" returns to life
       const poison = attacker.keywords.includes('V'); // Venomous
 
-      // Cleave hits the target's neighbours before retaliation (A.3 step 5).
+      // === The exchange is SIMULTANEOUS, in two phases (owner ruling 2026-07-02). ===
+      // PHASE 1 — every hit of the clash APPLIES before any death resolves: cleave neighbours, the main hit,
+      // and the retaliation. A unit that trades into a Deathrattle minion takes its damage WITH the kill —
+      // not after the rattle's summons/effects (the old inline cascade ran the defender's whole death,
+      // deathrattles and all, before the attacker's counter damage even landed).
+      // `victims` collects each body hit this clash, in damage order, for phase 2.
+      const victims: { m: Minion; killer: Minion }[] = [];
+
+      // Cleave hits the target's neighbours in the same clash (A.3 step 5).
       if (attacker.keywords.includes('C')) {
         const arr = boards[defenderSide];
         const di = arr.indexOf(target);
         const neighbours = [arr[di - 1], arr[di + 1]].filter(
           (n): n is Minion => !!n && !n.dead && n.health > 0,
         );
-        for (const n of neighbours) dealDamage(n, attacker.attack, poison, false, attacker);
+        for (const n of neighbours) {
+          applyDamage(n, attacker.attack, poison, false, attacker);
+          victims.push({ m: n, killer: attacker });
+        }
       }
 
-      // Snapshot the defender's counter-attack BEFORE the hit: combat is simultaneous, but the main hit can
-      // kill a Rise target and rebuild it at base stats within `dealDamage` — so reading target.attack after
-      // would retaliate with the *risen* (reset) attack, not the body that actually clashed. (Bug: an attacker
-      // struck a 100-attack Eternal Knight and only took 6 back, its post-Rise base.)
+      // Snapshot the defender's counter-attack BEFORE the hit. (With two-phase damage a Rise can no longer
+      // reset stats mid-exchange — deaths wait for phase 2 — but the snapshot stays as belt-and-braces
+      // documentation of the rule: retaliation uses the body that actually clashed.)
       const counterAttack = target.attack;
       const counterVenom = target.keywords.includes('V');
-      dealDamage(target, attacker.attack, poison, false, attacker); // main hit
-      dealDamage(attacker, counterAttack, counterVenom, false, target); // retaliation (pre-Rise counter)
+      applyDamage(target, attacker.attack, poison, false, attacker); // main hit
+      victims.push({ m: target, killer: attacker });
+      applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
+      victims.push({ m: attacker, killer: target });
+
+      // PHASE 2 — deaths resolve in damage order (cleave victims → target → attacker). Each fallen body's
+      // Deathrattle / Rise runs only now, after every hit of the clash has landed — so death effects see the
+      // full post-exchange board (e.g. a mutual kill counts both bodies down before either rattle fires).
+      for (const { m, killer } of victims) {
+        if (!m.dead && m.health <= 0) killOrReborn(m, killer);
+      }
 
       // On-kill re-attack (Gnasher). Dropping a Reborn target to 0 counts as a kill even though it
       // returns to life — it spent its Reborn — so detect a consumed Reborn alongside an outright death.

@@ -25,6 +25,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat exchange rules + card batch** — attacks resolve as one simultaneous clash (dealt + taken damage land
+  in the same frame; deathrattles only after), a full board now blocks a Rise, and golden Rise bodies return at
+  1 HP. New minion **Mumi** (give a friendly Undead Rise — now visibly, via a new keyword event) plus a batch of
+  card changes (Sporeling procs on every Battlecry, Heckbinder's live Fodder aura, gilded Manasaber cubs, …).
+  **Flowing Monk** reworked (+2/+2 per overflow, improves every 5; a triple combines the two best copies'
+  grants) — and scaling cards now ALWAYS print their current value, everywhere (a CLAUDE.md rule).
 - **HUD redesign** — the shop controls are a labelled row of gold plaque buttons (Gold · Tavern · Reroll ·
   Freeze) with the turn timer above them; End Turn is a standalone button on the right; the next-opponent frame
   sits in the top-right corner; the player name is a small box above the hero panel; hand cards seat lower and

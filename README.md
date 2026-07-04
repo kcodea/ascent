@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Damage numbers only on the attacked unit** — in a combat clash the `-N` used to pop over both fighters;
+  now only the unit being **attacked** shows its number, the attacker's retaliation doesn't.
 - **Combat-feel DEV tuners** — two new panels in the 🛠️ Dev Tuning Menu: **⏱️ Pacing** (the combat beat
   clock — global tempo + per-beat holds + float lifetimes, previously hardcoded) and **🔢 Damage Float** (the
   `-N` number's size / pop / rise / entry). Both default to the current shipped values, so nothing changes

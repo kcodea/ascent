@@ -103,6 +103,18 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.map((m) => m.uid)).toEqual(['c', 'a', 'b']);
   });
 
+  it('reorderHand rearranges the hand (cosmetic — count preserved)', () => {
+    const mk = (uid: string, cardId: string): BoardCard => ({
+      uid, cardId, tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false,
+    });
+    let s: RunState = { ...createRun(1), hand: [mk('a', 'sandbag'), mk('b', 'alley'), mk('c', 'frontdrake')] };
+    s = reduce(s, { type: 'reorderHand', uid: 'a', toIndex: 2 });
+    expect(s.hand.map((m) => m.uid)).toEqual(['b', 'c', 'a']);
+    expect(s.hand).toHaveLength(3);
+    s = reduce(s, { type: 'reorderHand', uid: 'missing', toIndex: 0 }); // no-op on an unknown uid
+    expect(s.hand.map((m) => m.uid)).toEqual(['b', 'c', 'a']);
+  });
+
   it('rejects a buy without enough embers', () => {
     let s = createRun(1);
     s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // embers → 0

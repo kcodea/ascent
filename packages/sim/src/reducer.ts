@@ -470,6 +470,17 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'reorderHand': {
+      // Purely cosmetic — rearrange the hand (drag a card sideways to reorder it), the hand's parallel to
+      // reorderShop. Hand order has no gameplay effect; this just lets the player organize their cards.
+      const i = s.hand.findIndex((c) => c.uid === action.uid);
+      if (i < 0) return state;
+      const to = Math.max(0, Math.min(s.hand.length - 1, action.toIndex));
+      const [card] = s.hand.splice(i, 1);
+      if (card) s.hand.splice(to, 0, card);
+      return s;
+    }
+
     case 'heroPower': {
       const power = getHero(s.heroId).power;
       // Some powers unlock on a later turn (Myra's Encore — turn 3); locked before then.

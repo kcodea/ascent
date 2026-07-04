@@ -777,6 +777,10 @@ export function Recruit() {
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // Hand reorder (drag a hand card sideways): the GSAP Flip state captured at drop, glided by a dedicated
+  // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
+  // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
+  const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
   const commitRectsRef = useRef<Map<string, number> | null>(null);
@@ -955,6 +959,19 @@ export function Recruit() {
     const cards = [...document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .row .card[data-uid]')].filter(
       (c) => c.getAttribute('data-uid') !== run.spell?.uid,
     );
+    let i = 0;
+    for (const c of cards) {
+      if (c.getAttribute('data-uid') === excludeUid) continue;
+      const r = c.getBoundingClientRect();
+      if (x > r.left + r.width * INSERT_FRAC) i++;
+    }
+    return i;
+  };
+  // Insertion index in the HAND from the drop x (for reordering). The hand doesn't open a live gap, so the
+  // cards sit still during the drag — measure them fresh + count the ones whose midpoint the cursor passed,
+  // excluding the dragged card. Result is the index in the post-removal array (matches the reducer's splice).
+  const handIndexAt = (x: number, excludeUid?: string): number => {
+    const cards = [...document.querySelectorAll<HTMLElement>('.row.hand .card[data-uid]')];
     let i = 0;
     for (const c of cards) {
       if (c.getAttribute('data-uid') === excludeUid) continue;
@@ -1866,6 +1883,19 @@ export function Recruit() {
     );
   }, [flipKey]);
 
+  // Hand reorder glide: a drag-reorder (applyDrop) captured the fan's pre-move layout into handReorderFlipRef;
+  // when the new hand order commits here, Flip.from animates each card from its old slot to its new one. GSAP
+  // Flip (not the warband/shop manual x-tween) so the cards keep their translateY tuck through the glide. Only
+  // fires when a reorder actually captured a state — a buy/play that also changes the order is left to its own
+  // pop-in.
+  const handOrderKey = run.hand.map((c) => c.uid).join(',');
+  useLayoutEffect(() => {
+    const st = handReorderFlipRef.current;
+    if (!st) return;
+    handReorderFlipRef.current = null;
+    Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out' });
+  }, [handOrderKey]);
+
   // Pop a one-shot spark burst at a screen point (when a spell resolves).
   const fireSpark = (x: number, y: number): void => {
     sparkKeyRef.current += 1;
@@ -2127,15 +2157,24 @@ export function Recruit() {
       }
       return false;
     }
-    if (d.source === 'hand' && !d.view.spell && y < playFloorRef.current) {
-      // A minion plays anywhere ABOVE the play floor (see playFloorRef) — you needn't hit the warband row
-      // exactly. Releasing below it (down toward the hand) falls through to the snap-back at the end of
-      // applyDrop: it drops back into the hand — the cancel gesture. Board full → snap back too. Land where the
-      // preview's gap was last rendered (WYSIWYG) so neighbours don't rebound.
-      if (run.board.length >= CONFIG.boardMax) return false;
-      const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
-      playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
-      puffOnBoard(d.uid); // dust around the minion where it lands
+    if (d.source === 'hand' && !d.view.spell) {
+      // Up PAST the play floor with room on the board → PLAY it (you needn't hit the warband row exactly;
+      // land where the preview's gap was last rendered so neighbours don't rebound).
+      if (y < playFloorRef.current && run.board.length < CONFIG.boardMax) {
+        const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
+        playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
+        puffOnBoard(d.uid); // dust around the minion where it lands
+        return true;
+      }
+      // Released down in the hand (or the board's full) → REORDER the hand to where it was dropped. Cosmetic;
+      // a drop on the card's own slot is a no-op (it just settles back in place). A dedicated GSAP Flip
+      // (handReorderFlipRef, captured here BEFORE the reorder mutates the DOM) glides the fan on commit.
+      const from = run.hand.findIndex((c) => c.uid === d.uid);
+      const to = handIndexAt(cx, d.uid);
+      if (from >= 0 && from !== to) {
+        handReorderFlipRef.current = Flip.getState('.row.hand .card[data-uid]');
+        dispatch({ type: 'reorderHand', uid: d.uid, toIndex: to });
+      }
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {

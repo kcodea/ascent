@@ -132,7 +132,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    row (life+armor · tier ★ · wins 👑 — one size, life emphasized by COLOR only, so no mixed baselines).
    Below the hairline: grey minion silhouettes (count only) over a quiet one-line comp read ("2 Triples ·
    3 Dragons", tribe word tinted). ★ = tier ONLY — triples are text. The pill is the single strong accent. */
-.oppframe { position: relative; display: flex; flex-direction: column; width: calc(212 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; transform: scale(1.15); transform-origin: top right; }
+.oppframe { position: relative; display: flex; flex-direction: column; width: calc(212 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; transform: scale(1.265); transform-origin: top right; }
 /* Author name — a pill centered over the top edge. */
 .oppframe .opp-name { position: absolute; top: 0; left: 50%; transform: translate(-50%, -55%); max-width: calc(180 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: var(--threat); color: #fff; border: 2px solid var(--card); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.18); z-index: 2; }
 .oppframe .opp-plate { display: flex; align-items: center; gap: calc(10 * var(--u)); padding: calc(14 * var(--u)) calc(12 * var(--u)) calc(10 * var(--u)); }
@@ -147,6 +147,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .oppframe .opp-stat svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
 .oppframe .opp-stat.life { color: var(--threat-dk); }
 .oppframe .opp-stat.life svg { color: var(--threat); }
+/* Tier / wins as text (no icon) — a touch lighter + smaller so life stays the loudest stat. */
+.oppframe .opp-stat.label { font-weight: 700; font-size: calc(12.5 * var(--u)); color: var(--ink3); }
 .oppframe .opp-armor { font-style: normal; font-weight: 800; font-size: calc(11.5 * var(--u)); color: #8b97a3; margin-left: calc(1.5 * var(--u)); }
 /* Board read — same 12u gutter; a hairline over the quiet one-line comp read (triples · top tribe). */
 .oppframe .opp-preview { padding: calc(7 * var(--u)) calc(12 * var(--u)) calc(9 * var(--u)); border-top: 1px solid var(--line); }
@@ -381,8 +383,8 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    the card. Fixed + pointer-events:none so it never intercepts the cursor. Scale (not a resize) so the text
    scales too; the pop-in animates transform/opacity only (compositor), with a STATIC drop-shadow. */
 .handpreview { position: fixed; z-index: 55; pointer-events: none; transform: translate(-50%, -100%); will-change: transform; }
-.handpreview-card { transform: scale(1.5); transform-origin: center bottom; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); animation: handpreviewpop 0.13s cubic-bezier(0.2, 0.8, 0.3, 1); }
-@keyframes handpreviewpop { from { opacity: 0; transform: scale(1.24) translateY(10px); } to { opacity: 1; transform: scale(1.5) translateY(0); } }
+.handpreview-card { transform: scale(1.275); transform-origin: center bottom; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); animation: handpreviewpop 0.13s cubic-bezier(0.2, 0.8, 0.3, 1); }
+@keyframes handpreviewpop { from { opacity: 0; transform: scale(1.05) translateY(10px); } to { opacity: 1; transform: scale(1.275) translateY(0); } }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(42%); z-index: auto; }

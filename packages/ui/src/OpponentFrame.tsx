@@ -65,8 +65,8 @@ export function OpponentFrame() {
             <span className="opp-stat life" title={`Life ${snap.resolve}${snap.armor ? ` · Armor ${snap.armor}` : ''}`}>
               <Icon name="heart" />{snap.resolve}{snap.armor ? <i className="opp-armor">+{snap.armor}</i> : null}
             </span>
-            <span className="opp-stat" title="Tavern tier"><Icon name="star" />{snap.tier}</span>
-            <span className="opp-stat" title="Wins"><Icon name="crown" />{snap.wins ?? 0}</span>
+            <span className="opp-stat label" title="Tavern tier">Tier {snap.tier}</span>
+            <span className="opp-stat label" title="Wins">{snap.wins ?? 0} {(snap.wins ?? 0) === 1 ? 'Win' : 'Wins'}</span>
           </div>
         </div>
       </div>

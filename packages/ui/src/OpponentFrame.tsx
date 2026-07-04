@@ -44,7 +44,6 @@ export function OpponentFrame() {
   const hero = getHero(snap.heroId);
   const dom = dominantTribe(snap);
   const art = heroArt(snap.heroId);
-  const count = snap.minions.length;
   const name = snap.author ?? 'Next Foe';
   const provenance = snap.author
     ? `by ${snap.author}`
@@ -71,14 +70,9 @@ export function OpponentFrame() {
           </div>
         </div>
       </div>
-      {/* Board preview — silhouettes (count only, no identity), then a one-line comp read. */}
-      <div className="opp-preview">
-        <div className="opp-silhouettes" title={`${count} minion${count === 1 ? '' : 's'} on board`}>
-          {count > 0
-            ? Array.from({ length: count }, (_, i) => <span key={i} className="opp-sil" />)
-            : <span className="opp-compline">Empty board</span>}
-        </div>
-        {(snap.triples > 0 || dom) && (
+      {/* Board read — one quiet line: triples + the most-common tribe. Hidden entirely when there's neither. */}
+      {(snap.triples > 0 || dom) && (
+        <div className="opp-preview">
           <div className="opp-compline">
             {snap.triples > 0 && <span title="Triples formed">{snap.triples} Triple{snap.triples === 1 ? '' : 's'}</span>}
             {snap.triples > 0 && dom && ' · '}
@@ -88,8 +82,8 @@ export function OpponentFrame() {
               </span>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

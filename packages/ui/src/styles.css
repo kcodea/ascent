@@ -148,10 +148,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .oppframe .opp-stat.life { color: var(--threat-dk); }
 .oppframe .opp-stat.life svg { color: var(--threat); }
 .oppframe .opp-armor { font-style: normal; font-weight: 800; font-size: calc(11.5 * var(--u)); color: #8b97a3; margin-left: calc(1.5 * var(--u)); }
-/* Board preview — same 12u gutter; a hairline, silhouettes, then the quiet comp line. */
-.oppframe .opp-preview { display: flex; flex-direction: column; gap: calc(5 * var(--u)); padding: calc(8 * var(--u)) calc(12 * var(--u)) calc(10 * var(--u)); border-top: 1px solid var(--line); }
-.oppframe .opp-silhouettes { display: flex; gap: calc(3 * var(--u)); align-items: center; min-height: calc(16 * var(--u)); }
-.oppframe .opp-sil { width: calc(12 * var(--u)); height: calc(16 * var(--u)); border-radius: calc(3 * var(--u)); background: color-mix(in srgb, var(--ink) 42%, transparent); }
+/* Board read — same 12u gutter; a hairline over the quiet one-line comp read (triples · top tribe). */
+.oppframe .opp-preview { padding: calc(7 * var(--u)) calc(12 * var(--u)) calc(9 * var(--u)); border-top: 1px solid var(--line); }
 .oppframe .opp-compline { font-family: var(--font-ui); font-weight: 700; font-size: calc(11.5 * var(--u)); line-height: 1; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The tribe word carries a quiet tint of its tribe hue (--tc set inline) — color + text, no pill box. */
 .oppframe .opp-tribe { color: color-mix(in srgb, var(--tc) 62%, var(--ink)); font-weight: 800; }

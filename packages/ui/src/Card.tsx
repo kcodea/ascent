@@ -138,6 +138,7 @@ export const Card = memo(function Card({
   tripleReady,
   forceFull,
   slideDir,
+  handSlidePx,
 }: {
   card: CardView;
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
@@ -192,6 +193,9 @@ export const Card = memo(function Card({
    *  A CSS `transition: transform` (active while dragging) glides it as the drop gap moves — the neighbour
    *  "make room" animation. Half-slot each side keeps the row centred and matches the final drop position. */
   slideDir?: number;
+  /** Hand reorder slide, in PIXELS (the hand's cards overlap, so the slot width is measured, not derived).
+   *  Composes with the hand's translateY tuck so the fan keeps its tuck while parting to make room. */
+  handSlidePx?: number;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
@@ -262,7 +266,9 @@ export const Card = memo(function Card({
       className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
-        transform: slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
+        transform: handSlidePx
+          ? `translateX(${handSlidePx}px) translateY(42%)` /* hand reorder: keep the 42% tuck (see .row.hand .card) */
+          : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
       onClick={onClick}
       onMouseEnter={hasPopup && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
       onMouseLeave={hasPopup ? hideRefTip : undefined}

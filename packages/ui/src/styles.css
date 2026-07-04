@@ -395,6 +395,8 @@ body.dragging .row.hand .card:hover { transform: translateY(42%); z-index: auto;
    (no transition) exactly as the card commits to its final slot — no post-drop jump. */
 body.dragging .zone[data-zone='warband'] .card,
 body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubic-bezier(0.12, 0.82, 0.12, 1) !important; }
+/* Hand reorder: the fan parts to make room as the gap moves (handSlidePx changes) — glide that shift. */
+body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0.82, 0.12, 1); }
 /* While dragging, the cursor still "hovers" the cards under the (pointer-events:none) floating card — don't
    flash their hover glow. Reset to the base card shadow. */
 body.dragging .zone[data-zone='warband'] .card:hover,

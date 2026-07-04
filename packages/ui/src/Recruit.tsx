@@ -869,12 +869,16 @@ export function Recruit() {
   // be counted against the cached resting midpoints instead of calling getBoundingClientRect on every card
   // every frame. That live read was the last drag path still forcing a synchronous reflow per frame (a
   // read-after-Flip-write thrash); arithmetic against the cache removes it. Null outside a drag.
-  const insertRectsRef = useRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[] } | null>(null);
+  const insertRectsRef = useRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[]; hand: { uid: string; left: number; width: number }[] } | null>(null);
+  // Hand cards OVERLAP (negative margin), so their slot spacing isn't the card width — measure it once per
+  // drag (consecutive cached lefts) and multiply the per-card slot offset by it to make the parting gap match.
+  const handSlotWRef = useRef(0);
   // Last frame's reorder gap index (warband / shop). A reorder swap must trigger against each neighbour's
   // CURRENT (shifted) position, and that depends on where the gap currently is — hence we carry it frame to
   // frame. -1 = not reordering yet (falls back to the dragged card's home slot).
   const prevWarbandGapRef = useRef(-1);
   const prevShopGapRef = useRef(-1);
+  const prevHandGapRef = useRef(-1);
   const timeUp = useTurnTimeUp(); // turn timer expired: lock everything but End Turn (flips once/turn — see turnClock)
 
   const zoneAt = (x: number, y: number): Zone | null => {
@@ -967,10 +971,15 @@ export function Recruit() {
     }
     return i;
   };
-  // Insertion index in the HAND from the drop x (for reordering). The hand doesn't open a live gap, so the
-  // cards sit still during the drag — measure them fresh + count the ones whose midpoint the cursor passed,
-  // excluding the dragged card. Result is the index in the post-removal array (matches the reducer's splice).
+  // Insertion index in the HAND from the drag x (for reordering) — counts cached slot midpoints the cursor
+  // passed (against the live gap, so swaps trigger symmetrically), excluding the dragged card. Result is the
+  // index in the post-removal array (matches the reducer's splice). Mirrors shopIndexAt.
   const handIndexAt = (x: number, excludeUid?: string): number => {
+    const cached = insertRectsRef.current;
+    if (cached?.hand)
+      return excludeUid
+        ? reorderIndexFromSlots(cached.hand, x, excludeUid, prevHandGapRef.current)
+        : indexFromSlots(cached.hand, x);
     const cards = [...document.querySelectorAll<HTMLElement>('.row.hand .card[data-uid]')];
     let i = 0;
     for (const c of cards) {
@@ -1141,13 +1150,19 @@ export function Recruit() {
           return { uid: el.getAttribute('data-uid') ?? '', left: r.left, width: r.width };
         })
         .filter((c) => c.uid);
+    const handSlots = measureSlots('.row.hand .card[data-uid]');
     insertRectsRef.current = {
       warband: measureSlots('[data-zone="warband"] .row .card[data-uid]'),
       shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
+      hand: handSlots,
     };
+    // Hand slot spacing = the gap between consecutive card lefts (they overlap, so it's < card width). Used to
+    // size the reorder parting so cards shift exactly one slot. Falls back to the card width for a 1-card hand.
+    handSlotWRef.current = handSlots.length >= 2 ? handSlots[1]!.left - handSlots[0]!.left : handSlots[0]?.width ?? 0;
     // Fresh drag → no prior gap yet; the index fns fall back to the dragged card's home slot for frame one.
     prevWarbandGapRef.current = -1;
     prevShopGapRef.current = -1;
+    prevHandGapRef.current = -1;
     const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && !timeUp && y < wbTop;
     if (drag.source === 'board' && !drag.view.spell) setSellTop(wbTop);
     if (drag.source === 'shop') setBuyTop(midlineY);
@@ -1701,7 +1716,9 @@ export function Recruit() {
     magnetizesTo(drag.view.cardId, magHoverTarget.cardId);
   // Casting a targeted spell from the hand: highlight the friendly minion under the
   // cursor (it's the target), and don't treat it as a board-insertion drag.
-  const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && (drag.view.target === 'friendly' || drag.view.target === 'any');
+  // A targeted spell only enters "aiming" once it's dragged UP past the play line — down in the hand it's a
+  // reorder (see the drop handler), so the targeting reticle stays hidden there.
+  const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && (drag.view.target === 'friendly' || drag.view.target === 'any') && drag.y < playFloorRef.current;
   // The target under the cursor — a board minion, or (for `any` spells) a tavern offer.
   const castTargetUid = castingSpell
     ? boardUidAt(drag!.x, drag!.y) ?? (drag!.view.target === 'any' ? shopUidAt(drag!.x, drag!.y) : null)
@@ -1787,6 +1804,19 @@ export function Recruit() {
     const p = i < draggedShopIdx ? i : i - 1;
     return (p < shopGapIndex ? p : p + 1) - i;
   };
+  // Hand reorder slide (mirror of shopSlide). Reorder mode = the dragged HAND card sits DOWN in the hand
+  // region (its centre below the play line), not lifted up to play/cast — then the gap opens at the drop
+  // index and every OTHER hand card shifts one slot when the gap crosses it. `handSlidePx` (in the JSX)
+  // multiplies this by the measured overlap spacing so the fan parts by exactly one slot.
+  const draggingHand = !!drag?.active && drag.source === 'hand';
+  const overHandReorder = draggingHand && drag!.y >= playFloorRef.current;
+  const draggedHandIdx = draggingHand ? run.hand.findIndex((c) => c.uid === drag!.uid) : -1;
+  const handGapIndex = overHandReorder ? handIndexAt(dragCx, drag!.uid) : -1;
+  const handSlide = (i: number): number => {
+    if (!draggingHand || handGapIndex < 0 || i === draggedHandIdx) return 0;
+    const p = i < draggedHandIdx ? i : i - 1;
+    return (p < handGapIndex ? p : p + 1) - i;
+  };
   // FLIP key tracks row composition + order AND the live drop-slot index, so cards slide smoothly *as the
   // gap moves during a drag* (not just on drop). GSAP Flip animates this robustly — it reads in a batch,
   // uses GPU transforms, and blends interruptions natively, so rapid gap moves don't storm the way the old
@@ -1802,6 +1832,9 @@ export function Recruit() {
   useEffect(() => {
     if (shopGapIndex >= 0) prevShopGapRef.current = shopGapIndex;
   }, [shopGapIndex]);
+  useEffect(() => {
+    if (handGapIndex >= 0) prevHandGapRef.current = handGapIndex;
+  }, [handGapIndex]);
 
   // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* run (the
   // cards' old spots); after React commits the new order, `Flip.from` animates each card from there to its
@@ -2112,6 +2145,20 @@ export function Recruit() {
       dispatch({ type: 'sell', uid: d.uid });
       return true;
     }
+    // A HAND card (minion OR spell) released DOWN in the hand region REORDERS it — takes precedence over
+    // play/cast, so spells reorder too. Lands where the live gap opened (prevHandGapRef, WYSIWYG). The settle
+    // Flip is captured here EXCLUDING the dragged card, so it just appears in its new slot — no replay of the
+    // drag. A drop on its own slot is a no-op (it settles back in place).
+    if (d.source === 'hand' && y >= playFloorRef.current) {
+      const from = run.hand.findIndex((c) => c.uid === d.uid);
+      const to = prevHandGapRef.current >= 0 ? prevHandGapRef.current : handIndexAt(cx, d.uid);
+      if (from >= 0 && from !== to) {
+        const els = [...document.querySelectorAll<HTMLElement>('.row.hand .card[data-uid]')].filter((el) => el.dataset.uid !== d.uid);
+        handReorderFlipRef.current = Flip.getState(els);
+        dispatch({ type: 'reorderHand', uid: d.uid, toIndex: to });
+      }
+      return true;
+    }
     // Cast a spell — playable anywhere from the warband up (incl. the tavern), since spells can't
     // be sold. A targeted spell hits the minion under the cursor, or auto-targets the carry when
     // flung up with no minion under it; an untargeted spell just resolves.
@@ -2158,23 +2205,13 @@ export function Recruit() {
       return false;
     }
     if (d.source === 'hand' && !d.view.spell) {
-      // Up PAST the play floor with room on the board → PLAY it (you needn't hit the warband row exactly;
-      // land where the preview's gap was last rendered so neighbours don't rebound).
-      if (y < playFloorRef.current && run.board.length < CONFIG.boardMax) {
-        const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
-        playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
-        puffOnBoard(d.uid); // dust around the minion where it lands
-        return true;
-      }
-      // Released down in the hand (or the board's full) → REORDER the hand to where it was dropped. Cosmetic;
-      // a drop on the card's own slot is a no-op (it just settles back in place). A dedicated GSAP Flip
-      // (handReorderFlipRef, captured here BEFORE the reorder mutates the DOM) glides the fan on commit.
-      const from = run.hand.findIndex((c) => c.uid === d.uid);
-      const to = handIndexAt(cx, d.uid);
-      if (from >= 0 && from !== to) {
-        handReorderFlipRef.current = Flip.getState('.row.hand .card[data-uid]');
-        dispatch({ type: 'reorderHand', uid: d.uid, toIndex: to });
-      }
+      // Released UP in the play area (the reorder case, y ≥ play floor, is handled above) → PLAY it if there's
+      // room. You needn't hit the warband row exactly; land where the preview's gap was last rendered
+      // (WYSIWYG) so neighbours don't rebound. Board full → snap back.
+      if (run.board.length >= CONFIG.boardMax) return false;
+      const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
+      playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
+      puffOnBoard(d.uid); // dust around the minion where it lands
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {
@@ -2452,7 +2489,7 @@ export function Recruit() {
         onPointerLeave={() => setHandPreview(null)}
       >
         <div className="row hand">
-          {run.hand.map((m) => (
+          {run.hand.map((m, i) => (
             <Card
               key={m.uid}
               uid={m.uid}
@@ -2463,6 +2500,7 @@ export function Recruit() {
               buffed={buffedUids.has(m.uid)}
               buffFloat={statFloats[m.uid] ?? null}
               arrived={arrivedUids.has(m.uid)}
+              handSlidePx={handSlide(i) * handSlotWRef.current}
               onPointerDown={onCardPointerDown}
               forceFull
             />

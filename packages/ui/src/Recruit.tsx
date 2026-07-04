@@ -258,6 +258,10 @@ export function Recruit() {
     Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + goldManaBonus;
 
   const [drag, setDrag] = useState<DragState | null>(null);
+  // The hand card currently hovered (while NOT dragging) → a magnified preview floats above the fan so the
+  // whole card reads, while the in-hand card stays put. Stores the hovered card's centre-x + top to anchor
+  // the preview over it; updated only when the hovered uid changes (so it doesn't re-render every move).
+  const [handPreview, setHandPreview] = useState<{ uid: string; cx: number; top: number } | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
   // Height (px) of the sell region = top of screen → top of the warband. Measured when a board-minion
   // drag begins, so the whole upper screen can act as one big "drop to sell" zone.
@@ -1053,6 +1057,7 @@ export function Recruit() {
       // capture the pointer so move/up keep firing even if it leaves the window or races
       // ahead of the floating card — events still bubble to the window listeners.
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
+      setHandPreview(null); // a grab dismisses the hover preview immediately
       setDrag({
         uid, source, view,
         ox: r.width / 2, oy: r.height / 2,           // anchor = centre → the card rides centred on the cursor
@@ -2393,7 +2398,20 @@ export function Recruit() {
         </div>
       </div>
 
-      <div className={`zone${canDropHand ? ' dropok' : ''}`} data-zone="hand">
+      <div
+        className={`zone${canDropHand ? ' dropok' : ''}`}
+        data-zone="hand"
+        onPointerMove={(e) => {
+          if (drag) { if (handPreview) setHandPreview(null); return; }
+          const el = (e.target as HTMLElement).closest('.card[data-uid]') as HTMLElement | null;
+          const uid = el?.dataset.uid ?? null;
+          if (uid === (handPreview?.uid ?? null)) return; // same card (or still empty) → no state churn
+          if (!uid) { setHandPreview(null); return; }
+          const r = el!.getBoundingClientRect();
+          setHandPreview({ uid, cx: r.left + r.width / 2, top: r.top });
+        }}
+        onPointerLeave={() => setHandPreview(null)}
+      >
         <div className="row hand">
           {run.hand.map((m) => (
             <Card
@@ -2417,6 +2435,21 @@ export function Recruit() {
           ))}
         </div>
       </div>
+
+      {/* Magnified hover preview — a larger, crisp copy of the hovered hand card floats above the fan (the
+          in-hand card stays put). Fixed + pointer-events:none so it never blocks the cursor; hidden mid-drag
+          and in combat. `key` on the uid so moving to a new card replays the pop-in. */}
+      {handPreview && !drag && !inCombat && handViews.get(handPreview.uid) && (
+        <div
+          className="handpreview"
+          style={{ left: handPreview.cx, top: handPreview.top - 8 } as CSSProperties}
+          aria-hidden="true"
+        >
+          <div className="handpreview-card" key={handPreview.uid}>
+            <Card card={handViews.get(handPreview.uid)!} forceFull />
+          </div>
+        </div>
+      )}
 
       {/* Loss-damage tally — surviving enemy tiers + the opponent's tier fly up into a damage counter
           above the enemy board (clamped to the round cap), then blast the Resolve bar. */}

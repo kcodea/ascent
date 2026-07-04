@@ -374,7 +374,15 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .row.hand .card:first-child { margin-left: 0; }
 /* hover lifts just enough to reveal the whole card + bring it forward — small so the card
    stays under the cursor (no bounce-out). */
-.row.hand .card:hover { transform: translateY(8%); z-index: 45; }
+/* Hover barely lifts the in-hand card now — the magnified `.handpreview` above the fan does the reveal, so
+   the card itself stays put (a small rise is just "this one's hovered" feedback). */
+.row.hand .card:hover { transform: translateY(34%); z-index: 45; }
+/* Magnified hover preview — a larger, crisp copy of the hovered hand card, anchored bottom-centre just above
+   the card. Fixed + pointer-events:none so it never intercepts the cursor. Scale (not a resize) so the text
+   scales too; the pop-in animates transform/opacity only (compositor), with a STATIC drop-shadow. */
+.handpreview { position: fixed; z-index: 55; pointer-events: none; transform: translate(-50%, -100%); will-change: transform; }
+.handpreview-card { transform: scale(1.5); transform-origin: center bottom; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); animation: handpreviewpop 0.13s cubic-bezier(0.2, 0.8, 0.3, 1); }
+@keyframes handpreviewpop { from { opacity: 0; transform: scale(1.24) translateY(10px); } to { opacity: 1; transform: scale(1.5) translateY(0); } }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(42%); z-index: auto; }

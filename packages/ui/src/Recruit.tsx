@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type ShopCard } from '@game/sim';
+import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
@@ -73,13 +73,13 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 
 /** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
  *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
-function ShopTimer() {
+function ShopTimer({ label }: { label: string }) {
   const s = Math.max(0, useTurnSeconds());
   return (
-    <div className={`shopbtn timeplaque${s <= 5 ? ' low' : ''}`}>
-      <span className="sb-l">Time</span>
-      <span className="sb-ic"><Icon name="clock" /></span>
-      <span className="sb-v">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
+    <div className={`statcell time${s <= 5 ? ' low' : ''}`}>
+      <span className="sc-l">{label}</span>
+      <span className="sc-ic"><Icon name="clock" /></span>
+      <span className="sc-v">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
       <span className="sbtip">Time left this turn — at 0 your actions lock; hit End Turn</span>
     </div>
   );
@@ -1870,7 +1870,7 @@ export function Recruit() {
     const t = e.target as HTMLElement;
     if (t.closest('[data-zone] .card')) { sfx.cardTouch(); return; }
     if (heroArmed || drag) return;
-    if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar, .endturn-side')) return;
+    if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar')) return;
     sfx.clickThock();
     pixiFx.clickPuff(e.clientX, e.clientY); // small Pixi dust at the cursor (sibling of the card-landing dust)
   };
@@ -2059,8 +2059,8 @@ export function Recruit() {
         setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card) }]);
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
       }
-      // Sprinkle gold coins out of the Gold counter (the GOLD plaque in the shop row up top) to sell the income.
-      const goldEl = document.querySelector('.shopbtn.gold');
+      // Sprinkle gold coins out of the Gold counter (the GOLD cell in the info strip up top) to sell the income.
+      const goldEl = document.querySelector('.statcell.gold');
       if (goldEl) {
         const gr = goldEl.getBoundingClientRect();
         pixiFx.coins(gr.left + gr.width / 2, gr.top + gr.height * 0.4);
@@ -2156,33 +2156,35 @@ export function Recruit() {
       <div className={`shopbar${inCombat ? ' closing' : ''}`}>
         {/* Info plaques (Shop tier + turn Time) as widgets — same plaque language as the action row so they
             read at a glance instead of as loose text. The tier value takes the card tier-badge colour. */}
-        <div className="shoprow shoprow-info">
-          <div className="shopbtn tierplaque" data-tier={run.tier}>
-            <span className="sb-l">Shop</span>
-            <span className="sb-v">Tier {run.tier}</span>
-            <span className="sbtip">Shop tier — higher tiers offer stronger minions (Tavern Up to raise it)</span>
-          </div>
-          <ShopTimer />
-        </div>
-        <div className="shoprow">
-          {/* Gold — a display (current Gold this turn), not an action. Styled tooltips (.sbtip) replace the
-              native title so the hover hints match the game's dark-pill format. */}
-          <div className="shopbtn gold">
-            <span className="sb-l">Gold</span>
-            <span className="sb-ic"><Icon name="mana" /></span>
-            <span className="sb-v">{run.embers}</span>
+        {/* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) grouped in one segmented
+            plaque. Styled tooltips (.sbtip) replace the native title so hover hints match the dark-pill format. */}
+        <div className="statstrip">
+          <div className="statcell gold">
+            <span className="sc-l">Gold</span>
+            <span className="sc-ic"><Icon name="mana" /></span>
+            <span className="sc-v">{run.embers}</span>
             <span className="sbtip">Your Gold this turn</span>
           </div>
+          <div className="statcell tier" data-tier={run.tier}>
+            <span className="sc-l">Tier</span>
+            <span className="sc-v">{run.tier}</span>
+            <span className="sbtip">Shop tier — higher tiers offer stronger minions (Upgrade Tavern to raise it)</span>
+          </div>
+          <ShopTimer label={run.mode !== 'practice' && isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} />
+        </div>
+        {/* Action tray — the turn's actions grouped into one control bar (Upgrade Tavern · Reroll · Freeze ·
+            End Turn), framed by shopbutton.webp. */}
+        <div className="shoprow actiontray">
           {/* Tavern Up — cost = upgradeCost; disabled at max tier / can't afford / time up. */}
           <button
             className="shopbtn"
             disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp || eotAnimating}
             onClick={() => dispatch({ type: 'upgrade' })}
           >
-            <span className="sb-l">Tavern</span>
+            <span className="sb-l">Upgrade Tavern</span>
             <span className="sb-ic"><Icon name="star" /></span>
             <span className="sb-v">{run.tier < CONFIG.maxTier ? run.upgradeCost : '★'}</span>
-            <span className="sbtip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : `Tavern Up — to tier ${run.tier + 1}`}</span>
+            <span className="sbtip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : `Upgrade Tavern — to tier ${run.tier + 1}`}</span>
           </button>
           {/* Reroll — free rolls show 0. */}
           <button
@@ -2205,14 +2207,18 @@ export function Recruit() {
             <span className="sb-ic"><Icon name="freeze" /></span>
             <span className="sbtip">{run.frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}</span>
           </button>
+          {/* End Turn — the primary action, styled amber; mirrors the standalone right-edge button. */}
+          <button
+            className={`shopbtn endturn${timeUp ? ' urgent' : ''}`}
+            disabled={eotAnimating}
+            onClick={endTurn}
+          >
+            <span className="sb-l">End Turn</span>
+            <span className="sb-ic"><Icon name="sword" /></span>
+            <span className="sbtip">End your turn and start combat</span>
+          </button>
         </div>
       </div>
-      {/* End Turn — standalone, vertically-centred on the right edge (→ Start Combat). */}
-      <button className={`endturn-side${timeUp ? ' urgent' : ''}`} onClick={endTurn}>
-        <Icon name="sword" />
-        <span className="et-t">End Turn</span>
-        <span className="et-s">Start Combat</span>
-      </button>
       </>
       ) : (
         <div className="combatctl">

@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **HUD restyle to the mockup** — the shop controls regroup into one segmented **stat strip** (Gold · Tier ·
+  Setup Time) over a gold-edged **control tray** (Upgrade Tavern · Reroll · Freeze · End Turn) with warmer
+  tan-gold buttons; the redundant right-edge End Turn is gone. The controls sit in a fixed-height block that
+  matches the combat footprint exactly (rows never shift between shop and combat), and on tall windows the
+  **warband sits under the board's centre line** (a layout offset combat animations don't fight).
 - **Review-driven correctness batch** — a full code + gameplay review ([docs/code-review-2026-07-03.md](docs/code-review-2026-07-03.md))
   and its correctness fixes: 0-damage hits no longer pop Ward, enemy Start-of-Combat effects fire, on-kill
   procs on every kill in a clash, the Reclaimer's resummon keeps its progression, and **aura battlecries

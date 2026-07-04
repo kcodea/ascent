@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-03 (session 15)
 
+### fix(ui): buy/sell drag "replay" + timer/shop-tier plaque widgets (owner follow-up)
+
+Two owner-directed follow-ups to the review batch below:
+
+- **Buy/sell no longer replays the slide.** The first sell fix only covered the store-dispatch path; the real
+  gestures are drags (buy = shop→hand, sell = board→tavern), and they showed a double-slide: during the
+  pull-out drag the source row already slides its survivors to the re-centred spots (`boardSlide`/`shopSlide`
+  close the gap while the dimmed card holds width), then on commit the whole-row FLIP snapped them back to the
+  full-row layout and re-slid — the "replay." Fix: route buy + sell through the SAME drop-time capture the
+  reorders use (`handFlipRef`/`handPlaySnapRef`, snapshotting the source row's live `getBoundingClientRect`
+  before reflow), so the commit glides each survivor from where it visually sits (already re-centred) → its
+  final slot ≈ zero motion. (The `offsetLeft` commit-branch FLIP stays for non-drag mutations — summoned
+  tokens, effect repositions, store-dispatch.) Owner to confirm the drag feel.
+- **Timer + shop tier are now plaque widgets.** The turn timer and "Shop Tier N" were loose text above the
+  control row; they're now `.shopbtn` plaques (a "Shop · Tier N" plaque with the tier-badge colour + a "Time ·
+  M:SS" plaque that fills red-tinted in the last 5s) in an info row above the Gold/Tavern/Reroll/Freeze
+  actions — same plaque language, so they read at a glance. `.shopbar` margin-top re-tuned 26u→10u to keep the
+  warband at its combat-parity position under the taller header; dead `.shoplabel`/`.shoptimer`/`.shoptier`
+  CSS removed.
+
+Verified live: warband top identical in shop + combat (639/639) with the new header; widgets render + the
+low-time red state fires; UI edits add no new `typecheck:web` errors; `typecheck` + `lint` green.
+
 ### fix: review-driven correctness batch (engine + sim + tooling + 3 owner bugs)
 
 A full code + gameplay review of `main` (4 parallel review passes + the headless tool suite), written up in

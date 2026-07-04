@@ -71,13 +71,15 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
   return `perspective(${persp}px) translate(${tx}px, ${ty}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale}) rotate(${spin}deg)`;
 }
 
-/** Turn countdown (M:SS) shown above the SHOP label. Subscribes to the clock so ONLY this reads per-second;
- *  turns red in the last 5s. */
+/** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
+ *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
 function ShopTimer() {
   const s = Math.max(0, useTurnSeconds());
   return (
-    <div className={`shoptimer${s <= 5 ? ' low' : ''}`}>
-      <Icon name="clock" />{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}
+    <div className={`shopbtn timeplaque${s <= 5 ? ' low' : ''}`}>
+      <span className="sb-l">Time</span>
+      <span className="sb-ic"><Icon name="clock" /></span>
+      <span className="sb-v">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
       <span className="sbtip">Time left this turn — at 0 your actions lock; hit End Turn</span>
     </div>
   );
@@ -1186,10 +1188,18 @@ export function Recruit() {
       const handMinionDrop = d.source === 'hand' && !d.view.spell && zone === 'warband';
       const boardReorderDrop = d.source === 'board' && zone === 'warband';
       const shopReorderDrop = d.source === 'shop' && zone === 'tavern' && d.uid !== run.spell?.uid;
+      // A SELL (board→tavern) re-centres the WARBAND; a BUY (shop→hand) re-centres the TAVERN. During the
+      // pull-out drag the source row already slid its survivors to the closed-gap (re-centred) spots via
+      // boardSlide/shopSlide, so snapshot their LIVE positions here too and route them through the same
+      // drop-time FLIP as a reorder. The commit then glides each survivor from where it visually sits (already
+      // re-centred) → its final slot ≈ zero motion — instead of the commit-branch FLIP snapping them back to
+      // the full-row layout and re-sliding (the reported "replay the sliding motion after a sell/buy").
+      const sellDrop = d.source === 'board' && zone === 'tavern' && !d.view.spell && !timeUp;
+      const buyDrop = d.source === 'shop' && zone === 'hand';
       const flipZoneSel =
-        handMinionDrop || boardReorderDrop
+        handMinionDrop || boardReorderDrop || sellDrop
           ? '[data-zone="warband"] .row .card[data-uid]'
-          : shopReorderDrop
+          : shopReorderDrop || buyDrop
             ? '[data-zone="tavern"] .row .card[data-uid]'
             : null;
       if (flipZoneSel) {
@@ -1235,10 +1245,10 @@ export function Recruit() {
       const acted = applyDrop(d, zone, e.clientX, e.clientY);
       // Route drag-drop commits through the manual per-card FLIP (see `handPlaySnapRef`) instead of the
       // whole-row Flip.from, which would replay the dragged card's move after the drop. Covers a played hand
-      // minion entering the board, a board reorder, AND a shop-offer reorder — each snapshotted its row's live
-      // spots above and glides only the cards that actually shifted (the dragged card is excluded, so it never
-      // re-slides).
-      if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop)) handPlaySnapRef.current = true;
+      // minion entering the board, a board/shop-offer reorder, AND a SELL / BUY pull-out — each snapshotted its
+      // row's live spots above and glides only the cards that actually shifted (the dragged card is excluded,
+      // so it never re-slides; on a sell/buy the survivors already sat re-centred, so they barely move).
+      if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop || sellDrop || buyDrop)) handPlaySnapRef.current = true;
       if (acted || d.view.spell) {
         // a spell that misses just ends — it was never lifted from the hand
         setDrag(null);
@@ -2144,9 +2154,16 @@ export function Recruit() {
       {/* SHOP controls — a labelled row of gold plaque buttons (Gold · Tavern · Reroll · Freeze) framed by
           shopbutton.webp. The turn timer now lives in the header; End Turn is a standalone button (right). */}
       <div className={`shopbar${inCombat ? ' closing' : ''}`}>
-        <ShopTimer />
-        {/* The tier number takes the SHOP's current tier colour (the card tier-badge palette). */}
-        <div className="shoplabel">Shop <span className="shoptier" data-tier={run.tier}>Tier {run.tier}</span></div>
+        {/* Info plaques (Shop tier + turn Time) as widgets — same plaque language as the action row so they
+            read at a glance instead of as loose text. The tier value takes the card tier-badge colour. */}
+        <div className="shoprow shoprow-info">
+          <div className="shopbtn tierplaque" data-tier={run.tier}>
+            <span className="sb-l">Shop</span>
+            <span className="sb-v">Tier {run.tier}</span>
+            <span className="sbtip">Shop tier — higher tiers offer stronger minions (Tavern Up to raise it)</span>
+          </div>
+          <ShopTimer />
+        </div>
         <div className="shoprow">
           {/* Gold — a display (current Gold this turn), not an action. Styled tooltips (.sbtip) replace the
               native title so the hover hints match the game's dark-pill format. */}

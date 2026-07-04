@@ -127,35 +127,40 @@ canvas.spr { image-rendering: pixelated; display: block; }
    visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
 .topright { position: absolute; top: 0; right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(14 * var(--u)); }
-/* Next-enemy frame — a larger gold-bordered panel: a plate (author-name pill overlapping the top, hero
-   portrait + tavern tier + wins + life(+armor)) with an attached board-preview strip below (a blacked-out
-   silhouette per enemy minion + triple count + top tribe). Intel reads on the plate now, not a hover tip. */
-.oppframe { position: relative; display: flex; flex-direction: column; width: calc(292 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
-.oppframe .opp-plate { position: static; display: flex; align-items: center; gap: calc(12 * var(--u)); padding: calc(13 * var(--u)) calc(16 * var(--u)) calc(11 * var(--u)) calc(12 * var(--u)); }
+/* Next-enemy frame — compact intel panel. Plate: author-name pill overlapping the top edge, hero portrait,
+   hero name with tier ★ + wins 👑 tucked under it, and LIFE(+armor) big in the top-right (the lethal-math
+   number gets the power position). Attached below, ONE preview strip: a blacked-out silhouette per enemy
+   minion (count only), then a gold triples tag + the top tribe tinted in its tribe hue. ★ = tier ONLY —
+   triples are a text tag, so no icon carries two meanings. */
+.oppframe { position: relative; display: flex; flex-direction: column; width: calc(236 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(14 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
+.oppframe .opp-plate { position: static; display: flex; align-items: center; gap: calc(10 * var(--u)); padding: calc(12 * var(--u)) calc(12 * var(--u)) calc(9 * var(--u)) calc(10 * var(--u)); }
 /* Author name — a raspberry pill overlapping the panel's top-left edge. */
-.oppframe .opp-name { position: absolute; top: 0; left: calc(14 * var(--u)); transform: translateY(-52%); max-width: calc(232 * var(--u)); padding: calc(2 * var(--u)) calc(13 * var(--u)); background: var(--threat); color: #fff; border: 2px solid var(--card); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.22); z-index: 2; }
-.oppframe .opp-pic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(14 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--threat); }
+.oppframe .opp-name { position: absolute; top: 0; left: calc(12 * var(--u)); transform: translateY(-55%); max-width: calc(180 * var(--u)); padding: calc(1 * var(--u)) calc(11 * var(--u)); background: var(--threat); color: #fff; border: 2px solid var(--card); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.22); z-index: 2; }
+.oppframe .opp-pic { width: calc(52 * var(--u)); height: calc(52 * var(--u)); border-radius: calc(12 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--threat); }
 .oppframe .opp-pic img { width: 100%; height: 100%; object-fit: cover; }
-.oppframe .opp-pic svg { width: calc(33 * var(--u)); height: calc(33 * var(--u)); color: var(--ink3); }
-.oppframe .opp-info { display: flex; flex-direction: column; gap: calc(4 * var(--u)); min-width: 0; flex: 1; }
-.oppframe .opp-hero { font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); color: var(--ink); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.oppframe .opp-meta { display: inline-flex; align-items: center; gap: calc(13 * var(--u)); }
-.oppframe .opp-tier, .oppframe .opp-wins { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); color: var(--ink2); font-variant-numeric: tabular-nums; }
-.oppframe .opp-tier svg, .oppframe .opp-wins svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: var(--acc); }
-.oppframe .opp-life { display: inline-flex; align-items: center; gap: calc(5 * var(--u)); }
-.oppframe .opp-life svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); color: var(--threat); }
-.oppframe .opp-hp { font-family: var(--font-ui); font-weight: 900; font-size: calc(22 * var(--u)); color: var(--threat-dk); line-height: 1; font-variant-numeric: tabular-nums; }
-.oppframe .opp-armor { margin-left: calc(2 * var(--u)); font-size: calc(15 * var(--u)); color: #7c8996; }
-/* Board preview — attached under the plate as one connected panel (a top divider separates the sections). */
-.oppframe .opp-preview { display: flex; flex-direction: column; gap: calc(7 * var(--u)); padding: calc(9 * var(--u)) calc(14 * var(--u)) calc(10 * var(--u)); border-top: 2px solid var(--line); background: color-mix(in srgb, var(--ink) 5%, var(--card)); border-radius: 0 0 calc(14 * var(--u)) calc(14 * var(--u)); }
-.oppframe .opp-silhouettes { display: flex; flex-wrap: wrap; gap: calc(4 * var(--u)); min-height: calc(24 * var(--u)); align-items: center; }
-.oppframe .opp-sil { width: calc(18 * var(--u)); height: calc(24 * var(--u)); border-radius: calc(4 * var(--u)); background: color-mix(in srgb, var(--ink) 60%, transparent); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16); }
+.oppframe .opp-pic svg { width: calc(27 * var(--u)); height: calc(27 * var(--u)); color: var(--ink3); }
+.oppframe .opp-info { display: flex; flex-direction: column; gap: calc(5 * var(--u)); min-width: 0; flex: 1; }
+/* Top row: hero name left, life right. */
+.oppframe .opp-toprow { display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--u)); }
+.oppframe .opp-hero { font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: var(--ink); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.oppframe .opp-life { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); flex: none; }
+.oppframe .opp-life svg { width: calc(17 * var(--u)); height: calc(17 * var(--u)); color: var(--threat); }
+.oppframe .opp-hp { font-family: var(--font-ui); font-weight: 900; font-size: calc(21 * var(--u)); color: var(--threat-dk); line-height: 1; font-variant-numeric: tabular-nums; }
+.oppframe .opp-armor { margin-left: calc(2 * var(--u)); font-weight: 800; font-size: calc(14 * var(--u)); color: #7c8996; }
+/* Meta row under the name: tier ★ + wins 👑, muted. (Doubles as the no-intel caption on the threat card.) */
+.oppframe .opp-meta { display: inline-flex; align-items: center; gap: calc(12 * var(--u)); font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); color: var(--ink3); }
+.oppframe .opp-tier, .oppframe .opp-wins { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink2); }
+.oppframe .opp-tier svg, .oppframe .opp-wins svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
+/* Board preview — ONE strip: silhouettes left, comp tags right (wrap under only on the widest boards). */
+.oppframe .opp-preview { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: calc(4 * var(--u)) calc(8 * var(--u)); padding: calc(7 * var(--u)) calc(11 * var(--u)) calc(8 * var(--u)); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--ink) 3.5%, var(--card)); border-radius: 0 0 calc(12 * var(--u)) calc(12 * var(--u)); }
+.oppframe .opp-silhouettes { display: flex; gap: calc(3 * var(--u)); align-items: center; }
+.oppframe .opp-sil { width: calc(15 * var(--u)); height: calc(19 * var(--u)); border-radius: calc(3.5 * var(--u)) calc(3.5 * var(--u)) calc(2.5 * var(--u)) calc(2.5 * var(--u)); background: color-mix(in srgb, var(--ink) 55%, transparent); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18); }
 .oppframe .opp-sil-empty { font-family: var(--font-ui); font-weight: 700; font-size: calc(11 * var(--u)); color: var(--ink3); font-style: italic; }
-.oppframe .opp-comp { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); flex-wrap: wrap; }
-.oppframe .opp-tag { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); color: var(--ink2); background: var(--bg2); border-radius: 999px; padding: calc(2 * var(--u)) calc(10 * var(--u)); }
-.oppframe .opp-tag svg { width: calc(12 * var(--u)); height: calc(12 * var(--u)); color: var(--acc); }
-.oppframe .opp-tribe { color: var(--acc-dk); }
-.oppframe .opp-preview-empty { text-align: center; font-style: italic; color: var(--ink3); font-size: calc(12 * var(--u)); padding: calc(9 * var(--u)); }
+.oppframe .opp-comp { display: inline-flex; align-items: center; gap: calc(5 * var(--u)); }
+.oppframe .opp-tag { display: inline-flex; align-items: center; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); line-height: 1.5; white-space: nowrap; color: var(--ink2); background: var(--bg2); border-radius: 999px; padding: calc(1.5 * var(--u)) calc(8 * var(--u)); }
+.oppframe .opp-tag.gold { color: var(--gold); background: color-mix(in srgb, var(--gold-lt) 22%, var(--card)); }
+/* Tribe tag — tinted by the tribe's hue (--tc set inline): colored text on a soft same-hue wash. */
+.oppframe .opp-tag.tribe { color: color-mix(in srgb, var(--tc) 72%, var(--ink)); background: color-mix(in srgb, var(--tc) 16%, var(--card)); }
 /* No-intel threat fallback: neutral ring + pill. */
 .oppframe.threat .opp-pic { border-color: var(--ink3); }
 .oppframe.threat .opp-name { background: var(--ink3); }

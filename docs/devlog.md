@@ -3,6 +3,27 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-04 (session 19)
+
+### feat(ui): centre the damage number on the struck card + drop the minus sign
+
+Follow-up to session 18. The in-unit damage number now sits in the **centre of the card** being hit (was the
+bottom-right stat corner) so it reads as the hit landing on the minion, and the leading `−` is gone (just the
+number). Presentation-only (`packages/ui`).
+
+- `useCombatReplay.ts` — `floatFor` for `dmg` drops the `−` (`−${amount}` → `${amount}`); the killing-blow
+  death-overlay anchor moves to the card's vertical centre (`height * 0.32` → `* 0.5`).
+- `styles.css` — new `.unit .float.dmg` rule centres the in-unit number via `top/left: 50%` + a
+  `translate(-50%, -50%)` baked into a new `floatupc` keyframe (a plain `transform` would be overwritten by
+  the pop animation). `floatupc` mirrors `floatup` and keeps the Damage-Float tuner vars, so size/pop/rise
+  still tune it. The `.deathfloat` overlay copy is untouched (it isn't inside `.unit`) — already centred by its
+  container. Non-damage floats (poison/shield/buff/gold) stay in the corner.
+
+Verified: `typecheck` + `lint` + **482 tests** green; injected a `.float.dmg` into a synthetic `.unit` in the
+preview and measured the settled float centred exactly on the card (Δx = Δy = 0) with `animation-name:
+floatupc`. The live in-fight motion still wants a real-browser eyeball (headless preview pauses the combat
+clock).
+
 ## 2026-07-04 (session 18)
 
 ### feat(ui): damage numbers show only on the unit being attacked (not the attacker's retaliation)

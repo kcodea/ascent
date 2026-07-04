@@ -293,7 +293,7 @@ const KW_FLOAT: Partial<Record<string, string>> = {
 function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind: string } | null {
   if (!e) return null;
   switch (e.type) {
-    case 'dmg': return { uid: e.target, text: `−${e.amount}`, kind: 'dmg' };
+    case 'dmg': return { uid: e.target, text: `${e.amount}`, kind: 'dmg' };
     case 'poison': return { uid: e.target, text: '☠', kind: 'poison' };
     // Divine-Shield-break (◇) + Reborn (♻) floats removed — the break/reborn ring animation reads on its
     // own, and the glyph popped up late + confusing. (shieldUp's ◇ stays — it marks gaining a shield.)
@@ -600,7 +600,7 @@ export function useCombatReplay(
       // A damage number on a dying unit → the board overlay, anchored where the unit is right now.
       if (f.kind === 'dmg' && dying.has(f.uid)) {
         const r = findEl(f.uid)?.getBoundingClientRect();
-        if (r) { deaths.push({ id: i, x: r.left + r.width / 2, y: r.top + r.height * 0.32, text: f.text, kind: f.kind }); continue; }
+        if (r) { deaths.push({ id: i, x: r.left + r.width / 2, y: r.top + r.height * 0.5, text: f.text, kind: f.kind }); continue; }
       }
       spawned.push({ id: i, ...f });
     }

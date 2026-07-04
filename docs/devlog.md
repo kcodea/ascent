@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-04 (session 18)
+
+### feat(ui): damage numbers show only on the unit being attacked (not the attacker's retaliation)
+
+Presentation-only (`packages/ui`). An attack is a two-way clash — the defender takes the swing and the
+attacker takes retaliation — and previously the `-N` damage float popped over **both** units. Now only the
+unit being **attacked** shows its number; the attacker's retaliation floats no number.
+
+`useCombatReplay.ts` — in the per-beat float spawn, collect the beat's attacker uids (`e.attacker` from the
+`attack` events) and skip any `dmg` float whose `uid` is an attacker. Scoped to `kind === 'dmg'`, so shield /
+keyword / buff floats are untouched; and to the attack beat only, so damage the attacker takes in other beats
+(e.g. a later deathrattle) still reads. The suppression sits before the dying→death-overlay branch, so a
+retaliation-killed attacker shows no number either (it isn't the attacked unit). CSS comment on `.float`
+updated to match.
+
+Verified: `typecheck` + `lint` + **482 tests** green. The change is a small, typed guard keyed on the
+`CombatEvent` shapes (`attack{attacker,defender}` / `dmg{target}`); the in-fight look wants a real-browser
+eyeball (the headless preview pauses the combat clock when the tab reports hidden, so a scripted fight can't
+render the floats) — start a practice run and watch a clash to confirm the feel.
+
 ## 2026-07-04 (session 17)
 
 ### feat(ui): combat-feel DEV tuners — Pacing + Damage Float — and fix 3 broken tuner labels/types

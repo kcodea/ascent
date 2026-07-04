@@ -185,10 +185,18 @@ look because the engine already produces the data.
   scales with spell power, so re-tune deliberately, don't stack nerfs), **Crypt Drake** (scale from
   **Dragon/Undead** attacks, not all ally attacks), **Gnasher** (cap spell-power gain per combat or require
   meaningful kills), **Wildwood Shaper** (more explicitly Beast-committed).
-- **Standing direction** (from `docs/balance-handoff.md` §9): counter-matrix is balance truth — the runner
-  flags **Mech dominant, Beast weak, Dragon/Undead flat** (stat numbers are starting dials); keep **T1–4
+- **Standing direction** (from `docs/balance-handoff.md` §9): counter-matrix is balance truth — keep **T1–4
   cards relevant** mid-game (scaling payoffs / triples); push **decision diversity** (tribe identity vs
   cross-tribe value engines). Tools: `npm run balance` / `curve` / `player` / `audit`.
+- **⚠ Rebuild the balance prober before the tuning pass** (review 2026-07-03): `balance.ts` bakes only each
+  tribe's 7 *lowest-tier* cards and lets Consume demons eat their own board (demon reads power 9 / 0%
+  everywhere), so its current "Mech dominant, Beast weak, Dragon/Undead inverted" matrix is mostly tool
+  artifact, not truth. Bake tier-appropriate boards per wave (or drive the modern greedy bot constrained
+  per tribe) + handle Consume/board-cap ordering, THEN read the matrix.
+- **Curve shape** (from `npm run curve`/`player`): the difficulty is **mid-heavy then a victory lap** — enemy
+  power steps 45→75→91 across waves 5–7 (bot win% troughs ~9%, only ~69% of runs reach wave 10), then waves
+  13–17 read 54–75% win. Smooth the wave-5–7 wall + steepen the late curve. Per-turn scalers also run away
+  (a greedy bot's Target Dummy hits 76/50 by wave 12 with zero synergy) — fold into the outlier re-shape list.
 - **Content depth:** target **13–15 minions per tribe** (variety is meant to come from the meta layer —
   heroes + quests/mastery/ancients — not raw card count); **~40 spells** (32 today). Run `npm run audit`.
 
@@ -252,9 +260,31 @@ system follow-ups (unify aggregate auras into the `cardBuffs` map; "Aura" line i
 the prior-fight Eternal-Knight enchant; Cassen grant fly-to-hand; ember-gain modifiers feed the projection;
 Buddy/Discover pool accounting; vendor Build Handoff v2 into `docs/handoff.md`.
 
-**Tech-debt watch (fold into whichever PR touches it):** split `Recruit.tsx` (~1.5k) into Shop/Hand/Board;
-split `run.test.ts` into per-area suites; consider sub-reducers in `reducer.ts` as actions grow. The new
-A4/A6/A7 screens are the natural moment to carve `Recruit.tsx`. No urgent debt.
+**Tech-debt watch (fold into whichever PR touches it):** split `Recruit.tsx` (**now ~2.7k**, past the flagged
+threshold — proposed seams in the review: `recruitViews` / `useCardDrag` / `useAuraTracker` / `useLossSequence`
+/ overlay components) into Shop/Hand/Board; split `run.test.ts` (**now ~3.9k**, 3× the old flag) into per-area
+suites; `recruit.ts` is 2k (extract `RECRUIT_FACTORIES`, relocate `spellDisplayText` to the UI text chain);
+consider sub-reducers in `reducer.ts` as actions grow. No urgent debt.
+
+**Review follow-ups (from [code-review-2026-07-03.md](code-review-2026-07-03.md); session 15 applied the
+correctness half — these remain):**
+- **UI perf sweep** — two infinite `box-shadow` keyframe loops violate the project's own banned pattern:
+  `endpulse` (`styles.css` — on `.heropowerbtn.ready` + `.endturn-side.urgent`, running most of every shop turn)
+  and `discpulse` (Discover overlay). Convert to the approved static-shadow `::before` + opacity pattern
+  (`kwglow`/`tripready`). Also: autosave is O(n²) (serializes the whole action log every dispatch — debounce);
+  `venomdrip`/`aimdash`/`.cardref` minor paint loops; Pixi tickers never idle-stop.
+- **UI dead-code purge** — Card still renders removed Reborn-tears DOM; **FontLab ships un-gated in prod**
+  (wants `import.meta.env.DEV`); a confirmed dead-CSS list (the OMEN block, `.chip`, `.toast`, `.legend`,
+  `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).
+- **UI type cleanup → `typecheck:web` CI gate** — ~50 pre-existing UI type errors (pixiFx particle types,
+  Recruit `targetScope`, Career/EndScreen/Leaderboard importing `BoardMinion`/`Tribe` from `@game/sim`,
+  ErrorBoundary `override`, tuner config keys) block the gate; CI has the step commented pending the cleanup.
+- **~17 dead effect-factory ids** in `factories.ts` (verified unused across content/sim/ui/tools/tests) +
+  the transitively-dead `battlecryGrantKeyword` chain + `reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache` — a
+  3-place sweep per id (factories + `types.ts` union + `schema.ts` enum), or mark explicitly dormant.
+- **Remote-pool replay scope** — cross-session replays can serve different opponents than were fought (the
+  fetched pool differs); stamp the served opponent into the run record at `faceOmen` if exact reconstruction
+  ever matters (pairs with the async-PvP server-side replay-validation work).
 
 ## Recently shipped (2026-06-29 — session 9; detail in devlog)
 - The Godfodder feeds a created Fodder (no longer shop-dependent) + its art; Hex Flayer / Wolves Den /

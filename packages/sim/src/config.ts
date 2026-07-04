@@ -9,9 +9,6 @@ export const CONFIG = {
   embersPerWave: 1,
   embersCap: 10,
 
-  // Resolve (HP)
-  startResolve: 30,
-
   // Course structure (A1). A run plays a fixed course of `courseRounds` rounds. The first
   // `calibrationRounds` are calibration: they still cost Resolve + run the economy, but do NOT count
   // toward your record. The run ALWAYS completes the course unless Resolve hits 0 (the failure). Your
@@ -25,6 +22,8 @@ export const CONFIG = {
   // Wave horizon for the balance/curve tools (`npm run curve`) — the difficulty curve is reported over
   // the whole course.
   maxWave: 17,
+  // Practice mode: a fixed sandbox session — ends after this many rounds regardless of W/L.
+  practiceRounds: 15,
 
   // Shop
   minionCost: 3,

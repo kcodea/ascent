@@ -20,7 +20,11 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run typecheck   # tsc --noEmit across all packages — the highest-value Claude-break catcher
-      - run: npm run lint        # eslint (incl. the Math.random ban in core/content/sim)
+      - run: npm run typecheck   # tsc --noEmit across core/content/sim/tools — the highest-value Claude-break catcher
+      - run: npm run lint        # eslint (incl. the Math.random ban in core/content/sim/tools)
       - run: npm test            # vitest: determinism + golden + effect tests
       - run: npm run build:web   # vite build MUST succeed = the game compiles
+      # NOTE: `npm run typecheck:web` (tsc for @game/ui + apps/web) is NOT gated yet — the UI package has a
+      # backlog of ~50 pre-existing type errors (pixiFx particle types, Recruit targetScope, a few bad
+      # imports) that vite build silently strips. Clearing them is tracked separately; once green, add the
+      # step here so UI type regressions stop merging. See docs/code-review-2026-07-03.md §1.3.

@@ -425,7 +425,14 @@ export function simulate(
     minion.name = def.name;
     minion.tribe = def.tribe;
     minion.tribe2 = def.tribe2;
-    for (const k of def.keywords) if (!minion.keywords.includes(k)) minion.keywords.push(k);
+    for (const k of def.keywords) {
+      if (minion.keywords.includes(k)) continue;
+      minion.keywords.push(k);
+      // Sync the paired state flags — a printed DS/R on the ascended form must actually arm, not just
+      // render (the same rule as granted keywords; today's forms grant neither, so this is future-proofing).
+      if (k === 'DS') minion.divineShield = true;
+      if (k === 'R') minion.rebornAvailable = true;
+    }
     minion.effects = def.effects; // old handlers self-disable (the includes-guard above); register the new ones
     registerEffects(minion);
     events.push({ type: 'ascend', target: minion.uid, into });
@@ -509,6 +516,10 @@ export function simulate(
         minion.health = 1;
         minion.maxHealth = 1;
       }
+      // Granted blessings shed with the granted keywords: a golden-Taurus ×2 (`gainMult`) doesn't survive
+      // the Rise — the EG it came with is already gone, and a lingering multiplier would double gains the
+      // carry-back no longer records (display-vs-persist divergence).
+      minion.gainMult = undefined;
       applyAuras(minion, true); // Reborn reset stats to base — re-apply every run-wide aura on top
       events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords] });
       return;
@@ -571,6 +582,10 @@ export function simulate(
     if (target.dead || target.health <= 0) return;
     // Immune: takes no damage at all (A.4) — even from Venomous or destroy effects.
     if (target.keywords.includes('IMM')) return;
+    // A 0-damage hit is a non-event: it can't pop a Divine Shield, proc Venomous, or wake on-damaged
+    // watchers — and it would bloat the replay with `dmg 0` beats. Load-bearing since 0-Attack
+    // retaliators exist (Manasaber's 0/2 cubs): trading into one must not spend the attacker's shield.
+    if (amount <= 0) return;
     // Divine Shield absorbs the first instance — and still blocks Venomous (A.3).
     if (!bypassShield && target.divineShield) {
       target.divineShield = false;
@@ -655,8 +670,9 @@ export function simulate(
       // and the retaliation. A unit that trades into a Deathrattle minion takes its damage WITH the kill —
       // not after the rattle's summons/effects (the old inline cascade ran the defender's whole death,
       // deathrattles and all, before the attacker's counter damage even landed).
-      // `victims` collects each body hit this clash, in damage order, for phase 2.
-      const victims: { m: Minion; killer: Minion }[] = [];
+      // `victims` collects each body hit this clash, in damage order, for phase 2. `couldReborn` is the
+      // pre-clash Reborn state (nothing flips it until phase 2), so a spent Rise reads as a kill below.
+      const victims: { m: Minion; killer: Minion; couldReborn: boolean }[] = [];
 
       // Cleave hits the target's neighbours in the same clash (A.3 step 5).
       if (attacker.keywords.includes('C')) {
@@ -666,8 +682,8 @@ export function simulate(
           (n): n is Minion => !!n && !n.dead && n.health > 0,
         );
         for (const n of neighbours) {
+          victims.push({ m: n, killer: attacker, couldReborn: n.rebornAvailable });
           applyDamage(n, attacker.attack, poison, false, attacker);
-          victims.push({ m: n, killer: attacker });
         }
       }
 
@@ -676,10 +692,10 @@ export function simulate(
       // documentation of the rule: retaliation uses the body that actually clashed.)
       const counterAttack = target.attack;
       const counterVenom = target.keywords.includes('V');
+      victims.push({ m: target, killer: attacker, couldReborn: targetCouldReborn });
       applyDamage(target, attacker.attack, poison, false, attacker); // main hit
-      victims.push({ m: target, killer: attacker });
+      victims.push({ m: attacker, killer: target, couldReborn: attacker.rebornAvailable });
       applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
-      victims.push({ m: attacker, killer: target });
 
       // PHASE 2 — deaths resolve in damage order (cleave victims → target → attacker). Each fallen body's
       // Deathrattle / Rise runs only now, after every hit of the clash has landed — so death effects see the
@@ -688,16 +704,23 @@ export function simulate(
         if (!m.dead && m.health <= 0) killOrReborn(m, killer);
       }
 
-      // On-kill re-attack (Gnasher). Dropping a Reborn target to 0 counts as a kill even though it
-      // returns to life — it spent its Reborn — so detect a consumed Reborn alongside an outright death.
+      // On-kill (owner ruling 2026-07-03): EVERY kill in the clash procs the killer's on-kill effects —
+      // cleave splash and the defender felling its attacker included, matching the card text ("when this
+      // kills"), not just the main-target kill. Dropping a Reborn body to 0 counts as a kill even though
+      // it returns — it spent its Reborn. Emitted in damage order after phase 2, crediting each fallen
+      // body's killer; a dead killer's handlers self-suppress in registerEffects (a mutual kill procs
+      // nothing, unchanged from before).
+      for (const { m, killer, couldReborn } of victims) {
+        if (m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) {
+          bus.emit('onKill', { attacker: killer, victim: m });
+        }
+      }
+      // On-kill re-attack (Gnasher) stays keyed to the MAIN target's kill only.
       const killed =
         targetWasAlive &&
         (target.dead || target.health <= 0 || (targetCouldReborn && !target.rebornAvailable));
-      if (killed) {
-        bus.emit('onKill', { attacker, victim: target });
-        if (attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
-          performAttack(attacker, defenderSide, depth + 1);
-        }
+      if (killed && attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
+        performAttack(attacker, defenderSide, depth + 1);
       }
     }
   }
@@ -723,7 +746,15 @@ export function simulate(
   //     once (so on a non-full board it still rejoins before the normal Start of Combat effects). ---
   for (const minion of [...boards.player]) {
     if (!minion.resummon || minion.dead || minion.health <= 0) continue;
-    // Capture the full combat state for an exact copy (stats + granted keywords + golden + bonus).
+    // Capture the full combat state for an exact copy (stats + granted keywords + golden + every
+    // per-instance field). `sourceUid` rides along so the copy's carry-backs (Kennelmaster's Avenge,
+    // Engraved permaGain, Sergeant's accrual, Tara's tally) still reach the originating run card —
+    // duplicate-safe at settle: the set-style channels take the copy's (later) entry, and the add-style
+    // ones are empty on the SC-destroyed original. `rallyMechAtk` stores only the WELDED part
+    // (instantiate re-adds the card's own base). The copy's Deathrattle re-arms on the new body — a
+    // re-proc is intended (owner ruling 2026-07-03), the same rule as every resummon.
+    const def = cards[minion.cardId];
+    const weldedRally = (minion.rallyMechAtk ?? 0) - (def?.rallyMechAtk ?? 0) * (minion.golden ? 2 : 1);
     const copyBoard: BoardMinion = {
       cardId: minion.cardId,
       attack: minion.attack,
@@ -731,6 +762,12 @@ export function simulate(
       keywords: [...minion.keywords],
       golden: minion.golden,
       summonBonus: minion.summonBonus,
+      overflowBonus: minion.overflowBonus,
+      hpGrantBonus: minion.hpGrantBonus,
+      ascendProgress: minion.ascendProgress,
+      sourceUid: minion.sourceUid,
+      rallyMechAtk: weldedRally > 0 ? weldedRally : undefined,
+      buffs: minion.buffs,
     };
     minion.rebornAvailable = false; // force a true death (skip Reborn) so the Deathrattle fires
     killOrReborn(minion); // tokens summon now and may overflow the board
@@ -738,13 +775,18 @@ export function simulate(
   }
   flushResummons(); // non-full board → the original rejoins immediately; full board → it waits
 
-  // --- Start of Combat: player minions left→right (A.3 step 1) ---
-  for (const minion of [...boards.player]) {
-    if (minion.dead || minion.health <= 0) continue;
-    for (const effect of minion.effects) {
-      if (effect.on !== 'startOfCombat') continue;
-      const fn = FACTORIES[effect.do];
-      if (fn) fn(ctx, minion, effect.params ?? {}, {});
+  // --- Start of Combat: player minions left→right first (A.3 step 1), then the enemy's (owner ruling
+  //     2026-07-03: a captured board's Start-of-Combat effects are live, not inert — an enemy Taurus
+  //     engraves its line too). Effects reading the player's RUN state (Abhorrent Horror's consumed-Fodder
+  //     tally) side-gate themselves, since an enemy snapshot carries no run state. ---
+  for (const side of ['player', 'enemy'] as const) {
+    for (const minion of [...boards[side]]) {
+      if (minion.dead || minion.health <= 0) continue;
+      for (const effect of minion.effects) {
+        if (effect.on !== 'startOfCombat') continue;
+        const fn = FACTORIES[effect.do];
+        if (fn) fn(ctx, minion, effect.params ?? {}, {});
+      }
     }
   }
 

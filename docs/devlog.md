@@ -3,6 +3,74 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-03 (session 15)
+
+### fix: review-driven correctness batch (engine + sim + tooling + 3 owner bugs)
+
+A full code + gameplay review of `main` (4 parallel review passes + the headless tool suite), written up in
+[code-review-2026-07-03.md](code-review-2026-07-03.md), then its findings applied. Two owner rulings folded in
+(enemy Start-of-Combat effects **fire**; on-kill procs on **every** kill in a clash; spent effects re-arm).
+
+**Engine correctness (`@game/core`).**
+- **0-damage hits are a non-event** (`simulate.ts` `applyDamage`) — an `amount <= 0` early-return before the
+  Divine-Shield / Venomous / on-damaged branches. Load-bearing since Manasaber's 0/2 cubs shipped: a shielded
+  attacker trading into a 0-Attack body no longer loses its Ward to a phantom 0-damage counter (which also fired
+  a bogus Shield-Capacitor break + a `dmg 0` replay beat).
+- **Enemy Start-of-Combat effects fire** (owner ruling) — the SC pass now runs player board first (A.3), then
+  the enemy's, so a captured board's Taurus/SC minions aren't inert. `scGainFodderStats` (Abhorrent Horror) is
+  side-gated to the player (the consumed-Fodder tally is the player's run state).
+- **On-kill procs on every kill in a clash** (owner ruling) — cleave-splash and retaliation kills now emit
+  `onKill` (Karthus/Impala/Karthus-attack credit each fallen body's killer), not just the main-target kill; the
+  re-attack (Gnasher) stays keyed to the main target. `victims` carries each body's pre-clash Reborn state.
+- **The Reclaimer's resummon copy keeps its identity + progression** — `copyBoard` now carries `sourceUid`
+  (so every carry-back — Kennelmaster Avenge, Engraved permaGain, Sergeant, Tara — reaches the run card),
+  plus `overflowBonus`/`hpGrantBonus`/`ascendProgress`/`buffs` and the welded-only `rallyMechAtk` delta.
+- **Deathsayer's Rally-proc'd rattles tick the Deathrattle tally** (parity with Sporeling); **`gainMult`
+  clears on Rise** (a golden-Taurus ×2 no longer survives a Rise to diverge display from carry-back);
+  **`ascendMinion` syncs DS/R flags** for gained keywords (future-proofing, same class as the Ryme fix).
+- **Ryme re-firing an AURA battlecry carries it back permanently** (owner-reported) — Deathswarmer's
+  `battlecryBuffUndeadAttack` is an aura ("your Undead +Attack wherever they are"), so the combat replay now
+  calls `grantUndeadBuyAtk` in addition to the live buff; settle stacks `undeadBuyAtk` + re-buffs the board
+  (label unified to 'Undead Bond'). Auras persist; plain Shouts stay combat-only. 7 new core tests.
+
+**Run-loop hardening (`@game/sim`).**
+- **`deserialize` heals by construction** — merge the save over a fresh `createRun(seed, hero, mode)` skeleton
+  instead of a hand-maintained `??=` list that had drifted (missing `history` crashed the HUD, missing
+  `spellCostMod` NaN'd Gold). Armor still heals to 0 for pre-Armor saves. 2 new tests.
+- **Reducer rejects before it clones** — the phase + modal guards hoisted above `structuredClone`, so a no-op
+  dispatch (a click while a Discover is open, an unaffordable buy) no longer pays the full clone;
+  `projectEndOfTurnSteps` excludes `lastCombat` from its clone (the cost the reducer already avoids).
+- **Aura/sell parity fixes** — Fodder Treatment now banks Robin's Spoils (it "counts as a sell");
+  held-Displacement buys count Drakko's quest; `healHero` caps at `maxResolve`; Chaos's recurring grant routes
+  through the shared instantiation (card enchant + tribe-gated Undead bond); Banksly's magnetize sorts its pool.
+- **Dead code removed** — `RunState.best` (+ its test), `heroPowerTick`, `CONFIG.startResolve`, the
+  `spellCastMult`/`chronosRepeats` public re-exports (kept internal); practice length → `CONFIG.practiceRounds`;
+  stale reducer/opponents comments corrected.
+
+**Tooling + guardrails.** `npm run bot` (run-harness) rewritten to answer Discover/Choose-One/Battlecry modals
+(it silently stalled + under-reported depth before — seed 7 now reaches wave 12, not 7) + handle victory/empty
+shop. The `Math.random` ESLint ban now covers `packages/tools` (the committed pool is generated there).
+`validateCards` cross-references six more effect id→card/token refs + the CardDef-level `ascendInto`;
+`CardDefSchema` is `.strict()` (typo'd keys now throw). **CI note:** `typecheck:web` was going to be gated but
+surfaced ~50 pre-existing UI type errors (pixiFx particle types, Recruit `targetScope`, bad imports) that
+`vite build` silently strips — left a CI comment + a tracked cleanup task; the gate lands once they're cleared.
+
+**UI (owner-reported bugs, verified live via the preview store).**
+- **Warband no longer jumps between shop + combat** — `.shopbar` `margin-top` 70u→26u so the shop control
+  region matches the combat `.combatctl` footprint (stale since #151 stacked the timer/SHOP label above the
+  plaques). Measured: warband top identical in both phases now, at the (higher) combat position.
+- **Sell no longer janks the board** — the commit-branch FLIP was rebuilt as a manual per-card glide off a
+  persisted `commitRectsRef` read via **`offsetLeft`** (transform-immune): a re-centering removal used to glide
+  the right survivor while the left one snapped (a capture taken mid-tween via `getBoundingClientRect` seeded a
+  poisoned delta). Verified: all survivors glide symmetrically on sell-left/middle/right.
+- **Defeat blast aims at the HP box** — `.hprow` (renamed in the HP-box redesign, so it always hit a guessed
+  corner) → `.statusbar .hpbox`.
+
+Verified: `typecheck` + `lint` + **479 tests** (472 → +7 core aura/exchange, +2 save-heal) + `bot`/`replay`/
+`perf` green; UI edits add **no** new `typecheck:web` errors; warband parity + sell glide + blast aim confirmed
+live. **Deferred (tracked):** the UI perf sweep (endpulse/discpulse box-shadow loops, dead-CSS purge, FontLab
+DEV gate), the UI type cleanup, and the balance-prober rebuild + quiet-`simulate` flag.
+
 ## 2026-07-03 (session 14)
 
 ### feat: combat exchange rules + card batch (Mumi) + Flowing Monk rework + shop-button polish

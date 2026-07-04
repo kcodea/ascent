@@ -205,7 +205,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--ink2); }
 /* ── Shop controls: a labelled row of gold-trimmed cream plaque buttons (Gold · Tavern · Reroll · Freeze) ── */
-.shopbar { align-self: center; display: flex; flex-direction: column; align-items: center; gap: calc(5 * var(--u)); margin-top: calc(70 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+/* margin-top matches the combat `.combatctl` footprint so the Warband sits at the SAME vertical spot in
+   shop + combat (was 70u — too tall since #151 stacked the timer/SHOP label here, so the warband dropped in
+   shop then jumped up in combat). Region parity: 26u top + ~95u content + 10u bottom ≈ combatctl 121u + 10u. */
+.shopbar { align-self: center; display: flex; flex-direction: column; align-items: center; gap: calc(5 * var(--u)); margin-top: calc(26 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoplabel { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink3); }
 /* "Tier N" takes the shop tier's colour (the card tier-badge palette) so the current tier reads at a glance. */

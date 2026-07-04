@@ -156,8 +156,10 @@ export const EffectDefSchema = z.object({
   on: GameEventSchema,
   do: EffectFactoryIdSchema,
   params: z.record(z.unknown()).optional(),
-});
+}).strict();
 
+// `.strict()`: a typo'd optional key (`goldentext`, `targetTribes`) would otherwise validate silently and
+// the card would ship without the feature. Every legit field is declared below, so this only rejects typos.
 export const CardDefSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -196,9 +198,9 @@ export const CardDefSchema = z.object({
   manaPerTurn: z.number().int().positive().optional(),
   rallyMechAtk: z.number().int().positive().optional(),
   spellAura: z.number().int().positive().optional(),
-  fodderAura: z.object({ attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).optional(),
+  fodderAura: z.object({ attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict().optional(),
   chooseOne: z
-    .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }))
+    .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }).strict())
     .min(2)
     .optional(),
   discoverOnPlay: z
@@ -209,5 +211,6 @@ export const CardDefSchema = z.object({
       tribe: z.union([TribeSchema, z.literal('dominant')]).optional(),
       topTierFirst: z.boolean().optional(),
     })
+    .strict()
     .optional(),
-});
+}).strict();

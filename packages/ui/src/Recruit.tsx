@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, type ShopCard } from '@game/sim';
+import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, boardManaBonus, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
@@ -247,6 +247,15 @@ export function Recruit() {
   // Round timer grows +4s each wave, capped at 80s. (Recruit now stays mounted across
   // combat, so the per-wave reset is an effect keyed on the wave — see below.) Practice gives 3× the clock.
   const turnSeconds = Math.min(80, TURN_SECONDS + (run.wave - 1) * 4) * (run.mode === 'practice' ? 3 : 1);
+
+  // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
+  // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
+  // Mirrors the reducer's turn-start `embers` formula (see reducer.ts ~1039).
+  const goldManaBonus = boardManaBonus(run);
+  const nextTurnGold =
+    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + goldManaBonus + (run.bonusEmbersNextTurn ?? 0);
+  const afterNextGold =
+    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + goldManaBonus;
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
@@ -2163,7 +2172,12 @@ export function Recruit() {
             <span className="sc-l">Gold</span>
             <span className="sc-ic"><Icon name="mana" /></span>
             <span className="sc-v">{run.embers}</span>
-            <span className="sbtip">Your Gold this turn</span>
+            {/* Hover: this turn's Gold + the projected START of the next two waves (cascading up, cap-aware). */}
+            <div className="sbtip goldtip" role="tooltip">
+              <div className="gt-now">Gold · <b>{run.embers}</b> this turn</div>
+              <div className="gt-row"><span>Next turn</span><b><Icon name="mana" />{nextTurnGold}</b></div>
+              <div className="gt-row"><span>Wave {run.wave + 2}</span><b><Icon name="mana" />{afterNextGold}</b></div>
+            </div>
           </div>
           <div className="statcell tier" data-tier={run.tier}>
             <span className="sc-l">Tier</span>

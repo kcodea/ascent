@@ -126,15 +126,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Next-opponent intel frame — hangs under the top bar's right edge (below the tribes). Portrait + HP
    visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
-.topright { position: absolute; top: 0; right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(14 * var(--u)); }
+.topright { position: absolute; top: calc(11 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(24 * var(--u)); }
 /* Next-enemy frame — MINIMAL intel card. One background, one hairline, ONE left gutter everything aligns
    to; the author pill is centered over the top edge (symmetric). Portrait + hero name over a single stat
    row (life+armor · tier ★ · wins 👑 — one size, life emphasized by COLOR only, so no mixed baselines).
    Below the hairline: grey minion silhouettes (count only) over a quiet one-line comp read ("2 Triples ·
    3 Dragons", tribe word tinted). ★ = tier ONLY — triples are text. The pill is the single strong accent. */
-.oppframe { position: relative; display: flex; flex-direction: column; width: calc(212 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
+.oppframe { position: relative; display: flex; flex-direction: column; width: calc(212 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; transform: scale(1.15); transform-origin: top right; }
 /* Author name — a pill centered over the top edge. */
-.oppframe .opp-name { position: absolute; top: 0; left: 50%; transform: translate(-50%, -55%); max-width: calc(170 * var(--u)); padding: calc(1.5 * var(--u)) calc(12 * var(--u)); background: var(--threat); color: #fff; border: 2px solid var(--card); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(11.5 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.18); z-index: 2; }
+.oppframe .opp-name { position: absolute; top: 0; left: 50%; transform: translate(-50%, -55%); max-width: calc(180 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: var(--threat); color: #fff; border: 2px solid var(--card); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.18); z-index: 2; }
 .oppframe .opp-plate { display: flex; align-items: center; gap: calc(10 * var(--u)); padding: calc(14 * var(--u)) calc(12 * var(--u)) calc(10 * var(--u)); }
 .oppframe .opp-pic { width: calc(44 * var(--u)); height: calc(44 * var(--u)); border-radius: calc(10 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--gold); }
 .oppframe .opp-pic img { width: 100%; height: 100%; object-fit: cover; }
@@ -239,7 +239,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
    trimmed to match the shop-control language. Segments are split by a thin gold rule; the whole strip centres
    under the round plaque. Kept a touch shorter than the action tray so the two rows total the old shopbar
    height (the tavern/warband rows must not shift). */
-.statstrip { display: inline-flex; align-items: stretch; height: calc(44 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); overflow: hidden; }
+/* No overflow:hidden — it clipped the cells' hover tooltips (gold projection / tier / time). The end cells
+   round their outer corners instead, so their background tints still sit inside the strip's rounded shape. */
+.statstrip { display: inline-flex; align-items: stretch; height: calc(44 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
+.statstrip .statcell:first-child { border-radius: calc(11 * var(--u)) 0 0 calc(11 * var(--u)); }
+.statstrip .statcell:last-child { border-radius: 0 calc(11 * var(--u)) calc(11 * var(--u)) 0; }
 .statcell { position: relative; display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: 0 calc(18 * var(--u)); font-family: var(--font-ui); }
 .statcell + .statcell { border-left: 2px solid color-mix(in srgb, var(--gold) 42%, transparent); }
 .statcell .sc-l { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink3); }
@@ -264,6 +268,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Info-strip cells reuse the shop tip pill on hover. */
 .statcell:hover { z-index: 85; }
 .statcell:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
+/* Gold-cell hover — a small dark projection card: this turn's Gold + the START of the next two waves
+   (cap-aware, folding in board income + banked Gold). Extends the .sbtip dark pill but stacks rows. */
+.goldtip { display: flex; flex-direction: column; gap: calc(3 * var(--u)); text-align: left; min-width: calc(150 * var(--u)); padding: calc(8 * var(--u)) calc(12 * var(--u)); }
+.goldtip .gt-now { font-family: var(--font-ui); font-weight: 700; font-size: calc(12.5 * var(--u)); color: rgba(255, 255, 255, 0.82); padding-bottom: calc(4 * var(--u)); border-bottom: 1px solid rgba(255, 255, 255, 0.16); }
+.goldtip .gt-now b { color: var(--mana); font-weight: 900; }
+.goldtip .gt-row { display: flex; align-items: center; justify-content: space-between; gap: calc(16 * var(--u)); font-family: var(--font-ui); font-weight: 700; font-size: calc(12.5 * var(--u)); }
+.goldtip .gt-row span { color: rgba(255, 255, 255, 0.72); }
+.goldtip .gt-row b { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--mana); font-weight: 900; font-variant-numeric: tabular-nums; }
+.goldtip .gt-row b svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--mana); }
 .shopbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(9 * var(--u)); height: calc(50 * var(--u)); padding: 0 calc(18 * var(--u)); background: linear-gradient(180deg, #f5e8cb 0%, #e4c992 100%); border: 2px solid var(--gold); border-radius: calc(12 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); font-family: var(--font-ui); font-weight: 800; color: #5a3d12; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease; }
 button.shopbtn:not(:disabled):hover { filter: brightness(1.05); }
 button.shopbtn:not(:disabled):active { transform: translateY(calc(2 * var(--u))) scale(0.98); filter: brightness(0.94); }

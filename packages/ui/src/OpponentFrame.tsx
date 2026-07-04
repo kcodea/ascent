@@ -12,12 +12,12 @@ const tribeLabel = (tribe: string, count: number): string =>
   `${TRIBE_LABEL[tribe] ?? tribe}${count === 1 || tribe === 'undead' ? '' : 's'}`;
 
 /**
- * Top-right intel on the board you'll face when you end the turn. A compact plate — author-name pill
- * overlapping the top, hero portrait, hero name with tier ★ + wins 👑 under it, and LIFE(+armor) big in the
- * top-right (the lethal-math number gets the power position) — with a preview strip attached below: one
- * blacked-out silhouette per enemy minion (count only, no stats), a gold triples tag, and the most-common
- * tribe tinted in its tribe hue. ★ means tier ONLY (triples are a text tag) so no icon carries two meanings.
- * Shown in recruit AND combat; falls back to the procedural threat (no hero) when the pool has no match.
+ * Top-right intel on the board you'll face when you end the turn — deliberately minimal. One card, one
+ * left gutter: the author-name pill centered over the top edge, then portrait + hero name with a single
+ * stat row (life+armor · tier · wins — one size, life emphasized by color only), a hairline, and the board
+ * preview (a grey silhouette per enemy minion, count only) over a quiet one-line comp read ("2 Triples ·
+ * 3 Dragons", tribe word tinted). ★ = tier ONLY; triples are text. Falls back to the procedural threat
+ * (no hero) when the pool has no match. Shown in recruit AND combat.
  */
 export function OpponentFrame() {
   const run = useGame((s) => s.run);
@@ -32,13 +32,11 @@ export function OpponentFrame() {
           <span className="opp-name">Next Foe</span>
           <div className="opp-pic"><Icon name="skull" /></div>
           <div className="opp-info">
-            <div className="opp-toprow">
-              <span className="opp-hero">{threat.name}</span>
-              <span className="opp-life"><Icon name="heart" /><span className="opp-hp">?</span></span>
-            </div>
-            <div className="opp-meta">A wild board — no intel</div>
+            <div className="opp-hero">{threat.name}</div>
+            <div className="opp-stats"><span className="opp-stat life"><Icon name="heart" />?</span></div>
           </div>
         </div>
+        <div className="opp-preview"><div className="opp-compline">A wild board — no intel</div></div>
       </div>
     );
   }
@@ -56,41 +54,36 @@ export function OpponentFrame() {
   return (
     <div className="oppframe" title={`${provenance}${snap.capturedAt ? ` · ${snap.capturedAt}` : ''}`}>
       <div className="opp-plate">
-        {/* Author name as a pill overlapping the plate's top edge. */}
+        {/* Author name — a pill centered over the top edge (symmetric, deliberate). */}
         <span className="opp-name">{name}</span>
         <div className="opp-pic">
           {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
         </div>
         <div className="opp-info">
-          <div className="opp-toprow">
-            <span className="opp-hero">{hero.name}</span>
-            <span className="opp-life" title={`Life ${snap.resolve}${snap.armor ? ` · Armor ${snap.armor}` : ''}`}>
-              <Icon name="heart" />
-              <span className="opp-hp">{snap.resolve}{snap.armor ? <b className="opp-armor">+{snap.armor}</b> : null}</span>
+          <div className="opp-hero">{hero.name}</div>
+          {/* One stat row, one size: life(+armor) · tier · wins. Life leads and is colored, not enlarged. */}
+          <div className="opp-stats">
+            <span className="opp-stat life" title={`Life ${snap.resolve}${snap.armor ? ` · Armor ${snap.armor}` : ''}`}>
+              <Icon name="heart" />{snap.resolve}{snap.armor ? <i className="opp-armor">+{snap.armor}</i> : null}
             </span>
-          </div>
-          <div className="opp-meta">
-            <span className="opp-tier" title="Tavern tier"><Icon name="star" />{snap.tier}</span>
-            <span className="opp-wins" title="Wins"><Icon name="crown" />{snap.wins ?? 0}</span>
+            <span className="opp-stat" title="Tavern tier"><Icon name="star" />{snap.tier}</span>
+            <span className="opp-stat" title="Wins"><Icon name="crown" />{snap.wins ?? 0}</span>
           </div>
         </div>
       </div>
-      {/* Board preview — one strip: a blacked-out silhouette per minion (count only, no identity leaks),
-          with the comp tags (triples · top tribe) right-aligned; wraps under only on the widest boards. */}
+      {/* Board preview — silhouettes (count only, no identity), then a one-line comp read. */}
       <div className="opp-preview">
         <div className="opp-silhouettes" title={`${count} minion${count === 1 ? '' : 's'} on board`}>
           {count > 0
             ? Array.from({ length: count }, (_, i) => <span key={i} className="opp-sil" />)
-            : <span className="opp-sil-empty">Empty board</span>}
+            : <span className="opp-compline">Empty board</span>}
         </div>
         {(snap.triples > 0 || dom) && (
-          <div className="opp-comp">
-            {snap.triples > 0 && <span className="opp-tag gold" title="Triples formed">{snap.triples} Triple{snap.triples === 1 ? '' : 's'}</span>}
+          <div className="opp-compline">
+            {snap.triples > 0 && <span title="Triples formed">{snap.triples} Triple{snap.triples === 1 ? '' : 's'}</span>}
+            {snap.triples > 0 && dom && ' · '}
             {dom && (
-              <span
-                className="opp-tag tribe"
-                style={{ '--tc': `var(--t-${dom.tribe})` } as CSSProperties}
-              >
+              <span className="opp-tribe" style={{ '--tc': `var(--t-${dom.tribe})` } as CSSProperties}>
                 {dom.count} {tribeLabel(dom.tribe, dom.count)}
               </span>
             )}

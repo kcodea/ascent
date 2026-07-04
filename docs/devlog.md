@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-03 (session 15)
 
+### fix(ui): buy-to-hand pop lands in the slot + shop info-row alignment (owner follow-up)
+
+- **A bought card no longer settles twice.** Hand cards rest TUCKED at `translateY(42%)`, but the generic
+  `cardpop` keyframe ends at `transform: none` (the RAISED position) — so a freshly bought card popped in
+  raised, then dropped ~109px to the tuck when the animation ended (the reported "settles in the old position,
+  then drops to a lower slot"). Added a hand-scoped `handpop` (`.row.hand .card.popin`) that fades + scales in
+  at `translateY(42%)`, so the card lands once in its slot with no vertical drop (measured: 109px drop → 15px
+  scale-in, no raised frame).
+- **Shop-tier + Time plaques aligned.** They measured pixel-centred, but the pair clustered over the inner two
+  action buttons (Gold/Freeze stuck out on the sides), which read as off-centre. The info row now stretches to
+  the action row's width (`align-self: stretch; justify-content: space-between`) so Shop caps the left (over
+  Gold) and Time caps the right (over Freeze) — a balanced titled-header rectangle.
+
 ### fix(ui): buy/sell drag "replay" + timer/shop-tier plaque widgets (owner follow-up)
 
 Two owner-directed follow-ups to the review batch below:

@@ -1218,13 +1218,13 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Damage/heal numbers pop up *over each card's own stat corner* (near the HP), so the attacker's
    and the target's hits are both readable at the same instant — they spawn together (one impact beat).
    Bigger and lingering longer than before, and they stay on the card instead of flying off the top. */
-.float { position: absolute; bottom: 15%; right: 7px; font-family: var(--font-ui); font-weight: 900; font-size: 34px; pointer-events: none; z-index: 25; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); animation: floatup 1.4s cubic-bezier(0.2, 0.85, 0.3, 1) forwards; }
+.float { position: absolute; bottom: 15%; right: 7px; font-family: var(--font-ui); font-weight: 900; font-size: var(--float-size, 34px); pointer-events: none; z-index: 25; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); animation: floatup var(--float-dur, 1.4s) cubic-bezier(0.2, 0.85, 0.3, 1) forwards; }
 /* Killing-blow damage number for a dying unit — anchored in a board overlay at the minion's last spot
    (the unit itself collapses), centred there; the inner .float rides the floatup rise from the anchor.
    It clears FASTER than a normal float (≈0.9s) so a lone number over a vanished unit doesn't hang. */
 .deathfloat { position: fixed; z-index: 26; pointer-events: none; transform: translate(-50%, -50%); }
 .deathfloat .float { position: static; right: auto; bottom: auto; display: inline-block; animation-duration: 0.9s; }
-.float.dmg { color: #fff; background: var(--threat); padding: 3px 13px; border-radius: 12px; font-size: 42px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38); }
+.float.dmg { color: #fff; background: var(--threat); padding: 3px 13px; border-radius: 12px; font-size: var(--float-dmg-size, 42px); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38); }
 .float.poison { color: var(--poison); }
 .float.shield { color: var(--acc-dk); }
 .float.shieldup { color: #1f93b8; }
@@ -1252,7 +1252,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* the struck minion's HP badge flares when it takes damage */
 .unit.struck .hp { animation: hpflash 0.45s ease; }
 @keyframes hpflash { 0%, 100% { transform: none; box-shadow: none; } 40% { transform: scale(1.45); box-shadow: 0 0 14px 3px var(--threat); filter: brightness(1.25); } }
-@keyframes floatup { 0% { opacity: 0; transform: translateY(14px) scale(0.5); } 10% { opacity: 1; transform: translateY(0) scale(1.18); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(-8px) scale(1); } 100% { opacity: 0; transform: translateY(-30px) scale(0.96); } }
+@keyframes floatup { 0% { opacity: 0; transform: translateY(var(--float-in-y, 14px)) scale(var(--float-in-scale, 0.5)); } 10% { opacity: 1; transform: translateY(0) scale(var(--float-pop, 1.18)); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(-8px) scale(1); } 100% { opacity: 0; transform: translateY(var(--float-rise, -30px)) scale(0.96); } }
 /* The PixiJS WebGL effects overlay (particle impacts, flashes, sell-coin sprinkle) — a transparent
    full-viewport canvas drawn over the board, never intercepting input. Sits above the status bar
    (z40) so coins sprinkle OVER the Gold counter, but below dragged cards (z100), modals (z50+), and

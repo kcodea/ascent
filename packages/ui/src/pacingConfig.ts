@@ -1,0 +1,122 @@
+/**
+ * Tunable parameters for the combat-replay PACING — the beat clock in `useCombatReplay.ts`. The replay plays
+ * the deterministic fight one "beat" at a time (an action + its result events); this config sets how long the
+ * clock lingers on each beat type, so the fight's RHYTHM can be dialed by eye via the DEV Pacing tuner
+ * (`PacingTuner.tsx`) without a code round-trip. The scheduler reads `getPacingConfig()` at each beat, so
+ * changes apply to the next beat.
+ *
+ * Layering (all multiply/divide cleanly, so they don't fight):
+ *   beat hold (ms) = delay[beatType] × `speed` ÷ combatSpeed
+ * where `speed` is this dev baseline (was the hardcoded `SPEED = 1.5`) and `combatSpeed` is the player's
+ * in-combat speed slider. The floats + final hold divide by combatSpeed only.
+ *
+ * NOTE — the `attack` (wind-up) beat's hold is NOT taken from `attack` here: it's overridden by the lunge's
+ * connection time (windupDur + strikeDur − smackLead, from lungeConfig.ts) so the damage float always lands
+ * ON contact however you dial pacing. The `attack` value below is only the extra breather ADDED before a NEW
+ * swing that follows an impact (the "don't blur back-to-back attacks" gap). Everything else is a straight
+ * linger. So retuning `speed`/the delays never desyncs the impact — that stays welded to the lunge.
+ */
+export interface PacingConfig {
+  /** Global tempo baseline — scales every beat hold (higher = slower, more deliberate; was the fixed 1.5). */
+  speed: number;
+  // Action beats (the wind-up / cast held before its result shows).
+  /** Breather added before a NEW swing that follows an impact (see NOTE — not the wind-up hold itself). */
+  attack: number;
+  /** Start-of-combat effect beat. */
+  sc: number;
+  /** Summon (a token/minion appears). */
+  summon: number;
+  /** Buff / stat-gain beat. */
+  buff: number;
+  /** Reborn (a unit returns). */
+  reborn: number;
+  /** Improve / ascend beat. */
+  improve: number;
+  /** Rally beat. */
+  rally: number;
+  /** Return-to-hand beat. */
+  toHand: number;
+  /** Max-gold beat. */
+  maxGold: number;
+  /** HP-grant beat (silent by default). */
+  hpGrant: number;
+  // Result beats (the impact — how long it reads before the next swing).
+  /** Damage lands (recoil + HP drop) — the post-hit read. */
+  dmg: number;
+  /** Divine-shield absorb. */
+  shield: number;
+  /** Shield gained. */
+  shieldUp: number;
+  /** Poison tick. */
+  poison: number;
+  /** Venom consumed. */
+  venomLost: number;
+  /** A unit dies — the collapse read. */
+  death: number;
+  // Overlay lifetimes (divide by combatSpeed only, not by `speed`).
+  /** How long a combat damage/heal float lingers before it clears (ms; keep ≥ the floatup CSS anim). */
+  floatMs: number;
+  /** A killing-blow float clears faster — a lone number over a vanished unit shouldn't hang (ms). */
+  deathFloatMs: number;
+  /** Hold on the LAST beat (death collapse + float) before the replay reports done (ms). */
+  finalHold: number;
+}
+
+const DEFAULTS: PacingConfig = {
+  speed: 1.5,
+  // action beats (ms) — mirror the former DELAY table exactly, so defaults = current behaviour.
+  attack: 353, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820,
+  maxGold: 560, hpGrant: 0,
+  // result beats (ms)
+  dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
+  // overlay lifetimes (ms)
+  floatMs: 1500, deathFloatMs: 1000, finalHold: 900,
+};
+
+/** Slider bounds for the DEV tuner — [min, max, step] per key. */
+export const PACING_RANGES: Record<keyof PacingConfig, [number, number, number]> = {
+  speed: [0.5, 3, 0.05],
+  attack: [0, 1200, 10], sc: [0, 1200, 10], summon: [0, 1200, 10], buff: [0, 1200, 10],
+  reborn: [0, 1200, 10], improve: [0, 1200, 10], rally: [0, 1200, 10], toHand: [0, 1200, 10],
+  maxGold: [0, 1200, 10], hpGrant: [0, 1200, 10],
+  dmg: [0, 1200, 10], shield: [0, 1200, 10], shieldUp: [0, 1200, 10], poison: [0, 1200, 10],
+  venomLost: [0, 1200, 10], death: [0, 1200, 10],
+  floatMs: [400, 3000, 50], deathFloatMs: [300, 2000, 50], finalHold: [200, 2000, 50],
+};
+export const PACING_KEYS = Object.keys(DEFAULTS) as (keyof PacingConfig)[];
+
+const KEY = 'ascent.pacing';
+let cfg: PacingConfig = (() => {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
+    return { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<PacingConfig>) : {}) };
+  } catch {
+    return { ...DEFAULTS };
+  }
+})();
+
+export function getPacingConfig(): PacingConfig {
+  return cfg;
+}
+/** The per-beat hold (ms) BEFORE the global `speed`/combatSpeed scaling — a typed lookup by beat type
+ *  that falls back to 300 for any unlisted type (matches the former `DELAY[type] ?? 300`). */
+export function beatDelay(type: string): number {
+  const v = (cfg as unknown as Record<string, number>)[type];
+  return typeof v === 'number' ? v : 300;
+}
+export function setPacingValue(key: keyof PacingConfig, value: number): void {
+  cfg = { ...cfg, [key]: value };
+  try {
+    localStorage.setItem(KEY, JSON.stringify(cfg));
+  } catch {
+    /* ignore */
+  }
+}
+export function resetPacingConfig(): void {
+  cfg = { ...DEFAULTS };
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* ignore */
+  }
+}

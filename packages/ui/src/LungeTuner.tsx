@@ -12,6 +12,7 @@ import { useDraggablePanel } from './useDraggablePanel';
 const LABELS: Record<keyof LungeConfig, string> = {
   windupDur: 'wind-up dur',
   windupDepth: 'wind-up depth',
+  windupScale: 'wind-up scale',
   strikeDur: 'strike dur',
   strikeDist: 'lunge dist',
   smackLead: 'smack lead',

@@ -3,6 +3,46 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-04 (session 17)
+
+### feat(ui): combat-feel DEV tuners — Pacing + Damage Float — and fix 3 broken tuner labels/types
+
+Presentation-only (`packages/ui`); no engine/content/sim changes. Two new DEV tuning panels for combat feel,
+plus a fix to three pre-existing broken tuners. **Every default equals the current shipped value, so nothing
+changes on screen until a slider is moved** — the tuners only add a way to dial by eye.
+
+- **Fixed 3 broken tuners** (all were live `tsc` errors that `vite build` silently strips — part of the
+  `typecheck:web` blocker list in the roadmap, now 3 fewer):
+  - **Lunge** — `LABELS` was missing `windupScale`, so that live slider rendered with a blank name (`TS2741`,
+    since `LABELS` is `Record<keyof LungeConfig, string>`). Added the label.
+  - **Drag Feel** — same class: `LABELS` missing `collapseY` → blank-named slider (`TS2741`). Added the label
+    (its range/desc were already present).
+  - **Shield Placement** — `poke` was `const poke = (): void => window.dispatchEvent(…)`, but `dispatchEvent`
+    returns `boolean` against the `void` annotation (`TS2322`). Wrapped in a block body.
+
+- **Pacing tuner (⏱️)** — dials the combat-replay beat clock, previously hardcoded in `useCombatReplay.ts`
+  (`SPEED = 1.5` + the per-beat `DELAY` table + the float/final-hold lifetimes). New `pacingConfig.ts` holds
+  them all (defaults mirror the old constants exactly); the scheduler reads `getPacingConfig()` /
+  `beatDelay(type)` per beat, so retuning applies to the next beat. Exposes global `tempo`, the 16 per-beat
+  holds (attack pre-swing gap, dmg post-hit read, death collapse, summon, buff, …), and the float/death-float
+  linger + final hold. **Sync preserved:** the `attack` beat's hold stays welded to the lunge connection time
+  (from `lungeConfig`), so `tempo` and the delays can't drift the damage-on-contact impact. Layers cleanly
+  under the player's in-combat `combatSpeed` slider (`hold = delay × tempo ÷ combatSpeed`).
+
+- **Damage Float tuner (🔢)** — dials the `-N` damage/heal number pop. Its look is CSS-driven (the `.float`
+  rule + the `floatup` keyframe), so `floatConfig.ts` pushes values into CSS custom properties on `:root` via
+  `applyFloatConfig()` (each var has a fallback = the shipped value; applying defaults is a visual no-op). Seven
+  knobs: base size, damage-pill size, duration, pop overshoot, rise distance, entry scale, entry drop. To SHIP
+  a dialed look, paste the Copy'd values back as the CSS fallbacks in `styles.css`.
+
+Both panels register in the Dev Tuning Menu (`DevMenu.tsx`), are draggable + localStorage-backed like the
+rest, and are stripped from production. Verified live in the preview: all 3 fixed panels + both new panels
+render with **zero blank labels** and correct defaults; moving the Pacing `tempo` slider persists the full
+config to `localStorage`; moving the Damage Float `damage size` slider writes `--float-dmg-size` to `:root`
+and a real `.float.dmg` element's computed size tracked it (42px → 70px). `typecheck` + `lint` + **482 tests**
++ `build:web` all green. (The live *animation* feel — pacing rhythm, float pop in a real fight — wants a
+real-browser eyeball; the wiring is proven but the feel is for Mike to dial.)
+
 ## 2026-07-04 (session 16)
 
 ### feat(ui): HUD restyle to the mockup — segmented stat strip + control tray, warband under the centre line

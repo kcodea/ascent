@@ -32,23 +32,40 @@ export const BUYABLE_CARDS: CardDef[] = ALL_CARDS.filter((card) => !card.token &
 /** Tavern spells — the pool the always-offered right-hand spell slot draws from. */
 export const SPELL_CARDS: CardDef[] = ALL_CARDS.filter((card) => card.spell);
 
-/** Validate every card against the schema; throws on the first problem. */
+/** Effect ids whose params carry a token id (a summoned token that must exist in the pool). */
+const TOKEN_REF_EFFECTS = new Set(['deathrattleSummon', 'battlecrySummon', 'onFriendDeathSummon', 'deathrattleSummonOverflowBuff']);
+/** Effect ids whose params carry a card id (a granted/transformed card that must exist in the pool), by param key.
+ *  (The CardDef-level `ascendInto` transform target is checked separately — it's a field, not an effect param.) */
+const CARD_REF_EFFECTS: Record<string, string> = {
+  spellCastTransform: 'into',
+  deathrattleGrantCardToHand: 'cardId',
+  avengeGrantSpell: 'cardId',
+  deathrattleBuffCardTypeRunWide: 'cardId',
+};
+
+/** Validate every card against the schema + cross-reference every token/card id an effect names; throws on
+ *  the first problem. Keeps a typo'd summon/grant target from surfacing at runtime instead of in `npm test`. */
 export function validateCards(cards: CardDef[] = ALL_CARDS): void {
   const seen = new Set<string>();
+  const has = (id: string | undefined): boolean => !!id && cards.some((c) => c.id === id);
   for (const card of cards) {
     CardDefSchema.parse(card);
     if (seen.has(card.id)) throw new Error(`Duplicate card id: ${card.id}`);
     seen.add(card.id);
+    // A CardDef-level ascend target (Tara → Taragosa) must resolve.
+    if (card.ascendInto && !has(card.ascendInto)) {
+      throw new Error(`${card.id}: ascendInto references missing card "${card.ascendInto}"`);
+    }
     for (const effect of card.effects) {
-      if (
-        effect.do === 'deathrattleSummon' ||
-        effect.do === 'battlecrySummon' ||
-        effect.do === 'onFriendDeathSummon'
-      ) {
-        const tokenId = (effect.params as { tokenId?: string } | undefined)?.tokenId;
-        if (!tokenId || !cards.some((c) => c.id === tokenId)) {
-          throw new Error(`${card.id}: ${effect.do} references missing token "${tokenId}"`);
-        }
+      const params = (effect.params ?? {}) as Record<string, unknown>;
+      if (TOKEN_REF_EFFECTS.has(effect.do)) {
+        const tokenId = params.tokenId as string | undefined;
+        if (!has(tokenId)) throw new Error(`${card.id}: ${effect.do} references missing token "${tokenId}"`);
+      }
+      const cardKey = CARD_REF_EFFECTS[effect.do];
+      if (cardKey) {
+        const refId = params[cardKey] as string | undefined;
+        if (!has(refId)) throw new Error(`${card.id}: ${effect.do} references missing card "${refId}"`);
       }
     }
   }

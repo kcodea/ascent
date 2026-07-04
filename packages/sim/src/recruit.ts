@@ -191,10 +191,10 @@ export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, 
 /**
  * How many times a spell's effect resolves when cast, given the board (Yazzus): 3 if any Yazzus on the
  * board is golden, 2 if a non-golden Yazzus is present, else 1. Multiple Yazzus do NOT stack — the best
- * single one wins (mirrors Drakko / Chronos). Read by the reducer's spell-cast path; Discover-spells are
- * exempt (the discover state holds a single pending set), handled at the call site.
+ * single one wins (mirrors Drakko / Chronos). Internal — external callers (the reducer's cast path, the
+ * UI's cast-spark replay) use `spellCasts`, which also applies the aimed-spell / singleCast exemptions.
  */
-export function spellCastMult(state: RunState): number {
+function spellCastMult(state: RunState): number {
   const yazzus = state.board.filter((c) => c.cardId === 'yazzus');
   if (yazzus.some((c) => c.golden)) return 3;
   return yazzus.length > 0 ? 2 : 1;
@@ -952,11 +952,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.maxEmbers += amount;
   },
 
-  /** Mend — cast: heal the hero by `amount`, capped at the hero's max Resolve (no overheal). The hero's
-   *  `resolve` field is the max HP. Untargeted (acts on the run). */
+  /** Mend — cast: heal the hero by `amount`, capped at the run's max Resolve (no overheal). Reads
+   *  `state.maxResolve` (not the hero's printed Resolve) so anything that ever changes a run's max
+   *  heals to the right ceiling. Untargeted (acts on the run). */
   healHero: (ctx, _self, params) => {
-    const max = getHero(ctx.state.heroId).resolve;
-    ctx.state.resolve = Math.min(max, ctx.state.resolve + num(params.amount, 5));
+    ctx.state.resolve = Math.min(ctx.state.maxResolve, ctx.state.resolve + num(params.amount, 5));
   },
 
   /** Lasso — cast: steal a random MINION offer from the tavern into the hand (free). Picks via the
@@ -1126,6 +1126,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (idx < 0) return;
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
     state.embers += sellValueOf(sold); // the Gold the player gets from the sell
+    // It COUNTS AS A SELL, so Robin's Spoils banks its +1 next-turn Gold too (parity with the reducer's
+    // sell case — this path used to skip it).
+    if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
     returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
     const demon = state.board.find((c) => isTribe(c, 'demon')); // left-most Demon (board order)
     if (demon) {
@@ -1229,7 +1232,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  random-magnetic roll, but the host is always self. */
   goldSpentMagnetize: (ctx, self, params) => {
     const count = num(params.count, 1) * gold(self);
-    const magnetics = Object.values(CARD_INDEX).filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
+    // Sorted by id so the pick is deterministic by construction (same rule as endOfTurnMagnetizeMechs) —
+    // not dependent on CARD_INDEX insertion order surviving refactors.
+    const magnetics = Object.values(CARD_INDEX)
+      .filter((c) => c.keywords.includes('M') && !c.token && !c.spell)
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     if (magnetics.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
     for (let i = 0; i < count; i++) {
@@ -1609,8 +1616,9 @@ function drummerRepeats(state: RunState): number {
 }
 
 /** How many times End-of-Turn effects fire this turn: 1, +1 per Chronos (best one only — golden Chronos
- *  adds 2, no stacking). Exported so the UI can replay each proc the matching number of times. */
-export function chronosRepeats(state: RunState): number {
+ *  adds 2, no stacking). Internal — external callers (the UI's End-Turn beats) use `endOfTurnRepeats`,
+ *  which folds in Chrono Staff's one-shot extra. */
+function chronosRepeats(state: RunState): number {
   return bestCopyRepeats(state, 'chronos');
 }
 
@@ -1952,7 +1960,12 @@ export function applyEndOfTurn(state: RunState): void {
  * Runs on a throwaway clone (no side effects); the final entry equals the real end-of-turn result.
  */
 export function projectEndOfTurnSteps(state: RunState): Array<Record<string, { attack: number; health: number }>> {
-  const clone = structuredClone(state);
+  // PERF: exclude `lastCombat` (the prior fight's whole event log + snapshots) from the throwaway clone
+  // and share it by reference — the same trick as the reducer. The end-of-turn factories never touch it,
+  // and this preview runs from the UI on every End Turn.
+  const { lastCombat, ...rest } = state;
+  const clone = structuredClone(rest) as RunState;
+  clone.lastCombat = lastCombat;
   const ctx = makeContext(clone);
   const repeats = endOfTurnRepeats(clone);
   const steps: Array<Record<string, { attack: number; health: number }>> = [];

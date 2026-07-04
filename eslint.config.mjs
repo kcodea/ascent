@@ -1,12 +1,14 @@
 import tseslint from 'typescript-eslint';
 
 /**
- * Day-one ban (handoff C.9): no `Math.random` in core/content/sim.
- * Determinism is the foundation of the engine — all randomness must flow
- * through the seeded Rng (`makeRng`). The UI layer is exempt (cosmetic only).
+ * Day-one ban (handoff C.9): no `Math.random` in core/content/sim — and in tools,
+ * since `npm run pool` (build-pool → synthesize) generates the COMMITTED opponent
+ * pool: nondeterminism there means unreproducible pool builds. Determinism is the
+ * foundation of the engine — all randomness must flow through the seeded Rng
+ * (`makeRng`). The UI layer is exempt (cosmetic only).
  */
 const banMathRandom = {
-  files: ['packages/core/**/*.ts', 'packages/content/**/*.ts', 'packages/sim/**/*.ts'],
+  files: ['packages/core/**/*.ts', 'packages/content/**/*.ts', 'packages/sim/**/*.ts', 'packages/tools/**/*.ts'],
   rules: {
     'no-restricted-properties': [
       'error',

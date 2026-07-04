@@ -71,13 +71,15 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
   return `perspective(${persp}px) translate(${tx}px, ${ty}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale}) rotate(${spin}deg)`;
 }
 
-/** Turn countdown (M:SS) shown above the SHOP label. Subscribes to the clock so ONLY this reads per-second;
- *  turns red in the last 5s. */
+/** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
+ *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
 function ShopTimer() {
   const s = Math.max(0, useTurnSeconds());
   return (
-    <div className={`shoptimer${s <= 5 ? ' low' : ''}`}>
-      <Icon name="clock" />{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}
+    <div className={`shopbtn timeplaque${s <= 5 ? ' low' : ''}`}>
+      <span className="sb-l">Time</span>
+      <span className="sb-ic"><Icon name="clock" /></span>
+      <span className="sb-v">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
       <span className="sbtip">Time left this turn — at 0 your actions lock; hit End Turn</span>
     </div>
   );
@@ -710,7 +712,10 @@ export function Recruit() {
     timers.push(window.setTimeout(() => {
       setLossPhase('blast');
       setLossFlyers([]);
-      const res = document.querySelector('.hprow')?.getBoundingClientRect();
+      // Aim the defeat blast at the HP box in the status bar. (Was `.hprow` — renamed to `.hpbox` in the
+      // HP-bar → HP-box redesign, so this always fell through to the guessed corner, visibly wrong under the
+      // Esc-menu letterbox / ultrawide where the status bar is offset.)
+      const res = document.querySelector('.statusbar .hpbox')?.getBoundingClientRect();
       const tx = res ? res.left + res.width / 2 : window.innerWidth * 0.18;
       const ty = res ? res.top + res.height / 2 : window.innerHeight * 0.92;
       pixiFx.blastBolt(cx, cy, tx, ty);
@@ -759,6 +764,9 @@ export function Recruit() {
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
+  // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
+  const commitRectsRef = useRef<Map<string, number> | null>(null);
   // Set true when a hand card is just PLAYED onto the board, so the next FLIP commit SNAPS instead of running
   // GSAP. A played card is a NEW element entering the flex row: GSAP Flip doesn't take it out of flow, so it
   // fights the reflow (siblings close, then the new card shoves them back open = a jolt). The neighbours are
@@ -1180,10 +1188,18 @@ export function Recruit() {
       const handMinionDrop = d.source === 'hand' && !d.view.spell && zone === 'warband';
       const boardReorderDrop = d.source === 'board' && zone === 'warband';
       const shopReorderDrop = d.source === 'shop' && zone === 'tavern' && d.uid !== run.spell?.uid;
+      // A SELL (board→tavern) re-centres the WARBAND; a BUY (shop→hand) re-centres the TAVERN. During the
+      // pull-out drag the source row already slid its survivors to the closed-gap (re-centred) spots via
+      // boardSlide/shopSlide, so snapshot their LIVE positions here too and route them through the same
+      // drop-time FLIP as a reorder. The commit then glides each survivor from where it visually sits (already
+      // re-centred) → its final slot ≈ zero motion — instead of the commit-branch FLIP snapping them back to
+      // the full-row layout and re-sliding (the reported "replay the sliding motion after a sell/buy").
+      const sellDrop = d.source === 'board' && zone === 'tavern' && !d.view.spell && !timeUp;
+      const buyDrop = d.source === 'shop' && zone === 'hand';
       const flipZoneSel =
-        handMinionDrop || boardReorderDrop
+        handMinionDrop || boardReorderDrop || sellDrop
           ? '[data-zone="warband"] .row .card[data-uid]'
-          : shopReorderDrop
+          : shopReorderDrop || buyDrop
             ? '[data-zone="tavern"] .row .card[data-uid]'
             : null;
       if (flipZoneSel) {
@@ -1229,10 +1245,10 @@ export function Recruit() {
       const acted = applyDrop(d, zone, e.clientX, e.clientY);
       // Route drag-drop commits through the manual per-card FLIP (see `handPlaySnapRef`) instead of the
       // whole-row Flip.from, which would replay the dragged card's move after the drop. Covers a played hand
-      // minion entering the board, a board reorder, AND a shop-offer reorder — each snapshotted its row's live
-      // spots above and glides only the cards that actually shifted (the dragged card is excluded, so it never
-      // re-slides).
-      if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop)) handPlaySnapRef.current = true;
+      // minion entering the board, a board/shop-offer reorder, AND a SELL / BUY pull-out — each snapshotted its
+      // row's live spots above and glides only the cards that actually shifted (the dragged card is excluded,
+      // so it never re-slides; on a sell/buy the survivors already sat re-centred, so they barely move).
+      if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop || sellDrop || buyDrop)) handPlaySnapRef.current = true;
       if (acted || d.view.spell) {
         // a spell that misses just ends — it was never lifted from the hand
         setDrag(null);
@@ -1802,23 +1818,38 @@ export function Recruit() {
           );
         }
       } else if (flipCfg.commitMs > 0) {
-        // A COMMITTED move with NO drag (a summoned token, an effect repositioning) — opt-in via commitMs > 0.
-        // After a drag-DROP the cards already slid into place during the drag, so the default (commitMs 0) snaps
-        // here — no redundant post-commit slide. `.card`'s CSS transform-transition would fight GSAP, so kill it
-        // for this one-shot and restore after.
+        // A COMMITTED move with NO drag (a SELL / buy-back, a summoned token, an effect repositioning) — opt-in
+        // via commitMs > 0. We do a MANUAL per-card FLIP off `commitRectsRef` (the prior frame's left edges)
+        // rather than GSAP's `Flip.from`: on a REMOVAL that re-centers the row, Flip's auto-matching glided the
+        // right survivor while teleporting the left one (the reported "janky shuffle") — a manual delta→0 tween
+        // is symmetric by construction. Kill `.card`'s transform-transition first so the delta seed is instant.
         const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        const olds = commitRectsRef.current;
         gsap.set(targets, { transition: 'none' });
-        const restore = (): void => gsap.set(targets, { clearProps: 'transition' });
-        Flip.from(flipStateRef.current, {
-          duration: flipCfg.commitMs / 1000,
-          ease: 'power2.out',
-          onComplete: restore,
-          onInterrupt: restore,
-        });
+        void document.body.offsetWidth; // reflow so the transform baseline is instant (no CSS rebound)
+        for (const el of targets) {
+          const uid = el.dataset.uid;
+          const old = uid ? olds?.get(uid) : undefined;
+          // `offsetLeft` = the pure LAYOUT position (transform-immune). getBoundingClientRect would fold in any
+          // in-flight tween transform on this card, seeding a wrong delta — which made the leftmost card snap
+          // while its neighbour glided. offsetLeft compares like-for-like against the persisted old value.
+          const delta = old === undefined ? 0 : old - el.offsetLeft;
+          if (Math.abs(delta) < 0.5) { el.style.transition = ''; continue; } // unmoved (or new) card — restore base
+          gsap.fromTo(
+            el,
+            { x: delta },
+            { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
+          );
+        }
       }
       // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
     }
     flipStateRef.current = Flip.getState(FLIP_SELECTOR);
+    // Persist each flipping card's LAYOUT left (offsetLeft — transform-immune, so a capture taken while a
+    // prior tween is still mid-flight records the true resting spot) for the NEXT commit's manual FLIP.
+    commitRectsRef.current = new Map(
+      gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
+    );
   }, [flipKey]);
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).
@@ -2123,9 +2154,16 @@ export function Recruit() {
       {/* SHOP controls — a labelled row of gold plaque buttons (Gold · Tavern · Reroll · Freeze) framed by
           shopbutton.webp. The turn timer now lives in the header; End Turn is a standalone button (right). */}
       <div className={`shopbar${inCombat ? ' closing' : ''}`}>
-        <ShopTimer />
-        {/* The tier number takes the SHOP's current tier colour (the card tier-badge palette). */}
-        <div className="shoplabel">Shop <span className="shoptier" data-tier={run.tier}>Tier {run.tier}</span></div>
+        {/* Info plaques (Shop tier + turn Time) as widgets — same plaque language as the action row so they
+            read at a glance instead of as loose text. The tier value takes the card tier-badge colour. */}
+        <div className="shoprow shoprow-info">
+          <div className="shopbtn tierplaque" data-tier={run.tier}>
+            <span className="sb-l">Shop</span>
+            <span className="sb-v">Tier {run.tier}</span>
+            <span className="sbtip">Shop tier — higher tiers offer stronger minions (Tavern Up to raise it)</span>
+          </div>
+          <ShopTimer />
+        </div>
         <div className="shoprow">
           {/* Gold — a display (current Gold this turn), not an action. Styled tooltips (.sbtip) replace the
               native title so the hover hints match the game's dark-pill format. */}

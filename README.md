@@ -25,6 +25,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Review-driven correctness batch** — a full code + gameplay review ([docs/code-review-2026-07-03.md](docs/code-review-2026-07-03.md))
+  and its correctness fixes: 0-damage hits no longer pop Ward, enemy Start-of-Combat effects fire, on-kill
+  procs on every kill in a clash, the Reclaimer's resummon keeps its progression, and **aura battlecries
+  re-fired by Ryme (Deathswarmer) now stick permanently**. Saves heal by construction (old saves stop
+  crashing); the reducer stops cloning on rejected clicks; the headless `bot` no longer stalls. Plus three
+  owner-reported UI bugs: the **warband no longer jumps** between shop and combat, **selling no longer janks**
+  the board (symmetric card glide), and the defeat blast aims at the HP box.
 - **Combat exchange rules + card batch** — attacks resolve as one simultaneous clash (dealt + taken damage land
   in the same frame; deathrattles only after), a full board now blocks a Rise, and golden Rise bodies return at
   1 HP. New minion **Mumi** (give a friendly Undead Rise — now visibly, via a new keyword event) plus a batch of

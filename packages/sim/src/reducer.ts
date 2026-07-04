@@ -1,4 +1,4 @@
-import { makeRng, simulate, type BoardMinion, type CombatResult, type Tribe } from '@game/core';
+import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
@@ -16,6 +16,27 @@ function spendGold(s: RunState, amount: number): void {
   s.embers -= amount;
   s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
   applyGoldSpent(s, amount);
+}
+
+/** Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). Progresses on every
+ *  PAID Battlecry buy — the normal path AND a held-Displacement restore (which used to skip it); the
+ *  reward lands in the hand if there's room. */
+function drakkoQuestBuy(s: RunState, card: CardDef): void {
+  if (s.heroId !== 'drakko' || s.heroPowerSpent || !hasBattlecry(card)) return;
+  s.drakkoBuys += 1;
+  if (s.drakkoBuys < 5) return;
+  if (s.hand.length < CONFIG.handMax) {
+    s.hand.push({
+      uid: `b${s.uidSeq++}`,
+      cardId: 'drummer',
+      tribe: CARD_INDEX.drummer!.tribe,
+      attack: CARD_INDEX.drummer!.attack,
+      health: CARD_INDEX.drummer!.health,
+      keywords: [...CARD_INDEX.drummer!.keywords],
+      golden: false,
+    });
+  }
+  s.heroPowerSpent = true; // quest complete — stops counting + arms nothing further
 }
 
 /**
@@ -66,11 +87,9 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
 /**
  * The run-loop state machine as a pure reducer: `(state, action) => state`
  * (handoff C.6). Never mutates its input — returns the same reference for a
- * no-op (invalid action) and a fresh state for a real transition.
- *
- * Recruit-phase card effects (Battlecries, buff-on-summon-on-buy) are not wired
- * yet — minions enter the board at their base stats. That's the next increment;
- * the combat-time effect system already works (see `@game/core`).
+ * no-op (invalid action) and a fresh state for a real transition. Recruit-phase
+ * card effects live in `recruit.ts` (RECRUIT_FACTORIES); combat-time effects in
+ * `@game/core`.
  */
 export function reduce(state: RunState, action: Action): RunState {
   const next = reduceCore(state, action);
@@ -92,8 +111,21 @@ export function reduce(state: RunState, action: Action): RunState {
 }
 
 function reduceCore(state: RunState, action: Action): RunState {
+  // Read-only rejections run BEFORE the deep clone — every no-op dispatch (a click while a Discover is
+  // open, an out-of-phase action) used to pay the full structuredClone below for nothing.
   // A finished run (loss or victory) takes no more actions — restart goes through the store.
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
+
+  // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
+  if (state.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
+
+  // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
+  // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
+  // minimized to read the board without any action invalidating the pending pick.
+  if ((state.discover || state.chooseOne || state.pendingTarget) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget') {
+    return state;
+  }
+
   // PERF: `lastCombat` is a large read-only result (the whole prior fight's event log + initial board
   // snapshots) that the reducer never mutates in place — it only ever REPLACES the reference (faceOmen).
   // So deep-clone everything ELSE and share lastCombat by reference, dropping ~80–90% of the per-dispatch
@@ -101,16 +133,6 @@ function reduceCore(state: RunState, action: Action): RunState {
   const { lastCombat, ...rest } = state;
   const s = structuredClone(rest) as RunState;
   s.lastCombat = lastCombat;
-
-  // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
-  if (s.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
-
-  // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
-  // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
-  // minimized to read the board without any action invalidating the pending pick.
-  if ((s.discover || s.chooseOne || s.pendingTarget) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget') {
-    return state;
-  }
 
   switch (action.type) {
     case 'buy': {
@@ -149,12 +171,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         return s;
       }
-      // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression.
+      // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression
+      // (deliberately NO applyOnBuy: it's a restoration, not a fresh purchase, so Broker & co. don't re-bake).
       if (offer.held) {
         if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
         spendGold(s, CONFIG.minionCost);
         s.shop.splice(i, 1);
         s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}` });
+        drakkoQuestBuy(s, card); // a paid buy still progresses Drakko's quest (it used to be skipped)
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
@@ -190,25 +214,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (offer.golden) addBuff(bought, 'Golden Touch', bought.attack, bought.health);
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
-      // Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). The quest
-      // progresses only on Battlecry minions; the reward lands in the hand if there's room.
-      if (s.heroId === 'drakko' && !s.heroPowerSpent && hasBattlecry(card)) {
-        s.drakkoBuys += 1;
-        if (s.drakkoBuys >= 5) {
-          if (s.hand.length < CONFIG.handMax) {
-            s.hand.push({
-              uid: `b${s.uidSeq++}`,
-              cardId: 'drummer',
-              tribe: CARD_INDEX.drummer!.tribe,
-              attack: CARD_INDEX.drummer!.attack,
-              health: CARD_INDEX.drummer!.health,
-              keywords: [...CARD_INDEX.drummer!.keywords],
-              golden: false,
-            });
-          }
-          s.heroPowerSpent = true; // quest complete — stops counting + arms nothing further
-        }
-      }
+      drakkoQuestBuy(s, card); // Drakko's quest counts every paid Battlecry buy
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       return s;
     }
@@ -666,10 +672,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Resolve hit lands before you return to the shop. Idempotent: only the first call settles.
       if (s.phase !== 'combat' || !s.lastCombat || s.combatSettled) return state;
       settleCombat(s, s.lastCombat);
-      // Keep the SAME lastCombat object reference — the UI's replay hook + combat-stage effect reset when
-      // it changes, so a fresh clone here would restart the just-finished combat. settleCombat applies the
-      // outcome to the board/resolve but never touches lastCombat's content, so the original is correct.
-      s.lastCombat = state.lastCombat;
+      // `s.lastCombat` is already the SAME object reference as the input's (shared, not cloned, at the top
+      // of reduceCore) — which is what the UI needs: its replay hook + combat-stage effect reset when the
+      // reference changes, so a fresh clone here would restart the just-finished combat.
       return s;
     }
 
@@ -968,13 +973,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerSpellsCast) {
     s.spellsCast += result.playerSpellsCast;
   }
-  // Karthus: on-kill permanent Undead attack bonus — stack into undeadBuyAtk AND apply to all
-  // current run-board Undead immediately so they benefit without needing to be re-bought.
+  // Permanent Undead attack AURA gained in combat (Karthus's on-kill, Deathswarmer re-fired by Ryme) —
+  // stack into undeadBuyAtk AND apply to all current run-board Undead immediately so they benefit without
+  // being re-bought. Labelled 'Undead Bond' to match the buy-time aura (the source varies, the aura is one).
   if (result.playerUndeadBuyAtkGain) {
     const gain = result.playerUndeadBuyAtkGain;
     s.undeadBuyAtk = (s.undeadBuyAtk ?? 0) + gain;
     for (const c of [...s.board, ...s.hand]) {
-      if (isTribe(c, 'undead')) addBuff(c, 'Karthus', gain, 0);
+      if (isTribe(c, 'undead')) addBuff(c, 'Undead Bond', gain, 0);
     }
   }
   // (Random spell/minion grants — Sporebat, Ryme re-firing Sea Urchin / Black Belt Brian — are now picked in
@@ -1007,15 +1013,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
 
 /** Advance past a settled combat: the terminal check (gameover / victory), else roll the next wave. */
 function advanceCombat(s: RunState): void {
-  // Practice: a fixed 15-round session — ends after round 15 regardless of W/L. (Health is unlimited, so the
-  // resolve<=0 check never fires, and the win-15 victory below is gated to Ascent.)
-  if (s.mode === 'practice' && s.wave >= 15) {
-    s.best = Math.max(s.best, s.wave);
+  // Practice: a fixed session — ends after `practiceRounds` regardless of W/L. (Health is unlimited, so
+  // the resolve<=0 check never fires, and the course-complete victory below is gated to Ascent.)
+  if (s.mode === 'practice' && s.wave >= CONFIG.practiceRounds) {
     s.phase = 'gameover';
     return;
   }
   if (s.resolve <= 0) {
-    s.best = Math.max(s.best, s.wave);
     s.phase = 'gameover';
     return;
   }
@@ -1024,14 +1028,12 @@ function advanceCombat(s: RunState): void {
   // run is done — the record IS the score, whatever it is. The just-fought round's result is already in
   // history. The only early exit is Resolve 0 (handled above); you never "win early" by a win count.
   if (s.mode !== 'practice' && s.wave >= CONFIG.courseRounds) {
-    s.best = Math.max(s.best, s.wave);
     s.phase = 'victory';
     return;
   }
 
   // Advance to the next wave (handoff A.1 step 5).
   s.wave += 1;
-  s.best = Math.max(s.best, s.wave);
   // Grow toward the cap (10) but never DROP maxEmbers — so Nadja / Mana Font bonuses that pushed it
   // past the cap persist instead of being clamped away each wave.
   s.maxEmbers = Math.max(s.maxEmbers, Math.min(CONFIG.embersCap, s.maxEmbers + CONFIG.embersPerWave));
@@ -1072,12 +1074,16 @@ function advanceCombat(s: RunState): void {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && s.hand.length < CONFIG.handMax) {
       const grantUid = `b${s.uidSeq++}`;
+      // Same instantiation as settleCombat's hand grants: the run's per-card enchant + the tribe-gated
+      // Undead buy bonus (the old inline version applied undeadBuyAtk raw, tribe-unchecked, and skipped
+      // the card enchant).
+      const cb = cardBuff(s, 'symbioticattachment');
       s.hand.push({
         uid: grantUid,
         cardId: 'symbioticattachment',
         tribe: def.tribe,
-        attack: def.attack + (s.undeadBuyAtk ?? 0),
-        health: def.health,
+        attack: def.attack + cb.attack + undeadBuyBonus(s, def),
+        health: def.health + cb.health,
         keywords: [...def.keywords],
         golden: false,
       });

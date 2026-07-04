@@ -884,6 +884,19 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerUndeadBuyAtkGain).toBeGreaterThan(0); // each Growth = a spell cast → Forsaken Weaver banks +2 permanently
   });
 
+  it('Ryme re-firing Deathswarmer in combat carries the Undead-attack AURA back permanently (owner ruling 2026-07-03)', () => {
+    // Deathswarmer's Battlecry is an aura ("your Undead +Attack wherever they are"), so a Ryme re-fire in
+    // combat must persist it — not just buff this fight. Ryme (adjacent to Deathswarmer) dies, its Deathrattle
+    // re-fires Deathswarmer's Battlecry → +1 Undead attack must land in playerUndeadBuyAtkGain (was: dropped).
+    const p: BoardMinion[] = [
+      { cardId: 'deathswarmer', attack: 1, health: 40 }, // survives; its aura re-fires
+      { cardId: 'ryme', attack: 1, health: 1 }, // adjacent — dies fast, re-fires the neighbour's Battlecry
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 3, health: 200 }]; // out-trades Ryme
+    const a = run(p, e, 3);
+    expect(a.playerUndeadBuyAtkGain).toBe(1); // Deathswarmer's +1, carried back (non-golden)
+  });
+
   it('a golden minion fires its effect at doubled magnitude', () => {
     const a = run(
       [
@@ -1665,5 +1678,112 @@ describe('simulate (handoff A.3)', () => {
     const spore = a.initial.player.find((m) => m.cardId === 'spore')!;
     expect(spore.attack).toBe(5); // 1 + 4
     expect(spore.health).toBe(3); // 2 + 1
+  });
+
+  it('a 0-damage retaliation is a non-event: no Divine Shield pop, no dmg-0 beats', () => {
+    // A shielded attacker trades into a 0-Attack inert wall (Manasaber's cubs made these common). The
+    // 0-damage counter must NOT spend the shield, and the log must carry no `dmg` event with amount 0.
+    // (sabercub keywords:[] = truly inert — Target Dummy would gain Attack when hit and start retaliating.)
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 5, keywords: ['DS'] }];
+    const e: BoardMinion[] = [{ cardId: 'sabercub', attack: 0, health: 12, keywords: [] }];
+    const r = run(p, e, 5);
+    expect(r.result).toBe('win');
+    expect(r.events.some((ev) => ev.type === 'shield')).toBe(false); // shield never popped
+    expect(r.events.some((ev) => ev.type === 'dmg' && ev.amount === 0)).toBe(false); // no junk beats
+  });
+
+  it("enemy Start-of-Combat effects fire — after the player's full pass (owner ruling 2026-07-03)", () => {
+    // A Taurus on EACH side: both engrave their line, and the player's `sc` narration lands first.
+    const p: BoardMinion[] = [
+      { cardId: 'taurus', attack: 6, health: 8 },
+      { cardId: 'sabercub', attack: 0, health: 30, keywords: [] },
+    ];
+    const e: BoardMinion[] = [
+      { cardId: 'taurus', attack: 6, health: 8 },
+      { cardId: 'sabercub', attack: 0, health: 30, keywords: [] },
+    ];
+    const r = run(p, e, 3);
+    const engraves = r.events.filter((ev) => ev.type === 'sc' && ev.text.includes('engraves'));
+    expect(engraves.length).toBe(2); // both sides' Taurus fired
+    const playerUids = new Set(r.initial.player.map((m) => m.uid));
+    expect(engraves[0]!.type === 'sc' && playerUids.has(engraves[0]!.source)).toBe(true); // player first
+    expect(engraves[1]!.type === 'sc' && playerUids.has(engraves[1]!.source)).toBe(false); // then enemy
+  });
+
+  it("an enemy Abhorrent Horror's SC is a no-op — it must not absorb the PLAYER's consumed-Fodder tally", () => {
+    // fodderConsumedAtk/Hp on the context are the player's run state; a captured enemy snapshot has none.
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'abhorrenthorror', attack: 1, health: 1 }];
+    const r = simulate(p, e, makeRng(7), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 5, 5); // 12th/13th args = consumed Fodder 5/5
+    const horrorUid = r.initial.enemy[0]!.uid;
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === horrorUid)).toBe(false);
+    // Control: the PLAYER's Horror still absorbs the tally.
+    const r2 = simulate(e, p, makeRng(7), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 5, 5);
+    const pHorrorUid = r2.initial.player[0]!.uid;
+    expect(r2.events.some((ev) => ev.type === 'buff' && ev.target === pHorrorUid && ev.attack === 5 && ev.health === 5)).toBe(true);
+  });
+
+  it('a retaliation kill procs on-kill (owner ruling 2026-07-03): defending Karthus counts its fellers', () => {
+    // Enemy attacks first (more minions). Both 2/1s die to Karthus's 7-Attack retaliation or his swing —
+    // every kill in a clash procs onKill now, so BOTH kills bank +3 Undead Attack (was: only his own attack).
+    const p: BoardMinion[] = [{ cardId: 'karthus', attack: 7, health: 20 }];
+    const e: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 2, health: 1 },
+      { cardId: 'sandbag', attack: 2, health: 1 },
+    ];
+    const r = run(p, e, 5);
+    expect(r.result).toBe('win');
+    // Kill 1: the first attacker fell to retaliation (NEW). Kill 2: Karthus's own swing (as before). 2 × +3.
+    expect(r.playerUndeadBuyAtkGain).toBe(6);
+  });
+
+  it('cleave-splash kills proc on-kill per victim (owner ruling 2026-07-03)', () => {
+    // Karthus granted Cleave one-shots a taunted 1/1 line: three bodies fall in one clash → three procs.
+    const p: BoardMinion[] = [
+      { cardId: 'karthus', attack: 7, health: 30, keywords: ['C'] },
+      { cardId: 'sandbag', attack: 0, health: 30 },
+      { cardId: 'sandbag', attack: 0, health: 30 },
+      { cardId: 'sandbag', attack: 0, health: 30 },
+    ];
+    const e: BoardMinion[] = [
+      { cardId: 'sabercub', attack: 1, health: 1, keywords: [] }, // Taunt stripped — the middle is forced
+      { cardId: 'sabercub', attack: 1, health: 1, keywords: ['T'] },
+      { cardId: 'sabercub', attack: 1, health: 1, keywords: [] },
+    ];
+    const r = run(p, e, 5);
+    expect(r.result).toBe('win');
+    expect(r.playerUndeadBuyAtkGain).toBe(9); // 3 kills × +3 (was 3: main target only)
+  });
+
+  it("Deathsayer's Rally-proc'd Deathrattles tick the tally (parity with Sporeling's Battlecry proc)", () => {
+    // No player minion ever dies here — every playerDeathrattles tick comes from the Rally procs, one per
+    // `rally` event (a rattle triggered without a death still counts, same rule as Sporeling).
+    const p: BoardMinion[] = [
+      { cardId: 'deathsayer', attack: 3, health: 5 },
+      { cardId: 'sergeant', attack: 1, health: 30 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sabercub', attack: 0, health: 9, keywords: [] }]; // inert wall (never retaliates into a kill)
+    const r = run(p, e, 5);
+    const rallies = r.events.filter((ev) => ev.type === 'rally').length;
+    expect(rallies).toBeGreaterThan(0);
+    expect(r.playerDeathrattles).toBe(rallies);
+  });
+
+  it("The Reclaimer's copy keeps its carry-back identity: a reclaimed Kennelmaster still persists its Avenge", () => {
+    // Same shape as the Kennelmaster carry-back test above, but the Kennelmaster is MARKED — destroyed at
+    // Start of Combat and resummoned as a copy. The copy's Avenge improvements must still reach the run
+    // card via sourceUid (the copy used to drop it, silently discarding the permanent progression).
+    const p: BoardMinion[] = [
+      { cardId: 'kennel', attack: 2, health: 50, sourceUid: 'K', resummon: true },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'cleric', attack: 3, health: 20 }];
+    const r = run(p, e, 7);
+    expect(r.result).toBe('win');
+    const entry = r.playerSummonBonus?.find((b) => b.sourceUid === 'K');
+    expect(entry).toBeDefined();
+    expect(entry!.bonus).toBeGreaterThanOrEqual(1);
   });
 });

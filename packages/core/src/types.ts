@@ -7,7 +7,7 @@ export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral'
 export type Keyword =
   | 'T' // Taunt
   | 'DS' // Divine Shield
-  | 'V' // Venomous — destroys what it damages; drops off after its first proc in combat
+  | 'V' // Venomous — destroys what it damages; drops off after its first CLASH (a Cleave clash is simultaneous, so one venom can fell up to three bodies before dropping)
   | 'W' // Windfury
   | 'R' // Reborn
   | 'C' // Cleave

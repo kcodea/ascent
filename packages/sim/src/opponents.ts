@@ -5,24 +5,22 @@
  * when the pool has a strength-matched candidate for the wave; otherwise it returns null and the caller
  * falls back to the procedural threat (`buildEnemyBoard`). So a thin pool degrades gracefully.
  *
- * The pool is a STATIC, versioned dataset — that's deliberate: opponent selection must stay deterministic
- * and replay-faithful (a run re-runs byte-identically), which a live/mutable pool would break. The board
- * library (step 3) grows this dataset (hand it boards in batches; they slot into `OPPONENT_POOL`); the
- * bootstrap entries below are placeholders to be replaced. Async-PvP's live pool (step 5) is a separate,
- * non-deterministic track.
+ * Determinism scope (be honest about it): the pool is static FOR A SESSION — registered once at startup
+ * from (a) the committed synthetic floor, (b) the local board library, and (c) the live Supabase fetch —
+ * and never mutated mid-run, so every replay/odds-sim within the session is byte-identical. ACROSS
+ * sessions the fetched remote boards can differ, so re-deriving an old run from its (seed, actions)
+ * replay may serve different opponents than were actually fought. If exact cross-session reconstruction
+ * ever matters (run archives, server-side replay validation), stamp the served opponent into the run
+ * record at faceOmen — see the roadmap's async-PvP hardening note.
  */
 import type { BoardMinion, Rng } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import type { BoardSnapshot } from './snapshot';
 
 /**
- * The served-opponent pool. STATIC + versioned so opponent selection stays deterministic / replay-faithful.
- *
- * INTENTIONALLY EMPTY right now — we serve the procedural omen threat for every wave (`pickOpponent`
- * returns null on an empty pool, so `faceOmen` falls straight through to `buildEnemyBoard`). Real boards
- * return soon: populate this from the board library (captured / authored `BoardSnapshot`s) and
- * `pickOpponent` starts serving them with no other changes. The bootstrap examples that used to seed it
- * live in git history (commit b799861).
+ * The served-opponent pool. Starts empty and is filled ONCE at startup via `registerOpponents` (committed
+ * synthetic floor + local board library + the Supabase fetch), then stays fixed for the session — see the
+ * determinism-scope note above.
  */
 export const OPPONENT_POOL: BoardSnapshot[] = [];
 

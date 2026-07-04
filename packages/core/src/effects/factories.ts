@@ -74,8 +74,13 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
       const includeSelf = p.includeSelf !== false;
       for (const t of ctx.living(m.side)) if ((includeSelf || t !== m) && tribeOf(t, tribe)) ctx.buff(t, a, h, m.uid);
     } else if (eff.do === 'battlecryBuffUndeadAttack') {
+      // Deathswarmer's buff is an AURA ("your Undead +Attack WHEREVER they are"), so it must be PERMANENT
+      // even when Ryme re-fires it in combat — not just this fight. Buff the live Undead now (visible in the
+      // replay + affects this combat) AND carry the aura back via grantUndeadBuyAtk, exactly as the recruit
+      // factory stacks undeadBuyAtk. (Plain tribe Shouts above stay combat-only — only auras persist.)
       const a = num(p.amount, 1) * g;
       for (const t of ctx.living(m.side)) if (tribeOf(t, 'undead')) ctx.buff(t, a, 0, m.uid);
+      ctx.grantUndeadBuyAtk(a, m.side);
     } else if (eff.do === 'battlecryGrantKeyword') {
       const kws = Array.isArray(p.keywords) ? (p.keywords as Keyword[]) : [];
       const friends = ctx.living(m.side).filter((t) => t !== m); // auto-pick the highest-Attack friend (no chosen target in combat)
@@ -415,8 +420,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Deathrattle (Mumi): grant a random living friend of `tribe` (default any) **Rise** — it comes back
-   *  once at base Attack / 1 Health when it dies. Skips minions that already have Rise (printed or granted,
-   *  spent Rise included: it was "used up", not re-grantable by a rattle). Golden grants it to two friends.
+   *  once at base Attack / 1 Health when it dies. Skips minions that currently HAVE Rise (printed or
+   *  granted); a body whose Rise was already spent is a legal target again (owner ruling 2026-07-03:
+   *  spent effects re-arm — the same rule as a resummoned body's Deathrattle). Golden grants it to two friends.
    *  Logs a `keyword` event so the target's card gains the Rise pill in the replay the moment it's granted
    *  (the Rise itself then replays through the normal `reborn` event when it procs). */
   deathrattleGrantReborn: (ctx, self, params, payload) => {
@@ -611,6 +617,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const reaperBonus = ctx.living(self.side).reduce((n, m) => n + (m.cardId === 'sylus' ? (m.golden ? 2 : 1) : 0), 0);
     const procs = (1 + reaperBonus) * (self.golden ? 2 : 1);
     for (let r = 0; r < procs; r++) {
+      // A rattle triggered WITHOUT a death still counts toward the tally (same rule as Sporeling's
+      // Battlecry proc above) — Grim and the run's deathrattlesTriggered see every proc.
+      ctx.countDeathrattle?.(target.side);
       for (const effect of target.effects) {
         if (effect.on !== 'onDeath' || !effect.do.startsWith('deathrattle')) continue;
         FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
@@ -816,8 +825,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Abhorrent Horror — Start of Combat: gain +Attack/+Health equal to all Fodder consumed this turn
-   *  (passed in on the CombatContext). Golden doubles everything. */
+   *  (passed in on the CombatContext). Golden doubles everything. Player-side only: the context's
+   *  consumed-Fodder tally is the PLAYER's run state — a captured enemy snapshot carries no tally of its
+   *  own, so an enemy Horror's SC is a no-op (not the player's numbers). */
   scGainFodderStats: (ctx, self, _params, _payload) => {
+    if (self.side !== 'player') return;
     const atk = ctx.fodderConsumedAtk * mul(self);
     const hp = ctx.fodderConsumedHp * mul(self);
     if (atk > 0 || hp > 0) {

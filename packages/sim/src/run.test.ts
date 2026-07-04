@@ -2519,13 +2519,52 @@ describe('run loop (@game/sim)', () => {
   it('a run reaches game over with a valid score', () => {
     const s = playToEnd(3);
     expect(s.phase).toBe('gameover');
-    expect(s.best).toBeGreaterThanOrEqual(s.wave);
+    expect(s.wave).toBeGreaterThanOrEqual(1);
     expect(s.resolve).toBe(0);
   });
 
   it('save/load round-trips', () => {
     const s = createRun(5);
     expect(serialize(deserialize(serialize(s)))).toEqual(serialize(s));
+  });
+
+  it('deserialize heals a save missing later-added fields (heal-by-construction)', () => {
+    // Simulate an OLD save: strip fields that shipped after it was written. The former hand-maintained
+    // heal list missed exactly these — a missing `history` crashed the HUD's runRecord, a missing
+    // `spellCostMod` NaN'd Gold on the first spell buy. The defaults-merge must zero them all.
+    const s = createRun(11);
+    const raw = JSON.parse(serialize(s)) as Record<string, unknown>;
+    delete raw.history;
+    delete raw.tavernBuyBonus;
+    delete raw.spellCostMod;
+    delete raw.freeRolls;
+    delete raw.runDamage;
+    delete raw.runProcs;
+    const healed = deserialize(JSON.stringify(raw));
+    expect(healed.history).toEqual([]);
+    expect(healed.tavernBuyBonus).toEqual({ atk: 0, hp: 0 });
+    expect(healed.spellCostMod).toBe(0);
+    expect(healed.freeRolls).toBe(0);
+    expect(runRecord(healed)).toEqual({ wins: 0, losses: 0, draws: 0 }); // used to throw
+    // What the save DID carry wins the merge…
+    expect(healed.seed).toBe(11);
+    expect(healed.board).toEqual(s.board);
+    expect(healed.shop).toEqual(s.shop);
+    // …and a spell buy produces real (non-NaN) Gold.
+    if (healed.spell) {
+      const after = reduce(healed, { type: 'buy', uid: healed.spell.uid });
+      expect(Number.isNaN(after.embers)).toBe(false);
+    }
+  });
+
+  it('deserialize does NOT grant a pre-Armor save the hero armor (armor heals to 0, not the default)', () => {
+    const s = createRun(11);
+    const raw = JSON.parse(serialize(s)) as Record<string, unknown>;
+    delete raw.armor;
+    delete raw.maxArmor;
+    const healed = deserialize(JSON.stringify(raw));
+    expect(healed.armor).toBe(0);
+    expect(healed.maxArmor).toBe(0);
   });
 
   it('addBuff accumulates per source with a count, and ignores keyword-only (0/0) grants', () => {

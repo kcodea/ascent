@@ -12,4 +12,4 @@ export * from './rating';
 export * from './playerRating';
 export * from './synthesize';
 export * from './opponentPool.data';
-export { addBuff, boardManaBonus, cardBuff, chronosRepeats, endOfTurnRepeats, isTribe, magnetizeTargets, offerBuyStats, projectEndOfTurnSteps, sellValueOf, spellCastMult, spellCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus } from './recruit';
+export { addBuff, boardManaBonus, cardBuff, endOfTurnRepeats, isTribe, magnetizeTargets, offerBuyStats, projectEndOfTurnSteps, sellValueOf, spellCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus } from './recruit';

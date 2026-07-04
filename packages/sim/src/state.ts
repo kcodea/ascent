@@ -152,8 +152,6 @@ export interface RunState {
   mode?: 'ascent' | 'practice';
   /** Current wave (Altitude). Score = waves survived. */
   wave: number;
-  /** Deepest wave reached this run. */
-  best: number;
   /** Result of each combat resolved this run, in order — drives the end-screen W-L-W summary. */
   history: CombatOutcome[];
   /** Par (A2): the target number of scored wins for this run — cover or beat it. Set at run start (static
@@ -257,9 +255,6 @@ export interface RunState {
   heroReady: boolean;
   /** Once-per-game hero powers (e.g. Oner's Gild) flip this and never recharge. */
   heroPowerSpent: boolean;
-  /** Chaos hero: how many recruit turns have elapsed (incremented in faceOmen). Used to grant a
-   *  Chaos Attachment every 4 turns. */
-  heroPowerTick?: number;
   /** Fodder consumed so far this wave (reset in advanceCombat). The Abhorrent Horror reads this at
    *  Start of Combat to gain the fodder's stats. */
   fodderConsumedThisTurn?: { attack: number; health: number };
@@ -395,7 +390,6 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     seed,
     mode,
     wave: 1,
-    best: 1,
     history: [],
     line,
     phase: 'recruit',
@@ -468,23 +462,25 @@ export function serialize(state: RunState): string {
 }
 
 export function deserialize(json: string): RunState {
-  const state = JSON.parse(json) as RunState & { pendingSpellDiscovers?: number };
-  if (!state.pool) state.pool = stockPool(state.tribes); // heal saves from before the finite pool
-  state.cassenKills ??= 0; // heal saves from before Cassen's Collision tally
-  state.turnStartPower ??= 0; // heal saves from before the pinned-opponent power
-  state.spellBonus ??= { attack: 0, health: 0 }; // heal saves from before card-driven spell power
-  state.undeadBuyAtk ??= 0; // heal saves from before Deathswarmer / Forsaken Weaver
-  state.line ??= CONFIG.defaultLine; // heal saves from before the par/line (A2)
-  state.armor ??= 0; state.maxArmor ??= 0; // heal saves from before Armor (an in-progress run gets none)
-  state.goldSpent ??= 0; // heal saves from before gold-spent tracking
-  state.runDamage ??= {}; // heal saves from before combat-contribution tracking
-  state.runProcs ??= {};
+  const parsed = JSON.parse(json) as RunState & { pendingSpellDiscovers?: number };
+  // Heal-by-construction (review 2026-07-03): merge the save over a freshly-created run for the SAME
+  // seed/hero/mode, so every field added since the save was written gets its fresh-run zero value
+  // automatically. The old hand-maintained ??=-list drifted — it healed `pool`/`line`/`armor` but missed
+  // `history`, `tavernBuyBonus`, `spellCostMod`, `freeRolls`, … so an old save crashed the HUD or
+  // NaN-corrupted Gold on first touch. Every field the save DOES carry wins the merge; keys the state
+  // no longer declares just linger harmlessly.
+  const defaults = createRun(parsed.seed ?? 1, parsed.heroId, parsed.mode);
+  const state: RunState & { pendingSpellDiscovers?: number } = { ...defaults, ...parsed };
+  // Fields whose heal is deliberately NOT the fresh-run default:
+  state.armor = parsed.armor ?? 0; // Armor shipped later — a pre-Armor in-progress run gets none, not the hero's
+  state.maxArmor = parsed.maxArmor ?? 0;
+  if (!parsed.pool) state.pool = stockPool(state.tribes); // pre-pool saves: stock for the run's own tribes
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
-  if (state.pendingSpellDiscovers && state.pendingSpellDiscovers > 0) {
+  if (parsed.pendingSpellDiscovers && parsed.pendingSpellDiscovers > 0) {
     state.discoverQueue = [
       ...(state.discoverQueue ?? []),
-      ...Array.from({ length: state.pendingSpellDiscovers }, () => ({ kind: 'spell' as const })),
+      ...Array.from({ length: parsed.pendingSpellDiscovers }, () => ({ kind: 'spell' as const })),
     ];
   }
   delete state.pendingSpellDiscovers;

@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat-feel DEV tuners** — two new panels in the 🛠️ Dev Tuning Menu: **⏱️ Pacing** (the combat beat
+  clock — global tempo + per-beat holds + float lifetimes, previously hardcoded) and **🔢 Damage Float** (the
+  `-N` number's size / pop / rise / entry). Both default to the current shipped values, so nothing changes
+  until a slider moves; dial by eye, then paste the Copy'd values back as the defaults. Also fixed three
+  broken tuner sliders (Lunge, Drag, Shield — blank labels / a type error).
 - **HUD restyle to the mockup** — the shop controls regroup into one segmented **stat strip** (Gold · Tier ·
   Setup Time) over a gold-edged **control tray** (Upgrade Tavern · Reroll · Freeze · End Turn) with warmer
   tan-gold buttons; the redundant right-edge End Turn is gone. The controls sit in a fixed-height block that

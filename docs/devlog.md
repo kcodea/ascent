@@ -3,6 +3,47 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-04 (session 16)
+
+### feat(ui): HUD restyle to the mockup — segmented stat strip + control tray, warband under the centre line
+
+Owner-directed restyle of the recruit HUD to match a provided mockup, **keeping the three card rows
+(tavern / warband / hand) in place**. Presentation-only — `packages/ui` (`Recruit.tsx` + `styles.css`); no
+engine/content/sim changes.
+
+- **Segmented stat strip.** The Gold display, Shop-tier plaque, and turn Timer — three separate plaques
+  before (Gold in the action row; Shop-tier + Time spread across an info row) — merge into ONE gold-trimmed
+  cream strip with thin divider rules: `Gold · Tier · Setup Time`. New `.statstrip` / `.statcell` CSS;
+  `ShopTimer` renders a `.statcell time` (still the isolated per-second subscriber, so the tick never
+  re-renders the card tree) and takes a `label` prop ("Setup Time" on calibration rounds, else "Time"). The
+  gold cell keeps the `.gold` hook the sell-coin FX anchors to (query updated `.shopbtn.gold` → `.statcell.gold`).
+- **Action control tray.** Upgrade Tavern · Reroll · Freeze · End Turn group into one recessed, gold-edged
+  tray (`.shoprow.actiontray`) with warmer tan-gold button fills, a clearly-blue Freeze, and an amber End Turn
+  primary; fuller labels ("Upgrade Tavern"). The standalone right-edge End Turn (`.endturn-side`) is removed
+  (JSX + CSS + pointer-guard reference), so End Turn lives only in the tray — matching the mockup and dropping
+  the redundant second button.
+- **Shopbar footprint pinned.** The controls now occupy a FIXED `111u`-tall block (`min-height`), so its outer
+  height (+10u/10u margins = 131u) EXACTLY matches the combat `.combatctl` footprint (121u + 10u) at every
+  `--u`. The tray's 2px borders are fixed px, so a content-driven height drifted the warband ~1px per --u step
+  on tall monitors; pinning keeps the tavern/warband/hand rows unmoved.
+- **Warband dropped under the centre line.** On tall windows the big `--ch` inflates the board's bottom
+  padding, pushing the board up so the warband hugged the divider. A `top: calc(var(--ch) * 0.07)` offset on
+  the (already `position: relative`) warband zone, gated to `@media (min-height: 900px)`, drops it ~19px to sit
+  roughly symmetric with the tavern above the line; short/laptop windows (warband already low, ~3px hero-panel
+  clearance) are untouched. Uses layout `top`, NOT a `transform`: an interim `transform` on `.row.warband`
+  wrapped the combat units in a transform/stacking context that their per-swing GSAP attack/hit lunges fought
+  (the warband popped UP on every attack + hit — owner-reported); layout `top` on the zone is transparent to
+  the units' transform animations, so combat is back to its original behaviour, just shifted down.
+
+Verified live (browser store, throwaway `newRun`): stat strip + tray render + match the mockup; Freeze toggles
+solid-blue with its shop-freeze state; timer counts down; 16:9 + 21:9 layouts hold; tavern row top unchanged
+(y=207 @ 1400×600); shopbar = exactly 111·--u (147.27px @ --u≈1.33) with combat warband top == recruit warband
+top (delta 0); warband 65–67px below the centre line vs tavern ~69px above (symmetric), 124px hero clearance;
+combat `.row.warband` transform is `none` (the attack/hit jump-up cause removed). `typecheck` + `lint` + `test`
++ `build:web` green. (Combat lunge could only be verified structurally — the headless preview throttles rAF —
+so the swing feel wants a real-browser eyeball.) Note: a deliberate departure from the flat plaque styling
+toward the mockup's grouped, warmer control cluster.
+
 ## 2026-07-03 (session 15)
 
 ### fix(ui): buy-to-hand pop lands in the slot + shop info-row alignment (owner follow-up)

@@ -94,6 +94,18 @@ canvas.spr { image-rendering: pixelated; display: block; }
    rides a little higher, opening a gap above the hand. */
 .zone[data-zone='tavern'] { flex: 1 1 0; justify-content: center; }
 .zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); }
+/* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
+   it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
+   transform on the row makes it a stacking/transform context wrapping the combat units, and their per-swing
+   GSAP attack/hit lunges (which drive each unit's own transform, and each `.unit` has `transition: transform`)
+   fought it — the warband appeared to jump UP on every attack and hit. `top` is pure layout, so the units
+   animate normally on top of the offset. The zone is shared by shop + combat, so both drop together and stay
+   aligned. Only on tall windows: there the big --ch inflates the bottom padding, pushing the board up so the
+   Warband rides right at the line (the reported bug); short/laptop windows already sit it low with almost no
+   hero-panel clearance, so nudging there would overlap it — hence the height gate. */
+@media (min-height: 900px) {
+  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07); }
+}
 
 /* HUD */
 .bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; }
@@ -205,29 +217,44 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--ink2); }
 /* ── Shop controls: a labelled row of gold-trimmed cream plaque buttons (Gold · Tavern · Reroll · Freeze) ── */
-/* margin-top matches the combat `.combatctl` footprint so the Warband sits at the SAME vertical spot in
-   shop + combat. Tuned to 10u once the timer + shop-tier became a second plaque row (info row) — the taller
-   shop header otherwise dropped the warband ~22px below its combat position. */
-.shopbar { align-self: center; display: flex; flex-direction: column; align-items: center; gap: calc(5 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+/* The shop controls occupy a FIXED 111u-tall block (+ 10u/10u margins = 131u) that EXACTLY matches the combat
+   `.combatctl` footprint (121u min-height + 10u margin-bottom), so the Warband sits at the SAME vertical spot
+   in shop + combat. Pinned via min-height rather than letting content drive it: the action tray's 2px borders
+   are fixed px (not --u), so a content-driven height drifted the warband ~1px per --u step above 1 (tall
+   monitors) — the "warband slightly moves for combat" bug. Content is centred within the block. */
+.shopbar { align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
-/* The info plaques (Shop tier + Time) sit in their own row just above the action plaques, stretched to the
-   action row's width so they cap it (Shop over the left, Time over the right) instead of clustering in the
-   middle over the inner two buttons — which read as off-centre even though the pair was mathematically centred. */
-.shoprow-info { align-self: stretch; justify-content: space-between; margin-bottom: calc(6 * var(--u)); }
-/* Shop-tier plaque — the tier number takes the card tier-badge colour. */
-.shopbtn.tierplaque .sb-v { color: var(--acc-dk); }
-.shopbtn.tierplaque[data-tier='1'] .sb-v { color: var(--tier-1); }
-.shopbtn.tierplaque[data-tier='2'] .sb-v { color: var(--tier-2); }
-.shopbtn.tierplaque[data-tier='3'] .sb-v { color: var(--tier-3); }
-.shopbtn.tierplaque[data-tier='4'] .sb-v { color: var(--tier-4); }
-.shopbtn.tierplaque[data-tier='5'] .sb-v { color: var(--tier-5); }
-.shopbtn.tierplaque[data-tier='6'] .sb-v { color: var(--tier-6); }
-/* Time plaque — the value uses the smaller tabular digits; fills red-tinted in the final 5s. */
-.shopbtn.timeplaque .sb-v { font-size: calc(21 * var(--u)); }
-.shopbtn.timeplaque.low { background: color-mix(in srgb, var(--threat) 14%, var(--card)); border-color: var(--threat); }
-.shopbtn.timeplaque.low .sb-ic svg, .shopbtn.timeplaque.low .sb-v { color: var(--threat-dk); }
-.shopbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(9 * var(--u)); height: calc(50 * var(--u)); padding: 0 calc(20 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); font-family: var(--font-ui); font-weight: 800; color: #5a3d12; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease; }
+/* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
+   trimmed to match the shop-control language. Segments are split by a thin gold rule; the whole strip centres
+   under the round plaque. Kept a touch shorter than the action tray so the two rows total the old shopbar
+   height (the tavern/warband rows must not shift). */
+.statstrip { display: inline-flex; align-items: stretch; height: calc(44 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); overflow: hidden; }
+.statcell { position: relative; display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: 0 calc(18 * var(--u)); font-family: var(--font-ui); }
+.statcell + .statcell { border-left: 2px solid color-mix(in srgb, var(--gold) 42%, transparent); }
+.statcell .sc-l { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink3); }
+.statcell .sc-ic { display: grid; place-items: center; }
+.statcell .sc-ic svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--acc-dk); }
+.statcell .sc-v { font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #4a3410; font-variant-numeric: tabular-nums; }
+/* Gold cell — soft gold tint + a tangerine coin. Keeps the `.gold` hook the coin-sprinkle FX anchors to. */
+.statcell.gold { background: color-mix(in srgb, var(--gold-lt) 18%, var(--card)); }
+.statcell.gold .sc-ic svg { color: var(--acc); }
+/* Tier cell — the number takes the card tier-badge colour. */
+.statcell.tier .sc-v { color: var(--acc-dk); }
+.statcell.tier[data-tier='1'] .sc-v { color: var(--tier-1); }
+.statcell.tier[data-tier='2'] .sc-v { color: var(--tier-2); }
+.statcell.tier[data-tier='3'] .sc-v { color: var(--tier-3); }
+.statcell.tier[data-tier='4'] .sc-v { color: var(--tier-4); }
+.statcell.tier[data-tier='5'] .sc-v { color: var(--tier-5); }
+.statcell.tier[data-tier='6'] .sc-v { color: var(--tier-6); }
+/* Time cell — smaller tabular digits; fills red-tinted in the final 5s. */
+.statcell.time .sc-v { font-size: calc(21 * var(--u)); }
+.statcell.time.low { background: color-mix(in srgb, var(--threat) 14%, var(--card)); }
+.statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: var(--threat-dk); }
+/* Info-strip cells reuse the shop tip pill on hover. */
+.statcell:hover { z-index: 85; }
+.statcell:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
+.shopbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(9 * var(--u)); height: calc(50 * var(--u)); padding: 0 calc(18 * var(--u)); background: linear-gradient(180deg, #f5e8cb 0%, #e4c992 100%); border: 2px solid var(--gold); border-radius: calc(12 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); font-family: var(--font-ui); font-weight: 800; color: #5a3d12; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease; }
 button.shopbtn:not(:disabled):hover { filter: brightness(1.05); }
 button.shopbtn:not(:disabled):active { transform: translateY(calc(2 * var(--u))) scale(0.98); filter: brightness(0.94); }
 /* Drop the browser's rectangular focus ring (it boxes the element outside the octagon plaque); use a
@@ -242,12 +269,25 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 /* Gold plaque — a soft gold tint sets the currency box apart from the action buttons. */
 .shopbtn.gold { background: color-mix(in srgb, var(--gold-lt) 18%, var(--card)); }
 .shopbtn.gold .sb-ic svg { color: var(--acc); }
-/* Freeze — tinted blue at rest; fills SOLID blue (white text) while the tavern is frozen. */
-.shopbtn.freeze { background: color-mix(in srgb, #5bb4e8 12%, var(--card)); }
+/* Freeze — clearly light-blue at rest (gold frame kept); fills SOLID blue (white text) while frozen. */
+.shopbtn.freeze { background: linear-gradient(180deg, #e4f1fb 0%, #c2ddf1 100%); }
 .shopbtn.freeze .sb-ic svg { color: #2b8fd0; }
 .shopbtn.freeze.on { background: #5bb4e8; border-color: #2b8fd0; filter: drop-shadow(0 0 calc(7 * var(--u)) rgba(43, 143, 208, 0.65)); }
 .shopbtn.freeze.on .sb-l { color: #fff; }
 .shopbtn.freeze.on .sb-ic svg { color: #fff; }
+/* Action tray — the turn's action buttons grouped into ONE control bar with a subtle recessed warm frame +
+   gold edge (the mockup's control cluster). The frame adds height that the shorter info strip gives back, so
+   the two rows still total the old shopbar height and the tavern/warband rows don't shift. */
+.shoprow.actiontray { gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(5 * var(--u)); background: linear-gradient(180deg, rgba(70, 48, 18, 0.16), rgba(70, 48, 18, 0.30)); border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(50, 34, 14, 0.30), 0 calc(3 * var(--u)) calc(9 * var(--u)) -4px var(--shadow); }
+/* Buttons inside the tray drop their outer drop-shadow (the tray carries it) so the group reads as one unit. */
+.shoprow.actiontray .shopbtn { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55); }
+/* End Turn — the primary action, amber like the standalone right-edge button. */
+.shopbtn.endturn { background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 76%, #ffd583) 0%, var(--acc) 100%); border-color: var(--acc-dk); color: #fff; }
+.shopbtn.endturn .sb-l { color: #fff; }
+.shopbtn.endturn .sb-ic svg { color: #fff; }
+.shopbtn.endturn .sb-v { color: #fff; }
+.shopbtn.endturn:not(:disabled):hover { filter: brightness(1.06); }
+.shopbtn.endturn.urgent { animation: endpulse 0.9s ease-in-out infinite; }
 /* Styled hover tooltip (replaces the native title): the game's dark rounded pill, dropping below the control
    with a small arrow — same format as the hero/opponent tips. The hovered control lifts above its neighbours
    so the pill never gets trapped behind the next plaque. */
@@ -256,15 +296,6 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .shopbtn:hover { z-index: 85; }
 .shopbtn:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
 
-/* End Turn — a standalone button anchored vertically-centred on the right edge of the stage. */
-.endturn-side { position: absolute; right: calc(24 * var(--u)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u)); width: calc(90 * var(--u)); padding: calc(12 * var(--u)) calc(9 * var(--u)); background: var(--acc); border: 2px solid var(--acc-dk); border-radius: calc(12 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk), 0 calc(8 * var(--u)) calc(16 * var(--u)) calc(-7 * var(--u)) rgba(0, 0, 0, 0.5); color: #fff; font-family: var(--font-ui); font-weight: 900; z-index: 20; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: filter 0.1s ease, transform 0.1s ease; }
-.endturn-side svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); color: #fff; }
-.endturn-side .et-t { font-size: calc(16 * var(--u)); letter-spacing: 0.03em; text-transform: uppercase; }
-.endturn-side .et-s { font-size: calc(9 * var(--u)); font-weight: 700; opacity: 0.85; }
-.endturn-side:hover { filter: brightness(1.05); }
-.endturn-side:active { transform: translateY(calc(-50% + 2px)); box-shadow: 0 calc(3 * var(--u)) 0 var(--acc-dk); }
-.endturn-side.urgent { animation: endpulse 0.9s ease-in-out infinite; }
-.app.combat .endturn-side { display: none; }
 /* Hero-power button — a circle attached to the RIGHT side of the hero frame (in the status bar). It sits
    as the frame's right-most flex child (parent gap spaces it off the text); clicking it bubbles to the
    .hero arm/fire handler. Placeholder glyph for now; dedicated hero-power artwork to come. */

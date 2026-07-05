@@ -1971,3 +1971,22 @@ svg { width: 18px; height: 18px; }
 .book-cell { transition: transform 0.12s ease; }
 .book-cell:hover { transform: scale(1.06); z-index: 3; position: relative; }
 .book-empty { flex: 1; display: grid; place-items: center; font-family: var(--font-ui); font-weight: 700; font-size: 18px; color: var(--ink3); }
+
+/* Glossary toggle — swaps the gallery for the keyword codex. Sits left of Gilded, same pill shape; both
+   carry margin-left:auto so the pair (or just Glossary, when Gilded is hidden) hugs the close button. */
+.book-gloss { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.book-gloss svg { width: 17px; height: 17px; }
+.book-gloss:hover { transform: translateY(-2px); border-color: var(--acc); }
+.book-gloss.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
+/* The codex body — responsive columns of grouped term cards; scrolls like the gallery (native bar hidden). */
+.book-gloss-body { flex: 1; overflow-y: auto; padding: 22px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; align-content: start; scrollbar-width: none; -ms-overflow-style: none; }
+.book-gloss-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.gloss-group { background: var(--bg2); border: 2px solid var(--line); border-radius: 14px; padding: 6px 16px 12px; }
+.gloss-grouphead { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); margin: 12px 0 4px; }
+.gloss-row { display: flex; gap: 12px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line); }
+.gloss-group .gloss-row:first-of-type { border-top: none; }
+.gloss-ico { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc); margin-top: 1px; }
+.gloss-ico svg { width: 18px; height: 18px; }
+.gloss-txt { display: flex; flex-direction: column; gap: 2px; }
+.gloss-term { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: var(--ink); }
+.gloss-def { font-family: var(--font-body), sans-serif; font-size: 13px; line-height: 1.35; color: var(--ink2); }

@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral']);
 
-export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'EG']);
+export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'EG']);
 
 export const GameEventSchema = z.enum([
   'onPlay',
@@ -150,6 +150,11 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCopyRecent',
   'spellRefreshToSpells',
   'battlecryTargetConsumeFodder',
+  // Slaughter (on-kill) + random-spell batch
+  'avengeGrantRandomSpell',
+  'rallyGrantRandomSpell',
+  'onKillGrantRandomSpell',
+  'onKillBuffFodder',
 ]);
 
 export const EffectDefSchema = z.object({

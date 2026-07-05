@@ -22,6 +22,19 @@ export const DEMONS: CardDef[] = [
     token: true,
   },
   {
+    // A cheap Demon attacker that pumps your Fodder every time it trades up. A 3/1 dies easily, so Slaughter
+    // fires on the kill even if it then dies to retaliation (see onKillBuffFodder — no survival check).
+    id: 'swordbored',
+    name: 'Sword and Bored',
+    tribe: 'demon',
+    tier: 1,
+    attack: 3,
+    health: 1,
+    keywords: ['SL'],
+    effects: [{ on: 'onKill', do: 'onKillBuffFodder', params: { attack: 1, health: 1 } }],
+    text: '**Slaughter:** give your **Fodder** **+1/+1**.',
+  },
+  {
     // Deathrattle (combat): summon 2 Imps, then buff all your Imps (the new ones included) +2/+3. Golden 2×.
     id: 'impking',
     name: 'Imp King',

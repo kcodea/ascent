@@ -56,6 +56,53 @@ drift). Live in-fight motion still wants a real-browser eyeball.
 
 ## 2026-07-05 (session 18)
 
+### feat(content): Slaughter keyword + 3 spell-mill units + a compendium glossary
+
+A content batch off the owner's spec: a new **Slaughter** keyword (on-kill trigger), three units that mill
+spells / feed Fodder, their art, and a keyword glossary in the Compendium. Touches `core` (types + one
+factory each), `content` (schema + 3 card defs + Gnasher), and `ui` (keyword pill, art, glossary).
+
+- **Slaughter (keyword `SL`).** "When this minion kills an enemy minion." Added to the `Keyword` union
+  (`types.ts`), the zod `KeywordSchema` (`schema.ts`), and the card pill maps (`Card.tsx`: `KW_LABEL.SL =
+  'Slaughter'`, `KW_ICON.SL = 'skull'`). Made it a **keyword code, not a text-trigger**, specifically so it
+  composes as its own pill alongside Rally on Badgington — the `triggerPill` prefix-detector only reads the
+  leading word, so a card with two triggers needs real keyword codes. Wired it onto **Gnasher** (the only
+  prior user), whose text now reads "**Slaughter:** your spells permanently gain **+1/+1**." (his effect was
+  already `onKill` → `onKillBuffSpellPower`; this just labels it).
+- **Four new combat factories** (`core/effects/factories.ts`), each a thin call over an existing primitive:
+  `avengeGrantRandomSpell` (Avenge-N → `ctx.grantRandomSpell`), `rallyGrantRandomSpell` (on-attack, self
+  guard), `onKillGrantRandomSpell` (on-kill, attacker guard), and `onKillBuffFodder` (on-kill → buff all
+  `FD` minions + `ctx.grantFodderBuff`). All respect the golden multiplier (`mul(self)`), and the spell
+  grants obey the current shop tier (via `grantRandomSpell` at settle, like Sporebat's Echo).
+- **Professor Greg** — T4 3/7 Undead. "**Avenge (3):** get a random spell." (golden: 2). A spell-mill that
+  coughs up a tavern-tier spell every third friendly death.
+- **Badgington** — T4 5/6 Beast. "**Rally:** get a random spell. **Slaughter:** get a random spell." (golden:
+  2 each). Mills a spell on every swing AND every kill — the dual-trigger card that motivated `SL` as a
+  keyword code. Verified both pills (`Rally` + `Slaughter`) render on the one card.
+- **Sword and Bored** — T1 3/1 Demon. "**Slaughter:** give your **Fodder** **+1/+1**." A cheap glass attacker
+  that pumps your Fodder when it trades up; no survival check, so the 3/1 fires on the kill even as it dies to
+  retaliation. No `goldenText` — the numeric doubler auto-lifts "+1/+1" → "+2/+2".
+- **Art.** `Badgington.png` / `SwordAndBored.png` / `ProfessorGreg.png` from the art drop → 512px WebP under
+  `packages/ui/src/art/minions/{badgington,swordbored,profgreg}.webp` (q85, matching `optimize-art`), picked
+  up by `artFor` (filename = cardId). *Naming note:* the spec said "Professor Brian", but no `ProfessorBrian.png`
+  exists (only `ProfessorGreg.png`, unused, + `BlackBeltBrian.png` which belongs to the existing Black Belt
+  Brian) — the owner confirmed the unit is **Professor Greg**.
+- **Compendium glossary.** A **Glossary** toggle in the Compendium header (beside Gilded) swaps the card
+  gallery for a keyword codex: three grouped panels — **Triggers** (Shout / Echo / Start of Combat / End of
+  Turn / Avenge / Rally / Slaughter), **Combat keywords** (Taunt / Ward / Toxin / Flurry / Rise / Cleave /
+  Stealth / Immune), and **Build & shop** (Attachment / Consume / Fodder / Engraved / Choose One / Discover /
+  Gilded) — each row an icon + term + one-line rule. Icons + names mirror the card pills (same `KW_LABEL` /
+  `KW_ICON` + `triggerPill` vocabulary) so the codex and the cards speak one language; definitions use the
+  player-facing renamed terms (`terms.ts`). In glossary mode the tier bar + Gilded toggle hide and the
+  subtitle reads "Keywords & abilities". `MinionBook.tsx` + new `.book-gloss*` / `.gloss-*` styles.
+
+Verified live (throwaway run → Compendium from the title, isolated `web-verify` server so the new art glob
+was picked up fresh): Compendium now lists **120 cards** (was 117); all three arts load as real `<img>`s at
+512px (network 200/304), not the tribe-sprite fallback; **Sword and Bored** shows 3/1 Demon + the Slaughter
+pill; **Badgington** shows 5/6 Beast + **both** Rally and Slaughter pills; the Glossary renders 22 terms
+across 3 groups with every icon resolving and the tier bar / Gilded correctly hidden. `typecheck` + `lint` +
+`test` (**485**) + `build:web` all green.
+
 ### feat(ui): UNIFORM hand pop — anchor each card's bottom to one line (replaces the pop-fraction levers)
 
 The hover-pop lifted a card by a fraction of its height, so cards of different heights (the text drawer varies —

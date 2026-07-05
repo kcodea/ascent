@@ -14,7 +14,7 @@ const LABELS: Record<keyof FloatConfig, string> = {
   dmgSize: 'damage size',
   durMs: 'duration',
   pop: 'pop overshoot',
-  rise: 'rise distance',
+  rise: 'rise (0=stuck)',
   inScale: 'entry scale',
   inY: 'entry drop',
 };

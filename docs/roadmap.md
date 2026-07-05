@@ -103,7 +103,8 @@ look because the engine already produces the data.
 ### Phase A follow-ups (deferred within A1–A7, do opportunistically)
 - ~~**Rating system / rating-driven par line**~~ — ✓ done (session 12 → devlog): persistent `PlayerProfile`
   (rating + Line + high-water marks) in `ascent.profile`; the run's Line comes from the rating (1200 → Line 9);
-  scored runs move the rating by the handoff delta table + summit bonus with a promo/demo hysteresis buffer;
+  scored runs move the rating by the line-delta table + a summit bonus + a final-round-win bonus (win-weighted
+  since session 19: truly winning = over your Line AND won round 17), with a promo/demo hysteresis buffer;
   end screen / Career / hero-select surface it. Pure math in `@game/sim` playerRating.ts, built local-first for
   a later Supabase-accounts swap. **Remaining:** (1) **new-Line grace** (soften the first misses after a
   promotion — `lineGrace` field reserved); (2) **rating-aware matchmaking** — still intentionally off (rating is

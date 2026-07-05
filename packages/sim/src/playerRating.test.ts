@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   COURSE_COMPLETE_BONUS,
+  FINAL_WIN_BONUS,
   initialProfile,
   lineForRating,
   lineRatingDelta,
@@ -35,13 +36,13 @@ describe('player rating — Line bands', () => {
 });
 
 describe('player rating — the delta table', () => {
-  it('matches the handoff rating table exactly', () => {
-    expect(lineRatingDelta(4)).toBe(36);
-    expect(lineRatingDelta(5)).toBe(36); // +4 or more
-    expect(lineRatingDelta(3)).toBe(30);
-    expect(lineRatingDelta(2)).toBe(22);
-    expect(lineRatingDelta(1)).toBe(14);
-    expect(lineRatingDelta(0)).toBe(6); // covered exactly
+  it('scores scored-wins-vs-Line (covering par is a modest "top 4" credit, not a win)', () => {
+    expect(lineRatingDelta(4)).toBe(20);
+    expect(lineRatingDelta(5)).toBe(20); // +4 or more
+    expect(lineRatingDelta(3)).toBe(16);
+    expect(lineRatingDelta(2)).toBe(12);
+    expect(lineRatingDelta(1)).toBe(8);
+    expect(lineRatingDelta(0)).toBe(4); // covered exactly — "top 4"
     expect(lineRatingDelta(-1)).toBe(-8);
     expect(lineRatingDelta(-2)).toBe(-16);
     expect(lineRatingDelta(-3)).toBe(-24);
@@ -49,51 +50,60 @@ describe('player rating — the delta table', () => {
     expect(lineRatingDelta(-9)).toBe(-32); // -4 or worse
   });
 
-  it('course-complete bonus is +4', () => {
-    expect(COURSE_COMPLETE_BONUS).toBe(4);
+  it('summit bonus is +8, final-win bonus is +16', () => {
+    expect(COURSE_COMPLETE_BONUS).toBe(8);
+    expect(FINAL_WIN_BONUS).toBe(16);
   });
 });
 
-describe('player rating — resolveRunRating (handoff worked examples)', () => {
+describe('player rating — resolveRunRating (win-weighted model)', () => {
   const base: PlayerProfile = { rating: 1420, currentLine: 9, highestRating: 1420, highestLine: 9 };
 
-  it('Line 9, course complete at 11-4: +22 +4 = +26', () => {
-    const r = resolveRunRating(base, { scoredWins: 11, line: 9, completed: true });
+  it('TRULY winning — over the Line AND won round 17: line + summit + final-win stack high', () => {
+    // Line 9, 11 scored wins (delta +2), reached the summit, won the final.
+    const r = resolveRunRating(base, { scoredWins: 11, line: 9, completed: true, wonFinal: true });
     expect(r.lineDelta).toBe(2);
-    expect(r.lineComponent).toBe(22);
-    expect(r.completionBonus).toBe(4);
-    expect(r.ratingDelta).toBe(26);
-    expect(r.ratingAfter).toBe(1446);
+    expect(r.lineComponent).toBe(12);
+    expect(r.completionBonus).toBe(8);
+    expect(r.finalWinBonus).toBe(16);
+    expect(r.ratingDelta).toBe(36); // +12 +8 +16
+    expect(r.ratingAfter).toBe(1456);
   });
 
-  it('Line 9, falls after reaching 11 wins: +22 +0 = +22', () => {
-    const r = resolveRunRating(base, { scoredWins: 11, line: 9, completed: false });
-    expect(r.ratingDelta).toBe(22);
+  it('over the Line but LOST the final: line + summit only, no final-win bonus', () => {
+    const r = resolveRunRating(base, { scoredWins: 11, line: 9, completed: true, wonFinal: false });
+    expect(r.finalWinBonus).toBe(0);
+    expect(r.ratingDelta).toBe(20); // +12 +8
   });
 
-  it('Line 9, falls after exactly 9 wins: +6 +0 = +6', () => {
-    const r = resolveRunRating(base, { scoredWins: 9, line: 9, completed: false });
+  it('covering the Line + summit (no final win) is a modest "top 4" gain', () => {
+    const r = resolveRunRating(base, { scoredWins: 9, line: 9, completed: true, wonFinal: false });
     expect(r.lineDelta).toBe(0);
-    expect(r.ratingDelta).toBe(6);
+    expect(r.lineComponent).toBe(4);
+    expect(r.ratingDelta).toBe(12); // +4 +8
   });
 
-  it('Line 9, course complete at 8-7: -8 +4 = -4', () => {
-    const r = resolveRunRating(base, { scoredWins: 8, line: 9, completed: true });
-    expect(r.lineDelta).toBe(-1);
+  it('covering the Line but falling short of the summit: line credit only', () => {
+    const r = resolveRunRating(base, { scoredWins: 9, line: 9, completed: false, wonFinal: false });
+    expect(r.ratingDelta).toBe(4); // +4
+  });
+
+  it('missed the Line by one but summited: the summit bonus offsets the miss', () => {
+    const r = resolveRunRating(base, { scoredWins: 8, line: 9, completed: true, wonFinal: false });
     expect(r.lineComponent).toBe(-8);
-    expect(r.completionBonus).toBe(4);
-    expect(r.ratingDelta).toBe(-4);
+    expect(r.completionBonus).toBe(8);
+    expect(r.ratingDelta).toBe(0);
   });
 
-  it('Line 9, falls at 6 wins: -24 +0 = -24', () => {
-    const r = resolveRunRating(base, { scoredWins: 6, line: 9, completed: false });
+  it('fell well under the Line: a clean loss of rating', () => {
+    const r = resolveRunRating(base, { scoredWins: 6, line: 9, completed: false, wonFinal: false });
     expect(r.lineDelta).toBe(-3);
     expect(r.ratingDelta).toBe(-24);
   });
 
   it('floors rating at 0', () => {
     const low: PlayerProfile = { rating: 10, currentLine: 7, highestRating: 800, highestLine: 8 };
-    const r = resolveRunRating(low, { scoredWins: 0, line: 7, completed: false }); // -32
+    const r = resolveRunRating(low, { scoredWins: 0, line: 7, completed: false, wonFinal: false }); // -32
     expect(r.ratingAfter).toBe(0);
     expect(r.profile.rating).toBe(0);
     expect(r.profile.highestRating).toBe(800); // high-water mark never drops
@@ -104,17 +114,17 @@ describe('player rating — promotion/demotion hysteresis', () => {
   it('promotes when rating clears the next band threshold', () => {
     // At Line 8 (rating 1150), a strong run pushes past 1200 → promote to Line 9.
     const p: PlayerProfile = { rating: 1194, currentLine: 8, highestRating: 1194, highestLine: 8 };
-    const r = resolveRunRating(p, { scoredWins: 10, line: 8, completed: true }); // +22 +4 = +26 → 1220
-    expect(r.ratingAfter).toBe(1220);
+    const r = resolveRunRating(p, { scoredWins: 10, line: 8, completed: true, wonFinal: false }); // +12 +8 = +20 → 1214
+    expect(r.ratingAfter).toBe(1214);
     expect(r.lineAfter).toBe(9);
     expect(r.promoted).toBe(true);
   });
 
   it('holds the Line inside the 75-point buffer (no yo-yo)', () => {
-    // Just promoted to Line 9 at 1210; a small miss to 1180 stays Line 9 (demotion needs < 1125).
+    // At Line 9 rating 1210; a small miss stays Line 9 (demotion needs < 1125).
     const p: PlayerProfile = { rating: 1210, currentLine: 9, highestRating: 1210, highestLine: 9 };
-    const r = resolveRunRating(p, { scoredWins: 6, line: 9, completed: true }); // -24 +4 = -20 → 1190
-    expect(r.ratingAfter).toBe(1190);
+    const r = resolveRunRating(p, { scoredWins: 6, line: 9, completed: true, wonFinal: false }); // -24 +8 = -16 → 1194
+    expect(r.ratingAfter).toBe(1194);
     expect(r.lineAfter).toBe(9); // still inside the buffer (>= 1125)
     expect(r.demoted).toBe(false);
   });
@@ -122,7 +132,7 @@ describe('player rating — promotion/demotion hysteresis', () => {
   it('demotes only when rating falls under the buffer', () => {
     // At Line 9 rating 1140; a bad run drops under 1125 → demote to Line 8.
     const p: PlayerProfile = { rating: 1140, currentLine: 9, highestRating: 1300, highestLine: 9 };
-    const r = resolveRunRating(p, { scoredWins: 6, line: 9, completed: false }); // -24 → 1116
+    const r = resolveRunRating(p, { scoredWins: 6, line: 9, completed: false, wonFinal: false }); // -24 → 1116
     expect(r.ratingAfter).toBe(1116);
     expect(r.lineAfter).toBe(8);
     expect(r.demoted).toBe(true);

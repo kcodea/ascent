@@ -30,6 +30,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   Avenge 3: get a random spell), **Badgington** (T4 Beast — Rally *and* Slaughter: get a random spell), and
   **Sword and Bored** (T1 Demon — Slaughter: buff your Fodder), each with art. The **Compendium** gains a
   **Glossary** toggle — a keyword codex (Triggers / Combat keywords / Build & shop) with every term defined.
+- **Win-weighted rating** — **truly winning** (over your Line *and* winning the final round) now pays a lot: a
+  bigger **Summit Bonus (+8)** for reaching round 17 plus a new **Final Win bonus (+16)** for winning it, while
+  merely **covering your Line** reads as a modest "top 4" credit. The end screen shows the stacked bonuses (a
+  gold *Final Win* pill).
 - **Hand + HUD refinements** — a bit more room between the fanned cards; the distracting magnified hover preview
   is gone — **hovering now pops the card itself up** to reveal its full text; **grabbing a card no longer
   jiggles the hand** (the fan measured its own rotated rects instead of flatten-then-re-fanning); and the

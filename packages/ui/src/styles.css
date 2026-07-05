@@ -1301,7 +1301,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    (the unit itself collapses), centred there; the inner .float rides the floatup rise from the anchor.
    It clears FASTER than a normal float (≈0.9s) so a lone number over a vanished unit doesn't hang. */
 .deathfloat { position: fixed; z-index: 26; pointer-events: none; transform: translate(-50%, -50%); }
-.deathfloat .float { position: static; right: auto; bottom: auto; display: inline-block; animation-duration: 0.9s; }
+.deathfloat .float { position: static; right: auto; bottom: auto; display: inline-block; animation-name: floatstickc; animation-duration: 0.9s; }
 .float.dmg { color: #fff; background: var(--threat); padding: 3px 13px; border-radius: 12px; font-size: var(--float-dmg-size, 42px); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38); }
 /* An in-unit damage number sits in the CENTRE of the struck card (not the corner) so it reads as the hit
    landing on the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain
@@ -1338,7 +1338,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 @keyframes floatup { 0% { opacity: 0; transform: translateY(var(--float-in-y, 14px)) scale(var(--float-in-scale, 0.5)); } 10% { opacity: 1; transform: translateY(0) scale(var(--float-pop, 1.18)); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(-8px) scale(1); } 100% { opacity: 0; transform: translateY(var(--float-rise, -30px)) scale(0.96); } }
 /* Centred variant for the in-unit damage number — same pop/rise as `floatup` (and the same Damage-Float
    tuner vars), but with the card-centring translate(-50%,-50%) baked into every frame. */
-@keyframes floatupc { 0% { opacity: 0; transform: translate(-50%, calc(-50% + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.5)); } 10% { opacity: 1; transform: translate(-50%, -50%) scale(var(--float-pop, 1.18)); } 22% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; transform: translate(-50%, calc(-50% - 8px)) scale(1); } 100% { opacity: 0; transform: translate(-50%, calc(-50% + var(--float-rise, -30px))) scale(0.96); } }
+@keyframes floatupc { 0% { opacity: 0; transform: translate(-50%, calc(-50% + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.5)); } 10% { opacity: 1; transform: translate(-50%, -50%) scale(var(--float-pop, 1.18)); } 22% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; transform: translate(-50%, calc(-50% + var(--float-dmg-rise, 0px))) scale(1); } 100% { opacity: 0; transform: translate(-50%, calc(-50% + var(--float-dmg-rise, 0px))) scale(0.96); } }
+/* Death-overlay damage number — the `.deathfloat` container centres it, so this only pops + fades (no
+   translate other than the tunable rise, which defaults to 0 = stuck at the dying minion's last spot). */
+@keyframes floatstickc { 0% { opacity: 0; transform: translateY(var(--float-in-y, 14px)) scale(var(--float-in-scale, 0.5)); } 10% { opacity: 1; transform: translateY(0) scale(var(--float-pop, 1.18)); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(var(--float-dmg-rise, 0px)) scale(1); } 100% { opacity: 0; transform: translateY(var(--float-dmg-rise, 0px)) scale(0.96); } }
 /* The PixiJS WebGL effects overlay (particle impacts, flashes, sell-coin sprinkle) — a transparent
    full-viewport canvas drawn over the board, never intercepting input. Sits above the status bar
    (z40) so coins sprinkle OVER the Gold counter, but below dragged cards (z100), modals (z50+), and
@@ -1606,6 +1609,8 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Rating change (career): the summit bonus, the delta, and the new rating, with a promo/demo tag. */
 .endrating { display: inline-flex; align-items: center; gap: 10px; margin-top: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
 .endrating-bonus { color: #c9a23a; }
+/* Final-win bonus — the "won the game" payoff, a filled gold pill so it reads as the headline reward. */
+.endrating-bonus.win { color: #6e4e08; background: linear-gradient(180deg, #ffe08a, #f0b840); padding: 3px 10px; border-radius: 9px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 6px rgba(150, 100, 20, 0.35); }
 .endrating-delta { color: var(--ink2); }
 .endrating.up .endrating-delta { color: #3b9e57; }
 .endrating.down .endrating-delta { color: var(--threat); }

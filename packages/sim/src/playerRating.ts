@@ -4,7 +4,9 @@
  * The **Line** is the number of scored wins a run must cover to count as a success: a golf-handicap-style
  * *expectation*, NOT a difficulty knob. (Matchmaking stays wave/power-first for now — rating is deliberately
  * kept out of opponent selection so skill isn't double-taxed.) A run's rating change is a pure function of how
- * the scored-win count compared to its Line, plus a course-completion bonus.
+ * the scored-win count compared to its Line (a modest "top 4"-style credit for merely covering par), PLUS a
+ * summit bonus for reaching round 17 and a bigger final-win bonus for actually WINNING round 17 — so a *true*
+ * win (over your Line AND won the last round) is worth much more than a covered Line.
  *
  * This module is deterministic and side-effect-free — no storage, no `Math.random` — so it can run identically
  * on the client AND, later, inside a server (e.g. a Supabase Edge Function) that re-simulates a run from its
@@ -30,8 +32,12 @@ export interface PlayerProfile {
 export const STARTING_RATING = 0;
 export const MIN_LINE = 7;
 export const MAX_LINE = 12;
-/** Bonus rating for finishing all 17 rounds (the summit), on top of the line result. */
-export const COURSE_COMPLETE_BONUS = 4;
+/** Bonus rating for reaching the summit — surviving all 17 rounds — on top of the line result. Awarded whether
+ *  or not the final combat was won (you just have to get there). */
+export const COURSE_COMPLETE_BONUS = 8;
+/** Bonus rating for WINNING the final round (round 17) — the "win the game" payoff, stacked on top of the summit
+ *  bonus. Combined with being over your Line, this is what makes a run a *true* win (vs merely covering par). */
+export const FINAL_WIN_BONUS = 16;
 
 /** Lower rating bound of each Line band — also the promotion threshold to *enter* that Line. */
 const PROMOTION_THRESHOLD: Record<number, number> = { 8: 800, 9: 1200, 10: 1600, 11: 2000, 12: 2400 };
@@ -65,13 +71,15 @@ export function resolveLine(currentLine: number, rating: number): number {
   return line;
 }
 
-/** The rating change from the scored-wins-vs-Line delta (before the completion bonus). See the handoff table. */
+/** The rating change from the scored-wins-vs-Line delta, BEFORE the summit + final-win bonuses. Covering the Line
+ *  exactly is a small credit ("top 4" — you met par); the big payoff for a run comes from the win bonuses, not
+ *  from the line component alone. The miss side is unchanged (falling short of par still stings). */
 export function lineRatingDelta(deltaFromLine: number): number {
-  if (deltaFromLine >= 4) return 36;
-  if (deltaFromLine === 3) return 30;
-  if (deltaFromLine === 2) return 22;
-  if (deltaFromLine === 1) return 14;
-  if (deltaFromLine === 0) return 6; // Line covered exactly
+  if (deltaFromLine >= 4) return 20;
+  if (deltaFromLine === 3) return 16;
+  if (deltaFromLine === 2) return 12;
+  if (deltaFromLine === 1) return 8;
+  if (deltaFromLine === 0) return 4; // Line covered exactly — a modest "top 4" credit, not a win
   if (deltaFromLine === -1) return -8;
   if (deltaFromLine === -2) return -16;
   if (deltaFromLine === -3) return -24;
@@ -84,8 +92,11 @@ export interface RunOutcome {
   scoredWins: number;
   /** The Line this run was assigned at start. */
   line: number;
-  /** Reached the summit (finished all rounds) vs. fell. */
+  /** Reached the summit (survived all rounds) vs. fell. */
   completed: boolean;
+  /** Won the FINAL round (round 17), the last combat of the course. Implies `completed` — you can't win the
+   *  final without reaching it. Drives the final-win bonus (the "won the game" payoff). */
+  wonFinal: boolean;
 }
 
 /** The full breakdown of a run's rating change, for persistence + the end-screen display. */
@@ -95,10 +106,12 @@ export interface RatingChange {
   ratingDelta: number;
   /** `scoredWins − line` (the handoff's `deltaFromLine`). */
   lineDelta: number;
-  /** Rating from the line table (before the completion bonus). */
+  /** Rating from the line table (before the summit + final-win bonuses). */
   lineComponent: number;
-  /** +{@link COURSE_COMPLETE_BONUS} if the course was finished, else 0. */
+  /** +{@link COURSE_COMPLETE_BONUS} if the summit was reached, else 0. */
   completionBonus: number;
+  /** +{@link FINAL_WIN_BONUS} if the final round (round 17) was won, else 0. */
+  finalWinBonus: number;
   lineBefore: number;
   lineAfter: number;
   promoted: boolean;
@@ -114,13 +127,14 @@ export function resolveRunRating(profile: PlayerProfile, outcome: RunOutcome): R
   const lineDelta = outcome.scoredWins - outcome.line;
   const lineComponent = lineRatingDelta(lineDelta);
   const completionBonus = outcome.completed ? COURSE_COMPLETE_BONUS : 0;
-  const ratingDelta = lineComponent + completionBonus;
+  const finalWinBonus = outcome.wonFinal ? FINAL_WIN_BONUS : 0;
+  const ratingDelta = lineComponent + completionBonus + finalWinBonus;
   const ratingAfter = Math.max(0, ratingBefore + ratingDelta);
   const lineBefore = profile.currentLine;
   const lineAfter = resolveLine(lineBefore, ratingAfter);
   return {
     ratingBefore, ratingAfter, ratingDelta,
-    lineDelta, lineComponent, completionBonus,
+    lineDelta, lineComponent, completionBonus, finalWinBonus,
     lineBefore, lineAfter,
     promoted: lineAfter > lineBefore,
     demoted: lineAfter < lineBefore,

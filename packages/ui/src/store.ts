@@ -332,7 +332,10 @@ export const useGame = create<GameStore>((set, get) => ({
           const cardsPlayed = actions.filter((a) => a.type === 'play').length;
           // Rating (career): grade this scored run against its Line and update the persisted profile. Pure
           // math in @game/sim; the change is surfaced on the end screen (lastRating) + stamped into history.
-          const change = resolveRunRating(s.profile, { scoredWins: runRecord(next).wins, line: next.line, completed: won });
+          // `wonFinal` = won the last round (round 17) — a victory means the last history entry is the round-17
+          // result; winning it earns the big final-win bonus on top of the summit bonus.
+          const wonFinal = won && next.history[next.history.length - 1] === 'win';
+          const change = resolveRunRating(s.profile, { scoredWins: runRecord(next).wins, line: next.line, completed: won, wonFinal });
           saveProfile(change.profile);
           set({ profile: change.profile, lastRating: change });
           saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change }));

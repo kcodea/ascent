@@ -1606,6 +1606,8 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Rating change (career): the summit bonus, the delta, and the new rating, with a promo/demo tag. */
 .endrating { display: inline-flex; align-items: center; gap: 10px; margin-top: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
 .endrating-bonus { color: #c9a23a; }
+/* Final-win bonus — the "won the game" payoff, a filled gold pill so it reads as the headline reward. */
+.endrating-bonus.win { color: #6e4e08; background: linear-gradient(180deg, #ffe08a, #f0b840); padding: 3px 10px; border-radius: 9px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 6px rgba(150, 100, 20, 0.35); }
 .endrating-delta { color: var(--ink2); }
 .endrating.up .endrating-delta { color: #3b9e57; }
 .endrating.down .endrating-delta { color: var(--threat); }

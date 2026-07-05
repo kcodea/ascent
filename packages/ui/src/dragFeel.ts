@@ -38,6 +38,10 @@ export interface DragFeel {
   /** Vertical drag distance (px) before the row closes up behind a lifted card — when you pull a board
    *  minion (or shop offer) up/down out of its slot this far, the others slide in to fill the gap. */
   collapseY: number;
+  /** Hand hover-pop rise, as a FRACTION of the card height (--ch): how far a hovered hand card lifts up out
+   *  of the fan to reveal its full text. Reflected to the `--hand-pop` CSS var, which `.row.hand .card:hover`
+   *  reads — so this tunes live. Lower = pops less / the card sits closer to the bottom. */
+  handPop: number;
 }
 
 const DEFAULTS: DragFeel = {
@@ -55,6 +59,7 @@ const DEFAULTS: DragFeel = {
   snapMs: 110,
   magSlideMs: 280,
   collapseY: 70,    // ~lift half a card vertically before the row fills the gap
+  handPop: 0.3,     // hovered hand card rises 0.3× its height out of the fan (tuned by eye)
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -73,6 +78,7 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   snapMs: [40, 400, 10],
   magSlideMs: [100, 600, 10],
   collapseY: [0, 200, 5],
+  handPop: [0, 0.6, 0.01],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -91,6 +97,7 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   snapMs: 'How fast an invalid drop springs back to its slot (milliseconds).',
   magSlideMs: 'Duration of the Mech “absorb” slide when a Magnetic minion merges (milliseconds).',
   collapseY: 'Vertical distance (px) you must lift a card out of its row before the others slide in to fill the gap.',
+  handPop: 'How far a hovered hand card pops up out of the fan (× card height) to reveal its full text. Lower = pops less / the card sits closer to the bottom.',
 };
 export const DRAG_KEYS = Object.keys(DEFAULTS) as (keyof DragFeel)[];
 
@@ -107,8 +114,15 @@ let cfg: DragFeel = (() => {
 export function getDragFeel(): DragFeel {
   return cfg;
 }
+/** Reflect the CSS-driven feel values (currently just the hand-pop) onto the document root, so pure-CSS rules
+ *  like `.row.hand .card:hover` pick up the current/tuned value live. */
+export function applyDragFeelVars(): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.style.setProperty('--hand-pop', String(cfg.handPop));
+}
 export function setDragValue(key: keyof DragFeel, value: number): void {
   cfg = { ...cfg, [key]: value };
+  applyDragFeelVars();
   try {
     localStorage.setItem(KEY, JSON.stringify(cfg));
   } catch {
@@ -117,9 +131,12 @@ export function setDragValue(key: keyof DragFeel, value: number): void {
 }
 export function resetDragFeel(): void {
   cfg = { ...DEFAULTS };
+  applyDragFeelVars();
   try {
     localStorage.removeItem(KEY);
   } catch {
     /* ignore */
   }
 }
+// Reflect the persisted/default vars onto :root at load, so the hand-pop is right before any tuning happens.
+applyDragFeelVars();

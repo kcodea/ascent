@@ -24,6 +24,8 @@ const LABELS: Record<keyof DragFeel, string> = {
   recenterAfter: 'recenter after px',
   snapMs: 'snap-back ms',
   magSlideMs: 'magnet-slide ms',
+  collapseY: 'row collapse px',
+  handPop: 'hand pop (×ch)',
 };
 
 export function DragTuner() {

@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-05 (session 18)
 
+### feat(ui): hand hover-pop height is now a live DEV LEVER (`handPop`)
+
+The hover-pop lift is viewport-sensitive (it's a fraction of `--ch`), so the "right" amount depends on the
+player's resolution — no single hard-coded value satisfies everyone, and the owner still saw cards popping too
+high. Made the lift a **live, dial-by-eye lever** instead of guessing pixels.
+
+- New `handPop` key in the drag-feel config (`dragFeel.ts`): the hover-pop rise as a fraction of `--ch`, with a
+  slider range `[0, 0.6, 0.01]`, a tooltip, and localStorage persistence like the rest of the tuner. Default
+  nudged **0.35 → 0.3** (pops a touch less out of the box).
+- `dragFeel.ts` now reflects the value onto the document root as the `--hand-pop` CSS var (`applyDragFeelVars()`,
+  called on load + on every tuner change/reset), and `.row.hand .card:hover` reads
+  `translateY(calc(-1 * var(--ch) * var(--hand-pop, 0.3)))` — so sliding the lever moves the pop **live**.
+- Added the slider to the Drag Feel tuner (`DragTuner.tsx`, label "hand pop (×ch)"); also gave the previously
+  label-less `collapseY` a name while there. Open it from the Dev Tuning Menu, drag "hand pop" until the card
+  sits right, then "Copy values" to bake it as the shipped default in `dragFeel.ts`.
+
+Verified live: `--hand-pop` resolves to `0.3` on `:root` after load; the `.row.hand .card:hover` transform reads
+it; the forced-hover card shows its full text with the tribe line readable. `typecheck` + `lint` + `test` (483)
++ `build:web` green.
+
 ### fix(ui): the REAL "release to play" glow softened + hover-pop only lifts flush to the edge
 
 Two owner follow-ups, presentation-only (`packages/ui/styles.css`).

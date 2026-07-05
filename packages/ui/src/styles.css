@@ -393,12 +393,13 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    pixel or two), no flatten, no pickup jiggle. */
 .row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * -0.44); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
-/* Hover pops the in-hand card ITSELF up out of the fan — straightened, scaled a touch, and lifted just enough
-   that its full text drawer clears the tuck and sits FLUSH with the bottom edge of the play field (no floating
-   gap below it). Replaces the old floating magnified `.handpreview` copy. A soft dark drop-shadow (follows the
-   card's alpha, so it hugs the arch) reads as "lifted above the fan" — NOT the bright `.card:hover` box-shadow
-   glow, which is tuned for small in-place cards and looks harsh blown up over the popped card. */
-.row.hand .card:hover { transform: translateY(calc(-1 * var(--ch) * 0.35)) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+/* Hover pops the in-hand card ITSELF up out of the fan — straightened, scaled a touch, and lifted to reveal its
+   full text. The lift amount is `--hand-pop` (a fraction of --ch), a LIVE DEV LEVER: the Drag Feel tuner
+   (DevMenu → Drag Feel → "hand pop") drives it via dragFeel.ts's `handPop`, so it's dial-by-eye and persists.
+   Replaces the old floating magnified `.handpreview` copy. A soft dark drop-shadow (follows the card's alpha,
+   so it hugs the arch) reads as "lifted above the fan" — NOT the bright `.card:hover` box-shadow glow, which is
+   tuned for small in-place cards and looks harsh blown up over the popped card. */
+.row.hand .card:hover { transform: translateY(calc(-1 * var(--ch) * var(--hand-pop, 0.3))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }

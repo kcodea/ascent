@@ -169,12 +169,20 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); }
 .buff-row .buff-label { font-family: var(--font-ui); font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink); white-space: nowrap; }
 .buff-row .buff-val { font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); color: var(--acc-dk); font-variant-numeric: tabular-nums; }
-.meter { position: relative; width: calc(104 * var(--u)); height: calc(9 * var(--u)); border-radius: 6px; background: var(--bg2); overflow: hidden; }
-.meter i { display: block; height: 100%; background: var(--acc); border-radius: 6px; }
-/* Pre-round (Setup) notch — a gap cut into the bar at the end of the calibration rounds, so the setup
-   segment reads as separate from the scored climb. Card-coloured with dark edges so it shows on both the
-   orange fill and the empty track. */
-.meter-notch { position: absolute; top: 0; bottom: 0; width: calc(3 * var(--u)); transform: translateX(-50%); background: var(--card); box-shadow: 0 0 0 1px rgba(74, 52, 20, 0.35); z-index: 1; }
+/* Per-round track (replaces the old fill bar): one dash per course round. A win prints a green ✓, a loss a
+   red ✕; rounds not yet played show a faint dash, the current round a lit-orange dash. Setup rounds (1–2)
+   read quieter and get a small gap after (marking where the scored climb begins). */
+.rounds { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); }
+.rd { position: relative; display: inline-flex; align-items: center; justify-content: center; width: calc(12 * var(--u)); height: calc(16 * var(--u)); font-family: var(--font-ui); font-weight: 900; font-size: calc(13 * var(--u)); line-height: 1; }
+/* the states that print no glyph (upcoming / draw / current) draw a dash instead */
+.rd-future::before, .rd-draw::before, .rd-cur::before { content: ''; position: absolute; width: calc(9 * var(--u)); height: calc(3 * var(--u)); border-radius: 2px; background: var(--ink3); opacity: 0.38; }
+.rd-draw::before { opacity: 0.75; background: var(--ink2); }
+.rd-cur::before { width: calc(11 * var(--u)); height: calc(4 * var(--u)); background: var(--acc); opacity: 1; box-shadow: 0 0 6px -1px color-mix(in srgb, var(--acc) 85%, transparent); }
+.rd-win { color: #2ba24f; }
+.rd-lose { color: var(--threat); }
+.rd-calib { opacity: 0.6; }
+.rd-calib.rd-cur { opacity: 1; } /* the current round stays fully lit even during Setup */
+.rd-edge { margin-right: calc(8 * var(--u)); }
 .sp { flex: 1; }
 .chip { position: relative; display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(15 * var(--u)) calc(5 * var(--u)) calc(11 * var(--u)); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
 .chip .ic { width: calc(32 * var(--u)); height: calc(32 * var(--u)); border-radius: calc(9 * var(--u)); display: grid; place-items: center; }
@@ -376,7 +384,7 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    card box to --ch (max-height + overflow) — all cards become the same height and their tops line up (the
    drawer's tail is clipped; the hover preview shows the full card). `--hand-tuck` is the single source of
    truth for the tuck, shared with the reorder-slide transform in Card.tsx. */
-.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); margin-left: calc(var(--ccw) * -0.2); max-height: var(--ch); overflow: hidden; transform: translateY(var(--hand-tuck)); transition: transform 0.12s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); margin-left: calc(var(--ccw) * -0.42); transform: translateY(var(--hand-tuck)); transition: transform 0.12s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* hover lifts just enough to reveal the whole card + bring it forward — small so the card
    stays under the cursor (no bounce-out). */
@@ -1123,14 +1131,30 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .resfx { position: absolute; top: -10px; right: 14px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 /* compact sizing for the corner tray (was hero-sized when it was the centrepiece); the
    hero panel is ~15% larger than the chips so it reads as the centrepiece of the tray */
-.statusbar .hero { padding: calc(8 * var(--u)) calc(22 * var(--u)) calc(8 * var(--u)) calc(8 * var(--u)); border-radius: calc(23 * var(--u)); gap: calc(14 * var(--u)); }
-.statusbar .hero .f { width: calc(80 * var(--u)); height: calc(80 * var(--u)); border-radius: calc(21 * var(--u)); }
-.statusbar .hero .f svg { width: calc(44 * var(--u)); height: calc(44 * var(--u)); }
-/* reserve a stable width for the name + power line so arming/using the power (which changes the text)
-   can't resize the panel */
-.statusbar .hero .htxt { min-width: calc(216 * var(--u)); }
-.statusbar .hero .nm { font-size: calc(23 * var(--u)); }
-.statusbar .hero .pw { font-size: calc(16 * var(--u)); white-space: nowrap; }
+/* The hero frame is a compact 2×2 grid — portrait + name/power on the top row, power button + Resolve on the
+   bottom — so it reads narrow and tall (echoing the opponent frame up top) and a full 10-card hand clears it in
+   the corner instead of ducking behind. The DOM order (.f, .htxt, .hpwrap, .hpbox) auto-places row-major into
+   the four cells; the fixed width wraps the power line to a second row (which is where the added height comes
+   from). */
+.statusbar .hero {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: start;
+  width: calc(232 * var(--u)); gap: calc(6 * var(--u)) calc(13 * var(--u));
+  padding: calc(9 * var(--u)) calc(15 * var(--u)); border-radius: calc(21 * var(--u));
+}
+.statusbar .hero .f { width: calc(60 * var(--u)); height: calc(60 * var(--u)); border-radius: calc(16 * var(--u)); }
+.statusbar .hero .f svg { width: calc(34 * var(--u)); height: calc(34 * var(--u)); }
+.statusbar .hero .htxt { min-width: 0; }
+.statusbar .hero .nm { font-size: calc(20 * var(--u)); line-height: 1.1; }
+.statusbar .hero .pw { font-size: calc(13 * var(--u)); white-space: normal; line-height: 1.26; }
+/* power button + Resolve are the bottom row — left-align them in their cells (override the single-row
+   margin-left:auto) and shrink to suit the compact frame */
+.statusbar .hero .hpwrap { margin-left: 0; justify-self: start; }
+.statusbar .heropowerbtn { width: calc(54 * var(--u)); height: calc(54 * var(--u)); }
+.statusbar .heropowerbtn svg { width: calc(28 * var(--u)); height: calc(28 * var(--u)); }
+.statusbar .hero .hpbox { justify-self: stretch; align-self: center; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
+.statusbar .hero .hpbox svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); }
+.statusbar .hero .hpbox .hpval { font-size: calc(23 * var(--u)); }
+.statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
 /* Embers chip scaled to fill the (hero-tall) chip */
 .statusbar .chip { padding: calc(11 * var(--u)) calc(16 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(11 * var(--u)); }
 .statusbar .chip .ic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(16 * var(--u)); }

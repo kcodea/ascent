@@ -3,6 +3,46 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-04 (session 17)
+
+### polish(ui): hand tier pills + compact 2×2 hero frame + per-round dash track
+
+Owner-directed cleanup batch on the hand / HUD. Presentation-only — `packages/ui` (`instView.ts`,
+`HudBar.tsx`, `styles.css`); no engine/content/sim changes.
+
+- **Spells in hand now show their Tier pill.** `instView` (the board/hand `CardView` builder) hard-coded
+  `tier: spell ? undefined : c.tier`, so a hand spell rendered its `SPELL` drawer but no `Tier N` badge —
+  inconsistent with the shop (`shopView` always passes `tier: c.tier`) and with minions in the same hand.
+  Changed to `tier: c.tier` unconditionally. `instView` also feeds board minions, but boards never hold
+  spells, so this only affects hand spells (now badged like everything else). Verified: all 10 hand cards
+  (spell at index 4 included) carry a `Tier 1` badge.
+- **Un-clipped the hand card pills/outlines.** The earlier uniform-height pass put `max-height: var(--ch);
+  overflow: hidden` on `.row.hand .card`, which cropped the Tier/cost pills (they overhang the card's top
+  edge by ~9px) and shaved the rounded outline. Removed both — top-alignment now rests solely on the row's
+  `align-items: flex-start` + the fixed `--hand-tuck`, so every card still tops out level but nothing is
+  clipped (measured `overflow: visible`, badge sits 9px above the card top, fully drawn).
+- **Hero frame → compact 2×2 grid.** The status-bar hero panel was a single 591px-wide row (portrait ·
+  name/power · power button · Resolve) whose left third sat under a wide hand — with even 6 cards the
+  left-most cards ducked behind it. Reflowed `.statusbar .hero` to `display: grid` with two columns
+  (`auto minmax(0,1fr)`) and a fixed `232·--u` width; the existing DOM order (`.f`, `.htxt`, `.hpwrap`,
+  `.hpbox`) auto-places row-major into portrait+name (top) / power-button+Resolve (bottom). The fixed width
+  wraps the power line, which is where the added height comes from; power button and Resolve box shrank to
+  suit. Net: **591×119 → 232×166** — narrow + tall, mirroring the opponent frame up top. Paired with a
+  deeper hand overlap (`.row.hand .card` margin-left `−0.2ccw → −0.42ccw`), a full 10-card hand now clears
+  the frame's right edge by ~59px (was ~3 cards overlapping).
+- **Round meter → per-round dash track.** Replaced the single fill bar + calibration notch with one dash
+  per course round (17): a win prints a green `✓`, a loss a red `✕`, a draw a muted dash, upcoming rounds a
+  faint dash, and the current round a lit-orange dash. Setup rounds (1–2) read at 0.6 opacity with a small
+  gap after round 2 (preserving the old notch's "scored climb begins here" cue). Hidden in Practice
+  (endless — no fixed course). Reads `run.history[i]` (round i+1's `CombatOutcome`) + `run.wave`; pure
+  derived render, no per-frame work. Verified colours via computed style (`#f0902e` current, green wins,
+  raspberry losses) and glyph/opacity per round state.
+
+Verified live (browser store, throwaway `newRun(777,'nadja')` with a planted 10-card hand incl. a spell,
+and a simulated mid-run `wave 8` history): tier badges on every hand card, no pill/outline clipping, hand
+clears the hero frame (+59px), 2×2 frame lays out clean (portrait/name top, power/Resolve bottom), dash
+track renders ✓/✕/dash/orange correctly. `typecheck` + `lint` + `test` (483) + `build:web` green.
+
 ## 2026-07-04 (session 16)
 
 ### feat(ui): HUD restyle to the mockup — segmented stat strip + control tray, warband under the centre line

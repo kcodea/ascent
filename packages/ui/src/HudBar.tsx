@@ -24,11 +24,32 @@ export function HudBar() {
             </span>
           )}
         </span>
-        <span className="meter">
-          <i style={{ width: `${Math.min(100, (run.wave / CONFIG.courseRounds) * 100)}%` }} />
-          {/* A notch at the end of the pre-round (Setup) rounds — marks where the scored climb begins. */}
-          {!practice && <span className="meter-notch" style={{ left: `${(CONFIG.calibrationRounds / CONFIG.courseRounds) * 100}%` }} />}
-        </span>
+        {/* Per-round track: one dash per course round — a win prints a green ✓, a loss a red ✕, rounds not yet
+            played stay a faint dash, and the current round is lit orange. Setup rounds (1–2) read a touch
+            quieter with a small gap after (where the scored climb begins). Hidden in Practice (endless — no
+            fixed course). */}
+        {!practice && (
+          <span className="rounds" role="img" aria-label={`Round ${run.wave} of ${CONFIG.courseRounds}`}>
+            {Array.from({ length: CONFIG.courseRounds }, (_, i) => {
+              const round = i + 1;
+              const result = run.history[i]; // 'win' | 'lose' | 'draw' | undefined (current / upcoming)
+              const state = round === run.wave ? 'cur' : (result ?? 'future');
+              const calib = round <= CONFIG.calibrationRounds;
+              const label =
+                result === 'win' ? 'Win' : result === 'lose' ? 'Loss' : result === 'draw' ? 'Draw'
+                  : round === run.wave ? 'now' : 'upcoming';
+              return (
+                <span
+                  key={round}
+                  className={`rd rd-${state}${calib ? ' rd-calib' : ''}${round === CONFIG.calibrationRounds ? ' rd-edge' : ''}`}
+                  title={`Round ${round}${calib ? ' · Setup' : ''} — ${label}`}
+                >
+                  {state === 'win' ? '✓' : state === 'lose' ? '✕' : ''}
+                </span>
+              );
+            })}
+          </span>
+        )}
         {calibration ? (
           <span className="lbl calib" title="Setup rounds (1–2) don't count toward your record">Setup</span>
         ) : (

@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Hand + HUD polish** — hand **spells now show their Tier pill** (matching minions and the shop), and the
+  card pills/outlines are no longer clipped. The **hero frame is a compact 2×2 grid** (portrait + name up top,
+  power button + Resolve below — 591×119 → 232×166, mirroring the opponent frame), so a full **10-card hand
+  clears it** in the corner (helped by a deeper card overlap). The round progress bar becomes a **per-round
+  dash track** — green ✓ win, red ✕ loss, muted dash draw, lit-orange current round, faint dash upcoming.
 - **HUD restyle to the mockup** — the shop controls regroup into one segmented **stat strip** (Gold · Tier ·
   Setup Time) over a gold-edged **control tray** (Upgrade Tavern · Reroll · Freeze · End Turn) with warmer
   tan-gold buttons; the redundant right-edge End Turn is gone. The controls sit in a fixed-height block that

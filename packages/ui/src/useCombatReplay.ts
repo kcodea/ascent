@@ -7,7 +7,7 @@ import { pixiFx } from './pixiFx';
 import { getLungeConfig } from './lungeConfig';
 import { getTrailConfig } from './trailConfig';
 import { getPacingConfig, beatDelay } from './pacingConfig';
-import { buildBeats, RESULT_TYPES } from './combatBeats';
+import { buildBeats, RESULT_TYPES, attackerOfImpact } from './combatBeats';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
@@ -577,10 +577,10 @@ export function useCombatReplay(
     // rendered in a board overlay instead (it survives the unit + lingers).
     const dying = new Set<string>();
     for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'death') dying.add(e.target); }
-    // Attackers in this beat — only the unit being ATTACKED shows its damage number, so the attacker's
-    // retaliation damage (an attack is a two-way clash) floats no number over the attacker.
-    const attackers = new Set<string>();
-    for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'attack') attackers.add(e.attacker); }
+    // Only the unit being ATTACKED shows a damage number — the attacker's retaliation (a clash is two-way)
+    // floats no number. The impact is `beats[beatIdx - 1]`; `attackerOfImpact` reads the attacker from its
+    // wind-up beat (an attack's damage lands one beat after the attack itself).
+    const attackerUid = attackerOfImpact(beats, beatIdx - 1);
     const spawned: Float[] = [];
     const deaths: DeathFloat[] = [];
     const buffByTarget = new Map<string, { a: number; h: number; id: number }>();
@@ -596,7 +596,7 @@ export function useCombatReplay(
       const f = floatFor(e);
       if (!f) continue;
       // Damage numbers show ONLY on the unit being attacked — skip the attacker's retaliation float.
-      if (f.kind === 'dmg' && attackers.has(f.uid)) continue;
+      if (f.kind === 'dmg' && f.uid === attackerUid) continue;
       // A damage number on a dying unit → the board overlay, anchored where the unit is right now.
       if (f.kind === 'dmg' && dying.has(f.uid)) {
         const r = findEl(f.uid)?.getBoundingClientRect();

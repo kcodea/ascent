@@ -32,6 +32,27 @@ Verified: `playerRating.test.ts` rewritten around the new model (truly-winning +
 cover-is-top-4 +12, miss-but-summit 0, floors, promo/demo hysteresis) — `typecheck` + `lint` + `test` (**486**)
 + `build:web` green; live end screen shows `Summit Bonus +8 · Final Win +16 · Rating +36` on a flawless win.
 Numbers are starting dials — flag any you want higher/lower.
+## 2026-07-05 (session 21)
+
+### feat(ui): the damage number sticks to the struck card (no upward float)
+
+Owner request: instead of popping up and drifting off, the damage number holds on the defender's card and fades
+in place. Presentation-only (`styles.css` + `floatConfig.ts` + `FloatTuner.tsx`).
+
+- The rise is now a **damage-only** var, `--float-dmg-rise`, defaulting to **0** (stuck) — decoupled from
+  `--float-rise`, which base `floatup` still uses so the non-damage floats (poison ☠ / shield ◇ / buff / gold)
+  keep drifting up as before. `applyFloatConfig` sets `--float-dmg-rise` from the tuner's `rise` knob (now
+  default 0), so a dev can dial drift back in; label updated to `rise (0=stuck)`.
+- `floatupc` (in-unit dmg) holds `translate(-50%, -50%)` through the settle + fade (uses `--float-dmg-rise`,
+  default 0). A new `floatstickc` does the same for the killing-blow `.deathfloat` overlay number (translateY
+  only — its container centres it), so a hit that kills also sticks at the dying minion's last spot rather than
+  floating off a vanished card. The pop-in punch (scale/entry) is unchanged.
+
+Verified: `typecheck` + `lint` + **484 tests** green; in the preview, an injected `.float.dmg` measured a
+vertical drift of **0px** between the hold frame and the end frame (centre stays on the card at y=430) with
+`animation-name: floatupc` + `--float-dmg-rise: 0px`, and the `.deathfloat` copy likewise (`floatstickc`, 0px
+drift). Live in-fight motion still wants a real-browser eyeball.
+
 
 ## 2026-07-05 (session 18)
 

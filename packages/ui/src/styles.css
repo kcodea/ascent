@@ -400,7 +400,7 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    line sits. Replaces the old per-card fraction lift (which made taller cards float higher). A soft dark
    drop-shadow (follows the card's alpha, so it hugs the arch) reads as "lifted above the fan" — NOT the bright
    `.card:hover` box-shadow glow, which looks harsh blown up over the popped card. */
-.row.hand .card:hover { transform: translateY(calc(-100% + var(--ch) * var(--hand-floor, 0.83))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+.row.hand .card:hover { transform: translateY(calc(-100% + var(--ch) * var(--hand-floor, 0.94))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }

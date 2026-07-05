@@ -21,7 +21,7 @@ bottom" could make it uniform. It can, with a clean CSS trick:
 - **One lever replaces two.** `handPop` + `handPopSpell` collapse into a single `handFloor` in `dragFeel.ts`
   (reflected to `--hand-floor`, slider "hand pop floor" in the Drag Feel tuner, default 0.83). Since the pop is
   uniform by construction, spells and minions no longer need separate values. Dropped the per-card `--card-pop`
-  resolution and the `.spellcard` override from `styles.css`.
+  resolution and the `.spellcard` override from `styles.css`. (Shipped default dialed to **0.94** by the owner.)
 
 Verified live (throwaway `newRun` + mixed hand): a short spell (Gold Pouch) and a tall minion (Target Dummy)
 both pop with their bottoms on the same line, full text on-screen, flush at the bottom, soft shadow (no glow).

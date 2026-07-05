@@ -60,7 +60,7 @@ const DEFAULTS: DragFeel = {
   snapMs: 110,
   magSlideMs: 280,
   collapseY: 70,    // ~lift half a card vertically before the row fills the gap
-  handFloor: 0.83,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
+  handFloor: 0.94,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

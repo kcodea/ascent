@@ -38,10 +38,13 @@ export interface DragFeel {
   /** Vertical drag distance (px) before the row closes up behind a lifted card — when you pull a board
    *  minion (or shop offer) up/down out of its slot this far, the others slide in to fill the gap. */
   collapseY: number;
-  /** Hand hover-pop rise, as a FRACTION of the card height (--ch): how far a hovered hand card lifts up out
-   *  of the fan to reveal its full text. Reflected to the `--hand-pop` CSS var, which `.row.hand .card:hover`
-   *  reads — so this tunes live. Lower = pops less / the card sits closer to the bottom. */
+  /** Hand hover-pop rise for a MINION, as a FRACTION of the card height (--ch): how far a hovered hand minion
+   *  lifts up out of the fan to reveal its full text. Reflected to the `--hand-pop` CSS var. Lower = pops less /
+   *  sits closer to the bottom. */
   handPop: number;
+  /** Same, but for a SPELL card (they carry different text lengths, so they can want a different rise).
+   *  Reflected to the `--hand-pop-spell` CSS var; `.row.hand .card.spellcard:hover` uses it. */
+  handPopSpell: number;
 }
 
 const DEFAULTS: DragFeel = {
@@ -59,7 +62,8 @@ const DEFAULTS: DragFeel = {
   snapMs: 110,
   magSlideMs: 280,
   collapseY: 70,    // ~lift half a card vertically before the row fills the gap
-  handPop: 0.3,     // hovered hand card rises 0.3× its height out of the fan (tuned by eye)
+  handPop: 0.3,     // hovered hand MINION rises 0.3× its height out of the fan (tuned by eye)
+  handPopSpell: 0.3,// hovered hand SPELL rise (separate — spells carry different text)
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -79,6 +83,7 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   magSlideMs: [100, 600, 10],
   collapseY: [0, 200, 5],
   handPop: [0, 0.6, 0.01],
+  handPopSpell: [0, 0.6, 0.01],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -97,7 +102,8 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   snapMs: 'How fast an invalid drop springs back to its slot (milliseconds).',
   magSlideMs: 'Duration of the Mech “absorb” slide when a Magnetic minion merges (milliseconds).',
   collapseY: 'Vertical distance (px) you must lift a card out of its row before the others slide in to fill the gap.',
-  handPop: 'How far a hovered hand card pops up out of the fan (× card height) to reveal its full text. Lower = pops less / the card sits closer to the bottom.',
+  handPop: 'How far a hovered hand MINION pops up out of the fan (× card height) to reveal its full text. Lower = pops less / sits closer to the bottom.',
+  handPopSpell: 'Same as hand pop but for SPELL cards (they carry different text, so can want a different rise).',
 };
 export const DRAG_KEYS = Object.keys(DEFAULTS) as (keyof DragFeel)[];
 
@@ -119,6 +125,7 @@ export function getDragFeel(): DragFeel {
 export function applyDragFeelVars(): void {
   if (typeof document === 'undefined') return;
   document.documentElement.style.setProperty('--hand-pop', String(cfg.handPop));
+  document.documentElement.style.setProperty('--hand-pop-spell', String(cfg.handPopSpell));
 }
 export function setDragValue(key: keyof DragFeel, value: number): void {
   cfg = { ...cfg, [key]: value };

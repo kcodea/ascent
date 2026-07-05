@@ -25,7 +25,8 @@ const LABELS: Record<keyof DragFeel, string> = {
   snapMs: 'snap-back ms',
   magSlideMs: 'magnet-slide ms',
   collapseY: 'row collapse px',
-  handPop: 'hand pop (×ch)',
+  handPop: 'hand pop · minion',
+  handPopSpell: 'hand pop · spell',
 };
 
 export function DragTuner() {

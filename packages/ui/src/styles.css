@@ -391,15 +391,18 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    the card itself up to reveal its full text. The fan STAYS fanned through a drag — the reorder measures the
    cards' rotated rects directly (the bbox stays centred on each card, so the slot midpoints match within a
    pixel or two), no flatten, no pickup jiggle. */
-.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * -0.44); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; --card-pop: var(--hand-pop, 0.3); margin-left: calc(var(--ccw) * -0.44); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
+/* Spells carry different text, so their hover-pop rise is a SEPARATE lever (`--hand-pop-spell`). Each card
+   resolves `--card-pop` to the right one by class; the single hover rule below reads `--card-pop`. */
+.row.hand .card.spellcard { --card-pop: var(--hand-pop-spell, 0.3); }
 /* Hover pops the in-hand card ITSELF up out of the fan — straightened, scaled a touch, and lifted to reveal its
-   full text. The lift amount is `--hand-pop` (a fraction of --ch), a LIVE DEV LEVER: the Drag Feel tuner
-   (DevMenu → Drag Feel → "hand pop") drives it via dragFeel.ts's `handPop`, so it's dial-by-eye and persists.
-   Replaces the old floating magnified `.handpreview` copy. A soft dark drop-shadow (follows the card's alpha,
-   so it hugs the arch) reads as "lifted above the fan" — NOT the bright `.card:hover` box-shadow glow, which is
-   tuned for small in-place cards and looks harsh blown up over the popped card. */
-.row.hand .card:hover { transform: translateY(calc(-1 * var(--ch) * var(--hand-pop, 0.3))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+   full text. The lift is `--card-pop` (a fraction of --ch), which resolves per card to `--hand-pop` (minion) or
+   `--hand-pop-spell` (spell) — both LIVE DEV LEVERS: the Drag Feel tuner (DevMenu → Drag Feel → "hand pop ·
+   minion / · spell") drives them via dragFeel.ts, dial-by-eye and persisted. Replaces the old floating magnified
+   `.handpreview` copy. A soft dark drop-shadow (follows the card's alpha, so it hugs the arch) reads as "lifted
+   above the fan" — NOT the bright `.card:hover` box-shadow glow, which looks harsh blown up over the popped card. */
+.row.hand .card:hover { transform: translateY(calc(-1 * var(--ch) * var(--card-pop, 0.3))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }
@@ -830,6 +833,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */
 .dragcard.magslide { transition: transform 0.28s cubic-bezier(0.5, 0, 0.85, 0.4), opacity 0.28s cubic-bezier(0.7, 0, 1, 1); }
 .dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
+/* A SPELL carries a purple frame glow (`.card.spellcard` box-shadow) that's fine at compact size but reads harsh
+   blown up on the floating drag card / hover-reveal popup. Drop it in those contexts — the wrapper's drop-shadow
+   (drag) / white haze (popup) already gives the lift, and the willplay halo below still signals "release to cast". */
+.dragcard .card.spellcard, .cardref .card.spellcard { box-shadow: none; }
 /* While a dragged hand minion is over the playable area (see Recruit's `willplay`), the floating card gets a
    soft GOLD "release to play" halo. A filter drop-shadow (follows the card's arch alpha) rather than the hard
    bright-yellow box-shadow the hover glow uses — that box read as harsh + square-cornered blown up over the

@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-05 (session 18)
 
+### fix(ui): spell frame glow softened on big cards + separate spell/minion hand-pop levers
+
+Two owner follow-ups, presentation-only (`packages/ui`).
+
+- **Spell "play-area glow" fixed.** A spell card carries a purple frame glow (`.card.spellcard` box-shadow,
+  the demon-tribe hue) that's fine on the compact tile but reads harsh blown up on the full-size **floating
+  drag card** (dragging a spell into the play area) and the **hover-reveal popup**. Dropped it in exactly those
+  two contexts (`.dragcard .card.spellcard, .cardref .card.spellcard { box-shadow: none }`) — the drag card's
+  wrapper drop-shadow / the popup's white haze already give the lift, and the gold willplay halo still signals
+  "release to cast". Reproduced the purple halo on a lifted spell, confirmed it's gone with the rule. (The
+  hover-POP was already clean — its `box-shadow: none !important` overrides the frame glow.)
+- **Separate spell + minion hand-pop levers.** Spells carry different text lengths than minions, so they can
+  want a different hover-pop rise. Split the `handPop` lever into `handPop` (minion) + `handPopSpell` (spell) in
+  `dragFeel.ts`, reflected to `--hand-pop` / `--hand-pop-spell`. Each hand card resolves a single `--card-pop`
+  to the right one by class (`.row.hand .card` → minion; `.row.hand .card.spellcard` → spell), and the one
+  hover rule reads `--card-pop` — no duplication. Both sliders live in the Drag Feel tuner ("hand pop · minion",
+  "hand pop · spell"). Verified independence: setting the spell lever to 0.15 gives a spell a 36px lift while a
+  minion stays at 73px (0.3).
+
+Verified live (throwaway `newRun` + planted spell): both CSS vars resolve on `:root`; spell vs minion
+`--card-pop` track their own levers; the lifted spell shows no purple halo. `typecheck` + `lint` + `test` (483)
++ `build:web` green.
+
 ### feat(ui): hand hover-pop height is now a live DEV LEVER (`handPop`)
 
 The hover-pop lift is viewport-sensitive (it's a fraction of `--ch`), so the "right" amount depends on the

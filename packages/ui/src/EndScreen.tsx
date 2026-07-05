@@ -125,6 +125,9 @@ export function EndScreen({ won }: { won: boolean }) {
             {lastRating.completionBonus > 0 && (
               <span className="endrating-bonus">Summit Bonus +{lastRating.completionBonus}</span>
             )}
+            {lastRating.finalWinBonus > 0 && (
+              <span className="endrating-bonus win">Final Win +{lastRating.finalWinBonus}</span>
+            )}
             <span className="endrating-delta">Rating {ratingSign}{lastRating.ratingDelta}</span>
             <span className="endrating-now">{lastRating.ratingAfter}</span>
             {lastRating.promoted && <span className="endrating-move promo">Promoted → Line {lastRating.lineAfter}</span>}

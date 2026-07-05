@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-05 (session 19)
+
+### feat(sim): win-weighted rating — final-round win + bigger summit bonus; covering the Line is "top 4"
+
+Owner-directed rating reshape (`playerRating.ts`): make *truly winning* — over your Line **and** winning the
+last round — worth a lot, while merely covering your Line reads as a solid-but-not-a-win "top 4" result. The
+rating delta is now three stacked parts instead of two:
+
+- **Line component** (scored wins − Line), softened on the positive side so covering par is a modest credit,
+  not the payoff: `+4/+1 → +20/+16/+12/+8`, `0 (cover) → +4`, miss side unchanged (`−8/−16/−24/−32`). Was
+  `+36/+30/+22/+14`, `0 → +6`.
+- **Summit bonus** (reached round 17, survived — win or lose the final): **+4 → +8**.
+- **Final-win bonus** (won the round-17 combat, the "win the game" moment): **NEW, +16.** Winning the final
+  implies reaching the summit, so a true win earns both bonuses.
+
+Resulting feel: **cover Line + summit (lost final)** = +12 ("top 4"); **truly winning** (over Line +1, summit,
+won final) = +36; a **flawless** run (+4 over, won final) = +44; **miss + summit** = ~0; **fell under par** =
+−8…−32. Winning the final now beats an extra Line win (over-by-two-but-lost-final +20 < truly-winning +36), so
+the last round is the one that "wins the game".
+
+Wiring: `RunOutcome` gains `wonFinal`; the store derives it as `won && last history entry === 'win'` (a victory
+means the last entry IS round 17's result) and passes it in. `RatingChange` gains `finalWinBonus`; the end
+screen shows it as a filled **gold "Final Win +N" pill** next to the Summit Bonus. All numbers are constants in
+`playerRating.ts` (`lineRatingDelta`, `COURSE_COMPLETE_BONUS`, `FINAL_WIN_BONUS`) — easy to retune.
+
+Verified: `playerRating.test.ts` rewritten around the new model (truly-winning +36, over-but-lost-final +20,
+cover-is-top-4 +12, miss-but-summit 0, floors, promo/demo hysteresis) — `typecheck` + `lint` + `test` (**486**)
++ `build:web` green; live end screen shows `Summit Bonus +8 · Final Win +16 · Rating +36` on a flawless win.
+Numbers are starting dials — flag any you want higher/lower.
 ## 2026-07-05 (session 21)
 
 ### feat(ui): the damage number sticks to the struck card (no upward float)

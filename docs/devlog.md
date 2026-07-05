@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-05 (session 18)
+
+### fix(ui): the REAL "release to play" glow softened + hover-pop only lifts flush to the edge
+
+Two owner follow-ups, presentation-only (`packages/ui/styles.css`).
+
+- **The glow the owner was actually seeing.** Previous passes softened the hand HOVER glow, but the harsh
+  bright-yellow halo the owner kept flagging was on a *different* element: `.dragcard.willplay .card` — the
+  floating card while a hand minion is dragged **over the play area** (the "release here to play" signal). It
+  used the exact same `box-shadow: 0 0 24px 7px rgba(255,226,110,.95)` as the old hover glow, which reads harsh
+  and square-cornered blown up over the full-size dragged card. Replaced it with a soft GOLD **filter
+  drop-shadow** (`drop-shadow(...202,80,.92) drop-shadow(...182,52,.5)`) that follows the card's arch alpha —
+  a gentle "play here" halo that hugs the silhouette. Verified live: the lifted full card shows a soft gold
+  glow around the arch, no hard box.
+- **Hover-pop only rises flush to the bottom edge.** The hand hover-pop lifted the card `0.42·--ch`, floating
+  it up with a gap between its bottom and the bottom of the play field. Measured the geometry (game bottom at
+  y=900; card rest-bottom at 1013, i.e. tucked 113px below) and dialed the lift to `0.35·--ch` (scale 1.06),
+  which lands the card bottom at y=899 — **flush with the edge (1px), zero floating gap** — with the full text
+  still on-screen (top 591). Was a 14px gap, now ~0. Verified live (forced-hover screenshot): the popped card
+  sits on the bottom edge, full rules text readable, nothing cut.
+
+Verified live (throwaway `newRun`, 1600×900): dragged-into-play card shows the soft gold halo; the hover-pop
+sits flush at the bottom with no gap. `typecheck` + `lint` + `test` (483) + `build:web` green.
+
 ## 2026-07-04 (session 17)
 
 ### fix(ui): buffs panel no longer pushes the board down + softer hover-pop shadow (owner follow-ups)

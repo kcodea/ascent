@@ -20,7 +20,7 @@ export function ShieldTuner() {
 
   // Nudge Recruit to re-run syncShields so the on-screen bubble moves LIVE as the slider drags (a config change
   // alone doesn't touch run state, so nothing would otherwise re-sync until you interact with a card).
-  const poke = (): void => window.dispatchEvent(new Event('ascent:shieldcfg'));
+  const poke = (): void => { window.dispatchEvent(new Event('ascent:shieldcfg')); };
   const set = (k: keyof ShieldConfig, v: number): void => {
     setShieldValue(k, v);
     setCfg({ ...getShieldConfig() });

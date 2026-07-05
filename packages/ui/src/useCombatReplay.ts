@@ -6,7 +6,8 @@ import { sfx } from './sfx';
 import { pixiFx } from './pixiFx';
 import { getLungeConfig } from './lungeConfig';
 import { getTrailConfig } from './trailConfig';
-import { buildBeats, RESULT_TYPES } from './combatBeats';
+import { getPacingConfig, beatDelay } from './pacingConfig';
+import { buildBeats, RESULT_TYPES, attackerOfImpact } from './combatBeats';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
@@ -194,21 +195,11 @@ function computeFrame(
   return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };
 }
 
-// Per-beat lengths (ms), keyed by the beat's first event. SPEED scales it all
-// (higher = slower; 1.5 is ~25% slower than the previous 1.2).
-const SPEED = 1.5;
-const DELAY: Record<string, number> = {
-  // action beats (the wind-up / cast). `attack` is tuned so the RESULT beat (smack sound + damage floats +
-  // recoil) lands right at the lunge's connection (~530ms = windup 0.37s + strike 0.16s; 353 × SPEED 1.5),
-  // not after. Keep `attack` × SPEED ≈ (windupDur + strikeDur) from lungeConfig.ts when retuning the lunge.
-  attack: 353, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820, maxGold: 560, hpGrant: 0,
-  // result beats (the impact — keyed by the first result event). Longer than the wind-up so the hit
-  // (recoil + the defender's HP dropping) lands and reads before the next swing.
-  dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
-};
-const FLOAT_MS = 1500; // how long a combat float lingers before it's cleared (kept ≥ the floatup CSS anim)
-const DEATH_FLOAT_MS = 1000; // a killing-blow float clears faster — a lone number over a vanished unit shouldn't hang
-const FINAL_HOLD_MS = 900; // hold on the last beat (death anim + damage float) before the replay reports `done`
+// Per-beat lengths (ms) + the global tempo baseline + float/hold lifetimes all live in `pacingConfig.ts`,
+// live-tunable via the DEV Pacing tuner. The scheduler reads `getPacingConfig()` / `beatDelay(type)` at each
+// beat, so retuning applies to the next beat. Defaults there mirror the former hardcoded constants exactly.
+// The `attack` (wind-up) beat's hold is NOT `beatDelay('attack')` — it's overridden below by the lunge's
+// connection time (from lungeConfig.ts) so the damage float always lands ON contact, independent of pacing.
 
 /** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
  *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
@@ -302,7 +293,7 @@ const KW_FLOAT: Partial<Record<string, string>> = {
 function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind: string } | null {
   if (!e) return null;
   switch (e.type) {
-    case 'dmg': return { uid: e.target, text: `−${e.amount}`, kind: 'dmg' };
+    case 'dmg': return { uid: e.target, text: `${e.amount}`, kind: 'dmg' };
     case 'poison': return { uid: e.target, text: '☠', kind: 'poison' };
     // Divine-Shield-break (◇) + Reborn (♻) floats removed — the break/reborn ring animation reads on its
     // own, and the glyph popped up late + confusing. (shieldUp's ◇ stays — it marks gaining a shield.)
@@ -546,7 +537,8 @@ export function useCombatReplay(
   useEffect(() => {
     if (!active || hidden || beatIdx >= beats.length) return;
     const beat = beats[beatIdx]!;
-    let d = (DELAY[beat.primary.type] ?? 300) * SPEED;
+    const pc = getPacingConfig(); // live-tunable (DEV Pacing tuner) → applies to the next beat
+    let d = beatDelay(beat.primary.type) * pc.speed;
     // The beat on screen is beats[beatIdx-1]; the scheduler controls how long it stays before beats[beatIdx]
     // shows. The lunge config tunes two combat-feel beats (live via the DEV Lunge tuner):
     const shown = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
@@ -569,7 +561,7 @@ export function useCombatReplay(
   // the last kill's death collapse + damage float fully play before cleanup + the round-end UI take over.
   useEffect(() => {
     if (!active || !replayComplete) return;
-    const t = window.setTimeout(() => setFinished(true), FINAL_HOLD_MS / combatSpeed);
+    const t = window.setTimeout(() => setFinished(true), getPacingConfig().finalHold / combatSpeed);
     return () => window.clearTimeout(t);
   }, [active, replayComplete, combatSpeed]);
 
@@ -585,6 +577,10 @@ export function useCombatReplay(
     // rendered in a board overlay instead (it survives the unit + lingers).
     const dying = new Set<string>();
     for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'death') dying.add(e.target); }
+    // Only the unit being ATTACKED shows a damage number — the attacker's retaliation (a clash is two-way)
+    // floats no number. The impact is `beats[beatIdx - 1]`; `attackerOfImpact` reads the attacker from its
+    // wind-up beat (an attack's damage lands one beat after the attack itself).
+    const attackerUid = attackerOfImpact(beats, beatIdx - 1);
     const spawned: Float[] = [];
     const deaths: DeathFloat[] = [];
     const buffByTarget = new Map<string, { a: number; h: number; id: number }>();
@@ -599,10 +595,12 @@ export function useCombatReplay(
       }
       const f = floatFor(e);
       if (!f) continue;
+      // Damage numbers show ONLY on the unit being attacked — skip the attacker's retaliation float.
+      if (f.kind === 'dmg' && f.uid === attackerUid) continue;
       // A damage number on a dying unit → the board overlay, anchored where the unit is right now.
       if (f.kind === 'dmg' && dying.has(f.uid)) {
         const r = findEl(f.uid)?.getBoundingClientRect();
-        if (r) { deaths.push({ id: i, x: r.left + r.width / 2, y: r.top + r.height * 0.32, text: f.text, kind: f.kind }); continue; }
+        if (r) { deaths.push({ id: i, x: r.left + r.width / 2, y: r.top + r.height * 0.5, text: f.text, kind: f.kind }); continue; }
       }
       spawned.push({ id: i, ...f });
     }
@@ -614,12 +612,12 @@ export function useCombatReplay(
     if (spawned.length) {
       setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
       const ids = new Set(spawned.map((s) => s.id));
-      timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), FLOAT_MS / combatSpeed));
+      timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getPacingConfig().floatMs / combatSpeed));
     }
     if (deaths.length) {
       setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
       const ids = new Set(deaths.map((s) => s.id));
-      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), DEATH_FLOAT_MS / combatSpeed));
+      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getPacingConfig().deathFloatMs / combatSpeed));
     }
     return () => timers.forEach((id) => window.clearTimeout(id));
   }, [active, beatIdx, beats, events, findEl, combatSpeed]);

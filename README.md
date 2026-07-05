@@ -40,6 +40,14 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   power button + Resolve below — 591×119 → 232×166, mirroring the opponent frame), so a full **10-card hand
   clears it** in the corner (helped by a deeper card overlap). The round progress bar becomes a **per-round
   dash track** — green ✓ win, red ✕ loss, muted dash draw, lit-orange current round, faint dash upcoming.
+- **Damage numbers on the attacked unit, centred on the card** — in a combat clash the number used to pop as
+  a `-N` in the corner over both fighters; now only the unit being **attacked** shows it, centred on the card
+  face (reads as the hit landing on the minion) and without the minus sign.
+- **Combat-feel DEV tuners** — two new panels in the 🛠️ Dev Tuning Menu: **⏱️ Pacing** (the combat beat
+  clock — global tempo + per-beat holds + float lifetimes, previously hardcoded) and **🔢 Damage Float** (the
+  `-N` number's size / pop / rise / entry). Both default to the current shipped values, so nothing changes
+  until a slider moves; dial by eye, then paste the Copy'd values back as the defaults. Also fixed three
+  broken tuner sliders (Lunge, Drag, Shield — blank labels / a type error).
 - **HUD restyle to the mockup** — the shop controls regroup into one segmented **stat strip** (Gold · Tier ·
   Setup Time) over a gold-edged **control tray** (Upgrade Tavern · Reroll · Freeze · End Turn) with warmer
   tan-gold buttons; the redundant right-edge End Turn is gone. The controls sit in a fixed-height block that

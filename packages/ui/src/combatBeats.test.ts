@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeRng, simulate, type CombatEvent } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { buildBeats } from './combatBeats';
+import { buildBeats, attackerOfImpact } from './combatBeats';
 
 describe('buildBeats', () => {
   it('a REAL exchange shows dealt + taken damage in the SAME impact beat — even through a Deathrattle kill', () => {
@@ -26,6 +26,41 @@ describe('buildBeats', () => {
     expect(taken).toBe(dealt); // both damage numbers rise in the same frame
     expect(death).toBe(dealt); // the death pop lands with them
     expect(summon).toBeGreaterThan(dealt); // the rattle's tokens follow after the impact
+  });
+
+  it('attackerOfImpact resolves the clash attacker from the wind-up beat (a REAL exchange)', () => {
+    // Regression: an attack's damage lands in the beat AFTER the attack, so the attacker must be read from
+    // the PREVIOUS (wind-up) beat — not the impact beat, which holds no `attack` event. Both units survive
+    // the first clash here, so BOTH take an in-unit damage number; only the attacked one should keep it.
+    const r = simulate(
+      [{ cardId: 'stray', attack: 3, health: 10 }],
+      [{ cardId: 'sandbag', attack: 2, health: 8 }], // attack>0 so it retaliates; health high enough to live
+      makeRng(3), CARD_INDEX,
+    );
+    const beats = buildBeats(r.events);
+    const attackIdx = beats.findIndex((b) => b.primary.type === 'attack');
+    const impactIdx = attackIdx + 1;
+    const atk = beats[attackIdx]!.primary as Extract<CombatEvent, { type: 'attack' }>;
+    const dmgTargets = r.events
+      .slice(beats[impactIdx]!.start, beats[impactIdx]!.end)
+      .filter((e): e is Extract<CombatEvent, { type: 'dmg' }> => e.type === 'dmg')
+      .map((e) => e.target);
+    expect(dmgTargets).toContain(atk.attacker); // attacker took retaliation …
+    expect(dmgTargets).toContain(atk.defender); // … and the defender took the hit (both in ONE impact beat)
+    const attacker = attackerOfImpact(beats, impactIdx);
+    expect(attacker).toBe(atk.attacker);
+    const shown = dmgTargets.filter((t) => t !== attacker); // apply the suppression rule
+    expect(shown).not.toContain(atk.attacker); // the attacker's number is gone …
+    expect(shown).toContain(atk.defender); // … only the attacked unit's number survives
+  });
+
+  it('attackerOfImpact is null for non-attack damage (SC cast) — those floats are not suppressed', () => {
+    const ev: CombatEvent[] = [
+      { type: 'sc', source: 'a', text: 'scorch' },
+      { type: 'dmg', target: 'b', amount: 1, remainingHp: 4 },
+    ];
+    const beats = buildBeats(ev);
+    expect(attackerOfImpact(beats, 1)).toBeNull(); // impact preceded by an `sc`, not an `attack`
   });
 
   it('a mid-cascade keyword grant (Mumi → Rise) rides the impact beat — it never splits the result run', () => {

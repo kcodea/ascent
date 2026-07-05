@@ -253,6 +253,107 @@ Verified live (browser store, throwaway `newRun(777,'nadja')` with a planted 10-
 and a simulated mid-run `wave 8` history): tier badges on every hand card, no pill/outline clipping, hand
 clears the hero frame (+59px), 2×2 frame lays out clean (portrait/name top, power/Resolve bottom), dash
 track renders ✓/✕/dash/orange correctly. `typecheck` + `lint` + `test` (483) + `build:web` green.
+## 2026-07-05 (session 20)
+
+### fix(ui): damage numbers actually suppress on the attacker (the target-only rule was a no-op)
+
+The session-18 "damage numbers only on the attacked unit" change didn't work: it scanned the *impact* beat for
+the `attack` event to find the attacker, but `buildBeats` makes an `attack` its OWN wind-up beat — the two
+`dmg` events (the hit + the retaliation) land in the NEXT beat. So the attacker set was always empty and BOTH
+numbers still showed (owner-reported).
+
+- **Root cause + fix (`useCombatReplay.ts` + `combatBeats.ts`).** Extracted `attackerOfImpact(beats, index)`
+  into `combatBeats.ts` (pure/testable): it reads the attacker from the impact's *previous* beat (the attack
+  wind-up), which is where the attack event actually lives. The float effect now suppresses the `dmg` float
+  whose uid matches that attacker (including its killing-blow overlay number — the attacker is never "the unit
+  being attacked", even when the retaliation kills it). Non-attack damage (SC casts, Deathrattle AOE) returns
+  null → not suppressed.
+- **Verified three ways** (the session-18 miss was shipping on a static check that didn't exercise the beat
+  grouping): a new `combatBeats.test.ts` case runs a REAL `simulate()` clash where both units survive and
+  asserts only the defender's `dmg` survives the rule; a null-case test for SC damage; and a live trace of an
+  actual 2-exchange fight's 9-event log (each impact beat drops the attacker, keeps the defender — matching a
+  live float-observer capture). `typecheck` + `lint` + **484 tests** (+2) + `build:web` green.
+
+## 2026-07-04 (session 19)
+
+### feat(ui): centre the damage number on the struck card + drop the minus sign
+
+Follow-up to session 18. The in-unit damage number now sits in the **centre of the card** being hit (was the
+bottom-right stat corner) so it reads as the hit landing on the minion, and the leading `−` is gone (just the
+number). Presentation-only (`packages/ui`).
+
+- `useCombatReplay.ts` — `floatFor` for `dmg` drops the `−` (`−${amount}` → `${amount}`); the killing-blow
+  death-overlay anchor moves to the card's vertical centre (`height * 0.32` → `* 0.5`).
+- `styles.css` — new `.unit .float.dmg` rule centres the in-unit number via `top/left: 50%` + a
+  `translate(-50%, -50%)` baked into a new `floatupc` keyframe (a plain `transform` would be overwritten by
+  the pop animation). `floatupc` mirrors `floatup` and keeps the Damage-Float tuner vars, so size/pop/rise
+  still tune it. The `.deathfloat` overlay copy is untouched (it isn't inside `.unit`) — already centred by its
+  container. Non-damage floats (poison/shield/buff/gold) stay in the corner.
+
+Verified: `typecheck` + `lint` + **482 tests** green; injected a `.float.dmg` into a synthetic `.unit` in the
+preview and measured the settled float centred exactly on the card (Δx = Δy = 0) with `animation-name:
+floatupc`. The live in-fight motion still wants a real-browser eyeball (headless preview pauses the combat
+clock).
+
+## 2026-07-04 (session 18)
+
+### feat(ui): damage numbers show only on the unit being attacked (not the attacker's retaliation)
+
+Presentation-only (`packages/ui`). An attack is a two-way clash — the defender takes the swing and the
+attacker takes retaliation — and previously the `-N` damage float popped over **both** units. Now only the
+unit being **attacked** shows its number; the attacker's retaliation floats no number.
+
+`useCombatReplay.ts` — in the per-beat float spawn, collect the beat's attacker uids (`e.attacker` from the
+`attack` events) and skip any `dmg` float whose `uid` is an attacker. Scoped to `kind === 'dmg'`, so shield /
+keyword / buff floats are untouched; and to the attack beat only, so damage the attacker takes in other beats
+(e.g. a later deathrattle) still reads. The suppression sits before the dying→death-overlay branch, so a
+retaliation-killed attacker shows no number either (it isn't the attacked unit). CSS comment on `.float`
+updated to match.
+
+Verified: `typecheck` + `lint` + **482 tests** green. The change is a small, typed guard keyed on the
+`CombatEvent` shapes (`attack{attacker,defender}` / `dmg{target}`); the in-fight look wants a real-browser
+eyeball (the headless preview pauses the combat clock when the tab reports hidden, so a scripted fight can't
+render the floats) — start a practice run and watch a clash to confirm the feel.
+
+## 2026-07-04 (session 17)
+
+### feat(ui): combat-feel DEV tuners — Pacing + Damage Float — and fix 3 broken tuner labels/types
+
+Presentation-only (`packages/ui`); no engine/content/sim changes. Two new DEV tuning panels for combat feel,
+plus a fix to three pre-existing broken tuners. **Every default equals the current shipped value, so nothing
+changes on screen until a slider is moved** — the tuners only add a way to dial by eye.
+
+- **Fixed 3 broken tuners** (all were live `tsc` errors that `vite build` silently strips — part of the
+  `typecheck:web` blocker list in the roadmap, now 3 fewer):
+  - **Lunge** — `LABELS` was missing `windupScale`, so that live slider rendered with a blank name (`TS2741`,
+    since `LABELS` is `Record<keyof LungeConfig, string>`). Added the label.
+  - **Drag Feel** — same class: `LABELS` missing `collapseY` → blank-named slider (`TS2741`). Added the label
+    (its range/desc were already present).
+  - **Shield Placement** — `poke` was `const poke = (): void => window.dispatchEvent(…)`, but `dispatchEvent`
+    returns `boolean` against the `void` annotation (`TS2322`). Wrapped in a block body.
+
+- **Pacing tuner (⏱️)** — dials the combat-replay beat clock, previously hardcoded in `useCombatReplay.ts`
+  (`SPEED = 1.5` + the per-beat `DELAY` table + the float/final-hold lifetimes). New `pacingConfig.ts` holds
+  them all (defaults mirror the old constants exactly); the scheduler reads `getPacingConfig()` /
+  `beatDelay(type)` per beat, so retuning applies to the next beat. Exposes global `tempo`, the 16 per-beat
+  holds (attack pre-swing gap, dmg post-hit read, death collapse, summon, buff, …), and the float/death-float
+  linger + final hold. **Sync preserved:** the `attack` beat's hold stays welded to the lunge connection time
+  (from `lungeConfig`), so `tempo` and the delays can't drift the damage-on-contact impact. Layers cleanly
+  under the player's in-combat `combatSpeed` slider (`hold = delay × tempo ÷ combatSpeed`).
+
+- **Damage Float tuner (🔢)** — dials the `-N` damage/heal number pop. Its look is CSS-driven (the `.float`
+  rule + the `floatup` keyframe), so `floatConfig.ts` pushes values into CSS custom properties on `:root` via
+  `applyFloatConfig()` (each var has a fallback = the shipped value; applying defaults is a visual no-op). Seven
+  knobs: base size, damage-pill size, duration, pop overshoot, rise distance, entry scale, entry drop. To SHIP
+  a dialed look, paste the Copy'd values back as the CSS fallbacks in `styles.css`.
+
+Both panels register in the Dev Tuning Menu (`DevMenu.tsx`), are draggable + localStorage-backed like the
+rest, and are stripped from production. Verified live in the preview: all 3 fixed panels + both new panels
+render with **zero blank labels** and correct defaults; moving the Pacing `tempo` slider persists the full
+config to `localStorage`; moving the Damage Float `damage size` slider writes `--float-dmg-size` to `:root`
+and a real `.float.dmg` element's computed size tracked it (42px → 70px). `typecheck` + `lint` + **482 tests**
++ `build:web` all green. (The live *animation* feel — pacing rhythm, float pop in a real fight — wants a
+real-browser eyeball; the wiring is proven but the feel is for Mike to dial.)
 
 ## 2026-07-04 (session 16)
 

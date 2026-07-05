@@ -278,7 +278,8 @@ correctness half — these remain):**
   `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).
 - **UI type cleanup → `typecheck:web` CI gate** — ~50 pre-existing UI type errors (pixiFx particle types,
   Recruit `targetScope`, Career/EndScreen/Leaderboard importing `BoardMinion`/`Tribe` from `@game/sim`,
-  ErrorBoundary `override`, tuner config keys) block the gate; CI has the step commented pending the cleanup.
+  ErrorBoundary `override`) block the gate; CI has the step commented pending the cleanup. (The DEV tuner
+  label/void-return drift — 3 of these errors — is now fixed; see devlog session 17.)
 - **~17 dead effect-factory ids** in `factories.ts` (verified unused across content/sim/ui/tools/tests) +
   the transitively-dead `battlecryGrantKeyword` chain + `reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache` — a
   3-place sweep per id (factories + `types.ts` union + `schema.ts` enum), or mark explicitly dormant.

@@ -267,7 +267,7 @@ export const Card = memo(function Card({
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         transform: handSlidePx
-          ? `translateX(${handSlidePx}px) translateY(42%)` /* hand reorder: keep the 42% tuck (see .row.hand .card) */
+          ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px))` /* hand reorder: keep the tuck (set on .row.hand .card) */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
       onClick={onClick}
       onMouseEnter={hasPopup && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}

@@ -1926,7 +1926,17 @@ export function Recruit() {
     const st = handReorderFlipRef.current;
     if (!st) return;
     handReorderFlipRef.current = null;
-    Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out' });
+    // Kill the hand cards' CSS `transition: transform` first (like the warband/shop commit does): on drop the
+    // dragged card's slide resets to 0 and the neighbours' slides clear, and if the base transition is live it
+    // animates those resets AT THE SAME TIME as this Flip — the two fight and that's the drop judder. Flip owns
+    // the settle; restore the transition on complete.
+    const targets = gsap.utils.toArray<HTMLElement>('.row.hand .card[data-uid]');
+    gsap.set(targets, { transition: 'none' });
+    Flip.from(st, {
+      duration: getFlipConfig().commitMs / 1000,
+      ease: 'power2.out',
+      onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
+    });
   }, [handOrderKey]);
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).

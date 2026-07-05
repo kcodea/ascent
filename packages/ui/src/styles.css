@@ -367,18 +367,22 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
-.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26px); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-end; }
-.row.hand { gap: 0; align-items: flex-end; height: var(--ch); width: 100%; }
+.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26px); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-start; }
+.row.hand { gap: 0; align-items: flex-start; height: var(--ch); width: 100%; }
 /* Hand overlap = 20% of a card's width (relative, not a fixed px, so it stays ~20% across viewport sizes
    where the card width --ccw scales). Lower magnitude = more spread; a full 10-card hand widens toward the
    screen edges (accepted tradeoff). Was -84px (~35-60% depending on screen). */
-.row.hand .card { margin-left: calc(var(--ccw) * -0.2); transform: translateY(42%); transition: transform 0.12s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+/* Hand cards are a UNIFORM height, TOP-aligned: the `forceFull` text drawer varies per card, so we cap the
+   card box to --ch (max-height + overflow) — all cards become the same height and their tops line up (the
+   drawer's tail is clipped; the hover preview shows the full card). `--hand-tuck` is the single source of
+   truth for the tuck, shared with the reorder-slide transform in Card.tsx. */
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); margin-left: calc(var(--ccw) * -0.2); max-height: var(--ch); overflow: hidden; transform: translateY(var(--hand-tuck)); transition: transform 0.12s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* hover lifts just enough to reveal the whole card + bring it forward — small so the card
    stays under the cursor (no bounce-out). */
 /* Hover barely lifts the in-hand card now — the magnified `.handpreview` above the fan does the reveal, so
    the card itself stays put (a small rise is just "this one's hovered" feedback). */
-.row.hand .card:hover { transform: translateY(34%); z-index: 45; }
+.row.hand .card:hover { transform: translateY(calc(var(--hand-tuck) - var(--ch) * 0.09)); z-index: 45; }
 /* Magnified hover preview — a larger, crisp copy of the hovered hand card, anchored bottom-centre just above
    the card. Fixed + pointer-events:none so it never intercepts the cursor. Scale (not a resize) so the text
    scales too; the pop-in animates transform/opacity only (compositor), with a STATIC drop-shadow. */
@@ -387,7 +391,7 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 @keyframes handpreviewpop { from { opacity: 0; transform: scale(1.05) translateY(10px); } to { opacity: 1; transform: scale(1.275) translateY(0); } }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
-body.dragging .row.hand .card:hover { transform: translateY(42%); z-index: auto; }
+body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)); z-index: auto; }
 /* The PRE-EMPTIVE reorder slide. During a drag, the board/shop cards open the drop slot via an inline
    `transform: translateX(±half-slot)` (Card's `slideDir`, set from the live gap index). This ease-out
    transition glides that transform as the gap moves — fast then settling — the "make room" animation.
@@ -413,7 +417,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
    then drops to a lower slot"). handpop ends at the tucked resting transform, so the card lands once, in place
    — a small rise + fade into its slot, no second settle. */
 .row.hand .card.popin { animation: handpop 0.16s ease; }
-@keyframes handpop { from { opacity: 0; transform: translateY(42%) scale(0.9); } to { opacity: 1; transform: translateY(42%) scale(1); } }
+@keyframes handpop { from { opacity: 0; transform: translateY(var(--hand-tuck, 32%)) scale(0.9); } to { opacity: 1; transform: translateY(var(--hand-tuck, 32%)) scale(1); } }
 /* A battlecry-summoned token waits ~0.2s before popping in, so the trigger pulse reads first, THEN the
    token appears (e.g. Alleycat → Stray). `backwards` holds the invisible `from` frame during the delay. */
 .card.popin.popdelay { animation-delay: 0.2s; animation-fill-mode: backwards; }

@@ -38,13 +38,11 @@ export interface DragFeel {
   /** Vertical drag distance (px) before the row closes up behind a lifted card — when you pull a board
    *  minion (or shop offer) up/down out of its slot this far, the others slide in to fill the gap. */
   collapseY: number;
-  /** Hand hover-pop rise for a MINION, as a FRACTION of the card height (--ch): how far a hovered hand minion
-   *  lifts up out of the fan to reveal its full text. Reflected to the `--hand-pop` CSS var. Lower = pops less /
-   *  sits closer to the bottom. */
-  handPop: number;
-  /** Same, but for a SPELL card (they carry different text lengths, so they can want a different rise).
-   *  Reflected to the `--hand-pop-spell` CSS var; `.row.hand .card.spellcard:hover` uses it. */
-  handPopSpell: number;
+  /** Hand hover-pop FLOOR, as a fraction of the card height (--ch). The pop lifts a hovered hand card by its
+   *  OWN height (`translateY(-100%)`) plus this offset, so every card — spell or minion, short or long text —
+   *  lands its BOTTOM on the SAME line (uniform), and this one value sets where that line is. Reflected to the
+   *  `--hand-floor` CSS var. Higher = the card sits lower (bottom nearer the play-field floor). */
+  handFloor: number;
 }
 
 const DEFAULTS: DragFeel = {
@@ -62,8 +60,7 @@ const DEFAULTS: DragFeel = {
   snapMs: 110,
   magSlideMs: 280,
   collapseY: 70,    // ~lift half a card vertically before the row fills the gap
-  handPop: 0.3,     // hovered hand MINION rises 0.3× its height out of the fan (tuned by eye)
-  handPopSpell: 0.3,// hovered hand SPELL rise (separate — spells carry different text)
+  handFloor: 0.83,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -82,8 +79,7 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   snapMs: [40, 400, 10],
   magSlideMs: [100, 600, 10],
   collapseY: [0, 200, 5],
-  handPop: [0, 0.6, 0.01],
-  handPopSpell: [0, 0.6, 0.01],
+  handFloor: [0, 1.5, 0.01],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -102,8 +98,7 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   snapMs: 'How fast an invalid drop springs back to its slot (milliseconds).',
   magSlideMs: 'Duration of the Mech “absorb” slide when a Magnetic minion merges (milliseconds).',
   collapseY: 'Vertical distance (px) you must lift a card out of its row before the others slide in to fill the gap.',
-  handPop: 'How far a hovered hand MINION pops up out of the fan (× card height) to reveal its full text. Lower = pops less / sits closer to the bottom.',
-  handPopSpell: 'Same as hand pop but for SPELL cards (they carry different text, so can want a different rise).',
+  handFloor: 'Where a hovered hand card’s BOTTOM lands (× card height). Because the pop lifts each card by its own height, ALL cards — spell or minion — land on the same line. Higher = the card sits lower.',
 };
 export const DRAG_KEYS = Object.keys(DEFAULTS) as (keyof DragFeel)[];
 
@@ -124,8 +119,7 @@ export function getDragFeel(): DragFeel {
  *  like `.row.hand .card:hover` pick up the current/tuned value live. */
 export function applyDragFeelVars(): void {
   if (typeof document === 'undefined') return;
-  document.documentElement.style.setProperty('--hand-pop', String(cfg.handPop));
-  document.documentElement.style.setProperty('--hand-pop-spell', String(cfg.handPopSpell));
+  document.documentElement.style.setProperty('--hand-floor', String(cfg.handFloor));
 }
 export function setDragValue(key: keyof DragFeel, value: number): void {
   cfg = { ...cfg, [key]: value };

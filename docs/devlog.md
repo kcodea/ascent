@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-05 (session 18)
 
+### feat(ui): UNIFORM hand pop — anchor each card's bottom to one line (replaces the pop-fraction levers)
+
+The hover-pop lifted a card by a fraction of its height, so cards of different heights (the text drawer varies —
+a 62px spread across a spell vs a long-text minion in testing) ended at different bottom positions — never
+uniform, which is why the previous pass needed separate spell/minion levers. The owner asked if a "point on the
+bottom" could make it uniform. It can, with a clean CSS trick:
+
+- **Bottom-anchored pop.** The hover transform is now `translateY(calc(-100% + var(--ch) * var(--hand-floor)))`.
+  The `-100%` raises each card by its OWN height, so every card — spell or minion, short or long — lands its
+  **bottom on the same line**; `--hand-floor` (a fraction of --ch) sets where that line sits. Verified across
+  cards spanning 193–277px tall: their popped bottoms land within ~2px of each other (the residual is the 1.06
+  scale pivoting from the fan's `center 42%` origin — imperceptible), flush ~6px above the play-field floor. Was
+  a 58px spread, now ~2.
+- **One lever replaces two.** `handPop` + `handPopSpell` collapse into a single `handFloor` in `dragFeel.ts`
+  (reflected to `--hand-floor`, slider "hand pop floor" in the Drag Feel tuner, default 0.83). Since the pop is
+  uniform by construction, spells and minions no longer need separate values. Dropped the per-card `--card-pop`
+  resolution and the `.spellcard` override from `styles.css`.
+
+Verified live (throwaway `newRun` + mixed hand): a short spell (Gold Pouch) and a tall minion (Target Dummy)
+both pop with their bottoms on the same line, full text on-screen, flush at the bottom, soft shadow (no glow).
+`typecheck` + `lint` + `test` (483) + `build:web` green.
+
 ### fix(ui): spell frame glow softened on big cards + separate spell/minion hand-pop levers
 
 Two owner follow-ups, presentation-only (`packages/ui`).

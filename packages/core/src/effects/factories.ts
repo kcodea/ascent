@@ -454,6 +454,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
   },
 
+  /** Avenge (X) — Professor Greg: after every `count` friendly deaths, get a random tavern-tier spell (golden
+   *  grants two). Like Arcane Weaver's grant but the spell is RANDOM (via ctx.grantRandomSpell, resolved at
+   *  settle where the tavern tier is known) rather than a fixed id. */
+  avengeGrantRandomSpell: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    if (count % x !== 0) return;
+    ctx.grantRandomSpell(mul(self), self.side, self.uid); // 1 random spell per proc (golden 2)
+  },
+
   /** Deathrattle (Skullblade): permanently raise the run-wide spell power by +atk/+hp (golden doubles).
    *  Carried back via `CombatResult.playerSpellPower` (player-side only — `grantSpellPower` guards it),
    *  then applied to the run's spell bonus in settleCombat. Each Skullblade death stacks another +atk/+hp. */
@@ -531,6 +542,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && (c.tribe === 'mech' || c.tribe2 === 'mech') && !c.token && !c.spell);
     if (pool.length === 0) return;
     for (let i = 0; i < count; i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+  },
+
+  /** Rally — Badgington: when THIS minion attacks, get a random tavern-tier spell (golden 2 per attack).
+   *  Fires on its own attack (Flurry → per hit); the spell is picked at settle via ctx.grantRandomSpell. */
+  rallyGrantRandomSpell: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side, self.uid);
   },
 
   /** Raptor — when ANOTHER friendly minion of `tribe` attacks, buff it (+atk/+hp) before its hit lands
@@ -935,6 +954,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (def?.keywords.includes('FD') || def?.imp) ctx.buff(m, a, h, self.uid);
     }
     ctx.grantImpBuff(a, h, self.side);
+    ctx.grantFodderBuff(a, h, self.side);
+  },
+
+  /** Slaughter — Badgington: when this kills an enemy minion, get a random tavern-tier spell (golden 2 per
+   *  kill). The onKill payload carries the killer as `attacker`, so only the minion that scored the kill fires;
+   *  the spell is picked at settle via ctx.grantRandomSpell. Fires on the kill even if this minion then dies. */
+  onKillGrantRandomSpell: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+
+  /** Slaughter — Sword and Bored: when this kills an enemy minion, buff your Fodder +atk/+hp PERMANENTLY
+   *  (golden ×2). Buffs the living Fodder now + raises the run-wide Fodder buff (carried back) — Fodder only,
+   *  no Imps (unlike Commander Impala). Fires on the kill even if this fragile body then dies. */
+  onKillBuffFodder: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
+    }
     ctx.grantFodderBuff(a, h, self.side);
   },
 

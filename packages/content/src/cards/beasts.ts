@@ -55,11 +55,28 @@ export const BEASTS: CardDef[] = [
     tier: 6,
     attack: 6,
     health: 6,
-    keywords: [],
+    keywords: ['SL'],
     effects: [
       { on: 'onKill', do: 'onKillBuffSpellPower', params: { attack: 1, health: 1 } },
     ],
-    text: 'When it kills a minion, your spells permanently gain **+1/+1**.',
+    text: '**Slaughter:** your spells permanently gain **+1/+1**.',
+  },
+  {
+    // A tempo Beast that mills spells: throws one to hand whenever it swings (Rally) or scores a kill
+    // (Slaughter). The random spell obeys the current shop tier (via ctx.grantRandomSpell at settle).
+    id: 'badgington',
+    name: 'Badgington',
+    tribe: 'beast',
+    tier: 4,
+    attack: 5,
+    health: 6,
+    keywords: ['RL', 'SL'],
+    effects: [
+      { on: 'onAttack', do: 'rallyGrantRandomSpell', params: { count: 1 } },
+      { on: 'onKill', do: 'onKillGrantRandomSpell', params: { count: 1 } },
+    ],
+    text: '**Rally:** get a random spell. **Slaughter:** get a random spell.',
+    goldenText: '**Rally:** get **2** random spells. **Slaughter:** get **2** random spells.',
   },
   {
     // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.

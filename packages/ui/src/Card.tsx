@@ -11,11 +11,11 @@ import { useGame } from './store';
 
 const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Ward', V: 'Toxin', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
-  FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', EG: 'Engraved',
+  FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', EG: 'Engraved',
 };
 const KW_ICON: Record<Keyword, string> = {
   T: 'taunt', DS: 'shield', V: 'poison', W: 'windfury', R: 'reborn', C: 'cleave', M: 'magnetic', SC: 'sc',
-  CN: 'consume', FD: 'fodder', IMM: 'shield', ST: 'eye', RL: 'sword', EG: 'anvil',
+  CN: 'consume', FD: 'fodder', IMM: 'shield', ST: 'eye', RL: 'sword', SL: 'skull', EG: 'anvil',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',

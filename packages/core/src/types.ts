@@ -18,6 +18,7 @@ export type Keyword =
   | 'IMM' // Immune — takes no damage
   | 'ST' // Stealth — can't be targeted by attacks; lost on attacking
   | 'RL' // Rally — triggers an effect each time this attacks
+  | 'SL' // Slaughter — triggers an effect each time this kills an enemy minion
   | 'EG'; // Engraved — stat gains during combat carry back to the run board (permanent)
 
 export type Tier = 1 | 2 | 3 | 4 | 5 | 6;
@@ -180,7 +181,12 @@ export type EffectFactoryId =
   | 'spellDisplace' // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)
   | 'spellCopyRecent' // Steward of Spells: End of Turn — copy the most recent spell cast to hand (recruit)
   | 'spellRefreshToSpells' // Spell Cart: cast — refresh the tavern full of spells (recruit)
-  | 'battlecryTargetConsumeFodder'; // Godfodder: Battlecry — targeted friendly minion consumes a Fodder from the shop
+  | 'battlecryTargetConsumeFodder' // Godfodder: Battlecry — targeted friendly minion consumes a Fodder from the shop
+  // --- Slaughter (on-kill) + random-spell batch ---
+  | 'avengeGrantRandomSpell' // Professor Greg: Avenge (X) — get a random tavern-tier spell (golden 2)
+  | 'rallyGrantRandomSpell' // Badgington: Rally — when this attacks, get a random tavern-tier spell
+  | 'onKillGrantRandomSpell' // Badgington: Slaughter — when this kills an enemy, get a random tavern-tier spell
+  | 'onKillBuffFodder'; // Sword and Bored: Slaughter — when this kills an enemy, buff your Fodder +atk/+hp
 
 export interface EffectDef {
   on: GameEvent;

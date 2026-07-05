@@ -24,6 +24,19 @@ export const UNDEAD: CardDef[] = [
     goldenText: '**Deathrattle:** Give your minions **+2/+2**. Triggers each time you play a **Battlecry**.',
   },
   {
+    // A spell-mill Undead: every third friendly death coughs up a random tavern-tier spell (golden: two).
+    id: 'profgreg',
+    name: 'Professor Greg',
+    tribe: 'undead',
+    tier: 4,
+    attack: 3,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeGrantRandomSpell', params: { count: 3 } }],
+    text: '**Avenge (3):** get a random spell.',
+    goldenText: '**Avenge (3):** get **2** random spells.',
+  },
+  {
     id: 'knit',
     name: 'Eternal Knight',
     tribe: 'undead',

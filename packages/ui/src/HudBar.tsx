@@ -15,8 +15,6 @@ export function HudBar() {
   const calibration = isCalibrationRound(run.wave);
   return (
     <div className="bar">
-      {/* Top-left: the round/altitude plaque with the run-buffs window stacked below it. */}
-      <div className="topleft">
       <div className="alt">
         <span className="wavecol">
           <span className="w">{`ROUND ${run.wave} / ${CONFIG.courseRounds}`}</span>
@@ -62,7 +60,10 @@ export function HudBar() {
         )}
         <span className="lbl line" title={`Your par for this run — cover or beat ${run.line} wins`}>Line {run.line}</span>
       </div>
-      <BuffsFrame />
+      {/* Run-buffs window — floats top-left just under the round plaque. Absolutely positioned (NOT an in-flow
+          column) so it can never grow the bar and push the shop/board down when buffs are active. */}
+      <div className="topleft">
+        <BuffsFrame />
       </div>
       {/* Top-right: the next-enemy frame (recruit only). */}
       <div className="topright">

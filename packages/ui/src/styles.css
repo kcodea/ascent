@@ -128,8 +128,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
    visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
 .topright { position: absolute; top: calc(11 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(24 * var(--u)); }
-/* Top-left column: the round/altitude plaque with the run-buffs window stacked beneath it (left-aligned). */
-.topleft { display: flex; flex-direction: column; align-items: flex-start; gap: calc(10 * var(--u)); }
+/* Run-buffs window, top-left: floats just under the round plaque. ABSOLUTE (mirrors .topright) so it never
+   contributes to the bar's height — an in-flow column here grew the bar and pushed the whole board down. */
+.topleft { position: absolute; top: calc(100% + calc(6 * var(--u))); left: 0; z-index: 60; }
 /* Next-enemy frame — MINIMAL intel card. One background, one hairline, ONE left gutter everything aligns
    to; the author pill is centered over the top edge (symmetric). Portrait + hero name over a single stat
    row (life+armor · tier ★ · wins 👑 — one size, life emphasized by COLOR only, so no mixed baselines).
@@ -393,8 +394,11 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * -0.44); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* Hover pops the in-hand card ITSELF up out of the fan — lifted clear of the tuck, straightened, and scaled a
-   touch — so its full text drawer reads in place. Replaces the old floating magnified `.handpreview` copy. */
-.row.hand .card:hover { transform: translateY(calc(-1 * var(--ch) * 0.42)) rotate(0deg) scale(1.08); z-index: 50; }
+   touch — so its full text drawer reads in place. Replaces the old floating magnified `.handpreview` copy. A
+   soft dark drop-shadow (follows the card's alpha, so it hugs the arch) reads as "lifted above the fan" — NOT
+   the bright `.card:hover` box-shadow glow, which is tuned for small in-place cards and looks harsh blown up
+   over the popped card (and squares off against the tall card's arch radius). */
+.row.hand .card:hover { transform: translateY(calc(-1 * var(--ch) * 0.42)) rotate(0deg) scale(1.08); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }

@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-04 (session 17)
 
+### fix(ui): buffs panel no longer pushes the board down + softer hover-pop shadow (owner follow-ups)
+
+Two owner-reported regressions from the previous batch, both presentation (`packages/ui`).
+
+- **The shop + board no longer shift down when buffs are active.** Moving the run-buffs window to the top-left
+  last change put it in an IN-FLOW `.topleft` column alongside the round plaque — so once a buff was active the
+  column grew taller than the plaque and, since `.bar` is `align-items: center`, the whole bar grew and shoved
+  the tavern/board down (the owner's "shifted down dramatically"). Kept the window on the left but made
+  `.topleft` **absolutely positioned** (mirroring `.topright`), floating just under the plaque (`top: 100% + 6u;
+  left: 0`), so it contributes nothing to the bar's height. Verified: with buffs toggled on, the bar stays 48·u
+  and the tavern top holds at y=207 (its original spot) — zero shift — while the buffs still render top-left,
+  aligned under the plaque.
+- **Softer hover-pop shadow (the "wrong glow").** When the hover-pop replaced the floating magnified preview,
+  the popped in-hand card started inheriting the shared `.card:hover` treatment — a bright yellow box-shadow
+  glow tuned for small, in-place shop/board cards. Blown up on the big popped card (and squaring off against
+  the tall full-text card's arch radius) it read as harsh/wrong. The popped hand card now gets a soft dark
+  **drop-shadow** instead (`box-shadow: none !important` + `filter: drop-shadow(...)`), which follows the card's
+  alpha so it hugs the arch and reads as "lifted above the fan" — the same lifted look the old preview had.
+  Shop/board hover glows are unchanged (only `.row.hand .card:hover` is overridden).
+
+Verified live (throwaway `newRun`): toggling buffs leaves the tavern top + bar height unchanged; the popped
+hand card shows a clean soft shadow, no yellow glow. `typecheck` + `lint` + `test` (483) + `build:web` green.
+
 ### polish(ui): roomier hand + hover pops the card itself + no pickup jiggle + buffs moved left
 
 Owner follow-ups on the hand + HUD, all presentation (`packages/ui`).

@@ -34,6 +34,18 @@ export interface Beat {
   primary: CombatEvent;
 }
 
+/** The attacker uid whose damage number is suppressed on the result (impact) beat at `resultIndex`. An
+ *  `attack` is its own wind-up beat, so its damage — the attacked unit's hit AND the attacker's retaliation
+ *  (a clash is two-way) — lands in the NEXT beat; only the unit being attacked shows a number, so the
+ *  attacker (the previous beat's `attack` primary) is dropped. Also handles an `attack` grouped alongside its
+ *  own damage, defensively. Returns null when this impact isn't an attack's (SC/Deathrattle damage, etc.). */
+export function attackerOfImpact(beats: Beat[], resultIndex: number): string | null {
+  const prev = beats[resultIndex - 1];
+  if (prev?.primary.type === 'attack') return prev.primary.attacker;
+  const self = beats[resultIndex]?.primary;
+  return self?.type === 'attack' ? self.attacker : null;
+}
+
 export function buildBeats(events: CombatEvent[]): Beat[] {
   const beats: Beat[] = [];
   let i = 0;

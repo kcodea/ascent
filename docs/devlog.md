@@ -3,6 +3,27 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-05 (session 20)
+
+### fix(ui): damage numbers actually suppress on the attacker (the target-only rule was a no-op)
+
+The session-18 "damage numbers only on the attacked unit" change didn't work: it scanned the *impact* beat for
+the `attack` event to find the attacker, but `buildBeats` makes an `attack` its OWN wind-up beat — the two
+`dmg` events (the hit + the retaliation) land in the NEXT beat. So the attacker set was always empty and BOTH
+numbers still showed (owner-reported).
+
+- **Root cause + fix (`useCombatReplay.ts` + `combatBeats.ts`).** Extracted `attackerOfImpact(beats, index)`
+  into `combatBeats.ts` (pure/testable): it reads the attacker from the impact's *previous* beat (the attack
+  wind-up), which is where the attack event actually lives. The float effect now suppresses the `dmg` float
+  whose uid matches that attacker (including its killing-blow overlay number — the attacker is never "the unit
+  being attacked", even when the retaliation kills it). Non-attack damage (SC casts, Deathrattle AOE) returns
+  null → not suppressed.
+- **Verified three ways** (the session-18 miss was shipping on a static check that didn't exercise the beat
+  grouping): a new `combatBeats.test.ts` case runs a REAL `simulate()` clash where both units survive and
+  asserts only the defender's `dmg` survives the rule; a null-case test for SC damage; and a live trace of an
+  actual 2-exchange fight's 9-event log (each impact beat drops the attacker, keeps the defender — matching a
+  live float-observer capture). `typecheck` + `lint` + **484 tests** (+2) + `build:web` green.
+
 ## 2026-07-04 (session 19)
 
 ### feat(ui): centre the damage number on the struck card + drop the minus sign

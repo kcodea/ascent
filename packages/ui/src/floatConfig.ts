@@ -19,7 +19,8 @@ export interface FloatConfig {
   durMs: number;
   /** Pop overshoot — the scale the number punches to at the top of the pop (1 = no overshoot). */
   pop: number;
-  /** Rise distance (px) the number drifts UP before it fades out (bigger = travels further up). */
+  /** Rise distance (px) the number drifts UP before it fades. 0 = STUCK to the card (the default — it holds
+   *  on the struck minion and fades in place); higher = it floats up and off. */
   rise: number;
   /** Entry scale — how small the number starts before it pops in (smaller = snappier punch). */
   inScale: number;
@@ -32,7 +33,7 @@ const DEFAULTS: FloatConfig = {
   dmgSize: 42,
   durMs: 1400,
   pop: 1.18,
-  rise: 30,
+  rise: 0, // 0 = the number sticks to the card (holds + fades in place) instead of drifting off
   inScale: 0.5,
   inY: 14,
 };
@@ -68,7 +69,8 @@ export function applyFloatConfig(): void {
   s.setProperty('--float-dmg-size', `${cfg.dmgSize}px`);
   s.setProperty('--float-dur', `${cfg.durMs}ms`);
   s.setProperty('--float-pop', `${cfg.pop}`);
-  s.setProperty('--float-rise', `${-cfg.rise}px`); // stored positive (drift up); CSS translateY is negative
+  // Damage-only rise (its own var, so non-damage floats keep drifting up via base `floatup`'s --float-rise).
+  s.setProperty('--float-dmg-rise', `${-cfg.rise}px`); // stored positive (drift up); CSS translateY is negative
   s.setProperty('--float-in-scale', `${cfg.inScale}`);
   s.setProperty('--float-in-y', `${cfg.inY}px`);
 }

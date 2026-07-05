@@ -3,6 +3,256 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-05 (session 18)
+
+### feat(ui): UNIFORM hand pop — anchor each card's bottom to one line (replaces the pop-fraction levers)
+
+The hover-pop lifted a card by a fraction of its height, so cards of different heights (the text drawer varies —
+a 62px spread across a spell vs a long-text minion in testing) ended at different bottom positions — never
+uniform, which is why the previous pass needed separate spell/minion levers. The owner asked if a "point on the
+bottom" could make it uniform. It can, with a clean CSS trick:
+
+- **Bottom-anchored pop.** The hover transform is now `translateY(calc(-100% + var(--ch) * var(--hand-floor)))`.
+  The `-100%` raises each card by its OWN height, so every card — spell or minion, short or long — lands its
+  **bottom on the same line**; `--hand-floor` (a fraction of --ch) sets where that line sits. Verified across
+  cards spanning 193–277px tall: their popped bottoms land within ~2px of each other (the residual is the 1.06
+  scale pivoting from the fan's `center 42%` origin — imperceptible), flush ~6px above the play-field floor. Was
+  a 58px spread, now ~2.
+- **One lever replaces two.** `handPop` + `handPopSpell` collapse into a single `handFloor` in `dragFeel.ts`
+  (reflected to `--hand-floor`, slider "hand pop floor" in the Drag Feel tuner, default 0.83). Since the pop is
+  uniform by construction, spells and minions no longer need separate values. Dropped the per-card `--card-pop`
+  resolution and the `.spellcard` override from `styles.css`. (Shipped default dialed to **0.94** by the owner.)
+
+Verified live (throwaway `newRun` + mixed hand): a short spell (Gold Pouch) and a tall minion (Target Dummy)
+both pop with their bottoms on the same line, full text on-screen, flush at the bottom, soft shadow (no glow).
+`typecheck` + `lint` + `test` (483) + `build:web` green.
+
+### fix(ui): spell frame glow softened on big cards + separate spell/minion hand-pop levers
+
+Two owner follow-ups, presentation-only (`packages/ui`).
+
+- **Spell "play-area glow" fixed.** A spell card carries a purple frame glow (`.card.spellcard` box-shadow,
+  the demon-tribe hue) that's fine on the compact tile but reads harsh blown up on the full-size **floating
+  drag card** (dragging a spell into the play area) and the **hover-reveal popup**. Dropped it in exactly those
+  two contexts (`.dragcard .card.spellcard, .cardref .card.spellcard { box-shadow: none }`) — the drag card's
+  wrapper drop-shadow / the popup's white haze already give the lift, and the gold willplay halo still signals
+  "release to cast". Reproduced the purple halo on a lifted spell, confirmed it's gone with the rule. (The
+  hover-POP was already clean — its `box-shadow: none !important` overrides the frame glow.)
+- **Separate spell + minion hand-pop levers.** Spells carry different text lengths than minions, so they can
+  want a different hover-pop rise. Split the `handPop` lever into `handPop` (minion) + `handPopSpell` (spell) in
+  `dragFeel.ts`, reflected to `--hand-pop` / `--hand-pop-spell`. Each hand card resolves a single `--card-pop`
+  to the right one by class (`.row.hand .card` → minion; `.row.hand .card.spellcard` → spell), and the one
+  hover rule reads `--card-pop` — no duplication. Both sliders live in the Drag Feel tuner ("hand pop · minion",
+  "hand pop · spell"). Verified independence: setting the spell lever to 0.15 gives a spell a 36px lift while a
+  minion stays at 73px (0.3).
+
+Verified live (throwaway `newRun` + planted spell): both CSS vars resolve on `:root`; spell vs minion
+`--card-pop` track their own levers; the lifted spell shows no purple halo. `typecheck` + `lint` + `test` (483)
++ `build:web` green.
+
+### feat(ui): hand hover-pop height is now a live DEV LEVER (`handPop`)
+
+The hover-pop lift is viewport-sensitive (it's a fraction of `--ch`), so the "right" amount depends on the
+player's resolution — no single hard-coded value satisfies everyone, and the owner still saw cards popping too
+high. Made the lift a **live, dial-by-eye lever** instead of guessing pixels.
+
+- New `handPop` key in the drag-feel config (`dragFeel.ts`): the hover-pop rise as a fraction of `--ch`, with a
+  slider range `[0, 0.6, 0.01]`, a tooltip, and localStorage persistence like the rest of the tuner. Default
+  nudged **0.35 → 0.3** (pops a touch less out of the box).
+- `dragFeel.ts` now reflects the value onto the document root as the `--hand-pop` CSS var (`applyDragFeelVars()`,
+  called on load + on every tuner change/reset), and `.row.hand .card:hover` reads
+  `translateY(calc(-1 * var(--ch) * var(--hand-pop, 0.3)))` — so sliding the lever moves the pop **live**.
+- Added the slider to the Drag Feel tuner (`DragTuner.tsx`, label "hand pop (×ch)"); also gave the previously
+  label-less `collapseY` a name while there. Open it from the Dev Tuning Menu, drag "hand pop" until the card
+  sits right, then "Copy values" to bake it as the shipped default in `dragFeel.ts`.
+
+Verified live: `--hand-pop` resolves to `0.3` on `:root` after load; the `.row.hand .card:hover` transform reads
+it; the forced-hover card shows its full text with the tribe line readable. `typecheck` + `lint` + `test` (483)
++ `build:web` green.
+
+### fix(ui): the REAL "release to play" glow softened + hover-pop only lifts flush to the edge
+
+Two owner follow-ups, presentation-only (`packages/ui/styles.css`).
+
+- **The glow the owner was actually seeing.** Previous passes softened the hand HOVER glow, but the harsh
+  bright-yellow halo the owner kept flagging was on a *different* element: `.dragcard.willplay .card` — the
+  floating card while a hand minion is dragged **over the play area** (the "release here to play" signal). It
+  used the exact same `box-shadow: 0 0 24px 7px rgba(255,226,110,.95)` as the old hover glow, which reads harsh
+  and square-cornered blown up over the full-size dragged card. Replaced it with a soft GOLD **filter
+  drop-shadow** (`drop-shadow(...202,80,.92) drop-shadow(...182,52,.5)`) that follows the card's arch alpha —
+  a gentle "play here" halo that hugs the silhouette. Verified live: the lifted full card shows a soft gold
+  glow around the arch, no hard box.
+- **Hover-pop only rises flush to the bottom edge.** The hand hover-pop lifted the card `0.42·--ch`, floating
+  it up with a gap between its bottom and the bottom of the play field. Measured the geometry (game bottom at
+  y=900; card rest-bottom at 1013, i.e. tucked 113px below) and dialed the lift to `0.35·--ch` (scale 1.06),
+  which lands the card bottom at y=899 — **flush with the edge (1px), zero floating gap** — with the full text
+  still on-screen (top 591). Was a 14px gap, now ~0. Verified live (forced-hover screenshot): the popped card
+  sits on the bottom edge, full rules text readable, nothing cut.
+
+Verified live (throwaway `newRun`, 1600×900): dragged-into-play card shows the soft gold halo; the hover-pop
+sits flush at the bottom with no gap. `typecheck` + `lint` + `test` (483) + `build:web` green.
+
+## 2026-07-04 (session 17)
+
+### fix(ui): buffs panel no longer pushes the board down + softer hover-pop shadow (owner follow-ups)
+
+Two owner-reported regressions from the previous batch, both presentation (`packages/ui`).
+
+- **The shop + board no longer shift down when buffs are active.** Moving the run-buffs window to the top-left
+  last change put it in an IN-FLOW `.topleft` column alongside the round plaque — so once a buff was active the
+  column grew taller than the plaque and, since `.bar` is `align-items: center`, the whole bar grew and shoved
+  the tavern/board down (the owner's "shifted down dramatically"). Kept the window on the left but made
+  `.topleft` **absolutely positioned** (mirroring `.topright`), floating just under the plaque (`top: 100% + 6u;
+  left: 0`), so it contributes nothing to the bar's height. Verified: with buffs toggled on, the bar stays 48·u
+  and the tavern top holds at y=207 (its original spot) — zero shift — while the buffs still render top-left,
+  aligned under the plaque.
+- **Softer hover-pop shadow (the "wrong glow").** When the hover-pop replaced the floating magnified preview,
+  the popped in-hand card started inheriting the shared `.card:hover` treatment — a bright yellow box-shadow
+  glow tuned for small, in-place shop/board cards. Blown up on the big popped card (and squaring off against
+  the tall full-text card's arch radius) it read as harsh/wrong. The popped hand card now gets a soft dark
+  **drop-shadow** instead (`box-shadow: none !important` + `filter: drop-shadow(...)`), which follows the card's
+  alpha so it hugs the arch and reads as "lifted above the fan" — the same lifted look the old preview had.
+  Shop/board hover glows are unchanged (only `.row.hand .card:hover` is overridden).
+
+Verified live (throwaway `newRun`): toggling buffs leaves the tavern top + bar height unchanged; the popped
+hand card shows a clean soft shadow, no yellow glow. `typecheck` + `lint` + `test` (483) + `build:web` green.
+
+### polish(ui): roomier hand + hover pops the card itself + no pickup jiggle + buffs moved left
+
+Owner follow-ups on the hand + HUD, all presentation (`packages/ui`).
+
+- **A touch more room between hand cards.** Now that the hero panel shrank and the fan reads clearly, the
+  overlap eased from `−0.5 ccw` → `−0.44 ccw` (a 10-card hand widened 882 → 936 px — still well clear of the
+  hero frame).
+- **The magnified hover preview is gone; the card itself pops up.** The floating `.handpreview` (a scaled 1.275
+  crisp copy above the fan) read as too much. Removed it entirely — state, the hand-zone pointer handlers, the
+  render, and the CSS. Hover now lifts the in-hand card itself up out of the tuck (`translateY(-0.42·--ch)`),
+  straightens it, and scales it a gentle 1.08, so its own full text drawer reads in place. Verified the popped
+  card lands fully on-screen (top 565, bottom 853 at 900×) and isn't occluded.
+- **Pickup no longer jiggles the hand.** Grabbing any card (hand OR shop) made every hand card flick straight
+  then re-fan. Cause: the drag-start slot measurement toggled a `.measuring` class that flattened the fan with
+  `transition:none` to read upright rects — but REMOVING it restored the base `transition: transform`, so the
+  cards animated flat→fan over ~0.12s on every pickup (confirmed: the transform sat at rotation 0 for ~4 frames
+  then eased back). Dropped the flatten entirely: the reorder now measures the cards' rotated rects directly.
+  The fan pivots near each card's centre, so the axis-aligned bbox stays centred on the card and the slot
+  midpoints match the flat centres within a pixel or two — no measurable reorder cost, no jiggle.
+- **Run-buffs window moved to the top-LEFT.** It used to sit under the opponent frame (top-right); it now
+  stacks under the round/altitude plaque on the left (new `.topleft` flex column in `HudBar`, mirroring
+  `.topright`). Verified: it renders at x=18 (aligned with the plaque), directly beneath it.
+
+Verified live (throwaway `newRun` with a planted hand + seeded run buffs): hand ~936 px; no `.handpreview` in
+the DOM; the `.measuring` rule is gone and a simulated pickup no longer animates the fan; forced-hover shows
+the card popping up with full text on-screen; the buffs window renders top-left under the plaque. `typecheck` +
+`lint` + `test` (483) + `build:web` green. (Hover-pop + reorder still want a real-cursor eyeball — `:hover` and
+this drag system aren't drivable headlessly.)
+
+### fix(ui): spell-target ghost card + board2c 16:9 art + fan no longer flattens on grab
+
+Owner follow-ups, all presentation (`packages/ui`).
+
+- **Spell-target "ghost card" fixed.** Dragging a targeted spell up to aim, then back down off the target,
+  left a copy of the spell card stranded in the **top-left corner**. Root cause: the floating `.dragcard` is
+  rendered only when NOT aiming (`!castingSpell`), and its transform is written imperatively by the weighted-drag
+  rAF — but that effect's deps were `[drag?.active]` only. When `castingSpell` flipped true→false mid-drag the
+  dragcard **remounted**, yet the rAF didn't re-run, so the fresh node never got a transform and sat at its
+  default 0,0. Fix: hoisted `castingSpell` above the rAF effect and added it to the deps, so the effect re-runs
+  on the flip, re-binds the remounted node, and writes its transform in the `useLayoutEffect` init **before
+  paint** (no flash, no stranding). No change to normal minion drags (there `castingSpell` is always false, so
+  the dep is stable).
+- **New 16:9 board art `board2c`.** Replaces `board3upscaled` as the 16:9 default (`--board`; 21:9 unchanged).
+  Converted `board2c.png` (1672×941) with `sharp` to an 86 KB webp at its native resolution (same res as the
+  old `board2b`). The now-unused `board3upscaled.webp` was removed from `public/`. Preload list + comments
+  updated; verified the URL serves `image/webp` and the board renders.
+- **The fan no longer flattens when you grab a card.** The first fan pass flattened the WHOLE hand for the
+  duration of a drag (`body.dragging` → `transform: translateY(tuck)`), so grabbing any card made every card
+  snap straight and then re-fan on release — a distracting whoosh. That flatten is gone; the hand now stays
+  fanned through the drag. Reorder correctness is preserved because the only flatten that remains is the
+  **invisible** drag-start measurement (the `.measuring` class, added + removed inside one synchronous pass, so
+  it's never painted — verified: it still reads clean upright 155 px slot rects). Cards parting to make room
+  keep their tilt too (Card's inline reorder transform now composes `rotate(var(--fan-rot))`), so the fan just
+  opens a gap. Verified live: hand cards stay fanned with `body.dragging` set; `.measuring` still flattens to
+  155 px.
+
+Verified live (throwaway `newRun`): board2c renders; the hand stays fanned during a simulated drag while the
+measurement pass still flattens cleanly. `typecheck` + `lint` + `test` (483) + `build:web` green. The spell-drag
+and reorder gestures themselves can't be driven headlessly (this drag system needs real pointer capture), so
+those want a quick real-cursor eyeball.
+
+### polish(ui): board3upscaled 16:9 art + a proper hand fan + Practice mirrors the Ascent course
+
+Owner-directed batch of three. Mostly presentation (`packages/ui`); Practice parity also touches the run loop
+(`packages/sim`).
+
+- **New 16:9 board art (`board3upscaled`).** Wired `--board` (the 16:9 default, driving the in-game board +
+  the hero-select / title backdrops) from `board2b.webp` → `board3upscaled.webp`; the 21:9 ultrawide art
+  (`board2upscaled2.webp`) is unchanged. The source (`C:\Game Assets\…\board3upscaled.png`, 11636×6549, 49 MB)
+  was converted with `sharp` to a 2560×1440 webp at q80 — **117 KB**, a real resolution bump over the old
+  1672×941 board2b yet smaller on disk. Preload list (`art.ts`) updated to match. Verified live: the URL now
+  serves `image/webp` (was Vite's 404→index.html fallback) and the board renders.
+- **The hand now fans.** Each hand card carries a per-index tilt (`--fan-rot`, set from `Recruit` by its
+  position: ±1.8°/card out from centre, capped ±7°) and rotates about a point near its own upper-middle
+  (`transform-origin: center 42%`), so the cards splay like a held hand. Because they pivot near their centres
+  (not a far-below point), the tilt reads as a fan **without** swinging the ends wide — so a deeper overlap
+  (margin-left −0.48 → **−0.5 ccw**) genuinely narrows the hand: a 10-card hand went **970 → 882 px** wide
+  (and now clears the hero frame by ~100 px). Critically, the fan **flattens during a drag** (`body.dragging`)
+  and **instantly during the drag-start slot measurement** (a transient `.measuring` class with
+  `transition: none`), so the reorder hit-testing always measures upright, axis-aligned 155 px cards — the
+  rotated bounding boxes would otherwise inflate the slot widths (verified: measured widths are 188 px fanned
+  vs 155 px flat; the `.measuring` pass reads 155). Hover straightens the card (`rotate(0)`). New `fanRot` prop
+  on `Card`.
+- **Practice mirrors the Ascent course.** Practice was a separate 15-round session that rendered a different
+  HUD ("WAVE n", no round track, no Line). Per the owner it should read *identically* to a real run — the only
+  differences being invulnerability + a longer clock. So Practice now runs the SAME course: `advanceCombat`
+  ends it at `CONFIG.courseRounds` (17) instead of the now-removed `practiceRounds` (15), and the HUD drops its
+  `!practice` gates — Practice shows `ROUND n / 17`, the per-round dash track, the record, the Setup label, and
+  the Line, exactly like Ascent. The `ShopTimer` label also uses the shared "Setup Time"/"Time" logic. The one
+  HUD difference that remains is the **`Max −X` loss row, still hidden in Practice** — it's the direct
+  expression of invulnerability (no Resolve at risk). Unchanged: unlimited health (a loss costs 0 Resolve), the
+  ×3 shop clock, and the unscored practice end screen. Stale "15-round" comments updated across sim/ui; the two
+  practice round-count tests re-pointed at `courseRounds`.
+
+Verified live (browser store, throwaway `newRun`): board renders; fan splays + narrows the hand (882 px) and
+flattens cleanly for measurement + drag; Practice HUD reads `ROUND 8/17` + dashes + `Line 7` + record with
+`Max −X` hidden, and the ×3 clock. `typecheck` + `lint` + `test` (483) + `build:web` green. Judgement call
+flagged: hiding `Max −X` in Practice (rather than showing a moot value) is the one intentional HUD divergence.
+
+### polish(ui): hand tier pills + compact 2×2 hero frame + per-round dash track
+
+Owner-directed cleanup batch on the hand / HUD. Presentation-only — `packages/ui` (`instView.ts`,
+`HudBar.tsx`, `styles.css`); no engine/content/sim changes.
+
+- **Spells in hand now show their Tier pill.** `instView` (the board/hand `CardView` builder) hard-coded
+  `tier: spell ? undefined : c.tier`, so a hand spell rendered its `SPELL` drawer but no `Tier N` badge —
+  inconsistent with the shop (`shopView` always passes `tier: c.tier`) and with minions in the same hand.
+  Changed to `tier: c.tier` unconditionally. `instView` also feeds board minions, but boards never hold
+  spells, so this only affects hand spells (now badged like everything else). Verified: all 10 hand cards
+  (spell at index 4 included) carry a `Tier 1` badge.
+- **Un-clipped the hand card pills/outlines.** The earlier uniform-height pass put `max-height: var(--ch);
+  overflow: hidden` on `.row.hand .card`, which cropped the Tier/cost pills (they overhang the card's top
+  edge by ~9px) and shaved the rounded outline. Removed both — top-alignment now rests solely on the row's
+  `align-items: flex-start` + the fixed `--hand-tuck`, so every card still tops out level but nothing is
+  clipped (measured `overflow: visible`, badge sits 9px above the card top, fully drawn).
+- **Hero frame → compact 2×2 grid.** The status-bar hero panel was a single 591px-wide row (portrait ·
+  name/power · power button · Resolve) whose left third sat under a wide hand — with even 6 cards the
+  left-most cards ducked behind it. Reflowed `.statusbar .hero` to `display: grid` with two columns
+  (`auto minmax(0,1fr)`) and a fixed `232·--u` width; the existing DOM order (`.f`, `.htxt`, `.hpwrap`,
+  `.hpbox`) auto-places row-major into portrait+name (top) / power-button+Resolve (bottom). The fixed width
+  wraps the power line, which is where the added height comes from; power button and Resolve box shrank to
+  suit. Net: **591×119 → 232×166** — narrow + tall, mirroring the opponent frame up top. Paired with a
+  deeper hand overlap (`.row.hand .card` margin-left `−0.2ccw → −0.42ccw`), a full 10-card hand now clears
+  the frame's right edge by ~59px (was ~3 cards overlapping).
+- **Round meter → per-round dash track.** Replaced the single fill bar + calibration notch with one dash
+  per course round (17): a win prints a green `✓`, a loss a red `✕`, a draw a muted dash, upcoming rounds a
+  faint dash, and the current round a lit-orange dash. Setup rounds (1–2) read at 0.6 opacity with a small
+  gap after round 2 (preserving the old notch's "scored climb begins here" cue). Hidden in Practice
+  (endless — no fixed course). Reads `run.history[i]` (round i+1's `CombatOutcome`) + `run.wave`; pure
+  derived render, no per-frame work. Verified colours via computed style (`#f0902e` current, green wins,
+  raspberry losses) and glyph/opacity per round state.
+
+Verified live (browser store, throwaway `newRun(777,'nadja')` with a planted 10-card hand incl. a spell,
+and a simulated mid-run `wave 8` history): tier badges on every hand card, no pill/outline clipping, hand
+clears the hero frame (+59px), 2×2 frame lays out clean (portrait/name top, power/Resolve bottom), dash
+track renders ✓/✕/dash/orange correctly. `typecheck` + `lint` + `test` (483) + `build:web` green.
 ## 2026-07-05 (session 20)
 
 ### fix(ui): damage numbers actually suppress on the attacker (the target-only rule was a no-op)

@@ -25,6 +25,21 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Hand + HUD refinements** — a bit more room between the fanned cards; the distracting magnified hover preview
+  is gone — **hovering now pops the card itself up** to reveal its full text; **grabbing a card no longer
+  jiggles the hand** (the fan measured its own rotated rects instead of flatten-then-re-fanning); and the
+  **run-buffs window moved to the top-left**, under the round plaque.
+- **Board art, a hand fan, and Practice parity** — a new **16:9 board** (`board2c`); the **hand now fans**
+  (each card tilts by its position and pivots near its centre, so it reads as a fan while staying compact, and
+  it stays fanned through a drag while the reorder measures the cards' rects directly so hit-testing stays
+  exact); and **Practice now mirrors the Ascent course** — same 17-round HUD (round track, Line, record), the
+  only differences being invulnerability (the `Max −X` row is hidden) and the ×3 clock. Also fixed a
+  **targeted-spell ghost card** that could strand in the top-left corner when you aimed then dragged off.
+- **Hand + HUD polish** — hand **spells now show their Tier pill** (matching minions and the shop), and the
+  card pills/outlines are no longer clipped. The **hero frame is a compact 2×2 grid** (portrait + name up top,
+  power button + Resolve below — 591×119 → 232×166, mirroring the opponent frame), so a full **10-card hand
+  clears it** in the corner (helped by a deeper card overlap). The round progress bar becomes a **per-round
+  dash track** — green ✓ win, red ✕ loss, muted dash draw, lit-orange current round, faint dash upcoming.
 - **Damage numbers on the attacked unit, centred on the card** — in a combat clash the number used to pop as
   a `-N` in the corner over both fighters; now only the unit being **attacked** shows it, centred on the card
   face (reads as the hit landing on the minion) and without the minus sign.

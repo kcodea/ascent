@@ -103,6 +103,18 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.map((m) => m.uid)).toEqual(['c', 'a', 'b']);
   });
 
+  it('reorderHand rearranges the hand (cosmetic — count preserved)', () => {
+    const mk = (uid: string, cardId: string): BoardCard => ({
+      uid, cardId, tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false,
+    });
+    let s: RunState = { ...createRun(1), hand: [mk('a', 'sandbag'), mk('b', 'alley'), mk('c', 'frontdrake')] };
+    s = reduce(s, { type: 'reorderHand', uid: 'a', toIndex: 2 });
+    expect(s.hand.map((m) => m.uid)).toEqual(['b', 'c', 'a']);
+    expect(s.hand).toHaveLength(3);
+    s = reduce(s, { type: 'reorderHand', uid: 'missing', toIndex: 0 }); // no-op on an unknown uid
+    expect(s.hand.map((m) => m.uid)).toEqual(['b', 'c', 'a']);
+  });
+
   it('rejects a buy without enough embers', () => {
     let s = createRun(1);
     s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // embers → 0
@@ -3550,7 +3562,7 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     expect([7, 12, 30].map(lossDamageCap)).toEqual([15, 15, 15]);
   });
 
-  it('Practice mode: a loss costs no Resolve (unlimited health), and the run keeps going below round 15', () => {
+  it('Practice mode: a loss costs no Resolve (unlimited health), and the run keeps going through the course', () => {
     let s: RunState = {
       ...createRun(1, 'warden', 'practice'),
       wave: 5, phase: 'combat', resolve: 30,
@@ -3558,17 +3570,17 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     };
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.resolve).toBe(30); // unlimited — no Resolve lost on a loss
-    expect(s.phase).toBe('recruit'); // wave 5 < 15 → keep climbing
+    expect(s.phase).toBe('recruit'); // wave 5 < courseRounds → keep climbing
   });
 
-  it('Practice mode ends after round 15 regardless of W/L (no win-15 victory)', () => {
+  it('Practice mode ends after the final course round regardless of W/L (shares Ascent\'s course length)', () => {
     let s: RunState = {
       ...createRun(1, 'warden', 'practice'),
-      wave: 15, phase: 'combat',
+      wave: CONFIG.courseRounds, phase: 'combat',
       lastCombat: { events: [], result: 'lose', playerDamage: 10, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.phase).toBe('gameover'); // 15 rounds done — the session ends
+    expect(s.phase).toBe('gameover'); // course complete — the practice session ends
   });
 
   it('settleCombat keeps the same lastCombat reference (the UI replay must not restart)', () => {

@@ -138,6 +138,8 @@ export const Card = memo(function Card({
   tripleReady,
   forceFull,
   slideDir,
+  handSlidePx,
+  fanRot,
 }: {
   card: CardView;
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
@@ -192,6 +194,12 @@ export const Card = memo(function Card({
    *  A CSS `transition: transform` (active while dragging) glides it as the drop gap moves — the neighbour
    *  "make room" animation. Half-slot each side keeps the row centred and matches the final drop position. */
   slideDir?: number;
+  /** Hand reorder slide, in PIXELS (the hand's cards overlap, so the slot width is measured, not derived).
+   *  Composes with the hand's translateY tuck so the fan keeps its tuck while parting to make room. */
+  handSlidePx?: number;
+  /** Hand-fan tilt in DEGREES for this card's position (negative = left of centre, positive = right). Fed to
+   *  the `--fan-rot` CSS var; the `.row.hand .card` rule rotates the card by it (flattened while dragging). */
+  fanRot?: number;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
@@ -262,7 +270,10 @@ export const Card = memo(function Card({
       className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
-        transform: slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
+        '--fan-rot': `${fanRot ?? 0}deg`,
+        transform: handSlidePx
+          ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
+          : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
       onClick={onClick}
       onMouseEnter={hasPopup && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
       onMouseLeave={hasPopup ? hideRefTip : undefined}

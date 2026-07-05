@@ -106,7 +106,7 @@ export function instView(
     keywords: inst.keywords, text,
     goldenText,
     golden: inst.golden,
-    tier: spell ? undefined : c.tier, spell, target: c.target,
+    tier: c.tier, spell, target: c.target,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: inst.buffs,

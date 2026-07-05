@@ -32,6 +32,9 @@ export interface BoardSnapshot {
   heroId: string;
   /** The run's Resolve (HP) at capture — shown on the opponent frame. */
   resolve: number;
+  /** The run's Armor (extra effective HP) at capture — opponent-frame intel. Optional for back-compat:
+   *  legacy captures + synthetic boards lack it → treated as 0 (no "+armor" shown). */
+  armor?: number;
   /** Tavern tier at capture — opponent-frame intel. */
   tier: number;
   /** Triples (goldens) formed this run by capture — opponent-frame intel. */
@@ -154,6 +157,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     wins: s.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0),
     heroId: s.heroId,
     resolve: s.resolve,
+    ...(s.armor ? { armor: s.armor } : {}),
     tier: s.tier,
     triples: s.triplesMade,
     tribes: [...s.tribes],

@@ -470,6 +470,17 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'reorderHand': {
+      // Purely cosmetic — rearrange the hand (drag a card sideways to reorder it), the hand's parallel to
+      // reorderShop. Hand order has no gameplay effect; this just lets the player organize their cards.
+      const i = s.hand.findIndex((c) => c.uid === action.uid);
+      if (i < 0) return state;
+      const to = Math.max(0, Math.min(s.hand.length - 1, action.toIndex));
+      const [card] = s.hand.splice(i, 1);
+      if (card) s.hand.splice(to, 0, card);
+      return s;
+    }
+
     case 'heroPower': {
       const power = getHero(s.heroId).power;
       // Some powers unlock on a later turn (Myra's Encore — turn 3); locked before then.
@@ -1013,9 +1024,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
 
 /** Advance past a settled combat: the terminal check (gameover / victory), else roll the next wave. */
 function advanceCombat(s: RunState): void {
-  // Practice: a fixed session — ends after `practiceRounds` regardless of W/L. (Health is unlimited, so
-  // the resolve<=0 check never fires, and the course-complete victory below is gated to Ascent.)
-  if (s.mode === 'practice' && s.wave >= CONFIG.practiceRounds) {
+  // Practice runs the SAME fixed course as Ascent (`courseRounds`), so the HUD reads identically — it just
+  // can't be lost (health is unlimited, so the resolve<=0 check never fires) and settles into a practice
+  // summary instead of a scored victory. Ends when the course is done, regardless of W/L.
+  if (s.mode === 'practice' && s.wave >= CONFIG.courseRounds) {
     s.phase = 'gameover';
     return;
   }

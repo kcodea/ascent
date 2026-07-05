@@ -147,8 +147,9 @@ export type DiscoverSpec =
 
 export interface RunState {
   seed: number;
-  /** Game mode: 'ascent' (the scored climb) or 'practice' (a 15-round sandbox: any hero, unlimited health,
-   *  3× shop timer, ends at round 15 regardless of W/L). Absent = 'ascent'. */
+  /** Game mode: 'ascent' (the scored climb) or 'practice' (the SAME course — any hero, unlimited health,
+   *  3× shop timer — so it reads identically to Ascent; ends at `courseRounds` regardless of W/L, unscored).
+   *  Absent = 'ascent'. */
   mode?: 'ascent' | 'practice';
   /** Current wave (Altitude). Score = waves survived. */
   wave: number;
@@ -320,6 +321,7 @@ export type Action =
   | { type: 'upgrade' }
   | { type: 'reposition'; uid: string; toIndex: number }
   | { type: 'reorderShop'; uid: string; toIndex: number }
+  | { type: 'reorderHand'; uid: string; toIndex: number }
   | { type: 'heroPower'; uid?: string } // uid omitted for untargeted powers (Nadja's Mana Font)
   | { type: 'discover'; index: number }
   | { type: 'chooseOne'; index: number }

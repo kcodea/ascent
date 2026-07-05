@@ -25,6 +25,7 @@ const LABELS: Record<keyof DragFeel, string> = {
   snapMs: 'snap-back ms',
   magSlideMs: 'magnet-slide ms',
   collapseY: 'row collapse px',
+  handFloor: 'hand pop floor',
 };
 
 export function DragTuner() {

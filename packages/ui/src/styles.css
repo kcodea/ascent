@@ -23,10 +23,11 @@
      All sizing keys off the box (--gw/--gh), not the raw viewport, so the board scales inside it. */
   --gw: 100vw; --gh: 100vh;
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
-  /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art (board2b); the
-     21:9 art (board2upscaled2, native 3440×1440) is swapped in for the ultrawide resolution + a fit window
-     that's actually ultrawide. Only the URL changes — the gradient scrim + fallback colour stay in .app. */
-  --board: url('/board2b.webp');
+  /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art
+     (board2c); the 21:9 art (board2upscaled2, native 3440×1440) is swapped in for the ultrawide
+     resolution + a fit window that's actually ultrawide. Only the URL changes — the gradient scrim + fallback
+     colour stay in .app. */
+  --board: url('/board2c.webp');
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds */
   --ch: clamp(220px, calc(var(--gh) * 0.27), 384px); --cw: calc(var(--ch) * 0.752);
@@ -46,7 +47,7 @@
 :root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 21 / 9), 3440px); --gh: min(100vh, calc(100vw * 9 / 21), 1440px); }
 /* 21:9 stage → the ultrawide board art. The forced 3440 res is always 21:9; a "fit" window (no data-res,
    so the stage = the window) uses the 21:9 art only when the window itself is actually ultrawide. Fixed 16:9
-   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board2b. */
+   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board2c. */
 :root[data-res="r3440"] { --board: url('/board2upscaled2.webp'); }
 @media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board2upscaled2.webp'); } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -126,9 +127,40 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Next-opponent intel frame — hangs under the top bar's right edge (below the tribes). Portrait + HP
    visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
-.topright { position: absolute; top: 0; right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(14 * var(--u)); }
-/* Next-enemy frame — sized ~30% larger than the base chips for emphasis. */
-.oppframe { position: relative; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(17 * var(--u)); padding: calc(7 * var(--u)) calc(16 * var(--u)) calc(7 * var(--u)) calc(12 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; transform: scale(1.15); transform-origin: top right; }
+.topright { position: absolute; top: calc(11 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(24 * var(--u)); }
+/* Run-buffs window, top-left: floats just under the round plaque. ABSOLUTE (mirrors .topright) so it never
+   contributes to the bar's height — an in-flow column here grew the bar and pushed the whole board down. */
+.topleft { position: absolute; top: calc(100% + calc(6 * var(--u))); left: 0; z-index: 60; }
+/* Next-enemy frame — MINIMAL intel card. One background, one hairline, ONE left gutter everything aligns
+   to; the author pill is centered over the top edge (symmetric). Portrait + hero name over a single stat
+   row (life+armor · tier ★ · wins 👑 — one size, life emphasized by COLOR only, so no mixed baselines).
+   Below the hairline: grey minion silhouettes (count only) over a quiet one-line comp read ("2 Triples ·
+   3 Dragons", tribe word tinted). ★ = tier ONLY — triples are text. The pill is the single strong accent. */
+.oppframe { position: relative; display: flex; flex-direction: column; width: calc(212 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; transform: scale(1.265); transform-origin: top right; }
+/* Author name — a pill centered over the top edge. */
+.oppframe .opp-name { position: absolute; top: 0; left: 50%; transform: translate(-50%, -55%); max-width: calc(180 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: var(--threat); color: #fff; border: 2px solid var(--card); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.18); z-index: 2; }
+.oppframe .opp-plate { display: flex; align-items: center; gap: calc(10 * var(--u)); padding: calc(14 * var(--u)) calc(12 * var(--u)) calc(10 * var(--u)); }
+.oppframe .opp-pic { width: calc(44 * var(--u)); height: calc(44 * var(--u)); border-radius: calc(10 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--gold); }
+.oppframe .opp-pic img { width: 100%; height: 100%; object-fit: cover; }
+.oppframe .opp-pic svg { width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--ink3); }
+.oppframe .opp-info { display: flex; flex-direction: column; gap: calc(6 * var(--u)); min-width: 0; flex: 1; }
+.oppframe .opp-hero { font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: var(--ink); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The single stat row — every stat the same size + weight on one baseline; even gaps, no separators. */
+.oppframe .opp-stats { display: flex; align-items: center; gap: calc(12 * var(--u)); }
+.oppframe .opp-stat { display: inline-flex; align-items: center; gap: calc(3.5 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(13.5 * var(--u)); line-height: 1; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.oppframe .opp-stat svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
+.oppframe .opp-stat.life { color: var(--threat-dk); }
+.oppframe .opp-stat.life svg { color: var(--threat); }
+/* Tier / wins as text (no icon) — a touch lighter + smaller so life stays the loudest stat. */
+.oppframe .opp-stat.label { font-weight: 700; font-size: calc(12.5 * var(--u)); color: var(--ink3); }
+.oppframe .opp-armor { font-style: normal; font-weight: 800; font-size: calc(11.5 * var(--u)); color: #8b97a3; margin-left: calc(1.5 * var(--u)); }
+/* Board read — same 12u gutter; a hairline over the quiet one-line comp read (triples · top tribe). */
+.oppframe .opp-preview { padding: calc(7 * var(--u)) calc(12 * var(--u)) calc(9 * var(--u)); border-top: 1px solid var(--line); }
+.oppframe .opp-compline { font-family: var(--font-ui); font-weight: 700; font-size: calc(11.5 * var(--u)); line-height: 1; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The tribe word carries a quiet tint of its tribe hue (--tc set inline) — color + text, no pill box. */
+.oppframe .opp-tribe { color: color-mix(in srgb, var(--tc) 62%, var(--ink)); font-weight: 800; }
+/* No-intel threat fallback: neutral pill. */
+.oppframe.threat .opp-name { background: var(--ink3); }
 /* Run-buffs window — a compact list of active permanent buffs; collapsible header. Normal (system) cursor,
    not the custom gauntlet, so the panel reads as plain UI chrome. */
 .buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
@@ -141,28 +173,20 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); }
 .buff-row .buff-label { font-family: var(--font-ui); font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink); white-space: nowrap; }
 .buff-row .buff-val { font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); color: var(--acc-dk); font-variant-numeric: tabular-nums; }
-.oppframe .opp-l { font-family: var(--font-ui); font-weight: 700; font-size: calc(14 * var(--u)); letter-spacing: 0.08em; color: var(--ink3); text-transform: uppercase; }
-.oppframe .opp-pic { width: calc(55 * var(--u)); height: calc(55 * var(--u)); border-radius: calc(13 * var(--u)); overflow: hidden; background: var(--bg2); display: grid; place-items: center; flex: none; border: 2px solid var(--threat); }
-.oppframe .opp-pic img { width: 100%; height: 100%; object-fit: cover; }
-.oppframe .opp-pic svg { width: calc(29 * var(--u)); height: calc(29 * var(--u)); color: var(--ink3); }
-.oppframe .opp-hp { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(22 * var(--u)); color: var(--threat-dk); }
-.oppframe .opp-hp svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--threat); }
-.oppframe .opp-stats { display: flex; flex-direction: column; align-items: flex-end; gap: calc(1 * var(--u)); }
-.oppframe .opp-meta { display: inline-flex; align-items: center; gap: calc(9 * var(--u)); }
-.oppframe .opp-wins, .oppframe .opp-tier { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); color: var(--ink3); font-variant-numeric: tabular-nums; }
-.oppframe .opp-wins svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
-.oppframe .opp-tier svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--ink3); }
-.oppframe.threat .opp-pic { border-color: var(--ink3); }
-.oppframe .opp-tip { position: absolute; top: calc(100% + 6 * var(--u)); right: 0; min-width: calc(160 * var(--u)); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 600; font-size: calc(12.5 * var(--u)); line-height: 1.55; padding: calc(9 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); opacity: 0; pointer-events: none; transform: translateY(calc(-4 * var(--u))); transition: opacity 0.12s, transform 0.12s; z-index: 90; white-space: nowrap; box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) rgba(0, 0, 0, 0.3); }
-.oppframe:hover .opp-tip { opacity: 1; transform: translateY(0); }
-.oppframe .opp-tip b { color: var(--acc); }
-.oppframe .opp-by { margin-top: 3px; font-size: 11px; font-style: italic; color: var(--ink3); }
-.meter { position: relative; width: calc(104 * var(--u)); height: calc(9 * var(--u)); border-radius: 6px; background: var(--bg2); overflow: hidden; }
-.meter i { display: block; height: 100%; background: var(--acc); border-radius: 6px; }
-/* Pre-round (Setup) notch — a gap cut into the bar at the end of the calibration rounds, so the setup
-   segment reads as separate from the scored climb. Card-coloured with dark edges so it shows on both the
-   orange fill and the empty track. */
-.meter-notch { position: absolute; top: 0; bottom: 0; width: calc(3 * var(--u)); transform: translateX(-50%); background: var(--card); box-shadow: 0 0 0 1px rgba(74, 52, 20, 0.35); z-index: 1; }
+/* Per-round track (replaces the old fill bar): one dash per course round. A win prints a green ✓, a loss a
+   red ✕; rounds not yet played show a faint dash, the current round a lit-orange dash. Setup rounds (1–2)
+   read quieter and get a small gap after (marking where the scored climb begins). */
+.rounds { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); }
+.rd { position: relative; display: inline-flex; align-items: center; justify-content: center; width: calc(12 * var(--u)); height: calc(16 * var(--u)); font-family: var(--font-ui); font-weight: 900; font-size: calc(13 * var(--u)); line-height: 1; }
+/* the states that print no glyph (upcoming / draw / current) draw a dash instead */
+.rd-future::before, .rd-draw::before, .rd-cur::before { content: ''; position: absolute; width: calc(9 * var(--u)); height: calc(3 * var(--u)); border-radius: 2px; background: var(--ink3); opacity: 0.38; }
+.rd-draw::before { opacity: 0.75; background: var(--ink2); }
+.rd-cur::before { width: calc(11 * var(--u)); height: calc(4 * var(--u)); background: var(--acc); opacity: 1; box-shadow: 0 0 6px -1px color-mix(in srgb, var(--acc) 85%, transparent); }
+.rd-win { color: #2ba24f; }
+.rd-lose { color: var(--threat); }
+.rd-calib { opacity: 0.6; }
+.rd-calib.rd-cur { opacity: 1; } /* the current round stays fully lit even during Setup */
+.rd-edge { margin-right: calc(8 * var(--u)); }
 .sp { flex: 1; }
 .chip { position: relative; display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(15 * var(--u)) calc(5 * var(--u)) calc(11 * var(--u)); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
 .chip .ic { width: calc(32 * var(--u)); height: calc(32 * var(--u)); border-radius: calc(9 * var(--u)); display: grid; place-items: center; }
@@ -229,7 +253,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
    trimmed to match the shop-control language. Segments are split by a thin gold rule; the whole strip centres
    under the round plaque. Kept a touch shorter than the action tray so the two rows total the old shopbar
    height (the tavern/warband rows must not shift). */
-.statstrip { display: inline-flex; align-items: stretch; height: calc(44 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); overflow: hidden; }
+/* No overflow:hidden — it clipped the cells' hover tooltips (gold projection / tier / time). The end cells
+   round their outer corners instead, so their background tints still sit inside the strip's rounded shape. */
+.statstrip { display: inline-flex; align-items: stretch; height: calc(44 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
+.statstrip .statcell:first-child { border-radius: calc(11 * var(--u)) 0 0 calc(11 * var(--u)); }
+.statstrip .statcell:last-child { border-radius: 0 calc(11 * var(--u)) calc(11 * var(--u)) 0; }
 .statcell { position: relative; display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: 0 calc(18 * var(--u)); font-family: var(--font-ui); }
 .statcell + .statcell { border-left: 2px solid color-mix(in srgb, var(--gold) 42%, transparent); }
 .statcell .sc-l { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink3); }
@@ -254,6 +282,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Info-strip cells reuse the shop tip pill on hover. */
 .statcell:hover { z-index: 85; }
 .statcell:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
+/* Gold-cell hover — a small dark projection card: this turn's Gold + the START of the next two waves
+   (cap-aware, folding in board income + banked Gold). Extends the .sbtip dark pill but stacks rows. */
+.goldtip { display: flex; flex-direction: column; gap: calc(3 * var(--u)); text-align: left; min-width: calc(150 * var(--u)); padding: calc(8 * var(--u)) calc(12 * var(--u)); }
+.goldtip .gt-now { font-family: var(--font-ui); font-weight: 700; font-size: calc(12.5 * var(--u)); color: rgba(255, 255, 255, 0.82); padding-bottom: calc(4 * var(--u)); border-bottom: 1px solid rgba(255, 255, 255, 0.16); }
+.goldtip .gt-now b { color: var(--mana); font-weight: 900; }
+.goldtip .gt-row { display: flex; align-items: center; justify-content: space-between; gap: calc(16 * var(--u)); font-family: var(--font-ui); font-weight: 700; font-size: calc(12.5 * var(--u)); }
+.goldtip .gt-row span { color: rgba(255, 255, 255, 0.72); }
+.goldtip .gt-row b { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--mana); font-weight: 900; font-variant-numeric: tabular-nums; }
+.goldtip .gt-row b svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--mana); }
 .shopbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(9 * var(--u)); height: calc(50 * var(--u)); padding: 0 calc(18 * var(--u)); background: linear-gradient(180deg, #f5e8cb 0%, #e4c992 100%); border: 2px solid var(--gold); border-radius: calc(12 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); font-family: var(--font-ui); font-weight: 800; color: #5a3d12; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease; }
 button.shopbtn:not(:disabled):hover { filter: brightness(1.05); }
 button.shopbtn:not(:disabled):active { transform: translateY(calc(2 * var(--u))) scale(0.98); filter: brightness(0.94); }
@@ -342,19 +379,31 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
-.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26px); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-end; }
-.row.hand { gap: 0; align-items: flex-end; height: var(--ch); width: 100%; }
+.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26px); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-start; }
+.row.hand { gap: 0; align-items: flex-start; height: var(--ch); width: 100%; }
 /* Hand overlap = 20% of a card's width (relative, not a fixed px, so it stays ~20% across viewport sizes
    where the card width --ccw scales). Lower magnitude = more spread; a full 10-card hand widens toward the
    screen edges (accepted tradeoff). Was -84px (~35-60% depending on screen). */
-.row.hand .card { margin-left: calc(var(--ccw) * -0.2); transform: translateY(42%); transition: transform 0.12s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+/* The hand FANS: each card carries a per-index tilt (`--fan-rot`, set inline from Recruit by its position) and
+   pivots near its own centre (transform-origin), so the cards splay like a held hand while their centres stay
+   tight — the overlap can be deep without hiding the angled tops. Cards rest TUCKED (a shared `--hand-tuck`,
+   also used by the reorder-slide transform in Card.tsx) so only the top of each reads at rest; hovering pops
+   the card itself up to reveal its full text. The fan STAYS fanned through a drag — the reorder measures the
+   cards' rotated rects directly (the bbox stays centred on each card, so the slot midpoints match within a
+   pixel or two), no flatten, no pickup jiggle. */
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * -0.44); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
-/* hover lifts just enough to reveal the whole card + bring it forward — small so the card
-   stays under the cursor (no bounce-out). */
-.row.hand .card:hover { transform: translateY(8%); z-index: 45; }
+/* Hover pops the in-hand card ITSELF up out of the fan — straightened, scaled a touch, and lifted to reveal its
+   full text. UNIFORM POP: the lift is `translateY(-100% + --ch·--hand-floor)` — the `-100%` raises each card by
+   its OWN height, so every card (spell or minion, short or long text) lands its BOTTOM on the SAME line, and
+   `--hand-floor` (a fraction of --ch, a LIVE DEV LEVER — Drag Feel tuner → "hand pop floor") sets where that
+   line sits. Replaces the old per-card fraction lift (which made taller cards float higher). A soft dark
+   drop-shadow (follows the card's alpha, so it hugs the arch) reads as "lifted above the fan" — NOT the bright
+   `.card:hover` box-shadow glow, which looks harsh blown up over the popped card. */
+.row.hand .card:hover { transform: translateY(calc(-100% + var(--ch) * var(--hand-floor, 0.94))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
-body.dragging .row.hand .card:hover { transform: translateY(42%); z-index: auto; }
+body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }
 /* The PRE-EMPTIVE reorder slide. During a drag, the board/shop cards open the drop slot via an inline
    `transform: translateX(±half-slot)` (Card's `slideDir`, set from the live gap index). This ease-out
    transition glides that transform as the gap moves — fast then settling — the "make room" animation.
@@ -362,6 +411,11 @@ body.dragging .row.hand .card:hover { transform: translateY(42%); z-index: auto;
    (no transition) exactly as the card commits to its final slot — no post-drop jump. */
 body.dragging .zone[data-zone='warband'] .card,
 body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubic-bezier(0.12, 0.82, 0.12, 1) !important; }
+/* Hand reorder: the fan STAYS fanned through the drag (grabbing a card must not flatten the whole hand). Cards
+   parting to make room slide via Card's inline transform (translateX + their own rotate), so the fan just
+   opens a gap; glide that shift. The reorder measures the cards' rotated rects directly (no flatten — the bbox
+   stays centred on each card), which is what keeps a pickup from jiggling the hand. */
+body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0.82, 0.12, 1); }
 /* While dragging, the cursor still "hovers" the cards under the (pointer-events:none) floating card — don't
    flash their hover glow. Reset to the base card shadow. */
 body.dragging .zone[data-zone='warband'] .card:hover,
@@ -378,7 +432,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
    then drops to a lower slot"). handpop ends at the tucked resting transform, so the card lands once, in place
    — a small rise + fade into its slot, no second settle. */
 .row.hand .card.popin { animation: handpop 0.16s ease; }
-@keyframes handpop { from { opacity: 0; transform: translateY(42%) scale(0.9); } to { opacity: 1; transform: translateY(42%) scale(1); } }
+@keyframes handpop { from { opacity: 0; transform: translateY(var(--hand-tuck, 32%)) scale(0.9); } to { opacity: 1; transform: translateY(var(--hand-tuck, 32%)) scale(1); } }
 /* A battlecry-summoned token waits ~0.2s before popping in, so the trigger pulse reads first, THEN the
    token appears (e.g. Alleycat → Stray). `backwards` holds the invisible `from` frame during the delay. */
 .card.popin.popdelay { animation-delay: 0.2s; animation-fill-mode: backwards; }
@@ -777,9 +831,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover { box-shadow: 0 0 0 4px var(
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */
 .dragcard.magslide { transition: transform 0.28s cubic-bezier(0.5, 0, 0.85, 0.4), opacity 0.28s cubic-bezier(0.7, 0, 1, 1); }
 .dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
-/* While a dragged hand minion is over the playable area (see Recruit's `willplay`), the floating card gets the
-   SAME gold mouseover glow a hovered card has (matches .card:hover), signalling releasing there plays it. */
-.dragcard.willplay .card { box-shadow: 0 0 0 3px #fff7d1, 0 0 24px 7px rgba(255, 226, 110, 0.95), 0 3px 0 var(--shadow); transition: box-shadow 0.14s ease; }
+/* A SPELL carries a purple frame glow (`.card.spellcard` box-shadow) that's fine at compact size but reads harsh
+   blown up on the floating drag card / hover-reveal popup. Drop it in those contexts — the wrapper's drop-shadow
+   (drag) / white haze (popup) already gives the lift, and the willplay halo below still signals "release to cast". */
+.dragcard .card.spellcard, .cardref .card.spellcard { box-shadow: none; }
+/* While a dragged hand minion is over the playable area (see Recruit's `willplay`), the floating card gets a
+   soft GOLD "release to play" halo. A filter drop-shadow (follows the card's arch alpha) rather than the hard
+   bright-yellow box-shadow the hover glow uses — that box read as harsh + square-cornered blown up over the
+   full-size dragged card. This hugs the silhouette and reads as a gentle glow. */
+.dragcard.willplay .card { filter: drop-shadow(0 0 calc(6 * var(--u)) rgba(255, 202, 80, 0.92)) drop-shadow(0 0 calc(15 * var(--u)) rgba(255, 182, 52, 0.5)); transition: filter 0.14s ease; }
 /* Magnetic: an electric crackle while a Magnetic card hovers a friendly Mech (.electric, the floating drag
    card) and on the host Mech as it's welded (.electrify — drop + Combinator's End of Turn). PERF: a STATIC
    cyan halo on a ::before whose OPACITY breathes — compositor-only, zero per-frame paint. This was an animated
@@ -1084,14 +1144,30 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .resfx { position: absolute; top: -10px; right: 14px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 /* compact sizing for the corner tray (was hero-sized when it was the centrepiece); the
    hero panel is ~15% larger than the chips so it reads as the centrepiece of the tray */
-.statusbar .hero { padding: calc(8 * var(--u)) calc(22 * var(--u)) calc(8 * var(--u)) calc(8 * var(--u)); border-radius: calc(23 * var(--u)); gap: calc(14 * var(--u)); }
-.statusbar .hero .f { width: calc(80 * var(--u)); height: calc(80 * var(--u)); border-radius: calc(21 * var(--u)); }
-.statusbar .hero .f svg { width: calc(44 * var(--u)); height: calc(44 * var(--u)); }
-/* reserve a stable width for the name + power line so arming/using the power (which changes the text)
-   can't resize the panel */
-.statusbar .hero .htxt { min-width: calc(216 * var(--u)); }
-.statusbar .hero .nm { font-size: calc(23 * var(--u)); }
-.statusbar .hero .pw { font-size: calc(16 * var(--u)); white-space: nowrap; }
+/* The hero frame is a compact 2×2 grid — portrait + name/power on the top row, power button + Resolve on the
+   bottom — so it reads narrow and tall (echoing the opponent frame up top) and a full 10-card hand clears it in
+   the corner instead of ducking behind. The DOM order (.f, .htxt, .hpwrap, .hpbox) auto-places row-major into
+   the four cells; the fixed width wraps the power line to a second row (which is where the added height comes
+   from). */
+.statusbar .hero {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: start;
+  width: calc(232 * var(--u)); gap: calc(6 * var(--u)) calc(13 * var(--u));
+  padding: calc(9 * var(--u)) calc(15 * var(--u)); border-radius: calc(21 * var(--u));
+}
+.statusbar .hero .f { width: calc(60 * var(--u)); height: calc(60 * var(--u)); border-radius: calc(16 * var(--u)); }
+.statusbar .hero .f svg { width: calc(34 * var(--u)); height: calc(34 * var(--u)); }
+.statusbar .hero .htxt { min-width: 0; }
+.statusbar .hero .nm { font-size: calc(20 * var(--u)); line-height: 1.1; }
+.statusbar .hero .pw { font-size: calc(13 * var(--u)); white-space: normal; line-height: 1.26; }
+/* power button + Resolve are the bottom row — left-align them in their cells (override the single-row
+   margin-left:auto) and shrink to suit the compact frame */
+.statusbar .hero .hpwrap { margin-left: 0; justify-self: start; }
+.statusbar .heropowerbtn { width: calc(54 * var(--u)); height: calc(54 * var(--u)); }
+.statusbar .heropowerbtn svg { width: calc(28 * var(--u)); height: calc(28 * var(--u)); }
+.statusbar .hero .hpbox { justify-self: stretch; align-self: center; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
+.statusbar .hero .hpbox svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); }
+.statusbar .hero .hpbox .hpval { font-size: calc(23 * var(--u)); }
+.statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
 /* Embers chip scaled to fill the (hero-tall) chip */
 .statusbar .chip { padding: calc(11 * var(--u)) calc(16 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(11 * var(--u)); }
 .statusbar .chip .ic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(16 * var(--u)); }

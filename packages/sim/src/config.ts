@@ -22,8 +22,8 @@ export const CONFIG = {
   // Wave horizon for the balance/curve tools (`npm run curve`) — the difficulty curve is reported over
   // the whole course.
   maxWave: 17,
-  // Practice mode: a fixed sandbox session — ends after this many rounds regardless of W/L.
-  practiceRounds: 15,
+  // Practice mode shares the same course as Ascent (`courseRounds`) — it just can't be lost (unlimited
+  // health) and runs a longer per-turn clock; see `advanceCombat` + the recruit timer.
 
   // Shop
   minionCost: 3,

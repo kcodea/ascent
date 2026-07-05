@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-04 (session 17)
 
+### polish(ui): roomier hand + hover pops the card itself + no pickup jiggle + buffs moved left
+
+Owner follow-ups on the hand + HUD, all presentation (`packages/ui`).
+
+- **A touch more room between hand cards.** Now that the hero panel shrank and the fan reads clearly, the
+  overlap eased from `−0.5 ccw` → `−0.44 ccw` (a 10-card hand widened 882 → 936 px — still well clear of the
+  hero frame).
+- **The magnified hover preview is gone; the card itself pops up.** The floating `.handpreview` (a scaled 1.275
+  crisp copy above the fan) read as too much. Removed it entirely — state, the hand-zone pointer handlers, the
+  render, and the CSS. Hover now lifts the in-hand card itself up out of the tuck (`translateY(-0.42·--ch)`),
+  straightens it, and scales it a gentle 1.08, so its own full text drawer reads in place. Verified the popped
+  card lands fully on-screen (top 565, bottom 853 at 900×) and isn't occluded.
+- **Pickup no longer jiggles the hand.** Grabbing any card (hand OR shop) made every hand card flick straight
+  then re-fan. Cause: the drag-start slot measurement toggled a `.measuring` class that flattened the fan with
+  `transition:none` to read upright rects — but REMOVING it restored the base `transition: transform`, so the
+  cards animated flat→fan over ~0.12s on every pickup (confirmed: the transform sat at rotation 0 for ~4 frames
+  then eased back). Dropped the flatten entirely: the reorder now measures the cards' rotated rects directly.
+  The fan pivots near each card's centre, so the axis-aligned bbox stays centred on the card and the slot
+  midpoints match the flat centres within a pixel or two — no measurable reorder cost, no jiggle.
+- **Run-buffs window moved to the top-LEFT.** It used to sit under the opponent frame (top-right); it now
+  stacks under the round/altitude plaque on the left (new `.topleft` flex column in `HudBar`, mirroring
+  `.topright`). Verified: it renders at x=18 (aligned with the plaque), directly beneath it.
+
+Verified live (throwaway `newRun` with a planted hand + seeded run buffs): hand ~936 px; no `.handpreview` in
+the DOM; the `.measuring` rule is gone and a simulated pickup no longer animates the fan; forced-hover shows
+the card popping up with full text on-screen; the buffs window renders top-left under the plaque. `typecheck` +
+`lint` + `test` (483) + `build:web` green. (Hover-pop + reorder still want a real-cursor eyeball — `:hover` and
+this drag system aren't drivable headlessly.)
+
 ### fix(ui): spell-target ghost card + board2c 16:9 art + fan no longer flattens on grab
 
 Owner follow-ups, all presentation (`packages/ui`).

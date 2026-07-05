@@ -4,7 +4,7 @@ import { gatherRunBuffs } from './runBuffs';
 import { useGame } from './store';
 
 /**
- * Top-right buffs window (under the next-enemy frame): the run's active permanent buffs at a glance. Open by
+ * Run-buffs window (top-left, under the round plaque): the run's active permanent buffs at a glance. Open by
  * default, collapsible, and only rendered when at least one tracked buff is active.
  */
 export function BuffsFrame() {

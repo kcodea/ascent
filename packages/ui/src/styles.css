@@ -128,6 +128,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
    visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
 .topright { position: absolute; top: calc(11 * var(--u)); right: 0; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: calc(24 * var(--u)); }
+/* Top-left column: the round/altitude plaque with the run-buffs window stacked beneath it (left-aligned). */
+.topleft { display: flex; flex-direction: column; align-items: flex-start; gap: calc(10 * var(--u)); }
 /* Next-enemy frame — MINIMAL intel card. One background, one hairline, ONE left gutter everything aligns
    to; the author pill is centered over the top edge (symmetric). Portrait + hero name over a single stat
    row (life+armor · tier ★ · wins 👑 — one size, life emphasized by COLOR only, so no mixed baselines).
@@ -381,28 +383,18 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 /* Hand overlap = 20% of a card's width (relative, not a fixed px, so it stays ~20% across viewport sizes
    where the card width --ccw scales). Lower magnitude = more spread; a full 10-card hand widens toward the
    screen edges (accepted tradeoff). Was -84px (~35-60% depending on screen). */
-/* Hand cards are a UNIFORM height, TOP-aligned: the `forceFull` text drawer varies per card, so we cap the
-   card box to --ch (max-height + overflow) — all cards become the same height and their tops line up (the
-   drawer's tail is clipped; the hover preview shows the full card). `--hand-tuck` is the single source of
-   truth for the tuck, shared with the reorder-slide transform in Card.tsx. */
-/* The hand FANS: each card carries a per-index tilt (`--fan-rot`, set inline from Recruit by its position in
-   the hand) and pivots from below its bottom edge, so the cards splay like a held hand. The tilt lets them
-   overlap harder (tighter margin) while their angled tops stay readable — which is where the horizontal saving
-   comes from. The fan flattens while dragging (body.dragging) + during the drag-start slot measurement
-   (.measuring) so the reorder hit-testing always sees upright, axis-aligned cards. */
-.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * -0.5); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.12s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+/* The hand FANS: each card carries a per-index tilt (`--fan-rot`, set inline from Recruit by its position) and
+   pivots near its own centre (transform-origin), so the cards splay like a held hand while their centres stay
+   tight — the overlap can be deep without hiding the angled tops. Cards rest TUCKED (a shared `--hand-tuck`,
+   also used by the reorder-slide transform in Card.tsx) so only the top of each reads at rest; hovering pops
+   the card itself up to reveal its full text. The fan STAYS fanned through a drag — the reorder measures the
+   cards' rotated rects directly (the bbox stays centred on each card, so the slot midpoints match within a
+   pixel or two), no flatten, no pickup jiggle. */
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * -0.44); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
-/* hover lifts just enough to reveal the whole card + bring it forward — small so the card
-   stays under the cursor (no bounce-out). */
-/* Hover barely lifts the in-hand card now — the magnified `.handpreview` above the fan does the reveal, so
-   the card itself stays put (a small rise is just "this one's hovered" feedback). */
-.row.hand .card:hover { transform: translateY(calc(var(--hand-tuck) - var(--ch) * 0.09)) rotate(0deg); z-index: 45; }
-/* Magnified hover preview — a larger, crisp copy of the hovered hand card, anchored bottom-centre just above
-   the card. Fixed + pointer-events:none so it never intercepts the cursor. Scale (not a resize) so the text
-   scales too; the pop-in animates transform/opacity only (compositor), with a STATIC drop-shadow. */
-.handpreview { position: fixed; z-index: 55; pointer-events: none; transform: translate(-50%, -100%); will-change: transform; }
-.handpreview-card { transform: scale(1.275); transform-origin: center bottom; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); animation: handpreviewpop 0.13s cubic-bezier(0.2, 0.8, 0.3, 1); }
-@keyframes handpreviewpop { from { opacity: 0; transform: scale(1.05) translateY(10px); } to { opacity: 1; transform: scale(1.275) translateY(0); } }
+/* Hover pops the in-hand card ITSELF up out of the fan — lifted clear of the tuck, straightened, and scaled a
+   touch — so its full text drawer reads in place. Replaces the old floating magnified `.handpreview` copy. */
+.row.hand .card:hover { transform: translateY(calc(-1 * var(--ch) * 0.42)) rotate(0deg) scale(1.08); z-index: 50; }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }
@@ -413,14 +405,11 @@ body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) ro
    (no transition) exactly as the card commits to its final slot — no post-drop jump. */
 body.dragging .zone[data-zone='warband'] .card,
 body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubic-bezier(0.12, 0.82, 0.12, 1) !important; }
-/* Hand reorder: the fan STAYS fanned through the drag — grabbing a card must NOT flatten the whole hand (only
-   the drag-start measurement flattens, invisibly; see .measuring below). Cards parting to make room slide via
-   Card's inline transform (translateX + their own rotate), so the fan just opens a gap; glide that shift. */
+/* Hand reorder: the fan STAYS fanned through the drag (grabbing a card must not flatten the whole hand). Cards
+   parting to make room slide via Card's inline transform (translateX + their own rotate), so the fan just
+   opens a gap; glide that shift. The reorder measures the cards' rotated rects directly (no flatten — the bbox
+   stays centred on each card), which is what keeps a pickup from jiggling the hand. */
 body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0.82, 0.12, 1); }
-/* Drag-start slot measurement: flatten INSTANTLY (no transition) so getBoundingClientRect reads upright rects,
-   never the rotated fan (whose tall cards would inflate the slot widths). Added + removed within the SAME
-   synchronous measure pass, so it's never painted — the hand stays visibly fanned throughout the drag. */
-.row.hand.measuring .card { transform: translateY(var(--hand-tuck)); transition: none; }
 /* While dragging, the cursor still "hovers" the cards under the (pointer-events:none) floating card — don't
    flash their hover glow. Reset to the base card shadow. */
 body.dragging .zone[data-zone='warband'] .card:hover,

@@ -258,10 +258,6 @@ export function Recruit() {
     Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + goldManaBonus;
 
   const [drag, setDrag] = useState<DragState | null>(null);
-  // The hand card currently hovered (while NOT dragging) → a magnified preview floats above the fan so the
-  // whole card reads, while the in-hand card stays put. Stores the hovered card's centre-x + top to anchor
-  // the preview over it; updated only when the hovered uid changes (so it doesn't re-render every move).
-  const [handPreview, setHandPreview] = useState<{ uid: string; cx: number; top: number } | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
   // Height (px) of the sell region = top of screen → top of the warband. Measured when a board-minion
   // drag begins, so the whole upper screen can act as one big "drop to sell" zone.
@@ -1092,7 +1088,6 @@ export function Recruit() {
       // capture the pointer so move/up keep firing even if it leaves the window or races
       // ahead of the floating card — events still bubble to the window listeners.
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
-      setHandPreview(null); // a grab dismisses the hover preview immediately
       setDrag({
         uid, source, view,
         ox: r.width / 2, oy: r.height / 2,           // anchor = centre → the card rides centred on the cursor
@@ -1159,13 +1154,11 @@ export function Recruit() {
           return { uid: el.getAttribute('data-uid') ?? '', left: r.left, width: r.width };
         })
         .filter((c) => c.uid);
-    // Flatten the fan for the measurement (instant, no transition — see `.row.hand.measuring` in styles.css) so
-    // the hand slots read as upright, axis-aligned rects; the rotated cards would otherwise inflate the widths
-    // and skew the reorder midpoints. body.dragging then holds them flat for the rest of the drag.
-    const handRow = document.querySelector<HTMLElement>('.row.hand');
-    handRow?.classList.add('measuring');
+    // Measure the hand slots directly — rotated fan rects and all. Each card's rotation pivots near its centre,
+    // so the axis-aligned bbox stays centred on the card and the slot midpoints match the flat centres within a
+    // pixel or two. (Flattening the fan first to "clean up" the rects would transition them back on removal —
+    // the cards visibly flatten then re-fan on every pickup, the jiggle we're avoiding.)
     const handSlots = measureSlots('.row.hand .card[data-uid]');
-    handRow?.classList.remove('measuring');
     insertRectsRef.current = {
       warband: measureSlots('[data-zone="warband"] .row .card[data-uid]'),
       shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
@@ -2499,22 +2492,12 @@ export function Recruit() {
       <div
         className={`zone${canDropHand ? ' dropok' : ''}`}
         data-zone="hand"
-        onPointerMove={(e) => {
-          if (drag) { if (handPreview) setHandPreview(null); return; }
-          const el = (e.target as HTMLElement).closest('.card[data-uid]') as HTMLElement | null;
-          const uid = el?.dataset.uid ?? null;
-          if (uid === (handPreview?.uid ?? null)) return; // same card (or still empty) → no state churn
-          if (!uid) { setHandPreview(null); return; }
-          const r = el!.getBoundingClientRect();
-          setHandPreview({ uid, cx: r.left + r.width / 2, top: r.top });
-        }}
-        onPointerLeave={() => setHandPreview(null)}
       >
         <div className="row hand">
           {run.hand.map((m, i) => {
             // Fan splay: each card tilts ~1.8° more than its neighbour out from the centre (capped at ±7° so a
-            // big hand never over-fans; a lone card sits straight). The rotation itself is applied in CSS via
-            // the `--fan-rot` var and is flattened while dragging — see `.row.hand .card` in styles.css.
+            // big hand never over-fans; a lone card sits straight). The rotation is applied in CSS via the
+            // `--fan-rot` var (see `.row.hand .card` in styles.css); it stays fanned through drags.
             const n = run.hand.length;
             const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
             return (
@@ -2542,21 +2525,6 @@ export function Recruit() {
           ))}
         </div>
       </div>
-
-      {/* Magnified hover preview — a larger, crisp copy of the hovered hand card floats above the fan (the
-          in-hand card stays put). Fixed + pointer-events:none so it never blocks the cursor; hidden mid-drag
-          and in combat. `key` on the uid so moving to a new card replays the pop-in. */}
-      {handPreview && !drag && !inCombat && handViews.get(handPreview.uid) && (
-        <div
-          className="handpreview"
-          style={{ left: handPreview.cx, top: handPreview.top - 8 } as CSSProperties}
-          aria-hidden="true"
-        >
-          <div className="handpreview-card" key={handPreview.uid}>
-            <Card card={handViews.get(handPreview.uid)!} forceFull />
-          </div>
-        </div>
-      )}
 
       {/* Loss-damage tally — surviving enemy tiers + the opponent's tier fly up into a damage counter
           above the enemy board (clamped to the round cap), then blast the Resolve bar. */}

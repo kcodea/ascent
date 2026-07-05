@@ -179,7 +179,7 @@ interface GameStore {
   pendingMode: 'ascent' | 'practice';
   /** Title → Ascent: open the 3-hero picker for a scored run. */
   startAscent: () => void;
-  /** Title → Practice: open an ALL-hero picker for a 15-round practice run. */
+  /** Title → Practice: open an ALL-hero picker for a practice run (Ascent's full course, unlimited health). */
   startPractice: () => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;

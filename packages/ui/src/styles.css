@@ -23,10 +23,11 @@
      All sizing keys off the box (--gw/--gh), not the raw viewport, so the board scales inside it. */
   --gw: 100vw; --gh: 100vh;
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
-  /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art (board2b); the
-     21:9 art (board2upscaled2, native 3440×1440) is swapped in for the ultrawide resolution + a fit window
-     that's actually ultrawide. Only the URL changes — the gradient scrim + fallback colour stay in .app. */
-  --board: url('/board2b.webp');
+  /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art
+     (board3upscaled); the 21:9 art (board2upscaled2, native 3440×1440) is swapped in for the ultrawide
+     resolution + a fit window that's actually ultrawide. Only the URL changes — the gradient scrim + fallback
+     colour stay in .app. */
+  --board: url('/board3upscaled.webp');
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds */
   --ch: clamp(220px, calc(var(--gh) * 0.27), 384px); --cw: calc(var(--ch) * 0.752);
@@ -46,7 +47,7 @@
 :root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 21 / 9), 3440px); --gh: min(100vh, calc(100vw * 9 / 21), 1440px); }
 /* 21:9 stage → the ultrawide board art. The forced 3440 res is always 21:9; a "fit" window (no data-res,
    so the stage = the window) uses the 21:9 art only when the window itself is actually ultrawide. Fixed 16:9
-   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board2b. */
+   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board3upscaled. */
 :root[data-res="r3440"] { --board: url('/board2upscaled2.webp'); }
 @media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board2upscaled2.webp'); } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -384,13 +385,18 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    card box to --ch (max-height + overflow) — all cards become the same height and their tops line up (the
    drawer's tail is clipped; the hover preview shows the full card). `--hand-tuck` is the single source of
    truth for the tuck, shared with the reorder-slide transform in Card.tsx. */
-.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); margin-left: calc(var(--ccw) * -0.42); transform: translateY(var(--hand-tuck)); transition: transform 0.12s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+/* The hand FANS: each card carries a per-index tilt (`--fan-rot`, set inline from Recruit by its position in
+   the hand) and pivots from below its bottom edge, so the cards splay like a held hand. The tilt lets them
+   overlap harder (tighter margin) while their angled tops stay readable — which is where the horizontal saving
+   comes from. The fan flattens while dragging (body.dragging) + during the drag-start slot measurement
+   (.measuring) so the reorder hit-testing always sees upright, axis-aligned cards. */
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * -0.5); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.12s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* hover lifts just enough to reveal the whole card + bring it forward — small so the card
    stays under the cursor (no bounce-out). */
 /* Hover barely lifts the in-hand card now — the magnified `.handpreview` above the fan does the reveal, so
    the card itself stays put (a small rise is just "this one's hovered" feedback). */
-.row.hand .card:hover { transform: translateY(calc(var(--hand-tuck) - var(--ch) * 0.09)); z-index: 45; }
+.row.hand .card:hover { transform: translateY(calc(var(--hand-tuck) - var(--ch) * 0.09)) rotate(0deg); z-index: 45; }
 /* Magnified hover preview — a larger, crisp copy of the hovered hand card, anchored bottom-centre just above
    the card. Fixed + pointer-events:none so it never intercepts the cursor. Scale (not a resize) so the text
    scales too; the pop-in animates transform/opacity only (compositor), with a STATIC drop-shadow. */
@@ -408,7 +414,13 @@ body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)); z
 body.dragging .zone[data-zone='warband'] .card,
 body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubic-bezier(0.12, 0.82, 0.12, 1) !important; }
 /* Hand reorder: the fan parts to make room as the gap moves (handSlidePx changes) — glide that shift. */
-body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0.82, 0.12, 1); }
+/* While dragging, the whole hand flattens (fan off) so drop slots read cleanly; the reorder inline transform
+   (translateX) still overrides this for the cards parting to make room. */
+body.dragging .row.hand .card { transform: translateY(var(--hand-tuck)); transition: transform 0.26s cubic-bezier(0.12, 0.82, 0.12, 1); }
+/* Drag-start slot measurement: flatten INSTANTLY (no transition) so getBoundingClientRect reads upright rects,
+   never the rotated fan (whose tall cards would inflate the slot widths). Added + removed within the measure
+   pass; body.dragging then holds the flat state for the rest of the drag. */
+.row.hand.measuring .card { transform: translateY(var(--hand-tuck)); transition: none; }
 /* While dragging, the cursor still "hovers" the cards under the (pointer-events:none) floating card — don't
    flash their hover glow. Reset to the base card shadow. */
 body.dragging .zone[data-zone='warband'] .card:hover,

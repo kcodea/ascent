@@ -5,6 +5,44 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-04 (session 17)
 
+### polish(ui): board3upscaled 16:9 art + a proper hand fan + Practice mirrors the Ascent course
+
+Owner-directed batch of three. Mostly presentation (`packages/ui`); Practice parity also touches the run loop
+(`packages/sim`).
+
+- **New 16:9 board art (`board3upscaled`).** Wired `--board` (the 16:9 default, driving the in-game board +
+  the hero-select / title backdrops) from `board2b.webp` → `board3upscaled.webp`; the 21:9 ultrawide art
+  (`board2upscaled2.webp`) is unchanged. The source (`C:\Game Assets\…\board3upscaled.png`, 11636×6549, 49 MB)
+  was converted with `sharp` to a 2560×1440 webp at q80 — **117 KB**, a real resolution bump over the old
+  1672×941 board2b yet smaller on disk. Preload list (`art.ts`) updated to match. Verified live: the URL now
+  serves `image/webp` (was Vite's 404→index.html fallback) and the board renders.
+- **The hand now fans.** Each hand card carries a per-index tilt (`--fan-rot`, set from `Recruit` by its
+  position: ±1.8°/card out from centre, capped ±7°) and rotates about a point near its own upper-middle
+  (`transform-origin: center 42%`), so the cards splay like a held hand. Because they pivot near their centres
+  (not a far-below point), the tilt reads as a fan **without** swinging the ends wide — so a deeper overlap
+  (margin-left −0.48 → **−0.5 ccw**) genuinely narrows the hand: a 10-card hand went **970 → 882 px** wide
+  (and now clears the hero frame by ~100 px). Critically, the fan **flattens during a drag** (`body.dragging`)
+  and **instantly during the drag-start slot measurement** (a transient `.measuring` class with
+  `transition: none`), so the reorder hit-testing always measures upright, axis-aligned 155 px cards — the
+  rotated bounding boxes would otherwise inflate the slot widths (verified: measured widths are 188 px fanned
+  vs 155 px flat; the `.measuring` pass reads 155). Hover straightens the card (`rotate(0)`). New `fanRot` prop
+  on `Card`.
+- **Practice mirrors the Ascent course.** Practice was a separate 15-round session that rendered a different
+  HUD ("WAVE n", no round track, no Line). Per the owner it should read *identically* to a real run — the only
+  differences being invulnerability + a longer clock. So Practice now runs the SAME course: `advanceCombat`
+  ends it at `CONFIG.courseRounds` (17) instead of the now-removed `practiceRounds` (15), and the HUD drops its
+  `!practice` gates — Practice shows `ROUND n / 17`, the per-round dash track, the record, the Setup label, and
+  the Line, exactly like Ascent. The `ShopTimer` label also uses the shared "Setup Time"/"Time" logic. The one
+  HUD difference that remains is the **`Max −X` loss row, still hidden in Practice** — it's the direct
+  expression of invulnerability (no Resolve at risk). Unchanged: unlimited health (a loss costs 0 Resolve), the
+  ×3 shop clock, and the unscored practice end screen. Stale "15-round" comments updated across sim/ui; the two
+  practice round-count tests re-pointed at `courseRounds`.
+
+Verified live (browser store, throwaway `newRun`): board renders; fan splays + narrows the hand (882 px) and
+flattens cleanly for measurement + drag; Practice HUD reads `ROUND 8/17` + dashes + `Line 7` + record with
+`Max −X` hidden, and the ×3 clock. `typecheck` + `lint` + `test` (483) + `build:web` green. Judgement call
+flagged: hiding `Max −X` in Practice (rather than showing a moot value) is the one intentional HUD divergence.
+
 ### polish(ui): hand tier pills + compact 2×2 hero frame + per-round dash track
 
 Owner-directed cleanup batch on the hand / HUD. Presentation-only — `packages/ui` (`instView.ts`,

@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Board art, a hand fan, and Practice parity** — a new higher-res **16:9 board** (`board3upscaled`); the
+  **hand now fans** (each card tilts by its position and pivots near its centre, so a deeper overlap actually
+  *narrows* the hand — 970 → 882 px — while the fan flattens cleanly during drags so reorder stays exact); and
+  **Practice now mirrors the Ascent course** — same 17-round HUD (round track, Line, record), the only
+  differences being invulnerability (the `Max −X` row is hidden) and the ×3 clock.
 - **Hand + HUD polish** — hand **spells now show their Tier pill** (matching minions and the shop), and the
   card pills/outlines are no longer clipped. The **hero frame is a compact 2×2 grid** (portrait + name up top,
   power button + Resolve below — 591×119 → 232×166, mirroring the opponent frame), so a full **10-card hand

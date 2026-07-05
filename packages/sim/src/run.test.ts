@@ -3562,7 +3562,7 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     expect([7, 12, 30].map(lossDamageCap)).toEqual([15, 15, 15]);
   });
 
-  it('Practice mode: a loss costs no Resolve (unlimited health), and the run keeps going below round 15', () => {
+  it('Practice mode: a loss costs no Resolve (unlimited health), and the run keeps going through the course', () => {
     let s: RunState = {
       ...createRun(1, 'warden', 'practice'),
       wave: 5, phase: 'combat', resolve: 30,
@@ -3570,17 +3570,17 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     };
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.resolve).toBe(30); // unlimited — no Resolve lost on a loss
-    expect(s.phase).toBe('recruit'); // wave 5 < 15 → keep climbing
+    expect(s.phase).toBe('recruit'); // wave 5 < courseRounds → keep climbing
   });
 
-  it('Practice mode ends after round 15 regardless of W/L (no win-15 victory)', () => {
+  it('Practice mode ends after the final course round regardless of W/L (shares Ascent\'s course length)', () => {
     let s: RunState = {
       ...createRun(1, 'warden', 'practice'),
-      wave: 15, phase: 'combat',
+      wave: CONFIG.courseRounds, phase: 'combat',
       lastCombat: { events: [], result: 'lose', playerDamage: 10, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
     };
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.phase).toBe('gameover'); // 15 rounds done — the session ends
+    expect(s.phase).toBe('gameover'); // course complete — the practice session ends
   });
 
   it('settleCombat keeps the same lastCombat reference (the UI replay must not restart)', () => {

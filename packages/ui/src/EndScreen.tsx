@@ -52,8 +52,8 @@ export function EndScreen({ won }: { won: boolean }) {
   // Round-board viewer: re-derive every round's board from the replay (deterministic), keyed by wave, so a
   // W/L pip can open the exact board you fought that round. Best-effort — a replay hiccup just leaves the
   // pips non-clickable. Memoized so it runs once (the action log is fixed on a finished run).
-  // Ascent only: `replayRun` re-runs in ascent mode, so a practice replay (unlimited Resolve, 15-round cap)
-  // wouldn't reconstruct faithfully — leave practice pips non-clickable rather than show a wrong board.
+  // Ascent only: `replayRun` re-runs in ascent mode, so a practice replay (unlimited Resolve) wouldn't
+  // reconstruct faithfully — leave practice pips non-clickable rather than show a wrong board.
   const boardsByWave = useMemo(() => {
     const map = new Map<number, BoardMinion[]>();
     if (practice) return map;

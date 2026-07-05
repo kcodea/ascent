@@ -1150,7 +1150,13 @@ export function Recruit() {
           return { uid: el.getAttribute('data-uid') ?? '', left: r.left, width: r.width };
         })
         .filter((c) => c.uid);
+    // Flatten the fan for the measurement (instant, no transition — see `.row.hand.measuring` in styles.css) so
+    // the hand slots read as upright, axis-aligned rects; the rotated cards would otherwise inflate the widths
+    // and skew the reorder midpoints. body.dragging then holds them flat for the rest of the drag.
+    const handRow = document.querySelector<HTMLElement>('.row.hand');
+    handRow?.classList.add('measuring');
     const handSlots = measureSlots('.row.hand .card[data-uid]');
+    handRow?.classList.remove('measuring');
     insertRectsRef.current = {
       warband: measureSlots('[data-zone="warband"] .row .card[data-uid]'),
       shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
@@ -2275,7 +2281,7 @@ export function Recruit() {
             <span className="sc-v">{run.tier}</span>
             <span className="sbtip">Shop tier — higher tiers offer stronger minions (Upgrade Tavern to raise it)</span>
           </div>
-          <ShopTimer label={run.mode !== 'practice' && isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} />
+          <ShopTimer label={isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} />
         </div>
         {/* Action tray — the turn's actions grouped into one control bar (Upgrade Tavern · Reroll · Freeze ·
             End Turn), framed by shopbutton.webp. */}
@@ -2499,22 +2505,30 @@ export function Recruit() {
         onPointerLeave={() => setHandPreview(null)}
       >
         <div className="row hand">
-          {run.hand.map((m, i) => (
-            <Card
-              key={m.uid}
-              uid={m.uid}
-              card={handViews.get(m.uid)!}
-              refCards={refViewsByUid.get(m.uid)}
-              dragging={!!drag?.active}
-              dimmed={isDragging(m.uid)}
-              buffed={buffedUids.has(m.uid)}
-              buffFloat={statFloats[m.uid] ?? null}
-              arrived={arrivedUids.has(m.uid)}
-              handSlidePx={handSlide(i) * handSlotWRef.current}
-              onPointerDown={onCardPointerDown}
-              forceFull
-            />
-          ))}
+          {run.hand.map((m, i) => {
+            // Fan splay: each card tilts ~1.8° more than its neighbour out from the centre (capped at ±7° so a
+            // big hand never over-fans; a lone card sits straight). The rotation itself is applied in CSS via
+            // the `--fan-rot` var and is flattened while dragging — see `.row.hand .card` in styles.css.
+            const n = run.hand.length;
+            const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
+            return (
+              <Card
+                key={m.uid}
+                uid={m.uid}
+                card={handViews.get(m.uid)!}
+                refCards={refViewsByUid.get(m.uid)}
+                dragging={!!drag?.active}
+                dimmed={isDragging(m.uid)}
+                buffed={buffedUids.has(m.uid)}
+                buffFloat={statFloats[m.uid] ?? null}
+                arrived={arrivedUids.has(m.uid)}
+                handSlidePx={handSlide(i) * handSlotWRef.current}
+                fanRot={fanRot}
+                onPointerDown={onCardPointerDown}
+                forceFull
+              />
+            );
+          })}
           {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
               committed to the real hand at `resolveCombat`). */}
           {inCombat && !run.combatSettled && replay.handGrantsShown.map((cardId, i) => (

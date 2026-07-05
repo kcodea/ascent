@@ -1024,9 +1024,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
 
 /** Advance past a settled combat: the terminal check (gameover / victory), else roll the next wave. */
 function advanceCombat(s: RunState): void {
-  // Practice: a fixed session — ends after `practiceRounds` regardless of W/L. (Health is unlimited, so
-  // the resolve<=0 check never fires, and the course-complete victory below is gated to Ascent.)
-  if (s.mode === 'practice' && s.wave >= CONFIG.practiceRounds) {
+  // Practice runs the SAME fixed course as Ascent (`courseRounds`), so the HUD reads identically — it just
+  // can't be lost (health is unlimited, so the resolve<=0 check never fires) and settles into a practice
+  // summary instead of a scored victory. Ends when the course is done, regardless of W/L.
+  if (s.mode === 'practice' && s.wave >= CONFIG.courseRounds) {
     s.phase = 'gameover';
     return;
   }

@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-04 (session 17)
 
+### fix(ui): spell-target ghost card + board2c 16:9 art + fan no longer flattens on grab
+
+Owner follow-ups, all presentation (`packages/ui`).
+
+- **Spell-target "ghost card" fixed.** Dragging a targeted spell up to aim, then back down off the target,
+  left a copy of the spell card stranded in the **top-left corner**. Root cause: the floating `.dragcard` is
+  rendered only when NOT aiming (`!castingSpell`), and its transform is written imperatively by the weighted-drag
+  rAF — but that effect's deps were `[drag?.active]` only. When `castingSpell` flipped true→false mid-drag the
+  dragcard **remounted**, yet the rAF didn't re-run, so the fresh node never got a transform and sat at its
+  default 0,0. Fix: hoisted `castingSpell` above the rAF effect and added it to the deps, so the effect re-runs
+  on the flip, re-binds the remounted node, and writes its transform in the `useLayoutEffect` init **before
+  paint** (no flash, no stranding). No change to normal minion drags (there `castingSpell` is always false, so
+  the dep is stable).
+- **New 16:9 board art `board2c`.** Replaces `board3upscaled` as the 16:9 default (`--board`; 21:9 unchanged).
+  Converted `board2c.png` (1672×941) with `sharp` to an 86 KB webp at its native resolution (same res as the
+  old `board2b`). The now-unused `board3upscaled.webp` was removed from `public/`. Preload list + comments
+  updated; verified the URL serves `image/webp` and the board renders.
+- **The fan no longer flattens when you grab a card.** The first fan pass flattened the WHOLE hand for the
+  duration of a drag (`body.dragging` → `transform: translateY(tuck)`), so grabbing any card made every card
+  snap straight and then re-fan on release — a distracting whoosh. That flatten is gone; the hand now stays
+  fanned through the drag. Reorder correctness is preserved because the only flatten that remains is the
+  **invisible** drag-start measurement (the `.measuring` class, added + removed inside one synchronous pass, so
+  it's never painted — verified: it still reads clean upright 155 px slot rects). Cards parting to make room
+  keep their tilt too (Card's inline reorder transform now composes `rotate(var(--fan-rot))`), so the fan just
+  opens a gap. Verified live: hand cards stay fanned with `body.dragging` set; `.measuring` still flattens to
+  155 px.
+
+Verified live (throwaway `newRun`): board2c renders; the hand stays fanned during a simulated drag while the
+measurement pass still flattens cleanly. `typecheck` + `lint` + `test` (483) + `build:web` green. The spell-drag
+and reorder gestures themselves can't be driven headlessly (this drag system needs real pointer capture), so
+those want a quick real-cursor eyeball.
+
 ### polish(ui): board3upscaled 16:9 art + a proper hand fan + Practice mirrors the Ascent course
 
 Owner-directed batch of three. Mostly presentation (`packages/ui`); Practice parity also touches the run loop

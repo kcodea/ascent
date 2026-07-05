@@ -24,10 +24,10 @@
   --gw: 100vw; --gh: 100vh;
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
   /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art
-     (board3upscaled); the 21:9 art (board2upscaled2, native 3440×1440) is swapped in for the ultrawide
+     (board2c); the 21:9 art (board2upscaled2, native 3440×1440) is swapped in for the ultrawide
      resolution + a fit window that's actually ultrawide. Only the URL changes — the gradient scrim + fallback
      colour stay in .app. */
-  --board: url('/board3upscaled.webp');
+  --board: url('/board2c.webp');
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds */
   --ch: clamp(220px, calc(var(--gh) * 0.27), 384px); --cw: calc(var(--ch) * 0.752);
@@ -47,7 +47,7 @@
 :root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 21 / 9), 3440px); --gh: min(100vh, calc(100vw * 9 / 21), 1440px); }
 /* 21:9 stage → the ultrawide board art. The forced 3440 res is always 21:9; a "fit" window (no data-res,
    so the stage = the window) uses the 21:9 art only when the window itself is actually ultrawide. Fixed 16:9
-   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board3upscaled. */
+   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board2c. */
 :root[data-res="r3440"] { --board: url('/board2upscaled2.webp'); }
 @media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board2upscaled2.webp'); } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -405,7 +405,7 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 @keyframes handpreviewpop { from { opacity: 0; transform: scale(1.05) translateY(10px); } to { opacity: 1; transform: scale(1.275) translateY(0); } }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
-body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)); z-index: auto; }
+body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }
 /* The PRE-EMPTIVE reorder slide. During a drag, the board/shop cards open the drop slot via an inline
    `transform: translateX(±half-slot)` (Card's `slideDir`, set from the live gap index). This ease-out
    transition glides that transform as the gap moves — fast then settling — the "make room" animation.
@@ -413,13 +413,13 @@ body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)); z
    (no transition) exactly as the card commits to its final slot — no post-drop jump. */
 body.dragging .zone[data-zone='warband'] .card,
 body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubic-bezier(0.12, 0.82, 0.12, 1) !important; }
-/* Hand reorder: the fan parts to make room as the gap moves (handSlidePx changes) — glide that shift. */
-/* While dragging, the whole hand flattens (fan off) so drop slots read cleanly; the reorder inline transform
-   (translateX) still overrides this for the cards parting to make room. */
-body.dragging .row.hand .card { transform: translateY(var(--hand-tuck)); transition: transform 0.26s cubic-bezier(0.12, 0.82, 0.12, 1); }
+/* Hand reorder: the fan STAYS fanned through the drag — grabbing a card must NOT flatten the whole hand (only
+   the drag-start measurement flattens, invisibly; see .measuring below). Cards parting to make room slide via
+   Card's inline transform (translateX + their own rotate), so the fan just opens a gap; glide that shift. */
+body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0.82, 0.12, 1); }
 /* Drag-start slot measurement: flatten INSTANTLY (no transition) so getBoundingClientRect reads upright rects,
-   never the rotated fan (whose tall cards would inflate the slot widths). Added + removed within the measure
-   pass; body.dragging then holds the flat state for the rest of the drag. */
+   never the rotated fan (whose tall cards would inflate the slot widths). Added + removed within the SAME
+   synchronous measure pass, so it's never painted — the hand stays visibly fanned throughout the drag. */
 .row.hand.measuring .card { transform: translateY(var(--hand-tuck)); transition: none; }
 /* While dragging, the cursor still "hovers" the cards under the (pointer-events:none) floating card — don't
    flash their hover glow. Reset to the base card shadow. */

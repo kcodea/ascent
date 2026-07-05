@@ -811,6 +811,13 @@ export function Recruit() {
   const reactDrivesDragRef = useRef(reactDrivesDrag);
   reactDrivesDragRef.current = reactDrivesDrag;
 
+  // A targeted spell only enters "aiming" once it's dragged UP past the play line — down in the hand it's a
+  // reorder (see the drop handler), so the targeting reticle stays hidden there. Defined up here (before the
+  // drag-motion rAF) so that effect can depend on it: when a spell drops back below the line mid-drag the
+  // floating .dragcard REMOUNTS, and the rAF must re-run to position it — otherwise it strands at 0,0 (the
+  // top-left "ghost card" bug).
+  const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && (drag.view.target === 'friendly' || drag.view.target === 'any') && drag.y < playFloorRef.current;
+
   // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
   // card's render position toward the cursor and tilt it toward its motion, writing the transform straight
   // to the node each frame. The lag-gap (cursor − render pos) drives BOTH the catch-up and the lean, so a
@@ -859,7 +866,9 @@ export function Recruit() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [drag?.active]);
+    // `castingSpell` too: it gates whether the .dragcard is mounted, so when it flips the effect must re-run to
+    // (re)bind the freshly-mounted node and write its transform before paint (no top-left flash / stranding).
+  }, [drag?.active, castingSpell]);
   // Cached board/shop card rects for spell targeting — populated at drag-start (the board is static
   // during a spell drag: a spell doesn't open an insertion gap), so boardUidAt/shopUidAt hit-test
   // arithmetic instead of calling elementFromPoint every frame. Null outside a spell drag.
@@ -1720,11 +1729,8 @@ export function Recruit() {
     !magSlide && // once the slide starts, the warband settles (no more shove preview)
     !!magHoverTarget &&
     magnetizesTo(drag.view.cardId, magHoverTarget.cardId);
-  // Casting a targeted spell from the hand: highlight the friendly minion under the
-  // cursor (it's the target), and don't treat it as a board-insertion drag.
-  // A targeted spell only enters "aiming" once it's dragged UP past the play line — down in the hand it's a
-  // reorder (see the drop handler), so the targeting reticle stays hidden there.
-  const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && (drag.view.target === 'friendly' || drag.view.target === 'any') && drag.y < playFloorRef.current;
+  // Casting a targeted spell from the hand: highlight the friendly minion under the cursor (it's the target),
+  // and don't treat it as a board-insertion drag. `castingSpell` itself is defined above (near the drag rAF).
   // The target under the cursor — a board minion, or (for `any` spells) a tavern offer.
   const castTargetUid = castingSpell
     ? boardUidAt(drag!.x, drag!.y) ?? (drag!.view.target === 'any' ? shopUidAt(drag!.x, drag!.y) : null)

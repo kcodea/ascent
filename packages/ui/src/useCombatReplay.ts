@@ -240,9 +240,11 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
   const rest = attacker.getBoundingClientRect();
   const cx0 = rest.left + rest.width / 2;
   const cy0 = rest.top + rest.height / 2;
-  const variant = attacker.classList.contains('dscard')
+  // NB: in combat `findEl` resolves the `.unit` WRAPPER (its data-uid matches first), so the marker classes
+  // live on the `.card` DESCENDANT — the querySelector is the live path, not a dead fallback.
+  const variant = attacker.classList.contains('dscard') || attacker.querySelector('.dscard')
     ? 'gold'
-    : attacker.classList.contains('reborncard')
+    : attacker.classList.contains('reborncard') || attacker.querySelector('.reborncard')
       ? 'blue'
       : 'wind';
   let trailLast = { x: cx0, y: cy0 };
@@ -733,22 +735,27 @@ export function useCombatReplay(
 
     // A RISE ATTACKER dying to retaliation returns HOME first (owner call): kill the slow elastic settle
     // and pull the unit straight back to its slot (a short hold so the contact reads, then a quick pull),
-    // so its spirit burst + fade + re-form all land in its own slot. The aura tracker holds the burst while
-    // the unit still carries an inline transform (mid-return) — it fires the moment the pull-back lands.
-    // A Rise DEFENDER has no lunge transform, so it still explodes in place immediately.
+    // so its spirit burst + fade + re-form all land in its own slot. `data-rising` marks the unit for
+    // EXACTLY the pull-back's lifetime — the aura tracker holds the burst (and keeps the aura riding the
+    // card, even after the reborn beat strips the `R` marker) while the flag is up, and fires the burst
+    // the moment it clears on landing. A Rise DEFENDER never gets the flag → explodes in place immediately.
     if (cur) {
       const impactAtk = attackerOfImpact(beats, beatIdx - 1);
       if (impactAtk) {
         for (let i = cur.start; i < cur.end; i++) {
           const e = events[i];
           if (e?.type !== 'death' || e.target !== impactAtk) continue;
-          const el = findEl(impactAtk);
+          const el = findEl(impactAtk) as HTMLElement | null;
           if (el && el.querySelector('.reborncard')) {
+            el.dataset.rising = '1';
             gsap.killTweensOf(el);
             gsap.to(el, {
               x: 0, y: 0, rotation: 0, scale: 1,
               delay: 0.1 / combatSpeed, duration: 0.24 / combatSpeed, ease: 'power2.out',
-              onComplete: () => gsap.set(el, { clearProps: 'transform,zIndex' }),
+              onComplete: () => {
+                delete el.dataset.rising; // landed → the tracker's next sync fires the burst here
+                gsap.set(el, { clearProps: 'transform,zIndex' });
+              },
             });
           }
         }

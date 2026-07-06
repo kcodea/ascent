@@ -318,8 +318,9 @@ export interface RunState {
   chooseOne?: { uid: string; cardId: string; spell?: boolean };
   /** A played minion with a *targeted* Battlecry (`CardDef.target === 'friendly'`, e.g. Toxin Tender),
    *  on the board and waiting for the player to pick the friendly minion its Battlecry hits. Resolved
-   *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. */
-  pendingTarget?: { uid: string; cardId: string };
+   *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. `optionIndex` marks a deferred
+   *  *targeted Choose One* (Runic Beetle) — the chosen option's effects resolve on the picked target. */
+  pendingTarget?: { uid: string; cardId: string; optionIndex?: number };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
 }

@@ -1737,6 +1737,18 @@ export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDe
   }
 }
 
+/** Resolve a *targeted* Choose One option (Runic Beetle) on the player-chosen `target`: the chosen option's
+ *  effects fire with the target injected — like `applyBattlecryTarget`, but running the OPTION's effects
+ *  rather than the card's own. No Drakko/Karwind (Choose One never procs them, matching `applyChooseOne`). */
+export function applyChooseOneTarget(state: RunState, card: BoardCard, effects: CardDef['effects'], target: BoardCard): void {
+  state.karwindFlash = [];
+  const ctx = makeContext(state);
+  for (const effect of effects) {
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, target });
+  }
+}
+
 /** Resolve a deferred *targeted* Battlecry (Toxin Tender) on the player-chosen friendly `target`.
  *  Fires the played card's onPlay effects with the target injected, honoring Drakko + Karwind. */
 export function applyBattlecryTarget(state: RunState, card: BoardCard, target: BoardCard): void {

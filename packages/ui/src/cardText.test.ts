@@ -89,11 +89,12 @@ describe('cardText helpers', () => {
     expect(taragosaText('tara', false, 4, 4)).toBeNull(); // not Taragosa
   });
 
-  it('watcherText shows the live Lantern buff (base + spell power); golden casts twice', () => {
-    expect(watcherText('watcher', false, 2)).toContain('{{+5 Attack}}'); // base 3 + spell power 2
-    expect(watcherText('watcher', true, 2)).toContain('{{+10 Attack}}'); // (3 + 2) × 2 casts
-    expect(watcherText('watcher', false, 0)).toBeNull(); // no spell power → printed +3 (golden +6)
-    expect(watcherText('spore', false, 2)).toBeNull(); // not Watcher
+  it('watcherText shows the live Lantern buff +x/+y (spell power in both stats); golden casts twice', () => {
+    expect(watcherText('watcher', false, 2, 2)).toContain('{{+5/+2}}'); // base 3 + sp 2 attack, sp 2 health
+    expect(watcherText('watcher', true, 2, 2)).toContain('{{+10/+4}}'); // ×2 casts
+    expect(watcherText('watcher', false, 2, 0)).toContain('{{+5/+0}}'); // attack spell power only
+    expect(watcherText('watcher', false, 0, 0)).toBeNull(); // no spell power → printed +3/+0 (golden +6/+0)
+    expect(watcherText('spore', false, 2, 2)).toBeNull(); // not Watcher
   });
 
   it('abhorrentHorrorText shows the pending Start-of-Combat gain from Fodder consumed this turn (golden-aware)', () => {

@@ -5,6 +5,42 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
+### fix(combat+ui): Watcher's Lantern shows +x/+y (spell power in both stats); Kennelmaster's aura reaches Reborn Beasts
+
+Two owner-reported issues.
+- **Watcher's Lantern was attack-only.** It now casts a full Lantern of Souls: +3/+0 base, folding the run's
+  spell power into BOTH stats (+5/+2 with +2/+2), granted to your Undead permanently. Routed through the
+  actual Lantern channel — a new `ctx.grantUndeadAura(attack, health)` bumps `undeadAttackBonus` /
+  `undeadHealthBonus` (live for this fight's later summons/reborns + carried back via `playerUndeadAuraGain`,
+  applied in settleCombat exactly like a shop-cast Lantern). Card text is now "+3/+0" and the `watcherText`
+  live helper shows "+x/+y" (e.g. +5/+2). Verified live in-preview.
+- **Kennelmaster's Beast aura skipped Reborn (and resummoned) Beasts.** The tribe-aura application lived only
+  in the summon path, so a Beast that Rose mid-fight (e.g. a granted-Rise Gryphon) didn't re-inherit
+  Kennelmaster's +1/+1. Extracted `applyTribeAuras` and now call it when a minion Rises AND when The Reclaimer
+  resummons — so the aura reaches Beasts entering play ANY way (Grim's and Solaris's beast auras benefit too).
+- **Tests:** Watcher tests now assert the aura carry-back `{attack, health}` + spell power in both stats; a new
+  reborn-aura test (a risen Gryphon gets the +1/+1). `typecheck + lint + test (510) + build:web` green.
+
+### feat(sim): Runic Beetle — pick the buff, THEN pick which friendly Beast gets it
+
+Owner ask: Runic Beetle's Choose One (Rise / Flurry) should let you choose WHICH friendly Beast receives the
+buff instead of auto-picking the highest-Attack one. Chained the two interactions — a *targeted* Choose One now
+defers to targeting.
+- **Data:** Runic Beetle gains `target: 'friendly'` (keeps `targetTribe: 'beast'`).
+- **Reducer/recruit:** the `chooseOne` case, when the card is `target: 'friendly'` and a viable target exists
+  (a Beast other than self), sets `pendingTarget = { uid, cardId, optionIndex }` and defers instead of
+  resolving; `battlecryTarget` (and the turn-end auto-resolve) then run the CHOSEN option's effects on the
+  picked target via a new `applyChooseOneTarget` helper. With no other Beast it resolves immediately,
+  auto-granting to self.
+- **UI:** no changes needed — the targeting cursor is entirely `pendingTarget`-driven (minions never pre-aim;
+  that's spell-only), so the Choose One modal hands straight off to "Choose a minion for Runic Beetle's
+  Battlecry" with the Beasts highlighted.
+- **Tests:** rewired the Runic Beetle test to the choose → target flow (the picked Beast gets it, not the
+  auto-pick) + a no-other-Beast fallback; hardened `playToEnd` to resolve `pendingTarget`. `typecheck + lint +
+  test (509) + build:web` green; verified live in-preview (modal → targeting prompt → the chosen Beast got Rise).
+- **Flagged:** self is excluded from the manual pick (matches Toxin Tender and the other targeted Battlecries);
+  Runic Beetle only buffs itself via the no-other-Beast fallback. Easy to make self-targetable if you'd prefer.
+
 ### fix(ui): Rise attacker's spirit burst fired twice (impact + return) — now only on return
 
 Owner-reported: a Rise unit dying on its own attack exploded twice — once at contact, once after the

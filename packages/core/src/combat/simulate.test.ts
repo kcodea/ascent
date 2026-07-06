@@ -118,29 +118,29 @@ describe('simulate (handoff A.3)', () => {
     expect(wards).toBeGreaterThanOrEqual(2); // one Ward before each of the two immediate strikes
   });
 
-  it('Watcher Rally casts Lantern of Souls: Undead +Attack carries back AND counts as a spell cast; golden 2×', () => {
-    // Watcher one-shots a 0/1 wall → its Rally casts Lantern once: your Undead gain +3 Attack permanently
-    // (carried back via playerUndeadBuyAtkGain) and it registers as a real spell cast (playerSpellsCast).
+  it('Watcher Rally casts Lantern of Souls: the Undead aura carries back (+3/+0) AND counts as a spell cast; golden 2×', () => {
+    // Watcher one-shots a 0/1 wall → its Rally casts Lantern once: your Undead gain +3/+0 permanently (carried
+    // back via playerUndeadAuraGain — the Lantern channel) and it registers as a real spell cast.
     const p: BoardMinion[] = [
       { cardId: 'watcher', attack: 8, health: 30 },
       { cardId: 'spore', attack: 1, health: 30 }, // a friendly Undead that receives the aura
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to one swing → exactly one Rally
     const r = run(p, e, 1);
-    expect(r.playerUndeadBuyAtkGain).toBe(3); // one Lantern cast → +3 Undead aura, permanent
+    expect(r.playerUndeadAuraGain).toEqual({ attack: 3, health: 0 }); // one Lantern cast → +3/+0 Undead aura
     expect(r.playerSpellsCast).toBe(1);       // counts as a spell cast (feeds Spirit Pup / Guel)
     // Golden Watcher casts it twice.
     const rg = run([{ cardId: 'watcher', attack: 8, health: 30, golden: true }, { cardId: 'spore', attack: 1, health: 30 }], e, 1);
-    expect(rg.playerUndeadBuyAtkGain).toBe(6); // +3 × 2 casts
+    expect(rg.playerUndeadAuraGain).toEqual({ attack: 6, health: 0 }); // +3/+0 × 2 casts
     expect(rg.playerSpellsCast).toBe(2);
   });
 
-  it("Watcher's Lantern scales with the run's spell power", () => {
+  it("Watcher's Lantern folds spell power into BOTH stats (+5/+2 with +2/+2)", () => {
     const p: BoardMinion[] = [{ cardId: 'watcher', attack: 8, health: 30 }, { cardId: 'spore', attack: 1, health: 30 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
-    // spellPowerAtk = 2 (16th positional arg after CARD_INDEX).
-    const r = simulate(p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 6, ALL_TRIBES);
-    expect(r.playerUndeadBuyAtkGain).toBe(5); // base 3 + spell power 2 — Lantern obeys spell power
+    // spellPowerAtk = 2, spellPowerHp = 2 (16th/17th positional args after CARD_INDEX).
+    const r = simulate(p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 6, ALL_TRIBES);
+    expect(r.playerUndeadAuraGain).toEqual({ attack: 5, health: 2 }); // base 3 + spell power → +5/+2
   });
 
   it('mid-combat Undead aura gains reach Undead summoned later that fight (Watcher → Steadfast Spear Warden)', () => {
@@ -157,6 +157,25 @@ describe('simulate (handoff A.3)', () => {
     expect(wardenSummon).toBeDefined();
     // The summoned Spear Warden (base 3 Attack) must inherit the Undead aura Watcher pumped this fight.
     expect(wardenSummon && wardenSummon.type === 'summon' ? wardenSummon.minion.attack : 0).toBeGreaterThan(3);
+  });
+
+  it('Kennelmaster aura re-applies to a Reborn Beast (summoned in any way)', () => {
+    // A Beast that RISES mid-fight must re-inherit Kennelmaster's Start-of-Combat aura, not just fresh summons.
+    // The Gryphon (granted Rise + Taunt so it's the forced target) dies, returns at base, and comes back aura'd.
+    const p: BoardMinion[] = [
+      { cardId: 'kennel', attack: 1, health: 40 },
+      { cardId: 'gryphon', attack: 2, health: 1, keywords: ['R', 'T'] }, // granted Rise; the forced target
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 60 }];
+    const r = run(p, e, 3);
+    const rebornIdx = r.events.findIndex((ev) => ev.type === 'reborn');
+    expect(rebornIdx).toBeGreaterThanOrEqual(0); // the Gryphon Rose
+    const gUid = (r.events[rebornIdx] as { target: string }).target;
+    // A +1/+1 aura buff lands on the Gryphon AFTER it Rises (the bug: reborn bodies were skipped).
+    const auraAfterRise = r.events.slice(rebornIdx + 1).some(
+      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 1 && ev.health === 1,
+    );
+    expect(auraAfterRise).toBe(true);
   });
 
   it('Sergeant Deathrattle uses its seeded hpGrantBonus, and a survivor carries the accrual back', () => {

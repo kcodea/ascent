@@ -57,6 +57,7 @@ export function simulate(
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
+  const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
   const fodderBuffGain = { attack: 0, health: 0 }; // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
@@ -347,9 +348,19 @@ export function simulate(
       if (side !== 'player') return; // enemies have no run state
       undeadBuyAtkGain += amount; // carry-back delta → CombatResult.playerUndeadBuyAtkGain
       // Keep the LIVE aura value current so Undead summoned / Reborn LATER this fight inherit the gain too
-      // (applyAuras re-adds `undeadBuyAtk` to every from-base body). Karthus / Forsaken Weaver / Watcher all
-      // route through here, so this fixes "a Spear Warden summoned after the aura pumped misses it".
+      // (applyAuras re-adds `undeadBuyAtk` to every from-base body). Karthus / Forsaken Weaver route through
+      // here, so this fixes "a Spear Warden summoned after the aura pumped misses it".
       undeadBuyAtk += amount;
+    },
+    grantUndeadAura: (attack, health, side) => {
+      // Watcher casting Lantern of Souls: bump the run-wide Undead aura (+Attack/+Health to your Undead
+      // EVERYWHERE) — the SAME channel a shop-cast Lantern uses. Live (so Undead summoned/Reborn later this
+      // fight inherit it via applyAuras) + carried back via CombatResult.playerUndeadAuraGain. Player-only.
+      if (side !== 'player') return;
+      undeadAuraGain.attack += attack;
+      undeadAuraGain.health += health;
+      undeadAttackBonus += attack;
+      undeadHealthBonus += health;
     },
     castSpell: (side) => {
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
@@ -357,6 +368,19 @@ export function simulate(
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
   };
+
+  /**
+   * Apply the persistent tribe auras (Kennelmaster's Start-of-Combat Beast aura, Grim's Echo, Solaris's
+   * Rally) to a minion that enters play — so a matching Beast summoned, Reborn (Rise), OR resummoned mid-fight
+   * all inherit the "wherever they are" buff, not just fresh token summons.
+   */
+  function applyTribeAuras(minion: Minion): void {
+    for (const aura of tribeAuras) {
+      if (aura.side === minion.side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!cards[minion.cardId]?.universalTribe))) {
+        ctx.buff(minion, aura.attack, aura.health, aura.source);
+      }
+    }
+  }
 
   /**
    * Summon one minion (the single summon chokepoint). Because this lives in the summon path, run-wide
@@ -396,12 +420,7 @@ export function simulate(
     registerEffects(minion);
     events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
     bus.emit('onSummon', { minion, side });
-    // Persistent tribe auras (Grim) catch minions summoned after they were registered.
-    for (const aura of tribeAuras) {
-      if (aura.side === side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!cards[minion.cardId]?.universalTribe))) {
-        ctx.buff(minion, aura.attack, aura.health, aura.source);
-      }
-    }
+    applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
     // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
     // already returned above, so only minions actually placed on the board reach here.
     // `attackNow` is the per-summon override (Steadfast Champion's Spear Warden) — same queue as the card flag.
@@ -556,6 +575,7 @@ export function simulate(
       arr.splice(at, 0, minion);
       const after = at > slot ? arr[at - 1]!.uid : undefined; // anchor the UI re-slot to the token on its left
       events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}) });
+      applyTribeAuras(minion); // a Reborn Beast inherits Kennelmaster's aura too ("summoned in any way")
       return;
     }
     minion.dead = true;
@@ -597,6 +617,7 @@ export function simulate(
       registerEffects(copy);
       events.push({ type: 'summon', minion: snapshot(copy), side: 'player', index: boards.player.indexOf(copy), source: anchor.uid });
       bus.emit('onSummon', { minion: copy, side: 'player' });
+      applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too
     }
   }
 
@@ -977,6 +998,7 @@ export function simulate(
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
+    playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
     playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,
   };

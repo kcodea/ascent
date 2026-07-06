@@ -48,7 +48,7 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
     ?? guelProgressText(u.cardId, u.golden, u.spellProgress ?? 0) // Guel: live grant + countdown from HIS on-board tally (per-instance, seeded by the snapshot)
     ?? monkProgressText(u.cardId, u.golden, u.summonBonus, u.overflowBonus ?? 0) // Flowing Monk: live grant + overflow countdown (climbs via improve events)
     ?? taragosaText(u.cardId, u.golden, spA, spH)
-    ?? watcherText(u.cardId, u.golden, spA) // Watcher: live Lantern buff (base + spell power)
+    ?? watcherText(u.cardId, u.golden, spA, spH) // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
     ?? engraveTallyText(u.cardId, u.permaGain)
     ?? def?.text ?? '';
   const view: CardView = {

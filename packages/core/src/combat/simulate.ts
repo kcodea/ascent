@@ -492,21 +492,33 @@ export function simulate(
       // It really died: proc the unit's own Deathrattle / on-death effects (each death procs them) BEFORE the
       // body returns — so the Whelp's spawn + the Eternal Knight's +3/+2 land per death, not just on the last.
       if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles++;
+      // Rise = die → Deathrattle → return to the RIGHT of what it summoned (owner ruling 2026-07-06). The body
+      // genuinely LEAVES its slot FIRST — flag it dead + emit a `death` (marked `rise`) so the replay shows the
+      // removal before the rattle, then the rattle's summons fill the vacated slot, then the Rise re-inserts to
+      // their right. The `rise` flag means the UI shows the death but does NOT count it as a kill: a Rise is
+      // still NOT a friendly death for Avenge / the enemy-death tally / onDeath watchers (unchanged). `before`
+      // snapshots the board so we can find the summoned block for the re-slot.
+      const arr = boards[minion.side];
+      const before = new Set(arr.map((m) => m.uid));
+      const slot = arr.indexOf(minion);
+      minion.dead = true;
+      minion.health = 0;
+      events.push({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       fireOwnDeathrattles(minion);
-      // Board cap gates the Rise (owner ruling 2026-07-02): the Deathrattle resolves FIRST — its summons can
-      // take the last slots, since the dying body doesn't hold one — and if the side is at 7 living the minion
-      // does NOT return: it stays dead for real. Its own rattles already fired above (incl. Sylus re-procs), so
-      // this is a minimal true death — death event + Avenge/kill tallies, but NO `onDeath` broadcast (watchers
-      // treat Rise deaths as non-deaths, and a re-broadcast would double-fire the rattle just fired).
+      // Board cap gates the Rise (owner ruling 2026-07-02): the Deathrattle resolved FIRST — its summons can
+      // take the last slots, since the dying body holds none — and if the side is at 7 living the minion does
+      // NOT return: it stays dead for real, and NOW counts as a true death (Avenge + enemy tally). It already
+      // emitted its (rise-flagged) death above, so we don't push a second one, and there's NO `onDeath`
+      // broadcast (watchers treat Rise deaths as non-deaths; the rattle already fired, incl. Sylus re-procs).
       if (living(minion.side).length >= 7) {
-        minion.dead = true;
-        minion.health = 0;
-        events.push({ type: 'death', target: minion.uid, side: minion.side });
         if (minion.side === 'enemy') enemyDeaths++;
         deaths[minion.side] += 1;
         bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
         return;
       }
+      // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back
+      // still work) at base ATTACK with 1 Health, shedding combat buffs + granted keywords.
+      minion.dead = false;
       const def = cards[minion.cardId];
       const mul = minion.golden ? 2 : 1;
       if (def) {
@@ -525,7 +537,14 @@ export function simulate(
       // carry-back no longer records (display-vs-persist divergence).
       minion.gainMult = undefined;
       applyAuras(minion, true); // Reborn reset stats to base — re-apply every run-wide aura on top
-      events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords] });
+      // Re-slot the risen body to just after the contiguous block its Deathrattle summoned into its old slot
+      // (each freshly-summoned token isn't in `before`) → it returns to their RIGHT. No summons → it stays put.
+      let at = arr.indexOf(minion);
+      arr.splice(at, 1);
+      while (at < arr.length && !before.has(arr[at]!.uid)) at++; // skip the tokens the rattle just summoned
+      arr.splice(at, 0, minion);
+      const after = at > slot ? arr[at - 1]!.uid : undefined; // anchor the UI re-slot to the token on its left
+      events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}) });
       return;
     }
     minion.dead = true;

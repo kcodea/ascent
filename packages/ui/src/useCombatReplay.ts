@@ -137,6 +137,19 @@ function computeFrame(
         u.baseAttack = e.attack; // a returned minion is "fresh" — its stats become the new baseline
         u.baseHealth = e.hp;
         u.buffs = undefined; // back at base stats — the old buff breakdown no longer applies
+        u.alive = true; // a Rise dies FIRST (a `rise` death precedes this) → bring the body back to life…
+        gone.delete(e.target); // …and un-remove it if that death landed in an earlier beat
+        // Re-slot to the RIGHT of `after` — the token its Deathrattle summoned into its old slot — so the
+        // risen body returns to that token's right (mirrors the sim's board move). No `after` → it stays put.
+        if (e.after) {
+          const arr = player.includes(u) ? player : enemy;
+          const from = arr.indexOf(u);
+          if (from >= 0) {
+            arr.splice(from, 1);
+            const anchor = arr.findIndex((x) => x.uid === e.after);
+            arr.splice(anchor >= 0 ? anchor + 1 : arr.length, 0, u);
+          }
+        }
       }
     } else if (e.type === 'reveal') {
       const u = find(e.target);
@@ -381,7 +394,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   for (const e of events) {
     if (e.type === 'attack') attacks++;
     else if (e.type === 'dmg') dmg += e.amount;
-    else if (e.type === 'death') deaths++;
+    else if (e.type === 'death' && !e.rise) deaths++; // a Rise's death isn't a kill — the body returns
     else if (e.type === 'reborn') reborn++;
     else if (e.type === 'poison') poison++;
     else if (e.type === 'shieldUp') shieldUp++;
@@ -678,19 +691,22 @@ export function useCombatReplay(
     const once = (k: string, fn: () => void): void => {
       if (!done2.has(k)) { done2.add(k); fn(); }
     };
-    let kill = false;
+    let kill = false; // a real (non-Rise) death → thud + board shake
+    let riseDeath = false; // a Rise's death → soft spirit-release cue, no shake (the body returns)
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e) continue;
       if (e.type === 'attack') once('attack', sfx.attack);
       else if (e.type === 'sc' && e.cast) once('cast', sfx.cast); // Start-of-Combat zap — only a genuine cast, not a narration (spell-power telegraph etc.)
-      else if (e.type === 'death') { once('death', sfx.death); kill = true; }
+      else if (e.type === 'death') { if (e.rise) riseDeath = true; else { once('death', sfx.death); kill = true; } }
+      else if (e.type === 'reborn') once('reborn', sfx.rebornSummon); // the body re-forms as it Rises
       else if (e.type === 'shieldUp') once('shield', sfx.shield);
       else if (e.type === 'buff') once('buff', sfx.buff);
       else if (e.type === 'maxGold') once('maxgold', sfx.maxGold);
       else if (e.type === 'summon') once('summon', () => sfx.summon(e.minion.cardId));
     }
-    if (kill) setShake((n) => n + 1); // a death shakes the board (hit-stop feel)
+    if (riseDeath) once('rise', sfx.rebornShatter); // spirit releases as the Rise body leaves — softer than a kill (internally throttled)
+    if (kill) setShake((n) => n + 1); // a real death shakes the board (hit-stop feel) — a Rise does not
   }, [active, beatIdx, beats, events]);
 
   // Verdict sting when the replay finishes.
@@ -792,7 +808,7 @@ export function useCombatReplay(
     let n = 0;
     for (let i = 0; i < processedEnd; i++) {
       const e = events[i];
-      if (e?.type === 'death' && e.side === 'enemy') n++;
+      if (e?.type === 'death' && e.side === 'enemy' && !e.rise) n++; // a Rise's death isn't a kill (it returns) — matches sim's enemyDeaths
     }
     return n;
   }, [events, processedEnd]);

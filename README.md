@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Rise reads as die → Deathrattle → rise** — a minion with **Rise** now genuinely leaves its slot when it
+  dies (a real removal, not an in-place flicker), its Deathrattle fills the vacated slot, and it returns to the
+  **right** of whatever it summoned (a Violet Whelp with Rise now rises to the right of its Whelp, not the left).
+  Balance-neutral — combat outcomes are unchanged; a rise-death shows + plays a soft spirit cue but doesn't shake
+  the board (so frequent rises stay snappy).
 - **Big content batch** — 8 renames (Eternal Knight → **Spear Warden**, Mama Bear → **Forest Guardian**,
   Alleycat → **Pennycat**, Manasaber → **Void Panther** + Void Cub, Frontdrake → **Bard**, Beatboxer →
   **Beatbot**, Forsaken Weaver → **Forsaken Mage**, Koron → **Korok**); **Harry Botter removed**; four new

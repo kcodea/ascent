@@ -593,6 +593,28 @@ describe('simulate (handoff A.3)', () => {
     expect(whelps.length).toBe(2);
   });
 
+  it('Rise dies THEN rattles THEN returns to the RIGHT of what it summoned', () => {
+    // Owner ruling 2026-07-06: a Rise minion's death reads as a real removal FIRST. A Violet Whelp (Deathrattle:
+    // summon a 3/3 Whelp) granted Rise must (1) emit its own death — flagged `rise` (shown, not counted) —
+    // BEFORE the Whelp is summoned, (2) summon the Whelp, then (3) Rise, re-slotting to the RIGHT of that Whelp
+    // (the `reborn` event's `after` anchors to the Whelp's uid).
+    const a = run(
+      [{ cardId: 'twilightwhelp', attack: 2, health: 2, keywords: ['R'] }],
+      [{ cardId: 'omen', attack: 3, health: 40 }],
+      1,
+    );
+    const whelpUid = a.initial.player[0]!.uid;
+    const riseDeath = a.events.findIndex((e) => e.type === 'death' && e.target === whelpUid && e.rise === true);
+    const summonIdx = a.events.findIndex((e) => e.type === 'summon' && e.minion.cardId === 'whelpling');
+    const rebornIdx = a.events.findIndex((e) => e.type === 'reborn' && e.target === whelpUid);
+    expect(riseDeath).toBeGreaterThanOrEqual(0); // the Whelp emits a rise-flagged death…
+    expect(riseDeath).toBeLessThan(summonIdx); // …BEFORE its Deathrattle summons the 3/3 Whelp…
+    expect(summonIdx).toBeLessThan(rebornIdx); // …and the Rise resolves AFTER that summon
+    const tokenUid = a.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'whelpling' ? [e.minion.uid] : []))[0];
+    const reborn = a.events[rebornIdx];
+    expect(reborn && reborn.type === 'reborn' && reborn.after).toBe(tokenUid); // returns to the RIGHT of the Whelp
+  });
+
   it('Reborn carries the Eternal-Knight enchant — a fresh Reborn Knight returns at base attack + 1 Health + its own +3/+2', () => {
     // Example: a 3/2 Eternal Knight with Reborn dies, banks its own +3/+2, and reborns as a 6/3 (base 3 + 3
     // attack; 1 Rise Health + 2 enchant).

@@ -199,7 +199,7 @@ look because the engine already produces the data.
   13–17 read 54–75% win. Smooth the wave-5–7 wall + steepen the late curve. Per-turn scalers also run away
   (a greedy bot's Target Dummy hits 76/50 by wave 12 with zero synergy) — fold into the outlier re-shape list.
 - **Content depth:** target **13–15 minions per tribe** (variety is meant to come from the meta layer —
-  heroes + quests/mastery/ancients — not raw card count); **~40 spells** (32 today). Run `npm run audit`.
+  heroes + quests/mastery/ancients — not raw card count); **~40 spells** (34 today). Run `npm run audit`.
 
 ### Matchmaking evolution
 - Today `pickOpponent` matches by `(wave, Σ(atk+hp) power)`. Ratings are now trustworthy per wave (synthetic

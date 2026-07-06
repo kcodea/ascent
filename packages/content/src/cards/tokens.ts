@@ -70,9 +70,9 @@ export const TOKENS: CardDef[] = [
     token: true,
   },
   {
-    // Manasaber's Deathrattle cub — a 0/2 Taunt body that screens the line. Not in the shop.
+    // Void Panther's Deathrattle cub — a 0/2 Taunt body that screens the line. Not in the shop.
     id: 'sabercub',
-    name: 'Saber Cub',
+    name: 'Void Cub',
     tribe: 'beast',
     tier: 1,
     attack: 0,

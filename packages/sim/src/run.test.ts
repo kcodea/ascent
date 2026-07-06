@@ -164,6 +164,40 @@ describe('run loop (@game/sim)', () => {
     if (s.phase === 'recruit') expect(s.wave).toBe(wave + 1);
   });
 
+  it("Lord of the Risen's Rise Again grants a one-combat Rise, no-ops on an existing Rise, and strips at settle", () => {
+    let s: RunState = {
+      ...createRun(1, 'risen'),
+      board: [{ uid: 'm1', cardId: 'drone', tribe: 'mech', attack: 2, health: 30, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'm1' });
+    expect(s.board[0]!.keywords).toContain('R'); // Rise granted (shows the pill + enters the combat snapshot)
+    expect(s.board[0]!.tempReborn).toBe(true);
+    expect(s.heroReady).toBe(false); // once per turn — charge spent
+    // A minion that already has Rise is an invalid target — no-op, no charge spent.
+    const again: RunState = { ...s, heroReady: true };
+    expect(reduce(again, { type: 'heroPower', uid: 'm1' })).toBe(again);
+    // Fight → settle: the temp Rise is stripped (one combat only), like Maw's temp Ward.
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    const m = s.board.find((c) => c.uid === 'm1');
+    expect(m?.keywords ?? []).not.toContain('R');
+    expect(m?.tempReborn).toBe(false);
+  });
+
+  it('Pre-emptive Assault: casting sets the one-fight initiative flag; settling the combat clears it', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm1', cardId: 'drone', tribe: 'mech', attack: 2, health: 30, keywords: [], golden: false }],
+      hand: [{ uid: 'sp1', cardId: 'preemptive', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      embers: 10,
+    };
+    s = reduce(s, { type: 'play', uid: 'sp1' }); // playing a spell from hand casts it
+    expect(s.attackFirstNext).toBe(true); // the flag arms for the next fight
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.attackFirstNext).toBe(false); // one fight only — cleared at settle
+  });
+
   it('upgrade raises the tier and resets the cost to the next target', () => {
     let s = createRun(1);
     s = { ...s, embers: 20 };
@@ -734,7 +768,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.board[0]!.rallyMechAtk).toBe(10); // +5 each → +10
   });
 
-  it('Speedy / Harry Botter are Magnetic — they weld their keyword/aura onto a host Mech', () => {
+  it('Speedy is Magnetic — it welds its keyword onto a host Mech', () => {
     // Speedy welds Windfury.
     let sp: RunState = {
       ...createRun(1),
@@ -743,18 +777,6 @@ describe('run loop (@game/sim)', () => {
     };
     sp = reduce(sp, { type: 'play', uid: 'mag', toIndex: 0 });
     expect(sp.board[0]!.keywords).toContain('W');
-
-    // Harry Botter welds its spell-power aura — the host keeps boosting spells though the body is consumed.
-    let hb: RunState = {
-      ...createRun(1),
-      hand: [{ uid: 'mag', cardId: 'harrybotter', tribe: 'mech', attack: 1, health: 5, keywords: ['M'], golden: false }],
-      board: [{ uid: 'd', cardId: 'drone', tribe: 'mech', attack: 4, health: 4, keywords: [], golden: false }],
-    };
-    expect(spellStatBonus(hb)).toBe(0); // still in hand — aura inactive
-    hb = reduce(hb, { type: 'play', uid: 'mag', toIndex: 0 });
-    expect(hb.board.length).toBe(1);
-    expect(hb.board[0]!.spellAuraBonus).toBe(1);
-    expect(spellStatBonus(hb)).toBe(1); // the welded aura still boosts spells +1/+1
   });
 
   it('Combinator magnetizes a random Magnetic Mech onto 1 friendly Mech at end of turn (golden: 2)', () => {
@@ -3184,20 +3206,23 @@ describe('spell stat bonus + display (@game/sim)', () => {
     expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Gold**.');
   });
 
-  it('Harry Botter is a passive spell-power aura (+1/+1 to spells while on board; golden +2/+2)', () => {
+  it('a welded spell-power aura (spellAuraBonus) boosts spells while the host is on board', () => {
+    // No spellAura card exists in the set today (Harry Botter was removed 2026-07-05), but the welded-aura
+    // channel stays live: an old save (or a future aura card) whose host carries `spellAuraBonus` still
+    // boosts every stat spell through spellStatBonus — generic over the field, not the card.
     expect(spellStatBonus({ ...createRun(1), board: [] })).toBe(0);
     const one: RunState = {
       ...createRun(1),
-      board: [{ uid: 'h', cardId: 'harrybotter', tribe: 'mech', attack: 1, health: 5, keywords: [], golden: false }],
+      board: [{ uid: 'h', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false, spellAuraBonus: 1 }],
     };
     expect(spellStatBonus(one)).toBe(1);
     expect(spellAttackBonus(one)).toBe(1);
     expect(spellHealthBonus(one)).toBe(1);
-    const golden: RunState = {
+    const two: RunState = {
       ...createRun(1),
-      board: [{ uid: 'h', cardId: 'harrybotter', tribe: 'mech', attack: 2, health: 10, keywords: [], golden: true }],
+      board: [{ uid: 'h', cardId: 'drone', tribe: 'mech', attack: 2, health: 1, keywords: [], golden: false, spellAuraBonus: 2 }],
     };
-    expect(spellStatBonus(golden)).toBe(2); // golden Harry Botter → +2/+2
+    expect(spellStatBonus(two)).toBe(2); // stacked welds → +2/+2
   });
 
   it('the displayed value matches what a cast actually grants (Rohan, turn 1)', () => {
@@ -3762,18 +3787,19 @@ describe('content batch: new minions (@game/sim)', () => {
     const golden = [...s.hand, ...s.board].find((c) => c.cardId === 'drone' && c.golden);
     expect(golden).toBeDefined();
     expect(golden!.rallyMechAtk).toBe(5); // Better Bot's welded Rally carried through (was dropped before)
-    expect(golden!.spellAuraBonus).toBe(1); // Harry Botter's welded aura carried through
+    expect(golden!.spellAuraBonus).toBe(1); // a welded spell-power aura carried through
   });
 
-  it('Archmagus Guel scales with spells cast: +1/+1 per 4 (golden +2/+2 per 4)', () => {
+  it('Archmagus Guel scales PER-INSTANCE: +1/+1 per 4 spells cast while HE is on board (golden ×2)', () => {
     // emberpouch (Gain 1 Gold) doesn't touch minions, so the OTHER friend's gain is purely Guel's.
-    const cast = (spellsCast: number, golden: boolean): RunState =>
+    // The step counter is the instance's `spellProgress` (spells cast with this Guel on board), NOT the
+    // run-wide spellsCast (owner ruling 2026-07-05: no improvement unless he's on board).
+    const cast = (spellProgress: number, golden: boolean): RunState =>
       reduce(
         {
           ...createRun(1),
           embers: 99,
-          spellsCast,
-          board: [card('g', 'guel', 'neutral', 2, 3, { golden }), card('t', 'drone', 'mech', 2, 2)],
+          board: [card('g', 'guel', 'neutral', 2, 3, { golden, spellProgress }), card('t', 'drone', 'mech', 2, 2)],
           hand: [card('sp', 'emberpouch', 'neutral', 0, 0)],
         },
         { type: 'play', uid: 'sp' },
@@ -3782,10 +3808,30 @@ describe('content batch: new minions (@game/sim)', () => {
       const t = s.board.find((c) => c.uid === 't')!;
       return [t.attack - 2, t.health - 2];
     };
-    expect(buffed(cast(0, false))).toEqual([1, 1]); // cast → 1 spell, step 0 → base +1/+1
-    expect(buffed(cast(3, false))).toEqual([2, 2]); // cast → 4 spells, step 1 → +2/+2
-    expect(buffed(cast(7, false))).toEqual([3, 3]); // cast → 8 spells, step 2 → +3/+3
+    expect(buffed(cast(0, false))).toEqual([1, 1]); // cast → 1 on-board spell, step 0 → base +1/+1
+    expect(buffed(cast(3, false))).toEqual([2, 2]); // cast → 4 on-board spells, step 1 → +2/+2
+    expect(buffed(cast(7, false))).toEqual([3, 3]); // cast → 8 on-board spells, step 2 → +3/+3
     expect(buffed(cast(7, true))).toEqual([6, 6]); // golden: (1 + 2) × 2 → +6/+6
+  });
+
+  it("Guel's improvement ignores spells cast BEFORE he was on board (and combat casts tick him at settle)", () => {
+    // 7 run-wide casts pre-date this Guel (step 1 under the OLD rule) — a fresh copy still grants base +1/+1.
+    let s: RunState = {
+      ...createRun(1),
+      embers: 99,
+      spellsCast: 7,
+      board: [card('g', 'guel', 'neutral', 2, 3), card('t', 'drone', 'mech', 2, 2)],
+      hand: [card('sp', 'emberpouch', 'neutral', 0, 0)],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    const t = s.board.find((c) => c.uid === 't')!;
+    expect([t.attack - 2, t.health - 2]).toEqual([1, 1]); // base grant — the 7 pre-board casts don't count
+    expect(s.board.find((c) => c.uid === 'g')?.spellProgress).toBe(1); // his own tally started fresh
+    // Combat casts (Taragosa) tick the on-board Guel's tally at settle — he was on board for the fight.
+    s = { ...s, phase: 'combat', lastCombat: combatShell({ playerSpellsCast: 3 }) };
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.board.find((c) => c.uid === 'g')?.spellProgress).toBe(4); // 1 (shop) + 3 (combat)
+    expect(s.spellsCast).toBe(11); // the run-wide counter still advances (8 + 3)
   });
 
   it('Hoard Cleric (cleric) Battlecry gives your Dragons +2/+3', () => {

@@ -155,6 +155,9 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyGrantRandomSpell',
   'onKillGrantRandomSpell',
   'onKillBuffFodder',
+  // 2026-07-05 content batch
+  'avengeSummonAttack',
+  'spellAttackFirst',
 ]);
 
 export const EffectDefSchema = z.object({

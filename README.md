@@ -25,6 +25,14 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Big content batch** — 8 renames (Eternal Knight → **Spear Warden**, Mama Bear → **Forest Guardian**,
+  Alleycat → **Pennycat**, Manasaber → **Void Panther** + Void Cub, Frontdrake → **Bard**, Beatboxer →
+  **Beatbot**, Forsaken Weaver → **Forsaken Mage**, Koron → **Korok**); **Harry Botter removed**; four new
+  minions — **Mysterious Joker** (T6: Discover a Tier-5 minion), **Haven Drake** (T4: get a random Dragon),
+  **Aeon Guard** (T5: End of Turn spell-power ramp), **Steadfast Champion** (T6: Avenge 3 — summon a Spear
+  Warden that **attacks immediately**); two new spells — **Pre-emptive Assault** (you attack **first** next
+  fight) and **Safety Deposit Box** (+2 Gold next turn); and the 13th hero, **Lord of the Risen** (30+8 —
+  *Rise Again*: give a friendly minion Rise for the next combat). Fresh art for all of the above.
 - **New keyword, 3 units, and a glossary** — **Slaughter** ("when this kills an enemy minion") joins the
   keyword set, wired onto Gnasher. Three new spell-mill / Fodder units: **Professor Greg** (T4 Undead —
   Avenge 3: get a random spell), **Badgington** (T4 Beast — Rally *and* Slaughter: get a random spell), and

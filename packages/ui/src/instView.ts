@@ -41,7 +41,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             tallyBuffText(c.id, p.deathrattlesTriggered) ??
-            guelProgressText(c.id, p.golden, p.spellsCast) ??
+            guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
             cadenceProgressText(c.id, p.eotTick ?? 0) ??

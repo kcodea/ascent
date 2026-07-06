@@ -263,7 +263,7 @@ export interface MagnetPayload {
   rallyMechAtk?: number;
   /** Heckbinder: Fodder aura this magnetic carries onto its host (already golden-baked). */
   fodderAura?: { attack: number; health: number };
-  /** Harry Botter: spell-power aura this magnetic carries onto its host (already golden-baked). */
+  /** Spell-power aura this magnetic carries onto its host (already golden-baked; no card in the current set). */
   spellAura?: number;
 }
 
@@ -468,13 +468,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
   },
 
-  /** Buddy Buddy: Battlecry — add `count` random minions of `tier` to your hand (golden doubles
-   *  the count). Drawn from the run's buyable pool (active tribes + neutral). Honors the hand cap. */
+  /** Buddy Buddy / Haven Drake: Battlecry — add `count` random minions to your hand (golden doubles
+   *  the count). Drawn from the run's buyable pool (active tribes + neutral). A `tier` param pins the
+   *  pick to exactly that tier (Buddy Buddy → 1); absent, any tier up to the CURRENT tavern tier
+   *  qualifies (Haven Drake — "abides by the shop tier"). A `tribe` param filters to that tribe,
+   *  dual-types included (Haven Drake → 'dragon'). Honors the hand cap. */
   battlecryGainRandomMinion: (ctx, self, params) => {
-    const tier = num(params.tier, 1);
+    const tier = num(params.tier, 0); // 0 = any tier ≤ the current tavern tier
+    const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
     const reps = num(params.count, 1) * gold(self);
     const pool = BUYABLE_CARDS.filter(
-      (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+      (c) =>
+        (tier > 0 ? c.tier === tier : c.tier <= ctx.state.tier) &&
+        (tribe
+          ? c.tribe === tribe || c.tribe2 === tribe
+          : c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
     );
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
@@ -506,13 +514,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (self.golden) queueDiscover(ctx.state, { kind: 'spell' });
   },
 
-  /** Sea Urchin — Battlecry: Discover a minion of `tribe` (up to your tavern tier). Golden Discovers
-   *  twice. Routes through queueDiscover so it composes with Drakko (each extra Battlecry fire stacks an
-   *  offer onto the queue). */
+  /** Sea Urchin / Mysterious Joker — Battlecry: Discover a minion of `tribe` (up to your tavern tier).
+   *  A `tier` param pins the Discover to EXACTLY that tier instead (Mysterious Joker → 5). Golden
+   *  Discovers twice. Routes through queueDiscover so it composes with Drakko (each extra Battlecry
+   *  fire stacks an offer onto the queue). */
   battlecryDiscoverMinion: (ctx, self, params) => {
     const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    const fixed = num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
     // Exclude the source itself — Sea Urchin shouldn't be able to Discover another Sea Urchin.
-    const spec: DiscoverSpec = { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId };
+    const spec: DiscoverSpec = fixed > 0
+      ? { kind: 'minion', tier: fixed, exactTier: fixed, tribe, exclude: self.cardId }
+      : { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId };
     queueDiscover(ctx.state, spec);
     if (self.golden) queueDiscover(ctx.state, spec);
   },
@@ -646,9 +658,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellCastBuffOthers: (ctx, self, params) => {
     const others = ctx.state.board.filter((c) => c !== self);
     const picks = pickRandom(ctx.state, others, num(params.count, 2));
-    // Scales with the run: the granted +atk/+hp grows by +1/+1 (golden +2/+2) per 4 spells cast this run.
-    // `spellsCast` already counts the spell that just triggered this, so the 4th cast gives the first step.
-    const step = Math.floor(ctx.state.spellsCast / 4);
+    // Scales PER-INSTANCE (owner ruling 2026-07-05: Guel doesn't improve unless he's on board): the grant
+    // grows +1/+1 (golden +2/+2) per 4 spells cast while THIS Guel is on the board — tracked on the
+    // instance's `spellProgress` (the Spirit Pup counter), so a fresh copy starts at base. This cast counts
+    // (tick first), so the 4th on-board cast gives the first step. Combat casts tick it at settle.
+    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    const step = Math.floor(self.spellProgress / 4);
     const a = (num(params.attack, 1) + step) * gold(self);
     const h = (num(params.health, 1) + step) * gold(self);
     for (const m of picks) addBuff(m, nameOf(self), a, h);
@@ -726,7 +741,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const m = ctx.state.board.find((c) => c.uid === uid);
       if (!m) continue;
       weldMagnetic(ctx.state, m, {
-        // Attribute the buff to the welded magnetic (e.g. "Harry Botter ×2" in the inspect breakdown), not
+        // Attribute the buff to the welded magnetic (e.g. "Better Bot ×2" in the inspect breakdown), not
         // to Combinator — so the player sees what's actually attached, matching a manual magnetize.
         source: pick.name,
         attack: pick.attack + pickBuff.attack,
@@ -750,9 +765,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Ritualist now feeds Imps too
   },
 
-  /** Hoarder — Battlecry: bank extra Gold for next turn (consumed when next turn's Gold is set). Golden 2×. */
+  /** Hoarder — Battlecry: bank extra Gold for next turn (consumed when next turn's Gold is set). Golden 2×.
+   *  Also Safety Deposit Box's cast (spells are never golden, so the multiplier is inert there). */
   battlecryBonusGoldNextTurn: (ctx, self, params) => {
     ctx.state.bonusEmbersNextTurn = (ctx.state.bonusEmbersNextTurn ?? 0) + num(params.gold, 1) * gold(self);
+  },
+
+  /** Pre-emptive Assault (cast): your board attacks FIRST in the next combat, overriding the
+   *  more-minions-goes-first rule (ties included). One fight only — cleared when the combat settles. */
+  spellAttackFirst: (ctx) => {
+    ctx.state.attackFirstNext = true;
   },
 
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*
@@ -1439,9 +1461,9 @@ export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
 export function spellStatBonus(state: RunState): number {
   let bonus = 0;
   if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.wave);
-  // Harry Botter (Mech) — a passive aura: your spells get +1/+1 (golden +2/+2) per Harry Botter on the
-  // board, PLUS any aura welded onto a host Mech (`spellAuraBonus`, set by `applyWeld`). Generic over
-  // `def.spellAura` so future aura cards fold in automatically.
+  // Spell-power auras: +1/+1 per `def.spellAura` point on a board card (golden ×2 — no card in the current
+  // set carries it), PLUS any aura welded onto a host Mech (`spellAuraBonus`, set by `applyWeld`). Generic
+  // over `def.spellAura` so future aura cards fold in automatically.
   for (const c of state.board) {
     bonus += (CARD_INDEX[c.cardId]?.spellAura ?? 0) * (c.golden ? 2 : 1) + (c.spellAuraBonus ?? 0);
   }

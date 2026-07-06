@@ -38,14 +38,14 @@ export const UNDEAD: CardDef[] = [
   },
   {
     id: 'knit',
-    name: 'Eternal Knight',
+    name: 'Spear Warden',
     tribe: 'undead',
     tier: 2,
     attack: 3,
     health: 2,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffCardTypeRunWide', params: { cardId: 'knit', attack: 3, health: 2 } }],
-    text: 'When an **Eternal Knight** dies in combat, all Eternal Knights gain **+3/+2** permanently.',
+    text: 'When a **Spear Warden** dies in combat, all Spear Wardens gain **+3/+2** permanently.',
   },
   {
     // Spell-power Deathrattle: each death permanently raises the run-wide spell ATTACK bonus by 1.
@@ -197,7 +197,7 @@ export const UNDEAD: CardDef[] = [
     // When you cast a spell, give your Undead +3 Attack wherever they are (board + hand) and stack the
     // bonus into undeadBuyAtk for future buys. Golden doubles the per-cast grant.
     id: 'forsakenweaver',
-    name: 'Forsaken Weaver',
+    name: 'Forsaken Mage',
     tribe: 'undead',
     tier: 6,
     attack: 5,
@@ -206,6 +206,22 @@ export const UNDEAD: CardDef[] = [
     effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 3 } }],
     text: 'When you cast a spell, give your Undead **+3 Attack** wherever they are.',
     goldenText: 'When you cast a spell, give your Undead **+6 Attack** wherever they are.',
+  },
+  {
+    // Avenge engine: every 3rd friendly death summons a Spear Warden that attacks IMMEDIATELY (out of
+    // turn order — the Whelp attack-on-summon queue). Golden summons a GOLDEN Spear Warden instead of
+    // two. The summons carry the card's real Echo, so each one that dies keeps feeding the run-wide
+    // Spear Warden enchant ("the aura") as usual.
+    id: 'steadfast',
+    name: 'Steadfast Champion',
+    tribe: 'undead',
+    tier: 6,
+    attack: 7,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeSummonAttack', params: { count: 3, cardId: 'knit' } }],
+    text: '**Avenge (3):** summon a **Spear Warden**. It attacks immediately.',
+    goldenText: '**Avenge (3):** summon a **Golden Spear Warden**. It attacks immediately.',
   },
   {
     // Dual-type Undead/Beast. Deathrattle: summon 3 Crypt Wolves (1/1 undead beasts). Golden

@@ -70,8 +70,8 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastBuffOthers', params: { attack: 1, health: 1, count: 3 } }],
-    text: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast.',
-    goldenText: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast.',
+    text: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast with this on board.',
+    goldenText: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast with this on board.',
   },
   {
     // Overflow payoff. When a summon can't fit your full board, TWO random friends get Engraved stats
@@ -162,6 +162,21 @@ export const NEUTRAL: CardDef[] = [
     effects: [{ on: 'startOfCombat', do: 'scEngraveNeighbor' }],
     text: '**Start of Combat:** adjacent units are **Engraved** — they keep the stats they gain in combat.',
     goldenText: '**Start of Combat:** adjacent units are **Engraved** and gain **2× stats** in combat.',
+  },
+  {
+    // Late-game Discover: peek 3 minions of EXACTLY tier 5 (a fixed-tier Discover — not tavern-bound,
+    // so it works even at tier 4). It's tier 6 itself, so it can never find another Joker. Golden
+    // Discovers twice. A weak 4/4 body pricing in the card advantage.
+    id: 'joker',
+    name: 'Mysterious Joker',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion', params: { tier: 5 } }],
+    text: '**Battlecry:** Discover a **Tier 5** minion.',
+    goldenText: '**Battlecry:** Discover **2 Tier 5** minions.',
   },
   {
     id: 'venom',

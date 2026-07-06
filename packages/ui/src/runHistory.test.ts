@@ -115,6 +115,6 @@ describe('careerStats (A7)', () => {
       entry('rohan', 9, true, { board: board('alley', 'pack') }),
       entry('rohan', 9, true, { board: board('alley', 'kennel') }),
     ]);
-    expect(s.favoriteMinion).toBe('Alleycat'); // 'alley' 2× vs 1× for the others
+    expect(s.favoriteMinion).toBe('Pennycat'); // 'alley' 2× vs 1× for the others
   });
 });

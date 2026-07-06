@@ -17,17 +17,17 @@ describe('gatherRunBuffs', () => {
       cardBuffs: { fred: { attack: 2, health: 2 }, knit: { attack: 6, health: 4 } },
       board: [
         { uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false, summonBonus: 2 },
-        { uid: 'gl', cardId: 'guel', tribe: 'neutral', attack: 4, health: 4, keywords: [], golden: false },
+        { uid: 'gl', cardId: 'guel', tribe: 'neutral', attack: 4, health: 4, keywords: [], golden: false, spellProgress: 8 },
       ],
     };
     const byKey = Object.fromEntries(gatherRunBuffs(run).map((r) => [r.key, r.value]));
     expect(byKey.spell).toBe('+0/+2'); // hero amplify 0 + spellBonus health 2
     expect(byKey.undead).toBe('+3/+0'); // undeadBuyAtk 3
     expect(byKey.fodder).toBe('+2/+2');
-    expect(byKey.knit).toBe('+6/+4'); // Eternal Knight run-wide enchant
+    expect(byKey.knit).toBe('+6/+4'); // Spear Warden run-wide enchant
     expect(byKey.imp).toBe('+2/+3');
     expect(byKey.mamabear).toBe('+4/+4'); // base 2 + accrued 2
-    expect(byKey.guel).toBe('+3/+3'); // base 1 + floor(8/4) = 2
+    expect(byKey.guel).toBe('+3/+3'); // base 1 + floor(spellProgress 8 / 4) = 2 (per-instance, not run-wide)
   });
 
   it('surfaces tavern buys, cling drones, and the actual max-gold gained (soulsmanGold)', () => {

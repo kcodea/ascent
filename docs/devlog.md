@@ -5,6 +5,100 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-05 (session 19)
 
+### fix(content): Guel improves per-instance (only while on board) + Pre-emptive Assault → T4
+
+Two owner follow-ups on the content batch PR.
+
+- **Archmagus Guel scales per-instance now.** His grant grew with the run-wide `spellsCast`, so a fresh
+  tavern/hand copy showed (and would have granted at) the improved value — the owner ruled he "shouldn't
+  improve unless he is on board". Since card text must state the CURRENT value (the hard rule), the fix is
+  mechanic + text together: `spellCastBuffOthers` now ticks and reads the instance's **`spellProgress`**
+  (the Spirit Pup spells-while-on-board counter) — a fresh copy starts at base; combat casts (Taragosa)
+  still count for a Guel who was on board for the fight (`settleCombat` ticks his tally alongside the
+  run-wide counter). The whole display chain follows the instance: `guelProgressText` takes `spellProgress`;
+  `instView`/shop/Discover feed the instance's value (absent off-board → base text); the run-buffs window
+  reads the board Guel's tally; and combat text got the full seeding plumb — `spellProgress` added to
+  `BoardMinion`/`Minion`/`MinionSnapshot`/`UnitFrame` (the `hpGrantBonus` precedent) so the in-fight card
+  matches. Card text now says "…per 4 spells cast **with this on board**." Tests: the scaling test drives
+  the instance counter; a new test proves 7 pre-board casts don't count AND the settle tick (+3 combat
+  casts → progress 4); BuffsFrame's Guel row fixture keys off `spellProgress`. Behavior note: two Guels now
+  track separately (a triple keeps the max, via the existing Spirit-Pup golden-merge rule).
+- **Pre-emptive Assault → Tier 4** (owner dial; was my T3 starting guess — cost stays 3).
+- Also caught two stale user-facing labels from the rename sweep: the run-buffs window's "Eternal Knight
+  Aura" → "Spear Warden Aura" and "Mama Bear · per summon" → "Forest Guardian · per summon".
+- **Forsaken Mage art rewired** — the fresh `ForsakenMage.png` master → `forsakenweaver.webp` (512px,
+  replacing the June-26 Forsaken Weaver art; filename = cardId so `artFor` picks it up unchanged).
+  Pixel-hash verified live: the rendered card matches the new file.
+
+Verified live (Compendium): Guel's printed text shows base +1/+1 with the on-board clause; Pre-emptive
+Assault reads Tier 4. Pool regenerated. `typecheck` + `lint` + `test` (**492**) + `build:web` green.
+
+### feat(content): big content batch — 8 renames, Harry Botter removed, 4 minions + 2 spells + a new hero
+
+The owner's largest single content drop yet, in one PR: a rename sweep, a card removal, four new minions
+(one with a new combat primitive), two new spells (one with a new initiative mechanic), and the 13th hero.
+Touches `core` (initiative + attack-on-summon override + 2 factory ids), `content` (defs), `sim` (recruit
+factories, hero, state flags, settle), `ui` (art), plus the regenerated opponent pool.
+
+- **Renames** (ids stay, so saves/pool/art wiring survive): Eternal Knight → **Spear Warden** (its
+  self-referencing text updated too), Mama Bear → **Forest Guardian**, Alleycat → **Pennycat**, Manasaber →
+  **Void Panther** (its Saber Cub token → **Void Cub**), Frontdrake → **Bard**, Beatboxer → **Beatbot**,
+  Forsaken Weaver → **Forsaken Mage**, and Koron → **Korok, the Hungerer** (settling the Korok/Koron
+  spelling — owner confirmed Korok, matching the art master). Three test fixtures keyed to old display
+  names were updated (favoriteMinion 'Pennycat'; two Spear-Warden reborn tests whose buff `source` string
+  is matched against the card's live name).
+- **Harry Botter removed.** The card def + its art are gone; the generic `spellAura` weld machinery STAYS
+  (state field + weld transfer + `spellStatBonus` read) since it's field-driven and a future aura card folds
+  in automatically — comments de-named, and the aura test now exercises the surviving `spellAuraBonus`
+  channel directly. The opponent pool contained him → regenerated (`npm run pool`, 160 boards; the new
+  minions naturally entered: Haven Drake ×14, Aeon Guard ×9, Steadfast ×5). *Caveat:* an old save carrying
+  a Harry Botter loses him on load (no card alias mechanism today — acceptable dev-time break).
+- **Mysterious Joker** — Neutral T6 4/4. "**Battlecry:** Discover a **Tier 5** minion." (golden: twice).
+  `battlecryDiscoverMinion` gained a `tier` param that pins the Discover to EXACTLY that tier via the
+  existing `DiscoverSpec.exactTier` seam (default stays tavern-bound — Sea Urchin unchanged). Being T6 it
+  can never find itself.
+- **Haven Drake** — Dragon T4 3/5. "**Battlecry:** get a random **Dragon**." (golden: 2).
+  `battlecryGainRandomMinion` gained a `tribe` filter (dual-types count) and a no-`tier` default of
+  "any tier ≤ the current tavern tier" (Buddy Buddy still pins tier 1 explicitly). Conjures obey the pool
+  (`takeFromPool`) like every conjure.
+- **Aeon Guard** — Mech T5 6/5. "**End of Turn:** give your spells **+1/+1**." Zero new code — the existing
+  payload-independent `battlecryBuffSpellPower` factory wired to `endOfTurn` (the Maw-of-the-Pit pattern),
+  feeding the run-wide `spellBonus` channel that every spell display already surfaces live.
+- **Steadfast Champion** — Undead T6 7/7. "**Avenge (3):** summon a **Spear Warden**. It attacks
+  immediately." (golden: a GOLDEN Warden, not two). New combat factory `avengeSummonAttack` + a tiny engine
+  seam: `ctx.summon(...)` takes an `attackNow` flag that feeds the summoned body into the EXISTING
+  Twilight-Whelp attack-on-summon queue (`pendingAttackOnSummon`) — it strikes out of turn order once the
+  current attack's death cascade settles. The summon registers the card's real effects, so a summoned
+  Warden's Echo keeps feeding the run-wide Spear-Warden enchant ("maintains the aura"). 3 new simulate
+  tests: immediacy (the next attack event after the summon IS the Warden's), golden form (one 6/4 gilded
+  Warden, count not doubled), and the initiative override below.
+- **Pre-emptive Assault** — 3-cost T3 spell: "You attack **first** next fight." New `attackFirstNext`
+  RunState flag (set by the new recruit factory `spellAttackFirst`, serialized with the save) → threaded
+  into `simulate()` as a new trailing `playerAttacksFirst` param that overrides the more-minions/tie-roll
+  initiative rule (no tie roll consumed on override) → both the real combat call AND the 1000-sim odds
+  loop pass it (so the projected odds price the initiative in) → cleared in `settleCombat` (one fight).
+  Run-level test: cast → flag armed; settle → cleared.
+- **Safety Deposit Box** — 1-cost T1 spell: "Gain **2 Gold** next turn." Zero new code — reuses Hoarder's
+  `battlecryBonusGoldNextTurn` (the `bonusEmbersNextTurn` bank Robin's Spoils also feeds) on `cast`.
+- **Lord of the Risen** — the 13th hero: 30 HP / **8 Armor** (the low-armor tier, like Warden/Robin).
+  Power **"Rise Again"** (free, once per turn, targeted — owner's call): "Give a friendly minion **Rise**
+  for the next combat." New `grantReborn` power kind: pushes 'R' + flags `tempReborn`; `settleCombat`
+  strips it after the fight (the Maw temp-Ward lifecycle, exactly). No-op (charge kept) on a minion that
+  already has Rise. Run-level test covers grant → invalid-target no-op → post-combat strip. Portrait art
+  wired (`heroes/risen.webp`); the power button uses the placeholder glyph until a power icon master lands.
+- **Art batch** (512px WebP, filename = cardId): new masters for Spear Warden (`knit`), Forest Guardian
+  (`mamabear`), Korok (`acid` — the newer 20:38 export, replacing this morning's), the four new minions
+  (`joker`/`steadfast`/`havendrake`/`aeonguard` — the last from a JPEG master), both spells
+  (`preemptive`/`depositbox` — spell art lives in `art/minions` by card id like every card), and the hero
+  portrait. `harrybotter.webp` deleted.
+
+Verified: `typecheck` + `lint` + `test` (**491**, incl. 5 new: 3 simulate + 2 run-level) + `build:web` all
+green; pool regenerated clean (0 `botter` refs). Live (fresh server → title): Compendium lists **125** cards
+(120 − Botter + 4 minions + 2 spells) with every rename present, every old name gone, and all 9 new/rewired
+arts rendering as real 512px images; the full hero list shows **13** heroes with Lord of the Risen's
+portrait + "30+8 · Rise Again"; a Practice run as him confirms the hero frame, power button, and warband
+play. (The power's grant/strip behavior is proven by the new reducer tests — the in-browser synthetic
+pointer gestures kept losing to the recruit timer, a test-harness quirk, not a game defect.)
 ### feat(ui): distinct, meaningful keyword icons
 
 Several keyword pills shared a glyph (Slaughter + Echo both used `skull`; Immune borrowed Ward's `shield`).

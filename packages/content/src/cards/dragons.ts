@@ -82,7 +82,7 @@ export const DRAGONS: CardDef[] = [
     // Recruit cadence faucet: every 3rd End of Turn it survives, conjure a random Dragon (tavern-tier
     // bound). Rewards keeping a fragile 2/1 alive across shops. Golden → 2 Dragons.
     id: 'frontdrake',
-    name: 'Frontdrake',
+    name: 'Bard',
     tribe: 'dragon',
     tier: 1,
     attack: 2,
@@ -91,6 +91,20 @@ export const DRAGONS: CardDef[] = [
     effects: [{ on: 'endOfTurn', do: 'endOfTurnGrantTribe', params: { tribe: 'dragon', every: 3, count: 1 } }],
     text: '**Every 3 turns,** get a random Dragon.',
     goldenText: '**Every 3 turns,** get **2** random Dragons.',
+  },
+  {
+    // Battlecry tempo: conjure a random Dragon from the run's buyable pool, tavern-tier bound (the
+    // same "shop tier laws" as every conjure). Golden conjures 2.
+    id: 'havendrake',
+    name: 'Haven Drake',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 3,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tribe: 'dragon' } }],
+    text: '**Battlecry:** get a random **Dragon**.',
+    goldenText: '**Battlecry:** get **2** random **Dragons**.',
   },
   {
     // Tribe Rally — when it attacks in combat, pump up to 2 other friendly Dragons. The combat half of the

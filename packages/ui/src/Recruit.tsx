@@ -437,6 +437,7 @@ export function Recruit() {
   const shieldUidsRef = useRef<Set<string>>(new Set());
   const pendingBreakRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) the shield should shatter
   const pendingClearRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) to fade a vanished bubble
+  const deathBurstRef = useRef<Set<string>>(new Set()); // aura keys already exploded on their carrier's death
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
   const fightingRef = useRef(fighting); fightingRef.current = fighting;
   const combatSpeedRef = useRef(combatSpeed); combatSpeedRef.current = combatSpeed;
@@ -457,6 +458,7 @@ export function Recruit() {
   const syncShields = useCallback((): void => {
     const seen = new Set<string>(); // composite keys `${kind} ${uid}` (a unit can carry both auras)
     const now = performance.now();
+    if (!inCombatRef.current && deathBurstRef.current.size) deathBurstRef.current.clear(); // fresh per combat
     // Mid-animation (combat / a live drag / post-drop settle)? Only THEN is a vanished aura possibly
     // mid-remount and worth a grace; otherwise it's gone for good and must clear NOW (no rAF will expire a timer).
     const animating = (): boolean =>
@@ -492,10 +494,30 @@ export function Recruit() {
         // measure the square ART region (`.archbox`), not the height:auto `.card` — see measureCardRect
         const r = (card.querySelector<HTMLElement>('.archbox') ?? card).getBoundingClientRect();
         if (r.width === 0) continue; // not laid out yet (mid-transition)
-        seen.add(ckey(cfg.kind, uid));
+        const key = ckey(cfg.kind, uid);
+        // DEATH BURST — a unit dying while still CARRYING its taunt/shield aura explodes it in place (owner:
+        // aura deaths should pop like the ward break, not fade out). Reborn is excluded here: its shatter
+        // already fires on the rise trigger in PASS 2 (die → burst → re-form). Once per aura per life —
+        // a living carrier re-registering (a risen body re-gaining Taunt) re-arms the burst below.
+        const dying = inCombatRef.current && !!card.closest('.unit')?.classList.contains('dying');
+        if (dying && cfg.kind !== 'reborn') {
+          if (!deathBurstRef.current.has(key) && !pendingBreakRef.current.has(key)) {
+            deathBurstRef.current.add(key);
+            if (cfg.kind === 'taunt') {
+              auraFx('taunt').clearShield(uid, 'taunt'); // drop the back-canvas bulwark…
+              pixiFx.tauntBurst(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height); // …burst in FRONT
+            } else {
+              pixiFx.breakShield(uid, 'shield'); // gold shatter at the bubble's tracked spot
+            }
+            sfx.shieldBreak();
+          }
+          continue; // the aura is spent — don't re-register it on the collapsing card
+        }
+        deathBurstRef.current.delete(key); // living carrier → (re-)arm its death burst
+        seen.add(key);
         // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that
         // disperses outward, fired on the FRONT layer (viewport coords) so it reads around the card.
-        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(ckey('taunt', uid))) {
+        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key)) {
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
         set(uid, r.left + r.width / 2, r.top + r.height / 2 + auraDy(r.height, cfg.kind), r.width, r.height, false, cfg.kind);

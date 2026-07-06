@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { getHero } from '@game/sim';
 import { avatarSrc } from './art';
 import { Icon } from './Icon';
 import { getVolume, isMuted, sfx } from './sfx';
@@ -127,7 +126,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} title="Resume your run in progress">
                 <span className="mbicon"><Crest /></span>
                 <span className="mblabel">Continue</span>
-                <span className="mbnote">{getHero(savedRun.heroId).name} · Round {savedRun.wave}</span>
+                <span className="mbnote">Round {savedRun.wave}</span>
               </button>
               <button
                 className={`clearrun${confirmClear ? ' armed' : ''}`}

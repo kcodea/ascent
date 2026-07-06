@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
+### tweak(ui): Continue button shows just "Round N" (hero name was clipping)
+
+Owner report: the title's Continue note ("{hero} · Round N") was getting cut off — with the Clear-run button now
+beside it (`.continuerow`), a long hero name (e.g. "Lord of the Risen · Round 9") overran the button's right edge
+and clipped. Dropped the hero name so the note reads just **"Round N"** — always short enough to fit next to the
+Clear button. Removed the now-unused `getHero` import. Verified live in-preview. `typecheck + lint` green.
+
 ### feat(ui): Layout Lab — a dev tuner to live-scale + position the board (cards, chrome, regions)
 
 Owner ask: a scale + positioning tuner in the dev panel to customize the sizes and positions of everything —

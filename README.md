@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Clear Run button** — the title screen now has a **Clear** button beside Continue to discard a saved run
+  (two-step confirm) without having to start a new one over it.
 - **End-game scoring + Hall of Champions W/L spread** — winning the closing rounds now pays escalating rating
   (round **15 → +8**, **16 → +12**, **17 → +16**, stacked on the summit + line bonuses), surfaced as an
   **"End-game Push"** chip on the end screen. And the **Hall of Champions** now renders each champion's full

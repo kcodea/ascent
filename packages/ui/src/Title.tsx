@@ -33,6 +33,10 @@ const IconHelm = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a8 8 0 0 0-8 8v5a3 3 0 0 0 3 3h1v3h8v-3h1a3 3 0 0 0 3-3v-5a8 8 0 0 0-8-8zm-3 8h1.5v4H9a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1zm6 0a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-1.5v-4H15z" /></svg>
 );
 
+const IconTrash = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zM6 9h12l-1 11a2 2 0 0 1-2 1.9H9a2 2 0 0 1-2-1.9L6 9zm3.5 2v8H11v-8H9.5zm3.5 0v8h1.5v-8H13z" /></svg>
+);
+
 export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
   const startAscent = useGame((s) => s.startAscent);
@@ -46,9 +50,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const savedRun = useGame((s) => s.savedRun);
   const continueRun = useGame((s) => s.continueRun);
+  const clearRun = useGame((s) => s.clearRun);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [confirmClear, setConfirmClear] = useState(false); // two-step guard on the destructive Clear Run
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false); // fade the video in once it's actually playing
 
@@ -117,11 +123,25 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
         <nav className="titlenav">
           {savedRun && (
-            <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} title="Resume your run in progress">
-              <span className="mbicon"><Crest /></span>
-              <span className="mblabel">Continue</span>
-              <span className="mbnote">{getHero(savedRun.heroId).name} · Round {savedRun.wave}</span>
-            </button>
+            <div className="continuerow">
+              <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} title="Resume your run in progress">
+                <span className="mbicon"><Crest /></span>
+                <span className="mblabel">Continue</span>
+                <span className="mbnote">{getHero(savedRun.heroId).name} · Round {savedRun.wave}</span>
+              </button>
+              <button
+                className={`clearrun${confirmClear ? ' armed' : ''}`}
+                onClick={() => {
+                  sfx.pulse();
+                  if (confirmClear) { clearRun(); setConfirmClear(false); } else setConfirmClear(true);
+                }}
+                onBlur={() => setConfirmClear(false)}
+                title={confirmClear ? 'Click again to discard your saved run' : 'Discard your saved run'}
+                aria-label="Discard your saved run"
+              >
+                {confirmClear ? 'Clear?' : <IconTrash />}
+              </button>
+            </div>
           )}
           <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); startAscent(); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
             <span className="mbicon"><Crest /></span>

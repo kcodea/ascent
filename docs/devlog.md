@@ -5,7 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
-### feat(ui): Hall of Champions shows each champion's per-round W/L spread
+### feat(ui): Clear Run button on the title — discard a saved run without starting a new one
+
+Owner ask: a "Clear Run" button next to Continue. Previously the only way to drop a saved run was to Play a new
+one (which overwrites it) — no way to just clear it back to a clean slate.
+- **store.ts:** new `clearRun()` action — wipes the `ascent.save` autosave (`clearSave()`) + `savedRun`, and
+  resets the dormant `run` to a fresh throwaway so state mirrors a boot with no save. Stays on the title.
+- **Title.tsx:** the Continue button is wrapped in a `.continuerow`; beside it, a small **Clear** button. It's a
+  **two-step guard** (destructive + irreversible): the resting trash icon arms to a red "Clear?" on first click,
+  and only a second click discards; `onBlur` (clicking away) cancels. New inline `IconTrash`.
+- **styles.css:** `.continuerow` (Continue flexes, Clear is a fixed 66px square matching the row height) +
+  `.clearrun` (gold-outlined trash → raspberry `--threat` on hover/armed).
+- **Verified** live in-preview against a real saved run (Warden · Round 1), fully reversibly (backed up + restored
+  the autosave): layout reads right; first click arms ("Clear?" red) without clearing; second click drops the run
+  (savedRun → null, Continue row gone, Play becomes the active entry, save removed); blur disarms. `typecheck +
+  lint + test (514) + build:web` green.
 
 Owner ask: render the 17-round W/L spread on the leaderboard, like the end screen's round pips. The data wasn't
 persisted — the `runs` table stored only the win COUNT (`wins`), so the per-round order was gone and couldn't be

@@ -1767,6 +1767,19 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .menubtn.disabled { opacity: 0.62; }
 .menubtn.disabled:hover { transform: none; filter: none; border-color: rgba(196, 160, 92, 0.6); cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; }
 
+/* Continue + its Clear-run affordance share a row: Continue flexes to fill, the clear button is a small square
+   that sits beside it. Clear is a two-step guard — the resting trash icon arms to a red "Clear?" on first click. */
+.continuerow { display: flex; align-items: stretch; gap: 10px; }
+.continuerow .menubtn { flex: 1; min-width: 0; }
+.clearrun { flex: none; width: 66px; display: grid; place-items: center; border-radius: 9px; padding: 0 10px;
+  border: 2px solid rgba(196, 160, 92, 0.55); background: rgba(18, 12, 22, 0.5); color: #d9b86a;
+  font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.08s ease, filter 0.08s ease, color 0.1s ease, border-color 0.1s ease, background 0.1s ease; }
+.clearrun svg { width: 23px; height: 23px; }
+.clearrun:hover { transform: translateY(-1px); color: var(--threat); border-color: var(--threat); filter: brightness(1.05); }
+.clearrun.armed { background: var(--threat); border-color: var(--threat); color: #fff; }
+.clearrun.armed:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
 /* Preserved secondary modes — small links under the main menu. */
 .titlesecondary { display: flex; align-items: center; gap: 10px; padding-left: 4px; }
 .titlesecondary button { font-family: var(--font-ui); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;

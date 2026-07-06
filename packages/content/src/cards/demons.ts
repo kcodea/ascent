@@ -123,7 +123,7 @@ export const DEMONS: CardDef[] = [
     // permanently buffs your Fodder run-wide (like Bane) AND queues a Fodder into the next tavern.
     // Golden doubles both the grant and the Fodder count. (No longer affects Imps.)
     id: 'acid',
-    name: 'Koron, the Hungerer',
+    name: 'Korok, the Hungerer',
     tribe: 'demon',
     tier: 6,
     attack: 8,

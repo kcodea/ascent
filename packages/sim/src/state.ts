@@ -105,6 +105,9 @@ export interface BoardCard {
    *  display + the snapshot; this flag marks it temporary so `resolveCombat` strips it after the next
    *  fight (gain it again by consuming again). */
   tempShield?: boolean;
+  /** Lord of the Risen's power: a one-combat Rise. The 'R' keyword is added for display + the snapshot;
+   *  this flag marks it temporary so `settleCombat` strips it after the next fight. */
+  tempReborn?: boolean;
   /** The Reclaimer's mark: at the start of the next combat this minion is destroyed (its Deathrattle
    *  fires) and an exact copy is resummoned if there's room. Cleared each turn (re-choose). */
   resummon?: boolean;
@@ -167,9 +170,12 @@ export interface RunState {
   /** Run-wide Imp buff (Fodder Feeder / Ritualist / Bane stack it). Applied to every friendly Imp in combat
    *  (imps are combat-summoned tokens — Brood Matron / Imp King), so the bonus follows them. Absent = 0/0. */
   impBuff?: { attack: number; health: number };
-  /** Extra Gold granted at the start of next turn (Hoarder's Battlecry). Consumed when the next recruit
-   *  turn's Gold is set, then cleared. Absent = 0. */
+  /** Extra Gold granted at the start of next turn (Hoarder's Battlecry / Safety Deposit Box / Robin's
+   *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
+  /** Pre-emptive Assault: the player's board attacks first in the NEXT combat, overriding the
+   *  more-minions initiative rule (ties included). One-shot — cleared in `settleCombat`. */
+  attackFirstNext?: boolean;
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't

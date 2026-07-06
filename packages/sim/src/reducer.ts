@@ -311,7 +311,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             mana,
             // Better Bot: weld its Rally (+5 Attack to other Mechs on attack, golden ×2) onto the host — stacks.
             rallyMechAtk: (mDef?.rallyMechAtk ?? 0) * (card.golden ? 2 : 1) || undefined,
-            // Harry Botter: weld its spell-power aura (+1/+1 to spells, golden ×2) onto the host — stacks.
+            // Spell-power aura (def.spellAura — no card carries it in the current set): welds onto the host — stacks.
             spellAura: (mDef?.spellAura ?? 0) * (card.golden ? 2 : 1) + (card.spellAuraBonus ?? 0) || undefined,
             // Heckbinder: weld its Fodder aura (+1/+2 to new Fodder, golden ×2) onto the host — stacks, and
             // carries any aura already welded onto the magnetic itself (a hosted Heckbinder re-welded).
@@ -519,6 +519,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         // missing target, a golden minion (can't trade away a triple — enforced in swapWithTavern), or an
         // empty tavern.
         if (!card || !swapWithTavern(s, card)) return state;
+      } else if (power.kind === 'grantReborn') {
+        // Lord of the Risen: give a friendly board minion Rise for the NEXT combat only. The 'R' keyword
+        // shows immediately (pill + snapshot); `tempReborn` marks it so settleCombat strips it after the
+        // fight. No-op (no charge spent) on a missing target or one that already has Rise.
+        if (!card || card.keywords.includes('R')) return state;
+        card.keywords.push('R');
+        card.tempReborn = true;
       } else if (power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold') {
         // Passive powers (Rohan's amplify, Drakko's quest, Cassen's Collision, Robin's Spoils) have no
         // activation — the work happens elsewhere (spell math / the buy / sell case / settleCombat). Nothing here.
@@ -637,13 +644,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {});
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {});
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false);
           if (r.result === 'win') win++;
           else if (r.result === 'draw') draw++;
           else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
@@ -980,9 +987,16 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.freeRolls += result.playerFreeRolls;
   }
   // Taragosa: spells cast IN combat permanently bump the run's spellsCast — so they count toward
-  // spell-count payoffs (Archmagus Guel's improvement) just like tavern spells.
+  // spell-count payoffs just like tavern spells. Guel's improvement is per-instance now (spells cast
+  // while HE is on board), so combat casts also tick the on-board Guels' `spellProgress` — he was on
+  // the board for the fight, so they count for him (parity with the old run-wide counter).
   if (result.playerSpellsCast) {
     s.spellsCast += result.playerSpellsCast;
+    for (const c of s.board) {
+      if (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'spellCastBuffOthers')) {
+        c.spellProgress = (c.spellProgress ?? 0) + result.playerSpellsCast;
+      }
+    }
   }
   // Permanent Undead attack AURA gained in combat (Karthus's on-kill, Deathswarmer re-fired by Ryme) —
   // stack into undeadBuyAtk AND apply to all current run-board Undead immediately so they benefit without
@@ -1012,13 +1026,19 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.resolve = Math.max(0, s.resolve - (result.playerDamage - absorbed));
   }
   // Maw of the Pit's one-combat Divine Shield is spent — strip the temp DS so it doesn't carry to the
-  // next fight (consuming again re-arms it).
+  // next fight (consuming again re-arms it). Same for Lord of the Risen's one-combat Rise (temp R).
   for (const c of s.board) {
     if (c.tempShield) {
       c.keywords = c.keywords.filter((k) => k !== 'DS');
       c.tempShield = false;
     }
+    if (c.tempReborn) {
+      c.keywords = c.keywords.filter((k) => k !== 'R');
+      c.tempReborn = false;
+    }
   }
+  // Pre-emptive Assault is spent — the initiative override covers exactly one fight.
+  s.attackFirstNext = false;
   s.combatSettled = true;
 }
 

@@ -86,7 +86,7 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   // Eternal Knight run-wide enchant (each Eternal Knight death buffs all Eternal Knights +3/+2). Stored on
   // the 'knit' card-type buff.
   const knit = run.cardBuffs?.knit;
-  if (knit && (knit.attack > 0 || knit.health > 0)) rows.push({ key: 'knit', label: 'Eternal Knight Aura', value: `+${knit.attack}/+${knit.health}` });
+  if (knit && (knit.attack > 0 || knit.health > 0)) rows.push({ key: 'knit', label: 'Spear Warden Aura', value: `+${knit.attack}/+${knit.health}` });
 
   // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.
   const tav = run.tavernBuyBonus;
@@ -106,13 +106,14 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
       (sum, mb) => sum + (effectParam('mamabear', 'summonBuffTribeImprove', 'attack', 3) + (mb.summonBonus ?? 0)) * (mb.golden ? 2 : 1),
       0,
     );
-    rows.push({ key: 'mamabear', label: 'Mama Bear · per summon', value: `+${total}/+${total}` });
+    rows.push({ key: 'mamabear', label: 'Forest Guardian · per summon', value: `+${total}/+${total}` });
   }
 
-  // Archmagus Guel — only while on board: current per-spell grant = (base + ⌊spellsCast/4⌋) × golden.
+  // Archmagus Guel — only while on board: current per-spell grant = (base + ⌊spellProgress/4⌋) × golden,
+  // where `spellProgress` is the spells cast while THIS Guel has been on the board (per-instance).
   const guel = run.board.find((c) => c.cardId === 'guel');
   if (guel) {
-    const g = (effectParam('guel', 'spellCastBuffOthers', 'attack', 1) + Math.floor((run.spellsCast ?? 0) / 4)) * (guel.golden ? 2 : 1);
+    const g = (effectParam('guel', 'spellCastBuffOthers', 'attack', 1) + Math.floor((guel.spellProgress ?? 0) / 4)) * (guel.golden ? 2 : 1);
     rows.push({ key: 'guel', label: 'Guel · per spell', value: `+${g}/+${g}` });
   }
 

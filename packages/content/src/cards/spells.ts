@@ -496,4 +496,33 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellRefreshToSpells' }],
     text: 'Refresh the tavern — fill it with **spells** instead of minions.',
   },
+  {
+    // Combat initiative: your board attacks first in the next fight, overriding the more-minions rule
+    // (ties included). One fight only — the flag clears when the combat settles. T4 (owner dial 2026-07-05).
+    id: 'preemptive',
+    name: 'Pre-emptive Assault',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellAttackFirst' }],
+    text: 'You attack **first** next fight.',
+  },
+  {
+    // Banked economy: +2 Gold at the start of next turn (the Hoarder channel — bonusEmbersNextTurn).
+    id: 'depositbox',
+    name: 'Safety Deposit Box',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    effects: [{ on: 'cast', do: 'battlecryBonusGoldNextTurn', params: { gold: 2 } }],
+    text: 'Gain **2 Gold** next turn.',
+  },
 ];

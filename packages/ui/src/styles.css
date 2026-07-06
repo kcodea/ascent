@@ -1399,6 +1399,18 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   28% { transform: scale(1.1) rotate(-2deg); filter: brightness(1.5) saturate(0.5); }
   100% { transform: scale(0.5) translateY(14px) rotate(4deg); opacity: 0; filter: grayscale(1) brightness(0.65); }
 }
+/* A RISE body dies SOFT (`dying rising`, set by the replay): a plain fade in place — no bounce/spin, and its
+   flex slot is HELD (no collapse) since the body re-forms right there on the reborn beat. Its blue spirit
+   burst (fired by the aura tracker at this same moment) carries the drama instead. */
+.unit.dying.rising { animation: none; }
+.unit.dying.rising .card { width: var(--cw); animation: dyingfade 0.42s ease forwards; }
+/* A Rise ATTACKER dying to retaliation: hold the fade while GSAP pulls the unit back to its slot
+   (~0.34s: 0.1s contact hold + 0.24s pull, see useCombatReplay), so it fades at HOME, not mid-lunge. */
+.unit.dying.rising.returning .card { animation: dyingfade 0.42s ease 0.3s both; }
+@keyframes dyingfade {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 /* The mirror image for a summon: the new unit grows its slot in, sliding its neighbours over to make
    room (the card itself pops in via scale so it never looks horizontally squashed). */
 .unit.summoned { animation: summonexpand 0.34s ease; }

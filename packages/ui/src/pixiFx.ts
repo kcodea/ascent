@@ -1061,37 +1061,106 @@ class FxController {
     }
   }
 
-  /** The REBORN aura SHATTERS — the wraith spirit releases: a soft blue bloom + drifting/RISING smoke wisps
-   *  + a few bright spirit motes streaking up. No hard shards (the wispy counterpart of the glassy shatter). */
+  /** The REBORN aura SHATTERS — the wraith spirit EXPLODES free (owner: aura deaths should pop like the
+   *  ward break, not sigh out): a bright blue crack-flash + an expanding shockwave ring, then the spirit
+   *  release — outward/RISING smoke wisps + bright motes streaking up. Still no hard shards (it's a spirit,
+   *  not glass), but the flash/ring/speed put it in the same punch class as the gold shatter. */
   private rebornShatter(cx: number, cy: number, w: number, h: number): void {
     const rad = Math.max(w, h) * 0.5 * AURA.reborn.margin;
-    // soft blue bloom that swells + fades
+    // CRACK — a hot white-blue flash at the moment the spirit tears free.
+    this.spawn(this.glowTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 170, fromScale: 0.5, toScale: (rad / 40) * 2.4,
+      spin: 0, tint: 0xeaf4ff, blend: 'add', peakAlpha: 0.95,
+    });
+    // SHOCKWAVE — a crisp spectral-blue ring expanding past the aura edge (the ward-break punctuation).
+    this.spawn(this.rimTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 420, fromScale: (rad / BUBBLE_TEX_R) * 0.7,
+      toScale: (rad / BUBBLE_TEX_R) * 2.2, spin: 0, tint: 0x7ab8ff, blend: 'add', peakAlpha: 0.9,
+    });
+    // soft blue bloom that swells + fades under the flash
     this.spawn(this.bubbleTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 300, fromScale: (rad / BUBBLE_TEX_R) * 0.8,
-      toScale: (rad / BUBBLE_TEX_R) * 1.8, spin: 0, tint: 0x9ccbff, blend: 'add', peakAlpha: 0.7,
+      toScale: (rad / BUBBLE_TEX_R) * 2.0, spin: 0, tint: 0x9ccbff, blend: 'add', peakAlpha: 0.8,
     });
-    // smoke wisps — soft blobs that drift outward but bias UPWARD (spirits rising) and EXPAND as they fade
-    const wisps = 14;
+    // smoke wisps — soft blobs BLASTED outward (faster than the old sigh) that bias UPWARD (spirits rising)
+    const wisps = 18;
     for (let i = 0; i < wisps; i++) {
       const a = (i / wisps) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
-      const speed = 55 + Math.random() * 150;
+      const speed = 110 + Math.random() * 220;
       this.spawn(this.glowTex!, {
         x: cx + (Math.random() - 0.5) * rad, y: cy + (Math.random() - 0.5) * rad,
-        vx: Math.cos(a) * speed * 0.6, vy: Math.sin(a) * speed * 0.5 - (55 + Math.random() * 120), // rise
-        drag: 0.55, life: 600 + Math.random() * 520, fromScale: 0.5 + Math.random() * 0.5,
+        vx: Math.cos(a) * speed * 0.7, vy: Math.sin(a) * speed * 0.5 - (70 + Math.random() * 140), // rise
+        drag: 0.4, life: 600 + Math.random() * 520, fromScale: 0.5 + Math.random() * 0.5,
         toScale: 1.4 + Math.random() * 0.8, spin: (Math.random() - 0.5) * 1.0,
-        tint: Math.random() < 0.5 ? 0x6ab0ff : 0xbfe2ff, blend: 'add', peakAlpha: 0.42 + Math.random() * 0.2,
+        tint: Math.random() < 0.5 ? 0x6ab0ff : 0xbfe2ff, blend: 'add', peakAlpha: 0.5 + Math.random() * 0.2,
       });
     }
-    // a few bright spirit motes streaking up
-    for (let i = 0; i < 6; i++) {
-      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
-      const speed = 180 + Math.random() * 240;
+    // bright spirit motes streaking up — more of them, flung harder
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.4;
+      const speed = 260 + Math.random() * 320;
       this.spawn(this.sparkTex!, {
         x: cx + (Math.random() - 0.5) * rad * 0.6, y: cy,
-        vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.4,
+        vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.35,
         life: 500 + Math.random() * 400, fromScale: 0.8 + Math.random() * 0.6, toScale: 0.05,
         spin: 0, tint: 0xdfeeff, blend: 'add', peakAlpha: 0.9,
+      });
+    }
+  }
+
+  /**
+   * The TAUNT bulwark SHATTERS — fired when a taunt minion DIES in combat (a sold/removed taunt still just
+   * fades). The metal heater breaks like metal, not glass: a white-hot crack flash, a silver shockwave ring,
+   * steel shards flung radially (chunky, slower than the ward's glass), white glints, and a puff of grey
+   * smoke. Fired on the FRONT (viewport) canvas so the debris flies OVER the cards, mirroring the ward break
+   * (whose bubble also lives on another canvas); `cx/cy/w/h` is the dying card's measured rect.
+   */
+  tauntBurst(cx: number, cy: number, w: number, h: number): void {
+    if (!this.ready) return;
+    const rad = Math.max(w, h) * 0.5 * getTauntConfig().margin;
+    // CRACK — white-hot flash at the break point.
+    this.spawn(this.glowTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 180, fromScale: 0.5, toScale: (rad / 40) * 2.2,
+      spin: 0, tint: 0xf4f7fc, blend: 'add', peakAlpha: 0.95,
+    });
+    // SHOCKWAVE — a silver ring ripping outward.
+    this.spawn(this.rimTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 420, fromScale: (rad / BUBBLE_TEX_R) * 0.7,
+      toScale: (rad / BUBBLE_TEX_R) * 2.1, spin: 0, tint: 0xdfe6f0, blend: 'add', peakAlpha: 0.85,
+    });
+    // STEEL SHARDS — chunky fragments flung radially; a touch slower/heavier than the ward's glass.
+    const shards = 18;
+    for (let i = 0; i < shards; i++) {
+      const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const speed = 260 + Math.random() * 520;
+      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
+      const cold = Math.random();
+      const tint = cold < 0.5 ? 0xcfd6e2 : cold < 0.85 ? 0xeef2f8 : 0x9aa4b4; // silvers + a dark steel
+      this.spawn(tex, {
+        x: cx + Math.cos(a) * rad * 0.6, y: cy + Math.sin(a) * rad * 0.6,
+        vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.14,
+        life: 420 + Math.random() * 360, fromScale: 1.0 + Math.random() * 0.7, toScale: 0.05,
+        spin: (Math.random() - 0.5) * 9, rotation: a, tint, blend: 'normal', // normal → reads solid on cream
+      });
+    }
+    // GLINTS — white-hot sparks off the breaking metal.
+    for (let i = 0; i < 8; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const speed = 140 + Math.random() * 260;
+      this.spawn(this.sparkTex!, {
+        x: cx, y: cy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.4,
+        life: 420 + Math.random() * 320, fromScale: 0.8 + Math.random() * 0.7, toScale: 0.05,
+        spin: 0, tint: 0xffffff, blend: 'add', peakAlpha: 0.95,
+      });
+    }
+    // grey smoke — the dust of a felled bulwark.
+    for (let i = 0; i < 4; i++) {
+      this.spawn(this.glowTex!, {
+        x: cx + (Math.random() - 0.5) * 24, y: cy + (Math.random() - 0.5) * 24,
+        vx: (Math.random() - 0.5) * 70, vy: -30 - Math.random() * 50,
+        drag: 0.5, life: 600 + Math.random() * 400, fromScale: 0.4 + Math.random() * 0.3,
+        toScale: 1.6 + Math.random() * 0.7, spin: (Math.random() - 0.5) * 1.4,
+        tint: Math.random() < 0.5 ? 0x9aa4b4 : 0x848e9c, blend: 'normal', peakAlpha: 0.3,
       });
     }
   }
@@ -1162,7 +1231,8 @@ class FxController {
   /** Pull a sprite from the pool (or make one), configure it as a live particle. */
   private spawn(
     tex: Texture,
-    cfg: Omit<Particle, 'sprite' | 'peakAlpha' | 'gravity' | 'stretchX'> &
+    // `maxLife` is derived (spawn sets it to cfg.life) — omitting it here is what lets every call site skip it.
+    cfg: Omit<Particle, 'sprite' | 'peakAlpha' | 'gravity' | 'stretchX' | 'maxLife'> &
       { tint: number; blend?: BLEND_MODES; peakAlpha?: number; rotation?: number; gravity?: number; stretchX?: number },
   ): void {
     const layer = this.layer;

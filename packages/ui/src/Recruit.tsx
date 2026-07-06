@@ -30,9 +30,8 @@ const SHIELD_BREAK_DELAY = 300;
 // ms to keep a vanished shield bubble alive before fading it — covers a hand→board PLAY (the card unmounts
 // from hand then remounts on the board under the same uid), so the bubble resumes INSTANTLY, no fade+regrow.
 const SHIELD_CLEAR_GRACE = 280;
-// ms after a Reborn triggers (spirit bursts + unit collapses) before the body RE-FORMS with its summon wisp —
-// matches the `rebornswap` CSS (gone ~38-52%, re-forms ~52-74% of 0.85s), so the read is die → gone → reborn.
-const REBORN_SUMMON_DELAY = 460;
+// (The reborn re-form glow is scheduled from the replay's reborn beat — see REBORN_SUMMON_DELAY in
+// useCombatReplay.ts; the tracker only fires the death-beat spirit BURST.)
 // The two persistent auras the tracker drives, each marked by a CSS class on the card and a keyword on the
 // drag view. Divine Shield (gold, breaks DELAYED so the read is hit→settle→shatter) + Reborn (blue wisp,
 // breaks IMMEDIATELY on the reborn beat → shatter + re-form summon).
@@ -437,6 +436,7 @@ export function Recruit() {
   const shieldUidsRef = useRef<Set<string>>(new Set());
   const pendingBreakRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) the shield should shatter
   const pendingClearRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) to fade a vanished bubble
+  const deathBurstRef = useRef<Set<string>>(new Set()); // aura keys already exploded on their carrier's death
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
   const fightingRef = useRef(fighting); fightingRef.current = fighting;
   const combatSpeedRef = useRef(combatSpeed); combatSpeedRef.current = combatSpeed;
@@ -457,6 +457,7 @@ export function Recruit() {
   const syncShields = useCallback((): void => {
     const seen = new Set<string>(); // composite keys `${kind} ${uid}` (a unit can carry both auras)
     const now = performance.now();
+    if (!inCombatRef.current && deathBurstRef.current.size) deathBurstRef.current.clear(); // fresh per combat
     // Mid-animation (combat / a live drag / post-drop settle)? Only THEN is a vanished aura possibly
     // mid-remount and worth a grace; otherwise it's gone for good and must clear NOW (no rAF will expire a timer).
     const animating = (): boolean =>
@@ -492,10 +493,39 @@ export function Recruit() {
         // measure the square ART region (`.archbox`), not the height:auto `.card` — see measureCardRect
         const r = (card.querySelector<HTMLElement>('.archbox') ?? card).getBoundingClientRect();
         if (r.width === 0) continue; // not laid out yet (mid-transition)
-        seen.add(ckey(cfg.kind, uid));
+        const key = ckey(cfg.kind, uid);
+        // DEATH BURST — a unit dying while still CARRYING its aura explodes it in place, ON the death beat
+        // (owner: aura deaths should pop like the ward break, not hover over the collapsing card). Reborn's
+        // re-form glow fires separately from the replay's reborn beat. Once per aura per life — a living
+        // carrier re-registering (a risen body re-gaining its keywords) re-arms the burst below.
+        const unitEl = card.closest<HTMLElement>('.unit');
+        const dying = inCombatRef.current && !!unitEl?.classList.contains('dying');
+        // A dying Rise ATTACKER is being pulled back to its slot (inline GSAP transform still on the unit —
+        // see the pull-back in useCombatReplay): HOLD the burst and let the aura keep riding the card home;
+        // the transform clears on landing and the next sync (per-frame during combat) fires the burst there.
+        const returningHome = dying && cfg.kind === 'reborn' && !!unitEl?.style.transform;
+        if (dying && !returningHome) {
+          if (!deathBurstRef.current.has(key) && !pendingBreakRef.current.has(key)) {
+            deathBurstRef.current.add(key);
+            if (cfg.kind === 'taunt') {
+              auraFx('taunt').clearShield(uid, 'taunt'); // drop the back-canvas bulwark…
+              pixiFx.tauntBurst(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height); // …burst in FRONT
+              sfx.shieldBreak();
+            } else if (cfg.kind === 'reborn') {
+              pixiFx.breakShield(uid, 'reborn'); // the spirit EXPLODES free the moment the body dies
+              sfx.rebornShatter();
+            } else {
+              pixiFx.breakShield(uid, 'shield'); // gold shatter at the bubble's tracked spot
+              sfx.shieldBreak();
+            }
+          }
+          continue; // the aura is spent — don't re-register it on the collapsing card
+        }
+        deathBurstRef.current.delete(key); // living carrier → (re-)arm its death burst
+        seen.add(key);
         // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that
         // disperses outward, fired on the FRONT layer (viewport coords) so it reads around the card.
-        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(ckey('taunt', uid))) {
+        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key)) {
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
         set(uid, r.left + r.width / 2, r.top + r.height / 2 + auraDy(r.height, cfg.kind), r.width, r.height, false, cfg.kind);
@@ -522,18 +552,19 @@ export function Recruit() {
       if (triggered && kind === 'shield') {
         pendingBreakRef.current.set(key, now + SHIELD_BREAK_DELAY / combatSpeedRef.current); // delayed shatter
       } else if (triggered) {
-        // REBORN triggered: the spirit BURSTS now as the unit dies + collapses (rebornswap CSS); THEN, after
-        // the brief disappear, the body RE-FORMS with a wispy summon glow. Stagger the two so it reads as
-        // die → gone → reborn (not one simultaneous flash).
-        const r = measureCardRect(uid);
+        // REBORN triggered WITHOUT a preceding dying beat (death + rise grouped into one beat) — burst now
+        // as a fallback. The normal path bursts at the DEATH beat (PASS 1); the re-form glow fires from the
+        // replay's reborn beat (useCombatReplay), so neither is scheduled here.
+        if (!deathBurstRef.current.has(key)) {
+          pixiFx.breakShield(uid, 'reborn');
+          sfx.rebornShatter();
+        }
+      } else if (kind === 'reborn' && inCombatRef.current && fightingRef.current && !unit && !deathBurstRef.current.has(key)) {
+        // The dying Rise unit unmounted before its pull-back landed (fast combat speed) — the burst must
+        // never be lost: fire it at the aura's last tracked spot instead of quietly clearing.
+        deathBurstRef.current.add(key);
         pixiFx.breakShield(uid, 'reborn');
         sfx.rebornShatter();
-        if (r) {
-          const cx = r.left + r.width / 2, cy = r.top + r.height / 2, w = r.width, h = r.height;
-          window.setTimeout(() => { pixiFx.rebornSummon(cx, cy, w, h); sfx.rebornSummon(); }, REBORN_SUMMON_DELAY);
-        } else {
-          window.setTimeout(() => sfx.rebornSummon(), REBORN_SUMMON_DELAY);
-        }
       } else if (inCombatRef.current) {
         auraFx(kind).clearShield(uid, kind); // in combat but not a trigger (frozen shop card / death) → clear now
       } else if (animating()) {

@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-05 (session 19)
 
+### feat(ui): distinct, meaningful keyword icons
+
+Several keyword pills shared a glyph (Slaughter + Echo both used `skull`; Immune borrowed Ward's `shield`).
+Authored new SVG glyphs in `Icon.tsx` and repointed the maps (`KW_ICON` + the Echo trigger pill in Card.tsx,
+and the compendium glossary in MinionBook.tsx):
+- **Slaughter** → an upright sword (distinct from Rally's diagonal blade)
+- **Echo** (Deathrattle) → skull & crossbones (Avenge keeps the plain skull, so they no longer collide)
+- **Immune** → a shield with a bold cross
+- **Fodder** → a horned imp head
+- **Choose One** → a two-way forking arrow (was Cleave's ✕)
+- **Start of Combat** → a fist (End of Turn keeps the lightning bolt)
+- **Rise** → a tombstone with a hand reaching up out of the ground (was the reborn circular arrow)
+
+Verified live in the compendium glossary (every keyword icon on one screen) — all seven read clearly and are
+mutually distinct. Typecheck + lint + build green.
+
 ### fix(content): cards missing their keyword pill — Taurus (Start of Combat), Karthus + Impala (Slaughter)
 
 The new glossary filter surfaced a data-consistency class the owner flagged: cards whose mechanic maps to a

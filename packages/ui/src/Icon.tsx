@@ -20,11 +20,62 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   consume: <path fill="currentColor" d="M12 12l8.5-4.8A9.2 9.2 0 1 0 20.5 16.8z" />,
+  // Fodder — a little imp head with two curved horns and hollow eyes (the token your minions devour).
   fodder: (
     <>
-      <path fill="currentColor" d="M12 3l8 4-8 4-8-4z" />
-      <path fill="currentColor" opacity="0.65" d="M4 7.4l7.4 3.7v7.9L4 15.3z" />
-      <path fill="currentColor" opacity="0.85" d="M20 7.4l-7.4 3.7v7.9L20 15.3z" />
+      <path fill="currentColor" d="M6.6 3.2c1 1.3 1.6 2.8 1.9 4.6l-3.1-1.7C5.2 5 5.6 4 6.6 3.2z" />
+      <path fill="currentColor" d="M17.4 3.2c-1 1.3-1.6 2.8-1.9 4.6l3.1-1.7C18.8 5 18.4 4 17.4 3.2z" />
+      <path fillRule="evenodd" fill="currentColor" d="M12 6.4c-3.4 0-6 2.5-6 5.7 0 2 1.1 3.8 2.8 4.9l.4 2.9 1.8-1.5c.3.1.7.1 1 .1s.7 0 1-.1l1.8 1.5.4-2.9c1.7-1.1 2.8-2.9 2.8-4.9 0-3.2-2.6-5.7-6-5.7zm-2.5 4.7c.8 0 1.4.7 1.4 1.5s-.6 1.5-1.4 1.5-1.4-.7-1.4-1.5.6-1.5 1.4-1.5zm5 0c.8 0 1.4.7 1.4 1.5s-.6 1.5-1.4 1.5-1.4-.7-1.4-1.5.6-1.5 1.4-1.5z" />
+    </>
+  ),
+  // Slaughter — an upright sword (fires each time this minion kills). Distinct from Rally's diagonal blade.
+  slaughter: (
+    <>
+      <path fill="currentColor" d="M12 2l1.5 12h-3z" />
+      <rect x="7" y="12.8" width="10" height="2.1" rx="0.7" fill="currentColor" />
+      <rect x="11.1" y="14.9" width="1.8" height="4.6" fill="currentColor" />
+      <circle cx="12" cy="20.5" r="1.6" fill="currentColor" />
+    </>
+  ),
+  // Immune — a shield with a bold cross (can't take damage).
+  immune: (
+    <>
+      <path fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinejoin="round" d="M12 3l7 2.5v6c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5v-6L12 3z" />
+      <path fill="currentColor" d="M10.9 7.2h2.2v2.9H16v2.2h-2.9v3h-2.2v-3H8v-2.2h2.9z" />
+    </>
+  ),
+  // Choose One — an arrow that forks into two directions (pick one of two effects).
+  choose1: (
+    <path fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+      d="M12 21v-6.2M12 14.8l-4.8-4.8M12 14.8l4.8-4.8M7.2 10l3.4.3M7.2 10l.3 3.4M16.8 10l-3.4.3M16.8 10l-.3 3.4" />
+  ),
+  // Echo — skull & crossbones (Deathrattle: fires when this minion dies).
+  echo: (
+    <>
+      <path fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" d="M6.2 20.4L17.8 12.6M6.2 12.6l11.6 7.8" />
+      <path fillRule="evenodd" fill="currentColor" d="M12 2.8c-3.2 0-5.7 2.4-5.7 5.4 0 1.9.9 3.5 2.4 4.5v1.5c0 .6.5 1.1 1.1 1.1h4.4c.6 0 1.1-.5 1.1-1.1v-1.5c1.5-1 2.4-2.6 2.4-4.5 0-3-2.5-5.4-5.7-5.4zm-2.5 4.7c.8 0 1.4.7 1.4 1.5s-.6 1.5-1.4 1.5-1.4-.7-1.4-1.5.6-1.5 1.4-1.5zm5 0c.8 0 1.4.7 1.4 1.5s-.6 1.5-1.4 1.5-1.4-.7-1.4-1.5.6-1.5 1.4-1.5z" />
+    </>
+  ),
+  // Start of Combat — a clenched fist (fires the moment battle begins).
+  fist: (
+    <>
+      <rect x="6.4" y="10.6" width="11.2" height="8.6" rx="2.5" fill="currentColor" />
+      <rect x="7.1" y="8" width="2.3" height="4.4" rx="1.15" fill="currentColor" />
+      <rect x="9.7" y="7.3" width="2.3" height="5.1" rx="1.15" fill="currentColor" />
+      <rect x="12.3" y="7.5" width="2.3" height="4.9" rx="1.15" fill="currentColor" />
+      <rect x="14.9" y="8.1" width="2.2" height="4.3" rx="1.1" fill="currentColor" />
+      <path fill="currentColor" d="M6.5 12.4c-1.4-.2-2.4.3-2.4 1.5s1 1.7 2.4 1.6z" />
+    </>
+  ),
+  // Rise — a tombstone (left) with a hand reaching up out of the ground (returns once on death).
+  rise: (
+    <>
+      <path fill="currentColor" d="M5 18V9a2.7 2.7 0 015.4 0v9z" />
+      <rect x="2.8" y="17.3" width="18.4" height="2.9" rx="0.8" fill="currentColor" />
+      <rect x="12.6" y="14.1" width="6.4" height="4.1" rx="1.4" fill="currentColor" />
+      <rect x="13" y="11.3" width="1.5" height="3.7" rx="0.75" fill="currentColor" />
+      <rect x="15" y="10.4" width="1.5" height="4.6" rx="0.75" fill="currentColor" />
+      <rect x="17" y="11.3" width="1.5" height="3.7" rx="0.75" fill="currentColor" />
     </>
   ),
   battlecry: (

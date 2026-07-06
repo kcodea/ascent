@@ -209,7 +209,12 @@ function computeFrame(
  *  overshoot. `dx`/`dy` is the full attacker→defender vector; the strike covers ~100% of it so the
  *  attacker drives all the way into the defender — a full connecting hit. GSAP owns the attacker's
  *  transform for the whole lunge — React renders no transform on combat units, so they never fight. */
-function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number, speed = 1): void {
+/** Map an attack's swing damage → the impact's `power` scale (1 = baseline). Ramps gently: a 1-3 dmg chip
+ *  stays at the familiar burst, ~8 dmg reads clearly heavier, and it caps at 2× so a 40-damage finisher
+ *  doesn't whiteout the board. PROTOTYPE dial — promote into a hit config if the feel sticks. */
+const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8 + swing / 10));
+
+function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number, speed = 1, power = 1): void {
   const c = getLungeConfig(); // live-tunable (DEV Lunge tuner) → applies to the next attack
   // Motion trail: one up-front rect read gives the resting center; per-frame positions come from GSAP's
   // animated x/y (no per-frame getBoundingClientRect). Wisps fire during windup + strike only — the slow
@@ -252,10 +257,12 @@ function playAttackLunge(attacker: Element, defender: Element | null, dx: number
       if (!defender) return; // onHit: the struck minion knocks back harder along the blow, then recovers
       // WebGL impact: a flash + spark spray at the defender's center, fired along the blow direction.
       const r = defender.getBoundingClientRect();
-      pixiFx.impact(r.left + r.width / 2, r.top + r.height / 2, dx, dy);
+      pixiFx.impact(r.left + r.width / 2, r.top + r.height / 2, dx, dy, power);
       gsap.killTweensOf(defender);
+      // Heavier hits knock the defender back harder (0.14 at baseline → ~0.19 at max power).
+      const kb = 0.14 * (0.75 + 0.25 * power);
       gsap.fromTo(defender, { x: 0, y: 0 }, {
-        x: dx * 0.14, y: dy * 0.14, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
+        x: dx * kb, y: dy * kb, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
         onComplete: () => gsap.set(defender, { clearProps: 'transform' }),
       });
     }, `-=${c.smackLead}`)                                                                                 // …fired smackLead seconds BEFORE the strike completes
@@ -712,7 +719,7 @@ export function useCombatReplay(
       const d = center(cur.primary.defender);
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
-        playAttackLunge(atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, combatSpeed);
+        playAttackLunge(atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, combatSpeed, hitPower(cur.primary.swing));
       }
     } else {
       setAttackUid(null);

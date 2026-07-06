@@ -71,10 +71,10 @@ export const UNDEAD: CardDef[] = [
     tier: 5,
     attack: 7,
     health: 8,
-    keywords: ['DS'],
+    keywords: ['DS', 'SL'],
     effects: [{ on: 'onKill', do: 'onKillBuffUndeadAttack', params: { attack: 3 } }],
-    text: 'When this kills an enemy, give your Undead **+3 Attack** permanently.',
-    goldenText: 'When this kills an enemy, give your Undead **+6 Attack** permanently.',
+    text: '**Slaughter:** give your Undead **+3 Attack** permanently.',
+    goldenText: '**Slaughter:** give your Undead **+6 Attack** permanently.',
   },
   {
     // Deathrattle (combat): re-fire an adjacent minion's Battlecry — only combat-meaningful battlecries

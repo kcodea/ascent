@@ -5,6 +5,73 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-05 (session 19)
 
+### fix(content): cards missing their keyword pill — Taurus (Start of Combat), Karthus + Impala (Slaughter)
+
+The new glossary filter surfaced a data-consistency class the owner flagged: cards whose mechanic maps to a
+keyword-code pill (`SC` / `RL` / `SL`) but whose `keywords` array omitted it — so they showed no pill and
+missed the filter. The pills for these are keyword-driven (unlike Battlecry/Deathrattle/Avenge/End-of-Turn,
+which read the text prefix). Audited the whole card set for keyword↔effect mismatches (both directions):
+
+- **Taurus** — had a `startOfCombat` effect (`scEngraveNeighbor`) but `keywords: []`. Added **`SC`** — it now
+  shows the "Start" pill and appears under the Start of Combat filter. (The owner's original report.)
+- **Karthus + Commander Impala** — both fire on-kill (`onKillBuffUndeadAttack` / `onKillBuffFodderImps`),
+  which is exactly **Slaughter**, but predate the keyword (added earlier this session). Per the owner, added
+  **`SL`** to both and retextualised to the terse trigger style the other Slaughter cards use: Karthus
+  "**Slaughter:** give your Undead **+3 Attack**…", Impala "**Windfury. Slaughter:** give your Fodder and Imps
+  **+3/+3**…" (matching Sporebat's "Taunt. Echo:" multi-keyword pattern). Karthus now shows Ward + Slaughter,
+  Impala shows Flurry + Slaughter.
+- **Audited clean otherwise.** `SC`/`SL`/`RL` are purely presentational — no combat/sim/buildTags code gates
+  on them (Better Bot's Rally lives in the `rallyMechAtk` field, not a factory, so its `RL` is legitimate and
+  the "RL without a rally* effect" flag is a false positive). The text-mentions-a-keyword scan turned up only
+  false positives (Manasaber / Violet Whelpmother *summon* Taunt tokens; the Consume spell mentions Fodder) —
+  none are the card's own trait, so no change. So the three above were the complete set of real mismatches.
+
+Verified live: Start of Combat filter → Abhorrent Horror **+ Taurus** (1 → 2); Slaughter filter → the 3 new
+cards **+ Karthus + Impala** (3 → 5), each with the right pills. Content-only (2 lines of card data + text);
+`typecheck` + `lint` + `test` (**486**) + `build:web` all green.
+
+### feat(ui): glossary fills the compendium + click a keyword to filter the gallery; rewire 2 arts
+
+Follow-ups on the compendium glossary (from the session-18 Slaughter batch, PR #162) + an art batch.
+UI-only (`packages/ui`) plus binary art.
+
+- **Glossary columns fill the width.** The codex was `grid-template-columns: repeat(auto-fill, minmax(340px,
+  1fr))`, which fit four 340px tracks in the ~1694px body and left the fourth empty — the three groups
+  crammed into the left two-thirds with a dead gutter on the right. Switched to `repeat(3, minmax(0, 1fr))`:
+  exactly three columns that fill the body (measured **530px** each), with roomier padding and slightly
+  larger icons so the wider columns read as intentional. Defs now sit on one line instead of wrapping.
+- **Click a keyword → filter the gallery to its minions.** Each glossary row (except Gilded, which has no
+  sensible card filter) is now a `<button>` carrying a `match` predicate that mirrors what the card actually
+  shows — keyword codes read `c.keywords` (Taunt/Ward/Toxin/…/Rally/Slaughter/Attachment/Consume/Fodder/
+  Engraved), the event triggers read `c.effects` (Shout=onPlay, Echo=onDeath, End of Turn=endOfTurn,
+  Avenge=avenge), and Choose One/Discover read `chooseOne` / a `discover` factory. Clicking one sets a `kw`
+  filter, **clears the tribe/tier filters** (so you see the full set), and drops back to the gallery. An
+  active filter shows a clearable **chip** at the right of the tier bar (accent → threat-red on hover); the
+  glossary subtitle now hints "click one to see its minions". Verified: Slaughter → exactly the 3 Slaughter
+  minions (Gnasher, Badgington, Sword and Bored); the chip clears back to the full 120. Rows are menu-item
+  styled (rounded hover tint, icon chip fills accent on hover); all CSS + local state, no new deps.
+- **Keyword filters now include *granters*, not just carriers.** Per owner ask — a minion that *gives* a
+  keyword should surface under it. The keyword-code predicates changed from `c.keywords.includes(code)` to
+  `kwMatch(code)` = *has it OR grants it*, where `grantsKeyword` reads the fixed-keyword granter factories
+  (`deathrattleGrantReborn`→Rise, `deathrattleGrantShield`/`scGrantShieldTribe`/`onShieldBreakGrantShield`→
+  Ward) plus any `params.keyword` / `params.keywords` (battlecryGrantKeyword — Toxin Tender/Plaguebringer;
+  Taunt-token summoners; onConsumeGrantSelfKeyword), across top-level **and** Choose-One effects. Card-fetch
+  grants ("add a Magnetic minion to hand" — Junkyard Titan, Jouster) are deliberately *excluded* (they don't
+  grant the keyword to a minion). Validated against the real card set: **Rise → Mumi** (0 carriers → 1),
+  **Ward → +Selfless Sentinel** (3 → 4), **Taunt → +Violet Whelpmother/Bulwark** (5 → 7). To avoid dead-end
+  clicks, a `clickableTerms` memo makes a row a live filter **only if an in-scope card matches** — Cleave /
+  Stealth / Immune / Consume / Fodder (no buyable carriers or granters today) render inert like Gilded, but
+  keep their definitions. Scope-aware (a keyword absent from the run's tribes reads inert).
+- **Art rewires.** New masters for **Gnasher, the Overrun** (`gnash.webp`, 55KB) and **Koron, the Hungerer**
+  (`acid.webp`, 45KB) → 512px WebP, same filenames/cardIds so `artFor` picks them up unchanged. *Naming
+  note:* the Hungerer master arrived as `KorokTheHungerer.png` but the card is named "**Koron**, the
+  Hungerer" (id `acid`) — wired to the (unique) Hungerer card regardless; flagged the Korok/Koron spelling to
+  the owner. (Sword and Bored's art was rewired in the prior commit.)
+
+Verified live (throwaway run → Compendium from the title): glossary is 3×530px filling the width; the
+keyword rows filter correctly + the chip clears; Gnasher + Koron render their new art (real 512px `<img>`s,
+served bytes match the on-disk files). `typecheck` + `lint` + `test` (**486**) + `build:web` all green.
+
 ### feat(sim): win-weighted rating — final-round win + bigger summit bonus; covering the Line is "top 4"
 
 Owner-directed rating reshape (`playerRating.ts`): make *truly winning* — over your Line **and** winning the

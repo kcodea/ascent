@@ -223,6 +223,12 @@ look because the engine already produces the data.
 
 ## Standing backlog (carried over — unscheduled, behind the spine)
 
+**Layout Lab extensions:** the dev Layout Lab (DevMenu → Scale & Layout) covers global + per-row card scale, UI
+scale, and warband/hand/HUD position. Not yet: (1) a **shop-row position** offset — the tavern zone is
+`position: static` and hosts enemy combat units, so it needs a combat-safe hook (`position: relative` + verify
+its absolute children, or a recruit-only offset); (2) **per-element** movers (individual buttons/badges/panels)
+rather than just the four regions. Both are quick, additive extensions to `layoutConfig.ts` + the CSS hooks.
+
 **Compendium spells-only view:** spells are now opt-in + *additive* (toggling Spells layers them onto the
 minion view), so there's no longer a one-click "browse only spells." If wanted, add a spells-only mode (e.g.
 Spells acts as a narrowing filter when it's the sole selection, or a dedicated header toggle).

@@ -5,6 +5,41 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
+### feat(ui): Layout Lab — a dev tuner to live-scale + position the board (cards, chrome, regions)
+
+Owner ask: a scale + positioning tuner in the dev panel to customize the sizes and positions of everything —
+card sizes, UI elements. Built as a new **Layout Lab** entry in the Dev Tuning menu (DevMenu → "📐 Scale &
+Layout"), following the existing tuner pattern (draggable, localStorage-backed, `useDraggablePanel`) but driving
+CSS custom properties on `:root` the way FontLab drives fonts. **12 sliders in 5 groups:**
+- **Global:** Card size (`--card-scale`) + UI chrome (`--ui-scale`).
+- **Shop / Warband / Hand:** per-row card size; Warband + Hand also X/Y offset.
+- **HUD bar:** scale + X/Y offset.
+
+**How the sizing is wired (combat-safe by construction):** the two master vars are refactored into a responsive
+base + a multiplier — `--ch: calc(var(--ch-base) * var(--card-scale))` (drives every card via `--cw`/`--ccw`) and
+`--u: calc(var(--u-base) * var(--ui-scale))` (drives all `calc(N*--u)` chrome). Per-row scale re-multiplies `--ch`
+(or `--u` for the HUD) **on the zone** — a *sizing* override, never a `transform`. This matters: the tavern +
+warband zones host the combat units, whose per-swing GSAP lunges fight a parent transform (the documented
+warband-nudge bug), so scaling rides the size var and positioning uses layout `top`/`left` on those zones; the
+hand (no combat units) uses the standalone `translate` property, composing with its own centering transform.
+
+Every var falls back to a no-op (×1 / 0px), so the board is untouched until a slider moves, and — since the tuner
+mounts only in dev (`import.meta.env.DEV`) and `applyLayout` boot-applies only in dev — **production ships the
+stock layout** regardless of any persisted dev tweak. New files: `layoutConfig.ts` (the var table + get/set/reset
++ apply), `LayoutTuner.tsx` (the panel); wired into `DevMenu.tsx` + `styles.css`.
+
+**Verified** live in-preview, mid-combat (the riskiest case): global card scale 1.4 grows the combat units
+233→327px with the fight still rendering + zero console errors (a size reflow, not a transform → no GSAP fight);
+Warband Y offset stacks on the tall-window nudge; UI scale 1.4 grows the HUD chrome (chip 63→87px); HUD Y moves
+`.bar`; Hand X applies via `translate`; the panel shows 12 sliders in 5 groups; Reset restores every value; the
+slider→CSS→persist path round-trips. `typecheck + lint + test (514) + build:web` green.
+
+- **Flagged (judgement calls):** (1) scope is the four major *regions*, not per-element — global + per-row scale
+  covers card/chrome sizes broadly, but there's no mover for an individual button/badge yet. (2) The **shop row
+  has scale but no position** — the tavern zone is `position: static` and hosts enemy combat units, so a
+  `top`/`left` offset would need `position: relative` (risking its absolute children) and a transform would fight
+  combat; easy to add safely if wanted. Both are quick extensions.
+
 ### tweak(ui): Compendium hides spells by default — toggle Spells to add them to the view
 
 Owner ask: the Compendium shouldn't show spells unless the player opts in. Previously an unfiltered gallery

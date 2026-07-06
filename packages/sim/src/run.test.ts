@@ -198,6 +198,20 @@ describe('run loop (@game/sim)', () => {
     expect(s.attackFirstNext).toBe(false); // one fight only — cleared at settle
   });
 
+  it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
+    // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
+    // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the
+    // cast silently no-op'd (the box looked "unplayable"). `gold` is now null-safe (a spell is never golden).
+    let s: RunState = {
+      ...createRun(1),
+      embers: 10,
+      hand: [{ uid: 'sp', cardId: 'depositbox', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' }); // untargeted spell → casts immediately
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(false); // consumed (it actually resolved)
+    expect(s.bonusEmbersNextTurn).toBe(2);
+  });
+
   it('upgrade raises the tier and resets the cost to the next target', () => {
     let s = createRun(1);
     s = { ...s, embers: 20 };

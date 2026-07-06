@@ -1677,6 +1677,17 @@ describe('simulate (handoff A.3)', () => {
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(9); // base 3 + Lantern 3 + Eternal-Knight 3
   });
 
+  it('a Footman summoned mid-combat inherits the run-wide Undead aura (Lantern + the baked buy-time bonus)', () => {
+    // Footman Leader (Undead) dies → summons a Footman (1/1 Undead token). A summon starts from BASE, so it
+    // takes the FULL aura: Lantern (+5/+3) AND the baked buy-time Undead attack (+4, re-added only for a
+    // from-base body — a bought Undead already has it in its stats). → 1 + 5 + 4 = 10 attack, 1 + 3 = 4 health.
+    const p: BoardMinion[] = [{ cardId: 'deathlesshand', attack: 0, health: 1, sourceUid: 'u' }]; // 0-atk so it can't win — it dies, summoning the Footman
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 10, health: 40 }];
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 5, 3, 0, 4); // undeadAttackBonus 5, undeadHealthBonus 3, undeadBuyAtk 4
+    const summon = a.events.find((ev) => ev.type === 'summon' && ev.minion.cardId === 'footman');
+    expect(summon && summon.type === 'summon' ? [summon.minion.attack, summon.minion.health] : null).toEqual([10, 4]);
+  });
+
   it('Spear Warden Reborn keeps its accrued stacks: a 5-stack Warden dies (→6) and Reborns at 6 stacks', () => {
     // A Warden that entered with 5 prior stacks of its run-wide enchant (+3/+2 each = +15/+10, carried into
     // combat on its buff breakdown under the card's own name) at base 3/2 → 18/12. It dies, banking a 6th

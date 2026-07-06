@@ -28,6 +28,8 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Layout Lab (dev)** — a new Dev Tuning entry ("📐 Scale & Layout") to live-scale, space, + reposition the
   board: global card + UI-chrome scale, per-row card size + spacing, and X/Y offsets for the warband, hand, and
   HUD. Drives CSS vars, dev-only (production ships the stock layout).
+- **Clear Run button** — the title screen now has a **Clear** button beside Continue to discard a saved run
+  (two-step confirm) without having to start a new one over it.
 - **Compendium hides spells by default** — the Compendium now opens minions-only; the **Spells** rail chip is an
   opt-in toggle that *adds* spells to the view (a "· Spells hidden" cue shows while it's off).
 - **End-game scoring + Hall of Champions W/L spread** — winning the closing rounds now pays escalating rating

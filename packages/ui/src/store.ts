@@ -173,6 +173,9 @@ interface GameStore {
   savedRun: RunState | null;
   /** Resume the saved in-progress run (from the title). */
   continueRun: () => void;
+  /** Discard the saved in-progress run (from the title) — clears the autosave + `savedRun` so Continue
+   *  disappears. Destructive + irreversible; the caller confirms first. */
+  clearRun: () => void;
   /** The title screen is shown at boot + after a run ends — the front door to the modes. */
   showTitle: boolean;
   /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
@@ -261,6 +264,9 @@ export const useGame = create<GameStore>((set, get) => ({
   // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat
   // resume is unaffected; the next recruit turn (wave change) gets its full timer back via Recruit's reset.
   continueRun: () => { turnClock.set(0); set({ showTitle: false, heroChoices: null, avatarPickerOpen: false }); },
+  // Discard the saved run: wipe the autosave + `savedRun`, and reset the dormant `run` to a fresh throwaway so
+  // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
+  clearRun: () => { clearSave(); set({ savedRun: null, run: createRun(randomSeed()) }); },
   heroArmed: false,
   endTurnAnimating: false,
   combatEnemyDeaths: 0,

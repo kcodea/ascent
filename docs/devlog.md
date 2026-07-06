@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-05 (session 19)
 
+### feat(ui): damage-scaled hit impacts — heavier swings visibly land harder
+
+Combat-feel: the contact burst now scales with the hit's weight instead of every hit looking identical.
+`pixiFx.impact()` gains a `power` param (1 = the exact baseline look) that scales the hot-core flash, the
+orange shockwave, spark count (+30% span) and fling speed, smoke density, and — past power ≈1.15 — adds a
+crisp expanding RING (rimTex, additive, size/alpha ramp with the overage) as the "that one hurt"
+punctuation. The defender's knockback also deepens with power (0.14 → ~0.19 of the blow vector at cap).
+`useCombatReplay.ts` maps the attack event's `swing` damage → power via `hitPower` (`0.8 + swing/10`,
+clamped [0.9, 2]): a 1–3 damage chip stays at the familiar burst, ~8 reads clearly heavier, a 12+ finisher
+hits the 2× cap without whiting out the board. Shipped as an owner-approved prototype (eyeballed live in a
+real fight); the dials are code constants for now — promoting them into a hit config/tuner is part of the
+planned "hit choreographer" foundation (one module owning the moment of contact: FX + number + sfx +
+recoil), queued next. Verified: typecheck + lint + tests + build:web green; `typecheck:web` at the same 53
+pre-existing errors as `main` (zero new); a live power-sweep (0.9→2.0) fired clean in the preview.
+
 ### fix(ui): remove the combat narration line + fix the drag-card text-drawer misalignment
 
 Two owner-reported UI issues (presentation-only).

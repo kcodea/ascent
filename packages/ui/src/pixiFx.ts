@@ -529,8 +529,12 @@ class FxController {
    * A melee/projectile contact at viewport point (x, y): a white-hot flash plus a spray of
    * sparks fired outward, biased along the blow direction (dx, dy = attacker→defender vector,
    * any magnitude). No-op until the app has finished initialising.
+   *
+   * `power` scales the whole burst with the hit's weight (1 = the baseline look): flash size, spark
+   * count/speed, smoke density — and past ~1.15 a crisp expanding RING ripples out, so a heavy swing
+   * visibly lands harder than a 1-damage chip. Callers map damage → power (see `hitPower`).
    */
-  impact(x: number, y: number, dx: number, dy: number): void {
+  impact(x: number, y: number, dx: number, dy: number, power = 1): void {
     if (!this.ready) return;
     // Blow direction (unit vector); fall back to "up" if attacker/defender coincide.
     const len = Math.hypot(dx, dy) || 1;
@@ -543,27 +547,37 @@ class FxController {
 
     // Hot core flash — additive, brief, for the white-hot glint at the moment of contact.
     this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 220, fromScale: 0.5, toScale: 2.6, spin: 0,
+      x, y, vx: 0, vy: 0, drag: 1, life: 220, fromScale: 0.5, toScale: 2.6 * power, spin: 0,
       tint: 0xffe6b0, blend: 'add',
     });
     // Coloured shockwave — normal blend, a saturated orange flash that actually paints over cream.
     this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 300, fromScale: 0.3, toScale: 2.1, spin: 0,
+      x, y, vx: 0, vy: 0, drag: 1, life: 300, fromScale: 0.3, toScale: 2.1 * power, spin: 0,
       tint: 0xff6a1e, blend: 'normal',
     });
+    // Heavy hits (power ≳ 1.15) ripple a crisp expanding RING out of the contact — the "that one hurt"
+    // punctuation a soft glow can't give. Ring size/opacity track the overage so it ramps, not toggles.
+    if (power >= 1.15) {
+      const over = Math.min(1, (power - 1.15) / 0.85); // 0 at threshold → 1 at max power
+      this.spawn(this.rimTex!, {
+        x, y, vx: 0, vy: 0, drag: 1, life: 340 + over * 140,
+        fromScale: 0.25, toScale: 1.6 + over * 1.6, spin: 0,
+        tint: 0xffb054, blend: 'add', peakAlpha: 0.55 + over * 0.4,
+      });
+    }
 
     // Sparks — jagged saturated shards (rectangles + triangles, not soft dots), fanning out within
     // ±63° of the blow direction and oriented ALONG their travel so they read as flung debris. Normal
     // blend + hot colours so they contrast the bright background. Size carries a +20% visibility boost.
     const VIS = 1.2; // +20% spark visibility (size)
-    const count = 16;
+    const count = Math.round(16 * (0.7 + 0.3 * power)); // more shrapnel on heavier hits
     for (let i = 0; i < count; i++) {
       const spread = (Math.random() - 0.5) * (Math.PI * 0.7);
       const cos = Math.cos(spread);
       const sin = Math.sin(spread);
       const dirX = ux * cos - uy * sin;
       const dirY = ux * sin + uy * cos;
-      const speed = 320 + Math.random() * 620; // px/sec
+      const speed = (320 + Math.random() * 620) * (0.85 + 0.15 * power); // px/sec — flung harder when heavy
       const warm = Math.random();
       const tint = warm < 0.45 ? 0xff5a14 : warm < 0.8 ? 0xff9d20 : 0xffd24a;
       // alternate shard shapes; orient along velocity with a little jitter so the burst looks ragged
@@ -587,7 +601,7 @@ class FxController {
     // so they tint the cream board like a wisp rather than blasting it; slow + long-lived so they
     // linger after the sparks have burned out.
     const sm = getSmokeConfig(); // live-tunable (DEV Smoke tuner); defaults reproduce the original look
-    const puffs = Math.round(sm.smokeCount);
+    const puffs = Math.round(sm.smokeCount * (0.75 + 0.25 * power)); // a touch thicker on heavy hits
     for (let i = 0; i < puffs; i++) {
       const driftX = (Math.random() - 0.5) * sm.smokeDrift; // gentle horizontal spread
       const rise = -sm.smokeRise * (0.53 + Math.random() * 0.93); // drift upward, varied

@@ -28,14 +28,15 @@ const ICONS: Record<string, ReactNode> = {
       <path fillRule="evenodd" fill="currentColor" d="M12 6.4c-3.4 0-6 2.5-6 5.7 0 2 1.1 3.8 2.8 4.9l.4 2.9 1.8-1.5c.3.1.7.1 1 .1s.7 0 1-.1l1.8 1.5.4-2.9c1.7-1.1 2.8-2.9 2.8-4.9 0-3.2-2.6-5.7-6-5.7zm-2.5 4.7c.8 0 1.4.7 1.4 1.5s-.6 1.5-1.4 1.5-1.4-.7-1.4-1.5.6-1.5 1.4-1.5zm5 0c.8 0 1.4.7 1.4 1.5s-.6 1.5-1.4 1.5-1.4-.7-1.4-1.5.6-1.5 1.4-1.5z" />
     </>
   ),
-  // Slaughter — an upright sword (fires each time this minion kills). Distinct from Rally's diagonal blade.
+  // Slaughter — a diagonal broadsword (blade to the upper-right, round pommel lower-left). Fires on each kill.
+  // Drawn upright then rotated 45° so the crossguard stays perpendicular to the blade.
   slaughter: (
-    <>
-      <path fill="currentColor" d="M12 2l1.5 12h-3z" />
-      <rect x="7" y="12.8" width="10" height="2.1" rx="0.7" fill="currentColor" />
-      <rect x="11.1" y="14.9" width="1.8" height="4.6" fill="currentColor" />
-      <circle cx="12" cy="20.5" r="1.6" fill="currentColor" />
-    </>
+    <g transform="rotate(45 12 12)">
+      <path fill="currentColor" d="M12 2.4l3.3 4.4V12.4H8.7V6.8z" />
+      <rect x="6.2" y="11.9" width="11.6" height="2.5" rx="1.2" fill="currentColor" />
+      <rect x="10.6" y="14.2" width="2.8" height="4.9" rx="0.4" fill="currentColor" />
+      <circle cx="12" cy="20" r="2.1" fill="currentColor" />
+    </g>
   ),
   // Immune — a shield with a bold cross (can't take damage).
   immune: (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { getHero, type BoardMinion } from '@game/sim';
+import { getHero, isCalibrationRound, type BoardMinion } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { heroArt } from './art';
 import { Icon } from './Icon';
@@ -80,6 +80,23 @@ export function Leaderboard() {
                   <div className="lbinfo">
                     <div className="lbname">{r.author || hero.name}</div>
                     <div className="lbmeta">{hero.name} · Wave {r.wave}{r.date ? ` · ${r.date}` : ''}</div>
+                    {r.history && (
+                      <div className="lbpips" aria-label="Round results">
+                        {[...r.history].map((c, k) => {
+                          const res = c === 'W' ? 'win' : c === 'L' ? 'lose' : 'draw';
+                          const cal = isCalibrationRound(k + 1);
+                          return (
+                            <span
+                              key={k}
+                              className={`lbpip ${res}${cal ? ' cal' : ''}`}
+                              title={`Round ${k + 1}: ${res}${cal ? ' (calibration — not scored)' : ''}`}
+                            >
+                              {c}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
                 {r.board && r.board.minions.length > 0 && (

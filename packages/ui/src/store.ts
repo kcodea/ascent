@@ -333,9 +333,14 @@ export const useGame = create<GameStore>((set, get) => ({
           // Rating (career): grade this scored run against its Line and update the persisted profile. Pure
           // math in @game/sim; the change is surfaced on the end screen (lastRating) + stamped into history.
           // `wonFinal` = won the last round (round 17) — a victory means the last history entry is the round-17
-          // result; winning it earns the big final-win bonus on top of the summit bonus.
+          // result; winning it earns the big final-win bonus on top of the summit bonus. Winning the two rounds
+          // before it (15 & 16) earns the escalating end-game ramp (+8 / +12). `history` is 0-indexed by round.
+          const wonRound = (round: number): boolean => next.history[round - 1] === 'win';
           const wonFinal = won && next.history[next.history.length - 1] === 'win';
-          const change = resolveRunRating(s.profile, { scoredWins: runRecord(next).wins, line: next.line, completed: won, wonFinal });
+          const change = resolveRunRating(s.profile, {
+            scoredWins: runRecord(next).wins, line: next.line, completed: won,
+            wonFinal, wonRound15: wonRound(15), wonRound16: wonRound(16),
+          });
           saveProfile(change.profile);
           set({ profile: change.profile, lastRating: change });
           saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change }));
@@ -345,6 +350,8 @@ export const useGame = create<GameStore>((set, get) => ({
               wins: next.history.filter((r) => r === 'win').length, seed: next.seed,
               board: finalBoard, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
               capturedAt: date,
+              // Per-round W/L spread for the Hall of Champions — one char per round (W/L/D), calibration included.
+              history: next.history.map((r) => (r === 'win' ? 'W' : r === 'lose' ? 'L' : 'D')).join(''),
             });
           }
         }, 0);

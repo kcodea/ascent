@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **End-game scoring + Hall of Champions W/L spread** — winning the closing rounds now pays escalating rating
+  (round **15 → +8**, **16 → +12**, **17 → +16**, stacked on the summit + line bonuses), surfaced as an
+  **"End-game Push"** chip on the end screen. And the **Hall of Champions** now renders each champion's full
+  **17-round W/L spread** — the end-screen round pips, calibration rounds dimmed — for new victory runs.
 - **Content batch — Beast auras, a new hero, 3 minions + a spell** — Beasts gain a "wherever they are" theme:
   **Kennelmaster** now gives your Beasts **+1/+1 at Start of Combat** (and buffs beasts *summoned mid-fight*),
   which **Grim** and new **Solaris Fang** (Beast/Mech T5 — Rally: Beasts +5 Attack; Avenge: gain Ward + attack

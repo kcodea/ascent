@@ -1876,6 +1876,13 @@ svg { width: 18px; height: 18px; }
 .lbinfo { display: flex; flex-direction: column; }
 .lbname { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #fff; }
 .lbmeta { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+/* Per-round W/L spread — a compact version of the end-screen pips (.endpip). Calibration rounds (1–2) dimmed. */
+.lbpips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.lbpip { flex: none; width: 19px; height: 19px; border-radius: 5px; font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: #fff; display: grid; place-items: center; }
+.lbpip.win { background: #3b9e57; }
+.lbpip.lose { background: var(--threat); }
+.lbpip.draw { background: var(--ink3); }
+.lbpip.cal { opacity: 0.4; filter: grayscale(0.55); }
 /* Shrink the cards for the leaderboard: compact cards size off --ccw (the others derive from it). flex-wrap so
    a wide warband never overflows; the page is the top layer so the full-text-on-hover popup sits on top. */
 .lbwarband { --ccw: clamp(112px, 13vh, 150px); --cw: calc(var(--ccw) / 0.85); --ch: calc(var(--cw) / 0.752); display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; padding-top: 10px; }

@@ -45,6 +45,7 @@ create table if not exists public.runs (
   result      text not null,           -- 'victory' (future: 'gameover')
   seed        bigint,
   board       jsonb,                   -- the final BoardSnapshot (winning warband) for the hover reveal
+  history     text,                    -- per-round result spread: one char per round, 'W'|'L'|'D' (e.g. "LLWLWWW…")
   captured_at date,
   created_at  timestamptz default now()
 );
@@ -63,3 +64,6 @@ create policy "anon insert runs"  on public.runs for insert to anon with check (
 --   delete from public.boards where patch = '0.1.0+oldsha';
 -- Remove the connectivity test row created during setup:
 --   delete from public.boards where patch = '__conntest__';
+-- Migration for an EXISTING project — add the per-round spread column to the leaderboard (safe to re-run;
+-- old rows keep a null history and simply show no spread until a fresh victory is logged):
+--   alter table public.runs add column if not exists history text;

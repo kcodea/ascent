@@ -416,10 +416,11 @@ body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubi
    opens a gap; glide that shift. The reorder measures the cards' rotated rects directly (no flatten — the bbox
    stays centred on each card), which is what keeps a pickup from jiggling the hand. */
 body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0.82, 0.12, 1); }
-/* While dragging, the cursor still "hovers" the cards under the (pointer-events:none) floating card — don't
-   flash their hover glow. Clear the hover drop-shadow filter. */
+/* Zero the hover glow where it isn't wanted: on cards the cursor "hovers" under the (pointer-events:none)
+   floating drag card, and on hand cards (which pop up instead of glowing). */
+.row.hand .card:hover,
 body.dragging .zone[data-zone='warband'] .card:hover,
-body.dragging .zone[data-zone='tavern'] .card:hover { filter: none !important; }
+body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }
@@ -441,7 +442,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { filter: none !important; }
    rectangular border-box, so on a full card it shows as a boxy halo around/under the drawer (the reported
    "light box under the card"). No lift/tilt, and no z-index bump: raising z would make the card a stacking
    context above the z3 shield-bubble canvas (hiding the divine-shield/reborn aura on hover). */
-.card:hover, .card.compact:hover { filter: drop-shadow(0 0 2px #fff7d1) drop-shadow(0 0 6px rgba(255, 226, 110, 0.95)) drop-shadow(0 0 15px rgba(255, 208, 90, 0.6)); }
+.card:hover, .card.compact:hover { --hglow-ring: 3px; --hglow-blur: 22px; --hglow-spread: 7px; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */
@@ -583,8 +584,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { filter: none !important; }
   flex: 1 1 auto; margin: 0;
   border-radius: var(--arch-radius);                                      /* arched top, rounded base */
   border: 4px solid var(--c);
+  /* Last two layers = the hover glow (driven by --hglow-*; 0 = invisible, set on .card:hover). Living on a
+     box-shadow of the ARCHED .art means the glow hugs the card silhouette AND the card never becomes a stacking
+     context — so the z3 shield/reborn bubble still sits under the badges (a filter/z-index glow would lift the
+     bubble over them on hover). */
   box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)),   /* gold inner line */
-              inset 0 7px 18px rgba(0, 0, 0, 0.42), 0 6px 16px rgba(0, 0, 0, 0.42);
+              inset 0 7px 18px rgba(0, 0, 0, 0.42), 0 6px 16px rgba(0, 0, 0, 0.42),
+              0 0 0 var(--hglow-ring, 0) #fff7d1, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(255, 226, 110, 0.92);
 }
 /* keyword glows ring the card box — give it the arch radius so they follow the silhouette, and
    re-shape the rectangular Divine-Shield / Reborn washes to the arch too (no more squared-off top). */
@@ -682,7 +688,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover { filter: none !important; }
   padding: calc(var(--ccw) * 0.14) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
   background: var(--card); border: 2px solid color-mix(in srgb, var(--c) 40%, var(--line));
   border-top: none; border-radius: 0 0 calc(16 * var(--u)) calc(16 * var(--u));
-  box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.4),
+              0 0 0 var(--hglow-ring, 0) #fff7d1, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(255, 226, 110, 0.92);
 }
 .card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.088); color: var(--ink); background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
 .card.compact.showtext .drawer .kws { min-height: 0; margin: 0 0 calc(var(--ccw) * 0.035); }

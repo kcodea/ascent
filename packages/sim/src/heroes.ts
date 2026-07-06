@@ -19,7 +19,8 @@ export type HeroPowerKind =
   | 'quest' // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
   | 'chaos' // Chaos (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
   | 'sellGold' // Robin (passive): each minion you sell banks +1 Gold for the START of next turn
-  | 'displace'; // Darah: swap a friendly minion with a random tavern minion (active, targeted)
+  | 'displace' // Darah: swap a friendly minion with a random tavern minion (active, targeted)
+  | 'grantReborn'; // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
 
 export interface HeroPower {
   name: string;
@@ -205,6 +206,18 @@ export const HEROES: HeroDef[] = [
       name: 'Displace',
       kind: 'displace',
       text: 'Choose a friendly minion — swap it with a random minion in the tavern.',
+    },
+  },
+  {
+    id: 'risen',
+    name: 'Lord of the Risen',
+    blurb: 'Death is a rehearsal — each turn, one soldier returns for an encore.',
+    resolve: 30,
+    armor: 8,
+    power: {
+      name: 'Rise Again',
+      kind: 'grantReborn',
+      text: 'Give a friendly minion **Rise** for the next combat.',
     },
   },
 ];

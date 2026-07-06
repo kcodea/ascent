@@ -12,7 +12,7 @@ import type { CardDef } from '@game/core';
 export const BEASTS: CardDef[] = [
   {
     id: 'alley',
-    name: 'Alleycat',
+    name: 'Pennycat',
     tribe: 'beast',
     tier: 1,
     attack: 1,
@@ -144,15 +144,15 @@ export const BEASTS: CardDef[] = [
     // Deathrattle cub-summoner — a fragile 4/1 that leaves two 0/2 Taunt bodies behind. Golden keeps the
     // count and GILDS the cubs instead (0/4 each — `fixed` + `goldenTokens`).
     id: 'manasaber',
-    name: 'Manasaber',
+    name: 'Void Panther',
     tribe: 'beast',
     tier: 1,
     attack: 4,
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'sabercub', count: 2, fixed: true, goldenTokens: true } }],
-    text: '**Deathrattle:** summon two 0/2 Saber Cubs with **Taunt**.',
-    goldenText: '**Deathrattle:** summon two 0/4 Saber Cubs with **Taunt**.',
+    text: '**Deathrattle:** summon two 0/2 Void Cubs with **Taunt**.',
+    goldenText: '**Deathrattle:** summon two 0/4 Void Cubs with **Taunt**.',
   },
   {
     // Combat support: when ANOTHER friendly Beast attacks, pump it +3/+1 before the hit lands (onAttack
@@ -216,7 +216,7 @@ export const BEASTS: CardDef[] = [
     // Summon-payoff that snowballs: each Beast you summon (in OR out of combat) gets buffed, and the buff
     // grows by +3/+3 every time. Pairs with token-summoners (Manasaber, Mama Pup). Golden doubles.
     id: 'mamabear',
-    name: 'Mama Bear',
+    name: 'Forest Guardian',
     tribe: 'beast',
     tier: 5,
     attack: 5,

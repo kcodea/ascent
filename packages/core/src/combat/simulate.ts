@@ -47,6 +47,7 @@ export function simulate(
   playerTier = 1,
   playerTribes: string[] = [],
   cardBuffs: Record<string, { attack: number; health: number }> = {},
+  playerAttacksFirst = false,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -248,7 +249,7 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
-    summon: (side, card, nearUid, grantKeywords, golden) => summonMinion(side, card, nearUid, grantKeywords, golden),
+    summon: (side, card, nearUid, grantKeywords, golden, attackNow) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow),
     flushImmediateAttacks: () => flushImmediateAttacks(),
     countDeathrattle: (side) => {
       // A Deathrattle triggered WITHOUT a death (Sporeling's Battlecry proc) still counts toward the tally
@@ -349,7 +350,7 @@ export function simulate(
    * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
    * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
     const minion = instantiate(
@@ -390,7 +391,8 @@ export function simulate(
     }
     // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
     // already returned above, so only minions actually placed on the board reach here.
-    if (card.attackOnSummon && !minion.dead && minion.health > 0) pendingAttackOnSummon.push(minion);
+    // `attackNow` is the per-summon override (Steadfast Champion's Spear Warden) — same queue as the card flag.
+    if ((card.attackOnSummon || attackNow) && !minion.dead && minion.health > 0) pendingAttackOnSummon.push(minion);
     return minion;
   }
 
@@ -790,11 +792,14 @@ export function simulate(
     }
   }
 
-  // --- First attacker: more living minions goes first; tie → seeded (A.3 step 2) ---
+  // --- First attacker: more living minions goes first; tie → seeded (A.3 step 2).
+  //     Pre-emptive Assault overrides the whole rule: the player strikes first, period (one fight —
+  //     the run loop clears the flag at settle). No tie roll is consumed on the override. ---
   const playerCount = living('player').length;
   const enemyCount = living('enemy').length;
-  let turn: Side =
-    playerCount > enemyCount
+  let turn: Side = playerAttacksFirst
+    ? 'player'
+    : playerCount > enemyCount
       ? 'player'
       : enemyCount > playerCount
         ? 'enemy'

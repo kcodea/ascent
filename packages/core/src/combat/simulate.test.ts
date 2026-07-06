@@ -514,13 +514,66 @@ describe('simulate (handoff A.3)', () => {
     expect(whelpAttacks.length).toBeGreaterThanOrEqual(2); // the immediate strike + its own rotation turn
   });
 
-  it('a captured ENEMY Eternal Knight re-gains its OWN enchant when it Rises (snapshot auras intact)', () => {
-    // An enemy snapshot Knight carrying a +15/+10 Eternal-Knight enchant on its buff breakdown (base 3/2 →
+  it('Steadfast Champion Avenge (3): summons a Spear Warden that attacks immediately', () => {
+    // Three 1/1 Strays die (attacking into retaliation / eaten by the omen) while the Champion survives →
+    // the 3rd friendly death procs Avenge: a Spear Warden spawns and strikes OUT OF TURN ORDER — the very
+    // next attack event after its summon is its own (no enemy swing squeezes between).
+    const p: BoardMinion[] = [
+      { cardId: 'steadfast', attack: 7, health: 7 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+    ];
+    const a = run(p, [{ cardId: 'omen', attack: 1, health: 60 }], 5);
+    const summonIdx = a.events.findIndex((e) => e.type === 'summon' && e.minion.cardId === 'knit');
+    expect(summonIdx).toBeGreaterThan(-1); // the Warden spawned
+    const ev = a.events[summonIdx]!;
+    const wardenUid = ev.type === 'summon' ? ev.minion.uid : '';
+    const nextAttack = a.events.slice(summonIdx + 1).find((e) => e.type === 'attack');
+    expect(nextAttack && nextAttack.type === 'attack' && nextAttack.attacker).toBe(wardenUid); // immediate strike
+  });
+
+  it('GOLDEN Steadfast Champion summons a GOLDEN Spear Warden (doubled base stats), not two', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'steadfast', attack: 14, health: 14, golden: true },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+    ];
+    const a = run(p, [{ cardId: 'omen', attack: 1, health: 60 }], 5);
+    const wardens = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'knit');
+    expect(wardens.length).toBe(1); // golden upgrades the summon, it does NOT double the count
+    const w = wardens[0]!;
+    expect(w.type === 'summon' && w.minion.attack).toBe(6); // 3/2 base → gilded 6/4
+    expect(w.type === 'summon' && w.minion.health).toBe(4);
+  });
+
+  it('playerAttacksFirst (Pre-emptive Assault) overrides the more-minions initiative rule', () => {
+    // 1 player minion vs 3 enemy minions: the enemy normally attacks first (more living minions). The
+    // override flips it — the first attack event of the fight is the player's.
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 2, health: 30 }];
+    const e: BoardMinion[] = [
+      { cardId: 'stray', attack: 1, health: 2 },
+      { cardId: 'stray', attack: 1, health: 2 },
+      { cardId: 'stray', attack: 1, health: 2 },
+    ];
+    const first = (attackFirst: boolean): string => {
+      const r = simulate(p, e, makeRng(9), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, [], {}, attackFirst);
+      const atk = r.events.find((ev) => ev.type === 'attack');
+      return atk && atk.type === 'attack' ? atk.attacker : '';
+    };
+    const playerUid = 'm0'; // the single player minion instantiates first
+    expect(first(false)).not.toBe(playerUid); // 3v1 → enemy leads by default
+    expect(first(true)).toBe(playerUid); // the override puts the player first
+  });
+
+  it('a captured ENEMY Spear Warden re-gains its OWN enchant when it Rises (snapshot auras intact)', () => {
+    // An enemy snapshot Warden carrying a +15/+10 Spear-Warden enchant on its buff breakdown (base 3/2 →
     // 18/12) with Rise. On death it Rises from base — applyAuras must re-fold its own enchant even for the
     // enemy side: base attack 3 + 15 = 18, Rise Health 1 + 10 = 11 (NOT bare 3/1).
     const a = run(
       [{ cardId: 'omen', attack: 30, health: 90, keywords: [] }],
-      [{ cardId: 'knit', attack: 18, health: 12, keywords: ['R'], buffs: [{ source: 'Eternal Knight', attack: 15, health: 10, count: 5 }] }],
+      [{ cardId: 'knit', attack: 18, health: 12, keywords: ['R'], buffs: [{ source: 'Spear Warden', attack: 15, health: 10, count: 5 }] }],
       3,
     );
     const reborn = a.events.find((e) => e.type === 'reborn');
@@ -1624,15 +1677,15 @@ describe('simulate (handoff A.3)', () => {
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(9); // base 3 + Lantern 3 + Eternal-Knight 3
   });
 
-  it('Eternal Knight Reborn keeps its accrued stacks: a 5-stack Knight dies (→6) and Reborns at 6 stacks', () => {
-    // A Knight that entered with 5 prior stacks of its run-wide enchant (+3/+2 each = +15/+10, carried into
+  it('Spear Warden Reborn keeps its accrued stacks: a 5-stack Warden dies (→6) and Reborns at 6 stacks', () => {
+    // A Warden that entered with 5 prior stacks of its run-wide enchant (+3/+2 each = +15/+10, carried into
     // combat on its buff breakdown under the card's own name) at base 3/2 → 18/12. It dies, banking a 6th
     // stack this fight, and Reborns at base attack 3 + 6 stacks and 1 Health + the enchant health = 21/13.
     const p: BoardMinion[] = [{
       cardId: 'knit', attack: 18, health: 12, keywords: ['R'],
-      buffs: [{ source: 'Eternal Knight', attack: 15, health: 10, count: 5 }],
+      buffs: [{ source: 'Spear Warden', attack: 15, health: 10, count: 5 }],
     }];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 20, health: 200 }]; // out-trades the Knight → forces the Reborn
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 20, health: 200 }]; // out-trades the Warden → forces the Reborn
     const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1);
     const reborn = a.events.find((ev) => ev.type === 'reborn');
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(21); // base 3 + (15 prior + 3 this fight)

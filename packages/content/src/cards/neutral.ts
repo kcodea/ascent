@@ -164,6 +164,21 @@ export const NEUTRAL: CardDef[] = [
     goldenText: '**Start of Combat:** adjacent units are **Engraved** and gain **2× stats** in combat.',
   },
   {
+    // Late-game Discover: peek 3 minions of EXACTLY tier 5 (a fixed-tier Discover — not tavern-bound,
+    // so it works even at tier 4). It's tier 6 itself, so it can never find another Joker. Golden
+    // Discovers twice. A weak 4/4 body pricing in the card advantage.
+    id: 'joker',
+    name: 'Mysterious Joker',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion', params: { tier: 5 } }],
+    text: '**Battlecry:** Discover a **Tier 5** minion.',
+    goldenText: '**Battlecry:** Discover **2 Tier 5** minions.',
+  },
+  {
     id: 'venom',
     name: 'Venom',
     tribe: 'neutral',

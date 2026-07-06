@@ -465,6 +465,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantRandomSpell(mul(self), self.side, self.uid); // 1 random spell per proc (golden 2)
   },
 
+  /** Avenge (X) — Steadfast Champion: after every `count` friendly deaths, summon a `cardId` minion
+   *  (Spear Warden) that ATTACKS IMMEDIATELY, out of turn order (the Whelp attack-on-summon queue —
+   *  it strikes once the current attack's death cascade settles). GOLDEN summons a GOLDEN copy (count
+   *  stays 1) rather than two. The summon registers the card's real effects, so a summoned Spear
+   *  Warden's own Echo keeps feeding the run-wide Spear Warden enchant ("the aura") as usual. */
+  avengeSummonAttack: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    if (count % x !== 0) return;
+    const card = ctx.getCard(str(params.cardId));
+    if (!card) return;
+    ctx.summon(self.side, card, self.uid, undefined, self.golden, true);
+  },
+
   /** Deathrattle (Skullblade): permanently raise the run-wide spell power by +atk/+hp (golden doubles).
    *  Carried back via `CombatResult.playerSpellPower` (player-side only — `grantSpellPower` guards it),
    *  then applied to the run's spell bonus in settleCombat. Each Skullblade death stacks another +atk/+hp. */

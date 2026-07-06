@@ -6,7 +6,7 @@ import type { CardDef } from '@game/core';
  * (a Shield eats the single big hit). The shield-break chain is the engine of
  * the tribe: every popped Shield can regrant a Shield (Capacitor) or deal damage
  * (Arclight Reactor). Magnetic merges a Cling Drone's
- * stats onto a friendly Mech at recruit (resolved in `@game/sim`); Beatboxer
+ * stats onto a friendly Mech at recruit (resolved in `@game/sim`); Beatbot
  * mimics every magnetization that lands on another friendly unit; Junkyard Titan's
  * Deathrattle refills your hand with a random Magnetic to keep the chain going.
  */
@@ -93,10 +93,24 @@ export const MECHS: CardDef[] = [
     goldenText: '**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.',
   },
   {
+    // End-of-Turn spell-power ramp: each turn it survives, your spells permanently give +1/+1 more —
+    // the run-wide spellBonus channel (same as Cinderwing Matron's Battlecry, on a cadence). Golden +2/+2.
+    id: 'aeonguard',
+    name: 'Aeon Guard',
+    tribe: 'mech',
+    tier: 5,
+    attack: 6,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'battlecryBuffSpellPower', params: { attack: 1, health: 1 } }],
+    text: '**End of Turn:** give your spells **+1/+1**.',
+    goldenText: '**End of Turn:** give your spells **+2/+2**.',
+  },
+  {
     // Passive (resolved in @game/sim's magnetize path): every magnetization that lands on another
-    // friendly minion is mirrored onto Beatboxer too. Golden mirrors each one twice.
+    // friendly minion is mirrored onto Beatbot too. Golden mirrors each one twice.
     id: 'beatboxer',
-    name: 'Beatboxer',
+    name: 'Beatbot',
     tribe: 'mech',
     tier: 6,
     attack: 8,
@@ -117,23 +131,6 @@ export const MECHS: CardDef[] = [
     keywords: ['W', 'M'],
     effects: [],
     text: '',
-  },
-  {
-    // Passive spell-power aura (resolved in @game/sim's `spellStatBonus` via `spellAura`): while Harry Botter
-    // (or a Mech it magnetized into) is on the board, every stat-granting spell gets +1/+1 (golden +2/+2).
-    // Live — sell the body and the bonus goes; two stack. Magnetic — welds the aura onto a host Mech (the
-    // host carries it via `spellAuraBonus`). No combat factory → inert in combat (just a 1/5 body).
-    id: 'harrybotter',
-    name: 'Harry Botter',
-    tribe: 'mech',
-    tier: 3,
-    attack: 1,
-    health: 5,
-    keywords: ['M'],
-    effects: [],
-    spellAura: 1,
-    text: 'Your spells get **+1/+1** while this is in play.',
-    goldenText: 'Your spells get **+2/+2** while this is in play.',
   },
   {
     // Rally + Magnetic. Standalone: when it attacks, your OTHER Mechs get +5 Attack (built-in combat

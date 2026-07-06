@@ -177,11 +177,18 @@ export function MinionBook() {
   }, [tribes]);
 
   const filtered = useMemo(() => {
+    // Spells are opt-in + additive: they show ONLY when the Spells chip is toggled on, and never narrow the
+    // minion view. Minions filter by the selected TRIBES alone (empty = all tribes); the Spells selection is an
+    // orthogonal "also include spells" axis, not a narrowing category — so by default (nothing selected) the
+    // gallery is minions-only, and turning Spells on adds them to whatever minions are showing.
+    const showSpells = cats.has('spells');
+    const tribeSel = [...cats].filter((x): x is Tribe => x !== 'spells');
     return allCards
       .filter((c) => {
         const tierOK = tiers.size === 0 || tiers.has(c.tier);
-        const cardCats: Category[] = c.spell ? ['spells'] : [c.tribe, ...(c.tribe2 ? [c.tribe2] : [])];
-        const catOK = cats.size === 0 || cardCats.some((x) => cats.has(x));
+        const catOK = c.spell
+          ? showSpells
+          : tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
         const kwOK = !kw || kw.match(c);
         return tierOK && catOK && kwOK;
       })
@@ -217,7 +224,7 @@ export function MinionBook() {
         <div className="book-head">
           <div className="book-title"><Icon name="house" /> Compendium</div>
           <div className="book-sub">
-            {glossary ? 'Keywords & abilities — click one to see its minions' : `${filtered.length} of ${allCards.length} cards ${showTitle ? 'in the game' : 'findable this run'}`}
+            {glossary ? 'Keywords & abilities — click one to see its minions' : `${filtered.length} of ${allCards.length} cards ${showTitle ? 'in the game' : 'findable this run'}${cats.has('spells') ? '' : ' · Spells hidden'}`}
           </div>
           <button
             className={`book-gloss${glossary ? ' on' : ''}`}

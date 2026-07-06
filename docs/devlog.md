@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
+### tweak(ui): Compendium hides spells by default — toggle Spells to add them to the view
+
+Owner ask: the Compendium shouldn't show spells unless the player opts in. Previously an unfiltered gallery
+showed minions AND spells mixed together. Now spells are an **opt-in, additive** axis: by default the gallery is
+minions-only, and turning on the existing **Spells** rail chip *adds* spells alongside whatever minions are
+showing (rather than narrowing to spells-only).
+- **MinionBook.tsx:** the `filtered` predicate splits the two axes — minions filter by the selected **tribes**
+  (empty = all tribes); spells appear **only** when `cats.has('spells')`, and the Spells selection is filtered
+  out of the tribe set so it never narrows the minion view. So: nothing selected → all minions, no spells;
+  +Spells → minions + spells; Beast → beasts only; Beast +Spells → beasts + spells. The rail button, its
+  on/off state, and `toggleCat` are all unchanged (spells still lives in `cats`).
+- **Header cue:** the sub-count appends "· Spells hidden" whenever the Spells chip is off, so "94 of 129 cards"
+  reads as intentional (35 spells hidden) rather than a stuck filter.
+- **Verified** live in-preview (title / whole-game view): default 94/129 with "Spells hidden"; +Spells → 129/129;
+  Beast +Spells → 53 (18 beasts + 35 spells); Beast alone → 18 with the cue back. `typecheck + lint + test (514) +
+  build:web` green.
+- **Flagged (judgement call):** read "adds them to the view" as *additive* (spells layered onto minions), not a
+  narrowing "spells-only" filter — so there's no longer a one-click "browse only spells." Trivial to switch to
+  narrowing (or add a spells-only mode) if you'd prefer.
+
 ### feat(ui): Hall of Champions shows each champion's per-round W/L spread
 
 Owner ask: render the 17-round W/L spread on the leaderboard, like the end screen's round pips. The data wasn't

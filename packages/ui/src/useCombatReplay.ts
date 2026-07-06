@@ -7,7 +7,8 @@ import { pixiFx } from './pixiFx';
 import { getLungeConfig } from './lungeConfig';
 import { getTrailConfig } from './trailConfig';
 import { getPacingConfig, beatDelay } from './pacingConfig';
-import { buildBeats, RESULT_TYPES, attackerOfImpact } from './combatBeats';
+import { RESULT_TYPES, attackerOfImpact } from './combatBeats';
+import { compileMoments } from './choreo/compile';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
@@ -490,7 +491,9 @@ export function useCombatReplay(
   // beat delay / float lifetime / final hold is divided by it, and each lunge is timeScaled to match.
   const combatSpeed = opts.combatSpeed && opts.combatSpeed > 0 ? opts.combatSpeed : 1;
   const events = useMemo(() => combat?.events ?? [], [combat]);
-  const beats = useMemo(() => buildBeats(events), [events]);
+  // Moments are Beat-shaped (choreographer phase 1): identical grouping to the old buildBeats (equivalence-
+  // tested), now carrying stepGroups for later phases. buildBeats itself remains only as the test oracle.
+  const beats = useMemo(() => compileMoments(events), [events]);
   const [beatIdx, setBeatIdx] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)

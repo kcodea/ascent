@@ -5,7 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
-### feat(ui): aura death bursts — Taunt/Ward/Rise explode in place on death
+### fix(ui): Rise attacker's spirit burst fired twice (impact + return) — now only on return
+
+Owner-reported: a Rise unit dying on its own attack exploded twice — once at contact, once after the
+pull-back landed. Root cause was the fragile "returning home" signal: the aura tracker sniffed the unit's
+inline GSAP transform, and PASS 2's marker-strip fallback didn't know about the pull-back at all — when the
+reborn beat stripped `R` mid-flight, that fallback burst immediately at the in-flight position AND never
+recorded itself in the once-only guard (`deathBurstRef`), while the PASS 1 fall-through re-armed the guard
+for dying units, so the landing burst fired again. Fixes:
+- The replay sets **`data-rising`** on the unit for exactly the pull-back's lifetime (cleared in the return
+  tween's onComplete) — a deterministic signal replacing the transform sniff.
+- PASS 2's marker-strip branch now **defers while the flag is up** (keeps the aura riding the returning
+  card, re-measuring per sync) and fires once on landing — recording the burst in the guard (the missing
+  write that allowed the double).
+- The PASS 1 fall-through re-arms the guard only for **living** carriers, never a dying-but-returning one.
+- Also restored the **descendant marker check for combat trail variants** — `findEl` resolves the `.unit`
+  wrapper, so `classList.contains('dscard'/'reborncard')` alone never matched in combat: gold/blue attack
+  trails had been silently dead since the "dead code" cleanup removed the querySelector fallback (which was
+  in fact the live path).
+
+Verified: typecheck + lint + **495 tests** + build:web green; `typecheck:web` steady at 21. The
+burst-once-at-home sequence wants the owner's live eyeball (same fight setup as the report).
 
 Owner direction: a unit dying while carrying a visual aura should EXPLODE it (like the ward break), not
 let it fade out. Presentation-only, three commits on `feat/aura-death-bursts`:

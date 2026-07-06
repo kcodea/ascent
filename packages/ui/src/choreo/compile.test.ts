@@ -53,4 +53,21 @@ describe('compileMoments — default rules reproduce buildBeats exactly', () => 
     expect(moments).toHaveLength(1); // two dmg events collapse into one impact moment (grouping unchanged)…
     expect(moments[0]!.stepGroups).toEqual([[0], [1]]); // …but with NO step info, each event stands alone
   });
+
+  it('single-action fallthrough: sc / toHand each become their own single-event moment', () => {
+    const moments = compileMoments(
+      [
+        { type: 'sc', source: 'a', text: 'x', step: 0 },
+        { type: 'toHand', cardId: 'y', side: 'player', step: 1 },
+      ],
+      DEFAULT_RULES,
+    );
+    expect(moments).toHaveLength(2);
+    expect(moments[0]).toMatchObject({ start: 0, end: 1, primary: { type: 'sc', source: 'a' }, stepGroups: [[0]] });
+    expect(moments[1]).toMatchObject({ start: 1, end: 2, primary: { type: 'toHand', cardId: 'y' }, stepGroups: [[1]] });
+  });
+
+  it('empty log compiles to no moments', () => {
+    expect(compileMoments([], DEFAULT_RULES)).toEqual([]);
+  });
 });

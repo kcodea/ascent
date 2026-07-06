@@ -15,6 +15,9 @@ import type { CombatEvent } from '@game/core';
  *   the wind-up, so the **damage lands at the lunge's connection** instead of a beat later (after the buff
  *   animation). Event ORDER is never changed — only how events are grouped into beats — so the replay's
  *   state derivation (`computeFrame`, which folds events in order) stays correct.
+ *
+ * Kept as the equivalence ORACLE for `choreo/compile.ts` (`compileMoments` re-implements this algorithm on
+ * purpose) — do not dedupe one into the other, or the equivalence tests become tautological.
  */
 
 /** Result events — the "impact" of an action. A contiguous run becomes one beat. `keyword` rides here so a

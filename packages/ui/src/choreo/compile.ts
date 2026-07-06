@@ -8,10 +8,16 @@ import { RESULT_TYPES, type Beat } from '../combatBeats';
  * carrying each moment's `stepGroups` — the sim-declared simultaneity (resolution-step tags) later phases
  * use for ordering/stagger authoring. Pure + deterministic; moments are contiguous slices of the log, so
  * `computeFrame`'s in-order fold is never violated.
+ *
+ * `compileMoments` deliberately RE-IMPLEMENTS `buildBeats`'s algorithm — do not refactor one to call the
+ * other and do not delete `buildBeats`: it is the equivalence-test ORACLE (making one delegate to the other
+ * would turn the equivalence tests tautological).
  */
 
 /** Grouping rules — today's hardcoded buildBeats behavior expressed as data. Later phases extend this
- *  (chain/splitPerTarget) and make it live-tunable; phase 1 ships the defaults only. */
+ *  (chain/splitPerTarget) and make it live-tunable; phase 1 ships the defaults only.
+ *  Forward-note: phase 4 rules (chain, splitPerTarget) will need predicate/key-based rules, not just type
+ *  membership — expect this interface to grow beyond Set<type> fields (see the spec's phase 4). */
 export interface GroupingRules {
   /** Result events: a contiguous run collapses into one impact moment. */
   collapse: ReadonlySet<CombatEvent['type']>;
@@ -43,6 +49,8 @@ function groupBySteps(events: CombatEvent[], start: number, end: number): number
   let curStep: number | undefined;
   for (let i = start; i < end; i++) {
     const s = events[i]!.step;
+    // `undefined !== undefined` is false — without the explicit `s === undefined` check, consecutive
+    // UNTAGGED events would wrongly share a group.
     if (cur.length > 0 && (s === undefined || s !== curStep)) { groups.push(cur); cur = []; }
     cur.push(i);
     curStep = s;

@@ -1085,14 +1085,24 @@ export function Recruit() {
         return n;
       });
       const r = el.getBoundingClientRect();
+      // The floating card renders at its FULL, untransformed size — but a hand card is scaled down by the fan
+      // (~0.9) and tucked, so `getBoundingClientRect` returns the SCALED box. Sizing the wrapper from that made
+      // it smaller than the `<Card>` inside, so the art box overflowed and the text drawer sat off-centre. Use
+      // the layout size (`offsetWidth/Height`, which ignore transforms) for the wrapper, and take the grab
+      // point as a scale-invariant FRACTION of the rect mapped onto the full size. For an untransformed
+      // board/shop card `offsetWidth === r.width`, so this is a no-op there.
+      const w = el.offsetWidth || r.width;
+      const h = el.offsetHeight || r.height;
+      const fracX = r.width ? (e.clientX - r.left) / r.width : 0.5;
+      const fracY = r.height ? (e.clientY - r.top) / r.height : 0.5;
       // capture the pointer so move/up keep firing even if it leaves the window or races
       // ahead of the floating card — events still bubble to the window listeners.
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
       setDrag({
         uid, source, view,
-        ox: r.width / 2, oy: r.height / 2,           // anchor = centre → the card rides centred on the cursor
-        grabOx: e.clientX - r.left, grabOy: e.clientY - r.top, // where you actually grabbed (recentre starts here)
-        w: r.width, h: r.height,
+        ox: w / 2, oy: h / 2,                        // anchor = centre → the card rides centred on the cursor
+        grabOx: fracX * w, grabOy: fracY * h,        // where you actually grabbed (recentre starts here), full-size
+        w, h,
         startX: e.clientX, startY: e.clientY,
         x: e.clientX, y: e.clientY,
         active: false,
@@ -2591,9 +2601,6 @@ export function Recruit() {
           </div>
         );
       })()}
-
-      {/* Combat narration — a single rolling line where the hand used to fan. */}
-      {fighting && <div className="alog">{replay.log}</div>}
 
       {/* A clear "End of Turn" beat as the turn ends (end-of-turn effects have resolved). */}
       {endTurnFlash && (

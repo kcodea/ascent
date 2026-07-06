@@ -46,11 +46,8 @@ const ICONS: Record<string, ReactNode> = {
   ),
   // Choose One — an arrow that forks into two directions (pick one of two effects).
   choose1: (
-    <>
-      <path fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" d="M12 21v-6.2M12 14.8L6.4 9.2M12 14.8l5.6-5.6" />
-      <path fill="currentColor" d="M4 5.4l4.7.6-1 4.6z" />
-      <path fill="currentColor" d="M20 5.4l-4.7.6 1 4.6z" />
-    </>
+    <path fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+      d="M12 21v-6.2M12 14.8l-4.8-4.8M12 14.8l4.8-4.8M7.2 10l3.4.3M7.2 10l.3 3.4M16.8 10l-3.4.3M16.8 10l-.3 3.4" />
   ),
   // Echo — skull & crossbones (Deathrattle: fires when this minion dies).
   echo: (
@@ -70,12 +67,15 @@ const ICONS: Record<string, ReactNode> = {
       <path fill="currentColor" d="M6.5 12.4c-1.4-.2-2.4.3-2.4 1.5s1 1.7 2.4 1.6z" />
     </>
   ),
-  // Rise — a tombstone with a hand reaching up out of the ground (returns once on death).
+  // Rise — a tombstone (left) with a hand reaching up out of the ground (returns once on death).
   rise: (
     <>
-      <path fill="currentColor" d="M5.5 18V8.8a2.8 2.8 0 015.6 0V18z" />
-      <rect x="3" y="17.4" width="18" height="2.8" rx="0.8" fill="currentColor" />
-      <path fillRule="evenodd" fill="currentColor" d="M13.6 20.2c-1.4 0-2.6-.9-3-2.2l-.6-1.9c-.2-.7.8-1.1 1.1-.4l.7 1.4V11c0-.6.5-1 1-1s1 .4 1 1v3.1c0-.6.5-1 1-1s1 .4 1 1v.6c0-.6.5-1 1-1s1 .4 1 1v.9c0-.5.4-.9.9-.9s.9.4.9.9v1.6c0 1.9-1.5 3.5-3.4 3.5z" />
+      <path fill="currentColor" d="M5 18V9a2.7 2.7 0 015.4 0v9z" />
+      <rect x="2.8" y="17.3" width="18.4" height="2.9" rx="0.8" fill="currentColor" />
+      <rect x="12.6" y="14.1" width="6.4" height="4.1" rx="1.4" fill="currentColor" />
+      <rect x="13" y="11.3" width="1.5" height="3.7" rx="0.75" fill="currentColor" />
+      <rect x="15" y="10.4" width="1.5" height="4.6" rx="0.75" fill="currentColor" />
+      <rect x="17" y="11.3" width="1.5" height="3.7" rx="0.75" fill="currentColor" />
     </>
   ),
   battlecry: (

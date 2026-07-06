@@ -54,7 +54,7 @@ karthus,Karthus,5,7,8,,Divine Shield | SL,**Slaughter:** give your Undead **+3 A
 sergeant,Sergeant,5,6,6,,,**Deathrattle:** Give your minions **+2 Health**. Improves each time Sergeant gains Attack.,**Deathrattle:** Give your minions **+4 Health**. Improves **+4** each time Sergeant gains Attack.
 steadfast,Steadfast Champion,5,4,7,,,**Avenge (3):** summon a **Spear Warden**. It attacks immediately.,**Avenge (3):** summon a **Golden Spear Warden**. It attacks immediately.
 forsakenweaver,Forsaken Mage,6,5,8,,,"When you cast a spell, give your Undead **+3 Attack** wherever they are.","When you cast a spell, give your Undead **+6 Attack** wherever they are."
-watcher,Watcher,6,8,3,,Rally,**Rally:** cast **Lantern of Souls** — your Undead get **+3 Attack** for the rest of the run.,**Rally:** cast **Lantern of Souls** twice — your Undead get **+6 Attack** for the rest of the run.
+watcher,Watcher,6,8,3,,Rally,**Rally:** cast **Lantern of Souls** — your Undead get **+3/+0** for the rest of the run.,**Rally:** cast **Lantern of Souls** twice — your Undead get **+6/+0** for the rest of the run.
 
 # === MECH (14) ===
 moneymaker,Money Maker,1,1,1,,,**Every 2 turns:** get a **Gold Pouch** or **Safety Deposit Box**.,**Every 2 turns:** get **2** — each a **Gold Pouch** or **Safety Deposit Box**.

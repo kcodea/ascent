@@ -240,9 +240,9 @@ export const UNDEAD: CardDef[] = [
 
   // --- 2026-07-06 content batch (part 2) ---
   {
-    // Rally engine: casts Lantern of Souls each time it attacks — your Undead get +3 Attack for the rest of
-    // the run (the permanent Undead aura, scaling with spell power). A REAL spell cast, so it feeds Spirit
-    // Pup's transform, Archmagus Guel, and a friendly Forsaken Weaver. Golden casts it twice.
+    // Rally engine: casts Lantern of Souls each time it attacks — your Undead get +3/+0 for the rest of the
+    // run (the permanent Undead aura), with the run's spell power folded into BOTH stats. A REAL spell cast,
+    // so it feeds Spirit Pup's transform, Archmagus Guel, and a friendly Forsaken Weaver. Golden casts twice.
     id: 'watcher',
     name: 'Watcher',
     tribe: 'undead',
@@ -251,7 +251,7 @@ export const UNDEAD: CardDef[] = [
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyCastTribeAttack', params: { tribe: 'undead', amount: 3 } }],
-    text: '**Rally:** cast **Lantern of Souls** — your Undead get **+3 Attack** for the rest of the run.',
-    goldenText: '**Rally:** cast **Lantern of Souls** twice — your Undead get **+6 Attack** for the rest of the run.',
+    text: '**Rally:** cast **Lantern of Souls** — your Undead get **+3/+0** for the rest of the run.',
+    goldenText: '**Rally:** cast **Lantern of Souls** twice — your Undead get **+6/+0** for the rest of the run.',
   },
 ];

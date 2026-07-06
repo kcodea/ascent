@@ -7,7 +7,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -380,6 +380,19 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       const card = s.board.find((c) => c.uid === co.uid);
       if (!card) return state;
+      // A *targeted* Choose One (Runic Beetle): once the buff is chosen, defer to the player picking a
+      // friendly target for it (via `battlecryTarget`) — but only when a viable target exists (tribe-
+      // restricted, never self). With none, resolve now so the grant auto-picks (falls back to self).
+      if (def.target === 'friendly') {
+        const hasTarget = def.targetTribe
+          ? s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!))
+          : s.board.some((c) => c.uid !== card.uid);
+        if (hasTarget) {
+          s.chooseOne = undefined;
+          s.pendingTarget = { uid: card.uid, cardId: card.cardId, optionIndex: action.index };
+          return s;
+        }
+      }
       applyChooseOne(s, card, option.effects); // the chosen Battlecry resolves now
       s.chooseOne = undefined;
       checkTriples(s);
@@ -389,10 +402,15 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'battlecryTarget': {
       if (!s.pendingTarget) return state;
-      const card = s.board.find((c) => c.uid === s.pendingTarget!.uid);
+      const pt = s.pendingTarget;
+      const card = s.board.find((c) => c.uid === pt.uid);
       const target = s.board.find((c) => c.uid === action.targetUid);
       if (!card || !target) return state; // a friendly target is required
-      applyBattlecryTarget(s, card, target); // the deferred Battlecry resolves on the chosen minion
+      // A deferred targeted Choose One (Runic Beetle) resolves the CHOSEN option's effects on the target;
+      // a normal targeted Battlecry (Toxin Tender) re-fires the card's own onPlay effects.
+      const opt = pt.optionIndex !== undefined ? CARD_INDEX[pt.cardId]?.chooseOne?.[pt.optionIndex] : undefined;
+      if (opt) applyChooseOneTarget(s, card, opt.effects, target);
+      else applyBattlecryTarget(s, card, target);
       s.pendingTarget = undefined;
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
@@ -611,13 +629,19 @@ function reduceCore(state: RunState, action: Action): RunState {
       // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
       // carry — never strand a played Toxin Tender without its grant.
       if (s.pendingTarget) {
-        const src = s.board.find((c) => c.uid === s.pendingTarget!.uid);
+        const pt = s.pendingTarget;
+        const src = s.board.find((c) => c.uid === pt.uid);
         const def = src ? CARD_INDEX[src.cardId] : undefined;
         // A tribe-restricted pick (Toxin Tender → another friendly Undead, never self) must respect it;
         // otherwise any friend works. No eligible target → the play resolves with no effect.
         const pool = def?.targetTribe ? s.board.filter((c) => c !== src && isTribe(c, def.targetTribe!)) : s.board;
         const carry = pool.length ? pool.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
-        if (src && carry) applyBattlecryTarget(s, src, carry);
+        if (src && carry) {
+          // A deferred targeted Choose One (Runic Beetle) auto-resolves the chosen option on the carry.
+          const opt = pt.optionIndex !== undefined ? def?.chooseOne?.[pt.optionIndex] : undefined;
+          if (opt) applyChooseOneTarget(s, src, opt.effects, carry);
+          else applyBattlecryTarget(s, src, carry);
+        }
         s.pendingTarget = undefined;
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
@@ -1043,6 +1067,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const c of [...s.board, ...s.hand]) {
       if (isTribe(c, 'undead')) addBuff(c, 'Undead Bond', gain, 0);
     }
+  }
+  // Watcher's Lantern of Souls (combat): raise the run-wide Undead aura (+Attack/+Health everywhere) — the
+  // same `undeadAttackBonus`/`undeadHealthBonus` channel a shop-cast Lantern uses, so it shows and behaves
+  // identically on the run board.
+  if (result.playerUndeadAuraGain) {
+    s.undeadAttackBonus += result.playerUndeadAuraGain.attack;
+    s.undeadHealthBonus += result.playerUndeadAuraGain.health;
   }
   // (Random spell/minion grants — Sporebat, Ryme re-firing Sea Urchin / Black Belt Brian — are now picked in
   //  combat and added above via playerHandGrants, so the real card animates in. No separate settle pick.)

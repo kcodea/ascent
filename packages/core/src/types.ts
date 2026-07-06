@@ -527,6 +527,10 @@ export interface CombatResult {
   /** Permanent Undead Attack bonus from this combat (Karthus on-kill). Stacks into `undeadBuyAtk` and is
    *  also applied to existing run-board Undead immediately after combat. Absent if 0. */
   playerUndeadBuyAtkGain?: number;
+  /** Permanent Undead AURA gained this combat (Watcher casting Lantern of Souls: +Attack/+Health to your
+   *  Undead everywhere). Added to `undeadAttackBonus`/`undeadHealthBonus` in settleCombat — the same channel a
+   *  shop-cast Lantern uses. Absent if 0/0. */
+  playerUndeadAuraGain?: { attack: number; health: number };
   /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
    *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
   playerImpBuffGain?: { attack: number; health: number };
@@ -629,6 +633,10 @@ export interface CombatContext {
   /** Karthus: permanently raise run-wide Undead buy-time attack by `amount` (player only). Carried back
    *  via CombatResult.playerUndeadBuyAtkGain, stacked into undeadBuyAtk and applied to the run board. */
   grantUndeadBuyAtk(amount: number, side: Side): void;
+  /** Watcher (casting Lantern of Souls): permanently raise the run-wide Undead aura by +attack/+health
+   *  (player only) — the Lantern channel (`undeadAttackBonus`/`undeadHealthBonus`). Live for this fight's
+   *  later summons + carried back via CombatResult.playerUndeadAuraGain. */
+  grantUndeadAura(attack: number, health: number, side: Side): void;
   /** Imp King / Brood Matron Avenge: permanently raise the run-wide Imp buff by +atk/+hp (player only).
    *  Carried back via CombatResult.playerImpBuffGain → added to RunState.impBuff so future Imps inherit it. */
   grantImpBuff(attack: number, health: number, side: Side): void;

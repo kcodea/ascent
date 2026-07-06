@@ -226,21 +226,23 @@ export function taragosaText(cardId: string, golden: boolean, spellBonusA: numbe
 }
 
 /**
- * Watcher casts Lantern of Souls on Rally — your Undead get +(base + spell power) Attack for the rest of the
- * run, scaling with the run's spell power exactly like a shop-cast Lantern. Its printed "+3 Attack" becomes
- * the live value (highlighted green), so the card always states the current Lantern buff. Golden casts it
- * twice, so the per-Rally buff doubles. Returns null for other cards or a zero bonus (the printed +3 —
- * golden +6 — is already accurate).
+ * Watcher casts Lantern of Souls on Rally — your Undead get +(base + spell power)/+(spell power) for the rest
+ * of the run, folding the run's spell power into BOTH stats exactly like a shop-cast Lantern (+3/+0 base,
+ * +5/+2 with +2/+2). Its printed "+3/+0" becomes the live value (highlighted green), so the card always
+ * states the current Lantern buff. Golden casts it twice (the buff doubles). Returns null for other cards or
+ * a zero bonus (the printed +3/+0 — golden +6/+0 — is already accurate).
  */
-export function watcherText(cardId: string, golden: boolean, spellBonusAttack: number): string | null {
-  if (spellBonusAttack <= 0) return null;
+export function watcherText(cardId: string, golden: boolean, spellBonusAttack: number, spellBonusHealth: number): string | null {
+  if (spellBonusAttack <= 0 && spellBonusHealth <= 0) return null;
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'rallyCastTribeAttack');
   if (!def || !eff) return null;
   const base = Number((eff.params as { amount?: number })?.amount ?? 3);
-  const per = (base + spellBonusAttack) * (golden ? 2 : 1);
+  const mult = golden ? 2 : 1;
+  const a = (base + spellBonusAttack) * mult;
+  const h = spellBonusHealth * mult;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${per} Attack}}`);
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
 }
 
 /**

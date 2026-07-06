@@ -49,6 +49,8 @@ function playToEnd(seed: number): RunState {
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 10000) {
     if (s.chooseOne) {
       s = reduce(s, { type: 'chooseOne', index: 0 }); // resolve a pending Choose One (Runic Beetle / Wildwood Shaper)
+    } else if (s.pendingTarget) {
+      s = reduce(s, { type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid }); // pick a target (Runic Beetle / Toxin Tender)
     } else if (s.discover) {
       s = reduce(s, { type: 'discover', index: 0 }); // resolve a pending Discover (triple reward / Discover spell)
     } else if (s.phase === 'combat') {
@@ -412,25 +414,42 @@ describe('run loop (@game/sim)', () => {
     expect([shaper?.attack, shaper?.health]).toEqual([3, 5]); // 2/2 + 1/3
   });
 
-  it('Runic Beetle: Choose One grants a friendly Beast Rise or Flurry (auto-picked)', () => {
-    let s: RunState = {
+  it('Runic Beetle: Choose One, then pick a friendly Beast to give it Rise or Flurry', () => {
+    const setup = (): RunState => ({
       ...createRun(1), embers: 0, shop: [],
-      board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }],
+      board: [
+        { uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false },
+        { uid: 'o', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }, // a 2nd Beast
+      ],
+      hand: [{ uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
+    });
+    let s = setup();
+    s = reduce(s, { type: 'play', uid: 'rb' });
+    expect(s.chooseOne).toBeDefined(); // waits for the buff pick
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // pick Rise → now defers to a target
+    expect(s.chooseOne).toBeUndefined();
+    expect(s.pendingTarget).toBeDefined(); // waiting for the player to choose the Beast
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'o' }); // give it to the Alleycat (not the highest-Attack Beast)
+    expect(s.pendingTarget).toBeUndefined();
+    expect(s.board.find((c) => c.uid === 'o')?.keywords).toContain('R'); // the CHOSEN Beast got it
+    expect(s.board.find((c) => c.uid === 'p')?.keywords).not.toContain('R'); // not the auto-pick
+    // The other option grants Flurry to the chosen Beast.
+    let f = setup();
+    f = reduce(f, { type: 'play', uid: 'rb' });
+    f = reduce(f, { type: 'chooseOne', index: 1 }); // Flurry
+    f = reduce(f, { type: 'battlecryTarget', targetUid: 'p' });
+    expect(f.board.find((c) => c.uid === 'p')?.keywords).toContain('W');
+  });
+
+  it('Runic Beetle with no other Beast auto-grants the buff to itself (no target step)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [],
       hand: [{ uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'rb' });
-    expect(s.chooseOne).toBeDefined(); // waits for the pick
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // Rise → a friendly Beast (Mama Pup, highest Attack)
-    expect(s.board.find((c) => c.cardId === 'pack')?.keywords).toContain('R');
-    // The other option grants Flurry instead.
-    let f: RunState = {
-      ...createRun(1), embers: 0, shop: [],
-      board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }],
-      hand: [{ uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
-    };
-    f = reduce(f, { type: 'play', uid: 'rb' });
-    f = reduce(f, { type: 'chooseOne', index: 1 }); // Flurry
-    expect(f.board.find((c) => c.cardId === 'pack')?.keywords).toContain('W');
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // no other Beast → resolves now, on itself
+    expect(s.pendingTarget).toBeUndefined();
+    expect(s.board.find((c) => c.cardId === 'beetle')?.keywords).toContain('R');
   });
 
   it('Money Maker: every 2 turns conjures a Gold Pouch or Safety Deposit Box', () => {

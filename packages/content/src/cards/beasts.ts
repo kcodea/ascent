@@ -233,9 +233,10 @@ export const BEASTS: CardDef[] = [
 
   // --- 2026-07-06 content batch ---
   {
-    // Choose One battlecry: hand a friendly Beast either Rise or Flurry. `battlecryGrantKeyword` auto-picks
-    // the highest-Attack friend lacking the keyword, and `targetTribe: 'beast'` restricts that pick to a
-    // Beast (self counts only if no other Beast qualifies). A tempo enabler for a go-wide Beast board.
+    // Choose One battlecry: pick a buff (Rise or Flurry), THEN pick a friendly Beast to receive it — the
+    // Choose One defers to targeting (reducer sets `pendingTarget` after the option). `target: 'friendly'`
+    // + `targetTribe: 'beast'` drive the pick; `battlecryGrantKeyword` grants to the chosen minion. With no
+    // other Beast on board it auto-grants to itself. A tempo enabler for a go-wide Beast board.
     id: 'beetle',
     name: 'Runic Beetle',
     tribe: 'beast',
@@ -243,6 +244,7 @@ export const BEASTS: CardDef[] = [
     attack: 3,
     health: 1,
     keywords: [],
+    target: 'friendly',
     targetTribe: 'beast',
     effects: [],
     chooseOne: [

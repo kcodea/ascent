@@ -1131,24 +1131,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.attackNow?.(self, true);
   },
 
-  /** Watcher — Rally: cast Lantern of Souls (give your Undead +amount Attack for the rest of the run — the
+  /** Watcher — Rally: cast Lantern of Souls (give your Undead +amount/+0 for the rest of the run — the
    *  permanent Undead aura). A REAL spell cast: `ctx.castSpell` fires the `spellCast` trigger (Spirit Pup's
    *  transform counter, Archmagus Guel, a friendly Forsaken Weaver) and carries the cast back; the grant
-   *  scales with the run's spell power like a shop-cast Lantern and rides home via `grantUndeadBuyAtk` so it
-   *  persists after combat. Golden casts it twice. Only Undead is wired (mirrors the recruit
-   *  `spellGrantTribeAttack`). Fires on this minion's own attack. */
+   *  scales with the run's spell power into BOTH stats (+3/+0 base, +5/+2 with +2/+2 spell power) like a
+   *  shop-cast Lantern and rides home via `grantUndeadAura`. Golden casts it twice. Only Undead is wired
+   *  (mirrors the recruit `spellGrantTribeAttack`). Fires on this minion's own attack. */
   rallyCastTribeAttack: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // rally: this minion's own attack only
     const undead = str(params.tribe) === 'undead';
-    const amount = num(params.amount, 3) + ctx.spellPower.attack; // Lantern scales with the run's spell power
+    // Lantern of Souls grants +amount Attack and folds the run's spell power into BOTH stats (+3/+0 base,
+    // +5/+2 with +2/+2 spell power) — matching a shop-cast Lantern.
+    const a = num(params.amount, 3) + ctx.spellPower.attack;
+    const h = ctx.spellPower.health;
     for (let i = 0; i < mul(self); i++) { // golden casts it twice
       ctx.castSpell(self.side); // counts as a real spell cast (Spirit Pup, Guel, Forsaken Weaver all see it)
-      if (undead && amount > 0) {
+      if (undead && (a > 0 || h > 0)) {
         for (const m of ctx.living(self.side)) {
-          if (m.tribe === 'undead' || m.tribe2 === 'undead' || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, amount, 0, self.uid);
+          if (m.tribe === 'undead' || m.tribe2 === 'undead' || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
         }
-        ctx.grantUndeadBuyAtk(amount, self.side); // permanent — carried back, stacks the run-wide Undead aura
+        ctx.grantUndeadAura(a, h, self.side); // permanent — carried back, stacks the run-wide Undead aura (Lantern channel)
       }
     }
   },

@@ -500,10 +500,11 @@ export function Recruit() {
         // carrier re-registering (a risen body re-gaining its keywords) re-arms the burst below.
         const unitEl = card.closest<HTMLElement>('.unit');
         const dying = inCombatRef.current && !!unitEl?.classList.contains('dying');
-        // A dying Rise ATTACKER is being pulled back to its slot (inline GSAP transform still on the unit —
-        // see the pull-back in useCombatReplay): HOLD the burst and let the aura keep riding the card home;
-        // the transform clears on landing and the next sync (per-frame during combat) fires the burst there.
-        const returningHome = dying && cfg.kind === 'reborn' && !!unitEl?.style.transform;
+        // A dying Rise ATTACKER being pulled back to its slot carries `data-rising` (set by the replay for
+        // EXACTLY the pull-back's lifetime — deterministic, unlike sniffing the inline transform): HOLD the
+        // burst and let the aura keep riding the card home; the flag clears on landing and the next sync
+        // (per-frame during combat) fires the burst there.
+        const returningHome = dying && cfg.kind === 'reborn' && unitEl?.dataset.rising === '1';
         if (dying && !returningHome) {
           if (!deathBurstRef.current.has(key) && !pendingBreakRef.current.has(key)) {
             deathBurstRef.current.add(key);
@@ -521,7 +522,9 @@ export function Recruit() {
           }
           continue; // the aura is spent — don't re-register it on the collapsing card
         }
-        deathBurstRef.current.delete(key); // living carrier → (re-)arm its death burst
+        // (Re-)arm the death burst ONLY for a living carrier — a dying-but-returning unit must keep its
+        // once-only guard, or a burst that already fired could re-arm + re-fire on landing (double burst).
+        if (!dying) deathBurstRef.current.delete(key);
         seen.add(key);
         // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that
         // disperses outward, fired on the FRONT layer (viewport coords) so it reads around the card.
@@ -552,10 +555,17 @@ export function Recruit() {
       if (triggered && kind === 'shield') {
         pendingBreakRef.current.set(key, now + SHIELD_BREAK_DELAY / combatSpeedRef.current); // delayed shatter
       } else if (triggered) {
-        // REBORN triggered WITHOUT a preceding dying beat (death + rise grouped into one beat) — burst now
-        // as a fallback. The normal path bursts at the DEATH beat (PASS 1); the re-form glow fires from the
-        // replay's reborn beat (useCombatReplay), so neither is scheduled here.
-        if (!deathBurstRef.current.has(key)) {
+        // REBORN's marker stripped while the unit is still on the field. If the body is mid pull-back
+        // (`data-rising`, a dying attacker flying home — the reborn beat can land before it does), DON'T
+        // burst at its in-flight spot: keep the aura riding the card, and this branch re-fires on a later
+        // sync once the flag clears — the burst lands in its slot. Otherwise (death + rise grouped into one
+        // beat, unit already home) burst now. The re-form glow fires from the replay's reborn beat.
+        if ((unit as HTMLElement).dataset.rising === '1') {
+          const r = measureCardRect(uid);
+          if (r) set(uid, r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, false, kind);
+          seen.add(key); // still tracked → PASS 2 re-evaluates this key next sync
+        } else if (!deathBurstRef.current.has(key)) {
+          deathBurstRef.current.add(key); // once only — the guard was missing here (the double-burst bug)
           pixiFx.breakShield(uid, 'reborn');
           sfx.rebornShatter();
         }

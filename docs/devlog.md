@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-05 (session 19)
 
+### fix(ui): remove the combat narration line + fix the drag-card text-drawer misalignment
+
+Two owner-reported UI issues (presentation-only).
+
+- **Removed the combat narration line** below the warband (the rolling "Sword and Bored falls." banner where
+  the hand used to fan) — `{fighting && <div className="alog">{replay.log}</div>}` in `Recruit.tsx` and its
+  now-dead `.alog` CSS. Not needed anymore. (The hook still computes `replay.log` cheaply; left untouched to
+  avoid churning the replay logic — nothing else renders it.)
+- **Fixed the drag-card text drawer sitting off-centre** when dragging a card from the hand. Root cause: the
+  fanned hand scales each card ~0.9× (+ a downward tuck), so `getBoundingClientRect()` at pointer-down
+  returned the SCALED box. The drag stored that as `w/h`, sizing the floating wrapper ~0.9× — but the
+  `<Card>` inside always renders at full `--ccw`, so the art box overflowed the wrapper and the text drawer
+  (which stretches to the wrapper) landed narrower + shifted. Now the drag measures the card's untransformed
+  layout size (`offsetWidth/offsetHeight`) for `w/h`, and takes the grab point as a scale-invariant FRACTION
+  of the rect mapped onto the full size — so the wrapper matches the full-size card exactly. For an
+  untransformed board/shop card `offsetWidth === rect.width`, so it's a no-op there (no regression to those
+  drags). Verified live via DOM geometry: pre-fix the art box overflowed the wrapper by ~22px; post-fix it
+  sits within it and the art/drawer centres line up (≤3px, the drag tilt).
+
+`typecheck` + `lint` + `test` (**492**) + `build:web` green.
 ### fix(sim): Safety Deposit Box crash (untargeted cast) + Footman-aura triage
 
 Two owner bug reports after the content batch merged.

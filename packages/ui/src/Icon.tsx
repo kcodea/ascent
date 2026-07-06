@@ -32,10 +32,10 @@ const ICONS: Record<string, ReactNode> = {
   // Drawn upright then rotated 45° so the crossguard stays perpendicular to the blade.
   slaughter: (
     <g transform="rotate(45 12 12)">
-      <path fill="currentColor" d="M12 2.4l3.3 4.4V12.4H8.7V6.8z" />
-      <rect x="6.2" y="11.9" width="11.6" height="2.5" rx="1.2" fill="currentColor" />
-      <rect x="10.6" y="14.2" width="2.8" height="4.9" rx="0.4" fill="currentColor" />
-      <circle cx="12" cy="20" r="2.1" fill="currentColor" />
+      <path fill="currentColor" d="M12 0.4l3.3 4.9V13.4H8.7V5.3z" />
+      <rect x="6.2" y="12.9" width="11.6" height="2.5" rx="1.2" fill="currentColor" />
+      <rect x="10.6" y="15.2" width="2.8" height="4.2" rx="0.4" fill="currentColor" />
+      <circle cx="12" cy="20.1" r="2" fill="currentColor" />
     </g>
   ),
   // Immune — a shield with a bold cross (can't take damage).

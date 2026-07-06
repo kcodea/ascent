@@ -498,8 +498,13 @@ export function Recruit() {
         // (owner: aura deaths should pop like the ward break, not hover over the collapsing card). Reborn's
         // re-form glow fires separately from the replay's reborn beat. Once per aura per life — a living
         // carrier re-registering (a risen body re-gaining its keywords) re-arms the burst below.
-        const dying = inCombatRef.current && !!card.closest('.unit')?.classList.contains('dying');
-        if (dying) {
+        const unitEl = card.closest<HTMLElement>('.unit');
+        const dying = inCombatRef.current && !!unitEl?.classList.contains('dying');
+        // A dying Rise ATTACKER is being pulled back to its slot (inline GSAP transform still on the unit —
+        // see the pull-back in useCombatReplay): HOLD the burst and let the aura keep riding the card home;
+        // the transform clears on landing and the next sync (per-frame during combat) fires the burst there.
+        const returningHome = dying && cfg.kind === 'reborn' && !!unitEl?.style.transform;
+        if (dying && !returningHome) {
           if (!deathBurstRef.current.has(key) && !pendingBreakRef.current.has(key)) {
             deathBurstRef.current.add(key);
             if (cfg.kind === 'taunt') {
@@ -554,6 +559,12 @@ export function Recruit() {
           pixiFx.breakShield(uid, 'reborn');
           sfx.rebornShatter();
         }
+      } else if (kind === 'reborn' && inCombatRef.current && fightingRef.current && !unit && !deathBurstRef.current.has(key)) {
+        // The dying Rise unit unmounted before its pull-back landed (fast combat speed) — the burst must
+        // never be lost: fire it at the aura's last tracked spot instead of quietly clearing.
+        deathBurstRef.current.add(key);
+        pixiFx.breakShield(uid, 'reborn');
+        sfx.rebornShatter();
       } else if (inCombatRef.current) {
         auraFx(kind).clearShield(uid, kind); // in combat but not a trigger (frozen shop card / death) → clear now
       } else if (animating()) {

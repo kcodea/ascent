@@ -731,6 +731,30 @@ export function useCombatReplay(
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     };
 
+    // A RISE ATTACKER dying to retaliation returns HOME first (owner call): kill the slow elastic settle
+    // and pull the unit straight back to its slot (a short hold so the contact reads, then a quick pull),
+    // so its spirit burst + fade + re-form all land in its own slot. The aura tracker holds the burst while
+    // the unit still carries an inline transform (mid-return) — it fires the moment the pull-back lands.
+    // A Rise DEFENDER has no lunge transform, so it still explodes in place immediately.
+    if (cur) {
+      const impactAtk = attackerOfImpact(beats, beatIdx - 1);
+      if (impactAtk) {
+        for (let i = cur.start; i < cur.end; i++) {
+          const e = events[i];
+          if (e?.type !== 'death' || e.target !== impactAtk) continue;
+          const el = findEl(impactAtk);
+          if (el && el.querySelector('.reborncard')) {
+            gsap.killTweensOf(el);
+            gsap.to(el, {
+              x: 0, y: 0, rotation: 0, scale: 1,
+              delay: 0.1 / combatSpeed, duration: 0.24 / combatSpeed, ease: 'power2.out',
+              onComplete: () => gsap.set(el, { clearProps: 'transform,zIndex' }),
+            });
+          }
+        }
+      }
+    }
+
     // REBORN re-form flourish: the spirit already BURST at the death beat (the aura tracker explodes it in
     // place as the body dies); here, on the reborn beat, schedule the wispy re-form glow timed to the
     // rebornswap CSS re-form phase (~52-74% of 0.85s → the same 460ms the old tracker path used).
@@ -848,6 +872,9 @@ export function useCombatReplay(
   const currentBeat = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
   const anims: Record<string, string> = {};
   if (currentBeat) {
+    // A Rise ATTACKER dying to retaliation gets `returning` too: the fade DELAYS while GSAP pulls the unit
+    // back to its slot (see the pull-back in the layout effect), so it dies in place, not mid-lunge.
+    const impactAtk = attackerOfImpact(beats, beatIdx - 1);
     for (let i = currentBeat.start; i < currentBeat.end; i++) {
       for (const [uid, cls] of Object.entries(animFor(events[i]))) {
         // The venom-spent flourish lands first in its beat; don't let the poisoner's same-beat
@@ -857,7 +884,7 @@ export function useCombatReplay(
         // styles.css) since its spirit bursts over it and the body re-forms in that same slot next beat.
         if (cls === 'dying') {
           const u = frame.player.find((x) => x.uid === uid) ?? frame.enemy.find((x) => x.uid === uid);
-          anims[uid] = u?.keywords.includes('R') ? 'dying rising' : cls;
+          anims[uid] = u?.keywords.includes('R') ? (uid === impactAtk ? 'dying rising returning' : 'dying rising') : cls;
           continue;
         }
         anims[uid] = cls;

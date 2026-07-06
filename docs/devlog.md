@@ -5,6 +5,53 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
+### feat(ui): Hall of Champions shows each champion's per-round W/L spread
+
+Owner ask: render the 17-round W/L spread on the leaderboard, like the end screen's round pips. The data wasn't
+persisted — the `runs` table stored only the win COUNT (`wins`), so the per-round order was gone and couldn't be
+re-derived (it depends on the player's build, not just the seed). Now the run's `history` rides along.
+- **Schema:** `runs` gains a `history text` column — one char per round, `'W' | 'L' | 'D'` (e.g. "LLWLWWW…").
+  Existing projects run `alter table public.runs add column if not exists history text;` (snippet in
+  `schema.sql`). Old rows keep a null history and simply show no spread.
+- **remoteBoards.ts:** `uploadVictory` writes the encoded string; `fetchVictories` switched to `select('*')` so a
+  pre-migration table (no `history` column) doesn't error the whole query — the field just comes back absent;
+  `VictoryRow` gains `history?`.
+- **store.ts:** encodes `next.history` → a "W/L/D" string on the victory upload.
+- **Leaderboard.tsx + styles.css:** a compact `.lbpip` row (a smaller `.endpip`) under each champion's name/meta,
+  dimming the 2 calibration rounds via `isCalibrationRound`; guarded by `r.history` so pre-migration rows render
+  cleanly with no spread.
+- **Caveat:** only NEW victory runs populate the spread (history is captured at run-end going forward).
+- **Verified** live in-preview: the Hall renders 10 real champions with 0 pips (correct pre-migration fallback);
+  a synthetic 17-round injection confirmed the pip styling (win `#3b9e57`, lose raspberry `--threat`, calibration
+  dimmed `0.4` + `grayscale(0.55)`, 19px badges). `typecheck + lint + test (514) + build:web` green.
+
+### feat(sim): end-game rating ramp — winning rounds 15/16/17 pays +8/+12/+16
+
+Owner ask: the closing rounds are the hardest, so winning them should grant escalating rating. The model already
+had a summit bonus (+8 for reaching round 17) and a final-win bonus (+16 for WINNING round 17); this adds the two
+rungs below it. `resolveRunRating` now grants an `endgameBonus` = +8 (won round 15) + +12 (won round 16), stacked
+on the line/summit/final components — so a perfect close (over Line, summit, won 15+16+17) now reads
++12 (line) +8 (summit) +20 (end-game) +16 (final) = +56, vs the old +36.
+- **playerRating.ts:** new `ROUND_15_WIN_BONUS` (8) / `ROUND_16_WIN_BONUS` (12) constants; `RunOutcome` gains
+  optional `wonRound15` / `wonRound16` (falsy for runs that never reached those rounds → no bonus); `RatingChange`
+  gains `endgameBonus`. Round 17's rung is the existing `FINAL_WIN_BONUS`, so the ramp is 8 / 12 / 16.
+- **store.ts:** derives `wonRound15/16` from `history[round − 1] === 'win'` (0-indexed) and passes them in.
+- **EndScreen.tsx:** an "End-game Push +N" chip between the Summit and Final Win chips.
+- **Tests:** three new cases (won 15+16 → +20; only 16 → +12; omitted flags → 0 for back-compat). `typecheck +
+  lint + test (514) + build:web` green.
+
+### fix(sim): Archmagus Guel's combat card text now scales (his spellProgress reaches the combat snapshot)
+
+Owner report: Guel's combat text was broken — the gilded version didn't show current values. Root cause:
+the reducer's run-board → combat `BoardMinion` mapping copied every other per-instance display field
+(`summonBonus`, `ascendProgress`, `hpGrantBonus`…) but **omitted `spellProgress`**, so Guel's on-board spell
+tally never reached combat. `instantiate` and the snapshot both already forward it, so the whole chain was
+intact except that one field — the combat card text always read at base progress (a golden Guel showed
+**+2/+2** instead of the current **+6/+6**; non-golden was wrong too, just half as obviously). One-line fix:
+add `spellProgress: b.spellProgress` to the mapping. Verified live in-preview (golden Guel at spellProgress 8
+now reads +6/+6 in combat, matching the shop). Regression test: a Guel on the board carries its spellProgress
+into `lastCombat.initial`. `typecheck + lint + test (511) + build:web` green.
+
 ### fix(combat+ui): Watcher's Lantern shows +x/+y (spell power in both stats); Kennelmaster's aura reaches Reborn Beasts
 
 Two owner-reported issues.

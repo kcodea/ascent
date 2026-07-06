@@ -7,6 +7,8 @@ import {
   lineRatingDelta,
   resolveLine,
   resolveRunRating,
+  ROUND_15_WIN_BONUS,
+  ROUND_16_WIN_BONUS,
   STARTING_RATING,
   type PlayerProfile,
 } from './playerRating';
@@ -50,8 +52,10 @@ describe('player rating — the delta table', () => {
     expect(lineRatingDelta(-9)).toBe(-32); // -4 or worse
   });
 
-  it('summit bonus is +8, final-win bonus is +16', () => {
+  it('bonus ladder: summit +8, end-game ramp +8/+12, final-win +16', () => {
     expect(COURSE_COMPLETE_BONUS).toBe(8);
+    expect(ROUND_15_WIN_BONUS).toBe(8);
+    expect(ROUND_16_WIN_BONUS).toBe(12);
     expect(FINAL_WIN_BONUS).toBe(16);
   });
 });
@@ -68,6 +72,32 @@ describe('player rating — resolveRunRating (win-weighted model)', () => {
     expect(r.finalWinBonus).toBe(16);
     expect(r.ratingDelta).toBe(36); // +12 +8 +16
     expect(r.ratingAfter).toBe(1456);
+  });
+
+  it('end-game ramp: winning rounds 15 & 16 adds +8 +12 on top of line/summit/final', () => {
+    // A perfect closing run: over the Line (+12), summit (+8), won the final (+16) AND the two rounds before it.
+    const r = resolveRunRating(base, {
+      scoredWins: 11, line: 9, completed: true, wonFinal: true, wonRound15: true, wonRound16: true,
+    });
+    expect(r.endgameBonus).toBe(20); // +8 (round 15) +12 (round 16)
+    expect(r.finalWinBonus).toBe(16);
+    expect(r.ratingDelta).toBe(56); // +12 +8 +20 +16
+    expect(r.ratingAfter).toBe(1476);
+  });
+
+  it('end-game ramp is per-round: winning only round 16 adds just +12 (no round-15 bonus)', () => {
+    const r = resolveRunRating(base, {
+      scoredWins: 9, line: 9, completed: true, wonFinal: false, wonRound15: false, wonRound16: true,
+    });
+    expect(r.endgameBonus).toBe(12);
+    expect(r.finalWinBonus).toBe(0);
+    expect(r.ratingDelta).toBe(24); // +4 (line) +8 (summit) +12 (round 16)
+  });
+
+  it('end-game ramp defaults to 0 when the round-15/16 flags are omitted (backward-compatible)', () => {
+    const r = resolveRunRating(base, { scoredWins: 11, line: 9, completed: true, wonFinal: true });
+    expect(r.endgameBonus).toBe(0);
+    expect(r.ratingDelta).toBe(36); // identical to the pre-ramp model
   });
 
   it('over the Line but LOST the final: line + summit only, no final-win bonus', () => {

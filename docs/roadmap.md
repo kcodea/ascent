@@ -223,6 +223,11 @@ look because the engine already produces the data.
 
 ## Standing backlog (carried over — unscheduled, behind the spine)
 
+**Leaderboard W/L spread for old rows:** the Hall of Champions round-spread only populates for victory runs
+logged *after* the `runs.history` column shipped (per-round order isn't stored on older rows and can't be
+re-derived from the seed alone). Optional follow-up: backfill via replay re-simulation, or fall back to an
+unordered "N wins" cluster for history-less rows so every entry shows *something*.
+
 **Welded-host live text:** the accrued magnitude a host carries from welded magnetics (Better Bot's
 `rallyMechAtk`, Harry Botter's `spellAuraBonus`, Heckbinder's `fodderAuraBonus`) is invisible on the host's
 card (it renders a different def's text) — needs host-side weld-text infra to fully satisfy the CLAUDE.md

@@ -102,12 +102,15 @@ export interface VictoryRow {
   wave: number;
   date: string; // YYYY-MM-DD
   board: BoardSnapshot | null; // the final winning warband, for the end-screen-style hover reveal
+  /** Per-round result spread — one char per round: 'W' | 'L' | 'D' (e.g. "LLWLWWW…"). The leaderboard renders
+   *  it as the round-by-round W/L badges. Undefined for rows logged before the `history` column existed. */
+  history?: string;
 }
 
 /** Log a completed victory run for the leaderboard. Fire-and-forget; never throws / blocks. */
 export async function uploadVictory(v: {
   heroId: string; author?: string; wave: number; wins: number; seed: number;
-  board: BoardSnapshot | null; patch: string; capturedAt: string;
+  board: BoardSnapshot | null; patch: string; capturedAt: string; history?: string;
 }): Promise<void> {
   const c = client();
   if (!c) return;
@@ -115,6 +118,7 @@ export async function uploadVictory(v: {
     await c.from('runs').insert([{
       patch: v.patch, hero_id: v.heroId, author: v.author ?? null, wave: v.wave,
       wins: v.wins, result: 'victory', seed: v.seed, board: v.board, captured_at: v.capturedAt,
+      history: v.history ?? null,
     }]);
   } catch {
     /* best-effort — leaderboard logging must never disrupt the end screen */
@@ -128,19 +132,22 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
   if (!c) return [];
   try {
     const request = Promise.resolve(
-      c.from('runs').select('hero_id,author,wave,board,captured_at,created_at')
+      // `*` (not an explicit column list) keeps the query resilient if `history` hasn't been added to the table
+      // yet (a pre-migration project) — a missing column is then simply absent, not a whole-query error.
+      c.from('runs').select('*')
         .eq('result', 'victory').order('created_at', { ascending: false }).limit(limit),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return [];
-    return (result.data as Array<{ hero_id: string; author: string | null; wave: number; board: BoardSnapshot | null; captured_at: string | null; created_at: string | null }>)
+    return (result.data as Array<{ hero_id: string; author: string | null; wave: number; board: BoardSnapshot | null; history?: string | null; captured_at: string | null; created_at: string | null }>)
       .map((r) => ({
         heroId: r.hero_id,
         author: r.author ?? undefined,
         wave: r.wave,
         date: (r.captured_at ?? r.created_at ?? '').slice(0, 10),
         board: r.board ?? null,
+        history: r.history ?? undefined,
       }));
   } catch {
     return [];

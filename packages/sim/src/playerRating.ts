@@ -5,8 +5,9 @@
  * *expectation*, NOT a difficulty knob. (Matchmaking stays wave/power-first for now — rating is deliberately
  * kept out of opponent selection so skill isn't double-taxed.) A run's rating change is a pure function of how
  * the scored-win count compared to its Line (a modest "top 4"-style credit for merely covering par), PLUS a
- * summit bonus for reaching round 17 and a bigger final-win bonus for actually WINNING round 17 — so a *true*
- * win (over your Line AND won the last round) is worth much more than a covered Line.
+ * summit bonus for reaching round 17 and an escalating end-game ramp for WINNING the closing rounds (15 → +8,
+ * 16 → +12, 17 → +16, the final-win bonus) — so a *true* win (over your Line AND won the last rounds) is worth
+ * much more than a covered Line, and the last, hardest rounds carry the most weight.
  *
  * This module is deterministic and side-effect-free — no storage, no `Math.random` — so it can run identically
  * on the client AND, later, inside a server (e.g. a Supabase Edge Function) that re-simulates a run from its
@@ -38,6 +39,12 @@ export const COURSE_COMPLETE_BONUS = 8;
 /** Bonus rating for WINNING the final round (round 17) — the "win the game" payoff, stacked on top of the summit
  *  bonus. Combined with being over your Line, this is what makes a run a *true* win (vs merely covering par). */
 export const FINAL_WIN_BONUS = 16;
+/** End-game round win bonuses (waves 15 & 16) — the escalating "final push" reward that ramps INTO the
+ *  {@link FINAL_WIN_BONUS} for round 17. The closing rounds are the hardest, so each is worth more than the
+ *  last: round 15 → +{@link ROUND_15_WIN_BONUS}, round 16 → +{@link ROUND_16_WIN_BONUS}, round 17 →
+ *  +{@link FINAL_WIN_BONUS}. Winning all three is the full ramp (8 + 12 + 16). */
+export const ROUND_15_WIN_BONUS = 8;
+export const ROUND_16_WIN_BONUS = 12;
 
 /** Lower rating bound of each Line band — also the promotion threshold to *enter* that Line. */
 const PROMOTION_THRESHOLD: Record<number, number> = { 8: 800, 9: 1200, 10: 1600, 11: 2000, 12: 2400 };
@@ -97,6 +104,12 @@ export interface RunOutcome {
   /** Won the FINAL round (round 17), the last combat of the course. Implies `completed` — you can't win the
    *  final without reaching it. Drives the final-win bonus (the "won the game" payoff). */
   wonFinal: boolean;
+  /** Won round 15 — the first rung of the end-game win ramp (+{@link ROUND_15_WIN_BONUS}). Optional: omitted /
+   *  falsy for runs that never reached round 15 (they simply earn no end-game bonus). */
+  wonRound15?: boolean;
+  /** Won round 16 — the second rung of the end-game win ramp (+{@link ROUND_16_WIN_BONUS}), ramping into the
+   *  final-win bonus for round 17. */
+  wonRound16?: boolean;
 }
 
 /** The full breakdown of a run's rating change, for persistence + the end-screen display. */
@@ -112,6 +125,9 @@ export interface RatingChange {
   completionBonus: number;
   /** +{@link FINAL_WIN_BONUS} if the final round (round 17) was won, else 0. */
   finalWinBonus: number;
+  /** The end-game win ramp for the two rounds before the final: +{@link ROUND_15_WIN_BONUS} (round 15) and/or
+   *  +{@link ROUND_16_WIN_BONUS} (round 16), summed. 0 if neither was won. Ramps into {@link finalWinBonus}. */
+  endgameBonus: number;
   lineBefore: number;
   lineAfter: number;
   promoted: boolean;
@@ -128,13 +144,15 @@ export function resolveRunRating(profile: PlayerProfile, outcome: RunOutcome): R
   const lineComponent = lineRatingDelta(lineDelta);
   const completionBonus = outcome.completed ? COURSE_COMPLETE_BONUS : 0;
   const finalWinBonus = outcome.wonFinal ? FINAL_WIN_BONUS : 0;
-  const ratingDelta = lineComponent + completionBonus + finalWinBonus;
+  const endgameBonus =
+    (outcome.wonRound15 ? ROUND_15_WIN_BONUS : 0) + (outcome.wonRound16 ? ROUND_16_WIN_BONUS : 0);
+  const ratingDelta = lineComponent + completionBonus + finalWinBonus + endgameBonus;
   const ratingAfter = Math.max(0, ratingBefore + ratingDelta);
   const lineBefore = profile.currentLine;
   const lineAfter = resolveLine(lineBefore, ratingAfter);
   return {
     ratingBefore, ratingAfter, ratingDelta,
-    lineDelta, lineComponent, completionBonus, finalWinBonus,
+    lineDelta, lineComponent, completionBonus, finalWinBonus, endgameBonus,
     lineBefore, lineAfter,
     promoted: lineAfter > lineBefore,
     demoted: lineAfter < lineBefore,

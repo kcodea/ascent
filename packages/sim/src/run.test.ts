@@ -170,6 +170,17 @@ describe('run loop (@game/sim)', () => {
     if (s.phase === 'recruit') expect(s.wave).toBe(wave + 1);
   });
 
+  it("carries Guel's on-board spellProgress into the combat snapshot (so the live combat text scales, not stuck at base)", () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 0,
+      board: [{ uid: 'gl', cardId: 'guel', tribe: 'neutral', attack: 4, health: 40, keywords: [], golden: true, spellProgress: 8 }],
+      hand: [],
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    const guel = s.lastCombat?.initial.player.find((m) => m.cardId === 'guel');
+    expect(guel?.spellProgress).toBe(8); // was undefined — combat card text read at base (+2/+2 golden, not +6/+6)
+  });
+
   it("Lord of the Risen's Rise Again grants a one-combat Rise, no-ops on an existing Rise, and strips at settle", () => {
     let s: RunState = {
       ...createRun(1, 'risen'),

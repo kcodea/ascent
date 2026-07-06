@@ -1083,4 +1083,73 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantImpBuff(a, h, self.side); // Imps permanent — carried back to RunState.impBuff
     ctx.grantFodderBuff(a, h, self.side); // Fodder enchant permanent — carried back, mirrors recruit buffFodderRunWide
   },
+
+  // ─── 2026-07-06 content batch: Beast "wherever they are" combat auras ──────────
+
+  /** Kennelmaster — Start of Combat: give your Beasts +N/+N (N = base + its Avenge-grown `summonBonus`) as a
+   *  rest-of-combat aura. The current Beasts are buffed now; any Beast summoned LATER this fight inherits it too
+   *  (`addTribeAura`, applied in summonMinion). Self is a Beast, so it's included. Golden falls out of the triple
+   *  combine (checkTriples folds the doubled magnitude into `summonBonus`), so — like buffOnSummon — no `mul`. */
+  scBeastAura: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
+    const a = num(params.attack, 1) + self.summonBonus;
+    const h = num(params.health, 1) + self.summonBonus;
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rallies the pack` });
+    ctx.addTribeAura(self.side, tribe, a, h, self.uid);
+    for (const m of ctx.living(self.side)) {
+      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
+  /** Solaris Fang — Rally: when this attacks, give your Beasts +atk/+hp as a rest-of-combat aura (current
+   *  Beasts buffed now; Beasts summoned later inherit it). Attack-only for Solaris (+5/+0). Self is a Beast,
+   *  so it snowballs its own Attack each swing. Golden doubles the grant. */
+  rallyTribeAura: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (a === 0 && h === 0) return;
+    ctx.addTribeAura(self.side, tribe, a, h, self.uid);
+    for (const m of ctx.living(self.side)) {
+      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
+  /** Solaris Fang — Avenge (X): every X friendly deaths, gain a Divine Shield (Ward) and attack immediately,
+   *  out of turn order (`ctx.attackNow` → the immediate-attack queue). Golden gains the shield + a second
+   *  immediate strike. */
+  avengeShieldAttack: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 2));
+    if (count % x !== 0) return;
+    // Gain a Ward and attack immediately. Golden strikes twice AND gains a fresh Ward before each strike (so
+    // both go in shielded) — the Ward is paired with the strike in the immediate-attack queue.
+    for (let i = 0; i < mul(self); i++) ctx.attackNow?.(self, true);
+  },
+
+  /** Watcher — Rally: cast Lantern of Souls (give your Undead +amount Attack for the rest of the run — the
+   *  permanent Undead aura). A REAL spell cast: `ctx.castSpell` fires the `spellCast` trigger (Spirit Pup's
+   *  transform counter, Archmagus Guel, a friendly Forsaken Weaver) and carries the cast back; the grant
+   *  scales with the run's spell power like a shop-cast Lantern and rides home via `grantUndeadBuyAtk` so it
+   *  persists after combat. Golden casts it twice. Only Undead is wired (mirrors the recruit
+   *  `spellGrantTribeAttack`). Fires on this minion's own attack. */
+  rallyCastTribeAttack: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // rally: this minion's own attack only
+    const undead = str(params.tribe) === 'undead';
+    const amount = num(params.amount, 3) + ctx.spellPower.attack; // Lantern scales with the run's spell power
+    for (let i = 0; i < mul(self); i++) { // golden casts it twice
+      ctx.castSpell(self.side); // counts as a real spell cast (Spirit Pup, Guel, Forsaken Weaver all see it)
+      if (undead && amount > 0) {
+        for (const m of ctx.living(self.side)) {
+          if (m.tribe === 'undead' || m.tribe2 === 'undead' || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, amount, 0, self.uid);
+        }
+        ctx.grantUndeadBuyAtk(amount, self.side); // permanent — carried back, stacks the run-wide Undead aura
+      }
+    }
+  },
 };

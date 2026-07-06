@@ -85,6 +85,7 @@ const GLOSSARY: { title: string; items: GlossItem[] }[] = [
       { icon: 'skull', term: 'Avenge (N)', def: 'Fires after every N of your minions die in a combat.', match: (c) => c.effects.some((e) => e.on === 'avenge') },
       { icon: 'sword', term: 'Rally', def: 'Fires each time this minion attacks.', match: kwMatch('RL') },
       { icon: 'slaughter', term: 'Slaughter', def: 'Fires each time this minion kills an enemy minion.', match: kwMatch('SL') },
+      { icon: 'choose1', term: 'Choose One', def: 'Pick one of two effects as you play the minion.', match: (c) => !!c.chooseOne },
     ],
   },
   {
@@ -107,7 +108,6 @@ const GLOSSARY: { title: string; items: GlossItem[] }[] = [
       { icon: 'consume', term: 'Consume', def: 'Devours your Fodder to grow.', match: kwMatch('CN') },
       { icon: 'fodder', term: 'Fodder', def: 'A cheap token your minions consume for stats.', match: kwMatch('FD') },
       { icon: 'anvil', term: 'Engraved', def: 'Stat gains during combat carry back to your board.', match: kwMatch('EG') },
-      { icon: 'choose1', term: 'Choose One', def: 'Pick one of two effects as you play the minion.', match: (c) => !!c.chooseOne },
       { icon: 'star', term: 'Discover', def: 'Peek at three cards and add one to your hand.', match: (c) => c.effects.some((e) => /discover/i.test(e.do)) },
       { icon: 'crown', term: 'Gilded', def: 'Collect three copies to fuse one doubled-stat Gilded minion.' },
     ],

@@ -57,6 +57,108 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
   });
 
+  it('Kennelmaster Start of Combat: buffs your Beasts +1/+1, and a Beast summoned later inherits the aura', () => {
+    // The SoC aura buffs the living Beasts now (Kennelmaster + Mama Pup), then Mama Pup dies and its Pups —
+    // summoned AFTER the aura registered — pick it up too ("wherever they are, incl. combat summons").
+    const p: BoardMinion[] = [
+      { cardId: 'kennel', attack: 1, health: 30 }, // aura source; tanky so it survives
+      { cardId: 'pack', attack: 2, health: 1 },    // Mama Pup — a Beast; dies → summons two Pups (Beasts)
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 30 }];
+    const r = run(p, e, 1);
+    const summonEvents = r.events.filter((ev) => ev.type === 'summon');
+    expect(summonEvents.length).toBeGreaterThanOrEqual(1); // Mama Pup's Pups spawned
+    const summonedUids = new Set(summonEvents.flatMap((ev) => (ev.type === 'summon' ? [ev.minion.uid] : [])));
+    // A Beast summoned after Kennelmaster's SoC still receives the +1/+1 aura.
+    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1 && summonedUids.has(ev.target));
+    expect(summonAura).toBe(true);
+  });
+
+  it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
+    // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
+    // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.
+    const p: BoardMinion[] = [
+      { cardId: 'solaris', attack: 5, health: 10 },
+      { cardId: 'pack', attack: 1, health: 10 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to one swing → exactly one Rally
+    const call = (rallyDouble: boolean) =>
+      simulate(p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, rallyDouble);
+    const rally5 = (r: ReturnType<typeof simulate>) => r.events.filter((ev) => ev.type === 'buff' && ev.attack === 5).length;
+    expect(rally5(call(false))).toBe(2); // Solaris + Mama Pup, once
+    expect(rally5(call(true))).toBe(4);  // …twice with Rallying Offensive
+  });
+
+  it('Solaris Fang Avenge (2): gains a Divine Shield (Ward) and attacks immediately', () => {
+    // Two 0/1 Taunts are the forced targets — they die first while Solaris chips the wall; the 2nd death
+    // triggers Avenge (2) → Solaris gains a shield (shieldUp) and takes a bonus out-of-turn attack.
+    const p: BoardMinion[] = [
+      { cardId: 'solaris', attack: 5, health: 40 },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
+    const r = run(p, e, 7);
+    const solarisUid = r.initial.player[0]!.uid;
+    expect(r.events.some((ev) => ev.type === 'shieldUp' && ev.target === solarisUid)).toBe(true);
+  });
+
+  it('a golden Solaris Fang gains a fresh Ward before EACH of its two immediate Avenge strikes', () => {
+    // Golden strikes twice; a non-Taunt wall retaliates and pops the Ward each strike, so a fresh Ward must be
+    // re-granted before the second (two shieldUp events on Solaris) — not just one up front.
+    const p: BoardMinion[] = [
+      { cardId: 'solaris', attack: 5, health: 40, golden: true },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }]; // retaliates → pops the Ward each hit
+    const r = run(p, e, 7);
+    const solarisUid = r.initial.player[0]!.uid;
+    const wards = r.events.filter((ev) => ev.type === 'shieldUp' && ev.target === solarisUid).length;
+    expect(wards).toBeGreaterThanOrEqual(2); // one Ward before each of the two immediate strikes
+  });
+
+  it('Watcher Rally casts Lantern of Souls: Undead +Attack carries back AND counts as a spell cast; golden 2×', () => {
+    // Watcher one-shots a 0/1 wall → its Rally casts Lantern once: your Undead gain +3 Attack permanently
+    // (carried back via playerUndeadBuyAtkGain) and it registers as a real spell cast (playerSpellsCast).
+    const p: BoardMinion[] = [
+      { cardId: 'watcher', attack: 8, health: 30 },
+      { cardId: 'spore', attack: 1, health: 30 }, // a friendly Undead that receives the aura
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to one swing → exactly one Rally
+    const r = run(p, e, 1);
+    expect(r.playerUndeadBuyAtkGain).toBe(3); // one Lantern cast → +3 Undead aura, permanent
+    expect(r.playerSpellsCast).toBe(1);       // counts as a spell cast (feeds Spirit Pup / Guel)
+    // Golden Watcher casts it twice.
+    const rg = run([{ cardId: 'watcher', attack: 8, health: 30, golden: true }, { cardId: 'spore', attack: 1, health: 30 }], e, 1);
+    expect(rg.playerUndeadBuyAtkGain).toBe(6); // +3 × 2 casts
+    expect(rg.playerSpellsCast).toBe(2);
+  });
+
+  it("Watcher's Lantern scales with the run's spell power", () => {
+    const p: BoardMinion[] = [{ cardId: 'watcher', attack: 8, health: 30 }, { cardId: 'spore', attack: 1, health: 30 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
+    // spellPowerAtk = 2 (16th positional arg after CARD_INDEX).
+    const r = simulate(p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 6, ALL_TRIBES);
+    expect(r.playerUndeadBuyAtkGain).toBe(5); // base 3 + spell power 2 — Lantern obeys spell power
+  });
+
+  it('mid-combat Undead aura gains reach Undead summoned later that fight (Watcher → Steadfast Spear Warden)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'watcher', attack: 8, health: 100 },   // Rally casts Lantern → +3 Undead aura
+      { cardId: 'steadfast', attack: 4, health: 100 }, // Avenge (3) → summons a Spear Warden
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
+    const r = run(p, e, 7);
+    const wardenSummon = r.events.find((ev) => ev.type === 'summon' && ev.minion.cardId === 'knit');
+    expect(wardenSummon).toBeDefined();
+    // The summoned Spear Warden (base 3 Attack) must inherit the Undead aura Watcher pumped this fight.
+    expect(wardenSummon && wardenSummon.type === 'summon' ? wardenSummon.minion.attack : 0).toBeGreaterThan(3);
+  });
+
   it('Sergeant Deathrattle uses its seeded hpGrantBonus, and a survivor carries the accrual back', () => {
     const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 9 }];
     // Seeded +4 from the shop → Deathrattle gives friends +2 base + 4 = +6 Health.
@@ -205,15 +307,15 @@ describe('simulate (handoff A.3)', () => {
     expect(enemySide.playerHandGrants).toBeUndefined();
   });
 
-  it("Skullblade's Deathrattle reports run-wide spell power to carry back (+1 Attack); golden = +2", () => {
-    // Skullblade (5/1) dies to retaliation against a wall; its Deathrattle records +1 Attack spell power.
-    const r = run([{ cardId: 'skullblade', attack: 5, health: 1 }], [{ cardId: 'sandbag', attack: 5, health: 30 }], 5);
-    expect(r.playerSpellPower).toEqual({ attack: 1, health: 0 });
+  it("Gnasher's Slaughter reports run-wide spell power to carry back (+1/+1); golden = +2/+2", () => {
+    // Gnasher scores a kill on a 0/1 wall → its Slaughter records +1/+1 spell power (player-side carry-back).
+    const r = run([{ cardId: 'gnash', attack: 6, health: 6 }], [{ cardId: 'sandbag', attack: 0, health: 1 }], 5);
+    expect(r.playerSpellPower).toEqual({ attack: 1, health: 1 });
     // Golden doubles the gain.
-    const golden = run([{ cardId: 'skullblade', attack: 5, health: 1, golden: true }], [{ cardId: 'sandbag', attack: 5, health: 30 }], 5);
-    expect(golden.playerSpellPower).toEqual({ attack: 2, health: 0 });
-    // An enemy Skullblade dying gives the player no spell power (player-only carry-back).
-    const enemySide = run([{ cardId: 'sandbag', attack: 5, health: 30 }], [{ cardId: 'skullblade', attack: 5, health: 1 }], 5);
+    const golden = run([{ cardId: 'gnash', attack: 6, health: 6, golden: true }], [{ cardId: 'sandbag', attack: 0, health: 1 }], 5);
+    expect(golden.playerSpellPower).toEqual({ attack: 2, health: 2 });
+    // An enemy Gnasher scoring the kill gives the player no spell power (player-only carry-back).
+    const enemySide = run([{ cardId: 'sandbag', attack: 0, health: 1 }], [{ cardId: 'gnash', attack: 6, health: 6 }], 5);
     expect(enemySide.playerSpellPower).toBeUndefined();
   });
 
@@ -868,23 +970,21 @@ describe('simulate (handoff A.3)', () => {
     expect(urchin.playerDeferredBattlecries).toBeUndefined();
   });
 
-  it('combat carry-backs are shown mid-fight (spell power → sc; a generated card → toHand)', () => {
+  it('a combat-generated card is shown mid-fight as a toHand event', () => {
     const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
     const r = run([
-      { cardId: 'skullblade', attack: 5, health: 1 }, // Deathrattle → +1/+0 spell power (otherwise silent until settle)
       { cardId: 'sporebat', attack: 2, health: 1 },   // Deathrattle → generates a real spell → a toHand event
     ], omen, 1);
-    expect(r.events.some((e) => e.type === 'sc' && /Spell Power/.test(e.text))).toBe(true);
     const grant = r.events.find((e) => e.type === 'toHand');
     expect(grant).toBeDefined();
     expect(CARD_INDEX[(grant as { cardId: string }).cardId]?.spell).toBe(true); // the actual spell that was generated
   });
 
   it("a mid-combat spell-power telegraph is a narration sc (no `cast`) — the UI won't replay it as a SoC attack", () => {
-    // Ghastly Bladesmith's Deathrattle grants +1 spell power, telegraphed mid-fight as a "+1/+0 Spell Power" sc.
+    // Gnasher's Slaughter grants +1/+1 spell power, telegraphed mid-fight as a "Spell Power" sc.
     // It carries NO `cast` flag (only genuine Start-of-Combat damage casts do), so the UI fires no projectile
     // bolt / zap — fixing "Ryme procs Cinderwing → phantom Ember Whelp attack" (spell power shares this channel).
-    const r = run([{ cardId: 'skullblade', attack: 5, health: 1 }], [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }], 1);
+    const r = run([{ cardId: 'gnash', attack: 6, health: 6 }], [{ cardId: 'sandbag', attack: 0, health: 1 }], 1);
     const sp = r.events.find((e) => e.type === 'sc' && /Spell Power/.test(e.text));
     expect(sp).toBeDefined();
     expect(sp?.type === 'sc' ? sp.cast : 'missing').toBeUndefined(); // narration, not a cast
@@ -1700,7 +1800,7 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('a Footman summoned mid-combat inherits the run-wide Undead aura (Lantern + the baked buy-time bonus)', () => {
-    // Footman Leader (Undead) dies → summons a Footman (1/1 Undead token). A summon starts from BASE, so it
+    // Footman Captain (Undead) dies → summons a Footman (1/1 Undead token). A summon starts from BASE, so it
     // takes the FULL aura: Lantern (+5/+3) AND the baked buy-time Undead attack (+4, re-added only for a
     // from-base body — a bought Undead already has it in its stats). → 1 + 5 + 4 = 10 attack, 1 + 3 = 4 health.
     const p: BoardMinion[] = [{ cardId: 'deathlesshand', attack: 0, health: 1, sourceUid: 'u' }]; // 0-atk so it can't win — it dies, summoning the Footman

@@ -25,6 +25,17 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Content batch — Beast auras, a new hero, 3 minions + a spell** — Beasts gain a "wherever they are" theme:
+  **Kennelmaster** now gives your Beasts **+1/+1 at Start of Combat** (and buffs beasts *summoned mid-fight*),
+  which **Grim** and new **Solaris Fang** (Beast/Mech T5 — Rally: Beasts +5 Attack; Avenge: gain Ward + attack
+  now) share. Also new: **Runic Beetle** (T3 — Choose One: give a Beast Rise or Flurry), **Money Maker** (Mech
+  T1 — every 2 turns, a Gold Pouch or Safety Deposit Box), and spell **Rallying Offensive** (T3 — your Rally's
+  fire **twice** next combat). New hero **Gildmaster** (30/15 — *Golden Gild*: spend 3 Gold to combine a pair
+  into a golden in hand, twice a game). Rebalances: Sword and Bored 2/1 (+1/+0 Fodder), Gnasher 7/6, Sporebat
+  4/3, Mumi → T2; **Ghostsmith removed**; text cleanups. Fresh art for every new card + the hero.
+  **Plus (same drop):** new **Watcher** (Undead T6 — Rally: cast **Lantern of Souls**, +3 Attack to your Undead
+  for the run), **Steadfast Champion → T5 4/7**, **Footman Leader → Footman Captain**, and re-arted Footman /
+  Solaris / Forest Guardian.
 - **Rise reads as die → Deathrattle → rise** — a minion with **Rise** now genuinely leaves its slot when it
   dies (a real removal, not an in-place flicker), its Deathrattle fills the vacated slot, and it returns to the
   **right** of whatever it summoned (a Violet Whelp with Rise now rises to the right of its Whelp, not the left).

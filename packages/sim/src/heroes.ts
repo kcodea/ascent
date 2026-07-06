@@ -20,7 +20,8 @@ export type HeroPowerKind =
   | 'chaos' // Chaos (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
   | 'sellGold' // Robin (passive): each minion you sell banks +1 Gold for the START of next turn
   | 'displace' // Darah: swap a friendly minion with a random tavern minion (active, targeted)
-  | 'grantReborn'; // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
+  | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
+  | 'goldenGild'; // Gildmaster: if you have 2 copies of a minion, combine them into a golden copy in hand
 
 export interface HeroPower {
   name: string;
@@ -29,6 +30,9 @@ export interface HeroPower {
   kind: HeroPowerKind;
   /** Once-per-game powers lock after a single use (vs the default once-per-wave). */
   oncePerGame?: boolean;
+  /** Total-game activation cap (Gildmaster: 2). Still gated once-per-turn by `heroReady`; the count rides
+   *  in `RunState.heroPowerUses`. Distinct from `oncePerGame` (which is a hard single use). */
+  maxUses?: number;
   /** The wave (turn) the power first becomes usable; undefined = turn 1 (available immediately). */
   unlockWave?: number;
   /** Passive powers are always-on (no activation/target) — the panel shows them, but you can't arm them. */
@@ -218,6 +222,21 @@ export const HEROES: HeroDef[] = [
       name: 'Rise Again',
       kind: 'grantReborn',
       text: 'Give a friendly minion **Rise** for the next combat.',
+    },
+  },
+  {
+    id: 'gildmaster',
+    name: 'Gildmaster',
+    blurb: 'Two of a kind is all it takes — fold a pair into gold and cash the reward.',
+    resolve: 30,
+    armor: 15,
+    power: {
+      name: 'Golden Gild',
+      kind: 'goldenGild',
+      untargeted: true,
+      cost: 3,
+      maxUses: 2,
+      text: 'Golden Gild: Spend 3 Gold — if you have 2 copies of a minion, combine them into one golden copy in your hand. (Twice per game, once per turn)',
     },
   },
 ];

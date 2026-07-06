@@ -189,6 +189,12 @@ look because the engine already produces the data.
 - **Standing direction** (from `docs/balance-handoff.md` §9): counter-matrix is balance truth — keep **T1–4
   cards relevant** mid-game (scaling payoffs / triples); push **decision diversity** (tribe identity vs
   cross-tribe value engines). Tools: `npm run balance` / `curve` / `player` / `audit`.
+- **New Beast levers to weigh in the tuning pass** (2026-07-06 content batch): Kennelmaster is now a
+  Start-of-Combat Beast aura (+1/+1 "wherever they are", growing via Avenge), joined by **Solaris Fang**
+  (Beast/Mech T5 Rally aura) and **Runic Beetle** (T3 Choose-One Rise/Flurry) — a go-wide Beast payoff spine
+  that should lift the tribe's matrix. Also new: **Gildmaster** (triple-economy hero) and **Money Maker**
+  (Mech econ drip) — watch both for snowball once the prober is rebuilt. Undead gains **Watcher** (a T6 Rally
+  Lantern-caster that permanently pumps the Undead aura — watch that snowball too).
 - **⚠ Rebuild the balance prober before the tuning pass** (review 2026-07-03): `balance.ts` bakes only each
   tribe's 7 *lowest-tier* cards and lets Consume demons eat their own board (demon reads power 9 / 0%
   everywhere), so its current "Mech dominant, Beast weak, Dragon/Undead inverted" matrix is mostly tool

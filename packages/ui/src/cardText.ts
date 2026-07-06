@@ -13,7 +13,9 @@ import { CARD_INDEX } from '@game/content';
 export function summonBuffText(cardId: string, summonBonus: number): string | null {
   if (summonBonus <= 0) return null;
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'buffOnSummon');
+  // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start-of-Combat Beast aura). Both
+  // grant `base + summonBonus`, so the same live magnitude injects into the printed "+N/+N".
+  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
   if (!def || !eff) return null;
   const base = Number((eff.params as { attack?: number })?.attack ?? 1);
   const m = base + summonBonus;
@@ -74,7 +76,8 @@ export function ascendProgressText(cardId: string, ascendProgress: number): stri
  */
 export function cadenceProgressText(cardId: string, eotTick: number): string | null {
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'endOfTurnGrantTribe');
+  // Any "every N turns" End-of-Turn effect: Frontdrake's Dragon conjure or Money Maker's card grant.
+  const eff = def?.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (!def || !eff) return null;
   const every = Math.max(1, Number((eff.params as { every?: number })?.every ?? 3));
   const toNext = every - (eotTick % every);
@@ -220,6 +223,24 @@ export function taragosaText(cardId: string, golden: boolean, spellBonusA: numbe
   const h = (Number((eff.params as { health?: number })?.health ?? 4) + spellBonusH) * m;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   return src.replace(/\+\d+\/\+\d+/, `{{+${a}/+${h}}}`);
+}
+
+/**
+ * Watcher casts Lantern of Souls on Rally — your Undead get +(base + spell power) Attack for the rest of the
+ * run, scaling with the run's spell power exactly like a shop-cast Lantern. Its printed "+3 Attack" becomes
+ * the live value (highlighted green), so the card always states the current Lantern buff. Golden casts it
+ * twice, so the per-Rally buff doubles. Returns null for other cards or a zero bonus (the printed +3 —
+ * golden +6 — is already accurate).
+ */
+export function watcherText(cardId: string, golden: boolean, spellBonusAttack: number): string | null {
+  if (spellBonusAttack <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'rallyCastTribeAttack');
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { amount?: number })?.amount ?? 3);
+  const per = (base + spellBonusAttack) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${per} Attack}}`);
 }
 
 /**

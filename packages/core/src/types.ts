@@ -189,7 +189,14 @@ export type EffectFactoryId =
   | 'onKillBuffFodder' // Sword and Bored: Slaughter — when this kills an enemy, buff your Fodder +atk/+hp
   // --- 2026-07-05 content batch ---
   | 'avengeSummonAttack' // Steadfast Champion: Avenge (X) — summon a `cardId` minion that attacks immediately
-  | 'spellAttackFirst'; // Pre-emptive Assault: cast — your board attacks first in the next combat (recruit)
+  | 'spellAttackFirst' // Pre-emptive Assault: cast — your board attacks first in the next combat (recruit)
+  // --- 2026-07-06 content batch ---
+  | 'scBeastAura' // Kennelmaster: Start of Combat — Beast aura +N/+N (grown by Avenge), catches combat summons
+  | 'rallyTribeAura' // Solaris Fang: Rally — Beast aura +N/+N for the rest of combat (catches combat summons)
+  | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
+  | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
+  | 'spellRallyDoubleNext' // Rallying Offensive: cast — your Rally effects trigger twice next combat (recruit)
+  | 'rallyCastTribeAttack'; // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
 
 export interface EffectDef {
   on: GameEvent;
@@ -570,6 +577,10 @@ export interface CombatContext {
   /** Flush the attack-on-summon queue immediately (Twilight Whelp: each spawned Whelp attacks
    *  before the next one may spawn, so a full board doesn't block the second if the first dies). */
   flushImmediateAttacks?(): void;
+  /** Solaris Fang: make an existing minion take an extra attack immediately, out of turn order (the same
+   *  attack-on-summon queue, drained by the next flushImmediateAttacks). The minion still attacks in its
+   *  normal rotation too — this is a bonus strike. */
+  attackNow?(minion: Minion, shieldFirst?: boolean): void;
   /** Count a Deathrattle *triggered without a death* (Sporeling's Battlecry-proc'd rattle) toward the
    *  side's Deathrattle tally — feeds Grim + the run's deathrattlesTriggered carry-back. Player-side only. */
   countDeathrattle?(side: Side): void;

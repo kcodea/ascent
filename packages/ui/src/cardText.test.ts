@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, monkProgressText, sergeantText, soulsmanText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, monkProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('cardText helpers', () => {
   it("monkProgressText shows Flowing Monk's live grant + countdown to the next step (golden-aware)", () => {
@@ -59,7 +59,7 @@ describe('cardText helpers', () => {
     // Eternal Knight: run-wide card-type enchant accrued from deaths.
     expect(cardTypeTallyText('knit', { attack: 9, health: 6 })).toContain('{{Now +9/+6 this run.}}');
     expect(cardTypeTallyText('knit', { attack: 0, health: 0 })).toBeNull();
-    expect(cardTypeTallyText('skullblade', { attack: 9, health: 6 })).toBeNull();
+    expect(cardTypeTallyText('spore', { attack: 9, health: 6 })).toBeNull();
   });
 
   it('sergeantText shows the live Deathrattle HP grant (base + accrual, golden-aware)', () => {
@@ -89,6 +89,13 @@ describe('cardText helpers', () => {
     expect(taragosaText('tara', false, 4, 4)).toBeNull(); // not Taragosa
   });
 
+  it('watcherText shows the live Lantern buff (base + spell power); golden casts twice', () => {
+    expect(watcherText('watcher', false, 2)).toContain('{{+5 Attack}}'); // base 3 + spell power 2
+    expect(watcherText('watcher', true, 2)).toContain('{{+10 Attack}}'); // (3 + 2) × 2 casts
+    expect(watcherText('watcher', false, 0)).toBeNull(); // no spell power → printed +3 (golden +6)
+    expect(watcherText('spore', false, 2)).toBeNull(); // not Watcher
+  });
+
   it('abhorrentHorrorText shows the pending Start-of-Combat gain from Fodder consumed this turn (golden-aware)', () => {
     // 4/4 of Fodder consumed → it'll gain +4/+4 next combat (green); golden doubles to +8/+8.
     expect(abhorrentHorrorText('abhorrenthorror', { attack: 4, health: 4 }, false)).toContain('{{+4/+4 next combat}}');
@@ -108,5 +115,17 @@ describe('cardText helpers', () => {
     expect(cadenceProgressText('frontdrake', 5)).toContain('{{End of this turn.}}'); // also one shy (5 % 3 === 2)
     expect(cadenceProgressText('frontdrake', 3)).toContain('{{Next in 3 turns.}}');
     expect(cadenceProgressText('sandbag', 1)).toBeNull(); // not a cadence card
+  });
+
+  it('cadenceProgressText also covers Money Maker’s every-2-turns cadence', () => {
+    expect(cadenceProgressText('moneymaker', 0)).toContain('{{Next in 2 turns.}}');
+    expect(cadenceProgressText('moneymaker', 1)).toContain('{{End of this turn.}}'); // one shy (1 % 2 === 1)
+  });
+
+  it('summonBuffText shows Kennelmaster’s live Start-of-Combat Beast aura (base + Avenge bonus)', () => {
+    // Kennelmaster's aura is +(1 + summonBonus)/+(same); the printed +1/+1 becomes the live value.
+    expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +1/+1
+    expect(summonBuffText('kennel', 2)).toContain('{{+3/+3}}'); // base 1 + summonBonus 2
+    expect(summonBuffText('sandbag', 3)).toBeNull(); // not a summon-buff / aura card
   });
 });

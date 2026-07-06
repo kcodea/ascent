@@ -41,19 +41,23 @@ export const BEASTS: CardDef[] = [
     tier: 2,
     attack: 1,
     health: 4,
-    keywords: [],
+    keywords: ['SC'],
     effects: [
-      { on: 'onSummon', do: 'buffOnSummon', params: { tribe: 'beast', attack: 1, health: 1 } },
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 1 } },
       { on: 'avenge', do: 'avengeImproveSummon', params: { count: 2 } },
     ],
-    text: 'Each **Beast** you summon gains **+1/+1**. **Avenge (2):** Improve this.',
+    // Start of Combat: a Beast aura +N/+N that lasts the fight — current Beasts + any summoned later inherit
+    // it (the "wherever they are" aura). N = 1 + its Avenge-grown summonBonus (carried across combats). The
+    // live value + Avenge countdown surface via cardText's kennelmaster helper on every surface.
+    text: '**Start of Combat:** give your Beasts **+1/+1** wherever they are. **Avenge (2):** Improve this.',
+    goldenText: '**Start of Combat:** give your Beasts **+2/+2** wherever they are. **Avenge (2):** Improve this.',
   },
   {
     id: 'gnash',
     name: 'Gnasher, the Overrun',
     tribe: 'beast',
     tier: 6,
-    attack: 6,
+    attack: 7,
     health: 6,
     keywords: ['SL'],
     effects: [
@@ -88,7 +92,7 @@ export const BEASTS: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', per: 1 } }],
-    text: '**Deathrattle:** give your Beasts **+1/+1** for each Deathrattle triggered this game.',
+    text: '**Deathrattle:** give your Beasts **+1/+1** wherever they are for each Deathrattle triggered this game.',
   },
   {
     id: 'shaper',
@@ -191,8 +195,8 @@ export const BEASTS: CardDef[] = [
     name: 'Sporebat',
     tribe: 'beast',
     tier: 4,
-    attack: 2,
-    health: 6,
+    attack: 4,
+    health: 3,
     keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
     text: '**Taunt. Deathrattle:** add a random tavern-tier spell to your hand.',
@@ -225,5 +229,45 @@ export const BEASTS: CardDef[] = [
     effects: [{ on: 'onSummon', do: 'summonBuffTribeImprove', params: { tribe: 'beast', attack: 2, health: 2 } }],
     text: 'When you summon a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.',
     goldenText: 'When you summon a **Beast**, give it **+4/+4** — and improve this by **+4/+4**.',
+  },
+
+  // --- 2026-07-06 content batch ---
+  {
+    // Choose One battlecry: hand a friendly Beast either Rise or Flurry. `battlecryGrantKeyword` auto-picks
+    // the highest-Attack friend lacking the keyword, and `targetTribe: 'beast'` restricts that pick to a
+    // Beast (self counts only if no other Beast qualifies). A tempo enabler for a go-wide Beast board.
+    id: 'beetle',
+    name: 'Runic Beetle',
+    tribe: 'beast',
+    tier: 3,
+    attack: 3,
+    health: 1,
+    keywords: [],
+    targetTribe: 'beast',
+    effects: [],
+    chooseOne: [
+      { text: 'Give a friendly Beast **Rise**.', effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['R'] } }] },
+      { text: 'Give a friendly Beast **Flurry**.', effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['W'] } }] },
+    ],
+    text: '**Choose One:** give a friendly Beast **Rise**, or **Flurry**.',
+  },
+  {
+    // Dual-type Beast/Mech finisher. Rally builds a rest-of-combat Beast Attack aura that catches summons
+    // ("wherever they are"); Avenge shields it and sends it in for a bonus swing. Snowballs its own Attack
+    // each time it attacks (it's a Beast). Golden doubles the Rally grant + the immediate strikes.
+    id: 'solaris',
+    name: 'Solaris Fang',
+    tribe: 'beast',
+    tribe2: 'mech',
+    tier: 5,
+    attack: 5,
+    health: 5,
+    keywords: ['RL'],
+    effects: [
+      { on: 'onAttack', do: 'rallyTribeAura', params: { tribe: 'beast', attack: 5, health: 0 } },
+      { on: 'avenge', do: 'avengeShieldAttack', params: { count: 2 } },
+    ],
+    text: '**Rally:** give your Beasts **+5 Attack** wherever they are. **Avenge (2):** gain **Ward** and attack immediately.',
+    goldenText: '**Rally:** give your Beasts **+10 Attack** wherever they are. **Avenge (2):** gain **Ward** and attack immediately.',
   },
 ];

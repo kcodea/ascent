@@ -485,8 +485,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       const power = getHero(s.heroId).power;
       // Some powers unlock on a later turn (Myra's Encore — turn 3); locked before then.
       if (s.wave < (power.unlockWave ?? 1)) return state;
-      // Once-per-game powers (Gild) gate on heroPowerSpent; the rest recharge each wave.
-      const available = power.oncePerGame ? !s.heroPowerSpent : s.heroReady;
+      // Once-per-game powers (Gild) gate on heroPowerSpent; maxUses powers (Gildmaster: 2 total) gate on the
+      // whole-game count AND the once-per-turn charge; the rest just recharge each wave.
+      const heroUses = s.heroPowerUses ?? 0;
+      const available = power.maxUses
+        ? heroUses < power.maxUses && s.heroReady
+        : power.oncePerGame
+          ? !s.heroPowerSpent
+          : s.heroReady;
       if (!available) return state;
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
@@ -534,6 +540,21 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
         // action.uid. Doesn't return, so the shared spend logic below charges the once-per-turn charge.
         s.maxEmbers += 1;
+      } else if (power.kind === 'goldenGild') {
+        // Gildmaster: if you have 2 copies of a minion (a "double"), combine them into one golden copy in
+        // your hand — a discounted triple (you then play the golden for the triple reward). Untargeted: it
+        // finds the doubles itself, picking one at RANDOM when there are several. No double → can't use, and
+        // NO charge is spent (early return, before the shared spend block below).
+        const dbl = new Map<string, number>();
+        for (const c of [...s.board, ...s.hand]) {
+          if (!c.golden && !CARD_INDEX[c.cardId]?.spell) dbl.set(c.cardId, (dbl.get(c.cardId) ?? 0) + 1);
+        }
+        const doubles = [...dbl].filter(([, n]) => n >= 2).map(([id]) => id);
+        if (doubles.length === 0) return state;
+        const chosen = doubles.length === 1
+          ? doubles[0]!
+          : makeRng(mixSeed(s.seed, s.wave, TAG.GILD, heroUses)).pick(doubles);
+        combineIntoGolden(s, chosen, pullCopies(s, chosen, 2));
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
@@ -549,6 +570,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       if (power.oncePerGame) s.heroPowerSpent = true;
       else s.heroReady = false;
+      if (power.maxUses) s.heroPowerUses = heroUses + 1; // whole-game activation budget (Gildmaster: 2)
       if (power.cost) spendGold(s, Math.min(s.embers, power.cost)); // gold spent → Acid / Banksly meter
       // A power that summons or generates a minion (Myra's Battlecry replay → an Alleycat's Stray,
       // Dusk's End-of-Turn replay) can complete a triple — check now, like buy / play / discover do.
@@ -644,13 +666,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false);
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false);
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false);
           if (r.result === 'win') win++;
           else if (r.result === 'draw') draw++;
           else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
@@ -740,131 +762,145 @@ function checkTriples(s: RunState): void {
       }
     }
     if (!tripleId) return;
-
-    // Collect the three copies being combined, with their *current* stats/keywords.
-    const combined: BoardCard[] = [];
-    const pull = (arr: RunState['hand']): void => {
-      for (let i = arr.length - 1; i >= 0 && combined.length < 3; i--) {
-        if (arr[i]!.cardId === tripleId && !arr[i]!.golden) {
-          combined.push(arr[i]!);
-          arr.splice(i, 1);
-        }
-      }
-    };
-    pull(s.hand); // consume from the hand first, then the board
-    pull(s.board);
-
-    // Golden = the two best copies (by total stats) stacked: their stats summed, their per-source
-    // buff breakdowns merged (so the golden's inspect panel still itemizes its buffs), and the union
-    // of all three's keywords. For uniform buffs / fresh triples this equals the old "top-two atk +
-    // top-two hp" result; it only differs for oddly asymmetric per-copy buffs (rare), and in exchange
-    // the breakdown stays consistent with the stats.
-    const kept = [...combined].sort((a, b) => (b.attack + b.health) - (a.attack + a.health)).slice(0, 2);
-    const goldenBuffs = mergeBuffs(kept.flatMap((c) => c.buffs ?? []));
-    const keywords = [...new Set(combined.flatMap((c) => c.keywords))];
-    const def = CARD_INDEX[tripleId]!;
-    // A summon-buff card (Kennelmaster / Bristleback Matron) carries its accrued buff
-    // through the triple: the golden's summonBonus = its base buff + the two highest
-    // bonuses combined, so the granted magnitude (base + summonBonus) is the SUM of the
-    // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
-    // a fresh triple just doubles the base (the golden doubling falls out of the combine).
-    const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon');
-    const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove');
-    let summonBonus: number | undefined;
-    if (summonEffect) {
-      const base = Number((summonEffect.params as { attack?: number })?.attack ?? 0);
-      const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
-      summonBonus = base + (sbs[0] ?? 0) + (sbs[1] ?? 0);
-    } else if (improveEffect) {
-      // Mama Bear: the golden picks up the accrual at its CURRENT value (the highest of the three copies) —
-      // not reset, not summed/doubled. The bigger per-summon step (+6/+6) comes from gold(self) in the
-      // factory, so all the triple must do is preserve where the accrual already is.
-      const maxBonus = Math.max(...combined.map((c) => c.summonBonus ?? 0));
-      summonBonus = maxBonus > 0 ? maxBonus : undefined;
-    }
-    // Flowing Monk (owner ruling 2026-07-03): the golden COMBINES the two highest copies' CURRENT grants —
-    // e.g. +10/+10 and +4/+4 copies triple into a golden granting +14/+14. Since the stepped formula can't
-    // express an arbitrary start, the surplus over the golden base rides in a flat `overflowBonus`; the
-    // overflow countdown starts fresh (summonBonus stays unset → "5 to go").
-    const overflowEffect = def.effects.find((e) => e.do === 'overflowBuffRandom');
-    let overflowBonus: number | undefined;
-    if (overflowEffect) {
-      const p = overflowEffect.params as { attack?: number; improveEvery?: number } | undefined;
-      const base = Number(p?.attack ?? 2);
-      const every = Math.max(1, Number(p?.improveEvery ?? 5));
-      const grants = combined
-        .map((c) => base * (1 + Math.floor((c.summonBonus ?? 0) / every)) + (c.overflowBonus ?? 0))
-        .sort((a, b) => b - a);
-      const surplus = (grants[0] ?? base) + (grants[1] ?? base) - base * 2; // over the golden's own base grant
-      overflowBonus = surplus > 0 ? surplus : undefined;
-    }
-    // Sergeant: the golden keeps the HIGHEST accrued Deathrattle HP-grant bonus of the three copies (not
-    // summed/reset) — the bigger per-Attack step (+4) comes from gold(self) in the factory, so the triple
-    // only preserves where the accrual already is.
-    const hpGrantEffect = def.effects.find((e) => e.do === 'onGainAttackImproveHpGrant');
-    let hpGrantBonus: number | undefined;
-    if (hpGrantEffect) {
-      const maxBonus = Math.max(...combined.map((c) => c.hpGrantBonus ?? 0));
-      hpGrantBonus = maxBonus > 0 ? maxBonus : undefined;
-    }
-    // Frontdrake: keep the copy furthest into its cadence (closest to the next Dragon) — tripling a Frontdrake
-    // that's about to proc keeps the "procs this turn" timing. Only the cycle position (mod every) matters,
-    // so the golden inherits the max position; a fresh/just-procced set (all 0) starts a clean cycle.
-    const cadenceEffect = def.effects.find((e) => e.on === 'endOfTurn' && e.do === 'endOfTurnGrantTribe');
-    let goldenEotTick: number | undefined;
-    if (cadenceEffect) {
-      const every = Math.max(1, Number((cadenceEffect.params as { every?: number })?.every ?? 3));
-      const pos = Math.max(...combined.map((c) => (c.eotTick ?? 0) % every));
-      goldenEotTick = pos > 0 ? pos : undefined;
-    }
-    // Absorbed mana-per-turn (a Money Bot magnetized into one of the copies) carries through the
-    // triple so the income survives (the golden's own def.manaPerTurn handles the un-merged case).
-    const absorbedMana = combined.reduce((sum, c) => sum + (c.manaBonus ?? 0), 0);
-    // Same for the other welded magnetic fields: Better Bot's Rally (`rallyMechAtk`) and Harry Botter's
-    // spell aura (`spellAuraBonus`) — sum them across the copies so a magnetized host keeps its attachments
-    // through a triple (the golden's own def handles a standalone Better Bot's Rally at instantiate time).
-    const absorbedRally = combined.reduce((sum, c) => sum + (c.rallyMechAtk ?? 0), 0);
-    const absorbedSpellAura = combined.reduce((sum, c) => sum + (c.spellAuraBonus ?? 0), 0);
-    const absorbedFodderAura = combined.reduce(
-      (sum, c) => ({ attack: sum.attack + (c.fodderAuraBonus?.attack ?? 0), health: sum.health + (c.fodderAuraBonus?.health ?? 0) }),
-      { attack: 0, health: 0 },
-    );
-    // Spirit Pup: the golden keeps the *highest* spell progress of the three (= the lowest spells-left),
-    // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve.
-    const goldenProgress = Math.max(...combined.map((c) => c.spellProgress ?? 0));
-    // Tara: the golden keeps the *highest* ascend progress of the three (= the lowest "to go"), so tripling a
-    // Tara that's close to ascending doesn't reset it back to 20-to-go.
-    const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
-    // Hoarder: the golden keeps the EARLIEST (minimum) boughtWave of the three, so a golden Hoarder
-    // inherits the oldest copy's age → its highest sell value as the starting point (sell =
-    // (wave - boughtWave + 1) × 2 golden). Generic — harmless on cards that don't read it — but Hoarder
-    // is the one that matters. Copies with no boughtWave (not from a buy) are ignored; undefined if none had one.
-    const boughtWaves = combined.map((c) => c.boughtWave).filter((w): w is number => w !== undefined);
-    const goldenBoughtWave = boughtWaves.length > 0 ? Math.min(...boughtWaves) : undefined;
-    s.hand.push({
-      uid: `b${s.uidSeq++}`,
-      cardId: def.id,
-      tribe: def.tribe,
-      attack: kept.reduce((sum, c) => sum + c.attack, 0),
-      health: kept.reduce((sum, c) => sum + c.health, 0),
-      keywords,
-      golden: true,
-      summonBonus,
-      overflowBonus,
-      hpGrantBonus,
-      manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
-      rallyMechAtk: absorbedRally > 0 ? absorbedRally : undefined,
-      spellAuraBonus: absorbedSpellAura > 0 ? absorbedSpellAura : undefined,
-      fodderAuraBonus: absorbedFodderAura.attack > 0 || absorbedFodderAura.health > 0 ? absorbedFodderAura : undefined,
-      buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
-      spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
-      ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
-      boughtWave: goldenBoughtWave,
-      eotTick: goldenEotTick,
-    });
-    s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
-    // The Discover isn't granted now — it comes from a spell when the golden is played.
+    combineIntoGolden(s, tripleId, pullCopies(s, tripleId, 3));
   }
+}
+
+/** Pull up to `count` non-golden copies of `cardId` out of the hand (first) then the board, removing them
+ *  and returning them with their current stats/keywords — the copies a combine consumes. */
+function pullCopies(s: RunState, cardId: string, count: number): BoardCard[] {
+  const combined: BoardCard[] = [];
+  const pull = (arr: BoardCard[]): void => {
+    for (let i = arr.length - 1; i >= 0 && combined.length < count; i--) {
+      if (arr[i]!.cardId === cardId && !arr[i]!.golden) {
+        combined.push(arr[i]!);
+        arr.splice(i, 1);
+      }
+    }
+  };
+  pull(s.hand); // consume from the hand first, then the board
+  pull(s.board);
+  return combined;
+}
+
+/**
+ * Combine the pulled `combined` copies of `tripleId` into one golden copy pushed to the hand — the shared
+ * core of a natural triple (3 copies) and Gildmaster's Golden Gild (2 copies). Carries every per-instance
+ * accrual through the combine. No-op on an empty set. The triple's Discover isn't granted here — it comes
+ * from a spell when the golden is played.
+ */
+function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[]): void {
+  if (combined.length === 0) return;
+  // Golden = the two best copies (by total stats) stacked: their stats summed, their per-source
+  // buff breakdowns merged (so the golden's inspect panel still itemizes its buffs), and the union
+  // of all copies' keywords. For uniform buffs / fresh triples this equals the old "top-two atk +
+  // top-two hp" result; it only differs for oddly asymmetric per-copy buffs (rare), and in exchange
+  // the breakdown stays consistent with the stats.
+  const kept = [...combined].sort((a, b) => (b.attack + b.health) - (a.attack + a.health)).slice(0, 2);
+  const goldenBuffs = mergeBuffs(kept.flatMap((c) => c.buffs ?? []));
+  const keywords = [...new Set(combined.flatMap((c) => c.keywords))];
+  const def = CARD_INDEX[tripleId]!;
+  // A summon-buff card (Kennelmaster / Bristleback Matron) carries its accrued buff
+  // through the triple: the golden's summonBonus = its base buff + the two highest
+  // bonuses combined, so the granted magnitude (base + summonBonus) is the SUM of the
+  // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
+  // a fresh triple just doubles the base (the golden doubling falls out of the combine).
+  const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
+  const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove');
+  let summonBonus: number | undefined;
+  if (summonEffect) {
+    const base = Number((summonEffect.params as { attack?: number })?.attack ?? 0);
+    const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
+    summonBonus = base + (sbs[0] ?? 0) + (sbs[1] ?? 0);
+  } else if (improveEffect) {
+    // Mama Bear: the golden picks up the accrual at its CURRENT value (the highest of the copies) —
+    // not reset, not summed/doubled. The bigger per-summon step (+6/+6) comes from gold(self) in the
+    // factory, so all the triple must do is preserve where the accrual already is.
+    const maxBonus = Math.max(...combined.map((c) => c.summonBonus ?? 0));
+    summonBonus = maxBonus > 0 ? maxBonus : undefined;
+  }
+  // Flowing Monk (owner ruling 2026-07-03): the golden COMBINES the two highest copies' CURRENT grants —
+  // e.g. +10/+10 and +4/+4 copies triple into a golden granting +14/+14. Since the stepped formula can't
+  // express an arbitrary start, the surplus over the golden base rides in a flat `overflowBonus`; the
+  // overflow countdown starts fresh (summonBonus stays unset → "5 to go").
+  const overflowEffect = def.effects.find((e) => e.do === 'overflowBuffRandom');
+  let overflowBonus: number | undefined;
+  if (overflowEffect) {
+    const p = overflowEffect.params as { attack?: number; improveEvery?: number } | undefined;
+    const base = Number(p?.attack ?? 2);
+    const every = Math.max(1, Number(p?.improveEvery ?? 5));
+    const grants = combined
+      .map((c) => base * (1 + Math.floor((c.summonBonus ?? 0) / every)) + (c.overflowBonus ?? 0))
+      .sort((a, b) => b - a);
+    const surplus = (grants[0] ?? base) + (grants[1] ?? base) - base * 2; // over the golden's own base grant
+    overflowBonus = surplus > 0 ? surplus : undefined;
+  }
+  // Sergeant: the golden keeps the HIGHEST accrued Deathrattle HP-grant bonus of the copies (not
+  // summed/reset) — the bigger per-Attack step (+4) comes from gold(self) in the factory, so the triple
+  // only preserves where the accrual already is.
+  const hpGrantEffect = def.effects.find((e) => e.do === 'onGainAttackImproveHpGrant');
+  let hpGrantBonus: number | undefined;
+  if (hpGrantEffect) {
+    const maxBonus = Math.max(...combined.map((c) => c.hpGrantBonus ?? 0));
+    hpGrantBonus = maxBonus > 0 ? maxBonus : undefined;
+  }
+  // Frontdrake / Money Maker: keep the copy furthest into its cadence (closest to the next proc) — tripling
+  // one about to proc keeps the "procs this turn" timing. Only the cycle position (mod every) matters, so the
+  // golden inherits the max position; a fresh/just-procced set (all 0) starts a clean cycle. Any End-of-Turn
+  // effect with an `every` param counts (Frontdrake's conjure, Money Maker's card grant).
+  const cadenceEffect = def.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
+  let goldenEotTick: number | undefined;
+  if (cadenceEffect) {
+    const every = Math.max(1, Number((cadenceEffect.params as { every?: number })?.every ?? 3));
+    const pos = Math.max(...combined.map((c) => (c.eotTick ?? 0) % every));
+    goldenEotTick = pos > 0 ? pos : undefined;
+  }
+  // Absorbed mana-per-turn (a Money Bot magnetized into one of the copies) carries through the
+  // triple so the income survives (the golden's own def.manaPerTurn handles the un-merged case).
+  const absorbedMana = combined.reduce((sum, c) => sum + (c.manaBonus ?? 0), 0);
+  // Same for the other welded magnetic fields: Better Bot's Rally (`rallyMechAtk`) and Harry Botter's
+  // spell aura (`spellAuraBonus`) — sum them across the copies so a magnetized host keeps its attachments
+  // through a triple (the golden's own def handles a standalone Better Bot's Rally at instantiate time).
+  const absorbedRally = combined.reduce((sum, c) => sum + (c.rallyMechAtk ?? 0), 0);
+  const absorbedSpellAura = combined.reduce((sum, c) => sum + (c.spellAuraBonus ?? 0), 0);
+  const absorbedFodderAura = combined.reduce(
+    (sum, c) => ({ attack: sum.attack + (c.fodderAuraBonus?.attack ?? 0), health: sum.health + (c.fodderAuraBonus?.health ?? 0) }),
+    { attack: 0, health: 0 },
+  );
+  // Spirit Pup: the golden keeps the *highest* spell progress of the copies (= the lowest spells-left),
+  // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve.
+  const goldenProgress = Math.max(...combined.map((c) => c.spellProgress ?? 0));
+  // Tara: the golden keeps the *highest* ascend progress of the copies (= the lowest "to go"), so tripling a
+  // Tara that's close to ascending doesn't reset it back to 20-to-go.
+  const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
+  // Hoarder: the golden keeps the EARLIEST (minimum) boughtWave of the copies, so a golden Hoarder
+  // inherits the oldest copy's age → its highest sell value as the starting point (sell =
+  // (wave - boughtWave + 1) × 2 golden). Generic — harmless on cards that don't read it — but Hoarder
+  // is the one that matters. Copies with no boughtWave (not from a buy) are ignored; undefined if none had one.
+  const boughtWaves = combined.map((c) => c.boughtWave).filter((w): w is number => w !== undefined);
+  const goldenBoughtWave = boughtWaves.length > 0 ? Math.min(...boughtWaves) : undefined;
+  s.hand.push({
+    uid: `b${s.uidSeq++}`,
+    cardId: def.id,
+    tribe: def.tribe,
+    attack: kept.reduce((sum, c) => sum + c.attack, 0),
+    health: kept.reduce((sum, c) => sum + c.health, 0),
+    keywords,
+    golden: true,
+    summonBonus,
+    overflowBonus,
+    hpGrantBonus,
+    manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
+    rallyMechAtk: absorbedRally > 0 ? absorbedRally : undefined,
+    spellAuraBonus: absorbedSpellAura > 0 ? absorbedSpellAura : undefined,
+    fodderAuraBonus: absorbedFodderAura.attack > 0 || absorbedFodderAura.health > 0 ? absorbedFodderAura : undefined,
+    buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
+    spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
+    ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
+    boughtWave: goldenBoughtWave,
+    eotTick: goldenEotTick,
+  });
+  s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
 }
 
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */
@@ -1037,8 +1073,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
       c.tempReborn = false;
     }
   }
-  // Pre-emptive Assault is spent — the initiative override covers exactly one fight.
+  // Pre-emptive Assault + Rallying Offensive are spent — each override covers exactly one fight.
   s.attackFirstNext = false;
+  s.rallyDoubleNext = false;
   s.combatSettled = true;
 }
 

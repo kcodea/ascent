@@ -69,14 +69,15 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   // Rise — a tombstone (left) with a hand reaching up out of the ground (returns once on death).
+  // Rise — a zombie hand clawing up out of a mound of dirt (returns once on death).
   rise: (
     <>
-      <path fill="currentColor" d="M5 18V9a2.7 2.7 0 015.4 0v9z" />
-      <rect x="2.8" y="17.3" width="18.4" height="2.9" rx="0.8" fill="currentColor" />
-      <rect x="12.6" y="14.1" width="6.4" height="4.1" rx="1.4" fill="currentColor" />
-      <rect x="13" y="11.3" width="1.5" height="3.7" rx="0.75" fill="currentColor" />
-      <rect x="15" y="10.4" width="1.5" height="4.6" rx="0.75" fill="currentColor" />
-      <rect x="17" y="11.3" width="1.5" height="3.7" rx="0.75" fill="currentColor" />
+      {/* fingers, spread + reaching */}
+      <path fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" d="M8.7 12.3L7.4 6.6M11 12L10.6 4.9M13.2 12.2L14.4 6.4M13.8 12.7L16.6 9.6" />
+      {/* palm + forearm */}
+      <path fill="currentColor" d="M8.5 12.2c-.3 3.1.2 5.6 1.4 7.1h4.2c1.2-1.5 1.7-4 1.4-7.1-.3-2-1.8-3.1-3.5-3.1s-3.2 1.1-3.5 3.1z" />
+      {/* dirt mound */}
+      <path fill="currentColor" d="M3.6 21.4c-.1-1.6 1.3-2.5 2.6-2 .5-1.5 2.4-1.8 3.5-.8.6-1.3 2.9-1.3 3.6-.1 1-1 3-.8 3.6.8 1.3-.4 2.7.5 2.7 2 0 .3-.2.5-.5.5H4.1c-.3 0-.5-.2-.5-.4z" />
     </>
   ),
   battlecry: (

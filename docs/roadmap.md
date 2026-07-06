@@ -223,6 +223,10 @@ look because the engine already produces the data.
 
 ## Standing backlog (carried over — unscheduled, behind the spine)
 
+**Compendium spells-only view:** spells are now opt-in + *additive* (toggling Spells layers them onto the
+minion view), so there's no longer a one-click "browse only spells." If wanted, add a spells-only mode (e.g.
+Spells acts as a narrowing filter when it's the sole selection, or a dedicated header toggle).
+
 **Leaderboard W/L spread for old rows:** the Hall of Champions round-spread only populates for victory runs
 logged *after* the `runs.history` column shipped (per-round order isn't stored on older rows and can't be
 re-derived from the seed alone). Optional follow-up: backfill via replay re-simulation, or fall back to an

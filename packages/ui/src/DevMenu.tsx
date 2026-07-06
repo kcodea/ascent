@@ -9,6 +9,7 @@ import { TrailTuner } from './TrailTuner';
 import { SmokeTuner } from './SmokeTuner';
 import { PacingTuner } from './PacingTuner';
 import { FloatTuner } from './FloatTuner';
+import { LayoutTuner } from './LayoutTuner';
 import { pixiFx } from './pixiFx';
 
 /**
@@ -18,6 +19,7 @@ import { pixiFx } from './pixiFx';
  * menu — and every tuner — is stripped from production.
  */
 const TUNERS = [
+  { key: 'layout', label: '📐 Scale & Layout', C: LayoutTuner },
   { key: 'sfx', label: '🔊 SFX Mixer', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'taunt', label: '🛡️ Taunt', C: TauntTuner },

@@ -24,9 +24,8 @@ Two owner bug reports after the content batch merged.
   combat replay (which renders the snapshot stats directly): **Lantern (+5/+3) → 6/4**, **undeadBuyAtk 4 →
   5/1**, **both → 10/4**, a golden Leader's two Footmen both aura'd, and the Reborn body keeps it. The summon
   path already calls `applyAuras(minion, true)` (from-base, so it takes the FULL aura incl. the baked buy-time
-  bonus). Added a regression test locking in the 10/4 combined case. **Need a concrete repro from the owner**
-  (which aura source, and where it reads wrong — combat stats, the inspect panel, or an expected green
-  "gained" flash the baked aura doesn't play).
+  bonus). Added a regression test locking in the 10/4 combined case. **Owner confirmed it's working correctly**
+  — no code change needed; the test stays as a guard.
 
 `typecheck` + `lint` + `test` (**494**, +2) + `build:web` green.
 

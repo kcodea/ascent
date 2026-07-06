@@ -173,6 +173,8 @@ export function simulate(
     overflowBonus: m.overflowBonus,
     hpGrantBonus: m.hpGrantBonus,
     ascendProgress: m.ascendProgress,
+    spellProgress: m.spellProgress, // Guel: the live combat text reads his on-board spell tally
+
     buffs: m.buffs, // recruit-phase buff breakdown → the combat inspect panel (absent on summoned tokens)
   });
 

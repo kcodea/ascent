@@ -3787,18 +3787,19 @@ describe('content batch: new minions (@game/sim)', () => {
     const golden = [...s.hand, ...s.board].find((c) => c.cardId === 'drone' && c.golden);
     expect(golden).toBeDefined();
     expect(golden!.rallyMechAtk).toBe(5); // Better Bot's welded Rally carried through (was dropped before)
-    expect(golden!.spellAuraBonus).toBe(1); // Harry Botter's welded aura carried through
+    expect(golden!.spellAuraBonus).toBe(1); // a welded spell-power aura carried through
   });
 
-  it('Archmagus Guel scales with spells cast: +1/+1 per 4 (golden +2/+2 per 4)', () => {
+  it('Archmagus Guel scales PER-INSTANCE: +1/+1 per 4 spells cast while HE is on board (golden ×2)', () => {
     // emberpouch (Gain 1 Gold) doesn't touch minions, so the OTHER friend's gain is purely Guel's.
-    const cast = (spellsCast: number, golden: boolean): RunState =>
+    // The step counter is the instance's `spellProgress` (spells cast with this Guel on board), NOT the
+    // run-wide spellsCast (owner ruling 2026-07-05: no improvement unless he's on board).
+    const cast = (spellProgress: number, golden: boolean): RunState =>
       reduce(
         {
           ...createRun(1),
           embers: 99,
-          spellsCast,
-          board: [card('g', 'guel', 'neutral', 2, 3, { golden }), card('t', 'drone', 'mech', 2, 2)],
+          board: [card('g', 'guel', 'neutral', 2, 3, { golden, spellProgress }), card('t', 'drone', 'mech', 2, 2)],
           hand: [card('sp', 'emberpouch', 'neutral', 0, 0)],
         },
         { type: 'play', uid: 'sp' },
@@ -3807,10 +3808,30 @@ describe('content batch: new minions (@game/sim)', () => {
       const t = s.board.find((c) => c.uid === 't')!;
       return [t.attack - 2, t.health - 2];
     };
-    expect(buffed(cast(0, false))).toEqual([1, 1]); // cast → 1 spell, step 0 → base +1/+1
-    expect(buffed(cast(3, false))).toEqual([2, 2]); // cast → 4 spells, step 1 → +2/+2
-    expect(buffed(cast(7, false))).toEqual([3, 3]); // cast → 8 spells, step 2 → +3/+3
+    expect(buffed(cast(0, false))).toEqual([1, 1]); // cast → 1 on-board spell, step 0 → base +1/+1
+    expect(buffed(cast(3, false))).toEqual([2, 2]); // cast → 4 on-board spells, step 1 → +2/+2
+    expect(buffed(cast(7, false))).toEqual([3, 3]); // cast → 8 on-board spells, step 2 → +3/+3
     expect(buffed(cast(7, true))).toEqual([6, 6]); // golden: (1 + 2) × 2 → +6/+6
+  });
+
+  it("Guel's improvement ignores spells cast BEFORE he was on board (and combat casts tick him at settle)", () => {
+    // 7 run-wide casts pre-date this Guel (step 1 under the OLD rule) — a fresh copy still grants base +1/+1.
+    let s: RunState = {
+      ...createRun(1),
+      embers: 99,
+      spellsCast: 7,
+      board: [card('g', 'guel', 'neutral', 2, 3), card('t', 'drone', 'mech', 2, 2)],
+      hand: [card('sp', 'emberpouch', 'neutral', 0, 0)],
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    const t = s.board.find((c) => c.uid === 't')!;
+    expect([t.attack - 2, t.health - 2]).toEqual([1, 1]); // base grant — the 7 pre-board casts don't count
+    expect(s.board.find((c) => c.uid === 'g')?.spellProgress).toBe(1); // his own tally started fresh
+    // Combat casts (Taragosa) tick the on-board Guel's tally at settle — he was on board for the fight.
+    s = { ...s, phase: 'combat', lastCombat: combatShell({ playerSpellsCast: 3 }) };
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.board.find((c) => c.uid === 'g')?.spellProgress).toBe(4); // 1 (shop) + 3 (combat)
+    expect(s.spellsCast).toBe(11); // the run-wide counter still advances (8 + 3)
   });
 
   it('Hoard Cleric (cleric) Battlecry gives your Dragons +2/+3', () => {

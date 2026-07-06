@@ -70,8 +70,8 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastBuffOthers', params: { attack: 1, health: 1, count: 3 } }],
-    text: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast.',
-    goldenText: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast.',
+    text: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast with this on board.',
+    goldenText: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast with this on board.',
   },
   {
     // Overflow payoff. When a summon can't fit your full board, TWO random friends get Engraved stats

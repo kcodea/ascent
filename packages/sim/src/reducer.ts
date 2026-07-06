@@ -987,9 +987,16 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.freeRolls += result.playerFreeRolls;
   }
   // Taragosa: spells cast IN combat permanently bump the run's spellsCast — so they count toward
-  // spell-count payoffs (Archmagus Guel's improvement) just like tavern spells.
+  // spell-count payoffs just like tavern spells. Guel's improvement is per-instance now (spells cast
+  // while HE is on board), so combat casts also tick the on-board Guels' `spellProgress` — he was on
+  // the board for the fight, so they count for him (parity with the old run-wide counter).
   if (result.playerSpellsCast) {
     s.spellsCast += result.playerSpellsCast;
+    for (const c of s.board) {
+      if (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'spellCastBuffOthers')) {
+        c.spellProgress = (c.spellProgress ?? 0) + result.playerSpellsCast;
+      }
+    }
   }
   // Permanent Undead attack AURA gained in combat (Karthus's on-kill, Deathswarmer re-fired by Ryme) —
   // stack into undeadBuyAtk AND apply to all current run-board Undead immediately so they benefit without

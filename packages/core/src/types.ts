@@ -336,6 +336,9 @@ export interface BoardMinion {
   /** Tara: accrued stat-grant count toward ascension, seeded from the run board so the live in-combat
    *  "N to ascend" tracker reflects the TOTAL (prior combats + this one), not just this fight. Default 0. */
   ascendProgress?: number;
+  /** Guel: spells cast while this card has been on the run board — seeds the live combat card text
+   *  (his per-instance improvement). Display-only in combat; no combat behavior reads it. */
+  spellProgress?: number;
   /** The originating recruit board card's uid, so combat can report per-instance state
    *  (e.g. Avenge improvements) back for the run to persist. */
   sourceUid?: string;
@@ -370,6 +373,8 @@ export interface Minion {
   summonBonus: number;
   /** Flowing Monk: flat grant bonus from the triple combine (see BoardMinion.overflowBonus). Static. */
   overflowBonus?: number;
+  /** Guel: spells-cast-while-on-board (seeded from the run card) — feeds the live combat text only. */
+  spellProgress?: number;
   /** The originating run board card's uid (if any), for per-instance carry-back. */
   sourceUid?: string;
   /** Better Bot: total Rally-Mech Attack granted to other Mechs when this attacks (own base + welds). */
@@ -424,6 +429,8 @@ export interface MinionSnapshot {
   /** Tara's prior ascend progress (seeded from the run board) — so the live combat "N to ascend" tracker
    *  starts from the real total and counts up, matching the shop card. */
   ascendProgress?: number;
+  /** Guel's spells-cast-while-on-board (seeded from the run board) — for the live combat card text. */
+  spellProgress?: number;
   /** Per-source recruit-phase buff breakdown (see Minion.buffs) — lets the combat inspect panel itemize a
    *  minion's recruit buffs, the same breakdown the shop shows. Absent for combat-summoned tokens. */
   buffs?: MinionBuff[];

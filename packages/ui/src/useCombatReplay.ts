@@ -33,6 +33,8 @@ export interface UnitFrame {
   attackSeen?: number;
   /** Tara: how many stat-grants have accumulated toward ascension this combat. */
   ascendProgress?: number;
+  /** Guel: spells cast while on the run board (seeded from the snapshot) — for the live combat text. */
+  spellProgress?: number;
   /** Sergeant: accumulated HP bonus on the Deathrattle (grows each time Sergeant gains Attack). */
   hpGrantBonus?: number;
   /** Thundering Abomination (Engraved): permanent stat gains accrued mid-combat. */
@@ -78,6 +80,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   golden: s.golden ?? false, summonBonus: s.summonBonus ?? 0, overflowBonus: s.overflowBonus,
   hpGrantBonus: s.hpGrantBonus, // Sergeant: seed the live combat text from the run-board accrual (frame 1)
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
+  spellProgress: s.spellProgress, // Guel: seed his on-board spell tally for the live combat text
   baseAttack: s.attack, baseHealth: s.health, // the stats it entered the fight (or was summoned) with
   // Clone the recruit-buff breakdown so the per-beat fold can merge in combat buffs without mutating the snapshot.
   buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,

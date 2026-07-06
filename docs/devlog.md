@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-05 (session 19)
 
+### fix(content): Guel improves per-instance (only while on board) + Pre-emptive Assault → T4
+
+Two owner follow-ups on the content batch PR.
+
+- **Archmagus Guel scales per-instance now.** His grant grew with the run-wide `spellsCast`, so a fresh
+  tavern/hand copy showed (and would have granted at) the improved value — the owner ruled he "shouldn't
+  improve unless he is on board". Since card text must state the CURRENT value (the hard rule), the fix is
+  mechanic + text together: `spellCastBuffOthers` now ticks and reads the instance's **`spellProgress`**
+  (the Spirit Pup spells-while-on-board counter) — a fresh copy starts at base; combat casts (Taragosa)
+  still count for a Guel who was on board for the fight (`settleCombat` ticks his tally alongside the
+  run-wide counter). The whole display chain follows the instance: `guelProgressText` takes `spellProgress`;
+  `instView`/shop/Discover feed the instance's value (absent off-board → base text); the run-buffs window
+  reads the board Guel's tally; and combat text got the full seeding plumb — `spellProgress` added to
+  `BoardMinion`/`Minion`/`MinionSnapshot`/`UnitFrame` (the `hpGrantBonus` precedent) so the in-fight card
+  matches. Card text now says "…per 4 spells cast **with this on board**." Tests: the scaling test drives
+  the instance counter; a new test proves 7 pre-board casts don't count AND the settle tick (+3 combat
+  casts → progress 4); BuffsFrame's Guel row fixture keys off `spellProgress`. Behavior note: two Guels now
+  track separately (a triple keeps the max, via the existing Spirit-Pup golden-merge rule).
+- **Pre-emptive Assault → Tier 4** (owner dial; was my T3 starting guess — cost stays 3).
+- Also caught two stale user-facing labels from the rename sweep: the run-buffs window's "Eternal Knight
+  Aura" → "Spear Warden Aura" and "Mama Bear · per summon" → "Forest Guardian · per summon".
+
+Verified live (Compendium): Guel's printed text shows base +1/+1 with the on-board clause; Pre-emptive
+Assault reads Tier 4. Pool regenerated. `typecheck` + `lint` + `test` (**492**) + `build:web` green.
+
 ### feat(content): big content batch — 8 renames, Harry Botter removed, 4 minions + 2 spells + a new hero
 
 The owner's largest single content drop yet, in one PR: a rename sweep, a card removal, four new minions

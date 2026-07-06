@@ -35,7 +35,6 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
   // Run-level scalers, frozen during combat (read like spell power above) so a Grim / Guel / Spirit Worgen
   // shows the same magnitude the fight used: the run Deathrattle tally, spells cast this run, spells this turn.
   const drTally = useGame((s) => s.run.deathrattlesTriggered);
-  const spellsCast = useGame((s) => s.run.spellsCast);
   const spellsThisTurn = useGame((s) => s.run.spellsThisTurn);
   // Combat live text — show current values for minions whose effects scale mid-fight (per-minion accruals)
   // or with frozen run-level scalers (Grim/Guel/Worgen, like Taragosa's spell power). Mirrors the shop chain.
@@ -46,7 +45,7 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
     ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
     ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
     ?? tallyBuffText(u.cardId, drTally) // Grim: live "+N/+N" from the run Deathrattle tally
-    ?? guelProgressText(u.cardId, u.golden, spellsCast) // Guel: live grant + countdown from spells cast this run
+    ?? guelProgressText(u.cardId, u.golden, u.spellProgress ?? 0) // Guel: live grant + countdown from HIS on-board tally (per-instance, seeded by the snapshot)
     ?? monkProgressText(u.cardId, u.golden, u.summonBonus, u.overflowBonus ?? 0) // Flowing Monk: live grant + overflow countdown (climbs via improve events)
     ?? taragosaText(u.cardId, u.golden, spA, spH)
     ?? engraveTallyText(u.cardId, u.permaGain)

@@ -658,9 +658,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellCastBuffOthers: (ctx, self, params) => {
     const others = ctx.state.board.filter((c) => c !== self);
     const picks = pickRandom(ctx.state, others, num(params.count, 2));
-    // Scales with the run: the granted +atk/+hp grows by +1/+1 (golden +2/+2) per 4 spells cast this run.
-    // `spellsCast` already counts the spell that just triggered this, so the 4th cast gives the first step.
-    const step = Math.floor(ctx.state.spellsCast / 4);
+    // Scales PER-INSTANCE (owner ruling 2026-07-05: Guel doesn't improve unless he's on board): the grant
+    // grows +1/+1 (golden +2/+2) per 4 spells cast while THIS Guel is on the board — tracked on the
+    // instance's `spellProgress` (the Spirit Pup counter), so a fresh copy starts at base. This cast counts
+    // (tick first), so the 4th on-board cast gives the first step. Combat casts tick it at settle.
+    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    const step = Math.floor(self.spellProgress / 4);
     const a = (num(params.attack, 1) + step) * gold(self);
     const h = (num(params.health, 1) + step) * gold(self);
     for (const m of picks) addBuff(m, nameOf(self), a, h);

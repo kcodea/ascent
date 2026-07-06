@@ -498,11 +498,11 @@ export const SPELLS: CardDef[] = [
   },
   {
     // Combat initiative: your board attacks first in the next fight, overriding the more-minions rule
-    // (ties included). One fight only — the flag clears when the combat settles.
+    // (ties included). One fight only — the flag clears when the combat settles. T4 (owner dial 2026-07-05).
     id: 'preemptive',
     name: 'Pre-emptive Assault',
     tribe: 'neutral',
-    tier: 3,
+    tier: 4,
     attack: 0,
     health: 1,
     keywords: [],

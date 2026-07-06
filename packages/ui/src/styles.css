@@ -386,6 +386,10 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .btn.go svg { color: #fff; }
 .btn.go:disabled { box-shadow: none; }
 .row { flex: none; height: var(--ch); display: flex; gap: 22px; justify-content: center; align-items: center; }
+/* Layout Lab (dev) — per-row card spacing. Layout-only (`gap`), so it's combat-safe (spaces the combat units
+   too) and falls back to the shipped 22px; absent in production. The hand spaces via overlap (see below). */
+.zone[data-zone='tavern'] .row { gap: var(--z-shop-gap, 22px); }
+.row.warband { gap: var(--z-wb-gap, 22px); }
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
@@ -401,7 +405,7 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    the card itself up to reveal its full text. The fan STAYS fanned through a drag — the reorder measures the
    cards' rotated rects directly (the bbox stays centred on each card, so the slot midpoints match within a
    pixel or two), no flatten, no pickup jiggle. */
-.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * -0.44); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * var(--z-hand-gap, -0.44)); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* Hover pops the in-hand card ITSELF up out of the fan — straightened, scaled a touch, and lifted to reveal its
    full text. UNIFORM POP: the lift is `translateY(-100% + --ch·--hand-floor)` — the `-100%` raises each card by

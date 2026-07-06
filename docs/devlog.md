@@ -10,10 +10,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 Owner ask: a scale + positioning tuner in the dev panel to customize the sizes and positions of everything —
 card sizes, UI elements. Built as a new **Layout Lab** entry in the Dev Tuning menu (DevMenu → "📐 Scale &
 Layout"), following the existing tuner pattern (draggable, localStorage-backed, `useDraggablePanel`) but driving
-CSS custom properties on `:root` the way FontLab drives fonts. **12 sliders in 5 groups:**
+CSS custom properties on `:root` the way FontLab drives fonts. **15 sliders in 5 groups:**
 - **Global:** Card size (`--card-scale`) + UI chrome (`--ui-scale`).
-- **Shop / Warband / Hand:** per-row card size; Warband + Hand also X/Y offset.
+- **Shop / Warband / Hand:** per-row card size + **card spacing**; Warband + Hand also X/Y offset.
 - **HUD bar:** scale + X/Y offset.
+
+**Spacing** (the space between cards) rides the same layout-only approach: the shop + warband rows override their
+`gap` (`--z-shop-gap` / `--z-wb-gap`, default 22px → applies to the combat units too), and the hand — which fans
+via a NEGATIVE margin — exposes that overlap as a fraction of card width (`--z-hand-gap`, default `-0.44`: 0 =
+edges touch, >0 = a real gap). All `gap`/`margin`, so it's combat-safe like the rest.
 
 **How the sizing is wired (combat-safe by construction):** the two master vars are refactored into a responsive
 base + a multiplier — `--ch: calc(var(--ch-base) * var(--card-scale))` (drives every card via `--cw`/`--ccw`) and

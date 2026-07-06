@@ -14,8 +14,8 @@ const KW_LABEL: Record<Keyword, string> = {
   FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', EG: 'Engraved',
 };
 const KW_ICON: Record<Keyword, string> = {
-  T: 'taunt', DS: 'shield', V: 'poison', W: 'windfury', R: 'reborn', C: 'cleave', M: 'magnetic', SC: 'sc',
-  CN: 'consume', FD: 'fodder', IMM: 'shield', ST: 'eye', RL: 'sword', SL: 'skull', EG: 'anvil',
+  T: 'taunt', DS: 'shield', V: 'poison', W: 'windfury', R: 'rise', C: 'cleave', M: 'magnetic', SC: 'fist',
+  CN: 'consume', FD: 'fodder', IMM: 'immune', ST: 'eye', RL: 'sword', SL: 'slaughter', EG: 'anvil',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
@@ -100,7 +100,7 @@ const triggerPill = (text: string): { label: string; icon: string } | null =>
   /^\W*battlecry/i.test(text)
     ? { label: 'Shout', icon: 'battlecry' }
     : /^\W*deathrattle/i.test(text)
-      ? { label: 'Echo', icon: 'skull' }
+      ? { label: 'Echo', icon: 'echo' }
       : /^\W*avenge/i.test(text)
         ? { label: 'Avenge', icon: 'skull' }
         : /^\W*end of turn/i.test(text)

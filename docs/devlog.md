@@ -25,6 +25,29 @@ Two owner-reported UI issues (presentation-only).
   sits within it and the art/drawer centres line up (≤3px, the drag tilt).
 
 `typecheck` + `lint` + `test` (**492**) + `build:web` green.
+### fix(sim): Safety Deposit Box crash (untargeted cast) + Footman-aura triage
+
+Two owner bug reports after the content batch merged.
+
+- **Safety Deposit Box was unplayable — fixed.** It reuses Hoarder's `battlecryBonusGoldNextTurn`, whose
+  only `self` dependency is the golden multiplier `gold(self)`. An **untargeted** spell routes through the
+  cast-effect dispatch (`applyCastEffects`) with `self = target = undefined`, so `gold(undefined)` threw
+  `Cannot read properties of undefined (reading 'golden')` — the reducer swallowed the throw and returned the
+  prior state, so the card silently refused to cast ("unplayable"). Made **`gold` null-safe**
+  (`(c?: BoardCard) => c?.golden ? 2 : 1`): a spell is never golden, so ×1 is correct, and every minion caller
+  is unchanged. This also hardens the whole cast path — any future untargeted spell reusing a self-referencing
+  factory won't crash on the multiplier. (`spellBuffAll`/`spellAttackFirst` never touched `self`, which is why
+  Growth / Pre-emptive Assault always worked.) Verified live through the real reducer: casts, consumes, banks
+  +2 Gold. Regression test added.
+- **Footman aura — investigated, could NOT reproduce a defect.** A Footman summoned mid-combat *does* inherit
+  the run-wide Undead aura in every path I tested — direct `simulate()`, the live reducer→combat, and the
+  combat replay (which renders the snapshot stats directly): **Lantern (+5/+3) → 6/4**, **undeadBuyAtk 4 →
+  5/1**, **both → 10/4**, a golden Leader's two Footmen both aura'd, and the Reborn body keeps it. The summon
+  path already calls `applyAuras(minion, true)` (from-base, so it takes the FULL aura incl. the baked buy-time
+  bonus). Added a regression test locking in the 10/4 combined case. **Owner confirmed it's working correctly**
+  — no code change needed; the test stays as a guard.
+
+`typecheck` + `lint` + `test` (**494**, +2) + `build:web` green.
 
 ### fix(content): Guel improves per-instance (only while on board) + Pre-emptive Assault → T4
 

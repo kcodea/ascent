@@ -38,7 +38,10 @@ type RecruitFn = (
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions bake their recruit buffs in at doubled magnitude. */
-const gold = (c: BoardCard): number => (c.golden ? 2 : 1);
+// `c` is optional: an UNTARGETED spell cast (Safety Deposit Box) routes through the cast-effect dispatch
+// with no `self` minion, so a factory it reuses (battlecryBonusGoldNextTurn) calls gold(undefined) — a
+// spell is never golden, so that's ×1. (Every minion caller passes a real card, unchanged.)
+const gold = (c?: BoardCard): number => (c?.golden ? 2 : 1);
 /** A card's display name (the buff-source label in the inspect breakdown). */
 const nameOf = (card: BoardCard): string => CARD_INDEX[card.cardId]?.name ?? card.cardId;
 

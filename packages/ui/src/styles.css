@@ -1978,15 +1978,27 @@ svg { width: 18px; height: 18px; }
 .book-gloss svg { width: 17px; height: 17px; }
 .book-gloss:hover { transform: translateY(-2px); border-color: var(--acc); }
 .book-gloss.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
-/* The codex body — responsive columns of grouped term cards; scrolls like the gallery (native bar hidden). */
-.book-gloss-body { flex: 1; overflow-y: auto; padding: 22px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; align-content: start; scrollbar-width: none; -ms-overflow-style: none; }
+/* The codex body — exactly three grouped columns that fill the compendium width (was auto-fill/340px,
+   which crammed the groups left and left a big empty gutter). Scrolls like the gallery (native bar hidden). */
+.book-gloss-body { flex: 1; overflow-y: auto; padding: 26px 30px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; align-content: start; scrollbar-width: none; -ms-overflow-style: none; }
 .book-gloss-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
-.gloss-group { background: var(--bg2); border: 2px solid var(--line); border-radius: 14px; padding: 6px 16px 12px; }
-.gloss-grouphead { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); margin: 12px 0 4px; }
-.gloss-row { display: flex; gap: 12px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line); }
-.gloss-group .gloss-row:first-of-type { border-top: none; }
-.gloss-ico { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc); margin-top: 1px; }
-.gloss-ico svg { width: 18px; height: 18px; }
-.gloss-txt { display: flex; flex-direction: column; gap: 2px; }
+.gloss-group { background: var(--bg2); border: 2px solid var(--line); border-radius: 14px; padding: 8px 14px 15px; }
+.gloss-grouphead { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); margin: 13px 0 5px; padding: 0 3px; }
+/* Rows share one base (button reset included, since clickable rows are <button>). Menu-item feel:
+   rounded hover tint, no hairline separators — the icon chips anchor each row. */
+.gloss-row { display: flex; gap: 13px; align-items: flex-start; width: 100%; padding: 9px 11px; border: 0; border-radius: 10px; background: transparent; text-align: left; font: inherit; color: inherit; }
+.gloss-row.is-click { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: background 0.1s; }
+.gloss-row.is-click:hover { background: color-mix(in srgb, var(--acc) 13%, transparent); }
+.gloss-row.is-click:hover .gloss-term { color: var(--acc-dk); }
+.gloss-row.is-click:hover .gloss-ico { background: var(--acc); color: #fff; }
+.gloss-ico { flex: none; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc); margin-top: 1px; transition: background 0.1s, color 0.1s; }
+.gloss-ico svg { width: 19px; height: 19px; }
+.gloss-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .gloss-term { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: var(--ink); }
-.gloss-def { font-family: var(--font-body), sans-serif; font-size: 13px; line-height: 1.35; color: var(--ink2); }
+.gloss-def { font-family: var(--font-body), sans-serif; font-size: 13px; line-height: 1.4; color: var(--ink2); }
+/* Active keyword filter — a clearable chip at the right of the tier bar (accent normally, threat on hover). */
+.book-kwchip { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 10px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); color: var(--acc-dk); font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.03em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: background 0.1s, border-color 0.1s, color 0.1s; }
+.book-kwchip svg { width: 16px; height: 16px; color: var(--acc); transition: color 0.1s; }
+.book-kwchip:hover { border-color: var(--threat); background: color-mix(in srgb, var(--threat) 14%, var(--card)); color: var(--threat-dk); }
+.book-kwchip:hover svg { color: var(--threat); }
+.book-kwx { font-size: 12px; opacity: 0.75; }

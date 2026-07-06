@@ -158,10 +158,10 @@ export const NEUTRAL: CardDef[] = [
     tier: 6,
     attack: 6,
     health: 8,
-    keywords: [],
+    keywords: ['SC'],
     effects: [{ on: 'startOfCombat', do: 'scEngraveNeighbor' }],
-    text: 'Start of Combat: adjacent units are **Engraved** — they keep the stats they gain in combat.',
-    goldenText: 'Start of Combat: adjacent units are **Engraved** and gain **2× stats** in combat.',
+    text: '**Start of Combat:** adjacent units are **Engraved** — they keep the stats they gain in combat.',
+    goldenText: '**Start of Combat:** adjacent units are **Engraved** and gain **2× stats** in combat.',
   },
   {
     id: 'venom',

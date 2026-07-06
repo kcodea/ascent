@@ -200,9 +200,9 @@ export const DEMONS: CardDef[] = [
     tier: 5,
     attack: 6,
     health: 6,
-    keywords: ['W'],
+    keywords: ['W', 'SL'],
     effects: [{ on: 'onKill', do: 'onKillBuffFodderImps', params: { attack: 3, health: 3 } }],
-    text: '**Windfury.** When this kills an enemy, give your Fodder and Imps **+3/+3** permanently.',
-    goldenText: '**Windfury.** When this kills an enemy, give your Fodder and Imps **+6/+6** permanently.',
+    text: '**Windfury. Slaughter:** give your Fodder and Imps **+3/+3** permanently.',
+    goldenText: '**Windfury. Slaughter:** give your Fodder and Imps **+6/+6** permanently.',
   },
 ];

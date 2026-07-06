@@ -3,6 +3,50 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-06 (session 20)
+
+### fix(sim+ui): Rise now dies → Deathrattle → returns to the RIGHT of what it summoned
+
+Two owner-reported combat inconsistencies in the Rise (Reborn) resolution, both fixed by one model change.
+**Balance-neutral** — combat outcomes, final stats, and win/loss are byte-identical; only the replay's event
+order and the risen minion's board position change.
+
+- **The bugs.** A Violet Whelp *granted Rise* that died (e.g. trading into a Pennycat) (1) left its 3/3 Whelp
+  token and then Rose **to the token's LEFT** (should be its right), and (2) never visibly *died* — it flickered
+  0→1 HP in place, so the death didn't read as "leaves the board, THEN the Deathrattle fires, THEN it Rises."
+- **New model (owner ruling 2026-07-06):** a Rise is *die → Deathrattle → return to the right*. The body
+  genuinely LEAVES its slot first, its Deathrattle's summons fill the vacated slot, then the Rise re-inserts to
+  their right — matching Hearthstone and the owner's mental model.
+- **Engine** (`simulate.ts` `killOrReborn` reborn branch): flag the body dead + emit a `death` event **before**
+  firing its Deathrattle, snapshot the board (`before` set), fire the rattle, then — for a successful Rise —
+  revive the **SAME** body (keeps its `uid`, so every per-instance carry-back + the "reborn attacks again next"
+  rewind still work) at base ATTACK / 1 Health, and re-slot it just after the contiguous block of freshly-
+  summoned tokens (a `before`-set walk). The board-cap gate is unchanged (a full board after the rattle = a real
+  death, no return) — it now only does the true-death accounting since the death event already fired above.
+- **Shared vocab** (`types.ts`, Kevin↔Mike boundary — flagged): two additive `CombatEvent` fields —
+  `death.rise?: true` (the death is *shown* but NOT counted as a kill, since the body returns — a Rise is still
+  not a friendly death for Avenge / the enemy-death tally / `onDeath` watchers, unchanged) and `reborn.after?`
+  (the uid the Rise re-slots to the right of).
+- **Replay** (`useCombatReplay.ts`): the `reborn` fold now revives the unit (`alive = true`), un-removes it if
+  its rise-death landed in an earlier beat (`gone.delete`), and re-slots it after `after` — mirroring the sim's
+  board move. The live enemy-kill counter (Cassen) and the Procs "deaths" stat both skip `rise` deaths, so they
+  still agree with the sim's carried-back `enemyDeaths`. `contribution.ts` skips rise-deaths for the Echo credit
+  (the run-history stat is unchanged; the real death still credits it).
+- **Feel — "quiet rise" (owner call):** a rise-death reads as a real removal (the `.unit.dying` collapse + a soft
+  `sfx.rebornShatter` spirit-release) but does **NOT** shake the board, so Undead's frequent Footman rises stay
+  snappy; the `reborn` beat plays `sfx.rebornSummon`. `.unit.reborn` CSS was repurposed from the old in-place
+  `rebornswap` to a **re-entry** (`summonexpand` slot-open + a new `risepop` blue-glow pop), since the body now
+  returns from off-field rather than flickering in place. (The DOM-marker reborn-aura tracker in `Recruit.tsx`
+  quiet-clears when the body leaves the field, so the soft cues are driven from the replay instead — no double.)
+- **Verified.** New determinism test (`simulate.test.ts`): the Rise emits a `rise`-flagged death BEFORE its Whelp
+  summon, the summon precedes the `reborn`, and `reborn.after` === the Whelp's uid. Full suite **495** green
+  (incl. the byte-identical replay-determinism snapshot test); `typecheck` + `lint` + `build:web` green. Live-
+  verified by injecting the real event log into a *throwaway* combat (never the player's run — a raw `setState`
+  with `combatSettled:true` fires no autosave; reloaded after) and recording the warband across the replay:
+  captured `[VioletWhelp, Gnasher]` → `VioletWhelp:dying` → `Whelp:summoned` (VioletWhelp **gone**) →
+  `[Whelp, VioletWhelp:reborn, Gnasher]` — i.e. the Whelp takes the vacated slot and the Rise returns to its
+  right. No console errors.
+
 ## 2026-07-05 (session 19)
 
 ### feat(ui): damage-scaled hit impacts — heavier swings visibly land harder

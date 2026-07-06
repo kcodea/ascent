@@ -1213,18 +1213,16 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 @keyframes impactspark { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4); } }
 .unit.flare .card { animation: flare 0.5s ease; }
 @keyframes flare { 0% { filter: brightness(1.9); } 100% { filter: none; } }
-/* Reborn (in-place, same uid): the unit DIES (collapses + greys out) as its spirit bursts, the card
-   disappears briefly, then RESUMMONS with a blue glow — a die → gone → re-form swap. The Pixi blue wisp
-   burst (pixiFx breakShield(…,'reborn')) fires as it dies; the re-form summon wisp (pixiFx.rebornSummon)
-   fires staggered, as the card pops back (see the tracker). No slot reflow — the unit keeps its place. */
-.unit.reborn { z-index: 14; }
-.unit.reborn .card { animation: rebornswap 0.85s ease forwards; }
-@keyframes rebornswap {
-  0%   { transform: scale(1); opacity: 1; filter: none; }
-  16%  { transform: scale(1.08) rotate(-2deg); filter: brightness(1.6) saturate(0.55); }                 /* death flash */
-  38%  { transform: scale(0.45) translateY(12px) rotate(4deg); opacity: 0; filter: grayscale(1) brightness(0.55); } /* collapse → gone */
-  52%  { transform: scale(0.4); opacity: 0; filter: grayscale(1); }                                       /* briefly absent */
-  74%  { transform: scale(1.12); opacity: 1; filter: brightness(1.5) drop-shadow(0 0 18px rgba(140, 196, 255, 0.95)); } /* resummon pop + blue glow */
+/* Rise (die → Deathrattle → return): the body DIES first — it collapses out of its slot via `.unit.dying`
+   (a real removal that reflows the line), its Deathrattle resolves in the vacated space, then it RE-ENTERS
+   here at its new slot (to the RIGHT of whatever it summoned). So `.unit.reborn` is a RE-ENTRY, not an
+   in-place flicker: the slot opens and the card pops back in with the blue Rise glow. Soft spirit cues
+   (`sfx.rebornShatter` on the death, `sfx.rebornSummon` here) fire from the replay — no board shake. */
+.unit.reborn { z-index: 14; animation: summonexpand 0.4s ease; }
+.unit.reborn .card { width: var(--cw); animation: risepop 0.7s ease forwards; }
+@keyframes risepop {
+  0%   { transform: scale(0.35); opacity: 0; filter: brightness(1.6) drop-shadow(0 0 20px rgba(140, 196, 255, 0.95)); } /* re-form from a spark */
+  55%  { transform: scale(1.14); opacity: 1; filter: brightness(1.4) drop-shadow(0 0 16px rgba(140, 196, 255, 0.9)); }  /* pop + blue Rise glow */
   100% { transform: scale(1); opacity: 1; filter: none; }
 }
 

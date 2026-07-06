@@ -5,7 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
-### fix(sim+ui): Rise now dies → Deathrattle → returns to the RIGHT of what it summoned
+### feat(ui): aura death bursts — Taunt/Ward/Rise explode in place on death
+
+Owner direction: a unit dying while carrying a visual aura should EXPLODE it (like the ward break), not
+let it fade out. Presentation-only, three commits on `feat/aura-death-bursts`:
+
+- **Taunt** — new `pixiFx.tauntBurst`: the silver bulwark shatters like metal on its carrier's death
+  (white-hot crack flash, silver shockwave ring, chunky steel shards, white glints, grey smoke), fired on
+  the FRONT canvas so debris flies over the cards (mirrors the ward break's layering). Sold/removed taunts
+  still fade quietly. Placeholder sfx: the glass `shieldBreak` (a metallic clang is a follow-up).
+- **Rise** — the spirit burst moved from the reborn beat to the DEATH beat (no more aura hovering over the
+  collapsing card), `rebornShatter` punched up to explosion grade (blue crack-flash + spectral shockwave
+  ring + wisps/motes blasted ~2× harder, rising-wraith identity kept), and Rise bodies die SOFT: a new
+  `dying rising` CSS variant fades the card in place (no bounce/spin, slot held — the body re-forms right
+  there). The re-form glow now schedules from the replay's reborn beat (`REBORN_SUMMON_DELAY` moved to
+  `useCombatReplay.ts`).
+- **Rise attacker** — dying to retaliation now RETURNS HOME first (owner follow-up): the elastic settle is
+  killed and the unit pulls straight back to its slot (0.1s contact hold + 0.24s pull, speed-scaled); the
+  aura rides the card home, the burst fires on landing (the tracker holds while an inline transform
+  remains), the fade waits via `dying rising returning` (0.3s delay), and PASS 2 gains a can't-lose-the-
+  burst fallback if the unit unmounts mid-return (fast combat speeds). Rise defenders explode immediately.
+- **Ward edge case** — a unit dying with its shield INTACT (not absorbed) now pops the gold shatter too.
+- **Type-health bonus** — wiring this hit the latent `spawn()` `maxLife` bug (`Omit` didn't exclude the
+  derived field): fixed at the root, cutting `typecheck:web` from 53 → **21** errors.
+
+Verified: typecheck + lint + **495 tests** + build:web green per commit; both bursts + the death-beat
+timing + the `returning` CSS confirmed live in the preview; owner eyeballed the feel in real fights and
+approved all three iterations.
 
 Two owner-reported combat inconsistencies in the Rise (Reborn) resolution, both fixed by one model change.
 **Balance-neutral** — combat outcomes, final stats, and win/loss are byte-identical; only the replay's event

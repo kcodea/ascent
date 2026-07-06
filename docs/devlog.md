@@ -26,6 +26,9 @@ Two owner follow-ups on the content batch PR.
 - **Pre-emptive Assault → Tier 4** (owner dial; was my T3 starting guess — cost stays 3).
 - Also caught two stale user-facing labels from the rename sweep: the run-buffs window's "Eternal Knight
   Aura" → "Spear Warden Aura" and "Mama Bear · per summon" → "Forest Guardian · per summon".
+- **Forsaken Mage art rewired** — the fresh `ForsakenMage.png` master → `forsakenweaver.webp` (512px,
+  replacing the June-26 Forsaken Weaver art; filename = cardId so `artFor` picks it up unchanged).
+  Pixel-hash verified live: the rendered card matches the new file.
 
 Verified live (Compendium): Guel's printed text shows base +1/+1 with the on-board clause; Pre-emptive
 Assault reads Tier 4. Pool regenerated. `typecheck` + `lint` + `test` (**492**) + `build:web` green.

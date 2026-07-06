@@ -48,6 +48,7 @@ export function simulate(
   playerTribes: string[] = [],
   cardBuffs: Record<string, { attack: number; health: number }> = {},
   playerAttacksFirst = false,
+  playerRallyDouble = false,
 ): CombatResult {
   const events: CombatEvent[] = [];
   const bus = new CombatBus();
@@ -253,6 +254,12 @@ export function simulate(
       dealDamage(target, amount, poison, bypassShield),
     summon: (side, card, nearUid, grantKeywords, golden, attackNow) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow),
     flushImmediateAttacks: () => flushImmediateAttacks(),
+    attackNow: (minion, shieldFirst) => {
+      // Solaris Fang's Avenge: an existing minion takes a bonus strike out of turn order via the same
+      // attack-on-summon queue (drained by the next flushImmediateAttacks). `shieldFirst` grants a fresh Ward
+      // right before the strike — so a golden Solaris, which queues two, goes in shielded on BOTH.
+      if (!minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion, shieldFirst });
+    },
     countDeathrattle: (side) => {
       // A Deathrattle triggered WITHOUT a death (Sporeling's Battlecry proc) still counts toward the tally
       // that feeds Grim + the run's deathrattlesTriggered (carried back via playerDeathrattles).
@@ -338,7 +345,11 @@ export function simulate(
     },
     grantUndeadBuyAtk: (amount, side) => {
       if (side !== 'player') return; // enemies have no run state
-      undeadBuyAtkGain += amount;
+      undeadBuyAtkGain += amount; // carry-back delta → CombatResult.playerUndeadBuyAtkGain
+      // Keep the LIVE aura value current so Undead summoned / Reborn LATER this fight inherit the gain too
+      // (applyAuras re-adds `undeadBuyAtk` to every from-base body). Karthus / Forsaken Weaver / Watcher all
+      // route through here, so this fixes "a Spear Warden summoned after the aura pumped misses it".
+      undeadBuyAtk += amount;
     },
     castSpell: (side) => {
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
@@ -394,7 +405,7 @@ export function simulate(
     // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
     // already returned above, so only minions actually placed on the board reach here.
     // `attackNow` is the per-summon override (Steadfast Champion's Spear Warden) — same queue as the card flag.
-    if ((card.attackOnSummon || attackNow) && !minion.dead && minion.health > 0) pendingAttackOnSummon.push(minion);
+    if ((card.attackOnSummon || attackNow) && !minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion });
     return minion;
   }
 
@@ -461,7 +472,7 @@ export function simulate(
   const deaths: Record<Side, number> = { player: 0, enemy: 0 };
   // Minions summoned mid-combat that strike immediately, out of turn order (Twilight Whelp's 3/3 Whelp) —
   // filled in summonMinion, drained by flushImmediateAttacks after each attack's death cascade settles.
-  const pendingAttackOnSummon: Minion[] = [];
+  const pendingAttackOnSummon: { minion: Minion; shieldFirst?: boolean }[] = [];
 
   // Fire a minion's OWN Deathrattle / on-death effects directly (no global onDeath broadcast / Avenge / death
   // event) — used by Reborn so a reborn death procs the unit's own Deathrattle without re-triggering other
@@ -673,6 +684,15 @@ export function simulate(
       if (!target) break;
       events.push({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s });
       bus.emit('onAttack', { minion: attacker, side: attacker.side }); // Rally + on-attack effects
+      // Rallying Offensive ("your Rallys trigger twice next combat"): re-run only THIS attacker's OWN
+      // on-attack (Rally) effects one more time — invoked directly, not via the bus, so other minions'
+      // on-attack watchers (Raptor, Crypt Drake, Taragosa…) don't double-fire. Player-side, RL only, per swing.
+      if (playerRallyDouble && attacker.side === 'player' && attacker.keywords.includes('RL') && !attacker.dead && attacker.health > 0) {
+        for (const effect of attacker.effects) {
+          if (effect.on !== 'onAttack') continue;
+          FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side });
+        }
+      }
       // Better Bot (Rally): each time this attacks — once per swing, so a Windfury body rallies TWICE if it
       // survives the first swing — give your OTHER Mechs +N Attack (N = accrued rallyMechAtk, stacks via
       // magnetize). Fires per hit alongside the onAttack rallies (rallyBuff / rallyProcDeathrattle) above.
@@ -754,7 +774,14 @@ export function simulate(
   function flushImmediateAttacks(): void {
     let guard = 0;
     while (pendingAttackOnSummon.length > 0 && guard++ < IMMEDIATE_ATTACK_GUARD) {
-      const m = pendingAttackOnSummon.shift()!;
+      const { minion: m, shieldFirst } = pendingAttackOnSummon.shift()!;
+      // Grant a fresh Ward immediately before this strike (Solaris Fang's Avenge). Paired with the strike so a
+      // golden Solaris — which queues two — goes in shielded on EACH. Idempotent (no double shield).
+      if (shieldFirst && !m.dead && m.health > 0 && !m.divineShield) {
+        m.divineShield = true;
+        if (!m.keywords.includes('DS')) m.keywords.push('DS');
+        events.push({ type: 'shieldUp', target: m.uid });
+      }
       if (m.dead || m.health <= 0 || m.attack <= 0) continue;
       if (countLiving(OTHER[m.side]) === 0) continue;
       performAttack(m, OTHER[m.side], 0);

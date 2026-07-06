@@ -4,7 +4,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
   guelProgressText, monkProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText,
-  summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText,
+  summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -35,6 +35,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             taragosaText(c.id, p.golden, p.spellBonus, p.spellBonusH) ??
+            watcherText(c.id, p.golden, p.spellBonus) ?? // Watcher: live Lantern buff (base + spell power)
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
             summonScalingText(c.id, p.spellsThisTurn) ??
             summonBuffText(c.id, p.summonBonus ?? 0) ??

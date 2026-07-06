@@ -28,11 +28,11 @@ export const DEMONS: CardDef[] = [
     name: 'Sword and Bored',
     tribe: 'demon',
     tier: 1,
-    attack: 3,
+    attack: 2,
     health: 1,
     keywords: ['SL'],
-    effects: [{ on: 'onKill', do: 'onKillBuffFodder', params: { attack: 1, health: 1 } }],
-    text: '**Slaughter:** give your **Fodder** **+1/+1**.',
+    effects: [{ on: 'onKill', do: 'onKillBuffFodder', params: { attack: 1, health: 0 } }],
+    text: '**Slaughter:** give your **Fodder** **+1/+0**.',
   },
   {
     // Deathrattle (combat): summon 2 Imps, then buff all your Imps (the new ones included) +2/+3. Golden 2×.

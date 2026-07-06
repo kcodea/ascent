@@ -47,7 +47,11 @@ function playToEnd(seed: number): RunState {
   let s = createRun(seed);
   let steps = 0;
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 10000) {
-    if (s.phase === 'combat') {
+    if (s.chooseOne) {
+      s = reduce(s, { type: 'chooseOne', index: 0 }); // resolve a pending Choose One (Runic Beetle / Wildwood Shaper)
+    } else if (s.discover) {
+      s = reduce(s, { type: 'discover', index: 0 }); // resolve a pending Discover (triple reward / Discover spell)
+    } else if (s.phase === 'combat') {
       s = reduce(s, { type: 'resolveCombat' });
     } else if (s.hand.length > 0 && s.board.length < 7) {
       s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
@@ -259,32 +263,21 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.some((c) => c.cardId === 'stray')).toBe(true);
   });
 
-  it('Kennelmaster buffs Beasts played and the tokens they summon', () => {
+  it("a Kennelmaster triple folds its accrued Avenge bonus into the golden's summon bonus", () => {
+    // Kennelmaster's Beast buff is now a Start-of-Combat aura (+(1 + summonBonus)/+(same)); the recruit
+    // triple still carries the accrual, so the golden's summonBonus = base (1) + the two highest copies'
+    // bonuses. Three copies (bonuses 2 / 1 / 0) → golden summonBonus 1 + 2 + 1 = 4.
     let s: RunState = {
-      ...createRun(1),
-      embers: 3,
-      hand: [],
-      board: [{ uid: 'k', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false }],
-      shop: [{ uid: 'x', cardId: 'alley' }],
+      ...createRun(1), embers: 0, shop: [],
+      board: [
+        { uid: 'k1', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false, summonBonus: 2 },
+        { uid: 'k2', cardId: 'kennel', tribe: 'beast', attack: 1, health: 4, keywords: [], golden: false, summonBonus: 1 },
+      ],
+      hand: [{ uid: 'k3', cardId: 'kennel', tribe: 'beast', attack: 1, health: 4, keywords: [], golden: false, summonBonus: 0 }],
     };
-    s = reduce(s, { type: 'buy', uid: 'x' });
-    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    expect(s.board.find((c) => c.cardId === 'alley')?.attack).toBe(2); // 1 + 1
-    expect(s.board.find((c) => c.cardId === 'stray')?.attack).toBe(2); // 1 + 1
-  });
-
-  it("Kennelmaster's summon buff scales with its accrued Avenge bonus", () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 0,
-      shop: [],
-      // a Kennelmaster that has already improved twice (Avenge fired twice in past fights)
-      board: [{ uid: 'k', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false, summonBonus: 2 }],
-      hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
-    };
-    s = reduce(s, { type: 'play', uid: 'a' }); // Alleycat + its Stray are Beasts summoned beside it
-    const stray = s.board.find((c) => c.cardId === 'stray');
-    expect([stray?.attack, stray?.health]).toEqual([4, 4]); // 1/1 + (1+2)/(1+2)
+    s = reduce(s, { type: 'play', uid: 'k3' }); // 3 Kennelmasters → triple → one golden in hand
+    const golden = [...s.board, ...s.hand].find((c) => c.cardId === 'kennel' && c.golden);
+    expect(golden?.summonBonus).toBe(4); // base 1 + top-two bonuses (2 + 1)
   });
 
   it("persists a Kennelmaster's Avenge improvement across combat (whole-run)", () => {
@@ -387,19 +380,6 @@ describe('run loop (@game/sim)', () => {
     expect(f.hand.find((c) => c.cardId === 'monk' && c.golden)?.overflowBonus).toBeUndefined();
   });
 
-  it('a golden Kennelmaster grants its full combined buff (no golden double-counting)', () => {
-    let s: RunState = {
-      ...createRun(1),
-      embers: 0,
-      shop: [],
-      board: [{ uid: 'k', cardId: 'kennel', tribe: 'beast', attack: 4, health: 6, keywords: [], golden: true, summonBonus: 9 }],
-      hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
-    };
-    s = reduce(s, { type: 'play', uid: 'a' });
-    const stray = s.board.find((c) => c.cardId === 'stray');
-    expect([stray?.attack, stray?.health]).toEqual([11, 11]); // 1/1 + (base 1 + summonBonus 9) = +10/+10
-  });
-
   it('Wildwood Shaper: Choose One — buff Beasts +1/+3 OR summon a Stray (golden doubles)', () => {
     // Playing it pauses for the pick, then the chosen option resolves.
     let s: RunState = {
@@ -430,6 +410,81 @@ describe('run loop (@game/sim)', () => {
     b = reduce(b, { type: 'chooseOne', index: 0 });
     const shaper = b.board.find((c) => c.cardId === 'shaper');
     expect([shaper?.attack, shaper?.health]).toEqual([3, 5]); // 2/2 + 1/3
+  });
+
+  it('Runic Beetle: Choose One grants a friendly Beast Rise or Flurry (auto-picked)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }],
+      hand: [{ uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'rb' });
+    expect(s.chooseOne).toBeDefined(); // waits for the pick
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // Rise → a friendly Beast (Mama Pup, highest Attack)
+    expect(s.board.find((c) => c.cardId === 'pack')?.keywords).toContain('R');
+    // The other option grants Flurry instead.
+    let f: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }],
+      hand: [{ uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
+    };
+    f = reduce(f, { type: 'play', uid: 'rb' });
+    f = reduce(f, { type: 'chooseOne', index: 1 }); // Flurry
+    expect(f.board.find((c) => c.cardId === 'pack')?.keywords).toContain('W');
+  });
+
+  it('Money Maker: every 2 turns conjures a Gold Pouch or Safety Deposit Box', () => {
+    const s: RunState = {
+      ...createRun(1), hand: [],
+      board: [{ uid: 'mm', cardId: 'moneymaker', tribe: 'mech', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    applyEndOfTurn(s); // turn 1 — cadence tick 1, not due
+    expect(s.hand.length).toBe(0);
+    applyEndOfTurn(s); // turn 2 — cadence tick 2, due → conjures one
+    expect(s.hand.length).toBe(1);
+    expect(['emberpouch', 'depositbox']).toContain(s.hand[0]!.cardId);
+  });
+
+  it('Gildmaster: Golden Gild combines a pair into a golden copy in hand (costs 3, once per turn)', () => {
+    let s: RunState = {
+      ...createRun(1), heroId: 'gildmaster', embers: 5, heroReady: true, shop: [], hand: [],
+      board: [
+        { uid: 'a1', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'a2', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'x' }); // untargeted — finds the double itself
+    const all = [...s.hand, ...s.board];
+    expect(all.find((c) => c.cardId === 'alley' && c.golden)).toBeDefined(); // one golden Alleycat…
+    expect(all.filter((c) => c.cardId === 'alley' && !c.golden)).toHaveLength(0); // …the pair consumed
+    expect(s.embers).toBe(2); // 5 - 3 cost
+    expect(s.heroPowerUses).toBe(1);
+    expect(s.heroReady).toBe(false); // spent this turn
+  });
+
+  it('Gildmaster: with no double, the power is a no-op and spends nothing', () => {
+    let s: RunState = {
+      ...createRun(1), heroId: 'gildmaster', embers: 5, heroReady: true, shop: [], hand: [],
+      board: [{ uid: 'a1', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'x' });
+    expect([...s.hand, ...s.board].some((c) => c.golden)).toBe(false);
+    expect(s.embers).toBe(5); // no charge
+    expect(s.heroPowerUses ?? 0).toBe(0); // not counted
+    expect(s.heroReady).toBe(true); // still available
+  });
+
+  it('Gildmaster: capped at 2 total uses across the game', () => {
+    let s: RunState = {
+      ...createRun(1), heroId: 'gildmaster', embers: 20, heroReady: true, heroPowerUses: 2, shop: [], hand: [],
+      board: [
+        { uid: 'a1', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'a2', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'x' }); // already used twice → blocked
+    expect([...s.hand, ...s.board].some((c) => c.golden)).toBe(false);
+    expect(s.embers).toBe(20);
   });
 
   it('Apples: SPELL Choose One — buff this shop +1/+3 OR bank +2/+4 for the next shop', () => {
@@ -1750,7 +1805,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
   });
 
-  it('a universalTribe token (Chaos Attachment) receives tribe summon-buffs (Mama Bear + Kennelmaster)', () => {
+  it('a universalTribe token (Chaos Attachment) receives a tribe summon-buff (Mama Bear)', () => {
     // Regression: the Chaos hero-power token counts as EVERY tribe, so playing it must trigger
     // tribe-gated summon buffs. Before the fix the recruit factories only matched tribe/tribe2, so the
     // token was silently skipped (the reported "didn't get Mama Bear stats" bug).
@@ -1758,17 +1813,17 @@ describe('run loop (@game/sim)', () => {
       ...createRun(1), embers: 0, shop: [],
       board: [
         { uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false },
-        { uid: 'k', cardId: 'kennel', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false },
       ],
       hand: [
         { uid: 'sym', cardId: 'symbioticattachment', tribe: 'neutral', attack: 1, health: 1, keywords: ['M'], golden: false },
       ],
     };
-    s = reduce(s, { type: 'play', uid: 'sym' }); // standalone play (no weld target) → summon buffs fire
+    s = reduce(s, { type: 'play', uid: 'sym' }); // standalone play (no weld target) → Mama Bear's summon buff fires
     const sym = s.board.find((c) => c.uid === 'sym')!;
-    // Mama Bear (+2/+2) and Kennelmaster (+1/+1) both treat the universalTribe token as a Beast.
-    expect(sym.attack).toBe(1 + 2 + 1); // 4
-    expect(sym.health).toBe(1 + 2 + 1); // 4
+    // Mama Bear (+2/+2) treats the universalTribe token as a Beast. (Kennelmaster's Beast buff is now a
+    // Start-of-Combat aura, so it no longer fires when a minion is summoned in the shop.)
+    expect(sym.attack).toBe(1 + 2); // 3
+    expect(sym.health).toBe(1 + 2); // 3
   });
 
   it('a Mama Bear triple picks up the accrual at its current value — no reset, no double', () => {
@@ -2071,17 +2126,17 @@ describe('run loop (@game/sim)', () => {
     let s: RunState = {
       ...createRun(1), tier: 3, embers: 0, board: [],
       tribes: ['undead'],
-      pool: { skullblade: 5 }, // the only buyable Undead → Undead Army deterministically conjures 2 Skullblades
+      pool: { spore: 5 }, // the only buyable Undead → Undead Army deterministically conjures 2 Sporelings
       hand: [
-        { uid: 'k', cardId: 'skullblade', tribe: 'undead', attack: 5, health: 1, keywords: [], golden: false },
+        { uid: 'k', cardId: 'spore', tribe: 'undead', attack: 5, health: 1, keywords: [], golden: false },
         { uid: 'sp', cardId: 'undeadarmy', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
       ],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    // 1 in hand + 2 conjured = 3 → combine into one golden Skullblade, no stragglers left.
+    // 1 in hand + 2 conjured = 3 → combine into one golden Sporeling, no stragglers left.
     const all = [...s.hand, ...s.board];
-    expect(all.find((c) => c.cardId === 'skullblade' && c.golden)).toBeDefined();
-    expect(all.filter((c) => c.cardId === 'skullblade' && !c.golden)).toHaveLength(0);
+    expect(all.find((c) => c.cardId === 'spore' && c.golden)).toBeDefined();
+    expect(all.filter((c) => c.cardId === 'spore' && !c.golden)).toHaveLength(0);
   });
 
   it('Sprout Discovers a Tier 1 minion; Help Wanted Discovers a Battlecry minion', () => {

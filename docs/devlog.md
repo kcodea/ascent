@@ -33,6 +33,122 @@ Verified: typecheck + lint + **495 tests** + build:web green per commit; both bu
 timing + the `returning` CSS confirmed live in the preview; owner eyeballed the feel in real fights and
 approved all three iterations.
 
+### fix(combat): golden Solaris Fang gains a fresh Ward before EACH of its two immediate Avenge strikes
+
+Golden Solaris (*Avenge (2): gain Ward and attack immediately*) strikes twice, but the Ward was granted once
+up front — so the first strike's retaliation popped it and the second went in unshielded. The immediate-attack
+queue now carries a per-entry `shieldFirst` flag; `flushImmediateAttacks` grants a fresh Ward right before each
+queued strike (idempotent — no double shield), so a golden Solaris is shielded going into both. The
+`avengeShieldAttack` factory pairs a Ward with each strike (`ctx.attackNow(self, true)` per cast) instead of
+one grant + two bare strikes; `ctx.attackNow` gained the `shieldFirst` param, and the Whelp / Steadfast summon
+paths push without it (unchanged — the queue holds `{ minion, shieldFirst? }` now). Test: a golden Solaris vs
+a retaliating wall now logs two `shieldUp` events (one was red before). `typecheck + lint + test (508) +
+build:web` green.
+
+### fix(combat+ui): Watcher's Lantern shows its live spell-power value + mid-combat Undead aura reaches summons
+
+Two bugs on the fresh Watcher (Undead T6 — Rally: cast Lantern of Souls), both reported by the owner.
+- **Card text was static.** Watcher's Lantern grant already scaled with the run's spell power in combat
+  (`+ ctx.spellPower.attack`), but its printed "+3 Attack" never reflected it. Added a `watcherText` live
+  helper (base + spell power, golden ×2 for the two casts) wired into both the shop chain (`instView`) and the
+  combat chain (`Unit`) — so with +2 spell power the card reads "+5 Attack". Verified live in-preview.
+- **Summoned Undead missed mid-combat aura gains.** `grantUndeadBuyAtk` (Karthus / Forsaken Weaver / Watcher)
+  only accumulated the carry-back delta; the LIVE `undeadBuyAtk` that `applyAuras` re-adds to from-base bodies
+  stayed at its combat-start value, so an Undead summoned *after* the aura pumped (e.g. Steadfast Champion's
+  Spear Warden after Watcher's Lantern) didn't inherit it. Fixed by also incrementing the live `undeadBuyAtk`
+  in `grantUndeadBuyAtk` — a general fix (Karthus / Forsaken Weaver benefit too). No double-count: existing
+  Undead are buffed by the granter's own loop; summons/reborns pick it up via the live aura.
+- **Tests:** +3 — Watcher's grant scales with spell power, the summoned Spear Warden inherits the mid-combat
+  aura (both red before the fix, confirming the repro), and `watcherText`'s live value. `typecheck + lint +
+  test (507) + build:web` green.
+- **Flagged:** Watcher grants Undead **Attack** (matching its text) and does *not* replicate Lantern's silent
+  spell-power-**Health** fold into the Undead aura — say the word if you want that too.
+
+### feat(content): 2026-07-06 content batch — Beast "wherever they are" auras, Gildmaster hero, 3 minions + a spell, rebalances
+
+A large owner-directed content + balance drop. New engine work is small and reuses existing primitives; most
+of it is data. Verified: `typecheck + lint + test (503, +8 net) + build:web` all green; opponent pool
+regenerated (`npm run pool` — Ghostsmith purged from the baked boards); **live in-preview** — every new art
+asset loads, live card text is correct, and the Gildmaster power + Grim/Kennelmaster auras behave as specified.
+
+**New theme — persistent Beast combat auras ("wherever they are").** The engine already had
+`ctx.addTribeAura` (a rest-of-combat tribe buff that `summonMinion` re-applies to units summoned *later*),
+used by Grim. Per an owner ruling these Beast auras also catch beasts summoned mid-combat, so three cards lean
+on it:
+- **Kennelmaster** (reworked): its old recruit-time "each Beast you summon +1/+1" becomes **Start of Combat:
+  give your Beasts +1/+1 wherever they are** — new `scBeastAura` factory (`addTribeAura` + buff current
+  Beasts). **Avenge (2): Improve this** is unchanged: `avengeImproveSummon` still bumps `summonBonus`, which
+  the SoC aura reads as `1 + summonBonus` and still carries back across combats. Golden falls out of the
+  triple combine as before (`combineIntoGolden` now detects `scBeastAura` for the summon-bonus carry-through).
+  Live text (`summonBuffText`) broadened to match `scBeastAura`, so shop / board / combat all show the live
+  `+(1+bonus)/+(1+bonus)`.
+- **Grim**: text-only — its Deathrattle already registers an aura via `deathrattleBuffTribeByTally`, so "for
+  each Echo triggered this game" + **wherever they are** is now stated (renders as "Echo…" via the terms
+  layer); `tallyBuffText` still shows the live +N/+N.
+- **Solaris Fang** (new, Beast/Mech T5 5/5): **Rally: give your Beasts +5 Attack wherever they are** (new
+  `rallyTribeAura`) + **Avenge (2): gain Ward and attack immediately** (new `avengeShieldAttack` → `grantShield`
+  + a new additive `ctx.attackNow(self)` that queues a bonus out-of-turn strike on the existing
+  attack-on-summon queue).
+
+**New spell — Rallying Offensive** (T3, 3 Gold): *your Rally effects trigger twice next combat.* Modeled on
+Pre-emptive Assault's one-shot flag — `RunState.rallyDoubleNext` → threaded into `simulate()` as a trailing
+`playerRallyDouble` arg → the combat loop re-runs each player Rally attacker's OWN `onAttack` effects once
+more (invoked directly, so *other* minions' on-attack watchers don't double-fire); cleared at settle. Does not
+stack (a bool). New `spellRallyDoubleNext` recruit factory.
+
+**New minions (data + reused primitives):**
+- **Runic Beetle** (Beast T3 3/1): **Choose One — give a friendly Beast Rise, or Flurry** (`chooseOne` +
+  `battlecryGrantKeyword`, auto-picking the highest-Attack Beast via `targetTribe: 'beast'`).
+- **Money Maker** (Mech T1 1/1): **Every 2 turns, get a Gold Pouch or Safety Deposit Box** (random, seeded) —
+  new `endOfTurnGrantSpellChoice` recruit factory on the Frontdrake `eotTick` cadence; conjures freely (no
+  pool draw). Golden grants 2. `cadenceProgressText` + the triple cadence-carry generalized to any End-of-Turn
+  effect with an `every` param.
+
+**New hero — Gildmaster** (30 HP / 15 Armor). Hero Power **Golden Gild** (new `goldenGild` kind): *if you have
+2 copies of a minion, combine them into one golden copy in your hand* — a discounted triple; you then play the
+golden for the Triple Reward. **Costs 3 Gold, once per turn, 2 total uses**, can't fire with no double, and
+picks a random pair (seeded) when several exist. Implementation: `checkTriples` refactored to share
+`pullCopies` + `combineIntoGolden`, which the power reuses with a threshold of 2; a new `RunState.heroPowerUses`
+counter + `HeroPower.maxUses` gate the 2-use cap; StatusBar greys the button (with a "no pair" / "spent" note)
+when it can't fire.
+
+**Rebalances / text (data-only):** Sword and Bored → **2/1, Slaughter gives Fodder +1/+0**; Gnasher → **7/6**;
+Sporebat → **4/3**; **Mumi → Tier 2**; Blaster drops "(yours too)"; Flowing Monk drops "(kept after combat)";
+Taurus drops "they keep the stats they gain in combat." **Ghostsmith removed** (its spell-power tests repointed
+to Gnasher, which shares the `grantSpellPower` carry-back; the `deathrattleBuffSpellPower` primitive is kept
+for reuse). "Choose One" moved from *Build & shop* to *Triggers* in the Compendium glossary.
+
+**Tests:** the four Kennelmaster recruit tests (its buff is now Start-of-Combat) were replaced with a
+golden-combine test + new combat aura tests; added combat tests (Kennelmaster aura catches a mid-fight summon,
+Solaris Rally aura + Rallying-Offensive doubling, Solaris Avenge shield/attack) and recruit tests (Gildmaster
+combine / no-double / 2-use cap, Money Maker cadence, Runic Beetle Choose One). Hardened the `playToEnd`
+test-bot to resolve `chooseOne`/`discover` (Runic Beetle would otherwise deadlock it). Net +8 (503 total).
+
+**Art:** wired `beetle` / `solaris` / `moneymaker` / `rallyoffensive` (spell art → `art/minions/`) + the
+`gildmaster` hero portrait, optimized to WebP.
+
+**Judgment calls flagged for the owner:** (1) both new Avenge cards keep "(2)" via explicit `goldenText` (the
+naive golden doubler would otherwise print "(4)"); (2) Money Maker's "or" is a seeded **random** pick (not a
+prompt) since it's an automatic periodic trigger; (3) the eventual counter-matrix tuning pass now has more
+Beast levers (the aura rework, Solaris, Runic Beetle) + a triple-economy hero to weigh.
+
+**Part 2 (later same session) — a follow-up drop:**
+- **New minion — Watcher** (Undead T6 8/3): **Rally: cast Lantern of Souls** — your Undead get +3 Attack for
+  the rest of the run (the permanent Undead aura, spell-power-scaled). Implemented as a *real* spell cast:
+  new `rallyCastTribeAttack` factory → `ctx.castSpell` fires the `spellCast` trigger (so it feeds Spirit Pup's
+  transform counter, Archmagus Guel, a friendly Forsaken Weaver), and the grant rides home via
+  `grantUndeadBuyAtk` so it persists after combat. Golden casts it twice.
+- **Steadfast Champion → Tier 5, 4/7** (was T6 7/7). **Footman Leader renamed → Footman Captain** (id
+  `deathlesshand` unchanged). Art re-wired for Watcher (new), Steadfast Champion, Footman, Footman Captain,
+  Solaris Fang, and Forest Guardian.
+- Verified: `typecheck + lint + test (504) + build:web` green; pool regenerated; **live in-preview** — all six
+  render with the new art at the right tiers (Steadfast now T5 4/7), and Watcher's text + Rally-cast confirmed.
+- **Judgment call:** Watcher uses the proven `grantUndeadBuyAtk` carry-back (the Karthus / Forsaken-Weaver
+  channel) and scales its grant with spell power to stay faithful to a real Lantern cast — same player-facing
+  result as Lantern's own `undeadAttackBonus` channel, without adding a new combat carry-back field.
+
+### fix(sim+ui): Rise now dies → Deathrattle → returns to the RIGHT of what it summoned
+
 Two owner-reported combat inconsistencies in the Rise (Reborn) resolution, both fixed by one model change.
 **Balance-neutral** — combat outcomes, final stats, and win/loss are byte-identical; only the replay's event
 order and the risen minion's board position change.

@@ -85,8 +85,8 @@ export const NEUTRAL: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'summonOverflow', do: 'overflowBuffRandom', params: { attack: 2, health: 2, count: 2, improveEvery: 5 } }],
-    text: "When you summon a minion that doesn't fit, Engrave 2 friendly minions **+2/+2** (kept after combat). Improves by **+2/+2** every 5 overflows.",
-    goldenText: "When you summon a minion that doesn't fit, Engrave 2 friendly minions **+4/+4** (kept after combat). Improves by **+4/+4** every 5 overflows.",
+    text: "When you summon a minion that doesn't fit, Engrave 2 friendly minions **+2/+2**. Improves by **+2/+2** every 5 overflows.",
+    goldenText: "When you summon a minion that doesn't fit, Engrave 2 friendly minions **+4/+4**. Improves by **+4/+4** every 5 overflows.",
   },
   {
     // Battlecry doubler (recruit). While on your board, each Battlecry minion you play fires its
@@ -160,7 +160,7 @@ export const NEUTRAL: CardDef[] = [
     health: 8,
     keywords: ['SC'],
     effects: [{ on: 'startOfCombat', do: 'scEngraveNeighbor' }],
-    text: '**Start of Combat:** adjacent units are **Engraved** — they keep the stats they gain in combat.',
+    text: '**Start of Combat:** adjacent units are **Engraved**.',
     goldenText: '**Start of Combat:** adjacent units are **Engraved** and gain **2× stats** in combat.',
   },
   {
@@ -198,8 +198,8 @@ export const NEUTRAL: CardDef[] = [
     health: 3,
     keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleDamageAll', params: { amount: 3 } }],
-    text: '**Deathrattle:** deal **3** damage to ALL minions (yours too).',
-    goldenText: '**Deathrattle:** deal **6** damage to ALL minions (yours too).',
+    text: '**Deathrattle:** deal **3** damage to ALL minions.',
+    goldenText: '**Deathrattle:** deal **6** damage to ALL minions.',
   },
   {
     // Spell-Discover Battlecry — opens a Discover of three random spells (the normal Discover only offers

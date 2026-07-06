@@ -48,21 +48,6 @@ export const UNDEAD: CardDef[] = [
     text: 'When a **Spear Warden** dies in combat, all Spear Wardens gain **+3/+2** permanently.',
   },
   {
-    // Spell-power Deathrattle: each death permanently raises the run-wide spell ATTACK bonus by 1.
-    // Fires in COMBAT, so it carries back via CombatResult.playerSpellPower → applied in settleCombat.
-    // Stacks (each Ghastly Bladesmith death = +1). Shares the "Ghastly Bladesmith" name only with itself.
-    id: 'skullblade',
-    name: 'Ghostsmith',
-    tribe: 'undead',
-    tier: 2,
-    attack: 4,
-    health: 2,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 0 } }],
-    text: '**Deathrattle:** give your spells **+1 Attack** for the rest of the run.',
-    goldenText: '**Deathrattle:** give your spells **+2 Attack** for the rest of the run.',
-  },
-  {
     // On-kill permanent Undead attack buff. Carries back via playerUndeadBuyAtkGain — applied to existing
     // run-board Undead AND stacked into undeadBuyAtk for future buys.
     id: 'karthus',
@@ -94,7 +79,7 @@ export const UNDEAD: CardDef[] = [
   {
     // Deathrattle: summon a Footman (T1 1/1 Reborn Undead token). Golden summons 2.
     id: 'deathlesshand',
-    name: 'Footman Leader',
+    name: 'Footman Captain',
     tribe: 'undead',
     tier: 3,
     attack: 2,
@@ -150,7 +135,7 @@ export const UNDEAD: CardDef[] = [
     id: 'mumi',
     name: 'Mumi',
     tribe: 'undead',
-    tier: 3,
+    tier: 2,
     attack: 5,
     health: 1,
     keywords: [],
@@ -215,8 +200,8 @@ export const UNDEAD: CardDef[] = [
     id: 'steadfast',
     name: 'Steadfast Champion',
     tribe: 'undead',
-    tier: 6,
-    attack: 7,
+    tier: 5,
+    attack: 4,
     health: 7,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeSummonAttack', params: { count: 3, cardId: 'knit' } }],
@@ -251,5 +236,22 @@ export const UNDEAD: CardDef[] = [
     effects: [{ on: 'avenge', do: 'avengeMaxGold', params: { count: 4 } }],
     text: '**Avenge (4):** raise your maximum Gold by **1**.',
     goldenText: '**Avenge (4):** raise your maximum Gold by **2**.',
+  },
+
+  // --- 2026-07-06 content batch (part 2) ---
+  {
+    // Rally engine: casts Lantern of Souls each time it attacks — your Undead get +3 Attack for the rest of
+    // the run (the permanent Undead aura, scaling with spell power). A REAL spell cast, so it feeds Spirit
+    // Pup's transform, Archmagus Guel, and a friendly Forsaken Weaver. Golden casts it twice.
+    id: 'watcher',
+    name: 'Watcher',
+    tribe: 'undead',
+    tier: 6,
+    attack: 8,
+    health: 3,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyCastTribeAttack', params: { tribe: 'undead', amount: 3 } }],
+    text: '**Rally:** cast **Lantern of Souls** — your Undead get **+3 Attack** for the rest of the run.',
+    goldenText: '**Rally:** cast **Lantern of Souls** twice — your Undead get **+6 Attack** for the rest of the run.',
   },
 ];

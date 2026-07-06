@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText } from './cardText';
+import { ascendProgressText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, watcherText } from './cardText';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -48,6 +48,7 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
     ?? guelProgressText(u.cardId, u.golden, u.spellProgress ?? 0) // Guel: live grant + countdown from HIS on-board tally (per-instance, seeded by the snapshot)
     ?? monkProgressText(u.cardId, u.golden, u.summonBonus, u.overflowBonus ?? 0) // Flowing Monk: live grant + overflow countdown (climbs via improve events)
     ?? taragosaText(u.cardId, u.golden, spA, spH)
+    ?? watcherText(u.cardId, u.golden, spA) // Watcher: live Lantern buff (base + spell power)
     ?? engraveTallyText(u.cardId, u.permaGain)
     ?? def?.text ?? '';
   const view: CardView = {

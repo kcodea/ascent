@@ -12,7 +12,7 @@ import { selectThreat, type ThreatId } from './threats';
  * are derived purely from (seed, wave) so they're identical every time a wave is
  * re-resolved — which is why the recruit-phase preview matches the actual fight.
  */
-export const TAG = { THREAT: 1, ENEMY: 2, SHOP: 3, COMBAT: 4, TRIBES: 5, MAGNET: 6, ODDS: 7 } as const;
+export const TAG = { THREAT: 1, ENEMY: 2, SHOP: 3, COMBAT: 4, TRIBES: 5, MAGNET: 6, ODDS: 7, GILD: 8 } as const;
 
 /** The playable (non-neutral) tribes. Grows as tribes are added; a run draws 5 of them. */
 export const PLAYABLE_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
@@ -176,6 +176,9 @@ export interface RunState {
   /** Pre-emptive Assault: the player's board attacks first in the NEXT combat, overriding the
    *  more-minions initiative rule (ties included). One-shot — cleared in `settleCombat`. */
   attackFirstNext?: boolean;
+  /** Rallying Offensive: your Rally effects trigger twice in the NEXT combat. One-shot — does not stack
+   *  (a bool), cleared in `settleCombat`. */
+  rallyDoubleNext?: boolean;
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't
@@ -262,6 +265,9 @@ export interface RunState {
   heroReady: boolean;
   /** Once-per-game hero powers (e.g. Oner's Gild) flip this and never recharge. */
   heroPowerSpent: boolean;
+  /** Total hero-power activations this game — gates powers with a `maxUses` cap (Gildmaster: 2 total,
+   *  still once per turn). Absent = 0. Never reset (a whole-game budget, unlike `heroReady`). */
+  heroPowerUses?: number;
   /** Fodder consumed so far this wave (reset in advanceCombat). The Abhorrent Horror reads this at
    *  Start of Combat to gain the fodder's stats. */
   fodderConsumedThisTurn?: { attack: number; health: number };

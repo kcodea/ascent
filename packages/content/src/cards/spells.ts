@@ -525,4 +525,20 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'battlecryBonusGoldNextTurn', params: { gold: 2 } }],
     text: 'Gain **2 Gold** next turn.',
   },
+  {
+    // Rally payoff (2026-07-06): every Rally on your board triggers twice in the NEXT combat (Deathsayer
+    // procs its Deathrattle twice per swing, a rally-buffer buffs twice, etc.). One fight; does not stack
+    // with itself (a bool flag). Resolved via `spellRallyDoubleNext` → simulate() re-runs each Rally.
+    id: 'rallyoffensive',
+    name: 'Rallying Offensive',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellRallyDoubleNext' }],
+    text: 'Your **Rally** effects trigger **twice** next combat.',
+  },
 ];

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getHero, spellAmplifyBonus } from '@game/sim';
+import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -24,10 +25,24 @@ export function StatusBar() {
   const isPassive = !!power.passive;
   // Once-per-game powers (Gild) gate on heroPowerSpent; the rest recharge each wave. Fortify can
   // target a warband minion OR a tavern offer, so it's usable whenever ready — no friend required.
+  // Gildmaster's Golden Gild also has a whole-game use cap (maxUses) AND needs a "double" (two non-golden
+  // copies of a minion across board + hand) to fire — otherwise it's greyed out.
+  const withinUses = power.maxUses ? (run.heroPowerUses ?? 0) < power.maxUses : true;
+  const doubleAvailable =
+    power.kind !== 'goldenGild' ||
+    (() => {
+      const counts = new Map<string, number>();
+      for (const c of [...run.board, ...run.hand]) {
+        if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+      }
+      return [...counts.values()].some((n) => n >= 2);
+    })();
   const canHero =
     !isPassive &&
     unlocked &&
     !eotAnimating &&
+    withinUses &&
+    doubleAvailable &&
     (power.oncePerGame ? !run.heroPowerSpent : run.heroReady) &&
     (!power.cost || run.embers >= power.cost);
   // The big line under the hero name: what tapping the power does *right now*.
@@ -47,22 +62,32 @@ export function StatusBar() {
           ? `${power.name} · +${run.tier}/+${run.tier}`
           : power.kind === 'gainMaxMana'
             ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
-            : power.kind === 'gild'
-              ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
-              : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
+            : power.kind === 'goldenGild'
+              ? `${power.name} · ${!withinUses ? 'spent' : !run.heroReady ? 'used' : !doubleAvailable ? 'no pair' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
+              : power.kind === 'gild'
+                ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
+                : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   const powerNote = isPassive
     ? ' Passive — always on.'
     : !unlocked
       ? ` Unlocks on turn ${unlockWave}.`
-      : power.oncePerGame
-        ? run.heroPowerSpent
-          ? ' Already used this game.'
-          : ' Drag onto a friendly minion (or click, then click it). One use per game.'
-        : run.heroReady
-          ? power.untargeted
-            ? ` Click to use.${power.cost ? ` Costs ${power.cost} Gold.` : ''}`
-            : ' Drag onto a minion (or click, then click a minion).'
-          : ' Used this wave.';
+      : power.kind === 'goldenGild'
+        ? !withinUses
+          ? ' Used up — twice per game.'
+          : !run.heroReady
+            ? ' Used this turn.'
+            : !doubleAvailable
+              ? ' Need two copies of a minion to gild.'
+              : ` Click to combine a pair into a Gilded copy.${power.cost ? ` Costs ${power.cost} Gold.` : ''}`
+        : power.oncePerGame
+          ? run.heroPowerSpent
+            ? ' Already used this game.'
+            : ' Drag onto a friendly minion (or click, then click it). One use per game.'
+          : run.heroReady
+            ? power.untargeted
+              ? ` Click to use.${power.cost ? ` Costs ${power.cost} Gold.` : ''}`
+              : ' Drag onto a minion (or click, then click a minion).'
+            : ' Used this wave.';
   // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
   const prevHp = useRef(run.resolve + run.armor);
   const [hit, setHit] = useState<{ amt: number; key: number } | null>(null);

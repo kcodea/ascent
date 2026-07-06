@@ -780,6 +780,44 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.attackFirstNext = true;
   },
 
+  /** Money Maker — End of Turn: every `every` turns on the board, add `count` random card(s) from the
+   *  `cards` id-list to your hand (a Gold Pouch or Safety Deposit Box). Golden doubles the count. Mirrors
+   *  Frontdrake's cadence (`eotTick` advances once per turn on proc 0; Chronos repeats ride the same tick).
+   *  The cards are conjured freely — they don't touch the shop pool (spells never do). */
+  endOfTurnGrantSpellChoice: (ctx, self, params, payload) => {
+    const every = Math.max(1, num(params.every, 2));
+    const replay = payload.replay === true;
+    if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1;
+    const tick = self.eotTick ?? 0;
+    const due = replay ? (tick + 1) % every === 0 : tick % every === 0;
+    if (!due) return;
+    const ids = Array.isArray(params.cards) ? (params.cards as string[]) : [];
+    const pool = ids.map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
+    if (pool.length === 0) return;
+    const count = num(params.count, 1) * gold(self);
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+      const def = pool[rng.int(pool.length)]!;
+      ctx.state.hand.push({
+        uid: `b${ctx.state.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Rallying Offensive (cast): your Rally effects trigger twice in the next combat. A one-shot run-state
+   *  flag — casting again just re-arms it (does not stack). simulate() reads it and re-runs each Rally
+   *  attacker's own on-attack effects one more time; cleared when the combat settles. */
+  spellRallyDoubleNext: (ctx) => {
+    ctx.state.rallyDoubleNext = true;
+  },
+
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*
    *  +atk/+hp run-wide (same mechanism as Ritualist's End-of-Turn enchant). Golden doubles. Fires once
    *  per Battlecry *fire* (so a Drakko-doubled Battlecry procs it twice — `fireBattlecryTriggered`

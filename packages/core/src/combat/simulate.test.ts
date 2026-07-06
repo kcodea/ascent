@@ -2034,6 +2034,22 @@ describe('resolution step tags', () => {
     expect(summon.step!).toBeGreaterThan(death.step!);
   });
 
+  it("an on-kill reward lands in a LATER step than the victim's death (not merged into a rattle step)", () => {
+    // Karthus's Slaughter buffs your living Undead (itself included) via ctx.buff the moment it kills —
+    // the reward must get its own step AFTER every death in the clash, not ride the last victim's rattle.
+    const r = simulate(
+      [{ cardId: 'karthus', attack: 7, health: 8 }],
+      [{ cardId: 'sandbag', attack: 1, health: 1 }],
+      makeRng(3), CARD_INDEX,
+    );
+    const karthus = r.initial.player[0]!.uid;
+    const death = r.events.find((e) => e.type === 'death')!;
+    const reward = r.events.find((e) => e.type === 'buff' && e.source === karthus)!;
+    expect(death).toBeDefined();
+    expect(reward).toBeDefined();
+    expect(reward.step!).toBeGreaterThan(death.step!);
+  });
+
   it('step tags are deterministic (same seed → identical tags)', () => {
     const roster: Parameters<typeof simulate>[0] = [{ cardId: 'stray', attack: 3, health: 10 }];
     const foe: Parameters<typeof simulate>[1] = [{ cardId: 'pack', attack: 2, health: 2 }];

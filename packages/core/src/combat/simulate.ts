@@ -461,9 +461,9 @@ export function simulate(
     pendingAscensions.push({ minion, into });
   }
   function ascendMinion(minion: Minion, into: string): void {
-    nextStep(); // a mid-combat transform is its own moment
     const def = cards[into];
     if (!def || minion.dead || minion.health <= 0 || minion.cardId === into) return;
+    nextStep(); // a mid-combat transform is its own moment (bumped after the guard — no empty steps)
     minion.cardId = into;
     minion.name = def.name;
     minion.tribe = def.tribe;
@@ -790,6 +790,7 @@ export function simulate(
       // it returns — it spent its Reborn. Emitted in damage order after phase 2, crediting each fallen
       // body's killer; a dead killer's handlers self-suppress in registerEffects (a mutual kill procs
       // nothing, unchanged from before).
+      nextStep(); // on-kill rewards resolve as their own step, after every death in the clash
       for (const { m, killer, couldReborn } of victims) {
         if (m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) {
           bus.emit('onKill', { attacker: killer, victim: m });
@@ -811,7 +812,10 @@ export function simulate(
   function flushImmediateAttacks(): void {
     let guard = 0;
     while (pendingAttackOnSummon.length > 0 && guard++ < IMMEDIATE_ATTACK_GUARD) {
-      nextStep(); // each out-of-turn Whelp strike (and its Solaris shield grant) is its own moment
+      // Each out-of-turn strike opens a fresh moment: a Solaris shield grant lands here, then performAttack's
+      // own entry bump gives the swing itself the next step (grant → strike, two beats, never merged into the
+      // death resolution that queued them).
+      nextStep();
       const { minion: m, shieldFirst } = pendingAttackOnSummon.shift()!;
       // Grant a fresh Ward immediately before this strike (Solaris Fang's Avenge). Paired with the strike so a
       // golden Solaris — which queues two — goes in shielded on EACH. Idempotent (no double shield).

@@ -53,7 +53,7 @@ const ICONS: Record<string, ReactNode> = {
   // Echo — skull & crossbones (Deathrattle: fires when this minion dies).
   echo: (
     <>
-      <path fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" d="M6.2 20.4L17.8 12.6M6.2 12.6l11.6 7.8" />
+      <path fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" d="M6.2 22.3L17.8 14.5M6.2 14.5l11.6 7.8" />
       <path fillRule="evenodd" fill="currentColor" d="M12 2.8c-3.2 0-5.7 2.4-5.7 5.4 0 1.9.9 3.5 2.4 4.5v1.5c0 .6.5 1.1 1.1 1.1h4.4c.6 0 1.1-.5 1.1-1.1v-1.5c1.5-1 2.4-2.6 2.4-4.5 0-3-2.5-5.4-5.7-5.4zm-2.5 4.7c.8 0 1.4.7 1.4 1.5s-.6 1.5-1.4 1.5-1.4-.7-1.4-1.5.6-1.5 1.4-1.5zm5 0c.8 0 1.4.7 1.4 1.5s-.6 1.5-1.4 1.5-1.4-.7-1.4-1.5.6-1.5 1.4-1.5z" />
     </>
   ),

@@ -162,9 +162,11 @@ look because the engine already produces the data.
 - **✅ Engine (PR 1, → devlog):** `QuestDef` + zod + 18 test quests; seeded `generateQuestOffer` (`TAG.QUEST`);
   `questOffer` / `activeQuests` on RunState; `advanceCombat` quest-phase + reducer lock + `buyQuest` + central
   objective tick + `applyQuestReward`; every headless run-loop taught the phase. Fully tested, determinism intact.
-- **Remaining:** **PR 2 — UI** (quest-shop render, control-lock, timer-pause, quest panel, live progress text);
-  then **real content** (meaningful objectives + the full reward palette) and a **balance/curve retune** (quests
-  are pure power-add → the enemy curve / Line + committed opponent pool want a pass). **Size:** M (UI) + ongoing.
+- **✅ UI (PR 2, → devlog):** the Quest Shop (card-sized tribe-hued offers, 0-Gold, banner, control-lock,
+  timer-pause) + the quest panel (live objective progress), derived text (`questText.ts`). Verified organically.
+- **Remaining:** **real content** (meaningful objectives + the full reward palette — auras, economy, card gen,
+  unique minions, scaling engines, global multipliers) and a **balance/curve retune** (quests are pure power-add
+  → the enemy curve / Line + committed opponent pool want a pass). **Size:** ongoing (content) + M (balance).
 
 ### C2. Mastery Minions
 - Normal shop minions that **improve through repeated actions** (not scheduled, not quests) — find, nurture,

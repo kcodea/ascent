@@ -39,6 +39,26 @@ verbatim relocation of existing behavior, nothing new on screen.
   damage-float channel + Pixi FX/impact, which is when `runMomentCues`'s single sfx branch becomes a
   registry. CSS animations stay render-owned (not scored) through 3b. **Phase 3c** — aura bursts. See
   [roadmap.md](roadmap.md)'s Combat Choreographer section for the full phase breakdown.
+### feat(ui): Quest system — the UI (quest shop + quest panel; PR 2 of 2)
+
+The presentation half (PR 1 was the headless engine). On waves 4/8/12 the tavern becomes a **Quest Shop**: the 3
+offered quests render as card-sized, tribe-hued cards (a 0-Gold cost badge, tier·tribe, objective, reward) in the
+shop row under a "Quest Shop — choose a quest" banner; the tavern controls (Upgrade / Reroll / Freeze / End Turn)
+grey out and the round timer **pauses** until you pick one. Clicking a quest dispatches `buyQuest` → it joins the
+**quest panel** (top-left, under the Buffs frame, same collapsible chrome), which shows each active quest's name,
+**live objective progress** ("Play 2 minions — 1 / 2"), and reward. All display text is DERIVED from the quest
+data (`questText.ts`) — no authored strings on `QuestDef`.
+
+- New: `QuestCard.tsx` (the offer card), `QuestPanel.tsx` (active quests, mirrors `BuffsFrame`), `questText.ts`
+  (objective / reward / progress helpers). Wired into `Recruit.tsx` (tavern-row render + the 4 control locks +
+  timer-pause guard), `HudBar.tsx` (panel under Buffs), and `styles.css`.
+- Combat-safe: the quest panel hides in combat (like the Buffs frame); the shop only swaps in during the recruit
+  quest phase (`run.questOffer` set) — no new phase enum, all engine-driven.
+- **Verified** live in-preview: drove a throwaway run **organically to wave 4** → the quest phase opened by itself,
+  the timer **froze at 0:30** (paused), the 3 cards + banner rendered, all 4 controls greyed; buying a quest
+  cleared the offer, added it to the panel with live progress, rolled the normal shop, and unlocked the controls.
+  Player's real run backed up + restored. `typecheck + lint + test (522) + build:web` green.
+- **Follow-ups (unchanged):** real content (objectives + the full reward palette) + the balance/curve retune.
 
 ### feat(sim): Quest system — the skinny engine framework (waves 4/8/12 quest shop → objectives → rewards; PR 1 of 2)
 

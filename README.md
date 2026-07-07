@@ -32,6 +32,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   (`SCORE: Record<MomentKind, Cue[]>` + `runMomentCues`) lands with `sfx` as its first channel — a verbatim
   relocation of the combat-sound dispatch out of `useCombatReplay`. Invisible; sets up phase 3b's damage
   floats + FX/impact channels.
+- **Quest system (M3 — skinny framework, engine + UI)** — on waves 4/8/12 the tavern becomes a **Quest Shop**:
+  pick 1 of 3 quests (1 neutral + 2 tribes, 0 Gold) with the tavern locked + timer paused; it goes to a quest
+  panel where its objective ticks during play ("Play 2 minions — 1/2") and applies a reward on completion.
+  Seeded/deterministic; test content for now (real objectives + reward palette next).
 - **Combat Choreographer — Phase 2 (replay clock)** — the combat-replay beat scheduler is now a pure,
   unit-tested `holdMs` clock; each moment carries a `MomentKind`; pacing config moved into
   `choreo/choreoConfig`. All invisible (timing byte-identical) — the seam phase 3 hangs effect channels on.

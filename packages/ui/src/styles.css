@@ -183,6 +183,34 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); }
 .buff-row .buff-label { font-family: var(--font-ui); font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink); white-space: nowrap; }
 .buff-row .buff-val { font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); color: var(--acc-dk); font-variant-numeric: tabular-nums; }
+
+/* ── Quests ─────────────────────────────────────────────────────────────────────────────────────────────── */
+/* Active-quest panel — top-left under the Buffs frame; reuses the buffs-* head/body (collapsible chrome). */
+.questframe { display: flex; flex-direction: column; min-width: calc(168 * var(--u)); max-width: calc(240 * var(--u)); margin-top: calc(6 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
+.quest-row { display: flex; flex-direction: column; gap: calc(1 * var(--u)); padding: calc(4 * var(--u)) 0; border-top: 1px solid var(--line); }
+.quest-row:first-child { border-top: none; }
+.quest-row.done { opacity: 0.6; }
+.quest-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: calc(8 * var(--u)); }
+.quest-row .quest-name { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quest-row .quest-prog { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); color: var(--acc-dk); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.quest-row.done .quest-prog { color: var(--tier-2); }
+.quest-row .quest-sub { font-family: var(--font-ui); font-weight: 600; font-size: calc(10.5 * var(--u)); color: var(--ink3); line-height: 1.15; }
+
+/* Quest shop — the banner + the card-sized, tribe-hued, clickable quest offers (slot into the tavern `.row`). */
+.questbanner { display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: var(--acc-dk); margin-bottom: calc(8 * var(--u)); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55); }
+.questbanner svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); color: var(--acc); }
+.questcard { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); display: flex; flex-direction: column; gap: 6px; padding: 15px 12px 12px; text-align: left; border-radius: 13px; border: 2px solid var(--line); background: color-mix(in srgb, var(--c) 20%, var(--card)); box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); font-family: var(--font-ui); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.questcard:hover { transform: translateY(-6px); box-shadow: 0 0 0 4px var(--c), 0 12px 24px -6px rgba(20, 12, 4, 0.5), 0 0 26px -2px color-mix(in srgb, var(--c) 80%, transparent); }
+.questcard-cost { position: absolute; top: -18px; left: -14px; width: 54px; height: 54px; z-index: 3; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: flex; align-items: center; justify-content: center; gap: 1px; color: var(--mana-dk); box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
+.questcard-cost svg { width: 19px; height: 19px; }
+.questcard-cost span { font-family: var(--font-ui); font-weight: 900; font-size: 21px; }
+.questcard-tier { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 55%, var(--ink)); padding-left: 34px; min-height: 20px; } /* clear the 0-cost badge that overhangs the top-left corner */
+.questcard-name { font-family: var(--font-title); font-weight: 800; font-size: 22px; line-height: 1.04; color: var(--ink); }
+.questcard-sect { background: color-mix(in srgb, var(--card) 84%, transparent); border-radius: 9px; padding: 7px 9px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06); }
+.questcard-sect.reward { margin-top: auto; background: color-mix(in srgb, var(--acc) 13%, var(--card)); }
+.questcard-lbl { display: flex; align-items: center; gap: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); margin-bottom: 3px; }
+.questcard-lbl svg { width: 13px; height: 13px; color: var(--acc); }
+.questcard-txt { font-weight: 700; font-size: 15px; line-height: 1.2; color: var(--ink2); }
 /* Per-round track (replaces the old fill bar): one dash per course round. A win prints a green ✓, a loss a
    red ✕; rounds not yet played show a faint dash, the current round a lit-orange dash. Setup rounds (1–2)
    read quieter and get a small gap after (marking where the scored climb begins). */
@@ -1476,6 +1504,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Hide the run-buffs window during combat so it never collides with the combat HUD below the opponent frame
    (buffs aren't actionable mid-replay; it returns in recruit). */
 .app.combat .buffsframe { display: none; }
+.app.combat .questframe { display: none; }
 .combathud-skip { display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
 .combathud-skip:hover { background: var(--acc-dk); }

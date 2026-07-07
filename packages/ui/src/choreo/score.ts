@@ -15,15 +15,27 @@ export type Channel = 'sfx';
 export type Anchor = 'start';
 export interface Cue { ch: Channel; at: Anchor; }
 
-const SFX_AT_START: Cue[] = [{ ch: 'sfx', at: 'start' }];
 /** Every kind runs the sfx channel at start (the adapter no-ops for moments with no sound-bearing events),
  *  reproducing the former "run the SFX effect on every beat" behavior. `Record<MomentKind, …>` forces a new
- *  kind to get an entry here. */
+ *  kind to get an entry. Each kind gets its OWN cue array (not a shared reference) so phase 3b can vary one
+ *  kind's cues without mutating the others. */
 export const SCORE: Record<MomentKind, Cue[]> = {
-  attackExchange: SFX_AT_START, impact: SFX_AT_START, death: SFX_AT_START, riseDeath: SFX_AT_START,
-  scCast: SFX_AT_START, summon: SFX_AT_START, buffWave: SFX_AT_START, reborn: SFX_AT_START,
-  ascend: SFX_AT_START, rally: SFX_AT_START, toHand: SFX_AT_START, maxGold: SFX_AT_START,
-  improve: SFX_AT_START, keyword: SFX_AT_START, hpGrant: SFX_AT_START, reveal: SFX_AT_START,
+  attackExchange: [{ ch: 'sfx', at: 'start' }],
+  impact: [{ ch: 'sfx', at: 'start' }],
+  death: [{ ch: 'sfx', at: 'start' }],
+  riseDeath: [{ ch: 'sfx', at: 'start' }],
+  scCast: [{ ch: 'sfx', at: 'start' }],
+  summon: [{ ch: 'sfx', at: 'start' }],
+  buffWave: [{ ch: 'sfx', at: 'start' }],
+  reborn: [{ ch: 'sfx', at: 'start' }],
+  ascend: [{ ch: 'sfx', at: 'start' }],
+  rally: [{ ch: 'sfx', at: 'start' }],
+  toHand: [{ ch: 'sfx', at: 'start' }],
+  maxGold: [{ ch: 'sfx', at: 'start' }],
+  improve: [{ ch: 'sfx', at: 'start' }],
+  keyword: [{ ch: 'sfx', at: 'start' }],
+  hpGrant: [{ ch: 'sfx', at: 'start' }],
+  reveal: [{ ch: 'sfx', at: 'start' }],
 };
 
 export interface CueContext {
@@ -32,7 +44,9 @@ export interface CueContext {
   onShake: () => void;
 }
 
-/** Run one moment's scored cues. Phase 3a fires channels at `start`; the runner grows a real timeline in 3b. */
+/** Run one moment's scored cues. Phase 3a fires channels at `start`; the runner grows a real timeline in 3b.
+ *  Phase 3b replaces the single `if (cue.ch === 'sfx')` branch with a channel-handler registry as more
+ *  channels (float, anim, shake, …) land. */
 export function runMomentCues(moment: Moment, ctx: CueContext): void {
   for (const cue of SCORE[moment.kind]) {
     if (cue.ch === 'sfx') {

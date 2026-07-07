@@ -129,10 +129,14 @@ export function resetChoreoConfig(): void {
  *  view the score will use from phase 4). Impact/death/rise map to their dominant result key; ascend/keyword
  *  have no own pacing key today (they fell through beatDelay's 300 default) so they map to a related key with
  *  an intentional value rather than the bare fallback. */
-const KIND_TO_KEY: Record<MomentKind, string> = {
+// `keyof ChoreoConfig` (not `string`) so a typo'd/non-existent key is a compile error, not a silent fall to
+// the 300 default. NOTE: this and `momentKind` (kinds.ts) encode the kind↔event-type relationship in OPPOSITE
+// directions (classify-forward vs hold-lookup-backward) — adding a `MomentKind` variant requires updating both
+// (the `Record<MomentKind, …>` here forces this side exhaustively).
+const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
   attackExchange: 'attack', impact: 'dmg', death: 'death', riseDeath: 'death', scCast: 'sc',
   summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
-  toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', hpGrant: 'hpGrant', reveal: 'reveal',
+  toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', hpGrant: 'hpGrant', reveal: 'summon',
 };
 export function holdMsForKind(kind: MomentKind): number {
   return beatDelay(KIND_TO_KEY[kind]);

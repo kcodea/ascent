@@ -11,7 +11,7 @@ const M = (type: CombatEvent['type']): Moment => ({
   end: 1,
   primary: { type } as CombatEvent,
   stepGroups: [[0]],
-  kind: 'impact',
+  kind: 'damage',
 });
 
 describe('holdMs — reproduces the legacy scheduler numbers', () => {

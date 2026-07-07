@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
@@ -395,6 +395,15 @@ export function useCombatReplay(
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
   // imperatively by GSAP (see the layout effect below); React never sets a transform on a unit.
   const [attackUid, setAttackUid] = useState<string | null>(null);
+  // True only when the choreo engine's GSAP timeline is driving THIS beat's advance (an attack whose elements
+  // resolved). The scheduler consults it so it skips the attack transition ONLY when the engine actually took
+  // over — if the lunge couldn't run (elements unresolved), the scheduler still advances, so the replay never
+  // stalls (restoring the pre-engine unconditional-advance robustness).
+  const engineAdvancingRef = useRef(false);
+  // Latest combat speed, read by the cue effect's float-expiry timers WITHOUT being a dep (so a mid-beat speed
+  // toggle doesn't re-run the effect and re-fire that beat's sfx/shake — sfx is only per-call deduped).
+  const combatSpeedRef = useRef(combatSpeed);
+  combatSpeedRef.current = combatSpeed;
   const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number; kind?: string }[]>([]);
   // A card a combat effect just granted to the hand (Arcane Weaver → Spirit Fire) — shown flying to the
   // hand for the duration of its beat, so the player sees it happen instead of it just appearing later.
@@ -465,7 +474,7 @@ export function useCombatReplay(
     // effect below, `runAttackExchangeCues`) advances that one itself, anchored at the lunge's real
     // `contact` position — the former clock.ts smack-lead weld is retired, not duplicated here.
     const shown = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
-    if (shown?.kind === 'attackExchange') return;
+    if (shown?.kind === 'attackExchange' && engineAdvancingRef.current) return;
     const d = holdMs(beats[beatIdx]!, shown, combatSpeed);
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
@@ -529,16 +538,16 @@ export function useCombatReplay(
       onFloats: (spawned) => {
         setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
         const ids = new Set(spawned.map((s) => s.id));
-        timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeed));
+        timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeedRef.current));
       },
       onDeathFloats: (deaths) => {
         setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
         const ids = new Set(deaths.map((s) => s.id));
-        timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeed));
+        timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
       },
     });
     return () => timers.forEach((id) => window.clearTimeout(id));
-  }, [active, beatIdx, beats, events, findEl, combatSpeed]);
+  }, [active, beatIdx, beats, events, findEl]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
@@ -615,12 +624,17 @@ export function useCombatReplay(
       const d = center(cur.primary.defender);
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
-        runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
+        const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
         });
+        engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
+      } else {
+        setAttackUid(null);
+        engineAdvancingRef.current = false; // elements unresolved — let the scheduler advance so the replay never stalls
       }
     } else {
       setAttackUid(null);
+      engineAdvancingRef.current = false;
     }
 
     // Projectiles: Start-of-Combat bolts (caster → its next-beat dmg targets), plus Blaster's Deathrattle

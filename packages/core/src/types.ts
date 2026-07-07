@@ -304,6 +304,35 @@ export interface DiscoverOnPlay {
   topTierFirst?: boolean;
 }
 
+// ── Quests ───────────────────────────────────────────────────────────────────────────────────────────────
+/** A quest's tier — one per quest-turn: wave 4 = lesser, wave 8 = greater, wave 12 = capstone. */
+export type QuestTier = 'lesser' | 'greater' | 'capstone';
+/** The player action a quest objective counts. Skinny set (recruit actions) — grows as objectives expand. */
+export type QuestObjectiveEvent = 'buy' | 'play' | 'sell' | 'roll';
+/** A quest objective: reach `count` of `event`. Live progress lives on the run's `ActiveQuest`, not here. */
+export interface QuestObjective {
+  event: QuestObjectiveEvent;
+  count: number;
+}
+/** What a completed quest grants. Skinny set (one flat board buff) — grows into the full reward palette. */
+export type QuestRewardKind = 'buffBoard';
+export interface QuestReward {
+  kind: QuestRewardKind;
+  attack: number;
+  health: number;
+}
+/** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
+ *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
+ *  build-agnostic slot offered every quest-turn. Objective/reward display text is DERIVED from this data. */
+export interface QuestDef {
+  id: string;
+  name: string;
+  tribe: Tribe; // 'neutral' = the always-offered, build-agnostic slot
+  tier: QuestTier;
+  objective: QuestObjective;
+  reward: QuestReward;
+}
+
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown
  *  ("Spirit Fire ×2: +6/+6"). Structurally mirrors `@game/sim`'s recruit-phase `CardBuff` so the
  *  run board's breakdown can ride into combat (carried through the snapshot to the combat inspect),

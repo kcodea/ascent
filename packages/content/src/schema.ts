@@ -229,3 +229,26 @@ export const CardDefSchema = z.object({
     .strict()
     .optional(),
 }).strict();
+
+// ── Quests ───────────────────────────────────────────────────────────────────────────────────────────────
+// Kept in lockstep with the `QuestDef` type in @game/core (same as CardDefSchema). `.strict()` rejects typo'd
+// keys so a malformed test quest surfaces in `npm test`, not at runtime.
+export const QuestTierSchema = z.enum(['lesser', 'greater', 'capstone']);
+export const QuestObjectiveEventSchema = z.enum(['buy', 'play', 'sell', 'roll']);
+export const QuestRewardKindSchema = z.enum(['buffBoard']);
+
+export const QuestDefSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  tribe: TribeSchema,
+  tier: QuestTierSchema,
+  objective: z.object({
+    event: QuestObjectiveEventSchema,
+    count: z.number().int().positive(),
+  }).strict(),
+  reward: z.object({
+    kind: QuestRewardKindSchema,
+    attack: z.number().int().nonnegative(),
+    health: z.number().int().nonnegative(),
+  }).strict(),
+}).strict();

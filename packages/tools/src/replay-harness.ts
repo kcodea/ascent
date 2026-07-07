@@ -40,6 +40,7 @@ function recordRun(seed: number): { replay: { seed: number; heroId: string; acti
   };
   let steps = 0;
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 20000) {
+    if (s.questOffer) { act({ type: 'buyQuest', index: 0 }); continue; }
     if (s.discover) { act({ type: 'discover', index: 0 }); continue; }
     if (s.chooseOne) { act({ type: 'chooseOne', index: 0 }); continue; }
     if (s.pendingTarget) { act({ type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid }); continue; }

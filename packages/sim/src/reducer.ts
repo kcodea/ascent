@@ -1,8 +1,9 @@
-import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type Tribe } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestDef, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { CARD_INDEX, QUEST_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
+import { generateQuestOffer, questTierForWave } from './quests';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
@@ -91,6 +92,12 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
  * card effects live in `recruit.ts` (RECRUIT_FACTORIES); combat-time effects in
  * `@game/core`.
  */
+/** Recruit actions a quest objective can watch → the objective event they count. `buyQuest` is deliberately
+ *  absent (buying a quest isn't a "buy" objective). */
+const QUEST_TICK_EVENTS: Partial<Record<Action['type'], QuestObjectiveEvent>> = {
+  buy: 'buy', play: 'play', sell: 'sell', roll: 'roll',
+};
+
 export function reduce(state: RunState, action: Action): RunState {
   const next = reduceCore(state, action);
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
@@ -106,6 +113,11 @@ export function reduce(state: RunState, action: Action): RunState {
       const prev = before.get(c.uid);
       if (prev !== undefined && c.attack > prev) fireOnGainAttack(next, c);
     }
+    // Quests: a successful recruit action (buy / play / sell / roll) advances matching objectives, completing
+    // + rewarding at the threshold. `next !== state` already means the action did something; `buyQuest` itself
+    // isn't a tracked event, so it's excluded from the map above.
+    const questEvent = QUEST_TICK_EVENTS[action.type];
+    if (questEvent) tickQuests(next, questEvent);
   }
   return next;
 }
@@ -122,7 +134,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
   // minimized to read the board without any action invalidating the pending pick.
-  if ((state.discover || state.chooseOne || state.pendingTarget) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget') {
+  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest') {
     return state;
   }
 
@@ -465,6 +477,23 @@ function reduceCore(state: RunState, action: Action): RunState {
       spendGold(s, s.upgradeCost);
       s.tier += 1;
       s.upgradeCost = s.tier >= CONFIG.maxTier ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      return s;
+    }
+
+    case 'buyQuest': {
+      // Quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold → it moves to activeQuests,
+      // the offer clears, and the normal tavern rolls (deferred from advanceCombat, honoring a carried freeze).
+      const offer = s.questOffer;
+      if (!offer) return state; // no quest shop open
+      const questId = offer[action.index];
+      if (questId == null || !QUEST_INDEX[questId]) return state; // invalid pick
+      (s.activeQuests ??= []).push({ questId, progress: 0, completed: false });
+      s.questOffer = undefined;
+      if (s.frozen) {
+        topUpTavern(s);
+        injectPendingTavern(s);
+        s.frozen = false;
+      } else refreshTavern(s);
       return s;
     }
 
@@ -1162,7 +1191,14 @@ function advanceCombat(s: RunState): void {
   // (freezing a partial shop shouldn't leave you with fewer options); otherwise full reroll.
   // Either way, queued Fodder (Soulfeeder) still gets injected — freezing must not strand the
   // promised Fodder in `pendingTavern` forever.
-  if (s.frozen) {
+  // Quest-turn (waves 4/8/12): open the quest shop and DEFER the tavern roll until a quest is bought
+  // (`buyQuest` rolls it, honoring any carried-over freeze). An empty offer (no content for the tier) falls
+  // through to a normal turn — a content gap never soft-locks. The "quest phase" is just "questOffer is set"
+  // (no new phase enum); the reducer's modal guard locks every other action until buyQuest resolves.
+  const questOffer = questTierForWave(s.wave) ? generateQuestOffer(s) : [];
+  if (questOffer.length > 0) {
+    s.questOffer = questOffer;
+  } else if (s.frozen) {
     topUpTavern(s);
     injectPendingTavern(s);
     s.frozen = false;
@@ -1201,6 +1237,31 @@ function advanceCombat(s: RunState): void {
   // have tripled back in recruit), and checkTriples pulls from the hand first — removing it offsets the
   // golden it pushes back, so the hand never grows past the cap.
   checkTriples(s);
+}
+
+/** Advance objective progress on every active, incomplete quest watching `event`; complete + apply the reward
+ *  at the threshold. Called from `reduce` after a successful buy / play / sell / roll. */
+function tickQuests(s: RunState, event: QuestObjectiveEvent): void {
+  for (const aq of s.activeQuests ?? []) {
+    if (aq.completed) continue;
+    const def = QUEST_INDEX[aq.questId];
+    if (!def || def.objective.event !== event) continue;
+    aq.progress += 1;
+    if (aq.progress >= def.objective.count) {
+      aq.completed = true;
+      applyQuestReward(s, def);
+    }
+  }
+}
+
+/** Apply a completed quest's reward. Skinny: one flat board buff (via the shared `addBuff`, so it itemizes in
+ *  the inspect breakdown). Grows into the full reward palette (auras, economy, card gen, scaling engines) later. */
+function applyQuestReward(s: RunState, def: QuestDef): void {
+  switch (def.reward.kind) {
+    case 'buffBoard':
+      for (const c of s.board) addBuff(c, `Quest: ${def.name}`, def.reward.attack, def.reward.health);
+      break;
+  }
 }
 
 /**

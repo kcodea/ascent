@@ -82,8 +82,9 @@ A declarative table: `Score = Record<MomentKind, Cue[]>` with
 Day-one score content = today's shipped behavior expressed as data: `attackExchange`, `scCast`,
 `summon`, `buffWave`, `death` (incl. aura death-bursts), `riseDeath` (pull-back → burst at `landed` →
 fade), `reborn` (re-form at +460ms), `shieldBreak` (delayed shatter), `poison`, `venomSpent`,
-`ascend`, `toHand`, `maxGold`, `rally`, `keyword`, `improve`, `hpGrant`, `reveal` — every one of the
-18 event types has a row (silent rows are explicit, not missing).
+`ascend`, `toHand`, `maxGold`, `rally`, `keyword`, `improve`, `hpGrant`, `reveal`, `shieldUp` — every
+one of the 19 event types has a row (silent rows are explicit, not missing; `attackExchange` covers
+both `attack` and its `dmg`/`shield` results). Full vocabulary: `docs/combat-events.md`.
 
 ### ③ Playback Engine (`packages/ui/src/choreo/engine.ts`)
 

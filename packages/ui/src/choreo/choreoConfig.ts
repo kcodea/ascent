@@ -1,9 +1,12 @@
+import type { MomentKind } from './kinds';
+
 /**
- * Tunable parameters for the combat-replay PACING — the beat clock in `useCombatReplay.ts`. The replay plays
- * the deterministic fight one "beat" at a time (an action + its result events); this config sets how long the
- * clock lingers on each beat type, so the fight's RHYTHM can be dialed by eye via the DEV Pacing tuner
- * (`PacingTuner.tsx`) without a code round-trip. The scheduler reads `getPacingConfig()` at each beat, so
- * changes apply to the next beat.
+ * Tunable parameters for the combat-replay CHOREOGRAPHY TIMING — the beat clock in `useCombatReplay.ts`. The
+ * replay plays the deterministic fight one "beat" at a time (an action + its result events); this config sets
+ * how long the clock lingers on each beat type, so the fight's RHYTHM can be dialed by eye via the DEV Pacing
+ * tuner (`PacingTuner.tsx`) without a code round-trip. The scheduler reads `getChoreoConfig()` at each beat, so
+ * changes apply to the next beat. This module supersedes the old pacing-config module (choreographer phase 2
+ * relocation) — same values, same behavior, new home under `choreo/`.
  *
  * Layering (all multiply/divide cleanly, so they don't fight):
  *   beat hold (ms) = delay[beatType] × `speed` ÷ combatSpeed
@@ -16,7 +19,7 @@
  * swing that follows an impact (the "don't blur back-to-back attacks" gap). Everything else is a straight
  * linger. So retuning `speed`/the delays never desyncs the impact — that stays welded to the lunge.
  */
-export interface PacingConfig {
+export interface ChoreoConfig {
   /** Global tempo baseline — scales every beat hold (higher = slower, more deliberate; was the fixed 1.5). */
   speed: number;
   // Action beats (the wind-up / cast held before its result shows).
@@ -62,7 +65,7 @@ export interface PacingConfig {
   finalHold: number;
 }
 
-const DEFAULTS: PacingConfig = {
+const DEFAULTS: ChoreoConfig = {
   speed: 1.5,
   // action beats (ms) — mirror the former DELAY table exactly, so defaults = current behaviour.
   attack: 353, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820,
@@ -74,7 +77,7 @@ const DEFAULTS: PacingConfig = {
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
-export const PACING_RANGES: Record<keyof PacingConfig, [number, number, number]> = {
+export const CHOREO_RANGES: Record<keyof ChoreoConfig, [number, number, number]> = {
   speed: [0.5, 3, 0.05],
   attack: [0, 1200, 10], sc: [0, 1200, 10], summon: [0, 1200, 10], buff: [0, 1200, 10],
   reborn: [0, 1200, 10], improve: [0, 1200, 10], rally: [0, 1200, 10], toHand: [0, 1200, 10],
@@ -83,19 +86,19 @@ export const PACING_RANGES: Record<keyof PacingConfig, [number, number, number]>
   venomLost: [0, 1200, 10], death: [0, 1200, 10],
   floatMs: [400, 3000, 50], deathFloatMs: [300, 2000, 50], finalHold: [200, 2000, 50],
 };
-export const PACING_KEYS = Object.keys(DEFAULTS) as (keyof PacingConfig)[];
+export const CHOREO_KEYS = Object.keys(DEFAULTS) as (keyof ChoreoConfig)[];
 
 const KEY = 'ascent.pacing';
-let cfg: PacingConfig = (() => {
+let cfg: ChoreoConfig = (() => {
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<PacingConfig>) : {}) };
+    return { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<ChoreoConfig>) : {}) };
   } catch {
     return { ...DEFAULTS };
   }
 })();
 
-export function getPacingConfig(): PacingConfig {
+export function getChoreoConfig(): ChoreoConfig {
   return cfg;
 }
 /** The per-beat hold (ms) BEFORE the global `speed`/combatSpeed scaling — a typed lookup by beat type
@@ -104,7 +107,7 @@ export function beatDelay(type: string): number {
   const v = (cfg as unknown as Record<string, number>)[type];
   return typeof v === 'number' ? v : 300;
 }
-export function setPacingValue(key: keyof PacingConfig, value: number): void {
+export function setChoreoValue(key: keyof ChoreoConfig, value: number): void {
   cfg = { ...cfg, [key]: value };
   try {
     localStorage.setItem(KEY, JSON.stringify(cfg));
@@ -112,11 +115,29 @@ export function setPacingValue(key: keyof PacingConfig, value: number): void {
     /* ignore */
   }
 }
-export function resetPacingConfig(): void {
+export function resetChoreoConfig(): void {
   cfg = { ...DEFAULTS };
   try {
     localStorage.removeItem(KEY);
   } catch {
     /* ignore */
   }
+}
+
+/** The pre-scale hold (ms) a moment KIND should reproduce — phase 2 mirrors the representative pacing key so
+ *  on-screen timing is byte-identical (the clock actually keys by primary event type; this is the kind-facing
+ *  view the score will use from phase 4). Impact/death/rise map to their dominant result key; ascend/keyword
+ *  have no own pacing key today (they fell through beatDelay's 300 default) so they map to a related key with
+ *  an intentional value rather than the bare fallback. */
+// `keyof ChoreoConfig` (not `string`) so a typo'd/non-existent key is a compile error, not a silent fall to
+// the 300 default. NOTE: this and `momentKind` (kinds.ts) encode the kind↔event-type relationship in OPPOSITE
+// directions (classify-forward vs hold-lookup-backward) — adding a `MomentKind` variant requires updating both
+// (the `Record<MomentKind, …>` here forces this side exhaustively).
+const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
+  attackExchange: 'attack', impact: 'dmg', death: 'death', riseDeath: 'death', scCast: 'sc',
+  summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
+  toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', hpGrant: 'hpGrant', reveal: 'summon',
+};
+export function holdMsForKind(kind: MomentKind): number {
+  return beatDelay(KIND_TO_KEY[kind]);
 }

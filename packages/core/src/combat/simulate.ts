@@ -51,6 +51,14 @@ export function simulate(
   playerRallyDouble = false,
 ): CombatResult {
   const events: CombatEvent[] = [];
+  // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
+  // each event belongs to. `emit` stamps it; `nextStep()` is called wherever a NEW atomic resolution begins
+  // (one attack swing's exchange, one victim's death resolution, its rattle's effects, one SC cast, …).
+  // Pure metadata: zero logic/RNG/order impact — outcomes are locked by the determinism + golden suites.
+  // Rule of thumb when extending the sim: finer is safer (the UI compiler can MERGE steps, never split them).
+  let stepN = 0;
+  const nextStep = (): void => { stepN++; };
+  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN }); };
   const bus = new CombatBus();
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
@@ -205,7 +213,7 @@ export function simulate(
     fodderConsumedHp,
     deathrattleTally: () => deathrattlesBase + playerDeathrattles,
     log: (event) => {
-      events.push(event);
+      emit(event);
     },
     living,
     getCard: (id) => {
@@ -221,7 +229,7 @@ export function simulate(
       target.attack = Math.max(0, target.attack + attack); // Attack never drops below 0
       target.health += health;
       if (health > 0) target.maxHealth += health;
-      events.push({ type: 'buff', target: target.uid, attack, health, source });
+      emit({ type: 'buff', target: target.uid, attack, health, source });
       // Engraved: a minion that keeps its combat gains accrues every buff into permaGain, which carries
       // back to the run board after the fight (Flowing Monk records its gift directly for non-Engraved).
       if (target.keywords.includes('EG')) {
@@ -272,7 +280,7 @@ export function simulate(
       // `toHand` event so the replay shows the card flying to your hand as it happens.
       if (side === 'player') {
         handGrants.push(cardId);
-        events.push({ type: 'toHand', cardId, side, source: sourceUid });
+        emit({ type: 'toHand', cardId, side, source: sourceUid });
       }
     },
     grantSpellPower: (attack, health, side, sourceUid) => {
@@ -283,7 +291,7 @@ export function simulate(
       spellPower.attack += attack; // keep ctx.spellPower LIVE so Taragosa's Growth scales with the gain at once
       spellPower.health += health;
       // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain.
-      if (sourceUid && (attack !== 0 || health !== 0)) events.push({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Spell Power` });
+      if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Spell Power` });
     },
     grantCardBuff: (cardId, attack, health, side) => {
       // Player-only — accumulate per cardId and carry back via playerCardBuffs.
@@ -316,7 +324,7 @@ export function simulate(
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(rng.next() * pool.length)]!;
         handGrants.push(pick.id);
-        events.push({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+        emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
       }
     },
     grantRandomMinion: (count, tribe, side, exclude, sourceUid) => {
@@ -331,7 +339,7 @@ export function simulate(
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(rng.next() * pool.length)]!;
         handGrants.push(pick.id);
-        events.push({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+        emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
       }
     },
     grantImpBuff: (attack, health, side) => {
@@ -418,7 +426,7 @@ export function simulate(
       }
     }
     registerEffects(minion);
-    events.push({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
+    emit({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
     bus.emit('onSummon', { minion, side });
     applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
     // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
@@ -455,6 +463,7 @@ export function simulate(
   function ascendMinion(minion: Minion, into: string): void {
     const def = cards[into];
     if (!def || minion.dead || minion.health <= 0 || minion.cardId === into) return;
+    nextStep(); // a mid-combat transform is its own moment (bumped after the guard — no empty steps)
     minion.cardId = into;
     minion.name = def.name;
     minion.tribe = def.tribe;
@@ -469,7 +478,7 @@ export function simulate(
     }
     minion.effects = def.effects; // old handlers self-disable (the includes-guard above); register the new ones
     registerEffects(minion);
-    events.push({ type: 'ascend', target: minion.uid, into });
+    emit({ type: 'ascend', target: minion.uid, into });
   }
   function flushAscensions(): void {
     while (pendingAscensions.length > 0) {
@@ -510,6 +519,7 @@ export function simulate(
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
+    nextStep(); // this victim's death is its own resolution step (the exchange's damage came before)
     // Reborn (A.3 step 6): a minion's FIRST death fires its Deathrattle / on-death effects, then it returns
     // ONCE at its *base ATTACK* with **1 Health** (Hearthstone-style — regardless of its printed Health),
     // shedding combat buffs + granted keywords (Divine Shield, etc.), keeping printed keywords (minus the spent
@@ -533,7 +543,8 @@ export function simulate(
       const slot = arr.indexOf(minion);
       minion.dead = true;
       minion.health = 0;
-      events.push({ type: 'death', target: minion.uid, side: minion.side, rise: true });
+      emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
+      nextStep(); // the rattle's effects are a separate resolution from the death itself
       fireOwnDeathrattles(minion);
       // Board cap gates the Rise (owner ruling 2026-07-02): the Deathrattle resolved FIRST — its summons can
       // take the last slots, since the dying body holds none — and if the side is at 7 living the minion does
@@ -574,17 +585,19 @@ export function simulate(
       while (at < arr.length && !before.has(arr[at]!.uid)) at++; // skip the tokens the rattle just summoned
       arr.splice(at, 0, minion);
       const after = at > slot ? arr[at - 1]!.uid : undefined; // anchor the UI re-slot to the token on its left
-      events.push({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}) });
+      nextStep(); // the body's return is its own moment, after the rattle's summons
+      emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}) });
       applyTribeAuras(minion); // a Reborn Beast inherits Kennelmaster's aura too ("summoned in any way")
       return;
     }
     minion.dead = true;
     minion.health = 0;
-    events.push({ type: 'death', target: minion.uid, side: minion.side });
+    emit({ type: 'death', target: minion.uid, side: minion.side });
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff).
     if (minion.side === 'enemy') enemyDeaths++;
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
     if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles++;
+    nextStep(); // Deathrattles + on-death watchers resolve as their own step
     bus.emit('onDeath', { minion, side: minion.side, killer });
     // Sylus the Reaper: the dying minion's own Deathrattle procs extra times (golden = +2;
     // multiple Sylus stack additively). Re-runs only this minion's onDeath effects.
@@ -609,13 +622,14 @@ export function simulate(
   const pendingResummons: { anchor: Minion; board: BoardMinion }[] = [];
   function flushResummons(): void {
     while (pendingResummons.length > 0 && living('player').length < 7) {
+      nextStep(); // each reclaimed body re-entering is its own moment
       const { anchor, board } = pendingResummons.shift()!;
       const copy = instantiate(board, 'player', cards, mkUid);
       applyCombatGains(copy); // re-apply per-card stacks banked this fight (its own destroy + other deaths)
       const at = boards.player.indexOf(anchor);
       boards.player.splice(at >= 0 ? at + 1 : boards.player.length, 0, copy);
       registerEffects(copy);
-      events.push({ type: 'summon', minion: snapshot(copy), side: 'player', index: boards.player.indexOf(copy), source: anchor.uid });
+      emit({ type: 'summon', minion: snapshot(copy), side: 'player', index: boards.player.indexOf(copy), source: anchor.uid });
       bus.emit('onSummon', { minion: copy, side: 'player' });
       applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too
     }
@@ -645,12 +659,12 @@ export function simulate(
     if (!bypassShield && target.divineShield) {
       target.divineShield = false;
       target.keywords = target.keywords.filter((k) => k !== 'DS');
-      events.push({ type: 'shield', target: target.uid });
+      emit({ type: 'shield', target: target.uid });
       bus.emit('onLoseDivineShield', { minion: target, side: target.side });
       return;
     }
     target.health -= amount;
-    events.push({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health) });
+    emit({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health) });
     // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
     if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side });
     // Venomous: reaching here means the hit actually landed (Immune + Divine Shield already returned
@@ -659,11 +673,11 @@ export function simulate(
     // damage*, and the venom procs/drops off whichever side it lands on (main hit or retaliation).
     if (poison) {
       if (target.health > 0) target.health = 0;
-      events.push({ type: 'poison', target: target.uid });
+      emit({ type: 'poison', target: target.uid });
       // Venomous proc: the poisoner spends its venom (drops off for the rest of combat).
       if (poisoner && poisoner.keywords.includes('V')) {
         poisoner.keywords = poisoner.keywords.filter((k) => k !== 'V');
-        events.push({ type: 'venomLost', target: poisoner.uid });
+        emit({ type: 'venomLost', target: poisoner.uid });
       }
     }
   }
@@ -693,17 +707,19 @@ export function simulate(
 
   function performAttack(attacker: Minion, defenderSide: Side, depth: number): void {
     if (attacker.dead || attacker.health <= 0) return;
+    nextStep(); // a new exchange begins (re-attacks and Whelp strikes each get their own step too)
     // Stealth is lost the moment a minion attacks (A.4) — it becomes targetable.
     if (attacker.keywords.includes('ST')) {
       attacker.keywords = attacker.keywords.filter((k) => k !== 'ST');
-      events.push({ type: 'reveal', target: attacker.uid });
+      emit({ type: 'reveal', target: attacker.uid });
     }
     const swings = attacker.keywords.includes('W') ? 2 : 1; // Windfury (A.3 step 5)
     for (let s = 0; s < swings; s++) {
       if (attacker.dead || attacker.health <= 0) break;
       const target = chooseTarget(defenderSide);
       if (!target) break;
-      events.push({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s });
+      if (s > 0) nextStep(); // each Windfury swing is its own exchange
+      emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s });
       bus.emit('onAttack', { minion: attacker, side: attacker.side }); // Rally + on-attack effects
       // Rallying Offensive ("your Rallys trigger twice next combat"): re-run only THIS attacker's OWN
       // on-attack (Rally) effects one more time — invoked directly, not via the bus, so other minions'
@@ -774,6 +790,7 @@ export function simulate(
       // it returns — it spent its Reborn. Emitted in damage order after phase 2, crediting each fallen
       // body's killer; a dead killer's handlers self-suppress in registerEffects (a mutual kill procs
       // nothing, unchanged from before).
+      nextStep(); // on-kill rewards resolve as their own step, after every death in the clash
       for (const { m, killer, couldReborn } of victims) {
         if (m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) {
           bus.emit('onKill', { attacker: killer, victim: m });
@@ -795,13 +812,17 @@ export function simulate(
   function flushImmediateAttacks(): void {
     let guard = 0;
     while (pendingAttackOnSummon.length > 0 && guard++ < IMMEDIATE_ATTACK_GUARD) {
+      // Each out-of-turn strike opens a fresh moment: a Solaris shield grant lands here, then performAttack's
+      // own entry bump gives the swing itself the next step (grant → strike, two beats, never merged into the
+      // death resolution that queued them).
+      nextStep();
       const { minion: m, shieldFirst } = pendingAttackOnSummon.shift()!;
       // Grant a fresh Ward immediately before this strike (Solaris Fang's Avenge). Paired with the strike so a
       // golden Solaris — which queues two — goes in shielded on EACH. Idempotent (no double shield).
       if (shieldFirst && !m.dead && m.health > 0 && !m.divineShield) {
         m.divineShield = true;
         if (!m.keywords.includes('DS')) m.keywords.push('DS');
-        events.push({ type: 'shieldUp', target: m.uid });
+        emit({ type: 'shieldUp', target: m.uid });
       }
       if (m.dead || m.health <= 0 || m.attack <= 0) continue;
       if (countLiving(OTHER[m.side]) === 0) continue;
@@ -856,7 +877,7 @@ export function simulate(
       for (const effect of minion.effects) {
         if (effect.on !== 'startOfCombat') continue;
         const fn = FACTORIES[effect.do];
-        if (fn) fn(ctx, minion, effect.params ?? {}, {});
+        if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
       }
     }
   }

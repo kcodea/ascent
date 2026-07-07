@@ -6,8 +6,9 @@ import { sfx } from './sfx';
 import { pixiFx } from './pixiFx';
 import { getLungeConfig } from './lungeConfig';
 import { getTrailConfig } from './trailConfig';
-import { getChoreoConfig, beatDelay } from './choreo/choreoConfig';
-import { RESULT_TYPES, attackerOfImpact } from './combatBeats';
+import { getChoreoConfig } from './choreo/choreoConfig';
+import { attackerOfImpact } from './combatBeats';
+import { holdMs } from './choreo/clock';
 import { compileMoments } from './choreo/compile';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 
@@ -217,10 +218,10 @@ function computeFrame(
 }
 
 // Per-beat lengths (ms) + the global tempo baseline + float/hold lifetimes all live in `choreo/choreoConfig.ts`,
-// live-tunable via the DEV Pacing tuner. The scheduler reads `getChoreoConfig()` / `beatDelay(type)` at each
-// beat, so retuning applies to the next beat. Defaults there mirror the former hardcoded constants exactly.
-// The `attack` (wind-up) beat's hold is NOT `beatDelay('attack')` — it's overridden below by the lunge's
-// connection time (from lungeConfig.ts) so the damage float always lands ON contact, independent of pacing.
+// live-tunable via the DEV Pacing tuner. The beat clock's hold formula lives in the pure `holdMs`
+// (`choreo/clock.ts`) — it reads choreoConfig by primary event type each beat, so retuning applies to the
+// next beat, and welds the `attack` (wind-up) beat to the lunge connection time (from lungeConfig.ts) so the
+// damage float always lands ON contact, independent of pacing.
 
 /** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
  *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
@@ -568,23 +569,11 @@ export function useCombatReplay(
   // don't pile up in the background and fire as one loud burst on tab-in; the clock resumes on return).
   useEffect(() => {
     if (!active || hidden || beatIdx >= beats.length) return;
-    const beat = beats[beatIdx]!;
-    const pc = getChoreoConfig(); // live-tunable (DEV Pacing tuner) → applies to the next beat
-    let d = beatDelay(beat.primary.type) * pc.speed;
-    // The beat on screen is beats[beatIdx-1]; the scheduler controls how long it stays before beats[beatIdx]
-    // shows. The lunge config tunes two combat-feel beats (live via the DEV Lunge tuner):
+    // The moment on screen is beats[beatIdx-1]; the clock decides how long it stays before beats[beatIdx].
+    // The whole hold formula (choreoConfig tempo + per-type holds, the attack-wind-up lunge weld, the
+    // post-impact attackGap, the combatSpeed divide) lives in the pure `holdMs` (choreo/clock.ts).
     const shown = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
-    const c = getLungeConfig();
-    if (shown?.primary.type === 'attack') {
-      // The ATTACK (wind-up) hands off to its impact the instant the lunge CONNECTS — not after the attacker
-      // settles. Connection = windup+strike (GSAP seconds, NOT ×SPEED); the smack fires `smackLead` before
-      // that. Hold the wind-up only until the smack, then advance → the damage beat lands right on contact.
-      d = Math.max(120, (c.windupDur + c.strikeDur - c.smackLead) * 1000);
-    } else if (shown && RESULT_TYPES.has(shown.primary.type) && beat.primary.type === 'attack') {
-      // A breather AFTER an impact, before the next swing, so back-to-back attacks don't blur together.
-      d += c.attackGap * 1000;
-    }
-    d /= combatSpeed; // user speed multiplier — the lunge timeScale divides the same connection time, so they stay in sync
+    const d = holdMs(beats[beatIdx]!, shown, combatSpeed);
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
   }, [active, hidden, beatIdx, beats, combatSpeed]);

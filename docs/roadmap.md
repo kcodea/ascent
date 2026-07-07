@@ -178,6 +178,33 @@ look because the engine already produces the data.
 
 ---
 
+## Combat Choreographer (spec: [docs/superpowers/specs/2026-07-06-combat-choreographer-design.md](superpowers/specs/2026-07-06-combat-choreographer-design.md))
+
+One system to own presentation of the combat event log — grouping, order/stagger, hold times, and
+which effect channels fire at which offsets — replacing the current split across `buildBeats`,
+`pacingConfig`, `useCombatReplay`'s scheduler, and the aura tracker. Four phases, each its own PR,
+`main` always playable; each phase besides the last is a no-visible-change refactor.
+
+- **Phase 1 — step tags + Compiler** — ✅ **shipped 2026-07-06** (→ devlog). `CombatEvent.step` +
+  `simulate()`'s resolution-boundary counter (outcome-neutral, proven against a `main` worktree);
+  `compileMoments` (`packages/ui/src/choreo/compile.ts`) reproduces `buildBeats` byte-identically
+  while carrying sim-declared `stepGroups`; `useCombatReplay` consumes it. Reference doc:
+  [`docs/combat-events.md`](combat-events.md).
+- **Phase 2 — Engine.** The clock + per-moment cue timelines, reproducing today's pacing exactly
+  (pacing defaults migrate into a new `choreoConfig`; the Pacing DEV tuner stays functional but
+  marked deprecated). No visible change. **Depends:** phase 1.
+- **Phase 3 — Channels.** Move one effect channel per commit into the score: sfx → damage floats →
+  CSS animations → Pixi FX/impact → lunge/pull-back → aura bursts. Each commit stays
+  behavior-preserving; this phase retires the cross-file timing welds (`data-rising`, the smack-lead
+  math, the Reborn 460ms) as their channels land in the score — this IS the original "hit
+  choreographer" ask. **Depends:** phase 2.
+- **Phase 4 — Authoring.** Staggers, `splitPerTarget`/`chain` grouping rules, a new 🎬 Choreography
+  DEV panel, retiring the Pacing tuner for good, and the first real re-choreographs as proof (an AOE
+  death ripple; a Deathrattle chain folded into its death moment; shield-break-before-damage-number
+  ordering). **Note:** `GroupingRules` (today: `Set<CombatEvent['type']>` membership tests) will need
+  to grow into predicate/key-based rules to express `chain`/`splitPerTarget` — expect the interface
+  in `compile.ts` to widen past simple type-set fields. **Depends:** phase 3.
+
 ## Cross-cutting threads (ongoing, alongside the phases)
 
 ### Balance & power outliers

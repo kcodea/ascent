@@ -214,16 +214,18 @@ which effect channels fire at which offsets — replacing the current split acro
   former inline per-beat combat-sound dispatch (the `once`-dedup, event→sound map, real-death-vs-Rise
   shake distinction). `useCombatReplay`'s SFX effect is now a one-line `runMomentCues` call.
   UI-only, invisible: 551 tests + build green, live smoke on a real combat, zero console errors.
-- **Phase 3b — the contact cluster.** The GSAP cue-timeline engine + a real `contact` anchor, moving
-  lunge/impact/hit/damage-float/recoil onto it — retires the smack-lead weld (the attack-wind-up's
-  `windup+strike−smackLead` math in `clock.ts`). This is where `runMomentCues`'s single
-  `if (cue.ch === 'sfx')` branch becomes a channel-handler registry as the float/anim/impact channels
-  join sfx. **Phase-2/3a carry-ins to resolve here:** (a) the `impact` MomentKind collapses
-  dmg/shield/shieldUp/poison/venomLost — when kinds become the score/hold key it likely needs
-  splitting into `damage`/`shieldPop`/`poisonTick` (or per-`impact` cue branching on `primary.type`);
-  (b) add a Rise/Windfury/venom-heavy compiler equivalence fixture; (c) `holdMsForKind`'s
-  `KIND_TO_KEY` is lossy for `impact` (maps to `dmg` 460, not poison's 500) — resolve when it goes
-  live. **Depends:** phase 3a.
+- **Phase 3b — the contact cluster.** ✅ **shipped 2026-07-07** (→ devlog). The GSAP cue-timeline
+  **engine** (`choreo/engine.ts` — `runAttackExchangeCues`) + `float`/`impact`/`lunge` channel adapters
+  land; the attack lunge, contact FX/sfx/recoil, and the beat-advance now run off one GSAP `contact`
+  position, retiring the clock's smack-lead weld (`windup+strike−smackLead`). `runMomentCues` became a
+  real channel-handler registry (sfx + float; lunge/impact engine-driven). **Phase-2/3a carry-ins,
+  resolved here:** (a) ✅ the `impact` MomentKind split into `damage`/`shieldPop`/`poisonTick`; (b) ✅ a
+  Rise/Windfury/venom-heavy compiler equivalence fixture added; (c) ✅ `KIND_TO_KEY`'s poison lossiness
+  fixed (poison now holds 500 ms, not 460). Two robustness fixes: the scheduler falls back to the
+  setTimeout clock if an attack's DOM elements don't resolve (no soft-lock), and a mid-beat speed toggle
+  no longer re-fires that beat's sfx/shake. Accepted nuance: backgrounding the tab mid-lunge resumes the
+  lunge in place (GSAP timeline) rather than resetting it. UI-only: 569 tests + build green, live smoke
+  on a real combat, zero console errors. **Depends:** phase 3a.
 - **Phase 3c — aura bursts.** Move burst/break authority out of `Recruit.tsx`'s `syncShields` to a
   `landed` anchor in the score — retires the `data-rising`/Reborn-460ms cross-file timing welds.
   **Depends:** phase 3b (needs the timeline engine + `landed` anchor it introduces).

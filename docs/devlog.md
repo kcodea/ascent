@@ -3,6 +3,60 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-07 (session 21)
+
+### feat: Combat Choreographer — Phase 3b (the contact cluster)
+
+Phase 3b of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [choreographer-phase3b](superpowers/plans/2026-07-07-choreographer-phase3b.md)). Still **UI-only,
+no gameplay/outcome change** — this is the phase where the Score seam grows a real GSAP cue-timeline
+**engine** and three of the heavy per-beat effects (float, impact, lunge) move onto it, so the attack
+lunge, the contact FX/sfx/recoil, and the beat-advance all fire off **one** timeline position instead
+of separately-computed formulas that merely agreed in value.
+
+- **`choreo/engine.ts` — `runAttackExchangeCues`, the cue-timeline composer.** For the `attackExchange`
+  moment it reads `SCORE['attackExchange']` and builds a single GSAP timeline: it runs the lunge motion,
+  and at the real `contact` position of that lunge it fires the contact-anchored impact channel **and**
+  calls the beat-advance. The old model computed the wind-up→impact hold as a number and let the impact
+  FX + the moment advance each hang off their own timer that happened to match; now one GSAP event at the
+  `contact` anchor drives both, so they cannot drift.
+- **Three new channel adapters, each a verbatim extraction of former `useCombatReplay` inline logic:**
+  - `choreo/channels/float.ts` — `spawnFloats`, the per-beat damage/buff/poison/shield/keyword float
+    spawner, moved across verbatim: the dying-unit board-overlay `DeathFloat`, the per-target buff
+    summing, and the attacker-retaliation suppression all come with it unchanged.
+  - `choreo/channels/impact.ts` — `playContactImpact` + `hitPower`, the melee smack: `sfx.hit` +
+    `pixiFx.impact` flash/sparks + the defender knockback, scaled by hit power.
+  - `choreo/channels/lunge.ts` — `playLunge`, the wind-up/strike/settle motion, with the contact moment
+    factored out to an `onContact` callback so the engine can hang the impact channel + advance on it.
+- **`choreo/score.ts`'s `runMomentCues` is now a real channel-handler registry** (sfx + float dispatched
+  by `cue.ch`; lunge/impact are engine-driven off the timeline rather than the flat runner) — the phase-3a
+  single `if (cue.ch === 'sfx')` branch is retired as promised.
+- **The `clock.ts` smack-lead WELD is retired.** The attack-wind-up→impact transition is no longer a
+  separately-computed hold formula in `holdMs` (`windup + strike − smackLead`); the engine's GSAP timeline
+  advances the moment at the true `contact` position. One timeline event now drives both the impact FX and
+  the moment advance, instead of two formulas kept in sync by hand.
+- **Phase-2/3a carry-ins resolved here:** the `impact` `MomentKind` split into `damage` / `shieldPop` /
+  `poisonTick`, which fixes `KIND_TO_KEY`'s poison lossiness — poison now correctly holds **500 ms**, not
+  the 460 it collapsed to under the shared `impact→dmg` mapping. A Rise/Windfury/venom-heavy compiler
+  equivalence fixture was added to lock the compiler's byte-identical output on those trigger-heavy paths.
+- **Two review-driven robustness fixes in the integration:** (1) the scheduler falls back to the legacy
+  `setTimeout` clock if an attack's DOM elements don't resolve, so a missing element can never soft-lock
+  the replay; (2) a mid-beat combat-speed toggle no longer re-fires that beat's sfx/shake — `combatSpeed`
+  is read via a ref and dropped from the merged cue effect's deps, so changing speed mid-beat doesn't
+  re-run the beat's one-shot cues.
+- **One accepted behavior nuance (called out, not hidden):** backgrounding the tab mid-lunge now **resumes
+  the lunge in place** (it's a GSAP timeline) rather than resetting it (the old `setTimeout` scheduler's
+  behavior). Accepted as the better feel; noted so it isn't a surprise.
+- **Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` — **569 tests** green;
+  `typecheck:web` at its 21-error baseline (no new errors). Live smoke: entering a real combat mounts +
+  renders the replay with zero console errors. The full lunge feel-pass — smack-on-contact timing at 1×
+  and faster, in a focused window — is the owner's and is **pending** (the repo's real gate per CLAUDE.md).
+- **Follow-ups (next):** **Phase 3c — aura bursts** — move burst/break authority out of `Recruit.tsx`'s
+  `syncShields` to a `landed` anchor in the score, retiring the `data-rising`/Reborn-460 ms cross-file
+  timing welds (CSS animations stay render-owned, not scored). The accepted hidden-tab
+  resume-vs-reset nuance above is the one intentional behavior change to keep an eye on. See
+  [roadmap.md](roadmap.md)'s Combat Choreographer section for the full phase breakdown.
+
 ## 2026-07-06 (session 20)
 
 ### feat: Combat Choreographer — Phase 3a (Score seam + the sfx channel)

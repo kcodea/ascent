@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat Choreographer — Phase 3b (the contact cluster)** — the GSAP cue-timeline engine
+  (`choreo/engine.ts`) + float/impact/lunge channel adapters land; the attack lunge, contact FX/sfx/recoil,
+  and the beat advance now run off one GSAP `contact` position (retiring the clock's smack-lead weld).
+  Invisible; sets up phase 3c's aura bursts.
 - **Quest system — engine framework (headless; UI is the next PR)** — the skinny first half of quests (M3): on
   waves 4/8/12 a quest shop offers 3 quests (1 neutral + 2 tribes, bought for 0 Gold) into a persistent quest
   list; objectives tick during play and apply a reward on completion. Seeded/deterministic + fully tested.

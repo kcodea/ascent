@@ -5,6 +5,41 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
+### feat: Combat Choreographer — Phase 3a (Score seam + the sfx channel)
+
+Phase 3a of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [choreographer-phase3a](superpowers/plans/2026-07-06-choreographer-phase3a.md)). All **UI-only,
+invisible** — this ships the Score → channel-adapter → runner seam with `sfx` as its first client, a
+verbatim relocation of existing behavior, nothing new on screen.
+
+- **`choreo/channels/sfx.ts` — the sfx channel adapter.** `playMomentSfx(moment, events): { shake }` is a
+  verbatim extraction of `useCombatReplay`'s former inline per-beat combat-sound dispatch: the `once`-keyed
+  dedup so a moment with several same-type events (e.g. a multi-hit clash) plays each sound once, the
+  event→sound mapping (attack, sc-cast, death, reborn, shieldUp, buff, maxGold, summon), and the
+  real-death-vs-Rise distinction (a genuine death plays the death sound + signals a shake; a Rise plays the
+  soft spirit-shatter cue with no shake — the body is coming back). Spy-tested against `sfx.*`.
+- **`choreo/score.ts` — the Score seam.** `Channel`/`Anchor`/`Cue` types (phase 3a: one channel, `sfx`, one
+  anchor, `start` — the GSAP cue-timeline engine that adds real offsets/`contact`/`landed` lands in 3b); an
+  **exhaustive** `SCORE: Record<MomentKind, Cue[]>` — every one of the 16 `MomentKind`s gets its own
+  `[{ ch: 'sfx', at: 'start' }]` entry, each kind's array a **separate literal**, not a shared reference (a
+  review-driven fix — sharing one array across kinds would make a future phase-3b per-kind edit silently
+  mutate every other kind too). `CueContext { events, onShake }` + `runMomentCues(moment, ctx)` walks a
+  moment's scored cues and dispatches by `cue.ch` (today a single `if (cue.ch === 'sfx')` branch — noted
+  in-code and in the roadmap to become a channel-handler registry once more channels land).
+- **`useCombatReplay`** — the old inline SFX effect (the `once`-dedup + event switch, duplicated logic) is
+  now a one-line call: `runMomentCues(beat, { events, onShake: () => setShake((n) => n + 1) })`. Same
+  dedup, same sounds, same shake trigger — behavior-identical by construction.
+- **Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` — **551 tests** green
+  (545 baseline + the new sfx-adapter spy tests + score/runner tests). Live smoke: booted the app, drove a
+  real practice fight through a full ~9-event combat to completion — sounds fired identically, zero console
+  errors.
+- **Process note:** a review pass on the Score commit caught the shared-cue-array hazard above (task 2 of
+  the plan) before it shipped; fixed in the same PR (ddee945) with an explicit no-shared-reference comment.
+- **Follow-ups (next):** **Phase 3b** — the GSAP cue-timeline engine + a real `contact` anchor +
+  damage-float channel + Pixi FX/impact, which is when `runMomentCues`'s single sfx branch becomes a
+  registry. CSS animations stay render-owned (not scored) through 3b. **Phase 3c** — aura bursts. See
+  [roadmap.md](roadmap.md)'s Combat Choreographer section for the full phase breakdown.
+
 ### feat(sim): Quest system — the skinny engine framework (waves 4/8/12 quest shop → objectives → rewards; PR 1 of 2)
 
 The first half of the quest system (M3 / roadmap C1): a headless, fully-tested **engine** with pure test quests

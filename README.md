@@ -28,6 +28,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Quest system — engine framework (headless; UI is the next PR)** — the skinny first half of quests (M3): on
   waves 4/8/12 a quest shop offers 3 quests (1 neutral + 2 tribes, bought for 0 Gold) into a persistent quest
   list; objectives tick during play and apply a reward on completion. Seeded/deterministic + fully tested.
+- **Combat Choreographer — Phase 3a (Score seam + SFX channel)** — the choreographer's Score
+  (`SCORE: Record<MomentKind, Cue[]>` + `runMomentCues`) lands with `sfx` as its first channel — a verbatim
+  relocation of the combat-sound dispatch out of `useCombatReplay`. Invisible; sets up phase 3b's damage
+  floats + FX/impact channels.
 - **Combat Choreographer — Phase 2 (replay clock)** — the combat-replay beat scheduler is now a pure,
   unit-tested `holdMs` clock; each moment carries a `MomentKind`; pacing config moved into
   `choreo/choreoConfig`. All invisible (timing byte-identical) — the seam phase 3 hangs effect channels on.

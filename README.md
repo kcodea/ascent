@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat Choreographer — Phase 2 (replay clock)** — the combat-replay beat scheduler is now a pure,
+  unit-tested `holdMs` clock; each moment carries a `MomentKind`; pacing config moved into
+  `choreo/choreoConfig`. All invisible (timing byte-identical) — the seam phase 3 hangs effect channels on.
 - **Combat Choreographer — Phase 1 (engine foundation)** — the combat sim now stamps every event
   with a resolution-step tag (pure metadata, outcome-neutral) and a new Moment Compiler
   (`compileMoments`) reproduces today's combat-beat grouping byte-identically while carrying that

@@ -12,5 +12,8 @@ export default defineConfig({
   },
   test: {
     include: ['packages/**/*.test.ts'],
+    // Polyfill `navigator` for Node < 21 (CI pins Node 20) so pixi.js's module-load `isSafari()` doesn't throw
+    // when a test transitively imports pixiFx (the choreographer impact/lunge/engine tests). See the setup file.
+    setupFiles: ['./vitest.setup.ts'],
   },
 });

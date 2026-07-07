@@ -25,6 +25,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat Choreographer — Phase 1 (engine foundation)** — the combat sim now stamps every event
+  with a resolution-step tag (pure metadata, outcome-neutral) and a new Moment Compiler
+  (`compileMoments`) reproduces today's combat-beat grouping byte-identically while carrying that
+  sim-declared simultaneity forward. No visible change yet — this is the honesty foundation phases
+  2–4 build the real choreographer on. See [docs/combat-events.md](docs/combat-events.md) for the
+  event vocabulary + trigger-order reference.
 - **Layout Lab (dev)** — a new Dev Tuning entry ("📐 Scale & Layout") to live-scale, space, + reposition the
   board: global card + UI-chrome scale, per-row card size + spacing, and X/Y offsets for the warband, hand, and
   HUD. Drives CSS vars, dev-only (production ships the stock layout).

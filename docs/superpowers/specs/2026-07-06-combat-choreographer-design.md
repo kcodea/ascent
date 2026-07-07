@@ -22,6 +22,10 @@ sync by timing math, which is how the Rise double-burst class of bugs happens.
 
 ## Architecture
 
+> **Reference:** the full event vocabulary + combat lifecycle/trigger order + the exchange
+> micro-order + how step tags map onto it all live in [`docs/combat-events.md`](../../combat-events.md)
+> — read that alongside this spec when authoring phase 2–4 score/grouping rules.
+
 ```
 events[] ─▶ ① Moment Compiler ─▶ moments[] ─▶ ② Score ─▶ ③ Playback Engine ─▶ ④ Channel Adapters
              (config-driven          (ordered      (per-kind     (clock, cues,        lunge · pixiFx · floats ·

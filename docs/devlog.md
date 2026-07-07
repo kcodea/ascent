@@ -5,6 +5,55 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
+### feat: Combat Choreographer — Phase 1 (sim step tags + the Moment Compiler)
+
+Owner ask (design doc: [docs/superpowers/specs/2026-07-06-combat-choreographer-design.md](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [docs/superpowers/plans/2026-07-06-choreographer-phase1.md](superpowers/plans/2026-07-06-choreographer-phase1.md)):
+a single system to own presentation of the combat event log (grouping, order/stagger, hold times,
+channel firing) instead of the current split across `buildBeats`, `pacingConfig`, `useCombatReplay`,
+and the aura tracker. Phase 1 lays the honesty foundation — sim-declared simultaneity — with **zero
+visible change**.
+
+- **`packages/core` — step tags.** `CombatEvent` gains an optional `step?: number`. `simulate()` now
+  routes every emission through an internal `emit()` that stamps the current `stepN`; `nextStep()`
+  bumps the counter at every atomic resolution boundary: one attack swing's wind-up + Phase 1
+  (each Windfury swing / Gnasher re-attack opens its own), one victim's death resolution, its
+  rattle's effects (a separate step from the death itself), a Rise's body returning (after the
+  rattle's summons), on-kill rewards (one step for the whole clash's batch, after ALL deaths — a
+  review-driven fix; it originally risked reading as per-victim), a Start-of-Combat cast, an
+  out-of-turn Whelp/queued strike, a Reclaimer resummon re-entering, a mid-combat ascend. Pure
+  metadata — zero logic/RNG/order changes. 5 new step-invariant tests: monotonic increase, an
+  exchange's attack+Phase-1 share a step, a rattle's step is strictly later than its death's, an
+  on-kill reward's step is strictly later than the death it rewards, and tags are deterministic
+  across identical re-runs.
+- **Outcome-neutrality evidence.** 462 baseline tests pass byte-identically on `main` AND on this
+  branch (verified in a throwaway `main` worktree — same pass/fail set, no golden drift);
+  `npm run harness` stays deterministic (`RESULT: WIN, EVENTS: 48`, identical on re-run); the 5 new
+  tag tests bring core+sim to 467.
+- **`packages/ui/src/choreo/compile.ts` — the Moment Compiler.** New `compileMoments(events, rules)`
+  with `DEFAULT_RULES` that reproduces `buildBeats` byte-identically (equivalence tests over 3 real
+  fight logs) while also carrying each moment's `stepGroups` — sim-declared simultaneity grouped by
+  the new step tags; an untagged event (legacy saved replay, synthetic fixture) is always its own
+  group — a review-driven safety law ("no sim-declared simultaneity ⇒ no reorder freedom"), since
+  `undefined !== undefined` would otherwise wrongly merge consecutive untagged events. `buildBeats`
+  stays as the equivalence ORACLE (both sides carry "do not dedupe" guard comments) — a review flag
+  on the original comment ("superseded at runtime by choreo/compile.ts") is now stated explicitly in
+  `combatBeats.ts`'s header, alongside the oracle note and its role as `attackerOfImpact`'s home.
+- **`useCombatReplay`** now consumes `compileMoments` instead of `buildBeats` directly (`Moment`
+  extends `Beat`, so every downstream consumer — the scheduler, float/anim derivation,
+  `attackerOfImpact` — is unchanged). Live-verified: booted the app, drove a practice fight into the
+  combat arena, zero console errors.
+- **New reference doc** [`docs/combat-events.md`](combat-events.md) — the 19-type event vocabulary
+  (grouped by family: actions / impact results / board+meta), the full combat lifecycle in trigger
+  order (Reclaimer destruction → Start-of-Combat casts → first-attacker rule → the alternating
+  attack loop with its per-attack flush order → outcome → loss damage), the exchange micro-order
+  (Phase 1 simultaneous damage → Phase 2 deaths in damage order → on-kill rewards after all deaths),
+  and how the step tags map onto all of it — the score-authoring reference phases 2–4 will lean on.
+  Linked from the spec's Architecture section.
+- **Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` — 526 tests
+  green (462 baseline + 5 new tag tests + equivalence/compiler tests), build green,
+  `typecheck:web` at its pre-existing 21-error baseline (zero new errors introduced).
+
 ### tweak(ui): Continue button shows just "Round N" (hero name was clipping)
 
 Owner report: the title's Continue note ("{hero} · Round N") was getting cut off — with the Clear-run button now

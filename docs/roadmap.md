@@ -185,19 +185,28 @@ which effect channels fire at which offsets — replacing the current split acro
 `pacingConfig`, `useCombatReplay`'s scheduler, and the aura tracker. Four phases, each its own PR,
 `main` always playable; each phase besides the last is a no-visible-change refactor.
 
-- **Phase 1 — step tags + Compiler** — ✅ **shipped 2026-07-06** (→ devlog). `CombatEvent.step` +
+- **Phase 1 — step tags + Compiler** — ✅ **shipped 2026-07-06** (#185; → devlog). `CombatEvent.step` +
   `simulate()`'s resolution-boundary counter (outcome-neutral, proven against a `main` worktree);
   `compileMoments` (`packages/ui/src/choreo/compile.ts`) reproduces `buildBeats` byte-identically
   while carrying sim-declared `stepGroups`; `useCombatReplay` consumes it. Reference doc:
   [`docs/combat-events.md`](combat-events.md).
-- **Phase 2 — Engine.** The clock + per-moment cue timelines, reproducing today's pacing exactly
-  (pacing defaults migrate into a new `choreoConfig`; the Pacing DEV tuner stays functional but
-  marked deprecated). No visible change. **Depends:** phase 1.
+- **Phase 2 — Engine (clock + kinds + config).** ✅ **shipped 2026-07-06** (→ devlog). `MomentKind`
+  classifier + `kind` on every compiled moment; `pacingConfig` migrated to
+  `packages/ui/src/choreo/choreoConfig.ts` (values identical, `ascent.pacing` localStorage key kept;
+  Pacing tuner re-pointed + marked deprecated-but-functional); the pure `holdMs` (`choreo/clock.ts`)
+  encapsulates the exact former hold formula (unit-locked to the legacy numbers) and now drives the
+  scheduler. No visible change. Scope ruling: the per-moment GSAP cue-timeline mechanism was deferred
+  to phase 3 (channels give it a reason to exist). **Depends:** phase 1.
 - **Phase 3 — Channels.** Move one effect channel per commit into the score: sfx → damage floats →
   CSS animations → Pixi FX/impact → lunge/pull-back → aura bursts. Each commit stays
   behavior-preserving; this phase retires the cross-file timing welds (`data-rising`, the smack-lead
   math, the Reborn 460ms) as their channels land in the score — this IS the original "hit
-  choreographer" ask. **Depends:** phase 2.
+  choreographer" ask. **Phase-2 carry-ins:** (a) the `impact` MomentKind collapses
+  dmg/shield/shieldUp/poison/venomLost — when kinds become the score/hold key it likely needs
+  splitting into `damage`/`shieldPop`/`poisonTick` (or per-`impact` cue branching on `primary.type`);
+  (b) add a Rise/Windfury/venom-heavy compiler equivalence fixture; (c) `holdMsForKind`'s
+  `KIND_TO_KEY` is lossy for `impact` (maps to `dmg` 460, not poison's 500) — resolve when it goes
+  live. **Depends:** phase 2.
 - **Phase 4 — Authoring.** Staggers, `splitPerTarget`/`chain` grouping rules, a new 🎬 Choreography
   DEV panel, retiring the Pacing tuner for good, and the first real re-choreographs as proof (an AOE
   death ripple; a Deathrattle chain folded into its death moment; shield-break-before-damage-number

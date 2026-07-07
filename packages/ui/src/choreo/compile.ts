@@ -1,5 +1,6 @@
 import type { CombatEvent } from '@game/core';
 import { RESULT_TYPES, type Beat } from '../combatBeats';
+import { momentKind, type MomentKind } from './kinds';
 
 /**
  * The Moment Compiler — phase 1 of the combat choreographer (spec: docs/superpowers/specs/
@@ -40,6 +41,8 @@ export interface Moment extends Beat {
    *  An UNTAGGED event (`step === undefined`: legacy saved replays, synthetic fixtures) is always its own
    *  group — with no sim-declared simultaneity we grant no reorder freedom. */
   stepGroups: number[][];
+  /** Presentation kind (phase 2) — see kinds.ts. */
+  kind: MomentKind;
 }
 
 /** Split a moment's index range into contiguous runs sharing a DEFINED `step` tag. */
@@ -75,7 +78,11 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
     } else {
       i++;
     }
-    moments.push({ start, end: i, primary: events[start]!, stepGroups: groupBySteps(events, start, i) });
+    moments.push({
+      start, end: i, primary: events[start]!,
+      stepGroups: groupBySteps(events, start, i),
+      kind: momentKind(events[start]!),
+    });
   }
   return moments;
 }

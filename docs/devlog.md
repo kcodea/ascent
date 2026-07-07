@@ -5,6 +5,39 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
+### feat: Combat Choreographer — Phase 2 (ReplayClock + MomentKind + config migration)
+
+Phase 2 of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [choreographer-phase2](superpowers/plans/2026-07-06-choreographer-phase2.md)). All **invisible** —
+defaults + timing formula are byte-identical to phase 1's behavior. Scope ruling (owner): clock + kinds +
+config only; the per-moment GSAP cue-timeline mechanism is deferred to phase 3.
+
+- **`MomentKind` + classifier** (`packages/ui/src/choreo/kinds.ts`). Each compiled moment now carries a
+  `kind` (`attackExchange`, `impact`, `death`, `riseDeath`, `scCast`, `summon`, `buffWave`, `reborn`,
+  `ascend`, `rally`, `toHand`, `maxGold`, `improve`, `keyword`, `hpGrant`, `reveal`) derived from its
+  primary event via an **exhaustive** switch (no `default` — a new `CombatEvent` type fails typecheck here).
+  Additive metadata for the phase-3 score; nothing keys behavior off it yet.
+- **`pacingConfig` → `choreo/choreoConfig.ts`.** Verbatim relocation (interface/defaults/ranges identical),
+  renamed exports, **`ascent.pacing` localStorage key preserved** so a dev's tuned values survive. Added a
+  `holdMsForKind` accessor (`KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig>` — type-safe after a review
+  fix caught a `reveal→'reveal'` non-key that silently fell to the 300 default). `pacingConfig.ts` deleted;
+  the two consumers (`PacingTuner`, `useCombatReplay`) re-pointed; the Pacing tuner is marked
+  deprecated-but-functional (it edits the live choreo store).
+- **The `ReplayClock`** (`choreo/clock.ts` — pure `holdMs(next, shown, combatSpeed)`). The former inline
+  scheduler formula — per-primary-type hold × tempo, the attack-wind-up welded to the lunge connection
+  (`windup+strike−smackLead`), the post-impact `attackGap` breather, the `combatSpeed` divide — extracted
+  into one unit-tested function **locked to the legacy numbers**. `useCombatReplay`'s scheduler effect is now
+  a 3-line call to it; the dead `beatDelay`/`RESULT_TYPES` imports dropped.
+- **Invariant:** the clock keys hold TIMES by `primary.type` (byte-identical), NOT by `MomentKind` — so a
+  poison-led impact (500ms) and a dmg-led impact (460ms) aren't flattened. Rekeying holds to kind is a
+  phase-4 concern (when the 🎬 Choreography panel authors per-kind).
+- **Verified:** `typecheck` + `lint` + **536 tests** (incl. the new kinds/choreoConfig/clock suites) +
+  `build:web` green; `typecheck:web` steady at its 21-error baseline (zero new). Live smoke: app boots
+  clean, a practice fight enters combat and the replay runs to completion on the new clock with zero console
+  errors (the in-fight cadence on a populated board wants a human eyeball — the change is behavior-identical
+  by construction + the clock unit tests). **Process note:** the two-stage subagent review ran on tasks 1–2
+  (and caught the `reveal` type-hole); tasks 3–5 were completed inline with full check-suite verification
+  after the environment's subagent quota was exhausted mid-run.
 ### feat: Combat Choreographer — Phase 1 (sim step tags + the Moment Compiler)
 
 Owner ask (design doc: [docs/superpowers/specs/2026-07-06-combat-choreographer-design.md](superpowers/specs/2026-07-06-combat-choreographer-design.md),

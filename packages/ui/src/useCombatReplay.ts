@@ -10,6 +10,7 @@ import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments } from './choreo/compile';
+import { runMomentCues } from './choreo/score';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
@@ -676,35 +677,13 @@ export function useCombatReplay(
     return () => window.clearTimeout(t);
   }, [active, beatIdx, beats, events, cardIds]);
 
-  // Combat SFX — one sound per notable event type in the beat just resolved.
+  // Combat SFX — one sound per notable event type in the moment just resolved, via the choreo SFX channel
+  // (channels/sfx.ts). The melee "smack" is fired separately from the lunge's GSAP timeline at contact.
   useEffect(() => {
-    if (!active || beatIdx === 0) return; // only during the live replay — fixes a phantom "smack" at the next
-    const beat = beats[beatIdx - 1];      // shop phase, when new beats swap in while beatIdx is briefly stale
+    if (!active || beatIdx === 0) return; // only during the live replay (avoids a phantom cue at shop swap-in)
+    const beat = beats[beatIdx - 1];
     if (!beat) return;
-    // The physical "smack" is fired ONLY from the attack lunge's GSAP timeline, at the exact contact frame
-    // (see playAttackLunge) — never from a `dmg` beat. So we don't double-hit, and non-attack damage (SC
-    // bolts, deathrattle AOE, poison) no longer borrows the melee smack — those effects get their own cues
-    // (e.g. Start-of-Combat → `cast`). Add a dedicated sound here when one's available, not a default smack.
-    const done2 = new Set<string>();
-    const once = (k: string, fn: () => void): void => {
-      if (!done2.has(k)) { done2.add(k); fn(); }
-    };
-    let kill = false; // a real (non-Rise) death → thud + board shake
-    let riseDeath = false; // a Rise's death → soft spirit-release cue, no shake (the body returns)
-    for (let i = beat.start; i < beat.end; i++) {
-      const e = events[i];
-      if (!e) continue;
-      if (e.type === 'attack') once('attack', sfx.attack);
-      else if (e.type === 'sc' && e.cast) once('cast', sfx.cast); // Start-of-Combat zap — only a genuine cast, not a narration (spell-power telegraph etc.)
-      else if (e.type === 'death') { if (e.rise) riseDeath = true; else { once('death', sfx.death); kill = true; } }
-      else if (e.type === 'reborn') once('reborn', sfx.rebornSummon); // the body re-forms as it Rises
-      else if (e.type === 'shieldUp') once('shield', sfx.shield);
-      else if (e.type === 'buff') once('buff', sfx.buff);
-      else if (e.type === 'maxGold') once('maxgold', sfx.maxGold);
-      else if (e.type === 'summon') once('summon', () => sfx.summon(e.minion.cardId));
-    }
-    if (riseDeath) once('rise', sfx.rebornShatter); // spirit releases as the Rise body leaves — softer than a kill (internally throttled)
-    if (kill) setShake((n) => n + 1); // a real death shakes the board (hit-stop feel) — a Rise does not
+    runMomentCues(beat, { events, onShake: () => setShake((n) => n + 1) });
   }, [active, beatIdx, beats, events]);
 
   // Verdict sting when the replay finishes.

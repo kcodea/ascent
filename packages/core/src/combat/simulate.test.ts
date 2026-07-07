@@ -1992,3 +1992,69 @@ describe('simulate (handoff A.3)', () => {
     expect(entry!.bonus).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('resolution step tags', () => {
+  it('every event carries a monotonically non-decreasing step id', () => {
+    const r = simulate(
+      [{ cardId: 'stray', attack: 3, health: 10 }, { cardId: 'sandbag', attack: 0, health: 5 }],
+      [{ cardId: 'pack', attack: 2, health: 2 }],
+      makeRng(3), CARD_INDEX,
+    );
+    expect(r.events.length).toBeGreaterThan(0);
+    let prev = -1;
+    for (const e of r.events) {
+      expect(typeof e.step).toBe('number');
+      expect(e.step!).toBeGreaterThanOrEqual(prev);
+      prev = e.step!;
+    }
+  });
+
+  it('an attack and its same-swing damage (hit + retaliation) share one step', () => {
+    const r = simulate(
+      [{ cardId: 'stray', attack: 3, health: 10 }],
+      [{ cardId: 'sandbag', attack: 2, health: 8 }],
+      makeRng(3), CARD_INDEX,
+    );
+    const atkIdx = r.events.findIndex((e) => e.type === 'attack');
+    const atk = r.events[atkIdx]!;
+    const dmgs = r.events.filter((e) => e.type === 'dmg' && e.step === atk.step);
+    expect(dmgs.map((d) => (d as { target: string }).target).sort()).toEqual(
+      [(atk as { attacker: string }).attacker, (atk as { defender: string }).defender].sort(),
+    );
+  });
+
+  it("a Deathrattle's summons land in a LATER step than the death they follow", () => {
+    const r = simulate(
+      [{ cardId: 'stray', attack: 3, health: 10 }],
+      [{ cardId: 'pack', attack: 2, health: 2 }],
+      makeRng(3), CARD_INDEX,
+    );
+    const death = r.events.find((e) => e.type === 'death')!;
+    const summon = r.events.find((e) => e.type === 'summon')!;
+    expect(summon.step!).toBeGreaterThan(death.step!);
+  });
+
+  it("an on-kill reward lands in a LATER step than the victim's death (not merged into a rattle step)", () => {
+    // Karthus's Slaughter buffs your living Undead (itself included) via ctx.buff the moment it kills —
+    // the reward must get its own step AFTER every death in the clash, not ride the last victim's rattle.
+    const r = simulate(
+      [{ cardId: 'karthus', attack: 7, health: 8 }],
+      [{ cardId: 'sandbag', attack: 1, health: 1 }],
+      makeRng(3), CARD_INDEX,
+    );
+    const karthus = r.initial.player[0]!.uid;
+    const death = r.events.find((e) => e.type === 'death')!;
+    const reward = r.events.find((e) => e.type === 'buff' && e.source === karthus)!;
+    expect(death).toBeDefined();
+    expect(reward).toBeDefined();
+    expect(reward.step!).toBeGreaterThan(death.step!);
+  });
+
+  it('step tags are deterministic (same seed → identical tags)', () => {
+    const roster: Parameters<typeof simulate>[0] = [{ cardId: 'stray', attack: 3, health: 10 }];
+    const foe: Parameters<typeof simulate>[1] = [{ cardId: 'pack', attack: 2, health: 2 }];
+    const a = simulate(roster, foe, makeRng(7), CARD_INDEX);
+    const b = simulate(roster, foe, makeRng(7), CARD_INDEX);
+    expect(a.events.map((e) => e.step)).toEqual(b.events.map((e) => e.step));
+  });
+});

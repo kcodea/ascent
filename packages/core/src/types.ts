@@ -477,7 +477,11 @@ export interface MinionSnapshot {
  * recomputes outcomes. Vocabulary matches the prototype's proven set plus
  * `summon`/`buff` for combat-time effects (Deathrattles, summon buffs).
  */
-export type CombatEvent =
+/** Resolution-step tag: `simulate()` stamps every event with the id of the atomic resolution that emitted
+ *  it (one attack swing's exchange, one death's rattle, one Start-of-Combat cast, …). Pure presentation
+ *  metadata — it never affects outcomes — letting the UI's moment compiler know true simultaneity instead
+ *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
+export type CombatEvent = (
   | { type: 'sc'; source: string; text: string; cast?: true } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only
   | { type: 'attack'; attacker: string; defender: string; swing: number }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number }
@@ -496,7 +500,8 @@ export type CombatEvent =
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
   | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
-  | { type: 'hpGrant'; target: string; amount: number }; // Sergeant: live HP-grant amount after each Attack-gain improvement
+  | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement
+) & { step?: number };
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 

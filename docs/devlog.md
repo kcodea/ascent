@@ -40,6 +40,87 @@ completion. No fail / no expiry.
 - **Follow-ups:** **PR 2 = the UI** (quest-shop rendering, control-lock, timer-pause, quest panel, live progress
   text). Then real content (objectives + the full reward palette) and a **balance/curve retune** — quests are pure
   power-add, so the enemy curve / Line + the committed opponent pool (`npm run pool`) will want a pass.
+### feat: Combat Choreographer — Phase 2 (ReplayClock + MomentKind + config migration)
+
+Phase 2 of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [choreographer-phase2](superpowers/plans/2026-07-06-choreographer-phase2.md)). All **invisible** —
+defaults + timing formula are byte-identical to phase 1's behavior. Scope ruling (owner): clock + kinds +
+config only; the per-moment GSAP cue-timeline mechanism is deferred to phase 3.
+
+- **`MomentKind` + classifier** (`packages/ui/src/choreo/kinds.ts`). Each compiled moment now carries a
+  `kind` (`attackExchange`, `impact`, `death`, `riseDeath`, `scCast`, `summon`, `buffWave`, `reborn`,
+  `ascend`, `rally`, `toHand`, `maxGold`, `improve`, `keyword`, `hpGrant`, `reveal`) derived from its
+  primary event via an **exhaustive** switch (no `default` — a new `CombatEvent` type fails typecheck here).
+  Additive metadata for the phase-3 score; nothing keys behavior off it yet.
+- **`pacingConfig` → `choreo/choreoConfig.ts`.** Verbatim relocation (interface/defaults/ranges identical),
+  renamed exports, **`ascent.pacing` localStorage key preserved** so a dev's tuned values survive. Added a
+  `holdMsForKind` accessor (`KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig>` — type-safe after a review
+  fix caught a `reveal→'reveal'` non-key that silently fell to the 300 default). `pacingConfig.ts` deleted;
+  the two consumers (`PacingTuner`, `useCombatReplay`) re-pointed; the Pacing tuner is marked
+  deprecated-but-functional (it edits the live choreo store).
+- **The `ReplayClock`** (`choreo/clock.ts` — pure `holdMs(next, shown, combatSpeed)`). The former inline
+  scheduler formula — per-primary-type hold × tempo, the attack-wind-up welded to the lunge connection
+  (`windup+strike−smackLead`), the post-impact `attackGap` breather, the `combatSpeed` divide — extracted
+  into one unit-tested function **locked to the legacy numbers**. `useCombatReplay`'s scheduler effect is now
+  a 3-line call to it; the dead `beatDelay`/`RESULT_TYPES` imports dropped.
+- **Invariant:** the clock keys hold TIMES by `primary.type` (byte-identical), NOT by `MomentKind` — so a
+  poison-led impact (500ms) and a dmg-led impact (460ms) aren't flattened. Rekeying holds to kind is a
+  phase-4 concern (when the 🎬 Choreography panel authors per-kind).
+- **Verified:** `typecheck` + `lint` + **536 tests** (incl. the new kinds/choreoConfig/clock suites) +
+  `build:web` green; `typecheck:web` steady at its 21-error baseline (zero new). Live smoke: app boots
+  clean, a practice fight enters combat and the replay runs to completion on the new clock with zero console
+  errors (the in-fight cadence on a populated board wants a human eyeball — the change is behavior-identical
+  by construction + the clock unit tests). **Process note:** the two-stage subagent review ran on tasks 1–2
+  (and caught the `reveal` type-hole); tasks 3–5 were completed inline with full check-suite verification
+  after the environment's subagent quota was exhausted mid-run.
+### feat: Combat Choreographer — Phase 1 (sim step tags + the Moment Compiler)
+
+Owner ask (design doc: [docs/superpowers/specs/2026-07-06-combat-choreographer-design.md](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [docs/superpowers/plans/2026-07-06-choreographer-phase1.md](superpowers/plans/2026-07-06-choreographer-phase1.md)):
+a single system to own presentation of the combat event log (grouping, order/stagger, hold times,
+channel firing) instead of the current split across `buildBeats`, `pacingConfig`, `useCombatReplay`,
+and the aura tracker. Phase 1 lays the honesty foundation — sim-declared simultaneity — with **zero
+visible change**.
+
+- **`packages/core` — step tags.** `CombatEvent` gains an optional `step?: number`. `simulate()` now
+  routes every emission through an internal `emit()` that stamps the current `stepN`; `nextStep()`
+  bumps the counter at every atomic resolution boundary: one attack swing's wind-up + Phase 1
+  (each Windfury swing / Gnasher re-attack opens its own), one victim's death resolution, its
+  rattle's effects (a separate step from the death itself), a Rise's body returning (after the
+  rattle's summons), on-kill rewards (one step for the whole clash's batch, after ALL deaths — a
+  review-driven fix; it originally risked reading as per-victim), a Start-of-Combat cast, an
+  out-of-turn Whelp/queued strike, a Reclaimer resummon re-entering, a mid-combat ascend. Pure
+  metadata — zero logic/RNG/order changes. 5 new step-invariant tests: monotonic increase, an
+  exchange's attack+Phase-1 share a step, a rattle's step is strictly later than its death's, an
+  on-kill reward's step is strictly later than the death it rewards, and tags are deterministic
+  across identical re-runs.
+- **Outcome-neutrality evidence.** 462 baseline tests pass byte-identically on `main` AND on this
+  branch (verified in a throwaway `main` worktree — same pass/fail set, no golden drift);
+  `npm run harness` stays deterministic (`RESULT: WIN, EVENTS: 48`, identical on re-run); the 5 new
+  tag tests bring core+sim to 467.
+- **`packages/ui/src/choreo/compile.ts` — the Moment Compiler.** New `compileMoments(events, rules)`
+  with `DEFAULT_RULES` that reproduces `buildBeats` byte-identically (equivalence tests over 3 real
+  fight logs) while also carrying each moment's `stepGroups` — sim-declared simultaneity grouped by
+  the new step tags; an untagged event (legacy saved replay, synthetic fixture) is always its own
+  group — a review-driven safety law ("no sim-declared simultaneity ⇒ no reorder freedom"), since
+  `undefined !== undefined` would otherwise wrongly merge consecutive untagged events. `buildBeats`
+  stays as the equivalence ORACLE (both sides carry "do not dedupe" guard comments) — a review flag
+  on the original comment ("superseded at runtime by choreo/compile.ts") is now stated explicitly in
+  `combatBeats.ts`'s header, alongside the oracle note and its role as `attackerOfImpact`'s home.
+- **`useCombatReplay`** now consumes `compileMoments` instead of `buildBeats` directly (`Moment`
+  extends `Beat`, so every downstream consumer — the scheduler, float/anim derivation,
+  `attackerOfImpact` — is unchanged). Live-verified: booted the app, drove a practice fight into the
+  combat arena, zero console errors.
+- **New reference doc** [`docs/combat-events.md`](combat-events.md) — the 19-type event vocabulary
+  (grouped by family: actions / impact results / board+meta), the full combat lifecycle in trigger
+  order (Reclaimer destruction → Start-of-Combat casts → first-attacker rule → the alternating
+  attack loop with its per-attack flush order → outcome → loss damage), the exchange micro-order
+  (Phase 1 simultaneous damage → Phase 2 deaths in damage order → on-kill rewards after all deaths),
+  and how the step tags map onto all of it — the score-authoring reference phases 2–4 will lean on.
+  Linked from the spec's Architecture section.
+- **Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` — 526 tests
+  green (462 baseline + 5 new tag tests + equivalence/compiler tests), build green,
+  `typecheck:web` at its pre-existing 21-error baseline (zero new errors introduced).
 
 ### tweak(ui): Continue button shows just "Round N" (hero name was clipping)
 

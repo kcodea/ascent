@@ -28,6 +28,15 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Quest system — engine framework (headless; UI is the next PR)** — the skinny first half of quests (M3): on
   waves 4/8/12 a quest shop offers 3 quests (1 neutral + 2 tribes, bought for 0 Gold) into a persistent quest
   list; objectives tick during play and apply a reward on completion. Seeded/deterministic + fully tested.
+- **Combat Choreographer — Phase 2 (replay clock)** — the combat-replay beat scheduler is now a pure,
+  unit-tested `holdMs` clock; each moment carries a `MomentKind`; pacing config moved into
+  `choreo/choreoConfig`. All invisible (timing byte-identical) — the seam phase 3 hangs effect channels on.
+- **Combat Choreographer — Phase 1 (engine foundation)** — the combat sim now stamps every event
+  with a resolution-step tag (pure metadata, outcome-neutral) and a new Moment Compiler
+  (`compileMoments`) reproduces today's combat-beat grouping byte-identically while carrying that
+  sim-declared simultaneity forward. No visible change yet — this is the honesty foundation phases
+  2–4 build the real choreographer on. See [docs/combat-events.md](docs/combat-events.md) for the
+  event vocabulary + trigger-order reference.
 - **Layout Lab (dev)** — a new Dev Tuning entry ("📐 Scale & Layout") to live-scale, space, + reposition the
   board: global card + UI-chrome scale, per-row card size + spacing, and X/Y offsets for the warband, hand, and
   HUD. Drives CSS vars, dev-only (production ships the stock layout).

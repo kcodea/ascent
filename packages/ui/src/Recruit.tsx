@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, QUEST_INDEX } from '@game/content';
 import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, nextOpponent, lossDamageCap, boardManaBonus, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
+import { QuestCard } from './QuestCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
@@ -1556,7 +1557,7 @@ export function Recruit() {
   // writes turnClock directly, so ticking never re-renders Recruit. The reset effect above runs first
   // on a new turn (effect order), so the clock is back at full time before this re-schedules.
   useEffect(() => {
-    if (run.phase !== 'recruit' || run.discover || heroSelecting || overlayOpen) return;
+    if (run.phase !== 'recruit' || run.discover || run.questOffer || heroSelecting || overlayOpen) return;
     let id = 0;
     const tick = (): void => {
       const cur = turnClock.get();
@@ -1568,7 +1569,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, 1000);
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, heroSelecting, overlayOpen, run.wave]);
+  }, [run.phase, run.discover, run.questOffer, heroSelecting, overlayOpen, run.wave]);
 
   // Flash a card green AND float its +X/+X when its stats jump in the recruit phase (a buff landed).
   useEffect(() => {
@@ -2339,7 +2340,7 @@ export function Recruit() {
           {/* Tavern Up — cost = upgradeCost; disabled at max tier / can't afford / time up. */}
           <button
             className="shopbtn"
-            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp || eotAnimating}
+            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp || eotAnimating || !!run.questOffer}
             onClick={() => dispatch({ type: 'upgrade' })}
           >
             <span className="sb-l">Upgrade Tavern</span>
@@ -2350,7 +2351,7 @@ export function Recruit() {
           {/* Reroll — free rolls show 0. */}
           <button
             className="shopbtn"
-            disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp || eotAnimating}
+            disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp || eotAnimating || !!run.questOffer}
             onClick={() => dispatch({ type: 'roll' })}
           >
             <span className="sb-l">Reroll</span>
@@ -2361,7 +2362,7 @@ export function Recruit() {
           {/* Freeze — toggle; tinted blue, filling solid blue while the tavern is frozen. */}
           <button
             className={`shopbtn freeze${run.frozen ? ' on' : ''}`}
-            disabled={timeUp || eotAnimating}
+            disabled={timeUp || eotAnimating || !!run.questOffer}
             onClick={() => dispatch({ type: 'freeze' })}
           >
             <span className="sb-l">Freeze</span>
@@ -2371,7 +2372,7 @@ export function Recruit() {
           {/* End Turn — the primary action, styled amber; mirrors the standalone right-edge button. */}
           <button
             className={`shopbtn endturn${timeUp ? ' urgent' : ''}`}
-            disabled={eotAnimating}
+            disabled={eotAnimating || !!run.questOffer}
             onClick={endTurn}
           >
             <span className="sb-l">End Turn</span>
@@ -2443,6 +2444,9 @@ export function Recruit() {
 
       <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
         {shopFlash > 0 && <div className="shopflash" key={shopFlash} aria-hidden="true" />}
+        {run.questOffer && (
+          <div className="questbanner"><Icon name="star" /> Quest Shop — choose a quest to begin the turn</div>
+        )}
         <div className="row">
           {fighting ? (
             replay.frame.enemy.map((u) => (
@@ -2455,6 +2459,11 @@ export function Recruit() {
                 triggered={replay.triggerUids.has(u.uid)}
               />
             ))
+          ) : run.questOffer ? (
+            run.questOffer.map((id, i) => {
+              const q = QUEST_INDEX[id];
+              return q ? <QuestCard key={id} quest={q} onBuy={() => dispatch({ type: 'buyQuest', index: i })} /> : null;
+            })
           ) : (
           <>
           {displayShop.map((o, i) => (

@@ -8,9 +8,9 @@ describe('momentKind', () => {
   it('classifies the primary event types we author against', () => {
     const cases: [CombatEvent, string][] = [
       [{ type: 'attack', attacker: 'a', defender: 'b', swing: 0 }, 'attackExchange'],
-      [{ type: 'dmg', target: 'b', amount: 3, remainingHp: 1 }, 'impact'],
-      [{ type: 'shield', target: 'b' }, 'impact'],
-      [{ type: 'poison', target: 'b' }, 'impact'],
+      [{ type: 'dmg', target: 'b', amount: 3, remainingHp: 1 }, 'damage'],
+      [{ type: 'shield', target: 'b' }, 'shieldPop'],
+      [{ type: 'poison', target: 'b' }, 'poisonTick'],
       [{ type: 'death', target: 'b', side: 'enemy' }, 'death'],
       [{ type: 'death', target: 'b', side: 'enemy', rise: true }, 'riseDeath'],
       [{ type: 'sc', source: 'a', text: 'x' }, 'scCast'],
@@ -25,8 +25,8 @@ describe('momentKind', () => {
       [{ type: 'keyword', target: 'b', keyword: 'R' }, 'keyword'],
       [{ type: 'hpGrant', target: 'b', amount: 1 }, 'hpGrant'],
       [{ type: 'reveal', target: 'b' }, 'reveal'],
-      [{ type: 'venomLost', target: 'b' }, 'impact'],
-      [{ type: 'shieldUp', target: 'b' }, 'impact'],
+      [{ type: 'venomLost', target: 'b' }, 'poisonTick'],
+      [{ type: 'shieldUp', target: 'b' }, 'shieldPop'],
     ];
     for (const [primary, kind] of cases) {
       expect(momentKind(primary)).toBe(kind);

@@ -4,7 +4,7 @@ import type { Moment } from '../compile';
 import { sfx } from '../../sfx';
 import { playMomentSfx } from './sfx';
 
-const moment = (events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[]], kind: 'impact' });
+const moment = (events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[]], kind: 'damage' });
 
 afterEach(() => vi.restoreAllMocks());
 

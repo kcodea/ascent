@@ -1,16 +1,16 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { sfx } from './sfx';
 import { pixiFx } from './pixiFx';
-import { getLungeConfig } from './lungeConfig';
-import { getTrailConfig } from './trailConfig';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments } from './choreo/compile';
 import { runMomentCues } from './choreo/score';
+import { runAttackExchangeCues } from './choreo/engine';
+import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
@@ -57,24 +57,6 @@ export interface UnitFrame {
    *  Reset on Reborn (a returned minion is "fresh" at its new stats). */
   baseAttack: number;
   baseHealth: number;
-}
-
-interface Float {
-  id: number;
-  uid: string;
-  text: string;
-  kind: string;
-}
-
-/** A damage float for a minion that DIES this beat. Its unit collapses (`.unit.dying`, width→0) and is
- *  removed next beat, which would clip an in-unit float — so the killing-blow number is rendered in a
- *  board-level overlay at the unit's captured screen position instead, where it survives + lingers. */
-export interface DeathFloat {
-  id: number;
-  x: number;
-  y: number;
-  text: string;
-  kind: string;
 }
 
 /** Shared empty array for float-less units, so their `floats` prop keeps a stable reference across
@@ -224,75 +206,6 @@ function computeFrame(
 // next beat, and welds the `attack` (wind-up) beat to the lunge connection time (from lungeConfig.ts) so the
 // damage float always lands ON contact, independent of pacing.
 
-/** The attack lunge, driven by GSAP: wind up (lean back + tilt), strike toward the defender
- *  (power3.in), knock the defender back at the moment of impact, then settle with an elastic
- *  overshoot. `dx`/`dy` is the full attacker→defender vector; the strike covers ~100% of it so the
- *  attacker drives all the way into the defender — a full connecting hit. GSAP owns the attacker's
- *  transform for the whole lunge — React renders no transform on combat units, so they never fight. */
-/** Map an attack's swing damage → the impact's `power` scale (1 = baseline). Ramps gently: a 1-3 dmg chip
- *  stays at the familiar burst, ~8 dmg reads clearly heavier, and it caps at 2× so a 40-damage finisher
- *  doesn't whiteout the board. PROTOTYPE dial — promote into a hit config if the feel sticks. */
-const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8 + swing / 10));
-
-function playAttackLunge(attacker: Element, defender: Element | null, dx: number, dy: number, speed = 1, power = 1): void {
-  const c = getLungeConfig(); // live-tunable (DEV Lunge tuner) → applies to the next attack
-  // Motion trail: one up-front rect read gives the resting center; per-frame positions come from GSAP's
-  // animated x/y (no per-frame getBoundingClientRect). Wisps fire during windup + strike only — the slow
-  // elastic settle shouldn't smear. Gold when the attacker has Divine Shield / blue for Reborn (the `.dscard`
-  // / `.reborncard` marker classes the aura tracker also reads).
-  const rest = attacker.getBoundingClientRect();
-  const cx0 = rest.left + rest.width / 2;
-  const cy0 = rest.top + rest.height / 2;
-  // NB: in combat `findEl` resolves the `.unit` WRAPPER (its data-uid matches first), so the marker classes
-  // live on the `.card` DESCENDANT — the querySelector is the live path, not a dead fallback.
-  const variant = attacker.classList.contains('dscard') || attacker.querySelector('.dscard')
-    ? 'gold'
-    : attacker.classList.contains('reborncard') || attacker.querySelector('.reborncard')
-      ? 'blue'
-      : 'wind';
-  let trailLast = { x: cx0, y: cy0 };
-  const trailCutoff = c.windupDur + c.strikeDur;
-  gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
-  gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
-  const tl = gsap
-    .timeline({
-      onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }),
-      onUpdate: () => {
-        if (tl.time() > trailCutoff) return; // no trail on the elastic settle
-        const cx = cx0 + Number(gsap.getProperty(attacker, 'x'));
-        const cy = cy0 + Number(gsap.getProperty(attacker, 'y'));
-        const tdx = cx - trailLast.x;
-        const tdy = cy - trailLast.y;
-        if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {
-          pixiFx.trail(cx, cy, tdx, tdy, variant);
-          trailLast = { x: cx, y: cy };
-        }
-      },
-    })
-    .to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: -5, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' })  // wind up (anticipation lean-back + swell)
-    .to(attacker, { x: dx * c.strikeDist, y: dy * c.strikeDist, rotation: 0, scale: 1, duration: c.strikeDur, ease: 'power3.in' })          // strike (overdrives into the target → a full, overlapping connecting hit)
-    .add(() => {
-      // Smack lands HERE — frame-accurate at the moment of contact. The beat-driven sfx (a React
-      // effect ~2 frames behind setBeatIdx) ran late and drifted further as the lunge grew; firing
-      // from GSAP's timeline closes that gap so the impact sounds off exactly on connection.
-      sfx.hit();
-      if (!defender) return; // onHit: the struck minion knocks back harder along the blow, then recovers
-      // WebGL impact: a flash + spark spray at the defender's center, fired along the blow direction.
-      const r = defender.getBoundingClientRect();
-      pixiFx.impact(r.left + r.width / 2, r.top + r.height / 2, dx, dy, power);
-      gsap.killTweensOf(defender);
-      // Heavier hits knock the defender back harder (0.14 at baseline → ~0.19 at max power).
-      const kb = 0.14 * (0.75 + 0.25 * power);
-      gsap.fromTo(defender, { x: 0, y: 0 }, {
-        x: dx * kb, y: dy * kb, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
-        onComplete: () => gsap.set(defender, { clearProps: 'transform' }),
-      });
-    }, `-=${c.smackLead}`)                                                                                 // …fired smackLead seconds BEFORE the strike completes
-    .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });       // settle
-  // The user's combat-speed multiplier: scale the whole lunge so its connection time tracks the (also-scaled)
-  // beat clock — they divide the same windup+strike by `speed`, so the impact beat still lands on contact.
-  tl.timeScale(speed);
-}
 /** The transient animation class for the unit the active event acts on. */
 function animFor(e: CombatEvent | undefined): Record<string, string> {
   if (!e) return {};
@@ -313,29 +226,6 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'summon': return { [e.minion.uid]: 'summoned' };
     case 'rally': return { [e.source]: 'sccast', [e.target]: 'flare' }; // Deathsayer pulses; the Deathrattle minion flares
     default: return {};
-  }
-}
-
-/** Player-facing labels for granted keywords (the renamed terms — Reborn → Rise, etc.). */
-const KW_FLOAT: Partial<Record<string, string>> = {
-  R: 'Rise', DS: 'Ward', T: 'Taunt', V: 'Toxin', W: 'Flurry', C: 'Cleave', ST: 'Stealth', IMM: 'Immune',
-};
-
-/** A floating number/glyph over the unit the active event acts on. */
-function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind: string } | null {
-  if (!e) return null;
-  switch (e.type) {
-    case 'dmg': return { uid: e.target, text: `${e.amount}`, kind: 'dmg' };
-    case 'poison': return { uid: e.target, text: '☠', kind: 'poison' };
-    // Divine-Shield-break (◇) + Reborn (♻) floats removed — the break/reborn ring animation reads on its
-    // own, and the glyph popped up late + confusing. (shieldUp's ◇ stays — it marks gaining a shield.)
-    case 'shieldUp': return { uid: e.target, text: '◇', kind: 'shieldup' };
-    case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
-    case 'improve': return { uid: e.target, text: '✦', kind: 'buff' };
-    case 'keyword': return { uid: e.target, text: KW_FLOAT[e.keyword] ?? e.keyword, kind: 'buff' };
-    case 'maxGold': return { uid: e.target, text: `+${e.amount} max gold`, kind: 'gold' };
-    case 'rally': return { uid: e.target, text: '☠', kind: 'rally' }; // marks whose Deathrattle is firing
-    default: return null;
   }
 }
 
@@ -505,6 +395,15 @@ export function useCombatReplay(
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
   // imperatively by GSAP (see the layout effect below); React never sets a transform on a unit.
   const [attackUid, setAttackUid] = useState<string | null>(null);
+  // True only when the choreo engine's GSAP timeline is driving THIS beat's advance (an attack whose elements
+  // resolved). The scheduler consults it so it skips the attack transition ONLY when the engine actually took
+  // over — if the lunge couldn't run (elements unresolved), the scheduler still advances, so the replay never
+  // stalls (restoring the pre-engine unconditional-advance robustness).
+  const engineAdvancingRef = useRef(false);
+  // Latest combat speed, read by the cue effect's float-expiry timers WITHOUT being a dep (so a mid-beat speed
+  // toggle doesn't re-run the effect and re-fire that beat's sfx/shake — sfx is only per-call deduped).
+  const combatSpeedRef = useRef(combatSpeed);
+  combatSpeedRef.current = combatSpeed;
   const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number; kind?: string }[]>([]);
   // A card a combat effect just granted to the hand (Arcane Weaver → Spirit Fire) — shown flying to the
   // hand for the duration of its beat, so the player sees it happen instead of it just appearing later.
@@ -571,9 +470,11 @@ export function useCombatReplay(
   useEffect(() => {
     if (!active || hidden || beatIdx >= beats.length) return;
     // The moment on screen is beats[beatIdx-1]; the clock decides how long it stays before beats[beatIdx].
-    // The whole hold formula (choreoConfig tempo + per-type holds, the attack-wind-up lunge weld, the
-    // post-impact attackGap, the combatSpeed divide) lives in the pure `holdMs` (choreo/clock.ts).
+    // EXCEPT the attack-wind-up → its impact transition: the choreo engine's GSAP timeline (see the layout
+    // effect below, `runAttackExchangeCues`) advances that one itself, anchored at the lunge's real
+    // `contact` position — the former clock.ts smack-lead weld is retired, not duplicated here.
     const shown = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
+    if (shown?.kind === 'attackExchange' && engineAdvancingRef.current) return;
     const d = holdMs(beats[beatIdx]!, shown, combatSpeed);
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
@@ -586,63 +487,6 @@ export function useCombatReplay(
     const t = window.setTimeout(() => setFinished(true), getChoreoConfig().finalHold / combatSpeed);
     return () => window.clearTimeout(t);
   }, [active, replayComplete, combatSpeed]);
-
-  // Spawn floats for every damage/poison/shield in the beat just resolved — all at once.
-  // Buff events are *summed per target* so a multi-proc deathrattle (e.g. Grim re-procced by
-  // Sylus for +18/+18) shows one correct "+18/+18" per minion, not three "+6/+6".
-  useEffect(() => {
-    if (!active || beatIdx === 0) return; // only during the live replay — not on a stale beat at a phase swap
-    const beat = beats[beatIdx - 1];
-    if (!beat) return;
-    // Units that DIE this beat — their unit collapses (width→0) and is gone next beat, which would clip an
-    // in-unit float. So their killing-blow damage number is captured at the unit's screen position and
-    // rendered in a board overlay instead (it survives the unit + lingers).
-    const dying = new Set<string>();
-    for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'death') dying.add(e.target); }
-    // Only the unit being ATTACKED shows a damage number — the attacker's retaliation (a clash is two-way)
-    // floats no number. The impact is `beats[beatIdx - 1]`; `attackerOfImpact` reads the attacker from its
-    // wind-up beat (an attack's damage lands one beat after the attack itself).
-    const attackerUid = attackerOfImpact(beats, beatIdx - 1);
-    const spawned: Float[] = [];
-    const deaths: DeathFloat[] = [];
-    const buffByTarget = new Map<string, { a: number; h: number; id: number }>();
-    for (let i = beat.start; i < beat.end; i++) {
-      const e = events[i];
-      if (e?.type === 'buff') {
-        const cur = buffByTarget.get(e.target) ?? { a: 0, h: 0, id: i };
-        cur.a += e.attack;
-        cur.h += e.health;
-        buffByTarget.set(e.target, cur);
-        continue;
-      }
-      const f = floatFor(e);
-      if (!f) continue;
-      // Damage numbers show ONLY on the unit being attacked — skip the attacker's retaliation float.
-      if (f.kind === 'dmg' && f.uid === attackerUid) continue;
-      // A damage number on a dying unit → the board overlay, anchored where the unit is right now.
-      if (f.kind === 'dmg' && dying.has(f.uid)) {
-        const r = findEl(f.uid)?.getBoundingClientRect();
-        if (r) { deaths.push({ id: i, x: r.left + r.width / 2, y: r.top + r.height * 0.5, text: f.text, kind: f.kind }); continue; }
-      }
-      spawned.push({ id: i, ...f });
-    }
-    for (const [uid, { a, h, id }] of buffByTarget) {
-      spawned.push({ id, uid, text: `+${a}/+${h}`, kind: 'buff' });
-    }
-    if (spawned.length === 0 && deaths.length === 0) return;
-    const timers: number[] = [];
-    if (spawned.length) {
-      setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
-      const ids = new Set(spawned.map((s) => s.id));
-      timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeed));
-    }
-    if (deaths.length) {
-      setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
-      const ids = new Set(deaths.map((s) => s.id));
-      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeed));
-    }
-    return () => timers.forEach((id) => window.clearTimeout(id));
-  }, [active, beatIdx, beats, events, findEl, combatSpeed]);
 
   // Trigger-medallion pulse — when a unit's EFFECT fires this beat (Start-of-Combat, Deathrattle/summon,
   // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.
@@ -677,14 +521,33 @@ export function useCombatReplay(
     return () => window.clearTimeout(t);
   }, [active, beatIdx, beats, events, cardIds]);
 
-  // Combat SFX — one sound per notable event type in the moment just resolved, via the choreo SFX channel
-  // (channels/sfx.ts). The melee "smack" is fired separately from the lunge's GSAP timeline at contact.
+  // Combat cues — sfx (choreo/channels/sfx.ts) + floats (choreo/channels/float.ts) for the moment just
+  // resolved, dispatched via the Score's channel registry (choreo/score.ts). The melee smack/impact-FX/
+  // recoil for an attack's OWN contact fire separately, from the lunge's GSAP timeline (see the layout
+  // effect below) — anchored at the real `contact` position instead of this beat-boundary effect.
   useEffect(() => {
     if (!active || beatIdx === 0) return; // only during the live replay (avoids a phantom cue at shop swap-in)
     const beat = beats[beatIdx - 1];
     if (!beat) return;
-    runMomentCues(beat, { events, onShake: () => setShake((n) => n + 1) });
-  }, [active, beatIdx, beats, events]);
+    const timers: number[] = [];
+    runMomentCues(beat, {
+      events,
+      onShake: () => setShake((n) => n + 1),
+      findEl,
+      attackerUid: attackerOfImpact(beats, beatIdx - 1),
+      onFloats: (spawned) => {
+        setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
+        const ids = new Set(spawned.map((s) => s.id));
+        timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeedRef.current));
+      },
+      onDeathFloats: (deaths) => {
+        setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
+        const ids = new Set(deaths.map((s) => s.id));
+        timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
+      },
+    });
+    return () => timers.forEach((id) => window.clearTimeout(id));
+  }, [active, beatIdx, beats, events, findEl]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
@@ -751,18 +614,27 @@ export function useCombatReplay(
       }
     }
 
-    // On the attack beat the attacker is marked (the glow) and GSAP runs the whole lunge — wind up,
-    // strike toward the defender, recoil the defender, then an elastic settle (see playAttackLunge).
+    // On the attack beat the attacker is marked (the glow) and the choreo engine runs the whole cue
+    // timeline — wind up, strike toward the defender, the contact-anchored impact FX/sfx/recoil, the
+    // beat-clock ADVANCE itself (fired from the SAME GSAP position — see choreo/engine.ts), then an
+    // elastic settle.
     if (cur?.primary.type === 'attack') {
       const atkEl = findEl(cur.primary.attacker);
       const a = center(cur.primary.attacker);
       const d = center(cur.primary.defender);
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
-        playAttackLunge(atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, combatSpeed, hitPower(cur.primary.swing));
+        const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
+          combatSpeed, advance: () => setBeatIdx((k) => k + 1),
+        });
+        engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
+      } else {
+        setAttackUid(null);
+        engineAdvancingRef.current = false; // elements unresolved — let the scheduler advance so the replay never stalls
       }
     } else {
       setAttackUid(null);
+      engineAdvancingRef.current = false;
     }
 
     // Projectiles: Start-of-Combat bolts (caster → its next-beat dmg targets), plus Blaster's Deathrattle

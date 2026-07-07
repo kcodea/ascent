@@ -8,7 +8,7 @@ import type { CombatEvent } from '@game/core';
  */
 export type MomentKind =
   | 'attackExchange'
-  | 'impact'
+  | 'damage' | 'shieldPop' | 'poisonTick'
   | 'death'
   | 'riseDeath'
   | 'scCast'
@@ -18,7 +18,9 @@ export type MomentKind =
 export function momentKind(primary: CombatEvent): MomentKind {
   switch (primary.type) {
     case 'attack': return 'attackExchange';
-    case 'dmg': case 'shield': case 'shieldUp': case 'poison': case 'venomLost': return 'impact';
+    case 'dmg': return 'damage';
+    case 'shield': case 'shieldUp': return 'shieldPop';
+    case 'poison': case 'venomLost': return 'poisonTick';
     case 'death': return primary.rise ? 'riseDeath' : 'death';
     case 'sc': return 'scCast';
     case 'summon': return 'summon';

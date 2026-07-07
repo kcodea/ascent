@@ -1,0 +1,40 @@
+import gsap from 'gsap';
+import type { Moment } from './compile';
+import { SCORE } from './score';
+import { playLunge } from './channels/lunge';
+import { hitPower, playContactImpact } from './channels/impact';
+
+export interface AttackCueCtx {
+  combatSpeed: number;
+  /** Advance the beat clock to the next moment — called from the SAME GSAP position as the impact channel
+   *  (the `contact` anchor), retiring the former `clock.ts` smack-lead weld (two independently-computed
+   *  formulas that merely agreed in value; now there is exactly one timeline event both key off). */
+  advance: () => void;
+}
+
+/**
+ * The choreo playback engine (phase 3b) — runs an `attackExchange` moment's cues: score-driven (reads
+ * `SCORE['attackExchange']`), it composes the lunge motion + the contact-anchored impact channel + the
+ * caller's `advance` into ONE GSAP timeline. Returns the built timeline (null for a non-attack moment, or
+ * when the score has dropped the `lunge` cue), so a caller/test can seek it synchronously.
+ */
+export function runAttackExchangeCues(
+  moment: Moment,
+  attacker: Element,
+  defender: Element | null,
+  dx: number,
+  dy: number,
+  ctx: AttackCueCtx,
+): ReturnType<typeof gsap.timeline> | null {
+  if (moment.primary.type !== 'attack') return null;
+  const cues = SCORE[moment.kind];
+  if (!cues.some((c) => c.ch === 'lunge')) return null;
+  const power = hitPower(moment.primary.swing);
+  return playLunge({
+    attacker, dx, dy, speed: ctx.combatSpeed,
+    onContact: () => {
+      if (cues.some((c) => c.ch === 'impact' && c.at === 'contact')) playContactImpact(defender, dx, dy, power, ctx.combatSpeed);
+      ctx.advance();
+    },
+  });
+}

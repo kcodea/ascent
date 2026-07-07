@@ -126,7 +126,8 @@ export function resetChoreoConfig(): void {
 
 /** The pre-scale hold (ms) a moment KIND should reproduce — phase 2 mirrors the representative pacing key so
  *  on-screen timing is byte-identical (the clock actually keys by primary event type; this is the kind-facing
- *  view the score will use from phase 4). Impact/death/rise map to their dominant result key; ascend/keyword
+ *  view the score will use from phase 4). damage→dmg, shieldPop→shield, poisonTick→poison, death/rise→death;
+ *  ascend/keyword
  *  have no own pacing key today (they fell through beatDelay's 300 default) so they map to a related key with
  *  an intentional value rather than the bare fallback. */
 // `keyof ChoreoConfig` (not `string`) so a typo'd/non-existent key is a compile error, not a silent fall to
@@ -134,7 +135,8 @@ export function resetChoreoConfig(): void {
 // directions (classify-forward vs hold-lookup-backward) — adding a `MomentKind` variant requires updating both
 // (the `Record<MomentKind, …>` here forces this side exhaustively).
 const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
-  attackExchange: 'attack', impact: 'dmg', death: 'death', riseDeath: 'death', scCast: 'sc',
+  attackExchange: 'attack', damage: 'dmg', shieldPop: 'shield', poisonTick: 'poison',
+  death: 'death', riseDeath: 'death', scCast: 'sc',
   summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
   toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', hpGrant: 'hpGrant', reveal: 'summon',
 };

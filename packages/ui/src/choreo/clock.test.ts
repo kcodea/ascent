@@ -11,21 +11,15 @@ const M = (type: CombatEvent['type']): Moment => ({
   end: 1,
   primary: { type } as CombatEvent,
   stepGroups: [[0]],
-  kind: 'impact',
+  kind: 'damage',
 });
 
-describe('holdMs — reproduces the legacy scheduler numbers', () => {
+describe('holdMs — reproduces the legacy scheduler numbers for non-attack transitions', () => {
   it('a plain result moment: beatDelay(type) × speed ÷ combatSpeed', () => {
     const cfg = getChoreoConfig();
     const next = M('dmg');
     expect(holdMs(next, undefined, 1)).toBeCloseTo(beatDelay('dmg') * cfg.speed, 5);
     expect(holdMs(next, undefined, 2)).toBeCloseTo((beatDelay('dmg') * cfg.speed) / 2, 5);
-  });
-
-  it('when the ON-SCREEN moment is an attack wind-up, hold is the lunge connection time (not beatDelay)', () => {
-    const c = getLungeConfig();
-    const expected = Math.max(120, (c.windupDur + c.strikeDur - c.smackLead) * 1000);
-    expect(holdMs(M('dmg'), M('attack'), 1)).toBeCloseTo(expected, 5);
   });
 
   it('a NEW attack following an on-screen impact adds the attackGap breather', () => {
@@ -38,5 +32,11 @@ describe('holdMs — reproduces the legacy scheduler numbers', () => {
   it('combatSpeed of 0 or negative is treated as 1 (no divide-by-zero)', () => {
     const cfg = getChoreoConfig();
     expect(holdMs(M('dmg'), undefined, 0)).toBeCloseTo(beatDelay('dmg') * cfg.speed, 5);
+  });
+
+  it('the attack-wind-up transition is no longer special-cased here (the engine\'s GSAP timeline owns it — see useCombatReplay\'s scheduler guard)', () => {
+    const cfg = getChoreoConfig();
+    // Were the old weld still present, this would equal the lunge connection time, not beatDelay('dmg').
+    expect(holdMs(M('dmg'), M('attack'), 1)).toBeCloseTo(beatDelay('dmg') * cfg.speed, 5);
   });
 });

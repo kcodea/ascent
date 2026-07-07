@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Quest system — engine framework (headless; UI is the next PR)** — the skinny first half of quests (M3): on
+  waves 4/8/12 a quest shop offers 3 quests (1 neutral + 2 tribes, bought for 0 Gold) into a persistent quest
+  list; objectives tick during play and apply a reward on completion. Seeded/deterministic + fully tested.
 - **Layout Lab (dev)** — a new Dev Tuning entry ("📐 Scale & Layout") to live-scale, space, + reposition the
   board: global card + UI-chrome scale, per-row card size + spacing, and X/Y offsets for the warband, hand, and
   HUD. Drives CSS vars, dev-only (production ships the stock layout).

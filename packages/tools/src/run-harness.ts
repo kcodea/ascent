@@ -40,7 +40,8 @@ function playRun(seed: number): RunState {
   let s = createRun(seed);
   let steps = 0;
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 100000) {
-    if (s.discover) s = reduce(s, { type: 'discover', index: 0 });
+    if (s.questOffer) s = reduce(s, { type: 'buyQuest', index: 0 });
+    else if (s.discover) s = reduce(s, { type: 'discover', index: 0 });
     else if (s.chooseOne) s = reduce(s, { type: 'chooseOne', index: 0 });
     else if (s.pendingTarget) s = reduce(s, { type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid });
     else if (s.phase === 'combat') s = reduce(s, { type: 'resolveCombat' });

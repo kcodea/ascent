@@ -1,9 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_CARDS, CARD_INDEX, validateCards } from './index';
+import { ALL_CARDS, CARD_INDEX, QUEST_DEFS, QUEST_INDEX, validateCards, validateQuests } from './index';
 
 describe('content', () => {
   it('all cards pass schema validation', () => {
     expect(() => validateCards()).not.toThrow();
+  });
+
+  it('all quests pass schema validation + have unique ids', () => {
+    expect(() => validateQuests()).not.toThrow();
+    expect(Object.keys(QUEST_INDEX).length).toBe(QUEST_DEFS.length);
   });
 
   it('card ids are unique', () => {

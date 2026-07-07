@@ -232,6 +232,7 @@ function autoplayRun(seed: number, heroId?: string, opts?: BotOptions): BoardSna
   const snaps: BoardSnapshot[] = [];
   let steps = 0;
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 5000) {
+    if (s.questOffer) { s = reduce(s, { type: 'buyQuest', index: 0 }); continue; } // quest shop (waves 4/8/12) → buy to open the turn
     if (s.discover) {
       let idx = 0;
       if (opts?.preferTribe) {

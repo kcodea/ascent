@@ -75,6 +75,7 @@ function playRun(seed: number, heroId: string): Snap[] {
   const snaps: Snap[] = [];
   let steps = 0;
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 20000) {
+    if (s.questOffer) { s = reduce(s, { type: 'buyQuest', index: 0 }); continue; }
     if (s.discover) {
       s = reduce(s, { type: 'discover', index: 0 });
       continue;

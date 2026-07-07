@@ -5,6 +5,42 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-06 (session 20)
 
+### feat(sim): Quest system — the skinny engine framework (waves 4/8/12 quest shop → objectives → rewards; PR 1 of 2)
+
+The first half of the quest system (M3 / roadmap C1): a headless, fully-tested **engine** with pure test quests
+and **no UI yet** (that's PR 2). Design locked with the owner over the prior messages — on waves 4/8/12 a quest
+shop offers 3 quest-cards, "bought" for 0 Gold like a card (tavern locked, round timer paused); the bought quest
+goes to a persistent quest panel; its objective (an event counter) ticks during play and applies its reward on
+completion. No fail / no expiry.
+
+- **Data (`@game/core` + `@game/content`):** new `QuestDef` — `{ id, name, tribe, tier, objective, reward }`,
+  where `objective = { event: 'buy'|'play'|'sell'|'roll', count }` and `reward = { kind: 'buffBoard', attack,
+  health }` (skinny sets — both grow). Zod `QuestDefSchema` (`.strict()`, like `CardDefSchema`) + `validateQuests`
+  (run in `npm test`). A throwaway pool of **18 test quests** (neutral + 5 tribes × lesser/greater/capstone) with
+  trivial objectives spanning all four events — enough to drive the framework; real content is a later pass.
+- **Offer gen (`sim/quests.ts`):** `generateQuestOffer(state)` — seeded off `(seed, wave)` in its own RNG stream
+  (`TAG.QUEST`, doesn't perturb the shop roll, reproducible). Always **1 neutral + 2 distinct-tribe** quests of
+  the wave's tier; on waves **8 & 12** ≥1 tribe slot is forced to the player's most-played board tribe
+  (`dominantTribe`, dual-types counted, ties → random). Empty result (content gap) → no quest phase (never a
+  soft-lock).
+- **Run loop (`sim/state.ts` + `reducer.ts`):** RunState gains `questOffer?` (transient) + `activeQuests?`
+  (persistent; optional so pre-quest saves heal to `[]`). `advanceCombat` opens the quest phase on 4/8/12 — sets
+  `questOffer` and **defers the tavern roll**. The "quest phase" is just "`questOffer` is set" (no new phase enum):
+  the reducer's modal guard now blocks every action except the new **`buyQuest`**, so the tavern is locked at the
+  ENGINE level. `buyQuest` moves the pick to `activeQuests`, clears the offer, and rolls the deferred tavern
+  (honoring a carried freeze) → the normal turn begins. Objectives tick centrally in `reduce` (a successful
+  buy/play/sell/roll → `tickQuests`), completing + applying the reward via the shared `addBuff`.
+- **Every headless run-loop taught the quest phase** (else they'd soft-lock on wave 4): `playToEnd` (run.test),
+  `buildBootstrapPool` (`snapshot.ts`, used by two test files), the snapshot-test bot, and the tools
+  (`run-harness` / `replay-harness` / `perf` / `player-curve`) all buy a quest when `questOffer` is set.
+- **Verified:** `typecheck + lint + test (522, +8 quest cases) + build:web` green; `npm run bot` plays full runs
+  through waves 4/8/12 with **determinism intact**. Tests cover tier mapping; offer shape (neutral-always,
+  distinct tribes, tier); seeded determinism; the wave-8/12 dominant-tribe guarantee; phase-open + tavern-lock +
+  buyQuest; objective tick → completion → board buffed; and a full bot run buying one quest per quest-turn reached.
+- **Follow-ups:** **PR 2 = the UI** (quest-shop rendering, control-lock, timer-pause, quest panel, live progress
+  text). Then real content (objectives + the full reward palette) and a **balance/curve retune** — quests are pure
+  power-add, so the enemy curve / Line + the committed opponent pool (`npm run pool`) will want a pass.
+
 ### tweak(ui): Continue button shows just "Round N" (hero name was clipping)
 
 Owner report: the title's Continue note ("{hero} · Round N") was getting cut off — with the Clear-run button now

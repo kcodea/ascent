@@ -12,7 +12,7 @@ import { selectThreat, type ThreatId } from './threats';
  * are derived purely from (seed, wave) so they're identical every time a wave is
  * re-resolved — which is why the recruit-phase preview matches the actual fight.
  */
-export const TAG = { THREAT: 1, ENEMY: 2, SHOP: 3, COMBAT: 4, TRIBES: 5, MAGNET: 6, ODDS: 7, GILD: 8 } as const;
+export const TAG = { THREAT: 1, ENEMY: 2, SHOP: 3, COMBAT: 4, TRIBES: 5, MAGNET: 6, ODDS: 7, GILD: 8, QUEST: 9 } as const;
 
 /** The playable (non-neutral) tribes. Grows as tribes are added; a run draws 5 of them. */
 export const PLAYABLE_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
@@ -147,6 +147,14 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
 export type DiscoverSpec =
   | { kind: 'spell' }
   | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; exclude?: string; topTierFirst?: boolean };
+
+/** A quest the player has bought — its live objective progress + completion flag. Persists for the run
+ *  (shown in the quest panel); up to 3 accumulate over a run (waves 4/8/12). */
+export interface ActiveQuest {
+  questId: string;
+  progress: number;
+  completed: boolean;
+}
 
 export interface RunState {
   seed: number;
@@ -305,6 +313,13 @@ export interface RunState {
    *  uid — the UI flies it in from the hero portrait. Transient; absent until the first grant. */
   chaosGrantSeq?: number;
   chaosGrantUid?: string;
+  /** The quest shop is open (waves 4/8/12): a pending offer of quest ids to "buy" for 0 Gold. While set, the
+   *  reducer blocks every non-`buyQuest` action (the tavern is locked) and the UI pauses the round timer; the
+   *  bought quest moves to `activeQuests` and this clears, opening the normal shop. */
+  questOffer?: string[];
+  /** Quests the player has bought this run, with live objective progress — rendered in the quest panel.
+   *  Optional so pre-quest-system saves heal to `[]` rather than crashing on read. */
+  activeQuests?: ActiveQuest[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted
@@ -337,6 +352,7 @@ export type Action =
   | { type: 'reorderHand'; uid: string; toIndex: number }
   | { type: 'heroPower'; uid?: string } // uid omitted for untargeted powers (Nadja's Mana Font)
   | { type: 'discover'; index: number }
+  | { type: 'buyQuest'; index: number } // quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold
   | { type: 'chooseOne'; index: number }
   | { type: 'battlecryTarget'; targetUid: string }
   | { type: 'faceOmen' }
@@ -440,6 +456,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     spellCostMod: 0,
     hand: [],
     board: [],
+    activeQuests: [],
     heroId,
     heroReady: true,
     heroPowerSpent: false,

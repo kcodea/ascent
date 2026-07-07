@@ -152,11 +152,19 @@ look because the engine already produces the data.
 
 ## Phase C — build-authorship depth (after the spine)
 
-### C1. Quest Shops
-- Scheduled identity checkpoints (turns **4/8**, expand to 12 later) shown *before* the normal shop: pick
-  1-of-3 quests (tribe/archetype leader art). Offers: 1 on-board, 1 pivot/splash, 1 economy/weird. Quest
-  minions **never** roll in the normal shop. Prototype: **10–15 quests, turns 4 & 8 only, no reroll, no
-  quest-refresh spell** (refresh risks a fishing economy — delay it). **Size:** L. **Depends:** A1 (course).
+### C1. Quest Shops — 🚧 **engine shipped (PR 1); UI + content next**
+- **Design (locked with owner):** on waves **4/8/12** a quest shop opens *before* the normal shop — 3 quest-cards
+  "bought" for 0 Gold like a card (tavern locked, timer paused), added to a persistent quest panel; the objective
+  (an event counter) ticks during play and applies a reward on completion. No fail / no expiry. Offer = **1
+  neutral (always) + 2 distinct tribes**; waves 8/12 guarantee ≥1 of your most-played board tribe. Pool target
+  ~6/8/6 per tribe+neutral (built skinny first). Reward palette: buffs/auras, economy, card gen, unique minions/
+  modifiers, new scaling, global multipliers (matrix-bending reserved for capstones).
+- **✅ Engine (PR 1, → devlog):** `QuestDef` + zod + 18 test quests; seeded `generateQuestOffer` (`TAG.QUEST`);
+  `questOffer` / `activeQuests` on RunState; `advanceCombat` quest-phase + reducer lock + `buyQuest` + central
+  objective tick + `applyQuestReward`; every headless run-loop taught the phase. Fully tested, determinism intact.
+- **Remaining:** **PR 2 — UI** (quest-shop render, control-lock, timer-pause, quest panel, live progress text);
+  then **real content** (meaningful objectives + the full reward palette) and a **balance/curve retune** (quests
+  are pure power-add → the enemy curve / Line + committed opponent pool want a pass). **Size:** M (UI) + ongoing.
 
 ### C2. Mastery Minions
 - Normal shop minions that **improve through repeated actions** (not scheduled, not quests) — find, nurture,

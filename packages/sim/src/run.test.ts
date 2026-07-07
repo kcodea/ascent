@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { makeRng, type CombatResult } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX } from '@game/content';
 import {
   CONFIG,
   POOL_QUANTITIES,
@@ -14,6 +14,8 @@ import {
   isServableBoard,
   registerOpponents,
   buildBootstrapPool,
+  generateQuestOffer,
+  questTierForWave,
   lossDamageCap,
   runRecord,
   isCalibrationRound,
@@ -47,7 +49,9 @@ function playToEnd(seed: number): RunState {
   let s = createRun(seed);
   let steps = 0;
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 10000) {
-    if (s.chooseOne) {
+    if (s.questOffer) {
+      s = reduce(s, { type: 'buyQuest', index: 0 }); // quest shop (waves 4/8/12): buy a quest to open the turn
+    } else if (s.chooseOne) {
       s = reduce(s, { type: 'chooseOne', index: 0 }); // resolve a pending Choose One (Runic Beetle / Wildwood Shaper)
     } else if (s.pendingTarget) {
       s = reduce(s, { type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid }); // pick a target (Runic Beetle / Toxin Tender)
@@ -4086,5 +4090,79 @@ describe('wave-relative board strength rating (@game/sim)', () => {
     expect(ratingBand(0)).toBe(0);
     expect(ratingBand(0.999)).toBe(BAND_COUNT - 1);
     expect(ratingBand(1)).toBe(BAND_COUNT - 1); // clamped, never out of range
+  });
+});
+
+describe('quests (M3 framework)', () => {
+  it('questTierForWave maps the quest-turns (4/8/12) and nothing else', () => {
+    expect(questTierForWave(4)).toBe('lesser');
+    expect(questTierForWave(8)).toBe('greater');
+    expect(questTierForWave(12)).toBe('capstone');
+    expect(questTierForWave(3)).toBeNull();
+    expect(questTierForWave(5)).toBeNull();
+    expect(questTierForWave(1)).toBeNull();
+  });
+
+  it('generateQuestOffer: 3 quests of the wave tier — exactly one neutral + 2 distinct tribes', () => {
+    const offer = generateQuestOffer({ ...createRun(1), wave: 4 });
+    expect(offer.length).toBe(3);
+    const defs = offer.map((id) => QUEST_INDEX[id]!);
+    expect(defs.every((q) => q.tier === 'lesser')).toBe(true);
+    expect(defs.filter((q) => q.tribe === 'neutral').length).toBe(1); // neutral always, exactly one
+    expect(new Set(defs.map((q) => q.tribe)).size).toBe(3); // all three tribes distinct
+  });
+
+  it('generateQuestOffer is deterministic (seeded off seed + wave) and empty off quest-waves', () => {
+    expect(generateQuestOffer({ ...createRun(7), wave: 8 })).toEqual(generateQuestOffer({ ...createRun(7), wave: 8 }));
+    expect(generateQuestOffer({ ...createRun(1), wave: 5 })).toEqual([]);
+  });
+
+  it('waves 8 & 12 guarantee your most-played tribe is offered', () => {
+    const beastId = BUYABLE_CARDS.find((c) => c.tribe === 'beast')!.id;
+    const beast = (uid: string): BoardCard => ({ uid, cardId: beastId, tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false });
+    const offer = generateQuestOffer({ ...createRun(1), wave: 8, board: [beast('b1'), beast('b2'), beast('b3')] });
+    expect(offer.map((id) => QUEST_INDEX[id]!.tribe)).toContain('beast');
+  });
+
+  it('advancing into wave 4 opens the quest shop; the tavern is locked until a quest is bought', () => {
+    let s: RunState = { ...createRun(1), wave: 3, phase: 'recruit', resolve: 200 };
+    s = reduce(s, { type: 'faceOmen' }); // → combat (empty board loses, but survives at 200 Resolve)
+    s = reduce(s, { type: 'resolveCombat' }); // → advance to wave 4
+    expect(s.wave).toBe(4);
+    expect(s.questOffer?.length).toBe(3);
+    // Locked: a normal tavern action is a no-op (same state reference) while the quest offer is open.
+    expect(reduce(s, { type: 'roll' })).toBe(s);
+    // Buy the quest → it moves to activeQuests, the offer clears, and the normal shop rolls (the turn begins).
+    const bought = reduce(s, { type: 'buyQuest', index: 0 });
+    expect(bought.questOffer).toBeUndefined();
+    expect(bought.activeQuests?.length).toBe(1);
+    expect(bought.activeQuests![0]!.questId).toBe(s.questOffer![0]);
+    expect(bought.shop.length).toBeGreaterThan(0);
+  });
+
+  it('an objective ticks on its tracked action and applies its reward at the threshold', () => {
+    // A minion that plays cleanly onto the board (no Battlecry / summon buff / Magnetic / target), so `play`
+    // just lands it at base stats — then the quest reward is the only stat change.
+    const plain = BUYABLE_CARDS.find(
+      (c) => !c.chooseOne && !c.target && !c.keywords.includes('M') && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'),
+    )!;
+    const mk = (uid: string): BoardCard => ({ uid, cardId: plain.id, tribe: plain.tribe, attack: plain.attack, health: plain.health, keywords: [...plain.keywords], golden: false });
+    // q_lesser_beast = objective play×2 → reward +2/+1 to the board.
+    let s: RunState = { ...createRun(1), phase: 'recruit', activeQuests: [{ questId: 'q_lesser_beast', progress: 0, completed: false }], hand: [mk('h1'), mk('h2')], board: [] };
+    s = reduce(s, { type: 'play', uid: 'h1' });
+    expect(s.activeQuests![0]!.progress).toBe(1);
+    expect(s.activeQuests![0]!.completed).toBe(false);
+    s = reduce(s, { type: 'play', uid: 'h2' });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    // Reward (+2/+1) landed on every board minion.
+    expect(s.board.length).toBe(2);
+    expect(s.board.every((c) => c.attack === plain.attack + 2 && c.health === plain.health + 1)).toBe(true);
+  });
+
+  it('a full bot run passes cleanly through the quest turns (no soft-lock)', () => {
+    const end = playToEnd(1);
+    expect(['gameover', 'victory']).toContain(end.phase); // terminated, not stuck at the step cap
+    // One quest bought per quest-turn REACHED (buys happen in recruit, before that wave's combat).
+    expect(end.activeQuests?.length ?? 0).toBe([4, 8, 12].filter((w) => end.wave >= w).length);
   });
 });

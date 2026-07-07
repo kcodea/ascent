@@ -1,5 +1,6 @@
 import { CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@game/sim';
 import { BuffsFrame } from './BuffsFrame';
+import { QuestPanel } from './QuestPanel';
 import { Icon } from './Icon';
 import { OpponentFrame } from './OpponentFrame';
 import { useGame } from './store';
@@ -64,6 +65,7 @@ export function HudBar() {
           column) so it can never grow the bar and push the shop/board down when buffs are active. */}
       <div className="topleft">
         <BuffsFrame />
+        <QuestPanel />
       </div>
       {/* Top-right: the next-enemy frame (recruit only). */}
       <div className="topright">

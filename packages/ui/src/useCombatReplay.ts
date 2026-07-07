@@ -6,7 +6,7 @@ import { sfx } from './sfx';
 import { pixiFx } from './pixiFx';
 import { getLungeConfig } from './lungeConfig';
 import { getTrailConfig } from './trailConfig';
-import { getPacingConfig, beatDelay } from './pacingConfig';
+import { getChoreoConfig, beatDelay } from './choreo/choreoConfig';
 import { RESULT_TYPES, attackerOfImpact } from './combatBeats';
 import { compileMoments } from './choreo/compile';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
@@ -216,8 +216,8 @@ function computeFrame(
   return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };
 }
 
-// Per-beat lengths (ms) + the global tempo baseline + float/hold lifetimes all live in `pacingConfig.ts`,
-// live-tunable via the DEV Pacing tuner. The scheduler reads `getPacingConfig()` / `beatDelay(type)` at each
+// Per-beat lengths (ms) + the global tempo baseline + float/hold lifetimes all live in `choreo/choreoConfig.ts`,
+// live-tunable via the DEV Pacing tuner. The scheduler reads `getChoreoConfig()` / `beatDelay(type)` at each
 // beat, so retuning applies to the next beat. Defaults there mirror the former hardcoded constants exactly.
 // The `attack` (wind-up) beat's hold is NOT `beatDelay('attack')` — it's overridden below by the lunge's
 // connection time (from lungeConfig.ts) so the damage float always lands ON contact, independent of pacing.
@@ -569,7 +569,7 @@ export function useCombatReplay(
   useEffect(() => {
     if (!active || hidden || beatIdx >= beats.length) return;
     const beat = beats[beatIdx]!;
-    const pc = getPacingConfig(); // live-tunable (DEV Pacing tuner) → applies to the next beat
+    const pc = getChoreoConfig(); // live-tunable (DEV Pacing tuner) → applies to the next beat
     let d = beatDelay(beat.primary.type) * pc.speed;
     // The beat on screen is beats[beatIdx-1]; the scheduler controls how long it stays before beats[beatIdx]
     // shows. The lunge config tunes two combat-feel beats (live via the DEV Lunge tuner):
@@ -593,7 +593,7 @@ export function useCombatReplay(
   // the last kill's death collapse + damage float fully play before cleanup + the round-end UI take over.
   useEffect(() => {
     if (!active || !replayComplete) return;
-    const t = window.setTimeout(() => setFinished(true), getPacingConfig().finalHold / combatSpeed);
+    const t = window.setTimeout(() => setFinished(true), getChoreoConfig().finalHold / combatSpeed);
     return () => window.clearTimeout(t);
   }, [active, replayComplete, combatSpeed]);
 
@@ -644,12 +644,12 @@ export function useCombatReplay(
     if (spawned.length) {
       setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
       const ids = new Set(spawned.map((s) => s.id));
-      timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getPacingConfig().floatMs / combatSpeed));
+      timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeed));
     }
     if (deaths.length) {
       setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
       const ids = new Set(deaths.map((s) => s.id));
-      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getPacingConfig().deathFloatMs / combatSpeed));
+      timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeed));
     }
     return () => timers.forEach((id) => window.clearTimeout(id));
   }, [active, beatIdx, beats, events, findEl, combatSpeed]);

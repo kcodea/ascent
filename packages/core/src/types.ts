@@ -63,6 +63,7 @@ export type EffectFactoryId =
   | 'onKillBuffSpellPower' // on kill: permanently raise run-wide spell power +atk/+hp, carried back (Gnasher)
   | 'onKillGrantFreeRolls' // Moe: Slaughter — bank N free rerolls for next shop (carried back)
   | 'onKillGrantGold' // Bounty Bot: Slaughter — grant N Gold into the next shop (carried back)
+  | 'onKillCastSpell' // Hoardbreaker Drake: Slaughter — cast a board-wide stat spell (Growth) in combat
   | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
   | 'deathrattleDestroyKiller' // Deathrattle: destroy the minion that dealt the killing blow (Jenkins & Fi)
   | 'deathrattleBuffTribeByTally' // Deathrattle: buff a tribe by +per per Deathrattle triggered this game (Grim)

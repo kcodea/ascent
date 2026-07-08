@@ -285,6 +285,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantBonusGold(num(params.gold, 2) * mul(self), self.side);
   },
 
+  /** Hoardbreaker Drake — Slaughter (on kill): "cast" a board-wide stat spell (Growth) — buff all living
+   *  friends by the spell's +atk/+hp PLUS combat spell power. Golden doubles the grant. Attacker-guarded, so
+   *  it fires once per kill this minion lands (extra kills re-cast). */
+  onKillCastSpell: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    const spell = ctx.getCard(str(params.spellId));
+    const eff = spell?.effects.find((e) => e.do === 'spellBuffAll' || e.do === 'spellBuffTarget');
+    if (!eff) return;
+    const a = (num(eff.params?.attack, 0) + ctx.spellPower.attack) * mul(self);
+    const h = (num(eff.params?.health, 0) + ctx.spellPower.health) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
+    for (const t of targets) ctx.buff(t, a, h, self.uid);
+  },
+
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
    *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
   deathrattleDamageAll: (ctx, self, params, payload) => {

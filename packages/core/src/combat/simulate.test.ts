@@ -183,6 +183,16 @@ describe('simulate (handoff A.3)', () => {
     expect(entry?.bonus ?? 0).toBeGreaterThanOrEqual(5);
   });
 
+  it('Hoardbreaker Drake Slaughter casts Growth (buffs all friends +3/+4)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'hoardbreaker', attack: 4, health: 20 },
+      { cardId: 'sandbag', attack: 0, health: 20 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker → Slaughter
+    const r = run(p, e, 3);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

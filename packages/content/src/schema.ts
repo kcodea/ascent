@@ -40,6 +40,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onKillBuffSpellPower',
   'onKillGrantFreeRolls',
   'onKillGrantGold',
+  'onKillCastSpell',
   'deathrattleDamageAll',
   'deathrattleDestroyKiller',
   'deathrattleBuffTribeByTally',

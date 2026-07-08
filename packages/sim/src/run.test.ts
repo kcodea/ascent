@@ -364,6 +364,23 @@ describe('run loop (@game/sim)', () => {
     expect(b.hand.find((c) => c.cardId === 'alley')!.attack).toBe(CARD_INDEX.alley!.attack + 2);
   });
 
+  it('Scrap Herald: Battlecry gives Magnetics +2/+2 wherever (board + hand), stacking for future ones', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'c', cardId: 'cling', tribe: 'mech', attack: 1, health: 1, keywords: ['M'], golden: false }],
+      hand: [
+        { uid: 'sh', cardId: 'scrapherald', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false },
+        { uid: 'h', cardId: 'cling', tribe: 'mech', attack: 1, health: 1, keywords: ['M'], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'sh' });
+    const c = s.board.find((x) => x.uid === 'c')!;
+    const h = s.hand.find((x) => x.uid === 'h')!;
+    expect([c.attack, c.health]).toEqual([3, 3]); // current board Magnetic +2/+2
+    expect([h.attack, h.health]).toEqual([3, 3]); // current hand Magnetic +2/+2
+    expect([s.magneticBuyAtk, s.magneticBuyHp]).toEqual([2, 2]); // stacks — future Magnetics inherit it
+  });
+
   it('Spark Plug: casting gives your entire board +5/+5 twice (+10/+10)', () => {
     let s: RunState = {
       ...createRun(1),

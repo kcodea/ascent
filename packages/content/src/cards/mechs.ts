@@ -261,4 +261,19 @@ export const MECHS: CardDef[] = [
     text: '**Avenge (4):** add a **Spark Plug** to your hand.',
     goldenText: '**Avenge (4):** add **two Spark Plugs** to your hand.',
   },
+  {
+    // Battlecry: your Magnetic minions ("Attachments") gain +2/+2 wherever they are — baked into every current
+    // Magnetic (board + hand) and every future one (bought/conjured/summoned/Reborn), the Magnetic sibling of
+    // Squirl Scout's Beast aura but with a Health half. Excludes ones already welded into a host. Golden → +4/+4.
+    id: 'scrapherald',
+    name: 'Scrap Herald',
+    tribe: 'mech',
+    tier: 3,
+    attack: 2,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryBuffMagnetics', params: { attack: 2, health: 2 } }],
+    text: '**Battlecry:** your **Attachments** have **+2/+2** wherever they are.',
+    goldenText: '**Battlecry:** your **Attachments** have **+4/+4** wherever they are.',
+  },
 ];

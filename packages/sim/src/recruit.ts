@@ -137,7 +137,14 @@ export function undeadBuyBonus(state: RunState, def: CardDef): number {
   let bonus = 0;
   if (universal || def.tribe === 'undead' || def.tribe2 === 'undead') bonus += state.undeadBuyAtk ?? 0;
   if (universal || def.tribe === 'beast' || def.tribe2 === 'beast') bonus += state.beastBuyAtk ?? 0;
+  if (def.keywords.includes('M')) bonus += state.magneticBuyAtk ?? 0; // Scrap Herald (Magnetic/Attachment aura)
   return bonus;
+}
+
+/** Run-wide HEALTH aura baked at creation — Magnetic minions only (Scrap Herald). The Beast/Undead auras are
+ *  attack-only, so this Health half is separate; added to a minion's `health` at every creation site. */
+export function buyHealthAura(state: RunState, def: CardDef): number {
+  return def.keywords.includes('M') ? (state.magneticBuyHp ?? 0) : 0;
 }
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
@@ -364,7 +371,7 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number): v
       cardId: def.id,
       tribe: def.tribe,
       attack: def.attack + cb.attack + undeadBuyBonus(state, def),
-      health: def.health + cb.health,
+      health: def.health + cb.health + buyHealthAura(state, def),
       keywords: [...def.keywords],
       golden: false,
     });
@@ -544,7 +551,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         cardId: def.id,
         tribe: def.tribe,
         attack: def.attack + cb.attack + undeadBuyBonus(ctx.state, def),
-        health: def.health + cb.health,
+        health: def.health + cb.health + buyHealthAura(ctx.state, def),
         keywords: [...def.keywords],
         golden: false,
       });
@@ -1213,7 +1220,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       tribe: card.tribe,
       // Stolen like a buy → also carries the run-wide Undead Attack bonus (undeadBuyAtk).
       attack: card.attack + cb.attack + (offer.atk ?? 0) + undeadBuyBonus(state, card),
-      health: card.health + cb.health + (offer.hp ?? 0),
+      health: card.health + cb.health + (offer.hp ?? 0) + buyHealthAura(state, card),
       keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
       golden: false,
     });
@@ -1497,6 +1504,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (isTribe(card, 'beast')) addBuff(card, nameOf(self), amount, 0);
     }
     ctx.state.beastBuyAtk = (ctx.state.beastBuyAtk ?? 0) + amount;
+  },
+
+  /** Scrap Herald — Battlecry: your Magnetic minions ("Attachments") get +atk/+hp "wherever they are". Buffs
+   *  every current Magnetic (board + hand) now and stacks into `magneticBuyAtk`/`magneticBuyHp`, so future
+   *  Magnetics (bought / conjured / summoned / Reborn) carry it too — the Magnetic sibling of Squirl Scout's
+   *  Beast aura, but with a Health half. Golden doubles. */
+  battlecryBuffMagnetics: (ctx, self, params) => {
+    const a = num(params.attack, 2) * gold(self);
+    const h = num(params.health, 2) * gold(self);
+    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
+      if (card.keywords.includes('M')) addBuff(card, nameOf(self), a, h);
+    }
+    ctx.state.magneticBuyAtk = (ctx.state.magneticBuyAtk ?? 0) + a;
+    ctx.state.magneticBuyHp = (ctx.state.magneticBuyHp ?? 0) + h;
   },
 
   /** Koron — every `every` Gold you spend (the per-instance gold meter), permanently buff your Fodder run-wide
@@ -2155,7 +2176,7 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0);
   const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
   let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA;
-  let health = def.health + cb.health + (offer.hp ?? 0) + staffH;
+  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def);
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild
   return { attack, health };
 }

@@ -188,6 +188,7 @@ export type EffectFactoryId =
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryBuffBeastAttack' // Squirl Scout: Battlecry — give your Beasts +Attack wherever they are; stacks into future buys
+  | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
   | 'goldSpentBuffFodder' // Koron: every N Gold spent, permanently buff your Fodder run-wide (+ queue a Fodder)
   | 'goldSpentMagnetize' // Banksly: every N Gold spent, weld a random Magnetic onto self

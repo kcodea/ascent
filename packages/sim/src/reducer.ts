@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -230,7 +230,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       };
       // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
       addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
-      if (buyAura > 0) addBuff(bought, 'Tribe Bond', buyAura, 0);
+      const buyAuraHp = buyHealthAura(s, card); // Scrap Herald: Magnetic minions also carry a Health aura
+      if (buyAura > 0 || buyAuraHp > 0) addBuff(bought, 'Tribe Bond', buyAura, buyAuraHp);
       // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
       // Fodder is excluded: it already carries the Staff buff via its run-wide enchant (cardBuff above),
       // so applying it again here would double it on the rare directly-bought Fodder.
@@ -656,7 +657,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         tribe: def.tribe,
         // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
         attack: def.attack + dcb.attack + undeadBuyBonus(s, def),
-        health: def.health + dcb.health,
+        health: def.health + dcb.health + buyHealthAura(s, def),
         keywords: [...def.keywords],
         golden: false,
       });
@@ -744,13 +745,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
       }).length;
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0);
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0);
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0);
           if (r.result === 'win') win++;
           else if (r.result === 'draw') draw++;
           else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
@@ -1044,7 +1045,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
         cardId: def.id,
         tribe: def.tribe,
         attack: def.attack + cb.attack + undeadBuyBonus(s, def),
-        health: def.health + cb.health,
+        health: def.health + cb.health + buyHealthAura(s, def),
         keywords: [...def.keywords],
         golden: false,
       });
@@ -1251,7 +1252,7 @@ function advanceCombat(s: RunState): void {
         cardId: 'symbioticattachment',
         tribe: def.tribe,
         attack: def.attack + cb.attack + undeadBuyBonus(s, def),
-        health: def.health + cb.health,
+        health: def.health + cb.health + buyHealthAura(s, def),
         keywords: [...def.keywords],
         golden: false,
       });

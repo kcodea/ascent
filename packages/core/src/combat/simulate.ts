@@ -51,6 +51,8 @@ export function simulate(
   playerRallyDouble = false,
   beastsPlayedThisTurn = 0,
   beastBuyAtk = 0,
+  magneticBuyAtk = 0,
+  magneticBuyHp = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
@@ -103,7 +105,7 @@ export function simulate(
 
   // Each aura yields the +atk/+hp it grants a given minion (0/0 = doesn't apply). `bakedAtk` is the slice of
   // Attack already folded into run-board stats at buy time (re-added only to a from-base body).
-  const AURAS: { label: string; grant: (m: Minion) => { attack: number; health: number; bakedAtk?: number } }[] = [
+  const AURAS: { label: string; grant: (m: Minion) => { attack: number; health: number; bakedAtk?: number; bakedHp?: number } }[] = [
     {
       label: 'Undead Aura',
       grant: (m) =>
@@ -121,6 +123,15 @@ export function simulate(
           : { attack: 0, health: 0 },
     },
     {
+      // Scrap Herald — run-wide Attachment/Magnetic aura (+atk AND +hp), all baked at buy, so it's re-added
+      // only to from-base bodies (summoned/Reborn Magnetics); starting Magnetics already carry it.
+      label: 'Attachment Aura',
+      grant: (m) =>
+        m.keywords.includes('M')
+          ? { attack: 0, health: 0, bakedAtk: magneticBuyAtk, bakedHp: magneticBuyHp }
+          : { attack: 0, health: 0 },
+    },
+    {
       label: 'Imp Aura',
       grant: (m) =>
         cards[m.cardId]?.imp ? { attack: impAtkBonus, health: impHpBonus } : { attack: 0, health: 0 },
@@ -135,8 +146,9 @@ export function simulate(
       for (const aura of AURAS) {
         const g = aura.grant(m);
         const a = g.attack + (fromBase ? g.bakedAtk ?? 0 : 0);
+        const h = g.health + (fromBase ? g.bakedHp ?? 0 : 0);
         if (a > 0) m.attack = Math.max(0, m.attack + a);
-        if (g.health > 0) { m.health += g.health; m.maxHealth += g.health; }
+        if (h > 0) { m.health += h; m.maxHealth += h; }
       }
     }
     // Per-card run enchant (Fodder Aura + Eternal Knight). The player's prior-run total is authoritative in

@@ -2348,3 +2348,64 @@ describe('combat-phase quest tallies', () => {
     expect(r.playerBeastBuyAtkGain! % 7).toBe(0);
   });
 });
+
+describe('Undead quests — Echo doublers stack additively + friendly-death counts', () => {
+  // questMods is the last positional arg — this fills the middle with the run helper's defaults (tier 6, all
+  // tribes) so a test only supplies the boards + mods it cares about.
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  // A single tanky Sporeling (Deathrattle: buff all) vs a 0-attack Omen — it never dies, so the ONLY Echo
+  // trigger is the one Echoing Coop fires at Start of Combat. That isolates the doubler math on exactly one Echo.
+  const p1: BoardMinion[] = [{ cardId: 'spore', attack: 5, health: 50 }];
+  const omen: BoardMinion[] = [{ cardId: 'omen', attack: 0, health: 80 }];
+
+  it('Funeral Engine (echoExtraAlways) adds one extra Echo trigger, additively', () => {
+    expect(simMods(p1, omen, 1, { echoingCoop: true }).playerDeathrattles).toBe(1); // base: 1 Echo
+    expect(simMods(p1, omen, 1, { echoingCoop: true, echoExtraAlways: 1 }).playerDeathrattles).toBe(2); // +1
+    expect(simMods(p1, omen, 1, { echoingCoop: true, echoExtraAlways: 2 }).playerDeathrattles).toBe(3); // +2
+  });
+
+  it('Grave Contract / Last Rites (echoFirstEachCombat) adds to only the FIRST Echo, and stacks with Funeral Engine', () => {
+    expect(simMods(p1, omen, 1, { echoingCoop: true, echoFirstEachCombat: 1 }).playerDeathrattles).toBe(2); // first Echo +1
+    // First-echo bonus + permanent bonus are additive on that first Echo: 1 base + 1 always + 1 first = 3.
+    expect(simMods(p1, omen, 1, { echoingCoop: true, echoExtraAlways: 1, echoFirstEachCombat: 1 }).playerDeathrattles).toBe(3);
+  });
+
+  it('the first-echo bonus is spent once per combat (a second Echo only gets the permanent bonus)', () => {
+    // Two Sporelings, both alive; Echoing Coop fires each once. With echoFirstEachCombat=1 + echoExtraAlways=1:
+    // first Echo = 1+1+1 = 3, second Echo = 1+1 = 2 → total 5.
+    const two: BoardMinion[] = [{ cardId: 'spore', attack: 5, health: 50 }, { cardId: 'spore', attack: 5, health: 50 }];
+    expect(simMods(two, omen, 1, { echoingCoop: true, echoExtraAlways: 1, echoFirstEachCombat: 1 }).playerDeathrattles).toBe(5);
+  });
+
+  it('Sylus stacks additively with the quest Echo doublers (owner ruling 2026-07-08)', () => {
+    // Sporeling + a living Sylus: Echoing Coop fires the Sporeling's Echo, doubled by Sylus (+1). Sylus has no
+    // Echo of its own, so it adds no trigger. +Funeral Engine (echoExtraAlways) makes it 1 base + 1 Sylus + 1 = 3.
+    const withSylus: BoardMinion[] = [{ cardId: 'spore', attack: 5, health: 50 }, { cardId: 'sylus', attack: 5, health: 50 }];
+    expect(simMods(withSylus, omen, 1, { echoingCoop: true }).playerDeathrattles).toBe(2); // 1 base + 1 Sylus
+    expect(simMods(withSylus, omen, 1, { echoingCoop: true, echoExtraAlways: 1 }).playerDeathrattles).toBe(3); // + Funeral Engine
+  });
+
+  it('playerDeaths counts friendly deaths raw (unlike Echo triggers, doublers do NOT scale it)', () => {
+    // A fragile Sporeling dies once to a big wall. One death, one Echo — doublers would inflate the Echo count
+    // but never the death count.
+    const frail: BoardMinion[] = [{ cardId: 'spore', attack: 1, health: 1 }];
+    const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 10 }];
+    const r = simMods(frail, wall, 2, { echoExtraAlways: 5 });
+    expect(r.playerDeaths).toBe(1); // exactly one minion died
+    expect(r.playerDeathrattles).toBeGreaterThan(1); // the Echo, on the other hand, was doubled
+  });
+
+  it('The Bone Throne triggers your leftmost Echo every N friendly deaths', () => {
+    // A tanky leftmost Sporeling (survives) behind 7 fragile sandbags that die on their counter-attacks. With
+    // boneThroneStep=7, the 7th friendly death re-triggers the Sporeling's Echo — even though it never died.
+    const board: BoardMinion[] = [
+      { cardId: 'spore', attack: 1, health: 100000 }, // huge HP → survives the round cap, so it only Echoes via the throne
+      ...Array.from({ length: 7 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 })),
+    ];
+    const big: BoardMinion[] = [{ cardId: 'sandbag', attack: 6, health: 500 }];
+    expect(simMods(board, big, 3, {}).playerDeathrattles).toBe(0); // no throne → the surviving Sporeling never Echoes
+    expect(simMods(board, big, 3, { boneThroneStep: 7 }).playerDeathrattles).toBeGreaterThanOrEqual(1); // throne fired it
+  });
+});

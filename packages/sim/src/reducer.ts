@@ -8,8 +8,8 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
  *  for buys, rerolls, tier-ups and hero powers. */
@@ -1047,6 +1047,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
   accumulateContribution((s.runDamage ??= {}), (s.runProcs ??= {}), tallyCombat(result));
   // Accumulate this combat's player Deathrattles into the run-wide "this game" count (Grim scales off it).
   s.deathrattlesTriggered += result.playerDeathrattles;
+  // Record who survived — read at the next shop start to fire a surviving Gravetwin's copied Echo.
+  s.lastSurvivorCardIds = result.playerSurvivorCardIds;
   // Persist per-instance combat state (Kennelmaster's Avenge permanently improves its
   // summon buff for the rest of the run), keyed back to the originating board card.
   if (result.playerSummonBonus) {
@@ -1306,6 +1308,10 @@ function advanceCombat(s: RunState): void {
     s.frozen = false;
   } else refreshTavern(s);
   s.phase = 'recruit';
+  // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
+  // survivor list so it fires exactly once per fight.
+  fireGravetwinEchoes(s);
+  s.lastSurvivorCardIds = undefined;
   // Chaos hero power: at the START of every 5th turn, add a Chaos Attachment token to the hand
   // (the checkTriples below also combines it if it completes a triple). The hero starts with one token
   // (createRun); this is the recurring grant — turns 5, 10, 15, …
@@ -1388,10 +1394,22 @@ function advanceQuestsBy(s: RunState, pred: (o: QuestObjective) => boolean, amou
     const def = QUEST_INDEX[aq.questId];
     if (!def || !pred(def.objective)) continue;
     aq.progress += amount;
-    if (aq.progress >= def.objective.count) {
-      aq.completed = true;
+    resolveQuestThreshold(s, aq, def);
+  }
+}
+
+/** Complete a quest at its threshold (apply the reward, mark done) — or, for a REPEATABLE quest (Ossuary Rite),
+ *  fire the reward and re-arm (subtract the count, stay active) as many times as the progress covers, so one big
+ *  combat can grant it more than once. */
+function resolveQuestThreshold(s: RunState, aq: ActiveQuest, def: QuestDef): void {
+  if (def.repeatable) {
+    while (aq.progress >= def.objective.count) {
+      aq.progress -= def.objective.count;
       applyQuestReward(s, def, true);
     }
+  } else if (aq.progress >= def.objective.count) {
+    aq.completed = true;
+    applyQuestReward(s, def, true);
   }
 }
 
@@ -1468,6 +1486,21 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // Echoing Roar / The Hoard Wakes: a recurring End-of-Turn effect fired every turn for the rest of the run.
       (s.questRecurringEndOfTurn ??= []).push(r.effect);
       break;
+    case 'gainGold':
+      // Bone Ledger: bank Gold into your next shop (the standard "Get N Gold" channel — survives the per-turn
+      // embers reset, exactly like Hoarder / Bounty Bot's bonus Gold).
+      s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + r.amount;
+      break;
+    case 'echoRepeat':
+      // Funeral Engine (always) → +1 permanent Echo trigger (stacks like Sylus); Grave Contract / Last Rites
+      // (firstEachCombat) → the first Echo each combat fires one extra time (additive across both).
+      if (r.scope === 'always') s.echoExtraAlways = (s.echoExtraAlways ?? 0) + 1;
+      else s.echoFirstEachCombat = (s.echoFirstEachCombat ?? 0) + 1;
+      break;
+    case 'boneThrone':
+      // The Bone Throne: every `every` friendly deaths in combat, trigger your leftmost Echo (permanent).
+      s.boneThroneStep = r.every;
+      break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
       for (const sub of r.rewards) applyQuestReward(s, { ...def, reward: sub }, allowRepeat);
@@ -1496,6 +1529,7 @@ function grantTribeAura(s: RunState, tribe: Tribe, attack: number, health: numbe
  *  Deathrattle tally; attack / summonCombat / slaughter read `playerQuestTally`, tribe-narrowed. */
 function combatEventCount(result: CombatResult, o: { event: QuestObjectiveEvent; tribe?: Tribe }): number {
   if (o.event === 'deathrattle') return result.playerDeathrattles;
+  if (o.event === 'friendlyDeath') return result.playerDeaths ?? 0;
   const t = result.playerQuestTally;
   if (!t) return 0;
   if (o.event === 'attack') return o.tribe ? (t.attackByTribe[o.tribe] ?? 0) : t.attack;
@@ -1514,10 +1548,7 @@ function advanceCombatQuests(s: RunState, result: CombatResult): void {
     const inc = combatEventCount(result, def.objective);
     if (inc <= 0) continue;
     aq.progress += inc;
-    if (aq.progress >= def.objective.count) {
-      aq.completed = true;
-      applyQuestReward(s, def, true);
-    }
+    resolveQuestThreshold(s, aq, def);
   }
 }
 
@@ -1545,6 +1576,9 @@ function questCombatMods(s: RunState): QuestCombatMods {
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,
     oldHuntStep: f?.oldHunt,
+    echoExtraAlways: s.echoExtraAlways || undefined,
+    echoFirstEachCombat: s.echoFirstEachCombat || undefined,
+    boneThroneStep: s.boneThroneStep || undefined,
   };
 }
 

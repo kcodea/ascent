@@ -1,5 +1,5 @@
 import { makeRng } from '@game/core';
-import type { CombatOutcome, CombatResult, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
+import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
@@ -90,6 +90,10 @@ export interface BoardCard {
    *  Attack — in the shop (via addBuff) AND in combat (carried back). Seeds the combat instance + shown
    *  live on the card. Default/absent = 0. */
   hpGrantBonus?: number;
+  /** Gravetwin: the Deathrattle it copied from a targeted friendly Echo minion (the onDeath EffectDefs), fired at
+   *  the start of the next shop if Gravetwin survived combat. `copiedEchoName` is the source's name for display. */
+  copiedEcho?: EffectDef[];
+  copiedEchoName?: string;
   /** Mana-per-turn this card grants *beyond* its own def (a Money Bot magnetized into it).
    *  The card's own `manaPerTurn` is read from its def; this holds only the absorbed bonus,
    *  so it survives the magnetize-merge + triple and is lost when the card is sold. */
@@ -386,6 +390,15 @@ export interface RunState {
   lastEotFires?: number;
   /** Parliament of Flame: permanent extra End-of-Turn triggers (stacks like Chronos). Folds into endOfTurnRepeats. */
   endOfTurnExtra?: number;
+  /** Undead Echo rewards (fold into QuestCombatMods for `simulate`). `echoExtraAlways` = permanent extra Echo
+   *  triggers (Funeral Engine, stacks like Sylus). `echoFirstEachCombat` = extra fires for the FIRST Echo each
+   *  combat (Grave Contract + Last Rites, additive). `boneThroneStep` = every-N-deaths leftmost-Echo trigger. */
+  echoExtraAlways?: number;
+  echoFirstEachCombat?: number;
+  boneThroneStep?: number;
+  /** Transient: cardIds of the player minions that survived the LAST combat (from CombatResult). Read at the
+   *  next shop start to fire a surviving Gravetwin's copied Echo. Reset each wave. */
+  lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
   questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout')[];

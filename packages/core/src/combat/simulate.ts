@@ -199,6 +199,9 @@ export function simulate(
   // Player-side Deathrattle firings this combat — feeds Grim's "+1/+1 per Deathrattle this game" tally
   // (added to the run-wide base passed in), and is carried back to accumulate the run-wide count.
   let playerDeathrattles = 0;
+  // Grave Contract / Last Rites: their "first Echo each combat fires extra" bonus is a one-shot per fight —
+  // this flips true the first time a player Echo actually triggers so the bonus is spent exactly once.
+  let firstPlayerEchoDone = false;
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
   let enemyDeaths = 0;
@@ -223,7 +226,7 @@ export function simulate(
   // objective increment. `tribes` lets the panel narrow ("…with Beasts"); an entry with step ≤ the replay's
   // current step is "already counted". Deathrattle (Echo) entries carry no tribe (the Echo objective is
   // tribe-agnostic). Carried back via `CombatResult.playerQuestEvents`.
-  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle'; tribes: Tribe[] }[] = [];
+  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath'; tribes: Tribe[] }[] = [];
   const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {
     const tribes = tribesFor(m);
     questTally[kind] += 1;
@@ -597,6 +600,21 @@ export function simulate(
   // Fire a minion's OWN Deathrattle / on-death effects directly (no global onDeath broadcast / Avenge / death
   // event) — used by Reborn so a reborn death procs the unit's own Deathrattle without re-triggering other
   // minions' death-watchers. Sylus the Reaper re-procs it (a reborn death is still a death).
+  // How many EXTRA times a minion's Echo fires beyond the base trigger — every echo doubler folded in
+  // ADDITIVELY (owner ruling 2026-07-08): Sylus the Reaper (golden ×2, multiple stack) + Funeral Engine's
+  // permanent `echoExtraAlways` + Grave Contract / Last Rites' `echoFirstEachCombat` on the FIRST player echo of
+  // the fight. Enemy echoes only see Sylus (quest mods are player-only). Consumes the first-echo bonus (once per
+  // combat), so call ONLY for a minion that actually has a Deathrattle.
+  function playerEchoExtras(minion: Minion): number {
+    let bonus = 0;
+    for (const m of boards[minion.side]) if (!m.dead && m.health > 0 && m.cardId === 'sylus') bonus += m.golden ? 2 : 1;
+    if (minion.side !== 'player') return bonus;
+    bonus += questMods.echoExtraAlways ?? 0;
+    const first = questMods.echoFirstEachCombat ?? 0;
+    if (first > 0 && !firstPlayerEchoDone) { bonus += first; firstPlayerEchoDone = true; }
+    return bonus;
+  }
+
   function fireOwnDeathrattles(minion: Minion): void {
     const fireOnce = (): void => {
       for (const effect of minion.effects) {
@@ -605,12 +623,12 @@ export function simulate(
       }
     };
     fireOnce();
-    let reaperBonus = 0;
-    for (const m of boards[minion.side]) if (!m.dead && m.health > 0 && m.cardId === 'sylus') reaperBonus += m.golden ? 2 : 1;
-    for (let r = 0; r < reaperBonus; r++) fireOnce();
-    // Sylus re-triggers count as extra Echo triggers (Reborn / Echoing Coop). The caller already counted the
-    // base trigger; add the reaper extras (player + has-a-Deathrattle only). See the death-path note above.
-    if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(reaperBonus);
+    if (!minion.effects.some((e) => e.on === 'onDeath')) return; // no Echo → no extra fires / tally to spend
+    const extra = playerEchoExtras(minion);
+    for (let r = 0; r < extra; r++) fireOnce();
+    // Doubler re-triggers count as extra Echo triggers (Reborn / Echoing Coop / Bone Throne). The caller already
+    // counted the base trigger; add the extras (player only — enemy Echoes don't feed quests).
+    if (minion.side === 'player') bumpDeathrattles(extra);
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
@@ -649,6 +667,7 @@ export function simulate(
       if (living(minion.side).length >= 7) {
         if (minion.side === 'enemy') enemyDeaths++;
         deaths[minion.side] += 1;
+        if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
         bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
         return;
       }
@@ -695,23 +714,31 @@ export function simulate(
     if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(1);
     nextStep(); // Deathrattles + on-death watchers resolve as their own step
     bus.emit('onDeath', { minion, side: minion.side, killer });
-    // Sylus the Reaper: the dying minion's own Deathrattle procs extra times (golden = +2;
-    // multiple Sylus stack additively). Re-runs only this minion's onDeath effects.
-    let reaperBonus = 0; // count Sylus without allocating a living() array on every death
-    for (const m of boards[minion.side]) if (!m.dead && m.health > 0 && m.cardId === 'sylus') reaperBonus += m.golden ? 2 : 1;
-    for (let r = 0; r < reaperBonus; r++) {
+    // Echo doublers re-proc the dying minion's own Deathrattle extra times — Sylus + Funeral Engine + the
+    // first-echo-each-combat bonus, all folded additively in `playerEchoExtras` (see its note). Only for a
+    // minion that actually has a Deathrattle (so the first-echo bonus isn't spent on a rattle-less body).
+    const extra = hasDeathrattle ? playerEchoExtras(minion) : 0;
+    for (let r = 0; r < extra; r++) {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
         FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
       }
     }
-    // Each Sylus RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the
-    // Echoing Coop objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added
-    // after the re-fires so all firings read the same tally value (the value at death), only the count grows.
-    if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(reaperBonus);
+    // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
+    // objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added after the
+    // re-fires so all firings read the same tally value (the value at death), only the count grows.
+    if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(extra);
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
+    if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
     bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
+    // The Bone Throne: every N friendly deaths, trigger your leftmost living Echo (like Echoing Coop, but
+    // paced by the death counter). Fires the leftmost minion that HAS a Deathrattle — its own doublers apply.
+    const throneStep = questMods.boneThroneStep ?? 0;
+    if (minion.side === 'player' && throneStep > 0 && deaths.player % throneStep === 0) {
+      const lead = boards.player.find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
+      if (lead) { nextStep(); bumpDeathrattles(1); fireOwnDeathrattles(lead); }
+    }
   }
 
   // The Reclaimer's pending resummons. A marked minion is destroyed at Start of Combat (its
@@ -1166,6 +1193,11 @@ export function simulate(
     result,
     playerDamage,
     playerDeathrattles,
+    playerDeaths: deaths.player,
+    playerSurvivorCardIds: (() => {
+      const alive = boards.player.filter((m) => !m.dead && m.health > 0).map((m) => m.cardId);
+      return alive.length > 0 ? alive : undefined;
+    })(),
     enemyDeaths,
     playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0) ? questTally : undefined,
     playerQuestEvents: questEvents.length > 0 ? questEvents : undefined,

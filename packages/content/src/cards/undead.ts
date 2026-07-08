@@ -298,4 +298,56 @@ export const UNDEAD: CardDef[] = [
     text: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add a random spell of its tier to your hand.',
     goldenText: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add **2** random spells of its tier to your hand.',
   },
+
+  // --- Undead quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---
+  {
+    // Kingdom of Bones reward. An Undead economy engine: bank Gold next shop on every 4th friendly death, and
+    // when it dies raise your max Gold permanently. Both halves carry back from combat (bonusGold + maxGold).
+    id: 'bonetaxer',
+    name: 'Bone Taxer',
+    tribe: 'undead',
+    tier: 3,
+    attack: 2,
+    health: 3,
+    keywords: [],
+    effects: [
+      { on: 'avenge', do: 'avengeBonusGold', params: { count: 4, amount: 2 } },
+      { on: 'onDeath', do: 'deathrattleMaxGold', params: { amount: 1 } },
+    ],
+    text: '**Avenge (4):** get **2 Gold** next shop. **Deathrattle:** raise your maximum Gold by **1**.',
+    goldenText: '**Avenge (4):** get **4 Gold** next shop. **Deathrattle:** raise your maximum Gold by **2**.',
+    token: true,
+  },
+  {
+    // Grave Robber reward. INVENTED body (not specced in the handoff — flagged for the owner): an Undead
+    // economy payoff fitting the sell-for-value quest. Battlecry permanently raises your max Gold.
+    id: 'cryptbroker',
+    name: 'Crypt Broker',
+    tribe: 'undead',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryMaxGold', params: { amount: 1 } }],
+    text: '**Battlecry:** raise your maximum Gold by **1**.',
+    goldenText: '**Battlecry:** raise your maximum Gold by **2**.',
+    token: true,
+  },
+  {
+    // Death Writes Twice reward. Battlecry (targeted): copy a friendly Echo minion's Deathrattle onto Gravetwin.
+    // The copied Echo fires at the START OF YOUR NEXT SHOP if Gravetwin survived the coming combat (tracked via
+    // the run's copiedEcho + the combat's survivor list). Golden fires the copied Echo twice next shop.
+    id: 'gravetwin',
+    name: 'Gravetwin',
+    tribe: 'undead',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    target: 'friendly',
+    effects: [{ on: 'onPlay', do: 'battlecryCopyEcho' }],
+    text: "**Battlecry:** copy a friendly **Echo** minion's Deathrattle. If Gravetwin survives combat, trigger it at the start of your next shop.",
+    goldenText: "**Battlecry:** copy a friendly **Echo** minion's Deathrattle. If Gravetwin survives combat, trigger it **twice** at the start of your next shop.",
+    token: true,
+  },
 ];

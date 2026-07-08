@@ -8,7 +8,7 @@ import type { CombatBuffDelta } from './runBuffs';
 /** Combat quest-objective progress landed so far in the live replay (same shape as `CombatResult.playerQuestTally`
  *  plus a Deathrattle/Echo total). Drives the QuestPanel's live-tick. */
 export interface CombatQuestDelta {
-  attack: number; summonCombat: number; slaughter: number; deathrattle: number;
+  attack: number; summonCombat: number; slaughter: number; deathrattle: number; friendlyDeath: number;
   attackByTribe: Partial<Record<Tribe, number>>;
   summonCombatByTribe: Partial<Record<Tribe, number>>;
   slaughterByTribe: Partial<Record<Tribe, number>>;

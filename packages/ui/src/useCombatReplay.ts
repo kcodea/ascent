@@ -3,22 +3,18 @@ import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { sfx } from './sfx';
-import { pixiFx } from './pixiFx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments } from './choreo/compile';
 import { runMomentCues } from './choreo/score';
-import { runAttackExchangeCues } from './choreo/engine';
+import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
+import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
-
-/** Delay (ms) from the reborn beat to the wispy re-form glow — matches the `rebornswap` CSS re-form
- *  phase (~52-74% of 0.85s), so the glow lands as the body knits back together. */
-const REBORN_SUMMON_DELAY = 460;
 
 /** A live combat unit, folded from the initial snapshot + the event log up to a beat. */
 export interface UnitFrame {
@@ -530,6 +526,7 @@ export function useCombatReplay(
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     const timers: number[] = [];
+    const cancels: Array<() => void> = [];
     runMomentCues(beat, {
       events,
       onShake: () => setShake((n) => n + 1),
@@ -545,8 +542,24 @@ export function useCombatReplay(
         const ids = new Set(deaths.map((s) => s.id));
         timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
       },
+      onAuraBurst: (uid) => burstDeathAuras(uid),
+      onShieldBreak: (uid) => { cancels.push(breakShieldAura(uid, combatSpeedRef.current)); },
+      onReborn: (uid) => {
+        const el = findEl(uid);
+        const r = el?.getBoundingClientRect();
+        const rect = r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null;
+        cancels.push(reformReborn(rect, combatSpeedRef.current));
+      },
     });
-    return () => timers.forEach((id) => window.clearTimeout(id));
+
+    // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —
+    // the runner skips rise deaths, and the engine's runRiseReturn only handles the pulled-home ATTACKER.
+    const impactAtk = attackerOfImpact(beats, beatIdx - 1);
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (e?.type === 'death' && e.rise && e.target !== impactAtk) burstDeathAuras(e.target);
+    }
+    return () => { timers.forEach((id) => window.clearTimeout(id)); cancels.forEach((c) => c()); };
   }, [active, beatIdx, beats, events, findEl]);
 
   // Verdict sting when the replay finishes.
@@ -567,49 +580,20 @@ export function useCombatReplay(
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     };
 
-    // A RISE ATTACKER dying to retaliation returns HOME first (owner call): kill the slow elastic settle
-    // and pull the unit straight back to its slot (a short hold so the contact reads, then a quick pull),
-    // so its spirit burst + fade + re-form all land in its own slot. `data-rising` marks the unit for
-    // EXACTLY the pull-back's lifetime — the aura tracker holds the burst (and keeps the aura riding the
-    // card, even after the reborn beat strips the `R` marker) while the flag is up, and fires the burst
-    // the moment it clears on landing. A Rise DEFENDER never gets the flag → explodes in place immediately.
+    // A RISE ATTACKER dying to retaliation returns HOME first: the engine's `runRiseReturn` kills the slow
+    // elastic settle and pulls the unit straight back to its slot (a short hold so the contact reads, then a
+    // quick pull), then fires the spirit burst the moment the body lands — so burst + fade + re-form all land
+    // in its own slot. A Rise DEFENDER never gets pulled → the cue effect bursts it in place immediately.
     if (cur) {
       const impactAtk = attackerOfImpact(beats, beatIdx - 1);
       if (impactAtk) {
         for (let i = cur.start; i < cur.end; i++) {
           const e = events[i];
-          if (e?.type !== 'death' || e.target !== impactAtk) continue;
+          if (e?.type !== 'death' || e.target !== impactAtk || !e.rise) continue;
           const el = findEl(impactAtk) as HTMLElement | null;
           if (el && el.querySelector('.reborncard')) {
-            el.dataset.rising = '1';
-            gsap.killTweensOf(el);
-            gsap.to(el, {
-              x: 0, y: 0, rotation: 0, scale: 1,
-              delay: 0.1 / combatSpeed, duration: 0.24 / combatSpeed, ease: 'power2.out',
-              onComplete: () => {
-                delete el.dataset.rising; // landed → the tracker's next sync fires the burst here
-                gsap.set(el, { clearProps: 'transform,zIndex' });
-              },
-            });
+            runRiseReturn(el, combatSpeed, () => burstDeathAuras(impactAtk)); // pull home → burst the spirit in its slot
           }
-        }
-      }
-    }
-
-    // REBORN re-form flourish: the spirit already BURST at the death beat (the aura tracker explodes it in
-    // place as the body dies); here, on the reborn beat, schedule the wispy re-form glow timed to the
-    // rebornswap CSS re-form phase (~52-74% of 0.85s → the same 460ms the old tracker path used).
-    if (cur) {
-      for (let i = cur.start; i < cur.end; i++) {
-        const e = events[i];
-        if (e?.type !== 'reborn') continue;
-        const el = findEl(e.target);
-        const r = el?.getBoundingClientRect();
-        if (r) {
-          const cx = r.left + r.width / 2, cy = r.top + r.height / 2, w = r.width, h = r.height;
-          window.setTimeout(() => { pixiFx.rebornSummon(cx, cy, w, h); sfx.rebornSummon(); }, REBORN_SUMMON_DELAY);
-        } else {
-          window.setTimeout(() => sfx.rebornSummon(), REBORN_SUMMON_DELAY);
         }
       }
     }

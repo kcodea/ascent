@@ -3,6 +3,57 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-08 (session 23)
+
+### feat: Combat Choreographer — Phase 4 slice 1 (the 🎬 Choreography panel)
+
+Phase 4 slice 1 of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [choreography-panel](superpowers/plans/2026-07-07-choreography-panel.md)). Phases 1–3 turned the
+combat presentation into a complete channel set (sfx / float / lunge / impact / aura) hung off a Score.
+This slice makes that Score **live-editable, offset-scheduled data** and ships the DEV panel to author it —
+still **invisible by default** (every effect fires at the same time as before with the default score).
+
+- **The Score became offset-scheduled data.** `Cue` gained `offset` (ms), `scaled` (÷combat-speed unless
+  `false`), and `enabled`. The single monolithic `aura` channel split into **three independently-retimeable
+  cues** — `auraBurst` / `auraBreak` / `auraReform` — so a shield shatter, a death burst, and a reborn
+  re-form can each be dialed on their own anchor+offset. The runner (`runMomentCues`) and the GSAP engine
+  (`runAttackExchangeCues`) now schedule **every** cue at *anchor-time + offset* (dividing the offset by
+  `combatSpeed` unless the cue is `scaled:false`). The aura channel's former internal `setTimeout` welds —
+  the shield-break 300 ms delay and the reborn re-form 460 ms delay — are **retired into cue offsets**, so
+  the timeline is now the single source of when-things-fire.
+- **`SCORE` → `SCORE_DEFAULTS` + a localStorage override layer.** The frozen default table is
+  `SCORE_DEFAULTS`; a persisted override (`ascent.choreoScore`) is merged over it via `getScore()`, edited
+  through `setCue()` / `resetScore()`, and serialized with `scoreJson()` for the Copy button. Reads go
+  through `getScore()` everywhere so an edit takes effect on the next beat with no reload.
+- **The 🎬 Choreography DEV panel** (`ChoreographyPanel.tsx`, in the DevMenu, replacing the Pacing tuner):
+  a **moment-kind rail** (pick which `MomentKind` you're authoring) beside a **per-cue editor** — an anchor
+  dropdown, an ms-offset field, and scales-with-speed + on/off toggles per cue — plus per-moment **hold** and
+  a **global tempo**, with **Copy-score** and **Reset** actions.
+- **A drag timeline** (`ChoreoTimeline.tsx`) renders each cue as a **chip you drag to retime/reorder** along
+  the moment's time axis; the px↔ms conversion lives in pure, unit-tested `timelineMath` helpers
+  (`timelineMath.ts` — `pxToMs` / `msToPx` / `clampOffset`) so the drag math is testable away from the DOM.
+- **A ▶ mock-stage preview** (`ChoreoPreviewStage.tsx`) fires a moment's **real FX** — lunge, impact, aura
+  burst/break/re-form — against two dummy cards on demand, so you can see a timing edit without starting a
+  fight. The FX overlay is **mounted app-wide**, so the preview works from any screen (title included).
+- **The deprecated Pacing tuner is retired** — its hold/tempo controls now live inside the panel; the old
+  entry is gone.
+- **Invisible by default.** With the default score, equivalence tests plus a final holistic review confirmed
+  the fired timing is **byte-identical** to phase 3c, including a fix so the **reborn re-form glow's footprint
+  is still measured at beat-start** (the split into a `scaled:false` offset cue had briefly moved the
+  measurement; restored so the glow's size is unchanged). Negative offsets are supported in the model for the
+  timeline anchors (the start anchor clamps ≥0).
+- **Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` — **608 tests** green;
+  `typecheck:web` at its **21-error baseline** (no new errors). Equivalence tests + the final holistic review
+  confirm **byte-identical default timing**; the reborn-glow-footprint fix keeps the glow size unchanged.
+  Live-verified: the panel opens, edits persist across reload, and the ▶ preview fires real FX from the title
+  screen. The per-timing **visual feel-pass** (dial an offset, watch a fight, confirm defaults unchanged) is
+  the **owner's and is pending** — the repo's real gate per CLAUDE.md.
+- **Follow-ups (the deferred Phase-4 slices):** per-target **staggers** / AOE ripple; the `splitPerTarget` /
+  `chain` grouping rules (the `GroupingRules` interface in `compile.ts` needs to widen from type-set fields to
+  predicate/key-based rules); the separate **resolution-order** tool; and the **impact cue's true-negative
+  offset** (firing FX *before* contact), which needs `playLunge` to expose the contact position so the engine
+  can schedule against it.
+
 ## 2026-07-07 (session 22)
 
 ### fix(ui): Hoardbreaker Drake + Nimbus art + remove 5 stale WebP that shadowed the wave-2 re-wired art

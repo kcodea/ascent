@@ -245,12 +245,26 @@ which effect channels fire at which offsets — replacing the current split acro
   re-form glow is speed-independent (matches the fixed risepop CSS). UI-only: 585 tests + build green, baseline live
   smoke clean; the per-aura visual feel-pass is the owner's, pending. **The choreographer's channel set is now complete
   (sfx / float / lunge / impact / aura) — Phase 4 (Authoring) is the remaining phase.**
-- **Phase 4 — Authoring.** Staggers, `splitPerTarget`/`chain` grouping rules, a new 🎬 Choreography
-  DEV panel, retiring the Pacing tuner for good, and the first real re-choreographs as proof (an AOE
-  death ripple; a Deathrattle chain folded into its death moment; shield-break-before-damage-number
-  ordering). **Note:** `GroupingRules` (today: `Set<CombatEvent['type']>` membership tests) will need
-  to grow into predicate/key-based rules to express `chain`/`splitPerTarget` — expect the interface
-  in `compile.ts` to widen past simple type-set fields. **Depends:** phase 3.
+- **Phase 4 slice 1 — the 🎬 Choreography panel.** ✅ **shipped 2026-07-08** (→ devlog; spec:
+  [choreography-panel-design](superpowers/specs/2026-07-07-choreography-panel-design.md), plan:
+  [choreography-panel](superpowers/plans/2026-07-07-choreography-panel.md)). The combat Score is now
+  **offset-scheduled, live-editable data** — `Cue` gained `offset`/`scaled`/`enabled`, the `aura` channel
+  split into independently-retimeable `auraBurst`/`auraBreak`/`auraReform` cues (the shield-break/reborn
+  `setTimeout` welds retired into offsets), and `SCORE_DEFAULTS` + an `ascent.choreoScore` localStorage
+  override merge via `getScore()`/`setCue()`/`resetScore()`. The **🎬 Choreography DEV panel**
+  (`ChoreographyPanel.tsx`) authors it: a moment-kind rail + per-cue editor (anchor / ms-offset /
+  scales-with-speed / on-off), per-moment hold + global tempo, Copy/Reset, a **drag timeline**
+  (`ChoreoTimeline.tsx` + pure `timelineMath` px↔ms helpers) where each cue is a draggable chip, and a
+  **▶ mock-stage FX preview** (`ChoreoPreviewStage.tsx`, overlay mounted app-wide). The **Pacing tuner is
+  retired** into the panel. Invisible by default: equivalence tests + final review confirm byte-identical
+  timing (incl. the reborn-glow-footprint fix). **Depends:** phase 3.
+- **Phase 4 — Authoring (remaining slices).** Per-target staggers / AOE death ripple; `splitPerTarget`/`chain`
+  grouping rules; a separate resolution-order tool; the first real re-choreographs as proof (a Deathrattle
+  chain folded into its death moment; shield-break-before-damage-number ordering); and the impact cue's
+  **true-negative** offset (fire FX before contact — needs `playLunge` to expose the contact position).
+  **Note:** `GroupingRules` (today: `Set<CombatEvent['type']>` membership tests) will need to grow into
+  predicate/key-based rules to express `chain`/`splitPerTarget` — expect the interface in `compile.ts` to
+  widen past simple type-set fields. **Depends:** phase 4 slice 1.
 
 ## Cross-cutting threads (ongoing, alongside the phases)
 

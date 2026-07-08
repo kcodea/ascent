@@ -184,6 +184,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryDoubleNextSpell',
   'battlecryGrantSpell',
   'endOfTurnCastSpellEscalating',
+  'endOfTurnAdjacentConsumeFodder',
 ]);
 
 export const EffectDefSchema = z.object({

@@ -649,6 +649,37 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Abyssal Feeder — End of Turn: each board-adjacent friendly minion Consumes a created Fodder (Fred),
+   *  gaining its enchanted stats × the eater's fodder multiplier and firing the normal onConsume pipeline.
+   *  Golden → each neighbor Consumes 2. Mirrors The Godfodder's consume, applied to both neighbors. */
+  endOfTurnAdjacentConsumeFodder: (ctx, self) => {
+    const idx = ctx.state.board.indexOf(self);
+    if (idx < 0) return;
+    const neighbors = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((m): m is BoardCard => !!m);
+    const fodder = CARD_INDEX.fred;
+    if (!fodder || neighbors.length === 0) return;
+    const cb = cardBuff(ctx.state, fodder.id);
+    const fa = fodder.attack + cb.attack;
+    const fh = fodder.health + cb.health;
+    const count = gold(self); // golden → each neighbor Consumes 2
+    const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
+    for (const target of neighbors) {
+      const mult = fodderMultiplier(target);
+      for (let i = 0; i < count; i++) {
+        addBuff(target, 'Consume', fa * mult, fh * mult);
+        fire(ctx, 'onConsume', { minion: target });
+        eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
+        ctx.state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
+        ctx.state.fodderConsumedThisTurn.attack += fa;
+        ctx.state.fodderConsumedThisTurn.health += fh;
+      }
+    }
+    if (eaten.length > 0) {
+      ctx.state.fodderEaten = [...(ctx.state.fodderEaten ?? []), ...eaten];
+      ctx.state.fodderEatenSeq += 1;
+    }
+  },
+
   /** Pactstone Acolyte / Ravening Glutton: on any friendly consume, grow. */
   onConsumeBuffSelf: (_ctx, self, params) => {
     addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));

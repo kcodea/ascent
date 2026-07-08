@@ -215,7 +215,8 @@ export type EffectFactoryId =
   | 'rallyCastTribeAttack' // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
-  | 'battlecryGrantSpell'; // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
+  | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
+  | 'endOfTurnAdjacentConsumeFodder'; // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
 
 export interface EffectDef {
   on: GameEvent;

@@ -256,4 +256,17 @@ export const NEUTRAL: CardDef[] = [
     text: "**Start of Combat:** Give the enemy's rightmost minion **Taunt**.",
     goldenText: "**Start of Combat:** Give the enemy's **two** rightmost minions **Taunt**.",
   },
+  {
+    // End of Turn: cast Lasso (steal a random tavern minion into hand) via the shared castSpell factory — a
+    // repeatable steal engine on a beefy T5 body.
+    id: 'ropewrangler',
+    name: 'Rope Wrangler',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 5,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } }],
+    text: '**End of Turn:** Cast **Lasso**.',
+  },
 ];

@@ -640,6 +640,29 @@ describe('run loop (@game/sim)', () => {
     expect(s.impBuff).toEqual({ attack: 2, health: 2 }); // run-wide, so Imps made later inherit it
   });
 
+  it('Rope Wrangler — End of Turn casts Lasso, stealing a tavern minion into hand', () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'w', cardId: 'ropewrangler', tribe: 'neutral', attack: 5, health: 6, keywords: [], golden: false }],
+      hand: [],
+      shop: [{ uid: 's1', cardId: 'sandbag' }],
+    };
+    applyEndOfTurn(s);
+    expect(s.hand.some((c) => c.cardId === 'sandbag')).toBe(true); // Lasso stole it into hand
+    expect(s.shop.length).toBe(0); // …and it left the tavern
+  });
+
+  it('Crypt Scribe — End of Turn conjures 2 random spells to hand', () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'c', cardId: 'cryptscribe', tribe: 'undead', attack: 5, health: 5, keywords: [], golden: false }],
+      hand: [],
+    };
+    applyEndOfTurn(s);
+    expect(s.hand.length).toBe(2);
+    expect(s.hand.every((c) => CARD_INDEX[c.cardId]?.spell)).toBe(true); // both are spells
+  });
+
   it('a frozen tavern tops up empty slots + a missing spell after combat', () => {
     let s: RunState = {
       ...createRun(1),

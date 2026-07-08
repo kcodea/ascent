@@ -1285,6 +1285,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.spellsThisTurn += 1;
   },
 
+  /** Crypt Scribe — End of Turn: conjure `count` random spells (from the buyable spell pool) into your hand.
+   *  Golden doubles the count. Advances the run RNG cursor; respects the hand cap. */
+  endOfTurnGetRandomSpells: (ctx, self, params) => {
+    const count = num(params.count, 2) * gold(self);
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+      const def = SPELL_CARDS[rng.int(SPELL_CARDS.length)]!;
+      ctx.state.hand.push({
+        uid: `b${ctx.state.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+    ctx.state.rngCursor = rng.state();
+  },
+
   // ─── New content batch (recruit side) ──────────────────────────────────────
 
   /** Deathswarmer — Battlecry: give your Undead +N Attack wherever they are (board + hand), and stack the

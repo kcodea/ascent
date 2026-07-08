@@ -137,6 +137,7 @@ export type EffectFactoryId =
   | 'summonBuffTribeImprove' // Mama Bear: on summoning a beast, buff it + improve the buff in/out of combat (Beast)
   | 'spellDevour' // cast: devour the target, spit its stats onto a random friend (Channeling the Devourer)
   | 'castSpell' // a minion casts a named spell (auto-targets a friend)
+  | 'endOfTurnGetRandomSpells' // Crypt Scribe: End of Turn — conjure N random spells to hand
   | 'gainEmbers' // cast: gain Embers (untargeted — Ember Pouch)
   | 'spellCastBuffOthers' // spellCast: give N other friendly minions +atk/+hp (Archmagus Guel)
   | 'overflowBuffRandom' // summonOverflow: buff a random friendly minion (Flowing Monk)

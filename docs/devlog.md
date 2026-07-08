@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(ui): shop-aura previews, Moe's green discount coin, Nimbus/Yazzus ×N spell badge
+
+Owner UI batch (four display fixes; all shop/hand surfaces, no rule changes):
+- **Scrap Herald / Squirl Scout shop preview** — `shopView` folded only the *Undead* buy-aura into an offer's
+  displayed stats, so a Magnetic (or Beast) offer read at base until bought. It now previews the Beast Attack and
+  Magnetic +atk/+hp buy-auras too (`beastBuyAtk`/`magneticBuyAtk`/`magneticBuyHp` threaded from run state through
+  `ShopViewOpts`), matching exactly what the reducer's buy path bakes in.
+- **Moe's discounted Attachment** — the guaranteed Magnetic offer carries `cost: 2`; `shopView` now honours
+  `card.cost` (was hardcoded to `CONFIG.minionCost`) and flags `costChanged`, rendering the cost coin **green**
+  (`.cost.discount`) so the cheaper price reads as a deal.
+- **Nimbus / Yazzus ×N badge** — a new `.castmult` pill top-right of a spell card shows how many times it'll cast
+  right now (`spellCasts(run, def)` → Nimbus's pending double × Yazzus's targeted-spell multiplier), wired on both
+  the shop spell offers and hand spells (Spell Drummer copies) via `castMult`. Only shown when > 1.
+- Kept the perf-critical stable view refs: the extra per-spell `castMult` is computed inside the existing
+  `useMemo`s and only the (rare) spell cards allocate a fresh `live` object, so minion cards keep their referential
+  identity across a drag.
+
+Also folds in the earlier-uncommitted **Moe cost sim side** (`ShopCard.cost`, buy path charges `offer.cost`,
+`rollShop` sets the forced Attachment to 2 Gold) and Moe's refresh count (1 free refresh; 2 golden). Verified:
+typecheck + lint clean, full suite green (634), `build:web` OK.
+
 ### fix(sim): tavern-buy baked the tribe Attack aura TWICE (Undead) and skipped Beasts — found via Squirl Scout
 
 While wiring Squirl Scout's Beast attack aura, the tavern-**buy** action turned out to (1) **double-count** the

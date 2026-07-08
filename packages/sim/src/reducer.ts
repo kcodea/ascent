@@ -209,9 +209,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
-      if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
+      const buyCost = offer.cost ?? CONFIG.minionCost; // Moe's guaranteed Attachment carries a set 2-Gold price
+      if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
-      spendGold(s, CONFIG.minionCost);
+      spendGold(s, buyCost);
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
       // Run-wide tribe ATTACK aura baked at buy: Undead (Lantern/Toxin Tender) + Beast (Squirl Scout), via the
       // shared helper so every tribe is handled. Applied ONCE, through addBuff below (which also records the

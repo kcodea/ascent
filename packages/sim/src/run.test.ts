@@ -394,6 +394,13 @@ describe('run loop (@game/sim)', () => {
     expect(s.guaranteedAttachmentShops).toBe(0); // stays 0 — no more forced Magnetics
   });
 
+  it('a shop offer with a set cost (Moe Attachment) buys at that discounted price', () => {
+    let s: RunState = { ...createRun(1), embers: 5, shop: [{ uid: 'o', cardId: 'alley', cost: 2 }], hand: [] };
+    s = reduce(s, { type: 'buy', uid: 'o' });
+    expect(s.embers).toBe(3); // charged the offer's 2, not the flat minion cost
+    expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true);
+  });
+
   it('Bounty Bot immunity expires after 2 combats (attackImmuneLeft counts down each settle)', () => {
     let s: RunState = {
       ...createRun(1),

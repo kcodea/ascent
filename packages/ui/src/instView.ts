@@ -81,7 +81,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }> },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -107,7 +107,7 @@ export function instView(
     keywords: inst.keywords, text,
     goldenText,
     golden: inst.golden,
-    tier: c.tier, spell, target: c.target,
+    tier: c.tier, spell, target: c.target, castMult: spell ? live?.castMult : undefined,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: inst.buffs,

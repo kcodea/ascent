@@ -92,9 +92,9 @@ export function rollShop(state: RunState): void {
         if (offers.length > 0) {
           const idx = rng.int(offers.length);
           returnToPool(state, offers[idx]!.cardId);
-          offers[idx] = { uid: `s${state.uidSeq++}`, cardId: pick.id };
+          offers[idx] = { uid: `s${state.uidSeq++}`, cardId: pick.id, cost: 2 }; // Moe: a guaranteed Attachment at 2 Gold
         } else {
-          offers.push({ uid: `s${state.uidSeq++}`, cardId: pick.id });
+          offers.push({ uid: `s${state.uidSeq++}`, cardId: pick.id, cost: 2 });
         }
         state.pool[pick.id] -= 1;
       }

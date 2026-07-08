@@ -59,6 +59,10 @@ export interface CardView {
   /** Explicit golden text (overrides the numeric doubler when shown golden). */
   goldenText?: string;
   cost?: number;
+  /** The cost was changed off the flat minion price (Moe's discounted Attachment) — renders the coin green. */
+  costChanged?: boolean;
+  /** Spell cast multiplier (Nimbus's doubling / Yazzus) — shows a "×N" badge top-right when > 1. */
+  castMult?: number;
   golden?: boolean;
   tier?: number;
   /** A non-minion spell card (e.g. the triple Discover) — hides the stat footer. */
@@ -309,9 +313,14 @@ export const Card = memo(function Card({
       {/* cost badge — a gold coin overhanging the corner (the cost in Gold). Minions are a flat 3, so their
           cost is hidden (only shown if something has changed it off 3); spells always show their cost. */}
       {card.cost !== undefined && (card.spell || card.cost !== 3) && (
-        <span className="cost">
+        <span className={`cost${card.costChanged ? ' discount' : ''}`}>
           <span className="costn">{card.cost}</span>
         </span>
+      )}
+      {/* Spell cast multiplier (Nimbus doubling / Yazzus) — a "×N" badge top-right telling you how many
+          times this spell will cast right now. */}
+      {card.castMult !== undefined && card.castMult > 1 && (
+        <span className="castmult" aria-hidden="true">×{card.castMult}</span>
       )}
       {/* Divine Shield, Reborn, and Taunt all signify via their Pixi AURA (driven from `.card.dscard` /
           `.card.reborncard` / `.card.taunt` in Recruit) — no badge/glow here. */}

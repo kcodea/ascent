@@ -52,6 +52,9 @@ export interface ShopCard {
   keywords?: Keyword[];
   /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
   golden?: boolean;
+  /** Moe: a set discount price for this offer (a guaranteed Attachment costs 2 Gold). When present, the buy
+   *  path charges this instead of the flat minion cost, and the UI shows a green price coin (a changed price). */
+  cost?: number;
   /** Displacement: a board minion stashed here when swapped to the tavern — restored INTACT (all buffs /
    *  stats / progression) when re-bought or swapped back, rather than re-instantiated from base. */
   held?: BoardCard;

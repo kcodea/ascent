@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### chore(ui): title screen back to the static homescreen image (remove the looping menu video)
+
+Owner request — the title screen reverts to the static sky-castle art for now. Removed the `<video>` element +
+its autoplay/mute-sync effect (and the now-unused `useRef`/`useEffect`/`getVolume`/`isMuted` imports) from
+`Title.tsx`; the full-bleed background already comes from the `.titlescreen` CSS (`homescreen.webp`), so nothing
+else changed. Deleted `apps/web/public/homescreen.mp4`. Verified live: the title renders the static image, no
+video element. Easy to restore later (git history + the `.titlevideo` CSS is left in place).
+
 ### fix: TRIGGER-based counts scale with doublers (Sylus→Echoes, Drakko→Shouts); wire Hoard Spark art
 
 Follow-up to the deathrattles-in-shop entry below — resolving the flagged "should Sylus count toward the Echo

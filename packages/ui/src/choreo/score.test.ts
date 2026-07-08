@@ -20,7 +20,7 @@ describe('score', () => {
   });
 
   it('attackExchange scores lunge (start) + impact (contact) — no sfx/float double-firing the smack', () => {
-    expect(SCORE.attackExchange).toEqual(expect.arrayContaining([{ ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact' }]));
+    expect(SCORE.attackExchange).toEqual(expect.arrayContaining([{ ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact', offset: 0 }]));
   });
 
   it('runMomentCues fires the sfx channel and routes a real-death shake to onShake', () => {
@@ -46,35 +46,40 @@ describe('score', () => {
     expect(c.onDeathFloats).not.toHaveBeenCalled();
   });
 
-  it('the aura cue is on every kind via the shared default (grouped deaths are not missed)', () => {
-    for (const kind of ['damage', 'death', 'reborn', 'shieldPop', 'poisonTick'] as const) {
-      expect(SCORE[kind].some((c) => c.ch === 'aura')).toBe(true);
+  it('auraBurst + auraBreak are on every kind; auraReform is on the reborn kind (grouped effects not missed)', () => {
+    for (const kind of ['damage', 'death', 'shieldPop', 'poisonTick', 'summon'] as const) {
+      expect(SCORE[kind].some((c) => c.ch === 'auraBurst')).toBe(true);
+      expect(SCORE[kind].some((c) => c.ch === 'auraBreak')).toBe(true);
     }
+    expect(SCORE.reborn.some((c) => c.ch === 'auraReform')).toBe(true);
   });
 
-  it('runMomentCues bursts a REAL death anywhere in the moment (even a damage-kind moment containing a death)', () => {
-    const onAuraBurst = vi.fn();
-    const evs = [
-      { type: 'dmg', target: 'b', amount: 9, remainingHp: 0 },
-      { type: 'death', target: 'b', side: 'enemy' },
-    ] as CombatEvent[];
-    runMomentCues(moment('damage', evs), { ...baseCtx(evs), onAuraBurst });
-    expect(onAuraBurst).toHaveBeenCalledWith('b');
+  it('the migrated aura offsets reproduce the old channel delays', () => {
+    const burst = SCORE.death.find((c) => c.ch === 'auraBurst')!;
+    const brk = SCORE.shieldPop.find((c) => c.ch === 'auraBreak')!;
+    const reform = SCORE.reborn.find((c) => c.ch === 'auraReform')!;
+    expect(burst.offset ?? 0).toBe(0);
+    expect(brk.offset).toBe(300);
+    expect(brk.scaled ?? true).toBe(true);
+    expect(reform.offset).toBe(460);
+    expect(reform.scaled).toBe(false);
   });
 
-  it('a RISE death is NOT burst by the runner (the replay/engine own it)', () => {
-    const onAuraBurst = vi.fn();
-    const evs = [{ type: 'death', target: 'r', side: 'enemy', rise: true }] as CombatEvent[];
-    runMomentCues(moment('riseDeath', evs), { ...baseCtx(evs), onAuraBurst });
-    expect(onAuraBurst).not.toHaveBeenCalled();
+  it('runMomentCues routes a real death → onAuraBurst, a shield → onShieldBreak, a reborn → onReborn', () => {
+    const c1 = baseCtx([{ type: 'death', target: 'a', side: 'enemy' }] as CombatEvent[]);
+    runMomentCues(moment('death', c1.events), c1);
+    expect(c1.onAuraBurst).toHaveBeenCalledWith('a');
+    const c2 = baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[]);
+    runMomentCues(moment('shieldPop', c2.events), c2);
+    expect(c2.onShieldBreak).toHaveBeenCalledWith('s');
+    const c3 = baseCtx([{ type: 'reborn', target: 'r', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]);
+    runMomentCues(moment('reborn', c3.events), c3);
+    expect(c3.onReborn).toHaveBeenCalledWith('r');
   });
 
-  it('runMomentCues routes a shield-consume to onShieldBreak and a reborn to onReborn', () => {
-    const onShieldBreak = vi.fn();
-    const onReborn = vi.fn();
-    runMomentCues(moment('shieldPop', [{ type: 'shield', target: 's' }] as CombatEvent[]), { ...baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[]), onShieldBreak });
-    expect(onShieldBreak).toHaveBeenCalledWith('s');
-    runMomentCues(moment('reborn', [{ type: 'reborn', target: 'x', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]), { ...baseCtx([{ type: 'reborn', target: 'x', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]), onReborn });
-    expect(onReborn).toHaveBeenCalledWith('x');
+  it('a rise death is not burst by the runner', () => {
+    const c = baseCtx([{ type: 'death', target: 'r', side: 'enemy', rise: true }] as CombatEvent[]);
+    runMomentCues(moment('riseDeath', c.events), c);
+    expect(c.onAuraBurst).not.toHaveBeenCalled();
   });
 });

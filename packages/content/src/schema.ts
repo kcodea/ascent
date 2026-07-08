@@ -41,6 +41,8 @@ export const EffectFactoryIdSchema = z.enum([
   'onKillGrantFreeRolls',
   'onKillGrantGold',
   'onKillCastSpell',
+  'rallyCastRandomStatSpell',
+  'avengeCastRandomStatSpell',
   'deathrattleDamageAll',
   'deathrattleDestroyKiller',
   'deathrattleBuffTribeByTally',

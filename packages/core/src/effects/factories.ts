@@ -115,6 +115,21 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   // (deathrattleReplayAdjacentBattlecry) once per re-fire — not here, or every watcher would double-proc.
 }
 
+/** Pick a random stat-granting Tavern spell (spellBuffTarget / spellBuffAll) and return its buff with combat
+ *  spell power folded in and scaled by `scale` (golden). Returns null if the pool is empty or the picked spell
+ *  grants nothing. Used by the combat spell-cast cards (Spell Drummer, Spark Capacitor). */
+function randomStatSpellBuff(ctx: CombatContext, scale: number): { attack: number; health: number } | null {
+  const pool = ctx
+    .allCards()
+    .filter((c) => c.spell && !c.singleCast && c.effects.some((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll'));
+  if (pool.length === 0) return null;
+  const spell = ctx.rng.pick(pool);
+  const eff = spell.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll')!;
+  const attack = (num(eff.params?.attack, 0) + ctx.spellPower.attack) * scale;
+  const health = (num(eff.params?.health, 0) + ctx.spellPower.health) * scale;
+  return attack > 0 || health > 0 ? { attack, health } : null;
+}
+
 /**
  * Combat-time factories. This is a *partial* registry: recruit-time ids
  * (battlecries, buff-on-buy) are implemented in `@game/sim` against the run
@@ -298,6 +313,32 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a <= 0 && h <= 0) return;
     const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
     for (const t of targets) ctx.buff(t, a, h, self.uid);
+  },
+
+  /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,
+   *  golden-scaled), then add a copy of THIS minion to your hand (carried back via `playerHandGrants`). */
+  rallyCastRandomStatSpell: (ctx, self, _params, payload) => {
+    if ((payload as { minion?: Minion }).minion !== self) return;
+    const friends = ctx.living(self.side);
+    const buff = friends.length > 0 ? randomStatSpellBuff(ctx, mul(self)) : null;
+    if (buff) ctx.buff(ctx.rng.pick(friends), buff.attack, buff.health, self.uid);
+    ctx.grantToHand(self.cardId, self.side, self.uid); // "get a copy of this added to your hand"
+  },
+
+  /** Spark Capacitor — Avenge (N): cast a random stat spell on your lowest-Health friendly Mech (its buff +
+   *  combat spell power, golden-scaled). */
+  avengeCastRandomStatSpell: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 4));
+    if (count % x !== 0) return;
+    const mechs = ctx
+      .living(self.side)
+      .filter((m) => m.tribe === 'mech' || m.tribe2 === 'mech' || ctx.getCard(m.cardId)?.universalTribe);
+    if (mechs.length === 0) return;
+    const target = mechs.reduce((a, b) => (b.health < a.health ? b : a)); // lowest Health
+    const buff = randomStatSpellBuff(ctx, mul(self));
+    if (buff) ctx.buff(target, buff.attack, buff.health, self.uid);
   },
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).

@@ -247,4 +247,18 @@ export const MECHS: CardDef[] = [
     text: '**Battlecry:** add a **Patch Job** to your hand.',
     goldenText: '**Battlecry:** add **2 Patch Jobs** to your hand.',
   },
+  {
+    // Avenge (4): every 4 friendly deaths, cast a random stat spell on your lowest-Health Mech (its buff +
+    // combat spell power). A tanky Mech payoff that rewards a sacrificial board. Golden doubles the grant.
+    id: 'sparkcapacitor',
+    name: 'Spark Capacitor',
+    tribe: 'mech',
+    tier: 4,
+    attack: 4,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeCastRandomStatSpell', params: { count: 4 } }],
+    text: '**Avenge (4):** cast a random spell on your lowest-Health Mech.',
+    goldenText: '**Avenge (4):** cast a random spell on your lowest-Health Mech, **doubled**.',
+  },
 ];

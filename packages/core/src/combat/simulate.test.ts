@@ -193,6 +193,31 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
   });
 
+  it('Spell Drummer Rally casts a random stat spell + copies itself to hand', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'spelldrummer', attack: 3, health: 30 },
+      { cardId: 'sandbag', attack: 0, health: 30 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 40 }];
+    const r = run(p, e, 7);
+    expect(r.playerHandGrants).toContain('spelldrummer'); // "get a copy of this added to your hand"
+    expect(r.events.some((ev) => ev.type === 'buff')).toBe(true); // a random stat spell landed on a friend
+  });
+
+  it('Spark Capacitor Avenge (4) casts a random stat spell on a friendly Mech', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'sparkcapacitor', attack: 4, health: 40 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 80 }];
+    const r = run(p, e, 4);
+    // 4 strays die → Avenge (4) → a random stat spell buffs the lowest-Health friendly Mech (the Capacitor)
+    expect(r.events.some((ev) => ev.type === 'buff')).toBe(true);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

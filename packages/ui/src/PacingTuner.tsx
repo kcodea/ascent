@@ -35,6 +35,8 @@ const LABELS: Record<keyof ChoreoConfig, string> = {
   floatMs: 'float linger',
   deathFloatMs: 'death float linger',
   finalHold: 'final hold',
+  shieldBreakDelay: 'shield break delay',
+  rebornReformDelay: 'reborn re-form delay',
 };
 
 export function PacingTuner() {

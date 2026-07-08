@@ -987,6 +987,21 @@ class FxController {
     if (b && b.fadeOut < 0) b.fadeOut = 0;
   }
 
+  /** True if a persistent aura bubble of this kind is currently registered for `uid` (the choreographer's
+   *  aura channel consults this to decide which of a dying unit's auras to burst — pixiFx's registry is the
+   *  source of truth for which auras a unit carries; the Score decides when). */
+  hasAura(uid: string, kind: AuraKind = 'shield'): boolean {
+    return this.shields.has(auraKey(kind, uid));
+  }
+
+  /** The tracked center + footprint of `uid`'s aura bubble, or null if none — used by the aura channel to
+   *  position the taunt burst (which draws on the FRONT layer and needs explicit coords, unlike breakShield
+   *  which reads the bubble's own stored coords). */
+  auraRect(uid: string, kind: AuraKind = 'shield'): { cx: number; cy: number; w: number; h: number } | null {
+    const b = this.shields.get(auraKey(kind, uid));
+    return b ? { cx: b.cx, cy: b.cy, w: b.w, h: b.h } : null;
+  }
+
   /** Show/hide ALL shield bubbles at once — used to suppress them behind a board-covering modal (Discover /
    *  Choose One sit below the FX canvas with a translucent backdrop, so bubbles would otherwise show over it). */
   setShieldsVisible(visible: boolean): void {

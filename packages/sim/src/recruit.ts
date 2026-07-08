@@ -1224,13 +1224,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Patch Job — cast: give the target +atk/+hp for every `gold` Gold spent this recruit turn
-   *  (steps = floor(goldSpentThisTurn / gold)). Spell power scales it PER STEP (each unit grows like a stat
-   *  spell — so the display just greens the per-step "+A/+B"). No steps yet → no buff (no free spell-power grant). */
+  /** Patch Job — cast: give the target a BASELINE +atk/+hp, PLUS another +atk/+hp for every `gold` Gold spent
+   *  this recruit turn (owner ruling 2026-07-08 — so +3/+3 at 0 Gold, +6/+6 at 7 Gold, …). Total = base ×
+   *  (1 + floor(goldSpentThisTurn / gold)). Spell power scales each unit like a stat spell. */
   spellBuffTargetPerGold: (ctx, self, params) => {
     const per = Math.max(1, num(params.gold, 7));
-    const steps = Math.floor((ctx.state.goldSpentThisTurn ?? 0) / per);
-    if (steps <= 0) return;
+    const steps = 1 + Math.floor((ctx.state.goldSpentThisTurn ?? 0) / per); // 1 = the baseline grant
     const a = (num(params.attack, 3) + spellAttackBonus(ctx.state)) * steps;
     const h = (num(params.health, 3) + spellHealthBonus(ctx.state)) * steps;
     addBuff(self, str(params._source) || 'Patch Job', a, h);
@@ -1975,9 +1974,10 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const h = Number((perGold.params as { health?: number } | undefined)?.health ?? 3);
     const per = Number((perGold.params as { gold?: number } | undefined)?.gold ?? 7);
     const stepText = bonusA > 0 || bonusH > 0 ? def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`) : def.text;
-    const steps = Math.floor(Math.max(0, goldSpent) / per);
-    if (steps <= 0) return stepText;
-    return `${stepText} {{Now +${steps * (a + bonusA)}/+${steps * (h + bonusH)}.}}`;
+    const extra = Math.floor(Math.max(0, goldSpent) / per); // steps beyond the baseline
+    if (extra <= 0) return stepText; // still at the baseline → the printed +A/+B (greened) is the live value
+    const total = 1 + extra; // baseline + steps
+    return `${stepText} {{Now +${total * (a + bonusA)}/+${total * (h + bonusH)}.}}`;
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
   // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).

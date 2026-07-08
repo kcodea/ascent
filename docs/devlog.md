@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### balance(content): Patch Job gains a +3/+3 baseline
+
+Owner tune — Patch Job now gives a **baseline +3/+3**, PLUS +3/+3 for every 7 Gold spent this turn (so +3/+3 at
+0 Gold, +6/+6 at 7, +9/+9 at 14). `spellBuffTargetPerGold` folds the baseline in as `1 + floor(goldSpent / 7)`
+steps (each unit still scales with spell power); the live display and card text updated to match. Verified live:
+at 14 Gold the hand card reads "…**Now +9/+9.**". Tests updated + a baseline (0-Gold) case added.
+
 ### chore(ui): title screen back to the static homescreen image (remove the looping menu video)
 
 Owner request — the title screen reverts to the static sky-castle art for now. Removed the `<video>` element +

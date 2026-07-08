@@ -1177,8 +1177,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  no Imps (unlike Commander Impala). Fires on the kill even if this fragile body then dies. */
   onKillBuffFodder: (ctx, self, params, payload) => {
     if ((payload as { attacker?: Minion }).attacker !== self) return;
-    const a = num(params.attack, 1) * mul(self);
-    const h = num(params.health, 1) * mul(self);
+    // A golden gives a flat override (`goldenAttack`/`goldenHealth`) when set — Sword and Bored's golden is +1/+1,
+    // NOT the ×2 (+2/+0) a plain double would give; otherwise golden doubles the base.
+    const a = self.golden && params.goldenAttack !== undefined ? num(params.goldenAttack) : num(params.attack, 1) * mul(self);
+    const h = self.golden && params.goldenHealth !== undefined ? num(params.goldenHealth) : num(params.health, 1) * mul(self);
     for (const m of ctx.living(self.side)) {
       if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
     }

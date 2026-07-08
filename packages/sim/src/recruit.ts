@@ -1294,6 +1294,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.spellsThisTurn += 1;
   },
 
+  /** Vineweaver Drake — End of Turn: cast `spellId` (Growth) once, plus one more cast for each prior End of
+   *  Turn this minion has seen (escalating). Per-instance `eotTick` counts turns on board (like Frontdrake);
+   *  a Chronos replay rides the same tick without advancing it. Golden doubles the number of casts. */
+  endOfTurnCastSpellEscalating: (ctx, self, params, payload) => {
+    const spellDef = CARD_INDEX[str(params.spellId)];
+    if (!spellDef || spellDef.singleCast) return;
+    const replay = payload.replay === true;
+    if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1; // count this turn once
+    const times = Math.max(1, self.eotTick ?? 1) * gold(self); // Nth End of Turn → N casts (golden doubles)
+    for (let i = 0; i < times; i++) {
+      const friends = ctx.state.board.filter((c) => c !== self);
+      const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
+      applyCastEffects(ctx, spellDef, target);
+      ctx.state.spellsCast += 1;
+      ctx.state.spellsThisTurn += 1;
+    }
+  },
+
   /** Crypt Scribe — End of Turn: conjure `count` random spells (from the buyable spell pool) into your hand.
    *  Golden doubles the count. Advances the run RNG cursor; respects the hand cap. */
   endOfTurnGetRandomSpells: (ctx, self, params) => {

@@ -237,6 +237,22 @@ describe('run loop (@game/sim)', () => {
     expect(s.nextSpellMult).toBeUndefined(); // charge spent
   });
 
+  it('Vineweaver Drake: End of Turn casts Growth an escalating number of times', () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'v', cardId: 'vineweaver', tribe: 'dragon', attack: 2, health: 2, keywords: [], golden: false },
+        { uid: 't', cardId: 'drone', tribe: 'mech', attack: 0, health: 50, keywords: [], golden: false },
+      ],
+    };
+    applyEndOfTurn(s); // 1st End of Turn → cast Growth once (+3/+4 to all)
+    let t = s.board.find((c) => c.uid === 't')!;
+    expect([t.attack, t.health]).toEqual([3, 54]);
+    applyEndOfTurn(s); // 2nd End of Turn → cast Growth twice more (+6/+8)
+    t = s.board.find((c) => c.uid === 't')!;
+    expect([t.attack, t.health]).toEqual([9, 62]); // 1 + 2 = 3 total casts of +3/+4
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

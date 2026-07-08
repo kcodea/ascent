@@ -238,4 +238,19 @@ export const DRAGONS: CardDef[] = [
     text: '**Start of Combat:** Give your **Dragons** **+2/+2**. Improve this by **+1/+1** for each spell you cast this turn.',
     goldenText: '**Start of Combat:** Give your **Dragons** **+4/+4**. Improve this by **+2/+2** for each spell you cast this turn.',
   },
+  {
+    // Escalating End-of-Turn engine: casts Growth once on its first End of Turn, twice on its second, and so
+    // on (per-instance eotTick counts turns on board, like Bard). A slow-burn spell-payoff Dragon that snowballs
+    // the longer it survives. Golden doubles the number of casts each turn.
+    id: 'vineweaver',
+    name: 'Vineweaver Drake',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnCastSpellEscalating', params: { spellId: 'growth' } }],
+    text: '**End of Turn:** Cast **Growth**. Repeat for each End of Turn triggered before this.',
+    goldenText: '**End of Turn:** Cast **Growth** twice. Repeat twice for each End of Turn before this.',
+  },
 ];

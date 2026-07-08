@@ -209,7 +209,8 @@ export type EffectFactoryId =
   | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
   | 'spellRallyDoubleNext' // Rallying Offensive: cast — your Rally effects trigger twice next combat (recruit)
   | 'rallyCastTribeAttack' // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
-  | 'battlecryDoubleNextSpell'; // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
+  | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
+  | 'endOfTurnCastSpellEscalating'; // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
 
 export interface EffectDef {
   on: GameEvent;

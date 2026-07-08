@@ -269,4 +269,18 @@ export const NEUTRAL: CardDef[] = [
     effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } }],
     text: '**End of Turn:** Cast **Lasso**.',
   },
+  {
+    // Avenge (4): every 4 friendly deaths, permanently raise your spell power +1 Attack (stat spells give +1
+    // more Attack this run). Carried back like the other spell-power sources. A tanky spell-payoff enabler.
+    id: 'spellappraiser',
+    name: 'Spell Appraiser',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 1,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeGrantSpellPower', params: { count: 4, attack: 1 } }],
+    text: '**Avenge (4):** your Tavern spells have **+1 Attack** this run.',
+    goldenText: '**Avenge (4):** your Tavern spells have **+2 Attack** this run.',
+  },
 ];

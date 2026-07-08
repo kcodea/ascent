@@ -157,6 +157,19 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 5 && ev.health === 5)).toBe(true);
   });
 
+  it('Spell Appraiser Avenge (4) raises run-wide spell power +1 Attack (carried back)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'spellappraiser', attack: 1, health: 40 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
+    const r = run(p, e, 4);
+    expect(r.playerSpellPower?.attack).toBe(1); // 4th friendly death → Avenge (4) → +1 spell Attack
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

@@ -536,6 +536,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantTavernFodder(num(params.fodder, 1) * mul(self), self.side);
   },
 
+  /** Spell Appraiser — Avenge (N): every N friendly deaths this combat, permanently raise run-wide spell power
+   *  by +atk/+hp (so stat spells give that much more — "your Tavern spells have +Attack this run"). Golden
+   *  doubles. Carried back via `CombatResult.playerSpellPower`, like the other spell-power sources. */
+  avengeGrantSpellPower: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 4));
+    if (count % x !== 0) return;
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health, 0) * mul(self), self.side, self.uid);
+  },
+
   /** Deathrattle (Junkyard Titan): add a random Magnetic minion to your hand after combat. Sibling of
    *  Arcane Weaver's grant, but the card is chosen at random (via ctx.rng) from the Magnetic-keyword
    *  minion pool (tokens/spells excluded) rather than a fixed id. Each pick is independent, so a golden's

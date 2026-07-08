@@ -3,6 +3,18 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-08 (session 25)
+
+### tweak: drag-feel defaults tuned by eye
+
+Baked the DEV Drag-tuner's copied values in as the shipped `dragFeel.ts` defaults: a slightly heavier
+catch-up (`follow` 0.64→0.6), a bigger lift (`scale` 1.12→1.21), a faint held tilt (`staticRotate` 0→-1.5),
+immediate drag engage (`threshold` 1→0), a faster recentre glide (`recenter` 0.12→0.18) that only kicks in
+after a longer pull (`recenterAfter` 100→400 — the tuner's slider max was widened 200→500 to fit), a longer
+Magnetic absorb slide (`magSlideMs` 280→390), an earlier row-collapse (`collapseY` 70→20), a higher-sitting
+hand pop (`handFloor` 0.94→0.82), and minor tilt/perspective nudges. Values-only; typecheck/lint/build green.
+(Existing local tuners keep their `ascent.dragfeel` localStorage until Reset — this is the fresh-state default.)
+
 ## 2026-07-08 (session 24)
 
 ### tweak: Choreography panel — timeline redesign, tooltips, real negative offsets

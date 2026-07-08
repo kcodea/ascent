@@ -46,21 +46,21 @@ export interface DragFeel {
 }
 
 const DEFAULTS: DragFeel = {
-  follow: 0.64,     // snappier catch-up (tuned by eye)
+  follow: 0.6,      // catch-up per frame (tuned by eye)
   tiltPerPx: 0.6,   // strong lean per px of lag
-  tiltMax: 19,      // generous tilt ceiling
+  tiltMax: 20,      // generous tilt ceiling
   hLean: 0.3,       // lean into horizontal motion
   vLean: -0.2,      // lean into vertical motion
-  perspective: 1600,// gentle 3D depth
-  scale: 1.12,      // clearly lifted off the table
-  staticRotate: 0,  // flat when held still
-  threshold: 1,     // drag engages almost immediately
-  recenter: 0.12,   // a slow, visible glide to centre (was ~0.9)
-  recenterAfter: 100,// only begin recentring after 100 px of drag
+  perspective: 1550,// gentle 3D depth
+  scale: 1.21,      // clearly lifted off the table
+  staticRotate: -1.5,// a slight fixed tilt while held
+  threshold: 0,     // drag engages immediately
+  recenter: 0.18,   // glide speed onto the cursor
+  recenterAfter: 400,// only begin recentring after a longer drag from the grab point
   snapMs: 110,
-  magSlideMs: 280,
-  collapseY: 70,    // ~lift half a card vertically before the row fills the gap
-  handFloor: 0.94,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
+  magSlideMs: 390,
+  collapseY: 20,    // lift only a little before the row fills the gap
+  handFloor: 0.82,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -75,7 +75,7 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   staticRotate: [-8, 8, 0.5],
   threshold: [0, 30, 1],
   recenter: [0.02, 1, 0.02],
-  recenterAfter: [0, 200, 5],
+  recenterAfter: [0, 500, 5],
   snapMs: [40, 400, 10],
   magSlideMs: [100, 600, 10],
   collapseY: [0, 200, 5],

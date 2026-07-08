@@ -442,6 +442,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.summonBonus = (self.summonBonus ?? 0) + base;
   },
 
+  /** Imp Overseer — Battlecry: give your Imps a persistent +atk/+hp run-wide (board + hand + future copies)
+   *  via the shared imp enchant (`impBuff`). Golden doubles. */
+  battlecryBuffImps: (ctx, self, params) => {
+    buffImpsRunWide(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+  },
+
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
   battlecryBuffTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);

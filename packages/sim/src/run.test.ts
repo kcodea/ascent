@@ -627,6 +627,19 @@ describe('run loop (@game/sim)', () => {
     expect(s.impBuff ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // Imps NOT affected
   });
 
+  it('Imp Overseer Battlecry gives your Imps +2/+2 run-wide (board Imps + the impBuff carry for future ones)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      phase: 'recruit',
+      board: [{ uid: 'i1', cardId: 'impscrap', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'o', cardId: 'impoverseer', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'o' });
+    const imp = s.board.find((c) => c.uid === 'i1')!;
+    expect([imp.attack, imp.health]).toEqual([3, 3]); // 1/1 Imp + 2/2
+    expect(s.impBuff).toEqual({ attack: 2, health: 2 }); // run-wide, so Imps made later inherit it
+  });
+
   it('a frozen tavern tops up empty slots + a missing spell after combat', () => {
     let s: RunState = {
       ...createRun(1),

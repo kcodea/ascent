@@ -205,4 +205,18 @@ export const DEMONS: CardDef[] = [
     text: '**Windfury. Slaughter:** give your Fodder and Imps **+3/+3** permanently.',
     goldenText: '**Windfury. Slaughter:** give your Fodder and Imps **+6/+6** permanently.',
   },
+  {
+    // Imp payoff Battlecry: a persistent +2/+2 to every Imp you have or make (board / hand / future copies) —
+    // the shared imp enchant (impBuff), like Impala's on-kill but on a Shout. Golden doubles.
+    id: 'impoverseer',
+    name: 'Imp Overseer',
+    tribe: 'demon',
+    tier: 3,
+    attack: 3,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 2 } }],
+    text: '**Battlecry:** Your Imps have **+2/+2** wherever they are.',
+    goldenText: '**Battlecry:** Your Imps have **+4/+4** wherever they are.',
+  },
 ];

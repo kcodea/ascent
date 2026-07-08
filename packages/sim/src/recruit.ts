@@ -141,16 +141,23 @@ export function undeadBuyBonus(state: RunState, def: CardDef): number {
   return bonus;
 }
 
-/** Run-wide HEALTH aura baked at creation — Magnetic minions only (Scrap Herald). The Beast/Undead auras are
- *  attack-only, so this Health half is separate; added to a minion's `health` at every creation site. */
+/** Run-wide HEALTH aura baked at creation — Magnetic minions (Scrap Herald) + Beasts (Pack Mentality quest).
+ *  Added to a minion's `health` at every creation site, alongside the attack aura from `undeadBuyBonus`. */
 export function buyHealthAura(state: RunState, def: CardDef): number {
-  return def.keywords.includes('M') ? (state.magneticBuyHp ?? 0) : 0;
+  let bonus = 0;
+  if (def.keywords.includes('M')) bonus += state.magneticBuyHp ?? 0;
+  if (def.universalTribe || def.tribe === 'beast' || def.tribe2 === 'beast') bonus += state.beastBuyHp ?? 0;
+  return bonus;
 }
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
 export function sellValueOf(card: BoardCard): number {
-  return card.cardId === 'hoarder' ? 2 * (card.golden ? 2 : 1) : CONFIG.sellValue;
+  if (card.cardId === 'hoarder') return 2 * (card.golden ? 2 : 1);
+  // Trail Forager: base 2 Gold (×2 golden) + 1 per Beast played (that per-Beast bump is already golden-doubled
+  // as it accrues, in `sellBonus`).
+  if (card.cardId === 'trailforager') return 2 * (card.golden ? 2 : 1) + (card.sellBonus ?? 0);
+  return CONFIG.sellValue;
 }
 
 /**
@@ -303,7 +310,10 @@ export interface MagnetPayload {
 function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
   addBuff(host, mag.source, mag.attack * mult, mag.health * mult);
   for (const k of mag.keywords) {
-    if (k !== 'M' && !host.keywords.includes(k)) host.keywords.push(k);
+    // Include M (owner ruling 2026-07-08): a minion that receives a Magnetic weld IS now an Attachment, so it
+    // gains the M keyword — and thus the run-wide + combat "Attachment aura" (Scrap Herald) reaches it too. The
+    // aura is baked once when it first gains M (see bakeAttachmentAura in weldMagnetic).
+    if (!host.keywords.includes(k)) host.keywords.push(k);
   }
   if (mag.mana > 0) host.manaBonus = (host.manaBonus ?? 0) + mag.mana * mult;
   if (mag.rallyMechAtk) host.rallyMechAtk = (host.rallyMechAtk ?? 0) + mag.rallyMechAtk * mult;
@@ -325,16 +335,31 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  * magnetized — onto the host AND each copy Beatboxer mimics onto itself — stacks the Cling improvement.
  */
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0): void {
+  const hostWasM = host.keywords.includes('M');
   applyWeld(host, mag, 1);
+  bakeAttachmentAura(state, host, hostWasM);
   let totalClings = clings; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
+      const bbWasM = bb.keywords.includes('M');
       const mult = bb.golden ? 2 : 1;
       applyWeld(bb, mag, mult);
+      bakeAttachmentAura(state, bb, bbWasM);
       totalClings += clings * mult; // Beatboxer magnetizes Cling copies onto itself — those stack too
     }
   }
   if (totalClings > 0) improveClingDrones(state, totalClings);
+}
+
+/** A minion that just RECEIVED its first attachment (a welded Magnetic → it gained M) is now an Attachment —
+ *  bake the run-wide Attachment aura (Scrap Herald's `magneticBuyAtk`/`magneticBuyHp`) into it ONCE, so
+ *  "your Attachments have +X/+Y wherever they are" reaches minions that GAINED Magnetic, not just those
+ *  printed with it (owner ruling 2026-07-08 — Banksly and any welded host). No-op if it was already Magnetic. */
+function bakeAttachmentAura(state: RunState, card: BoardCard, wasMagnetic: boolean): void {
+  if (wasMagnetic || !card.keywords.includes('M')) return;
+  const a = state.magneticBuyAtk ?? 0;
+  const h = state.magneticBuyHp ?? 0;
+  if (a > 0 || h > 0) addBuff(card, 'Attachment', a, h);
 }
 
 /**
@@ -381,6 +406,31 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number): v
 }
 
 /**
+ * Fire a minion's Deathrattle(s) OUT OF COMBAT — Graverobber's destroy (and any future destroy/consume-a-minion
+ * path). Runs each `onDeath` recruit factory once, then once more per **Sylus the Reaper** on the board (golden
+ * ×2), the shop-phase mirror of combat's reaper bonus (owner ruling 2026-07-08). Combat-only rattles (no recruit
+ * factory) are simply inert. Ticks the run Deathrattle tally ONCE, BEFORE firing, so tally-based rattles (Grim)
+ * count this death — matching combat, where the death increments the tally before the rattle runs.
+ */
+function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard): void {
+  const def = CARD_INDEX[minion.cardId];
+  if (!def) return;
+  const hasDR = def.effects.some((e) => e.on === 'onDeath');
+  const fireOnce = (): void => {
+    for (const eff of def.effects) {
+      if (eff.on !== 'onDeath') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, minion, eff.params ?? {}, { minion });
+    }
+  };
+  if (hasDR) ctx.state.deathrattlesTriggered += 1; // base trigger, before firing (Grim counts its own death)
+  fireOnce();
+  let reaper = 0;
+  for (const c of ctx.state.board) if (c.cardId === 'sylus' && c.uid !== minion.uid) reaper += c.golden ? 2 : 1;
+  for (let r = 0; r < reaper; r++) fireOnce(); // Sylus re-fires read the same tally (value at death)
+  if (hasDR) ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
+}
+
+/**
  * The player board's most common tribe — counting BOTH tribes of each card (dual-types count for both).
  * Ties resolve to the first seen on the board (insertion order + strict `>`). Null for an empty / tribe-less
  * board. The `s.board` analogue of snapshot.ts's `dominantTribe` (which takes a BoardSnapshot).
@@ -406,19 +456,17 @@ export function dominantBoardTribe(state: RunState): Tribe | null {
  * tribe "you do not control". Seeded via the run RNG cursor (advances it). Returns null when you already
  * control every active tribe, in which case the caller Discovers from any tribe. Neutral is never a "tribe".
  */
-function uncontrolledTribe(state: RunState): Tribe | null {
+/** The ACTIVE tribes with NO presence on the player's board — the full "you do not control" set (no RNG
+ *  consumed). Wayfinder Discovers across ALL of these (spread), not one, so its 3 options aren't a guaranteed
+ *  single tribe — unless you're missing only one. Empty when you control every active tribe. */
+function uncontrolledTribes(state: RunState): Tribe[] {
   const onBoard = new Set<Tribe>();
   for (const c of state.board) {
     const def = CARD_INDEX[c.cardId];
     if (!def) continue;
     for (const t of [def.tribe, def.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
   }
-  const candidates = state.tribes.filter((t) => t !== 'neutral' && !onBoard.has(t));
-  if (candidates.length === 0) return null;
-  const rng = makeRng(state.rngCursor);
-  const pick = candidates[rng.int(candidates.length)]!;
-  state.rngCursor = rng.state();
-  return pick;
+  return state.tribes.filter((t) => t !== 'neutral' && !onBoard.has(t));
 }
 
 /**
@@ -577,14 +625,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  fire stacks an offer onto the queue). */
   battlecryDiscoverMinion: (ctx, self, params) => {
     const raw = str(params.tribe) || undefined;
-    // Wayfinder: `tribe: 'uncontrolled'` resolves at play-time to a random active tribe not on your board
-    // (falls back to any tribe if you control them all).
-    const tribe = (raw === 'uncontrolled' ? (uncontrolledTribe(ctx.state) ?? undefined) : raw) as Tribe | undefined;
+    // Wayfinder: `tribe: 'uncontrolled'` Discovers across EVERY active tribe not on your board (a SPREAD — the
+    // 3 options aren't a guaranteed single tribe), unless you're missing only one. `tribes: []` (you control
+    // them all) falls back to any tribe. A fixed `tribe` (Sea Urchin → Beasts) stays a single-tribe Discover.
+    const uncontrolled = raw === 'uncontrolled';
+    const tribes = uncontrolled ? uncontrolledTribes(ctx.state) : undefined;
+    const tribe = uncontrolled ? undefined : (raw as Tribe | undefined);
     const fixed = num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
     // Exclude the source itself — Sea Urchin shouldn't be able to Discover another Sea Urchin.
     const spec: DiscoverSpec = fixed > 0
-      ? { kind: 'minion', tier: fixed, exactTier: fixed, tribe, exclude: self.cardId }
-      : { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId };
+      ? { kind: 'minion', tier: fixed, exactTier: fixed, tribe, tribes, exclude: self.cardId }
+      : { kind: 'minion', tier: ctx.state.tier, tribe, tribes, exclude: self.cardId };
     queueDiscover(ctx.state, spec);
     if (self.golden) queueDiscover(ctx.state, spec);
   },
@@ -1000,12 +1051,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tier = CARD_INDEX[target.cardId]?.tier ?? 1;
     const idx = ctx.state.board.indexOf(target);
     if (idx >= 0) ctx.state.board.splice(idx, 1); // destroy it (frees the slot for any Deathrattle summons)
-    for (const eff of CARD_INDEX[target.cardId]?.effects ?? []) {
-      if (eff.on !== 'onDeath') continue;
-      const fn = RECRUIT_FACTORIES[eff.do];
-      if (fn) fn(ctx, target, eff.params ?? {}, { minion: target });
-    }
-    ctx.state.deathrattlesTriggered += 1;
+    fireRecruitDeathrattles(ctx, target); // its Deathrattle(s) resolve out of combat, doubled by Sylus + ticked into the tally
     const pool = SPELL_CARDS.filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
@@ -1083,6 +1129,73 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
       t.keywords.push('R');
     }
+  },
+
+  // --- More Deathrattle recruit halves (owner ruling 2026-07-08: ANY Deathrattle should be able to resolve out
+  //     of combat — fired by Graverobber's destroy, with Sylus doubling). Combat-only rattles (damage, destroy-
+  //     killer, attack-on-summon overflow) stay inert in the shop; these bake their payoff into the run state. ---
+
+  /** Grim (recruit half) — give your `tribe` (Beasts) +N/+N where N = the run's Deathrattle tally × `per`
+   *  (golden doubles `per`), baked into the board. Out of combat there's no aura — just the current tally. */
+  deathrattleBuffTribeByTally: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe | 'any';
+    const amount = (ctx.state.deathrattlesTriggered ?? 0) * num(params.per, 1) * gold(self);
+    if (amount <= 0) return;
+    for (const c of ctx.state.board) {
+      if (c !== self && (tribe === 'any' || isTribe(c, tribe as Tribe))) addBuff(c, nameOf(self), amount, amount);
+    }
+  },
+
+  /** Sergeant (recruit half) — give every board minion +Health (base × golden + its combat-accrued hpGrantBonus). */
+  deathrattleBuffAllHealth: (ctx, self, params) => {
+    const hp = num(params.health, 2) * gold(self) + (self.hpGrantBonus ?? 0);
+    if (hp <= 0) return;
+    for (const c of ctx.state.board) addBuff(c, nameOf(self), 0, hp);
+  },
+
+  /** Trickster (recruit half) — give the carry (highest-Attack friend) this minion's Health; golden picks twice. */
+  deathrattleGiveHealth: (ctx, self) => {
+    const hp = self.health;
+    if (hp <= 0) return;
+    for (let i = 0; i < gold(self); i++) {
+      const friends = ctx.state.board.filter((c) => c !== self);
+      if (friends.length === 0) break;
+      const t = friends.reduce((a, b) => (b.attack > a.attack ? b : a));
+      addBuff(t, nameOf(self), 0, hp);
+    }
+  },
+
+  /** Burial Imp (recruit half) — add `count` copies of a specific card (a Gold Pouch) to hand; golden doubles. */
+  deathrattleGrantCardToHand: (ctx, self, params) => {
+    const def = CARD_INDEX[str(params.cardId)];
+    if (!def) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** (recruit half) — add `count` random Tavern spell(s) (≤ tavern tier) to hand; golden doubles. */
+  deathrattleGrantRandomSpell: (ctx, self, params) => {
+    conjureToHand(ctx.state, SPELL_CARDS.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
+  },
+
+  /** (recruit half) — add a random Magnetic minion to hand; golden adds two. */
+  deathrattleGrantMagnetic: (ctx, self) => {
+    conjureToHand(ctx.state, BUYABLE_CARDS.filter((c) => c.keywords.includes('M')), gold(self));
+  },
+
+  /** Grave Knit / Eternal Knight (recruit half) — permanently buff a card TYPE run-wide (board + hand + future). */
+  deathrattleBuffCardTypeRunWide: (ctx, self, params) => {
+    const cardId = str(params.cardId) || self.cardId;
+    buffCardTypeRunWide(ctx.state, cardId, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), CARD_INDEX[cardId]?.name ?? cardId);
+  },
+
+  /** (recruit half) — permanently buff your Imps run-wide (board + hand + future copies). */
+  deathrattleBuffImps: (ctx, self, params) => {
+    buffImpsRunWide(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 3) * gold(self), nameOf(self));
+  },
+
+  /** Burial Imp / Soulfeeder (recruit half) — queue `count` Fodder into your next tavern; golden doubles. */
+  deathrattleAddFodder: (ctx, self, params) => {
+    (ctx.state.pendingTavern ??= []).push(...Array(num(params.count, 1) * gold(self)).fill('fred'));
   },
 
   // --- Spells ---
@@ -1392,6 +1505,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Feed the Alpha — SELL the target (gain its base sell value as Gold) and give its current stats to your
+   *  RIGHT-MOST Beast. No Beast → the stats are wasted, but the sell + Gold still happen. Beast sibling of
+   *  Fodder Treatment (`spellSellToDemon`), minus the on-consume payoffs. */
+  spellSellToBeast: (ctx, self) => {
+    if (!self) return;
+    const state = ctx.state;
+    const idx = state.board.indexOf(self);
+    if (idx < 0) return;
+    const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
+    state.embers += sellValueOf(sold);
+    if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+    returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
+    const beast = [...state.board].reverse().find((c) => isTribe(c, 'beast')); // right-most Beast (board order)
+    if (beast) addBuff(beast, 'Feed the Alpha', sold.attack, sold.health);
+  },
+
   /** Resonance — re-trigger the target's Battlecry (the reducer guards this to Battlecry minions only).
    *  Reuses the Myra-power path, so Drakko's "Battlecries fire extra times" still amplifies it. */
   spellReplayBattlecry: (ctx, self) => {
@@ -1518,6 +1647,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (isTribe(card, 'beast')) addBuff(card, nameOf(self), amount, 0);
     }
     ctx.state.beastBuyAtk = (ctx.state.beastBuyAtk ?? 0) + amount;
+  },
+
+  /** Squirl Scout — Battlecry: give a RANDOM friendly minion +N/+N, repeated once per Beast you own (board).
+   *  N is the run-wide `squirlScoutBuff`, which each Squirl Scout played raises by `step` (×2 golden), so it
+   *  snowballs across the run. Squirl Scout is on the board when this fires, so it counts itself. Grants spread
+   *  (each repeat re-rolls the target). Live grant surfaces via cardText's squirlScoutText. */
+  battlecryScoutSpread: (ctx, self, params) => {
+    const state = ctx.state;
+    const step = num(params.step, 3) * gold(self);
+    state.squirlScoutBuff = (state.squirlScoutBuff ?? 0) + step; // improve first → THIS play grants the new value
+    const amount = state.squirlScoutBuff;
+    const beasts = state.board.filter((c) => isTribe(c, 'beast')).length; // "for every Beast you own"
+    if (amount <= 0 || beasts === 0 || state.board.length === 0) return;
+    const rng = makeRng(state.rngCursor);
+    for (let i = 0; i < beasts; i++) {
+      const target = state.board[rng.int(state.board.length)]!; // a random friendly minion (may repeat)
+      addBuff(target, nameOf(self), amount, amount);
+    }
+    state.rngCursor = rng.state();
   },
 
   /** Scrap Herald — Battlecry: your Magnetic minions ("Attachments") get +atk/+hp "wherever they are". Buffs
@@ -1654,16 +1802,19 @@ function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: (typeof BUYABLE_CA
 export function offerDiscover(
   state: RunState,
   discoverTier: number,
-  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe; exclude?: string; topTierFirst?: boolean },
+  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean },
 ): void {
   const baseFilter = opts?.filter ?? (() => true);
   const tribe = opts?.tribe;
+  const tribes = opts?.tribes; // Wayfinder: a SET of tribes (spread across every uncontrolled tribe), not one
   const exclude = opts?.exclude;
   // Tribe-filtered Discover (Sea Urchin → Beasts only): AND the tribe check into the card filter so both
-  // the fixed-tier and tiered pool branches below pick it up (dual-types count). `exclude` drops the source
-  // card (Sea Urchin can't Discover itself).
+  // the fixed-tier and tiered pool branches below pick it up (dual-types count). `tribes` (plural) admits a
+  // card matching ANY of the listed tribes. `exclude` drops the source card (Sea Urchin can't Discover itself).
   const filter = (c: (typeof BUYABLE_CARDS)[number]): boolean =>
-    baseFilter(c) && c.id !== exclude && (!tribe || c.tribe === tribe || c.tribe2 === tribe);
+    baseFilter(c) && c.id !== exclude &&
+    (!tribe || c.tribe === tribe || c.tribe2 === tribe) &&
+    (!tribes || tribes.length === 0 || tribes.some((t) => c.tribe === t || c.tribe2 === t));
   let pool: typeof BUYABLE_CARDS = [];
   if (opts?.tier !== undefined) {
     // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
@@ -1722,6 +1873,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
       tribe: spec.tribe,
+      tribes: spec.tribes,
       exclude: spec.exclude,
       filter: spec.filter ? discoverFilter(spec.filter) : undefined,
       topTierFirst: spec.topTierFirst,
@@ -1943,8 +2095,10 @@ function bestCopyRepeats(state: RunState, cardId: string): number {
   return 1 + (copies.some((c) => c.golden) ? 2 : copies.length > 0 ? 1 : 0);
 }
 
-/** Drakko the Drummer: your Battlecries fire extra times (golden Drakko +2; best one only, no stacking). */
-function drummerRepeats(state: RunState): number {
+/** Drakko the Drummer: your Battlecries fire extra times (golden Drakko +2; best one only, no stacking).
+ *  Non-consuming (unlike `playedShoutRepeats`, which also spends a Warm Embers charge) — so it's safe for the
+ *  reducer's Shout quest tick to read the battlecry FIRE count (each Drakko re-fire is another Shout trigger). */
+export function drummerRepeats(state: RunState): number {
   return bestCopyRepeats(state, 'drummer');
 }
 

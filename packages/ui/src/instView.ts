@@ -3,9 +3,9 @@ import { CONFIG, spellDisplayText, type BoardCard } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
-  escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerSpellText, sergeantText, soulsmanText,
-  summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText,
-  undeadBuyAtkText, watcherText,
+  escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
+  sergeantText, soulsmanText, squirlScoutText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
+  taragosaText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -18,7 +18,11 @@ export interface LiveTextParams {
   clingEnchant?: { attack: number; health: number };
   fodderConsumed?: { attack: number; health: number };
   undeadBuyAtk: number; soulsmanGold: number; cardBuffs?: Record<string, { attack: number; health: number }>;
-  spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number;
+  spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number; sellBonus?: number;
+  /** Card ids you've played this recruit turn — Pack Leader / Spirit Worgen show their live per-play scaling. */
+  playedThisTurn?: string[];
+  /** Squirl Scout's run-wide accrued grant size — its live "+N/+N" next grant. */
+  squirlScoutBuff?: number;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
   goldSpent?: number;
 }
@@ -40,10 +44,13 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             taragosaText(c.id, p.golden, p.spellBonus, p.spellBonusH) ??
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
-            summonScalingText(c.id, p.spellsThisTurn) ??
+            summonScalingText(c.id, p.spellsThisTurn, p.playedThisTurn) ??
             scTribeBuffPerSpellText(c.id, p.golden, p.spellsThisTurn) ??
+            scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             summonBuffText(c.id, p.summonBonus ?? 0) ??
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
+            trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
+            squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             tallyBuffText(c.id, p.deathrattlesTriggered) ??
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // per-instance: a shop/hand Guel reads at base
@@ -86,7 +93,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -98,7 +105,8 @@ export function instView(
     goldSpent: live?.goldSpent ?? 0,
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
-    hpGrantBonus: inst.hpGrantBonus, eotTick: inst.eotTick,
+    hpGrantBonus: inst.hpGrantBonus, eotTick: inst.eotTick, sellBonus: inst.sellBonus,
+    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { makeRng, type CombatResult } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, SPELL_CARDS } from '@game/content';
 import {
   CONFIG,
   POOL_QUANTITIES,
@@ -38,6 +38,7 @@ import {
   buildWaveLadders,
   ratingBand,
   BAND_COUNT,
+  sellValueOf,
   type BoardCard,
   type RunState,
 } from './index';
@@ -315,7 +316,20 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'F')!.attack).toBe(7); // the Feeder itself doesn't consume
   });
 
-  it('Pack Leader: Start of Combat buffs Beasts +2/+2 and permanently improves by +2/+2', () => {
+  it('Pack Leader: Start of Combat buffs Beasts +2/+2, improved +2/+2 per Beast played this turn', () => {
+    let s: RunState = {
+      ...createRun(1),
+      playedThisTurn: ['alley', 'alley'], // 2 Beasts played this recruit turn (frozen into the fight)
+      board: [
+        { uid: 'pl', cardId: 'packleader', tribe: 'beast', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' }); // grant = base 2 + 2 × 2 played = +6/+6
+    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 6 && e.health === 6)).toBe(true);
+  });
+
+  it('Pack Leader with no Beasts played this turn grants only the base +2/+2', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -323,13 +337,8 @@ describe('run loop (@game/sim)', () => {
         { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
       ],
     };
-    s = reduce(s, { type: 'faceOmen' }); // first combat: SoC gives Beasts +2/+2
-    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(s.board.find((c) => c.uid === 'pl')?.summonBonus).toBe(2); // the improve carries back (+2 accrued)
-    // second combat now grants base 2 + accrued 2 = +4/+4
     s = reduce(s, { type: 'faceOmen' });
-    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
   });
 
   it('Graverobber: Battlecry destroys a targeted friendly, procs its Deathrattle + grants a spell of its tier', () => {
@@ -360,19 +369,65 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
   });
 
-  it('Squirl Scout: Battlecry gives Beasts +2 Attack wherever (board + hand), stacking for future Beasts', () => {
+  it('Graverobber on Grim fires its Deathrattle out of combat (buffs Beasts by the run tally)', () => {
+    let s: RunState = {
+      ...createRun(1), deathrattlesTriggered: 2, // 2 prior Echoes; Grim's own death makes the live tally 3
+      board: [
+        { uid: 'grim', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
+    expect(s.board.find((c) => c.uid === 'grim')).toBeUndefined(); // destroyed
+    // Grim's Deathrattle: +N/+N per Deathrattle this game (tally = 3 incl. its own death) → the Beast gets +3/+3.
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 3);
+  });
+
+  it('Sylus the Reaper doubles a Graverobber-fired Deathrattle in the shop', () => {
+    // Grim's Deathrattle (buff Beasts by the run tally) fires once + once per Sylus. tally = 1 (Grim's own
+    // death), so each fire is +1/+1 → the Beast gets +2/+2 with one Sylus.
     let s: RunState = {
       ...createRun(1),
-      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      board: [
+        { uid: 'sy', cardId: 'sylus', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'grim', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 2); // +1/+1 fired twice (once + one Sylus)
+  });
+
+  it('reward-exclusive spells (Feed the Alpha) never enter the shop spell pool', () => {
+    expect(SPELL_CARDS.some((c) => c.id === 'feedalpha')).toBe(false);
+    expect(BUYABLE_CARDS.some((c) => c.id === 'trailforager' || c.id === 'trophystalker')).toBe(false);
+  });
+
+  it('Squirl Scout: Battlecry spreads +N/+N to random friendlies, once per Beast owned, snowballing per Scout', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
       hand: [
         { uid: 'sq', cardId: 'squirlscout', tribe: 'beast', attack: 3, health: 3, keywords: [], golden: false },
-        { uid: 'h', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'sq2', cardId: 'squirlscout', tribe: 'beast', attack: 3, health: 3, keywords: [], golden: false },
       ],
     };
     s = reduce(s, { type: 'play', uid: 'sq' });
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 2); // current board Beast +2
-    expect(s.hand.find((c) => c.uid === 'h')!.attack).toBe(1 + 2); // current hand Beast +2
-    expect(s.beastBuyAtk).toBe(2); // stacks — future Beasts inherit it via undeadBuyBonus
+    expect(s.squirlScoutBuff).toBe(3); // first Scout → grant size 3
+    // 3 Beasts owned (2 Pennycats + the Scout) × +3/+3 = +9/+9 total, spread across the board.
+    const baseAtk = 1 + 1 + 3; // the three Beasts' base Attack
+    expect(s.board.reduce((n, c) => n + c.attack, 0)).toBe(baseAtk + 9);
+    expect(s.board.reduce((n, c) => n + c.health, 0)).toBe(baseAtk + 9);
+    // A second Scout raises the run-wide grant to 6.
+    s = reduce(s, { type: 'play', uid: 'sq2' });
+    expect(s.squirlScoutBuff).toBe(6);
   });
 
   it('buying an Undead/Beast bakes the run-wide Attack aura exactly once (no double-count)', () => {
@@ -1254,7 +1309,7 @@ describe('run loop (@game/sim)', () => {
     expect(drone.attack).toBe(4); // 2 + 2
     expect(drone.health).toBe(3); // 1 + 2
     expect(drone.keywords).toContain('DS');
-    expect(drone.keywords).not.toContain('M'); // Magnetic itself isn't transferred
+    expect(drone.keywords).toContain('M'); // the welded host IS now an Attachment (owner ruling 2026-07-08)
   });
 
   it('a Mech Magnetic can weld onto a Chaos Attachment host (the all-type body counts as a Mech)', () => {
@@ -1283,8 +1338,8 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sym', toIndex: 1 }); // weld onto the Gnasher host (universalTribe → any non-neutral)
     expect(s.board.length).toBe(2); // merged, no new slot
     const host = s.board.find((c) => c.uid === 'host')!;
-    // Attachment 1/1 + Mama Bear (+2/+2, universalTribe counts as a Beast) = 3/3, welded onto the 5/5 host → 8/8.
-    expect([host.attack, host.health]).toEqual([8, 8]);
+    // Attachment 1/1 + Den Mother (recruit +1/+1, universalTribe counts as a Beast) = 2/2, welded onto the 5/5 host → 7/7.
+    expect([host.attack, host.health]).toEqual([7, 7]);
   });
 
   it('Chaos Attachment is Magnetic Reborn — welding it grants the host Reborn', () => {
@@ -1297,9 +1352,36 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'sym', toIndex: 0 }); // weld onto the host
     const host = s.board.find((c) => c.uid === 'host')!;
-    expect(host.keywords).toContain('R'); // Reborn rides along on the weld (applyWeld transfers non-M keywords)
-    expect(host.keywords).not.toContain('M'); // Magnetic itself isn't transferred
+    expect(host.keywords).toContain('R'); // Reborn rides along on the weld
+    expect(host.keywords).toContain('M'); // the welded host IS now an Attachment (owner ruling 2026-07-08)
     expect([host.attack, host.health]).toEqual([6, 6]); // 5/5 host + the Attachment's 1/1
+  });
+
+  it('a welded host becomes an Attachment and inherits the run-wide Attachment aura (owner ruling 2026-07-08)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      magneticBuyAtk: 2, magneticBuyHp: 3, // Scrap Herald's run-wide Attachment aura is active
+      board: [{ uid: 'host', cardId: 'drone', tribe: 'mech', attack: 5, health: 5, keywords: [], golden: false }],
+      hand: [{ uid: 'cl', cardId: 'cling', tribe: 'mech', attack: 2, health: 2, keywords: ['M'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'cl', toIndex: 0 }); // weld the Magnetic onto the host
+    const host = s.board.find((c) => c.uid === 'host')!;
+    expect(host.keywords).toContain('M'); // now an Attachment → picks up the aura
+    // 5/5 host + Cling 2/2 (weld) + Attachment aura +2/+3 (baked once, on first becoming Magnetic) = 9/10.
+    expect([host.attack, host.health]).toEqual([9, 10]);
+  });
+
+  it('Nimbus doubles a Discover-spell: Tribe Portal under a Nimbus charge opens two Discovers', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 4, embers: 0, shop: [],
+      nextSpellMult: 2, // a Nimbus charge is active
+      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }], // gives Tribe Portal a dominant type
+      hand: [{ uid: 'tp', cardId: 'tribeportal', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'tp' });
+    expect(s.discover).toBeDefined(); // first Discover opens
+    expect(s.discoverQueue?.length ?? 0).toBe(1); // the 2nd is queued (Nimbus doubled the cast)
+    expect(s.nextSpellMult).toBeUndefined(); // charge spent
   });
 
   it('Heckbinder (Demon/Mech) magnetizes onto a Demon or a Mech, but not other tribes', () => {
@@ -2117,7 +2199,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.map((c) => c.cardId)).toContain('cleric');
   });
 
-  it('Mama Bear buffs each summoned Beast, improving the buff by +2/+2 each time (recruit)', () => {
+  it('Den Mother buffs each Beast you PLAY, improving the buff by +1/+1 each time (recruit)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [{ uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
@@ -2126,10 +2208,10 @@ describe('run loop (@game/sim)', () => {
         { uid: 'b2', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
       ],
     };
-    s = reduce(s, { type: 'play', uid: 'b1' }); // first Beast summoned → +2/+2
-    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 2); // 4
-    s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +4/+4
-    expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
+    s = reduce(s, { type: 'play', uid: 'b1' }); // first Beast played → +1/+1
+    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 1); // 3
+    s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +2/+2
+    expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 2); // 9
   });
 
   it('a universalTribe token (Chaos Attachment) receives a tribe summon-buff (Mama Bear)', () => {
@@ -2147,10 +2229,10 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'sym' }); // standalone play (no weld target) → Mama Bear's summon buff fires
     const sym = s.board.find((c) => c.uid === 'sym')!;
-    // Mama Bear (+2/+2) treats the universalTribe token as a Beast. (Kennelmaster's Beast buff is now a
+    // Den Mother (+1/+1) treats the universalTribe token as a Beast. (Kennelmaster's Beast buff is now a
     // Start-of-Combat aura, so it no longer fires when a minion is summoned in the shop.)
-    expect(sym.attack).toBe(1 + 2); // 3
-    expect(sym.health).toBe(1 + 2); // 3
+    expect(sym.attack).toBe(1 + 1); // 2
+    expect(sym.health).toBe(1 + 1); // 2
   });
 
   it('a Mama Bear triple picks up the accrual at its current value — no reset, no double', () => {
@@ -2167,11 +2249,11 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
     const golden = s.hand.find((c) => c.cardId === 'mamabear' && c.golden)!;
     expect(golden.summonBonus).toBe(6); // current value preserved, not 9 (sum) or 0 (reset)
-    // Played, it grants (base 2 + accrual 6) × 2 golden = +16/+16 to the next Beast summoned.
+    // Played, it grants (base 1 + accrual 6) × 2 golden = +14/+14 to the next Beast played.
     s = reduce(s, { type: 'play', uid: golden.uid }); // golden Mama Bear → board
     s = { ...s, hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'a' });
-    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(1 + 16);
+    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(1 + 14);
   });
 
   it('Sea Urchin Battlecry offers a Discover of Beasts only (up to tavern tier)', () => {
@@ -4463,15 +4545,15 @@ describe('quests (M3 framework)', () => {
   });
 
   it('a summon objective counts tokens, not just the played card (Pennycat = 2 toward the goal)', () => {
-    // Trail Rations wants 3 summons. Pennycat (played) + its Stray (token) = 2 in ONE play — the "every minion
-    // entering the board" rule; a second play finishes it. Two copies each → no triples confuse the count.
+    // Forest Grove wants 4 Beast summons. Pennycat (beast, played) + its Stray (beast token) = 2 in ONE play —
+    // the "every minion entering the board" rule; a second play finishes it. Two copies each → no triples.
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_trail_rations', progress: 0, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 0, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'a1' });
     expect(s.activeQuests![0]!.progress).toBe(2); // Pennycat + its summoned Stray
     expect(s.activeQuests![0]!.completed).toBe(false);
     s = reduce(s, { type: 'play', uid: 'a2' });
-    expect(s.activeQuests![0]!.completed).toBe(true); // 2 more entries clears the 3-summon bar
+    expect(s.activeQuests![0]!.completed).toBe(true); // 2 more entries clears the 4-Beast bar
   });
 
   it('Grave Toll: summoning 4 Undead completes the quest and conjures a random Undead to hand', () => {
@@ -4496,35 +4578,35 @@ describe('quests (M3 framework)', () => {
     expect(s.activeQuests![0]!.progress).toBe(0); // neutral summons don't count toward an Undead objective
   });
 
-  it('Trail Rations: summoning 3 minions grants a Beast + a Gold Pouch and schedules a repeat', () => {
-    // Pennycat (played) + its Stray (token) = 2 summons per play; two plays clear the 3-summon bar with no triple.
+  it('Forest Grove: summoning 4 Beasts grants a random Beast and schedules a repeat', () => {
+    // Pennycat (beast, played) + its Stray (beast token) = 2 Beast summons per play; two plays clear the
+    // 4-Beast bar with no triple.
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_trail_rations', progress: 0, completed: false }], hand: [mk('m1'), mk('m2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 0, completed: false }], hand: [mk('m1'), mk('m2')], board: [] };
     for (const uid of ['m1', 'm2']) s = reduce(s, { type: 'play', uid });
     expect(s.activeQuests![0]!.completed).toBe(true);
-    // Immediate reward: a random Beast + a Gold Pouch (emberpouch) landed in hand.
-    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(true);
+    // Immediate reward: a random Beast landed in hand.
     expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast'); })).toBe(true);
     // …and the "repeat in 2 turns" is scheduled.
-    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_trail_rations', turnsLeft: 2 }]);
+    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_forest_grove', turnsLeft: 2 }]);
   });
 
-  it('Trail Rations "repeat in 2 turns" re-grants the reward after two turn-advances', () => {
+  it('Forest Grove "repeat in 2 turns" re-grants the reward after two turn-advances', () => {
     const tank = (uid: string): BoardCard => ({ uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false });
-    let s: RunState = { ...createRun(1), wave: 1, tier: 6, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [tank('t1')], hand: [], pendingQuestRewards: [{ questId: 'q_trail_rations', turnsLeft: 2 }] };
+    const beastInHand = (st: RunState): boolean => st.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast'); });
+    let s: RunState = { ...createRun(1), wave: 1, tier: 6, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [tank('t1')], hand: [], pendingQuestRewards: [{ questId: 'q_forest_grove', turnsLeft: 2 }] };
     // Turn advance #1: countdown 2 → 1, nothing granted yet.
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.phase).toBe('recruit');
-    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_trail_rations', turnsLeft: 1 }]);
-    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(false);
-    // Turn advance #2: 1 → 0 → fires (a Beast + a Gold Pouch reach hand); the schedule clears.
+    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_forest_grove', turnsLeft: 1 }]);
+    expect(beastInHand(s)).toBe(false);
+    // Turn advance #2: 1 → 0 → fires (a random Beast reaches hand); the schedule clears.
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.phase).toBe('recruit');
     expect(s.pendingQuestRewards ?? []).toEqual([]);
-    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(true);
-    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast'); })).toBe(true);
+    expect(beastInHand(s)).toBe(true);
   });
 
   it('Warm Embers: playing 2 Shouts completes the objective and banks 2 doubling charges', () => {
@@ -4535,6 +4617,18 @@ describe('quests (M3 framework)', () => {
     s = reduce(s, { type: 'play', uid: 'a2' });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.shoutDoubleCharges).toBe(2);
+  });
+
+  it('Drakko the Drummer makes a played Shout count TWICE toward the Shout objective', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit',
+      activeQuests: [{ questId: 'q_warm_embers', progress: 0, completed: false }],
+      board: [{ uid: 'd', cardId: 'drummer', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false }], // Drakko: Battlecries fire twice
+      hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }], // Pennycat: a Battlecry (Shout)
+    };
+    s = reduce(s, { type: 'play', uid: 'a' });
+    // Drakko re-fires the Battlecry, so one played Shout = 2 triggers → the "Play 2 Shouts" objective completes.
+    expect(s.activeQuests![0]!.completed).toBe(true);
   });
 
   it('Warm Embers: a banked charge makes the next played Shout trigger twice (Pennycat → 2 Strays), then reverts', () => {
@@ -4548,5 +4642,82 @@ describe('quests (M3 framework)', () => {
     let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', shoutDoubleCharges: 0, hand: [mk('b1')], board: [] };
     t = reduce(t, { type: 'play', uid: 'b1' });
     expect(t.board.filter((c) => c.cardId === 'stray').length).toBe(1);
+  });
+});
+
+describe('Beast quests (combat objectives + rewards)', () => {
+  // A minimal settled CombatResult with an injectable quest tally, driven through the real `resolveCombat`
+  // settle path — so combat-phase objectives advance exactly as they do after a live fight.
+  const combatWith = (over: Partial<CombatResult>): CombatResult => ({
+    events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
+    initial: { player: [], enemy: [] }, ...over,
+  });
+  const zeroTally = () => ({ attack: 0, summonCombat: 0, slaughter: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {} });
+  const settle = (quest: string, over: Partial<CombatResult>, extra?: Partial<RunState>): RunState =>
+    reduce({ ...createRun(1), phase: 'combat', combatSettled: false, lastCombat: combatWith(over), activeQuests: [{ questId: quest, progress: 0, completed: false }], ...extra }, { type: 'resolveCombat' });
+
+  it('Blood Trail (slaughter, any tribe) advances by the tally and arms the combat flag', () => {
+    const s = settle('q_blood_trail', { enemyDeaths: 2, playerQuestTally: { ...zeroTally(), slaughter: 2, slaughterByTribe: { beast: 2 } } });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.questFlags?.bloodTrail).toBe(true);
+  });
+
+  it('Apex Hunt (slaughter WITH Beasts) counts only beast-attributed kills', () => {
+    // 6 slaughters but only 4 by Beasts → the beast-narrowed objective sits at 4/6, incomplete.
+    const s = settle('q_apex_hunt', { playerQuestTally: { ...zeroTally(), slaughter: 6, slaughterByTribe: { beast: 4 } } });
+    expect(s.activeQuests![0]!.progress).toBe(4);
+    expect(s.activeQuests![0]!.completed).toBe(false);
+  });
+
+  it('Den Marker (tribeAura) folds +3 Attack into the Beast aura + buffs current Beasts', () => {
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    const s = settle('q_den_marker', { playerQuestTally: { ...zeroTally(), summonCombat: 8 } }, { board: [beast] });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.beastBuyAtk).toBe(3);
+    expect(s.board[0]!.attack).toBe(4); // 1 base + 3 aura
+  });
+
+  it('Echoing Coop (deathrattle/Echo objective) reads the combat Deathrattle tally', () => {
+    const s = settle('q_echoing_coop', { playerDeathrattles: 14 });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.questFlags?.echoingCoop).toBe(true);
+  });
+
+  it('The Old Hunt carry-back grows the Beast aura + buffs current Beasts', () => {
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false };
+    const s = settle('q_capstone_neutral', { playerBeastBuyAtkGain: 21 }, { board: [beast] });
+    expect(s.beastBuyAtk).toBe(21); // pumped even though the (neutral) active quest is unrelated
+    expect(s.board[0]!.attack).toBe(23);
+  });
+
+  it('Feed the Alpha (recurringGrant) conjures its spell to hand every turn', () => {
+    const tank: BoardCard = { uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false };
+    let s: RunState = { ...createRun(1), wave: 1, tier: 6, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [tank], hand: [], questRecurringGrants: ['feedalpha'] };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand.some((c) => c.cardId === 'feedalpha')).toBe(true);
+  });
+
+  it("Trail Forager's sell value climbs +1 per Beast played", () => {
+    const forager: BoardCard = { uid: 'f', cardId: 'trailforager', tribe: 'beast', attack: 1, health: 4, keywords: [], golden: false };
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [forager], hand: [beast] };
+    expect(sellValueOf(s.board[0]!)).toBe(2);
+    s = reduce(s, { type: 'play', uid: 'b' });
+    const f = s.board.find((c) => c.cardId === 'trailforager')!;
+    expect(f.sellBonus).toBe(1);
+    expect(sellValueOf(f)).toBe(3);
+  });
+
+  it('Feed the Alpha spell sells the target and feeds the right-most Beast', () => {
+    const beastL: BoardCard = { uid: 'bl', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    const fodder: BoardCard = { uid: 'fo', cardId: 'sandbag', tribe: 'neutral', attack: 3, health: 5, keywords: [], golden: false };
+    const beastR: BoardCard = { uid: 'br', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 0, board: [beastL, fodder, beastR], hand: [{ uid: 'sp', cardId: 'feedalpha', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'fo' });
+    expect(s.board.some((c) => c.uid === 'fo')).toBe(false); // sold
+    expect(s.embers).toBe(sellValueOf(fodder)); // gained the sell value
+    expect(s.board.find((c) => c.uid === 'br')!.attack).toBe(4); // right-most Beast got +3/+5
+    expect(s.board.find((c) => c.uid === 'bl')!.attack).toBe(1); // left Beast untouched
   });
 });

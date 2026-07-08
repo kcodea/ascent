@@ -1219,9 +1219,9 @@ describe('simulate (handoff A.3)', () => {
     expect(r0.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // no spell power → base
   });
 
-  it('Mama Bear emits an `improve` event per Beast summoned in combat (drives the live per-summon text)', () => {
-    // Mama Pup dies → Deathrattle summons 2 Pups (Beasts); Mama Bear buffs each AND emits an `improve` so the
-    // UI's live "+M/+M per summon" card text climbs mid-fight (that field only moves on improve events).
+  it('Den Mother is RECRUIT-ONLY — it does NOT buff or improve on combat summons (owner ruling 2026-07-08)', () => {
+    // Mama Pup dies → summons 2 Pups (Beasts) mid-fight. Den Mother no longer has a combat factory, so it neither
+    // buffs the Pups nor emits any `improve` event — its snowball is now confined to shop plays.
     const p: BoardMinion[] = [
       { cardId: 'mamabear', attack: 6, health: 30 },
       { cardId: 'pack', attack: 2, health: 1 }, // Mama Pup — dies → summons 2 Pups
@@ -1229,9 +1229,11 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 40 }];
     const a = run(p, e, 1);
     const mb = a.initial.player.find((m) => m.cardId === 'mamabear')!.uid;
-    const improves = a.events.filter((ev) => ev.type === 'improve' && ev.target === mb);
-    expect(improves.length).toBe(2); // one per Pup summoned
-    expect(improves.every((ev) => ev.type === 'improve' && ev.amount === 2)).toBe(true); // pre-golden step = base (2)
+    expect(a.events.some((ev) => ev.type === 'improve' && ev.target === mb)).toBe(false);
+    // The summoned Pups enter at base 1/1 (Den Mother didn't touch them).
+    const pupSummons = a.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup');
+    expect(pupSummons.length).toBe(2);
+    expect(pupSummons.every((ev) => ev.type === 'summon' && ev.minion.attack === 1 && ev.minion.health === 1)).toBe(true);
   });
 
   it('Tara ascends to Taragosa MID-combat once her stat-grants cross the threshold, and Taragosa then casts Growth', () => {
@@ -2125,9 +2127,11 @@ describe('simulate (handoff A.3)', () => {
     expect(r2.events.some((ev) => ev.type === 'buff' && ev.target === pHorrorUid && ev.attack === 5 && ev.health === 5)).toBe(true);
   });
 
-  it('a retaliation kill procs on-kill (owner ruling 2026-07-03): defending Karthus counts its fellers', () => {
-    // Enemy attacks first (more minions). Both 2/1s die to Karthus's 7-Attack retaliation or his swing —
-    // every kill in a clash procs onKill now, so BOTH kills bank +3 Undead Attack (was: only his own attack).
+  it('a retaliation kill does NOT proc on-kill — only the ATTACK kill does (owner ruling 2026-07-08)', () => {
+    // Enemy attacks first (more minions): sandbag #1 dies to Karthus's 7-Attack RETALIATION — Karthus is the
+    // defender there, so his Slaughter does NOT fire (revises the 2026-07-03 "defender counts its fellers"
+    // rule). On his own turn Karthus ATTACKS and kills sandbag #2 → that DOES proc. So he banks +3 once, not
+    // +6 (both kills) as before.
     const p: BoardMinion[] = [{ cardId: 'karthus', attack: 7, health: 20 }];
     const e: BoardMinion[] = [
       { cardId: 'sandbag', attack: 2, health: 1 },
@@ -2135,8 +2139,7 @@ describe('simulate (handoff A.3)', () => {
     ];
     const r = run(p, e, 5);
     expect(r.result).toBe('win');
-    // Kill 1: the first attacker fell to retaliation (NEW). Kill 2: Karthus's own swing (as before). 2 × +3.
-    expect(r.playerUndeadBuyAtkGain).toBe(6);
+    expect(r.playerUndeadBuyAtkGain).toBe(3); // only Karthus's own attack-kill procs (was 6 under the old rule)
   });
 
   it('cleave-splash kills proc on-kill per victim (owner ruling 2026-07-03)', () => {
@@ -2234,8 +2237,10 @@ describe('resolution step tags', () => {
   it("an on-kill reward lands in a LATER step than the victim's death (not merged into a rattle step)", () => {
     // Karthus's Slaughter buffs your living Undead (itself included) via ctx.buff the moment it kills —
     // the reward must get its own step AFTER every death in the clash, not ride the last victim's rattle.
+    // A 0-Attack filler ally gives the player more minions → Karthus ATTACKS first, so his kill procs Slaughter
+    // (a retaliation kill would not, post-2026-07-08).
     const r = simulate(
-      [{ cardId: 'karthus', attack: 7, health: 8 }],
+      [{ cardId: 'karthus', attack: 7, health: 8 }, { cardId: 'sandbag', attack: 0, health: 30 }],
       [{ cardId: 'sandbag', attack: 1, health: 1 }],
       makeRng(3), CARD_INDEX,
     );
@@ -2253,5 +2258,65 @@ describe('resolution step tags', () => {
     const a = simulate(roster, foe, makeRng(7), CARD_INDEX);
     const b = simulate(roster, foe, makeRng(7), CARD_INDEX);
     expect(a.events.map((e) => e.step)).toEqual(b.events.map((e) => e.step));
+  });
+});
+
+describe('combat-phase quest tallies', () => {
+  it('counts player attacks + enemy slaughters, attributed to the killer/attacker tribe', () => {
+    // A fat Beast (Pennycat overridden to 10/10) grinds down two weak enemies — it attacks and slaughters both.
+    const p: BoardMinion[] = [{ cardId: 'alley', attack: 10, health: 10 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }];
+    const r = simulate(p, e, makeRng(1), CARD_INDEX);
+    expect(r.result).toBe('win');
+    expect(r.playerQuestTally).toBeDefined();
+    expect(r.playerQuestTally!.slaughter).toBe(2);
+    expect(r.playerQuestTally!.slaughterByTribe.beast).toBe(2); // both kills credited to a Beast
+    expect(r.playerQuestTally!.attack).toBeGreaterThanOrEqual(2);
+    expect(r.playerQuestTally!.attackByTribe.beast).toBe(r.playerQuestTally!.attack);
+  });
+
+  it('Echoing Coop fires Deathrattles at Start of Combat, and Sylus doubles them', () => {
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies round 1 → Mama Pup never dies (its Echo fires once, at SoC)
+    const pupCount = (withSylus: boolean): number => {
+      const p: BoardMinion[] = withSylus
+        ? [{ cardId: 'sylus', attack: 3, health: 30 }, { cardId: 'pack', attack: 3, health: 30 }]
+        : [{ cardId: 'pack', attack: 3, health: 30 }];
+      const r = simulate(
+        p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ['beast'], {}, false, false, 0, 0, 0, 0,
+        { echoingCoop: true },
+      );
+      return r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup').length;
+    };
+    const base = pupCount(false); // Echoing Coop fires Mama Pup's Echo once → 2 Pups
+    expect(base).toBe(2);
+    expect(pupCount(true)).toBe(base * 2); // one Sylus doubles the Start-of-Combat Echo → 4 Pups
+  });
+
+  it('Sylus makes an Echo count as multiple TRIGGERS (feeds the Echo objective + Grim tally)', () => {
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies round 1 → Mama Pup survives
+    const triggers = (withSylus: boolean): number => {
+      const p: BoardMinion[] = withSylus
+        ? [{ cardId: 'sylus', attack: 3, health: 30 }, { cardId: 'pack', attack: 3, health: 30 }]
+        : [{ cardId: 'pack', attack: 3, health: 30 }];
+      const r = simulate(
+        p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ['beast'], {}, false, false, 0, 0, 0, 0,
+        { echoingCoop: true },
+      );
+      return r.playerDeathrattles; // the Echo (deathrattle) objective + Grim read this tally
+    };
+    expect(triggers(false)).toBe(1); // one Echo triggered
+    expect(triggers(true)).toBe(2); // Sylus re-fire counts as a second TRIGGER (not a second death)
+  });
+
+  it('The Old Hunt (questMods.oldHuntStep): each Beast attack pumps the Beast aura, carried back', () => {
+    const p: BoardMinion[] = [{ cardId: 'alley', attack: 3, health: 40 }]; // survives to attack several times
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 30 }];
+    const r = simulate(
+      p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ['beast'], {}, false, false, 0, 0, 0, 0,
+      { oldHuntStep: 7 },
+    );
+    // At least one Beast attack landed → the aura grew by a multiple of the step.
+    expect(r.playerBeastBuyAtkGain).toBeGreaterThanOrEqual(7);
+    expect(r.playerBeastBuyAtkGain! % 7).toBe(0);
   });
 });

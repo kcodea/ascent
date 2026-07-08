@@ -1,5 +1,5 @@
 import { makeRng } from '@game/core';
-import type { CombatOutcome, CombatResult, Keyword, Rng, Tribe } from '@game/core';
+import type { CombatOutcome, CombatResult, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
@@ -121,6 +121,9 @@ export interface BoardCard {
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that
    *  wasn't bought sells for the base 1, since it has no held-since wave). */
   boughtWave?: number;
+  /** Trail Forager: extra sell value accrued (+1 Gold per Beast played while it's on the board, ×2 golden).
+   *  Read by `sellValueOf`; per-instance, persists across turns for the rest of the run. Absent = 0. */
+  sellBonus?: number;
   /** Gold-spend meter for `goldSpent` effects (Acid, Banksly): accrues the Gold spent while this card is on
    *  the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
    *  remainder), per-instance; absent = 0. */
@@ -149,7 +152,7 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  */
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; exclude?: string; topTierFirst?: boolean };
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean };
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
  *  (shown in the quest panel); up to 3 accumulate over a run (waves 4/8/12). */
@@ -262,6 +265,12 @@ export interface RunState {
    *  Beast when it's created, and re-applied on Reborn/summon (from-base combat bodies). Beast sibling of
    *  `undeadBuyAtk`. */
   beastBuyAtk: number;
+  /** Run-wide Beast HEALTH aura (Pack Mentality quest): your Beasts get this much Health everywhere — the
+   *  Health sibling of `beastBuyAtk`, baked in on creation + re-applied on Reborn/summon. Absent-safe (0). */
+  beastBuyHp: number;
+  /** Squirl Scout's run-wide grant size: each Squirl Scout played raises it +3 (×2 golden). Its Battlecry
+   *  gives a random friendly minion +this/+this once per Beast you own. Absent-safe (0). */
+  squirlScoutBuff?: number;
   /** Run-wide Magnetic/Attachment aura (Scrap Herald): your Magnetic minions get +magneticBuyAtk/+magneticBuyHp
    *  everywhere — baked in on creation, re-applied on Reborn/summon. The only tribe-style aura with a Health half. */
   magneticBuyAtk: number;
@@ -351,6 +360,16 @@ export interface RunState {
   /** Quest rewards scheduled to fire again later (Trail Rations' "repeat in 2 turns"). Each recruit-turn
    *  setup ticks `turnsLeft` down; at 0 the quest's reward re-applies (without re-scheduling). Absent = none. */
   pendingQuestRewards?: { questId: string; turnsLeft: number }[];
+  /** Card ids to conjure to hand at the END OF EACH TURN for the rest of the run (Feed the Alpha's recurring
+   *  reward — one Feed the Alpha spell per turn). Multiple quests append; absent = none. */
+  questRecurringGrants?: string[];
+  /** Growing tribe auras from quests (Pack Mentality): +stepAttack/+stepHealth to the tribe's aura each time
+   *  `per` of `event` accrues over the run. `progress` carries the leftover between steps. Absent = none. */
+  questScalingAuras?: { tribe: Tribe; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number; progress: number }[];
+  /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
+   *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
+   *  per-Beast-attack aura step. Absent = none armed. */
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number };
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted
@@ -480,6 +499,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     undeadHealthBonus: 0,
     undeadBuyAtk: 0,
     beastBuyAtk: 0,
+    beastBuyHp: 0,
     magneticBuyAtk: 0,
     magneticBuyHp: 0,
     spellBonus: { attack: 0, health: 0 },

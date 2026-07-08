@@ -8,6 +8,7 @@ import type {
   Keyword,
   Minion,
   MinionSnapshot,
+  QuestCombatMods,
   Side,
   Tribe,
 } from '../types';
@@ -53,7 +54,14 @@ export function simulate(
   beastBuyAtk = 0,
   magneticBuyAtk = 0,
   magneticBuyHp = 0,
+  questMods: QuestCombatMods = {},
 ): CombatResult {
+  // Beast Attack aura, mutable so The Old Hunt (questMods.oldHuntStep) can pump it live as Beasts attack —
+  // later from-base Beast bodies (summons / Reborn) then inherit the grown value. Its Health sibling
+  // (Pack Mentality) is fixed for the fight.
+  let beastAtkAura = beastBuyAtk;
+  const beastHpAura = questMods.beastAuraHp ?? 0;
+  let beastBuyAtkGain = 0; // The Old Hunt: run-wide Beast Attack aura gained this combat → carried back
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
   // each event belongs to. `emit` stamps it; `nextStep()` is called wherever a NEW atomic resolution begins
@@ -120,7 +128,7 @@ export function simulate(
       label: 'Beast Aura',
       grant: (m) =>
         m.tribe === 'beast' || m.tribe2 === 'beast' || cards[m.cardId]?.universalTribe
-          ? { attack: 0, health: 0, bakedAtk: beastBuyAtk }
+          ? { attack: 0, health: 0, bakedAtk: beastAtkAura, bakedHp: beastHpAura }
           : { attack: 0, health: 0 },
     },
     {
@@ -194,6 +202,33 @@ export function simulate(
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
   let enemyDeaths = 0;
+
+  // ── Combat-phase quest tallies (carried back via playerQuestTally) ──────────────────────────────────────
+  // Player attacks / mid-combat summons / enemy slaughters, each with a by-tribe breakdown (the acting or
+  // summoned minion's tribe(s); universal-tribe minions count for every tribe). Beast quest objectives read
+  // these post-combat. The Echo (Deathrattle) objective reuses `playerDeathrattles`.
+  const questTally = {
+    attack: 0, summonCombat: 0, slaughter: 0,
+    attackByTribe: {} as Partial<Record<Tribe, number>>,
+    summonCombatByTribe: {} as Partial<Record<Tribe, number>>,
+    slaughterByTribe: {} as Partial<Record<Tribe, number>>,
+  };
+  const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
+  const tribesFor = (m: Minion): Tribe[] => {
+    if (cards[m.cardId]?.universalTribe) return ALL_TRIBES; // counts as every tribe (like the run-wide auras)
+    return [m.tribe, m.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+  };
+  const byTribeMap = { attack: questTally.attackByTribe, summonCombat: questTally.summonCombatByTribe, slaughter: questTally.slaughterByTribe };
+  const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {
+    questTally[kind] += 1;
+    const by = byTribeMap[kind];
+    for (const t of tribesFor(m)) by[t] = (by[t] ?? 0) + 1;
+  };
+  const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe;
+
+  // Blood Trail: the leftmost living player minion, captured at Start of Combat, "gains Slaughter: get a random
+  // Beast" for this fight — each enemy it kills conjures a random Beast to hand (via ctx.grantRandomMinion).
+  let bloodTrailMinion: Minion | undefined;
 
   const snapshot = (m: Minion): MinionSnapshot => ({
     uid: m.uid,
@@ -354,7 +389,7 @@ export function simulate(
       if (side !== 'player') return; // enemies have no hand
       // Pick the ACTUAL spell now (tavern tier passed in) and route it through grantToHand — so the replay
       // shows the real card flying to your hand (a `toHand` event), and settle just adds the carried cardId.
-      const pool = Object.values(cards).filter((c) => c.spell && c.tier <= playerTier);
+      const pool = Object.values(cards).filter((c) => c.spell && !c.token && c.tier <= playerTier); // exclude reward-exclusive spells (Feed the Alpha)
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(rng.next() * pool.length)]!;
         handGrants.push(pick.id);
@@ -470,6 +505,7 @@ export function simulate(
     }
     registerEffects(minion);
     emit({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
+    if (side === 'player') bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
     bus.emit('onSummon', { minion, side });
     applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
     // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
@@ -559,6 +595,9 @@ export function simulate(
     let reaperBonus = 0;
     for (const m of boards[minion.side]) if (!m.dead && m.health > 0 && m.cardId === 'sylus') reaperBonus += m.golden ? 2 : 1;
     for (let r = 0; r < reaperBonus; r++) fireOnce();
+    // Sylus re-triggers count as extra Echo triggers (Reborn / Echoing Coop). The caller already counted the
+    // base trigger; add the reaper extras (player + has-a-Deathrattle only). See the death-path note above.
+    if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles += reaperBonus;
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
@@ -639,7 +678,8 @@ export function simulate(
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff).
     if (minion.side === 'enemy') enemyDeaths++;
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
-    if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles++;
+    const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
+    if (minion.side === 'player' && hasDeathrattle) playerDeathrattles++;
     nextStep(); // Deathrattles + on-death watchers resolve as their own step
     bus.emit('onDeath', { minion, side: minion.side, killer });
     // Sylus the Reaper: the dying minion's own Deathrattle procs extra times (golden = +2;
@@ -652,6 +692,10 @@ export function simulate(
         FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
       }
     }
+    // Each Sylus RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the
+    // Echoing Coop objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added
+    // after the re-fires so all firings read the same tally value (the value at death), only the count grows.
+    if (minion.side === 'player' && hasDeathrattle) playerDeathrattles += reaperBonus;
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
@@ -764,6 +808,25 @@ export function simulate(
       if (s > 0) nextStep(); // each Windfury swing is its own exchange
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s });
       bus.emit('onAttack', { minion: attacker, side: attacker.side }); // Rally + on-attack effects
+      if (attacker.side === 'player') {
+        bumpQuestTally('attack', attacker); // "Attack N times with Beasts" quests (each swing counts)
+        // The Old Hunt: each Beast attack pumps your run-wide Beast Attack aura by `oldHuntStep` — live (every
+        // current Beast gains it, "wherever they are"; later summons inherit via the grown aura) + carried back.
+        const oldHuntStep = questMods.oldHuntStep ?? 0;
+        if (oldHuntStep > 0 && isBeast(attacker)) {
+          beastAtkAura += oldHuntStep;
+          beastBuyAtkGain += oldHuntStep;
+          for (const m of boards.player) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, oldHuntStep, 0, 'The Old Hunt');
+        }
+        // Law of Teeth: a Beast's Rally triggers one extra time — re-run only THIS attacker's own on-attack
+        // effects once more (direct call, not via the bus, so other minions' Rallies don't double-fire).
+        if (questMods.lawOfTeeth && attacker.keywords.includes('RL') && isBeast(attacker) && !attacker.dead && attacker.health > 0) {
+          for (const effect of attacker.effects) {
+            if (effect.on !== 'onAttack') continue;
+            FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side });
+          }
+        }
+      }
       // Rallying Offensive ("your Rallys trigger twice next combat"): re-run only THIS attacker's OWN
       // on-attack (Rally) effects one more time — invoked directly, not via the bus, so other minions'
       // on-attack watchers (Raptor, Crypt Drake, Taragosa…) don't double-fire. Player-side, RL only, per swing.
@@ -841,8 +904,30 @@ export function simulate(
       // nothing, unchanged from before).
       nextStep(); // on-kill rewards resolve as their own step, after every death in the clash
       for (const { m, killer, couldReborn } of victims) {
-        if (m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) {
+        // Slaughter (on-kill) fires ONLY when THIS minion ATTACKS and kills (owner ruling 2026-07-08, revising
+        // the 2026-07-03 "defender fells attacker counts" rule): the attacker's own kills — the main target and
+        // cleave splash — proc it, but a defender felling its attacker via retaliation does NOT (its `killer` is
+        // the target, not this exchange's `attacker`). So gate on `killer === attacker`.
+        if ((m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) && killer === attacker) {
           bus.emit('onKill', { attacker: killer, victim: m });
+          // A player minion felling an enemy by attacking is a "Slaughter" — tally it for the Slaughter quests
+          // (credited to the KILLER's tribe for "with Beasts").
+          if (killer.side === 'player' && m.side === 'enemy') {
+            bumpQuestTally('slaughter', killer);
+            const killerAlive = !killer.dead && killer.health > 0;
+            // Blood Trail: the SoC-marked leftmost minion's kills conjure a random Beast to hand.
+            if (questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) {
+              ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);
+            }
+            // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
+            // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire).
+            if (questMods.lawOfTeeth && killerAlive && isBeast(killer)) {
+              for (const effect of killer.effects) {
+                if (effect.on !== 'onKill') continue;
+                FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+              }
+            }
+          }
         }
       }
       // On-kill re-attack (Gnasher) stays keyed to the MAIN target's kill only.
@@ -920,6 +1005,8 @@ export function simulate(
   //     2026-07-03: a captured board's Start-of-Combat effects are live, not inert — an enemy Taurus
   //     engraves its line too). Effects reading the player's RUN state (Abhorrent Horror's consumed-Fodder
   //     tally) side-gate themselves, since an enemy snapshot carries no run state. ---
+  // Blood Trail: mark the leftmost living player minion — its kills this fight conjure a random Beast (above).
+  if (questMods.bloodTrail) bloodTrailMinion = boards.player.find((m) => !m.dead && m.health > 0);
   for (const side of ['player', 'enemy'] as const) {
     for (const minion of [...boards[side]]) {
       if (minion.dead || minion.health <= 0) continue;
@@ -928,6 +1015,19 @@ export function simulate(
         const fn = FACTORIES[effect.do];
         if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
       }
+    }
+  }
+  // Echoing Coop: trigger every one of your minions' Echoes (Deathrattles) once at Start of Combat — without
+  // killing the body. Routes through `fireOwnDeathrattles`, so **Sylus the Reaper doubles them** just like a
+  // real death (owner ruling 2026-07-08). Fires after the normal Start-of-Combat casts so summons/buffs see the
+  // settled board.
+  if (questMods.echoingCoop) {
+    for (const minion of [...boards.player]) {
+      if (minion.dead || minion.health <= 0 || !minion.effects.some((e) => e.on === 'onDeath')) continue;
+      nextStep();
+      emit({ type: 'sc', source: minion.uid, text: 'Echo' });
+      playerDeathrattles++; // an Echo trigger — feeds Grim + the run's Deathrattle tally like any Deathrattle
+      fireOwnDeathrattles(minion); // fires once + once per Sylus (golden ×2)
     }
   }
 
@@ -1054,6 +1154,8 @@ export function simulate(
     playerDamage,
     playerDeathrattles,
     enemyDeaths,
+    playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0) ? questTally : undefined,
+    playerBeastBuyAtkGain: beastBuyAtkGain > 0 ? beastBuyAtkGain : undefined,
     initial,
     playerSummonBonus,
     playerHpGrantBonus: playerHpGrantBonus.length > 0 ? playerHpGrantBonus : undefined,

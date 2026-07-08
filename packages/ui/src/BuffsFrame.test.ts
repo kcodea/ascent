@@ -26,7 +26,7 @@ describe('gatherRunBuffs', () => {
     expect(byKey.fodder).toBe('+2/+2');
     expect(byKey.knit).toBe('+6/+4'); // Spear Warden run-wide enchant
     expect(byKey.imp).toBe('+2/+3');
-    expect(byKey.mamabear).toBe('+4/+4'); // base 2 + accrued 2
+    expect(byKey.mamabear).toBe('+3/+3'); // base 1 + accrued 2
     expect(byKey.guel).toBe('+3/+3'); // base 1 + floor(spellProgress 8 / 4) = 2 (per-instance, not run-wide)
   });
 
@@ -47,14 +47,14 @@ describe('gatherRunBuffs', () => {
     const run: RunState = {
       ...createRun(1),
       board: [
-        // base 2 + accrued 2 = 4
+        // base 1 + accrued 2 = 3
         { uid: 'a', cardId: 'mamabear', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false, summonBonus: 2 },
-        // (base 2 + accrued 0) × golden 2 = 4
+        // (base 1 + accrued 0) × golden 2 = 2
         { uid: 'b', cardId: 'mamabear', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: true },
       ],
     };
     const byKey = Object.fromEntries(gatherRunBuffs(run).map((r) => [r.key, r.value]));
-    expect(byKey.mamabear).toBe('+8/+8'); // 4 + 4 summed across both
+    expect(byKey.mamabear).toBe('+5/+5'); // 3 + 2 summed across both
   });
 
   it('drops Mama Bear / Guel rows once they leave the board', () => {

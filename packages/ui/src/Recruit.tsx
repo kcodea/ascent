@@ -136,6 +136,10 @@ interface ShopViewOpts {
   fodderConsumed?: { attack: number; health: number };
   /** Gold spent this turn — Patch Job's live total. */
   goldSpent?: number;
+  /** Card ids played this turn — Pack Leader / Spirit Worgen per-play scaling. */
+  playedThisTurn?: string[];
+  /** Squirl Scout's run-wide accrued grant size. */
+  squirlScoutBuff?: number;
 }
 
 /** Build the LiveTextParams for a shop/Discover OFFER (no per-instance accruals — it isn't owned yet). */
@@ -146,7 +150,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
     spellsThisTurn: o.spellsThisTurn ?? 0, spellsCast: o.spellsCast ?? 0, deathrattlesTriggered: o.deathrattlesTriggered ?? 0,
     clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
     undeadBuyAtk: o.undeadBuyAtk ?? 0, soulsmanGold: o.soulsmanGold ?? 0, cardBuffs: o.cardBuffs,
-    goldSpent: o.goldSpent ?? 0,
+    goldSpent: o.goldSpent ?? 0, playedThisTurn: o.playedThisTurn, squirlScoutBuff: o.squirlScoutBuff,
   };
 }
 function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
@@ -971,8 +975,8 @@ export function Recruit() {
   const shopViews = useMemo(
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, goldSpent: run.goldSpentThisTurn, castMult: CARD_INDEX[o.cardId]?.spell ? spellCasts(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
-    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn],
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, goldSpent: run.goldSpentThisTurn, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, castMult: CARD_INDEX[o.cardId]?.spell ? spellCasts(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
+    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff],
   );
   const spellView = useMemo(
     () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, goldSpent: run.goldSpentThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell ? spellCasts(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null),
@@ -994,8 +998,8 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs, goldSpent: run.goldSpentThisTurn ?? 0 }),
-    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn],
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs, goldSpent: run.goldSpentThisTurn ?? 0, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff }),
+    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff],
   );
   const boardViews = useMemo(
     () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, live)] as const)),
@@ -2749,14 +2753,21 @@ export function Recruit() {
               <b>Choose One</b> — {CARD_INDEX[run.chooseOne.cardId]?.name}
             </div>
             <div className="chooseone-opts">
-              {(CARD_INDEX[run.chooseOne.cardId]?.chooseOne ?? []).map((opt, i) => (
-                <button
-                  className="chooseopt"
-                  key={i}
-                  onClick={() => dispatch({ type: 'chooseOne', index: i })}
-                  dangerouslySetInnerHTML={{ __html: mdBold(opt.text) }}
-                />
-              ))}
+              {(() => {
+                // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
+                // option's `goldenText` (Wildwood Shaper: +2/+6 / two Strays). The card is on the board (Battlecry
+                // Choose One) or in hand (spell Choose One).
+                const co = run.chooseOne!;
+                const golden = !!(run.board.find((c) => c.uid === co.uid)?.golden ?? run.hand.find((c) => c.uid === co.uid)?.golden);
+                return (CARD_INDEX[co.cardId]?.chooseOne ?? []).map((opt, i) => (
+                  <button
+                    className="chooseopt"
+                    key={i}
+                    onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                    dangerouslySetInnerHTML={{ __html: mdBold(golden ? (opt.goldenText ?? opt.text) : opt.text) }}
+                  />
+                ));
+              })()}
             </div>
           </div>
         </div>

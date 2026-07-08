@@ -199,23 +199,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantFreeRolls(num(params.count, 1) * mul(self), self.side);
   },
 
-  /** Mama Bear (combat half) — when a friendly minion of `tribe` is summoned, buff it +M/+M where M =
-   *  (base + accrued) × golden, then the accrued (`summonBonus`, carried back) climbs by `base`. Mirrors the
-   *  recruit half so the improve persists in AND out of combat. */
-  summonBuffTribeImprove: (ctx, self, params, payload) => {
-    const { minion, side } = payload as MinionPayload;
-    if (self.dead || side !== self.side || minion === self) return;
-    const tribe = str(params.tribe) as Tribe | '';
-    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
-    const base = num(params.attack, 3);
-    const mag = (base + self.summonBonus) * mul(self);
-    ctx.buff(minion, mag, mag, self.uid);
-    self.summonBonus += base;
-    // Surface the climb (like Kennelmaster's avengeImproveSummon) so the live combat card text — "+M/+M per
-    // summon" via summonImproveText — ticks up in real time as Beasts are summoned. `amount` is the pre-golden
-    // step; the UI folds it into summonBonus and re-applies ×golden when it renders.
-    ctx.log({ type: 'improve', target: self.uid, amount: base });
-  },
+  // Den Mother (`summonBuffTribeImprove`) is RECRUIT-ONLY (owner ruling 2026-07-08): it improves your Beasts
+  // as you PLAY them in the shop, but does NOT fire on combat summons — so there's no combat factory here (the
+  // recruit half lives in recruit.ts). An effect with no combat factory is inert in combat (registerEffects).
 
   /** When a friendly minion of `tribe` is summoned, buff it. The per-stat magnitude is the
    *  base buff + `self.summonBonus` (Kennelmaster's Avenge / triple-combined bonus). No golden
@@ -1322,6 +1308,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) {
       if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
     }
+  },
+
+  /** Trophy Stalker — Rally: like `rallyTribeAura`, but the grant GROWS by `step` each of its own attacks. The
+   *  accrued growth rides in `summonBonus` (the Kennelmaster per-instance field — snapshotted + carried back, so
+   *  it keeps climbing across combats). Grant = (base + summonBonus) × golden; then bump summonBonus by `step`.
+   *  Beasts on board buffed now + those summoned later inherit it (`addTribeAura`). */
+  rallyTribeAuraGrowing: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
+    const step = num(params.step, 1);
+    const a = (num(params.attack, 3) + self.summonBonus) * mul(self);
+    const h = (num(params.health, 3) + self.summonBonus) * mul(self);
+    if (a > 0 || h > 0) {
+      ctx.addTribeAura(self.side, tribe, a, h, self.uid);
+      for (const m of ctx.living(self.side)) {
+        if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+      }
+    }
+    self.summonBonus += step; // "improve whenever it attacks" — the next attack grants more (live text reads this)
   },
 
   /** Bloodbinder — Rally (on its own attack): give another friendly Demon Attack equal to THIS minion's current

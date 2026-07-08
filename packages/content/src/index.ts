@@ -29,8 +29,10 @@ export const CARD_INDEX: Record<string, CardDef> = Object.fromEntries(
 /** Minions offered in the shop (excludes tokens, spells, and enemy filler). */
 export const BUYABLE_CARDS: CardDef[] = ALL_CARDS.filter((card) => !card.token && !card.spell);
 
-/** Tavern spells — the pool the always-offered right-hand spell slot draws from. */
-export const SPELL_CARDS: CardDef[] = ALL_CARDS.filter((card) => card.spell);
+/** Tavern spells — the pool the always-offered right-hand spell slot draws from. Excludes `token` spells
+ *  (reward-exclusive, e.g. Feed the Alpha), so quest rewards never roll into the regular shop / spell Discover /
+ *  Graverobber's grant. Combat's random-spell grant filters the same way. */
+export const SPELL_CARDS: CardDef[] = ALL_CARDS.filter((card) => card.spell && !card.token);
 
 /** Effect ids whose params carry a token id (a summoned token that must exist in the pool). */
 const TOKEN_REF_EFFECTS = new Set(['deathrattleSummon', 'battlecrySummon', 'onFriendDeathSummon', 'deathrattleSummonOverflowBuff']);

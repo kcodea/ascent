@@ -1,4 +1,13 @@
+import type { Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+
+/** How many of `playedThisTurn` (card ids) belong to any of `tribes` (dual-types count). */
+function countPlayed(playedThisTurn: string[] | undefined, tribes: Tribe[]): number {
+  return (playedThisTurn ?? []).filter((id) => {
+    const d = CARD_INDEX[id];
+    return !!d && tribes.some((t) => d.tribe === t || d.tribe2 === t);
+  }).length;
+}
 
 /**
  * A summon-buff card (Kennelmaster / Bristleback Matron) shows its *current* buff magnitude
@@ -15,7 +24,7 @@ export function summonBuffText(cardId: string, summonBonus: number): string | nu
   const def = CARD_INDEX[cardId];
   // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start-of-Combat Beast aura). Both
   // grant `base + summonBonus`, so the same live magnitude injects into the printed "+N/+N".
-  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'scTribeBuffImproving');
+  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'scTribeBuffImproving' || e.do === 'rallyTribeAuraGrowing');
   if (!def || !eff) return null;
   const base = Number((eff.params as { attack?: number })?.attack ?? 1);
   const m = base + summonBonus;
@@ -91,14 +100,37 @@ export function cadenceProgressText(cardId: string, eotTick: number): string | n
  * (X = base + spellsThisTurn), highlighted green, once a spell's been cast this turn. Returns null otherwise
  * (falls back to the printed value). The ×(played) multiplier isn't shown — only the per-unit, as before.
  */
-export function summonScalingText(cardId: string, spellsThisTurn: number): string | null {
-  if (spellsThisTurn <= 0) return null;
+export function summonScalingText(cardId: string, spellsThisTurn: number, playedThisTurn?: string[]): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffPerTribePlayed');
   if (!def || !eff) return null;
+  const tribes = (eff.params as { tribes?: Tribe[] })?.tribes ?? (['beast', 'dragon'] as Tribe[]);
+  const played = countPlayed(playedThisTurn, tribes); // the ×multiplier the End of Turn will apply
+  if (spellsThisTurn <= 0 && played <= 0) return null; // nothing live → printed text is accurate
   const base = Number((eff.params as { attack?: number })?.attack ?? 2);
-  const x = base + spellsThisTurn;
-  return def.text.replace(`+${base}/+${base}`, `{{+${x}/+${x}}}`);
+  let text = spellsThisTurn > 0 ? def.text.replace(`+${base}/+${base}`, `{{+${base + spellsThisTurn}/+${base + spellsThisTurn}}}`) : def.text;
+  if (played > 0) text += ` {{(${played})}}`; // live proc count: Beasts/Dragons played this turn
+  return text;
+}
+
+/**
+ * Pack Leader (`scTribeBuffPerPlayed`) — Start of Combat buff that scales +perPlayed for each Beast you PLAYED
+ * this turn. Surface the current grant (green) — (base + perPlayed × played) × golden — in place of the first
+ * printed "+A/+B" (the grant), leaving the "+step/+step" improve rate. Null before any qualifying play.
+ */
+export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, playedThisTurn: string[] | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerPlayed');
+  if (!def || !eff) return null;
+  const tribe = String((eff.params as { tribe?: string })?.tribe ?? 'beast') as Tribe;
+  const played = countPlayed(playedThisTurn, [tribe]);
+  if (played <= 0) return null;
+  const base = Number((eff.params as { attack?: number })?.attack ?? 2);
+  const per = Number((eff.params as { perPlayed?: number })?.perPlayed ?? 2);
+  const x = (base + per * played) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${x}/+${x}}}`)));
 }
 
 /**
@@ -300,6 +332,35 @@ export function engraveTallyText(cardId: string, permaGain: { attack: number; he
   if (a > 0) parts.push(`+${a} Attack`);
   if (h > 0) parts.push(`+${h} Health`);
   return `${def.text} {{${parts.join(', ')} so far}}`;
+}
+
+/**
+ * Trail Forager's sell value climbs +1 per Beast played (the per-instance `sellBonus`). Surface the CURRENT
+ * sell value (green) in place of the printed "2g", so the card always states what it'll sell for right now.
+ * Returns null with no accrual (the printed base is accurate). Golden doubles the base (bonus is pre-doubled).
+ */
+export function trailForagerText(cardId: string, golden: boolean, sellBonus: number): string | null {
+  if (cardId !== 'trailforager' || sellBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const value = 2 * (golden ? 2 : 1) + sellBonus;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\d+g\*\*/, `{{${value}g}}`);
+}
+
+/**
+ * Squirl Scout's grant snowballs: each played raises the run-wide `squirlScoutBuff` by 3 (×2 golden). Surface
+ * the grant a play NOW would make — (squirlScoutBuff + step) — green, in place of the FIRST printed "+N/+N"
+ * (the grant); the second (the per-play improve) stays. Null before any accrual (printed base is accurate).
+ */
+export function squirlScoutText(cardId: string, golden: boolean, squirlScoutBuff: number): string | null {
+  if (cardId !== 'squirlscout' || squirlScoutBuff <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const next = squirlScoutBuff + 3 * (golden ? 2 : 1); // what playing this one now would grant per Beast
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${next}/+${next}}}`)));
 }
 
 /** The minions that stack the run-wide Undead buy-time Attack bonus (`undeadBuyAtk`) — used to surface it. */

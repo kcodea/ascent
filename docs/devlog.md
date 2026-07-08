@@ -5,6 +5,178 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### chore(ui): title screen back to the static homescreen image (remove the looping menu video)
+
+Owner request — the title screen reverts to the static sky-castle art for now. Removed the `<video>` element +
+its autoplay/mute-sync effect (and the now-unused `useRef`/`useEffect`/`getVolume`/`isMuted` imports) from
+`Title.tsx`; the full-bleed background already comes from the `.titlescreen` CSS (`homescreen.webp`), so nothing
+else changed. Deleted `apps/web/public/homescreen.mp4`. Verified live: the title renders the static image, no
+video element. Easy to restore later (git history + the `.titlevideo` CSS is left in place).
+
+### fix: TRIGGER-based counts scale with doublers (Sylus→Echoes, Drakko→Shouts); wire Hoard Spark art
+
+Follow-up to the deathrattles-in-shop entry below — resolving the flagged "should Sylus count toward the Echo
+tally?" question. Owner ruling: **yes** — a count of "TRIGGER X echoes" scales with doublers (Sylus), whereas a
+count of "X minions die" would not. Same principle for Drakko (Shouts) / Chronos (End of Turn).
+
+- **Sylus now counts toward the Echo trigger tally.** `playerDeathrattles` (which feeds the Echoing Coop objective
+  AND Grim's "per Deathrattle triggered") now counts each Sylus re-fire as another trigger — in the combat death
+  path, `fireOwnDeathrattles` (Reborn / Echoing Coop), and the shop `fireRecruitDeathrattles`. The extra triggers
+  are added AFTER the re-fires, so every firing still reads the SAME tally value (the value at death) — only the
+  COUNT grows (so "Sylus doubles Grim" stays +N twice, not an escalating read).
+- **Drakko now counts toward the Shout objective.** The reducer's `shout` quest tick advances by
+  `drummerRepeats(state)` (Drakko's non-consuming fire count), so a Drakko player's re-fired Battlecry counts as
+  multiple Shouts. 1 without Drakko (unchanged). Chronos has no End-of-Turn trigger quest yet, so nothing to wire.
+- **Hoard Spark art wired** (`q_hoard_spark.png`) — the owner added the `HoardSpark.png` source.
+
+**Verified:** typecheck + lint + build:web clean; **673 tests pass** (+ Sylus-Echo-trigger-count and Drakko-Shout
+regressions). Live: Hoard Spark renders its art.
+
+### fixes + content: Deathrattles-in-shop sweep (Graverobber×Grim×Sylus, Echoing Coop×Sylus), reward-shop exclusion, Hoard Spark, quest retunes
+
+An owner fix/sweep pass (on `feat/beast-quests`).
+
+**Deathrattles resolve out of combat + synergize with Sylus (owner ruling 2026-07-08):**
+- **Graverobber on Grim was inert** — Grim's `deathrattleBuffTribeByTally` (and ~9 other combat-only Deathrattles)
+  had no RECRUIT factory, so destroying them out of combat did nothing. Added recruit halves for
+  `deathrattleBuffTribeByTally` (Grim), `deathrattleBuffAllHealth` (Sergeant), `deathrattleGiveHealth`,
+  `deathrattleGrantCardToHand`, `deathrattleGrantRandomSpell`, `deathrattleGrantMagnetic`,
+  `deathrattleBuffCardTypeRunWide`, `deathrattleBuffImps`, and `deathrattleAddFodder` — each baking its payoff
+  into the run state. Purely-combat rattles (damage, destroy-killer, attack-on-summon overflow) stay inert.
+- **Sylus the Reaper now doubles shop-phase Deathrattles.** Graverobber's destroy routes through a new
+  `fireRecruitDeathrattles` helper that fires each Deathrattle once + once per Sylus (golden ×2) — the shop
+  mirror of combat's reaper bonus — and ticks the run Deathrattle tally once, BEFORE firing (so Grim counts its
+  own death, matching combat).
+- **Echoing Coop now goes through `fireOwnDeathrattles`**, so **Sylus doubles the Echoes it fires** at Start of
+  Combat (was a direct loop that bypassed the reaper bonus).
+- Sweep found Graverobber is the only shop path that fires a friendly's Deathrattle (Consume eats Fodder only).
+
+**Reward cards never roll in the regular shop:** Feed the Alpha is now `token: true`, and `SPELL_CARDS` (shop /
+spell Discover / Graverobber's grant) + combat's random-spell grant exclude `token` spells. Trail Forager /
+Trophy Stalker were already `token` minions (out of `BUYABLE_CARDS` + the "random Beast" grants).
+
+**Hoard Spark (Dragon lesser quest):** "Buy 3 Dragons → get a random Dragon + a random spell." Added a
+`randomSpell` field to the `grant` reward (type + schema + `applyQuestReward` + questText). ⚠️ **No quest art
+wired** — there's no `HoardSpark`-named file in `Ascent Art/Quests/` (only un-attributed UUID files, which the
+name-match rule says not to guess). The card shows the textless fallback until art is provided/renamed.
+
+**Quest objective retunes (owner):** Den Marker 8→5, Pack Mentality 14→8, Trophy Den 12→9, Feed the Alpha 9→7,
+Law of Teeth 14→11, The Old Hunt 20→15, Echoing Coop 14→11 (Forest Grove / Blood Trail / Forager's Trail / Apex
+Hunt unchanged).
+
+**Flagged (not changed):** whether Sylus should also inflate the **Echo objective tally** ("Trigger N Echoes") —
+currently the tally counts one per death/Echo-trigger, not per Sylus re-fire (matching Grim's "per Deathrattle
+this game"). Making Sylus count toward it would help the Echo quest but also rescale Grim — a balance call left
+to the owner.
+
+**Verified:** typecheck + lint + build:web clean; **671 tests pass** (+ regressions: Graverobber-on-Grim,
+Sylus-doubles-a-Graverobber-Deathrattle, Echoing-Coop×Sylus doubling ratio, reward-spell shop exclusion). Live:
+the Quest Shop shows the retuned counts + Hoard Spark ("Get a random Dragon + a random spell").
+
+### balance + fixes: Beast/Mech/Dragon tuning batch, Slaughter-on-attack-only, attachment auras, Wayfinder spread, Nimbus×Discover
+
+An owner balance + bugfix pass (on `feat/beast-quests`, since several items touch the same Slaughter loop + Beast
+auras the quest work added).
+
+**Balance:**
+- **Den Mother** → +1/+1, improve +1/+1 (golden +2/+2), and now **recruit-only**: it snowballs Beasts you PLAY in
+  the shop, not combat summons (the combat `summonBuffTribeImprove` factory was removed — an effect with no combat
+  factory is inert in combat).
+- **Kennelmaster** → **Avenge (3)** (was 2).
+- **Squirl Scout** reworked: **"Battlecry: Give a friendly minion +3/+3. Repeat for every Beast you own. Every
+  Squirl Scout played improves this by +3/+3."** New `battlecryScoutSpread` factory + a run-wide `squirlScoutBuff`
+  counter (random-spread grant, board-scope "own"); it no longer feeds the `beastBuyAtk` aura. Live grant via
+  `squirlScoutText`.
+- **Pack Leader** wired to the (already-authored, never-used) `scTribeBuffPerPlayed`: **"Start of Combat: Give your
+  Beasts +2/+2. Improve this by +2/+2 for every Beast played."** (this turn, frozen at combat start). Live grant
+  via a new `scTribeBuffPerPlayedText`.
+- **Hoardbreaker Drake** → **6/4** (was 4/5).
+
+**Bug fixes:**
+- **Slaughter is attacker-only** (revises the 2026-07-03 ruling): on-kill fires only when the minion ATTACKS and
+  kills (main target + cleave) — a defender felling its attacker via retaliation no longer procs. Gated on
+  `killer === attacker` in `simulate()`; the quest Slaughter tally follows the same rule.
+- **Attachments given in any way** now get the Attachment aura: a welded host GAINS the `M` keyword (was skipped)
+  and the run-wide `magneticBuyAtk`/`magneticBuyHp` is baked in once, when it first becomes Magnetic
+  (`bakeAttachmentAura`) — fixes Banksly/welded Mechs missing "Attachments +X/+Y wherever they are".
+- **Tribe Portal × Nimbus:** a Nimbus charge now doubles a Discover-spell — the Discover-on-play path honors
+  `nextSpellMult` (opens the Discover once per cast, extras queued) and spends the charge. Yazzus (aimed-only) still
+  doesn't apply; `singleCast` never multiplies.
+- **Wayfinder** now SPREADS its Discover across EVERY uncontrolled active tribe (not one guaranteed tribe), falling
+  back to that single tribe only when it's the sole one you're missing. New `tribes?: Tribe[]` on `DiscoverSpec` +
+  `offerDiscover` filter; the single-tribe RNG pick (`uncontrolledTribe`) is gone (→ `uncontrolledTribes`, no RNG).
+- **Golden Wildwood Shaper** display: the Choose One modal now shows the doubled option text (**+2/+6** / **two
+  1/1 Strays**) — added optional per-option `goldenText` (type + schema + the modal renders the golden variant when
+  the card is golden). The effect already doubled correctly (verified) — this closes the display gap.
+
+**UI:** **Spirit Worgen** now appends its live proc count in parens, e.g. `(12)` — the number of Beasts/Dragons
+you've played this turn (the ×multiplier its End of Turn will apply). Threaded `playedThisTurn` (and
+`squirlScoutBuff`) into the live-text chain (`instView` `live` object → `LiveTextParams`).
+
+**Verified:** typecheck + lint + build:web clean; **667 tests pass** (updated the Den Mother / Squirl Scout / weld
+/ Pack Leader / retaliation-on-kill / step-tag tests to the new behavior + added regressions for the welded-host
+aura and Nimbus×Tribe-Portal). Live: the golden Wildwood Shaper Choose One modal shows +2/+6 / two Strays.
+
+### feat(content): Beast quests — the first fully authored tribe (11 quests + 3 reward cards + combat-objective engine)
+
+The whole Beast quest set, per the owner's 2026-07-08 spec — and the engine work the richer objectives/rewards
+demanded. Branch `feat/beast-quests`. Turn schedule unchanged (lesser@4, greater@8, capstone@12 — owner ruled
+turn-12 stays capstone-only). Kevin owns core/content/sim, so this is all in-lane.
+
+**The 11 Beast quests (replacing the LESSER/GREATER/CAPSTONE Beast `Test ·` placeholders; other tribes keep their
+tests until authored):**
+- *Lesser* — **Forest Grove** (Summon 4 Beasts → random Beast, repeats in 2), **Blood Trail** (Slaughter 2 →
+  Blood Trail combat flag), **Den Marker** (Summon 8 in combat → Beasts +3 Atk aura), **Forager's Trail** (Buy 4
+  Beasts → Trail Forager).
+- *Greater* — **Apex Hunt** (Slaughter 6 w/ Beasts → a Badgington with Flurry+Ward), **Pack Mentality** (Summon 14
+  Beasts in combat → +3/+1 scaling aura, improves every 5 combat-summons), **Trophy Den** (Attack 12× w/ Beasts →
+  Trophy Stalker), **Feed the Alpha** (Sell 9 → a Feed the Alpha spell each End of Turn).
+- *Capstone* — **Law of Teeth** (Slaughter 14 w/ Beasts → Beast Slaughters & Rallies fire an extra time), **The
+  Old Hunt** (Attack 20× w/ Beasts → each Beast attack pumps the Beast Attack aura +7), **Echoing Coop** (Trigger
+  14 Echoes → Start of Combat, trigger your Echoes).
+
+**Foundation — combat-phase objectives (the biggest lift).** Objectives previously only ticked on recruit actions;
+8 of the 11 count things that happen *during* combat. `QuestObjectiveEvent` gains `attack` / `summonCombat` /
+`slaughter` / `deathrattle`. `simulate()` now tallies per-fight player totals + a by-tribe breakdown (the
+acting/summoned/killer minion's tribe(s); universal-tribe counts for all) at the natural hooks — the `attack`
+emit, `summonMinion`, and the on-kill loop (a player minion felling an enemy = a "Slaughter", matching the on-kill
+keyword) — and returns them as `CombatResult.playerQuestTally`; the Echo objective reuses the existing
+`playerDeathrattles`. `settleCombat` advances combat quests by +N (tribe-narrowed) via the new `advanceCombatQuests`.
+"Echo" is just the UI rename of Deathrattle (terms.ts), so it needed no new combat plumbing.
+
+**Reward-palette expansion** (all kept in lockstep across `@game/core` `QuestReward`, the zod schema, `applyQuestReward`,
+and `questText.ts`):
+- `tribeAura` / `scalingTribeAura` — persistent "+A/+H wherever they are" folded into the tribe's buy-time aura
+  channel (new `beastBuyHp`, the Health sibling of `beastBuyAtk`, threaded through `buyHealthAura` + a new
+  `beastAuraHp` slot in the combat Beast Aura) + a board/hand buff now; the scaling variant grows in `settleCombat`
+  from the combat tally (`questScalingAuras`).
+- `grant` + `grantKeywords` — stamps extra keywords on a conjured card (Apex Hunt's Flurry+Ward Badgington).
+- `recurringGrant` — conjures cards to hand every turn setup (`questRecurringGrants`).
+- `combatFlag` (+ optional `amount`) — arms a run-wide `QuestCombatMods` consumed by `simulate()` (one new trailing
+  options arg, not five positional flags): **Blood Trail** (SoC: leftmost minion's kills conjure a random Beast),
+  **Echoing Coop** (SoC: fire every friendly Echo once), **Law of Teeth** (a Beast's Slaughter/Rally re-runs its own
+  on-kill/on-attack effects once more), **The Old Hunt** (each Beast attack pumps the live Beast aura + carries the
+  gain back via `playerBeastBuyAtkGain`).
+
+**3 reward cards** (all `token: true` → reward-exclusive, out of the shop pool + "random Beast" grants): **Trail
+Forager** (Beast 1/4 — sell value climbs +1 per Beast played via a new per-instance `sellBonus` + `sellValueOf`;
+live text via `trailForagerText`), **Trophy Stalker** (Beast 3/4 — new `rallyTribeAuraGrowing` factory: Rally gives
+Beasts a +3/+3 aura that grows +1/+1 each attack, riding `summonBonus` so it snowballs across combats; live via
+`summonBuffText`), **Feed the Alpha** (0-cost friendly-target spell — new `spellSellToBeast`: sell the target, feed
+its stats to your right-most Beast; the Beast sibling of Fodder Treatment).
+
+**Buy objective** is now tribe-narrowed (Forager's Trail) — resolved from the targeted shop offer in `reduce()`.
+
+**Verified:** `npm run typecheck` + `lint` + `build:web` clean; **664 tests pass** (+26 new — combat-tally
+instrumentation + The Old Hunt carry-back in `simulate.test.ts`; Blood Trail / Apex Hunt tribe-narrowing / Den
+Marker aura / Echoing Coop / Feed the Alpha recurring + spell / Trail Forager sell-scaling in `run.test.ts`;
+objective + reward text in a new `questText.test.ts`); existing Trail-Rations framework tests retargeted to Forest
+Grove (same grant+repeat shape). **Live (throwaway run, quest offer injected):** the Quest Shop renders all 11
+Beast quests across tiers with correct derived objective/reward text (Pack Mentality's scaling line, The Old Hunt's
++7, Apex Hunt's "Badgington with Flurry and Ward") and their art; reward-card art (`trailforager` / `trophystalker`
+/ `feedalpha`) serves; no console errors. **Follow-ups:** author the other tribes (Dragon's "Hoard Spark" wants a
+`grant` "random spell" extension); balance retune (quests are pure power-add).
+
 ### fix(sim): Graverobber on Mumi now fires Mumi's Deathrattle (grant Rise) out of combat; Spark Plug → T6
 
 - **Graverobber + Mumi bug.** `deathrattleGrantReborn` (Mumi's "give a friendly Undead Rise") existed only as a

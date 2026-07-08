@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, watcherText } from './cardText';
+import { ascendProgressText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, watcherText } from './cardText';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -36,11 +36,13 @@ function UnitInner({ u, side, anim, floats, triggered }: UnitProps) {
   // shows the same magnitude the fight used: the run Deathrattle tally, spells cast this run, spells this turn.
   const drTally = useGame((s) => s.run.deathrattlesTriggered);
   const spellsThisTurn = useGame((s) => s.run.spellsThisTurn);
+  const playedThisTurn = useGame((s) => s.run.playedThisTurn);
   // Combat live text — show current values for minions whose effects scale mid-fight (per-minion accruals)
   // or with frozen run-level scalers (Grim/Guel/Worgen, like Taragosa's spell power). Mirrors the shop chain.
   const liveText = summonBuffText(u.cardId, u.summonBonus)
     ?? summonImproveText(u.cardId, u.summonBonus, u.golden) // Mama Bear: live "+M/+M per summon" (climbs via improve events)
-    ?? summonScalingText(u.cardId, spellsThisTurn) // Spirit Worgen: per-summon gain scales with spells cast this turn
+    ?? summonScalingText(u.cardId, spellsThisTurn, playedThisTurn) // Spirit Worgen: per-summon gain + live proc count
+    ?? scTribeBuffPerPlayedText(u.cardId, u.golden, playedThisTurn) // Pack Leader: live grant from Beasts played this turn
     ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
     ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
     ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)

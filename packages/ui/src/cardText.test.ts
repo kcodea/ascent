@@ -85,10 +85,10 @@ describe('cardText helpers', () => {
     expect(sergeantText('grim', false, 4)).toBeNull(); // not Sergeant
   });
 
-  it('summonImproveText (Mama Bear) shows the live per-summon grant = (2 base + accrued), golden-aware', () => {
-    expect(summonImproveText('mamabear', 4, false)).toContain('{{+6/+6}}'); // 2 base + 4 accrued
-    expect(summonImproveText('mamabear', 2, true)).toContain('{{+8/+8}}'); // (2 + 2) × 2 golden (from goldenText)
-    expect(summonImproveText('mamabear', 0, false)).toBeNull(); // no accrual yet → printed +2/+2
+  it('summonImproveText (Den Mother) shows the live per-play grant = (1 base + accrued), golden-aware', () => {
+    expect(summonImproveText('mamabear', 4, false)).toContain('{{+5/+5}}'); // 1 base + 4 accrued
+    expect(summonImproveText('mamabear', 2, true)).toContain('{{+6/+6}}'); // (1 + 2) × 2 golden (from goldenText)
+    expect(summonImproveText('mamabear', 0, false)).toBeNull(); // no accrual yet → printed +1/+1
     expect(summonImproveText('sandbag', 4, false)).toBeNull(); // not a per-summon-improve card
   });
 

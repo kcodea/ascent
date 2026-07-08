@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { avatarSrc } from './art';
 import { Icon } from './Icon';
-import { getVolume, isMuted, sfx } from './sfx';
+import { sfx } from './sfx';
 import { useGame } from './store';
 
 /**
@@ -54,26 +54,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmClear, setConfirmClear] = useState(false); // two-step guard on the destructive Clear Run
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoReady, setVideoReady] = useState(false); // fade the video in once it's actually playing
-
-  // Menu video audio. Browsers block autoplay WITH sound, so we start muted (guaranteeing the video plays
-  // visually), then unmute on the first user gesture — honoring the game's mute + master-volume settings.
-  // Returning to the title after a run: audio is usually already unlocked, so the initial unmuted play()
-  // succeeds and sound starts immediately; at cold boot it's blocked and we fall back to muted + gesture.
-  useEffect(() => {
-    if (!showTitle) return;
-    const v = videoRef.current;
-    if (!v) return;
-    v.volume = getVolume();
-    const sync = (): void => { v.muted = isMuted(); v.volume = getVolume(); void v.play().catch(() => {}); };
-    // Try the desired (possibly unmuted) state first; if the browser blocks it, fall back to muted autoplay.
-    v.muted = isMuted();
-    v.play().catch(() => { v.muted = true; void v.play().catch(() => {}); });
-    window.addEventListener('pointerdown', sync);
-    window.addEventListener('keydown', sync);
-    return () => { window.removeEventListener('pointerdown', sync); window.removeEventListener('keydown', sync); };
-  }, [showTitle]);
 
   if (!showTitle) return null;
 
@@ -82,12 +62,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
   return (
     <div className="titlescreen">
-      {/* Looping menu ambience — autoplaying video behind the menu; `muted` is controlled imperatively (see
-          the effect above) so it can unmute on the first user gesture. Falls back to the homescreen.webp
-          poster if the file is absent / still loading, and is hidden under prefers-reduced-motion (CSS). */}
-      <video ref={videoRef} className={`titlevideo${videoReady ? ' ready' : ''}`} autoPlay loop playsInline preload="auto" poster="/homescreen.webp" aria-hidden="true" onPlaying={() => setVideoReady(true)}>
-        <source src="/homescreen.mp4" type="video/mp4" />
-      </video>
+      {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
+          the full-bleed sky-castle art comes from the `.titlescreen` CSS background (homescreen.webp). */}
 
       {/* Account (top-right) — the avatar opens the picker; the name is click-to-rename. */}
       <div className="titleaccount">

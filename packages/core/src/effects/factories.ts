@@ -829,6 +829,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });
   },
 
+  /** Avenge (Bone Taxer): every `count` friendly deaths, grant `amount` one-time Gold into your next shop
+   *  (golden doubles). Player-side carry-back via `CombatResult.playerBonusGold`. */
+  avengeBonusGold: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 4));
+    if (count % x !== 0) return;
+    ctx.grantBonusGold(num(params.amount, 2) * mul(self), self.side);
+  },
+
+  /** Deathrattle (Bone Taxer): permanently raise your max Gold by `amount` (golden doubles). Player-side
+   *  carry-back via `CombatResult.playerMaxGoldGain` → applied to maxEmbers in settleCombat. */
+  deathrattleMaxGold: (ctx, self, params) => {
+    const gain = num(params.amount, 1) * mul(self);
+    ctx.grantMaxGold(gain, self.side);
+    if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });
+  },
+
   /** Avenge (X) — Stuntdrake: after every `count` friendly deaths, hand `targets` other living friends a
    *  copy of THIS minion's current Attack (+atk only). A golden's bigger Attack flows through automatically;
    *  the threshold + target count are unchanged. Recipients are a random pick when more than `targets` live. */

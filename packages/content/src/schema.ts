@@ -200,6 +200,11 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnBuffWeakestDragon',
   'onSellGainGold',
   'battlecryDestroyForSpell',
+  'avengeBonusGold',
+  'deathrattleMaxGold',
+  'onSellGetEchoAndTrigger',
+  'spellTriggerEcho',
+  'battlecryCopyEcho',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -273,7 +278,7 @@ export const QuestTierSchema = z.enum(['lesser', 'greater', 'capstone']);
 export const QuestObjectiveEventSchema = z.enum([
   'buy', 'play', 'sell', 'roll', 'summon', 'shout',
   'attack', 'summonCombat', 'slaughter', 'deathrattle',
-  'spendGold', 'endOfTurn', 'tribeStats',
+  'spendGold', 'endOfTurn', 'tribeStats', 'friendlyDeath',
 ]);
 export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt']);
 
@@ -306,6 +311,9 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
   z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout']) }).strict(),
+  z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
+  z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
 ]));
 
@@ -321,4 +329,5 @@ export const QuestDefSchema = z.object({
     filter: z.literal('shout').optional(),
   }).strict(),
   reward: QuestRewardSchema,
+  repeatable: z.boolean().optional(),
 }).strict();

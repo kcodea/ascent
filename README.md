@@ -25,6 +25,14 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Undead quests — the third authored tribe.** 9 quests + 4 reward cards + the **Echo (Deathrattle) engine**. Two
+  objective flavors: `deathrattle` counts Echo *triggers* (scales with doublers), the new `friendlyDeath` counts raw
+  *deaths* (doesn't). Echo doublers stack **additively** — Sylus + Funeral Engine (permanent) + Grave Contract / Last
+  Rites (first Echo each combat). The Bone Throne re-triggers your leftmost Echo every 7 deaths; Ossuary Rite is a
+  **repeatable** quest. Reward cards: Bone Taxer, Ossuary Rite (spell), Gravetwin, Crypt Broker (Sell → a random Echo
+  minion, triggered).
+- **Dragon quests — the second authored tribe.** 9 quests + 3 reward minions + the Shout/End-of-Turn/stat-growth
+  reward engine, plus the combat quest panel that live-ticks objectives during the replay.
 - **Deathrattles-in-shop + Sylus sweep** — Graverobber now fires ANY Deathrattle out of combat (Grim included),
   and Sylus the Reaper doubles both Graverobber's and Echoing Coop's Echoes. Quest reward cards (Feed the Alpha,
   Trail Forager, Trophy Stalker) never roll in the regular shop. Added the Hoard Spark Dragon quest; retuned the

@@ -1,4 +1,4 @@
-import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type Keyword, type Tribe } from '@game/core';
+import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type EffectDef, type Keyword, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
@@ -412,12 +412,12 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number): v
  * factory) are simply inert. Ticks the run Deathrattle tally ONCE, BEFORE firing, so tally-based rattles (Grim)
  * count this death — matching combat, where the death increments the tally before the rattle runs.
  */
-function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard): void {
-  const def = CARD_INDEX[minion.cardId];
-  if (!def) return;
-  const hasDR = def.effects.some((e) => e.on === 'onDeath');
+function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effectsOverride?: EffectDef[]): void {
+  const effects = effectsOverride ?? CARD_INDEX[minion.cardId]?.effects;
+  if (!effects) return;
+  const hasDR = effects.some((e) => e.on === 'onDeath');
   const fireOnce = (): void => {
-    for (const eff of def.effects) {
+    for (const eff of effects) {
       if (eff.on !== 'onDeath') continue;
       RECRUIT_FACTORIES[eff.do]?.(ctx, minion, eff.params ?? {}, { minion });
     }
@@ -428,6 +428,20 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard): void {
   for (const c of ctx.state.board) if (c.cardId === 'sylus' && c.uid !== minion.uid) reaper += c.golden ? 2 : 1;
   for (let r = 0; r < reaper; r++) fireOnce(); // Sylus re-fires read the same tally (value at death)
   if (hasDR) ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
+}
+
+/**
+ * Start-of-shop trigger for Gravetwin: if it survived the last combat (its cardId is in `lastSurvivorCardIds`),
+ * fire each surviving Gravetwin's copied Echo out of combat (golden → twice). Called by the reducer as the next
+ * recruit turn opens. Copied summons/buffs bake into the board, Sylus-doubled + tallied like any Echo.
+ */
+export function fireGravetwinEchoes(state: RunState): void {
+  if (!state.lastSurvivorCardIds?.includes('gravetwin')) return;
+  const ctx = makeContext(state);
+  for (const c of state.board) {
+    if (c.cardId !== 'gravetwin' || !c.copiedEcho?.length) continue;
+    for (let t = 0; t < (c.golden ? 2 : 1); t++) fireRecruitDeathrattles(ctx, c, c.copiedEcho);
+  }
 }
 
 /**
@@ -1081,6 +1095,40 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       });
     }
     ctx.state.rngCursor = rng.state();
+  },
+
+  /** Ossuary Rite (cast, targeted) — trigger the chosen friendly minion's Echo out of combat, WITHOUT destroying
+   *  it. Its recruit Deathrattle factories bake summons/buffs into the board, doubled by Sylus + ticked into the
+   *  run tally (see fireRecruitDeathrattles). `self` is the cast target. */
+  spellTriggerEcho: (ctx, self) => {
+    if (self) fireRecruitDeathrattles(ctx, self);
+  },
+
+  /** Gravetwin (Battlecry, targeted) — copy the targeted friendly minion's Deathrattle (its onDeath EffectDefs)
+   *  onto Gravetwin. Stored per-instance; fired at the start of the next shop if Gravetwin survives combat
+   *  (see fireGravetwinEchoes). No-ops if the target has no Echo. */
+  battlecryCopyEcho: (_ctx, self, _params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    const def = CARD_INDEX[target.cardId];
+    const drs = (def?.effects ?? []).filter((e) => e.on === 'onDeath');
+    if (drs.length === 0) return; // targeted a minion with no Echo → fizzles
+    self.copiedEcho = drs.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
+    self.copiedEchoName = def?.name;
+  },
+
+  /** Crypt Broker (Sell) — conjure a random Echo (Deathrattle) minion of ≤ current tier to hand and immediately
+   *  trigger its Echo out of combat (fireRecruitDeathrattles: summons/buffs bake in, Sylus-doubled + tallied).
+   *  Golden gets + triggers two. Fired by the reducer's sell case via `fireOnSell`. */
+  onSellGetEchoAndTrigger: (ctx, self) => {
+    const pool = BUYABLE_CARDS.filter((c) => c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onDeath'));
+    if (pool.length === 0) return;
+    for (let i = 0; i < gold(self); i++) {
+      if (ctx.state.hand.length >= CONFIG.handMax) break;
+      conjureToHand(ctx.state, pool, 1); // seeded pick + hand-cap + run-buff bake
+      const card = ctx.state.hand[ctx.state.hand.length - 1];
+      if (card) fireRecruitDeathrattles(ctx, card); // trigger the Echo you just got
+    }
   },
 
   // --- Deathrattles that can also resolve out of combat (e.g. when Consumed). The

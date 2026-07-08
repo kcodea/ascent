@@ -10,6 +10,7 @@ function combatDeltaFor(o: QuestObjective, d: CombatQuestDelta | null): number {
   if (!d) return 0;
   switch (o.event) {
     case 'deathrattle': return d.deathrattle;
+    case 'friendlyDeath': return d.friendlyDeath;
     case 'attack': return o.tribe ? (d.attackByTribe[o.tribe] ?? 0) : d.attack;
     case 'summonCombat': return o.tribe ? (d.summonCombatByTribe[o.tribe] ?? 0) : d.summonCombat;
     case 'slaughter': return o.tribe ? (d.slaughterByTribe[o.tribe] ?? 0) : d.slaughter;
@@ -58,7 +59,8 @@ export function QuestPanel() {
             // Live reward text so the panel never prints a stale number. In progress → "objective → reward";
             // once taken → the reward (its effect / ongoing state) is what matters.
             const rewardTxt = questRewardText(r, { completed: aq.completed, shoutCharges: charges, repeatTurns });
-            const sub = aq.completed ? rewardTxt : `${questObjectiveText(def.objective)} → ${rewardTxt}`;
+            const repeat = def.repeatable ? ' · Repeatable' : '';
+            const sub = (aq.completed ? rewardTxt : `${questObjectiveText(def.objective)} → ${rewardTxt}`) + repeat;
             return (
               <div className={`quest-row${ongoing ? ' ongoing' : aq.completed ? ' done' : ''}`} key={aq.questId}>
                 <div className="quest-row-head">

@@ -594,4 +594,22 @@ export const SPELLS: CardDef[] = [
     ],
     text: 'Give your entire board **+5/+5** twice.',
   },
+  {
+    // Ossuary Rite reward (also a repeatable quest payoff). Reward-only spell (token: true). Cast: trigger a
+    // targeted friendly minion's Echo out of combat, WITHOUT destroying it — its summons/buffs bake in, doubled
+    // by Sylus + the run's echo doublers, and it ticks the run's Deathrattle tally like any Echo.
+    id: 'ossuaryrite',
+    name: 'Ossuary Rite',
+    tribe: 'undead',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellTriggerEcho' }],
+    text: "Trigger a friendly minion's **Echo** (Deathrattle).",
+    token: true,
+  },
 ];

@@ -30,7 +30,7 @@ export function QuestCard({ quest, onBuy }: { quest: QuestDef; onBuy: () => void
         </div>
         <div className="questcard-sect reward">
           <div className="questcard-lbl"><Icon name="gift" /> Reward</div>
-          <div className="questcard-txt">{questRewardText(quest.reward)}</div>
+          <div className="questcard-txt">{questRewardText(quest.reward)}{quest.repeatable ? ' · Repeatable' : ''}</div>
         </div>
       </div>
       <span className="questcard-gem" aria-hidden />

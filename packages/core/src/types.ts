@@ -124,6 +124,8 @@ export type EffectFactoryId =
   | 'rallyImproveSummonAura' // Baby Cub: Rally bumps a friendly Den Mother's summon aura (summonBonus), carried back
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
+  | 'avengeBonusGold' // Bone Taxer: Avenge (X) grants +amount Gold into your next shop, carried back (Undead)
+  | 'deathrattleMaxGold' // Bone Taxer: Echo — permanently raise your max Gold by +amount, carried back (Undead)
   | 'avengeGrantSpell' // Arcane Weaver: Avenge (X) adds a copy of a spell to your hand after combat (Dragon)
   | 'deathrattleGrantReborn' // Mumi: Deathrattle — grant a random friendly Undead Rise (Undead)
   | 'deathrattleBuffAll' // Sporeling: Deathrattle — give all friendly minions +atk/+hp (Undead)
@@ -187,6 +189,7 @@ export type EffectFactoryId =
   | 'avengeBuffImps' // Brood Matron: Avenge (X) — buff all friendly Imps +atk/+hp (combat)
   | 'deathrattleReplayAdjacentBattlecry' // Ryme: Deathrattle — re-fire an adjacent minion's Battlecry in combat
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
+  | 'onSellGetEchoAndTrigger' // Crypt Broker: Sell — get a random Echo minion + trigger its Deathrattle (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryBuffBeastAttack' // (legacy) give your Beasts +Attack wherever they are; stacks into future buys
@@ -231,7 +234,9 @@ export type EffectFactoryId =
   | 'endOfTurnBuffPerTribePlayed' // Spirit Worgen: EoT — gain per Beast/Dragon played this turn, +per spell cast (recruit)
   | 'endOfTurnBuffWeakestDragon' // Skybound Archivist: EoT — weakest Dragon gains N% of strongest Dragon's stats (recruit)
   | 'onSellGainGold' // Hoard Whelp: Sell — gain Gold (recruit)
-  | 'battlecryDestroyForSpell'; // Graverobber: Battlecry — destroy a friendly (procs its DR), get a spell of its tier (recruit)
+  | 'battlecryDestroyForSpell' // Graverobber: Battlecry — destroy a friendly (procs its DR), get a spell of its tier (recruit)
+  | 'spellTriggerEcho' // Ossuary Rite: cast — trigger a friendly minion's Echo (Deathrattle) out of combat, without destroying it (recruit)
+  | 'battlecryCopyEcho'; // Gravetwin: Battlecry — copy a targeted friendly Echo minion's Deathrattle onto itself (recruit)
 
 export interface EffectDef {
   on: GameEvent;
@@ -360,7 +365,10 @@ export type QuestObjectiveEvent =
   // Dragon set: `spendGold` counts Gold spent (advances by the amount); `endOfTurn` counts End-of-Turn effect
   // TRIGGERS (Chronos + the Parliament reward multiply it); `tribeStats` counts +Attack/+Health BUFFS granted to
   // `tribe` (base stats excluded) — advances by (attack + health) per buff.
-  | 'spendGold' | 'endOfTurn' | 'tribeStats';
+  | 'spendGold' | 'endOfTurn' | 'tribeStats'
+  // Undead set: `friendlyDeath` counts friendly minions that DIE in combat — a raw entity-death count, so unlike
+  // `deathrattle` (Echo TRIGGERS, which Sylus/doublers multiply) it does NOT scale with echo doublers.
+  | 'friendlyDeath';
 /** A quest objective: reach `count` of `event`. `tribe` narrows a tribe-aware objective (e.g. "Summon 4 Undead",
  *  "Give Dragons 80 stats"). `filter: 'shout'` narrows a `buy` to Battlecry minions ("Buy 3 Shout minions").
  *  Live progress lives on the run's `ActiveQuest`. */
@@ -401,6 +409,14 @@ export type QuestReward =
   // A run-wide recurring End-of-Turn EFFECT granted by a quest: re-fire your leftmost Shout (Echoing Roar), or
   // conjure a random Shout minion to hand (The Hoard Wakes). Applied every End of Turn for the rest of the run.
   | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' }
+  // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
+  | { kind: 'gainGold'; amount: number }
+  // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks
+  // like Sylus); `firstEachCombat` makes the FIRST Echo you trigger each combat fire one extra time (Grave
+  // Contract / Last Rites, additive with itself + Funeral Engine + Sylus on that first Echo).
+  | { kind: 'echoRepeat'; scope: 'always' | 'firstEachCombat' }
+  // The Bone Throne: every `every` friendly deaths in combat, trigger your leftmost Echo (permanent).
+  | { kind: 'boneThrone'; every: number }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
@@ -421,6 +437,14 @@ export interface QuestCombatMods {
   /** The Old Hunt: >0 arms it — every Beast attack pumps your run-wide Beast Attack aura by this much
    *  (live this fight + carried back via `playerBeastBuyAtkGain`). */
   oldHuntStep?: number;
+  /** Funeral Engine: every one of your Echoes (Deathrattles) triggers this many extra times (stacks with
+   *  Sylus + The Bone Throne's leftmost trigger — all additive). */
+  echoExtraAlways?: number;
+  /** Grave Contract / Last Rites: the FIRST Echo you trigger each combat fires this many extra times (on top of
+   *  `echoExtraAlways` + Sylus for that first Echo). Additive across both quests. */
+  echoFirstEachCombat?: number;
+  /** The Bone Throne: >0 arms it — every this-many friendly deaths in combat, trigger your leftmost Echo. */
+  boneThroneStep?: number;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -432,6 +456,9 @@ export interface QuestDef {
   tier: QuestTier;
   objective: QuestObjective;
   reward: QuestReward;
+  /** Undead (Ossuary Rite): a repeatable quest re-arms on completion (progress resets, reward can fire again)
+   *  instead of staying done. */
+  repeatable?: boolean;
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown
@@ -617,6 +644,13 @@ export interface CombatResult {
   /** Player-side Deathrattles that fired this combat — the run loop accumulates these into the run-wide
    *  "this game" count Grim reads. */
   playerDeathrattles: number;
+  /** Player-side minions that DIED this combat — a raw entity-death count (Rise re-slots don't count) feeding the
+   *  Undead `friendlyDeath` quest objective. Unlike `playerDeathrattles` this does NOT scale with echo doublers.
+   *  Optional for back-compat with hand-built test fixtures (missing → 0). */
+  playerDeaths?: number;
+  /** cardIds of the player minions still ALIVE at combat end — Gravetwin reads this to fire its copied Echo next
+   *  shop only when it survived. Absent when nothing survived. */
+  playerSurvivorCardIds?: string[];
   /** Enemy-side minions that died this combat — Cassen's Collision banks these toward "kill 5 enemy
    *  minions → get a top-type minion" (the run loop accumulates them). */
   enemyDeaths: number;
@@ -638,7 +672,7 @@ export interface CombatResult {
   /** Step-tagged timeline of combat quest-objective ticks (one per increment) so the UI can LIVE-TICK quest
    *  progress during the replay: an entry with `step` ≤ the replay's current step is already counted. `tribes`
    *  narrows tribe-scoped objectives ("…with Beasts"); deathrattle (Echo) entries carry no tribe. */
-  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle'; tribes: Tribe[] }[];
+  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath'; tribes: Tribe[] }[];
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
   /** Per-instance state to persist on the run board after combat, keyed by the board

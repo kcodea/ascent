@@ -5,6 +5,55 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(content): Undead quests — the third authored tribe (9 quests + 4 reward cards + Echo-doubler engine)
+
+The Undead quest tribe: the **Echo (Deathrattle)** engine. Nine quests across the three tiers, plus four reward
+cards, plus the combat/engine primitives they need.
+
+**Quests (`packages/content/src/quests.ts`).** Lesser: **Grave Contract** (Trigger 4 Echoes → your first Echo each
+combat triggers twice), **Bone Ledger** (Have 12 friendly minions die → Get 10 Gold), **Grave Robber** (Sell 5 →
+Get Crypt Broker). Greater: **Last Rites** (Trigger 14 Echoes → first Echo each combat +1), **Kingdom of Bones**
+(18 deaths → Bone Taxer), **Ossuary Rite** (Trigger 10 Echoes → Get Ossuary Rite, **repeatable**). Capstone: **The
+Bone Throne** (30 deaths → every 7 friendly deaths, trigger your leftmost Echo), **Funeral Engine** (Trigger 20
+Echoes → your Echoes trigger an extra time), **Death Writes Twice** (Trigger 20 Echoes → Get Gravetwin).
+
+**Two objective semantics (owner ruling 2026-07-08).** `deathrattle` counts Echo **TRIGGERS** (scales with Sylus +
+the new doublers); the new `friendlyDeath` event counts raw friendly **deaths** (an entity dying — does NOT scale).
+Surfaced from combat via `CombatResult.playerDeaths`, with a step-tagged `friendlyDeath` timeline event so the
+combat quest panel live-ticks it (matching the Dragon-panel behavior).
+
+**Echo doublers stack ADDITIVELY** (the owner's stacking rule). `simulate` now folds every echo doubler through one
+helper, `playerEchoExtras`: Sylus (golden ×2, multiple stack) + Funeral Engine's permanent `echoExtraAlways` +
+Grave Contract / Last Rites' `echoFirstEachCombat` (the first player Echo of the fight only, once). **The Bone
+Throne** re-triggers your leftmost living Echo every N friendly deaths. All three thread in via new `QuestCombatMods`
+fields (no new positional params).
+
+**Reward cards.** *Bone Taxer* (Undead T3 2/3 — Avenge 4: 2 Gold next shop; Echo: +1 max Gold — new combat
+factories `avengeBonusGold`/`deathrattleMaxGold`). *Ossuary Rite* (Undead T5 spell — trigger a friendly Echo out of
+combat, undestroyed — new recruit factory `spellTriggerEcho`, reuses `fireRecruitDeathrattles`). *Gravetwin* (Undead
+T6 6/6 — Battlecry: copy a friendly Echo minion's Deathrattle onto itself; if it survives combat, trigger it at the
+start of your next shop — new recruit factory `battlecryCopyEcho` + per-instance `copiedEcho` + `fireGravetwinEchoes`,
+gated on `CombatResult.playerSurvivorCardIds`). *Crypt Broker* (Undead T3 1/1 — Sell: conjure a random Echo minion
+of ≤ current tier to hand AND trigger its Deathrattle out of combat, via new recruit factory
+`onSellGetEchoAndTrigger`; golden gets + triggers two). All four are `token: true` (reward-only, never rolled).
+
+**Repeatable quests.** New `QuestDef.repeatable` — a shared `resolveQuestThreshold` re-arms the quest on completion
+(subtract the count, stay active) and can grant multiple times from one big combat.
+
+**Verified.** typecheck + lint clean; `npm test` 693 pass incl. 12 new (additive echo-doubler stacking on the
+`echoingCoop` harness incl. Sylus; first-echo-bonus spent once; `playerDeaths` raw count; Bone Throne leftmost
+trigger; friendlyDeath objective + gainGold-next-shop; echoRepeat/boneThrone reward application; repeatable re-arm
+grants twice; Grave Robber → Crypt Broker + token-exclusion). `build:web` clean; live DOM check of all four quest
+cards' derived text.
+
+**Decisions / follow-ups for the owner:** (1) Crypt Broker's real spec (owner, 2026-07-08) — Undead T3 1/1, "Sell:
+get a random Echo minion and trigger it" — is now wired (replacing the placeholder). (2) "Get 10 Gold" banks into
+the **next shop** (`bonusEmbersNextTurn`, the standard Gold channel) so it
+survives the per-turn reset. (3) Gravetwin's copied Echo fires **only** at the next-shop trigger (not during combat
+itself) — combat reads effects by cardId, so per-instance combat effects would be a much larger change; the spec's
+only stated trigger is the next-shop one. (4) Grave Contract "triggers twice" and Last Rites "an extra time" both
+map to +1 and stack additively (so both taken = first Echo +2). Art not wired yet (per your usual "wire after").
+
 ### chore(art): wire Dragon quest / reward art + re-wire Hoarder
 
 Wired the available art: Dragon quests **Coin Hoard / Echoing Roar / Hoardwake Ritual / Skybound Pact / The Hoard

@@ -4811,3 +4811,66 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.board.find((c) => c.uid === 'bl')!.attack).toBe(1); // left Beast untouched
   });
 });
+
+describe('Undead quests — combat-objective completion + reward application', () => {
+  // A minimal winning combat result carrying the tallies a quest reads; `resolveCombat` settles it, advancing
+  // the active combat quests. Optional carry-backs (max gold, survivors, …) default off.
+  const settleWith = (s: RunState, over: Partial<CombatResult>): RunState =>
+    reduce({ ...s, phase: 'combat', lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, ...over } as CombatResult }, { type: 'resolveCombat' });
+
+  it('friendlyDeath objective + gainGold reward (Bone Ledger): 12 deaths → +10 Gold next shop', () => {
+    const base: RunState = { ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_bone_ledger', progress: 0, completed: false }] };
+    // Baseline: settle the SAME fight with no quest, to read the next shop's Gold without the reward.
+    const control = settleWith({ ...createRun(1), tier: 6 }, { playerDeaths: 12 });
+    const s = settleWith(base, { playerDeaths: 12 });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.embers).toBe(control.embers + 10); // the 10 Gold is banked into the next shop
+  });
+
+  it('echoRepeat "always" reward (Funeral Engine) grants a permanent extra Echo trigger', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_funeral_engine', progress: 0, completed: false }] }, { playerDeathrattles: 20 });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.echoExtraAlways).toBe(1);
+  });
+
+  it('echoRepeat "firstEachCombat" reward (Grave Contract) arms the first-Echo bonus', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_grave_contract', progress: 0, completed: false }] }, { playerDeathrattles: 4 });
+    expect(s.echoFirstEachCombat).toBe(1);
+  });
+
+  it('boneThrone reward (The Bone Throne) records its death step', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_the_bone_throne', progress: 0, completed: false }] }, { playerDeaths: 30 });
+    expect(s.boneThroneStep).toBe(7);
+  });
+
+  it('a repeatable quest (Ossuary Rite) re-arms and grants once per threshold crossed', () => {
+    // 25 Echo triggers vs a count-10 repeatable → grants twice, leaves 5 progress, stays active (not completed).
+    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_ossuary_rite', progress: 0, completed: false }] }, { playerDeathrattles: 25 });
+    expect(s.activeQuests![0]!.completed).toBe(false); // re-armed
+    expect(s.activeQuests![0]!.progress).toBe(5); // 25 - 2×10
+    expect(s.hand.filter((c) => c.cardId === 'ossuaryrite').length).toBe(2);
+  });
+
+  it('Grave Robber (sell 5) grants Crypt Broker — a reward-only token, never in the shop', () => {
+    const mk = (uid: string) => ({ uid, cardId: 'pack', tribe: 'beast' as const, attack: 2, health: 2, keywords: [], golden: false });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_grave_robber', progress: 4, completed: false }], board: [mk('b1')], hand: [] };
+    s = reduce(s, { type: 'sell', uid: 'b1' });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.hand.some((c) => c.cardId === 'cryptbroker')).toBe(true);
+    // Crypt Broker / Bone Taxer / Gravetwin / Ossuary Rite are token: true → excluded from the buyable pool.
+    for (const id of ['cryptbroker', 'bonetaxer', 'gravetwin', 'ossuaryrite']) {
+      expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
+    }
+  });
+
+  it('Crypt Broker Sell: conjures a random Echo minion to hand and triggers its Deathrattle now', () => {
+    // Selling Crypt Broker gets a random Echo minion (a Deathrattle body) into hand and fires its Echo out of
+    // combat — so the run Deathrattle tally rises even though nothing was in combat.
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [{ uid: 'cb', cardId: 'cryptbroker', tribe: 'undead', attack: 1, health: 1, keywords: [], golden: false }], hand: [] };
+    const drBefore = s.deathrattlesTriggered;
+    s = reduce(s, { type: 'sell', uid: 'cb' });
+    expect(s.hand.length).toBe(1); // the conjured Echo minion
+    expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
+    expect(s.deathrattlesTriggered).toBe(drBefore + 1); // its Echo fired (tallied) out of combat
+  });
+});

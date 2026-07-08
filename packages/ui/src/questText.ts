@@ -29,6 +29,8 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Summon ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'} in combat`;
     case 'deathrattle':
       return `Trigger ${o.count} ${o.count === 1 ? 'Echo' : 'Echoes'}`;
+    case 'friendlyDeath':
+      return `Have ${o.count} friendly ${o.count === 1 ? 'minion' : 'minions'} die`;
     case 'summon':
       return `Summon ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'}`;
     case 'buy':
@@ -125,6 +127,12 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return 'Your End-of-Turn effects trigger an extra time';
     case 'recurringEndOfTurn':
       return r.effect === 'triggerLeftmostShout' ? 'End of Turn: trigger your leftmost Shout' : 'End of Turn: get a random Shout minion';
+    case 'gainGold':
+      return `Get ${r.amount} Gold`;
+    case 'echoRepeat':
+      return r.scope === 'always' ? 'Your Echoes trigger an extra time' : 'Your first Echo each combat triggers twice';
+    case 'boneThrone':
+      return `Every ${r.every} friendly deaths, trigger your leftmost Echo`;
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

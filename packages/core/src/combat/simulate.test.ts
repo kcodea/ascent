@@ -2160,6 +2160,22 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerUndeadBuyAtkGain).toBe(9); // 3 kills × +3 (was 3: main target only)
   });
 
+  it('golden Sword and Bored buffs Fodder +1/+1 on Slaughter (a golden override, not the ×2 +2/+0)', () => {
+    const fodderBuff = (golden: boolean): [number, number] | null => {
+      const p: BoardMinion[] = [
+        { cardId: 'swordbored', attack: 5, health: 5, golden }, // attacks first (2 minions v 1) → kills → Slaughter
+        { cardId: 'fred', attack: 0, health: 5 }, // Fodder (buffed by the Slaughter)
+      ];
+      const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
+      const r = run(p, e, 3);
+      const fred = r.initial.player.find((m) => m.cardId === 'fred')!.uid;
+      const buff = r.events.find((ev) => ev.type === 'buff' && ev.target === fred);
+      return buff && buff.type === 'buff' ? [buff.attack, buff.health] : null;
+    };
+    expect(fodderBuff(false)).toEqual([1, 0]); // base +1/+0
+    expect(fodderBuff(true)).toEqual([1, 1]); // golden → +1/+1 (not +2/+0)
+  });
+
   it("Deathsayer's Rally-proc'd Deathrattles tick the tally (parity with Sporeling's Battlecry proc)", () => {
     // No player minion ever dies here — every playerDeathrattles tick comes from the Rally procs, one per
     // `rally` event (a rattle triggered without a death still counts, same rule as Sporeling).

@@ -31,8 +31,9 @@ export const DEMONS: CardDef[] = [
     attack: 2,
     health: 1,
     keywords: ['SL'],
-    effects: [{ on: 'onKill', do: 'onKillBuffFodder', params: { attack: 1, health: 0 } }],
+    effects: [{ on: 'onKill', do: 'onKillBuffFodder', params: { attack: 1, health: 0, goldenAttack: 1, goldenHealth: 1 } }],
     text: '**Slaughter:** give your **Fodder** **+1/+0**.',
+    goldenText: '**Slaughter:** give your **Fodder** **+1/+1**.',
   },
   {
     // Deathrattle (combat): summon 2 Imps, then buff all your Imps (the new ones included) +2/+3. Golden 2×.

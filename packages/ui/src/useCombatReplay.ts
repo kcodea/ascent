@@ -532,6 +532,12 @@ export function useCombatReplay(
       const r = findEl(uid)?.getBoundingClientRect();
       return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null;
     };
+    // The reborn re-form glow is scheduled +460ms (the auraReform cue offset), but its FOOTPRINT must be the
+    // unit's rect at BEAT-START — not at fire time, when the `risepop` CSS has scaled the card up to full size
+    // (that would size the glow larger than pre-choreographer-panel behavior). Pre-measure here so the glow's
+    // size stays byte-identical while its timing rides the cue offset.
+    const rebornRects = new Map<string, { cx: number; cy: number; w: number; h: number } | null>();
+    for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'reborn') rebornRects.set(e.target, rectOf(e.target)); }
     const stop = runMomentCues(beat, {
       events,
       combatSpeed: combatSpeedRef.current,
@@ -550,7 +556,7 @@ export function useCombatReplay(
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
       onShieldBreak: (uid) => breakShieldAura(uid),
-      onReborn: (uid) => reformReborn(rectOf(uid)),
+      onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
     });
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —

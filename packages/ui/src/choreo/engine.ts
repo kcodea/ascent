@@ -14,7 +14,7 @@ export interface AttackCueCtx {
 
 /**
  * The choreo playback engine (phase 3b) — runs an `attackExchange` moment's cues: score-driven (reads
- * `SCORE['attackExchange']`), it composes the lunge motion + the contact-anchored impact channel + the
+ * `getScore()['attackExchange']`), it composes the lunge motion + the contact-anchored impact channel + the
  * caller's `advance` into ONE GSAP timeline. Returns the built timeline (null for a non-attack moment, or
  * when the score has dropped the `lunge` cue), so a caller/test can seek it synchronously.
  */

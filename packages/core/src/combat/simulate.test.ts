@@ -170,6 +170,19 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSpellPower?.attack).toBe(1); // 4th friendly death → Avenge (4) → +1 spell Attack
   });
 
+  it('Baby Cub Rally improves the Den Mother aura (summonBonus carries back)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'babycub', attack: 4, health: 30 },
+      { cardId: 'mamabear', attack: 5, health: 30, sourceUid: 'M' },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
+    const r = run(p, e, 5);
+    // No beasts are summoned here, so Den Mother's own aura never climbs — the carry-back entry keyed to 'M'
+    // is purely Baby Cub's Rally bumping it +5 per attack.
+    const entry = r.playerSummonBonus?.find((b) => b.sourceUid === 'M');
+    expect(entry?.bonus ?? 0).toBeGreaterThanOrEqual(5);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

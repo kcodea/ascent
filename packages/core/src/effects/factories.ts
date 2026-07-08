@@ -1225,6 +1225,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(ctx.rng.pick(pool), self.attack, 0, self.uid);
   },
 
+  /** Baby Cub — Rally: each time THIS attacks, permanently improve your Den Mother aura by +step. Bumps every
+   *  friendly Den Mother's accrued `summonBonus` (its per-summon buff magnitude), which rides the summonBonus
+   *  carry-back so the bigger aura persists next combat AND in the shop. Golden doubles the step. Stored
+   *  pre-Den-Mother-golden like all summonBonus, so a golden Den Mother doubles the improvement in turn. No
+   *  `improve` log: that event re-applies the TARGET's golden in the UI, which would mis-count an external
+   *  bump on a golden Den Mother — the value stays correct via the carry-back + shop/board re-render instead. */
+  rallyImproveSummonAura: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const step = num(params.amount, 5) * mul(self);
+    const targetId = str(params.cardId) || 'mamabear';
+    for (const m of ctx.living(self.side)) {
+      if (m === self || m.cardId !== targetId) continue;
+      m.summonBonus += step;
+    }
+  },
+
   /** Solaris Fang — Avenge (X): every X friendly deaths, gain a Divine Shield (Ward) and attack immediately,
    *  out of turn order (`ctx.attackNow` → the immediate-attack queue). Golden gains the shield + a second
    *  immediate strike. */

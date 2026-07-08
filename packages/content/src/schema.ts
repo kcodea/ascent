@@ -172,6 +172,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scBeastAura',
   'rallyTribeAura',
   'rallyGiveDemonAttack',
+  'rallyImproveSummonAura',
   'avengeShieldAttack',
   'endOfTurnGrantSpellChoice',
   'spellRallyDoubleNext',

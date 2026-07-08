@@ -216,7 +216,8 @@ export type EffectFactoryId =
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
-  | 'endOfTurnAdjacentConsumeFodder'; // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
+  | 'endOfTurnAdjacentConsumeFodder' // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
+  | 'endOfTurnBuffPerTribePlayed'; // Spirit Worgen: EoT — gain per Beast/Dragon played this turn, +per spell cast (recruit)
 
 export interface EffectDef {
   on: GameEvent;

@@ -86,16 +86,17 @@ export function cadenceProgressText(cardId: string, eotTick: number): string | n
 }
 
 /**
- * Spirit Worgen's per-summon gain scales with spells cast this turn — the printed "+1/+1" is shown as
- * its current "+X/+X" (X = base + spellsThisTurn), highlighted green, once a spell's been cast this
- * turn. Returns null otherwise (so it falls back to the printed value).
+ * Spirit Worgen's End-of-Turn per-unit gain (+atk/+hp for each Beast/Dragon played this turn) is improved
+ * +1/+1 for each spell cast this turn — so the printed "+base/+base" shows as its current "+X/+X"
+ * (X = base + spellsThisTurn), highlighted green, once a spell's been cast this turn. Returns null otherwise
+ * (falls back to the printed value). The ×(played) multiplier isn't shown — only the per-unit, as before.
  */
 export function summonScalingText(cardId: string, spellsThisTurn: number): string | null {
   if (spellsThisTurn <= 0) return null;
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'summonBuffSelfTribe');
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffPerTribePlayed');
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
+  const base = Number((eff.params as { attack?: number })?.attack ?? 2);
   const x = base + spellsThisTurn;
   return def.text.replace(`+${base}/+${base}`, `{{+${x}/+${x}}}`);
 }

@@ -3516,38 +3516,32 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(s.triplesMade).toBe(1); // run-wide triples tally bumped by the merge
   });
 
-  it("the Worgen's per-summon gain scales with spells cast this turn (X = 3 + spellsThisTurn)", () => {
-    // No spells this turn → +3/+3 per Beast/Dragon.
-    let s: RunState = { ...createRun(1), board: [worgen()], hand: [whelp('d')] };
-    s = reduce(s, { type: 'play', uid: 'd' });
-    expect(worgenAtk(s)).toBe(7); // 4 + 3
-
-    // 4 spells this turn → +7/+7 per Beast/Dragon.
-    let s2: RunState = { ...createRun(1), board: [worgen()], hand: [...Array.from({ length: 4 }, (_, i) => pouch(i)), whelp('d')] };
-    for (let i = 0; i < 4; i++) s2 = reduce(s2, { type: 'play', uid: s2.hand[0]!.uid });
-    s2 = reduce(s2, { type: 'play', uid: 'd' });
-    expect(worgenAtk(s2)).toBe(4 + 7); // 4 + (3 + 4)
-  });
-
-  it('an Alleycat (it + its Stray, both Beasts) buffs the Worgen twice', () => {
-    // 4 spells → X = 7; Alleycat + its 1 Stray = 2 Beast summons → +14/+14 total.
-    let s: RunState = {
-      ...createRun(1), board: [worgen()],
-      hand: [...Array.from({ length: 4 }, (_, i) => pouch(i)),
-        { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+  it("the Worgen's End-of-Turn gain: +2/+2 per Beast/Dragon played, improved +1/+1 per spell cast", () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [worgen()],
+      playedThisTurn: ['alley', 'alley', 'cleric'], // 2 Beasts (Pennycat) + 1 Dragon (Hoard Cleric) = 3
+      spellsThisTurn: 1, // per-unit +2/+2 → +3/+3
     };
-    for (let i = 0; i < 4; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    s = reduce(s, { type: 'play', uid: 'a' });
-    expect(worgenAtk(s)).toBe(4 + 14);
+    applyEndOfTurn(s);
+    expect(worgenAtk(s)).toBe(4 + 9); // (2 + 1 spell) × 3 played = +9
+
+    // No plays this turn → no gain; the buff lands at End of Turn, not on play.
+    let s2: RunState = { ...createRun(1), board: [worgen()], hand: [whelp('d')] };
+    s2 = reduce(s2, { type: 'play', uid: 'd' }); // 1 Dragon played
+    expect(worgenAtk(s2)).toBe(4); // nothing yet
+    applyEndOfTurn(s2);
+    expect(worgenAtk(s2)).toBe(4 + 2); // +2 for the 1 Dragon (no spells)
   });
 
-  it('the Worgen ignores a summoned neutral', () => {
+  it('the Worgen ignores a played neutral (only Beasts/Dragons count)', () => {
     let s: RunState = {
       ...createRun(1), board: [worgen()],
       hand: [{ uid: 'x', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'x' });
-    expect(worgenAtk(s)).toBe(4); // unchanged
+    applyEndOfTurn(s);
+    expect(worgenAtk(s)).toBe(4); // a neutral doesn't count → no End-of-Turn gain
   });
 
   it('spellsThisTurn resets each wave', () => {
@@ -3558,22 +3552,6 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.spellsThisTurn).toBe(0); // reset on advance to the next wave
-  });
-
-  it("the Worgen's in-combat gains are temporary (run board unchanged next shop)", () => {
-    // Pack Scrounger's combat Deathrattle summons Beast Pups → the Worgen procs in combat, but combat
-    // is a sim, so the run-board Worgen returns to its stats next shop.
-    let s: RunState = {
-      ...createRun(1), wave: 15, resolve: 100, maxResolve: 100, spellsThisTurn: 4, // tanky wave → the Pack dies + summons
-      board: [
-        { uid: 'w', cardId: 'spiritworgen', tribe: 'beast', attack: 4, health: 50, keywords: [], golden: false },
-        { uid: 'pk', cardId: 'pack', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
-      ],
-    };
-    s = reduce(s, { type: 'faceOmen' });
-    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.source === 'Spirit Worgen')).toBe(true); // procced in combat
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(4); // …but the run board is unchanged
   });
 
   it("a Taurus-engraved neighbor's combat gains carry back to the run board (settleCombat)", () => {

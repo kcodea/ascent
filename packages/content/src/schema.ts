@@ -185,6 +185,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryGrantSpell',
   'endOfTurnCastSpellEscalating',
   'endOfTurnAdjacentConsumeFodder',
+  'endOfTurnBuffPerTribePlayed',
 ]);
 
 export const EffectDefSchema = z.object({

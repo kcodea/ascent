@@ -438,20 +438,6 @@ describe('simulate (handoff A.3)', () => {
     expect(buffs.length).toBeGreaterThan(0); // +30/+40 confirms golden keeps 6 summons (5 overflow × +6/+8)
   });
 
-  it('Spirit Worgen procs in combat: +X/+X per Beast/Dragon summoned, X = 3 + spellsThisTurn', () => {
-    // spellsThisTurn = 4 → X = 7. Pack Scrounger (Deathrattle: 2 Beast Pups) dies → 2 summons → +7/+7 each.
-    const p: BoardMinion[] = [
-      { cardId: 'spiritworgen', attack: 4, health: 50 }, // tanky so it survives to receive both buffs
-      { cardId: 'pack', attack: 1, health: 1 }, // dies fast → 2 Pups (Beasts)
-    ];
-    const r = simulate(p, [{ cardId: 'sandbag', attack: 2, health: 10 }], makeRng(7), CARD_INDEX, 4);
-    const worgenBuffs = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen');
-    expect(worgenBuffs.length).toBe(2); // one per summoned Pup
-    expect(worgenBuffs.every((b) => b.type === 'buff' && b.attack === 7 && b.health === 7)).toBe(true);
-    // With no spells that turn, the same board gives +3/+3 each.
-    const base = simulate(p, [{ cardId: 'sandbag', attack: 2, health: 10 }], makeRng(7), CARD_INDEX);
-    expect(base.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen' && ev.attack === 3).length).toBe(2);
-  });
 
   it('a golden Arcane Weaver grants two Spirit Fires per Avenge; an enemy Weaver grants the player none', () => {
     const golden = run(

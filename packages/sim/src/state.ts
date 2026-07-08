@@ -195,6 +195,9 @@ export interface RunState {
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
    *  the lifetime `goldSpent` career stat. */
   goldSpentThisTurn?: number;
+  /** Minion cardIds PLAYED this recruit turn (normal plays) — Pack Leader (SoC, via a simulate param) and
+   *  Spirit Worgen (End of Turn) scale off "Beasts/Dragons you played this turn". Reset each turn. */
+  playedThisTurn?: string[];
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't

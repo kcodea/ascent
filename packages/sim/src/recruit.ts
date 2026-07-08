@@ -768,6 +768,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
 
+  /** Spirit Worgen — End of Turn: gain +(atk)/+(hp) for each `tribes` minion you PLAYED this turn, with the
+   *  per-unit amount improved by +1/+1 for each spell you cast this turn (`spellsThisTurn`). Golden doubles the
+   *  whole gain. Reads the per-turn `playedThisTurn` counter (reset each turn), so it rewards a wide beast/dragon
+   *  turn backed by spells. */
+  endOfTurnBuffPerTribePlayed: (ctx, self, params) => {
+    const tribes = (params.tribes as Tribe[] | undefined) ?? ['beast', 'dragon'];
+    const played = (ctx.state.playedThisTurn ?? []).filter((id) => {
+      const def = CARD_INDEX[id];
+      return def ? tribes.some((t) => def.tribe === t || def.tribe2 === t) : false;
+    }).length;
+    if (played === 0) return;
+    const g = gold(self);
+    const perA = num(params.attack, 2) + ctx.state.spellsThisTurn;
+    const perH = num(params.health, 2) + ctx.state.spellsThisTurn;
+    addBuff(self, nameOf(self), perA * played * g, perH * played * g);
+  },
+
   /** Frontdrake — End of Turn: every `every` turns on the board, conjure `count` random minions of
    *  `tribe` into the hand (tier ≤ tavern tier, active tribes, copies left — "abides by tavern rules").
    *  Golden doubles the count. The per-card `eotTick` advances ONCE per turn (on proc 0), so Chronos

@@ -76,9 +76,9 @@ describe('cardText helpers', () => {
     expect(summonImproveText('sandbag', 4, false)).toBeNull(); // not a per-summon-improve card
   });
 
-  it('summonScalingText (Spirit Worgen) shows the live per-summon gain = base + spells cast this turn', () => {
-    expect(summonScalingText('spiritworgen', 3)).toContain('{{+6/+6}}'); // base 3 + 3 spells this turn
-    expect(summonScalingText('spiritworgen', 0)).toBeNull(); // no spells this turn → printed +3/+3
+  it('summonScalingText (Spirit Worgen) greens the per-unit gain = base + spells cast this turn', () => {
+    expect(summonScalingText('spiritworgen', 3)).toContain('{{+5/+5}}'); // base 2 + 3 spells this turn
+    expect(summonScalingText('spiritworgen', 0)).toBeNull(); // no spells this turn → printed +2/+2
     expect(summonScalingText('grim', 3)).toBeNull(); // not a spells-this-turn scaler
   });
 

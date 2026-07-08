@@ -308,18 +308,21 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'F')!.attack).toBe(7); // the Feeder itself doesn't consume
   });
 
-  it('Pack Leader: Start of Combat buff scales with Beasts played this turn', () => {
+  it('Pack Leader: Start of Combat buffs Beasts +2/+2 and permanently improves by +2/+2', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
         { uid: 'pl', cardId: 'packleader', tribe: 'beast', attack: 2, health: 4, keywords: [], golden: false },
         { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
       ],
-      playedThisTurn: ['alley', 'alley'], // 2 Beasts played → base +1/+2 improved by +2/+2 → +3/+4
     };
+    s = reduce(s, { type: 'faceOmen' }); // first combat: SoC gives Beasts +2/+2
+    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.find((c) => c.uid === 'pl')?.summonBonus).toBe(2); // the improve carries back (+2 accrued)
+    // second combat now grants base 2 + accrued 2 = +4/+4
     s = reduce(s, { type: 'faceOmen' });
-    const scBuff = s.lastCombat!.events.find((e) => e.type === 'buff' && e.attack === 3 && e.health === 4);
-    expect(scBuff).toBeDefined();
+    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
   });
 
   it('Graverobber: Battlecry destroys a targeted friendly, procs its Deathrattle + grants a spell of its tier', () => {
@@ -359,6 +362,18 @@ describe('run loop (@game/sim)', () => {
     let b: RunState = { ...createRun(1), embers: 10, beastBuyAtk: 2, shop: [{ uid: 'o', cardId: 'alley' }] };
     b = reduce(b, { type: 'buy', uid: 'o' });
     expect(b.hand.find((c) => c.cardId === 'alley')!.attack).toBe(CARD_INDEX.alley!.attack + 2);
+  });
+
+  it('Spark Plug: casting gives your entire board +5/+5 twice (+10/+10)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
+      hand: [{ uid: 'sp', cardId: 'sparkplug', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      embers: 10,
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([2 + 10, 3 + 10]); // two +5/+5 casts
   });
 
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {

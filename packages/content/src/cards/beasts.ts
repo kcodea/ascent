@@ -282,10 +282,10 @@ export const BEASTS: CardDef[] = [
     keywords: ['RL'],
     effects: [
       { on: 'onAttack', do: 'rallyTribeAura', params: { tribe: 'beast', attack: 5, health: 0 } },
-      { on: 'avenge', do: 'avengeShieldAttack', params: { count: 3 } },
+      { on: 'avenge', do: 'avengeShieldAttack', params: { count: 5 } },
     ],
-    text: '**Rally:** give your Beasts **+5 Attack** wherever they are. **Avenge (3):** gain **Ward** and attack immediately.',
-    goldenText: '**Rally:** give your Beasts **+10 Attack** wherever they are. **Avenge (3):** gain **Ward** and attack immediately.',
+    text: '**Rally:** give your Beasts **+5 Attack** wherever they are. **Avenge (5):** gain **Ward** and attack immediately.',
+    goldenText: '**Rally:** give your Beasts **+10 Attack** wherever they are. **Avenge (5):** gain **Ward** and attack immediately.',
   },
   {
     // Start of Combat: mirror itself — summon a copy of its current body (stats + granted keywords). Golden
@@ -308,13 +308,13 @@ export const BEASTS: CardDef[] = [
     id: 'packleader',
     name: 'Pack Leader',
     tribe: 'beast',
-    tier: 3,
+    tier: 6,
     attack: 2,
     health: 4,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scTribeBuffPerPlayed', params: { tribe: 'beast', attack: 1, health: 2, perPlayed: 1 } }],
-    text: '**Start of Combat:** Give your **Beasts** **+1/+2**. Improve this by **+1/+1** for each **Beast** you played this turn.',
-    goldenText: '**Start of Combat:** Give your **Beasts** **+2/+4**. Improve this by **+2/+2** for each **Beast** you played this turn.',
+    effects: [{ on: 'startOfCombat', do: 'scTribeBuffImproving', params: { tribe: 'beast', attack: 2, step: 2 } }],
+    text: '**Start of Combat:** Give your **Beasts** **+2/+2**. Permanently improve this by **+2/+2**.',
+    goldenText: '**Start of Combat:** Give your **Beasts** **+4/+4**. Permanently improve this by **+2/+2**.',
   },
   {
     // Battlecry: your Beasts gain +2 Attack "wherever they are" — baked into every current Beast (board + hand)

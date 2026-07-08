@@ -257,8 +257,8 @@ export const MECHS: CardDef[] = [
     attack: 4,
     health: 7,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeCastRandomStatSpell', params: { count: 4 } }],
-    text: '**Avenge (4):** cast a random spell on your lowest-Health Mech.',
-    goldenText: '**Avenge (4):** cast a random spell on your lowest-Health Mech, **doubled**.',
+    effects: [{ on: 'avenge', do: 'avengeGrantSpell', params: { count: 4, cardId: 'sparkplug' } }],
+    text: '**Avenge (4):** add a **Spark Plug** to your hand.',
+    goldenText: '**Avenge (4):** add **two Spark Plugs** to your hand.',
   },
 ];

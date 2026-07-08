@@ -214,7 +214,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
   });
 
-  it('Spark Capacitor Avenge (4) casts a random stat spell on a friendly Mech', () => {
+  it('Spark Capacitor Avenge (4) adds a Spark Plug to hand', () => {
     const p: BoardMinion[] = [
       { cardId: 'sparkcapacitor', attack: 4, health: 40 },
       { cardId: 'stray', attack: 1, health: 1 },
@@ -224,8 +224,14 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 80 }];
     const r = run(p, e, 4);
-    // 4 strays die → Avenge (4) → a random stat spell buffs the lowest-Health friendly Mech (the Capacitor)
-    expect(r.events.some((ev) => ev.type === 'buff')).toBe(true);
+    expect(r.playerHandGrants).toContain('sparkplug'); // 4 friendly deaths → Avenge (4) → get a Spark Plug
+  });
+
+  it('Imp Overseer Echo summons an Imp when it dies in combat', () => {
+    const p: BoardMinion[] = [{ cardId: 'impoverseer', attack: 3, health: 1 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 20 }]; // kills the 3/1 Overseer
+    const r = run(p, e, 3);
+    expect(r.events.some((ev) => ev.type === 'summon')).toBe(true); // its Echo (Deathrattle) summoned an Imp
   });
 
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
@@ -243,16 +249,18 @@ describe('simulate (handoff A.3)', () => {
     expect(rally5(call(true))).toBe(4);  // …twice with Rallying Offensive
   });
 
-  it('Solaris Fang Avenge (3): gains a Divine Shield (Ward) and attacks immediately', () => {
-    // Three 0/1 Taunts are the forced targets — they die first while Solaris chips the wall; the 3rd death
-    // triggers Avenge (3) → Solaris gains a shield (shieldUp) and takes a bonus out-of-turn attack.
+  it('Solaris Fang Avenge (5): gains a Divine Shield (Ward) and attacks immediately', () => {
+    // Five 0/1 Taunts are the forced targets — they die first while Solaris chips the wall; the 5th death
+    // triggers Avenge (5) → Solaris gains a shield (shieldUp) and takes a bonus out-of-turn attack.
     const p: BoardMinion[] = [
       { cardId: 'solaris', attack: 5, health: 40 },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
     ];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 120 }];
     const r = run(p, e, 7);
     const solarisUid = r.initial.player[0]!.uid;
     expect(r.events.some((ev) => ev.type === 'shieldUp' && ev.target === solarisUid)).toBe(true);
@@ -266,10 +274,12 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
     ];
-    // A tanky wall: it must outlast Solaris's Rally ramp (golden +10 Attack per swing) so all THREE Taunts
-    // fall to it first and Avenge (3) fires — then it retaliates and pops the Ward on each immediate strike.
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 300 }];
+    // A tanky wall: it must outlast Solaris's Rally ramp (golden +10 Attack per swing) so all FIVE Taunts
+    // fall to it first and Avenge (5) fires — then it retaliates and pops the Ward on each immediate strike.
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 500 }];
     const r = run(p, e, 7);
     const solarisUid = r.initial.player[0]!.uid;
     const wards = r.events.filter((ev) => ev.type === 'shieldUp' && ev.target === solarisUid).length;

@@ -215,9 +215,12 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 2 } }],
-    text: '**Battlecry:** Your Imps have **+2/+2** wherever they are.',
-    goldenText: '**Battlecry:** Your Imps have **+4/+4** wherever they are.',
+    effects: [
+      { on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 2 } },
+      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } },
+    ],
+    text: '**Battlecry:** Your Imps have **+2/+2** wherever they are. **Echo:** summon an Imp.',
+    goldenText: '**Battlecry:** Your Imps have **+4/+4** wherever they are. **Echo:** summon 2 Imps.',
   },
   {
     // Rally engine: each time it attacks, hand another friendly Demon Attack equal to its OWN (a golden

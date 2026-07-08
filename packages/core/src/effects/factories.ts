@@ -1018,6 +1018,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Pack Leader — Start of Combat: buff your `tribe` (Beasts) by +M/+M where M = base + its permanently
+   *  accrued bonus, then improve that accrual by `step` for good. The accrual rides `summonBonus` (carried
+   *  back like Kennelmaster's), so the grant climbs every combat. Golden doubles the applied grant. */
+  scTribeBuffImproving: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    const base = num(params.attack, 2);
+    const step = num(params.step, 2);
+    const mag = (base + self.summonBonus) * mul(self);
+    if (mag > 0) {
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} leads the pack` });
+      for (const m of ctx.living(self.side)) {
+        if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, mag, mag, self.uid);
+      }
+    }
+    self.summonBonus += step; // permanent +step/+step improve, carried back via playerSummonBonus
+  },
+
   // ─── New content batch factories ────────────────────────────────────────────
 
   /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.

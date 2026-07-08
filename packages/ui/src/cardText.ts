@@ -15,7 +15,7 @@ export function summonBuffText(cardId: string, summonBonus: number): string | nu
   const def = CARD_INDEX[cardId];
   // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start-of-Combat Beast aura). Both
   // grant `base + summonBonus`, so the same live magnitude injects into the printed "+N/+N".
-  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
+  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'scTribeBuffImproving');
   if (!def || !eff) return null;
   const base = Number((eff.params as { attack?: number })?.attack ?? 1);
   const m = base + summonBonus;

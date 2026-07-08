@@ -72,10 +72,10 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     effects: [
       { on: 'onDeath', do: 'onFriendDeathSummon', params: { tokenId: 'impscrap', max: 3 } },
-      { on: 'avenge', do: 'avengeBuffImps', params: { count: 3, attack: 3, health: 2 } },
+      { on: 'avenge', do: 'avengeBuffImps', params: { count: 3, attack: 1, health: 1 } },
     ],
-    text: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+3/+2** permanently.',
-    goldenText: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+6/+4** permanently.',
+    text: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+1/+1** permanently.',
+    goldenText: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+2/+2** permanently.',
   },
   {
     // Dual-type Demon/Mech. Magnetic — and because it's also a Mech it can weld onto a friendly

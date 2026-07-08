@@ -320,6 +320,12 @@ export interface RunState {
   /** Quests the player has bought this run, with live objective progress — rendered in the quest panel.
    *  Optional so pre-quest-system saves heal to `[]` rather than crashing on read. */
   activeQuests?: ActiveQuest[];
+  /** Warm Embers quest: your next N Shouts (Battlecry minions you play) each trigger twice. Consumed one per
+   *  played Battlecry while > 0 (folds a +1 into that play's repeat count). Absent = 0. */
+  shoutDoubleCharges?: number;
+  /** Quest rewards scheduled to fire again later (Trail Rations' "repeat in 2 turns"). Each recruit-turn
+   *  setup ticks `turnsLeft` down; at 0 the quest's reward re-applies (without re-scheduling). Absent = none. */
+  pendingQuestRewards?: { questId: string; turnsLeft: number }[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted

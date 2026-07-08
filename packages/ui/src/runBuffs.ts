@@ -106,7 +106,7 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
       (sum, mb) => sum + (effectParam('mamabear', 'summonBuffTribeImprove', 'attack', 3) + (mb.summonBonus ?? 0)) * (mb.golden ? 2 : 1),
       0,
     );
-    rows.push({ key: 'mamabear', label: 'Forest Guardian · per summon', value: `+${total}/+${total}` });
+    rows.push({ key: 'mamabear', label: 'Den Mother · per summon', value: `+${total}/+${total}` });
   }
 
   // Archmagus Guel — only while on board: current per-spell grant = (base + ⌊spellProgress/4⌋) × golden,

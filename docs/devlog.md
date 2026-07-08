@@ -5,6 +5,120 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-07 (session 21)
 
+### fix(sim): goldening doubles BASE stats only (not accrued buffs); Forest Guardian → Den Mother
+
+Goldening a minion was doubling its CURRENT stats — so Eyes of Aresmar (and Indy's Gild) on a buffed 10/10 built
+from a 3/4 base made it 20/20 instead of keeping "the two highest copies' stats." Fixed: every direct-gild path now
+doubles the **BASE only**, leaving accrued buffs single, via one shared `gildMinion(card)` helper (add a 'Gild' buff
+= base, flip golden). A buffed 10/10 from a 3/4 base now gilds to 13/14. Natural triples were ALREADY correct
+(`combineIntoGolden` sums the two best copies), so they're untouched — the fix just brings the single-target gilds
+in line with them.
+
+- Paths fixed: `spellGildTarget` (Eyes), Indy's `gild` hero power, and — per owner follow-up — the gilded-OFFER
+  paths (Golden Touch buy, `swapWithTavern`, `offerBuyStats`): each `× 2` (base+buffs) → `+ base` (base doubles,
+  offer/run buffs stay single). So a Fortified offer that's then gilded no longer double-counts the Fortify.
+- Tests: rewrote the Indy + Eyes gild tests to prove base-doubling on BUFFED minions (5/13 and 6/14, NOT 10/18 /
+  12/20 — the owner's reported bug); updated the offerBuyStats golden expectation.
+- **Den Mother:** Forest Guardian renamed → Den Mother (id `mamabear` unchanged), `DenMother.png` wired, and the
+  buff-panel aura auto-relabels ("Den Mother · per summon") since it's named after the card.
+- **Verified:** `typecheck + lint + test (552) + build:web` green (determinism intact).
+- **In flight:** the ~27-card + Patch Job content batch — building in waves by trigger; the 12 stat-less cards
+  (End-of-Turn / Start-of-Combat / Avenge groups) get sensible assigned stats (owner to adjust); Nimbus / Moe /
+  Bounty Bot / Hoardbreaker Drake await art.
+
+### feat(ui+sim): quest shop → Discover-style modal (minimize to inspect the shop); tavern rolled up front
+
+The quest offer moved from an inline tavern-row swap into a **Discover-style overlay** — a blurred-backdrop modal you
+can **minimize** to inspect the shop (plus board + next-foe telegraph) behind it, then return to choose. It reuses the
+Discover chrome wholesale (`.discover-ov` blur backdrop, floating panel, gold banner, the fixed toggle button), so it
+feels identical to a Discover pick. New `questMin` state + reset-on-offer effect; `modalCovering` now also covers the
+quest overlay; the tavern row always renders the shop (the quest cards live only in the overlay).
+
+**The enabling engine change:** the tavern now **rolls up front** when the quest offer opens, instead of being deferred
+to `buyQuest` — so there's actually a shop to peek at. The roll moved to just after `checkTriples` in `advanceCombat`
+(the exact rngCursor point the old post-`buyQuest` roll used), so the run stays **byte-identical** — the golden
+"deterministic run end-to-end" + `replayRun` byte-identical tests confirm it. `buyQuest` now just closes the offer (no
+re-roll). This makes the quest pick **shop-informed** (a deliberate decision-quality bump — you see the shop, board,
+and threat before committing; a slight power-up to quests).
+
+- Touches: `reducer.ts` (advanceCombat roll timing + `buyQuest`), `Recruit.tsx` (overlay + toggle + row), `styles.css`
+  (`.disc-sub` + quest-overlay reuse; dropped the dead `.questbanner`). Test updated: the wave-4 open now asserts the
+  shop is populated behind the offer AND that `buyQuest` doesn't re-roll (same shop uids).
+- Also this session: **`CONFIG.questsEnabled`** master on/off (default true) gated at the single `questTierForWave`
+  chokepoint — `false` → waves 4/8/12 are ordinary shop turns (see the content entry below).
+- Panel polish: (1) fixed the **active-quest panel cursor** — `.questframe`/`.buffs-head` were clobbering the game
+  gauntlet cursor with the OS `default`/`pointer`; removed the overrides so they inherit `body`'s gauntlet cursor +
+  the shared `button` rule (also fixes the Buffs frame's head). (2) The panel now shows each reward's **LIVE ongoing
+  state** in the chip — Warm Embers "0/2 used", Trail Rations' "↻ Nt" repeat countdown, else ✓ once a one-shot reward
+  fires; ongoing rewards stay full-opacity + accent-coloured (not dimmed like a spent quest). (3) Quest overlay
+  toggle dropped clear of the taller art cards; subtitle trimmed to "Choose a quest to begin the turn".
+- **Verified:** `typecheck + lint + test (552) + build:web` green (determinism intact). Live in-preview: the overlay
+  renders with a blurred shop behind it; "Inspect the shop" reveals the rolled shop + locked controls + threat
+  telegraph; "Return to Quests" flips back. No console errors.
+
+### feat(content): first real quests (Trail Rations · Warm Embers · Grave Toll) + reward-palette expansion; card retunes; quest-card cleanup
+
+The quest framework's first REAL content — the skinny `Test ·` beast/dragon/undead LESSER quests are replaced by three
+authored quests, which grow the objective + reward vocabulary well past the "recruit-action counter → flat board buff"
+starter. Plus three Avenge/buff retunes and the quest card's 0-Gold coin removed.
+
+**New objective events** (`QuestObjectiveEvent` + schema + `questText`):
+- `summon` — counts EVERY minion that ENTERS your board (plays **and** tokens summoned by Shouts/Echoes), optionally
+  tribe-filtered (`objective.tribe`). Counted in `reduce` via the same before/after board-uid diff that drives
+  onGainAttack, so a token-summoning play advances it by more than one. (A play that immediately triples counts its
+  net board delta, not three — a known, minor edge.)
+- `shout` — playing a Battlecry minion (`hasBattlecry` on the card that just left the hand).
+
+**New reward kinds** (`QuestReward` is now a discriminated union `buffBoard | grant | shoutDouble`):
+- `grant` — conjure cards to hand: `randomCount` random minions of `randomTribe` (≤ current tier, via the newly-exported
+  `conjureToHand`) plus each id in `cards` (e.g. the `emberpouch` "Gold Pouch" spell). `repeatInTurns` re-applies the
+  WHOLE reward once, that many recruit-turns later — a new `pendingQuestRewards` schedule on `RunState`, ticked down +
+  fired at each recruit-turn setup (before `checkTriples`, alongside the Chaos grant), with `allowRepeat=false` so it
+  can't re-arm.
+- `shoutDouble` — banks `shoutDoubleCharges` on `RunState`; the next N **played** Shouts each trigger twice. Folded into
+  a new `playedShoutRepeats(state, def)` (Drakko's repeats + 1 while charged, consuming a charge), used at the two REAL
+  play sites (`playCard`, `applyBattlecryTarget`) — NOT Myra/Ryme re-fires or combat mirrors, which keep plain
+  `drummerRepeats`. Stacks additively with Drakko.
+
+**The three quests** (all LESSER, replacing the same-tribe `Test ·` quests so the offer generator still serves one per
+tribe/tier):
+- **Trail Rations** (Beast) — *Summon 3 minions* → get a random Beast + a Gold Pouch, repeat once in 2 turns.
+- **Warm Embers** (Dragon) — *Play 2 Shouts* → your next 2 Shouts trigger twice.
+- **Grave Toll** (Undead) — *Summon 4 Undead* → get a random Undead.
+
+**Live card text** (the live-accuracy rule): the active-quest panel surfaces the CURRENT value — Warm Embers' remaining
+Shout charges and Trail Rations' live repeat countdown ("Repeats in N turns" → "Repeat granted") — via a `live` hook on
+`questRewardText`, fed from `run.shoutDoubleCharges` / `run.pendingQuestRewards` in `QuestPanel`.
+
+**Quest art + card redesign** — new `art/quests/<questId>.png` glob + `questArt(id)` in `art.ts`. The offer card was
+rebuilt **art-forward** to the owner's reference: CRISP full-bleed art (no wash-out — just a short top scrim for the
+title), a top tribe emblem (canonical `TRIBE_ICON` glyph), dark inset objective/reward panels with tribe-tinted
+headers + new `target`/`gift` icons, a tribe-colored frame + glow, and a bottom gem. Wired all three:
+`q_trail_rations.png` / `q_warm_embers.png` / `q_grave_toll.png` (from `Ascent Art/Quests/`, renamed to the quest ids).
+
+**Quest card cleanup** — removed the **0-Gold coin badge** from `QuestCard` (a free quest showing a "0" price read as
+noise) + its dead CSS + the tier row's badge-clearing padding.
+
+**Card retunes** (data + text + the combat tests that pinned the old thresholds):
+- **Brood Matron** Avenge buff **+3/+2 → +1/+1** (golden +2/+2). *(Owner wrote "+2/+3"; the live value was +3/+2 —
+  destination +1/+1 is unambiguous, so applied as written.)*
+- **Steadfast Champion** **Avenge (3) → Avenge (4)**.
+- **Solaris Fang** **Avenge (2) → Avenge (3)**. The golden-Solaris combat test needed a tankier wall (60 → 300 HP): its
+  Rally ramp (+10 Atk/swing when golden) now one-shots the old wall before the extra sacrificial death lands.
+
+**Master on/off** — `CONFIG.questsEnabled` (default `true`) gates the single `questTierForWave` chokepoint that both the
+reducer's phase check and `generateQuestOffer` route through; `false` → waves 4/8/12 are ordinary shop turns (no quest
+phase / panel / objectives / rewards), riding the existing "empty offer → normal turn" fallback so there's zero
+soft-lock risk. Flipping that one value is the entire toggle.
+
+**Verified:** `typecheck + lint + test (552, +8 new quest tests: token-counting summon, tribe-gated summon, grant-to-hand,
+delayed repeat firing across two real turn-advances, shout objective, charge doubling) + build:web` all green. Live
+in-preview (throwaway run, forced quest offer): all three cards render the redesigned art-forward layout with crisp art
++ readable panels, correct objective/reward strings, coin gone, no console errors.
+
+**Follow-ups:** grow the remaining `Test ·` quests (greater/capstone + mech/demon/neutral) the same way (art for
+`ShieldCalibration` + `SmallOffering` is already in the source folder); the rest of the reward palette; the
+balance/curve retune.
 ### feat: Combat Choreographer — Phase 3b (the contact cluster)
 
 Phase 3b of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),

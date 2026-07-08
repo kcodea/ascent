@@ -1,5 +1,5 @@
-import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestDef, type QuestObjectiveEvent, type Tribe } from '@game/core';
-import { CARD_INDEX, QUEST_INDEX } from '@game/content';
+import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -113,11 +113,25 @@ export function reduce(state: RunState, action: Action): RunState {
       const prev = before.get(c.uid);
       if (prev !== undefined && c.attack > prev) fireOnGainAttack(next, c);
     }
-    // Quests: a successful recruit action (buy / play / sell / roll) advances matching objectives, completing
-    // + rewarding at the threshold. `next !== state` already means the action did something; `buyQuest` itself
-    // isn't a tracked event, so it's excluded from the map above.
+    // Quest objectives (a successful recruit action already means `next !== state`):
+    //  • buy / play / sell / roll — the tracked action (`buyQuest` itself is excluded from the map).
+    //  • shout — the played card was a Battlecry minion (a "shout").
+    //  • summon — EVERY minion that just ENTERED the board (the played card AND any tokens it summoned),
+    //    narrowed by the objective's optional tribe. Reuses the same before/after board diff as onGainAttack;
+    //    a play that immediately completes a triple counts as its NET board delta (the golden), not three.
     const questEvent = QUEST_TICK_EVENTS[action.type];
-    if (questEvent) tickQuests(next, questEvent);
+    if (questEvent) advanceQuests(next, (o) => o.event === questEvent);
+    if (action.type === 'play') {
+      const played = state.hand.find((c) => c.uid === action.uid);
+      const pdef = played ? CARD_INDEX[played.cardId] : undefined;
+      if (pdef && hasBattlecry(pdef)) advanceQuests(next, (o) => o.event === 'shout');
+    }
+    for (const c of next.board) {
+      if (before.has(c.uid)) continue; // only minions NOT present before this action count as summons
+      const cdef = CARD_INDEX[c.cardId];
+      const tribes = cdef ? ([cdef.tribe, cdef.tribe2].filter(Boolean) as Tribe[]) : [];
+      advanceQuests(next, (o) => o.event === 'summon' && (!o.tribe || tribes.includes(o.tribe)));
+    }
   }
   return next;
 }
@@ -220,10 +234,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       if ((s.tavernBuyBonus.atk || s.tavernBuyBonus.hp) && !card.keywords.includes('FD')) {
         addBuff(bought, 'Staff of Guel', s.tavernBuyBonus.atk, s.tavernBuyBonus.hp);
       }
-      // Golden Touch: a gilded offer buys in Golden — double the FINAL stats (exactly like the Gild power),
-      // recorded as a buff so the inspect breakdown still itemizes it. The golden flag (set above) doubles
-      // its effects (Deathrattles twice, ×N multipliers) and shows the golden frame.
-      if (offer.golden) addBuff(bought, 'Golden Touch', bought.attack, bought.health);
+      // Golden Touch: a gilded offer buys in Golden — double the BASE stats only (accrued buffs stay single,
+      // like a gild / triple), recorded as a buff so the inspect breakdown still itemizes it. The golden flag
+      // (set above) doubles its effects (Deathrattles twice, ×N multipliers) and shows the golden frame.
+      if (offer.golden) addBuff(bought, 'Golden Touch', card.attack, card.health);
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
       drakkoQuestBuy(s, card); // Drakko's quest counts every paid Battlecry buy
@@ -481,19 +495,15 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'buyQuest': {
-      // Quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold → it moves to activeQuests,
-      // the offer clears, and the normal tavern rolls (deferred from advanceCombat, honoring a carried freeze).
+      // Quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold → it moves to activeQuests and
+      // the offer clears. The tavern was already rolled at quest-open (advanceCombat), so the shop already sits
+      // behind the overlay for a shop-informed pick — nothing to roll here.
       const offer = s.questOffer;
       if (!offer) return state; // no quest shop open
       const questId = offer[action.index];
       if (questId == null || !QUEST_INDEX[questId]) return state; // invalid pick
       (s.activeQuests ??= []).push({ questId, progress: 0, completed: false });
       s.questOffer = undefined;
-      if (s.frozen) {
-        topUpTavern(s);
-        injectPendingTavern(s);
-        s.frozen = false;
-      } else refreshTavern(s);
       return s;
     }
 
@@ -546,13 +556,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       const card = s.board.find((c) => c.uid === action.uid);
 
       if (power.kind === 'gild') {
-        // Oner: make a friendly board minion Golden — doubles its stats (recorded as a
-        // "Gild" buff so the inspect breakdown still sums) AND flips the golden flag, which
-        // doubles its effects (Deathrattles fire twice, ×N multipliers, etc.). Board only;
-        // a no-op (and no charge spent) on a missing target or an already-golden minion.
+        // Indy: make a friendly board minion Golden — doubles its BASE stats (recorded as a "Gild" buff so the
+        // inspect breakdown still sums; accrued buffs are NOT doubled — see `gildMinion`) AND flips the golden
+        // flag, which doubles its effects (Deathrattles fire twice, ×N multipliers, etc.). Board only; a no-op
+        // (and no charge spent) on a missing target or an already-golden minion.
         if (!card || card.golden) return state;
-        addBuff(card, 'Gild', card.attack, card.health);
-        card.golden = true;
+        gildMinion(card);
       } else if (power.kind === 'replayBattlecry') {
         // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
         // spent) on a missing target or a minion with no Battlecry to replay.
@@ -1191,10 +1200,11 @@ function advanceCombat(s: RunState): void {
   // (freezing a partial shop shouldn't leave you with fewer options); otherwise full reroll.
   // Either way, queued Fodder (Soulfeeder) still gets injected — freezing must not strand the
   // promised Fodder in `pendingTavern` forever.
-  // Quest-turn (waves 4/8/12): open the quest shop and DEFER the tavern roll until a quest is bought
-  // (`buyQuest` rolls it, honoring any carried-over freeze). An empty offer (no content for the tier) falls
-  // through to a normal turn — a content gap never soft-locks. The "quest phase" is just "questOffer is set"
-  // (no new phase enum); the reducer's modal guard locks every other action until buyQuest resolves.
+  // Quest-turn (waves 4/8/12): open the quest shop. The tavern still ROLLS this turn — deferred to just after
+  // `checkTriples` below (the same rngCursor point the old post-`buyQuest` roll used, so runs stay byte-identical)
+  // — so the shop sits behind the quest overlay and the pick is shop-informed. An empty offer (no content, or
+  // quests disabled) falls through to a normal turn — a content gap never soft-locks. The "quest phase" is just
+  // "questOffer is set" (no new phase enum); the modal guard locks every action but buyQuest until it resolves.
   const questOffer = questTierForWave(s.wave) ? generateQuestOffer(s) : [];
   if (questOffer.length > 0) {
     s.questOffer = questOffer;
@@ -1229,6 +1239,21 @@ function advanceCombat(s: RunState): void {
       s.chaosGrantUid = grantUid;
     }
   }
+  // Quest delayed rewards (Trail Rations' "repeat in 2 turns"): tick each pending grant down a turn and
+  // re-apply the ones that come due — WITHOUT re-scheduling (allowRepeat=false) — here with the other
+  // shop-open hand grants (Chaos above), so a granted copy can still complete a triple below.
+  if (s.pendingQuestRewards?.length) {
+    const remaining: { questId: string; turnsLeft: number }[] = [];
+    for (const p of s.pendingQuestRewards) {
+      if (p.turnsLeft - 1 <= 0) {
+        const d = QUEST_INDEX[p.questId];
+        if (d) applyQuestReward(s, d, false);
+      } else {
+        remaining.push({ questId: p.questId, turnsLeft: p.turnsLeft - 1 });
+      }
+    }
+    s.pendingQuestRewards = remaining;
+  }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -1237,29 +1262,65 @@ function advanceCombat(s: RunState): void {
   // have tripled back in recruit), and checkTriples pulls from the hand first — removing it offsets the
   // golden it pushes back, so the hand never grows past the cap.
   checkTriples(s);
-}
-
-/** Advance objective progress on every active, incomplete quest watching `event`; complete + apply the reward
- *  at the threshold. Called from `reduce` after a successful buy / play / sell / roll. */
-function tickQuests(s: RunState, event: QuestObjectiveEvent): void {
-  for (const aq of s.activeQuests ?? []) {
-    if (aq.completed) continue;
-    const def = QUEST_INDEX[aq.questId];
-    if (!def || def.objective.event !== event) continue;
-    aq.progress += 1;
-    if (aq.progress >= def.objective.count) {
-      aq.completed = true;
-      applyQuestReward(s, def);
+  // Quest turns roll the tavern HERE (after checkTriples — matching the old deferred `buyQuest` roll's rngCursor
+  // position, so the run stays byte-identical) so the shop is populated behind the quest overlay for a
+  // shop-informed pick. Honors a carried-over freeze; `buyQuest` now just closes the offer (no re-roll).
+  if (s.questOffer) {
+    if (s.frozen) {
+      topUpTavern(s);
+      injectPendingTavern(s);
+      s.frozen = false;
+    } else {
+      refreshTavern(s);
     }
   }
 }
 
-/** Apply a completed quest's reward. Skinny: one flat board buff (via the shared `addBuff`, so it itemizes in
- *  the inspect breakdown). Grows into the full reward palette (auras, economy, card gen, scaling engines) later. */
-function applyQuestReward(s: RunState, def: QuestDef): void {
-  switch (def.reward.kind) {
+/** Advance every active, incomplete quest whose objective matches `pred`, by 1; complete + apply the reward at
+ *  the threshold. Called once per tracked action (buy/play/sell/roll/shout) and once per newly-summoned minion. */
+function advanceQuests(s: RunState, pred: (o: QuestObjective) => boolean): void {
+  for (const aq of s.activeQuests ?? []) {
+    if (aq.completed) continue;
+    const def = QUEST_INDEX[aq.questId];
+    if (!def || !pred(def.objective)) continue;
+    aq.progress += 1;
+    if (aq.progress >= def.objective.count) {
+      aq.completed = true;
+      applyQuestReward(s, def, true);
+    }
+  }
+}
+
+/** Conjure `reps` random minions of `tribe` (≤ current tier) into the hand — the quest-reward draw (Grave
+ *  Toll's "random Undead", Trail Rations' "random Beast"). Shares `conjureToHand`'s seeded pick + hand cap. */
+function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number): void {
+  const pool = BUYABLE_CARDS.filter((c) => (c.tribe === tribe || c.tribe2 === tribe) && c.tier <= s.tier);
+  conjureToHand(s, pool, reps);
+}
+
+/**
+ * Apply a completed quest's reward. `allowRepeat` gates the delayed re-grant so the repeat fire itself doesn't
+ * schedule another (Trail Rations). Keep in lockstep with the `QuestReward` union in @game/core:
+ *  - buffBoard   → a flat +atk/+hp on every board minion (itemized via `addBuff`).
+ *  - grant       → conjure the random-tribe minion(s) + each listed card (Gold Pouch) to hand; maybe schedule
+ *                  the whole reward to repeat `repeatInTurns` turns later.
+ *  - shoutDouble → bank charges so the next N played Shouts each trigger twice (spent in `playedShoutRepeats`).
+ */
+function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): void {
+  const r = def.reward;
+  switch (r.kind) {
     case 'buffBoard':
-      for (const c of s.board) addBuff(c, `Quest: ${def.name}`, def.reward.attack, def.reward.health);
+      for (const c of s.board) addBuff(c, `Quest: ${def.name}`, r.attack, r.health);
+      break;
+    case 'grant':
+      if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!);
+      for (const id of r.cards ?? []) conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+      if (allowRepeat && (r.repeatInTurns ?? 0) > 0) {
+        (s.pendingQuestRewards ??= []).push({ questId: def.id, turnsLeft: r.repeatInTurns! });
+      }
+      break;
+    case 'shoutDouble':
+      s.shoutDoubleCharges = (s.shoutDoubleCharges ?? 0) + r.count;
       break;
   }
 }

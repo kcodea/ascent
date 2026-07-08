@@ -174,7 +174,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Run-buffs window — a compact list of active permanent buffs; collapsible header. Normal (system) cursor,
    not the custom gauntlet, so the panel reads as plain UI chrome. */
 .buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
-.buffs-head { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; padding: calc(5 * var(--u)) calc(10 * var(--u)); background: none; border: none; cursor: pointer; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
+.buffs-head { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; padding: calc(5 * var(--u)) calc(10 * var(--u)); background: none; border: none; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
 .buffs-head svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
 .buffs-head .buffs-title { flex: 1; text-align: left; }
 .buffs-head .buffs-count { background: var(--acc); color: #fff; border-radius: 99px; padding: 0 calc(6 * var(--u)); font-size: calc(10 * var(--u)); }
@@ -186,7 +186,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 
 /* ── Quests ─────────────────────────────────────────────────────────────────────────────────────────────── */
 /* Active-quest panel — top-left under the Buffs frame; reuses the buffs-* head/body (collapsible chrome). */
-.questframe { display: flex; flex-direction: column; min-width: calc(168 * var(--u)); max-width: calc(240 * var(--u)); margin-top: calc(6 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
+.questframe { display: flex; flex-direction: column; min-width: calc(168 * var(--u)); max-width: calc(240 * var(--u)); margin-top: calc(6 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; }
 .quest-row { display: flex; flex-direction: column; gap: calc(1 * var(--u)); padding: calc(4 * var(--u)) 0; border-top: 1px solid var(--line); }
 .quest-row:first-child { border-top: none; }
 .quest-row.done { opacity: 0.6; }
@@ -194,23 +194,33 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .quest-row .quest-name { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .quest-row .quest-prog { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); color: var(--acc-dk); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .quest-row.done .quest-prog { color: var(--tier-2); }
+/* A completed quest with an ONGOING reward (Warm Embers' Shouts-used counter, Trail Rations' repeat countdown)
+   stays full-opacity + shows a live accent-coloured chip — it's active, not spent. */
+.quest-row.ongoing .quest-prog { color: var(--acc); }
 .quest-row .quest-sub { font-family: var(--font-ui); font-weight: 600; font-size: calc(10.5 * var(--u)); color: var(--ink3); line-height: 1.15; }
 
-/* Quest shop — the banner + the card-sized, tribe-hued, clickable quest offers (slot into the tavern `.row`). */
-.questbanner { display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: var(--acc-dk); margin-bottom: calc(8 * var(--u)); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55); }
-.questbanner svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); color: var(--acc); }
-.questcard { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); display: flex; flex-direction: column; gap: 6px; padding: 15px 12px 12px; text-align: left; border-radius: 13px; border: 2px solid var(--line); background: color-mix(in srgb, var(--c) 20%, var(--card)); box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); font-family: var(--font-ui); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
-.questcard:hover { transform: translateY(-6px); box-shadow: 0 0 0 4px var(--c), 0 12px 24px -6px rgba(20, 12, 4, 0.5), 0 0 26px -2px color-mix(in srgb, var(--c) 80%, transparent); }
-.questcard-cost { position: absolute; top: -18px; left: -14px; width: 54px; height: 54px; z-index: 3; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: flex; align-items: center; justify-content: center; gap: 1px; color: var(--mana-dk); box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
-.questcard-cost svg { width: 19px; height: 19px; }
-.questcard-cost span { font-family: var(--font-ui); font-weight: 900; font-size: 21px; }
-.questcard-tier { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 55%, var(--ink)); padding-left: 34px; min-height: 20px; } /* clear the 0-cost badge that overhangs the top-left corner */
-.questcard-name { font-family: var(--font-title); font-weight: 800; font-size: 22px; line-height: 1.04; color: var(--ink); }
-.questcard-sect { background: color-mix(in srgb, var(--card) 84%, transparent); border-radius: 9px; padding: 7px 9px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06); }
-.questcard-sect.reward { margin-top: auto; background: color-mix(in srgb, var(--acc) 13%, var(--card)); }
-.questcard-lbl { display: flex; align-items: center; gap: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); margin-bottom: 3px; }
-.questcard-lbl svg { width: 13px; height: 13px; color: var(--acc); }
-.questcard-txt { font-weight: 700; font-size: 15px; line-height: 1.2; color: var(--ink2); }
+/* Quest offer cards — the tribe-hued, clickable quest offers, shown in the Discover-style quest overlay. */
+/* Art-forward, tribe-framed offer card (matches the reference): a top tribe emblem, CRISP full-bleed art (no
+   wash-out — only a short top scrim for the title), dark inset objective/reward panels, and a bottom gem.
+   Slots into the tavern `.row`, a touch taller than a shop card. Layers: art(0) < top-scrim(1) < text(2) <
+   emblem/gem(5). */
+.questcard { position: relative; flex: 0 0 auto; width: var(--cw); height: calc(var(--cw) * 1.62); display: flex; flex-direction: column; text-align: left; padding: 0; border: none; border-radius: 15px; overflow: visible; background: radial-gradient(125% 85% at 50% 18%, color-mix(in srgb, var(--c) 24%, #14100c), #100b08); font-family: var(--font-ui); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 5px rgba(0, 0, 0, 0.5), 0 12px 26px -10px rgba(0, 0, 0, 0.75), 0 0 20px -6px color-mix(in srgb, var(--c) 55%, transparent); }
+.questcard:hover { transform: translateY(-8px); filter: brightness(1.05); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 6px rgba(0, 0, 0, 0.45), 0 18px 32px -10px rgba(0, 0, 0, 0.75), 0 0 42px -4px color-mix(in srgb, var(--c) 88%, transparent); }
+.questcard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: 13px; z-index: 0; }
+.questcard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: 13px 13px 0 0; background: linear-gradient(180deg, rgba(8, 6, 4, 0.74) 0%, rgba(8, 6, 4, 0.3) 46%, transparent 100%); z-index: 1; pointer-events: none; }
+/* Tribe emblem (top) + gem (bottom): tribe-hued, overhanging the frame. */
+.questcard-emblem { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; z-index: 5; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 50% 34%, #2c211a, #0e0a07); border: 3px solid var(--c); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5), 0 3px 9px rgba(0, 0, 0, 0.6), 0 0 16px -4px color-mix(in srgb, var(--c) 75%, transparent); }
+.questcard-emblem svg { width: 54%; height: 54%; color: var(--c); }
+.questcard-gem { position: absolute; bottom: -11px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 20px; height: 20px; z-index: 5; border-radius: 4px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 85%, #fff), var(--c) 46%, color-mix(in srgb, var(--c) 55%, #000)); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.55); }
+/* Head (tier·tribe + title) sits over the top of the art; body panels pin to the bottom. */
+.questcard-head { position: relative; z-index: 2; padding: 34px 14px 0; text-align: center; }
+.questcard-tier { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #fff); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.questcard-name { font-family: var(--font-title); font-weight: 800; font-size: 23px; line-height: 1.05; color: #fff; text-shadow: 0 2px 7px rgba(0, 0, 0, 0.8); margin-top: 3px; }
+.questcard-body { position: relative; z-index: 2; margin-top: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.questcard-sect { background: rgba(11, 8, 6, 0.82); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: 10px; padding: 8px 11px; }
+.questcard-lbl { display: flex; align-items: center; gap: 5px; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 72%, #fff); margin-bottom: 4px; }
+.questcard-lbl svg { width: 14px; height: 14px; color: var(--c); }
+.questcard-txt { font-weight: 700; font-size: 14.5px; line-height: 1.22; color: #f1ece3; }
 /* Per-round track (replaces the old fill bar): one dash per course round. A win prints a green ✓, a loss a
    red ✕; rounds not yet played show a faint dash, the current round a lit-orange dash. Setup rounds (1–2)
    read quieter and get a small gap after (marking where the scored climb begins). */
@@ -819,6 +829,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .disc-banner .disp { font-weight: 900; font-size: calc(30 * var(--u)); color: #5a3d12; letter-spacing: 0.03em; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
 .disc-gem { display: none; }   /* panel decorations — dropped now the panel is transparent */
 .disc-cards { display: flex; gap: calc(22 * var(--u)); justify-content: center; margin-top: calc(20 * var(--u)); }
+/* Quest overlay: reuses the Discover chrome (blur backdrop, floating transparent panel, gold banner, fixed
+   toggle). A subtitle under the banner + a little breathing room for the taller art-forward QuestCards. */
+.disc-sub { font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); color: #ece1c8; text-align: center; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.quest-ov-cards { margin-top: calc(15 * var(--u)); align-items: stretch; }
+/* The taller art-forward quest cards reach lower than a Discover row, so drop the toggle clear of them (it stays
+   pinned across minimize/return). Sits below the cards, above the player panel. */
+.quest-toggle { top: 75%; }
 /* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline) */
 .disc-slot { display: inline-flex; border-radius: var(--arch-radius); animation: discpulse 2s ease-in-out infinite; }
 @keyframes discpulse {

@@ -141,6 +141,20 @@ export function sellValueOf(card: BoardCard): number {
 }
 
 /**
+ * Turn a board minion Golden by doubling its **BASE** stats only — accrued buffs are NOT doubled. A buffed
+ * 10/10 built from a 3/4 base gilds to 6/8 + its +7/+6 buffs = 13/14, NOT 20/20. This matches a natural triple,
+ * whose golden keeps "the two highest copies' stats" (= two copies of base + the buffs). The 'Gild' buff records
+ * the +base so the inspect breakdown still itemizes it. Flips the golden flag (which doubles combat EFFECTS —
+ * Deathrattles twice, ×N multipliers). No-op if already golden. Shared by Eyes of Aresmar + Indy's Gild.
+ */
+export function gildMinion(card: BoardCard): void {
+  if (card.golden) return;
+  const def = CARD_INDEX[card.cardId];
+  addBuff(card, 'Gild', def?.attack ?? 0, def?.health ?? 0);
+  card.golden = true;
+}
+
+/**
  * Permanently enchant the **Fodder** card type run-wide by +a/+h (Ritualist's End of Turn, Bane's
  * battlecry trigger). Bumps the persistent per-cardId run buff for every Fodder def — so future copies
  * from any source (tavern, summon, Discover, conjure) carry it — and applies it to the Fodder already on
@@ -332,7 +346,7 @@ export function improveClingDrones(state: RunState, times: number): void {
  * (Ritualist), leaves the shared pool (`takeFromPool`), and respects the hand cap. No-op on an
  * empty pool. Mirrors `battlecryGainRandomMinion`'s conjure path.
  */
-function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
+export function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
   if (pool.length === 0) return;
   const rng = makeRng(state.rngCursor);
   for (let i = 0; i < reps && state.hand.length < CONFIG.handMax; i++) {
@@ -941,15 +955,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Eyes of Aresmar — cast: make the targeted minion Golden (like Oner's Gild), but only if its
-   *  card tier is ≤ the spell's `targetMaxTier`. Doubles current stats via a tracked 'Gild' buff +
-   *  flips golden. The cap is read from the spell def via `_maxTier` (injected by applyCastEffects). */
+   *  card tier is ≤ the spell's `targetMaxTier`. Doubles the BASE stats via a tracked 'Gild' buff (accrued
+   *  buffs are NOT doubled — see `gildMinion`) + flips golden. Cap read from the spell def via `_maxTier`. */
   spellGildTarget: (ctx, self, params) => {
-    if (self.golden) return;
     const limit = num(params._maxTier, CONFIG.maxTier);
     const targetTier = CARD_INDEX[self.cardId]?.tier ?? 1;
-    if (targetTier > limit) return;
-    addBuff(self, 'Gild', self.attack, self.health);
-    self.golden = true;
+    if (self.golden || targetTier > limit) return;
+    gildMinion(self);
   },
 
   /** Tribes Choice — cast: conjure a random buyable minion sharing the *target's* tribe, tier ≤ the
@@ -1678,6 +1690,19 @@ function drummerRepeats(state: RunState): number {
   return bestCopyRepeats(state, 'drummer');
 }
 
+/** Fire-count for a freshly PLAYED Battlecry ("shout"): Drakko's repeats PLUS Warm Embers' one-shot double
+ *  while its charges last — consuming one charge. Applies ONLY to real plays (playCard / applyBattlecryTarget),
+ *  NOT Myra/Ryme re-fires or combat mirrors (which call `drummerRepeats` directly). A non-Battlecry card never
+ *  consumes a charge (guarded by the onPlay check), so it's safe to call for every played minion. */
+function playedShoutRepeats(state: RunState, def: CardDef): number {
+  const base = drummerRepeats(state);
+  if ((state.shoutDoubleCharges ?? 0) > 0 && def.effects.some((e) => e.on === 'onPlay')) {
+    state.shoutDoubleCharges! -= 1;
+    return base + 1;
+  }
+  return base;
+}
+
 /** How many times End-of-Turn effects fire this turn: 1, +1 per Chronos (best one only — golden Chronos
  *  adds 2, no stacking). Internal — external callers (the UI's End-Turn beats) use `endOfTurnRepeats`,
  *  which folds in Chrono Staff's one-shot extra. */
@@ -1757,7 +1782,8 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
   const ctx = makeContext(state);
   const def = CARD_INDEX[card.cardId];
   if (!def) return;
-  const repeats = drummerRepeats(state);
+  // Warm Embers doubles this played (targeted) Shout while charged; Drakko still stacks on top.
+  const repeats = playedShoutRepeats(state, def);
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
@@ -1811,7 +1837,7 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
       keywords: [...def.keywords, ...(offer.keywords ?? []).filter((k) => !def.keywords.includes(k))],
       golden: offer.golden ?? false,
     };
-    if (incoming.golden) { incoming.attack *= 2; incoming.health *= 2; } // goldens store doubled stats (like Gild)
+    if (incoming.golden) { incoming.attack += def.attack; incoming.health += def.health; } // golden doubles BASE only (offer buffs single)
   }
   state.board[bi] = incoming;
   // The displaced minion → the tavern, its FULL state stashed on the offer (restored on buy / swap-back).
@@ -1914,7 +1940,7 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
   let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA;
   let health = def.health + cb.health + (offer.hp ?? 0) + staffH;
-  if (offer.golden) { attack *= 2; health *= 2; } // Golden Touch: a gilded offer is worth double, like on buy
+  if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild
   return { attack, health };
 }
 
@@ -2082,8 +2108,8 @@ export function playCard(state: RunState, played: BoardCard): void {
   // Targeted Battlecry (Toxin Tender): the player picks the friendly target next — deferred to
   // `applyBattlecryTarget` (the reducer sets `pendingTarget`). onSummon already fired above.
   if (def.target === 'friendly') return;
-  // Drakko the Drummer makes Battlecries fire extra times (golden triples; no stacking).
-  const repeats = drummerRepeats(state);
+  // Drakko the Drummer makes Battlecries fire extra times; Warm Embers doubles the next few played Shouts.
+  const repeats = playedShoutRepeats(state, def);
   const hasBattlecry = def.effects.some((e) => e.on === 'onPlay');
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;

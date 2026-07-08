@@ -307,20 +307,29 @@ export interface DiscoverOnPlay {
 // ── Quests ───────────────────────────────────────────────────────────────────────────────────────────────
 /** A quest's tier — one per quest-turn: wave 4 = lesser, wave 8 = greater, wave 12 = capstone. */
 export type QuestTier = 'lesser' | 'greater' | 'capstone';
-/** The player action a quest objective counts. Skinny set (recruit actions) — grows as objectives expand. */
-export type QuestObjectiveEvent = 'buy' | 'play' | 'sell' | 'roll';
-/** A quest objective: reach `count` of `event`. Live progress lives on the run's `ActiveQuest`, not here. */
+/** The player action a quest objective counts. `summon` counts every minion that ENTERS your board (plays
+ *  PLUS tokens from Shouts/Echoes); `shout` counts Battlecry minions you play. Grows as objectives expand. */
+export type QuestObjectiveEvent = 'buy' | 'play' | 'sell' | 'roll' | 'summon' | 'shout';
+/** A quest objective: reach `count` of `event`. `tribe` narrows a `summon` objective to one tribe (e.g.
+ *  "Summon 4 Undead"). Live progress lives on the run's `ActiveQuest`, not here. */
 export interface QuestObjective {
   event: QuestObjectiveEvent;
   count: number;
+  tribe?: Tribe;
 }
-/** What a completed quest grants. Skinny set (one flat board buff) — grows into the full reward palette. */
-export type QuestRewardKind = 'buffBoard';
-export interface QuestReward {
-  kind: QuestRewardKind;
-  attack: number;
-  health: number;
-}
+/**
+ * What a completed quest grants — a discriminated union; the reward palette grows as content lands:
+ *  - `buffBoard`   — a flat +atk/+hp to the whole board.
+ *  - `grant`       — conjure cards to hand: `randomCount` random minions of `randomTribe`, plus every id in
+ *                    `cards` (e.g. a Gold Pouch). `repeatInTurns` re-applies the WHOLE reward once, that many
+ *                    recruit-turns later (Trail Rations' "repeat in 2 turns").
+ *  - `shoutDouble` — your next `count` Shouts (Battlecry minions you play) each trigger twice (Warm Embers).
+ */
+export type QuestReward =
+  | { kind: 'buffBoard'; attack: number; health: number }
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; cards?: string[]; repeatInTurns?: number }
+  | { kind: 'shoutDouble'; count: number };
+export type QuestRewardKind = QuestReward['kind'];
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
  *  build-agnostic slot offered every quest-turn. Objective/reward display text is DERIVED from this data. */

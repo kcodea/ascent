@@ -204,9 +204,9 @@ export const UNDEAD: CardDef[] = [
     attack: 4,
     health: 7,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeSummonAttack', params: { count: 3, cardId: 'knit' } }],
-    text: '**Avenge (3):** summon a **Spear Warden**. It attacks immediately.',
-    goldenText: '**Avenge (3):** summon a **Golden Spear Warden**. It attacks immediately.',
+    effects: [{ on: 'avenge', do: 'avengeSummonAttack', params: { count: 4, cardId: 'knit' } }],
+    text: '**Avenge (4):** summon a **Spear Warden**. It attacks immediately.',
+    goldenText: '**Avenge (4):** summon a **Golden Spear Warden**. It attacks immediately.',
   },
   {
     // Dual-type Undead/Beast. Deathrattle: summon 3 Crypt Wolves (1/1 undead beasts). Golden

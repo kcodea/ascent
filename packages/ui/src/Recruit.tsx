@@ -241,6 +241,7 @@ export function Recruit() {
   // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
+  const setCombatQuestDelta = useGame((s) => s.setCombatQuestDelta);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
@@ -604,6 +605,12 @@ export function Recruit() {
   useEffect(() => {
     setCombatEnemyDeaths(inCombat && !run.combatSettled ? replay.enemyDeaths : 0);
   }, [inCombat, run.combatSettled, replay.enemyDeaths, setCombatEnemyDeaths]);
+  // Bridge this fight's live combat quest progress to the store so the QuestPanel ticks combat objectives up as
+  // the replay plays. Cleared to `null` once SETTLED — settleCombat folds the tally into the run's quest
+  // progress, so the panel then reads it from there (adding the live delta too would briefly double-count).
+  useEffect(() => {
+    setCombatQuestDelta(inCombat && !run.combatSettled ? replay.questDelta : null);
+  }, [inCombat, run.combatSettled, replay.questDelta, setCombatQuestDelta]);
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).

@@ -1,8 +1,21 @@
 import { useState } from 'react';
+import type { QuestObjective } from '@game/core';
 import { QUEST_INDEX } from '@game/content';
 import { Icon } from './Icon';
 import { questObjectiveText, questProgressText, questRewardText } from './questText';
-import { useGame } from './store';
+import { useGame, type CombatQuestDelta } from './store';
+
+/** Live combat progress for a quest objective (during the replay), mirroring the reducer's `combatEventCount`. */
+function combatDeltaFor(o: QuestObjective, d: CombatQuestDelta | null): number {
+  if (!d) return 0;
+  switch (o.event) {
+    case 'deathrattle': return d.deathrattle;
+    case 'attack': return o.tribe ? (d.attackByTribe[o.tribe] ?? 0) : d.attack;
+    case 'summonCombat': return o.tribe ? (d.summonCombatByTribe[o.tribe] ?? 0) : d.summonCombat;
+    case 'slaughter': return o.tribe ? (d.slaughterByTribe[o.tribe] ?? 0) : d.slaughter;
+    default: return 0;
+  }
+}
 
 /**
  * Active-quests window (top-left, under the Buffs frame) — the quests you've taken this run + their LIVE
@@ -10,6 +23,7 @@ import { useGame } from './store';
  */
 export function QuestPanel() {
   const run = useGame((s) => s.run);
+  const combatQuestDelta = useGame((s) => s.combatQuestDelta); // live combat progress during the replay (null otherwise)
   const [collapsed, setCollapsed] = useState(false);
   const quests = (run.activeQuests ?? []).filter((aq) => QUEST_INDEX[aq.questId]);
   if (quests.length === 0) return null;
@@ -31,7 +45,10 @@ export function QuestPanel() {
             // The right-hand chip: objective progress while IN PROGRESS; once complete, the reward's LIVE ongoing
             // state — Warm Embers' Shouts used ("0/2 used"), Trail Rations' repeat countdown ("↻ 2t"), else a ✓
             // for a one-shot reward that already fired.
-            let chip = questProgressText(aq.progress, def.objective, aq.completed);
+            // While a fight replays, fold in the live combat delta so combat objectives tick up in real time
+            // (matches the settled tally exactly). Cleared to null at settle, when run progress takes over.
+            const liveProgress = aq.completed ? aq.progress : aq.progress + combatDeltaFor(def.objective, combatQuestDelta);
+            let chip = questProgressText(liveProgress, def.objective, aq.completed);
             let ongoing = false;
             if (aq.completed) {
               if (r.kind === 'shoutDouble') { chip = `${r.count - charges}/${r.count} used`; ongoing = charges > 0; }

@@ -711,6 +711,30 @@ export function useCombatReplay(
   // accumulation as `enemyDeaths`.
   const combatBuffs = useMemo(() => combatBuffDelta(events, processedEnd), [events, processedEnd]);
 
+  // Combat quest progress landed so far this fight — for the quest panel to LIVE-TICK. Counts the engine's
+  // step-tagged `playerQuestEvents` up to the current step (= the last processed event's step), so it agrees
+  // exactly with the settled tally. Same shape as `playerQuestTally` (total + by-tribe per kind).
+  const questDelta = useMemo(() => {
+    const d = {
+      attack: 0, summonCombat: 0, slaughter: 0, deathrattle: 0,
+      attackByTribe: {} as Partial<Record<Tribe, number>>,
+      summonCombatByTribe: {} as Partial<Record<Tribe, number>>,
+      slaughterByTribe: {} as Partial<Record<Tribe, number>>,
+    };
+    const qe = combat?.playerQuestEvents;
+    if (!qe || processedEnd <= 0) return d;
+    const curStep = events[processedEnd - 1]?.step ?? Infinity;
+    for (const e of qe) {
+      if (e.step > curStep) continue; // not replayed yet
+      d[e.kind] += 1;
+      if (e.kind !== 'deathrattle') {
+        const by = e.kind === 'attack' ? d.attackByTribe : e.kind === 'summonCombat' ? d.summonCombatByTribe : d.slaughterByTribe;
+        for (const t of e.tribes) by[t] = (by[t] ?? 0) + 1;
+      }
+    }
+    return d;
+  }, [combat, events, processedEnd]);
+
   // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit
   // collapses its own flex slot AS it plays its death pop, so the survivors glide in simultaneously
   // (one smooth phase) instead of waiting a beat and then sliding. CSS flex animates the neighbours for
@@ -781,6 +805,6 @@ export function useCombatReplay(
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     triggerUids: triggers,
     done, result: combat ? combat.result : null, shaking,
-    beatCount: beats.length, enemyDeaths, combatBuffs, skip: () => setBeatIdx(beats.length),
+    beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, skip: () => setBeatIdx(beats.length),
   };
 }

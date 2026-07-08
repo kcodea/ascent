@@ -635,6 +635,10 @@ export interface CombatResult {
   /** The Old Hunt: run-wide Beast Attack aura gained this combat (step × Beast attacks). Stacks into
    *  `beastBuyAtk` + applied to existing run-board Beasts in settleCombat. Absent if 0. */
   playerBeastBuyAtkGain?: number;
+  /** Step-tagged timeline of combat quest-objective ticks (one per increment) so the UI can LIVE-TICK quest
+   *  progress during the replay: an entry with `step` ≤ the replay's current step is already counted. `tribes`
+   *  narrows tribe-scoped objectives ("…with Beasts"); deathrattle (Echo) entries carry no tribe. */
+  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle'; tribes: Tribe[] }[];
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
   /** Per-instance state to persist on the run board after combat, keyed by the board

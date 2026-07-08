@@ -219,10 +219,23 @@ export function simulate(
     return [m.tribe, m.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
   };
   const byTribeMap = { attack: questTally.attackByTribe, summonCombat: questTally.summonCombatByTribe, slaughter: questTally.slaughterByTribe };
+  // Per-tick timeline (step-tagged) so the UI can LIVE-TICK quest progress during the replay — one entry per
+  // objective increment. `tribes` lets the panel narrow ("…with Beasts"); an entry with step ≤ the replay's
+  // current step is "already counted". Deathrattle (Echo) entries carry no tribe (the Echo objective is
+  // tribe-agnostic). Carried back via `CombatResult.playerQuestEvents`.
+  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle'; tribes: Tribe[] }[] = [];
   const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {
+    const tribes = tribesFor(m);
     questTally[kind] += 1;
     const by = byTribeMap[kind];
-    for (const t of tribesFor(m)) by[t] = (by[t] ?? 0) + 1;
+    for (const t of tribes) by[t] = (by[t] ?? 0) + 1;
+    questEvents.push({ step: stepN, kind, tribes });
+  };
+  // Player Deathrattle triggers (Echo objective + Grim tally) — increment + record for the live-tick timeline.
+  const bumpDeathrattles = (n: number): void => {
+    if (n <= 0) return;
+    playerDeathrattles += n;
+    for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'deathrattle', tribes: [] });
   };
   const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe;
 
@@ -333,7 +346,7 @@ export function simulate(
     countDeathrattle: (side) => {
       // A Deathrattle triggered WITHOUT a death (Sporeling's Battlecry proc) still counts toward the tally
       // that feeds Grim + the run's deathrattlesTriggered (carried back via playerDeathrattles).
-      if (side === 'player') playerDeathrattles++;
+      if (side === 'player') bumpDeathrattles(1);
     },
     grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
@@ -597,7 +610,7 @@ export function simulate(
     for (let r = 0; r < reaperBonus; r++) fireOnce();
     // Sylus re-triggers count as extra Echo triggers (Reborn / Echoing Coop). The caller already counted the
     // base trigger; add the reaper extras (player + has-a-Deathrattle only). See the death-path note above.
-    if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles += reaperBonus;
+    if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(reaperBonus);
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
@@ -613,7 +626,7 @@ export function simulate(
       minion.rebornAvailable = false;
       // It really died: proc the unit's own Deathrattle / on-death effects (each death procs them) BEFORE the
       // body returns — so the Whelp's spawn + the Eternal Knight's +3/+2 land per death, not just on the last.
-      if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles++;
+      if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(1);
       // Rise = die → Deathrattle → return to the RIGHT of what it summoned (owner ruling 2026-07-06). The body
       // genuinely LEAVES its slot FIRST — flag it dead + emit a `death` (marked `rise`) so the replay shows the
       // removal before the rattle, then the rattle's summons fill the vacated slot, then the Rise re-inserts to
@@ -679,7 +692,7 @@ export function simulate(
     if (minion.side === 'enemy') enemyDeaths++;
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
     const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
-    if (minion.side === 'player' && hasDeathrattle) playerDeathrattles++;
+    if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(1);
     nextStep(); // Deathrattles + on-death watchers resolve as their own step
     bus.emit('onDeath', { minion, side: minion.side, killer });
     // Sylus the Reaper: the dying minion's own Deathrattle procs extra times (golden = +2;
@@ -695,7 +708,7 @@ export function simulate(
     // Each Sylus RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the
     // Echoing Coop objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added
     // after the re-fires so all firings read the same tally value (the value at death), only the count grows.
-    if (minion.side === 'player' && hasDeathrattle) playerDeathrattles += reaperBonus;
+    if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(reaperBonus);
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
@@ -1026,7 +1039,7 @@ export function simulate(
       if (minion.dead || minion.health <= 0 || !minion.effects.some((e) => e.on === 'onDeath')) continue;
       nextStep();
       emit({ type: 'sc', source: minion.uid, text: 'Echo' });
-      playerDeathrattles++; // an Echo trigger — feeds Grim + the run's Deathrattle tally like any Deathrattle
+      bumpDeathrattles(1); // an Echo trigger — feeds Grim + the run's Deathrattle tally like any Deathrattle
       fireOwnDeathrattles(minion); // fires once + once per Sylus (golden ×2)
     }
   }
@@ -1155,6 +1168,7 @@ export function simulate(
     playerDeathrattles,
     enemyDeaths,
     playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0) ? questTally : undefined,
+    playerQuestEvents: questEvents.length > 0 ? questEvents : undefined,
     playerBeastBuyAtkGain: beastBuyAtkGain > 0 ? beastBuyAtkGain : undefined,
     initial,
     playerSummonBonus,

@@ -4619,6 +4619,30 @@ describe('quests (M3 framework)', () => {
     expect(s.activeQuests![0]!.progress).toBe(2);
   });
 
+  it('shout-repeat rewards stack ADDITIVELY with Drakko + each other + themselves (owner ruling 2026-07-08)', () => {
+    // `lastShoutFires` is how many times the played Battlecry fired — the additive total across every source.
+    const penny = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+    // Drakko (drummer) + Warm Embers (first Shout each round triggers twice): first Shout = 1 + 1(Drakko) + 1(WE) = 3.
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', shoutFirstDoubleEachRound: true,
+      board: [{ uid: 'd', cardId: 'drummer', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false }],
+      hand: [penny('p1')],
+    };
+    s = reduce(s, { type: 'play', uid: 'p1' });
+    expect(s.lastShoutFires).toBe(3);
+
+    // Golden Drakko (+2) + Hoardwake ×1 (+1 always) + Warm Embers (+1 first): first = 1+2+1+1 = 5; next = 1+2+1 = 4.
+    let t: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', shoutFirstDoubleEachRound: true, shoutExtraAlways: 1,
+      board: [{ uid: 'd', cardId: 'drummer', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: true }],
+      hand: [penny('p1'), penny('p2')],
+    };
+    t = reduce(t, { type: 'play', uid: 'p1' });
+    expect(t.lastShoutFires).toBe(5); // first Shout this round
+    t = reduce(t, { type: 'play', uid: 'p2' });
+    expect(t.lastShoutFires).toBe(4); // consecutive Shout (no Warm Embers freebie)
+  });
+
   it('Drakko the Drummer makes a played Shout count TWICE toward a Shout objective', () => {
     let s: RunState = {
       ...createRun(1), tier: 6, phase: 'recruit',

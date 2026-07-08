@@ -34,8 +34,28 @@ phase; combat-gain copy is a follow-up).
 stat-diff, Hoardwake shout-repeat, Skybound Archivist EoT, Taragosa's Heir every-3rd; Warm-Embers shout tests
 retargeted to the new Shout-trigger objective).
 
-**Remaining (this feature):** the **combat quest panel + live-tick** UI (show active quests during the fight and
-animate combat-objective progress as the replay plays) — next commit on this branch.
+### feat(ui): combat quest panel live-tick + additive doubler stacking verified
+
+Follow-up on the Dragon quests: the quest panel now **live-ticks combat objectives during the replay**, and the
+"trigger more times" reward stacking is confirmed additive (owner ruling 2026-07-08).
+
+- **Live-tick.** `simulate()` records a step-tagged timeline of every combat quest tick
+  (`CombatResult.playerQuestEvents`: one entry per attack / summonCombat / slaughter / deathrattle, with the
+  acting minion's tribes). `useCombatReplay` folds the timeline up to the current replay step into a `questDelta`
+  (same shape as the tally, so it matches the settled total EXACTLY — no jump), bridged to the store
+  (`combatQuestDelta`) like the existing enemy-death / buff bridges; the QuestPanel adds it to each objective's
+  progress while a fight plays, then clears at settle. The panel already rendered in combat (in-place fights).
+  Refactored the 6 `playerDeathrattles` increment sites through a `bumpDeathrattles` helper so the Echo timeline
+  is recorded in one place.
+- **Additive stacking (owner ruling).** Any Shout/Rally/EoT reward that "triggers an extra time" stacks ADDITIVELY
+  with Drakko / Chronos (and each other, and itself). Confirmed the shout path already does this
+  (`playedShoutRepeats` = base + Drakko + `shoutExtraAlways` + first-each-round + charges): Drakko + Warm Embers =
+  3 fires for the first Shout; golden Drakko + Hoardwake + Warm Embers = 5 first / 4 consecutive — locked by a
+  test. Rally (Law of Teeth + Rallying Offensive) and EoT (Chronos + Parliament via `endOfTurnRepeats`) are
+  additive too.
+
+**Verified:** typecheck + lint + build:web clean; **680 tests pass** (+ the additive-stacking + `playerQuestEvents`
+timeline tests). Live: the QuestPanel folds the combat delta (Blood Trail reads 2/2 = pre-combat 1 + combat 1).
 
 ### balance(content): Patch Job gains a +3/+3 baseline
 

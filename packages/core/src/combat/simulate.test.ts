@@ -2308,6 +2308,18 @@ describe('combat-phase quest tallies', () => {
     expect(triggers(true)).toBe(2); // Sylus re-fire counts as a second TRIGGER (not a second death)
   });
 
+  it('playerQuestEvents (live-tick timeline) totals match the settled tally, and are step-ordered', () => {
+    const p: BoardMinion[] = [{ cardId: 'alley', attack: 10, health: 10 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }];
+    const r = simulate(p, e, makeRng(1), CARD_INDEX);
+    const ev = r.playerQuestEvents ?? [];
+    const count = (k: string): number => ev.filter((x) => x.kind === k).length;
+    expect(count('attack')).toBe(r.playerQuestTally!.attack); // every timeline entry sums to the settled tally
+    expect(count('slaughter')).toBe(r.playerQuestTally!.slaughter);
+    expect(count('deathrattle')).toBe(r.playerDeathrattles);
+    for (let i = 1; i < ev.length; i++) expect(ev[i]!.step).toBeGreaterThanOrEqual(ev[i - 1]!.step); // step-ordered
+  });
+
   it('The Old Hunt (questMods.oldHuntStep): each Beast attack pumps the Beast aura, carried back', () => {
     const p: BoardMinion[] = [{ cardId: 'alley', attack: 3, health: 40 }]; // survives to attack several times
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 30 }];

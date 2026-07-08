@@ -324,6 +324,6 @@ export const NEUTRAL: CardDef[] = [
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyCastRandomStatSpell' }],
-    text: '**Rally:** cast a random stat spell on a random friend, then add a copy of this to your hand.',
+    text: '**Rally:** cast a random stat spell on a random friend, then add a copy of **that spell** to your hand.',
   },
 ];

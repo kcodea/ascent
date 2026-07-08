@@ -193,15 +193,25 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
   });
 
-  it('Spell Drummer Rally casts a random stat spell + copies itself to hand', () => {
+  it('Spell Drummer Rally casts a random stat spell, procs spell reactions, copies THAT spell to hand', () => {
     const p: BoardMinion[] = [
-      { cardId: 'spelldrummer', attack: 3, health: 30 },
-      { cardId: 'sandbag', attack: 0, health: 30 },
+      { cardId: 'spelldrummer', attack: 3, health: 40 },
+      { cardId: 'guel', attack: 4, health: 40 }, // Archmagus Guel reacts to spell casts (spellCastBuffOthers)
+      { cardId: 'sandbag', attack: 0, health: 40 },
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 40 }];
     const r = run(p, e, 7);
-    expect(r.playerHandGrants).toContain('spelldrummer'); // "get a copy of this added to your hand"
-    expect(r.events.some((ev) => ev.type === 'buff')).toBe(true); // a random stat spell landed on a friend
+    // The copy added to hand is the CAST SPELL (a stat spell), not Spell Drummer itself.
+    expect(r.playerHandGrants?.length ?? 0).toBeGreaterThan(0);
+    expect(r.playerHandGrants).not.toContain('spelldrummer');
+    expect(
+      r.playerHandGrants?.every((id) => {
+        const d = CARD_INDEX[id];
+        return !!d?.spell && d.effects.some((ef) => ef.do === 'spellBuffTarget' || ef.do === 'spellBuffAll');
+      }),
+    ).toBe(true);
+    // It's a REAL cast, so Guel's spellCast reaction fires in combat (+1/+1 on the first cast — no stat spell is +1/+1).
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
   });
 
   it('Spark Capacitor Avenge (4) casts a random stat spell on a friendly Mech', () => {

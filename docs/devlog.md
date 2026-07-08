@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### fix(content): Spell Drummer casts a REAL spell (procs spell reactions) + copies the SPELL, not itself
+
+Owner correction: Spell Drummer's Rally now (a) fires `ctx.castSpell` after buffing — so the cast procs
+in-combat spell reactions (Archmagus Guel, Forsaken Weaver, Spirit Pup transform…) and counts toward the run's
+spells — and (b) adds a copy of the **cast spell** to hand, not a copy of Spell Drummer itself (`randomStatSpellBuff`
+now returns the picked `spellId`; `grantToHand(spellId)`). Applied the same `ctx.castSpell` fire to the other two
+combat spell-casts (Hoardbreaker Drake, Spark Capacitor) — they "cast a spell" too, so they should proc reactions.
+Test now boards an Archmagus Guel and asserts its +1/+1 reaction fires + the hand copy is a stat spell. Suite green (623).
+
 ### feat(content): new-minions batch — wave 4 (3 cards: play-counter pair + Graverobber)
 
 The "Beasts/minions played this turn" subsystem + a sac-for-value Undead. Branch `feat/new-minions-wave4`; full

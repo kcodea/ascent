@@ -118,7 +118,7 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
 /** Pick a random stat-granting Tavern spell (spellBuffTarget / spellBuffAll) and return its buff with combat
  *  spell power folded in and scaled by `scale` (golden). Returns null if the pool is empty or the picked spell
  *  grants nothing. Used by the combat spell-cast cards (Spell Drummer, Spark Capacitor). */
-function randomStatSpellBuff(ctx: CombatContext, scale: number): { attack: number; health: number } | null {
+function randomStatSpellBuff(ctx: CombatContext, scale: number): { spellId: string; attack: number; health: number } | null {
   const pool = ctx
     .allCards()
     .filter((c) => c.spell && !c.singleCast && c.effects.some((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll'));
@@ -127,7 +127,7 @@ function randomStatSpellBuff(ctx: CombatContext, scale: number): { attack: numbe
   const eff = spell.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll')!;
   const attack = (num(eff.params?.attack, 0) + ctx.spellPower.attack) * scale;
   const health = (num(eff.params?.health, 0) + ctx.spellPower.health) * scale;
-  return attack > 0 || health > 0 ? { attack, health } : null;
+  return attack > 0 || health > 0 ? { spellId: spell.id, attack, health } : null;
 }
 
 /**
@@ -313,20 +313,25 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a <= 0 && h <= 0) return;
     const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
     for (const t of targets) ctx.buff(t, a, h, self.uid);
+    ctx.castSpell(self.side); // "cast Growth" is a real spell cast — proc in-combat spell reactions + count it
   },
 
   /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,
-   *  golden-scaled), then add a copy of THIS minion to your hand (carried back via `playerHandGrants`). */
+   *  golden-scaled). It's a REAL cast — fires in-combat spell reactions (Guel, Forsaken Weaver…) — then adds a
+   *  copy of THAT SPELL to your hand (carried back via `playerHandGrants`). */
   rallyCastRandomStatSpell: (ctx, self, _params, payload) => {
     if ((payload as { minion?: Minion }).minion !== self) return;
     const friends = ctx.living(self.side);
-    const buff = friends.length > 0 ? randomStatSpellBuff(ctx, mul(self)) : null;
-    if (buff) ctx.buff(ctx.rng.pick(friends), buff.attack, buff.health, self.uid);
-    ctx.grantToHand(self.cardId, self.side, self.uid); // "get a copy of this added to your hand"
+    if (friends.length === 0) return;
+    const pick = randomStatSpellBuff(ctx, mul(self));
+    if (!pick) return;
+    ctx.buff(ctx.rng.pick(friends), pick.attack, pick.health, self.uid); // cast the stat spell on a random friend
+    ctx.castSpell(self.side); // proc in-combat spell reactions (Guel, Forsaken Weaver, Spirit Pup…) + count it
+    ctx.grantToHand(pick.spellId, self.side, self.uid); // add a copy of THAT spell to your hand
   },
 
   /** Spark Capacitor — Avenge (N): cast a random stat spell on your lowest-Health friendly Mech (its buff +
-   *  combat spell power, golden-scaled). */
+   *  combat spell power, golden-scaled). A real cast — fires in-combat spell reactions + counts. */
   avengeCastRandomStatSpell: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
@@ -337,8 +342,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       .filter((m) => m.tribe === 'mech' || m.tribe2 === 'mech' || ctx.getCard(m.cardId)?.universalTribe);
     if (mechs.length === 0) return;
     const target = mechs.reduce((a, b) => (b.health < a.health ? b : a)); // lowest Health
-    const buff = randomStatSpellBuff(ctx, mul(self));
-    if (buff) ctx.buff(target, buff.attack, buff.health, self.uid);
+    const pick = randomStatSpellBuff(ctx, mul(self));
+    if (!pick) return;
+    ctx.buff(target, pick.attack, pick.health, self.uid);
+    ctx.castSpell(self.side); // a real spell cast — proc in-combat spell reactions + count it
   },
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).

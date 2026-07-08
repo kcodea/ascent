@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Beast quests — the first fully authored tribe.** All 11 Beast quests (lesser/greater/capstone) + 3 reward
+  cards (Trail Forager, Trophy Stalker, Feed the Alpha) + art. Introduces **combat-phase objectives** (attack /
+  summon-in-combat / slaughter / Echo, tallied inside `simulate()` and applied after the fight) and a big reward
+  palette: persistent + scaling "wherever they are" tribe auras, recurring end-of-turn grants, keyword-stamped
+  grants, and run-wide combat flags (Blood Trail, Echoing Coop, Law of Teeth, The Old Hunt).
 - **Choreography panel fixes** — the ▶ Preview effects now draw **in front of** the panel (the FX layers are
   lifted above it while it's open) instead of behind it, and timeline lanes whose anchor can't fire before its
   moment (`start` cues) grey out their negative side so the limitation reads at a glance.

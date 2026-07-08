@@ -1324,6 +1324,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Trophy Stalker — Rally: like `rallyTribeAura`, but the grant GROWS by `step` each of its own attacks. The
+   *  accrued growth rides in `summonBonus` (the Kennelmaster per-instance field — snapshotted + carried back, so
+   *  it keeps climbing across combats). Grant = (base + summonBonus) × golden; then bump summonBonus by `step`.
+   *  Beasts on board buffed now + those summoned later inherit it (`addTribeAura`). */
+  rallyTribeAuraGrowing: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
+    const step = num(params.step, 1);
+    const a = (num(params.attack, 3) + self.summonBonus) * mul(self);
+    const h = (num(params.health, 3) + self.summonBonus) * mul(self);
+    if (a > 0 || h > 0) {
+      ctx.addTribeAura(self.side, tribe, a, h, self.uid);
+      for (const m of ctx.living(self.side)) {
+        if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+      }
+    }
+    self.summonBonus += step; // "improve whenever it attacks" — the next attack grants more (live text reads this)
+  },
+
   /** Bloodbinder — Rally (on its own attack): give another friendly Demon Attack equal to THIS minion's current
    *  Attack (a golden Bloodbinder has double Attack, so it hands out double). Random pick among the other Demons. */
   rallyGiveDemonAttack: (ctx, self, _params, payload) => {

@@ -83,6 +83,36 @@ export const BEASTS: CardDef[] = [
     goldenText: '**Rally:** get **2** random spells. **Slaughter:** get **2** random spells.',
   },
   {
+    // Quest reward (Forager's Trail): a sticky value bank — its sell price climbs +1 Gold per Beast you play.
+    // `token: true` keeps it out of the shop pool + the "random Beast" grants (it's reward-exclusive). No combat
+    // effect; the live sell value surfaces via cardText's trailForagerText on every surface.
+    id: 'trailforager',
+    name: 'Trail Forager',
+    tribe: 'beast',
+    tier: 2,
+    attack: 1,
+    health: 4,
+    keywords: [],
+    token: true,
+    effects: [],
+    text: 'This sells for **2g**. Increase the value by **1g** for every Beast you play.',
+  },
+  {
+    // Quest reward (Trophy Den): a Rally snowball — each of its attacks gives your Beasts a GROWING +N/+N aura
+    // (wherever they are), improving +1/+1 every time it attacks (the grown value rides in summonBonus, so it
+    // keeps climbing across combats). `token: true` = reward-exclusive. Live grant via cardText's summonBuffText.
+    id: 'trophystalker',
+    name: 'Trophy Stalker',
+    tribe: 'beast',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: ['RL'],
+    token: true,
+    effects: [{ on: 'onAttack', do: 'rallyTribeAuraGrowing', params: { tribe: 'beast', attack: 3, health: 3, step: 1 } }],
+    text: '**Rally:** give your Beasts **+3/+3** wherever they are. Improve this whenever Trophy Stalker attacks.',
+  },
+  {
     // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.
     id: 'grim',
     name: 'Grim',

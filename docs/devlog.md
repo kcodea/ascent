@@ -5,6 +5,66 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(content): Beast quests — the first fully authored tribe (11 quests + 3 reward cards + combat-objective engine)
+
+The whole Beast quest set, per the owner's 2026-07-08 spec — and the engine work the richer objectives/rewards
+demanded. Branch `feat/beast-quests`. Turn schedule unchanged (lesser@4, greater@8, capstone@12 — owner ruled
+turn-12 stays capstone-only). Kevin owns core/content/sim, so this is all in-lane.
+
+**The 11 Beast quests (replacing the LESSER/GREATER/CAPSTONE Beast `Test ·` placeholders; other tribes keep their
+tests until authored):**
+- *Lesser* — **Forest Grove** (Summon 4 Beasts → random Beast, repeats in 2), **Blood Trail** (Slaughter 2 →
+  Blood Trail combat flag), **Den Marker** (Summon 8 in combat → Beasts +3 Atk aura), **Forager's Trail** (Buy 4
+  Beasts → Trail Forager).
+- *Greater* — **Apex Hunt** (Slaughter 6 w/ Beasts → a Badgington with Flurry+Ward), **Pack Mentality** (Summon 14
+  Beasts in combat → +3/+1 scaling aura, improves every 5 combat-summons), **Trophy Den** (Attack 12× w/ Beasts →
+  Trophy Stalker), **Feed the Alpha** (Sell 9 → a Feed the Alpha spell each End of Turn).
+- *Capstone* — **Law of Teeth** (Slaughter 14 w/ Beasts → Beast Slaughters & Rallies fire an extra time), **The
+  Old Hunt** (Attack 20× w/ Beasts → each Beast attack pumps the Beast Attack aura +7), **Echoing Coop** (Trigger
+  14 Echoes → Start of Combat, trigger your Echoes).
+
+**Foundation — combat-phase objectives (the biggest lift).** Objectives previously only ticked on recruit actions;
+8 of the 11 count things that happen *during* combat. `QuestObjectiveEvent` gains `attack` / `summonCombat` /
+`slaughter` / `deathrattle`. `simulate()` now tallies per-fight player totals + a by-tribe breakdown (the
+acting/summoned/killer minion's tribe(s); universal-tribe counts for all) at the natural hooks — the `attack`
+emit, `summonMinion`, and the on-kill loop (a player minion felling an enemy = a "Slaughter", matching the on-kill
+keyword) — and returns them as `CombatResult.playerQuestTally`; the Echo objective reuses the existing
+`playerDeathrattles`. `settleCombat` advances combat quests by +N (tribe-narrowed) via the new `advanceCombatQuests`.
+"Echo" is just the UI rename of Deathrattle (terms.ts), so it needed no new combat plumbing.
+
+**Reward-palette expansion** (all kept in lockstep across `@game/core` `QuestReward`, the zod schema, `applyQuestReward`,
+and `questText.ts`):
+- `tribeAura` / `scalingTribeAura` — persistent "+A/+H wherever they are" folded into the tribe's buy-time aura
+  channel (new `beastBuyHp`, the Health sibling of `beastBuyAtk`, threaded through `buyHealthAura` + a new
+  `beastAuraHp` slot in the combat Beast Aura) + a board/hand buff now; the scaling variant grows in `settleCombat`
+  from the combat tally (`questScalingAuras`).
+- `grant` + `grantKeywords` — stamps extra keywords on a conjured card (Apex Hunt's Flurry+Ward Badgington).
+- `recurringGrant` — conjures cards to hand every turn setup (`questRecurringGrants`).
+- `combatFlag` (+ optional `amount`) — arms a run-wide `QuestCombatMods` consumed by `simulate()` (one new trailing
+  options arg, not five positional flags): **Blood Trail** (SoC: leftmost minion's kills conjure a random Beast),
+  **Echoing Coop** (SoC: fire every friendly Echo once), **Law of Teeth** (a Beast's Slaughter/Rally re-runs its own
+  on-kill/on-attack effects once more), **The Old Hunt** (each Beast attack pumps the live Beast aura + carries the
+  gain back via `playerBeastBuyAtkGain`).
+
+**3 reward cards** (all `token: true` → reward-exclusive, out of the shop pool + "random Beast" grants): **Trail
+Forager** (Beast 1/4 — sell value climbs +1 per Beast played via a new per-instance `sellBonus` + `sellValueOf`;
+live text via `trailForagerText`), **Trophy Stalker** (Beast 3/4 — new `rallyTribeAuraGrowing` factory: Rally gives
+Beasts a +3/+3 aura that grows +1/+1 each attack, riding `summonBonus` so it snowballs across combats; live via
+`summonBuffText`), **Feed the Alpha** (0-cost friendly-target spell — new `spellSellToBeast`: sell the target, feed
+its stats to your right-most Beast; the Beast sibling of Fodder Treatment).
+
+**Buy objective** is now tribe-narrowed (Forager's Trail) — resolved from the targeted shop offer in `reduce()`.
+
+**Verified:** `npm run typecheck` + `lint` + `build:web` clean; **664 tests pass** (+26 new — combat-tally
+instrumentation + The Old Hunt carry-back in `simulate.test.ts`; Blood Trail / Apex Hunt tribe-narrowing / Den
+Marker aura / Echoing Coop / Feed the Alpha recurring + spell / Trail Forager sell-scaling in `run.test.ts`;
+objective + reward text in a new `questText.test.ts`); existing Trail-Rations framework tests retargeted to Forest
+Grove (same grant+repeat shape). **Live (throwaway run, quest offer injected):** the Quest Shop renders all 11
+Beast quests across tiers with correct derived objective/reward text (Pack Mentality's scaling line, The Old Hunt's
++7, Apex Hunt's "Badgington with Flurry and Ward") and their art; reward-card art (`trailforager` / `trophystalker`
+/ `feedalpha`) serves; no console errors. **Follow-ups:** author the other tribes (Dragon's "Hoard Spark" wants a
+`grant` "random spell" extension); balance retune (quests are pure power-add).
+
 ### fix(sim): Graverobber on Mumi now fires Mumi's Deathrattle (grant Rise) out of combat; Spark Plug → T6
 
 - **Graverobber + Mumi bug.** `deathrattleGrantReborn` (Mumi's "give a friendly Undead Rise") existed only as a

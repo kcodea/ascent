@@ -141,16 +141,23 @@ export function undeadBuyBonus(state: RunState, def: CardDef): number {
   return bonus;
 }
 
-/** Run-wide HEALTH aura baked at creation — Magnetic minions only (Scrap Herald). The Beast/Undead auras are
- *  attack-only, so this Health half is separate; added to a minion's `health` at every creation site. */
+/** Run-wide HEALTH aura baked at creation — Magnetic minions (Scrap Herald) + Beasts (Pack Mentality quest).
+ *  Added to a minion's `health` at every creation site, alongside the attack aura from `undeadBuyBonus`. */
 export function buyHealthAura(state: RunState, def: CardDef): number {
-  return def.keywords.includes('M') ? (state.magneticBuyHp ?? 0) : 0;
+  let bonus = 0;
+  if (def.keywords.includes('M')) bonus += state.magneticBuyHp ?? 0;
+  if (def.universalTribe || def.tribe === 'beast' || def.tribe2 === 'beast') bonus += state.beastBuyHp ?? 0;
+  return bonus;
 }
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
 export function sellValueOf(card: BoardCard): number {
-  return card.cardId === 'hoarder' ? 2 * (card.golden ? 2 : 1) : CONFIG.sellValue;
+  if (card.cardId === 'hoarder') return 2 * (card.golden ? 2 : 1);
+  // Trail Forager: base 2 Gold (×2 golden) + 1 per Beast played (that per-Beast bump is already golden-doubled
+  // as it accrues, in `sellBonus`).
+  if (card.cardId === 'trailforager') return 2 * (card.golden ? 2 : 1) + (card.sellBonus ?? 0);
+  return CONFIG.sellValue;
 }
 
 /**
@@ -1390,6 +1397,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(demon, 'Fodder Treatment', sold.attack, sold.health);
       fire(ctx, 'onConsume', { minion: demon });
     }
+  },
+
+  /** Feed the Alpha — SELL the target (gain its base sell value as Gold) and give its current stats to your
+   *  RIGHT-MOST Beast. No Beast → the stats are wasted, but the sell + Gold still happen. Beast sibling of
+   *  Fodder Treatment (`spellSellToDemon`), minus the on-consume payoffs. */
+  spellSellToBeast: (ctx, self) => {
+    if (!self) return;
+    const state = ctx.state;
+    const idx = state.board.indexOf(self);
+    if (idx < 0) return;
+    const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
+    state.embers += sellValueOf(sold);
+    if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+    returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
+    const beast = [...state.board].reverse().find((c) => isTribe(c, 'beast')); // right-most Beast (board order)
+    if (beast) addBuff(beast, 'Feed the Alpha', sold.attack, sold.health);
   },
 
   /** Resonance — re-trigger the target's Battlecry (the reducer guards this to Battlecry minions only).

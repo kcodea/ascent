@@ -1,4 +1,4 @@
-import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
@@ -96,7 +96,7 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
 /** Recruit actions a quest objective can watch → the objective event they count. `buyQuest` is deliberately
  *  absent (buying a quest isn't a "buy" objective). */
 const QUEST_TICK_EVENTS: Partial<Record<Action['type'], QuestObjectiveEvent>> = {
-  buy: 'buy', play: 'play', sell: 'sell', roll: 'roll',
+  play: 'play', sell: 'sell', roll: 'roll', // `buy` is handled separately (tribe-narrowed for "Buy N Beasts")
 };
 
 export function reduce(state: RunState, action: Action): RunState {
@@ -122,10 +122,24 @@ export function reduce(state: RunState, action: Action): RunState {
     //    a play that immediately completes a triple counts as its NET board delta (the golden), not three.
     const questEvent = QUEST_TICK_EVENTS[action.type];
     if (questEvent) advanceQuests(next, (o) => o.event === questEvent);
+    if (action.type === 'buy') {
+      // "Buy N <tribe>" (Forager's Trail): narrow the buy tick to the bought minion's tribe (dual-types count
+      // for both). Resolved from the shop offer the action targeted; a spell buy has a tribe too (won't match).
+      const offer = state.shop.find((c) => c.uid === action.uid);
+      const bdef = offer ? CARD_INDEX[offer.cardId] : undefined;
+      const tribes = bdef ? ([bdef.tribe, bdef.tribe2].filter(Boolean) as Tribe[]) : [];
+      advanceQuests(next, (o) => o.event === 'buy' && (!o.tribe || tribes.includes(o.tribe)));
+    }
     if (action.type === 'play') {
       const played = state.hand.find((c) => c.uid === action.uid);
       const pdef = played ? CARD_INDEX[played.cardId] : undefined;
       if (pdef && hasBattlecry(pdef)) advanceQuests(next, (o) => o.event === 'shout');
+      // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
+      if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast')) {
+        for (const c of next.board) {
+          if (c.cardId === 'trailforager' && c.uid !== action.uid) c.sellBonus = (c.sellBonus ?? 0) + (c.golden ? 2 : 1);
+        }
+      }
     }
     for (const c of next.board) {
       if (before.has(c.uid)) continue; // only minions NOT present before this action count as summons
@@ -746,13 +760,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
       }).length;
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0);
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0);
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
           if (r.result === 'win') win++;
           else if (r.result === 'draw') draw++;
           else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
@@ -1138,6 +1152,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.undeadAttackBonus += result.playerUndeadAuraGain.attack;
     s.undeadHealthBonus += result.playerUndeadAuraGain.health;
   }
+  // ── Quests: combat-phase objectives + combat-armed reward carry-backs ─────────────────────────────────
+  // Advance combat objectives (attack / summonCombat / slaughter / deathrattle) from this fight's tally, +N,
+  // tribe-narrowed. Completing here applies the reward straight into the post-combat state (grants → hand).
+  advanceCombatQuests(s, result);
+  // The Old Hunt: the Beast Attack aura pumped this combat is permanent — fold it into the run + apply to
+  // current run-board/hand Beasts (so they keep the gain without re-buying).
+  if (result.playerBeastBuyAtkGain) grantTribeAura(s, 'beast', result.playerBeastBuyAtkGain, 0, 'The Old Hunt');
+  // Pack Mentality: grow any scaling tribe auras by this combat's tally of their trigger event.
+  growScalingAuras(s, result);
   // (Random spell/minion grants — Sporebat, Ryme re-firing Sea Urchin / Black Belt Brian — are now picked in
   //  combat and added above via playerHandGrants, so the real card animates in. No separate settle pick.)
   // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
@@ -1280,6 +1303,11 @@ function advanceCombat(s: RunState): void {
     }
     s.pendingQuestRewards = remaining;
   }
+  // Feed the Alpha: the recurring end-of-turn grant — conjure each armed card to hand every turn setup for the
+  // rest of the run (one Feed the Alpha spell per turn). Hand-cap-safe (conjureToHand no-ops on a full hand).
+  if (s.questRecurringGrants?.length) {
+    for (const id of s.questRecurringGrants) conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+  }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -1340,7 +1368,15 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'grant':
       if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!);
-      for (const id of r.cards ?? []) conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+      for (const id of r.cards ?? []) {
+        const before = s.hand.length;
+        conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+        // Apex Hunt: stamp the granted card (a Badgington) with extra keywords (Flurry + Ward) on the way in.
+        if (r.grantKeywords && s.hand.length > before) {
+          const card = s.hand[s.hand.length - 1]!;
+          for (const kw of r.grantKeywords) if (!card.keywords.includes(kw)) card.keywords.push(kw);
+        }
+      }
       if (allowRepeat && (r.repeatInTurns ?? 0) > 0) {
         (s.pendingQuestRewards ??= []).push({ questId: def.id, turnsLeft: r.repeatInTurns! });
       }
@@ -1348,7 +1384,99 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'shoutDouble':
       s.shoutDoubleCharges = (s.shoutDoubleCharges ?? 0) + r.count;
       break;
+    case 'tribeAura':
+      // Den Marker: "your <tribe> have +A/+H wherever they are" — fold into the tribe's run aura + buff now.
+      grantTribeAura(s, r.tribe, r.attack, r.health, `Quest: ${def.name}`);
+      break;
+    case 'scalingTribeAura':
+      // Pack Mentality: apply the base aura now, then register it to GROW as its trigger event accrues.
+      grantTribeAura(s, r.tribe, r.attack, r.health, `Quest: ${def.name}`);
+      (s.questScalingAuras ??= []).push({ tribe: r.tribe, per: r.per, event: r.event, stepAttack: r.stepAttack, stepHealth: r.stepHealth, progress: 0 });
+      break;
+    case 'recurringGrant':
+      // Feed the Alpha: conjure these cards to hand at the end of every turn for the rest of the run.
+      (s.questRecurringGrants ??= []).push(...r.cards);
+      break;
+    case 'combatFlag':
+      // Blood Trail / Echoing Coop / Law of Teeth / The Old Hunt: arm the run-wide combat modifier.
+      s.questFlags ??= {};
+      if (r.flag === 'oldHunt') s.questFlags.oldHunt = r.amount ?? 0;
+      else s.questFlags[r.flag] = true;
+      break;
   }
+}
+
+/** Fold a persistent "your <tribe> have +A/+H wherever they are" aura into the run: stack it into the tribe's
+ *  buy-time aura channel (so future creations inherit it) AND buff every current board + hand member now. Only
+ *  Beast ships a quest aura today (its `beastBuyAtk`/`beastBuyHp` channel); other tribes still get the immediate
+ *  board/hand buff and wire their own buy-channel when they get auras. Shared by tribeAura / scalingTribeAura /
+ *  The Old Hunt / Pack Mentality growth. */
+function grantTribeAura(s: RunState, tribe: Tribe, attack: number, health: number, label: string): void {
+  if (tribe === 'beast') {
+    s.beastBuyAtk = (s.beastBuyAtk ?? 0) + attack;
+    s.beastBuyHp = (s.beastBuyHp ?? 0) + health;
+  }
+  if (attack !== 0 || health !== 0) {
+    for (const c of [...s.board, ...s.hand]) {
+      if (isTribe(c, tribe)) addBuff(c, label, attack, health);
+    }
+  }
+}
+
+/** This combat's count of a quest objective's event (combat-phase only): the Echo objective reads the
+ *  Deathrattle tally; attack / summonCombat / slaughter read `playerQuestTally`, tribe-narrowed. */
+function combatEventCount(result: CombatResult, o: { event: QuestObjectiveEvent; tribe?: Tribe }): number {
+  if (o.event === 'deathrattle') return result.playerDeathrattles;
+  const t = result.playerQuestTally;
+  if (!t) return 0;
+  if (o.event === 'attack') return o.tribe ? (t.attackByTribe[o.tribe] ?? 0) : t.attack;
+  if (o.event === 'summonCombat') return o.tribe ? (t.summonCombatByTribe[o.tribe] ?? 0) : t.summonCombat;
+  if (o.event === 'slaughter') return o.tribe ? (t.slaughterByTribe[o.tribe] ?? 0) : t.slaughter;
+  return 0;
+}
+
+/** Advance every active, incomplete COMBAT-phase quest by this fight's tally (+N); complete + apply the reward
+ *  at the threshold. Called once per settled combat (the recruit-phase `advanceQuests` handles +1 actions). */
+function advanceCombatQuests(s: RunState, result: CombatResult): void {
+  for (const aq of s.activeQuests ?? []) {
+    if (aq.completed) continue;
+    const def = QUEST_INDEX[aq.questId];
+    if (!def) continue;
+    const inc = combatEventCount(result, def.objective);
+    if (inc <= 0) continue;
+    aq.progress += inc;
+    if (aq.progress >= def.objective.count) {
+      aq.completed = true;
+      applyQuestReward(s, def, true);
+    }
+  }
+}
+
+/** Pack Mentality: grow each registered scaling aura by this combat's tally of its trigger event, stepping the
+ *  aura up once per `per` accrued (leftover carries in `progress`). */
+function growScalingAuras(s: RunState, result: CombatResult): void {
+  for (const sa of s.questScalingAuras ?? []) {
+    const inc = combatEventCount(result, { event: sa.event, tribe: sa.tribe });
+    if (inc <= 0) continue;
+    sa.progress += inc;
+    while (sa.progress >= sa.per) {
+      sa.progress -= sa.per;
+      grantTribeAura(s, sa.tribe, sa.stepAttack, sa.stepHealth, 'Pack Mentality');
+    }
+  }
+}
+
+/** Build the run-wide combat modifiers (`QuestCombatMods`) threaded into `simulate()`: the Beast Health aura
+ *  plus any armed quest combat flags. */
+function questCombatMods(s: RunState): QuestCombatMods {
+  const f = s.questFlags;
+  return {
+    beastAuraHp: s.beastBuyHp || undefined,
+    bloodTrail: f?.bloodTrail,
+    echoingCoop: f?.echoingCoop,
+    lawOfTeeth: f?.lawOfTeeth,
+    oldHuntStep: f?.oldHunt,
+  };
 }
 
 /**

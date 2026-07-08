@@ -163,6 +163,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleReplayAdjacentBattlecry',
   'spellBuffByTier',
   'spellSellToDemon',
+  'spellSellToBeast',
   'spellReplayBattlecry',
   'spellExtraEndOfTurn',
   'spellGildRandomTavern',
@@ -181,6 +182,7 @@ export const EffectFactoryIdSchema = z.enum([
   // 2026-07-06 content batch
   'scBeastAura',
   'rallyTribeAura',
+  'rallyTribeAuraGrowing',
   'rallyGiveDemonAttack',
   'rallyDamageRandomEnemy',
   'rallyImproveSummonAura',
@@ -264,7 +266,11 @@ export const CardDefSchema = z.object({
 // Kept in lockstep with the `QuestDef` type in @game/core (same as CardDefSchema). `.strict()` rejects typo'd
 // keys so a malformed test quest surfaces in `npm test`, not at runtime.
 export const QuestTierSchema = z.enum(['lesser', 'greater', 'capstone']);
-export const QuestObjectiveEventSchema = z.enum(['buy', 'play', 'sell', 'roll', 'summon', 'shout']);
+export const QuestObjectiveEventSchema = z.enum([
+  'buy', 'play', 'sell', 'roll', 'summon', 'shout',
+  'attack', 'summonCombat', 'slaughter', 'deathrattle',
+]);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema = z.discriminatedUnion('kind', [
@@ -274,9 +280,23 @@ export const QuestRewardSchema = z.discriminatedUnion('kind', [
     randomTribe: TribeSchema.optional(),
     randomCount: z.number().int().positive().optional(),
     cards: z.array(z.string().min(1)).optional(),
+    grantKeywords: z.array(KeywordSchema).optional(),
     repeatInTurns: z.number().int().positive().optional(),
   }).strict(),
   z.object({ kind: z.literal('shoutDouble'), count: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('tribeAura'), tribe: TribeSchema, attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict(),
+  z.object({
+    kind: z.literal('scalingTribeAura'),
+    tribe: TribeSchema,
+    attack: z.number().int().nonnegative(),
+    health: z.number().int().nonnegative(),
+    per: z.number().int().positive(),
+    event: QuestObjectiveEventSchema,
+    stepAttack: z.number().int().nonnegative(),
+    stepHealth: z.number().int().nonnegative(),
+  }).strict(),
+  z.object({ kind: z.literal('recurringGrant'), cards: z.array(z.string().min(1)).min(1) }).strict(),
+  z.object({ kind: z.literal('combatFlag'), flag: QuestCombatFlagSchema, amount: z.number().int().nonnegative().optional() }).strict(),
 ]);
 
 export const QuestDefSchema = z.object({

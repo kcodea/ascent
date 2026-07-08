@@ -4,8 +4,8 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
   escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerSpellText, sergeantText, soulsmanText,
-  summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText,
-  undeadBuyAtkText, watcherText,
+  summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, trailForagerText,
+  transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -18,7 +18,7 @@ export interface LiveTextParams {
   clingEnchant?: { attack: number; health: number };
   fodderConsumed?: { attack: number; health: number };
   undeadBuyAtk: number; soulsmanGold: number; cardBuffs?: Record<string, { attack: number; health: number }>;
-  spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number;
+  spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number; sellBonus?: number;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
   goldSpent?: number;
 }
@@ -44,6 +44,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             scTribeBuffPerSpellText(c.id, p.golden, p.spellsThisTurn) ??
             summonBuffText(c.id, p.summonBonus ?? 0) ??
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
+            trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             tallyBuffText(c.id, p.deathrattlesTriggered) ??
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // per-instance: a shop/hand Guel reads at base
@@ -98,7 +99,7 @@ export function instView(
     goldSpent: live?.goldSpent ?? 0,
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
-    hpGrantBonus: inst.hpGrantBonus, eotTick: inst.eotTick,
+    hpGrantBonus: inst.hpGrantBonus, eotTick: inst.eotTick, sellBonus: inst.sellBonus,
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

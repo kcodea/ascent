@@ -196,6 +196,7 @@ export type EffectFactoryId =
   // --- tavern-spell batch (2026-06-26) ---
   | 'spellBuffByTier' // Lantern Light: cast — give the target +Tavern Tier / +Tavern Tier (recruit)
   | 'spellSellToDemon' // Fodder Treatment: cast — sell the target, give its stats to your left-most Demon (recruit)
+  | 'spellSellToBeast' // Feed the Alpha: cast — sell the target, give its stats to your right-most Beast (recruit)
   | 'spellReplayBattlecry' // Resonance: cast — re-trigger a friendly Battlecry minion's Battlecry (recruit)
   | 'spellExtraEndOfTurn' // Chrono Staff: cast — your End-of-Turn effects fire 1 extra time this turn (recruit)
   | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)
@@ -214,6 +215,7 @@ export type EffectFactoryId =
   // --- 2026-07-06 content batch ---
   | 'scBeastAura' // Kennelmaster: Start of Combat — Beast aura +N/+N (grown by Avenge), catches combat summons
   | 'rallyTribeAura' // Solaris Fang: Rally — Beast aura +N/+N for the rest of combat (catches combat summons)
+  | 'rallyTribeAuraGrowing' // Trophy Stalker: Rally — Beast aura +N/+N (grows +step each attack via summonBonus)
   | 'rallyGiveDemonAttack' // Bloodbinder: Rally — give another friendly Demon +Attack = this minion's Attack
   | 'rallyDamageRandomEnemy' // Philippe: Rally — also deal its Attack to a random enemy (golden +2), no retaliation
   | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
@@ -339,11 +341,20 @@ export interface DiscoverOnPlay {
 // ── Quests ───────────────────────────────────────────────────────────────────────────────────────────────
 /** A quest's tier — one per quest-turn: wave 4 = lesser, wave 8 = greater, wave 12 = capstone. */
 export type QuestTier = 'lesser' | 'greater' | 'capstone';
-/** The player action a quest objective counts. `summon` counts every minion that ENTERS your board (plays
- *  PLUS tokens from Shouts/Echoes); `shout` counts Battlecry minions you play. Grows as objectives expand. */
-export type QuestObjectiveEvent = 'buy' | 'play' | 'sell' | 'roll' | 'summon' | 'shout';
-/** A quest objective: reach `count` of `event`. `tribe` narrows a `summon` objective to one tribe (e.g.
- *  "Summon 4 Undead"). Live progress lives on the run's `ActiveQuest`, not here. */
+/**
+ * The player action a quest objective counts. Two families:
+ *  - RECRUIT-phase (ticked +1 per action in the reducer): `buy` / `play` / `sell` / `roll`; `summon` counts
+ *    every minion that ENTERS your board during recruit (plays PLUS tokens from Shouts/Echoes); `shout` counts
+ *    Battlecry minions you play. `tribe` narrows `buy` / `summon` to one tribe.
+ *  - COMBAT-phase (tallied inside `simulate()`, applied +N post-combat in settleCombat): `attack` = your
+ *    minions' attacks; `summonCombat` = minions summoned to your board mid-fight; `slaughter` = enemy minions
+ *    your minions kill (the on-kill / Slaughter hook); `deathrattle` = your Deathrattles ("Echoes") that fire.
+ *    `tribe` narrows `attack` / `summonCombat` / `slaughter` to the acting/summoned minion's tribe. */
+export type QuestObjectiveEvent =
+  | 'buy' | 'play' | 'sell' | 'roll' | 'summon' | 'shout'
+  | 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle';
+/** A quest objective: reach `count` of `event`. `tribe` narrows a tribe-aware objective to one tribe (e.g.
+ *  "Summon 4 Undead", "Slaughter 6 enemies with Beasts"). Live progress lives on the run's `ActiveQuest`. */
 export interface QuestObjective {
   event: QuestObjectiveEvent;
   count: number;
@@ -359,9 +370,38 @@ export interface QuestObjective {
  */
 export type QuestReward =
   | { kind: 'buffBoard'; attack: number; health: number }
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; cards?: string[]; repeatInTurns?: number }
-  | { kind: 'shoutDouble'; count: number };
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  | { kind: 'shoutDouble'; count: number }
+  // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
+  // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
+  | { kind: 'tribeAura'; tribe: Tribe; attack: number; health: number }
+  // As `tribeAura`, but the aura GROWS: +stepAttack/+stepHealth each time `per` of `event` accrues over the run
+  // (Pack Mentality: +3/+1, improve every 5 Beasts summoned in combat). Growth is tallied in settleCombat.
+  | { kind: 'scalingTribeAura'; tribe: Tribe; attack: number; health: number; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number }
+  // Conjure `cards` to hand at the END OF EACH TURN, for the rest of the run (Feed the Alpha's recurring spell).
+  | { kind: 'recurringGrant'; cards: string[] }
+  // Arm a run-wide combat modifier consumed by `simulate()` (see QuestCombatMods): Blood Trail, Echoing Coop,
+  // Law of Teeth, The Old Hunt. `amount` parameterizes the flag where it needs a magnitude (Old Hunt's aura step).
+  | { kind: 'combatFlag'; flag: QuestCombatFlag; amount?: number };
 export type QuestRewardKind = QuestReward['kind'];
+/** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
+export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt';
+/** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
+ *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
+export interface QuestCombatMods {
+  /** Pack Mentality's Health half of the Beast aura — the `beastBuyHp` sibling of `beastBuyAtk`, re-added to
+   *  from-base Beast bodies (summons / Reborn) so "+/+H wherever they are" catches combat summons. */
+  beastAuraHp?: number;
+  /** Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight. */
+  bloodTrail?: boolean;
+  /** Echoing Coop: at Start of Combat, trigger every one of your minions' Echoes (Deathrattles) once. */
+  echoingCoop?: boolean;
+  /** Law of Teeth: your Beasts' Slaughters (on-kill) AND Rallies (on-attack) each trigger one extra time. */
+  lawOfTeeth?: boolean;
+  /** The Old Hunt: >0 arms it — every Beast attack pumps your run-wide Beast Attack aura by this much
+   *  (live this fight + carried back via `playerBeastBuyAtkGain`). */
+  oldHuntStep?: number;
+}
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
  *  build-agnostic slot offered every quest-turn. Objective/reward display text is DERIVED from this data. */
@@ -560,6 +600,21 @@ export interface CombatResult {
   /** Enemy-side minions that died this combat — Cassen's Collision banks these toward "kill 5 enemy
    *  minions → get a top-type minion" (the run loop accumulates them). */
   enemyDeaths: number;
+  /** Combat-phase quest tallies for this fight — fed to the active quests in settleCombat (+N, tribe-narrowed).
+   *  `attack` / `summonCombat` / `slaughter` are the player-side totals; the `*ByTribe` maps break each down by
+   *  the acting/summoned minion's tribe (dual-types count for both) so "with Beasts" objectives resolve. The
+   *  Echo (Deathrattle) objective reuses `playerDeathrattles`. Absent when nothing tallied. */
+  playerQuestTally?: {
+    attack: number;
+    summonCombat: number;
+    slaughter: number;
+    attackByTribe: Partial<Record<Tribe, number>>;
+    summonCombatByTribe: Partial<Record<Tribe, number>>;
+    slaughterByTribe: Partial<Record<Tribe, number>>;
+  };
+  /** The Old Hunt: run-wide Beast Attack aura gained this combat (step × Beast attacks). Stacks into
+   *  `beastBuyAtk` + applied to existing run-board Beasts in settleCombat. Absent if 0. */
+  playerBeastBuyAtkGain?: number;
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
   /** Per-instance state to persist on the run board after combat, keyed by the board

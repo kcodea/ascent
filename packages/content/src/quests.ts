@@ -16,8 +16,13 @@ import { QuestDefSchema } from './schema';
 export const QUEST_DEFS: QuestDef[] = [
   // ── Lesser (wave 4) ──
   { id: 'q_lesser_neutral', name: 'Test · Warm-Up', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 2 }, reward: { kind: 'buffBoard', attack: 1, health: 1 } },
-  // First REAL lesser content (replaces the throwaway beast/dragon/undead tests):
-  { id: 'q_trail_rations', name: 'Trail Rations', tribe: 'beast', tier: 'lesser', objective: { event: 'summon', count: 3 }, reward: { kind: 'grant', randomTribe: 'beast', randomCount: 1, cards: ['emberpouch'], repeatInTurns: 2 } },
+  // BEAST — the first fully authored tribe (owner spec 2026-07-08). Objectives span recruit + combat phases;
+  // rewards span the full palette (grant / combat flags / persistent + scaling tribe auras / recurring grants).
+  { id: 'q_forest_grove', name: 'Forest Grove', tribe: 'beast', tier: 'lesser', objective: { event: 'summon', count: 4, tribe: 'beast' }, reward: { kind: 'grant', randomTribe: 'beast', randomCount: 1, repeatInTurns: 2 } },
+  { id: 'q_blood_trail', name: 'Blood Trail', tribe: 'beast', tier: 'lesser', objective: { event: 'slaughter', count: 2 }, reward: { kind: 'combatFlag', flag: 'bloodTrail' } },
+  { id: 'q_den_marker', name: 'Den Marker', tribe: 'beast', tier: 'lesser', objective: { event: 'summonCombat', count: 8 }, reward: { kind: 'tribeAura', tribe: 'beast', attack: 3, health: 0 } },
+  { id: 'q_foragers_trail', name: "Forager's Trail", tribe: 'beast', tier: 'lesser', objective: { event: 'buy', count: 4, tribe: 'beast' }, reward: { kind: 'grant', cards: ['trailforager'] } },
+  // Other tribes — still first-pass TEST quests (fill the neutral + tribe offer slots until each tribe is authored).
   { id: 'q_warm_embers', name: 'Warm Embers', tribe: 'dragon', tier: 'lesser', objective: { event: 'shout', count: 2 }, reward: { kind: 'shoutDouble', count: 2 } },
   { id: 'q_grave_toll', name: 'Grave Toll', tribe: 'undead', tier: 'lesser', objective: { event: 'summon', count: 4, tribe: 'undead' }, reward: { kind: 'grant', randomTribe: 'undead', randomCount: 1 } },
   { id: 'q_lesser_mech', name: 'Test · Test Bench', tribe: 'mech', tier: 'lesser', objective: { event: 'roll', count: 2 }, reward: { kind: 'buffBoard', attack: 1, health: 1 } },
@@ -25,7 +30,10 @@ export const QUEST_DEFS: QuestDef[] = [
 
   // ── Greater (wave 8) ──
   { id: 'q_greater_neutral', name: 'Test · Steady Hand', tribe: 'neutral', tier: 'greater', objective: { event: 'buy', count: 3 }, reward: { kind: 'buffBoard', attack: 2, health: 2 } },
-  { id: 'q_greater_beast', name: 'Test · Wild Hunt', tribe: 'beast', tier: 'greater', objective: { event: 'play', count: 3 }, reward: { kind: 'buffBoard', attack: 3, health: 2 } },
+  { id: 'q_apex_hunt', name: 'Apex Hunt', tribe: 'beast', tier: 'greater', objective: { event: 'slaughter', count: 6, tribe: 'beast' }, reward: { kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] } },
+  { id: 'q_pack_mentality', name: 'Pack Mentality', tribe: 'beast', tier: 'greater', objective: { event: 'summonCombat', count: 14, tribe: 'beast' }, reward: { kind: 'scalingTribeAura', tribe: 'beast', attack: 3, health: 1, per: 5, event: 'summonCombat', stepAttack: 3, stepHealth: 1 } },
+  { id: 'q_trophy_den', name: 'Trophy Den', tribe: 'beast', tier: 'greater', objective: { event: 'attack', count: 12, tribe: 'beast' }, reward: { kind: 'grant', cards: ['trophystalker'] } },
+  { id: 'q_feed_the_alpha', name: 'Feed the Alpha', tribe: 'beast', tier: 'greater', objective: { event: 'sell', count: 9 }, reward: { kind: 'recurringGrant', cards: ['feedalpha'] } },
   { id: 'q_greater_dragon', name: 'Test · Sky Muster', tribe: 'dragon', tier: 'greater', objective: { event: 'play', count: 3 }, reward: { kind: 'buffBoard', attack: 2, health: 3 } },
   { id: 'q_greater_undead', name: 'Test · Reap', tribe: 'undead', tier: 'greater', objective: { event: 'sell', count: 3 }, reward: { kind: 'buffBoard', attack: 2, health: 2 } },
   { id: 'q_greater_mech', name: 'Test · Assembly', tribe: 'mech', tier: 'greater', objective: { event: 'roll', count: 3 }, reward: { kind: 'buffBoard', attack: 2, health: 2 } },
@@ -33,7 +41,9 @@ export const QUEST_DEFS: QuestDef[] = [
 
   // ── Capstone (wave 12) ──
   { id: 'q_capstone_neutral', name: 'Test · Culmination', tribe: 'neutral', tier: 'capstone', objective: { event: 'buy', count: 4 }, reward: { kind: 'buffBoard', attack: 3, health: 3 } },
-  { id: 'q_capstone_beast', name: 'Test · Alpha', tribe: 'beast', tier: 'capstone', objective: { event: 'play', count: 4 }, reward: { kind: 'buffBoard', attack: 4, health: 3 } },
+  { id: 'q_law_of_teeth', name: 'Law of Teeth', tribe: 'beast', tier: 'capstone', objective: { event: 'slaughter', count: 14, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'lawOfTeeth' } },
+  { id: 'q_the_old_hunt', name: 'The Old Hunt', tribe: 'beast', tier: 'capstone', objective: { event: 'attack', count: 20, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'oldHunt', amount: 7 } },
+  { id: 'q_echoing_coop', name: 'Echoing Coop', tribe: 'beast', tier: 'capstone', objective: { event: 'deathrattle', count: 14 }, reward: { kind: 'combatFlag', flag: 'echoingCoop' } },
   { id: 'q_capstone_dragon', name: 'Test · Ascendant', tribe: 'dragon', tier: 'capstone', objective: { event: 'play', count: 4 }, reward: { kind: 'buffBoard', attack: 3, health: 4 } },
   { id: 'q_capstone_undead', name: 'Test · Harvest', tribe: 'undead', tier: 'capstone', objective: { event: 'sell', count: 4 }, reward: { kind: 'buffBoard', attack: 3, health: 3 } },
   { id: 'q_capstone_mech', name: 'Test · Overclock', tribe: 'mech', tier: 'capstone', objective: { event: 'roll', count: 4 }, reward: { kind: 'buffBoard', attack: 3, health: 3 } },

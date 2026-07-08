@@ -403,6 +403,23 @@ export const SPELLS: CardDef[] = [
     text: 'Sell a friendly minion and give its stats to your left-most **Demon**.',
   },
   {
+    // Quest reward (Feed the Alpha) — the Beast sibling of Fodder Treatment: sell a friendly minion, funnel its
+    // stats into your right-most Beast. Granted once per turn by the quest (recurringGrant); reward-exclusive.
+    id: 'feedalpha',
+    name: 'Feed the Alpha',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    singleCast: true,
+    cost: 0,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellSellToBeast' }],
+    text: 'Sell a friendly minion and give its stats to your right-most **Beast**.',
+  },
+  {
     // Re-trigger the target's Battlecry (reducer guards it to Battlecry minions). Yazzus multiplies it.
     id: 'resonance',
     name: 'Resonance',

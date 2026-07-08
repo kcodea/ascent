@@ -2255,3 +2255,30 @@ describe('resolution step tags', () => {
     expect(a.events.map((e) => e.step)).toEqual(b.events.map((e) => e.step));
   });
 });
+
+describe('combat-phase quest tallies', () => {
+  it('counts player attacks + enemy slaughters, attributed to the killer/attacker tribe', () => {
+    // A fat Beast (Pennycat overridden to 10/10) grinds down two weak enemies — it attacks and slaughters both.
+    const p: BoardMinion[] = [{ cardId: 'alley', attack: 10, health: 10 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }];
+    const r = simulate(p, e, makeRng(1), CARD_INDEX);
+    expect(r.result).toBe('win');
+    expect(r.playerQuestTally).toBeDefined();
+    expect(r.playerQuestTally!.slaughter).toBe(2);
+    expect(r.playerQuestTally!.slaughterByTribe.beast).toBe(2); // both kills credited to a Beast
+    expect(r.playerQuestTally!.attack).toBeGreaterThanOrEqual(2);
+    expect(r.playerQuestTally!.attackByTribe.beast).toBe(r.playerQuestTally!.attack);
+  });
+
+  it('The Old Hunt (questMods.oldHuntStep): each Beast attack pumps the Beast aura, carried back', () => {
+    const p: BoardMinion[] = [{ cardId: 'alley', attack: 3, health: 40 }]; // survives to attack several times
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 30 }];
+    const r = simulate(
+      p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ['beast'], {}, false, false, 0, 0, 0, 0,
+      { oldHuntStep: 7 },
+    );
+    // At least one Beast attack landed → the aura grew by a multiple of the step.
+    expect(r.playerBeastBuyAtkGain).toBeGreaterThanOrEqual(7);
+    expect(r.playerBeastBuyAtkGain! % 7).toBe(0);
+  });
+});

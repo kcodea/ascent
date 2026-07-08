@@ -38,6 +38,7 @@ import {
   buildWaveLadders,
   ratingBand,
   BAND_COUNT,
+  sellValueOf,
   type BoardCard,
   type RunState,
 } from './index';
@@ -4463,15 +4464,15 @@ describe('quests (M3 framework)', () => {
   });
 
   it('a summon objective counts tokens, not just the played card (Pennycat = 2 toward the goal)', () => {
-    // Trail Rations wants 3 summons. Pennycat (played) + its Stray (token) = 2 in ONE play — the "every minion
-    // entering the board" rule; a second play finishes it. Two copies each → no triples confuse the count.
+    // Forest Grove wants 4 Beast summons. Pennycat (beast, played) + its Stray (beast token) = 2 in ONE play —
+    // the "every minion entering the board" rule; a second play finishes it. Two copies each → no triples.
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_trail_rations', progress: 0, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 0, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'a1' });
     expect(s.activeQuests![0]!.progress).toBe(2); // Pennycat + its summoned Stray
     expect(s.activeQuests![0]!.completed).toBe(false);
     s = reduce(s, { type: 'play', uid: 'a2' });
-    expect(s.activeQuests![0]!.completed).toBe(true); // 2 more entries clears the 3-summon bar
+    expect(s.activeQuests![0]!.completed).toBe(true); // 2 more entries clears the 4-Beast bar
   });
 
   it('Grave Toll: summoning 4 Undead completes the quest and conjures a random Undead to hand', () => {
@@ -4496,35 +4497,35 @@ describe('quests (M3 framework)', () => {
     expect(s.activeQuests![0]!.progress).toBe(0); // neutral summons don't count toward an Undead objective
   });
 
-  it('Trail Rations: summoning 3 minions grants a Beast + a Gold Pouch and schedules a repeat', () => {
-    // Pennycat (played) + its Stray (token) = 2 summons per play; two plays clear the 3-summon bar with no triple.
+  it('Forest Grove: summoning 4 Beasts grants a random Beast and schedules a repeat', () => {
+    // Pennycat (beast, played) + its Stray (beast token) = 2 Beast summons per play; two plays clear the
+    // 4-Beast bar with no triple.
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_trail_rations', progress: 0, completed: false }], hand: [mk('m1'), mk('m2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 0, completed: false }], hand: [mk('m1'), mk('m2')], board: [] };
     for (const uid of ['m1', 'm2']) s = reduce(s, { type: 'play', uid });
     expect(s.activeQuests![0]!.completed).toBe(true);
-    // Immediate reward: a random Beast + a Gold Pouch (emberpouch) landed in hand.
-    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(true);
+    // Immediate reward: a random Beast landed in hand.
     expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast'); })).toBe(true);
     // …and the "repeat in 2 turns" is scheduled.
-    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_trail_rations', turnsLeft: 2 }]);
+    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_forest_grove', turnsLeft: 2 }]);
   });
 
-  it('Trail Rations "repeat in 2 turns" re-grants the reward after two turn-advances', () => {
+  it('Forest Grove "repeat in 2 turns" re-grants the reward after two turn-advances', () => {
     const tank = (uid: string): BoardCard => ({ uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false });
-    let s: RunState = { ...createRun(1), wave: 1, tier: 6, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [tank('t1')], hand: [], pendingQuestRewards: [{ questId: 'q_trail_rations', turnsLeft: 2 }] };
+    const beastInHand = (st: RunState): boolean => st.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast'); });
+    let s: RunState = { ...createRun(1), wave: 1, tier: 6, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [tank('t1')], hand: [], pendingQuestRewards: [{ questId: 'q_forest_grove', turnsLeft: 2 }] };
     // Turn advance #1: countdown 2 → 1, nothing granted yet.
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.phase).toBe('recruit');
-    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_trail_rations', turnsLeft: 1 }]);
-    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(false);
-    // Turn advance #2: 1 → 0 → fires (a Beast + a Gold Pouch reach hand); the schedule clears.
+    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_forest_grove', turnsLeft: 1 }]);
+    expect(beastInHand(s)).toBe(false);
+    // Turn advance #2: 1 → 0 → fires (a random Beast reaches hand); the schedule clears.
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.phase).toBe('recruit');
     expect(s.pendingQuestRewards ?? []).toEqual([]);
-    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(true);
-    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast'); })).toBe(true);
+    expect(beastInHand(s)).toBe(true);
   });
 
   it('Warm Embers: playing 2 Shouts completes the objective and banks 2 doubling charges', () => {
@@ -4548,5 +4549,82 @@ describe('quests (M3 framework)', () => {
     let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', shoutDoubleCharges: 0, hand: [mk('b1')], board: [] };
     t = reduce(t, { type: 'play', uid: 'b1' });
     expect(t.board.filter((c) => c.cardId === 'stray').length).toBe(1);
+  });
+});
+
+describe('Beast quests (combat objectives + rewards)', () => {
+  // A minimal settled CombatResult with an injectable quest tally, driven through the real `resolveCombat`
+  // settle path — so combat-phase objectives advance exactly as they do after a live fight.
+  const combatWith = (over: Partial<CombatResult>): CombatResult => ({
+    events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
+    initial: { player: [], enemy: [] }, ...over,
+  });
+  const zeroTally = () => ({ attack: 0, summonCombat: 0, slaughter: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {} });
+  const settle = (quest: string, over: Partial<CombatResult>, extra?: Partial<RunState>): RunState =>
+    reduce({ ...createRun(1), phase: 'combat', combatSettled: false, lastCombat: combatWith(over), activeQuests: [{ questId: quest, progress: 0, completed: false }], ...extra }, { type: 'resolveCombat' });
+
+  it('Blood Trail (slaughter, any tribe) advances by the tally and arms the combat flag', () => {
+    const s = settle('q_blood_trail', { enemyDeaths: 2, playerQuestTally: { ...zeroTally(), slaughter: 2, slaughterByTribe: { beast: 2 } } });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.questFlags?.bloodTrail).toBe(true);
+  });
+
+  it('Apex Hunt (slaughter WITH Beasts) counts only beast-attributed kills', () => {
+    // 6 slaughters but only 4 by Beasts → the beast-narrowed objective sits at 4/6, incomplete.
+    const s = settle('q_apex_hunt', { playerQuestTally: { ...zeroTally(), slaughter: 6, slaughterByTribe: { beast: 4 } } });
+    expect(s.activeQuests![0]!.progress).toBe(4);
+    expect(s.activeQuests![0]!.completed).toBe(false);
+  });
+
+  it('Den Marker (tribeAura) folds +3 Attack into the Beast aura + buffs current Beasts', () => {
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    const s = settle('q_den_marker', { playerQuestTally: { ...zeroTally(), summonCombat: 8 } }, { board: [beast] });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.beastBuyAtk).toBe(3);
+    expect(s.board[0]!.attack).toBe(4); // 1 base + 3 aura
+  });
+
+  it('Echoing Coop (deathrattle/Echo objective) reads the combat Deathrattle tally', () => {
+    const s = settle('q_echoing_coop', { playerDeathrattles: 14 });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.questFlags?.echoingCoop).toBe(true);
+  });
+
+  it('The Old Hunt carry-back grows the Beast aura + buffs current Beasts', () => {
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false };
+    const s = settle('q_capstone_neutral', { playerBeastBuyAtkGain: 21 }, { board: [beast] });
+    expect(s.beastBuyAtk).toBe(21); // pumped even though the (neutral) active quest is unrelated
+    expect(s.board[0]!.attack).toBe(23);
+  });
+
+  it('Feed the Alpha (recurringGrant) conjures its spell to hand every turn', () => {
+    const tank: BoardCard = { uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false };
+    let s: RunState = { ...createRun(1), wave: 1, tier: 6, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [tank], hand: [], questRecurringGrants: ['feedalpha'] };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand.some((c) => c.cardId === 'feedalpha')).toBe(true);
+  });
+
+  it("Trail Forager's sell value climbs +1 per Beast played", () => {
+    const forager: BoardCard = { uid: 'f', cardId: 'trailforager', tribe: 'beast', attack: 1, health: 4, keywords: [], golden: false };
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [forager], hand: [beast] };
+    expect(sellValueOf(s.board[0]!)).toBe(2);
+    s = reduce(s, { type: 'play', uid: 'b' });
+    const f = s.board.find((c) => c.cardId === 'trailforager')!;
+    expect(f.sellBonus).toBe(1);
+    expect(sellValueOf(f)).toBe(3);
+  });
+
+  it('Feed the Alpha spell sells the target and feeds the right-most Beast', () => {
+    const beastL: BoardCard = { uid: 'bl', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    const fodder: BoardCard = { uid: 'fo', cardId: 'sandbag', tribe: 'neutral', attack: 3, health: 5, keywords: [], golden: false };
+    const beastR: BoardCard = { uid: 'br', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 0, board: [beastL, fodder, beastR], hand: [{ uid: 'sp', cardId: 'feedalpha', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'fo' });
+    expect(s.board.some((c) => c.uid === 'fo')).toBe(false); // sold
+    expect(s.embers).toBe(sellValueOf(fodder)); // gained the sell value
+    expect(s.board.find((c) => c.uid === 'br')!.attack).toBe(4); // right-most Beast got +3/+5
+    expect(s.board.find((c) => c.uid === 'bl')!.attack).toBe(1); // left Beast untouched
   });
 });

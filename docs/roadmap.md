@@ -173,10 +173,18 @@ look because the engine already produces the data.
   overlay (reuses the Discover chrome) and the tavern rolls UP FRONT behind it, so the pick is **shop-informed** (see
   shop + board + threat before committing); determinism preserved (byte-identical golden run). Plus `CONFIG.questsEnabled`
   — a single-flag on/off for the whole system.
-- **Remaining:** grow the other `Test ·` quests (greater/capstone + mech/demon/neutral) the same way; the rest of
-  the reward palette (auras, global multipliers, matrix-benders); and a **balance/curve retune**
-  (quests are pure power-add → the enemy curve / Line + committed opponent pool want a pass). **Size:** ongoing
-  (content) + M (balance).
+- **✅ Beast tribe — first fully authored tribe (session 26, → devlog):** all 11 Beast quests across lesser/
+  greater/capstone (Forest Grove, Blood Trail, Den Marker, Forager's Trail, Apex Hunt, Pack Mentality, Trophy Den,
+  Feed the Alpha, Law of Teeth, The Old Hunt, Echoing Coop) + 3 reward cards (Trail Forager, Trophy Stalker, Feed
+  the Alpha spell) + art. Adds the **combat-phase objective family** (`attack` / `summonCombat` / `slaughter` /
+  `deathrattle`, tallied in `simulate()` → `playerQuestTally`, applied +N post-combat, tribe-narrowed) and a big
+  **reward-palette expansion**: persistent + scaling tribe auras (`tribeAura` / `scalingTribeAura`), recurring
+  end-of-turn grants (`recurringGrant`), keyword-stamped grants (`grantKeywords`), and run-wide **combat flags**
+  (`combatFlag` → `QuestCombatMods`: Blood Trail / Echoing Coop / Law of Teeth / The Old Hunt).
+- **Remaining:** author the other tribes (Dragon started — "Hoard Spark" specced; needs a `grant` "random spell"
+  extension) + neutral; retire the surviving `Test ·` quests; wire the capstone matrix-benders per tribe; and a
+  **balance/curve retune** (quests are pure power-add → the enemy curve / Line + committed opponent pool want a
+  pass). **Size:** ongoing (content) + M (balance).
 
 ### C2. Mastery Minions
 - Normal shop minions that **improve through repeated actions** (not scheduled, not quests) — find, nurture,

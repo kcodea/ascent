@@ -15,7 +15,7 @@ export function summonBuffText(cardId: string, summonBonus: number): string | nu
   const def = CARD_INDEX[cardId];
   // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start-of-Combat Beast aura). Both
   // grant `base + summonBonus`, so the same live magnitude injects into the printed "+N/+N".
-  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'scTribeBuffImproving');
+  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'scTribeBuffImproving' || e.do === 'rallyTribeAuraGrowing');
   if (!def || !eff) return null;
   const base = Number((eff.params as { attack?: number })?.attack ?? 1);
   const m = base + summonBonus;
@@ -300,6 +300,20 @@ export function engraveTallyText(cardId: string, permaGain: { attack: number; he
   if (a > 0) parts.push(`+${a} Attack`);
   if (h > 0) parts.push(`+${h} Health`);
   return `${def.text} {{${parts.join(', ')} so far}}`;
+}
+
+/**
+ * Trail Forager's sell value climbs +1 per Beast played (the per-instance `sellBonus`). Surface the CURRENT
+ * sell value (green) in place of the printed "2g", so the card always states what it'll sell for right now.
+ * Returns null with no accrual (the printed base is accurate). Golden doubles the base (bonus is pre-doubled).
+ */
+export function trailForagerText(cardId: string, golden: boolean, sellBonus: number): string | null {
+  if (cardId !== 'trailforager' || sellBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const value = 2 * (golden ? 2 : 1) + sellBonus;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\d+g\*\*/, `{{${value}g}}`);
 }
 
 /** The minions that stack the run-wide Undead buy-time Attack bonus (`undeadBuyAtk`) — used to surface it. */

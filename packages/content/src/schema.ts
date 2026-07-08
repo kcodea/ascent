@@ -149,6 +149,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleGrantCardToHand',
   'battlecryBuffUndeadAttack',
   'battlecryBuffBeastAttack',
+  'battlecryScoutSpread',
   'battlecryBuffMagnetics',
   'battlecryBuffImps',
   'goldSpentBuffFodder',
@@ -247,7 +248,7 @@ export const CardDefSchema = z.object({
   spellAura: z.number().int().positive().optional(),
   fodderAura: z.object({ attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict().optional(),
   chooseOne: z
-    .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema), target: z.enum(['friendly', 'any']).optional() }).strict())
+    .array(z.object({ text: z.string(), goldenText: z.string().optional(), effects: z.array(EffectDefSchema), target: z.enum(['friendly', 'any']).optional() }).strict())
     .min(2)
     .optional(),
   discoverOnPlay: z

@@ -44,13 +44,13 @@ export const BEASTS: CardDef[] = [
     keywords: ['SC'],
     effects: [
       { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 1 } },
-      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 2 } },
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
     ],
     // Start of Combat: a Beast aura +N/+N that lasts the fight — current Beasts + any summoned later inherit
     // it (the "wherever they are" aura). N = 1 + its Avenge-grown summonBonus (carried across combats). The
     // live value + Avenge countdown surface via cardText's kennelmaster helper on every surface.
-    text: '**Start of Combat:** give your Beasts **+1/+1** wherever they are. **Avenge (2):** Improve this.',
-    goldenText: '**Start of Combat:** give your Beasts **+2/+2** wherever they are. **Avenge (2):** Improve this.',
+    text: '**Start of Combat:** give your Beasts **+1/+1** wherever they are. **Avenge (3):** Improve this.',
+    goldenText: '**Start of Combat:** give your Beasts **+2/+2** wherever they are. **Avenge (3):** Improve this.',
   },
   {
     id: 'gnash',
@@ -134,8 +134,8 @@ export const BEASTS: CardDef[] = [
     keywords: [],
     effects: [],
     chooseOne: [
-      { text: 'Give your Beasts **+1/+3**.', effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'beast', attack: 1, health: 3 } }] },
-      { text: 'Summon a 1/1 **Stray**.', effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'stray', count: 1 } }] },
+      { text: 'Give your Beasts **+1/+3**.', goldenText: 'Give your Beasts **+2/+6**.', effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'beast', attack: 1, health: 3 } }] },
+      { text: 'Summon a 1/1 **Stray**.', goldenText: 'Summon **two** 1/1 **Strays**.', effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'stray', count: 1 } }] },
     ],
     text: '**Choose One:** Give your Beasts **+1/+3**, or summon a 1/1 **Stray**.',
     goldenText: '**Choose One:** Give your Beasts **+2/+6**, or summon two 1/1 **Strays**.',
@@ -247,8 +247,9 @@ export const BEASTS: CardDef[] = [
     goldenText: '**Taunt.** Each time this takes damage, gain **2 free refreshes** — up to **4 hits** a combat.',
   },
   {
-    // Summon-payoff that snowballs: each Beast you summon (in OR out of combat) gets buffed, and the buff
-    // grows by +3/+3 every time. Pairs with token-summoners (Manasaber, Mama Pup). Golden doubles.
+    // Play-payoff that snowballs: each Beast you PLAY in the shop gets buffed, and the buff grows +1/+1 every
+    // time. RECRUIT-ONLY (owner ruling 2026-07-08) — it does NOT fire on combat summons (no combat factory).
+    // Pairs with a go-wide Beast shop turn. Golden doubles (+2/+2, improve +2/+2).
     id: 'mamabear',
     name: 'Den Mother',
     tribe: 'beast',
@@ -256,9 +257,9 @@ export const BEASTS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'summonBuffTribeImprove', params: { tribe: 'beast', attack: 2, health: 2 } }],
-    text: 'When you summon a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.',
-    goldenText: 'When you summon a **Beast**, give it **+4/+4** — and improve this by **+4/+4**.',
+    effects: [{ on: 'onSummon', do: 'summonBuffTribeImprove', params: { tribe: 'beast', attack: 1, health: 1 } }],
+    text: 'When you play a **Beast**, give it **+1/+1** — and improve this by **+1/+1**.',
+    goldenText: 'When you play a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.',
   },
   {
     // Rally payoff for a Den Mother board: each of its own attacks permanently improves every friendly Den
@@ -330,9 +331,9 @@ export const BEASTS: CardDef[] = [
     goldenText: '**Start of Combat:** Summon **two** copies of this minion.',
   },
   {
-    // Start of Combat: buff your Beasts +1/+2, improved +1/+1 for each Beast you played this recruit turn
+    // Start of Combat: buff your Beasts +2/+2, improved +2/+2 for each Beast you played this recruit turn
     // (frozen at combat start, threaded into the sim like spellsThisTurn). A go-wide Beast SoC payoff that
-    // rewards a busy beast turn. Golden doubles the whole grant.
+    // rewards a busy beast turn. Golden doubles the whole grant. Live grant via scTribeBuffPerPlayedText.
     id: 'packleader',
     name: 'Pack Leader',
     tribe: 'beast',
@@ -340,14 +341,14 @@ export const BEASTS: CardDef[] = [
     attack: 2,
     health: 4,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scTribeBuffImproving', params: { tribe: 'beast', attack: 2, step: 2 } }],
-    text: '**Start of Combat:** Give your **Beasts** **+2/+2**. Permanently improve this by **+2/+2**.',
-    goldenText: '**Start of Combat:** Give your **Beasts** **+4/+4**. Permanently improve this by **+2/+2**.',
+    effects: [{ on: 'startOfCombat', do: 'scTribeBuffPerPlayed', params: { tribe: 'beast', attack: 2, health: 2, perPlayed: 2 } }],
+    text: '**Start of Combat:** Give your **Beasts** **+2/+2**. Improve this by **+2/+2** for every Beast played.',
+    goldenText: '**Start of Combat:** Give your **Beasts** **+4/+4**. Improve this by **+4/+4** for every Beast played.',
   },
   {
-    // Battlecry: your Beasts gain +2 Attack "wherever they are" — baked into every current Beast (board + hand)
-    // and every future one (bought/conjured/summoned/Reborn), the Beast sibling of Toxin Tender's Undead aura.
-    // Golden → +4.
+    // Battlecry: give a RANDOM friendly minion +3/+3, once per Beast you own — a spread go-wide payoff that
+    // snowballs, since each Squirl Scout played permanently raises the +3/+3 grant (`squirlScoutBuff`). Golden
+    // doubles the grant + the per-play improvement. Live grant via cardText's squirlScoutText.
     id: 'squirlscout',
     name: 'Squirl Scout',
     tribe: 'beast',
@@ -355,9 +356,9 @@ export const BEASTS: CardDef[] = [
     attack: 3,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffBeastAttack', params: { amount: 2 } }],
-    text: '**Battlecry:** your **Beasts** have **+2 Attack** wherever they are.',
-    goldenText: '**Battlecry:** your **Beasts** have **+4 Attack** wherever they are.',
+    effects: [{ on: 'onPlay', do: 'battlecryScoutSpread', params: { step: 3 } }],
+    text: '**Battlecry:** Give a friendly minion **+3/+3**. Repeat for every Beast you own. Every Squirl Scout played improves this by **+3/+3**.',
+    goldenText: '**Battlecry:** Give a friendly minion **+6/+6**. Repeat for every Beast you own. Every Squirl Scout played improves this by **+6/+6**.',
   },
   {
     // Rally splash: on its OWN attack, Philippe also deals its Attack to a RANDOM enemy (golden: +2 more) — a

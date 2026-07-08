@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Balance + fixes batch** — Den Mother (+1/+1, recruit-only), Kennelmaster Avenge (3), a Squirl Scout rework
+  (spread +3/+3 per Beast owned, snowballing), Pack Leader scaling with Beasts-played, Hoardbreaker 6/4; plus fixes:
+  **Slaughter only triggers on an attack-kill** (not retaliation), welded/given attachments now inherit the
+  Attachment aura, Nimbus doubles Discover-spells (Tribe Portal), Wayfinder spreads its Discover across all
+  uncontrolled tribes, and golden Wildwood Shaper shows its doubled Choose One text.
 - **Beast quests — the first fully authored tribe.** All 11 Beast quests (lesser/greater/capstone) + 3 reward
   cards (Trail Forager, Trophy Stalker, Feed the Alpha) + art. Introduces **combat-phase objectives** (attack /
   summon-in-combat / slaughter / Echo, tallied inside `simulate()` and applied after the fight) and a big reward

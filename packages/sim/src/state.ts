@@ -152,7 +152,7 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  */
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; exclude?: string; topTierFirst?: boolean };
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean };
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
  *  (shown in the quest panel); up to 3 accumulate over a run (waves 4/8/12). */
@@ -268,6 +268,9 @@ export interface RunState {
   /** Run-wide Beast HEALTH aura (Pack Mentality quest): your Beasts get this much Health everywhere — the
    *  Health sibling of `beastBuyAtk`, baked in on creation + re-applied on Reborn/summon. Absent-safe (0). */
   beastBuyHp: number;
+  /** Squirl Scout's run-wide grant size: each Squirl Scout played raises it +3 (×2 golden). Its Battlecry
+   *  gives a random friendly minion +this/+this once per Beast you own. Absent-safe (0). */
+  squirlScoutBuff?: number;
   /** Run-wide Magnetic/Attachment aura (Scrap Herald): your Magnetic minions get +magneticBuyAtk/+magneticBuyHp
    *  everywhere — baked in on creation, re-applied on Reborn/summon. The only tribe-style aura with a Health half. */
   magneticBuyAtk: number;

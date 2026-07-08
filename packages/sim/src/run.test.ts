@@ -316,7 +316,20 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'F')!.attack).toBe(7); // the Feeder itself doesn't consume
   });
 
-  it('Pack Leader: Start of Combat buffs Beasts +2/+2 and permanently improves by +2/+2', () => {
+  it('Pack Leader: Start of Combat buffs Beasts +2/+2, improved +2/+2 per Beast played this turn', () => {
+    let s: RunState = {
+      ...createRun(1),
+      playedThisTurn: ['alley', 'alley'], // 2 Beasts played this recruit turn (frozen into the fight)
+      board: [
+        { uid: 'pl', cardId: 'packleader', tribe: 'beast', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' }); // grant = base 2 + 2 × 2 played = +6/+6
+    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 6 && e.health === 6)).toBe(true);
+  });
+
+  it('Pack Leader with no Beasts played this turn grants only the base +2/+2', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -324,13 +337,8 @@ describe('run loop (@game/sim)', () => {
         { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
       ],
     };
-    s = reduce(s, { type: 'faceOmen' }); // first combat: SoC gives Beasts +2/+2
-    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(s.board.find((c) => c.uid === 'pl')?.summonBonus).toBe(2); // the improve carries back (+2 accrued)
-    // second combat now grants base 2 + accrued 2 = +4/+4
     s = reduce(s, { type: 'faceOmen' });
-    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
   });
 
   it('Graverobber: Battlecry destroys a targeted friendly, procs its Deathrattle + grants a spell of its tier', () => {
@@ -361,19 +369,27 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
   });
 
-  it('Squirl Scout: Battlecry gives Beasts +2 Attack wherever (board + hand), stacking for future Beasts', () => {
+  it('Squirl Scout: Battlecry spreads +N/+N to random friendlies, once per Beast owned, snowballing per Scout', () => {
     let s: RunState = {
       ...createRun(1),
-      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      board: [
+        { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
       hand: [
         { uid: 'sq', cardId: 'squirlscout', tribe: 'beast', attack: 3, health: 3, keywords: [], golden: false },
-        { uid: 'h', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'sq2', cardId: 'squirlscout', tribe: 'beast', attack: 3, health: 3, keywords: [], golden: false },
       ],
     };
     s = reduce(s, { type: 'play', uid: 'sq' });
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 2); // current board Beast +2
-    expect(s.hand.find((c) => c.uid === 'h')!.attack).toBe(1 + 2); // current hand Beast +2
-    expect(s.beastBuyAtk).toBe(2); // stacks — future Beasts inherit it via undeadBuyBonus
+    expect(s.squirlScoutBuff).toBe(3); // first Scout → grant size 3
+    // 3 Beasts owned (2 Pennycats + the Scout) × +3/+3 = +9/+9 total, spread across the board.
+    const baseAtk = 1 + 1 + 3; // the three Beasts' base Attack
+    expect(s.board.reduce((n, c) => n + c.attack, 0)).toBe(baseAtk + 9);
+    expect(s.board.reduce((n, c) => n + c.health, 0)).toBe(baseAtk + 9);
+    // A second Scout raises the run-wide grant to 6.
+    s = reduce(s, { type: 'play', uid: 'sq2' });
+    expect(s.squirlScoutBuff).toBe(6);
   });
 
   it('buying an Undead/Beast bakes the run-wide Attack aura exactly once (no double-count)', () => {
@@ -1255,7 +1271,7 @@ describe('run loop (@game/sim)', () => {
     expect(drone.attack).toBe(4); // 2 + 2
     expect(drone.health).toBe(3); // 1 + 2
     expect(drone.keywords).toContain('DS');
-    expect(drone.keywords).not.toContain('M'); // Magnetic itself isn't transferred
+    expect(drone.keywords).toContain('M'); // the welded host IS now an Attachment (owner ruling 2026-07-08)
   });
 
   it('a Mech Magnetic can weld onto a Chaos Attachment host (the all-type body counts as a Mech)', () => {
@@ -1284,8 +1300,8 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sym', toIndex: 1 }); // weld onto the Gnasher host (universalTribe → any non-neutral)
     expect(s.board.length).toBe(2); // merged, no new slot
     const host = s.board.find((c) => c.uid === 'host')!;
-    // Attachment 1/1 + Mama Bear (+2/+2, universalTribe counts as a Beast) = 3/3, welded onto the 5/5 host → 8/8.
-    expect([host.attack, host.health]).toEqual([8, 8]);
+    // Attachment 1/1 + Den Mother (recruit +1/+1, universalTribe counts as a Beast) = 2/2, welded onto the 5/5 host → 7/7.
+    expect([host.attack, host.health]).toEqual([7, 7]);
   });
 
   it('Chaos Attachment is Magnetic Reborn — welding it grants the host Reborn', () => {
@@ -1298,9 +1314,36 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'sym', toIndex: 0 }); // weld onto the host
     const host = s.board.find((c) => c.uid === 'host')!;
-    expect(host.keywords).toContain('R'); // Reborn rides along on the weld (applyWeld transfers non-M keywords)
-    expect(host.keywords).not.toContain('M'); // Magnetic itself isn't transferred
+    expect(host.keywords).toContain('R'); // Reborn rides along on the weld
+    expect(host.keywords).toContain('M'); // the welded host IS now an Attachment (owner ruling 2026-07-08)
     expect([host.attack, host.health]).toEqual([6, 6]); // 5/5 host + the Attachment's 1/1
+  });
+
+  it('a welded host becomes an Attachment and inherits the run-wide Attachment aura (owner ruling 2026-07-08)', () => {
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      magneticBuyAtk: 2, magneticBuyHp: 3, // Scrap Herald's run-wide Attachment aura is active
+      board: [{ uid: 'host', cardId: 'drone', tribe: 'mech', attack: 5, health: 5, keywords: [], golden: false }],
+      hand: [{ uid: 'cl', cardId: 'cling', tribe: 'mech', attack: 2, health: 2, keywords: ['M'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'cl', toIndex: 0 }); // weld the Magnetic onto the host
+    const host = s.board.find((c) => c.uid === 'host')!;
+    expect(host.keywords).toContain('M'); // now an Attachment → picks up the aura
+    // 5/5 host + Cling 2/2 (weld) + Attachment aura +2/+3 (baked once, on first becoming Magnetic) = 9/10.
+    expect([host.attack, host.health]).toEqual([9, 10]);
+  });
+
+  it('Nimbus doubles a Discover-spell: Tribe Portal under a Nimbus charge opens two Discovers', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 4, embers: 0, shop: [],
+      nextSpellMult: 2, // a Nimbus charge is active
+      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }], // gives Tribe Portal a dominant type
+      hand: [{ uid: 'tp', cardId: 'tribeportal', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'tp' });
+    expect(s.discover).toBeDefined(); // first Discover opens
+    expect(s.discoverQueue?.length ?? 0).toBe(1); // the 2nd is queued (Nimbus doubled the cast)
+    expect(s.nextSpellMult).toBeUndefined(); // charge spent
   });
 
   it('Heckbinder (Demon/Mech) magnetizes onto a Demon or a Mech, but not other tribes', () => {
@@ -2118,7 +2161,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.map((c) => c.cardId)).toContain('cleric');
   });
 
-  it('Mama Bear buffs each summoned Beast, improving the buff by +2/+2 each time (recruit)', () => {
+  it('Den Mother buffs each Beast you PLAY, improving the buff by +1/+1 each time (recruit)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [{ uid: 'mb', cardId: 'mamabear', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }],
@@ -2127,10 +2170,10 @@ describe('run loop (@game/sim)', () => {
         { uid: 'b2', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
       ],
     };
-    s = reduce(s, { type: 'play', uid: 'b1' }); // first Beast summoned → +2/+2
-    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 2); // 4
-    s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +4/+4
-    expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
+    s = reduce(s, { type: 'play', uid: 'b1' }); // first Beast played → +1/+1
+    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 1); // 3
+    s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +2/+2
+    expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 2); // 9
   });
 
   it('a universalTribe token (Chaos Attachment) receives a tribe summon-buff (Mama Bear)', () => {
@@ -2148,10 +2191,10 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'sym' }); // standalone play (no weld target) → Mama Bear's summon buff fires
     const sym = s.board.find((c) => c.uid === 'sym')!;
-    // Mama Bear (+2/+2) treats the universalTribe token as a Beast. (Kennelmaster's Beast buff is now a
+    // Den Mother (+1/+1) treats the universalTribe token as a Beast. (Kennelmaster's Beast buff is now a
     // Start-of-Combat aura, so it no longer fires when a minion is summoned in the shop.)
-    expect(sym.attack).toBe(1 + 2); // 3
-    expect(sym.health).toBe(1 + 2); // 3
+    expect(sym.attack).toBe(1 + 1); // 2
+    expect(sym.health).toBe(1 + 1); // 2
   });
 
   it('a Mama Bear triple picks up the accrual at its current value — no reset, no double', () => {
@@ -2168,11 +2211,11 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
     const golden = s.hand.find((c) => c.cardId === 'mamabear' && c.golden)!;
     expect(golden.summonBonus).toBe(6); // current value preserved, not 9 (sum) or 0 (reset)
-    // Played, it grants (base 2 + accrual 6) × 2 golden = +16/+16 to the next Beast summoned.
+    // Played, it grants (base 1 + accrual 6) × 2 golden = +14/+14 to the next Beast played.
     s = reduce(s, { type: 'play', uid: golden.uid }); // golden Mama Bear → board
     s = { ...s, hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'a' });
-    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(1 + 16);
+    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(1 + 14);
   });
 
   it('Sea Urchin Battlecry offers a Discover of Beasts only (up to tavern tier)', () => {

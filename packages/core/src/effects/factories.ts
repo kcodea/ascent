@@ -199,23 +199,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantFreeRolls(num(params.count, 1) * mul(self), self.side);
   },
 
-  /** Mama Bear (combat half) — when a friendly minion of `tribe` is summoned, buff it +M/+M where M =
-   *  (base + accrued) × golden, then the accrued (`summonBonus`, carried back) climbs by `base`. Mirrors the
-   *  recruit half so the improve persists in AND out of combat. */
-  summonBuffTribeImprove: (ctx, self, params, payload) => {
-    const { minion, side } = payload as MinionPayload;
-    if (self.dead || side !== self.side || minion === self) return;
-    const tribe = str(params.tribe) as Tribe | '';
-    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
-    const base = num(params.attack, 3);
-    const mag = (base + self.summonBonus) * mul(self);
-    ctx.buff(minion, mag, mag, self.uid);
-    self.summonBonus += base;
-    // Surface the climb (like Kennelmaster's avengeImproveSummon) so the live combat card text — "+M/+M per
-    // summon" via summonImproveText — ticks up in real time as Beasts are summoned. `amount` is the pre-golden
-    // step; the UI folds it into summonBonus and re-applies ×golden when it renders.
-    ctx.log({ type: 'improve', target: self.uid, amount: base });
-  },
+  // Den Mother (`summonBuffTribeImprove`) is RECRUIT-ONLY (owner ruling 2026-07-08): it improves your Beasts
+  // as you PLAY them in the shop, but does NOT fire on combat summons — so there's no combat factory here (the
+  // recruit half lives in recruit.ts). An effect with no combat factory is inert in combat (registerEffects).
 
   /** When a friendly minion of `tribe` is summoned, buff it. The per-stat magnitude is the
    *  base buff + `self.summonBonus` (Kennelmaster's Avenge / triple-combined bonus). No golden

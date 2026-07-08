@@ -896,10 +896,14 @@ export function simulate(
       // nothing, unchanged from before).
       nextStep(); // on-kill rewards resolve as their own step, after every death in the clash
       for (const { m, killer, couldReborn } of victims) {
-        if (m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) {
+        // Slaughter (on-kill) fires ONLY when THIS minion ATTACKS and kills (owner ruling 2026-07-08, revising
+        // the 2026-07-03 "defender fells attacker counts" rule): the attacker's own kills — the main target and
+        // cleave splash — proc it, but a defender felling its attacker via retaliation does NOT (its `killer` is
+        // the target, not this exchange's `attacker`). So gate on `killer === attacker`.
+        if ((m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) && killer === attacker) {
           bus.emit('onKill', { attacker: killer, victim: m });
-          // A player minion felling an enemy is a "Slaughter" (matches the on-kill keyword) — tally it for the
-          // Slaughter quests (credited to the KILLER's tribe for "with Beasts"), even on a mutual kill.
+          // A player minion felling an enemy by attacking is a "Slaughter" — tally it for the Slaughter quests
+          // (credited to the KILLER's tribe for "with Beasts").
           if (killer.side === 'player' && m.side === 'enemy') {
             bumpQuestTally('slaughter', killer);
             const killerAlive = !killer.dead && killer.health > 0;

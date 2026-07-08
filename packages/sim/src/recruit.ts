@@ -310,7 +310,10 @@ export interface MagnetPayload {
 function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
   addBuff(host, mag.source, mag.attack * mult, mag.health * mult);
   for (const k of mag.keywords) {
-    if (k !== 'M' && !host.keywords.includes(k)) host.keywords.push(k);
+    // Include M (owner ruling 2026-07-08): a minion that receives a Magnetic weld IS now an Attachment, so it
+    // gains the M keyword — and thus the run-wide + combat "Attachment aura" (Scrap Herald) reaches it too. The
+    // aura is baked once when it first gains M (see bakeAttachmentAura in weldMagnetic).
+    if (!host.keywords.includes(k)) host.keywords.push(k);
   }
   if (mag.mana > 0) host.manaBonus = (host.manaBonus ?? 0) + mag.mana * mult;
   if (mag.rallyMechAtk) host.rallyMechAtk = (host.rallyMechAtk ?? 0) + mag.rallyMechAtk * mult;
@@ -332,16 +335,31 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  * magnetized — onto the host AND each copy Beatboxer mimics onto itself — stacks the Cling improvement.
  */
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0): void {
+  const hostWasM = host.keywords.includes('M');
   applyWeld(host, mag, 1);
+  bakeAttachmentAura(state, host, hostWasM);
   let totalClings = clings; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
+      const bbWasM = bb.keywords.includes('M');
       const mult = bb.golden ? 2 : 1;
       applyWeld(bb, mag, mult);
+      bakeAttachmentAura(state, bb, bbWasM);
       totalClings += clings * mult; // Beatboxer magnetizes Cling copies onto itself — those stack too
     }
   }
   if (totalClings > 0) improveClingDrones(state, totalClings);
+}
+
+/** A minion that just RECEIVED its first attachment (a welded Magnetic → it gained M) is now an Attachment —
+ *  bake the run-wide Attachment aura (Scrap Herald's `magneticBuyAtk`/`magneticBuyHp`) into it ONCE, so
+ *  "your Attachments have +X/+Y wherever they are" reaches minions that GAINED Magnetic, not just those
+ *  printed with it (owner ruling 2026-07-08 — Banksly and any welded host). No-op if it was already Magnetic. */
+function bakeAttachmentAura(state: RunState, card: BoardCard, wasMagnetic: boolean): void {
+  if (wasMagnetic || !card.keywords.includes('M')) return;
+  const a = state.magneticBuyAtk ?? 0;
+  const h = state.magneticBuyHp ?? 0;
+  if (a > 0 || h > 0) addBuff(card, 'Attachment', a, h);
 }
 
 /**
@@ -413,19 +431,17 @@ export function dominantBoardTribe(state: RunState): Tribe | null {
  * tribe "you do not control". Seeded via the run RNG cursor (advances it). Returns null when you already
  * control every active tribe, in which case the caller Discovers from any tribe. Neutral is never a "tribe".
  */
-function uncontrolledTribe(state: RunState): Tribe | null {
+/** The ACTIVE tribes with NO presence on the player's board — the full "you do not control" set (no RNG
+ *  consumed). Wayfinder Discovers across ALL of these (spread), not one, so its 3 options aren't a guaranteed
+ *  single tribe — unless you're missing only one. Empty when you control every active tribe. */
+function uncontrolledTribes(state: RunState): Tribe[] {
   const onBoard = new Set<Tribe>();
   for (const c of state.board) {
     const def = CARD_INDEX[c.cardId];
     if (!def) continue;
     for (const t of [def.tribe, def.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
   }
-  const candidates = state.tribes.filter((t) => t !== 'neutral' && !onBoard.has(t));
-  if (candidates.length === 0) return null;
-  const rng = makeRng(state.rngCursor);
-  const pick = candidates[rng.int(candidates.length)]!;
-  state.rngCursor = rng.state();
-  return pick;
+  return state.tribes.filter((t) => t !== 'neutral' && !onBoard.has(t));
 }
 
 /**
@@ -584,14 +600,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  fire stacks an offer onto the queue). */
   battlecryDiscoverMinion: (ctx, self, params) => {
     const raw = str(params.tribe) || undefined;
-    // Wayfinder: `tribe: 'uncontrolled'` resolves at play-time to a random active tribe not on your board
-    // (falls back to any tribe if you control them all).
-    const tribe = (raw === 'uncontrolled' ? (uncontrolledTribe(ctx.state) ?? undefined) : raw) as Tribe | undefined;
+    // Wayfinder: `tribe: 'uncontrolled'` Discovers across EVERY active tribe not on your board (a SPREAD — the
+    // 3 options aren't a guaranteed single tribe), unless you're missing only one. `tribes: []` (you control
+    // them all) falls back to any tribe. A fixed `tribe` (Sea Urchin → Beasts) stays a single-tribe Discover.
+    const uncontrolled = raw === 'uncontrolled';
+    const tribes = uncontrolled ? uncontrolledTribes(ctx.state) : undefined;
+    const tribe = uncontrolled ? undefined : (raw as Tribe | undefined);
     const fixed = num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
     // Exclude the source itself — Sea Urchin shouldn't be able to Discover another Sea Urchin.
     const spec: DiscoverSpec = fixed > 0
-      ? { kind: 'minion', tier: fixed, exactTier: fixed, tribe, exclude: self.cardId }
-      : { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId };
+      ? { kind: 'minion', tier: fixed, exactTier: fixed, tribe, tribes, exclude: self.cardId }
+      : { kind: 'minion', tier: ctx.state.tier, tribe, tribes, exclude: self.cardId };
     queueDiscover(ctx.state, spec);
     if (self.golden) queueDiscover(ctx.state, spec);
   },
@@ -1543,6 +1562,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.beastBuyAtk = (ctx.state.beastBuyAtk ?? 0) + amount;
   },
 
+  /** Squirl Scout — Battlecry: give a RANDOM friendly minion +N/+N, repeated once per Beast you own (board).
+   *  N is the run-wide `squirlScoutBuff`, which each Squirl Scout played raises by `step` (×2 golden), so it
+   *  snowballs across the run. Squirl Scout is on the board when this fires, so it counts itself. Grants spread
+   *  (each repeat re-rolls the target). Live grant surfaces via cardText's squirlScoutText. */
+  battlecryScoutSpread: (ctx, self, params) => {
+    const state = ctx.state;
+    const step = num(params.step, 3) * gold(self);
+    state.squirlScoutBuff = (state.squirlScoutBuff ?? 0) + step; // improve first → THIS play grants the new value
+    const amount = state.squirlScoutBuff;
+    const beasts = state.board.filter((c) => isTribe(c, 'beast')).length; // "for every Beast you own"
+    if (amount <= 0 || beasts === 0 || state.board.length === 0) return;
+    const rng = makeRng(state.rngCursor);
+    for (let i = 0; i < beasts; i++) {
+      const target = state.board[rng.int(state.board.length)]!; // a random friendly minion (may repeat)
+      addBuff(target, nameOf(self), amount, amount);
+    }
+    state.rngCursor = rng.state();
+  },
+
   /** Scrap Herald — Battlecry: your Magnetic minions ("Attachments") get +atk/+hp "wherever they are". Buffs
    *  every current Magnetic (board + hand) now and stacks into `magneticBuyAtk`/`magneticBuyHp`, so future
    *  Magnetics (bought / conjured / summoned / Reborn) carry it too — the Magnetic sibling of Squirl Scout's
@@ -1677,16 +1715,19 @@ function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: (typeof BUYABLE_CA
 export function offerDiscover(
   state: RunState,
   discoverTier: number,
-  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe; exclude?: string; topTierFirst?: boolean },
+  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean },
 ): void {
   const baseFilter = opts?.filter ?? (() => true);
   const tribe = opts?.tribe;
+  const tribes = opts?.tribes; // Wayfinder: a SET of tribes (spread across every uncontrolled tribe), not one
   const exclude = opts?.exclude;
   // Tribe-filtered Discover (Sea Urchin → Beasts only): AND the tribe check into the card filter so both
-  // the fixed-tier and tiered pool branches below pick it up (dual-types count). `exclude` drops the source
-  // card (Sea Urchin can't Discover itself).
+  // the fixed-tier and tiered pool branches below pick it up (dual-types count). `tribes` (plural) admits a
+  // card matching ANY of the listed tribes. `exclude` drops the source card (Sea Urchin can't Discover itself).
   const filter = (c: (typeof BUYABLE_CARDS)[number]): boolean =>
-    baseFilter(c) && c.id !== exclude && (!tribe || c.tribe === tribe || c.tribe2 === tribe);
+    baseFilter(c) && c.id !== exclude &&
+    (!tribe || c.tribe === tribe || c.tribe2 === tribe) &&
+    (!tribes || tribes.length === 0 || tribes.some((t) => c.tribe === t || c.tribe2 === t));
   let pool: typeof BUYABLE_CARDS = [];
   if (opts?.tier !== undefined) {
     // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
@@ -1745,6 +1786,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
       tribe: spec.tribe,
+      tribes: spec.tribes,
       exclude: spec.exclude,
       filter: spec.filter ? discoverFilter(spec.filter) : undefined,
       topTierFirst: spec.topTierFirst,

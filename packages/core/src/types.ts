@@ -188,7 +188,8 @@ export type EffectFactoryId =
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
-  | 'battlecryBuffBeastAttack' // Squirl Scout: Battlecry — give your Beasts +Attack wherever they are; stacks into future buys
+  | 'battlecryBuffBeastAttack' // (legacy) give your Beasts +Attack wherever they are; stacks into future buys
+  | 'battlecryScoutSpread' // Squirl Scout: Battlecry — give a random friendly +N/+N per Beast owned; N snowballs per Squirl Scout played
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
   | 'goldSpentBuffFodder' // Koron: every N Gold spent, permanently buff your Fodder run-wide (+ queue a Fodder)
@@ -312,7 +313,7 @@ export interface CardDef {
   fodderAura?: { attack: number; health: number };
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
-  chooseOne?: { text: string; effects: EffectDef[]; target?: 'friendly' | 'any' }[];
+  chooseOne?: { text: string; goldenText?: string; effects: EffectDef[]; target?: 'friendly' | 'any' }[];
   /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
    *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
    *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe

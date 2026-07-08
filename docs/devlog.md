@@ -5,6 +5,50 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### balance + fixes: Beast/Mech/Dragon tuning batch, Slaughter-on-attack-only, attachment auras, Wayfinder spread, Nimbus×Discover
+
+An owner balance + bugfix pass (on `feat/beast-quests`, since several items touch the same Slaughter loop + Beast
+auras the quest work added).
+
+**Balance:**
+- **Den Mother** → +1/+1, improve +1/+1 (golden +2/+2), and now **recruit-only**: it snowballs Beasts you PLAY in
+  the shop, not combat summons (the combat `summonBuffTribeImprove` factory was removed — an effect with no combat
+  factory is inert in combat).
+- **Kennelmaster** → **Avenge (3)** (was 2).
+- **Squirl Scout** reworked: **"Battlecry: Give a friendly minion +3/+3. Repeat for every Beast you own. Every
+  Squirl Scout played improves this by +3/+3."** New `battlecryScoutSpread` factory + a run-wide `squirlScoutBuff`
+  counter (random-spread grant, board-scope "own"); it no longer feeds the `beastBuyAtk` aura. Live grant via
+  `squirlScoutText`.
+- **Pack Leader** wired to the (already-authored, never-used) `scTribeBuffPerPlayed`: **"Start of Combat: Give your
+  Beasts +2/+2. Improve this by +2/+2 for every Beast played."** (this turn, frozen at combat start). Live grant
+  via a new `scTribeBuffPerPlayedText`.
+- **Hoardbreaker Drake** → **6/4** (was 4/5).
+
+**Bug fixes:**
+- **Slaughter is attacker-only** (revises the 2026-07-03 ruling): on-kill fires only when the minion ATTACKS and
+  kills (main target + cleave) — a defender felling its attacker via retaliation no longer procs. Gated on
+  `killer === attacker` in `simulate()`; the quest Slaughter tally follows the same rule.
+- **Attachments given in any way** now get the Attachment aura: a welded host GAINS the `M` keyword (was skipped)
+  and the run-wide `magneticBuyAtk`/`magneticBuyHp` is baked in once, when it first becomes Magnetic
+  (`bakeAttachmentAura`) — fixes Banksly/welded Mechs missing "Attachments +X/+Y wherever they are".
+- **Tribe Portal × Nimbus:** a Nimbus charge now doubles a Discover-spell — the Discover-on-play path honors
+  `nextSpellMult` (opens the Discover once per cast, extras queued) and spends the charge. Yazzus (aimed-only) still
+  doesn't apply; `singleCast` never multiplies.
+- **Wayfinder** now SPREADS its Discover across EVERY uncontrolled active tribe (not one guaranteed tribe), falling
+  back to that single tribe only when it's the sole one you're missing. New `tribes?: Tribe[]` on `DiscoverSpec` +
+  `offerDiscover` filter; the single-tribe RNG pick (`uncontrolledTribe`) is gone (→ `uncontrolledTribes`, no RNG).
+- **Golden Wildwood Shaper** display: the Choose One modal now shows the doubled option text (**+2/+6** / **two
+  1/1 Strays**) — added optional per-option `goldenText` (type + schema + the modal renders the golden variant when
+  the card is golden). The effect already doubled correctly (verified) — this closes the display gap.
+
+**UI:** **Spirit Worgen** now appends its live proc count in parens, e.g. `(12)` — the number of Beasts/Dragons
+you've played this turn (the ×multiplier its End of Turn will apply). Threaded `playedThisTurn` (and
+`squirlScoutBuff`) into the live-text chain (`instView` `live` object → `LiveTextParams`).
+
+**Verified:** typecheck + lint + build:web clean; **667 tests pass** (updated the Den Mother / Squirl Scout / weld
+/ Pack Leader / retaliation-on-kill / step-tag tests to the new behavior + added regressions for the welded-host
+aura and Nimbus×Tribe-Portal). Live: the golden Wildwood Shaper Choose One modal shows +2/+6 / two Strays.
+
 ### feat(content): Beast quests — the first fully authored tribe (11 quests + 3 reward cards + combat-objective engine)
 
 The whole Beast quest set, per the owner's 2026-07-08 spec — and the engine work the richer objectives/rewards

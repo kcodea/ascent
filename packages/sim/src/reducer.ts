@@ -282,14 +282,20 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.hand.splice(i, 1);
         const tier = dop.exactTier ?? s.tier + (dop.tierOffset ?? 0);
         const tribe = dop.tribe === 'dominant' ? (dominantBoardTribe(s) ?? undefined) : dop.tribe;
-        queueDiscover(s, {
-          kind: 'minion',
+        const spec = {
+          kind: 'minion' as const,
           tier,
           ...(dop.exactTier !== undefined ? { exactTier: dop.exactTier } : {}),
           ...(dop.filter ? { filter: dop.filter } : {}),
           ...(tribe ? { tribe } : {}),
           ...(dop.topTierFirst ? { topTierFirst: true } : {}),
-        });
+        };
+        // Nimbus ("your next Tavern spell casts twice") DOES apply to a Discover-spell — open the Discover once
+        // per cast (2, or 3 with a golden Nimbus), the extras queued behind the first. Yazzus (aimed-only) still
+        // doesn't; `singleCast` never multiplies. The charge is spent here, like every other spell.
+        const casts = def.singleCast ? 1 : (s.nextSpellMult ?? 1);
+        for (let n = 0; n < casts; n++) queueDiscover(s, { ...spec });
+        if (!def.singleCast) s.nextSpellMult = undefined;
         return s;
       }
 

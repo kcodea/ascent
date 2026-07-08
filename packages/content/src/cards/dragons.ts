@@ -253,4 +253,18 @@ export const DRAGONS: CardDef[] = [
     text: '**End of Turn:** Cast **Growth**. Repeat for each End of Turn triggered before this.',
     goldenText: '**End of Turn:** Cast **Growth** twice. Repeat twice for each End of Turn before this.',
   },
+  {
+    // Slaughter: on a kill, "cast Growth" — buff all your minions +3/+4 (+ combat spell power). A Dragon
+    // finisher that snowballs a winning fight; extra kills re-cast it. Golden → +6/+8. (Art pending.)
+    id: 'hoardbreaker',
+    name: 'Hoardbreaker Drake',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: ['SL'],
+    effects: [{ on: 'onKill', do: 'onKillCastSpell', params: { spellId: 'growth' } }],
+    text: '**Slaughter:** Cast **Growth** (give your minions **+3/+4**).',
+    goldenText: '**Slaughter:** Cast **Growth** (give your minions **+6/+8**).',
+  },
 ];

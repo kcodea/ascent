@@ -40,6 +40,9 @@ export const EffectFactoryIdSchema = z.enum([
   'onKillBuffSpellPower',
   'onKillGrantFreeRolls',
   'onKillGrantGold',
+  'onKillCastSpell',
+  'rallyCastRandomStatSpell',
+  'avengeCastRandomStatSpell',
   'deathrattleDamageAll',
   'deathrattleDestroyKiller',
   'deathrattleBuffTribeByTally',
@@ -181,6 +184,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryDoubleNextSpell',
   'battlecryGrantSpell',
   'endOfTurnCastSpellEscalating',
+  'endOfTurnAdjacentConsumeFodder',
 ]);
 
 export const EffectDefSchema = z.object({

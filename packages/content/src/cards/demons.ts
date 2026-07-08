@@ -246,4 +246,19 @@ export const DEMONS: CardDef[] = [
     text: '**Avenge (3):** add a **Fodder** to your next shop.',
     goldenText: '**Avenge (3):** add **2 Fodder** to your next shop.',
   },
+  {
+    // End of Turn: both board-adjacent minions Consume a Fodder (gain its enchanted stats + fire the consume
+    // payoffs). A Demon anchor that feeds its neighbors every turn — pairs with onConsume growers. Golden →
+    // each neighbor Consumes 2.
+    id: 'abyssalfeeder',
+    name: 'Abyssal Feeder',
+    tribe: 'demon',
+    tier: 6,
+    attack: 7,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnAdjacentConsumeFodder' }],
+    text: '**End of Turn:** adjacent minions each **Consume** a Fodder.',
+    goldenText: '**End of Turn:** adjacent minions each **Consume** 2 Fodder.',
+  },
 ];

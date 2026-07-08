@@ -293,6 +293,21 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'patchjob')).toBe(true);
   });
 
+  it('Abyssal Feeder: End of Turn — adjacent minions each consume a Fodder', () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'L', cardId: 'drone', tribe: 'mech', attack: 2, health: 5, keywords: [], golden: false },
+        { uid: 'F', cardId: 'abyssalfeeder', tribe: 'demon', attack: 7, health: 6, keywords: [], golden: false },
+        { uid: 'R', cardId: 'drone', tribe: 'mech', attack: 2, health: 5, keywords: [], golden: false },
+      ],
+    };
+    applyEndOfTurn(s);
+    expect(s.board.find((c) => c.uid === 'L')!.attack).toBeGreaterThan(2); // consumed a Fodder → gained its stats
+    expect(s.board.find((c) => c.uid === 'R')!.attack).toBeGreaterThan(2);
+    expect(s.board.find((c) => c.uid === 'F')!.attack).toBe(7); // the Feeder itself doesn't consume
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

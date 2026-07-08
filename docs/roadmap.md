@@ -280,13 +280,14 @@ which effect channels fire at which offsets — replacing the current split acro
   (a greedy bot's Target Dummy hits 76/50 by wave 12 with zero synergy) — fold into the outlier re-shape list.
 - **Content depth:** target **13–15 minions per tribe** (variety is meant to come from the meta layer —
   heroes + quests/mastery/ancients — not raw card count); **~40 spells** (34 today). Run `npm run audit`.
-- **New-minions batch — remaining (~8, wave 3+):** the heavy-subsystem tail of the ~27-card batch (waves 1–2
-  shipped 18 cards — see devlog). Each needs a genuinely new mechanism: **baked auras** (Squirl Scout = Beasts
-  +2 Atk wherever, mirrors `undeadBuyAtk` across ~7 creation sites; Scrap Herald = Attachments/Magnetics +2/+2);
-  **combat spell-cast** (Spell Drummer, Spark Capacitor, Hoardbreaker Drake — no combat "cast a spell" primitive
-  today); **beasts/dragons-played-this-turn counter** (Pack Leader + the Spirit Worgen retext); **targeted
-  destroy** (Graverobber); and **adjacency consume** (Abyssal Feeder). Art still owed: Nimbus, Moe, Bounty Bot,
-  Hoardbreaker Drake.
+- **New-minions batch — remaining (~4, wave 4):** the tail of the ~27-card batch (waves 1–3 shipped 22 cards —
+  see devlog). Each needs a heavier change or a decision: **baked auras** (Squirl Scout = Beasts +2 Atk wherever,
+  mirrors `undeadBuyAtk` across ~7 creation sites; Scrap Herald = Attachments/Magnetics +2/+2); a **per-turn
+  play counter** for Pack Leader (SoC scaling by Beasts played this turn — also needs a `simulate()` signature
+  param, a shared-boundary change) + the **Spirit Worgen retext** (same counter; confirm "improve +1/+1 per spell
+  you cast" = this turn's spells); and **Graverobber** (targeted destroy that procs deathrattles + grants a random
+  spell of the destroyed minion's tier — no clean recruit destroy-with-deathrattle helper today). Art still owed:
+  Nimbus, Moe, Bounty Bot, Hoardbreaker Drake.
 
 ### Matchmaking evolution
 - Today `pickOpponent` matches by `(wave, Σ(atk+hp) power)`. Ratings are now trustworthy per wave (synthetic

@@ -5,10 +5,12 @@ import { sfx } from '../sfx';
 import { SCORE, runMomentCues } from './score';
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
-const ctx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
+const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
   events, onShake: vi.fn(), findEl: () => null, attackerUid: null,
-  onFloats: vi.fn(), onDeathFloats: vi.fn(), ...overrides,
+  onFloats: vi.fn(), onDeathFloats: vi.fn(),
+  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), ...overrides,
 });
+const ctx = baseCtx;
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -42,5 +44,37 @@ describe('score', () => {
     expect(c.onShake).not.toHaveBeenCalled();
     expect(c.onFloats).not.toHaveBeenCalled();
     expect(c.onDeathFloats).not.toHaveBeenCalled();
+  });
+
+  it('the aura cue is on every kind via the shared default (grouped deaths are not missed)', () => {
+    for (const kind of ['damage', 'death', 'reborn', 'shieldPop', 'poisonTick'] as const) {
+      expect(SCORE[kind].some((c) => c.ch === 'aura')).toBe(true);
+    }
+  });
+
+  it('runMomentCues bursts a REAL death anywhere in the moment (even a damage-kind moment containing a death)', () => {
+    const onAuraBurst = vi.fn();
+    const evs = [
+      { type: 'dmg', target: 'b', amount: 9, remainingHp: 0 },
+      { type: 'death', target: 'b', side: 'enemy' },
+    ] as CombatEvent[];
+    runMomentCues(moment('damage', evs), { ...baseCtx(evs), onAuraBurst });
+    expect(onAuraBurst).toHaveBeenCalledWith('b');
+  });
+
+  it('a RISE death is NOT burst by the runner (the replay/engine own it)', () => {
+    const onAuraBurst = vi.fn();
+    const evs = [{ type: 'death', target: 'r', side: 'enemy', rise: true }] as CombatEvent[];
+    runMomentCues(moment('riseDeath', evs), { ...baseCtx(evs), onAuraBurst });
+    expect(onAuraBurst).not.toHaveBeenCalled();
+  });
+
+  it('runMomentCues routes a shield-consume to onShieldBreak and a reborn to onReborn', () => {
+    const onShieldBreak = vi.fn();
+    const onReborn = vi.fn();
+    runMomentCues(moment('shieldPop', [{ type: 'shield', target: 's' }] as CombatEvent[]), { ...baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[]), onShieldBreak });
+    expect(onShieldBreak).toHaveBeenCalledWith('s');
+    runMomentCues(moment('reborn', [{ type: 'reborn', target: 'x', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]), { ...baseCtx([{ type: 'reborn', target: 'x', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]), onReborn });
+    expect(onReborn).toHaveBeenCalledWith('x');
   });
 });

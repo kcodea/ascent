@@ -38,3 +38,22 @@ export function runAttackExchangeCues(
     },
   });
 }
+
+/**
+ * The Rise pull-back (choreographer phase 3c) — a Rise ATTACKER that died to retaliation mid-lunge is pulled
+ * straight back to its slot (a short hold so the contact reads, then a quick pull), so its spirit burst lands
+ * in its own slot, not mid-flight. `onLanded` fires at the tween's end — the `landed` anchor that replaces the
+ * former `data-rising` DOM-flag weld (the replay's syncShields used to poll that flag; now the engine's
+ * timeline fires the burst directly). Returns the timeline (seekable in tests).
+ */
+export function runRiseReturn(el: Element, combatSpeed: number, onLanded: () => void): ReturnType<typeof gsap.timeline> {
+  gsap.killTweensOf(el);
+  const tl = gsap.timeline();
+  tl.to(el, {
+    x: 0, y: 0, rotation: 0, scale: 1,
+    delay: 0.1 / combatSpeed, duration: 0.24 / combatSpeed, ease: 'power2.out',
+    onComplete: () => gsap.set(el, { clearProps: 'transform,zIndex' }),
+  });
+  tl.add(onLanded); // landed → fire the spirit burst in the unit's own slot
+  return tl;
+}

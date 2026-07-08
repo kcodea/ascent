@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat Choreographer — Phase 3c (aura bursts)** — aura burst/break/re-form authority moves out of
+  Recruit.tsx's per-frame tracker into the choreographer (a new `aura` channel + the pull-back-driven `landed`
+  anchor); the double-burst bug is now structural. syncShields is position-tracking only; all six cross-file
+  timing welds retired.
 - **First real quests + reward palette (M3)** — the skinny `Test ·` beast/dragon/undead lesser quests become **Trail
   Rations / Warm Embers / Grave Toll**, adding `summon`/`shout` objectives and card-generation, delayed-repeat, and
   Shout-doubling rewards, plus an **art-forward redesign** of the quest cards (crisp art, tribe emblem, framed dark

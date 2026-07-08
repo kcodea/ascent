@@ -3,6 +3,55 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-07 (session 22)
+
+### feat: Combat Choreographer — Phase 3c (aura bursts)
+
+Phase 3c of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [choreographer-phase3c](superpowers/plans/2026-07-07-choreographer-phase3c.md)). Still **UI-only,
+no gameplay/outcome change**. This is the phase where **aura burst/break/re-form authority** finally leaves
+`Recruit.tsx`'s per-frame `syncShields` DOM-state-machine and moves onto the choreographer, completing the
+channel set (sfx / float / lunge / impact / **aura**). `syncShields` is now **position-tracking +
+quiet-clear only** — it no longer decides *when* an aura explodes, shatters, or re-forms.
+
+- **`choreo/channels/aura.ts` — the aura channel.** Three cues, each a verbatim relocation of former
+  `syncShields` logic to a real timeline anchor:
+  - `burstDeathAuras(uid, tauntRect)` — a dying carrier's auras explode. Shield and reborn read their own
+    **stored coords** from the bubble registry; the taunt ring bursts on the front layer at the passed
+    **viewport rect** (not the board's centered coords — see the review fix below).
+  - `breakShieldAura(uid, combatSpeed)` — a consumed Divine Shield's delayed gold shatter, **scaled by combat
+    speed** so it aligns to the lunge that ate it (the former `SHIELD_BREAK_DELAY` weld, now `shieldBreakDelay`).
+  - `reformReborn(rect)` — the reborn re-form glow at a **fixed** delay that aligns to the 0.7 s risepop CSS
+    animation, **NOT** speed-scaled (the former `REBORN_SUMMON_DELAY` weld, now `rebornReformDelay`).
+- **`pixiFx.hasAura(uid, kind)` + `pixiFx.auraRect(uid, kind)` — registry queries.** pixiFx's live bubble map
+  is now the source of truth for **which** auras a unit carries; the Score decides **when** they fire. Because
+  a burst destroys the bubble, the cue fires **exactly once** — the historical **double-burst bug is retired
+  structurally**, not by the old `deathBurstRef` guard.
+- **`choreo/engine.ts` — `runRiseReturn`.** The Rise attacker's pull-back tween now lives in the engine and
+  fires the spirit burst at its **completion** — a real `landed` anchor — replacing the `data-rising` DOM-flag
+  weld. A Rise *defender* bursts in place (owned by the replay/engine); the pulled-home *attacker* bursts at
+  `landed`.
+- **`choreo/score.ts` — an `aura` cue on EVERY moment kind.** The runner scans events **kind-agnostically**, so
+  a death that got grouped into a `damage`/`poison` moment still bursts. `runMomentCues` gained
+  `onAuraBurst` / `onShieldBreak` / `onReborn`; it **skips rise deaths** (the engine owns those at `landed`).
+- **`choreoConfig.ts` — the two welds rehomed as tunables.** `shieldBreakDelay` (300) + `rebornReformDelay`
+  (460), each with a PacingTuner label.
+- **Six welds retired.** `data-rising`, `deathBurstRef`, `REBORN_SUMMON_DELAY`, `SHIELD_BREAK_DELAY`, the
+  `.dying` burst-sniff, and the unmount-race fallback are all gone — the choreographer owns the timing.
+- **Two review-caught behavior fixes:** (1) the taunt burst was misplaced by the board's centering offset —
+  it now uses the viewport rect; (2) the reborn re-form glow was wrongly speed-scaled — it's now fixed,
+  matching the fixed risepop CSS. Plus a flicker fix: PASS 1 skips re-registering a **dying** unit's bubble so
+  the position-tracker can't re-grow it after the burst.
+- **Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` — **585 tests** green;
+  `typecheck:web` at its **21-error baseline** (no new errors). Baseline live smoke: a real combat replays to
+  completion with **zero console errors**. The per-aura **visual feel-pass** (DS shatter / Reborn spirit /
+  Taunt burst / Rise-attacker-lands-then-bursts, at 1× and faster) is the **owner's and is pending** (the
+  repo's real gate per CLAUDE.md).
+- **Follow-ups (next):** **Phase 4 — Authoring.** The channel set is now complete (sfx / float / lunge /
+  impact / aura), so the remaining phase is authoring ergonomics: staggers, `splitPerTarget` / chain grouping,
+  the 🎬 Choreography DEV panel, generic ms-offset cues, and retiring the Pacing tuner. See
+  [roadmap.md](roadmap.md)'s Combat Choreographer section.
+
 ## 2026-07-07 (session 21)
 
 ### feat(content): new-minions batch — wave 1 (8 cards across Battlecry / SoC / Rally / EoT / Slaughter)

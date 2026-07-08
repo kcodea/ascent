@@ -63,6 +63,12 @@ export interface ChoreoConfig {
   deathFloatMs: number;
   /** Hold on the LAST beat (death collapse + float) before the replay reports done (ms). */
   finalHold: number;
+  /** Hold a consumed Divine Shield this long (ms) before it visibly shatters, so the read is hit → settle →
+   *  break (scaled by combatSpeed in the aura channel). Was Recruit.tsx's SHIELD_BREAK_DELAY. */
+  shieldBreakDelay: number;
+  /** Delay (ms) from a reborn beat to the wispy re-form glow, timed to the `risepop` CSS re-form phase. Was
+   *  useCombatReplay.ts's REBORN_SUMMON_DELAY. */
+  rebornReformDelay: number;
 }
 
 const DEFAULTS: ChoreoConfig = {
@@ -74,6 +80,7 @@ const DEFAULTS: ChoreoConfig = {
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
   // overlay lifetimes (ms)
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,
+  shieldBreakDelay: 300, rebornReformDelay: 460,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -85,6 +92,7 @@ export const CHOREO_RANGES: Record<keyof ChoreoConfig, [number, number, number]>
   dmg: [0, 1200, 10], shield: [0, 1200, 10], shieldUp: [0, 1200, 10], poison: [0, 1200, 10],
   venomLost: [0, 1200, 10], death: [0, 1200, 10],
   floatMs: [400, 3000, 50], deathFloatMs: [300, 2000, 50], finalHold: [200, 2000, 50],
+  shieldBreakDelay: [0, 1000, 10], rebornReformDelay: [0, 1000, 10],
 };
 export const CHOREO_KEYS = Object.keys(DEFAULTS) as (keyof ChoreoConfig)[];
 

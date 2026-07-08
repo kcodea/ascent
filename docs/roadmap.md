@@ -236,9 +236,15 @@ which effect channels fire at which offsets — replacing the current split acro
   no longer re-fires that beat's sfx/shake. Accepted nuance: backgrounding the tab mid-lunge resumes the
   lunge in place (GSAP timeline) rather than resetting it. UI-only: 569 tests + build green, live smoke
   on a real combat, zero console errors. **Depends:** phase 3a.
-- **Phase 3c — aura bursts.** Move burst/break authority out of `Recruit.tsx`'s `syncShields` to a
-  `landed` anchor in the score — retires the `data-rising`/Reborn-460ms cross-file timing welds.
-  **Depends:** phase 3b (needs the timeline engine + `landed` anchor it introduces).
+- **Phase 3c — aura bursts.** ✅ **shipped 2026-07-07** (→ devlog). The `aura` channel (`choreo/channels/aura.ts`
+  — burstDeathAuras/breakShieldAura/reformReborn) + pixiFx `hasAura`/`auraRect` registry queries + the pull-back-driven
+  `landed` anchor (`engine.ts` — `runRiseReturn`) land; `syncShields` is reduced to position-tracking + quiet-clear only;
+  all **six** cross-file welds retired (`data-rising`, `deathBurstRef`, `REBORN_SUMMON_DELAY`, `SHIELD_BREAK_DELAY`, the
+  `.dying` burst-sniff, the unmount-race fallback) and the **double-burst bug is now structural** (a burst destroys the
+  bubble → fires once). Two review fixes: taunt burst uses the viewport rect (was offset by board centering); the reborn
+  re-form glow is speed-independent (matches the fixed risepop CSS). UI-only: 585 tests + build green, baseline live
+  smoke clean; the per-aura visual feel-pass is the owner's, pending. **The choreographer's channel set is now complete
+  (sfx / float / lunge / impact / aura) — Phase 4 (Authoring) is the remaining phase.**
 - **Phase 4 — Authoring.** Staggers, `splitPerTarget`/`chain` grouping rules, a new 🎬 Choreography
   DEV panel, retiring the Pacing tuner for good, and the first real re-choreographs as proof (an AOE
   death ripple; a Deathrattle chain folded into its death moment; shield-break-before-damage-number

@@ -3,6 +3,7 @@ import type { MomentKind } from './choreo/kinds';
 import type { Channel, Cue } from './choreo/score';
 import { getScore, setCue, resetScore, scoreJson } from './choreo/score';
 import { getChoreoConfig, setChoreoValue, resetChoreoConfig, type ChoreoConfig } from './choreo/choreoConfig';
+import { ChoreoTimeline } from './ChoreoTimeline';
 import { useDraggablePanel } from './useDraggablePanel';
 
 /**
@@ -46,6 +47,7 @@ export function ChoreographyPanel() {
           {KINDS.map((k) => <button key={k} className={`choreo-m${k === kind ? ' on' : ''}`} onClick={() => setKind(k)}>{k}</button>)}
         </div>
         <div className="choreo-edit">
+          <ChoreoTimeline kind={kind} onChange={refresh} />
           {holdKey && <div className="choreo-hold">hold <input type="range" min={0} max={1200} step={10} value={cfg[holdKey]} onChange={(e) => { setChoreoValue(holdKey, Number(e.target.value)); refresh(); }} /> {cfg[holdKey]}ms</div>}
           {cues.map((c) => (
             <div className={`choreo-cue${c.enabled === false ? ' off' : ''}`} key={c.ch}>

@@ -1924,6 +1924,12 @@ svg { width: 18px; height: 18px; }
 .choreo-cue.off { opacity: .45; }
 .choreo-ch { min-width: 74px; }
 .choreo-cue input[type=number] { width: 56px; }
+/* Choreography drag timeline: chips on a time track, dragged to set a cue's offset (mirrors the numeric rows). */
+.choreo-track { position: relative; height: 46px; margin: 4px 0 8px; border-radius: 6px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.choreo-anchor { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed rgba(255,255,255,.25); }
+.choreo-anchor b { position: absolute; top: -13px; left: 2px; font-size: 9px; opacity: .6; white-space: nowrap; }
+.choreo-chip { position: absolute; top: 14px; transform: translateX(-50%); padding: 2px 6px; border-radius: 5px; font-size: 10px; font-weight: 600; background: rgba(255,138,60,.85); color: #1c1a17; cursor: grab; white-space: nowrap; user-select: none; }
+.choreo-chip.off { opacity: .4; }
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
 .escvol .evl { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }

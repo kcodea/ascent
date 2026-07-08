@@ -4,6 +4,7 @@ import type { Channel, Cue } from './choreo/score';
 import { getScore, setCue, resetScore, scoreJson } from './choreo/score';
 import { getChoreoConfig, setChoreoValue, resetChoreoConfig, type ChoreoConfig } from './choreo/choreoConfig';
 import { ChoreoTimeline } from './ChoreoTimeline';
+import { ChoreoPreviewStage } from './ChoreoPreviewStage';
 import { useDraggablePanel } from './useDraggablePanel';
 
 /**
@@ -27,6 +28,7 @@ const HOLD_KEY: Partial<Record<MomentKind, keyof ChoreoConfig>> = {
 export function ChoreographyPanel() {
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('choreo');
   const [kind, setKind] = useState<MomentKind>('attackExchange');
+  const [fireKey, setFireKey] = useState(0);
   const [, force] = useState(0);
   const refresh = (): void => force((n) => n + 1);
   const cfg = getChoreoConfig();
@@ -39,9 +41,12 @@ export function ChoreographyPanel() {
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>🎬 Choreography <span>dev · next moment · drag</span></div>
       <div className="choreo-top">
         <label>tempo <input type="range" min={0.5} max={3} step={0.05} value={cfg.speed} onChange={(e) => { setChoreoValue('speed', Number(e.target.value)); refresh(); }} /> {cfg.speed.toFixed(2)}×</label>
+        <button className="sfxmix-copy" onClick={() => setFireKey((n) => n + 1)} title="Fire the selected moment's FX cues on the mock stage below">▶ Preview</button>
         <button className="sfxmix-copy" onClick={() => void navigator.clipboard?.writeText(scoreJson())}>Copy score</button>
         <button className="sfxmix-copy" onClick={() => { resetScore(); resetChoreoConfig(); refresh(); }}>Reset</button>
       </div>
+      <ChoreoPreviewStage kind={kind} fireKey={fireKey} />
+      <div className="choreo-stage-note">preview renders where the FX layer is live · WebGL FX + sfx only (floats/CSS not reproduced)</div>
       <div className="choreo-body">
         <div className="choreo-rail">
           {KINDS.map((k) => <button key={k} className={`choreo-m${k === kind ? ' on' : ''}`} onClick={() => setKind(k)}>{k}</button>)}

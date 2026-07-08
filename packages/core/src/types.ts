@@ -218,7 +218,8 @@ export type EffectFactoryId =
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
   | 'endOfTurnAdjacentConsumeFodder' // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
-  | 'endOfTurnBuffPerTribePlayed'; // Spirit Worgen: EoT — gain per Beast/Dragon played this turn, +per spell cast (recruit)
+  | 'endOfTurnBuffPerTribePlayed' // Spirit Worgen: EoT — gain per Beast/Dragon played this turn, +per spell cast (recruit)
+  | 'battlecryDestroyForSpell'; // Graverobber: Battlecry — destroy a friendly (procs its DR), get a spell of its tier (recruit)
 
 export interface EffectDef {
   on: GameEvent;

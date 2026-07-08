@@ -322,6 +322,19 @@ describe('run loop (@game/sim)', () => {
     expect(scBuff).toBeDefined();
   });
 
+  it('Graverobber: Battlecry destroys a targeted friendly, procs its Deathrattle + grants a spell of its tier', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 't', cardId: 'broodmother', tribe: 'dragon', attack: 2, health: 5, keywords: [], golden: false }], // T4, DR: summon 2 Whelps
+      hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' }); // Graverobber to board + pendingTarget
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 't' }); // destroy the Whelpmother
+    expect(s.board.find((c) => c.uid === 't')).toBeUndefined(); // destroyed
+    expect(s.board.filter((c) => c.cardId === 'twilightwhelp').length).toBe(2); // its Deathrattle summoned 2 Whelps
+    expect(s.hand.some((c) => CARD_INDEX[c.cardId]?.spell && CARD_INDEX[c.cardId]?.tier === 4)).toBe(true); // a tier-4 spell (Whelpmother is T4)
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

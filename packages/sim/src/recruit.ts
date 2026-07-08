@@ -971,6 +971,36 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.deathrattlesTriggered += 1;
   },
 
+  /** Graverobber — Battlecry: destroy the targeted friendly minion, firing its Deathrattle out of combat
+   *  (the recruit DR factories bake summons/buffs into the board; combat-only rattles are simply inert in the
+   *  shop), then add `gold(self)` random Tavern spell(s) of the destroyed minion's tier to your hand (golden
+   *  → 2). No spell exists at that tier → none is added. */
+  battlecryDestroyForSpell: (ctx, self, params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    const tier = CARD_INDEX[target.cardId]?.tier ?? 1;
+    const idx = ctx.state.board.indexOf(target);
+    if (idx >= 0) ctx.state.board.splice(idx, 1); // destroy it (frees the slot for any Deathrattle summons)
+    for (const eff of CARD_INDEX[target.cardId]?.effects ?? []) {
+      if (eff.on !== 'onDeath') continue;
+      const fn = RECRUIT_FACTORIES[eff.do];
+      if (fn) fn(ctx, target, eff.params ?? {}, { minion: target });
+    }
+    ctx.state.deathrattlesTriggered += 1;
+    const pool = SPELL_CARDS.filter((c) => c.tier === tier);
+    if (pool.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < gold(self) && ctx.state.hand.length < CONFIG.handMax; i++) {
+      const spell = pool[rng.int(pool.length)]!;
+      ctx.state.hand.push({
+        uid: `b${ctx.state.uidSeq++}`,
+        cardId: spell.id, tribe: spell.tribe, attack: spell.attack, health: spell.health,
+        keywords: [...spell.keywords], golden: false,
+      });
+    }
+    ctx.state.rngCursor = rng.state();
+  },
+
   // --- Deathrattles that can also resolve out of combat (e.g. when Consumed). The
   //     combat versions live in @game/core; these bake into the board's stats. Out
   //     of combat there's no RNG, so "random" picks become the highest-Attack carry. ---

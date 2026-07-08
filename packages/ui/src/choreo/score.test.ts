@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from './compile';
 import { sfx } from '../sfx';
-import { SCORE, runMomentCues } from './score';
+import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues } from './score';
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
-  events, onShake: vi.fn(), findEl: () => null, attackerUid: null,
+  events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
   onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), ...overrides,
 });
@@ -16,11 +16,11 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('score', () => {
   it('every MomentKind has a cue list (exhaustive score)', () => {
-    for (const cues of Object.values(SCORE)) expect(Array.isArray(cues)).toBe(true);
+    for (const cues of Object.values(SCORE_DEFAULTS)) expect(Array.isArray(cues)).toBe(true);
   });
 
   it('attackExchange scores lunge (start) + impact (contact) — no sfx/float double-firing the smack', () => {
-    expect(SCORE.attackExchange).toEqual(expect.arrayContaining([{ ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact' }]));
+    expect(SCORE_DEFAULTS.attackExchange).toEqual(expect.arrayContaining([{ ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact', offset: 0 }]));
   });
 
   it('runMomentCues fires the sfx channel and routes a real-death shake to onShake', () => {
@@ -46,35 +46,89 @@ describe('score', () => {
     expect(c.onDeathFloats).not.toHaveBeenCalled();
   });
 
-  it('the aura cue is on every kind via the shared default (grouped deaths are not missed)', () => {
-    for (const kind of ['damage', 'death', 'reborn', 'shieldPop', 'poisonTick'] as const) {
-      expect(SCORE[kind].some((c) => c.ch === 'aura')).toBe(true);
+  it('auraBurst + auraBreak are on every kind; auraReform is on the reborn kind (grouped effects not missed)', () => {
+    for (const kind of ['damage', 'death', 'shieldPop', 'poisonTick', 'summon'] as const) {
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'auraBurst')).toBe(true);
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'auraBreak')).toBe(true);
     }
+    expect(SCORE_DEFAULTS.reborn.some((c) => c.ch === 'auraReform')).toBe(true);
   });
 
-  it('runMomentCues bursts a REAL death anywhere in the moment (even a damage-kind moment containing a death)', () => {
-    const onAuraBurst = vi.fn();
-    const evs = [
-      { type: 'dmg', target: 'b', amount: 9, remainingHp: 0 },
-      { type: 'death', target: 'b', side: 'enemy' },
-    ] as CombatEvent[];
-    runMomentCues(moment('damage', evs), { ...baseCtx(evs), onAuraBurst });
-    expect(onAuraBurst).toHaveBeenCalledWith('b');
+  it('the migrated aura offsets reproduce the old channel delays', () => {
+    const burst = SCORE_DEFAULTS.death.find((c) => c.ch === 'auraBurst')!;
+    const brk = SCORE_DEFAULTS.shieldPop.find((c) => c.ch === 'auraBreak')!;
+    const reform = SCORE_DEFAULTS.reborn.find((c) => c.ch === 'auraReform')!;
+    expect(burst.offset ?? 0).toBe(0);
+    expect(brk.offset).toBe(300);
+    expect(brk.scaled ?? true).toBe(true);
+    expect(reform.offset).toBe(460);
+    expect(reform.scaled).toBe(false);
   });
 
-  it('a RISE death is NOT burst by the runner (the replay/engine own it)', () => {
-    const onAuraBurst = vi.fn();
-    const evs = [{ type: 'death', target: 'r', side: 'enemy', rise: true }] as CombatEvent[];
-    runMomentCues(moment('riseDeath', evs), { ...baseCtx(evs), onAuraBurst });
-    expect(onAuraBurst).not.toHaveBeenCalled();
+  it('runMomentCues routes a real death → onAuraBurst (sync), a shield → onShieldBreak, a reborn → onReborn', () => {
+    vi.useFakeTimers();
+    const c1 = baseCtx([{ type: 'death', target: 'a', side: 'enemy' }] as CombatEvent[]);
+    runMomentCues(moment('death', c1.events), c1);
+    expect(c1.onAuraBurst).toHaveBeenCalledWith('a'); // burst offset 0 → synchronous
+    const c2 = baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[]);
+    runMomentCues(moment('shieldPop', c2.events), c2);
+    vi.advanceTimersByTime(300); // auraBreak +300ms scaled (speed 1)
+    expect(c2.onShieldBreak).toHaveBeenCalledWith('s');
+    const c3 = baseCtx([{ type: 'reborn', target: 'r', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]);
+    runMomentCues(moment('reborn', c3.events), c3);
+    vi.advanceTimersByTime(460); // auraReform +460ms fixed
+    expect(c3.onReborn).toHaveBeenCalledWith('r');
+    vi.useRealTimers();
   });
 
-  it('runMomentCues routes a shield-consume to onShieldBreak and a reborn to onReborn', () => {
-    const onShieldBreak = vi.fn();
-    const onReborn = vi.fn();
-    runMomentCues(moment('shieldPop', [{ type: 'shield', target: 's' }] as CombatEvent[]), { ...baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[]), onShieldBreak });
-    expect(onShieldBreak).toHaveBeenCalledWith('s');
-    runMomentCues(moment('reborn', [{ type: 'reborn', target: 'x', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]), { ...baseCtx([{ type: 'reborn', target: 'x', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]), onReborn });
-    expect(onReborn).toHaveBeenCalledWith('x');
+  it('a rise death is not burst by the runner', () => {
+    const c = baseCtx([{ type: 'death', target: 'r', side: 'enemy', rise: true }] as CombatEvent[]);
+    runMomentCues(moment('riseDeath', c.events), c);
+    expect(c.onAuraBurst).not.toHaveBeenCalled();
+  });
+
+  it('a start cue with offset 0 fires synchronously; a positive offset schedules by offset/speed', () => {
+    vi.useFakeTimers();
+    const c = baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[], { combatSpeed: 2 });
+    const cleanup = runMomentCues(moment('shieldPop', c.events), c);
+    expect(c.onShieldBreak).not.toHaveBeenCalled();  // auraBreak 300 ÷2 = 150ms
+    vi.advanceTimersByTime(149); expect(c.onShieldBreak).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2); expect(c.onShieldBreak).toHaveBeenCalledWith('s');
+    cleanup(); vi.useRealTimers();
+  });
+  it('a scaled:false offset does NOT divide by speed (reborn re-form)', () => {
+    vi.useFakeTimers();
+    const c = baseCtx([{ type: 'reborn', target: 'r', hp: 1, attack: 2, keywords: [] }] as CombatEvent[], { combatSpeed: 2 });
+    runMomentCues(moment('reborn', c.events), c);
+    vi.advanceTimersByTime(459); expect(c.onReborn).not.toHaveBeenCalled();  // fixed 460 despite speed 2
+    vi.advanceTimersByTime(2); expect(c.onReborn).toHaveBeenCalledWith('r');
+    vi.useRealTimers();
+  });
+  it('the returned cleanup cancels a pending offset timer', () => {
+    vi.useFakeTimers();
+    const c = baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[], { combatSpeed: 1 });
+    const cleanup = runMomentCues(moment('shieldPop', c.events), c);
+    cleanup(); vi.advanceTimersByTime(1000);
+    expect(c.onShieldBreak).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('getScore returns defaults when there are no overrides', () => {
+    resetScore();
+    expect(getScore().death.map((c) => c.ch)).toEqual(SCORE_DEFAULTS.death.map((c) => c.ch));
+  });
+  it('setCue overrides one cue field and persists; resetScore clears it', () => {
+    resetScore();
+    setCue('shieldPop', 'auraBreak', { offset: 120 });
+    expect(getCues('shieldPop').find((c) => c.ch === 'auraBreak')!.offset).toBe(120);
+    resetScore();
+    expect(getCues('shieldPop').find((c) => c.ch === 'auraBreak')!.offset).toBe(300);
+  });
+  it('scoreJson round-trips to an effective table reflecting overrides', () => {
+    resetScore();
+    setCue('death', 'auraBurst', { offset: 50 });
+    const json = JSON.parse(scoreJson());
+    expect(json.death.find((c: { ch: string; offset: number }) => c.ch === 'auraBurst').offset).toBe(50);
+    resetScore();
   });
 });

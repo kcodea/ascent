@@ -50,61 +50,28 @@ describe('burstDeathAuras', () => {
 });
 
 describe('breakShieldAura', () => {
-  it('holds the consumed shield, then shatters + sounds after shieldBreakDelay/combatSpeed', () => {
-    vi.useFakeTimers();
+  it('shatters the consumed shield (gold shards) + sound immediately — the delay now lives in the cue offset', () => {
     const brk = vi.spyOn(pixiFx, 'breakShield').mockImplementation(() => {});
     const s = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
-    const cancel = breakShieldAura('u3', 2); // combatSpeed 2 → 150ms
-    expect(brk).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(149);
-    expect(brk).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(2);
+    breakShieldAura('u3');
     expect(brk).toHaveBeenCalledWith('u3', 'shield');
     expect(s).toHaveBeenCalledTimes(1);
-    cancel(); // no throw after fire
-  });
-
-  it('the returned cancel prevents a pending shatter', () => {
-    vi.useFakeTimers();
-    const brk = vi.spyOn(pixiFx, 'breakShield').mockImplementation(() => {});
-    const cancel = breakShieldAura('u4', 1);
-    cancel();
-    vi.advanceTimersByTime(1000);
-    expect(brk).not.toHaveBeenCalled();
   });
 });
 
 describe('reformReborn', () => {
-  it('schedules the re-form glow + sound at the FIXED rebornReformDelay (460ms), positioned via the rect', () => {
-    vi.useFakeTimers();
+  it('plays the re-form glow + sound immediately, positioned via the rect — the delay now lives in the cue offset', () => {
     const summon = vi.spyOn(pixiFx, 'rebornSummon').mockImplementation(() => {});
     const s = vi.spyOn(sfx, 'rebornSummon').mockImplementation(() => {});
     reformReborn({ cx: 5, cy: 6, w: 7, h: 8 });
-    vi.advanceTimersByTime(459);
-    expect(summon).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(2);
     expect(summon).toHaveBeenCalledWith(5, 6, 7, 8);
     expect(s).toHaveBeenCalledTimes(1);
   });
 
-  it('the delay is NOT scaled by combat speed — it aligns to the fixed-duration risepop CSS, not the lunge', () => {
-    // (reformReborn takes no combatSpeed arg — this guards against re-introducing a /combatSpeed that would
-    // desync the glow from the fixed 0.7s risepop re-form at non-1x speeds.)
-    vi.useFakeTimers();
-    const summon = vi.spyOn(pixiFx, 'rebornSummon').mockImplementation(() => {});
-    reformReborn({ cx: 1, cy: 2, w: 3, h: 4 });
-    vi.advanceTimersByTime(230); // would have fired here if it divided by a 2x speed
-    expect(summon).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(231);
-    expect(summon).toHaveBeenCalledTimes(1);
-  });
-
   it('with no rect (unit not measurable) plays only the sound', () => {
-    vi.useFakeTimers();
     const summon = vi.spyOn(pixiFx, 'rebornSummon').mockImplementation(() => {});
     const s = vi.spyOn(sfx, 'rebornSummon').mockImplementation(() => {});
     reformReborn(null);
-    vi.advanceTimersByTime(500);
     expect(summon).not.toHaveBeenCalled();
     expect(s).toHaveBeenCalledTimes(1);
   });

@@ -1,6 +1,5 @@
 import { pixiFx, tauntFx } from '../../pixiFx';
 import { sfx } from '../../sfx';
-import { getChoreoConfig } from '../choreoConfig';
 
 /**
  * Aura channel (choreographer phase 3c) — the single owner of every combat aura burst/break/re-form FX+sfx
@@ -26,25 +25,16 @@ export function burstDeathAuras(uid: string, tauntRect: { cx: number; cy: number
   }
 }
 
-/** A Divine Shield is CONSUMED (a `shield` event): hold the bubble briefly so the read is hit → settle →
- *  break, then shatter it (gold shards) + sound. The bubble keeps position-tracking meanwhile (syncShields
- *  still runs). Returns a cancel to clear the pending timer. Encapsulates the former SHIELD_BREAK_DELAY weld. */
-export function breakShieldAura(uid: string, combatSpeed: number): () => void {
-  const d = getChoreoConfig().shieldBreakDelay / (combatSpeed > 0 ? combatSpeed : 1);
-  const id = setTimeout(() => { pixiFx.breakShield(uid, 'shield'); sfx.shieldBreak(); }, d);
-  return () => clearTimeout(id);
+/** A Divine Shield was consumed → shatter it now (gold shards) + sound. The DELAY is now the auraBreak cue's
+ *  offset, scheduled by the runner (was this function's internal SHIELD_BREAK_DELAY setTimeout). */
+export function breakShieldAura(uid: string): void {
+  pixiFx.breakShield(uid, 'shield');
+  sfx.shieldBreak();
 }
 
-/** A unit REBORN (a `reborn` event): schedule the wispy re-form glow + sound at rebornReformDelay, timed to
- *  the `risepop` CSS re-form phase. `rect` is the unit's measured center+footprint (null → sound only).
- *  Encapsulates the former REBORN_SUMMON_DELAY weld. Returns a cancel for the pending timer. NOTE: this delay
- *  is NOT scaled by combatSpeed — it aligns to the fixed-duration `risepop` CSS re-form animation (0.7s wall
- *  clock, not speed-scaled), matching the former fixed REBORN_SUMMON_DELAY. (Contrast breakShieldAura, which
- *  DOES scale, because it aligns to the speed-scaled lunge connection.) */
-export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null): () => void {
-  const id = setTimeout(() => {
-    if (rect) pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h);
-    sfx.rebornSummon();
-  }, getChoreoConfig().rebornReformDelay);
-  return () => clearTimeout(id);
+/** A unit reborn → the re-form glow + sound now. The DELAY is the auraReform cue's offset (scaled:false),
+ *  scheduled by the runner (was the internal REBORN_SUMMON_DELAY setTimeout). */
+export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null): void {
+  if (rect) pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h);
+  sfx.rebornSummon();
 }

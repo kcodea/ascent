@@ -526,15 +526,21 @@ export function useCombatReplay(
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     const timers: number[] = [];
-    const cancels: Array<() => void> = [];
     // A unit's live VIEWPORT center+footprint (for the taunt death-burst + the reborn re-form glow, both of
     // which draw on the viewport-fixed FX layer). null when the unit isn't currently measurable.
     const rectOf = (uid: string): { cx: number; cy: number; w: number; h: number } | null => {
       const r = findEl(uid)?.getBoundingClientRect();
       return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null;
     };
-    runMomentCues(beat, {
+    // The reborn re-form glow is scheduled +460ms (the auraReform cue offset), but its FOOTPRINT must be the
+    // unit's rect at BEAT-START — not at fire time, when the `risepop` CSS has scaled the card up to full size
+    // (that would size the glow larger than pre-choreographer-panel behavior). Pre-measure here so the glow's
+    // size stays byte-identical while its timing rides the cue offset.
+    const rebornRects = new Map<string, { cx: number; cy: number; w: number; h: number } | null>();
+    for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'reborn') rebornRects.set(e.target, rectOf(e.target)); }
+    const stop = runMomentCues(beat, {
       events,
+      combatSpeed: combatSpeedRef.current,
       onShake: () => setShake((n) => n + 1),
       findEl,
       attackerUid: attackerOfImpact(beats, beatIdx - 1),
@@ -549,8 +555,8 @@ export function useCombatReplay(
         timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
-      onShieldBreak: (uid) => { cancels.push(breakShieldAura(uid, combatSpeedRef.current)); },
-      onReborn: (uid) => { cancels.push(reformReborn(rectOf(uid))); },
+      onShieldBreak: (uid) => breakShieldAura(uid),
+      onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
     });
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —
@@ -560,7 +566,7 @@ export function useCombatReplay(
       const e = events[i];
       if (e?.type === 'death' && e.rise && e.target !== impactAtk) burstDeathAuras(e.target, rectOf(e.target));
     }
-    return () => { timers.forEach((id) => window.clearTimeout(id)); cancels.forEach((c) => c()); };
+    return () => { timers.forEach((id) => window.clearTimeout(id)); stop(); };
   }, [active, beatIdx, beats, events, findEl]);
 
   // Verdict sting when the replay finishes.

@@ -14,33 +14,103 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'aura';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
-export interface Cue { ch: Channel; at: Anchor; }
+export interface Cue {
+  ch: Channel;
+  at: Anchor;
+  /** ms relative to the anchor (default 0). Negative allowed for contact/landed; start clamps ≥0 (later task). */
+  offset?: number;
+  /** Does `offset` scale with combatSpeed? default true; false = fixed wall-clock (the reborn re-form). */
+  scaled?: boolean;
+  /** default true; a disabled cue is skipped by the runner/engine. */
+  enabled?: boolean;
+}
 
-const SFX_FLOAT_AURA: Cue[] = [{ ch: 'sfx', at: 'start' }, { ch: 'float', at: 'start' }, { ch: 'aura', at: 'start' }];
-/** Every kind runs sfx + float + aura at start (all three adapters no-op for moments with nothing to show)
- *  EXCEPT `attackExchange`, which ALSO still needs sfx (the wind-up whoosh, `sfx.attack`) + float (absorbed
- *  windup events like Rally/buff can carry a float) at `start`, PLUS `lunge` (the motion) at `start` and
- *  `impact` (the smack/FX/recoil) at the `contact` anchor the lunge defines, and `aura` at `start` (a death
- *  grouped into an attack's absorbed-windup run must still burst). The aura cue is on EVERY kind because
- *  `death`/`shield` are RESULT_TYPES that collapse into another kind's moment (e.g. `[dmg, death]` is a
- *  `damage`-kind moment CONTAINING a death) — gating aura on death/reborn/shieldPop kinds would miss those
- *  grouped bursts. Each kind gets its OWN array (not a shared reference) so a future authoring pass can vary
- *  one kind's cues without mutating others. */
-export const SCORE: Record<MomentKind, Cue[]> = {
-  attackExchange: [{ ch: 'sfx', at: 'start' }, { ch: 'float', at: 'start' }, { ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact' }, { ch: 'aura', at: 'start' }],
-  damage: [...SFX_FLOAT_AURA], shieldPop: [...SFX_FLOAT_AURA], poisonTick: [...SFX_FLOAT_AURA],
-  death: [...SFX_FLOAT_AURA], riseDeath: [...SFX_FLOAT_AURA], scCast: [...SFX_FLOAT_AURA],
-  summon: [...SFX_FLOAT_AURA], buffWave: [...SFX_FLOAT_AURA], reborn: [...SFX_FLOAT_AURA], ascend: [...SFX_FLOAT_AURA],
-  rally: [...SFX_FLOAT_AURA], toHand: [...SFX_FLOAT_AURA], maxGold: [...SFX_FLOAT_AURA], improve: [...SFX_FLOAT_AURA],
-  keyword: [...SFX_FLOAT_AURA], hpGrant: [...SFX_FLOAT_AURA], reveal: [...SFX_FLOAT_AURA],
+const BASE: Cue[] = [
+  { ch: 'sfx', at: 'start' },
+  { ch: 'float', at: 'start' },
+  { ch: 'auraBurst', at: 'start', offset: 0 },
+  { ch: 'auraBreak', at: 'start', offset: 300, scaled: true },
+];
+const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
+/** Every kind runs sfx + float + auraBurst + auraBreak at start (all adapters no-op for moments with nothing
+ *  to show) EXCEPT `attackExchange`, which ALSO still needs sfx (the wind-up whoosh, `sfx.attack`) + float
+ *  (absorbed windup events like Rally/buff can carry a float) at `start`, PLUS `lunge` (the motion) at `start`
+ *  and `impact` (the smack/FX/recoil) at the `contact` anchor the lunge defines, plus auraBurst/auraBreak (a
+ *  death/shield grouped into an attack's absorbed-windup run must still burst/shatter). The aura sub-channels
+ *  are on EVERY kind because `death`/`shield` are RESULT_TYPES that collapse into another kind's moment (e.g.
+ *  `[dmg, death]` is a `damage`-kind moment CONTAINING a death) — gating them on death/shieldPop kinds would
+ *  miss those grouped effects. `auraReform` (the reborn re-form glow) rides only on the `reborn` kind, since a
+ *  reborn is never grouped into another kind's moment. The three aura sub-channels (`auraBurst` = a real death
+ *  bursting its auras in place at offset 0; `auraBreak` = a Divine-Shield consume's delayed gold shatter at
+ *  +300ms scaled; `auraReform` = a reborn re-form glow at +460ms fixed wall-clock) each carry their own offset
+ *  so a later authoring pass can retime each independently. Each kind gets its OWN array (not a shared
+ *  reference) so a future authoring pass can vary one kind's cues without mutating others. */
+export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
+  attackExchange: [
+    { ch: 'sfx', at: 'start' }, { ch: 'float', at: 'start' },
+    { ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact', offset: 0 },
+    { ch: 'auraBurst', at: 'start', offset: 0 }, { ch: 'auraBreak', at: 'start', offset: 300, scaled: true },
+  ],
+  damage: [...BASE], shieldPop: [...BASE], poisonTick: [...BASE],
+  death: [...BASE], riseDeath: [...BASE], scCast: [...BASE],
+  summon: [...BASE], buffWave: [...BASE], reborn: withReform(), ascend: [...BASE],
+  rally: [...BASE], toHand: [...BASE], maxGold: [...BASE], improve: [...BASE],
+  keyword: [...BASE], hpGrant: [...BASE], reveal: [...BASE],
 };
+
+const KEY = 'ascent.choreoScore';
+/** Sparse overrides: kind → channel → partial cue patch. The in-memory `overrides` var is the source of
+ *  truth (works with no localStorage); localStorage is persistence only, read once at module load. */
+type Overrides = Partial<Record<MomentKind, Partial<Record<Channel, Partial<Cue>>>>>;
+let overrides: Overrides = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(KEY) ?? '{}') as Overrides;
+  } catch {
+    return {};
+  }
+})();
+
+/** The effective score: defaults with per-cue overrides merged in (matched by channel within a kind). Builds
+ *  a fresh object each call — callers that read per moment should call it ONCE and iterate the result. */
+export function getScore(): Record<MomentKind, Cue[]> {
+  const out = {} as Record<MomentKind, Cue[]>;
+  for (const kind of Object.keys(SCORE_DEFAULTS) as MomentKind[]) {
+    const ov = overrides[kind];
+    out[kind] = SCORE_DEFAULTS[kind].map((c) => (ov?.[c.ch] ? { ...c, ...ov[c.ch] } : c));
+  }
+  return out;
+}
+export function getCues(kind: MomentKind): Cue[] {
+  return getScore()[kind];
+}
+export function setCue(kind: MomentKind, ch: Channel, patch: Partial<Cue>): void {
+  overrides = { ...overrides, [kind]: { ...overrides[kind], [ch]: { ...overrides[kind]?.[ch], ...patch } } };
+  try {
+    localStorage.setItem(KEY, JSON.stringify(overrides));
+  } catch {
+    /* ignore */
+  }
+}
+export function resetScore(): void {
+  overrides = {};
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* ignore */
+  }
+}
+export function scoreJson(): string {
+  return JSON.stringify(getScore(), null, 2);
+}
 
 export interface CueContext {
   events: CombatEvent[];
+  /** The player's in-combat speed slider — a scaled cue's offset is divided by this before scheduling. */
+  combatSpeed: number;
   /** Called when a moment contains a real (non-Rise) death — the caller triggers the board shake. */
   onShake: () => void;
   /** Resolve a unit's live DOM node — used to position a killing-blow float in the board overlay. */
@@ -59,28 +129,41 @@ export interface CueContext {
   onReborn: (uid: string) => void;
 }
 
-/** Run one moment's plain-effect cues (sfx + float). The `lunge`/`impact` pair is DOM-measuring/GSAP work
- *  handled separately by `engine.ts`'s `runAttackExchangeCues` — this registry silently ignores cue kinds
- *  it doesn't own, so `attackExchange`'s `lunge`/`impact` entries are no-ops here (by design). */
-export function runMomentCues(moment: Moment, ctx: CueContext): void {
-  for (const cue of SCORE[moment.kind]) {
-    if (cue.ch === 'sfx') {
-      const { shake } = playMomentSfx(moment, ctx.events);
-      if (shake) ctx.onShake();
-    } else if (cue.ch === 'float') {
+/** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
+ *  `start + offset`: an offset ≤0 fires synchronously; a positive offset schedules a timer (÷combatSpeed
+ *  unless `scaled:false`, e.g. the reborn re-form's fixed wall-clock). Returns a cleanup that cancels any
+ *  pending timers. The `lunge`/`impact` pair is DOM-measuring/GSAP work handled separately by `engine.ts`'s
+ *  `runAttackExchangeCues` — this registry silently ignores cue kinds it doesn't own, so `attackExchange`'s
+ *  `lunge`/`impact` entries are no-ops here (by design). */
+export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  const at = (cue: Cue, fn: () => void): void => {
+    const off = Math.max(0, cue.offset ?? 0) / (cue.scaled === false ? 1 : (ctx.combatSpeed > 0 ? ctx.combatSpeed : 1));
+    if (off <= 0) fn();
+    else timers.push(setTimeout(fn, off));
+  };
+  const cues = getScore()[moment.kind];
+  for (const cue of cues) {
+    if (cue.enabled === false) continue;
+    if (cue.ch === 'sfx') at(cue, () => { const { shake } = playMomentSfx(moment, ctx.events); if (shake) ctx.onShake(); });
+    else if (cue.ch === 'float') at(cue, () => {
       const { floats, deathFloats } = spawnFloats(moment, ctx.events, ctx.findEl, ctx.attackerUid);
       if (floats.length) ctx.onFloats(floats);
       if (deathFloats.length) ctx.onDeathFloats(deathFloats);
-    } else if (cue.ch === 'aura') {
-      for (let i = moment.start; i < moment.end; i++) {
-        const e = ctx.events[i];
-        if (!e) continue;
-        if (e.type === 'death' && !e.rise) ctx.onAuraBurst(e.target);  // a real death: burst its auras in place
-        else if (e.type === 'shield') ctx.onShieldBreak(e.target);     // DS consumed: delayed gold shatter
-        else if (e.type === 'reborn') ctx.onReborn(e.target);          // reborn: re-form glow
-        // `death` with `rise` is intentionally NOT handled here — a Rise DEFENDER bursts in place (replay),
-        // a pulled-home Rise ATTACKER bursts at the engine's `landed` (see the phase-3c integration task).
-      }
-    }
+    });
+    // a real (non-Rise) death anywhere in the moment bursts its auras in place. `death` with `rise` is
+    // intentionally NOT handled here — a Rise DEFENDER bursts in place (replay), a pulled-home Rise ATTACKER
+    // bursts at the engine's `landed` (see the phase-3c integration task).
+    else if (cue.ch === 'auraBurst') at(cue, () => {
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'death' && !e.rise) ctx.onAuraBurst(e.target); }
+    });
+    else if (cue.ch === 'auraBreak') at(cue, () => {  // DS consumed: delayed gold shatter
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'shield') ctx.onShieldBreak(e.target); }
+    });
+    else if (cue.ch === 'auraReform') at(cue, () => {  // reborn: re-form glow
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn') ctx.onReborn(e.target); }
+    });
+    // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.
   }
+  return () => timers.forEach((id) => clearTimeout(id));
 }

@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat Choreographer — Phase 4 slice 1 (the 🎬 Choreography panel)** — the combat Score is now a
+  live-editable timeline: drag cue chips to retime/reorder, per-cue ms offsets + scales-with-speed/on-off
+  toggles, a ▶ mock-stage FX preview that fires a moment's real effects on demand, and Copy/Reset. The
+  `aura` channel split into independently-retimeable burst/break/re-form cues and the Pacing tuner is retired
+  into the panel. Invisible by default (default timing byte-identical).
 - **New minions — content batch (waves 1–3, 22 cards)** — a big content push across all tribes: economy
   Slaughter/Avenge payoffs (Bounty Bot, Moe, Pit Supplier), spell engines (Runescale & Vineweaver Drake, Nimbus,
   Spell Appraiser), a Den Mother Rally payoff (Baby Cub), tribe splashes (Wayfinder), and **combat spell-cast**

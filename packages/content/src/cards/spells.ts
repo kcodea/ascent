@@ -574,7 +574,7 @@ export const SPELLS: CardDef[] = [
     cost: 2,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellBuffTargetPerGold', params: { gold: 7, attack: 3, health: 3 } }],
-    text: 'Give a minion **+3/+3** for every **7 Gold** spent this turn.',
+    text: 'Give a minion **+3/+3**, plus **+3/+3** for every **7 Gold** spent this turn.',
   },
   {
     // Spark Capacitor's Avenge payoff (also a T6 Tavern spell): buff your entire board +5/+5, twice — two

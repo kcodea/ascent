@@ -12,6 +12,12 @@ golden double produces. Added optional `goldenAttack`/`goldenHealth` overrides t
 Bored's only user) — golden uses the flat override when set, else doubles the base; non-golden is unchanged
 (+1/+0). Added a `goldenText`. Verified typecheck + lint + build + 674 tests, live (golden card reads "+1/+1"),
 and a combat test.
+### balance(content): Patch Job gains a +3/+3 baseline
+
+Owner tune — Patch Job now gives a **baseline +3/+3**, PLUS +3/+3 for every 7 Gold spent this turn (so +3/+3 at
+0 Gold, +6/+6 at 7, +9/+9 at 14). `spellBuffTargetPerGold` folds the baseline in as `1 + floor(goldSpent / 7)`
+steps (each unit still scales with spell power); the live display and card text updated to match. Verified live:
+at 14 Gold the hand card reads "…**Now +9/+9.**". Tests updated + a baseline (0-Gold) case added.
 
 ### chore(ui): title screen back to the static homescreen image (remove the looping menu video)
 

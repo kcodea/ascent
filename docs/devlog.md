@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-07 (session 22)
 
+### feat(content): new-minions batch — wave 3 (4 cards: combat spell-cast + adjacency consume)
+
+The combat spell-cast subsystem — casting a stat spell's effect *inside* `simulate()`, new to the engine — plus
+one adjacency-consume Demon. Branch `feat/new-minions-wave3`; full suite green (616), one commit per card/pair.
+
+- **Hoardbreaker Drake** (Dragon T4 4/5) — *Slaughter:* "cast Growth" — buff all living friends +3/+4 + combat
+  spell power (`onKillCastSpell` reads the named spell's spellBuffAll params). Golden → +6/+8. Art pending.
+- **Spell Drummer** (Neutral T3 3/3) — *Rally:* cast a random stat spell on a random friend, then add a copy of
+  itself to hand (`rallyCastRandomStatSpell`; the copy rides the `playerHandGrants` carry-back).
+- **Spark Capacitor** (Mech T4 4/7) — *Avenge 4:* cast a random stat spell on your lowest-Health Mech
+  (`avengeCastRandomStatSpell`).
+- **Abyssal Feeder** (Demon T6 7/6) — *End of Turn:* both board-adjacent minions Consume a Fodder
+  (`endOfTurnAdjacentConsumeFodder`, reuses The Godfodder's consume pipeline). Golden → each Consumes 2.
+
+Spell Drummer + Spark Capacitor share a new `randomStatSpellBuff(ctx, scale)` helper (picks a random stat Tavern
+spell, folds in `ctx.spellPower`, golden-scales) — combat can now "cast" the stat half of spells.
+
+- **Verified:** `typecheck + lint + test (616) + build:web` green.
+- **Remaining (~4, each needs a heavier change or a decision):** **Squirl Scout / Scrap Herald** (baked auras —
+  Squirl Scout mirrors `undeadBuyAtk` across ~7 creation sites); **Pack Leader** (SoC scaling by *Beasts played
+  this turn* — needs a new per-turn play counter AND a `simulate()` signature param, a shared-boundary change);
+  the **Spirit Worgen retext** (same play counter; its "improve +1/+1 per spell you cast" reads as *this turn's*
+  spells — confirm); and **Graverobber** (targeted destroy that procs deathrattles + grants a random spell of the
+  destroyed minion's tier — no clean recruit destroy-with-deathrattle helper exists yet).
+
 ### feat(content): new-minions batch — wave 2 (10 cards + 6 art wirings)
 
 The plumbing-heavy half of the ~27-card batch (wave 1 was the reuse-an-existing-mechanism cards). Each is card

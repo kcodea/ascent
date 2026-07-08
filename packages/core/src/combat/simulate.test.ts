@@ -130,6 +130,19 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerBonusGold).toBe(2);
   });
 
+  it('Pit Supplier Avenge (3) queues a Fodder into the next shop (carried back)', () => {
+    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 1 Fodder.
+    const p: BoardMinion[] = [
+      { cardId: 'pitsupplier', attack: 4, health: 40 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
+    const r = run(p, e, 3);
+    expect(r.playerFodderGrants).toBe(1);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

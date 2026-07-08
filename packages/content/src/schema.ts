@@ -82,6 +82,7 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnMagnetizeMechs',
   'addTavernFodder',
   'deathrattleAddFodder',
+  'avengeAddFodder',
   'avengeImproveSummon',
   'avengeMaxGold',
   'avengeGrantSpell',

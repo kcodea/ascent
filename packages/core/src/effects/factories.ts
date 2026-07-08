@@ -526,6 +526,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantTavernFodder(num(params.count, 1) * mul(self), self.side);
   },
 
+  /** Pit Supplier — Avenge (N): every N friendly deaths this combat, queue a Fodder into your next shop
+   *  (golden queues two). Reuses the Fodder carry-back (grantTavernFodder → pendingTavern in settleCombat). */
+  avengeAddFodder: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    if (count % x !== 0) return;
+    ctx.grantTavernFodder(num(params.fodder, 1) * mul(self), self.side);
+  },
+
   /** Deathrattle (Junkyard Titan): add a random Magnetic minion to your hand after combat. Sibling of
    *  Arcane Weaver's grant, but the card is chosen at random (via ctx.rng) from the Magnetic-keyword
    *  minion pool (tokens/spells excluded) rather than a fixed id. Each pick is independent, so a golden's

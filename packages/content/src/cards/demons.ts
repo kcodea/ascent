@@ -232,4 +232,18 @@ export const DEMONS: CardDef[] = [
     effects: [{ on: 'onAttack', do: 'rallyGiveDemonAttack' }],
     text: "**Rally:** give another friendly Demon Attack equal to this minion's Attack.",
   },
+  {
+    // Avenge (3): every 3 friendly deaths in combat, queue a Fodder into your next shop (golden: 2). Feeds the
+    // Demon Consume engine off attrition — carried back after combat.
+    id: 'pitsupplier',
+    name: 'Pit Supplier',
+    tribe: 'demon',
+    tier: 3,
+    attack: 4,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeAddFodder', params: { count: 3 } }],
+    text: '**Avenge (3):** add a **Fodder** to your next shop.',
+    goldenText: '**Avenge (3):** add **2 Fodder** to your next shop.',
+  },
 ];

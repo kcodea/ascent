@@ -102,6 +102,28 @@ export function summonScalingText(cardId: string, spellsThisTurn: number): strin
 }
 
 /**
+ * Vineweaver Drake casts an escalating spell (Growth) each End of Turn — the Nth End of Turn fires N casts
+ * (golden doubles). Surface BOTH live values green: how much each cast grants right now (the spell's base
+ * grant + current spell power) and how many casts land at the NEXT End of Turn ((eotTick+1)×, golden ×2), so
+ * the payoff is legible before it fires. Returns null for non-matching cards (falls back to printed text).
+ */
+export function escalatingCastText(
+  cardId: string, golden: boolean, eotTick: number, spellBonus: number, spellBonusH: number,
+): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnCastSpellEscalating');
+  if (!def || !eff) return null;
+  const spell = CARD_INDEX[String((eff.params as { spellId?: string })?.spellId ?? '')];
+  const buff = spell?.effects.find((e) => e.do === 'spellBuffAll')?.params as { attack?: number; health?: number } | undefined;
+  if (!spell || !buff) return null;
+  const atk = (buff.attack ?? 0) + spellBonus;
+  const hp = (buff.health ?? 0) + spellBonusH;
+  const casts = Math.max(1, eotTick + 1) * (golden ? 2 : 1); // the NEXT End of Turn's cast count
+  const times = casts === 1 ? '' : ` {{${casts}×}}`;
+  return `**End of Turn:** Cast **${spell.name}** {{+${atk}/+${hp}}}${times}. Repeats +1 each End of Turn.`;
+}
+
+/**
  * Cling Drone grows +1/+1 every time a Cling is magnetized (the run-wide `cling` enchant). Surface its
  * *current* accumulated bonus (green) so the player can see it climbing — the printed rule alone doesn't
  * show how big your Clings have become. Returns null with no accumulated buff (falls back to printed text).

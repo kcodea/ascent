@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### fix/content: Bounty Bot per-attack immunity, Vineweaver tooltip, Baby Cub → Cleave, Strays aura, remove Spell Drummer
+
+Owner batch (five items):
+- **Bounty Bot immunity is now per-ATTACK, not per-combat.** It was seeded from `attackImmuneTurns` and counted
+  down once per fight at settle — so it protected the first two *combats*. Now `Minion.attackImmuneLeft` is seeded
+  fresh each combat from `CardDef.attackImmuneTurns` and **spends one charge per swing** in `performAttack` (skip
+  the retaliation and decrement; once at 0, retaliation lands). Dropped the run-board tracking (`BoardMinion`/
+  `RunState.attackImmuneLeft`, the reducer's per-combat decrement and board pass-through). Text → "Immune while
+  attacking (first **2** attacks each combat)". Test rewritten (inert `sabercub` Taunt soaks the enemy's own
+  swings so only retaliation can reach Bounty Bot; asserts exactly ONE retaliation over its 3 swings).
+- **Vineweaver Drake tooltip now shows the payoff.** New `escalatingCastText` cardText helper surfaces both live
+  values green: each Growth cast's grant (spell base + current spell power) and how many casts land at the NEXT
+  End of Turn ((eotTick+1)×, golden ×2). Wired into the `liveCardText` chain. Live-checked: reads
+  "Cast **Growth** {{+3/+4}} {{3×}}" with both values green.
+- **Baby Cub is now a vanilla Cleave beast** (was Rally → improve Den Mother aura). keywords `['C']`, no effects,
+  text "Cleave". Its `rallyImproveSummonAura` factory is left registered (orphaned) for possible reuse. Combat
+  test rewritten to assert Cleave splashes the target's neighbour. **⚠ flag:** this strips the Den Mother synergy
+  partner and repurposes the card — revert if a different read was intended.
+- **Summoned Strays now inherit the run-wide tribe buy-auras.** `ctx.summon` (recruit) baked only the per-card
+  buff, skipping `undeadBuyBonus`/`buyHealthAura` — so a Stray summoned by Alleycat missed Squirl Scout's Beast
+  Attack aura (bought/conjured beasts got it). Fixed to bake the same auras; new test locks a summoned Stray at
+  1+beastBuyAtk Attack.
+- **Spell Drummer removed** from the pool "for now" (card def + its combat test deleted). The
+  `rallyCastRandomStatSpell` factory stays registered so re-adding is a data-only change.
+
+Verified: typecheck + lint clean, full suite green (633), `build:web` OK, live DOM check of the three tooltips.
+
 ### feat(ui): shop-aura previews, Moe's green discount coin, Nimbus/Yazzus ×N spell badge
 
 Owner UI batch (four display fixes; all shop/hand surfaces, no rule changes):

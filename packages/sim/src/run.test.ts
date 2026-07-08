@@ -401,19 +401,6 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true);
   });
 
-  it('Bounty Bot immunity expires after 2 combats (attackImmuneLeft counts down each settle)', () => {
-    let s: RunState = {
-      ...createRun(1),
-      board: [{ uid: 'bb', cardId: 'bountybot', tribe: 'mech', attack: 7, health: 30, keywords: ['SL'], golden: false }],
-    };
-    s = reduce(s, { type: 'faceOmen' });
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(s.board.find((c) => c.uid === 'bb')?.attackImmuneLeft).toBe(1); // 2 → 1 after the first combat
-    s = reduce(s, { type: 'faceOmen' });
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(s.board.find((c) => c.uid === 'bb')?.attackImmuneLeft).toBe(0); // 1 → 0 after the second
-  });
-
   it('Spark Plug: casting gives your entire board +5/+5 twice (+10/+10)', () => {
     let s: RunState = {
       ...createRun(1),
@@ -658,6 +645,19 @@ describe('run loop (@game/sim)', () => {
     b = reduce(b, { type: 'chooseOne', index: 0 });
     const shaper = b.board.find((c) => c.cardId === 'shaper');
     expect([shaper?.attack, shaper?.health]).toEqual([3, 5]); // 2/2 + 1/3
+  });
+
+  it('a summoned Stray inherits the run-wide Beast Attack aura (Squirl Scout)', () => {
+    // beastBuyAtk is the run-wide "Beasts +N Attack wherever" aura. A Stray summoned by Alleycat's Battlecry
+    // must come in at 1+N Attack, same bake as a bought/conjured Beast — the summon path used to skip it.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [], beastBuyAtk: 2,
+      hand: [{ uid: 'al', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'al' });
+    const stray = s.board.find((c) => c.cardId === 'stray');
+    expect(stray?.attack).toBe(1 + 2); // 1/1 Stray + the +2 Beast Attack aura
+    expect(stray?.health).toBe(1); // aura is Attack-only
   });
 
   it('Runic Beetle: Choose One, then pick a friendly Beast to give it Rise or Flurry', () => {

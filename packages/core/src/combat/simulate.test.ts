@@ -174,17 +174,21 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSpellPower?.attack).toBe(1); // 4th friendly death → Avenge (4) → +1 spell Attack
   });
 
-  it('Baby Cub Rally improves the Den Mother aura (summonBonus carries back)', () => {
-    const p: BoardMinion[] = [
-      { cardId: 'babycub', attack: 4, health: 30 },
-      { cardId: 'mamabear', attack: 5, health: 30, sourceUid: 'M' },
+  it('Baby Cub is a vanilla Cleave beast — one swing splashes the target’s neighbour', () => {
+    const p: BoardMinion[] = [{ cardId: 'babycub', attack: 4, health: 30 }];
+    const e: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 0, health: 50 },
+      { cardId: 'sandbag', attack: 0, health: 50 }, // the other enemy — Cleave splashes it as the neighbour
     ];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
-    const r = run(p, e, 5);
-    // No beasts are summoned here, so Den Mother's own aura never climbs — the carry-back entry keyed to 'M'
-    // is purely Baby Cub's Rally bumping it +5 per attack.
-    const entry = r.playerSummonBonus?.find((b) => b.sourceUid === 'M');
-    expect(entry?.bonus ?? 0).toBeGreaterThanOrEqual(5);
+    const r = run(p, e, 3);
+    const enemyUids = new Set(r.initial.enemy.map((m) => m.uid));
+    // Damage landed by Baby Cub's FIRST swing (between the 1st and 2nd `attack` events): with only two enemies,
+    // whichever it hits, the other is its neighbour — so Cleave damages BOTH on that one swing.
+    const firstAttack = r.events.findIndex((ev) => ev.type === 'attack');
+    const nextAttack = r.events.findIndex((ev, i) => i > firstAttack && ev.type === 'attack');
+    const window = r.events.slice(firstAttack + 1, nextAttack === -1 ? undefined : nextAttack);
+    const hit = new Set(window.flatMap((ev) => (ev.type === 'dmg' && enemyUids.has(ev.target) ? [ev.target] : [])));
+    expect(hit.size).toBe(2);
   });
 
   it('Hoardbreaker Drake Slaughter casts Growth (buffs all friends +3/+4)', () => {
@@ -195,27 +199,6 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker → Slaughter
     const r = run(p, e, 3);
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
-  });
-
-  it('Spell Drummer Rally casts a random stat spell, procs spell reactions, copies THAT spell to hand', () => {
-    const p: BoardMinion[] = [
-      { cardId: 'spelldrummer', attack: 3, health: 40 },
-      { cardId: 'guel', attack: 4, health: 40 }, // Archmagus Guel reacts to spell casts (spellCastBuffOthers)
-      { cardId: 'sandbag', attack: 0, health: 40 },
-    ];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 40 }];
-    const r = run(p, e, 7);
-    // The copy added to hand is the CAST SPELL (a stat spell), not Spell Drummer itself.
-    expect(r.playerHandGrants?.length ?? 0).toBeGreaterThan(0);
-    expect(r.playerHandGrants).not.toContain('spelldrummer');
-    expect(
-      r.playerHandGrants?.every((id) => {
-        const d = CARD_INDEX[id];
-        return !!d?.spell && d.effects.some((ef) => ef.do === 'spellBuffTarget' || ef.do === 'spellBuffAll');
-      }),
-    ).toBe(true);
-    // It's a REAL cast, so Guel's spellCast reaction fires in combat (+1/+1 on the first cast — no stat spell is +1/+1).
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
   });
 
   it('Spark Capacitor Avenge (4) adds a Spark Plug to hand', () => {
@@ -250,17 +233,23 @@ describe('simulate (handoff A.3)', () => {
     expect(g.playerGuaranteedAttachments).toBe(2);
   });
 
-  it('Bounty Bot is immune while attacking on its early combats (takes no retaliation)', () => {
-    // A friendly Taunt soaks the enemy's attacks, so the ONLY damage that could reach Bounty Bot is retaliation
-    // on its own swings — which its immunity negates. Without it, the 10 retaliation would kill the 3-HP body.
+  it('Bounty Bot is immune for its first 2 attacks each combat, then takes retaliation', () => {
+    // A friendly Taunt soaks the enemy's own swings, so the ONLY damage that can reach Bounty Bot is retaliation
+    // on ITS attacks. Its first two swings are immune; the third takes the 10 retaliation and kills the 3-HP body.
+    // The enemy needs all THREE of Bounty Bot's 7-damage hits to fall (21 HP) — which only happens if the first
+    // two swings were immune (otherwise Bounty Bot dies on swing 1 and the enemy survives at 14 HP).
     const p: BoardMinion[] = [
-      { cardId: 'bountybot', attack: 7, health: 3 },
-      { cardId: 'sandbag', attack: 0, health: 200, keywords: ['T'] },
+      { cardId: 'bountybot', attack: 7, health: 100 }, // high HP so it survives to swing 3 and we can count retaliation
+      { cardId: 'sabercub', attack: 0, health: 500, keywords: ['T'] }, // inert 0-Attack Taunt (no effects) soaks the enemy
     ];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 50 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 21 }]; // 3 hits of 7 → dies on Bounty Bot's 3rd swing
     const r = run(p, e, 3);
     const bounty = r.initial.player[0]!.uid;
-    expect(r.events.some((ev) => ev.type === 'death' && ev.target === bounty)).toBe(false); // immune → survives retaliation
+    const enemyBag = r.initial.enemy[0]!.uid;
+    expect(r.events.some((ev) => ev.type === 'death' && ev.target === enemyBag)).toBe(true); // Bounty Bot landed all 3 hits itself
+    // First two swings immune, third retaliates → exactly ONE retaliation hit lands on Bounty Bot.
+    const retaliations = r.events.filter((ev) => ev.type === 'dmg' && ev.target === bounty).length;
+    expect(retaliations).toBe(1);
   });
 
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {

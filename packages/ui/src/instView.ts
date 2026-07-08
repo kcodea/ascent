@@ -3,8 +3,9 @@ import { CONFIG, spellDisplayText, type BoardCard } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
-  guelProgressText, monkProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText,
-  summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText, watcherText,
+  escalatingCastText, guelProgressText, monkProgressText, sergeantText, soulsmanText, summonBuffText,
+  summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, undeadBuyAtkText,
+  watcherText,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -46,6 +47,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
             cadenceProgressText(c.id, p.eotTick ?? 0) ??
+            escalatingCastText(c.id, p.golden, p.eotTick ?? 0, p.spellBonus, p.spellBonusH) ??
             c.text;
   const metric =
     soulsmanText(c.id, p.soulsmanGold) ??

@@ -403,9 +403,6 @@ export interface BoardMinion {
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
-  /** Bounty Bot: combats of "immune while attacking" left (counts down each combat, seeded from
-   *  `CardDef.attackImmuneTurns` on the first fight). */
-  attackImmuneLeft?: number;
   /** Flowing Monk: flat +X/+X on top of the stepped overflow grant — created by the TRIPLE combine (the
    *  golden starts at the SUM of the two highest copies' current grants). Static during combat. */
   overflowBonus?: number;
@@ -450,8 +447,8 @@ export interface Minion {
   /** Extra magnitude on this minion's summon-buff (Kennelmaster), grown by Avenge in
    *  combat and carried back to the run board afterwards. */
   summonBonus: number;
-  /** Bounty Bot: combats of "immune while attacking" remaining (>0 → this minion takes no retaliation on its
-   *  own attacks). Seeded from the run board / CardDef at instantiate. */
+  /** Bounty Bot: swings of "immune while attacking" remaining this combat (>0 → this minion takes no
+   *  retaliation on its own attack, then spends one charge). Seeded fresh each combat from CardDef.attackImmuneTurns. */
   attackImmuneLeft?: number;
   /** Flowing Monk: flat grant bonus from the triple combine (see BoardMinion.overflowBonus). Static. */
   overflowBonus?: number;

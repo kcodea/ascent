@@ -231,8 +231,8 @@ export const MECHS: CardDef[] = [
     keywords: ['SL'],
     attackImmuneTurns: 2,
     effects: [{ on: 'onKill', do: 'onKillGrantGold', params: { gold: 2 } }],
-    text: 'Immune while attacking (first **2** combats). **Slaughter:** gain **2 Gold** next shop.',
-    goldenText: 'Immune while attacking (first **2** combats). **Slaughter:** gain **4 Gold** next shop.',
+    text: 'Immune while attacking (first **2** attacks each combat). **Slaughter:** gain **2 Gold** next shop.',
+    goldenText: 'Immune while attacking (first **2** attacks each combat). **Slaughter:** gain **4 Gold** next shop.',
   },
   {
     // Battlecry fetches a Patch Job spell into your hand (a stat spell that scales with Gold spent this turn).

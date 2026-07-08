@@ -1901,8 +1901,10 @@ function makeContext(state: RunState): RecruitContext {
         uid: `b${state.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
-        attack: card.attack + buff.attack,
-        health: card.health + buff.health,
+        // A summoned minion inherits the run-wide tribe buy-auras too (Squirl Scout's Beast Attack on a Stray,
+        // Lantern on an Undead token, Scrap Herald on a magnetized token) — same bake as bought/conjured beasts.
+        attack: card.attack + buff.attack + undeadBuyBonus(state, card),
+        health: card.health + buff.health + buyHealthAura(state, card),
         keywords: [...card.keywords],
         golden: false,
       };

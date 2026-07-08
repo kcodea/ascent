@@ -817,8 +817,11 @@ export function simulate(
       const counterVenom = target.keywords.includes('V');
       victims.push({ m: target, killer: attacker, couldReborn: targetCouldReborn });
       applyDamage(target, attacker.attack, poison, false, attacker); // main hit
-      // Bounty Bot: "immune while attacking" — take no retaliation on its own swings while the counter is live.
-      if ((attacker.attackImmuneLeft ?? 0) <= 0) {
+      // Bounty Bot: "immune while attacking" for its first N swings this combat — take no retaliation, and
+      // spend one charge of immunity per swing (so it protects the first N attacks, not the first N combats).
+      if ((attacker.attackImmuneLeft ?? 0) > 0) {
+        attacker.attackImmuneLeft = attacker.attackImmuneLeft! - 1;
+      } else {
         victims.push({ m: attacker, killer: target, couldReborn: attacker.rebornAvailable });
         applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
       }

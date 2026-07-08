@@ -371,7 +371,7 @@ export interface QuestObjective {
  */
 export type QuestReward =
   | { kind: 'buffBoard'; attack: number; health: number }
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).

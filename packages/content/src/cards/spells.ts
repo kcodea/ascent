@@ -413,6 +413,7 @@ export const SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
+    token: true, // reward-exclusive (the Feed the Alpha quest) — never rolls in the shop / spell Discover / random-spell grants
     singleCast: true,
     cost: 0,
     target: 'friendly',

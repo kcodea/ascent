@@ -280,6 +280,7 @@ export const QuestRewardSchema = z.discriminatedUnion('kind', [
     kind: z.literal('grant'),
     randomTribe: TribeSchema.optional(),
     randomCount: z.number().int().positive().optional(),
+    randomSpell: z.number().int().positive().optional(),
     cards: z.array(z.string().min(1)).optional(),
     grantKeywords: z.array(KeywordSchema).optional(),
     repeatInTurns: z.number().int().positive().optional(),

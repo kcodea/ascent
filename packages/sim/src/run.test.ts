@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { makeRng, type CombatResult } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, SPELL_CARDS } from '@game/content';
 import {
   CONFIG,
   POOL_QUANTITIES,
@@ -367,6 +367,44 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'battlecryTarget', targetUid: 'm' }); // destroy Mumi → its Deathrattle should fire
     expect(s.board.find((c) => c.uid === 'm')).toBeUndefined(); // Mumi destroyed
     expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
+  });
+
+  it('Graverobber on Grim fires its Deathrattle out of combat (buffs Beasts by the run tally)', () => {
+    let s: RunState = {
+      ...createRun(1), deathrattlesTriggered: 2, // 2 prior Echoes; Grim's own death makes the live tally 3
+      board: [
+        { uid: 'grim', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
+    expect(s.board.find((c) => c.uid === 'grim')).toBeUndefined(); // destroyed
+    // Grim's Deathrattle: +N/+N per Deathrattle this game (tally = 3 incl. its own death) → the Beast gets +3/+3.
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 3);
+  });
+
+  it('Sylus the Reaper doubles a Graverobber-fired Deathrattle in the shop', () => {
+    // Grim's Deathrattle (buff Beasts by the run tally) fires once + once per Sylus. tally = 1 (Grim's own
+    // death), so each fire is +1/+1 → the Beast gets +2/+2 with one Sylus.
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'sy', cardId: 'sylus', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'grim', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 2); // +1/+1 fired twice (once + one Sylus)
+  });
+
+  it('reward-exclusive spells (Feed the Alpha) never enter the shop spell pool', () => {
+    expect(SPELL_CARDS.some((c) => c.id === 'feedalpha')).toBe(false);
+    expect(BUYABLE_CARDS.some((c) => c.id === 'trailforager' || c.id === 'trophystalker')).toBe(false);
   });
 
   it('Squirl Scout: Battlecry spreads +N/+N to random friendlies, once per Beast owned, snowballing per Scout', () => {

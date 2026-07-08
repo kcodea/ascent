@@ -68,6 +68,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'grant': {
       const parts: string[] = [];
       if (r.randomTribe && (r.randomCount ?? 0) > 0) parts.push(randomMinionPhrase(r.randomTribe, r.randomCount!));
+      if ((r.randomSpell ?? 0) > 0) parts.push(r.randomSpell === 1 ? 'a random spell' : `${r.randomSpell} random spells`);
       for (const id of r.cards ?? []) {
         const kws = r.grantKeywords?.length ? ` with ${keywordPhrase(r.grantKeywords)}` : '';
         parts.push(`a ${CARD_INDEX[id]?.name ?? 'card'}${kws}`);

@@ -389,7 +389,7 @@ export function simulate(
       if (side !== 'player') return; // enemies have no hand
       // Pick the ACTUAL spell now (tavern tier passed in) and route it through grantToHand — so the replay
       // shows the real card flying to your hand (a `toHand` event), and settle just adds the carried cardId.
-      const pool = Object.values(cards).filter((c) => c.spell && c.tier <= playerTier);
+      const pool = Object.values(cards).filter((c) => c.spell && !c.token && c.tier <= playerTier); // exclude reward-exclusive spells (Feed the Alpha)
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(rng.next() * pool.length)]!;
         handGrants.push(pick.id);
@@ -1010,17 +1010,16 @@ export function simulate(
     }
   }
   // Echoing Coop: trigger every one of your minions' Echoes (Deathrattles) once at Start of Combat — without
-  // killing the body. Fires after the normal Start-of-Combat casts so summons/buffs see the settled board.
+  // killing the body. Routes through `fireOwnDeathrattles`, so **Sylus the Reaper doubles them** just like a
+  // real death (owner ruling 2026-07-08). Fires after the normal Start-of-Combat casts so summons/buffs see the
+  // settled board.
   if (questMods.echoingCoop) {
     for (const minion of [...boards.player]) {
       if (minion.dead || minion.health <= 0 || !minion.effects.some((e) => e.on === 'onDeath')) continue;
       nextStep();
       emit({ type: 'sc', source: minion.uid, text: 'Echo' });
       playerDeathrattles++; // an Echo trigger — feeds Grim + the run's Deathrattle tally like any Deathrattle
-      for (const effect of minion.effects) {
-        if (effect.on !== 'onDeath') continue;
-        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
-      }
+      fireOwnDeathrattles(minion); // fires once + once per Sylus (golden ×2)
     }
   }
 

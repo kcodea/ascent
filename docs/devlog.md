@@ -5,6 +5,47 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### fixes + content: Deathrattles-in-shop sweep (Graverobber×Grim×Sylus, Echoing Coop×Sylus), reward-shop exclusion, Hoard Spark, quest retunes
+
+An owner fix/sweep pass (on `feat/beast-quests`).
+
+**Deathrattles resolve out of combat + synergize with Sylus (owner ruling 2026-07-08):**
+- **Graverobber on Grim was inert** — Grim's `deathrattleBuffTribeByTally` (and ~9 other combat-only Deathrattles)
+  had no RECRUIT factory, so destroying them out of combat did nothing. Added recruit halves for
+  `deathrattleBuffTribeByTally` (Grim), `deathrattleBuffAllHealth` (Sergeant), `deathrattleGiveHealth`,
+  `deathrattleGrantCardToHand`, `deathrattleGrantRandomSpell`, `deathrattleGrantMagnetic`,
+  `deathrattleBuffCardTypeRunWide`, `deathrattleBuffImps`, and `deathrattleAddFodder` — each baking its payoff
+  into the run state. Purely-combat rattles (damage, destroy-killer, attack-on-summon overflow) stay inert.
+- **Sylus the Reaper now doubles shop-phase Deathrattles.** Graverobber's destroy routes through a new
+  `fireRecruitDeathrattles` helper that fires each Deathrattle once + once per Sylus (golden ×2) — the shop
+  mirror of combat's reaper bonus — and ticks the run Deathrattle tally once, BEFORE firing (so Grim counts its
+  own death, matching combat).
+- **Echoing Coop now goes through `fireOwnDeathrattles`**, so **Sylus doubles the Echoes it fires** at Start of
+  Combat (was a direct loop that bypassed the reaper bonus).
+- Sweep found Graverobber is the only shop path that fires a friendly's Deathrattle (Consume eats Fodder only).
+
+**Reward cards never roll in the regular shop:** Feed the Alpha is now `token: true`, and `SPELL_CARDS` (shop /
+spell Discover / Graverobber's grant) + combat's random-spell grant exclude `token` spells. Trail Forager /
+Trophy Stalker were already `token` minions (out of `BUYABLE_CARDS` + the "random Beast" grants).
+
+**Hoard Spark (Dragon lesser quest):** "Buy 3 Dragons → get a random Dragon + a random spell." Added a
+`randomSpell` field to the `grant` reward (type + schema + `applyQuestReward` + questText). ⚠️ **No quest art
+wired** — there's no `HoardSpark`-named file in `Ascent Art/Quests/` (only un-attributed UUID files, which the
+name-match rule says not to guess). The card shows the textless fallback until art is provided/renamed.
+
+**Quest objective retunes (owner):** Den Marker 8→5, Pack Mentality 14→8, Trophy Den 12→9, Feed the Alpha 9→7,
+Law of Teeth 14→11, The Old Hunt 20→15, Echoing Coop 14→11 (Forest Grove / Blood Trail / Forager's Trail / Apex
+Hunt unchanged).
+
+**Flagged (not changed):** whether Sylus should also inflate the **Echo objective tally** ("Trigger N Echoes") —
+currently the tally counts one per death/Echo-trigger, not per Sylus re-fire (matching Grim's "per Deathrattle
+this game"). Making Sylus count toward it would help the Echo quest but also rescale Grim — a balance call left
+to the owner.
+
+**Verified:** typecheck + lint + build:web clean; **671 tests pass** (+ regressions: Graverobber-on-Grim,
+Sylus-doubles-a-Graverobber-Deathrattle, Echoing-Coop×Sylus doubling ratio, reward-spell shop exclusion). Live:
+the Quest Shop shows the retuned counts + Hoard Spark ("Get a random Dragon + a random spell").
+
 ### balance + fixes: Beast/Mech/Dragon tuning batch, Slaughter-on-attack-only, attachment auras, Wayfinder spread, Nimbus×Discover
 
 An owner balance + bugfix pass (on `feat/beast-quests`, since several items touch the same Slaughter loop + Beast

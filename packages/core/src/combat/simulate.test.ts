@@ -2275,6 +2275,23 @@ describe('combat-phase quest tallies', () => {
     expect(r.playerQuestTally!.attackByTribe.beast).toBe(r.playerQuestTally!.attack);
   });
 
+  it('Echoing Coop fires Deathrattles at Start of Combat, and Sylus doubles them', () => {
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies round 1 → Mama Pup never dies (its Echo fires once, at SoC)
+    const pupCount = (withSylus: boolean): number => {
+      const p: BoardMinion[] = withSylus
+        ? [{ cardId: 'sylus', attack: 3, health: 30 }, { cardId: 'pack', attack: 3, health: 30 }]
+        : [{ cardId: 'pack', attack: 3, health: 30 }];
+      const r = simulate(
+        p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ['beast'], {}, false, false, 0, 0, 0, 0,
+        { echoingCoop: true },
+      );
+      return r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup').length;
+    };
+    const base = pupCount(false); // Echoing Coop fires Mama Pup's Echo once → 2 Pups
+    expect(base).toBe(2);
+    expect(pupCount(true)).toBe(base * 2); // one Sylus doubles the Start-of-Combat Echo → 4 Pups
+  });
+
   it('The Old Hunt (questMods.oldHuntStep): each Beast attack pumps the Beast aura, carried back', () => {
     const p: BoardMinion[] = [{ cardId: 'alley', attack: 3, health: 40 }]; // survives to attack several times
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 30 }];

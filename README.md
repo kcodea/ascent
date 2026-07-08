@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Deathrattles-in-shop + Sylus sweep** — Graverobber now fires ANY Deathrattle out of combat (Grim included),
+  and Sylus the Reaper doubles both Graverobber's and Echoing Coop's Echoes. Quest reward cards (Feed the Alpha,
+  Trail Forager, Trophy Stalker) never roll in the regular shop. Added the Hoard Spark Dragon quest; retuned the
+  Beast quest objective counts.
 - **Balance + fixes batch** — Den Mother (+1/+1, recruit-only), Kennelmaster Avenge (3), a Squirl Scout rework
   (spread +3/+3 per Beast owned, snowballing), Pack Leader scaling with Beasts-played, Hoardbreaker 6/4; plus fixes:
   **Slaughter only triggers on an attack-kill** (not retaliation), welded/given attachments now inherit the

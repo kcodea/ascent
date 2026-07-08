@@ -406,6 +406,29 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number): v
 }
 
 /**
+ * Fire a minion's Deathrattle(s) OUT OF COMBAT — Graverobber's destroy (and any future destroy/consume-a-minion
+ * path). Runs each `onDeath` recruit factory once, then once more per **Sylus the Reaper** on the board (golden
+ * ×2), the shop-phase mirror of combat's reaper bonus (owner ruling 2026-07-08). Combat-only rattles (no recruit
+ * factory) are simply inert. Ticks the run Deathrattle tally ONCE, BEFORE firing, so tally-based rattles (Grim)
+ * count this death — matching combat, where the death increments the tally before the rattle runs.
+ */
+function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard): void {
+  const def = CARD_INDEX[minion.cardId];
+  if (!def) return;
+  const fireOnce = (): void => {
+    for (const eff of def.effects) {
+      if (eff.on !== 'onDeath') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, minion, eff.params ?? {}, { minion });
+    }
+  };
+  ctx.state.deathrattlesTriggered += 1;
+  fireOnce();
+  let reaper = 0;
+  for (const c of ctx.state.board) if (c.cardId === 'sylus' && c.uid !== minion.uid) reaper += c.golden ? 2 : 1;
+  for (let r = 0; r < reaper; r++) fireOnce();
+}
+
+/**
  * The player board's most common tribe — counting BOTH tribes of each card (dual-types count for both).
  * Ties resolve to the first seen on the board (insertion order + strict `>`). Null for an empty / tribe-less
  * board. The `s.board` analogue of snapshot.ts's `dominantTribe` (which takes a BoardSnapshot).
@@ -1026,12 +1049,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tier = CARD_INDEX[target.cardId]?.tier ?? 1;
     const idx = ctx.state.board.indexOf(target);
     if (idx >= 0) ctx.state.board.splice(idx, 1); // destroy it (frees the slot for any Deathrattle summons)
-    for (const eff of CARD_INDEX[target.cardId]?.effects ?? []) {
-      if (eff.on !== 'onDeath') continue;
-      const fn = RECRUIT_FACTORIES[eff.do];
-      if (fn) fn(ctx, target, eff.params ?? {}, { minion: target });
-    }
-    ctx.state.deathrattlesTriggered += 1;
+    fireRecruitDeathrattles(ctx, target); // its Deathrattle(s) resolve out of combat, doubled by Sylus + ticked into the tally
     const pool = SPELL_CARDS.filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
@@ -1109,6 +1127,73 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
       t.keywords.push('R');
     }
+  },
+
+  // --- More Deathrattle recruit halves (owner ruling 2026-07-08: ANY Deathrattle should be able to resolve out
+  //     of combat — fired by Graverobber's destroy, with Sylus doubling). Combat-only rattles (damage, destroy-
+  //     killer, attack-on-summon overflow) stay inert in the shop; these bake their payoff into the run state. ---
+
+  /** Grim (recruit half) — give your `tribe` (Beasts) +N/+N where N = the run's Deathrattle tally × `per`
+   *  (golden doubles `per`), baked into the board. Out of combat there's no aura — just the current tally. */
+  deathrattleBuffTribeByTally: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe | 'any';
+    const amount = (ctx.state.deathrattlesTriggered ?? 0) * num(params.per, 1) * gold(self);
+    if (amount <= 0) return;
+    for (const c of ctx.state.board) {
+      if (c !== self && (tribe === 'any' || isTribe(c, tribe as Tribe))) addBuff(c, nameOf(self), amount, amount);
+    }
+  },
+
+  /** Sergeant (recruit half) — give every board minion +Health (base × golden + its combat-accrued hpGrantBonus). */
+  deathrattleBuffAllHealth: (ctx, self, params) => {
+    const hp = num(params.health, 2) * gold(self) + (self.hpGrantBonus ?? 0);
+    if (hp <= 0) return;
+    for (const c of ctx.state.board) addBuff(c, nameOf(self), 0, hp);
+  },
+
+  /** Trickster (recruit half) — give the carry (highest-Attack friend) this minion's Health; golden picks twice. */
+  deathrattleGiveHealth: (ctx, self) => {
+    const hp = self.health;
+    if (hp <= 0) return;
+    for (let i = 0; i < gold(self); i++) {
+      const friends = ctx.state.board.filter((c) => c !== self);
+      if (friends.length === 0) break;
+      const t = friends.reduce((a, b) => (b.attack > a.attack ? b : a));
+      addBuff(t, nameOf(self), 0, hp);
+    }
+  },
+
+  /** Burial Imp (recruit half) — add `count` copies of a specific card (a Gold Pouch) to hand; golden doubles. */
+  deathrattleGrantCardToHand: (ctx, self, params) => {
+    const def = CARD_INDEX[str(params.cardId)];
+    if (!def) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** (recruit half) — add `count` random Tavern spell(s) (≤ tavern tier) to hand; golden doubles. */
+  deathrattleGrantRandomSpell: (ctx, self, params) => {
+    conjureToHand(ctx.state, SPELL_CARDS.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
+  },
+
+  /** (recruit half) — add a random Magnetic minion to hand; golden adds two. */
+  deathrattleGrantMagnetic: (ctx, self) => {
+    conjureToHand(ctx.state, BUYABLE_CARDS.filter((c) => c.keywords.includes('M')), gold(self));
+  },
+
+  /** Grave Knit / Eternal Knight (recruit half) — permanently buff a card TYPE run-wide (board + hand + future). */
+  deathrattleBuffCardTypeRunWide: (ctx, self, params) => {
+    const cardId = str(params.cardId) || self.cardId;
+    buffCardTypeRunWide(ctx.state, cardId, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), CARD_INDEX[cardId]?.name ?? cardId);
+  },
+
+  /** (recruit half) — permanently buff your Imps run-wide (board + hand + future copies). */
+  deathrattleBuffImps: (ctx, self, params) => {
+    buffImpsRunWide(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 3) * gold(self), nameOf(self));
+  },
+
+  /** Burial Imp / Soulfeeder (recruit half) — queue `count` Fodder into your next tavern; golden doubles. */
+  deathrattleAddFodder: (ctx, self, params) => {
+    (ctx.state.pendingTavern ??= []).push(...Array(num(params.count, 1) * gold(self)).fill('fred'));
   },
 
   // --- Spells ---

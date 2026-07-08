@@ -31,19 +31,14 @@ export function runAttackExchangeCues(
   if (!cues.some((c) => c.ch === 'lunge' && c.enabled !== false)) return null;
   const impact = cues.find((c) => c.ch === 'impact' && c.at === 'contact' && c.enabled !== false);
   const power = hitPower(moment.primary.swing);
+  // The advance always fires AT contact (the beat clock stays welded to connection); the smack fires at
+  // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
+  // playLunge places it on its own timeline, so it stays killed/seekable with the lunge and scales with speed.
   return playLunge({
     attacker, dx, dy, speed: ctx.combatSpeed,
-    onContact: () => {
-      if (impact) {
-        // Positive offset delays the smack after connection; 0 = at contact. Negative (fire BEFORE contact —
-        // the smack-lead) is deferred: it needs playLunge to expose the contact position as a tunable, so we
-        // clamp to ≥ 0 here (a noted follow-up, not this slice).
-        const off = Math.max(0, impact.offset ?? 0) / 1000 / (impact.scaled === false ? 1 : (ctx.combatSpeed > 0 ? ctx.combatSpeed : 1));
-        const fire = (): void => playContactImpact(defender, dx, dy, power, ctx.combatSpeed);
-        if (off > 0) gsap.delayedCall(off, fire); else fire();
-      }
-      ctx.advance();
-    },
+    onContact: () => ctx.advance(),
+    onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed) : undefined,
+    impactOffsetMs: impact?.offset ?? 0,
   });
 }
 

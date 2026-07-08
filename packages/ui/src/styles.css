@@ -1927,8 +1927,10 @@ svg { width: 18px; height: 18px; }
 
 /* the timeline: one lane per cue, a shared center 0-line; chip left of 0 = negative offset, right = positive */
 .choreo-tl { display: flex; flex-direction: column; gap: 3px; padding: 2px 0 8px; border-bottom: 1px solid #33302a; margin-bottom: 4px; }
-.choreo-tl-scale { display: flex; justify-content: space-between; font-size: 9px; color: #6f665a; padding: 0 0 3px; }
-.choreo-tl-scale span:nth-child(2) { font-weight: 700; color: #8a7f6d; }
+.choreo-tl-scale { display: flex; align-items: center; gap: 8px; font-size: 9px; color: #6f665a; padding: 0 0 3px; }
+.choreo-tl-ruler { flex: 1; position: relative; height: 11px; }
+.choreo-tl-ruler span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.choreo-tl-ruler .choreo-tl-zero { font-weight: 700; color: #8a7f6d; }
 .choreo-lane { display: flex; align-items: center; gap: 8px; height: 22px; }
 .choreo-lane.off { opacity: .42; }
 .choreo-lane-name { flex: 0 0 64px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }

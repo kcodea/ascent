@@ -990,10 +990,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   scSummonCopy: (ctx, self) => {
     const card = ctx.getCard(self.cardId);
     for (let i = 0; i < mul(self); i++) {
-      const copy = ctx.summon(self.side, card, self.uid, [...self.keywords]);
-      copy.attack = self.attack;
-      copy.health = self.health;
-      copy.golden = self.golden;
+      // An exact copy of this minion's CURRENT body: keywords (Flurry, Ward…), golden, and current stats —
+      // passed through `copyStats` so the summon snapshot (and the replay) shows the real values from frame 1.
+      ctx.summon(self.side, card, self.uid, [...self.keywords], self.golden, false, {
+        attack: self.attack,
+        health: self.health,
+        maxHealth: self.maxHealth,
+        divineShield: self.divineShield,
+        rebornAvailable: self.rebornAvailable,
+      });
     }
   },
 

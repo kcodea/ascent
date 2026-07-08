@@ -215,9 +215,9 @@ export const MECHS: CardDef[] = [
     attack: 4,
     health: 3,
     keywords: ['SL'],
-    effects: [{ on: 'onKill', do: 'onKillGrantAttachmentRefreshes', params: { count: 2 } }],
-    text: '**Slaughter:** gain **2 free refreshes** next turn — both shops have a guaranteed **Attachment**.',
-    goldenText: '**Slaughter:** gain **4 free refreshes** next turn — those shops have a guaranteed **Attachment**.',
+    effects: [{ on: 'onKill', do: 'onKillGrantAttachmentRefreshes', params: { count: 1 } }],
+    text: '**Slaughter:** gain **1 free refresh** next turn — that shop has a guaranteed **Attachment** (costs 2).',
+    goldenText: '**Slaughter:** gain **2 free refreshes** next turn — those shops have a guaranteed **Attachment** (costs 2).',
   },
   {
     // Slaughter (on kill): grant 2 Gold into your next shop (golden: 4). A high-Attack finisher that snowballs

@@ -108,19 +108,23 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'buff' && ev.target === impUid && ev.attack === 5)).toBe(true);
   });
 
-  it('Mirrorhide Rhino Start of Combat summons one copy of itself (no chain)', () => {
-    const p: BoardMinion[] = [{ cardId: 'mirrorrhino', attack: 6, health: 6 }];
+  it('Mirrorhide Rhino Start of Combat summons one EXACT copy (current stats + keywords, no chain)', () => {
+    const p: BoardMinion[] = [{ cardId: 'mirrorrhino', attack: 10, health: 8, keywords: ['W'] }]; // buffed + Flurry
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 80 }];
     const r = run(p, e, 6);
     const copies = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'mirrorrhino');
     expect(copies.length).toBe(1); // exactly one copy — the summoned copy does NOT re-fire Start of Combat
+    const c = copies[0]!;
+    expect(c.type === 'summon' && c.minion.attack).toBe(10); // current Attack, not base 6
+    expect(c.type === 'summon' && c.minion.health).toBe(8);
+    expect(c.type === 'summon' && c.minion.keywords.includes('W')).toBe(true); // Flurry copied
   });
 
   it('Moe Slaughter banks free rerolls for next shop (carried back)', () => {
     const p: BoardMinion[] = [{ cardId: 'moe', attack: 4, health: 20 }];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Moe kills it → grants 2 free rerolls
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Moe kills it → grants 1 free reroll
     const r = run(p, e, 3);
-    expect(r.playerFreeRolls).toBe(2);
+    expect(r.playerFreeRolls).toBe(1);
   });
 
   it('Bounty Bot Slaughter grants Gold to next shop (carried back)', () => {
@@ -234,12 +238,16 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'summon')).toBe(true); // its Echo (Deathrattle) summoned an Imp
   });
 
-  it('Moe Slaughter banks 2 free refreshes + 2 guaranteed-attachment shops', () => {
+  it('Moe Slaughter banks 1 free refresh + 1 guaranteed-attachment shop (2 golden)', () => {
     const p: BoardMinion[] = [{ cardId: 'moe', attack: 4, health: 10 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Moe kills it → Slaughter
     const r = run(p, e, 3);
-    expect(r.playerFreeRolls).toBe(2);
-    expect(r.playerGuaranteedAttachments).toBe(2);
+    expect(r.playerFreeRolls).toBe(1);
+    expect(r.playerGuaranteedAttachments).toBe(1);
+    // golden Moe → 2 of each
+    const g = run([{ cardId: 'moe', attack: 8, health: 10, golden: true }], e, 3);
+    expect(g.playerFreeRolls).toBe(2);
+    expect(g.playerGuaranteedAttachments).toBe(2);
   });
 
   it('Bounty Bot is immune while attacking on its early combats (takes no retaliation)', () => {

@@ -287,7 +287,7 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
-    summon: (side, card, nearUid, grantKeywords, golden, attackNow) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow),
+    summon: (side, card, nearUid, grantKeywords, golden, attackNow, copyStats) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats),
     flushImmediateAttacks: () => flushImmediateAttacks(),
     attackNow: (minion, shieldFirst) => {
       // Solaris Fang's Avenge: an existing minion takes a bonus strike out of turn order via the same
@@ -429,13 +429,22 @@ export function simulate(
    * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
    * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
     const minion = instantiate(
       { cardId: card.id, attack: card.attack * (golden ? 2 : 1), health: card.health * (golden ? 2 : 1), golden },
       side, cards, mkUid,
     );
+    // Mirrorhide Rhino — an EXACT copy: override to the SOURCE's current combat body (stats + shield/reborn),
+    // set BEFORE the summon snapshot so the replay shows the copy at its real stats, not the base card.
+    if (copyStats) {
+      minion.attack = copyStats.attack;
+      minion.health = copyStats.health;
+      minion.maxHealth = copyStats.maxHealth;
+      if (copyStats.divineShield) minion.divineShield = true;
+      if (copyStats.rebornAvailable) minion.rebornAvailable = true;
+    }
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff).
     if (living(side).length >= 7) {
@@ -449,7 +458,7 @@ export function simulate(
       if (near >= 0) index = near + 1;
     }
     arr.splice(index, 0, minion);
-    applyAuras(minion, true); // run-wide auras — a summon starts from base stats, so re-apply all of them
+    if (!copyStats) applyAuras(minion, true); // a plain summon starts from base; an exact copy already carries its final stats
     // Grant keywords (e.g. Taunt from Broodmother) BEFORE snapshotting so the UI sees them from frame 1.
     if (grantKeywords) {
       for (const kw of grantKeywords) {

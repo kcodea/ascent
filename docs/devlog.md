@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### fix: TRIGGER-based counts scale with doublers (Sylus→Echoes, Drakko→Shouts); wire Hoard Spark art
+
+Follow-up to the deathrattles-in-shop entry below — resolving the flagged "should Sylus count toward the Echo
+tally?" question. Owner ruling: **yes** — a count of "TRIGGER X echoes" scales with doublers (Sylus), whereas a
+count of "X minions die" would not. Same principle for Drakko (Shouts) / Chronos (End of Turn).
+
+- **Sylus now counts toward the Echo trigger tally.** `playerDeathrattles` (which feeds the Echoing Coop objective
+  AND Grim's "per Deathrattle triggered") now counts each Sylus re-fire as another trigger — in the combat death
+  path, `fireOwnDeathrattles` (Reborn / Echoing Coop), and the shop `fireRecruitDeathrattles`. The extra triggers
+  are added AFTER the re-fires, so every firing still reads the SAME tally value (the value at death) — only the
+  COUNT grows (so "Sylus doubles Grim" stays +N twice, not an escalating read).
+- **Drakko now counts toward the Shout objective.** The reducer's `shout` quest tick advances by
+  `drummerRepeats(state)` (Drakko's non-consuming fire count), so a Drakko player's re-fired Battlecry counts as
+  multiple Shouts. 1 without Drakko (unchanged). Chronos has no End-of-Turn trigger quest yet, so nothing to wire.
+- **Hoard Spark art wired** (`q_hoard_spark.png`) — the owner added the `HoardSpark.png` source.
+
+**Verified:** typecheck + lint + build:web clean; **673 tests pass** (+ Sylus-Echo-trigger-count and Drakko-Shout
+regressions). Live: Hoard Spark renders its art.
+
 ### fixes + content: Deathrattles-in-shop sweep (Graverobber×Grim×Sylus, Echoing Coop×Sylus), reward-shop exclusion, Hoard Spark, quest retunes
 
 An owner fix/sweep pass (on `feat/beast-quests`).

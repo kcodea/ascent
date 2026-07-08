@@ -595,6 +595,9 @@ export function simulate(
     let reaperBonus = 0;
     for (const m of boards[minion.side]) if (!m.dead && m.health > 0 && m.cardId === 'sylus') reaperBonus += m.golden ? 2 : 1;
     for (let r = 0; r < reaperBonus; r++) fireOnce();
+    // Sylus re-triggers count as extra Echo triggers (Reborn / Echoing Coop). The caller already counted the
+    // base trigger; add the reaper extras (player + has-a-Deathrattle only). See the death-path note above.
+    if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles += reaperBonus;
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
@@ -675,7 +678,8 @@ export function simulate(
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff).
     if (minion.side === 'enemy') enemyDeaths++;
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
-    if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) playerDeathrattles++;
+    const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
+    if (minion.side === 'player' && hasDeathrattle) playerDeathrattles++;
     nextStep(); // Deathrattles + on-death watchers resolve as their own step
     bus.emit('onDeath', { minion, side: minion.side, killer });
     // Sylus the Reaper: the dying minion's own Deathrattle procs extra times (golden = +2;
@@ -688,6 +692,10 @@ export function simulate(
         FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
       }
     }
+    // Each Sylus RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the
+    // Echoing Coop objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added
+    // after the re-fires so all firings read the same tally value (the value at death), only the count grows.
+    if (minion.side === 'player' && hasDeathrattle) playerDeathrattles += reaperBonus;
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });

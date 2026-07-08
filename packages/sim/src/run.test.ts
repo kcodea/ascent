@@ -4619,6 +4619,18 @@ describe('quests (M3 framework)', () => {
     expect(s.shoutDoubleCharges).toBe(2);
   });
 
+  it('Drakko the Drummer makes a played Shout count TWICE toward the Shout objective', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit',
+      activeQuests: [{ questId: 'q_warm_embers', progress: 0, completed: false }],
+      board: [{ uid: 'd', cardId: 'drummer', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false }], // Drakko: Battlecries fire twice
+      hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }], // Pennycat: a Battlecry (Shout)
+    };
+    s = reduce(s, { type: 'play', uid: 'a' });
+    // Drakko re-fires the Battlecry, so one played Shout = 2 triggers → the "Play 2 Shouts" objective completes.
+    expect(s.activeQuests![0]!.completed).toBe(true);
+  });
+
   it('Warm Embers: a banked charge makes the next played Shout trigger twice (Pennycat → 2 Strays), then reverts', () => {
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
     // Charged: Pennycat's Battlecry fires twice → 2 Strays; one charge is spent.

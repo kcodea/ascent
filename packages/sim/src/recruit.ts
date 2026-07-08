@@ -415,17 +415,19 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number): v
 function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard): void {
   const def = CARD_INDEX[minion.cardId];
   if (!def) return;
+  const hasDR = def.effects.some((e) => e.on === 'onDeath');
   const fireOnce = (): void => {
     for (const eff of def.effects) {
       if (eff.on !== 'onDeath') continue;
       RECRUIT_FACTORIES[eff.do]?.(ctx, minion, eff.params ?? {}, { minion });
     }
   };
-  ctx.state.deathrattlesTriggered += 1;
+  if (hasDR) ctx.state.deathrattlesTriggered += 1; // base trigger, before firing (Grim counts its own death)
   fireOnce();
   let reaper = 0;
   for (const c of ctx.state.board) if (c.cardId === 'sylus' && c.uid !== minion.uid) reaper += c.golden ? 2 : 1;
-  for (let r = 0; r < reaper; r++) fireOnce();
+  for (let r = 0; r < reaper; r++) fireOnce(); // Sylus re-fires read the same tally (value at death)
+  if (hasDR) ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
 }
 
 /**
@@ -2093,8 +2095,10 @@ function bestCopyRepeats(state: RunState, cardId: string): number {
   return 1 + (copies.some((c) => c.golden) ? 2 : copies.length > 0 ? 1 : 0);
 }
 
-/** Drakko the Drummer: your Battlecries fire extra times (golden Drakko +2; best one only, no stacking). */
-function drummerRepeats(state: RunState): number {
+/** Drakko the Drummer: your Battlecries fire extra times (golden Drakko +2; best one only, no stacking).
+ *  Non-consuming (unlike `playedShoutRepeats`, which also spends a Warm Embers charge) — so it's safe for the
+ *  reducer's Shout quest tick to read the battlecry FIRE count (each Drakko re-fire is another Shout trigger). */
+export function drummerRepeats(state: RunState): number {
   return bestCopyRepeats(state, 'drummer');
 }
 

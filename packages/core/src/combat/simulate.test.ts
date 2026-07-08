@@ -2292,6 +2292,22 @@ describe('combat-phase quest tallies', () => {
     expect(pupCount(true)).toBe(base * 2); // one Sylus doubles the Start-of-Combat Echo → 4 Pups
   });
 
+  it('Sylus makes an Echo count as multiple TRIGGERS (feeds the Echo objective + Grim tally)', () => {
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies round 1 → Mama Pup survives
+    const triggers = (withSylus: boolean): number => {
+      const p: BoardMinion[] = withSylus
+        ? [{ cardId: 'sylus', attack: 3, health: 30 }, { cardId: 'pack', attack: 3, health: 30 }]
+        : [{ cardId: 'pack', attack: 3, health: 30 }];
+      const r = simulate(
+        p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ['beast'], {}, false, false, 0, 0, 0, 0,
+        { echoingCoop: true },
+      );
+      return r.playerDeathrattles; // the Echo (deathrattle) objective + Grim read this tally
+    };
+    expect(triggers(false)).toBe(1); // one Echo triggered
+    expect(triggers(true)).toBe(2); // Sylus re-fire counts as a second TRIGGER (not a second death)
+  });
+
   it('The Old Hunt (questMods.oldHuntStep): each Beast attack pumps the Beast aura, carried back', () => {
     const p: BoardMinion[] = [{ cardId: 'alley', attack: 3, health: 40 }]; // survives to attack several times
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 30 }];

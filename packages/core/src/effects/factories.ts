@@ -878,6 +878,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Mirrorhide Rhino — Start of Combat: summon a copy of THIS minion's current body (stats + granted
+   *  keywords). Golden summons two. Combat-summoned copies don't re-fire Start of Combat, so it never chains. */
+  scSummonCopy: (ctx, self) => {
+    const card = ctx.getCard(self.cardId);
+    for (let i = 0; i < mul(self); i++) {
+      const copy = ctx.summon(self.side, card, self.uid, [...self.keywords]);
+      copy.attack = self.attack;
+      copy.health = self.health;
+      copy.golden = self.golden;
+    }
+  },
+
   // ─── New content batch factories ────────────────────────────────────────────
 
   /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.

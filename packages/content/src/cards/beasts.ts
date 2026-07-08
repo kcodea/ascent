@@ -272,4 +272,18 @@ export const BEASTS: CardDef[] = [
     text: '**Rally:** give your Beasts **+5 Attack** wherever they are. **Avenge (3):** gain **Ward** and attack immediately.',
     goldenText: '**Rally:** give your Beasts **+10 Attack** wherever they are. **Avenge (3):** gain **Ward** and attack immediately.',
   },
+  {
+    // Start of Combat: mirror itself — summon a copy of its current body (stats + granted keywords). Golden
+    // summons two. Combat summons don't re-fire Start of Combat, so it never chains. A T6 board-doubler.
+    id: 'mirrorrhino',
+    name: 'Mirrorhide Rhino',
+    tribe: 'beast',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scSummonCopy' }],
+    text: '**Start of Combat:** Summon a copy of this minion.',
+    goldenText: '**Start of Combat:** Summon **two** copies of this minion.',
+  },
 ];

@@ -25,7 +25,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **New minions — content batch (waves 1–2, 16 cards)** — a big content push across all tribes: economy
+- **New minions — content batch (waves 1–2, 18 cards)** — a big content push across all tribes: economy
   Slaughter/Avenge payoffs (Bounty Bot, Moe, Pit Supplier), spell engines (Runescale & Vineweaver Drake, Nimbus,
   Spell Appraiser), a Den Mother Rally payoff (Baby Cub), tribe splashes (Wayfinder), and more — each card is
   data + art + a new effect factory + a test. Wave 3 (baked auras, combat spell-cast, Pack Leader / Spirit

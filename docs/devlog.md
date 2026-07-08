@@ -5,11 +5,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-07 (session 22)
 
-### feat(content): new-minions batch — wave 2 (8 cards: economy carry-backs, scaling, spell doublers, Discover)
+### feat(content): new-minions batch — wave 2 (10 cards + 6 art wirings)
 
 The plumbing-heavy half of the ~27-card batch (wave 1 was the reuse-an-existing-mechanism cards). Each is card
 data + art + a new effect factory (or reused machinery) registered in BOTH the zod schema AND the `EffectFactoryId`
-core type, plus a passing test. Branch `feat/new-minions-wave2`; full suite green (610), one commit per card.
+core type, plus a passing test. Branch `feat/new-minions-wave2`; full suite green (612), one commit per card.
 
 New subsystem this wave: a **bonus-gold combat→recruit carry-back** (`grantBonusGold` → `CombatResult.playerBonusGold`
 → `bonusEmbersNextTurn`), mirroring the max-gold / free-rolls / Fodder / spell-power carry-backs.
@@ -22,12 +22,16 @@ New subsystem this wave: a **bonus-gold combat→recruit carry-back** (`grantBon
 - **Nimbus** (Neutral T4 5/4) — *Battlecry:* your next Tavern spell casts twice (×3 golden). New `nextSpellMult` run-state charge read by `spellCasts`, spent by the reducer on the next real cast; doubles untargeted economy spells too (unlike Yazzus). Art pending.
 - **Vineweaver Drake** (Dragon T4 2/2) — *End of Turn:* cast Growth, once more per prior End of Turn (`endOfTurnCastSpellEscalating`; per-instance `eotTick`).
 - **Wayfinder** (Neutral T4 4/2) — *Battlecry:* Discover a minion from an active tribe you don't control (`battlecryDiscoverMinion` gains an `'uncontrolled'` mode + `uncontrolledTribe` helper).
+- **Field Mechanic** (Mech T2 2/2) — *Battlecry:* add a Patch Job to hand (new `battlecryGrantSpell`, golden fetches two).
+- **Patch Job** (spell, T3, cost 2) — give a minion **+3/+3 for every 7 Gold spent this turn**, scaling with spell power per step (`spellBuffTargetPerGold` + a new per-turn `goldSpentThisTurn` counter accrued in `spendGold`; live-greened via `spellDisplayText`). **Reworked from the owner's original "+3/+3 per attachment"** — welded magnetics leave no clean attachment count, so the owner chose the Gold-spent version. Spell-power scaling read as **per-step** (each unit grows), not a flat once-per-cast add — flag to switch.
 
-- **Verified:** `typecheck + lint + test (610) + build:web` green throughout.
-- **Remaining (~10, each a genuinely new subsystem):** baked tribe/attachment auras (Squirl Scout, Scrap Herald),
+Also wired art for **6** more overhaul minions: Bane, Brightwing Broker, Sergeant, Korok the Hungerer, Junkyard
+Titan, and Field Mechanic. (Still owed: Nimbus, Moe, Bounty Bot, Hoardbreaker Drake.)
+
+- **Verified:** `typecheck + lint + test (612) + build:web` green throughout.
+- **Remaining (~8, each a genuinely new subsystem):** baked tribe/attachment auras (Squirl Scout, Scrap Herald),
   combat spell-cast (Spell Drummer, Spark Capacitor, Hoardbreaker Drake), a beasts/dragons-played-this-turn counter
-  (Pack Leader + the Spirit Worgen retext), targeted destroy (Graverobber), adjacency consume (Abyssal Feeder), and
-  Field Mechanic + **Patch Job** — Patch Job needs a definition of "attachment" (no clean count exists today).
+  (Pack Leader + the Spirit Worgen retext), targeted destroy (Graverobber), and adjacency consume (Abyssal Feeder).
 
 ### feat: Combat Choreographer — Phase 3c (aura bursts)
 

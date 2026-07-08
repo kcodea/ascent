@@ -914,6 +914,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Runescale Drake — Start of Combat: give your `tribe` +atk/+hp, improved by `perSpell` for each spell you
+   *  cast this turn (frozen at combat start via `ctx.spellsThisTurn`). Golden doubles the whole grant. A one-time
+   *  buff to the living tribe (not a persisting aura). */
+  scTribeBuffPerSpell: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'dragon') as Tribe;
+    const per = num(params.perSpell, 1);
+    const a = (num(params.attack, 2) + per * ctx.spellsThisTurn) * mul(self);
+    const h = (num(params.health, 2) + per * ctx.spellsThisTurn) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
   // ─── New content batch factories ────────────────────────────────────────────
 
   /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.

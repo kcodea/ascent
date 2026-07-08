@@ -224,4 +224,18 @@ export const DRAGONS: CardDef[] = [
     text: '**Deathrattle:** summon 2 **Violet Whelps** with **Taunt**.',
     goldenText: '**Deathrattle:** summon 4 **Violet Whelps** with **Taunt**.',
   },
+  {
+    // Start of Combat: buff your Dragons +2/+2, +1/+1 more per spell you cast this turn (a spell-payoff Dragon).
+    // Golden doubles the whole grant. A one-time buff to the Dragons out at combat start.
+    id: 'runescale',
+    name: 'Runescale Drake',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 4,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scTribeBuffPerSpell', params: { tribe: 'dragon', attack: 2, health: 2, perSpell: 1 } }],
+    text: '**Start of Combat:** Give your **Dragons** **+2/+2**. Improve this by **+1/+1** for each spell you cast this turn.',
+    goldenText: '**Start of Combat:** Give your **Dragons** **+4/+4**. Improve this by **+2/+2** for each spell you cast this turn.',
+  },
 ];

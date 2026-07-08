@@ -143,6 +143,20 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerFodderGrants).toBe(1);
   });
 
+  it('Runescale Drake Start of Combat buffs your Dragons +2/+2 (base, 0 spells)', () => {
+    const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
+    const r = run(p, e, 3);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
+  });
+
+  it('Runescale Drake scales with spells cast this turn (3 spells → +5/+5)', () => {
+    const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
+    const r = simulate(p, e, makeRng(3), CARD_INDEX, 3); // 3 spells this turn → base 2 + 3
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 5 && ev.health === 5)).toBe(true);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

@@ -69,6 +69,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scDestroyHighestAttack',
   'scGrantEnemyTaunt',
   'scSummonCopy',
+  'scTribeBuffPerSpell',
   'battlecryBuffTribe',
   'battlecrySummon',
   'buffOnBuy',

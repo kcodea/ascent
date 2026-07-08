@@ -94,6 +94,7 @@ export type EffectFactoryId =
   | 'scDestroyHighestAttack'
   | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
+  | 'scTribeBuffPerSpell' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'

@@ -476,6 +476,11 @@ export function Recruit() {
         // than its art (centre sits low → the aura looked low); the archbox is the same `--ccw` square everywhere.
         const r = (card.querySelector<HTMLElement>('.archbox') ?? card).getBoundingClientRect();
         if (r.width === 0) continue; // not laid out yet (mid-transition)
+        // A DYING combat unit's aura burst is the choreographer's now (channels/aura.ts, off the event log) —
+        // don't re-register/re-grow its bubble here or the position-tracker would flicker a fresh bubble back in
+        // after the burst destroys it. Skipping drops it from `seen` → PASS 2 (a burst one is already gone, so
+        // clearShield no-ops; a non-bursting leaver fades). The burst reads the bubble's last-tracked spot.
+        if (inCombatRef.current && card.closest<HTMLElement>('.unit')?.classList.contains('dying')) continue;
         const key = ckey(cfg.kind, uid);
         seen.add(key);
         // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that

@@ -301,4 +301,19 @@ export const BEASTS: CardDef[] = [
     text: '**Start of Combat:** Summon a copy of this minion.',
     goldenText: '**Start of Combat:** Summon **two** copies of this minion.',
   },
+  {
+    // Start of Combat: buff your Beasts +1/+2, improved +1/+1 for each Beast you played this recruit turn
+    // (frozen at combat start, threaded into the sim like spellsThisTurn). A go-wide Beast SoC payoff that
+    // rewards a busy beast turn. Golden doubles the whole grant.
+    id: 'packleader',
+    name: 'Pack Leader',
+    tribe: 'beast',
+    tier: 3,
+    attack: 2,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scTribeBuffPerPlayed', params: { tribe: 'beast', attack: 1, health: 2, perPlayed: 1 } }],
+    text: '**Start of Combat:** Give your **Beasts** **+1/+2**. Improve this by **+1/+1** for each **Beast** you played this turn.',
+    goldenText: '**Start of Combat:** Give your **Beasts** **+2/+4**. Improve this by **+2/+2** for each **Beast** you played this turn.',
+  },
 ];

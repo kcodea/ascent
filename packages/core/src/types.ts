@@ -98,6 +98,7 @@ export type EffectFactoryId =
   | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
   | 'scTribeBuffPerSpell' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
+  | 'scTribeBuffPerPlayed' // Pack Leader: Start of Combat — buff Beasts +N/+N, +M per Beast played this turn
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'
@@ -620,8 +621,10 @@ export interface CombatContext {
   readonly bus: CombatBus;
   readonly boards: Record<Side, Minion[]>;
   readonly events: CombatEvent[];
-  /** Spells cast this turn (recruit), frozen at combat start — scales Spirit Worgen's in-combat buff. */
+  /** Spells cast this turn (recruit), frozen at combat start — scales Runescale Drake's Start-of-Combat buff. */
   readonly spellsThisTurn: number;
+  /** Beasts you PLAYED this turn (recruit), frozen at combat start — scales Pack Leader's Start-of-Combat buff. */
+  readonly beastsPlayedThisTurn: number;
   /** The run's spell power at combat start ({attack, health} — hero amplify + card spell bonus). Taragosa's
    *  Growth is a real spell cast, so it inherits this just like a shop-cast Growth does. */
   readonly spellPower: { attack: number; health: number };

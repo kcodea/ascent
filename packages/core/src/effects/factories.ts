@@ -996,6 +996,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Pack Leader — Start of Combat: buff your `tribe` (Beasts) +atk/+hp, improved by `perPlayed` for each of
+   *  that tribe you PLAYED this recruit turn (`ctx.beastsPlayedThisTurn`, threaded from the run). Golden
+   *  doubles the whole grant. Sibling of scTribeBuffPerSpell, keyed on the play counter instead of spells. */
+  scTribeBuffPerPlayed: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    const per = num(params.perPlayed, 1);
+    const a = (num(params.attack, 1) + per * ctx.beastsPlayedThisTurn) * mul(self);
+    const h = (num(params.health, 2) + per * ctx.beastsPlayedThisTurn) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rallies the pack` });
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
   // ─── New content batch factories ────────────────────────────────────────────
 
   /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.

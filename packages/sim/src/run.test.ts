@@ -308,6 +308,20 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'F')!.attack).toBe(7); // the Feeder itself doesn't consume
   });
 
+  it('Pack Leader: Start of Combat buff scales with Beasts played this turn', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'pl', cardId: 'packleader', tribe: 'beast', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+      ],
+      playedThisTurn: ['alley', 'alley'], // 2 Beasts played → base +1/+2 improved by +2/+2 → +3/+4
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    const scBuff = s.lastCombat!.events.find((e) => e.type === 'buff' && e.attack === 3 && e.health === 4);
+    expect(scBuff).toBeDefined();
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

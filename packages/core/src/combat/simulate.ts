@@ -49,6 +49,7 @@ export function simulate(
   cardBuffs: Record<string, { attack: number; health: number }> = {},
   playerAttacksFirst = false,
   playerRallyDouble = false,
+  beastsPlayedThisTurn = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
@@ -209,6 +210,7 @@ export function simulate(
     boards,
     events,
     spellsThisTurn,
+    beastsPlayedThisTurn,
     spellPower,
     fodderConsumedAtk,
     fodderConsumedHp,

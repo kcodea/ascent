@@ -237,6 +237,34 @@ export const UNDEAD: CardDef[] = [
     text: '**Avenge (4):** raise your maximum Gold by **1**.',
     goldenText: '**Avenge (4):** raise your maximum Gold by **2**.',
   },
+  {
+    // Start of Combat: hand a friendly Undead Rise (Reborn) so it returns once. Golden Rises two. Skips
+    // minions that already have Rise. A resilience enabler for a go-tall Undead board.
+    id: 'gravewarden',
+    name: 'Gravewarden',
+    tribe: 'undead',
+    tier: 3,
+    attack: 3,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scGrantReborn', params: { tribe: 'undead' } }],
+    text: '**Start of Combat:** Give a friendly **Undead** Rise.',
+    goldenText: '**Start of Combat:** Give **two** friendly **Undead** Rise.',
+  },
+  {
+    // End of Turn: conjure 2 random spells into hand (golden: 4). A spell engine on a tanky Undead body —
+    // fuels spell-payoff builds (Spirit Pup's transform, Archmagus Guel, spell-power stacking).
+    id: 'cryptscribe',
+    name: 'Crypt Scribe',
+    tribe: 'undead',
+    tier: 5,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnGetRandomSpells', params: { count: 2 } }],
+    text: '**End of Turn:** Get **2 random spells**.',
+    goldenText: '**End of Turn:** Get **4 random spells**.',
+  },
 
   // --- 2026-07-06 content batch (part 2) ---
   {

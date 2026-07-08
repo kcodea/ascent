@@ -442,6 +442,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.summonBonus = (self.summonBonus ?? 0) + base;
   },
 
+  /** Imp Overseer — Battlecry: give your Imps a persistent +atk/+hp run-wide (board + hand + future copies)
+   *  via the shared imp enchant (`impBuff`). Golden doubles. */
+  battlecryBuffImps: (ctx, self, params) => {
+    buffImpsRunWide(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+  },
+
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
   battlecryBuffTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
@@ -1277,6 +1283,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     applyCastEffects(ctx, spellDef, target);
     ctx.state.spellsCast += 1;
     ctx.state.spellsThisTurn += 1;
+  },
+
+  /** Crypt Scribe — End of Turn: conjure `count` random spells (from the buyable spell pool) into your hand.
+   *  Golden doubles the count. Advances the run RNG cursor; respects the hand cap. */
+  endOfTurnGetRandomSpells: (ctx, self, params) => {
+    const count = num(params.count, 2) * gold(self);
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+      const def = SPELL_CARDS[rng.int(SPELL_CARDS.length)]!;
+      ctx.state.hand.push({
+        uid: `b${ctx.state.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+    ctx.state.rngCursor = rng.state();
   },
 
   // ─── New content batch (recruit side) ──────────────────────────────────────

@@ -61,6 +61,7 @@ export type EffectFactoryId =
   | 'reAttackOnKill'
   | 'onKillBuffSelf' // on kill: buff self — permanent via Engraved
   | 'onKillBuffSpellPower' // on kill: permanently raise run-wide spell power +atk/+hp, carried back (Gnasher)
+  | 'onKillGrantFreeRolls' // Moe: Slaughter — bank N free rerolls for next shop (carried back)
   | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
   | 'deathrattleDestroyKiller' // Deathrattle: destroy the minion that dealt the killing blow (Jenkins & Fi)
   | 'deathrattleBuffTribeByTally' // Deathrattle: buff a tribe by +per per Deathrattle triggered this game (Grim)
@@ -82,6 +83,7 @@ export type EffectFactoryId =
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
   | 'scGrantShieldTribe'
+  | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
   | 'deathrattleGrantShield'
   | 'onShieldBreakGrantShield'
   | 'onShieldBreakDamage'
@@ -89,6 +91,8 @@ export type EffectFactoryId =
   // Demons — Consume / destroy (combat-resolved half)
   | 'onFriendDeathSummon'
   | 'scDestroyHighestAttack'
+  | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
+  | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'
@@ -134,6 +138,7 @@ export type EffectFactoryId =
   | 'summonBuffTribeImprove' // Mama Bear: on summoning a beast, buff it + improve the buff in/out of combat (Beast)
   | 'spellDevour' // cast: devour the target, spit its stats onto a random friend (Channeling the Devourer)
   | 'castSpell' // a minion casts a named spell (auto-targets a friend)
+  | 'endOfTurnGetRandomSpells' // Crypt Scribe: End of Turn — conjure N random spells to hand
   | 'gainEmbers' // cast: gain Embers (untargeted — Ember Pouch)
   | 'spellCastBuffOthers' // spellCast: give N other friendly minions +atk/+hp (Archmagus Guel)
   | 'overflowBuffRandom' // summonOverflow: buff a random friendly minion (Flowing Monk)
@@ -170,6 +175,7 @@ export type EffectFactoryId =
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
+  | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
   | 'goldSpentBuffFodder' // Koron: every N Gold spent, permanently buff your Fodder run-wide (+ queue a Fodder)
   | 'goldSpentMagnetize' // Banksly: every N Gold spent, weld a random Magnetic onto self
   // --- tavern-spell batch (2026-06-26) ---
@@ -193,6 +199,7 @@ export type EffectFactoryId =
   // --- 2026-07-06 content batch ---
   | 'scBeastAura' // Kennelmaster: Start of Combat — Beast aura +N/+N (grown by Avenge), catches combat summons
   | 'rallyTribeAura' // Solaris Fang: Rally — Beast aura +N/+N for the rest of combat (catches combat summons)
+  | 'rallyGiveDemonAttack' // Bloodbinder: Rally — give another friendly Demon +Attack = this minion's Attack
   | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
   | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
   | 'spellRallyDoubleNext' // Rallying Offensive: cast — your Rally effects trigger twice next combat (recruit)

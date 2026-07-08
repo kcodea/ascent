@@ -271,6 +271,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side, self.uid);
   },
 
+  /** Moe — Slaughter (on kill): bank `count` free rerolls for your next shop (golden doubles). Carried back
+   *  via CombatResult like the other on-kill economy grants. Attacker-guarded (only Moe's own kills). */
+  onKillGrantFreeRolls: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    ctx.grantFreeRolls(num(params.count, 2) * mul(self), self.side);
+  },
+
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
    *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
   deathrattleDamageAll: (ctx, self, params, payload) => {
@@ -781,6 +788,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) grantShield(ctx, m);
   },
 
+  /** Gravewarden — Start of Combat: give a friendly (optionally `tribe`) minion, other than self, Rise. Golden
+   *  grants it to two. Mirrors the Deathrattle grant but fires at combat start; skips minions that already
+   *  have — or have already spent — Rise. */
+  scGrantReborn: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    for (let i = 0; i < mul(self); i++) {
+      const candidates = ctx.living(self.side).filter((m) => {
+        if (m === self || m.rebornAvailable || m.keywords.includes('R')) return false;
+        if (!tribe) return true;
+        const def = ctx.getCard(m.cardId);
+        return m.tribe === tribe || m.tribe2 === tribe || !!def?.universalTribe;
+      });
+      if (candidates.length === 0) return;
+      const target = ctx.rng.pick(candidates);
+      target.keywords.push('R');
+      target.rebornAvailable = true;
+      ctx.log({ type: 'keyword', target: target.uid, keyword: 'R', source: self.uid });
+    }
+  },
+
   /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield (golden: TWO friends). */
   deathrattleGrantShield: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
@@ -841,6 +868,33 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const victim = targets.reduce((a, b) => (b.attack > a.attack ? b : a));
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} drags down the mightiest`, cast: true });
     ctx.damage(victim, victim.health, false, true); // destroy: ignores Divine Shield
+  },
+
+  /** Arena Heckler — Start of Combat: give the enemy's RIGHTMOST minion Taunt (golden: the two rightmost), so
+   *  your side must chew through it first. No-op vs an empty enemy board; skips a minion that already Taunts. */
+  scGrantEnemyTaunt: (ctx, self, params) => {
+    const foe: Side = self.side === 'player' ? 'enemy' : 'player';
+    const targets = ctx.living(foe);
+    if (targets.length === 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} works the crowd` });
+    for (let i = 0; i < mul(self) && i < targets.length; i++) {
+      const victim = targets[targets.length - 1 - i]!;
+      if (victim.keywords.includes('T')) continue;
+      victim.keywords.push('T');
+      ctx.log({ type: 'keyword', target: victim.uid, keyword: 'T', source: self.uid });
+    }
+  },
+
+  /** Mirrorhide Rhino — Start of Combat: summon a copy of THIS minion's current body (stats + granted
+   *  keywords). Golden summons two. Combat-summoned copies don't re-fire Start of Combat, so it never chains. */
+  scSummonCopy: (ctx, self) => {
+    const card = ctx.getCard(self.cardId);
+    for (let i = 0; i < mul(self); i++) {
+      const copy = ctx.summon(self.side, card, self.uid, [...self.keywords]);
+      copy.attack = self.attack;
+      copy.health = self.health;
+      copy.golden = self.golden;
+    }
   },
 
   // ─── New content batch factories ────────────────────────────────────────────
@@ -1116,6 +1170,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) {
       if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
     }
+  },
+
+  /** Bloodbinder — Rally (on its own attack): give another friendly Demon Attack equal to THIS minion's current
+   *  Attack (a golden Bloodbinder has double Attack, so it hands out double). Random pick among the other Demons. */
+  rallyGiveDemonAttack: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const pool = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'demon' || m.tribe2 === 'demon' || ctx.getCard(m.cardId)?.universalTribe));
+    if (pool.length === 0) return;
+    ctx.buff(ctx.rng.pick(pool), self.attack, 0, self.uid);
   },
 
   /** Solaris Fang — Avenge (X): every X friendly deaths, gain a Divine Shield (Ward) and attack immediately,

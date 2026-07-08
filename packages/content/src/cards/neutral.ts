@@ -242,4 +242,31 @@ export const NEUTRAL: CardDef[] = [
     text: '**End of Turn:** get a copy of the most recent spell cast.',
     goldenText: '**End of Turn:** get **2** copies of the most recent spell cast.',
   },
+  {
+    // Start of Combat: give the enemy's rightmost minion Taunt (golden: the two rightmost) — force your side
+    // to chew through the back line first. A control/tempo tool that reshapes the enemy's block order.
+    id: 'arenaheckler',
+    name: 'Arena Heckler',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 2,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scGrantEnemyTaunt' }],
+    text: "**Start of Combat:** Give the enemy's rightmost minion **Taunt**.",
+    goldenText: "**Start of Combat:** Give the enemy's **two** rightmost minions **Taunt**.",
+  },
+  {
+    // End of Turn: cast Lasso (steal a random tavern minion into hand) via the shared castSpell factory — a
+    // repeatable steal engine on a beefy T5 body.
+    id: 'ropewrangler',
+    name: 'Rope Wrangler',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 5,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } }],
+    text: '**End of Turn:** Cast **Lasso**.',
+  },
 ];

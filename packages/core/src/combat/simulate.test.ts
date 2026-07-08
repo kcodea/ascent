@@ -74,6 +74,55 @@ describe('simulate (handoff A.3)', () => {
     expect(summonAura).toBe(true);
   });
 
+  it('Gravewarden Start of Combat gives a friendly Undead Rise (Reborn)', () => {
+    // Gravewarden + Soulsman (both Undead). At combat start the OTHER Undead is granted Reborn — a keyword event.
+    const p: BoardMinion[] = [
+      { cardId: 'gravewarden', attack: 3, health: 40 },
+      { cardId: 'soulsman', attack: 2, health: 40 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 200 }];
+    const r = run(p, e, 5);
+    const soulsmanUid = r.initial.player.find((u) => u.cardId === 'soulsman')!.uid;
+    expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R' && ev.target === soulsmanUid)).toBe(true);
+  });
+
+  it("Arena Heckler Start of Combat gives the enemy's rightmost minion Taunt", () => {
+    const p: BoardMinion[] = [{ cardId: 'arenaheckler', attack: 2, health: 40 }];
+    const e: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 1, health: 40 },
+      { cardId: 'omen', attack: 1, health: 40 }, // rightmost → gets Taunt
+    ];
+    const r = run(p, e, 3);
+    const rightmost = r.initial.enemy[r.initial.enemy.length - 1]!.uid;
+    expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'T' && ev.target === rightmost)).toBe(true);
+  });
+
+  it("Bloodbinder Rally gives another friendly Demon Attack equal to its own", () => {
+    const p: BoardMinion[] = [
+      { cardId: 'bloodbinder', attack: 5, health: 20 },
+      { cardId: 'impscrap', attack: 1, health: 20 }, // another Demon (Imp) → the Rally target
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }]; // tanky → Bloodbinder gets to attack
+    const r = run(p, e, 3);
+    const impUid = r.initial.player.find((u) => u.cardId === 'impscrap')!.uid;
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === impUid && ev.attack === 5)).toBe(true);
+  });
+
+  it('Mirrorhide Rhino Start of Combat summons one copy of itself (no chain)', () => {
+    const p: BoardMinion[] = [{ cardId: 'mirrorrhino', attack: 6, health: 6 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 80 }];
+    const r = run(p, e, 6);
+    const copies = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'mirrorrhino');
+    expect(copies.length).toBe(1); // exactly one copy — the summoned copy does NOT re-fire Start of Combat
+  });
+
+  it('Moe Slaughter banks free rerolls for next shop (carried back)', () => {
+    const p: BoardMinion[] = [{ cardId: 'moe', attack: 4, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Moe kills it → grants 2 free rerolls
+    const r = run(p, e, 3);
+    expect(r.playerFreeRolls).toBe(2);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

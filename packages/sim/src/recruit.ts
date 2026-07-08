@@ -389,6 +389,26 @@ export function dominantBoardTribe(state: RunState): Tribe | null {
 }
 
 /**
+ * Wayfinder: pick a random ACTIVE tribe (this run's `tribes`) with NO presence on the player's board — a
+ * tribe "you do not control". Seeded via the run RNG cursor (advances it). Returns null when you already
+ * control every active tribe, in which case the caller Discovers from any tribe. Neutral is never a "tribe".
+ */
+function uncontrolledTribe(state: RunState): Tribe | null {
+  const onBoard = new Set<Tribe>();
+  for (const c of state.board) {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) continue;
+    for (const t of [def.tribe, def.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
+  }
+  const candidates = state.tribes.filter((t) => t !== 'neutral' && !onBoard.has(t));
+  if (candidates.length === 0) return null;
+  const rng = makeRng(state.rngCursor);
+  const pick = candidates[rng.int(candidates.length)]!;
+  state.rngCursor = rng.state();
+  return pick;
+}
+
+/**
  * Cassen's Collision payoff: conjure ONE random buyable minion of the board's most common tribe (active
  * tribes + the always-buyable neutral glue, copies left) into the hand. Returns whether a minion was
  * added — false on an empty / tribe-less board, no eligible card, or a full hand, so the caller keeps the
@@ -543,7 +563,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Discovers twice. Routes through queueDiscover so it composes with Drakko (each extra Battlecry
    *  fire stacks an offer onto the queue). */
   battlecryDiscoverMinion: (ctx, self, params) => {
-    const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    const raw = str(params.tribe) || undefined;
+    // Wayfinder: `tribe: 'uncontrolled'` resolves at play-time to a random active tribe not on your board
+    // (falls back to any tribe if you control them all).
+    const tribe = (raw === 'uncontrolled' ? (uncontrolledTribe(ctx.state) ?? undefined) : raw) as Tribe | undefined;
     const fixed = num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
     // Exclude the source itself — Sea Urchin shouldn't be able to Discover another Sea Urchin.
     const spec: DiscoverSpec = fixed > 0

@@ -253,6 +253,23 @@ describe('run loop (@game/sim)', () => {
     expect([t.attack, t.health]).toEqual([9, 62]); // 1 + 2 = 3 total casts of +3/+4
   });
 
+  it('Wayfinder: Battlecry discovers from an active tribe you do not control', () => {
+    let s: RunState = {
+      ...createRun(1),
+      tier: 6,
+      tribes: ['beast', 'dragon'],
+      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'w', cardId: 'wayfinder', tribe: 'neutral', attack: 4, health: 2, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'w' });
+    // beast is controlled (Pennycat on board); dragon is the only uncontrolled active tribe → all options are dragons
+    expect(s.discover?.length ?? 0).toBeGreaterThan(0);
+    for (const id of s.discover ?? []) {
+      const def = CARD_INDEX[id]!;
+      expect(def.tribe === 'dragon' || def.tribe2 === 'dragon').toBe(true);
+    }
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

@@ -217,16 +217,28 @@ which effect channels fire at which offsets — replacing the current split acro
   encapsulates the exact former hold formula (unit-locked to the legacy numbers) and now drives the
   scheduler. No visible change. Scope ruling: the per-moment GSAP cue-timeline mechanism was deferred
   to phase 3 (channels give it a reason to exist). **Depends:** phase 1.
-- **Phase 3 — Channels.** Move one effect channel per commit into the score: sfx → damage floats →
-  CSS animations → Pixi FX/impact → lunge/pull-back → aura bursts. Each commit stays
-  behavior-preserving; this phase retires the cross-file timing welds (`data-rising`, the smack-lead
-  math, the Reborn 460ms) as their channels land in the score — this IS the original "hit
-  choreographer" ask. **Phase-2 carry-ins:** (a) the `impact` MomentKind collapses
-  dmg/shield/shieldUp/poison/venomLost — when kinds become the score/hold key it likely needs
-  splitting into `damage`/`shieldPop`/`poisonTick` (or per-`impact` cue branching on `primary.type`);
-  (b) add a Rise/Windfury/venom-heavy compiler equivalence fixture; (c) `holdMsForKind`'s
-  `KIND_TO_KEY` is lossy for `impact` (maps to `dmg` 460, not poison's 500) — resolve when it goes
-  live. **Depends:** phase 2.
+- **Phase 3a — Score seam + sfx channel.** ✅ **shipped 2026-07-06** (→ devlog). `choreo/score.ts` —
+  `Channel`/`Anchor`/`Cue` + an exhaustive `SCORE: Record<MomentKind, Cue[]>` (one `sfx`/`start` cue
+  per kind, each kind its own array — a review fix, no shared reference) + `runMomentCues(moment,
+  ctx)`. `choreo/channels/sfx.ts` — `playMomentSfx(moment, events)`, a verbatim extraction of the
+  former inline per-beat combat-sound dispatch (the `once`-dedup, event→sound map, real-death-vs-Rise
+  shake distinction). `useCombatReplay`'s SFX effect is now a one-line `runMomentCues` call.
+  UI-only, invisible: 551 tests + build green, live smoke on a real combat, zero console errors.
+- **Phase 3b — the contact cluster.** ✅ **shipped 2026-07-07** (→ devlog). The GSAP cue-timeline
+  **engine** (`choreo/engine.ts` — `runAttackExchangeCues`) + `float`/`impact`/`lunge` channel adapters
+  land; the attack lunge, contact FX/sfx/recoil, and the beat-advance now run off one GSAP `contact`
+  position, retiring the clock's smack-lead weld (`windup+strike−smackLead`). `runMomentCues` became a
+  real channel-handler registry (sfx + float; lunge/impact engine-driven). **Phase-2/3a carry-ins,
+  resolved here:** (a) ✅ the `impact` MomentKind split into `damage`/`shieldPop`/`poisonTick`; (b) ✅ a
+  Rise/Windfury/venom-heavy compiler equivalence fixture added; (c) ✅ `KIND_TO_KEY`'s poison lossiness
+  fixed (poison now holds 500 ms, not 460). Two robustness fixes: the scheduler falls back to the
+  setTimeout clock if an attack's DOM elements don't resolve (no soft-lock), and a mid-beat speed toggle
+  no longer re-fires that beat's sfx/shake. Accepted nuance: backgrounding the tab mid-lunge resumes the
+  lunge in place (GSAP timeline) rather than resetting it. UI-only: 569 tests + build green, live smoke
+  on a real combat, zero console errors. **Depends:** phase 3a.
+- **Phase 3c — aura bursts.** Move burst/break authority out of `Recruit.tsx`'s `syncShields` to a
+  `landed` anchor in the score — retires the `data-rising`/Reborn-460ms cross-file timing welds.
+  **Depends:** phase 3b (needs the timeline engine + `landed` anchor it introduces).
 - **Phase 4 — Authoring.** Staggers, `splitPerTarget`/`chain` grouping rules, a new 🎬 Choreography
   DEV panel, retiring the Pacing tuner for good, and the first real re-choreographs as proof (an AOE
   death ripple; a Deathrattle chain folded into its death moment; shield-break-before-damage-number

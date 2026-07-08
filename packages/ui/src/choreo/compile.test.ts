@@ -16,6 +16,15 @@ const FIGHTS: [string, () => ReturnType<typeof simulate>][] = [
   ['bigger board', () => simulate(
     [{ cardId: 'stray', attack: 3, health: 4 }, { cardId: 'pack', attack: 2, health: 2 }, { cardId: 'sandbag', attack: 0, health: 9 }],
     [{ cardId: 'pack', attack: 2, health: 2 }, { cardId: 'stray', attack: 3, health: 4 }], makeRng(11), CARD_INDEX)],
+  ['rise pull-back', () => simulate(
+    [{ cardId: 'footman', attack: 2, health: 1 }],
+    [{ cardId: 'stray', attack: 4, health: 6 }], makeRng(7), CARD_INDEX)],
+  ['windfury double-attack', () => simulate(
+    [{ cardId: 'speedy', attack: 4, health: 4 }],
+    [{ cardId: 'sandbag', attack: 1, health: 12 }], makeRng(13), CARD_INDEX)],
+  ['venom-heavy trade', () => simulate(
+    [{ cardId: 'venom', attack: 1, health: 1 }, { cardId: 'venom', attack: 1, health: 1 }],
+    [{ cardId: 'stray', attack: 3, health: 8 }, { cardId: 'pack', attack: 2, health: 2 }], makeRng(21), CARD_INDEX)],
 ];
 
 describe('compileMoments — default rules reproduce buildBeats exactly', () => {

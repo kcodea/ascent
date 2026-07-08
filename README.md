@@ -29,6 +29,17 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   Rations / Warm Embers / Grave Toll**, adding `summon`/`shout` objectives and card-generation, delayed-repeat, and
   Shout-doubling rewards, plus an **art-forward redesign** of the quest cards (crisp art, tribe emblem, framed dark
   panels, gem). Also: Brood Matron / Steadfast Champion / Solaris Fang Avenge retunes, and the redundant 0-Gold coin removed.
+- **Combat Choreographer — Phase 3b (the contact cluster)** — the GSAP cue-timeline engine
+  (`choreo/engine.ts`) + float/impact/lunge channel adapters land; the attack lunge, contact FX/sfx/recoil,
+  and the beat advance now run off one GSAP `contact` position (retiring the clock's smack-lead weld).
+  Invisible; sets up phase 3c's aura bursts.
+- **Quest system — engine framework (headless; UI is the next PR)** — the skinny first half of quests (M3): on
+  waves 4/8/12 a quest shop offers 3 quests (1 neutral + 2 tribes, bought for 0 Gold) into a persistent quest
+  list; objectives tick during play and apply a reward on completion. Seeded/deterministic + fully tested.
+- **Combat Choreographer — Phase 3a (Score seam + SFX channel)** — the choreographer's Score
+  (`SCORE: Record<MomentKind, Cue[]>` + `runMomentCues`) lands with `sfx` as its first channel — a verbatim
+  relocation of the combat-sound dispatch out of `useCombatReplay`. Invisible; sets up phase 3b's damage
+  floats + FX/impact channels.
 - **Quest system (M3 — skinny framework, engine + UI)** — on waves 4/8/12 the tavern becomes a **Quest Shop**:
   pick 1 of 3 quests (1 neutral + 2 tribes, 0 Gold) with the tavern locked + timer paused; it goes to a quest
   panel where its objective ticks during play ("Play 2 minions — 1/2") and applies a reward on completion.

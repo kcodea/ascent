@@ -119,9 +119,94 @@ in-preview (throwaway run, forced quest offer): all three cards render the redes
 **Follow-ups:** grow the remaining `Test ·` quests (greater/capstone + mech/demon/neutral) the same way (art for
 `ShieldCalibration` + `SmallOffering` is already in the source folder); the rest of the reward palette; the
 balance/curve retune.
+### feat: Combat Choreographer — Phase 3b (the contact cluster)
+
+Phase 3b of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [choreographer-phase3b](superpowers/plans/2026-07-07-choreographer-phase3b.md)). Still **UI-only,
+no gameplay/outcome change** — this is the phase where the Score seam grows a real GSAP cue-timeline
+**engine** and three of the heavy per-beat effects (float, impact, lunge) move onto it, so the attack
+lunge, the contact FX/sfx/recoil, and the beat-advance all fire off **one** timeline position instead
+of separately-computed formulas that merely agreed in value.
+
+- **`choreo/engine.ts` — `runAttackExchangeCues`, the cue-timeline composer.** For the `attackExchange`
+  moment it reads `SCORE['attackExchange']` and builds a single GSAP timeline: it runs the lunge motion,
+  and at the real `contact` position of that lunge it fires the contact-anchored impact channel **and**
+  calls the beat-advance. The old model computed the wind-up→impact hold as a number and let the impact
+  FX + the moment advance each hang off their own timer that happened to match; now one GSAP event at the
+  `contact` anchor drives both, so they cannot drift.
+- **Three new channel adapters, each a verbatim extraction of former `useCombatReplay` inline logic:**
+  - `choreo/channels/float.ts` — `spawnFloats`, the per-beat damage/buff/poison/shield/keyword float
+    spawner, moved across verbatim: the dying-unit board-overlay `DeathFloat`, the per-target buff
+    summing, and the attacker-retaliation suppression all come with it unchanged.
+  - `choreo/channels/impact.ts` — `playContactImpact` + `hitPower`, the melee smack: `sfx.hit` +
+    `pixiFx.impact` flash/sparks + the defender knockback, scaled by hit power.
+  - `choreo/channels/lunge.ts` — `playLunge`, the wind-up/strike/settle motion, with the contact moment
+    factored out to an `onContact` callback so the engine can hang the impact channel + advance on it.
+- **`choreo/score.ts`'s `runMomentCues` is now a real channel-handler registry** (sfx + float dispatched
+  by `cue.ch`; lunge/impact are engine-driven off the timeline rather than the flat runner) — the phase-3a
+  single `if (cue.ch === 'sfx')` branch is retired as promised.
+- **The `clock.ts` smack-lead WELD is retired.** The attack-wind-up→impact transition is no longer a
+  separately-computed hold formula in `holdMs` (`windup + strike − smackLead`); the engine's GSAP timeline
+  advances the moment at the true `contact` position. One timeline event now drives both the impact FX and
+  the moment advance, instead of two formulas kept in sync by hand.
+- **Phase-2/3a carry-ins resolved here:** the `impact` `MomentKind` split into `damage` / `shieldPop` /
+  `poisonTick`, which fixes `KIND_TO_KEY`'s poison lossiness — poison now correctly holds **500 ms**, not
+  the 460 it collapsed to under the shared `impact→dmg` mapping. A Rise/Windfury/venom-heavy compiler
+  equivalence fixture was added to lock the compiler's byte-identical output on those trigger-heavy paths.
+- **Two review-driven robustness fixes in the integration:** (1) the scheduler falls back to the legacy
+  `setTimeout` clock if an attack's DOM elements don't resolve, so a missing element can never soft-lock
+  the replay; (2) a mid-beat combat-speed toggle no longer re-fires that beat's sfx/shake — `combatSpeed`
+  is read via a ref and dropped from the merged cue effect's deps, so changing speed mid-beat doesn't
+  re-run the beat's one-shot cues.
+- **One accepted behavior nuance (called out, not hidden):** backgrounding the tab mid-lunge now **resumes
+  the lunge in place** (it's a GSAP timeline) rather than resetting it (the old `setTimeout` scheduler's
+  behavior). Accepted as the better feel; noted so it isn't a surprise.
+- **Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` — **569 tests** green;
+  `typecheck:web` at its 21-error baseline (no new errors). Live smoke: entering a real combat mounts +
+  renders the replay with zero console errors. The full lunge feel-pass — smack-on-contact timing at 1×
+  and faster, in a focused window — is the owner's and is **pending** (the repo's real gate per CLAUDE.md).
+- **Follow-ups (next):** **Phase 3c — aura bursts** — move burst/break authority out of `Recruit.tsx`'s
+  `syncShields` to a `landed` anchor in the score, retiring the `data-rising`/Reborn-460 ms cross-file
+  timing welds (CSS animations stay render-owned, not scored). The accepted hidden-tab
+  resume-vs-reset nuance above is the one intentional behavior change to keep an eye on. See
+  [roadmap.md](roadmap.md)'s Combat Choreographer section for the full phase breakdown.
 
 ## 2026-07-06 (session 20)
 
+### feat: Combat Choreographer — Phase 3a (Score seam + the sfx channel)
+
+Phase 3a of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),
+plan: [choreographer-phase3a](superpowers/plans/2026-07-06-choreographer-phase3a.md)). All **UI-only,
+invisible** — this ships the Score → channel-adapter → runner seam with `sfx` as its first client, a
+verbatim relocation of existing behavior, nothing new on screen.
+
+- **`choreo/channels/sfx.ts` — the sfx channel adapter.** `playMomentSfx(moment, events): { shake }` is a
+  verbatim extraction of `useCombatReplay`'s former inline per-beat combat-sound dispatch: the `once`-keyed
+  dedup so a moment with several same-type events (e.g. a multi-hit clash) plays each sound once, the
+  event→sound mapping (attack, sc-cast, death, reborn, shieldUp, buff, maxGold, summon), and the
+  real-death-vs-Rise distinction (a genuine death plays the death sound + signals a shake; a Rise plays the
+  soft spirit-shatter cue with no shake — the body is coming back). Spy-tested against `sfx.*`.
+- **`choreo/score.ts` — the Score seam.** `Channel`/`Anchor`/`Cue` types (phase 3a: one channel, `sfx`, one
+  anchor, `start` — the GSAP cue-timeline engine that adds real offsets/`contact`/`landed` lands in 3b); an
+  **exhaustive** `SCORE: Record<MomentKind, Cue[]>` — every one of the 16 `MomentKind`s gets its own
+  `[{ ch: 'sfx', at: 'start' }]` entry, each kind's array a **separate literal**, not a shared reference (a
+  review-driven fix — sharing one array across kinds would make a future phase-3b per-kind edit silently
+  mutate every other kind too). `CueContext { events, onShake }` + `runMomentCues(moment, ctx)` walks a
+  moment's scored cues and dispatches by `cue.ch` (today a single `if (cue.ch === 'sfx')` branch — noted
+  in-code and in the roadmap to become a channel-handler registry once more channels land).
+- **`useCombatReplay`** — the old inline SFX effect (the `once`-dedup + event switch, duplicated logic) is
+  now a one-line call: `runMomentCues(beat, { events, onShake: () => setShake((n) => n + 1) })`. Same
+  dedup, same sounds, same shake trigger — behavior-identical by construction.
+- **Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` — **551 tests** green
+  (545 baseline + the new sfx-adapter spy tests + score/runner tests). Live smoke: booted the app, drove a
+  real practice fight through a full ~9-event combat to completion — sounds fired identically, zero console
+  errors.
+- **Process note:** a review pass on the Score commit caught the shared-cue-array hazard above (task 2 of
+  the plan) before it shipped; fixed in the same PR (ddee945) with an explicit no-shared-reference comment.
+- **Follow-ups (next):** **Phase 3b** — the GSAP cue-timeline engine + a real `contact` anchor +
+  damage-float channel + Pixi FX/impact, which is when `runMomentCues`'s single sfx branch becomes a
+  registry. CSS animations stay render-owned (not scored) through 3b. **Phase 3c** — aura bursts. See
+  [roadmap.md](roadmap.md)'s Combat Choreographer section for the full phase breakdown.
 ### feat(ui): Quest system — the UI (quest shop + quest panel; PR 2 of 2)
 
 The presentation half (PR 1 was the headless engine). On waves 4/8/12 the tavern becomes a **Quest Shop**: the 3

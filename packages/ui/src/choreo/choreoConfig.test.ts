@@ -17,7 +17,9 @@ describe('choreoConfig', () => {
     expect(beatDelay('nonsense')).toBe(300);
   });
   it('holdMsForKind maps a moment kind to the pre-scale hold it should reproduce', () => {
-    expect(holdMsForKind('impact')).toBe(beatDelay('dmg'));
+    expect(holdMsForKind('damage')).toBe(beatDelay('dmg'));
+    expect(holdMsForKind('shieldPop')).toBe(beatDelay('shield'));
+    expect(holdMsForKind('poisonTick')).toBe(beatDelay('poison')); // the fixed carry-in — was wrongly 'dmg' (460) before this split
     expect(holdMsForKind('death')).toBe(beatDelay('death'));
     expect(holdMsForKind('scCast')).toBe(beatDelay('sc'));
   });

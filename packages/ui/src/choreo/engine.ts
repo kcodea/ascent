@@ -28,12 +28,20 @@ export function runAttackExchangeCues(
 ): ReturnType<typeof gsap.timeline> | null {
   if (moment.primary.type !== 'attack') return null;
   const cues = SCORE[moment.kind];
-  if (!cues.some((c) => c.ch === 'lunge')) return null;
+  if (!cues.some((c) => c.ch === 'lunge' && c.enabled !== false)) return null;
+  const impact = cues.find((c) => c.ch === 'impact' && c.at === 'contact' && c.enabled !== false);
   const power = hitPower(moment.primary.swing);
   return playLunge({
     attacker, dx, dy, speed: ctx.combatSpeed,
     onContact: () => {
-      if (cues.some((c) => c.ch === 'impact' && c.at === 'contact')) playContactImpact(defender, dx, dy, power, ctx.combatSpeed);
+      if (impact) {
+        // Positive offset delays the smack after connection; 0 = at contact. Negative (fire BEFORE contact —
+        // the smack-lead) is deferred: it needs playLunge to expose the contact position as a tunable, so we
+        // clamp to ≥ 0 here (a noted follow-up, not this slice).
+        const off = Math.max(0, impact.offset ?? 0) / 1000 / (impact.scaled === false ? 1 : (ctx.combatSpeed > 0 ? ctx.combatSpeed : 1));
+        const fire = (): void => playContactImpact(defender, dx, dy, power, ctx.combatSpeed);
+        if (off > 0) gsap.delayedCall(off, fire); else fire();
+      }
       ctx.advance();
     },
   });

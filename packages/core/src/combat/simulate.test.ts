@@ -74,6 +74,29 @@ describe('simulate (handoff A.3)', () => {
     expect(summonAura).toBe(true);
   });
 
+  it('Gravewarden Start of Combat gives a friendly Undead Rise (Reborn)', () => {
+    // Gravewarden + Soulsman (both Undead). At combat start the OTHER Undead is granted Reborn — a keyword event.
+    const p: BoardMinion[] = [
+      { cardId: 'gravewarden', attack: 3, health: 40 },
+      { cardId: 'soulsman', attack: 2, health: 40 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 200 }];
+    const r = run(p, e, 5);
+    const soulsmanUid = r.initial.player.find((u) => u.cardId === 'soulsman')!.uid;
+    expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R' && ev.target === soulsmanUid)).toBe(true);
+  });
+
+  it("Arena Heckler Start of Combat gives the enemy's rightmost minion Taunt", () => {
+    const p: BoardMinion[] = [{ cardId: 'arenaheckler', attack: 2, health: 40 }];
+    const e: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 1, health: 40 },
+      { cardId: 'omen', attack: 1, health: 40 }, // rightmost → gets Taunt
+    ];
+    const r = run(p, e, 3);
+    const rightmost = r.initial.enemy[r.initial.enemy.length - 1]!.uid;
+    expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'T' && ev.target === rightmost)).toBe(true);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

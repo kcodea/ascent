@@ -237,6 +237,20 @@ export const UNDEAD: CardDef[] = [
     text: '**Avenge (4):** raise your maximum Gold by **1**.',
     goldenText: '**Avenge (4):** raise your maximum Gold by **2**.',
   },
+  {
+    // Start of Combat: hand a friendly Undead Rise (Reborn) so it returns once. Golden Rises two. Skips
+    // minions that already have Rise. A resilience enabler for a go-tall Undead board.
+    id: 'gravewarden',
+    name: 'Gravewarden',
+    tribe: 'undead',
+    tier: 3,
+    attack: 3,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scGrantReborn', params: { tribe: 'undead' } }],
+    text: '**Start of Combat:** Give a friendly **Undead** Rise.',
+    goldenText: '**Start of Combat:** Give **two** friendly **Undead** Rise.',
+  },
 
   // --- 2026-07-06 content batch (part 2) ---
   {

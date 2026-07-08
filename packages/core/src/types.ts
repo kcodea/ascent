@@ -82,6 +82,7 @@ export type EffectFactoryId =
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
   | 'scGrantShieldTribe'
+  | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
   | 'deathrattleGrantShield'
   | 'onShieldBreakGrantShield'
   | 'onShieldBreakDamage'
@@ -89,6 +90,7 @@ export type EffectFactoryId =
   // Demons — Consume / destroy (combat-resolved half)
   | 'onFriendDeathSummon'
   | 'scDestroyHighestAttack'
+  | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'

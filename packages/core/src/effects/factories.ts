@@ -781,6 +781,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) grantShield(ctx, m);
   },
 
+  /** Gravewarden — Start of Combat: give a friendly (optionally `tribe`) minion, other than self, Rise. Golden
+   *  grants it to two. Mirrors the Deathrattle grant but fires at combat start; skips minions that already
+   *  have — or have already spent — Rise. */
+  scGrantReborn: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    for (let i = 0; i < mul(self); i++) {
+      const candidates = ctx.living(self.side).filter((m) => {
+        if (m === self || m.rebornAvailable || m.keywords.includes('R')) return false;
+        if (!tribe) return true;
+        const def = ctx.getCard(m.cardId);
+        return m.tribe === tribe || m.tribe2 === tribe || !!def?.universalTribe;
+      });
+      if (candidates.length === 0) return;
+      const target = ctx.rng.pick(candidates);
+      target.keywords.push('R');
+      target.rebornAvailable = true;
+      ctx.log({ type: 'keyword', target: target.uid, keyword: 'R', source: self.uid });
+    }
+  },
+
   /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield (golden: TWO friends). */
   deathrattleGrantShield: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
@@ -841,6 +861,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const victim = targets.reduce((a, b) => (b.attack > a.attack ? b : a));
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} drags down the mightiest`, cast: true });
     ctx.damage(victim, victim.health, false, true); // destroy: ignores Divine Shield
+  },
+
+  /** Arena Heckler — Start of Combat: give the enemy's RIGHTMOST minion Taunt (golden: the two rightmost), so
+   *  your side must chew through it first. No-op vs an empty enemy board; skips a minion that already Taunts. */
+  scGrantEnemyTaunt: (ctx, self, params) => {
+    const foe: Side = self.side === 'player' ? 'enemy' : 'player';
+    const targets = ctx.living(foe);
+    if (targets.length === 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} works the crowd` });
+    for (let i = 0; i < mul(self) && i < targets.length; i++) {
+      const victim = targets[targets.length - 1 - i]!;
+      if (victim.keywords.includes('T')) continue;
+      victim.keywords.push('T');
+      ctx.log({ type: 'keyword', target: victim.uid, keyword: 'T', source: self.uid });
+    }
   },
 
   // ─── New content batch factories ────────────────────────────────────────────

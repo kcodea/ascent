@@ -9,9 +9,15 @@ export interface LungeCtx {
   dx: number;
   dy: number;
   speed: number;
-  /** Fired at the smack-lead GSAP position — the moment of contact. See `engine.ts` for how this is wired
-   *  to the impact channel + the beat-clock advance. */
+  /** Fired at the CONTACT GSAP position (smack-lead before the strike completes) — the beat-clock advance
+   *  is wired here (see `engine.ts`). Always at the contact point, regardless of the impact offset. */
   onContact: () => void;
+  /** The impact FX/sfx/recoil, fired at `contact + impactOffsetMs`. Separate from `onContact` so the smack
+   *  can be retimed (incl. NEGATIVE — fire before contact — the smack-lead) without moving the advance. */
+  onImpact?: () => void;
+  /** ms the impact fires relative to contact; negative = earlier (before connection), positive = later.
+   *  Rides the lunge timeline, so it scales with `speed` like the rest of the lunge. Default 0 (on contact). */
+  impactOffsetMs?: number;
 }
 
 /**
@@ -23,7 +29,7 @@ export interface LungeCtx {
  * timeline (seekable via `.progress()` in tests, without needing real time to pass).
  */
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
-  const { attacker, dx, dy, speed, onContact } = ctx;
+  const { attacker, dx, dy, speed, onContact, onImpact, impactOffsetMs = 0 } = ctx;
   const c = getLungeConfig();
   const rest = attacker.getBoundingClientRect();
   const cx0 = rest.left + rest.width / 2;
@@ -56,8 +62,15 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
     })
     .to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: -5, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' })  // wind up
     .to(attacker, { x: dx * c.strikeDist, y: dy * c.strikeDist, rotation: 0, scale: 1, duration: c.strikeDur, ease: 'power3.in' })                    // strike
-    .add(onContact, `-=${c.smackLead}`)                                                                                                                // contact — fired smackLead seconds BEFORE the strike completes
+    .add(onContact, `-=${c.smackLead}`)                                                                                                                // contact — fired smackLead seconds BEFORE the strike completes (the advance)
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });                                                    // settle
+  // The impact (smack/FX/recoil) fires at contact + its offset — an ABSOLUTE timeline position so a negative
+  // offset lands EARLIER than contact (the smack-lead), clamped to ≥ 0 (can't precede the timeline). It rides
+  // this (speed-timeScaled) timeline, so the smack stays killed/seekable with the lunge and scales with speed.
+  if (onImpact) {
+    const contactAt = c.windupDur + c.strikeDur - c.smackLead;
+    tl.add(onImpact, Math.max(0, contactAt + impactOffsetMs / 1000));
+  }
   tl.timeScale(speed);
   return tl;
 }

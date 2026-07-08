@@ -1,36 +1,34 @@
-import { useRef } from 'react';
 import type { MomentKind } from './choreo/kinds';
-import type { Anchor, Channel } from './choreo/score';
+import type { Cue } from './choreo/score';
 import { getScore, setCue } from './choreo/score';
-import { getLungeConfig } from './lungeConfig';
-import { msToPx, pxToMs, clampOffset, type TrackWindow } from './choreo/timelineMath';
+import { clampOffset } from './choreo/timelineMath';
+import { CH_COLOR, CH_DESC, AT_DESC } from './choreoLabels';
 
-/** The known ms time of each anchor (start = 0; contact/landed from the lunge + pull-back durations). */
-const anchorMs = (at: Anchor): number => {
-  const c = getLungeConfig();
-  if (at === 'contact') return (c.windupDur + c.strikeDur) * 1000;
-  if (at === 'landed') return (0.1 + 0.24) * 1000; // runRiseReturn delay + duration
-  return 0;
-};
+/**
+ * The Choreography timeline (choreographer phase 4) — one LANE per cue, each with a shared center vertical
+ * 0-line marking the cue's ANCHOR (start / contact / landed). A chip left of 0 = negative offset (fire BEFORE
+ * the anchor — the smack-lead); right of 0 = positive (fire after). Drag a chip to set its offset; the numeric
+ * rows below edit the same value + the anchor/scaled/enabled toggles. Offset-relative (not absolute time) so
+ * every cue's "now" lines up on one clean vertical, and negative/positive read at a glance. The empty
+ * name/anchor spacers on the scale row keep the "0 ms" tick over the same center line the chips ride.
+ */
 
 export function ChoreoTimeline({ kind, onChange }: { kind: MomentKind; onChange: () => void }) {
   const cues = getScore()[kind];
-  const trackRef = useRef<HTMLDivElement | null>(null);
-  const times = cues.map((c) => anchorMs(c.at) + (c.offset ?? 0));
-  const maxMs = Math.max(300, ...times.map((t) => t + 60));
+  // Symmetric ms window around 0: the largest |offset| (floor 300, + headroom) so chips never hug the edge.
+  const maxAbs = Math.max(300, ...cues.map((c) => Math.abs(c.offset ?? 0) + 40));
+  /** Chip center as a % across the lane track: 0ms = 50% (the zero line); ±maxAbs → 4%/96% (a 4% margin). */
+  const pct = (offset: number): number => 50 + (offset / maxAbs) * 46;
 
-  const drag = (ch: Channel, at: Anchor) => (e: React.PointerEvent): void => {
-    const track = trackRef.current;
+  const drag = (c: Cue) => (e: React.PointerEvent): void => {
+    const track = (e.currentTarget as HTMLElement).closest<HTMLElement>('.choreo-lane-track');
     if (!track) return;
-    const w: TrackWindow = { widthPx: track.clientWidth, maxMs };
+    const msPerPx = (2 * maxAbs) / track.clientWidth;
     const startX = e.clientX;
-    const anchor = anchorMs(at);
-    const cue = getScore()[kind].find((c) => c.ch === ch);
-    const startOff = cue?.offset ?? 0;
-    const startPx = msToPx(anchor + startOff, w);
+    const startOff = c.offset ?? 0;
     const move = (ev: PointerEvent): void => {
-      const off = clampOffset(pxToMs(startPx + (ev.clientX - startX), w) - anchor, at);
-      setCue(kind, ch, { offset: off });
+      const off = clampOffset(Math.round(startOff + (ev.clientX - startX) * msPerPx), c.at);
+      setCue(kind, c.ch, { offset: off });
       onChange();
     };
     const up = (): void => {
@@ -42,22 +40,37 @@ export function ChoreoTimeline({ kind, onChange }: { kind: MomentKind; onChange:
     e.preventDefault();
   };
 
-  const anchorsUsed = (['start', 'contact', 'landed'] as Anchor[]).filter((a) => cues.some((c) => c.at === a));
-
   return (
-    <div className="choreo-track" ref={trackRef}>
-      {anchorsUsed.map((a) => (
-        <div className="choreo-anchor" key={a} style={{ left: `${(anchorMs(a) / maxMs) * 100}%` }}><b>{a}</b></div>
-      ))}
-      {cues.map((c) => (
-        <div
-          key={c.ch}
-          className={`choreo-chip${c.enabled === false ? ' off' : ''}`}
-          style={{ left: `${((anchorMs(c.at) + (c.offset ?? 0)) / maxMs) * 100}%` }}
-          onPointerDown={drag(c.ch, c.at)}
-          title={`${c.ch} @ ${c.at} ${c.offset ?? 0}ms`}
-        >{c.ch}</div>
-      ))}
+    <div className="choreo-tl">
+      {/* scale row: empty name/anchor spacers so the −/0/+ ruler sits over the track area — the "0 ms" tick
+          lands on the same center vertical the chips ride. */}
+      <div className="choreo-tl-scale">
+        <span className="choreo-lane-name" />
+        <span className="choreo-lane-at" />
+        <div className="choreo-tl-ruler">
+          <span style={{ left: `${pct(-maxAbs)}%` }}>−{maxAbs}</span>
+          <span style={{ left: '50%' }} className="choreo-tl-zero">0&nbsp;ms</span>
+          <span style={{ left: `${pct(maxAbs)}%` }}>+{maxAbs}</span>
+        </div>
+      </div>
+      {cues.map((c) => {
+        const off = c.offset ?? 0;
+        return (
+          <div className={`choreo-lane${c.enabled === false ? ' off' : ''}`} key={c.ch}>
+            <span className="choreo-lane-name" style={{ color: CH_COLOR[c.ch] }} title={CH_DESC[c.ch]}>{c.ch}</span>
+            <span className="choreo-lane-at" title={AT_DESC[c.at]}>{c.at}</span>
+            <div className="choreo-lane-track">
+              <div className="choreo-zero" />
+              <div
+                className="choreo-chip"
+                style={{ left: `${pct(off)}%`, background: CH_COLOR[c.ch] }}
+                onPointerDown={drag(c)}
+                title={`${c.ch} — fires at ${c.at}${off === 0 ? '' : off > 0 ? ` +${off}ms` : ` ${off}ms`}. Drag to retime. ${CH_DESC[c.ch]}`}
+              >{off === 0 ? '0' : off > 0 ? `+${off}` : `${off}`}</div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

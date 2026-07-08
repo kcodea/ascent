@@ -5,6 +5,7 @@ import { getScore, setCue, resetScore, scoreJson } from './choreo/score';
 import { getChoreoConfig, setChoreoValue, resetChoreoConfig, type ChoreoConfig } from './choreo/choreoConfig';
 import { ChoreoTimeline } from './ChoreoTimeline';
 import { ChoreoPreviewStage } from './ChoreoPreviewStage';
+import { CH_DESC, AT_DESC, PROP_DESC, KIND_DESC } from './choreoLabels';
 import { useDraggablePanel } from './useDraggablePanel';
 
 /**
@@ -40,29 +41,29 @@ export function ChoreographyPanel() {
     <div className="sfxmix choreo" ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>🎬 Choreography <span>dev · next moment · drag</span></div>
       <div className="choreo-top">
-        <label>tempo <input type="range" min={0.5} max={3} step={0.05} value={cfg.speed} onChange={(e) => { setChoreoValue('speed', Number(e.target.value)); refresh(); }} /> {cfg.speed.toFixed(2)}×</label>
-        <button className="sfxmix-copy" onClick={() => setFireKey((n) => n + 1)} title="Fire the selected moment's FX cues on the mock stage below">▶ Preview</button>
-        <button className="sfxmix-copy" onClick={() => void navigator.clipboard?.writeText(scoreJson())}>Copy score</button>
-        <button className="sfxmix-copy" onClick={() => { resetScore(); resetChoreoConfig(); refresh(); }}>Reset</button>
+        <label title={PROP_DESC.tempo}>tempo <input type="range" min={0.5} max={3} step={0.05} value={cfg.speed} onChange={(e) => { setChoreoValue('speed', Number(e.target.value)); refresh(); }} /> {cfg.speed.toFixed(2)}×</label>
+        <button className="sfxmix-copy" onClick={() => setFireKey((n) => n + 1)} title={PROP_DESC.preview}>▶ Preview</button>
+        <button className="sfxmix-copy" onClick={() => void navigator.clipboard?.writeText(scoreJson())} title={PROP_DESC.copy}>Copy score</button>
+        <button className="sfxmix-copy" onClick={() => { resetScore(); resetChoreoConfig(); refresh(); }} title={PROP_DESC.reset}>Reset</button>
       </div>
       <ChoreoPreviewStage kind={kind} fireKey={fireKey} />
-      <div className="choreo-stage-note">preview renders where the FX layer is live · WebGL FX + sfx only (floats/CSS not reproduced)</div>
+      <div className="choreo-stage-note" title="The ▶ Preview fires the selected moment's WebGL FX + sfx against the two mock cards above. React-driven damage floats + CSS unit animations aren't reproduced here — judge those in a real fight.">preview renders where the FX layer is live · WebGL FX + sfx only (floats/CSS not reproduced)</div>
       <div className="choreo-body">
         <div className="choreo-rail">
-          {KINDS.map((k) => <button key={k} className={`choreo-m${k === kind ? ' on' : ''}`} onClick={() => setKind(k)}>{k}</button>)}
+          {KINDS.map((k) => <button key={k} className={`choreo-m${k === kind ? ' on' : ''}`} onClick={() => setKind(k)} title={KIND_DESC[k]}>{k}</button>)}
         </div>
         <div className="choreo-edit">
           <ChoreoTimeline kind={kind} onChange={refresh} />
-          {holdKey && <div className="choreo-hold">hold <input type="range" min={0} max={1200} step={10} value={cfg[holdKey]} onChange={(e) => { setChoreoValue(holdKey, Number(e.target.value)); refresh(); }} /> {cfg[holdKey]}ms</div>}
+          {holdKey && <div className="choreo-hold" title={PROP_DESC.hold}>hold <input type="range" min={0} max={1200} step={10} value={cfg[holdKey]} onChange={(e) => { setChoreoValue(holdKey, Number(e.target.value)); refresh(); }} /> {cfg[holdKey]}ms</div>}
           {cues.map((c) => (
             <div className={`choreo-cue${c.enabled === false ? ' off' : ''}`} key={c.ch}>
-              <span className="choreo-ch">{c.ch}</span>
-              <select value={c.at} onChange={(e) => patch(c.ch, { at: e.target.value as Cue['at'] })}>
+              <span className="choreo-ch" title={CH_DESC[c.ch]}>{c.ch}</span>
+              <select value={c.at} onChange={(e) => patch(c.ch, { at: e.target.value as Cue['at'] })} title={AT_DESC[c.at]}>
                 {(['start', 'contact', 'landed'] as const).map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
-              <input type="number" step={10} value={c.offset ?? 0} onChange={(e) => patch(c.ch, { offset: Number(e.target.value) })} /> ms
-              <label title="scales with combat speed"><input type="checkbox" checked={c.scaled !== false} onChange={(e) => patch(c.ch, { scaled: e.target.checked })} />×spd</label>
-              <label title="enabled"><input type="checkbox" checked={c.enabled !== false} onChange={(e) => patch(c.ch, { enabled: e.target.checked })} />on</label>
+              <input type="number" step={10} value={c.offset ?? 0} onChange={(e) => patch(c.ch, { offset: Number(e.target.value) })} title={PROP_DESC.offset} /> ms
+              <label title={PROP_DESC.scaled}><input type="checkbox" checked={c.scaled !== false} onChange={(e) => patch(c.ch, { scaled: e.target.checked })} />×spd</label>
+              <label title={PROP_DESC.enabled}><input type="checkbox" checked={c.enabled !== false} onChange={(e) => patch(c.ch, { enabled: e.target.checked })} />on</label>
             </div>
           ))}
         </div>

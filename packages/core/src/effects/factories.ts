@@ -293,6 +293,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantFreeRolls(num(params.count, 2) * mul(self), self.side);
   },
 
+  /** Moe — Slaughter (on kill): bank `count` free refreshes next turn AND make that many upcoming shops each
+   *  guarantee a Magnetic (Attachment) offer. Golden doubles both. Attacker-guarded. */
+  onKillGrantAttachmentRefreshes: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    const n = num(params.count, 2) * mul(self);
+    ctx.grantFreeRolls(n, self.side);
+    ctx.grantGuaranteedAttachments(n, self.side);
+  },
+
   /** Bounty Bot — Slaughter (on kill): grant `gold` one-time Gold into your next shop (golden doubles).
    *  Carried back via `CombatResult.playerBonusGold` → next turn's starting Gold. Attacker-guarded. */
   onKillGrantGold: (ctx, self, params, payload) => {

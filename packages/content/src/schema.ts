@@ -39,6 +39,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onKillBuffSelf',
   'onKillBuffSpellPower',
   'onKillGrantFreeRolls',
+  'onKillGrantAttachmentRefreshes',
   'onKillGrantGold',
   'onKillCastSpell',
   'rallyCastRandomStatSpell',

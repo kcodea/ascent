@@ -78,6 +78,7 @@ export function simulate(
   let bonusGoldGain = 0; // one-time Gold granted into the next shop (Bounty Bot's Slaughter)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
   let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
+  let attachmentShopGrants = 0; // Moe: shops that must contain a guaranteed Magnetic offer, banked from combat
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: spellsCast, enemy: 0 };
@@ -344,6 +345,10 @@ export function simulate(
     grantFreeRolls: (count, side) => {
       if (side !== 'player') return; // enemies have no shop
       freeRollGrants += count;
+    },
+    grantGuaranteedAttachments: (count, side) => {
+      if (side !== 'player') return; // enemies have no shop
+      attachmentShopGrants += count;
     },
     grantRandomSpell: (count, side, sourceUid) => {
       if (side !== 'player') return; // enemies have no hand
@@ -1047,6 +1052,7 @@ export function simulate(
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerBonusGold: bonusGoldGain > 0 ? bonusGoldGain : undefined,
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
+    playerGuaranteedAttachments: attachmentShopGrants > 0 ? attachmentShopGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,

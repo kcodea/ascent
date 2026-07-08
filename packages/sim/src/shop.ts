@@ -1,5 +1,5 @@
 import { makeRng, type CardDef, type Rng, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, SPELL_CARDS } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { POOL_QUANTITIES } from './config';
 import type { RunState } from './state';
 
@@ -80,6 +80,25 @@ export function rollShop(state: RunState): void {
     if (!id) break; // pool exhausted — fewer offers
     state.pool[id] -= 1;
     offers.push({ uid: `s${state.uidSeq++}`, cardId: id });
+  }
+  // Moe: while the counter is active, this shop must contain a Magnetic (Attachment) offer — force one in if
+  // none rolled naturally (displacing a random offer, returning its copy to the pool). Decrements the counter.
+  if ((state.guaranteedAttachmentShops ?? 0) > 0) {
+    state.guaranteedAttachmentShops! -= 1;
+    if (!offers.some((o) => CARD_INDEX[o.cardId]?.keywords.includes('M'))) {
+      const magnetics = availableOffers(state).filter((c) => c.keywords.includes('M'));
+      if (magnetics.length > 0) {
+        const pick = magnetics[rng.int(magnetics.length)]!;
+        if (offers.length > 0) {
+          const idx = rng.int(offers.length);
+          returnToPool(state, offers[idx]!.cardId);
+          offers[idx] = { uid: `s${state.uidSeq++}`, cardId: pick.id };
+        } else {
+          offers.push({ uid: `s${state.uidSeq++}`, cardId: pick.id });
+        }
+        state.pool[pick.id] -= 1;
+      }
+    }
   }
   state.shop = offers;
   // Always offer one spell on the right (handoff). Spells are unlimited — not part of the pool — but

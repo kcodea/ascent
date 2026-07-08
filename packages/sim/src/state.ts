@@ -236,6 +236,9 @@ export interface RunState {
   combatSettled: boolean;
   /** Free rerolls banked (Refreshing Texts) — a roll spends these before charging Mana. */
   freeRolls: number;
+  /** Moe: number of upcoming shops that must contain a guaranteed Magnetic offer. Each `rollShop` forces one in
+   *  (if none rolled naturally) and decrements this. */
+  guaranteedAttachmentShops?: number;
   /** Front to Back's accumulated escalation: each cast grants +(2 + this + spell power), then this += 2
    *  (a flat step — the per-cast improvement is always +2/+2). */
   frontToBackBonus: number;

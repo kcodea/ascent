@@ -43,6 +43,7 @@ import {
 } from './index';
 import type { BoardMinion } from '@game/core';
 import { applyEndOfTurn, applyGoldSpent } from './recruit';
+import { rollShop } from './shop';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
 function playToEnd(seed: number): RunState {
@@ -379,6 +380,18 @@ describe('run loop (@game/sim)', () => {
     expect([c.attack, c.health]).toEqual([3, 3]); // current board Magnetic +2/+2
     expect([h.attack, h.health]).toEqual([3, 3]); // current hand Magnetic +2/+2
     expect([s.magneticBuyAtk, s.magneticBuyHp]).toEqual([2, 2]); // stacks — future Magnetics inherit it
+  });
+
+  it('Moe / guaranteed attachment: rollShop forces a Magnetic offer while the counter is active, then decrements', () => {
+    const s: RunState = { ...createRun(1), tier: 6, guaranteedAttachmentShops: 2 };
+    rollShop(s);
+    expect(s.shop.some((o) => CARD_INDEX[o.cardId]?.keywords.includes('M'))).toBe(true); // guaranteed Magnetic
+    expect(s.guaranteedAttachmentShops).toBe(1); // decremented
+    rollShop(s);
+    expect(s.shop.some((o) => CARD_INDEX[o.cardId]?.keywords.includes('M'))).toBe(true);
+    expect(s.guaranteedAttachmentShops).toBe(0); // counter exhausted
+    rollShop(s);
+    expect(s.guaranteedAttachmentShops).toBe(0); // stays 0 — no more forced Magnetics
   });
 
   it('Spark Plug: casting gives your entire board +5/+5 twice (+10/+10)', () => {

@@ -1105,6 +1105,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerFreeRolls) {
     s.freeRolls += result.playerFreeRolls;
   }
+  if (result.playerGuaranteedAttachments) {
+    s.guaranteedAttachmentShops = (s.guaranteedAttachmentShops ?? 0) + result.playerGuaranteedAttachments;
+  }
   // Taragosa: spells cast IN combat permanently bump the run's spellsCast — so they count toward
   // spell-count payoffs just like tavern spells. Guel's improvement is per-instance now (spells cast
   // while HE is on board), so combat casts also tick the on-board Guels' `spellProgress` — he was on

@@ -61,7 +61,8 @@ export type EffectFactoryId =
   | 'reAttackOnKill'
   | 'onKillBuffSelf' // on kill: buff self — permanent via Engraved
   | 'onKillBuffSpellPower' // on kill: permanently raise run-wide spell power +atk/+hp, carried back (Gnasher)
-  | 'onKillGrantFreeRolls' // Moe: Slaughter — bank N free rerolls for next shop (carried back)
+  | 'onKillGrantFreeRolls' // (dial) Slaughter — bank N free rerolls for next shop (carried back)
+  | 'onKillGrantAttachmentRefreshes' // Moe: Slaughter — N free refreshes + N shops with a guaranteed Magnetic (carried back)
   | 'onKillGrantGold' // Bounty Bot: Slaughter — grant N Gold into the next shop (carried back)
   | 'onKillCastSpell' // Hoardbreaker Drake: Slaughter — cast a board-wide stat spell (Growth) in combat
   | 'rallyCastRandomStatSpell' // Spell Drummer: Rally — cast a random stat spell on a random friend + copy self to hand
@@ -588,6 +589,8 @@ export interface CombatResult {
   playerDeferredBattlecries?: { cardId: string; golden: boolean }[];
   /** Free shop rerolls banked from this combat (Gryphon's on-damaged). Added to `freeRolls` in settleCombat. */
   playerFreeRolls?: number;
+  /** Moe: number of upcoming shops that must contain a guaranteed Magnetic offer. Added to the run's counter. */
+  playerGuaranteedAttachments?: number;
   /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
    *  settleCombat. Absent if 0. */
   playerMaxGoldGain?: number;
@@ -687,6 +690,8 @@ export interface CombatContext {
   /** Bank `count` free shop rerolls for the player from combat (Gryphon). Player-only; carried back via
    *  CombatResult.playerFreeRolls. */
   grantFreeRolls(count: number, side: Side): void;
+  /** Moe: bank `count` upcoming shops that each guarantee a Magnetic offer (carried back to the run). */
+  grantGuaranteedAttachments(count: number, side: Side): void;
   /** Grant `count` random tavern-tier spells to the player's hand after combat (Sporebat, and a Discover-spell
    *  Battlecry re-fired in combat by Ryme). Player-only. Picks the ACTUAL spell(s) now (the run's tavern tier
    *  is threaded into combat) and routes each through `grantToHand` — so the replay shows the real card flying

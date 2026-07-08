@@ -319,18 +319,19 @@ export const UNDEAD: CardDef[] = [
     token: true,
   },
   {
-    // Grave Robber reward. INVENTED body (not specced in the handoff — flagged for the owner): an Undead
-    // economy payoff fitting the sell-for-value quest. Battlecry permanently raises your max Gold.
+    // Grave Robber reward. Sell payoff: get a random Echo (Deathrattle) minion to hand AND trigger its Echo out
+    // of combat right away (summons/buffs bake in, Sylus-doubled + tallied). Golden gets + triggers two. A 1/1
+    // body you cash in for Echo value. Reward-only (token).
     id: 'cryptbroker',
     name: 'Crypt Broker',
     tribe: 'undead',
     tier: 3,
-    attack: 3,
-    health: 4,
+    attack: 1,
+    health: 1,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryMaxGold', params: { amount: 1 } }],
-    text: '**Battlecry:** raise your maximum Gold by **1**.',
-    goldenText: '**Battlecry:** raise your maximum Gold by **2**.',
+    effects: [{ on: 'onSell', do: 'onSellGetEchoAndTrigger' }],
+    text: '**Sell:** get a random **Echo** minion and trigger its Deathrattle.',
+    goldenText: '**Sell:** get **2** random **Echo** minions and trigger their Deathrattles.',
     token: true,
   },
   {

@@ -4862,4 +4862,15 @@ describe('Undead quests — combat-objective completion + reward application', (
       expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
     }
   });
+
+  it('Crypt Broker Sell: conjures a random Echo minion to hand and triggers its Deathrattle now', () => {
+    // Selling Crypt Broker gets a random Echo minion (a Deathrattle body) into hand and fires its Echo out of
+    // combat — so the run Deathrattle tally rises even though nothing was in combat.
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [{ uid: 'cb', cardId: 'cryptbroker', tribe: 'undead', attack: 1, health: 1, keywords: [], golden: false }], hand: [] };
+    const drBefore = s.deathrattlesTriggered;
+    s = reduce(s, { type: 'sell', uid: 'cb' });
+    expect(s.hand.length).toBe(1); // the conjured Echo minion
+    expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
+    expect(s.deathrattlesTriggered).toBe(drBefore + 1); // its Echo fired (tallied) out of combat
+  });
 });

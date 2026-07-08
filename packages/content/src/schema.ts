@@ -202,7 +202,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryDestroyForSpell',
   'avengeBonusGold',
   'deathrattleMaxGold',
-  'battlecryMaxGold',
+  'onSellGetEchoAndTrigger',
   'spellTriggerEcho',
   'battlecryCopyEcho',
 ]);

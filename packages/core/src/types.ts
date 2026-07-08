@@ -189,7 +189,7 @@ export type EffectFactoryId =
   | 'avengeBuffImps' // Brood Matron: Avenge (X) — buff all friendly Imps +atk/+hp (combat)
   | 'deathrattleReplayAdjacentBattlecry' // Ryme: Deathrattle — re-fire an adjacent minion's Battlecry in combat
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
-  | 'battlecryMaxGold' // Crypt Broker: Battlecry — permanently raise your max Gold (recruit)
+  | 'onSellGetEchoAndTrigger' // Crypt Broker: Sell — get a random Echo minion + trigger its Deathrattle (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryBuffBeastAttack' // (legacy) give your Beasts +Attack wherever they are; stacks into future buys

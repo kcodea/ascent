@@ -33,9 +33,9 @@ factories `avengeBonusGold`/`deathrattleMaxGold`). *Ossuary Rite* (Undead T5 spe
 combat, undestroyed — new recruit factory `spellTriggerEcho`, reuses `fireRecruitDeathrattles`). *Gravetwin* (Undead
 T6 6/6 — Battlecry: copy a friendly Echo minion's Deathrattle onto itself; if it survives combat, trigger it at the
 start of your next shop — new recruit factory `battlecryCopyEcho` + per-instance `copiedEcho` + `fireGravetwinEchoes`,
-gated on `CombatResult.playerSurvivorCardIds`). *Crypt Broker* (Undead T3 3/4 — **INVENTED** body, flagged: not
-specced in the handoff; Battlecry raises max Gold via new `battlecryMaxGold`). All four are `token: true` (reward-only,
-never rolled).
+gated on `CombatResult.playerSurvivorCardIds`). *Crypt Broker* (Undead T3 1/1 — Sell: conjure a random Echo minion
+of ≤ current tier to hand AND trigger its Deathrattle out of combat, via new recruit factory
+`onSellGetEchoAndTrigger`; golden gets + triggers two). All four are `token: true` (reward-only, never rolled).
 
 **Repeatable quests.** New `QuestDef.repeatable` — a shared `resolveQuestThreshold` re-arms the quest on completion
 (subtract the count, stay active) and can grant multiple times from one big combat.
@@ -46,8 +46,9 @@ trigger; friendlyDeath objective + gainGold-next-shop; echoRepeat/boneThrone rew
 grants twice; Grave Robber → Crypt Broker + token-exclusion). `build:web` clean; live DOM check of all four quest
 cards' derived text.
 
-**Decisions / follow-ups for the owner:** (1) **Crypt Broker is invented** — pick its real stats/effect and I'll
-swap it. (2) "Get 10 Gold" banks into the **next shop** (`bonusEmbersNextTurn`, the standard Gold channel) so it
+**Decisions / follow-ups for the owner:** (1) Crypt Broker's real spec (owner, 2026-07-08) — Undead T3 1/1, "Sell:
+get a random Echo minion and trigger it" — is now wired (replacing the placeholder). (2) "Get 10 Gold" banks into
+the **next shop** (`bonusEmbersNextTurn`, the standard Gold channel) so it
 survives the per-turn reset. (3) Gravetwin's copied Echo fires **only** at the next-shop trigger (not during combat
 itself) — combat reads effects by cardId, so per-instance combat effects would be a much larger change; the spec's
 only stated trigger is the next-shop one. (4) Grave Contract "triggers twice" and Last Rites "an extra time" both

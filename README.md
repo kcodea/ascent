@@ -29,7 +29,8 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   objective flavors: `deathrattle` counts Echo *triggers* (scales with doublers), the new `friendlyDeath` counts raw
   *deaths* (doesn't). Echo doublers stack **additively** — Sylus + Funeral Engine (permanent) + Grave Contract / Last
   Rites (first Echo each combat). The Bone Throne re-triggers your leftmost Echo every 7 deaths; Ossuary Rite is a
-  **repeatable** quest. Reward cards: Bone Taxer, Ossuary Rite (spell), Gravetwin, Crypt Broker (invented — stats TBD).
+  **repeatable** quest. Reward cards: Bone Taxer, Ossuary Rite (spell), Gravetwin, Crypt Broker (Sell → a random Echo
+  minion, triggered).
 - **Dragon quests — the second authored tribe.** 9 quests + 3 reward minions + the Shout/End-of-Turn/stat-growth
   reward engine, plus the combat quest panel that live-ticks objectives during the replay.
 - **Deathrattles-in-shop + Sylus sweep** — Graverobber now fires ANY Deathrattle out of combat (Grim included),

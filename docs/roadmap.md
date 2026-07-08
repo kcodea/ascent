@@ -188,11 +188,10 @@ look because the engine already produces the data.
   engine**. Adds the `friendlyDeath` objective (raw death count, doesn't scale) vs `deathrattle` (Echo triggers,
   which scale); additive echo doublers folded through `playerEchoExtras` (Sylus + `echoExtraAlways` + `echoFirstEachCombat`);
   The Bone Throne's every-N-deaths trigger; `gainGold`/`echoRepeat`/`boneThrone` rewards; **repeatable quests**
-  (`QuestDef.repeatable`); and reward cards Bone Taxer / Ossuary Rite / Gravetwin / **Crypt Broker (invented — needs
-  owner stats)**. Art NOT wired yet.
-- **Remaining:** author **Mech + Demon + neutral** quests; retire the surviving `Test ·` quests; **spec Crypt Broker's
-  real body**; wire Undead reward-card + quest art; and a **balance/curve retune** (quests are pure power-add → the
-  enemy curve / Line + committed opponent pool want a pass). **Size:** ongoing (content) + M (balance).
+  (`QuestDef.repeatable`); and reward cards Bone Taxer / Ossuary Rite / Gravetwin / Crypt Broker. Art NOT wired yet.
+- **Remaining:** author **Mech + Demon + neutral** quests; retire the surviving `Test ·` quests; wire Undead
+  reward-card + quest art; and a **balance/curve retune** (quests are pure power-add → the enemy curve / Line +
+  committed opponent pool want a pass). **Size:** ongoing (content) + M (balance).
 
 ### C2. Mastery Minions
 - Normal shop minions that **improve through repeated actions** (not scheduled, not quests) — find, nurture,

@@ -1117,9 +1117,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.copiedEchoName = def?.name;
   },
 
-  /** Crypt Broker (Battlecry) — permanently raise your max Gold by `amount` (golden doubles). */
-  battlecryMaxGold: (ctx, self, params) => {
-    ctx.state.maxEmbers += num(params.amount, 1) * gold(self);
+  /** Crypt Broker (Sell) — conjure a random Echo (Deathrattle) minion of ≤ current tier to hand and immediately
+   *  trigger its Echo out of combat (fireRecruitDeathrattles: summons/buffs bake in, Sylus-doubled + tallied).
+   *  Golden gets + triggers two. Fired by the reducer's sell case via `fireOnSell`. */
+  onSellGetEchoAndTrigger: (ctx, self) => {
+    const pool = BUYABLE_CARDS.filter((c) => c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onDeath'));
+    if (pool.length === 0) return;
+    for (let i = 0; i < gold(self); i++) {
+      if (ctx.state.hand.length >= CONFIG.handMax) break;
+      conjureToHand(ctx.state, pool, 1); // seeded pick + hand-cap + run-buff bake
+      const card = ctx.state.hand[ctx.state.hand.length - 1];
+      if (card) fireRecruitDeathrattles(ctx, card); // trigger the Echo you just got
+    }
   },
 
   // --- Deathrattles that can also resolve out of combat (e.g. when Consumed). The

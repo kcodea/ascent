@@ -191,6 +191,10 @@ export interface RunState {
    *  `spellCasts`, spent by the reducer on the next real (non-singleCast) spell cast; persists across turns
    *  until used (NOT cleared at settle, unlike the combat one-shots above). */
   nextSpellMult?: number;
+  /** Gold spent during the CURRENT recruit turn (buys, rerolls, tier-ups, hero powers) — Patch Job scales off
+   *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
+   *  the lifetime `goldSpent` career stat. */
+  goldSpentThisTurn?: number;
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't

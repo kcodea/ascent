@@ -270,6 +270,29 @@ describe('run loop (@game/sim)', () => {
     }
   });
 
+  it('Patch Job: gives +3/+3 per 7 Gold spent this turn', () => {
+    let s: RunState = {
+      ...createRun(1),
+      goldSpentThisTurn: 14, // two 7-Gold steps
+      board: [{ uid: 'm1', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
+      hand: [{ uid: 'p1', cardId: 'patchjob', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      embers: 10,
+    };
+    s = reduce(s, { type: 'play', uid: 'p1', targetUid: 'm1' }); // 14 Gold → 2 × +3/+3 → +6/+6
+    const m = s.board.find((c) => c.uid === 'm1')!;
+    expect([m.attack, m.health]).toEqual([2 + 6, 3 + 6]);
+  });
+
+  it('Field Mechanic: Battlecry adds a Patch Job to hand', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [],
+      hand: [{ uid: 'f1', cardId: 'fieldmechanic', tribe: 'mech', attack: 2, health: 2, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'f1' });
+    expect(s.hand.some((c) => c.cardId === 'patchjob')).toBe(true);
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

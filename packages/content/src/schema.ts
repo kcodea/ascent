@@ -95,6 +95,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onConsumeGrantSelfKeyword',
   'onConsumeShieldNextCombat',
   'spellBuffTarget',
+  'spellBuffTargetPerGold',
   'spellBuffAll',
   'spellDevour',
   'castSpell',
@@ -178,6 +179,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellRallyDoubleNext',
   'rallyCastTribeAttack',
   'battlecryDoubleNextSpell',
+  'battlecryGrantSpell',
   'endOfTurnCastSpellEscalating',
 ]);
 

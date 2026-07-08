@@ -213,14 +213,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.shop.splice(i, 1);
       spendGold(s, CONFIG.minionCost);
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
-      const isUndead = card.tribe === 'undead' || card.tribe2 === 'undead' || !!card.universalTribe;
-      const uBuyAtk = isUndead ? (s.undeadBuyAtk ?? 0) : 0;
+      // Run-wide tribe ATTACK aura baked at buy: Undead (Lantern/Toxin Tender) + Beast (Squirl Scout), via the
+      // shared helper so every tribe is handled. Applied ONCE, through addBuff below (which also records the
+      // inspect breakdown). NB: this used to bake it into `attack` here AND addBuff it again → a double-count
+      // bug (a bought Undead got 2× undeadBuyAtk); it's now applied exactly once, and Beasts get it too.
+      const buyAura = undeadBuyBonus(s, card);
       const bought: BoardCard = {
         uid: `b${s.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
-        // base + persistent run buff + Deathswarmer/Forsaken Weaver undead attack bonus (baked at buy)
-        attack: card.attack + cb.attack + uBuyAtk,
+        attack: card.attack + cb.attack, // base + persistent run buff; the tribe aura is added just below
         health: card.health + cb.health,
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
@@ -228,7 +230,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       };
       // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
       addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
-      if (uBuyAtk > 0) addBuff(bought, 'Undead Bond', uBuyAtk, 0);
+      if (buyAura > 0) addBuff(bought, 'Tribe Bond', buyAura, 0);
       // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
       // Fodder is excluded: it already carries the Staff buff via its run-wide enchant (cardBuff above),
       // so applying it again here would double it on the rare directly-bought Fodder.

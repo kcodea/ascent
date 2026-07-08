@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### fix(sim): tavern-buy baked the tribe Attack aura TWICE (Undead) and skipped Beasts — found via Squirl Scout
+
+While wiring Squirl Scout's Beast attack aura, the tavern-**buy** action turned out to (1) **double-count** the
+Undead aura — it baked `undeadBuyAtk` into `attack` *and* `addBuff`'d it again, so a bought Undead came in at
+**2×** the run-wide bonus (Karthus with undeadBuyAtk 3 → +6, not +3) — and (2) use inline undead-only logic, so
+Squirl Scout's `beastBuyAtk` never applied to a **bought** Beast. Both are the same root cause; now the buy path
+uses the shared `undeadBuyBonus` helper and applies the aura **exactly once** (through the `addBuff` that also
+records the breakdown). **Balance note:** this is a real Undead nerf (buys were secretly doubled). New buy-path
+test locks +1×; full suite green (625). The other creation paths (conjure/discover/steal/offer/settle) were
+already correct.
+
 ### fix(content): Spell Drummer casts a REAL spell (procs spell reactions) + copies the SPELL, not itself
 
 Owner correction: Spell Drummer's Rally now (a) fires `ctx.castSpell` after buffing — so the cast procs

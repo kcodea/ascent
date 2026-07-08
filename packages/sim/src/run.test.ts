@@ -350,6 +350,17 @@ describe('run loop (@game/sim)', () => {
     expect(s.beastBuyAtk).toBe(2); // stacks — future Beasts inherit it via undeadBuyBonus
   });
 
+  it('buying an Undead/Beast bakes the run-wide Attack aura exactly once (no double-count)', () => {
+    // Undead buy: undeadBuyAtk applied once (previously double-counted at buy).
+    let u: RunState = { ...createRun(1), embers: 10, undeadBuyAtk: 3, shop: [{ uid: 'o', cardId: 'karthus' }] };
+    u = reduce(u, { type: 'buy', uid: 'o' });
+    expect(u.hand.find((c) => c.cardId === 'karthus')!.attack).toBe(CARD_INDEX.karthus!.attack + 3);
+    // Beast buy: Squirl Scout's beastBuyAtk now bakes on a bought Beast too (previously missed).
+    let b: RunState = { ...createRun(1), embers: 10, beastBuyAtk: 2, shop: [{ uid: 'o', cardId: 'alley' }] };
+    b = reduce(b, { type: 'buy', uid: 'o' });
+    expect(b.hand.find((c) => c.cardId === 'alley')!.attack).toBe(CARD_INDEX.alley!.attack + 2);
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

@@ -80,6 +80,9 @@ export interface BoardCard {
   /** Extra magnitude on this card's summon-buff effect, accrued permanently across the run
    *  (Kennelmaster's Avenge improvements). Default/absent = 0. */
   summonBonus?: number;
+  /** Bounty Bot: combats of "immune while attacking" left. Absent on the first fight (defaults from the card's
+   *  `attackImmuneTurns`); ticks down by 1 each combat at settle. */
+  attackImmuneLeft?: number;
   /** Flowing Monk: flat +X/+X on top of its stepped overflow grant — created by the TRIPLE combine (the
    *  golden starts at the SUM of the two highest copies' current grants). Default/absent = 0. */
   overflowBonus?: number;

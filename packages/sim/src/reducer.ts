@@ -709,6 +709,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         keywords: [...b.keywords],
         golden: b.golden,
         summonBonus: b.summonBonus ?? 0,
+        attackImmuneLeft: b.attackImmuneLeft, // Bounty Bot: combats of attack-immunity left (instantiate defaults from the card)
         overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
         ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
@@ -1107,6 +1108,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   if (result.playerGuaranteedAttachments) {
     s.guaranteedAttachmentShops = (s.guaranteedAttachmentShops ?? 0) + result.playerGuaranteedAttachments;
+  }
+  // Bounty Bot: one combat of "immune while attacking" used up — seeded from the card's attackImmuneTurns on
+  // the first fight, then counted down to 0 (after which retaliation lands normally).
+  for (const c of s.board) {
+    const turns = CARD_INDEX[c.cardId]?.attackImmuneTurns;
+    if (turns) c.attackImmuneLeft = Math.max(0, (c.attackImmuneLeft ?? turns) - 1);
   }
   // Taragosa: spells cast IN combat permanently bump the run's spellsCast — so they count toward
   // spell-count payoffs just like tavern spells. Guel's improvement is per-instance now (spells cast

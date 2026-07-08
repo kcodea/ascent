@@ -394,6 +394,19 @@ describe('run loop (@game/sim)', () => {
     expect(s.guaranteedAttachmentShops).toBe(0); // stays 0 — no more forced Magnetics
   });
 
+  it('Bounty Bot immunity expires after 2 combats (attackImmuneLeft counts down each settle)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'bb', cardId: 'bountybot', tribe: 'mech', attack: 7, health: 30, keywords: ['SL'], golden: false }],
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.find((c) => c.uid === 'bb')?.attackImmuneLeft).toBe(1); // 2 → 1 after the first combat
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.find((c) => c.uid === 'bb')?.attackImmuneLeft).toBe(0); // 1 → 0 after the second
+  });
+
   it('Spark Plug: casting gives your entire board +5/+5 twice (+10/+10)', () => {
     let s: RunState = {
       ...createRun(1),

@@ -242,6 +242,19 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerGuaranteedAttachments).toBe(2);
   });
 
+  it('Bounty Bot is immune while attacking on its early combats (takes no retaliation)', () => {
+    // A friendly Taunt soaks the enemy's attacks, so the ONLY damage that could reach Bounty Bot is retaliation
+    // on its own swings — which its immunity negates. Without it, the 10 retaliation would kill the 3-HP body.
+    const p: BoardMinion[] = [
+      { cardId: 'bountybot', attack: 7, health: 3 },
+      { cardId: 'sandbag', attack: 0, health: 200, keywords: ['T'] },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 50 }];
+    const r = run(p, e, 3);
+    const bounty = r.initial.player[0]!.uid;
+    expect(r.events.some((ev) => ev.type === 'death' && ev.target === bounty)).toBe(false); // immune → survives retaliation
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

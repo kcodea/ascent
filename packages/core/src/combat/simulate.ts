@@ -808,8 +808,11 @@ export function simulate(
       const counterVenom = target.keywords.includes('V');
       victims.push({ m: target, killer: attacker, couldReborn: targetCouldReborn });
       applyDamage(target, attacker.attack, poison, false, attacker); // main hit
-      victims.push({ m: attacker, killer: target, couldReborn: attacker.rebornAvailable });
-      applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
+      // Bounty Bot: "immune while attacking" — take no retaliation on its own swings while the counter is live.
+      if ((attacker.attackImmuneLeft ?? 0) <= 0) {
+        victims.push({ m: attacker, killer: target, couldReborn: attacker.rebornAvailable });
+        applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
+      }
 
       // PHASE 2 — deaths resolve in damage order (cleave victims → target → attacker). Each fallen body's
       // Deathrattle / Rise runs only now, after every hit of the clash has landed — so death effects see the

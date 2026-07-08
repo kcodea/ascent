@@ -1334,6 +1334,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(ctx.rng.pick(pool), self.attack, 0, self.uid);
   },
 
+  /** Philippe — Rally: on its OWN attack, also deal its current Attack to a RANDOM living enemy (golden: +2
+   *  more) — a random-target "cleave." Pure splash via ctx.damage, so the struck enemy never retaliates:
+   *  Philippe only takes damage from the minion it actually attacked. Fires per hit (Flurry → twice). */
+  rallyDamageRandomEnemy: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const foe: Side = self.side === 'player' ? 'enemy' : 'player';
+    const targets = ctx.living(foe);
+    if (targets.length === 0) return;
+    const bonus = self.golden ? num(_params.goldenBonus, 2) : 0;
+    ctx.damage(ctx.rng.pick(targets), self.attack + bonus);
+  },
+
   /** Baby Cub — Rally: each time THIS attacks, permanently improve your Den Mother aura by +step. Bumps every
    *  friendly Den Mother's accrued `summonBonus` (its per-summon buff magnitude), which rides the summonBonus
    *  carry-back so the bigger aura persists next combat AND in the shop. Golden doubles the step. Stored

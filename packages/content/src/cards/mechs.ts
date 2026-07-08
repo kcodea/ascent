@@ -267,7 +267,7 @@ export const MECHS: CardDef[] = [
     // Magnetic (board + hand) and every future one (bought/conjured/summoned/Reborn), the Magnetic sibling of
     // Squirl Scout's Beast aura but with a Health half. Excludes ones already welded into a host. Golden → +4/+4.
     id: 'scrapherald',
-    name: 'Scrap Herald',
+    name: 'Attachment Mechanic',
     tribe: 'mech',
     tier: 3,
     attack: 2,

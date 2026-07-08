@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat/content: Philippe (random-splash Rally), live-value tooltips (Patch Job / Runescale), Attachment Mechanic rename, Arena Heckler T4
+
+Owner batch:
+- **"Current value" rule hardened.** CLAUDE.md's card-text rule is reworded from a scaling-cards clause into an
+  explicit hard DEFAULT: card text always shows the actual number it will produce right now (spell power, Gold
+  spent, per-spell/per-summon scalers, escalating cast counts, …), never a base rate or placeholder. Memory
+  ([[card-text-live-accuracy]]) updated with the 2026-07-08 reaffirmation + the new helpers.
+- **Philippe** — new **T5 Beast/Undead 4/7**, Rally. New combat factory `rallyDamageRandomEnemy` (dual-registered
+  in schema.ts + types.ts): on its own attack it also deals its current Attack to a RANDOM living enemy (golden:
+  +2 more). Pure splash via `ctx.damage`, so the struck enemy never retaliates — Philippe only takes damage from
+  the minion it actually attacked (a random-target "cleave"). Text references "its Attack" (the value is the
+  shown stat, so it stays current). Art wired (`philippe.png`). Combat test: ≥2 enemy hits per swing, no
+  retaliation from the splash, golden splash = Attack+2.
+- **Patch Job live total.** `spellDisplayText` gained a `goldSpent` param (threaded from `run.goldSpentThisTurn`
+  through `LiveTextParams` + `ShopViewOpts` + the shop/spell/hand useMemos). It now appends the CURRENT total the
+  spell will grant — "…for every 7 Gold spent this turn. {{Now +6/+6.}}" at 14 Gold — handled BEFORE the
+  no-spell-power early-return so the Gold total shows even without spell power. Display test added.
+- **Runescale Drake live text.** New `scTribeBuffPerSpellText` helper surfaces the current Start-of-Combat Dragon
+  grant (base + perSpell × spells-cast-this-turn, ×2 golden) green, leaving the "+1/+1" improve rate. Wired into
+  `liveCardText`; cardText test added (plus a backfilled `escalatingCastText` test).
+- **Scrap Herald → "Attachment Mechanic"** (display name only; id kept `scrapherald` to avoid churn) + new art
+  (`AttachmentMechanic.png` → `scrapherald.png`). **Mumi** art rewired (`mumi.png`, stale webp removed).
+- **Arena Heckler** moved T3 → **T4**.
+
+Verified: typecheck + lint clean, full suite green (637), `build:web` OK, `cards.csv` regenerated (Philippe in the
+117-minion pool), live DOM check of all six cards (text + green live values + art loaded 1254×1254).
+
 ### fix/content: Bounty Bot per-attack immunity, Vineweaver tooltip, Baby Cub → Cleave, Strays aura, remove Spell Drummer
 
 Owner batch (five items):

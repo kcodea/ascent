@@ -102,6 +102,25 @@ export function summonScalingText(cardId: string, spellsThisTurn: number): strin
 }
 
 /**
+ * Runescale Drake's Start-of-Combat Dragon buff climbs +perSpell/+perSpell for each spell cast this turn.
+ * Surface the CURRENT grant (green) — (base + perSpell × spellsThisTurn), ×2 if golden — by replacing ONLY the
+ * first "+A/+B" group (the grant), leaving the "+step/+step" improvement rate that follows. Returns null with
+ * no spells cast yet (the printed base is already accurate).
+ */
+export function scTribeBuffPerSpellText(cardId: string, golden: boolean, spellsThisTurn: number): string | null {
+  if (spellsThisTurn <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerSpell');
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { attack?: number })?.attack ?? 2);
+  const per = Number((eff.params as { perSpell?: number })?.perSpell ?? 1);
+  const x = (base + per * spellsThisTurn) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${x}/+${x}}}`)));
+}
+
+/**
  * Vineweaver Drake casts an escalating spell (Growth) each End of Turn — the Nth End of Turn fires N casts
  * (golden doubles). Surface BOTH live values green: how much each cast grants right now (the spell's base
  * grant + current spell power) and how many casts land at the NEXT End of Turn ((eotTick+1)×, golden ×2), so

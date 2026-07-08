@@ -215,6 +215,7 @@ export type EffectFactoryId =
   | 'scBeastAura' // Kennelmaster: Start of Combat — Beast aura +N/+N (grown by Avenge), catches combat summons
   | 'rallyTribeAura' // Solaris Fang: Rally — Beast aura +N/+N for the rest of combat (catches combat summons)
   | 'rallyGiveDemonAttack' // Bloodbinder: Rally — give another friendly Demon +Attack = this minion's Attack
+  | 'rallyDamageRandomEnemy' // Philippe: Rally — also deal its Attack to a random enemy (golden +2), no retaliation
   | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
   | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
   | 'spellRallyDoubleNext' // Rallying Offensive: cast — your Rally effects trigger twice next combat (recruit)

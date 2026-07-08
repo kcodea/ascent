@@ -252,6 +252,28 @@ describe('simulate (handoff A.3)', () => {
     expect(retaliations).toBe(1);
   });
 
+  it('Philippe Rally splashes a random enemy on attack (and takes no damage back from it)', () => {
+    const p: BoardMinion[] = [{ cardId: 'philippe', attack: 4, health: 7 }];
+    const e: BoardMinion[] = [
+      { cardId: 'sabercub', attack: 0, health: 30 }, // inert (no attack-on-damage) so it can't retaliate
+      { cardId: 'sabercub', attack: 0, health: 30 },
+    ];
+    const r = run(p, e, 3);
+    const enemyUids = new Set(r.initial.enemy.map((m) => m.uid));
+    const phil = r.initial.player[0]!.uid;
+    // Philippe's first swing: the main hit PLUS the random-enemy splash → ≥2 enemy dmg events before its next attack.
+    const firstAttack = r.events.findIndex((ev) => ev.type === 'attack' && ev.attacker === phil);
+    const nextAttack = r.events.findIndex((ev, i) => i > firstAttack && ev.type === 'attack');
+    const window = r.events.slice(firstAttack + 1, nextAttack === -1 ? undefined : nextAttack);
+    const enemyHits = window.filter((ev) => ev.type === 'dmg' && enemyUids.has(ev.target)).length;
+    expect(enemyHits).toBeGreaterThanOrEqual(2);
+    // 0-Attack enemies → Philippe takes no damage: the splash target never retaliates, only the minion it attacks.
+    expect(r.events.some((ev) => ev.type === 'dmg' && ev.target === phil && ev.amount > 0)).toBe(false);
+    // Golden: the splash deals Attack + 2 — a golden 8-Attack Philippe splashes a lone enemy for 10.
+    const gr = run([{ cardId: 'philippe', attack: 8, health: 7, golden: true }], [{ cardId: 'sabercub', attack: 0, health: 40 }], 3);
+    expect(gr.events.some((ev) => ev.type === 'dmg' && ev.amount === 10)).toBe(true);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

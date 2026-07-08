@@ -329,4 +329,20 @@ export const BEASTS: CardDef[] = [
     text: '**Battlecry:** your **Beasts** have **+2 Attack** wherever they are.',
     goldenText: '**Battlecry:** your **Beasts** have **+4 Attack** wherever they are.',
   },
+  {
+    // Rally splash: on its OWN attack, Philippe also deals its Attack to a RANDOM enemy (golden: +2 more) — a
+    // random-target "cleave." Pure splash: that enemy never hits back, so Philippe only takes retaliation from
+    // the minion it actually attacked (like a cleave neighbour). Beast/Undead dual-type, T5.
+    id: 'philippe',
+    name: 'Philippe',
+    tribe: 'beast',
+    tribe2: 'undead',
+    tier: 5,
+    attack: 4,
+    health: 7,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyDamageRandomEnemy', params: { goldenBonus: 2 } }],
+    text: '**Rally:** also deal its **Attack** to a random enemy (takes no damage back).',
+    goldenText: '**Rally:** also deal its **Attack + 2** to a random enemy (takes no damage back).',
+  },
 ];

@@ -1778,7 +1778,7 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Front to Back (escalating): the printed text carries TWO "+B/+B" groups — the GRANT (slot 0) and the
@@ -1800,6 +1800,19 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
       return m;
     });
   }
+  // Patch Job: the per-step "+a/+h" greens for spell power (it grows per step); and once Gold's been spent this
+  // turn, append the CURRENT total it will grant right now (steps × the per-step value) so the card shows what it
+  // actually gives. Handled BEFORE the no-spell-power early-return, since the Gold total scales without any.
+  const perGold = def.effects.find((e) => e.do === 'spellBuffTargetPerGold');
+  if (perGold) {
+    const a = Number((perGold.params as { attack?: number } | undefined)?.attack ?? 3);
+    const h = Number((perGold.params as { health?: number } | undefined)?.health ?? 3);
+    const per = Number((perGold.params as { gold?: number } | undefined)?.gold ?? 7);
+    const stepText = bonusA > 0 || bonusH > 0 ? def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`) : def.text;
+    const steps = Math.floor(Math.max(0, goldSpent) / per);
+    if (steps <= 0) return stepText;
+    return `${stepText} {{Now +${steps * (a + bonusA)}/+${steps * (h + bonusH)}.}}`;
+  }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
   // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).
   const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');
@@ -1819,14 +1832,6 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (scBuff) {
     const a = Number((scBuff.params as { attack?: number } | undefined)?.attack ?? 2);
     const h = Number((scBuff.params as { health?: number } | undefined)?.health ?? 1);
-    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
-  }
-  // Patch Job: its per-7-Gold "+A/+B" grows with spell power PER STEP, so green the printed per-step value.
-  // The step COUNT stays as "for every N Gold" text (gold-driven, no stale number to update).
-  const perGold = def.effects.find((e) => e.do === 'spellBuffTargetPerGold');
-  if (perGold) {
-    const a = Number((perGold.params as { attack?: number } | undefined)?.attack ?? 3);
-    const h = Number((perGold.params as { health?: number } | undefined)?.health ?? 3);
     return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
   const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');

@@ -248,7 +248,7 @@ export const NEUTRAL: CardDef[] = [
     id: 'arenaheckler',
     name: 'Arena Heckler',
     tribe: 'neutral',
-    tier: 3,
+    tier: 4,
     attack: 2,
     health: 5,
     keywords: [],

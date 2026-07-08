@@ -284,6 +284,12 @@ describe('run loop (@game/sim)', () => {
     expect([m.attack, m.health]).toEqual([2 + 6, 3 + 6]);
   });
 
+  it('Patch Job display shows the CURRENT total based on Gold spent this turn', () => {
+    expect(spellDisplayText('patchjob', 0, 0, 0, 0)).toBe(CARD_INDEX['patchjob']!.text); // no Gold → the per-step rate
+    expect(spellDisplayText('patchjob', 0, 0, 0, 14)).toContain('{{Now +6/+6.}}'); // 14 Gold → 2 steps → +6/+6
+    expect(spellDisplayText('patchjob', 2, 0, 2, 14)).toContain('{{Now +10/+10.}}'); // + spell power lifts each step (+5 × 2)
+  });
+
   it('Field Mechanic: Battlecry adds a Patch Job to hand', () => {
     let s: RunState = {
       ...createRun(1),

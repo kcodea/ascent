@@ -1081,6 +1081,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.maxEmbers += result.playerMaxGoldGain;
     s.soulsmanGold = (s.soulsmanGold ?? 0) + result.playerMaxGoldGain;
   }
+  // Bounty Bot: one-time Gold granted into the next shop (added to the next turn's starting Gold).
+  if (result.playerBonusGold) {
+    s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + result.playerBonusGold;
+  }
   // Gryphon: free shop rerolls banked from taking damage in combat.
   if (result.playerFreeRolls) {
     s.freeRolls += result.playerFreeRolls;

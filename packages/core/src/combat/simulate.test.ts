@@ -123,6 +123,13 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerFreeRolls).toBe(2);
   });
 
+  it('Bounty Bot Slaughter grants Gold to next shop (carried back)', () => {
+    const p: BoardMinion[] = [{ cardId: 'bountybot', attack: 7, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Bounty Bot kills it → grants 2 Gold
+    const r = run(p, e, 5);
+    expect(r.playerBonusGold).toBe(2);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

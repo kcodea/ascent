@@ -62,6 +62,7 @@ export type EffectFactoryId =
   | 'onKillBuffSelf' // on kill: buff self — permanent via Engraved
   | 'onKillBuffSpellPower' // on kill: permanently raise run-wide spell power +atk/+hp, carried back (Gnasher)
   | 'onKillGrantFreeRolls' // Moe: Slaughter — bank N free rerolls for next shop (carried back)
+  | 'onKillGrantGold' // Bounty Bot: Slaughter — grant N Gold into the next shop (carried back)
   | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
   | 'deathrattleDestroyKiller' // Deathrattle: destroy the minion that dealt the killing blow (Jenkins & Fi)
   | 'deathrattleBuffTribeByTally' // Deathrattle: buff a tribe by +per per Deathrattle triggered this game (Grim)
@@ -571,6 +572,8 @@ export interface CombatResult {
   /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
    *  settleCombat. Absent if 0. */
   playerMaxGoldGain?: number;
+  /** Bounty Bot: one-time Gold to add to the next shop (→ bonusEmbersNextTurn in settleCombat). */
+  playerBonusGold?: number;
   /** Spells the player cast IN this combat (Taragosa's Growth). Added to the run's `spellsCast` in
    *  settleCombat — so combat casts permanently improve spell-count payoffs (Archmagus Guel). Absent if 0. */
   playerSpellsCast?: number;
@@ -658,6 +661,8 @@ export interface CombatContext {
   /** Permanently raise the player's max Gold by `amount` (Soulsman's Avenge). Player-only; carried
    *  back via `CombatResult.playerMaxGoldGain`, applied to maxEmbers in settleCombat. */
   grantMaxGold(amount: number, side: Side): void;
+  /** Bounty Bot: grant one-time Gold into the next shop; carried back via `CombatResult.playerBonusGold`. */
+  grantBonusGold(amount: number, side: Side): void;
   /** Bank `count` free shop rerolls for the player from combat (Gryphon). Player-only; carried back via
    *  CombatResult.playerFreeRolls. */
   grantFreeRolls(count: number, side: Side): void;

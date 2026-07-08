@@ -71,6 +71,7 @@ export function simulate(
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
+  let bonusGoldGain = 0; // one-time Gold granted into the next shop (Bounty Bot's Slaughter)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
   let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
@@ -311,6 +312,10 @@ export function simulate(
     grantMaxGold: (amount, side) => {
       if (side !== 'player') return; // enemies have no economy
       maxGoldGain += amount;
+    },
+    grantBonusGold: (amount, side) => {
+      if (side !== 'player') return; // enemies have no economy
+      bonusGoldGain += amount;
     },
     grantFreeRolls: (count, side) => {
       if (side !== 'player') return; // enemies have no shop
@@ -1016,6 +1021,7 @@ export function simulate(
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
     playerDeferredBattlecries: deferredBattlecries.length > 0 ? deferredBattlecries : undefined,
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
+    playerBonusGold: bonusGoldGain > 0 ? bonusGoldGain : undefined,
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,

@@ -278,6 +278,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantFreeRolls(num(params.count, 2) * mul(self), self.side);
   },
 
+  /** Bounty Bot — Slaughter (on kill): grant `gold` one-time Gold into your next shop (golden doubles).
+   *  Carried back via `CombatResult.playerBonusGold` → next turn's starting Gold. Attacker-guarded. */
+  onKillGrantGold: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    ctx.grantBonusGold(num(params.gold, 2) * mul(self), self.side);
+  },
+
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
    *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
   deathrattleDamageAll: (ctx, self, params, payload) => {

@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-07 (session 21)
 
+### feat(content): new-minions batch — wave 1 (8 cards across Battlecry / SoC / Rally / EoT / Slaughter)
+
+First wave of the ~27-card content batch — the cards that reuse an existing engine mechanism (or need one small new
+factory). Each is card data + art + a new effect factory registered in BOTH the zod schema AND the `EffectFactoryId`
+core type + a passing test.
+
+- **Imp Overseer** (Demon T3 3/2) — *Battlecry:* your Imps +2/+2 wherever (`battlecryBuffImps`, reuses the run-wide
+  imp enchant).
+- **Gravewarden** (Undead T3 3/2) — *Start of Combat:* give a friendly Undead Rise (`scGrantReborn`).
+- **Arena Heckler** (Neutral T3 2/5) — *Start of Combat:* the enemy's rightmost minion gets Taunt (`scGrantEnemyTaunt`).
+- **Mirrorhide Rhino** (Beast T6 6/6) — *Start of Combat:* summon a copy of its current body (`scSummonCopy`; combat
+  summons don't re-fire SoC, so no chain).
+- **Bloodbinder** (Demon T4 5/2) — *Rally:* give another friendly Demon Attack = its own (`rallyGiveDemonAttack`).
+- **Rope Wrangler** (Neutral T5 5/6) — *End of Turn:* cast Lasso via the existing `castSpell` (no new factory).
+- **Crypt Scribe** (Undead T5 5/5) — *End of Turn:* conjure 2 random spells to hand (`endOfTurnGetRandomSpells`).
+- **Moe** (Mech T3 4/3) — *Slaughter:* bank 2 free rerolls next shop (`onKillGrantFreeRolls`, the `grantFreeRolls`
+  carry-back).
+
+- **Verified:** `typecheck + lint + test (585, +8 card tests) + build:web` green.
+- **Next (wave 2+):** the plumbing-heavy remainder — bonus-gold / Fodder-to-shop carry-backs, baked tribe auras
+  (Squirl Scout, Scrap Herald), scaling counters (Runescale / Pack Leader / Vineweaver + the Spirit Worgen retext),
+  and the bespoke cards (Graverobber, Wayfinder, Nimbus, Patch Job → Field Mechanic, …). Hoardbreaker Drake awaits art.
+
 ### fix(sim): goldening doubles BASE stats only (not accrued buffs); Forest Guardian → Den Mother
 
 Goldening a minion was doubling its CURRENT stats — so Eyes of Aresmar (and Indy's Gild) on a buffed 10/10 built

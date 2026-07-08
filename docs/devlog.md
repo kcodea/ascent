@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### chore(art): wire Dragon quest / reward art + re-wire Hoarder
+
+Wired the available art: Dragon quests **Coin Hoard / Echoing Roar / Hoardwake Ritual / Skybound Pact / The Hoard
+Wakes** (`art/quests/q_*.png`), the **Hoard Whelp** reward minion (`art/minions/hoardwhelp.png`), and **re-wired
+Hoarder** (`art/minions/hoarder.png` — deleted the stale `hoarder.webp` the glob preferred). Verified live: each
+quest card + Hoard Whelp + Hoarder load their new image. **Still missing source art** (no matching files, not
+wired): the Parliament of Flame + Taragosa's Inheritance quests, and the Skybound Archivist + Taragosa's Heir
+minions — drop the matching PNGs in `Quests/` (`ParliamentOfFlame.png`, `TaragosasInheritance.png`) and
+`Quests/Quest Reward Related Things/` (`SkyboundArchivist.png`, `TaragosasHeir.png`) and I'll wire them.
+
 ### feat(content): Dragon quests — the second authored tribe (9 quests + 3 reward minions + Shout/EoT engine)
 
 The Dragon set (owner spec 2026-07-08) leans on Shout / End-of-Turn triggering + Dragon stat-growth. Branch

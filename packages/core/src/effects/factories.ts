@@ -1153,6 +1153,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Bloodbinder — Rally (on its own attack): give another friendly Demon Attack equal to THIS minion's current
+   *  Attack (a golden Bloodbinder has double Attack, so it hands out double). Random pick among the other Demons. */
+  rallyGiveDemonAttack: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const pool = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'demon' || m.tribe2 === 'demon' || ctx.getCard(m.cardId)?.universalTribe));
+    if (pool.length === 0) return;
+    ctx.buff(ctx.rng.pick(pool), self.attack, 0, self.uid);
+  },
+
   /** Solaris Fang — Avenge (X): every X friendly deaths, gain a Divine Shield (Ward) and attack immediately,
    *  out of turn order (`ctx.attackNow` → the immediate-attack queue). Golden gains the shield + a second
    *  immediate strike. */

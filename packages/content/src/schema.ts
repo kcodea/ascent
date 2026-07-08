@@ -164,6 +164,7 @@ export const EffectFactoryIdSchema = z.enum([
   // 2026-07-06 content batch
   'scBeastAura',
   'rallyTribeAura',
+  'rallyGiveDemonAttack',
   'avengeShieldAttack',
   'endOfTurnGrantSpellChoice',
   'spellRallyDoubleNext',

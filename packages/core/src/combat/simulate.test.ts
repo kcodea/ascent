@@ -97,6 +97,17 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'T' && ev.target === rightmost)).toBe(true);
   });
 
+  it("Bloodbinder Rally gives another friendly Demon Attack equal to its own", () => {
+    const p: BoardMinion[] = [
+      { cardId: 'bloodbinder', attack: 5, health: 20 },
+      { cardId: 'impscrap', attack: 1, health: 20 }, // another Demon (Imp) → the Rally target
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }]; // tanky → Bloodbinder gets to attack
+    const r = run(p, e, 3);
+    const impUid = r.initial.player.find((u) => u.cardId === 'impscrap')!.uid;
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === impUid && ev.attack === 5)).toBe(true);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

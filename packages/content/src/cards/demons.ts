@@ -219,4 +219,17 @@ export const DEMONS: CardDef[] = [
     text: '**Battlecry:** Your Imps have **+2/+2** wherever they are.',
     goldenText: '**Battlecry:** Your Imps have **+4/+4** wherever they are.',
   },
+  {
+    // Rally engine: each time it attacks, hand another friendly Demon Attack equal to its OWN (a golden
+    // Bloodbinder has double Attack, so it gives double). Snowballs a Demon carry on a wide board.
+    id: 'bloodbinder',
+    name: 'Bloodbinder',
+    tribe: 'demon',
+    tier: 4,
+    attack: 5,
+    health: 2,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGiveDemonAttack' }],
+    text: "**Rally:** give another friendly Demon Attack equal to this minion's Attack.",
+  },
 ];

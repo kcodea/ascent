@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-08 (session 24)
+
+### tweak: Choreography panel — timeline redesign, tooltips, real negative offsets
+
+A usability pass on the 🎬 Choreography panel (session 23) after a live feel-pass flagged the timeline as
+cramped/misaligned and the terms as opaque.
+
+- **Timeline redesigned to one lane per cue** with a shared **center vertical 0-line** = the cue's anchor;
+  a chip left of 0 is a negative offset (fire *before* the anchor), right is positive. This fixes the old
+  single-track layout where cues sharing an anchor (sfx/float/auraBurst all at `start`) overlapped and
+  escaped the panel. Chips are color-coded per channel; the panel adopts a **dark dev-tool theme** to match
+  the design mockup. The `−maxAbs / 0 ms / +maxAbs` ruler ticks are absolutely positioned at the same
+  percentages the chips use, so **`0 ms` lands dead-on the 0-line** (was ~31px off with flex `space-between`).
+- **Negative impact offsets now actually fire.** The `impact` cue (anchor `contact`) routes through
+  `playLunge` at `contact + offset` (an absolute timeline position, clamped ≥ 0 in timeline seconds), so a
+  negative offset fires the smack *before* connection (the smack-lead) — previously it was clamped ≥ 0 with a
+  deferred note. This also retired the phase-4 `gsap.delayedCall` decoupling: the smack now rides the lunge
+  timeline (killed/seekable/speed-scaled with it). `start` cues stay clamped at 0 (a moment can't fire before
+  it begins — the anchor tooltip explains this).
+- **Hover tooltips for every term** — a shared `choreoLabels.ts` gives plain-English (and where useful,
+  longer) descriptions for every channel, anchor, knob (offset / ×spd / on / hold / tempo), each moment kind
+  in the rail, and the ▶ Preview / Copy / Reset buttons.
+- **Verified:** 623 tests + build green; typecheck/lint clean. Live: reopened the panel and confirmed the
+  0-line/ruler align to 0px, a negative impact chip drags left + still fires, and every ▶ Preview
+  (attackExchange→impact, shieldPop→shield break, death→spirit burst, reborn→re-form glow) invokes its real
+  FX with **zero console errors** (spy-confirmed via `window.__pixiFx`).
+
 ## 2026-07-08 (session 23)
 
 ### feat: Combat Choreographer — Phase 4 slice 1 (the 🎬 Choreography panel)

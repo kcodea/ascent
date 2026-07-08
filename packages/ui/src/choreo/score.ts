@@ -64,6 +64,8 @@ export const SCORE: Record<MomentKind, Cue[]> = {
 
 export interface CueContext {
   events: CombatEvent[];
+  /** The player's in-combat speed slider — a scaled cue's offset is divided by this before scheduling. */
+  combatSpeed: number;
   /** Called when a moment contains a real (non-Rise) death — the caller triggers the board shake. */
   onShake: () => void;
   /** Resolve a unit's live DOM node — used to position a killing-blow float in the board overlay. */
@@ -82,29 +84,40 @@ export interface CueContext {
   onReborn: (uid: string) => void;
 }
 
-/** Run one moment's plain-effect cues (sfx + float). The `lunge`/`impact` pair is DOM-measuring/GSAP work
- *  handled separately by `engine.ts`'s `runAttackExchangeCues` — this registry silently ignores cue kinds
- *  it doesn't own, so `attackExchange`'s `lunge`/`impact` entries are no-ops here (by design). */
-export function runMomentCues(moment: Moment, ctx: CueContext): void {
+/** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
+ *  `start + offset`: an offset ≤0 fires synchronously; a positive offset schedules a timer (÷combatSpeed
+ *  unless `scaled:false`, e.g. the reborn re-form's fixed wall-clock). Returns a cleanup that cancels any
+ *  pending timers. The `lunge`/`impact` pair is DOM-measuring/GSAP work handled separately by `engine.ts`'s
+ *  `runAttackExchangeCues` — this registry silently ignores cue kinds it doesn't own, so `attackExchange`'s
+ *  `lunge`/`impact` entries are no-ops here (by design). */
+export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  const at = (cue: Cue, fn: () => void): void => {
+    const off = Math.max(0, cue.offset ?? 0) / (cue.scaled === false ? 1 : (ctx.combatSpeed > 0 ? ctx.combatSpeed : 1));
+    if (off <= 0) fn();
+    else timers.push(setTimeout(fn, off));
+  };
   for (const cue of SCORE[moment.kind]) {
     if (cue.enabled === false) continue;
-    if (cue.ch === 'sfx') {
-      const { shake } = playMomentSfx(moment, ctx.events);
-      if (shake) ctx.onShake();
-    } else if (cue.ch === 'float') {
+    if (cue.ch === 'sfx') at(cue, () => { const { shake } = playMomentSfx(moment, ctx.events); if (shake) ctx.onShake(); });
+    else if (cue.ch === 'float') at(cue, () => {
       const { floats, deathFloats } = spawnFloats(moment, ctx.events, ctx.findEl, ctx.attackerUid);
       if (floats.length) ctx.onFloats(floats);
       if (deathFloats.length) ctx.onDeathFloats(deathFloats);
-    } else if (cue.ch === 'auraBurst') {
-      // a real (non-Rise) death anywhere in the moment bursts its auras in place. `death` with `rise` is
-      // intentionally NOT handled here — a Rise DEFENDER bursts in place (replay), a pulled-home Rise ATTACKER
-      // bursts at the engine's `landed` (see the phase-3c integration task).
+    });
+    // a real (non-Rise) death anywhere in the moment bursts its auras in place. `death` with `rise` is
+    // intentionally NOT handled here — a Rise DEFENDER bursts in place (replay), a pulled-home Rise ATTACKER
+    // bursts at the engine's `landed` (see the phase-3c integration task).
+    else if (cue.ch === 'auraBurst') at(cue, () => {
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'death' && !e.rise) ctx.onAuraBurst(e.target); }
-    } else if (cue.ch === 'auraBreak') {
-      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'shield') ctx.onShieldBreak(e.target); }  // DS consumed: delayed gold shatter
-    } else if (cue.ch === 'auraReform') {
-      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn') ctx.onReborn(e.target); }  // reborn: re-form glow
-    }
+    });
+    else if (cue.ch === 'auraBreak') at(cue, () => {  // DS consumed: delayed gold shatter
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'shield') ctx.onShieldBreak(e.target); }
+    });
+    else if (cue.ch === 'auraReform') at(cue, () => {  // reborn: re-form glow
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn') ctx.onReborn(e.target); }
+    });
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.
   }
+  return () => timers.forEach((id) => clearTimeout(id));
 }

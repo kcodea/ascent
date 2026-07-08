@@ -795,6 +795,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), x, y);
   },
 
+  /** Hoard Whelp — Sell: gain `amount` Gold (golden doubles). Fired by the reducer's sell case via `fireOnSell`. */
+  onSellGainGold: (ctx, self, params) => {
+    ctx.state.embers += num(params.amount, 6) * gold(self);
+  },
+
+  /** Skybound Archivist — End of Turn: your WEAKEST Dragon gains stats = `pct`% of your STRONGEST Dragon's stats
+   *  (golden doubles the pct). Weakest/strongest by Attack+Health; needs ≥2 distinct Dragons. */
+  endOfTurnBuffWeakestDragon: (ctx, self, params) => {
+    const dragons = ctx.state.board.filter((c) => isTribe(c, 'dragon'));
+    if (dragons.length < 2) return;
+    const strongest = dragons.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
+    const weakest = dragons.reduce((a, b) => (b.attack + b.health < a.attack + a.health ? b : a));
+    if (weakest === strongest) return;
+    const pct = (num(params.pct, 20) * gold(self)) / 100;
+    addBuff(weakest, nameOf(self), Math.round(strongest.attack * pct), Math.round(strongest.health * pct));
+  },
+
   /** Archmagus Guel: after a tavern spell is cast, give `count` *other* friendly minions +atk/+hp.
    *  Targets are random (seeded by the run cursor) so the buffs spread rather than snowball one carry. */
   spellCastBuffOthers: (ctx, self, params) => {
@@ -2050,6 +2067,18 @@ export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
   fire(makeContext(state), 'onSummon', { minion });
 }
 
+/** Fire a sold minion's own `onSell` effects (Hoard Whelp → get Gold). Called by the reducer's sell case after
+ *  the card is removed from the board/hand; its effects act via the shared recruit context. */
+export function fireOnSell(state: RunState, card: BoardCard): void {
+  const def = CARD_INDEX[card.cardId];
+  if (!def || !def.effects.some((e) => e.on === 'onSell')) return;
+  const ctx = makeContext(state);
+  for (const eff of def.effects) {
+    if (eff.on !== 'onSell') continue;
+    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+  }
+}
+
 function makeContext(state: RunState): RecruitContext {
   const ctx: RecruitContext = {
     state,
@@ -2107,12 +2136,20 @@ export function drummerRepeats(state: RunState): number {
  *  NOT Myra/Ryme re-fires or combat mirrors (which call `drummerRepeats` directly). A non-Battlecry card never
  *  consumes a charge (guarded by the onPlay check), so it's safe to call for every played minion. */
 function playedShoutRepeats(state: RunState, def: CardDef): number {
-  const base = drummerRepeats(state);
-  if ((state.shoutDoubleCharges ?? 0) > 0 && def.effects.some((e) => e.on === 'onPlay')) {
-    state.shoutDoubleCharges! -= 1;
-    return base + 1;
+  let n = drummerRepeats(state); // 1 + Drakko's extra
+  const isShout = def.effects.some((e) => e.on === 'onPlay');
+  if (isShout) {
+    n += state.shoutExtraAlways ?? 0; // Hoardwake / The Hoard Wakes — permanent extra triggers (stacks)
+    // Warm Embers — the FIRST Shout you play each turn triggers twice (one freebie per turn).
+    if (state.shoutFirstDoubleEachRound && !state.shoutFirstUsedThisTurn) {
+      state.shoutFirstUsedThisTurn = true;
+      n += 1;
+    }
+    // Legacy Warm Embers charge (the `shoutDouble` reward), while any remain.
+    if ((state.shoutDoubleCharges ?? 0) > 0) { state.shoutDoubleCharges! -= 1; n += 1; }
   }
-  return base;
+  state.lastShoutFires = isShout ? n : 0; // record for the reducer's Shout quest tick (counts triggers)
+  return n;
 }
 
 /** How many times End-of-Turn effects fire this turn: 1, +1 per Chronos (best one only — golden Chronos
@@ -2126,7 +2163,7 @@ function chronosRepeats(state: RunState): number {
  *  (a per-turn flag — stacks with Chronos, not with itself). The real End of Turn and its UI preview/telegraph
  *  all read this so they agree. (Djinn's manual "proc one now" stays on plain chronosRepeats.) */
 export function endOfTurnRepeats(state: RunState): number {
-  return chronosRepeats(state) + (state.extraEotThisTurn ? 1 : 0);
+  return chronosRepeats(state) + (state.extraEotThisTurn ? 1 : 0) + (state.endOfTurnExtra ?? 0); // + Parliament of Flame
 }
 
 /** Notify Battlecry-triggered watchers (Karwind) that a Battlecry just resolved. Call once per
@@ -2453,7 +2490,8 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
   const ctx = makeContext(state);
-  const repeats = endOfTurnRepeats(state); // Chronos + Chrono Staff: End-of-Turn effects trigger extra times
+  const repeats = endOfTurnRepeats(state); // Chronos + Chrono Staff + Parliament: End-of-Turn effects trigger extra times
+  let fires = 0; // End-of-Turn effect TRIGGERS this turn (feeds Parliament of Flame's "Trigger N End-of-Turn effects")
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -2461,8 +2499,26 @@ export function applyEndOfTurn(state: RunState): void {
       if (effect.on !== 'endOfTurn') continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
-      for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
+      for (let r = 0; r < repeats; r++) { fn(ctx, card, effect.params ?? {}, { minion: card, proc: r }); fires++; }
     }
+  }
+  // Quest-granted recurring End-of-Turn effects (Echoing Roar → re-fire your leftmost Shout; The Hoard Wakes →
+  // conjure a random Shout minion). They're End-of-Turn effects too — repeated by Chronos/Parliament + counted.
+  for (const eff of state.questRecurringEndOfTurn ?? []) {
+    for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
+  }
+  state.lastEotFires = fires;
+}
+
+/** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
+ *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
+ *  hand (The Hoard Wakes). */
+function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout'): void {
+  if (effect === 'triggerLeftmostShout') {
+    const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
+    if (leftmost) replayBattlecry(state, leftmost);
+  } else {
+    conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && hasBattlecry(c)), 1);
   }
 }
 

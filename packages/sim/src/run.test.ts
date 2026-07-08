@@ -4610,26 +4610,24 @@ describe('quests (M3 framework)', () => {
     expect(beastInHand(s)).toBe(true);
   });
 
-  it('Warm Embers: playing 2 Shouts completes the objective and banks 2 doubling charges', () => {
+  it('a "Trigger N Shouts" objective ticks once per Battlecry fire (Echoing Roar)', () => {
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_warm_embers', progress: 0, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_echoing_roar', progress: 0, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'a1' });
-    expect(s.activeQuests![0]!.progress).toBe(1); // playing a Shout (Battlecry minion) ticks it
+    expect(s.activeQuests![0]!.progress).toBe(1); // one Shout fired = one trigger
     s = reduce(s, { type: 'play', uid: 'a2' });
-    expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.shoutDoubleCharges).toBe(2);
+    expect(s.activeQuests![0]!.progress).toBe(2);
   });
 
-  it('Drakko the Drummer makes a played Shout count TWICE toward the Shout objective', () => {
+  it('Drakko the Drummer makes a played Shout count TWICE toward a Shout objective', () => {
     let s: RunState = {
       ...createRun(1), tier: 6, phase: 'recruit',
-      activeQuests: [{ questId: 'q_warm_embers', progress: 0, completed: false }],
+      activeQuests: [{ questId: 'q_echoing_roar', progress: 0, completed: false }], // Trigger 6 Shouts
       board: [{ uid: 'd', cardId: 'drummer', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false }], // Drakko: Battlecries fire twice
       hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }], // Pennycat: a Battlecry (Shout)
     };
     s = reduce(s, { type: 'play', uid: 'a' });
-    // Drakko re-fires the Battlecry, so one played Shout = 2 triggers → the "Play 2 Shouts" objective completes.
-    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.activeQuests![0]!.progress).toBe(2); // Drakko re-fires the Battlecry → 2 Shout triggers
   });
 
   it('Warm Embers: a banked charge makes the next played Shout trigger twice (Pennycat → 2 Strays), then reverts', () => {
@@ -4643,6 +4641,73 @@ describe('quests (M3 framework)', () => {
     let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', shoutDoubleCharges: 0, hand: [mk('b1')], board: [] };
     t = reduce(t, { type: 'play', uid: 'b1' });
     expect(t.board.filter((c) => c.cardId === 'stray').length).toBe(1);
+  });
+});
+
+describe('Dragon quests + reward minions', () => {
+  const dragon = (uid: string, cardId = 'cleric', attack = 3, health = 3): BoardCard => ({ uid, cardId, tribe: 'dragon', attack, health, keywords: [], golden: false });
+
+  it('Hoard Whelp — Sell: get 6 Gold (golden 12)', () => {
+    let s: RunState = { ...createRun(1), phase: 'recruit', embers: 0, board: [{ uid: 'h', cardId: 'hoardwhelp', tribe: 'dragon', attack: 3, health: 2, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'sell', uid: 'h' });
+    // base sell value + the on-sell 6 Gold.
+    expect(s.embers).toBe(CONFIG.sellValue + 6);
+  });
+
+  it('Skybound Pact (tribeStats) advances by +Attack/+Health buffs granted to Dragons', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', embers: 10,
+      activeQuests: [{ questId: 'q_skybound_pact', progress: 0, completed: false }],
+      board: [dragon('d')], hand: [{ uid: 'gr', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'gr' }); // Growth: +3/+4 to the board Dragon → +7 stats
+    expect(s.activeQuests![0]!.progress).toBe(7);
+  });
+
+  it('Hoardwake Ritual (shoutRepeat always) makes a played Shout fire an extra time', () => {
+    // Two Trail Foragers on board; playing a Beast fires no Battlecry — use Pennycat (Battlecry: summon a Stray).
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', shoutExtraAlways: 1,
+      hand: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }], board: [],
+    };
+    s = reduce(s, { type: 'play', uid: 'a' });
+    // Pennycat's Battlecry fires twice (base + the permanent extra) → 2 Strays.
+    expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
+  });
+
+  it('Skybound Archivist — End of Turn: weakest Dragon gains 20% of the strongest Dragon\'s stats', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [
+        { uid: 'arc', cardId: 'skybound', tribe: 'dragon', attack: 5, health: 4, keywords: [], golden: false },
+        { uid: 'strong', cardId: 'cleric', tribe: 'dragon', attack: 10, health: 10, keywords: [], golden: false },
+        { uid: 'weak', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn fires
+    const weak = s.board.find((c) => c.uid === 'weak')!;
+    expect([weak.attack, weak.health]).toEqual([1 + 2, 1 + 2]); // +20% of 10/10 = +2/+2
+  });
+
+  it("Taragosa's Heir copies every THIRD stat-gain of the strongest Dragon", () => {
+    const buff = { uid: 'gr', cardId: 'growth', tribe: 'neutral' as const, attack: 0, health: 1, keywords: [], golden: false };
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', embers: 30,
+      board: [
+        { uid: 'heir', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: [], golden: false },
+        { uid: 'strong', cardId: 'cleric', tribe: 'dragon', attack: 20, health: 20, keywords: [], golden: false },
+      ],
+      hand: [{ ...buff, uid: 'g1' }, { ...buff, uid: 'g2' }, { ...buff, uid: 'g3' }],
+    };
+    // Growth buffs both Dragons +3/+4 each cast. The strongest is 'strong'. 3rd gain → mirror +3/+4 onto the Heir.
+    s = reduce(s, { type: 'play', uid: 'g1' });
+    s = reduce(s, { type: 'play', uid: 'g2' });
+    let heir = s.board.find((c) => c.uid === 'heir')!;
+    expect([heir.attack, heir.health]).toEqual([7 + 6, 6 + 8]); // only Growth's own board buffs so far (no mirror yet)
+    s = reduce(s, { type: 'play', uid: 'g3' });
+    heir = s.board.find((c) => c.uid === 'heir')!;
+    // 3rd gain mirrors the strongest's +3/+4 on top of the Heir's own Growth buffs (3 × +3/+4 = +9/+12) → + mirror +3/+4.
+    expect([heir.attack, heir.health]).toEqual([7 + 9 + 3, 6 + 12 + 4]);
   });
 });
 

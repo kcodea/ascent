@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(content): Dragon quests — the second authored tribe (9 quests + 3 reward minions + Shout/EoT engine)
+
+The Dragon set (owner spec 2026-07-08) leans on Shout / End-of-Turn triggering + Dragon stat-growth. Branch
+`feat/dragon-quests`. Owner forks resolved: "give Dragons N stats" = cumulative BUFFS granted; Taragosa's Heir =
+every-3rd-gain of the strongest Dragon; combat quest panel = live-tick during replay (**UI piece still TODO** — see
+below). Art deferred (owner will wire).
+
+**9 quests** (Hoard Spark unchanged; Warm Embers redefined): *Lesser* — Hoard Spark (Buy 3 Dragons → random Dragon
++ spell), Warm Embers (Buy 3 Shout minions → first Shout each round triggers twice), Coin Hoard (Spend 12 Gold →
+Hoard Whelp). *Greater* — Echoing Roar (Trigger 6 Shouts → EoT: trigger leftmost Shout), Hoardwake Ritual (10
+Shouts → Shouts trigger +1), Skybound Pact (Give Dragons 80 stats → Skybound Archivist). *Capstone* — The Hoard
+Wakes (22 Shouts → Shouts +1 AND EoT: random Shout minion), Parliament of Flame (Trigger 14 EoT effects → EoT
+effects +1), Taragosa's Inheritance (Give Dragons 250 stats → Taragosa's Heir).
+
+**Engine:** new objective events `spendGold` / `endOfTurn` / `tribeStats` + a `buy` `filter: 'shout'`; new reward
+kinds `shoutRepeat` (always / firstEachRound), `endOfTurnRepeat`, `recurringEndOfTurn` (triggerLeftmostShout /
+grantRandomShout), and `multi`. Shout objectives now count each Battlecry FIRE (`playedShoutRepeats` folds in the
+new shout-repeat rewards + records `lastShoutFires`); `endOfTurnRepeats` folds in the Parliament permanent extra;
+`applyEndOfTurn` runs the recurring quest effects + counts EoT triggers; `tribeStats` advances via a board+hand
+stat-gain diff in the reducer. Added `advanceQuestsBy` (+N). New `onSell` effect trigger.
+
+**3 reward minions** (`token: true`): Hoard Whelp (Sell → 6 Gold), Skybound Archivist (EoT: weakest Dragon gains
+20% of the strongest's stats), Taragosa's Heir (every 3rd stat-gain of the strongest Dragon is mirrored on — recruit
+phase; combat-gain copy is a follow-up).
+
+**Verified:** typecheck + lint + build:web clean; **678 tests pass** (+5 Dragon: Hoard Whelp on-sell, Skybound Pact
+stat-diff, Hoardwake shout-repeat, Skybound Archivist EoT, Taragosa's Heir every-3rd; Warm-Embers shout tests
+retargeted to the new Shout-trigger objective).
+
+**Remaining (this feature):** the **combat quest panel + live-tick** UI (show active quests during the fight and
+animate combat-objective progress as the replay plays) — next commit on this branch.
+
 ### balance(content): Patch Job gains a +3/+3 baseline
 
 Owner tune — Patch Job now gives a **baseline +3/+3**, PLUS +3/+3 for every 7 Gold spent this turn (so +3/+3 at

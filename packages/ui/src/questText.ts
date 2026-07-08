@@ -32,7 +32,15 @@ export function questObjectiveText(o: QuestObjective): string {
     case 'summon':
       return `Summon ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'}`;
     case 'buy':
-      return `Buy ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'cards'}`;
+      return `Buy ${o.count} ${o.filter === 'shout' ? 'Shout minions' : o.tribe ? TRIBE_PLURAL[o.tribe] : 'cards'}`;
+    case 'shout':
+      return `Trigger ${o.count} ${o.count === 1 ? 'Shout' : 'Shouts'}`;
+    case 'spendGold':
+      return `Spend ${o.count} Gold`;
+    case 'endOfTurn':
+      return `Trigger ${o.count} End-of-Turn effect${o.count === 1 ? '' : 's'}`;
+    case 'tribeStats':
+      return `Give ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'} ${o.count} total stats`;
     default:
       return `${EVENT_VERB[o.event] ?? o.event} ${o.count} ${EVENT_NOUN[o.event] ?? ''}`.trim();
   }
@@ -111,6 +119,14 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return `Whenever a Beast attacks, improve your Beast Attack aura by +${r.amount ?? 0}`;
       }
       return '';
+    case 'shoutRepeat':
+      return r.scope === 'always' ? 'Your Shouts trigger an extra time' : 'Your first Shout each round triggers twice';
+    case 'endOfTurnRepeat':
+      return 'Your End-of-Turn effects trigger an extra time';
+    case 'recurringEndOfTurn':
+      return r.effect === 'triggerLeftmostShout' ? 'End of Turn: trigger your leftmost Shout' : 'End of Turn: get a random Shout minion';
+    case 'multi':
+      return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:
       return '';
   }

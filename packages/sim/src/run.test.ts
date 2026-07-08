@@ -345,6 +345,21 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.some((c) => CARD_INDEX[c.cardId]?.spell && CARD_INDEX[c.cardId]?.tier === 4)).toBe(true); // a tier-4 spell (Whelpmother is T4)
   });
 
+  it('Graverobber on Mumi fires its Deathrattle out of combat — a friendly Undead gains Rise', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'm', cardId: 'mumi', tribe: 'undead', attack: 5, health: 1, keywords: [], golden: false }, // DR: give a friendly Undead Rise
+        { uid: 'u', cardId: 'karthus', tribe: 'undead', attack: 8, health: 3, keywords: [], golden: false }, // the highest-Attack Undead carry
+      ],
+      hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'm' }); // destroy Mumi → its Deathrattle should fire
+    expect(s.board.find((c) => c.uid === 'm')).toBeUndefined(); // Mumi destroyed
+    expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
+  });
+
   it('Squirl Scout: Battlecry gives Beasts +2 Attack wherever (board + hand), stacking for future Beasts', () => {
     let s: RunState = {
       ...createRun(1),

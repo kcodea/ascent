@@ -165,10 +165,10 @@ devour,Channeling the Devourer,5,,,3,,Devour a friendly minion and spit its stat
 chronostaff,Chrono Staff,5,,,3,,Your **End of Turn** effects trigger **1 more** time this turn.,
 corpseboard,Corpse Board,5,,,3,,**Discover** a **Deathrattle** minion.,
 resonance,Resonance,5,,,3,,Trigger a friendly **Battlecry** minion's Battlecry.,
-sparkplug,Spark Plug,5,,,3,,Give your entire board **+5/+5** twice.,
 spellcart,Spell Cart,5,,,2,,Refresh the tavern — fill it with **spells** instead of minions.,
 aresmar,Eyes of Aresmar,6,,,5,,Make a **Tier 4 or lower** minion **Golden**.,
 perfectvision,Perfect Vision,6,,,2,,Set a friendly minion's stats to **20/20**.,
+sparkplug,Spark Plug,6,,,3,,Give your entire board **+5/+5** twice.,
 
 # === TOKENS (14) — not rollable ===
 symbioticattachment,Chaos Attachment,1,1,1,,Magnetic | Reborn,"**Magnetic**, **Reborn**. Counts as all tribes.",

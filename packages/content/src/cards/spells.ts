@@ -559,12 +559,12 @@ export const SPELLS: CardDef[] = [
     text: 'Give a minion **+3/+3** for every **7 Gold** spent this turn.',
   },
   {
-    // Spark Capacitor's Avenge payoff (also a T5 Tavern spell): buff your entire board +5/+5, twice — two
+    // Spark Capacitor's Avenge payoff (also a T6 Tavern spell): buff your entire board +5/+5, twice — two
     // spellBuffAll casts, so each picks up spell power. A board-wide finisher.
     id: 'sparkplug',
     name: 'Spark Plug',
     tribe: 'neutral',
-    tier: 5,
+    tier: 6,
     attack: 0,
     health: 1,
     keywords: [],

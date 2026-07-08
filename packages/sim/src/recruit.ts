@@ -1071,6 +1071,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     t.keywords.push('DS');
   },
 
+  /** Deathrattle (Mumi): give a friendly minion of `tribe` (default any) **Rise** out of combat — fired when
+   *  Mumi is destroyed by Graverobber or Consumed. Mirrors the combat version: skips minions that already have
+   *  Rise; the "random" pick becomes the highest-Attack carry out of combat. Granting the `R` keyword is enough —
+   *  combat's `instantiate` re-arms `rebornAvailable` from it. Golden grants Rise to two friends. */
+  deathrattleGrantReborn: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe | '';
+    for (let i = 0; i < gold(self); i++) {
+      const pool = ctx.state.board.filter((c) => c !== self && !c.keywords.includes('R') && (!tribe || isTribe(c, tribe)));
+      if (pool.length === 0) return;
+      const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
+      t.keywords.push('R');
+    }
+  },
+
   // --- Spells ---
 
   /** Spirit Fire / Bulwark / Shatter — cast: buff the chosen target +atk/+hp, and either grant a

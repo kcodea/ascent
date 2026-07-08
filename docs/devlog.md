@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### fix(sim): Graverobber on Mumi now fires Mumi's Deathrattle (grant Rise) out of combat; Spark Plug → T6
+
+- **Graverobber + Mumi bug.** `deathrattleGrantReborn` (Mumi's "give a friendly Undead Rise") existed only as a
+  COMBAT factory — the recruit factory map had no entry, so when Graverobber destroyed Mumi out of combat
+  (`battlecryDestroyForSpell` fires the target's recruit `onDeath` factories), `RECRUIT_FACTORIES['deathrattleGrantReborn']`
+  was undefined and the Rise-grant silently no-op'd. Added the recruit-side factory (mirrors the combat one:
+  skips minions that already have Rise, filters by tribe via `isTribe`, picks the highest-Attack carry out of
+  combat, golden → two; granting the `R` keyword is enough since combat's `instantiate` re-arms `rebornAvailable`
+  from it). New test locks it. Same gap would have hit any Consume of Mumi — now covered too.
+- **Spark Plug → Tier 6** (was T5).
+
+Verified: typecheck + lint clean, full suite green (638), `build:web` OK, `cards.csv` regenerated.
+
 ### feat/content: Philippe (random-splash Rally), live-value tooltips (Patch Job / Runescale), Attachment Mechanic rename, Arena Heckler T4
 
 Owner batch:

@@ -34,11 +34,11 @@ const SHIELD_CLEAR_GRACE = 280;
 // leaves. Divine Shield (gold), Reborn (blue wisp), Taunt (silver bulwark).
 type AuraK = 'shield' | 'reborn' | 'taunt';
 const AURA_CFGS = [
-  { kind: 'shield', marker: 'dscard', dragKw: 'DS', delayedBreak: true },
-  { kind: 'reborn', marker: 'reborncard', dragKw: 'R', delayedBreak: false },
+  { kind: 'shield', marker: 'dscard', dragKw: 'DS' },
+  { kind: 'reborn', marker: 'reborncard', dragKw: 'R' },
   // Taunt: a silver bulwark BEHIND the card (its own back FX layer). Reuses the `.card.taunt` marker
   // already set for the keyword; it never "breaks" — it just deploys on gain and fades when removed.
-  { kind: 'taunt', marker: 'taunt', dragKw: 'T', delayedBreak: false },
+  { kind: 'taunt', marker: 'taunt', dragKw: 'T' },
 ] as const;
 const ckey = (kind: string, uid: string): string => `${kind}|${uid}`;
 const unkey = (k: string): { kind: AuraK; uid: string } => {

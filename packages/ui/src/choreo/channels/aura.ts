@@ -11,15 +11,17 @@ import { getChoreoConfig } from '../choreoConfig';
  */
 
 /** A unit DIES while still carrying auras → each explodes in place (ward shatter / spirit release / bulwark
- *  burst). Reads pixiFx's registry for which kinds are live; a taunt burst draws on the FRONT layer at the
- *  bubble's tracked spot (its persistent mesh lives on the back `tauntFx` canvas, cleared first). */
-export function burstDeathAuras(uid: string): void {
+ *  burst). Reads pixiFx's registry for which kinds are live. Shield/reborn bursts read their bubble's OWN
+ *  stored coords (they render on the same viewport-fixed front layer they're stored on). The taunt burst,
+ *  however, draws on the FRONT (viewport) layer while its persistent bulwark lives on the back `tauntFx`
+ *  canvas (whose bubble coords are `.app`-relative) — so it needs the dying card's VIEWPORT rect passed in
+ *  (`tauntRect`), exactly as the old syncShields fed it a fresh getBoundingClientRect. Null → sfx only. */
+export function burstDeathAuras(uid: string, tauntRect: { cx: number; cy: number; w: number; h: number } | null = null): void {
   if (pixiFx.hasAura(uid, 'shield')) { pixiFx.breakShield(uid, 'shield'); sfx.shieldBreak(); }
   if (pixiFx.hasAura(uid, 'reborn')) { pixiFx.breakShield(uid, 'reborn'); sfx.rebornShatter(); }
   if (tauntFx.hasAura(uid, 'taunt')) {
-    const r = tauntFx.auraRect(uid, 'taunt');
     tauntFx.clearShield(uid, 'taunt'); // drop the back-canvas bulwark…
-    if (r) pixiFx.tauntBurst(r.cx, r.cy, r.w, r.h); // …burst in FRONT at its tracked spot
+    if (tauntRect) pixiFx.tauntBurst(tauntRect.cx, tauntRect.cy, tauntRect.w, tauntRect.h); // …burst in FRONT (viewport coords)
     sfx.shieldBreak();
   }
 }
@@ -35,12 +37,14 @@ export function breakShieldAura(uid: string, combatSpeed: number): () => void {
 
 /** A unit REBORN (a `reborn` event): schedule the wispy re-form glow + sound at rebornReformDelay, timed to
  *  the `risepop` CSS re-form phase. `rect` is the unit's measured center+footprint (null → sound only).
- *  Encapsulates the former REBORN_SUMMON_DELAY weld. Returns a cancel for the pending timer. */
-export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null, combatSpeed: number): () => void {
-  const d = getChoreoConfig().rebornReformDelay / (combatSpeed > 0 ? combatSpeed : 1);
+ *  Encapsulates the former REBORN_SUMMON_DELAY weld. Returns a cancel for the pending timer. NOTE: this delay
+ *  is NOT scaled by combatSpeed — it aligns to the fixed-duration `risepop` CSS re-form animation (0.7s wall
+ *  clock, not speed-scaled), matching the former fixed REBORN_SUMMON_DELAY. (Contrast breakShieldAura, which
+ *  DOES scale, because it aligns to the speed-scaled lunge connection.) */
+export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null): () => void {
   const id = setTimeout(() => {
     if (rect) pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h);
     sfx.rebornSummon();
-  }, d);
+  }, getChoreoConfig().rebornReformDelay);
   return () => clearTimeout(id);
 }

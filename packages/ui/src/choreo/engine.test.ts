@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from './compile';
 import { sfx } from '../sfx';
-import { runAttackExchangeCues } from './engine';
+import { runAttackExchangeCues, runRiseReturn } from './engine';
 
 // Node env (no jsdom) — use a stubbed attacker Element (see lunge.test.ts). `defender` is null here, so the
 // impact channel skips getBoundingClientRect; the attacker stub only needs the fields playLunge reads.
@@ -37,5 +37,16 @@ describe('runAttackExchangeCues', () => {
     tl!.progress(1);
     expect(hit).toHaveBeenCalledTimes(1);
     expect(advance).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('runRiseReturn', () => {
+  it('pulls the risen attacker home, firing onLanded exactly once at the tween end', () => {
+    const el = fakeEl();
+    const onLanded = vi.fn();
+    const tl = runRiseReturn(el, 1, onLanded);
+    expect(onLanded).not.toHaveBeenCalled();
+    tl.progress(1);
+    expect(onLanded).toHaveBeenCalledTimes(1);
   });
 });

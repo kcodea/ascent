@@ -252,6 +252,10 @@ export interface RunState {
    *  card when it's bought, and re-applied on Reborn (Reborn resets to base stats). Separate from
    *  `undeadAttackBonus` (Lantern of Souls) which applies in combat only. */
   undeadBuyAtk: number;
+  /** Run-wide Beast attack bonus (Squirl Scout): your Beasts get this much Attack everywhere — baked into a
+   *  Beast when it's created, and re-applied on Reborn/summon (from-base combat bodies). Beast sibling of
+   *  `undeadBuyAtk`. */
+  beastBuyAtk: number;
   /** Run-wide SPELL POWER: extra +atk/+hp every stat-granting spell grants, on top of the hero's
    *  amplify (Spellbinder). Raised by cards — Cinderwing Matron (+1 Health on play), Skullblade
    *  (+1 Attack per combat death, carried back). Folded into `spellAttackBonus` / `spellHealthBonus`. */
@@ -465,6 +469,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     undeadAttackBonus: 0,
     undeadHealthBonus: 0,
     undeadBuyAtk: 0,
+    beastBuyAtk: 0,
     spellBonus: { attack: 0, health: 0 },
     tavernBuyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,

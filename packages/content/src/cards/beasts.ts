@@ -316,4 +316,19 @@ export const BEASTS: CardDef[] = [
     text: '**Start of Combat:** Give your **Beasts** **+1/+2**. Improve this by **+1/+1** for each **Beast** you played this turn.',
     goldenText: '**Start of Combat:** Give your **Beasts** **+2/+4**. Improve this by **+2/+2** for each **Beast** you played this turn.',
   },
+  {
+    // Battlecry: your Beasts gain +2 Attack "wherever they are" — baked into every current Beast (board + hand)
+    // and every future one (bought/conjured/summoned/Reborn), the Beast sibling of Toxin Tender's Undead aura.
+    // Golden → +4.
+    id: 'squirlscout',
+    name: 'Squirl Scout',
+    tribe: 'beast',
+    tier: 3,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryBuffBeastAttack', params: { amount: 2 } }],
+    text: '**Battlecry:** your **Beasts** have **+2 Attack** wherever they are.',
+    goldenText: '**Battlecry:** your **Beasts** have **+4 Attack** wherever they are.',
+  },
 ];

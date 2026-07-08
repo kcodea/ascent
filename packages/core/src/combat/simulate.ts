@@ -50,6 +50,7 @@ export function simulate(
   playerAttacksFirst = false,
   playerRallyDouble = false,
   beastsPlayedThisTurn = 0,
+  beastBuyAtk = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
@@ -108,6 +109,15 @@ export function simulate(
       grant: (m) =>
         isUndeadMinion(m)
           ? { attack: undeadAttackBonus, health: undeadHealthBonus, bakedAtk: undeadBuyAtk }
+          : { attack: 0, health: 0 },
+    },
+    {
+      // Squirl Scout — run-wide Beast Attack aura, all baked at buy time (no combat-gained slice), so it's
+      // re-added only to from-base bodies (summoned/Reborn Beasts); starting Beasts already carry it.
+      label: 'Beast Aura',
+      grant: (m) =>
+        m.tribe === 'beast' || m.tribe2 === 'beast' || cards[m.cardId]?.universalTribe
+          ? { attack: 0, health: 0, bakedAtk: beastBuyAtk }
           : { attack: 0, health: 0 },
     },
     {

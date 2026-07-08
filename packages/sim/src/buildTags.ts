@@ -156,7 +156,7 @@ export function buildTags(state: RunState): string[] {
 
   // Scaling Engine — big permanent run-wide growth, or a heavily-enchanted board.
   const buffSum = rows.reduce((s, x) => s + (x.m.buffs?.reduce((a, b) => a + b.attack + b.health, 0) ?? 0), 0);
-  const runWideScale = (state.spellBonus?.attack ?? 0) + (state.spellBonus?.health ?? 0) + (state.undeadBuyAtk ?? 0) + impScale;
+  const runWideScale = (state.spellBonus?.attack ?? 0) + (state.spellBonus?.health ?? 0) + (state.undeadBuyAtk ?? 0) + (state.beastBuyAtk ?? 0) + impScale;
   if (buffSum >= 40 || runWideScale >= 8) add('Scaling Engine', Math.min(10, Math.round(buffSum / 12) + runWideScale));
 
   // ── Record / history narrative (needs enough scored rounds to read the arc) ──

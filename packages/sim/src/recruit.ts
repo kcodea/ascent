@@ -130,8 +130,14 @@ export function cardBuff(state: RunState, cardId: string): { attack: number; hea
  * non-Undead; `universalTribe` counts (Chaos Attachment), matching the buy path's `isUndead`.
  */
 export function undeadBuyBonus(state: RunState, def: CardDef): number {
-  const undead = def.tribe === 'undead' || def.tribe2 === 'undead' || !!def.universalTribe;
-  return undead ? (state.undeadBuyAtk ?? 0) : 0;
+  // Run-wide tribe ATTACK auras baked into a minion at creation: Undead (Lantern/Toxin Tender) + Beast
+  // (Squirl Scout). A universal-tribe minion counts as both. Called at every creation site (buy / conjure /
+  // steal / discover / offer), so a new bonus tribe added here reaches them all.
+  const universal = !!def.universalTribe;
+  let bonus = 0;
+  if (universal || def.tribe === 'undead' || def.tribe2 === 'undead') bonus += state.undeadBuyAtk ?? 0;
+  if (universal || def.tribe === 'beast' || def.tribe2 === 'beast') bonus += state.beastBuyAtk ?? 0;
+  return bonus;
 }
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
@@ -1474,6 +1480,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (isTribe(card, 'undead')) addBuff(card, nameOf(self), amount, 0);
     }
     ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
+  },
+
+  /** Squirl Scout — Battlecry: your Beasts get +amount Attack "wherever they are". Buffs every current Beast
+   *  (board + hand) now and stacks the bonus into `beastBuyAtk`, so future Beasts (bought / conjured / summoned /
+   *  Reborn) carry it too — the Beast sibling of Toxin Tender's Undead aura. Golden doubles N. */
+  battlecryBuffBeastAttack: (ctx, self, params) => {
+    const amount = num(params.amount, 2) * gold(self);
+    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
+      if (isTribe(card, 'beast')) addBuff(card, nameOf(self), amount, 0);
+    }
+    ctx.state.beastBuyAtk = (ctx.state.beastBuyAtk ?? 0) + amount;
   },
 
   /** Koron — every `every` Gold you spend (the per-instance gold meter), permanently buff your Fodder run-wide

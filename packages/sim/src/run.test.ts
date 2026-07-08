@@ -335,6 +335,21 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.some((c) => CARD_INDEX[c.cardId]?.spell && CARD_INDEX[c.cardId]?.tier === 4)).toBe(true); // a tier-4 spell (Whelpmother is T4)
   });
 
+  it('Squirl Scout: Battlecry gives Beasts +2 Attack wherever (board + hand), stacking for future Beasts', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [
+        { uid: 'sq', cardId: 'squirlscout', tribe: 'beast', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'h', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'sq' });
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 2); // current board Beast +2
+    expect(s.hand.find((c) => c.uid === 'h')!.attack).toBe(1 + 2); // current hand Beast +2
+    expect(s.beastBuyAtk).toBe(2); // stacks — future Beasts inherit it via undeadBuyBonus
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

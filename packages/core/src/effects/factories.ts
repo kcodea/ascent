@@ -271,6 +271,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health) * mul(self), self.side, self.uid);
   },
 
+  /** Moe — Slaughter (on kill): bank `count` free rerolls for your next shop (golden doubles). Carried back
+   *  via CombatResult like the other on-kill economy grants. Attacker-guarded (only Moe's own kills). */
+  onKillGrantFreeRolls: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    ctx.grantFreeRolls(num(params.count, 2) * mul(self), self.side);
+  },
+
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
    *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
   deathrattleDamageAll: (ctx, self, params, payload) => {

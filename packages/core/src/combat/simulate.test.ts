@@ -116,6 +116,13 @@ describe('simulate (handoff A.3)', () => {
     expect(copies.length).toBe(1); // exactly one copy — the summoned copy does NOT re-fire Start of Combat
   });
 
+  it('Moe Slaughter banks free rerolls for next shop (carried back)', () => {
+    const p: BoardMinion[] = [{ cardId: 'moe', attack: 4, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Moe kills it → grants 2 free rerolls
+    const r = run(p, e, 3);
+    expect(r.playerFreeRolls).toBe(2);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

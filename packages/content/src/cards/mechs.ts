@@ -205,4 +205,18 @@ export const MECHS: CardDef[] = [
     text: '**Rally:** get a random **Magnetic** Mech.',
     goldenText: '**Rally:** get **2** random **Magnetic** Mechs.',
   },
+  {
+    // Slaughter (on kill): bank 2 free rerolls for your next shop (golden: 4). Carried back after combat — a
+    // tempo/econ Mech that pays off an aggressive board.
+    id: 'moe',
+    name: 'Moe',
+    tribe: 'mech',
+    tier: 3,
+    attack: 4,
+    health: 3,
+    keywords: ['SL'],
+    effects: [{ on: 'onKill', do: 'onKillGrantFreeRolls', params: { count: 2 } }],
+    text: '**Slaughter:** gain **2 free refreshes** next shop.',
+    goldenText: '**Slaughter:** gain **4 free refreshes** next shop.',
+  },
 ];

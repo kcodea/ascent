@@ -61,6 +61,7 @@ export type EffectFactoryId =
   | 'reAttackOnKill'
   | 'onKillBuffSelf' // on kill: buff self — permanent via Engraved
   | 'onKillBuffSpellPower' // on kill: permanently raise run-wide spell power +atk/+hp, carried back (Gnasher)
+  | 'onKillGrantFreeRolls' // Moe: Slaughter — bank N free rerolls for next shop (carried back)
   | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
   | 'deathrattleDestroyKiller' // Deathrattle: destroy the minion that dealt the killing blow (Jenkins & Fi)
   | 'deathrattleBuffTribeByTally' // Deathrattle: buff a tribe by +per per Deathrattle triggered this game (Grim)

@@ -3,8 +3,8 @@ import type { MomentKind } from './kinds';
 /**
  * Tunable parameters for the combat-replay CHOREOGRAPHY TIMING — the beat clock in `useCombatReplay.ts`. The
  * replay plays the deterministic fight one "beat" at a time (an action + its result events); this config sets
- * how long the clock lingers on each beat type, so the fight's RHYTHM can be dialed by eye via the DEV Pacing
- * tuner (`PacingTuner.tsx`) without a code round-trip. The scheduler reads `getChoreoConfig()` at each beat, so
+ * how long the clock lingers on each beat type, so the fight's RHYTHM can be dialed by eye via the DEV
+ * Choreography panel (`ChoreographyPanel.tsx`) without a code round-trip. The scheduler reads `getChoreoConfig()` at each beat, so
  * changes apply to the next beat. This module supersedes the old pacing-config module (choreographer phase 2
  * relocation) — same values, same behavior, new home under `choreo/`.
  *

@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(content): new-minions batch — wave 4 (3 cards: play-counter pair + Graverobber)
+
+The "Beasts/minions played this turn" subsystem + a sac-for-value Undead. Branch `feat/new-minions-wave4`; full
+suite green (623), one commit per card.
+
+New subsystem: a **per-turn play counter** — `RunState.playedThisTurn` (minion cardIds played via the play
+action), incremented in the reducer, reset each turn. For combat (Pack Leader) the *Beasts* count is frozen at
+combat start and threaded into `simulate()` as a new `beastsPlayedThisTurn` param → `ctx.beastsPlayedThisTurn`,
+exactly like `spellsThisTurn` feeds Runescale Drake.
+
+- **Spirit Worgen** (retext) — from an on-summon per-tribe buff to *End of Turn: gain +2/+2 for each Beast or
+  Dragon you PLAYED this turn, improved +1/+1 per spell cast this turn* (`endOfTurnBuffPerTribePlayed`). Golden
+  doubles. Cascade: retired the obsolete on-summon + in-combat-proc tests (the Worgen no longer touches combat);
+  re-pointed the UI `summonScalingText` at the new effect so the per-unit still greens by spells; `summonBuffSelfTribe`
+  is now orphaned (left in place). Read "per spell you cast" as *this turn's* spells (matching the old wording).
+- **Pack Leader** (Beast T3 2/4) — *Start of Combat:* Beasts +1/+2, improved +1/+1 per Beast played this turn
+  (`scTribeBuffPerPlayed`, sibling of scTribeBuffPerSpell). The `simulate()` signature gained one param.
+- **Graverobber** (Undead T4 4/4) — *Battlecry:* destroy a targeted friendly (procs its Deathrattle out of
+  combat — the recruit DR factories bake summons/buffs in), then add a random Tavern spell of its tier to hand
+  (`battlecryDestroyForSpell`; golden → 2 spells).
+
+- **Verified:** `typecheck + lint + test (623) + build:web` green.
+- **Remaining (2 — the final piece):** the baked "+X wherever they are" auras — **Squirl Scout** (Beasts +2 Attack)
+  and **Scrap Herald** (Attachments/Magnetics +2/+2). Both need the run-wide tribe-enchant bake mirroring
+  `undeadBuyAtk` (~7 creation sites + a combat param + immediate application to existing bodies) — a delicate,
+  do-it-carefully change best landed on its own.
+
 ### fix: Choreography preview draws in front + greyed "can't-go-negative" lanes
 
 Two follow-ups from a live pass on the 🎬 Choreography panel:

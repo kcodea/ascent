@@ -33,12 +33,12 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   toggles, a ▶ mock-stage FX preview that fires a moment's real effects on demand, and Copy/Reset. The
   `aura` channel split into independently-retimeable burst/break/re-form cues and the Pacing tuner is retired
   into the panel. Invisible by default (default timing byte-identical).
-- **New minions — content batch (waves 1–3, 22 cards)** — a big content push across all tribes: economy
+- **New minions — content batch (waves 1–4, 25 cards)** — a big content push across all tribes: economy
   Slaughter/Avenge payoffs (Bounty Bot, Moe, Pit Supplier), spell engines (Runescale & Vineweaver Drake, Nimbus,
-  Spell Appraiser), a Den Mother Rally payoff (Baby Cub), tribe splashes (Wayfinder), and **combat spell-cast**
-  (Hoardbreaker Drake, Spell Drummer, Spark Capacitor — casting a spell's stat effect inside combat) — each card
-  is data + art + a new effect factory + a test. Wave 4 (baked auras, Pack Leader / Spirit Worgen, Graverobber)
-  is queued in the roadmap.
+  Spell Appraiser), a Den Mother Rally payoff (Baby Cub), tribe splashes (Wayfinder), **combat spell-cast**
+  (Hoardbreaker Drake, Spell Drummer, Spark Capacitor), and a **Beasts-played-this-turn** payoff pair (Pack Leader
+  + the Spirit Worgen retext) plus Graverobber — each card is data + art + a new effect factory + a test. Only the
+  two baked "+X wherever" auras (Squirl Scout, Scrap Herald) remain.
 - **Combat Choreographer — Phase 3c (aura bursts)** — aura burst/break/re-form authority moves out of
   Recruit.tsx's per-frame tracker into the choreographer (a new `aura` channel + the pull-back-driven `landed`
   anchor); the double-burst bug is now structural. syncShields is position-tracking only; all six cross-file

@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-07 (session 22)
 
+### fix(ui): Hoardbreaker Drake + Nimbus art + remove 5 stale WebP that shadowed the wave-2 re-wired art
+
+- **Hoardbreaker Drake** + **Nimbus** art wired (`HoardbreakerDrake.png` → `hoardbreaker.png`, `Nimbus.png` →
+  `nimbus.png`).
+- **Stale-WebP bug:** the art glob prefers `.webp` over `.png` ([art.ts:22](../packages/ui/src/art.ts)), so old
+  committed WebP for `acid` (Korok), `bane`, `broker`, `junk`, and `sergeant` were hiding the fresh PNGs wired in
+  wave 2 — that art never rendered in the build. Removed the 5 stale WebP so the new PNGs show. (`npm run
+  optimize-art` can regenerate optimized WebP from the new masters later if wanted.) Still art-pending: Moe,
+  Bounty Bot.
+
 ### feat(content): new-minions batch — wave 3 (4 cards: combat spell-cast + adjacency consume)
 
 The combat spell-cast subsystem — casting a stat spell's effect *inside* `simulate()`, new to the engine — plus

@@ -278,6 +278,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantFreeRolls(num(params.count, 2) * mul(self), self.side);
   },
 
+  /** Bounty Bot — Slaughter (on kill): grant `gold` one-time Gold into your next shop (golden doubles).
+   *  Carried back via `CombatResult.playerBonusGold` → next turn's starting Gold. Attacker-guarded. */
+  onKillGrantGold: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    ctx.grantBonusGold(num(params.gold, 2) * mul(self), self.side);
+  },
+
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
    *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
   deathrattleDamageAll: (ctx, self, params, payload) => {
@@ -517,6 +524,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleAddFodder: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ctx.grantTavernFodder(num(params.count, 1) * mul(self), self.side);
+  },
+
+  /** Pit Supplier — Avenge (N): every N friendly deaths this combat, queue a Fodder into your next shop
+   *  (golden queues two). Reuses the Fodder carry-back (grantTavernFodder → pendingTavern in settleCombat). */
+  avengeAddFodder: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    if (count % x !== 0) return;
+    ctx.grantTavernFodder(num(params.fodder, 1) * mul(self), self.side);
+  },
+
+  /** Spell Appraiser — Avenge (N): every N friendly deaths this combat, permanently raise run-wide spell power
+   *  by +atk/+hp (so stat spells give that much more — "your Tavern spells have +Attack this run"). Golden
+   *  doubles. Carried back via `CombatResult.playerSpellPower`, like the other spell-power sources. */
+  avengeGrantSpellPower: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 4));
+    if (count % x !== 0) return;
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health, 0) * mul(self), self.side, self.uid);
   },
 
   /** Deathrattle (Junkyard Titan): add a random Magnetic minion to your hand after combat. Sibling of
@@ -897,6 +925,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Runescale Drake — Start of Combat: give your `tribe` +atk/+hp, improved by `perSpell` for each spell you
+   *  cast this turn (frozen at combat start via `ctx.spellsThisTurn`). Golden doubles the whole grant. A one-time
+   *  buff to the living tribe (not a persisting aura). */
+  scTribeBuffPerSpell: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'dragon') as Tribe;
+    const per = num(params.perSpell, 1);
+    const a = (num(params.attack, 2) + per * ctx.spellsThisTurn) * mul(self);
+    const h = (num(params.health, 2) + per * ctx.spellsThisTurn) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
   // ─── New content batch factories ────────────────────────────────────────────
 
   /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.
@@ -1180,6 +1223,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const pool = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'demon' || m.tribe2 === 'demon' || ctx.getCard(m.cardId)?.universalTribe));
     if (pool.length === 0) return;
     ctx.buff(ctx.rng.pick(pool), self.attack, 0, self.uid);
+  },
+
+  /** Baby Cub — Rally: each time THIS attacks, permanently improve your Den Mother aura by +step. Bumps every
+   *  friendly Den Mother's accrued `summonBonus` (its per-summon buff magnitude), which rides the summonBonus
+   *  carry-back so the bigger aura persists next combat AND in the shop. Golden doubles the step. Stored
+   *  pre-Den-Mother-golden like all summonBonus, so a golden Den Mother doubles the improvement in turn. No
+   *  `improve` log: that event re-applies the TARGET's golden in the UI, which would mis-count an external
+   *  bump on a golden Den Mother — the value stays correct via the carry-back + shop/board re-render instead. */
+  rallyImproveSummonAura: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const step = num(params.amount, 5) * mul(self);
+    const targetId = str(params.cardId) || 'mamabear';
+    for (const m of ctx.living(self.side)) {
+      if (m === self || m.cardId !== targetId) continue;
+      m.summonBonus += step;
+    }
   },
 
   /** Solaris Fang — Avenge (X): every X friendly deaths, gain a Divine Shield (Ward) and attack immediately,

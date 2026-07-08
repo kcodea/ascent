@@ -230,6 +230,21 @@ export const BEASTS: CardDef[] = [
     text: 'When you summon a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.',
     goldenText: 'When you summon a **Beast**, give it **+4/+4** — and improve this by **+4/+4**.',
   },
+  {
+    // Rally payoff for a Den Mother board: each of its own attacks permanently improves every friendly Den
+    // Mother's summon aura by +5/+5 (bumps the accrued summonBonus, which carries back so the bigger aura
+    // persists in AND out of combat). Golden → +10/+10 per attack. Dead weight without a Den Mother out.
+    id: 'babycub',
+    name: 'Baby Cub',
+    tribe: 'beast',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyImproveSummonAura', params: { amount: 5, cardId: 'mamabear' } }],
+    text: '**Rally:** improve your **Den Mother** aura by **+5/+5**.',
+    goldenText: '**Rally:** improve your **Den Mother** aura by **+10/+10**.',
+  },
 
   // --- 2026-07-06 content batch ---
   {

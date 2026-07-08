@@ -219,4 +219,32 @@ export const MECHS: CardDef[] = [
     text: '**Slaughter:** gain **2 free refreshes** next shop.',
     goldenText: '**Slaughter:** gain **4 free refreshes** next shop.',
   },
+  {
+    // Slaughter (on kill): grant 2 Gold into your next shop (golden: 4). A high-Attack finisher that snowballs
+    // the economy off kills — carried back after combat.
+    id: 'bountybot',
+    name: 'Bounty Bot',
+    tribe: 'mech',
+    tier: 5,
+    attack: 7,
+    health: 3,
+    keywords: ['SL'],
+    effects: [{ on: 'onKill', do: 'onKillGrantGold', params: { gold: 2 } }],
+    text: '**Slaughter:** gain **2 Gold** next shop.',
+    goldenText: '**Slaughter:** gain **4 Gold** next shop.',
+  },
+  {
+    // Battlecry fetches a Patch Job spell into your hand (a stat spell that scales with Gold spent this turn).
+    // Golden fetches two. Cheap Mech tempo that seeds a spell-payoff / gold-sink turn.
+    id: 'fieldmechanic',
+    name: 'Field Mechanic',
+    tribe: 'mech',
+    tier: 2,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'patchjob' } }],
+    text: '**Battlecry:** add a **Patch Job** to your hand.',
+    goldenText: '**Battlecry:** add **2 Patch Jobs** to your hand.',
+  },
 ];

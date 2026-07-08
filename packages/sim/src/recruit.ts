@@ -225,8 +225,9 @@ function spellCastMult(state: RunState): number {
  * reducer's cast path and the UI's cast-spark replay.
  */
 export function spellCasts(state: RunState, def: CardDef): number {
-  if (def.singleCast || !def.target) return 1;
-  return spellCastMult(state);
+  if (def.singleCast) return 1; // Channeling the Devourer never multiplies
+  const base = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
+  return base * (state.nextSpellMult ?? 1); // Nimbus: a pending charge makes the next spell cast twice (×3 golden)
 }
 
 /**
@@ -388,6 +389,26 @@ export function dominantBoardTribe(state: RunState): Tribe | null {
 }
 
 /**
+ * Wayfinder: pick a random ACTIVE tribe (this run's `tribes`) with NO presence on the player's board — a
+ * tribe "you do not control". Seeded via the run RNG cursor (advances it). Returns null when you already
+ * control every active tribe, in which case the caller Discovers from any tribe. Neutral is never a "tribe".
+ */
+function uncontrolledTribe(state: RunState): Tribe | null {
+  const onBoard = new Set<Tribe>();
+  for (const c of state.board) {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) continue;
+    for (const t of [def.tribe, def.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
+  }
+  const candidates = state.tribes.filter((t) => t !== 'neutral' && !onBoard.has(t));
+  if (candidates.length === 0) return null;
+  const rng = makeRng(state.rngCursor);
+  const pick = candidates[rng.int(candidates.length)]!;
+  state.rngCursor = rng.state();
+  return pick;
+}
+
+/**
  * Cassen's Collision payoff: conjure ONE random buyable minion of the board's most common tribe (active
  * tribes + the always-buyable neutral glue, copies left) into the hand. Returns whether a minion was
  * added — false on an empty / tribe-less board, no eligible card, or a full hand, so the caller keeps the
@@ -542,7 +563,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Discovers twice. Routes through queueDiscover so it composes with Drakko (each extra Battlecry
    *  fire stacks an offer onto the queue). */
   battlecryDiscoverMinion: (ctx, self, params) => {
-    const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    const raw = str(params.tribe) || undefined;
+    // Wayfinder: `tribe: 'uncontrolled'` resolves at play-time to a random active tribe not on your board
+    // (falls back to any tribe if you control them all).
+    const tribe = (raw === 'uncontrolled' ? (uncontrolledTribe(ctx.state) ?? undefined) : raw) as Tribe | undefined;
     const fixed = num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
     // Exclude the source itself — Sea Urchin shouldn't be able to Discover another Sea Urchin.
     const spec: DiscoverSpec = fixed > 0
@@ -838,6 +862,33 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.rallyDoubleNext = true;
   },
 
+  /** Nimbus — Battlecry: your NEXT Tavern spell casts twice (golden: three times). Arms a run-state charge
+   *  (`nextSpellMult`) that `spellCasts` reads and the reducer spends on the next real (non-singleCast) spell
+   *  cast; persists across turns until used. Doubles untargeted economy spells too, unlike Yazzus (aimed-only).
+   *  Re-casting overwrites rather than deeply stacking (a rare corner). */
+  battlecryDoubleNextSpell: (ctx, self) => {
+    ctx.state.nextSpellMult = 1 + gold(self);
+  },
+
+  /** Field Mechanic — Battlecry: add `count` copies of a specific spell (Patch Job) to your hand. Golden
+   *  doubles the count. Respects the hand cap. */
+  battlecryGrantSpell: (ctx, self, params) => {
+    const def = CARD_INDEX[str(params.spellId)];
+    if (!def) return;
+    const count = num(params.count, 1) * gold(self);
+    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+      ctx.state.hand.push({
+        uid: `b${ctx.state.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+  },
+
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*
    *  +atk/+hp run-wide (same mechanism as Ritualist's End-of-Turn enchant). Golden doubles. Fires once
    *  per Battlecry *fire* (so a Drakko-doubled Battlecry procs it twice — `fireBattlecryTriggered`
@@ -947,6 +998,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (self.keywords.includes(toggle)) self.keywords = self.keywords.filter((k) => k !== toggle);
       else self.keywords.push(toggle);
     }
+  },
+
+  /** Patch Job — cast: give the target +atk/+hp for every `gold` Gold spent this recruit turn
+   *  (steps = floor(goldSpentThisTurn / gold)). Spell power scales it PER STEP (each unit grows like a stat
+   *  spell — so the display just greens the per-step "+A/+B"). No steps yet → no buff (no free spell-power grant). */
+  spellBuffTargetPerGold: (ctx, self, params) => {
+    const per = Math.max(1, num(params.gold, 7));
+    const steps = Math.floor((ctx.state.goldSpentThisTurn ?? 0) / per);
+    if (steps <= 0) return;
+    const a = (num(params.attack, 3) + spellAttackBonus(ctx.state)) * steps;
+    const h = (num(params.health, 3) + spellHealthBonus(ctx.state)) * steps;
+    addBuff(self, str(params._source) || 'Patch Job', a, h);
   },
 
   /** Front to Back — cast: linear escalation. Each cast grants +(step + accumulated escalation + spell power),
@@ -1285,6 +1348,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.spellsThisTurn += 1;
   },
 
+  /** Vineweaver Drake — End of Turn: cast `spellId` (Growth) once, plus one more cast for each prior End of
+   *  Turn this minion has seen (escalating). Per-instance `eotTick` counts turns on board (like Frontdrake);
+   *  a Chronos replay rides the same tick without advancing it. Golden doubles the number of casts. */
+  endOfTurnCastSpellEscalating: (ctx, self, params, payload) => {
+    const spellDef = CARD_INDEX[str(params.spellId)];
+    if (!spellDef || spellDef.singleCast) return;
+    const replay = payload.replay === true;
+    if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1; // count this turn once
+    const times = Math.max(1, self.eotTick ?? 1) * gold(self); // Nth End of Turn → N casts (golden doubles)
+    for (let i = 0; i < times; i++) {
+      const friends = ctx.state.board.filter((c) => c !== self);
+      const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
+      applyCastEffects(ctx, spellDef, target);
+      ctx.state.spellsCast += 1;
+      ctx.state.spellsThisTurn += 1;
+    }
+  },
+
   /** Crypt Scribe — End of Turn: conjure `count` random spells (from the buyable spell pool) into your hand.
    *  Golden doubles the count. Advances the run RNG cursor; respects the hand cap. */
   endOfTurnGetRandomSpells: (ctx, self, params) => {
@@ -1616,6 +1697,14 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (scBuff) {
     const a = Number((scBuff.params as { attack?: number } | undefined)?.attack ?? 2);
     const h = Number((scBuff.params as { health?: number } | undefined)?.health ?? 1);
+    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+  }
+  // Patch Job: its per-7-Gold "+A/+B" grows with spell power PER STEP, so green the printed per-step value.
+  // The step COUNT stays as "for every N Gold" text (gold-driven, no stale number to update).
+  const perGold = def.effects.find((e) => e.do === 'spellBuffTargetPerGold');
+  if (perGold) {
+    const a = Number((perGold.params as { attack?: number } | undefined)?.attack ?? 3);
+    const h = Number((perGold.params as { health?: number } | undefined)?.health ?? 3);
     return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
   const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');

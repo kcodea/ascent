@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-07 (session 22)
 
+### feat(content): new-minions batch — wave 2 (10 cards + 6 art wirings)
+
+The plumbing-heavy half of the ~27-card batch (wave 1 was the reuse-an-existing-mechanism cards). Each is card
+data + art + a new effect factory (or reused machinery) registered in BOTH the zod schema AND the `EffectFactoryId`
+core type, plus a passing test. Branch `feat/new-minions-wave2`; full suite green (612), one commit per card.
+
+New subsystem this wave: a **bonus-gold combat→recruit carry-back** (`grantBonusGold` → `CombatResult.playerBonusGold`
+→ `bonusEmbersNextTurn`), mirroring the max-gold / free-rolls / Fodder / spell-power carry-backs.
+
+- **Bounty Bot** (Mech T5 7/3) — *Slaughter:* 2 Gold next shop (new bonus-gold carry-back; `onKillGrantGold`). Art pending.
+- **Pit Supplier** (Demon T3 4/2) — *Avenge 3:* add a Fodder to your next shop (`avengeAddFodder`, reuses the Fodder carry-back).
+- **Runescale Drake** (Dragon T4 4/2) — *Start of Combat:* Dragons +2/+2, +1/+1 more per spell cast this turn (`scTribeBuffPerSpell`, reads `ctx.spellsThisTurn`).
+- **Spell Appraiser** (Neutral T4 1/10) — *Avenge 4:* your Tavern spells +1 Attack this run (`avengeGrantSpellPower`, reuses the spell-power carry-back). **Interpreted "Tavern spells +Attack" as spell power — flag if a different meaning was intended.**
+- **Baby Cub** (Beast T4 4/5) — *Rally:* improve your Den Mother aura +5/+5 (`rallyImproveSummonAura` bumps Den Mother's accrued `summonBonus`, which rides the summonBonus carry-back — persists in AND out of combat).
+- **Nimbus** (Neutral T4 5/4) — *Battlecry:* your next Tavern spell casts twice (×3 golden). New `nextSpellMult` run-state charge read by `spellCasts`, spent by the reducer on the next real cast; doubles untargeted economy spells too (unlike Yazzus). Art pending.
+- **Vineweaver Drake** (Dragon T4 2/2) — *End of Turn:* cast Growth, once more per prior End of Turn (`endOfTurnCastSpellEscalating`; per-instance `eotTick`).
+- **Wayfinder** (Neutral T4 4/2) — *Battlecry:* Discover a minion from an active tribe you don't control (`battlecryDiscoverMinion` gains an `'uncontrolled'` mode + `uncontrolledTribe` helper).
+- **Field Mechanic** (Mech T2 2/2) — *Battlecry:* add a Patch Job to hand (new `battlecryGrantSpell`, golden fetches two).
+- **Patch Job** (spell, T3, cost 2) — give a minion **+3/+3 for every 7 Gold spent this turn**, scaling with spell power per step (`spellBuffTargetPerGold` + a new per-turn `goldSpentThisTurn` counter accrued in `spendGold`; live-greened via `spellDisplayText`). **Reworked from the owner's original "+3/+3 per attachment"** — welded magnetics leave no clean attachment count, so the owner chose the Gold-spent version. Spell-power scaling read as **per-step** (each unit grows), not a flat once-per-cast add — flag to switch.
+
+Also wired art for **6** more overhaul minions: Bane, Brightwing Broker, Sergeant, Korok the Hungerer, Junkyard
+Titan, and Field Mechanic. (Still owed: Nimbus, Moe, Bounty Bot, Hoardbreaker Drake.)
+
+- **Verified:** `typecheck + lint + test (612) + build:web` green throughout.
+- **Remaining (~8, each a genuinely new subsystem):** baked tribe/attachment auras (Squirl Scout, Scrap Herald),
+  combat spell-cast (Spell Drummer, Spark Capacitor, Hoardbreaker Drake), a beasts/dragons-played-this-turn counter
+  (Pack Leader + the Spirit Worgen retext), targeted destroy (Graverobber), and adjacency consume (Abyssal Feeder).
+
 ### feat: Combat Choreographer — Phase 3c (aura bursts)
 
 Phase 3c of the choreographer (spec: [combat-choreographer-design](superpowers/specs/2026-07-06-combat-choreographer-design.md),

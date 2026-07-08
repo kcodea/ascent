@@ -269,4 +269,47 @@ export const NEUTRAL: CardDef[] = [
     effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } }],
     text: '**End of Turn:** Cast **Lasso**.',
   },
+  {
+    // Avenge (4): every 4 friendly deaths, permanently raise your spell power +1 Attack (stat spells give +1
+    // more Attack this run). Carried back like the other spell-power sources. A tanky spell-payoff enabler.
+    id: 'spellappraiser',
+    name: 'Spell Appraiser',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 1,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeGrantSpellPower', params: { count: 4, attack: 1 } }],
+    text: '**Avenge (4):** your Tavern spells have **+1 Attack** this run.',
+    goldenText: '**Avenge (4):** your Tavern spells have **+2 Attack** this run.',
+  },
+  {
+    // Battlecry arms the next Tavern spell you cast to resolve twice (golden: three times) — a spell-value
+    // burst. Sets a run-state charge (`nextSpellMult`) read by spellCasts and spent on the next real cast;
+    // persists across turns until used. Doubles untargeted economy spells too, unlike Yazzus (aimed-only).
+    id: 'nimbus',
+    name: 'Nimbus',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 5,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryDoubleNextSpell' }],
+    text: '**Battlecry:** your next Tavern spell casts **twice**.',
+    goldenText: '**Battlecry:** your next Tavern spell casts **three times**.',
+  },
+  {
+    // Battlecry Discovers a minion from an active tribe with no presence on your board — a splash into a tribe
+    // you're not already building. Falls back to any tribe if you somehow control them all. Golden Discovers
+    // twice (from the same uncontrolled tribe), via battlecryDiscoverMinion's golden branch.
+    id: 'wayfinder',
+    name: 'Wayfinder',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 4,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion', params: { tribe: 'uncontrolled' } }],
+    text: "**Battlecry:** Discover a minion from a tribe you don't control.",
+  },
 ];

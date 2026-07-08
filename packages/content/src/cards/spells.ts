@@ -541,4 +541,21 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellRallyDoubleNext' }],
     text: 'Your **Rally** effects trigger **twice** next combat.',
   },
+  {
+    // Gold-sink payoff: buffs the target +3/+3 for every 7 Gold spent this recruit turn (buys, rerolls,
+    // tier-ups). Scales with spell power per step, like any stat spell. Fetched by Field Mechanic. Reworked
+    // from "per attachment" (2026-07-07) since welded magnetics leave no clean attachment count.
+    id: 'patchjob',
+    name: 'Patch Job',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellBuffTargetPerGold', params: { gold: 7, attack: 3, health: 3 } }],
+    text: 'Give a minion **+3/+3** for every **7 Gold** spent this turn.',
+  },
 ];

@@ -219,6 +219,80 @@ describe('run loop (@game/sim)', () => {
     expect(s.attackFirstNext).toBe(false); // one fight only — cleared at settle
   });
 
+  it('Nimbus: Battlecry makes the next Tavern spell cast twice, then the charge is spent', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm1', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
+      hand: [
+        { uid: 'n1', cardId: 'nimbus', tribe: 'neutral', attack: 5, health: 4, keywords: [], golden: false },
+        { uid: 'g1', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ],
+      embers: 10,
+    };
+    s = reduce(s, { type: 'play', uid: 'n1' }); // Nimbus battlecry arms the charge
+    expect(s.nextSpellMult).toBe(2);
+    s = reduce(s, { type: 'play', uid: 'g1' }); // cast Growth (+3/+4) — doubled to +6/+8
+    const m = s.board.find((c) => c.uid === 'm1')!;
+    expect([m.attack, m.health]).toEqual([2 + 6, 3 + 8]); // two casts of +3/+4
+    expect(s.nextSpellMult).toBeUndefined(); // charge spent
+  });
+
+  it('Vineweaver Drake: End of Turn casts Growth an escalating number of times', () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'v', cardId: 'vineweaver', tribe: 'dragon', attack: 2, health: 2, keywords: [], golden: false },
+        { uid: 't', cardId: 'drone', tribe: 'mech', attack: 0, health: 50, keywords: [], golden: false },
+      ],
+    };
+    applyEndOfTurn(s); // 1st End of Turn → cast Growth once (+3/+4 to all)
+    let t = s.board.find((c) => c.uid === 't')!;
+    expect([t.attack, t.health]).toEqual([3, 54]);
+    applyEndOfTurn(s); // 2nd End of Turn → cast Growth twice more (+6/+8)
+    t = s.board.find((c) => c.uid === 't')!;
+    expect([t.attack, t.health]).toEqual([9, 62]); // 1 + 2 = 3 total casts of +3/+4
+  });
+
+  it('Wayfinder: Battlecry discovers from an active tribe you do not control', () => {
+    let s: RunState = {
+      ...createRun(1),
+      tier: 6,
+      tribes: ['beast', 'dragon'],
+      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'w', cardId: 'wayfinder', tribe: 'neutral', attack: 4, health: 2, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'w' });
+    // beast is controlled (Pennycat on board); dragon is the only uncontrolled active tribe → all options are dragons
+    expect(s.discover?.length ?? 0).toBeGreaterThan(0);
+    for (const id of s.discover ?? []) {
+      const def = CARD_INDEX[id]!;
+      expect(def.tribe === 'dragon' || def.tribe2 === 'dragon').toBe(true);
+    }
+  });
+
+  it('Patch Job: gives +3/+3 per 7 Gold spent this turn', () => {
+    let s: RunState = {
+      ...createRun(1),
+      goldSpentThisTurn: 14, // two 7-Gold steps
+      board: [{ uid: 'm1', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
+      hand: [{ uid: 'p1', cardId: 'patchjob', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      embers: 10,
+    };
+    s = reduce(s, { type: 'play', uid: 'p1', targetUid: 'm1' }); // 14 Gold → 2 × +3/+3 → +6/+6
+    const m = s.board.find((c) => c.uid === 'm1')!;
+    expect([m.attack, m.health]).toEqual([2 + 6, 3 + 6]);
+  });
+
+  it('Field Mechanic: Battlecry adds a Patch Job to hand', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [],
+      hand: [{ uid: 'f1', cardId: 'fieldmechanic', tribe: 'mech', attack: 2, health: 2, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'f1' });
+    expect(s.hand.some((c) => c.cardId === 'patchjob')).toBe(true);
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

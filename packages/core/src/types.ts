@@ -62,6 +62,7 @@ export type EffectFactoryId =
   | 'onKillBuffSelf' // on kill: buff self — permanent via Engraved
   | 'onKillBuffSpellPower' // on kill: permanently raise run-wide spell power +atk/+hp, carried back (Gnasher)
   | 'onKillGrantFreeRolls' // Moe: Slaughter — bank N free rerolls for next shop (carried back)
+  | 'onKillGrantGold' // Bounty Bot: Slaughter — grant N Gold into the next shop (carried back)
   | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
   | 'deathrattleDestroyKiller' // Deathrattle: destroy the minion that dealt the killing blow (Jenkins & Fi)
   | 'deathrattleBuffTribeByTally' // Deathrattle: buff a tribe by +per per Deathrattle triggered this game (Grim)
@@ -93,6 +94,7 @@ export type EffectFactoryId =
   | 'scDestroyHighestAttack'
   | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
+  | 'scTribeBuffPerSpell' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'
@@ -109,6 +111,9 @@ export type EffectFactoryId =
   // Demons — Consume (recruit-resolved half)
   | 'addTavernFodder' // Soulfeeder (Battlecry) / Maw of the Pit (End of Turn): queue Fodder into the next tavern
   | 'deathrattleAddFodder' // Burial Imp: Deathrattle queues Fodder into your next tavern, carried back (Demon)
+  | 'avengeAddFodder' // Pit Supplier: Avenge (N) queues a Fodder into your next shop, carried back (Demon)
+  | 'avengeGrantSpellPower' // Spell Appraiser: Avenge (N) permanently raises run-wide spell power, carried back
+  | 'rallyImproveSummonAura' // Baby Cub: Rally bumps a friendly Den Mother's summon aura (summonBonus), carried back
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
   | 'avengeGrantSpell' // Arcane Weaver: Avenge (X) adds a copy of a spell to your hand after combat (Dragon)
@@ -127,6 +132,7 @@ export type EffectFactoryId =
   | 'onConsumeShieldNextCombat' // Maw of the Pit: on consume, gain a Divine Shield for the next combat only
   // Spells (recruit-resolved): a spell's own effect, and minions that cast spells
   | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (+ optional keyword: Spirit Fire, Bulwark)
+  | 'spellBuffTargetPerGold' // Patch Job: buff the target +atk/+hp per N Gold spent this turn (recruit)
   | 'spellBuffAll' // cast: buff every friendly minion on the board (Growth) — scales with spell power
   | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
   | 'spellBuffTavern' // Apples (Choose One): cast — buff every current tavern offer (lost on refresh, kept on freeze)
@@ -203,7 +209,10 @@ export type EffectFactoryId =
   | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
   | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
   | 'spellRallyDoubleNext' // Rallying Offensive: cast — your Rally effects trigger twice next combat (recruit)
-  | 'rallyCastTribeAttack'; // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
+  | 'rallyCastTribeAttack' // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
+  | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
+  | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
+  | 'battlecryGrantSpell'; // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
 
 export interface EffectDef {
   on: GameEvent;
@@ -571,6 +580,8 @@ export interface CombatResult {
   /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
    *  settleCombat. Absent if 0. */
   playerMaxGoldGain?: number;
+  /** Bounty Bot: one-time Gold to add to the next shop (→ bonusEmbersNextTurn in settleCombat). */
+  playerBonusGold?: number;
   /** Spells the player cast IN this combat (Taragosa's Growth). Added to the run's `spellsCast` in
    *  settleCombat — so combat casts permanently improve spell-count payoffs (Archmagus Guel). Absent if 0. */
   playerSpellsCast?: number;
@@ -658,6 +669,8 @@ export interface CombatContext {
   /** Permanently raise the player's max Gold by `amount` (Soulsman's Avenge). Player-only; carried
    *  back via `CombatResult.playerMaxGoldGain`, applied to maxEmbers in settleCombat. */
   grantMaxGold(amount: number, side: Side): void;
+  /** Bounty Bot: grant one-time Gold into the next shop; carried back via `CombatResult.playerBonusGold`. */
+  grantBonusGold(amount: number, side: Side): void;
   /** Bank `count` free shop rerolls for the player from combat (Gryphon). Player-only; carried back via
    *  CombatResult.playerFreeRolls. */
   grantFreeRolls(count: number, side: Side): void;

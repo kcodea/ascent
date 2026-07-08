@@ -123,6 +123,66 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerFreeRolls).toBe(2);
   });
 
+  it('Bounty Bot Slaughter grants Gold to next shop (carried back)', () => {
+    const p: BoardMinion[] = [{ cardId: 'bountybot', attack: 7, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Bounty Bot kills it → grants 2 Gold
+    const r = run(p, e, 5);
+    expect(r.playerBonusGold).toBe(2);
+  });
+
+  it('Pit Supplier Avenge (3) queues a Fodder into the next shop (carried back)', () => {
+    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 1 Fodder.
+    const p: BoardMinion[] = [
+      { cardId: 'pitsupplier', attack: 4, health: 40 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
+    const r = run(p, e, 3);
+    expect(r.playerFodderGrants).toBe(1);
+  });
+
+  it('Runescale Drake Start of Combat buffs your Dragons +2/+2 (base, 0 spells)', () => {
+    const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
+    const r = run(p, e, 3);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
+  });
+
+  it('Runescale Drake scales with spells cast this turn (3 spells → +5/+5)', () => {
+    const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
+    const r = simulate(p, e, makeRng(3), CARD_INDEX, 3); // 3 spells this turn → base 2 + 3
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 5 && ev.health === 5)).toBe(true);
+  });
+
+  it('Spell Appraiser Avenge (4) raises run-wide spell power +1 Attack (carried back)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'spellappraiser', attack: 1, health: 40 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+      { cardId: 'stray', attack: 1, health: 1 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
+    const r = run(p, e, 4);
+    expect(r.playerSpellPower?.attack).toBe(1); // 4th friendly death → Avenge (4) → +1 spell Attack
+  });
+
+  it('Baby Cub Rally improves the Den Mother aura (summonBonus carries back)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'babycub', attack: 4, health: 30 },
+      { cardId: 'mamabear', attack: 5, health: 30, sourceUid: 'M' },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
+    const r = run(p, e, 5);
+    // No beasts are summoned here, so Den Mother's own aura never climbs — the carry-back entry keyed to 'M'
+    // is purely Baby Cub's Rally bumping it +5 per attack.
+    const entry = r.playerSummonBonus?.find((b) => b.sourceUid === 'M');
+    expect(entry?.bonus ?? 0).toBeGreaterThanOrEqual(5);
+  });
+
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
     // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
     // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.

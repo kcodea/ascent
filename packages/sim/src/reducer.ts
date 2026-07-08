@@ -16,6 +16,7 @@ import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState
 function spendGold(s: RunState, amount: number): void {
   s.embers -= amount;
   s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
+  s.goldSpentThisTurn = (s.goldSpentThisTurn ?? 0) + amount; // per-turn (Patch Job); reset each wave
   applyGoldSpent(s, amount);
 }
 
@@ -306,6 +307,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         } else {
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
+        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
         s.hand.splice(i, 1);
         // A spell that conjures minions (Undead Army, Summon Stone) can hand you a 3rd copy — combine it.
         checkTriples(s);
@@ -399,6 +401,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (hi < 0) { s.chooseOne = undefined; return s; }
         const casts = spellCasts(s, def);
         for (let n = 0; n < casts; n++) castSpell(s, { ...def, effects: option.effects }, undefined);
+        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
         s.hand.splice(hi, 1);
         s.chooseOne = undefined;
         checkTriples(s);
@@ -1081,6 +1084,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.maxEmbers += result.playerMaxGoldGain;
     s.soulsmanGold = (s.soulsmanGold ?? 0) + result.playerMaxGoldGain;
   }
+  // Bounty Bot: one-time Gold granted into the next shop (added to the next turn's starting Gold).
+  if (result.playerBonusGold) {
+    s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + result.playerBonusGold;
+  }
   // Gryphon: free shop rerolls banked from taking damage in combat.
   if (result.playerFreeRolls) {
     s.freeRolls += result.playerFreeRolls;
@@ -1185,6 +1192,7 @@ function advanceCombat(s: RunState): void {
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
+  s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {

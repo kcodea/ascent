@@ -283,4 +283,19 @@ export const NEUTRAL: CardDef[] = [
     text: '**Avenge (4):** your Tavern spells have **+1 Attack** this run.',
     goldenText: '**Avenge (4):** your Tavern spells have **+2 Attack** this run.',
   },
+  {
+    // Battlecry arms the next Tavern spell you cast to resolve twice (golden: three times) — a spell-value
+    // burst. Sets a run-state charge (`nextSpellMult`) read by spellCasts and spent on the next real cast;
+    // persists across turns until used. Doubles untargeted economy spells too, unlike Yazzus (aimed-only).
+    id: 'nimbus',
+    name: 'Nimbus',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 5,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryDoubleNextSpell' }],
+    text: '**Battlecry:** your next Tavern spell casts **twice**.',
+    goldenText: '**Battlecry:** your next Tavern spell casts **three times**.',
+  },
 ];

@@ -187,6 +187,10 @@ export interface RunState {
   /** Rallying Offensive: your Rally effects trigger twice in the NEXT combat. One-shot — does not stack
    *  (a bool), cleared in `settleCombat`. */
   rallyDoubleNext?: boolean;
+  /** Nimbus: a charge that makes the NEXT Tavern spell cast twice (×3 if Nimbus was golden). Read by
+   *  `spellCasts`, spent by the reducer on the next real (non-singleCast) spell cast; persists across turns
+   *  until used (NOT cleared at settle, unlike the combat one-shots above). */
+  nextSpellMult?: number;
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't

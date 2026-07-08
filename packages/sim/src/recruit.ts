@@ -225,8 +225,9 @@ function spellCastMult(state: RunState): number {
  * reducer's cast path and the UI's cast-spark replay.
  */
 export function spellCasts(state: RunState, def: CardDef): number {
-  if (def.singleCast || !def.target) return 1;
-  return spellCastMult(state);
+  if (def.singleCast) return 1; // Channeling the Devourer never multiplies
+  const base = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
+  return base * (state.nextSpellMult ?? 1); // Nimbus: a pending charge makes the next spell cast twice (×3 golden)
 }
 
 /**
@@ -836,6 +837,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  attacker's own on-attack effects one more time; cleared when the combat settles. */
   spellRallyDoubleNext: (ctx) => {
     ctx.state.rallyDoubleNext = true;
+  },
+
+  /** Nimbus — Battlecry: your NEXT Tavern spell casts twice (golden: three times). Arms a run-state charge
+   *  (`nextSpellMult`) that `spellCasts` reads and the reducer spends on the next real (non-singleCast) spell
+   *  cast; persists across turns until used. Doubles untargeted economy spells too, unlike Yazzus (aimed-only).
+   *  Re-casting overwrites rather than deeply stacking (a rare corner). */
+  battlecryDoubleNextSpell: (ctx, self) => {
+    ctx.state.nextSpellMult = 1 + gold(self);
   },
 
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*

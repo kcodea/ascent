@@ -219,6 +219,24 @@ describe('run loop (@game/sim)', () => {
     expect(s.attackFirstNext).toBe(false); // one fight only — cleared at settle
   });
 
+  it('Nimbus: Battlecry makes the next Tavern spell cast twice, then the charge is spent', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm1', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
+      hand: [
+        { uid: 'n1', cardId: 'nimbus', tribe: 'neutral', attack: 5, health: 4, keywords: [], golden: false },
+        { uid: 'g1', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ],
+      embers: 10,
+    };
+    s = reduce(s, { type: 'play', uid: 'n1' }); // Nimbus battlecry arms the charge
+    expect(s.nextSpellMult).toBe(2);
+    s = reduce(s, { type: 'play', uid: 'g1' }); // cast Growth (+3/+4) — doubled to +6/+8
+    const m = s.board.find((c) => c.uid === 'm1')!;
+    expect([m.attack, m.health]).toEqual([2 + 6, 3 + 8]); // two casts of +3/+4
+    expect(s.nextSpellMult).toBeUndefined(); // charge spent
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

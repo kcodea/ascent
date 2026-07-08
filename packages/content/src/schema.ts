@@ -177,6 +177,7 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnGrantSpellChoice',
   'spellRallyDoubleNext',
   'rallyCastTribeAttack',
+  'battlecryDoubleNextSpell',
 ]);
 
 export const EffectDefSchema = z.object({

@@ -208,7 +208,8 @@ export type EffectFactoryId =
   | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
   | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
   | 'spellRallyDoubleNext' // Rallying Offensive: cast — your Rally effects trigger twice next combat (recruit)
-  | 'rallyCastTribeAttack'; // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
+  | 'rallyCastTribeAttack' // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
+  | 'battlecryDoubleNextSpell'; // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
 
 export interface EffectDef {
   on: GameEvent;

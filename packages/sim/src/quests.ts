@@ -1,9 +1,13 @@
 import { makeRng, type QuestTier, type Tribe } from '@game/core';
 import { CARD_INDEX, QUEST_DEFS } from '@game/content';
+import { CONFIG } from './config';
 import { mixSeed, TAG, type RunState } from './state';
 
-/** The three quest-turns and their tiers: wave 4 → lesser, 8 → greater, 12 → capstone; null otherwise. */
+/** The three quest-turns and their tiers: wave 4 → lesser, 8 → greater, 12 → capstone; null otherwise.
+ *  `CONFIG.questsEnabled = false` forces null everywhere — the master off-switch for the quest system. Both
+ *  the reducer's phase gate AND `generateQuestOffer` route through here, so nothing can slip past a single flag. */
 export function questTierForWave(wave: number): QuestTier | null {
+  if (!CONFIG.questsEnabled) return null;
   return wave === 4 ? 'lesser' : wave === 8 ? 'greater' : wave === 12 ? 'capstone' : null;
 }
 

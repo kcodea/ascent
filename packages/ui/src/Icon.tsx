@@ -142,6 +142,23 @@ const ICONS: Record<string, ReactNode> = {
       <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M16 9.5l5 5M21 9.5l-5 5" />
     </>
   ),
+  // Objective — a bullseye/target (concentric rings + centre dot).
+  target: (
+    <>
+      <circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" strokeWidth="2.2" />
+      <circle cx="12" cy="12" r="3.3" fill="currentColor" />
+    </>
+  ),
+  // Reward — a wrapped gift box (lid + vertical ribbon + two bow loops).
+  gift: (
+    <>
+      <rect x="4.6" y="10.6" width="14.8" height="9.4" rx="1.3" fill="currentColor" />
+      <rect x="3.3" y="7.3" width="17.4" height="4" rx="1.2" fill="currentColor" />
+      <rect x="10.8" y="7.3" width="2.4" height="12.7" fill="rgba(0,0,0,0.3)" />
+      <circle cx="8.7" cy="5.5" r="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
+      <circle cx="15.3" cy="5.5" r="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
+    </>
+  ),
 };
 
 export function Icon({ name }: { name: string }) {

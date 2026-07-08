@@ -25,10 +25,14 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **First real quests + reward palette (M3)** — the skinny `Test ·` beast/dragon/undead lesser quests become **Trail
+  Rations / Warm Embers / Grave Toll**, adding `summon`/`shout` objectives and card-generation, delayed-repeat, and
+  Shout-doubling rewards, plus an **art-forward redesign** of the quest cards (crisp art, tribe emblem, framed dark
+  panels, gem). Also: Brood Matron / Steadfast Champion / Solaris Fang Avenge retunes, and the redundant 0-Gold coin removed.
 - **Quest system (M3 — skinny framework, engine + UI)** — on waves 4/8/12 the tavern becomes a **Quest Shop**:
   pick 1 of 3 quests (1 neutral + 2 tribes, 0 Gold) with the tavern locked + timer paused; it goes to a quest
   panel where its objective ticks during play ("Play 2 minions — 1/2") and applies a reward on completion.
-  Seeded/deterministic; test content for now (real objectives + reward palette next).
+  Seeded/deterministic; the beast/dragon/undead lesser slots are now real (above), the rest still test content.
 - **Combat Choreographer — Phase 2 (replay clock)** — the combat-replay beat scheduler is now a pure,
   unit-tested `holdMs` clock; each moment carries a `MomentKind`; pacing config moved into
   `choreo/choreoConfig`. All invisible (timing byte-identical) — the seam phase 3 hangs effect channels on.

@@ -403,6 +403,7 @@ export function Recruit() {
   const fighting = inCombat && combatStage === 'fighting';
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
+  const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
   const [logTab, setLogTab] = useState<'gains' | 'procs' | 'log'>('gains'); // Permanent gains · Procs · blow-by-blow log
   // Per-card stat snapshot (attack + health) for the recruit-phase buff flash + the +X/+X float (declared
   // up here so the combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
@@ -653,13 +654,15 @@ export function Recruit() {
   // translucent backdrop (BELOW the z110 FX canvas), so bubbles for the dimmed board behind would otherwise
   // float in front of the overlay. (Inspect / hero-select / end-of-run sit above the FX canvas already.)
   useEffect(() => {
-    // A minimized Discover leaves the board visible, so keep the behind-card shields showing then.
-    const modalCovering = (run.discover && !discoverMin) || run.chooseOne;
+    // A minimized Discover / Quest overlay leaves the board visible, so keep the behind-card shields showing then.
+    const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || run.chooseOne;
     pixiFx.setShieldsVisible(!modalCovering);
     tauntFx.setShieldsVisible(!modalCovering);
-  }, [run.discover, run.chooseOne, discoverMin]);
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, questMin]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
+  // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
+  useEffect(() => { setQuestMin(false); }, [run.questOffer]);
   // Mount the BEHIND-cards taunt FX layer into its div inside `.app` (once). Its canvas paints above the
   // board surface but below the card rows, so the silver bulwark sits behind each taunt minion.
   useEffect(() => {
@@ -2444,9 +2447,6 @@ export function Recruit() {
 
       <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
         {shopFlash > 0 && <div className="shopflash" key={shopFlash} aria-hidden="true" />}
-        {run.questOffer && (
-          <div className="questbanner"><Icon name="star" /> Quest Shop — choose a quest to begin the turn</div>
-        )}
         <div className="row">
           {fighting ? (
             replay.frame.enemy.map((u) => (
@@ -2459,11 +2459,6 @@ export function Recruit() {
                 triggered={replay.triggerUids.has(u.uid)}
               />
             ))
-          ) : run.questOffer ? (
-            run.questOffer.map((id, i) => {
-              const q = QUEST_INDEX[id];
-              return q ? <QuestCard key={id} quest={q} onBuy={() => dispatch({ type: 'buyQuest', index: i })} /> : null;
-            })
           ) : (
           <>
           {displayShop.map((o, i) => (
@@ -2883,6 +2878,37 @@ export function Recruit() {
                     />
                   </div>
                 );
+              })}
+            </div>
+            <span className="disc-gem disc-gem-bot" aria-hidden="true" />
+          </div>
+        </div>
+      )}
+
+      {/* Quest overlay — mirrors the Discover flow: a blurred modal that can be MINIMIZED to inspect the shop
+          (rolled up front now) + board, then returned to, so the quest pick is shop-informed. Reuses the
+          `.discover-ov` chrome (blur backdrop, panel, gems); the toggle sits in the same fixed spot. */}
+      {run.questOffer && (
+        <button
+          className="disc-toggle quest-toggle"
+          onClick={() => setQuestMin((m) => !m)}
+          title={questMin ? 'Return to the quest offer' : 'Inspect the shop, then return to choose a quest'}
+        >
+          {questMin
+            ? <><Icon name="up" /> Return to Quests · {run.questOffer.length} options</>
+            : <><Icon name="eye" /> Inspect the shop</>}
+        </button>
+      )}
+      {run.questOffer && !questMin && (
+        <div className="discover-ov quest-ov" role="dialog" aria-label="Choose a quest">
+          <div className="disc-panel quest-ov-panel">
+            <span className="disc-gem disc-gem-top" aria-hidden="true" />
+            <div className="disc-banner"><span className="disp">Quest Shop</span></div>
+            <div className="disc-sub">Choose a quest to begin the turn</div>
+            <div className="disc-cards quest-ov-cards">
+              {run.questOffer.map((id, i) => {
+                const q = QUEST_INDEX[id];
+                return q ? <QuestCard key={id} quest={q} onBuy={() => dispatch({ type: 'buyQuest', index: i })} /> : null;
               })}
             </div>
             <span className="disc-gem disc-gem-bot" aria-hidden="true" />

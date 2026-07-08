@@ -234,8 +234,20 @@ export const CardDefSchema = z.object({
 // Kept in lockstep with the `QuestDef` type in @game/core (same as CardDefSchema). `.strict()` rejects typo'd
 // keys so a malformed test quest surfaces in `npm test`, not at runtime.
 export const QuestTierSchema = z.enum(['lesser', 'greater', 'capstone']);
-export const QuestObjectiveEventSchema = z.enum(['buy', 'play', 'sell', 'roll']);
-export const QuestRewardKindSchema = z.enum(['buffBoard']);
+export const QuestObjectiveEventSchema = z.enum(['buy', 'play', 'sell', 'roll', 'summon', 'shout']);
+
+// The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
+export const QuestRewardSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('buffBoard'), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict(),
+  z.object({
+    kind: z.literal('grant'),
+    randomTribe: TribeSchema.optional(),
+    randomCount: z.number().int().positive().optional(),
+    cards: z.array(z.string().min(1)).optional(),
+    repeatInTurns: z.number().int().positive().optional(),
+  }).strict(),
+  z.object({ kind: z.literal('shoutDouble'), count: z.number().int().positive() }).strict(),
+]);
 
 export const QuestDefSchema = z.object({
   id: z.string().min(1),
@@ -245,10 +257,7 @@ export const QuestDefSchema = z.object({
   objective: z.object({
     event: QuestObjectiveEventSchema,
     count: z.number().int().positive(),
+    tribe: TribeSchema.optional(),
   }).strict(),
-  reward: z.object({
-    kind: QuestRewardKindSchema,
-    attack: z.number().int().nonnegative(),
-    health: z.number().int().nonnegative(),
-  }).strict(),
+  reward: QuestRewardSchema,
 }).strict();

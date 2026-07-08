@@ -68,6 +68,14 @@ const POWER_ART = indexArt(
 );
 export const heroPowerArt = (heroId: string): string | undefined => POWER_ART[heroId];
 
+/** Quest art — drop a PNG into `packages/ui/src/art/quests/<questId>.png` (e.g. `q_grave_toll.png`), keyed by
+ *  the quest id like minion art is keyed by cardId. Absent = the quest card falls back to its textless look.
+ *  (First file into a previously-empty folder needs one dev-server restart; see the minions README.) */
+const QUEST_ART = indexArt(
+  import.meta.glob('./art/quests/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+export const questArt = (questId: string): string | undefined => QUEST_ART[questId];
+
 /** Avatar picker: every bundled art the player can choose as their profile avatar, namespaced by pool
  *  (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`) so ids never collide across pools. `key` is the raw
  *  glob key (cardId / heroId), used to resolve a display name from CARD_INDEX / HEROES in the picker. */

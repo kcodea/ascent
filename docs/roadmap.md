@@ -152,7 +152,7 @@ look because the engine already produces the data.
 
 ## Phase C — build-authorship depth (after the spine)
 
-### C1. Quest Shops — 🚧 **engine shipped (PR 1); UI + content next**
+### C1. Quest Shops — 🚧 **engine + UI shipped; real content landing tribe-by-tribe**
 - **Design (locked with owner):** on waves **4/8/12** a quest shop opens *before* the normal shop — 3 quest-cards
   "bought" for 0 Gold like a card (tavern locked, timer paused), added to a persistent quest panel; the objective
   (an event counter) ticks during play and applies a reward on completion. No fail / no expiry. Offer = **1
@@ -164,9 +164,19 @@ look because the engine already produces the data.
   objective tick + `applyQuestReward`; every headless run-loop taught the phase. Fully tested, determinism intact.
 - **✅ UI (PR 2, → devlog):** the Quest Shop (card-sized tribe-hued offers, 0-Gold, banner, control-lock,
   timer-pause) + the quest panel (live objective progress), derived text (`questText.ts`). Verified organically.
-- **Remaining:** **real content** (meaningful objectives + the full reward palette — auras, economy, card gen,
-  unique minions, scaling engines, global multipliers) and a **balance/curve retune** (quests are pure power-add
-  → the enemy curve / Line + committed opponent pool want a pass). **Size:** ongoing (content) + M (balance).
+- **✅ First real content (session 21, → devlog):** Trail Rations (Beast) / Warm Embers (Dragon) / Grave Toll
+  (Undead) replace the same-tribe LESSER `Test ·` quests. Adds `summon` (counts tokens too, tribe-filterable) +
+  `shout` objectives and `grant` (random-tribe minion + named cards like the Gold Pouch, with an optional
+  `repeatInTurns` delayed re-grant) + `shoutDouble` rewards; quest-card art (`art/quests/<id>.png`); dropped the
+  0-Gold coin badge.
+- **✅ Discover-style modal + master toggle (session 21, → devlog):** the offer is now a blurred minimize-to-inspect
+  overlay (reuses the Discover chrome) and the tavern rolls UP FRONT behind it, so the pick is **shop-informed** (see
+  shop + board + threat before committing); determinism preserved (byte-identical golden run). Plus `CONFIG.questsEnabled`
+  — a single-flag on/off for the whole system.
+- **Remaining:** grow the other `Test ·` quests (greater/capstone + mech/demon/neutral) the same way; the rest of
+  the reward palette (auras, global multipliers, matrix-benders); and a **balance/curve retune**
+  (quests are pure power-add → the enemy curve / Line + committed opponent pool want a pass). **Size:** ongoing
+  (content) + M (balance).
 
 ### C2. Mastery Minions
 - Normal shop minions that **improve through repeated actions** (not scheduled, not quests) — find, nurture,

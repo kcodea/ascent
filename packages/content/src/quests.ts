@@ -7,17 +7,19 @@ import { QuestDefSchema } from './schema';
  * neutral per tier, so the offer generator always has a neutral slot and ≥2 distinct tribe slots to draw
  * from, and every tribe has a quest at every tier (so the wave-8/12 "most-played tribe" guarantee resolves).
  *
- * `tribe: 'neutral'` is the build-agnostic slot offered every quest-turn. Objectives deliberately span all
- * four events (buy / play / sell / roll) to exercise the tick routing. Real content — meaningful objectives
- * and the full reward palette (auras, economy, unique minions, scaling engines) — is a later pass; these
- * names/numbers are throwaway.
+ * `tribe: 'neutral'` is the build-agnostic slot offered every quest-turn. The remaining `Test ·` quests use
+ * throwaway objectives (buy / play / sell / roll) and a flat board buff to exercise the tick routing. Real
+ * content is landing tribe by tribe: the LESSER beast/dragon/undead quests below (Trail Rations, Warm Embers,
+ * Grave Toll) are the first — meaningful `summon` / `shout` objectives and the richer reward palette (card
+ * generation, delayed repeats, Shout-doubling). The rest grow the same way.
  */
 export const QUEST_DEFS: QuestDef[] = [
   // ── Lesser (wave 4) ──
   { id: 'q_lesser_neutral', name: 'Test · Warm-Up', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 2 }, reward: { kind: 'buffBoard', attack: 1, health: 1 } },
-  { id: 'q_lesser_beast', name: 'Test · Pack Drill', tribe: 'beast', tier: 'lesser', objective: { event: 'play', count: 2 }, reward: { kind: 'buffBoard', attack: 2, health: 1 } },
-  { id: 'q_lesser_dragon', name: 'Test · Wing Drill', tribe: 'dragon', tier: 'lesser', objective: { event: 'play', count: 2 }, reward: { kind: 'buffBoard', attack: 1, health: 2 } },
-  { id: 'q_lesser_undead', name: 'Test · Grave Toll', tribe: 'undead', tier: 'lesser', objective: { event: 'sell', count: 2 }, reward: { kind: 'buffBoard', attack: 1, health: 1 } },
+  // First REAL lesser content (replaces the throwaway beast/dragon/undead tests):
+  { id: 'q_trail_rations', name: 'Trail Rations', tribe: 'beast', tier: 'lesser', objective: { event: 'summon', count: 3 }, reward: { kind: 'grant', randomTribe: 'beast', randomCount: 1, cards: ['emberpouch'], repeatInTurns: 2 } },
+  { id: 'q_warm_embers', name: 'Warm Embers', tribe: 'dragon', tier: 'lesser', objective: { event: 'shout', count: 2 }, reward: { kind: 'shoutDouble', count: 2 } },
+  { id: 'q_grave_toll', name: 'Grave Toll', tribe: 'undead', tier: 'lesser', objective: { event: 'summon', count: 4, tribe: 'undead' }, reward: { kind: 'grant', randomTribe: 'undead', randomCount: 1 } },
   { id: 'q_lesser_mech', name: 'Test · Test Bench', tribe: 'mech', tier: 'lesser', objective: { event: 'roll', count: 2 }, reward: { kind: 'buffBoard', attack: 1, health: 1 } },
   { id: 'q_lesser_demon', name: 'Test · First Rite', tribe: 'demon', tier: 'lesser', objective: { event: 'play', count: 2 }, reward: { kind: 'buffBoard', attack: 2, health: 0 } },
 

@@ -220,7 +220,7 @@ export const BEASTS: CardDef[] = [
     // Summon-payoff that snowballs: each Beast you summon (in OR out of combat) gets buffed, and the buff
     // grows by +3/+3 every time. Pairs with token-summoners (Manasaber, Mama Pup). Golden doubles.
     id: 'mamabear',
-    name: 'Forest Guardian',
+    name: 'Den Mother',
     tribe: 'beast',
     tier: 5,
     attack: 5,
@@ -267,9 +267,9 @@ export const BEASTS: CardDef[] = [
     keywords: ['RL'],
     effects: [
       { on: 'onAttack', do: 'rallyTribeAura', params: { tribe: 'beast', attack: 5, health: 0 } },
-      { on: 'avenge', do: 'avengeShieldAttack', params: { count: 2 } },
+      { on: 'avenge', do: 'avengeShieldAttack', params: { count: 3 } },
     ],
-    text: '**Rally:** give your Beasts **+5 Attack** wherever they are. **Avenge (2):** gain **Ward** and attack immediately.',
-    goldenText: '**Rally:** give your Beasts **+10 Attack** wherever they are. **Avenge (2):** gain **Ward** and attack immediately.',
+    text: '**Rally:** give your Beasts **+5 Attack** wherever they are. **Avenge (3):** gain **Ward** and attack immediately.',
+    goldenText: '**Rally:** give your Beasts **+10 Attack** wherever they are. **Avenge (3):** gain **Ward** and attack immediately.',
   },
 ];

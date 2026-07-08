@@ -25,13 +25,30 @@ export function QuestPanel() {
         <div className="buffs-body">
           {quests.map((aq) => {
             const def = QUEST_INDEX[aq.questId]!;
+            const r = def.reward;
+            const charges = run.shoutDoubleCharges ?? 0;
+            const repeatTurns = run.pendingQuestRewards?.find((p) => p.questId === aq.questId)?.turnsLeft ?? 0;
+            // The right-hand chip: objective progress while IN PROGRESS; once complete, the reward's LIVE ongoing
+            // state — Warm Embers' Shouts used ("0/2 used"), Trail Rations' repeat countdown ("↻ 2t"), else a ✓
+            // for a one-shot reward that already fired.
+            let chip = questProgressText(aq.progress, def.objective, aq.completed);
+            let ongoing = false;
+            if (aq.completed) {
+              if (r.kind === 'shoutDouble') { chip = `${r.count - charges}/${r.count} used`; ongoing = charges > 0; }
+              else if (r.kind === 'grant' && r.repeatInTurns) { ongoing = repeatTurns > 0; chip = ongoing ? `↻ ${repeatTurns}t` : '✓'; }
+              else chip = '✓';
+            }
+            // Live reward text so the panel never prints a stale number. In progress → "objective → reward";
+            // once taken → the reward (its effect / ongoing state) is what matters.
+            const rewardTxt = questRewardText(r, { completed: aq.completed, shoutCharges: charges, repeatTurns });
+            const sub = aq.completed ? rewardTxt : `${questObjectiveText(def.objective)} → ${rewardTxt}`;
             return (
-              <div className={`quest-row${aq.completed ? ' done' : ''}`} key={aq.questId}>
+              <div className={`quest-row${ongoing ? ' ongoing' : aq.completed ? ' done' : ''}`} key={aq.questId}>
                 <div className="quest-row-head">
                   <span className="quest-name">{def.name}</span>
-                  <span className="quest-prog">{questProgressText(aq.progress, def.objective, aq.completed)}</span>
+                  <span className="quest-prog">{chip}</span>
                 </div>
-                <div className="quest-sub">{questObjectiveText(def.objective)} → {questRewardText(def.reward)}</div>
+                <div className="quest-sub">{sub}</div>
               </div>
             );
           })}

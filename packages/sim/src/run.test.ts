@@ -1385,7 +1385,7 @@ describe('run loop (@game/sim)', () => {
     expect([demon.attack, demon.health]).toEqual([3 + fred.attack + 2, 3 + fred.health + 2]);
   });
 
-  it('offerBuyStats: a consumed offer is worth its CURRENT value — base + run buff + per-offer buff + Staff of Guel, ×2 golden; held keeps its body', () => {
+  it('offerBuyStats: a consumed offer is worth its CURRENT value — base + run buff + per-offer buff + Staff of Guel, BASE ×2 golden; held keeps its body', () => {
     const meal = CARD_INDEX.gnash!;
     const base: RunState = {
       ...createRun(1),
@@ -1395,9 +1395,9 @@ describe('run loop (@game/sim)', () => {
     // base + run buff (1/1) + per-offer buff (3/4) + Staff of Guel (2/2)
     expect(offerBuyStats(base, { uid: 'o', cardId: 'gnash', atk: 3, hp: 4 }))
       .toEqual({ attack: meal.attack + 1 + 3 + 2, health: meal.health + 1 + 4 + 2 });
-    // golden offer (Golden Touch) doubles the whole effective value — exactly like buying it
+    // golden offer (Golden Touch) doubles the BASE only — the run/offer/Staff buffs stay single (like a gild)
     expect(offerBuyStats(base, { uid: 'o', cardId: 'gnash', atk: 3, hp: 4, golden: true }))
-      .toEqual({ attack: (meal.attack + 1 + 3 + 2) * 2, health: (meal.health + 1 + 4 + 2) * 2 });
+      .toEqual({ attack: meal.attack * 2 + 1 + 3 + 2, health: meal.health * 2 + 1 + 4 + 2 });
     // a Displacement-stashed (held) minion is worth its full preserved body, untouched by run/offer buffs
     expect(offerBuyStats(base, { uid: 'o', cardId: 'gnash', held: { uid: 'h', cardId: 'gnash', tribe: 'beast', attack: 40, health: 30, keywords: [], golden: false } }))
       .toEqual({ attack: 40, health: 30 });
@@ -1737,12 +1737,17 @@ describe('run loop (@game/sim)', () => {
     expect(noMana.embers).toBe(before);
   });
 
-  it('Eyes of Aresmar gilds a Tier-4-or-lower minion, but no-ops above Tier 4', () => {
-    // Target Dummy is Tier 1 → gilds (stats double, golden flag set).
+  it('Eyes of Aresmar gilds a Tier-4-or-lower minion (doubling BASE only), but no-ops above Tier 4', () => {
+    // Target Dummy is Tier 1 → gilds. At base (0/4) that's 0/8, golden flag set.
     const ok = castOnBoard('aresmar', [oneNeutral('m', { attack: 0, health: 4, keywords: ['T'] })], 'm');
     const low = ok.board.find((c) => c.uid === 'm')!;
     expect(low.golden).toBe(true);
-    expect([low.attack, low.health]).toEqual([0, 8]); // 0/4 doubled
+    expect([low.attack, low.health]).toEqual([0, 8]); // base 0/4 doubled
+    // A BUFFED target gilds its BASE only: a Target Dummy (base 0/4) buffed to 6/10 gilds to 0/8 + the +6/+6
+    // buff = 6/14 — NOT 12/20 (the old double-everything bug the owner hit with Eyes).
+    const buffed = castOnBoard('aresmar', [oneNeutral('m', { attack: 6, health: 10, buffs: [{ source: 'Fortify', attack: 6, health: 6, count: 1 }] })], 'm');
+    const b = buffed.board.find((c) => c.uid === 'm')!;
+    expect([b.attack, b.health]).toEqual([6, 14]);
     // Grim is Tier 6 → above the cap → the spell is consumed but does nothing.
     const no = castOnBoard('aresmar', [{ uid: 'g', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false }], 'g');
     const high = no.board.find((c) => c.uid === 'g')!;
@@ -2941,13 +2946,15 @@ describe('hero powers (@game/sim)', () => {
     expect(offer.hp).toBe(2);
   });
 
-  it("Indy's Gild doubles a minion's stats, turns it golden, and is once per game", () => {
-    let s: RunState = { ...createRun(1, 'indy'), board: [mk('a', 3, 4), mk('b', 2, 2)] };
+  it("Indy's Gild doubles a minion's BASE stats (not its buffs), turns it golden, once per game", () => {
+    // Target Dummy (base 0/4) buffed to 5/9 by a +5/+5. Gilding doubles the BASE only → 0/4 → 0/8, plus the
+    // +5/+5 buff = 5/13 — NOT 10/18 (the old bug that doubled the whole current stat line).
+    const buffed: BoardCard = { uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 5, health: 9, keywords: [], golden: false, buffs: [{ source: 'Fortify', attack: 5, health: 5, count: 1 }] };
+    let s: RunState = { ...createRun(1, 'indy'), board: [buffed, mk('b', 2, 2)] };
     s = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(s.board[0]!.golden).toBe(true);
-    expect(s.board[0]!.attack).toBe(6); // doubled
-    expect(s.board[0]!.health).toBe(8);
-    expect(s.board[0]!.buffs).toEqual([{ source: 'Gild', attack: 3, health: 4, count: 1 }]);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([5, 13]); // base 0/4 doubled + the +5/+5 buff kept
+    expect(s.board[0]!.buffs).toEqual([{ source: 'Fortify', attack: 5, health: 5, count: 1 }, { source: 'Gild', attack: 0, health: 4, count: 1 }]);
     expect(s.heroPowerSpent).toBe(true);
     // Once per *game*: recharging the per-wave flag must not re-enable it.
     s = { ...s, heroReady: true };
@@ -4103,6 +4110,26 @@ describe('quests (M3 framework)', () => {
     expect(questTierForWave(1)).toBeNull();
   });
 
+  it('CONFIG.questsEnabled = false → the whole quest system goes dark (4/8/12 become normal shop turns)', () => {
+    const prev = CONFIG.questsEnabled;
+    CONFIG.questsEnabled = false;
+    try {
+      // The single gate short-circuits, so both the reducer's phase check and the offer generator go quiet.
+      expect(questTierForWave(4)).toBeNull();
+      expect(questTierForWave(8)).toBeNull();
+      expect(generateQuestOffer({ ...createRun(1), wave: 4 })).toEqual([]);
+      // …and a live advance INTO a quest-wave opens the NORMAL shop — no quest phase, no offer.
+      let s: RunState = { ...createRun(1), wave: 3, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [{ uid: 't1', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false }] };
+      s = reduce(s, { type: 'faceOmen' });
+      s = reduce(s, { type: 'resolveCombat' });
+      expect(s.wave).toBe(4);
+      expect(s.questOffer).toBeUndefined();
+      expect(s.shop.length).toBeGreaterThan(0);
+    } finally {
+      CONFIG.questsEnabled = prev;
+    }
+  });
+
   it('generateQuestOffer: 3 quests of the wave tier — exactly one neutral + 2 distinct tribes', () => {
     const offer = generateQuestOffer({ ...createRun(1), wave: 4 });
     expect(offer.length).toBe(3);
@@ -4124,20 +4151,23 @@ describe('quests (M3 framework)', () => {
     expect(offer.map((id) => QUEST_INDEX[id]!.tribe)).toContain('beast');
   });
 
-  it('advancing into wave 4 opens the quest shop; the tavern is locked until a quest is bought', () => {
+  it('advancing into wave 4 opens the quest shop with the tavern ALREADY rolled behind it (shop-informed pick)', () => {
     let s: RunState = { ...createRun(1), wave: 3, phase: 'recruit', resolve: 200 };
     s = reduce(s, { type: 'faceOmen' }); // → combat (empty board loses, but survives at 200 Resolve)
     s = reduce(s, { type: 'resolveCombat' }); // → advance to wave 4
     expect(s.wave).toBe(4);
     expect(s.questOffer?.length).toBe(3);
-    // Locked: a normal tavern action is a no-op (same state reference) while the quest offer is open.
+    // The shop is rolled UP FRONT now, so it can be inspected (minimized) while choosing the quest.
+    expect(s.shop.length).toBeGreaterThan(0);
+    // Locked: a normal tavern action is still a no-op (same state reference) while the quest offer is open.
     expect(reduce(s, { type: 'roll' })).toBe(s);
-    // Buy the quest → it moves to activeQuests, the offer clears, and the normal shop rolls (the turn begins).
+    // Buy the quest → it moves to activeQuests and the offer clears; the shop is already there (no re-roll).
+    const shopBefore = s.shop.map((o) => o.uid);
     const bought = reduce(s, { type: 'buyQuest', index: 0 });
     expect(bought.questOffer).toBeUndefined();
     expect(bought.activeQuests?.length).toBe(1);
     expect(bought.activeQuests![0]!.questId).toBe(s.questOffer![0]);
-    expect(bought.shop.length).toBeGreaterThan(0);
+    expect(bought.shop.map((o) => o.uid)).toEqual(shopBefore); // same shop — buyQuest didn't re-roll
   });
 
   it('an objective ticks on its tracked action and applies its reward at the threshold', () => {
@@ -4147,16 +4177,16 @@ describe('quests (M3 framework)', () => {
       (c) => !c.chooseOne && !c.target && !c.keywords.includes('M') && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'),
     )!;
     const mk = (uid: string): BoardCard => ({ uid, cardId: plain.id, tribe: plain.tribe, attack: plain.attack, health: plain.health, keywords: [...plain.keywords], golden: false });
-    // q_lesser_beast = objective play×2 → reward +2/+1 to the board.
-    let s: RunState = { ...createRun(1), phase: 'recruit', activeQuests: [{ questId: 'q_lesser_beast', progress: 0, completed: false }], hand: [mk('h1'), mk('h2')], board: [] };
+    // q_lesser_demon = objective play×2 → reward +2/+0 to the board (a surviving `Test ·` buffBoard quest).
+    let s: RunState = { ...createRun(1), phase: 'recruit', activeQuests: [{ questId: 'q_lesser_demon', progress: 0, completed: false }], hand: [mk('h1'), mk('h2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'h1' });
     expect(s.activeQuests![0]!.progress).toBe(1);
     expect(s.activeQuests![0]!.completed).toBe(false);
     s = reduce(s, { type: 'play', uid: 'h2' });
     expect(s.activeQuests![0]!.completed).toBe(true);
-    // Reward (+2/+1) landed on every board minion.
+    // Reward (+2/+0) landed on every board minion.
     expect(s.board.length).toBe(2);
-    expect(s.board.every((c) => c.attack === plain.attack + 2 && c.health === plain.health + 1)).toBe(true);
+    expect(s.board.every((c) => c.attack === plain.attack + 2 && c.health === plain.health)).toBe(true);
   });
 
   it('a full bot run passes cleanly through the quest turns (no soft-lock)', () => {
@@ -4164,5 +4194,93 @@ describe('quests (M3 framework)', () => {
     expect(['gameover', 'victory']).toContain(end.phase); // terminated, not stuck at the step cap
     // One quest bought per quest-turn REACHED (buys happen in recruit, before that wave's combat).
     expect(end.activeQuests?.length ?? 0).toBe([4, 8, 12].filter((w) => end.wave >= w).length);
+  });
+
+  it('a summon objective counts tokens, not just the played card (Pennycat = 2 toward the goal)', () => {
+    // Trail Rations wants 3 summons. Pennycat (played) + its Stray (token) = 2 in ONE play — the "every minion
+    // entering the board" rule; a second play finishes it. Two copies each → no triples confuse the count.
+    const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_trail_rations', progress: 0, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
+    s = reduce(s, { type: 'play', uid: 'a1' });
+    expect(s.activeQuests![0]!.progress).toBe(2); // Pennycat + its summoned Stray
+    expect(s.activeQuests![0]!.completed).toBe(false);
+    s = reduce(s, { type: 'play', uid: 'a2' });
+    expect(s.activeQuests![0]!.completed).toBe(true); // 2 more entries clears the 3-summon bar
+  });
+
+  it('Grave Toll: summoning 4 Undead completes the quest and conjures a random Undead to hand', () => {
+    // Two DISTINCT vanilla undead (only Echoes, which don't fire on play), 2 copies each → 4 undead summons
+    // with no triple to collapse the board (a triple reuses a uid, which the summon diff would undercount).
+    const vanilla = BUYABLE_CARDS.filter((c) => (c.tribe === 'undead' || c.tribe2 === 'undead') && !c.target && !c.chooseOne && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'));
+    const picks = [vanilla[0]!, vanilla[0]!, vanilla[1]!, vanilla[1]!];
+    const hand: BoardCard[] = picks.map((def, i) => ({ uid: `u${i}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false }));
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_grave_toll', progress: 0, completed: false }], hand: [...hand], board: [] };
+    for (const c of hand) s = reduce(s, { type: 'play', uid: c.uid });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'undead' || d.tribe2 === 'undead'); })).toBe(true);
+  });
+
+  it('a summon objective is tribe-gated: playing NEUTRAL minions does not tick "Summon 4 Undead"', () => {
+    const plain = BUYABLE_CARDS.find((c) => c.tribe === 'neutral' && !c.tribe2 && !c.chooseOne && !c.target && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'));
+    if (!plain) return; // no vanilla neutral in the set — skip rather than false-fail
+    const mk = (uid: string): BoardCard => ({ uid, cardId: plain.id, tribe: plain.tribe, attack: plain.attack, health: plain.health, keywords: [...plain.keywords], golden: false });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_grave_toll', progress: 0, completed: false }], hand: [mk('n1'), mk('n2')], board: [] };
+    s = reduce(s, { type: 'play', uid: 'n1' });
+    s = reduce(s, { type: 'play', uid: 'n2' });
+    expect(s.activeQuests![0]!.progress).toBe(0); // neutral summons don't count toward an Undead objective
+  });
+
+  it('Trail Rations: summoning 3 minions grants a Beast + a Gold Pouch and schedules a repeat', () => {
+    // Pennycat (played) + its Stray (token) = 2 summons per play; two plays clear the 3-summon bar with no triple.
+    const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_trail_rations', progress: 0, completed: false }], hand: [mk('m1'), mk('m2')], board: [] };
+    for (const uid of ['m1', 'm2']) s = reduce(s, { type: 'play', uid });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    // Immediate reward: a random Beast + a Gold Pouch (emberpouch) landed in hand.
+    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(true);
+    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast'); })).toBe(true);
+    // …and the "repeat in 2 turns" is scheduled.
+    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_trail_rations', turnsLeft: 2 }]);
+  });
+
+  it('Trail Rations "repeat in 2 turns" re-grants the reward after two turn-advances', () => {
+    const tank = (uid: string): BoardCard => ({ uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false });
+    let s: RunState = { ...createRun(1), wave: 1, tier: 6, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [tank('t1')], hand: [], pendingQuestRewards: [{ questId: 'q_trail_rations', turnsLeft: 2 }] };
+    // Turn advance #1: countdown 2 → 1, nothing granted yet.
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.phase).toBe('recruit');
+    expect(s.pendingQuestRewards).toEqual([{ questId: 'q_trail_rations', turnsLeft: 1 }]);
+    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(false);
+    // Turn advance #2: 1 → 0 → fires (a Beast + a Gold Pouch reach hand); the schedule clears.
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.phase).toBe('recruit');
+    expect(s.pendingQuestRewards ?? []).toEqual([]);
+    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(true);
+    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast'); })).toBe(true);
+  });
+
+  it('Warm Embers: playing 2 Shouts completes the objective and banks 2 doubling charges', () => {
+    const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_warm_embers', progress: 0, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
+    s = reduce(s, { type: 'play', uid: 'a1' });
+    expect(s.activeQuests![0]!.progress).toBe(1); // playing a Shout (Battlecry minion) ticks it
+    s = reduce(s, { type: 'play', uid: 'a2' });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.shoutDoubleCharges).toBe(2);
+  });
+
+  it('Warm Embers: a banked charge makes the next played Shout trigger twice (Pennycat → 2 Strays), then reverts', () => {
+    const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+    // Charged: Pennycat's Battlecry fires twice → 2 Strays; one charge is spent.
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', shoutDoubleCharges: 2, hand: [mk('a1')], board: [] };
+    s = reduce(s, { type: 'play', uid: 'a1' });
+    expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
+    expect(s.shoutDoubleCharges).toBe(1);
+    // Uncharged: the same play summons a single Stray (Drakko-free baseline).
+    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', shoutDoubleCharges: 0, hand: [mk('b1')], board: [] };
+    t = reduce(t, { type: 'play', uid: 'b1' });
+    expect(t.board.filter((c) => c.cardId === 'stray').length).toBe(1);
   });
 });

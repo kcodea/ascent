@@ -89,11 +89,12 @@ describe('simulate (handoff A.3)', () => {
     expect(rally5(call(true))).toBe(4);  // …twice with Rallying Offensive
   });
 
-  it('Solaris Fang Avenge (2): gains a Divine Shield (Ward) and attacks immediately', () => {
-    // Two 0/1 Taunts are the forced targets — they die first while Solaris chips the wall; the 2nd death
-    // triggers Avenge (2) → Solaris gains a shield (shieldUp) and takes a bonus out-of-turn attack.
+  it('Solaris Fang Avenge (3): gains a Divine Shield (Ward) and attacks immediately', () => {
+    // Three 0/1 Taunts are the forced targets — they die first while Solaris chips the wall; the 3rd death
+    // triggers Avenge (3) → Solaris gains a shield (shieldUp) and takes a bonus out-of-turn attack.
     const p: BoardMinion[] = [
       { cardId: 'solaris', attack: 5, health: 40 },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
     ];
@@ -110,8 +111,11 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'solaris', attack: 5, health: 40, golden: true },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
     ];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }]; // retaliates → pops the Ward each hit
+    // A tanky wall: it must outlast Solaris's Rally ramp (golden +10 Attack per swing) so all THREE Taunts
+    // fall to it first and Avenge (3) fires — then it retaliates and pops the Ward on each immediate strike.
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 300 }];
     const r = run(p, e, 7);
     const solarisUid = r.initial.player[0]!.uid;
     const wards = r.events.filter((ev) => ev.type === 'shieldUp' && ev.target === solarisUid).length;
@@ -146,7 +150,8 @@ describe('simulate (handoff A.3)', () => {
   it('mid-combat Undead aura gains reach Undead summoned later that fight (Watcher → Steadfast Spear Warden)', () => {
     const p: BoardMinion[] = [
       { cardId: 'watcher', attack: 8, health: 100 },   // Rally casts Lantern → +3 Undead aura
-      { cardId: 'steadfast', attack: 4, health: 100 }, // Avenge (3) → summons a Spear Warden
+      { cardId: 'steadfast', attack: 4, health: 100 }, // Avenge (4) → summons a Spear Warden
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
@@ -635,12 +640,13 @@ describe('simulate (handoff A.3)', () => {
     expect(whelpAttacks.length).toBeGreaterThanOrEqual(2); // the immediate strike + its own rotation turn
   });
 
-  it('Steadfast Champion Avenge (3): summons a Spear Warden that attacks immediately', () => {
-    // Three 1/1 Strays die (attacking into retaliation / eaten by the omen) while the Champion survives →
-    // the 3rd friendly death procs Avenge: a Spear Warden spawns and strikes OUT OF TURN ORDER — the very
+  it('Steadfast Champion Avenge (4): summons a Spear Warden that attacks immediately', () => {
+    // Four 1/1 Strays die (attacking into retaliation / eaten by the omen) while the Champion survives →
+    // the 4th friendly death procs Avenge: a Spear Warden spawns and strikes OUT OF TURN ORDER — the very
     // next attack event after its summon is its own (no enemy swing squeezes between).
     const p: BoardMinion[] = [
       { cardId: 'steadfast', attack: 7, health: 7 },
+      { cardId: 'stray', attack: 1, health: 1 },
       { cardId: 'stray', attack: 1, health: 1 },
       { cardId: 'stray', attack: 1, health: 1 },
       { cardId: 'stray', attack: 1, health: 1 },
@@ -657,6 +663,7 @@ describe('simulate (handoff A.3)', () => {
   it('GOLDEN Steadfast Champion summons a GOLDEN Spear Warden (doubled base stats), not two', () => {
     const p: BoardMinion[] = [
       { cardId: 'steadfast', attack: 14, health: 14, golden: true },
+      { cardId: 'stray', attack: 1, health: 1 },
       { cardId: 'stray', attack: 1, health: 1 },
       { cardId: 'stray', attack: 1, health: 1 },
       { cardId: 'stray', attack: 1, health: 1 },

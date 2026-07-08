@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### balance(content): golden Sword and Bored → Fodder +1/+1 (not +2/+0)
+
+Owner tune — a golden Sword and Bored's Slaughter now gives your Fodder **+1/+1** instead of the ×2 (+2/+0) a plain
+golden double produces. Added optional `goldenAttack`/`goldenHealth` overrides to `onKillBuffFodder` (Sword and
+Bored's only user) — golden uses the flat override when set, else doubles the base; non-golden is unchanged
+(+1/+0). Added a `goldenText`. Verified typecheck + lint + build + 674 tests, live (golden card reads "+1/+1"),
+and a combat test.
 ### balance(content): Patch Job gains a +3/+3 baseline
 
 Owner tune — Patch Job now gives a **baseline +3/+3**, PLUS +3/+3 for every 7 Gold spent this turn (so +3/+3 at

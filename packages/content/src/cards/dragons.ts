@@ -245,7 +245,7 @@ export const DRAGONS: CardDef[] = [
     id: 'vineweaver',
     name: 'Vineweaver Drake',
     tribe: 'dragon',
-    tier: 4,
+    tier: 6,
     attack: 2,
     health: 2,
     keywords: [],

@@ -46,6 +46,8 @@ export function instantiate(
     golden: board.golden ?? false,
     reAttackOnKill: cardReAttacksOnKill(card),
     summonBonus: board.summonBonus ?? 0,
+    attackImmuneLeft: card.attackImmuneTurns, // Bounty Bot: fresh each combat — immune for its first N swings, spent per attack
+
     overflowBonus: board.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
     hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board
     ascendProgress: board.ascendProgress, // Tara: seed the ascend tally so the live tracker shows the total

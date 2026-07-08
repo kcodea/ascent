@@ -145,10 +145,13 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: [],
-    target: 'friendly',
-    effects: [{ on: 'onPlay', do: 'battlecryTargetConsumeFodder', params: {} }],
-    text: '**Battlecry:** Target a friendly minion — it consumes a **Fodder**.',
-    goldenText: '**Battlecry:** Target a friendly minion — it consumes **2 Fodder**.',
+    effects: [],
+    chooseOne: [
+      { text: 'Give your **Fodder** **+1/+1**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 1, health: 1 } }] },
+      { text: 'A friendly minion consumes a **Fodder**.', target: 'friendly', effects: [{ on: 'onPlay', do: 'battlecryTargetConsumeFodder', params: {} }] },
+    ],
+    text: '**Choose One:** give your **Fodder** **+1/+1**, or a friendly minion consumes a **Fodder**.',
+    goldenText: '**Choose One:** give your **Fodder** **+2/+2**, or a friendly minion consumes **2 Fodder**.',
   },
   {
     id: 'trickster',
@@ -215,9 +218,12 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 2 } }],
-    text: '**Battlecry:** Your Imps have **+2/+2** wherever they are.',
-    goldenText: '**Battlecry:** Your Imps have **+4/+4** wherever they are.',
+    effects: [
+      { on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 2 } },
+      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } },
+    ],
+    text: '**Battlecry:** Your Imps have **+2/+2** wherever they are. **Echo:** summon an Imp.',
+    goldenText: '**Battlecry:** Your Imps have **+4/+4** wherever they are. **Echo:** summon 2 Imps.',
   },
   {
     // Rally engine: each time it attacks, hand another friendly Demon Attack equal to its OWN (a golden

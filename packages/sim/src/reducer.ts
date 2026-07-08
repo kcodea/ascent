@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -209,18 +209,21 @@ function reduceCore(state: RunState, action: Action): RunState {
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
-      if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
+      const buyCost = offer.cost ?? CONFIG.minionCost; // Moe's guaranteed Attachment carries a set 2-Gold price
+      if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
-      spendGold(s, CONFIG.minionCost);
+      spendGold(s, buyCost);
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
-      const isUndead = card.tribe === 'undead' || card.tribe2 === 'undead' || !!card.universalTribe;
-      const uBuyAtk = isUndead ? (s.undeadBuyAtk ?? 0) : 0;
+      // Run-wide tribe ATTACK aura baked at buy: Undead (Lantern/Toxin Tender) + Beast (Squirl Scout), via the
+      // shared helper so every tribe is handled. Applied ONCE, through addBuff below (which also records the
+      // inspect breakdown). NB: this used to bake it into `attack` here AND addBuff it again → a double-count
+      // bug (a bought Undead got 2× undeadBuyAtk); it's now applied exactly once, and Beasts get it too.
+      const buyAura = undeadBuyBonus(s, card);
       const bought: BoardCard = {
         uid: `b${s.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
-        // base + persistent run buff + Deathswarmer/Forsaken Weaver undead attack bonus (baked at buy)
-        attack: card.attack + cb.attack + uBuyAtk,
+        attack: card.attack + cb.attack, // base + persistent run buff; the tribe aura is added just below
         health: card.health + cb.health,
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
@@ -228,7 +231,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       };
       // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
       addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
-      if (uBuyAtk > 0) addBuff(bought, 'Undead Bond', uBuyAtk, 0);
+      const buyAuraHp = buyHealthAura(s, card); // Scrap Herald: Magnetic minions also carry a Health aura
+      if (buyAura > 0 || buyAuraHp > 0) addBuff(bought, 'Tribe Bond', buyAura, buyAuraHp);
       // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
       // Fodder is excluded: it already carries the Staff buff via its run-wide enchant (cardBuff above),
       // so applying it again here would double it on the rare directly-bought Fodder.
@@ -358,6 +362,8 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       if (s.board.length >= CONFIG.boardMax) return state;
       s.hand.splice(i, 1);
+      // Track minions played this turn (by cardId) for Pack Leader / Spirit Worgen ("Beasts/Dragons you played").
+      s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
       const to =
         action.toIndex === undefined
           ? s.board.length
@@ -412,7 +418,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       // A *targeted* Choose One (Runic Beetle): once the buff is chosen, defer to the player picking a
       // friendly target for it (via `battlecryTarget`) — but only when a viable target exists (tribe-
       // restricted, never self). With none, resolve now so the grant auto-picks (falls back to self).
-      if (def.target === 'friendly') {
+      // Defer to targeting if the CHOSEN option needs a target — per-option `target` (The Godfodder's consume
+      // option) takes precedence over the card-level `target` (Runic Beetle, whose options both target).
+      const optTarget = option.target ?? def.target;
+      if (optTarget === 'friendly') {
         const hasTarget = def.targetTribe
           ? s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!))
           : s.board.some((c) => c.uid !== card.uid);
@@ -649,7 +658,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         tribe: def.tribe,
         // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
         attack: def.attack + dcb.attack + undeadBuyBonus(s, def),
-        health: def.health + dcb.health,
+        health: def.health + dcb.health + buyHealthAura(s, def),
         keywords: [...def.keywords],
         golden: false,
       });
@@ -731,14 +740,19 @@ function reduceCore(state: RunState, action: Action): RunState {
       // is unfightable (a served board referencing a card this build removed → `instantiate` throws) — caught
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
+      // Pack Leader: Beasts you PLAYED this turn (frozen for combat), threaded into simulate like spellsThisTurn.
+      const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => {
+        const d = CARD_INDEX[id];
+        return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
+      }).length;
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false);
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false);
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0);
           if (r.result === 'win') win++;
           else if (r.result === 'draw') draw++;
           else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
@@ -1032,7 +1046,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
         cardId: def.id,
         tribe: def.tribe,
         attack: def.attack + cb.attack + undeadBuyBonus(s, def),
-        health: def.health + cb.health,
+        health: def.health + cb.health + buyHealthAura(s, def),
         keywords: [...def.keywords],
         golden: false,
       });
@@ -1091,6 +1105,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Gryphon: free shop rerolls banked from taking damage in combat.
   if (result.playerFreeRolls) {
     s.freeRolls += result.playerFreeRolls;
+  }
+  if (result.playerGuaranteedAttachments) {
+    s.guaranteedAttachmentShops = (s.guaranteedAttachmentShops ?? 0) + result.playerGuaranteedAttachments;
   }
   // Taragosa: spells cast IN combat permanently bump the run's spellsCast — so they count toward
   // spell-count payoffs just like tavern spells. Guel's improvement is per-instance now (spells cast
@@ -1192,6 +1209,7 @@ function advanceCombat(s: RunState): void {
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
+  s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
@@ -1238,7 +1256,7 @@ function advanceCombat(s: RunState): void {
         cardId: 'symbioticattachment',
         tribe: def.tribe,
         attack: def.attack + cb.attack + undeadBuyBonus(s, def),
-        health: def.health + cb.health,
+        health: def.health + cb.health + buyHealthAura(s, def),
         keywords: [...def.keywords],
         golden: false,
       });

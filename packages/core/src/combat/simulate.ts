@@ -49,6 +49,10 @@ export function simulate(
   cardBuffs: Record<string, { attack: number; health: number }> = {},
   playerAttacksFirst = false,
   playerRallyDouble = false,
+  beastsPlayedThisTurn = 0,
+  beastBuyAtk = 0,
+  magneticBuyAtk = 0,
+  magneticBuyHp = 0,
 ): CombatResult {
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
@@ -74,6 +78,7 @@ export function simulate(
   let bonusGoldGain = 0; // one-time Gold granted into the next shop (Bounty Bot's Slaughter)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
   let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
+  let attachmentShopGrants = 0; // Moe: shops that must contain a guaranteed Magnetic offer, banked from combat
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: spellsCast, enemy: 0 };
@@ -101,12 +106,30 @@ export function simulate(
 
   // Each aura yields the +atk/+hp it grants a given minion (0/0 = doesn't apply). `bakedAtk` is the slice of
   // Attack already folded into run-board stats at buy time (re-added only to a from-base body).
-  const AURAS: { label: string; grant: (m: Minion) => { attack: number; health: number; bakedAtk?: number } }[] = [
+  const AURAS: { label: string; grant: (m: Minion) => { attack: number; health: number; bakedAtk?: number; bakedHp?: number } }[] = [
     {
       label: 'Undead Aura',
       grant: (m) =>
         isUndeadMinion(m)
           ? { attack: undeadAttackBonus, health: undeadHealthBonus, bakedAtk: undeadBuyAtk }
+          : { attack: 0, health: 0 },
+    },
+    {
+      // Squirl Scout — run-wide Beast Attack aura, all baked at buy time (no combat-gained slice), so it's
+      // re-added only to from-base bodies (summoned/Reborn Beasts); starting Beasts already carry it.
+      label: 'Beast Aura',
+      grant: (m) =>
+        m.tribe === 'beast' || m.tribe2 === 'beast' || cards[m.cardId]?.universalTribe
+          ? { attack: 0, health: 0, bakedAtk: beastBuyAtk }
+          : { attack: 0, health: 0 },
+    },
+    {
+      // Scrap Herald — run-wide Attachment/Magnetic aura (+atk AND +hp), all baked at buy, so it's re-added
+      // only to from-base bodies (summoned/Reborn Magnetics); starting Magnetics already carry it.
+      label: 'Attachment Aura',
+      grant: (m) =>
+        m.keywords.includes('M')
+          ? { attack: 0, health: 0, bakedAtk: magneticBuyAtk, bakedHp: magneticBuyHp }
           : { attack: 0, health: 0 },
     },
     {
@@ -124,8 +147,9 @@ export function simulate(
       for (const aura of AURAS) {
         const g = aura.grant(m);
         const a = g.attack + (fromBase ? g.bakedAtk ?? 0 : 0);
+        const h = g.health + (fromBase ? g.bakedHp ?? 0 : 0);
         if (a > 0) m.attack = Math.max(0, m.attack + a);
-        if (g.health > 0) { m.health += g.health; m.maxHealth += g.health; }
+        if (h > 0) { m.health += h; m.maxHealth += h; }
       }
     }
     // Per-card run enchant (Fodder Aura + Eternal Knight). The player's prior-run total is authoritative in
@@ -209,6 +233,7 @@ export function simulate(
     boards,
     events,
     spellsThisTurn,
+    beastsPlayedThisTurn,
     spellPower,
     fodderConsumedAtk,
     fodderConsumedHp,
@@ -262,7 +287,7 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
-    summon: (side, card, nearUid, grantKeywords, golden, attackNow) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow),
+    summon: (side, card, nearUid, grantKeywords, golden, attackNow, copyStats) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats),
     flushImmediateAttacks: () => flushImmediateAttacks(),
     attackNow: (minion, shieldFirst) => {
       // Solaris Fang's Avenge: an existing minion takes a bonus strike out of turn order via the same
@@ -320,6 +345,10 @@ export function simulate(
     grantFreeRolls: (count, side) => {
       if (side !== 'player') return; // enemies have no shop
       freeRollGrants += count;
+    },
+    grantGuaranteedAttachments: (count, side) => {
+      if (side !== 'player') return; // enemies have no shop
+      attachmentShopGrants += count;
     },
     grantRandomSpell: (count, side, sourceUid) => {
       if (side !== 'player') return; // enemies have no hand
@@ -400,13 +429,22 @@ export function simulate(
    * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
    * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
     const minion = instantiate(
       { cardId: card.id, attack: card.attack * (golden ? 2 : 1), health: card.health * (golden ? 2 : 1), golden },
       side, cards, mkUid,
     );
+    // Mirrorhide Rhino — an EXACT copy: override to the SOURCE's current combat body (stats + shield/reborn),
+    // set BEFORE the summon snapshot so the replay shows the copy at its real stats, not the base card.
+    if (copyStats) {
+      minion.attack = copyStats.attack;
+      minion.health = copyStats.health;
+      minion.maxHealth = copyStats.maxHealth;
+      if (copyStats.divineShield) minion.divineShield = true;
+      if (copyStats.rebornAvailable) minion.rebornAvailable = true;
+    }
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff).
     if (living(side).length >= 7) {
@@ -420,7 +458,7 @@ export function simulate(
       if (near >= 0) index = near + 1;
     }
     arr.splice(index, 0, minion);
-    applyAuras(minion, true); // run-wide auras — a summon starts from base stats, so re-apply all of them
+    if (!copyStats) applyAuras(minion, true); // a plain summon starts from base; an exact copy already carries its final stats
     // Grant keywords (e.g. Taunt from Broodmother) BEFORE snapshotting so the UI sees them from frame 1.
     if (grantKeywords) {
       for (const kw of grantKeywords) {
@@ -779,8 +817,14 @@ export function simulate(
       const counterVenom = target.keywords.includes('V');
       victims.push({ m: target, killer: attacker, couldReborn: targetCouldReborn });
       applyDamage(target, attacker.attack, poison, false, attacker); // main hit
-      victims.push({ m: attacker, killer: target, couldReborn: attacker.rebornAvailable });
-      applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
+      // Bounty Bot: "immune while attacking" for its first N swings this combat — take no retaliation, and
+      // spend one charge of immunity per swing (so it protects the first N attacks, not the first N combats).
+      if ((attacker.attackImmuneLeft ?? 0) > 0) {
+        attacker.attackImmuneLeft = attacker.attackImmuneLeft! - 1;
+      } else {
+        victims.push({ m: attacker, killer: target, couldReborn: attacker.rebornAvailable });
+        applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
+      }
 
       // PHASE 2 — deaths resolve in damage order (cleave victims → target → attacker). Each fallen body's
       // Deathrattle / Rise runs only now, after every hit of the clash has landed — so death effects see the
@@ -1023,6 +1067,7 @@ export function simulate(
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerBonusGold: bonusGoldGain > 0 ? bonusGoldGain : undefined,
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
+    playerGuaranteedAttachments: attachmentShopGrants > 0 ? attachmentShopGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,

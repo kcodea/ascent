@@ -130,8 +130,21 @@ export function cardBuff(state: RunState, cardId: string): { attack: number; hea
  * non-Undead; `universalTribe` counts (Chaos Attachment), matching the buy path's `isUndead`.
  */
 export function undeadBuyBonus(state: RunState, def: CardDef): number {
-  const undead = def.tribe === 'undead' || def.tribe2 === 'undead' || !!def.universalTribe;
-  return undead ? (state.undeadBuyAtk ?? 0) : 0;
+  // Run-wide tribe ATTACK auras baked into a minion at creation: Undead (Lantern/Toxin Tender) + Beast
+  // (Squirl Scout). A universal-tribe minion counts as both. Called at every creation site (buy / conjure /
+  // steal / discover / offer), so a new bonus tribe added here reaches them all.
+  const universal = !!def.universalTribe;
+  let bonus = 0;
+  if (universal || def.tribe === 'undead' || def.tribe2 === 'undead') bonus += state.undeadBuyAtk ?? 0;
+  if (universal || def.tribe === 'beast' || def.tribe2 === 'beast') bonus += state.beastBuyAtk ?? 0;
+  if (def.keywords.includes('M')) bonus += state.magneticBuyAtk ?? 0; // Scrap Herald (Magnetic/Attachment aura)
+  return bonus;
+}
+
+/** Run-wide HEALTH aura baked at creation — Magnetic minions only (Scrap Herald). The Beast/Undead auras are
+ *  attack-only, so this Health half is separate; added to a minion's `health` at every creation site. */
+export function buyHealthAura(state: RunState, def: CardDef): number {
+  return def.keywords.includes('M') ? (state.magneticBuyHp ?? 0) : 0;
 }
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
@@ -358,7 +371,7 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number): v
       cardId: def.id,
       tribe: def.tribe,
       attack: def.attack + cb.attack + undeadBuyBonus(state, def),
-      health: def.health + cb.health,
+      health: def.health + cb.health + buyHealthAura(state, def),
       keywords: [...def.keywords],
       golden: false,
     });
@@ -538,7 +551,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         cardId: def.id,
         tribe: def.tribe,
         attack: def.attack + cb.attack + undeadBuyBonus(ctx.state, def),
-        health: def.health + cb.health,
+        health: def.health + cb.health + buyHealthAura(ctx.state, def),
         keywords: [...def.keywords],
         golden: false,
       });
@@ -768,6 +781,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
 
+  /** Spirit Worgen — End of Turn: gain +(atk)/+(hp) for each `tribes` minion you PLAYED this turn, with the
+   *  per-unit amount improved by +1/+1 for each spell you cast this turn (`spellsThisTurn`). Golden doubles the
+   *  whole gain. Reads the per-turn `playedThisTurn` counter (reset each turn), so it rewards a wide beast/dragon
+   *  turn backed by spells. */
+  endOfTurnBuffPerTribePlayed: (ctx, self, params) => {
+    const tribes = (params.tribes as Tribe[] | undefined) ?? ['beast', 'dragon'];
+    const played = (ctx.state.playedThisTurn ?? []).filter((id) => {
+      const def = CARD_INDEX[id];
+      return def ? tribes.some((t) => def.tribe === t || def.tribe2 === t) : false;
+    }).length;
+    if (played === 0) return;
+    const g = gold(self);
+    const perA = num(params.attack, 2) + ctx.state.spellsThisTurn;
+    const perH = num(params.health, 2) + ctx.state.spellsThisTurn;
+    addBuff(self, nameOf(self), perA * played * g, perH * played * g);
+  },
+
   /** Frontdrake — End of Turn: every `every` turns on the board, conjure `count` random minions of
    *  `tribe` into the hand (tier ≤ tavern tier, active tribes, copies left — "abides by tavern rules").
    *  Golden doubles the count. The per-card `eotTick` advances ONCE per turn (on proc 0), so Chronos
@@ -920,6 +950,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** The Godfodder (Choose One, option A) — Battlecry: give your Fodder +atk/+hp run-wide (persistent, the
+   *  same run-wide Fodder enchant as Ritualist / Bane). Golden doubles. */
+  battlecryBuffFodder: (ctx, self, params) => {
+    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+  },
+
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*
    *  +atk/+hp run-wide (same mechanism as Ritualist's End-of-Turn enchant). Golden doubles. Fires once
    *  per Battlecry *fire* (so a Drakko-doubled Battlecry procs it twice — `fireBattlecryTriggered`
@@ -952,6 +988,36 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       for (const m of ctx.state.board) addBuff(m, nameOf(self), a, h);
     }
     ctx.state.deathrattlesTriggered += 1;
+  },
+
+  /** Graverobber — Battlecry: destroy the targeted friendly minion, firing its Deathrattle out of combat
+   *  (the recruit DR factories bake summons/buffs into the board; combat-only rattles are simply inert in the
+   *  shop), then add `gold(self)` random Tavern spell(s) of the destroyed minion's tier to your hand (golden
+   *  → 2). No spell exists at that tier → none is added. */
+  battlecryDestroyForSpell: (ctx, self, params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    const tier = CARD_INDEX[target.cardId]?.tier ?? 1;
+    const idx = ctx.state.board.indexOf(target);
+    if (idx >= 0) ctx.state.board.splice(idx, 1); // destroy it (frees the slot for any Deathrattle summons)
+    for (const eff of CARD_INDEX[target.cardId]?.effects ?? []) {
+      if (eff.on !== 'onDeath') continue;
+      const fn = RECRUIT_FACTORIES[eff.do];
+      if (fn) fn(ctx, target, eff.params ?? {}, { minion: target });
+    }
+    ctx.state.deathrattlesTriggered += 1;
+    const pool = SPELL_CARDS.filter((c) => c.tier === tier);
+    if (pool.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < gold(self) && ctx.state.hand.length < CONFIG.handMax; i++) {
+      const spell = pool[rng.int(pool.length)]!;
+      ctx.state.hand.push({
+        uid: `b${ctx.state.uidSeq++}`,
+        cardId: spell.id, tribe: spell.tribe, attack: spell.attack, health: spell.health,
+        keywords: [...spell.keywords], golden: false,
+      });
+    }
+    ctx.state.rngCursor = rng.state();
   },
 
   // --- Deathrattles that can also resolve out of combat (e.g. when Consumed). The
@@ -1003,6 +1069,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (pool.length === 0) return;
     const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
     t.keywords.push('DS');
+  },
+
+  /** Deathrattle (Mumi): give a friendly minion of `tribe` (default any) **Rise** out of combat — fired when
+   *  Mumi is destroyed by Graverobber or Consumed. Mirrors the combat version: skips minions that already have
+   *  Rise; the "random" pick becomes the highest-Attack carry out of combat. Granting the `R` keyword is enough —
+   *  combat's `instantiate` re-arms `rebornAvailable` from it. Golden grants Rise to two friends. */
+  deathrattleGrantReborn: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe | '';
+    for (let i = 0; i < gold(self); i++) {
+      const pool = ctx.state.board.filter((c) => c !== self && !c.keywords.includes('R') && (!tribe || isTribe(c, tribe)));
+      if (pool.length === 0) return;
+      const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
+      t.keywords.push('R');
+    }
   },
 
   // --- Spells ---
@@ -1154,7 +1234,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       tribe: card.tribe,
       // Stolen like a buy → also carries the run-wide Undead Attack bonus (undeadBuyAtk).
       attack: card.attack + cb.attack + (offer.atk ?? 0) + undeadBuyBonus(state, card),
-      health: card.health + cb.health + (offer.hp ?? 0),
+      health: card.health + cb.health + (offer.hp ?? 0) + buyHealthAura(state, card),
       keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
       golden: false,
     });
@@ -1429,6 +1509,31 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
   },
 
+  /** Squirl Scout — Battlecry: your Beasts get +amount Attack "wherever they are". Buffs every current Beast
+   *  (board + hand) now and stacks the bonus into `beastBuyAtk`, so future Beasts (bought / conjured / summoned /
+   *  Reborn) carry it too — the Beast sibling of Toxin Tender's Undead aura. Golden doubles N. */
+  battlecryBuffBeastAttack: (ctx, self, params) => {
+    const amount = num(params.amount, 2) * gold(self);
+    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
+      if (isTribe(card, 'beast')) addBuff(card, nameOf(self), amount, 0);
+    }
+    ctx.state.beastBuyAtk = (ctx.state.beastBuyAtk ?? 0) + amount;
+  },
+
+  /** Scrap Herald — Battlecry: your Magnetic minions ("Attachments") get +atk/+hp "wherever they are". Buffs
+   *  every current Magnetic (board + hand) now and stacks into `magneticBuyAtk`/`magneticBuyHp`, so future
+   *  Magnetics (bought / conjured / summoned / Reborn) carry it too — the Magnetic sibling of Squirl Scout's
+   *  Beast aura, but with a Health half. Golden doubles. */
+  battlecryBuffMagnetics: (ctx, self, params) => {
+    const a = num(params.attack, 2) * gold(self);
+    const h = num(params.health, 2) * gold(self);
+    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
+      if (card.keywords.includes('M')) addBuff(card, nameOf(self), a, h);
+    }
+    ctx.state.magneticBuyAtk = (ctx.state.magneticBuyAtk ?? 0) + a;
+    ctx.state.magneticBuyHp = (ctx.state.magneticBuyHp ?? 0) + h;
+  },
+
   /** Koron — every `every` Gold you spend (the per-instance gold meter), permanently buff your Fodder run-wide
    *  (like Bane's enchant) AND queue `fodder` Fodder into your next tavern. Golden doubles both the stat grant
    *  and the Fodder count. Fired by `applyGoldSpent` once per threshold. (Imps are no longer affected.) */
@@ -1687,7 +1792,7 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Front to Back (escalating): the printed text carries TWO "+B/+B" groups — the GRANT (slot 0) and the
@@ -1709,6 +1814,19 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
       return m;
     });
   }
+  // Patch Job: the per-step "+a/+h" greens for spell power (it grows per step); and once Gold's been spent this
+  // turn, append the CURRENT total it will grant right now (steps × the per-step value) so the card shows what it
+  // actually gives. Handled BEFORE the no-spell-power early-return, since the Gold total scales without any.
+  const perGold = def.effects.find((e) => e.do === 'spellBuffTargetPerGold');
+  if (perGold) {
+    const a = Number((perGold.params as { attack?: number } | undefined)?.attack ?? 3);
+    const h = Number((perGold.params as { health?: number } | undefined)?.health ?? 3);
+    const per = Number((perGold.params as { gold?: number } | undefined)?.gold ?? 7);
+    const stepText = bonusA > 0 || bonusH > 0 ? def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`) : def.text;
+    const steps = Math.floor(Math.max(0, goldSpent) / per);
+    if (steps <= 0) return stepText;
+    return `${stepText} {{Now +${steps * (a + bonusA)}/+${steps * (h + bonusH)}.}}`;
+  }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
   // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).
   const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');
@@ -1728,14 +1846,6 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (scBuff) {
     const a = Number((scBuff.params as { attack?: number } | undefined)?.attack ?? 2);
     const h = Number((scBuff.params as { health?: number } | undefined)?.health ?? 1);
-    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
-  }
-  // Patch Job: its per-7-Gold "+A/+B" grows with spell power PER STEP, so green the printed per-step value.
-  // The step COUNT stays as "for every N Gold" text (gold-driven, no stale number to update).
-  const perGold = def.effects.find((e) => e.do === 'spellBuffTargetPerGold');
-  if (perGold) {
-    const a = Number((perGold.params as { attack?: number } | undefined)?.attack ?? 3);
-    const h = Number((perGold.params as { health?: number } | undefined)?.health ?? 3);
     return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
   const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');
@@ -1810,8 +1920,10 @@ function makeContext(state: RunState): RecruitContext {
         uid: `b${state.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
-        attack: card.attack + buff.attack,
-        health: card.health + buff.health,
+        // A summoned minion inherits the run-wide tribe buy-auras too (Squirl Scout's Beast Attack on a Stray,
+        // Lantern on an Undead token, Scrap Herald on a magnetized token) — same bake as bought/conjured beasts.
+        attack: card.attack + buff.attack + undeadBuyBonus(state, card),
+        health: card.health + buff.health + buyHealthAura(state, card),
         keywords: [...card.keywords],
         golden: false,
       };
@@ -2085,7 +2197,7 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0);
   const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
   let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA;
-  let health = def.health + cb.health + (offer.hp ?? 0) + staffH;
+  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def);
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild
   return { attack, health };
 }

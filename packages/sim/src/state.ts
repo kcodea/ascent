@@ -52,6 +52,9 @@ export interface ShopCard {
   keywords?: Keyword[];
   /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
   golden?: boolean;
+  /** Moe: a set discount price for this offer (a guaranteed Attachment costs 2 Gold). When present, the buy
+   *  path charges this instead of the flat minion cost, and the UI shows a green price coin (a changed price). */
+  cost?: number;
   /** Displacement: a board minion stashed here when swapped to the tavern — restored INTACT (all buffs /
    *  stats / progression) when re-bought or swapped back, rather than re-instantiated from base. */
   held?: BoardCard;
@@ -195,6 +198,9 @@ export interface RunState {
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
    *  the lifetime `goldSpent` career stat. */
   goldSpentThisTurn?: number;
+  /** Minion cardIds PLAYED this recruit turn (normal plays) — Pack Leader (SoC, via a simulate param) and
+   *  Spirit Worgen (End of Turn) scale off "Beasts/Dragons you played this turn". Reset each turn. */
+  playedThisTurn?: string[];
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't
@@ -233,6 +239,9 @@ export interface RunState {
   combatSettled: boolean;
   /** Free rerolls banked (Refreshing Texts) — a roll spends these before charging Mana. */
   freeRolls: number;
+  /** Moe: number of upcoming shops that must contain a guaranteed Magnetic offer. Each `rollShop` forces one in
+   *  (if none rolled naturally) and decrements this. */
+  guaranteedAttachmentShops?: number;
   /** Front to Back's accumulated escalation: each cast grants +(2 + this + spell power), then this += 2
    *  (a flat step — the per-cast improvement is always +2/+2). */
   frontToBackBonus: number;
@@ -249,6 +258,14 @@ export interface RunState {
    *  card when it's bought, and re-applied on Reborn (Reborn resets to base stats). Separate from
    *  `undeadAttackBonus` (Lantern of Souls) which applies in combat only. */
   undeadBuyAtk: number;
+  /** Run-wide Beast attack bonus (Squirl Scout): your Beasts get this much Attack everywhere — baked into a
+   *  Beast when it's created, and re-applied on Reborn/summon (from-base combat bodies). Beast sibling of
+   *  `undeadBuyAtk`. */
+  beastBuyAtk: number;
+  /** Run-wide Magnetic/Attachment aura (Scrap Herald): your Magnetic minions get +magneticBuyAtk/+magneticBuyHp
+   *  everywhere — baked in on creation, re-applied on Reborn/summon. The only tribe-style aura with a Health half. */
+  magneticBuyAtk: number;
+  magneticBuyHp: number;
   /** Run-wide SPELL POWER: extra +atk/+hp every stat-granting spell grants, on top of the hero's
    *  amplify (Spellbinder). Raised by cards — Cinderwing Matron (+1 Health on play), Skullblade
    *  (+1 Attack per combat death, carried back). Folded into `spellAttackBonus` / `spellHealthBonus`. */
@@ -462,6 +479,9 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     undeadAttackBonus: 0,
     undeadHealthBonus: 0,
     undeadBuyAtk: 0,
+    beastBuyAtk: 0,
+    magneticBuyAtk: 0,
+    magneticBuyHp: 0,
     spellBonus: { attack: 0, health: 0 },
     tavernBuyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,

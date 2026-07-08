@@ -15,7 +15,7 @@ export function summonBuffText(cardId: string, summonBonus: number): string | nu
   const def = CARD_INDEX[cardId];
   // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start-of-Combat Beast aura). Both
   // grant `base + summonBonus`, so the same live magnitude injects into the printed "+N/+N".
-  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
+  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'scTribeBuffImproving');
   if (!def || !eff) return null;
   const base = Number((eff.params as { attack?: number })?.attack ?? 1);
   const m = base + summonBonus;
@@ -86,18 +86,60 @@ export function cadenceProgressText(cardId: string, eotTick: number): string | n
 }
 
 /**
- * Spirit Worgen's per-summon gain scales with spells cast this turn — the printed "+1/+1" is shown as
- * its current "+X/+X" (X = base + spellsThisTurn), highlighted green, once a spell's been cast this
- * turn. Returns null otherwise (so it falls back to the printed value).
+ * Spirit Worgen's End-of-Turn per-unit gain (+atk/+hp for each Beast/Dragon played this turn) is improved
+ * +1/+1 for each spell cast this turn — so the printed "+base/+base" shows as its current "+X/+X"
+ * (X = base + spellsThisTurn), highlighted green, once a spell's been cast this turn. Returns null otherwise
+ * (falls back to the printed value). The ×(played) multiplier isn't shown — only the per-unit, as before.
  */
 export function summonScalingText(cardId: string, spellsThisTurn: number): string | null {
   if (spellsThisTurn <= 0) return null;
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'summonBuffSelfTribe');
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffPerTribePlayed');
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
+  const base = Number((eff.params as { attack?: number })?.attack ?? 2);
   const x = base + spellsThisTurn;
   return def.text.replace(`+${base}/+${base}`, `{{+${x}/+${x}}}`);
+}
+
+/**
+ * Runescale Drake's Start-of-Combat Dragon buff climbs +perSpell/+perSpell for each spell cast this turn.
+ * Surface the CURRENT grant (green) — (base + perSpell × spellsThisTurn), ×2 if golden — by replacing ONLY the
+ * first "+A/+B" group (the grant), leaving the "+step/+step" improvement rate that follows. Returns null with
+ * no spells cast yet (the printed base is already accurate).
+ */
+export function scTribeBuffPerSpellText(cardId: string, golden: boolean, spellsThisTurn: number): string | null {
+  if (spellsThisTurn <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerSpell');
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { attack?: number })?.attack ?? 2);
+  const per = Number((eff.params as { perSpell?: number })?.perSpell ?? 1);
+  const x = (base + per * spellsThisTurn) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${x}/+${x}}}`)));
+}
+
+/**
+ * Vineweaver Drake casts an escalating spell (Growth) each End of Turn — the Nth End of Turn fires N casts
+ * (golden doubles). Surface BOTH live values green: how much each cast grants right now (the spell's base
+ * grant + current spell power) and how many casts land at the NEXT End of Turn ((eotTick+1)×, golden ×2), so
+ * the payoff is legible before it fires. Returns null for non-matching cards (falls back to printed text).
+ */
+export function escalatingCastText(
+  cardId: string, golden: boolean, eotTick: number, spellBonus: number, spellBonusH: number,
+): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnCastSpellEscalating');
+  if (!def || !eff) return null;
+  const spell = CARD_INDEX[String((eff.params as { spellId?: string })?.spellId ?? '')];
+  const buff = spell?.effects.find((e) => e.do === 'spellBuffAll')?.params as { attack?: number; health?: number } | undefined;
+  if (!spell || !buff) return null;
+  const atk = (buff.attack ?? 0) + spellBonus;
+  const hp = (buff.health ?? 0) + spellBonusH;
+  const casts = Math.max(1, eotTick + 1) * (golden ? 2 : 1); // the NEXT End of Turn's cast count
+  const times = casts === 1 ? '' : ` {{${casts}×}}`;
+  return `**End of Turn:** Cast **${spell.name}** {{+${atk}/+${hp}}}${times}. Repeats +1 each End of Turn.`;
 }
 
 /**

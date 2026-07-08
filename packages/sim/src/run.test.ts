@@ -43,6 +43,7 @@ import {
 } from './index';
 import type { BoardMinion } from '@game/core';
 import { applyEndOfTurn, applyGoldSpent } from './recruit';
+import { rollShop } from './shop';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
 function playToEnd(seed: number): RunState {
@@ -283,6 +284,12 @@ describe('run loop (@game/sim)', () => {
     expect([m.attack, m.health]).toEqual([2 + 6, 3 + 6]);
   });
 
+  it('Patch Job display shows the CURRENT total based on Gold spent this turn', () => {
+    expect(spellDisplayText('patchjob', 0, 0, 0, 0)).toBe(CARD_INDEX['patchjob']!.text); // no Gold → the per-step rate
+    expect(spellDisplayText('patchjob', 0, 0, 0, 14)).toContain('{{Now +6/+6.}}'); // 14 Gold → 2 steps → +6/+6
+    expect(spellDisplayText('patchjob', 2, 0, 2, 14)).toContain('{{Now +10/+10.}}'); // + spell power lifts each step (+5 × 2)
+  });
+
   it('Field Mechanic: Battlecry adds a Patch Job to hand', () => {
     let s: RunState = {
       ...createRun(1),
@@ -306,6 +313,149 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'L')!.attack).toBeGreaterThan(2); // consumed a Fodder → gained its stats
     expect(s.board.find((c) => c.uid === 'R')!.attack).toBeGreaterThan(2);
     expect(s.board.find((c) => c.uid === 'F')!.attack).toBe(7); // the Feeder itself doesn't consume
+  });
+
+  it('Pack Leader: Start of Combat buffs Beasts +2/+2 and permanently improves by +2/+2', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'pl', cardId: 'packleader', tribe: 'beast', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'faceOmen' }); // first combat: SoC gives Beasts +2/+2
+    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.find((c) => c.uid === 'pl')?.summonBonus).toBe(2); // the improve carries back (+2 accrued)
+    // second combat now grants base 2 + accrued 2 = +4/+4
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+  });
+
+  it('Graverobber: Battlecry destroys a targeted friendly, procs its Deathrattle + grants a spell of its tier', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 't', cardId: 'broodmother', tribe: 'dragon', attack: 2, health: 5, keywords: [], golden: false }], // T4, DR: summon 2 Whelps
+      hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' }); // Graverobber to board + pendingTarget
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 't' }); // destroy the Whelpmother
+    expect(s.board.find((c) => c.uid === 't')).toBeUndefined(); // destroyed
+    expect(s.board.filter((c) => c.cardId === 'twilightwhelp').length).toBe(2); // its Deathrattle summoned 2 Whelps
+    expect(s.hand.some((c) => CARD_INDEX[c.cardId]?.spell && CARD_INDEX[c.cardId]?.tier === 4)).toBe(true); // a tier-4 spell (Whelpmother is T4)
+  });
+
+  it('Graverobber on Mumi fires its Deathrattle out of combat — a friendly Undead gains Rise', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'm', cardId: 'mumi', tribe: 'undead', attack: 5, health: 1, keywords: [], golden: false }, // DR: give a friendly Undead Rise
+        { uid: 'u', cardId: 'karthus', tribe: 'undead', attack: 8, health: 3, keywords: [], golden: false }, // the highest-Attack Undead carry
+      ],
+      hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'm' }); // destroy Mumi → its Deathrattle should fire
+    expect(s.board.find((c) => c.uid === 'm')).toBeUndefined(); // Mumi destroyed
+    expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
+  });
+
+  it('Squirl Scout: Battlecry gives Beasts +2 Attack wherever (board + hand), stacking for future Beasts', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [
+        { uid: 'sq', cardId: 'squirlscout', tribe: 'beast', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'h', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'sq' });
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 2); // current board Beast +2
+    expect(s.hand.find((c) => c.uid === 'h')!.attack).toBe(1 + 2); // current hand Beast +2
+    expect(s.beastBuyAtk).toBe(2); // stacks — future Beasts inherit it via undeadBuyBonus
+  });
+
+  it('buying an Undead/Beast bakes the run-wide Attack aura exactly once (no double-count)', () => {
+    // Undead buy: undeadBuyAtk applied once (previously double-counted at buy).
+    let u: RunState = { ...createRun(1), embers: 10, undeadBuyAtk: 3, shop: [{ uid: 'o', cardId: 'karthus' }] };
+    u = reduce(u, { type: 'buy', uid: 'o' });
+    expect(u.hand.find((c) => c.cardId === 'karthus')!.attack).toBe(CARD_INDEX.karthus!.attack + 3);
+    // Beast buy: Squirl Scout's beastBuyAtk now bakes on a bought Beast too (previously missed).
+    let b: RunState = { ...createRun(1), embers: 10, beastBuyAtk: 2, shop: [{ uid: 'o', cardId: 'alley' }] };
+    b = reduce(b, { type: 'buy', uid: 'o' });
+    expect(b.hand.find((c) => c.cardId === 'alley')!.attack).toBe(CARD_INDEX.alley!.attack + 2);
+  });
+
+  it('Scrap Herald: Battlecry gives Magnetics +2/+2 wherever (board + hand), stacking for future ones', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'c', cardId: 'cling', tribe: 'mech', attack: 1, health: 1, keywords: ['M'], golden: false }],
+      hand: [
+        { uid: 'sh', cardId: 'scrapherald', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false },
+        { uid: 'h', cardId: 'cling', tribe: 'mech', attack: 1, health: 1, keywords: ['M'], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'sh' });
+    const c = s.board.find((x) => x.uid === 'c')!;
+    const h = s.hand.find((x) => x.uid === 'h')!;
+    expect([c.attack, c.health]).toEqual([3, 3]); // current board Magnetic +2/+2
+    expect([h.attack, h.health]).toEqual([3, 3]); // current hand Magnetic +2/+2
+    expect([s.magneticBuyAtk, s.magneticBuyHp]).toEqual([2, 2]); // stacks — future Magnetics inherit it
+  });
+
+  it('Moe / guaranteed attachment: rollShop forces a Magnetic offer while the counter is active, then decrements', () => {
+    const s: RunState = { ...createRun(1), tier: 6, guaranteedAttachmentShops: 2 };
+    rollShop(s);
+    expect(s.shop.some((o) => CARD_INDEX[o.cardId]?.keywords.includes('M'))).toBe(true); // guaranteed Magnetic
+    expect(s.guaranteedAttachmentShops).toBe(1); // decremented
+    rollShop(s);
+    expect(s.shop.some((o) => CARD_INDEX[o.cardId]?.keywords.includes('M'))).toBe(true);
+    expect(s.guaranteedAttachmentShops).toBe(0); // counter exhausted
+    rollShop(s);
+    expect(s.guaranteedAttachmentShops).toBe(0); // stays 0 — no more forced Magnetics
+  });
+
+  it('a shop offer with a set cost (Moe Attachment) buys at that discounted price', () => {
+    let s: RunState = { ...createRun(1), embers: 5, shop: [{ uid: 'o', cardId: 'alley', cost: 2 }], hand: [] };
+    s = reduce(s, { type: 'buy', uid: 'o' });
+    expect(s.embers).toBe(3); // charged the offer's 2, not the flat minion cost
+    expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true);
+  });
+
+  it('Spark Plug: casting gives your entire board +5/+5 twice (+10/+10)', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
+      hand: [{ uid: 'sp', cardId: 'sparkplug', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      embers: 10,
+    };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([2 + 10, 3 + 10]); // two +5/+5 casts
+  });
+
+  it('The Godfodder Choose One — option 0 buffs Fodder (no target), option 1 defers to a target', () => {
+    // Option 0: buff Fodder run-wide, resolves immediately (per-option target absent → no prompt).
+    let a: RunState = {
+      ...createRun(1),
+      hand: [{ uid: 'g', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }],
+    };
+    a = reduce(a, { type: 'play', uid: 'g' });
+    expect(a.chooseOne).toBeDefined();
+    a = reduce(a, { type: 'chooseOne', index: 0 });
+    expect(a.pendingTarget).toBeUndefined(); // option 0 does NOT prompt for a target
+    expect(a.cardBuffs?.fred?.attack).toBe(1); // the Fodder (Fred) card type enchanted +1/+1
+    // Option 1: consume — defers to a friendly target (per-option target: 'friendly').
+    let b: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
+      hand: [{ uid: 'g', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }],
+    };
+    b = reduce(b, { type: 'play', uid: 'g' });
+    b = reduce(b, { type: 'chooseOne', index: 1 });
+    expect(b.pendingTarget).toBeDefined(); // option 1 prompts for a target
+    b = reduce(b, { type: 'battlecryTarget', targetUid: 'm' });
+    expect(b.board.find((c) => c.uid === 'm')!.attack).toBeGreaterThan(2); // consumed a Fodder → gained stats
   });
 
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
@@ -516,6 +666,19 @@ describe('run loop (@game/sim)', () => {
     b = reduce(b, { type: 'chooseOne', index: 0 });
     const shaper = b.board.find((c) => c.cardId === 'shaper');
     expect([shaper?.attack, shaper?.health]).toEqual([3, 5]); // 2/2 + 1/3
+  });
+
+  it('a summoned Stray inherits the run-wide Beast Attack aura (Squirl Scout)', () => {
+    // beastBuyAtk is the run-wide "Beasts +N Attack wherever" aura. A Stray summoned by Alleycat's Battlecry
+    // must come in at 1+N Attack, same bake as a bought/conjured Beast — the summon path used to skip it.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], board: [], beastBuyAtk: 2,
+      hand: [{ uid: 'al', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'al' });
+    const stray = s.board.find((c) => c.cardId === 'stray');
+    expect(stray?.attack).toBe(1 + 2); // 1/1 Stray + the +2 Beast Attack aura
+    expect(stray?.health).toBe(1); // aura is Attack-only
   });
 
   it('Runic Beetle: Choose One, then pick a friendly Beast to give it Rise or Flurry', () => {
@@ -3516,38 +3679,32 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(s.triplesMade).toBe(1); // run-wide triples tally bumped by the merge
   });
 
-  it("the Worgen's per-summon gain scales with spells cast this turn (X = 3 + spellsThisTurn)", () => {
-    // No spells this turn → +3/+3 per Beast/Dragon.
-    let s: RunState = { ...createRun(1), board: [worgen()], hand: [whelp('d')] };
-    s = reduce(s, { type: 'play', uid: 'd' });
-    expect(worgenAtk(s)).toBe(7); // 4 + 3
-
-    // 4 spells this turn → +7/+7 per Beast/Dragon.
-    let s2: RunState = { ...createRun(1), board: [worgen()], hand: [...Array.from({ length: 4 }, (_, i) => pouch(i)), whelp('d')] };
-    for (let i = 0; i < 4; i++) s2 = reduce(s2, { type: 'play', uid: s2.hand[0]!.uid });
-    s2 = reduce(s2, { type: 'play', uid: 'd' });
-    expect(worgenAtk(s2)).toBe(4 + 7); // 4 + (3 + 4)
-  });
-
-  it('an Alleycat (it + its Stray, both Beasts) buffs the Worgen twice', () => {
-    // 4 spells → X = 7; Alleycat + its 1 Stray = 2 Beast summons → +14/+14 total.
-    let s: RunState = {
-      ...createRun(1), board: [worgen()],
-      hand: [...Array.from({ length: 4 }, (_, i) => pouch(i)),
-        { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+  it("the Worgen's End-of-Turn gain: +2/+2 per Beast/Dragon played, improved +1/+1 per spell cast", () => {
+    const s: RunState = {
+      ...createRun(1),
+      board: [worgen()],
+      playedThisTurn: ['alley', 'alley', 'cleric'], // 2 Beasts (Pennycat) + 1 Dragon (Hoard Cleric) = 3
+      spellsThisTurn: 1, // per-unit +2/+2 → +3/+3
     };
-    for (let i = 0; i < 4; i++) s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
-    s = reduce(s, { type: 'play', uid: 'a' });
-    expect(worgenAtk(s)).toBe(4 + 14);
+    applyEndOfTurn(s);
+    expect(worgenAtk(s)).toBe(4 + 9); // (2 + 1 spell) × 3 played = +9
+
+    // No plays this turn → no gain; the buff lands at End of Turn, not on play.
+    let s2: RunState = { ...createRun(1), board: [worgen()], hand: [whelp('d')] };
+    s2 = reduce(s2, { type: 'play', uid: 'd' }); // 1 Dragon played
+    expect(worgenAtk(s2)).toBe(4); // nothing yet
+    applyEndOfTurn(s2);
+    expect(worgenAtk(s2)).toBe(4 + 2); // +2 for the 1 Dragon (no spells)
   });
 
-  it('the Worgen ignores a summoned neutral', () => {
+  it('the Worgen ignores a played neutral (only Beasts/Dragons count)', () => {
     let s: RunState = {
       ...createRun(1), board: [worgen()],
       hand: [{ uid: 'x', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'x' });
-    expect(worgenAtk(s)).toBe(4); // unchanged
+    applyEndOfTurn(s);
+    expect(worgenAtk(s)).toBe(4); // a neutral doesn't count → no End-of-Turn gain
   });
 
   it('spellsThisTurn resets each wave', () => {
@@ -3558,22 +3715,6 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.spellsThisTurn).toBe(0); // reset on advance to the next wave
-  });
-
-  it("the Worgen's in-combat gains are temporary (run board unchanged next shop)", () => {
-    // Pack Scrounger's combat Deathrattle summons Beast Pups → the Worgen procs in combat, but combat
-    // is a sim, so the run-board Worgen returns to its stats next shop.
-    let s: RunState = {
-      ...createRun(1), wave: 15, resolve: 100, maxResolve: 100, spellsThisTurn: 4, // tanky wave → the Pack dies + summons
-      board: [
-        { uid: 'w', cardId: 'spiritworgen', tribe: 'beast', attack: 4, health: 50, keywords: [], golden: false },
-        { uid: 'pk', cardId: 'pack', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
-      ],
-    };
-    s = reduce(s, { type: 'faceOmen' });
-    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.source === 'Spirit Worgen')).toBe(true); // procced in combat
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(4); // …but the run board is unchanged
   });
 
   it("a Taurus-engraved neighbor's combat gains carry back to the run board (settleCombat)", () => {

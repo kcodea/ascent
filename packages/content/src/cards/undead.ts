@@ -282,4 +282,20 @@ export const UNDEAD: CardDef[] = [
     text: '**Rally:** cast **Lantern of Souls** — your Undead get **+3/+0** for the rest of the run.',
     goldenText: '**Rally:** cast **Lantern of Souls** twice — your Undead get **+6/+0** for the rest of the run.',
   },
+  {
+    // Battlecry: destroy a targeted friendly minion — proccing its Deathrattle in the shop (summons/buffs bake
+    // in) — then add a random Tavern spell of that minion's tier to your hand. A sac-for-value engine that
+    // turns a spent Deathrattle body into a spell. Golden adds two spells.
+    id: 'graverobber',
+    name: 'Graverobber',
+    tribe: 'undead',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    target: 'friendly',
+    effects: [{ on: 'onPlay', do: 'battlecryDestroyForSpell' }],
+    text: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add a random spell of its tier to your hand.',
+    goldenText: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add **2** random spells of its tier to your hand.',
+  },
 ];

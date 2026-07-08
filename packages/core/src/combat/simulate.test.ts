@@ -108,19 +108,23 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'buff' && ev.target === impUid && ev.attack === 5)).toBe(true);
   });
 
-  it('Mirrorhide Rhino Start of Combat summons one copy of itself (no chain)', () => {
-    const p: BoardMinion[] = [{ cardId: 'mirrorrhino', attack: 6, health: 6 }];
+  it('Mirrorhide Rhino Start of Combat summons one EXACT copy (current stats + keywords, no chain)', () => {
+    const p: BoardMinion[] = [{ cardId: 'mirrorrhino', attack: 10, health: 8, keywords: ['W'] }]; // buffed + Flurry
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 80 }];
     const r = run(p, e, 6);
     const copies = r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'mirrorrhino');
     expect(copies.length).toBe(1); // exactly one copy — the summoned copy does NOT re-fire Start of Combat
+    const c = copies[0]!;
+    expect(c.type === 'summon' && c.minion.attack).toBe(10); // current Attack, not base 6
+    expect(c.type === 'summon' && c.minion.health).toBe(8);
+    expect(c.type === 'summon' && c.minion.keywords.includes('W')).toBe(true); // Flurry copied
   });
 
   it('Moe Slaughter banks free rerolls for next shop (carried back)', () => {
     const p: BoardMinion[] = [{ cardId: 'moe', attack: 4, health: 20 }];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Moe kills it → grants 2 free rerolls
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Moe kills it → grants 1 free reroll
     const r = run(p, e, 3);
-    expect(r.playerFreeRolls).toBe(2);
+    expect(r.playerFreeRolls).toBe(1);
   });
 
   it('Bounty Bot Slaughter grants Gold to next shop (carried back)', () => {
@@ -170,17 +174,21 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSpellPower?.attack).toBe(1); // 4th friendly death → Avenge (4) → +1 spell Attack
   });
 
-  it('Baby Cub Rally improves the Den Mother aura (summonBonus carries back)', () => {
-    const p: BoardMinion[] = [
-      { cardId: 'babycub', attack: 4, health: 30 },
-      { cardId: 'mamabear', attack: 5, health: 30, sourceUid: 'M' },
+  it('Baby Cub is a vanilla Cleave beast — one swing splashes the target’s neighbour', () => {
+    const p: BoardMinion[] = [{ cardId: 'babycub', attack: 4, health: 30 }];
+    const e: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 0, health: 50 },
+      { cardId: 'sandbag', attack: 0, health: 50 }, // the other enemy — Cleave splashes it as the neighbour
     ];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
-    const r = run(p, e, 5);
-    // No beasts are summoned here, so Den Mother's own aura never climbs — the carry-back entry keyed to 'M'
-    // is purely Baby Cub's Rally bumping it +5 per attack.
-    const entry = r.playerSummonBonus?.find((b) => b.sourceUid === 'M');
-    expect(entry?.bonus ?? 0).toBeGreaterThanOrEqual(5);
+    const r = run(p, e, 3);
+    const enemyUids = new Set(r.initial.enemy.map((m) => m.uid));
+    // Damage landed by Baby Cub's FIRST swing (between the 1st and 2nd `attack` events): with only two enemies,
+    // whichever it hits, the other is its neighbour — so Cleave damages BOTH on that one swing.
+    const firstAttack = r.events.findIndex((ev) => ev.type === 'attack');
+    const nextAttack = r.events.findIndex((ev, i) => i > firstAttack && ev.type === 'attack');
+    const window = r.events.slice(firstAttack + 1, nextAttack === -1 ? undefined : nextAttack);
+    const hit = new Set(window.flatMap((ev) => (ev.type === 'dmg' && enemyUids.has(ev.target) ? [ev.target] : [])));
+    expect(hit.size).toBe(2);
   });
 
   it('Hoardbreaker Drake Slaughter casts Growth (buffs all friends +3/+4)', () => {
@@ -193,18 +201,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
   });
 
-  it('Spell Drummer Rally casts a random stat spell + copies itself to hand', () => {
-    const p: BoardMinion[] = [
-      { cardId: 'spelldrummer', attack: 3, health: 30 },
-      { cardId: 'sandbag', attack: 0, health: 30 },
-    ];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 40 }];
-    const r = run(p, e, 7);
-    expect(r.playerHandGrants).toContain('spelldrummer'); // "get a copy of this added to your hand"
-    expect(r.events.some((ev) => ev.type === 'buff')).toBe(true); // a random stat spell landed on a friend
-  });
-
-  it('Spark Capacitor Avenge (4) casts a random stat spell on a friendly Mech', () => {
+  it('Spark Capacitor Avenge (4) adds a Spark Plug to hand', () => {
     const p: BoardMinion[] = [
       { cardId: 'sparkcapacitor', attack: 4, health: 40 },
       { cardId: 'stray', attack: 1, health: 1 },
@@ -214,8 +211,67 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 80 }];
     const r = run(p, e, 4);
-    // 4 strays die → Avenge (4) → a random stat spell buffs the lowest-Health friendly Mech (the Capacitor)
-    expect(r.events.some((ev) => ev.type === 'buff')).toBe(true);
+    expect(r.playerHandGrants).toContain('sparkplug'); // 4 friendly deaths → Avenge (4) → get a Spark Plug
+  });
+
+  it('Imp Overseer Echo summons an Imp when it dies in combat', () => {
+    const p: BoardMinion[] = [{ cardId: 'impoverseer', attack: 3, health: 1 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 20 }]; // kills the 3/1 Overseer
+    const r = run(p, e, 3);
+    expect(r.events.some((ev) => ev.type === 'summon')).toBe(true); // its Echo (Deathrattle) summoned an Imp
+  });
+
+  it('Moe Slaughter banks 1 free refresh + 1 guaranteed-attachment shop (2 golden)', () => {
+    const p: BoardMinion[] = [{ cardId: 'moe', attack: 4, health: 10 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // Moe kills it → Slaughter
+    const r = run(p, e, 3);
+    expect(r.playerFreeRolls).toBe(1);
+    expect(r.playerGuaranteedAttachments).toBe(1);
+    // golden Moe → 2 of each
+    const g = run([{ cardId: 'moe', attack: 8, health: 10, golden: true }], e, 3);
+    expect(g.playerFreeRolls).toBe(2);
+    expect(g.playerGuaranteedAttachments).toBe(2);
+  });
+
+  it('Bounty Bot is immune for its first 2 attacks each combat, then takes retaliation', () => {
+    // A friendly Taunt soaks the enemy's own swings, so the ONLY damage that can reach Bounty Bot is retaliation
+    // on ITS attacks. Its first two swings are immune; the third takes the 10 retaliation and kills the 3-HP body.
+    // The enemy needs all THREE of Bounty Bot's 7-damage hits to fall (21 HP) — which only happens if the first
+    // two swings were immune (otherwise Bounty Bot dies on swing 1 and the enemy survives at 14 HP).
+    const p: BoardMinion[] = [
+      { cardId: 'bountybot', attack: 7, health: 100 }, // high HP so it survives to swing 3 and we can count retaliation
+      { cardId: 'sabercub', attack: 0, health: 500, keywords: ['T'] }, // inert 0-Attack Taunt (no effects) soaks the enemy
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 21 }]; // 3 hits of 7 → dies on Bounty Bot's 3rd swing
+    const r = run(p, e, 3);
+    const bounty = r.initial.player[0]!.uid;
+    const enemyBag = r.initial.enemy[0]!.uid;
+    expect(r.events.some((ev) => ev.type === 'death' && ev.target === enemyBag)).toBe(true); // Bounty Bot landed all 3 hits itself
+    // First two swings immune, third retaliates → exactly ONE retaliation hit lands on Bounty Bot.
+    const retaliations = r.events.filter((ev) => ev.type === 'dmg' && ev.target === bounty).length;
+    expect(retaliations).toBe(1);
+  });
+
+  it('Philippe Rally splashes a random enemy on attack (and takes no damage back from it)', () => {
+    const p: BoardMinion[] = [{ cardId: 'philippe', attack: 4, health: 7 }];
+    const e: BoardMinion[] = [
+      { cardId: 'sabercub', attack: 0, health: 30 }, // inert (no attack-on-damage) so it can't retaliate
+      { cardId: 'sabercub', attack: 0, health: 30 },
+    ];
+    const r = run(p, e, 3);
+    const enemyUids = new Set(r.initial.enemy.map((m) => m.uid));
+    const phil = r.initial.player[0]!.uid;
+    // Philippe's first swing: the main hit PLUS the random-enemy splash → ≥2 enemy dmg events before its next attack.
+    const firstAttack = r.events.findIndex((ev) => ev.type === 'attack' && ev.attacker === phil);
+    const nextAttack = r.events.findIndex((ev, i) => i > firstAttack && ev.type === 'attack');
+    const window = r.events.slice(firstAttack + 1, nextAttack === -1 ? undefined : nextAttack);
+    const enemyHits = window.filter((ev) => ev.type === 'dmg' && enemyUids.has(ev.target)).length;
+    expect(enemyHits).toBeGreaterThanOrEqual(2);
+    // 0-Attack enemies → Philippe takes no damage: the splash target never retaliates, only the minion it attacks.
+    expect(r.events.some((ev) => ev.type === 'dmg' && ev.target === phil && ev.amount > 0)).toBe(false);
+    // Golden: the splash deals Attack + 2 — a golden 8-Attack Philippe splashes a lone enemy for 10.
+    const gr = run([{ cardId: 'philippe', attack: 8, health: 7, golden: true }], [{ cardId: 'sabercub', attack: 0, health: 40 }], 3);
+    expect(gr.events.some((ev) => ev.type === 'dmg' && ev.amount === 10)).toBe(true);
   });
 
   it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
@@ -233,16 +289,18 @@ describe('simulate (handoff A.3)', () => {
     expect(rally5(call(true))).toBe(4);  // …twice with Rallying Offensive
   });
 
-  it('Solaris Fang Avenge (3): gains a Divine Shield (Ward) and attacks immediately', () => {
-    // Three 0/1 Taunts are the forced targets — they die first while Solaris chips the wall; the 3rd death
-    // triggers Avenge (3) → Solaris gains a shield (shieldUp) and takes a bonus out-of-turn attack.
+  it('Solaris Fang Avenge (5): gains a Divine Shield (Ward) and attacks immediately', () => {
+    // Five 0/1 Taunts are the forced targets — they die first while Solaris chips the wall; the 5th death
+    // triggers Avenge (5) → Solaris gains a shield (shieldUp) and takes a bonus out-of-turn attack.
     const p: BoardMinion[] = [
       { cardId: 'solaris', attack: 5, health: 40 },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
     ];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 120 }];
     const r = run(p, e, 7);
     const solarisUid = r.initial.player[0]!.uid;
     expect(r.events.some((ev) => ev.type === 'shieldUp' && ev.target === solarisUid)).toBe(true);
@@ -256,10 +314,12 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
     ];
-    // A tanky wall: it must outlast Solaris's Rally ramp (golden +10 Attack per swing) so all THREE Taunts
-    // fall to it first and Avenge (3) fires — then it retaliates and pops the Ward on each immediate strike.
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 300 }];
+    // A tanky wall: it must outlast Solaris's Rally ramp (golden +10 Attack per swing) so all FIVE Taunts
+    // fall to it first and Avenge (5) fires — then it retaliates and pops the Ward on each immediate strike.
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 500 }];
     const r = run(p, e, 7);
     const solarisUid = r.initial.player[0]!.uid;
     const wards = r.events.filter((ev) => ev.type === 'shieldUp' && ev.target === solarisUid).length;
@@ -438,20 +498,6 @@ describe('simulate (handoff A.3)', () => {
     expect(buffs.length).toBeGreaterThan(0); // +30/+40 confirms golden keeps 6 summons (5 overflow × +6/+8)
   });
 
-  it('Spirit Worgen procs in combat: +X/+X per Beast/Dragon summoned, X = 3 + spellsThisTurn', () => {
-    // spellsThisTurn = 4 → X = 7. Pack Scrounger (Deathrattle: 2 Beast Pups) dies → 2 summons → +7/+7 each.
-    const p: BoardMinion[] = [
-      { cardId: 'spiritworgen', attack: 4, health: 50 }, // tanky so it survives to receive both buffs
-      { cardId: 'pack', attack: 1, health: 1 }, // dies fast → 2 Pups (Beasts)
-    ];
-    const r = simulate(p, [{ cardId: 'sandbag', attack: 2, health: 10 }], makeRng(7), CARD_INDEX, 4);
-    const worgenBuffs = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen');
-    expect(worgenBuffs.length).toBe(2); // one per summoned Pup
-    expect(worgenBuffs.every((b) => b.type === 'buff' && b.attack === 7 && b.health === 7)).toBe(true);
-    // With no spells that turn, the same board gives +3/+3 each.
-    const base = simulate(p, [{ cardId: 'sandbag', attack: 2, health: 10 }], makeRng(7), CARD_INDEX);
-    expect(base.events.filter((ev) => ev.type === 'buff' && ev.source === 'Spirit Worgen' && ev.attack === 3).length).toBe(2);
-  });
 
   it('a golden Arcane Weaver grants two Spirit Fires per Avenge; an enemy Weaver grants the player none', () => {
     const golden = run(

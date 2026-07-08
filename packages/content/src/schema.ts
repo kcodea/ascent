@@ -39,6 +39,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onKillBuffSelf',
   'onKillBuffSpellPower',
   'onKillGrantFreeRolls',
+  'onKillGrantAttachmentRefreshes',
   'onKillGrantGold',
   'onKillCastSpell',
   'rallyCastRandomStatSpell',
@@ -73,6 +74,8 @@ export const EffectFactoryIdSchema = z.enum([
   'scGrantEnemyTaunt',
   'scSummonCopy',
   'scTribeBuffPerSpell',
+  'scTribeBuffPerPlayed',
+  'scTribeBuffImproving',
   'battlecryBuffTribe',
   'battlecrySummon',
   'buffOnBuy',
@@ -81,6 +84,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryDiscoverSpell',
   'onBattlecryBuffTribe',
   'onBattlecryBuffFodder',
+  'battlecryBuffFodder',
   'battlecryBuffSpellPower',
   'endOfTurnBuff',
   'endOfTurnMagnetizeMechs',
@@ -144,6 +148,8 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffUndeadAttack',
   'deathrattleGrantCardToHand',
   'battlecryBuffUndeadAttack',
+  'battlecryBuffBeastAttack',
+  'battlecryBuffMagnetics',
   'battlecryBuffImps',
   'goldSpentBuffFodder',
   'goldSpentMagnetize',
@@ -176,6 +182,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scBeastAura',
   'rallyTribeAura',
   'rallyGiveDemonAttack',
+  'rallyDamageRandomEnemy',
   'rallyImproveSummonAura',
   'avengeShieldAttack',
   'endOfTurnGrantSpellChoice',
@@ -185,6 +192,8 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryGrantSpell',
   'endOfTurnCastSpellEscalating',
   'endOfTurnAdjacentConsumeFodder',
+  'endOfTurnBuffPerTribePlayed',
+  'battlecryDestroyForSpell',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -220,6 +229,7 @@ export const CardDefSchema = z.object({
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),
+  attackImmuneTurns: z.number().int().positive().optional(),
   ascendInto: z.string().optional(),
   attackOnSummon: z.boolean().optional(),
   spell: z.boolean().optional(),
@@ -235,7 +245,7 @@ export const CardDefSchema = z.object({
   spellAura: z.number().int().positive().optional(),
   fodderAura: z.object({ attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict().optional(),
   chooseOne: z
-    .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }).strict())
+    .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema), target: z.enum(['friendly', 'any']).optional() }).strict())
     .min(2)
     .optional(),
   discoverOnPlay: z

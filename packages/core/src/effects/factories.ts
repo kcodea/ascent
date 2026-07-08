@@ -118,7 +118,7 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
 /** Pick a random stat-granting Tavern spell (spellBuffTarget / spellBuffAll) and return its buff with combat
  *  spell power folded in and scaled by `scale` (golden). Returns null if the pool is empty or the picked spell
  *  grants nothing. Used by the combat spell-cast cards (Spell Drummer, Spark Capacitor). */
-function randomStatSpellBuff(ctx: CombatContext, scale: number): { attack: number; health: number } | null {
+function randomStatSpellBuff(ctx: CombatContext, scale: number): { spellId: string; attack: number; health: number } | null {
   const pool = ctx
     .allCards()
     .filter((c) => c.spell && !c.singleCast && c.effects.some((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll'));
@@ -127,7 +127,7 @@ function randomStatSpellBuff(ctx: CombatContext, scale: number): { attack: numbe
   const eff = spell.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll')!;
   const attack = (num(eff.params?.attack, 0) + ctx.spellPower.attack) * scale;
   const health = (num(eff.params?.health, 0) + ctx.spellPower.health) * scale;
-  return attack > 0 || health > 0 ? { attack, health } : null;
+  return attack > 0 || health > 0 ? { spellId: spell.id, attack, health } : null;
 }
 
 /**
@@ -293,6 +293,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantFreeRolls(num(params.count, 2) * mul(self), self.side);
   },
 
+  /** Moe — Slaughter (on kill): bank `count` free refreshes next turn AND make that many upcoming shops each
+   *  guarantee a Magnetic (Attachment) offer. Golden doubles both. Attacker-guarded. */
+  onKillGrantAttachmentRefreshes: (ctx, self, params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    const n = num(params.count, 2) * mul(self);
+    ctx.grantFreeRolls(n, self.side);
+    ctx.grantGuaranteedAttachments(n, self.side);
+  },
+
   /** Bounty Bot — Slaughter (on kill): grant `gold` one-time Gold into your next shop (golden doubles).
    *  Carried back via `CombatResult.playerBonusGold` → next turn's starting Gold. Attacker-guarded. */
   onKillGrantGold: (ctx, self, params, payload) => {
@@ -313,20 +322,25 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a <= 0 && h <= 0) return;
     const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
     for (const t of targets) ctx.buff(t, a, h, self.uid);
+    ctx.castSpell(self.side); // "cast Growth" is a real spell cast — proc in-combat spell reactions + count it
   },
 
   /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,
-   *  golden-scaled), then add a copy of THIS minion to your hand (carried back via `playerHandGrants`). */
+   *  golden-scaled). It's a REAL cast — fires in-combat spell reactions (Guel, Forsaken Weaver…) — then adds a
+   *  copy of THAT SPELL to your hand (carried back via `playerHandGrants`). */
   rallyCastRandomStatSpell: (ctx, self, _params, payload) => {
     if ((payload as { minion?: Minion }).minion !== self) return;
     const friends = ctx.living(self.side);
-    const buff = friends.length > 0 ? randomStatSpellBuff(ctx, mul(self)) : null;
-    if (buff) ctx.buff(ctx.rng.pick(friends), buff.attack, buff.health, self.uid);
-    ctx.grantToHand(self.cardId, self.side, self.uid); // "get a copy of this added to your hand"
+    if (friends.length === 0) return;
+    const pick = randomStatSpellBuff(ctx, mul(self));
+    if (!pick) return;
+    ctx.buff(ctx.rng.pick(friends), pick.attack, pick.health, self.uid); // cast the stat spell on a random friend
+    ctx.castSpell(self.side); // proc in-combat spell reactions (Guel, Forsaken Weaver, Spirit Pup…) + count it
+    ctx.grantToHand(pick.spellId, self.side, self.uid); // add a copy of THAT spell to your hand
   },
 
   /** Spark Capacitor — Avenge (N): cast a random stat spell on your lowest-Health friendly Mech (its buff +
-   *  combat spell power, golden-scaled). */
+   *  combat spell power, golden-scaled). A real cast — fires in-combat spell reactions + counts. */
   avengeCastRandomStatSpell: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
@@ -337,8 +351,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       .filter((m) => m.tribe === 'mech' || m.tribe2 === 'mech' || ctx.getCard(m.cardId)?.universalTribe);
     if (mechs.length === 0) return;
     const target = mechs.reduce((a, b) => (b.health < a.health ? b : a)); // lowest Health
-    const buff = randomStatSpellBuff(ctx, mul(self));
-    if (buff) ctx.buff(target, buff.attack, buff.health, self.uid);
+    const pick = randomStatSpellBuff(ctx, mul(self));
+    if (!pick) return;
+    ctx.buff(target, pick.attack, pick.health, self.uid);
+    ctx.castSpell(self.side); // a real spell cast — proc in-combat spell reactions + count it
   },
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
@@ -974,10 +990,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   scSummonCopy: (ctx, self) => {
     const card = ctx.getCard(self.cardId);
     for (let i = 0; i < mul(self); i++) {
-      const copy = ctx.summon(self.side, card, self.uid, [...self.keywords]);
-      copy.attack = self.attack;
-      copy.health = self.health;
-      copy.golden = self.golden;
+      // An exact copy of this minion's CURRENT body: keywords (Flurry, Ward…), golden, and current stats —
+      // passed through `copyStats` so the summon snapshot (and the replay) shows the real values from frame 1.
+      ctx.summon(self.side, card, self.uid, [...self.keywords], self.golden, false, {
+        attack: self.attack,
+        health: self.health,
+        maxHealth: self.maxHealth,
+        divineShield: self.divineShield,
+        rebornAvailable: self.rebornAvailable,
+      });
     }
   },
 
@@ -994,6 +1015,38 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) {
       if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
     }
+  },
+
+  /** Pack Leader — Start of Combat: buff your `tribe` (Beasts) +atk/+hp, improved by `perPlayed` for each of
+   *  that tribe you PLAYED this recruit turn (`ctx.beastsPlayedThisTurn`, threaded from the run). Golden
+   *  doubles the whole grant. Sibling of scTribeBuffPerSpell, keyed on the play counter instead of spells. */
+  scTribeBuffPerPlayed: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    const per = num(params.perPlayed, 1);
+    const a = (num(params.attack, 1) + per * ctx.beastsPlayedThisTurn) * mul(self);
+    const h = (num(params.health, 2) + per * ctx.beastsPlayedThisTurn) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rallies the pack` });
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
+  /** Pack Leader — Start of Combat: buff your `tribe` (Beasts) by +M/+M where M = base + its permanently
+   *  accrued bonus, then improve that accrual by `step` for good. The accrual rides `summonBonus` (carried
+   *  back like Kennelmaster's), so the grant climbs every combat. Golden doubles the applied grant. */
+  scTribeBuffImproving: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    const base = num(params.attack, 2);
+    const step = num(params.step, 2);
+    const mag = (base + self.summonBonus) * mul(self);
+    if (mag > 0) {
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} leads the pack` });
+      for (const m of ctx.living(self.side)) {
+        if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, mag, mag, self.uid);
+      }
+    }
+    self.summonBonus += step; // permanent +step/+step improve, carried back via playerSummonBonus
   },
 
   // ─── New content batch factories ────────────────────────────────────────────
@@ -1279,6 +1332,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const pool = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'demon' || m.tribe2 === 'demon' || ctx.getCard(m.cardId)?.universalTribe));
     if (pool.length === 0) return;
     ctx.buff(ctx.rng.pick(pool), self.attack, 0, self.uid);
+  },
+
+  /** Philippe — Rally: on its OWN attack, also deal its current Attack to a RANDOM living enemy (golden: +2
+   *  more) — a random-target "cleave." Pure splash via ctx.damage, so the struck enemy never retaliates:
+   *  Philippe only takes damage from the minion it actually attacked. Fires per hit (Flurry → twice). */
+  rallyDamageRandomEnemy: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const foe: Side = self.side === 'player' ? 'enemy' : 'player';
+    const targets = ctx.living(foe);
+    if (targets.length === 0) return;
+    const bonus = self.golden ? num(_params.goldenBonus, 2) : 0;
+    ctx.damage(ctx.rng.pick(targets), self.attack + bonus);
   },
 
   /** Baby Cub — Rally: each time THIS attacks, permanently improve your Den Mother aura by +step. Bumps every

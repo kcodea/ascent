@@ -248,7 +248,7 @@ export const NEUTRAL: CardDef[] = [
     id: 'arenaheckler',
     name: 'Arena Heckler',
     tribe: 'neutral',
-    tier: 3,
+    tier: 4,
     attack: 2,
     health: 5,
     keywords: [],
@@ -312,18 +312,6 @@ export const NEUTRAL: CardDef[] = [
     effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion', params: { tribe: 'uncontrolled' } }],
     text: "**Battlecry:** Discover a minion from a tribe you don't control.",
   },
-  {
-    // Rally: on each attack, cast a random stat spell (+ combat spell power) on a random friendly minion, and
-    // add a copy of itself to your hand — a self-replicating spell engine. Golden doubles the spell's grant.
-    // Its Rally re-fires with Windfury / Rallying Offensive.
-    id: 'spelldrummer',
-    name: 'Spell Drummer',
-    tribe: 'neutral',
-    tier: 3,
-    attack: 3,
-    health: 3,
-    keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyCastRandomStatSpell' }],
-    text: '**Rally:** cast a random stat spell on a random friend, then add a copy of this to your hand.',
-  },
+  // Spell Drummer removed from the pool 2026-07-08 (owner call — "for now"). The `rallyCastRandomStatSpell`
+  // factory is kept registered so re-adding the card is a data-only change.
 ];

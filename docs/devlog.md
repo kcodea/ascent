@@ -5,6 +5,141 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### fix(sim): Graverobber on Mumi now fires Mumi's Deathrattle (grant Rise) out of combat; Spark Plug → T6
+
+- **Graverobber + Mumi bug.** `deathrattleGrantReborn` (Mumi's "give a friendly Undead Rise") existed only as a
+  COMBAT factory — the recruit factory map had no entry, so when Graverobber destroyed Mumi out of combat
+  (`battlecryDestroyForSpell` fires the target's recruit `onDeath` factories), `RECRUIT_FACTORIES['deathrattleGrantReborn']`
+  was undefined and the Rise-grant silently no-op'd. Added the recruit-side factory (mirrors the combat one:
+  skips minions that already have Rise, filters by tribe via `isTribe`, picks the highest-Attack carry out of
+  combat, golden → two; granting the `R` keyword is enough since combat's `instantiate` re-arms `rebornAvailable`
+  from it). New test locks it. Same gap would have hit any Consume of Mumi — now covered too.
+- **Spark Plug → Tier 6** (was T5).
+
+Verified: typecheck + lint clean, full suite green (638), `build:web` OK, `cards.csv` regenerated.
+
+### feat/content: Philippe (random-splash Rally), live-value tooltips (Patch Job / Runescale), Attachment Mechanic rename, Arena Heckler T4
+
+Owner batch:
+- **"Current value" rule hardened.** CLAUDE.md's card-text rule is reworded from a scaling-cards clause into an
+  explicit hard DEFAULT: card text always shows the actual number it will produce right now (spell power, Gold
+  spent, per-spell/per-summon scalers, escalating cast counts, …), never a base rate or placeholder. Memory
+  ([[card-text-live-accuracy]]) updated with the 2026-07-08 reaffirmation + the new helpers.
+- **Philippe** — new **T5 Beast/Undead 4/7**, Rally. New combat factory `rallyDamageRandomEnemy` (dual-registered
+  in schema.ts + types.ts): on its own attack it also deals its current Attack to a RANDOM living enemy (golden:
+  +2 more). Pure splash via `ctx.damage`, so the struck enemy never retaliates — Philippe only takes damage from
+  the minion it actually attacked (a random-target "cleave"). Text references "its Attack" (the value is the
+  shown stat, so it stays current). Art wired (`philippe.png`). Combat test: ≥2 enemy hits per swing, no
+  retaliation from the splash, golden splash = Attack+2.
+- **Patch Job live total.** `spellDisplayText` gained a `goldSpent` param (threaded from `run.goldSpentThisTurn`
+  through `LiveTextParams` + `ShopViewOpts` + the shop/spell/hand useMemos). It now appends the CURRENT total the
+  spell will grant — "…for every 7 Gold spent this turn. {{Now +6/+6.}}" at 14 Gold — handled BEFORE the
+  no-spell-power early-return so the Gold total shows even without spell power. Display test added.
+- **Runescale Drake live text.** New `scTribeBuffPerSpellText` helper surfaces the current Start-of-Combat Dragon
+  grant (base + perSpell × spells-cast-this-turn, ×2 golden) green, leaving the "+1/+1" improve rate. Wired into
+  `liveCardText`; cardText test added (plus a backfilled `escalatingCastText` test).
+- **Scrap Herald → "Attachment Mechanic"** (display name only; id kept `scrapherald` to avoid churn) + new art
+  (`AttachmentMechanic.png` → `scrapherald.png`). **Mumi** art rewired (`mumi.png`, stale webp removed).
+- **Arena Heckler** moved T3 → **T4**.
+
+Verified: typecheck + lint clean, full suite green (637), `build:web` OK, `cards.csv` regenerated (Philippe in the
+117-minion pool), live DOM check of all six cards (text + green live values + art loaded 1254×1254).
+
+### fix/content: Bounty Bot per-attack immunity, Vineweaver tooltip, Baby Cub → Cleave, Strays aura, remove Spell Drummer
+
+Owner batch (five items):
+- **Bounty Bot immunity is now per-ATTACK, not per-combat.** It was seeded from `attackImmuneTurns` and counted
+  down once per fight at settle — so it protected the first two *combats*. Now `Minion.attackImmuneLeft` is seeded
+  fresh each combat from `CardDef.attackImmuneTurns` and **spends one charge per swing** in `performAttack` (skip
+  the retaliation and decrement; once at 0, retaliation lands). Dropped the run-board tracking (`BoardMinion`/
+  `RunState.attackImmuneLeft`, the reducer's per-combat decrement and board pass-through). Text → "Immune while
+  attacking (first **2** attacks each combat)". Test rewritten (inert `sabercub` Taunt soaks the enemy's own
+  swings so only retaliation can reach Bounty Bot; asserts exactly ONE retaliation over its 3 swings).
+- **Vineweaver Drake tooltip now shows the payoff.** New `escalatingCastText` cardText helper surfaces both live
+  values green: each Growth cast's grant (spell base + current spell power) and how many casts land at the NEXT
+  End of Turn ((eotTick+1)×, golden ×2). Wired into the `liveCardText` chain. Live-checked: reads
+  "Cast **Growth** {{+3/+4}} {{3×}}" with both values green.
+- **Baby Cub is now a vanilla Cleave beast** (was Rally → improve Den Mother aura). keywords `['C']`, no effects,
+  text "Cleave". Its `rallyImproveSummonAura` factory is left registered (orphaned) for possible reuse. Combat
+  test rewritten to assert Cleave splashes the target's neighbour. **⚠ flag:** this strips the Den Mother synergy
+  partner and repurposes the card — revert if a different read was intended.
+- **Summoned Strays now inherit the run-wide tribe buy-auras.** `ctx.summon` (recruit) baked only the per-card
+  buff, skipping `undeadBuyBonus`/`buyHealthAura` — so a Stray summoned by Alleycat missed Squirl Scout's Beast
+  Attack aura (bought/conjured beasts got it). Fixed to bake the same auras; new test locks a summoned Stray at
+  1+beastBuyAtk Attack.
+- **Spell Drummer removed** from the pool "for now" (card def + its combat test deleted). The
+  `rallyCastRandomStatSpell` factory stays registered so re-adding is a data-only change.
+
+Verified: typecheck + lint clean, full suite green (633), `build:web` OK, live DOM check of the three tooltips.
+
+### feat(ui): shop-aura previews, Moe's green discount coin, Nimbus/Yazzus ×N spell badge
+
+Owner UI batch (four display fixes; all shop/hand surfaces, no rule changes):
+- **Scrap Herald / Squirl Scout shop preview** — `shopView` folded only the *Undead* buy-aura into an offer's
+  displayed stats, so a Magnetic (or Beast) offer read at base until bought. It now previews the Beast Attack and
+  Magnetic +atk/+hp buy-auras too (`beastBuyAtk`/`magneticBuyAtk`/`magneticBuyHp` threaded from run state through
+  `ShopViewOpts`), matching exactly what the reducer's buy path bakes in.
+- **Moe's discounted Attachment** — the guaranteed Magnetic offer carries `cost: 2`; `shopView` now honours
+  `card.cost` (was hardcoded to `CONFIG.minionCost`) and flags `costChanged`, rendering the cost coin **green**
+  (`.cost.discount`) so the cheaper price reads as a deal.
+- **Nimbus / Yazzus ×N badge** — a new `.castmult` pill top-right of a spell card shows how many times it'll cast
+  right now (`spellCasts(run, def)` → Nimbus's pending double × Yazzus's targeted-spell multiplier), wired on both
+  the shop spell offers and hand spells (Spell Drummer copies) via `castMult`. Only shown when > 1.
+- Kept the perf-critical stable view refs: the extra per-spell `castMult` is computed inside the existing
+  `useMemo`s and only the (rare) spell cards allocate a fresh `live` object, so minion cards keep their referential
+  identity across a drag.
+
+Also folds in the earlier-uncommitted **Moe cost sim side** (`ShopCard.cost`, buy path charges `offer.cost`,
+`rollShop` sets the forced Attachment to 2 Gold) and Moe's refresh count (1 free refresh; 2 golden). Verified:
+typecheck + lint clean, full suite green (634), `build:web` OK.
+
+### fix(sim): tavern-buy baked the tribe Attack aura TWICE (Undead) and skipped Beasts — found via Squirl Scout
+
+While wiring Squirl Scout's Beast attack aura, the tavern-**buy** action turned out to (1) **double-count** the
+Undead aura — it baked `undeadBuyAtk` into `attack` *and* `addBuff`'d it again, so a bought Undead came in at
+**2×** the run-wide bonus (Karthus with undeadBuyAtk 3 → +6, not +3) — and (2) use inline undead-only logic, so
+Squirl Scout's `beastBuyAtk` never applied to a **bought** Beast. Both are the same root cause; now the buy path
+uses the shared `undeadBuyBonus` helper and applies the aura **exactly once** (through the `addBuff` that also
+records the breakdown). **Balance note:** this is a real Undead nerf (buys were secretly doubled). New buy-path
+test locks +1×; full suite green (625). The other creation paths (conjure/discover/steal/offer/settle) were
+already correct.
+
+### fix(content): Spell Drummer casts a REAL spell (procs spell reactions) + copies the SPELL, not itself
+
+Owner correction: Spell Drummer's Rally now (a) fires `ctx.castSpell` after buffing — so the cast procs
+in-combat spell reactions (Archmagus Guel, Forsaken Weaver, Spirit Pup transform…) and counts toward the run's
+spells — and (b) adds a copy of the **cast spell** to hand, not a copy of Spell Drummer itself (`randomStatSpellBuff`
+now returns the picked `spellId`; `grantToHand(spellId)`). Applied the same `ctx.castSpell` fire to the other two
+combat spell-casts (Hoardbreaker Drake, Spark Capacitor) — they "cast a spell" too, so they should proc reactions.
+Test now boards an Archmagus Guel and asserts its +1/+1 reaction fires + the hand copy is a stat spell. Suite green (623).
+
+### feat(content): new-minions batch — wave 4 (3 cards: play-counter pair + Graverobber)
+
+The "Beasts/minions played this turn" subsystem + a sac-for-value Undead. Branch `feat/new-minions-wave4`; full
+suite green (623), one commit per card.
+
+New subsystem: a **per-turn play counter** — `RunState.playedThisTurn` (minion cardIds played via the play
+action), incremented in the reducer, reset each turn. For combat (Pack Leader) the *Beasts* count is frozen at
+combat start and threaded into `simulate()` as a new `beastsPlayedThisTurn` param → `ctx.beastsPlayedThisTurn`,
+exactly like `spellsThisTurn` feeds Runescale Drake.
+
+- **Spirit Worgen** (retext) — from an on-summon per-tribe buff to *End of Turn: gain +2/+2 for each Beast or
+  Dragon you PLAYED this turn, improved +1/+1 per spell cast this turn* (`endOfTurnBuffPerTribePlayed`). Golden
+  doubles. Cascade: retired the obsolete on-summon + in-combat-proc tests (the Worgen no longer touches combat);
+  re-pointed the UI `summonScalingText` at the new effect so the per-unit still greens by spells; `summonBuffSelfTribe`
+  is now orphaned (left in place). Read "per spell you cast" as *this turn's* spells (matching the old wording).
+- **Pack Leader** (Beast T3 2/4) — *Start of Combat:* Beasts +1/+2, improved +1/+1 per Beast played this turn
+  (`scTribeBuffPerPlayed`, sibling of scTribeBuffPerSpell). The `simulate()` signature gained one param.
+- **Graverobber** (Undead T4 4/4) — *Battlecry:* destroy a targeted friendly (procs its Deathrattle out of
+  combat — the recruit DR factories bake summons/buffs in), then add a random Tavern spell of its tier to hand
+  (`battlecryDestroyForSpell`; golden → 2 spells).
+
+- **Verified:** `typecheck + lint + test (623) + build:web` green.
+- **Remaining (2 — the final piece):** the baked "+X wherever they are" auras — **Squirl Scout** (Beasts +2 Attack)
+  and **Scrap Herald** (Attachments/Magnetics +2/+2). Both need the run-wide tribe-enchant bake mirroring
+  `undeadBuyAtk` (~7 creation sites + a combat param + immediate application to existing bodies) — a delicate,
+  do-it-carefully change best landed on its own.
+
 ### fix: Choreography preview draws in front + greyed "can't-go-negative" lanes
 
 Two follow-ups from a live pass on the 🎬 Choreography panel:

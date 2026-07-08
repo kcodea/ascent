@@ -136,10 +136,10 @@ export const BEASTS: CardDef[] = [
     keywords: [],
     token: true,
     effects: [
-      { on: 'onSummon', do: 'summonBuffSelfTribe', params: { tribes: ['beast', 'dragon'], attack: 3, health: 3 } },
+      { on: 'endOfTurn', do: 'endOfTurnBuffPerTribePlayed', params: { tribes: ['beast', 'dragon'], attack: 2, health: 2 } },
     ],
-    text: 'Gains **+3/+3** each time you summon a **Beast** or **Dragon** — improves per spell cast this turn.',
-    goldenText: 'Gains **+6/+6** each time you summon a **Beast** or **Dragon** — improves per spell cast this turn.',
+    text: '**End of Turn:** gain **+2/+2** for each **Beast** or **Dragon** you played this turn. Improve this by **+1/+1** for each spell you cast.',
+    goldenText: '**End of Turn:** gain **+4/+4** for each **Beast** or **Dragon** you played this turn. Improve this by **+2/+2** for each spell you cast.',
   },
 
   // --- New beasts (2026-06-24 content batch). Manasaber is a token-summoner (data only); Raptor and Sea
@@ -232,18 +232,16 @@ export const BEASTS: CardDef[] = [
   },
   {
     // Rally payoff for a Den Mother board: each of its own attacks permanently improves every friendly Den
-    // Mother's summon aura by +5/+5 (bumps the accrued summonBonus, which carries back so the bigger aura
-    // persists in AND out of combat). Golden → +10/+10 per attack. Dead weight without a Den Mother out.
+    // A vanilla Cleave beast (owner call 2026-07-08) — its attack splashes the target's neighbours.
     id: 'babycub',
     name: 'Baby Cub',
     tribe: 'beast',
     tier: 4,
     attack: 4,
     health: 5,
-    keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyImproveSummonAura', params: { amount: 5, cardId: 'mamabear' } }],
-    text: '**Rally:** improve your **Den Mother** aura by **+5/+5**.',
-    goldenText: '**Rally:** improve your **Den Mother** aura by **+10/+10**.',
+    keywords: ['C'],
+    effects: [],
+    text: 'Cleave',
   },
 
   // --- 2026-07-06 content batch ---
@@ -282,10 +280,10 @@ export const BEASTS: CardDef[] = [
     keywords: ['RL'],
     effects: [
       { on: 'onAttack', do: 'rallyTribeAura', params: { tribe: 'beast', attack: 5, health: 0 } },
-      { on: 'avenge', do: 'avengeShieldAttack', params: { count: 3 } },
+      { on: 'avenge', do: 'avengeShieldAttack', params: { count: 5 } },
     ],
-    text: '**Rally:** give your Beasts **+5 Attack** wherever they are. **Avenge (3):** gain **Ward** and attack immediately.',
-    goldenText: '**Rally:** give your Beasts **+10 Attack** wherever they are. **Avenge (3):** gain **Ward** and attack immediately.',
+    text: '**Rally:** give your Beasts **+5 Attack** wherever they are. **Avenge (5):** gain **Ward** and attack immediately.',
+    goldenText: '**Rally:** give your Beasts **+10 Attack** wherever they are. **Avenge (5):** gain **Ward** and attack immediately.',
   },
   {
     // Start of Combat: mirror itself — summon a copy of its current body (stats + granted keywords). Golden
@@ -300,5 +298,51 @@ export const BEASTS: CardDef[] = [
     effects: [{ on: 'startOfCombat', do: 'scSummonCopy' }],
     text: '**Start of Combat:** Summon a copy of this minion.',
     goldenText: '**Start of Combat:** Summon **two** copies of this minion.',
+  },
+  {
+    // Start of Combat: buff your Beasts +1/+2, improved +1/+1 for each Beast you played this recruit turn
+    // (frozen at combat start, threaded into the sim like spellsThisTurn). A go-wide Beast SoC payoff that
+    // rewards a busy beast turn. Golden doubles the whole grant.
+    id: 'packleader',
+    name: 'Pack Leader',
+    tribe: 'beast',
+    tier: 6,
+    attack: 2,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scTribeBuffImproving', params: { tribe: 'beast', attack: 2, step: 2 } }],
+    text: '**Start of Combat:** Give your **Beasts** **+2/+2**. Permanently improve this by **+2/+2**.',
+    goldenText: '**Start of Combat:** Give your **Beasts** **+4/+4**. Permanently improve this by **+2/+2**.',
+  },
+  {
+    // Battlecry: your Beasts gain +2 Attack "wherever they are" — baked into every current Beast (board + hand)
+    // and every future one (bought/conjured/summoned/Reborn), the Beast sibling of Toxin Tender's Undead aura.
+    // Golden → +4.
+    id: 'squirlscout',
+    name: 'Squirl Scout',
+    tribe: 'beast',
+    tier: 3,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryBuffBeastAttack', params: { amount: 2 } }],
+    text: '**Battlecry:** your **Beasts** have **+2 Attack** wherever they are.',
+    goldenText: '**Battlecry:** your **Beasts** have **+4 Attack** wherever they are.',
+  },
+  {
+    // Rally splash: on its OWN attack, Philippe also deals its Attack to a RANDOM enemy (golden: +2 more) — a
+    // random-target "cleave." Pure splash: that enemy never hits back, so Philippe only takes retaliation from
+    // the minion it actually attacked (like a cleave neighbour). Beast/Undead dual-type, T5.
+    id: 'philippe',
+    name: 'Philippe',
+    tribe: 'beast',
+    tribe2: 'undead',
+    tier: 5,
+    attack: 4,
+    health: 7,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyDamageRandomEnemy', params: { goldenBonus: 2 } }],
+    text: '**Rally:** also deal its **Attack** to a random enemy (takes no damage back).',
+    goldenText: '**Rally:** also deal its **Attack + 2** to a random enemy (takes no damage back).',
   },
 ];

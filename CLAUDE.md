@@ -56,11 +56,16 @@ The game is a **deterministic simulation, fully decoupled from the UI.**
   runs, and cheap exact balance sims.
 - **Cards are data + effect subscriptions**, never bespoke classes. New cards = data only unless
   they need a genuinely new effect primitive.
-- **Card text always states the card's CURRENT value** (owner ruling 2026-07-02). Any card whose
-  magnitude scales (quests, tallies, auras, per-N improvements) must surface its live value + the
-  countdown to the next step via the `cardText.ts` helpers, wired into BOTH chains: `liveCardText`
-  (shop / board / hand / Discover / end screen) and `Unit.tsx` (combat). A stale printed number is
-  a defect — add the helper in the same PR that adds the scaling effect.
+- **Card text ALWAYS shows the CURRENT value of what the card is doing — this is a hard default, not a
+  special case** (owner rulings 2026-07-02, reaffirmed 2026-07-08). Whenever a card's magnitude depends on
+  live run/combat state (quests, tallies, auras, per-N improvements, spell power, Gold spent this turn, a
+  per-spell / per-summon scaler, an escalating cast count, …), the printed text must fold in the **actual
+  number it will produce right now** — plus the countdown to the next step when there is one — never a static
+  placeholder or the base rate alone. Wire it via the `cardText.ts` helpers into BOTH chains: `liveCardText`
+  (shop / board / hand / Discover / end screen) and `Unit.tsx` (combat). A stale or base-only printed number
+  is a **defect** — add the helper in the same PR that adds the scaling effect. When the live value simply
+  equals a stat already shown in a corner badge (e.g. "deals its Attack"), referencing that stat by name is
+  an acceptable way to stay current.
 - **Never mutate shared `CardDef`s** — clone into combat `Minion` instances.
 - Recruit-phase effects (Battlecry, buff-on-summon, consume) bake into stats before combat; the
   combat simulator runs combat-time effects (Start-of-Combat, Deathrattle, on-shield-break,

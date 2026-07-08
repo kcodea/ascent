@@ -61,7 +61,8 @@ export type EffectFactoryId =
   | 'reAttackOnKill'
   | 'onKillBuffSelf' // on kill: buff self — permanent via Engraved
   | 'onKillBuffSpellPower' // on kill: permanently raise run-wide spell power +atk/+hp, carried back (Gnasher)
-  | 'onKillGrantFreeRolls' // Moe: Slaughter — bank N free rerolls for next shop (carried back)
+  | 'onKillGrantFreeRolls' // (dial) Slaughter — bank N free rerolls for next shop (carried back)
+  | 'onKillGrantAttachmentRefreshes' // Moe: Slaughter — N free refreshes + N shops with a guaranteed Magnetic (carried back)
   | 'onKillGrantGold' // Bounty Bot: Slaughter — grant N Gold into the next shop (carried back)
   | 'onKillCastSpell' // Hoardbreaker Drake: Slaughter — cast a board-wide stat spell (Growth) in combat
   | 'rallyCastRandomStatSpell' // Spell Drummer: Rally — cast a random stat spell on a random friend + copy self to hand
@@ -98,6 +99,8 @@ export type EffectFactoryId =
   | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
   | 'scTribeBuffPerSpell' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
+  | 'scTribeBuffPerPlayed' // (retired dial) Start of Combat — buff Beasts +N/+N, +M per Beast played this turn
+  | 'scTribeBuffImproving' // Pack Leader: Start of Combat — buff Beasts +M/+M (base + accrued), improve permanently
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'
@@ -107,6 +110,7 @@ export type EffectFactoryId =
   | 'battlecryDiscoverSpell' // Battlecry: Discover a spell (golden: grants the pick + a second random spell) (Black Belt Brian)
   | 'onBattlecryBuffTribe' // when any Battlecry resolves, buff your tribe (Karwind)
   | 'onBattlecryBuffFodder' // when any Battlecry resolves, permanently buff the Fodder card type run-wide (Bane)
+  | 'battlecryBuffFodder' // The Godfodder (Choose One): Battlecry — buff the Fodder card type +atk/+hp run-wide
   | 'battlecryBuffSpellPower' // Battlecry: permanently raise the run-wide spell power (+atk/+hp to spells) (Cinderwing Matron)
   | 'endOfTurnBuff' // End of Turn: buff self (recruit)
   | 'endOfTurnMagnetizeMechs' // End of Turn: merge a token's stats into N friendly Mechs (Combinator)
@@ -184,6 +188,8 @@ export type EffectFactoryId =
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
+  | 'battlecryBuffBeastAttack' // Squirl Scout: Battlecry — give your Beasts +Attack wherever they are; stacks into future buys
+  | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
   | 'goldSpentBuffFodder' // Koron: every N Gold spent, permanently buff your Fodder run-wide (+ queue a Fodder)
   | 'goldSpentMagnetize' // Banksly: every N Gold spent, weld a random Magnetic onto self
@@ -209,6 +215,7 @@ export type EffectFactoryId =
   | 'scBeastAura' // Kennelmaster: Start of Combat — Beast aura +N/+N (grown by Avenge), catches combat summons
   | 'rallyTribeAura' // Solaris Fang: Rally — Beast aura +N/+N for the rest of combat (catches combat summons)
   | 'rallyGiveDemonAttack' // Bloodbinder: Rally — give another friendly Demon +Attack = this minion's Attack
+  | 'rallyDamageRandomEnemy' // Philippe: Rally — also deal its Attack to a random enemy (golden +2), no retaliation
   | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
   | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
   | 'spellRallyDoubleNext' // Rallying Offensive: cast — your Rally effects trigger twice next combat (recruit)
@@ -216,7 +223,9 @@ export type EffectFactoryId =
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
-  | 'endOfTurnAdjacentConsumeFodder'; // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
+  | 'endOfTurnAdjacentConsumeFodder' // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
+  | 'endOfTurnBuffPerTribePlayed' // Spirit Worgen: EoT — gain per Beast/Dragon played this turn, +per spell cast (recruit)
+  | 'battlecryDestroyForSpell'; // Graverobber: Battlecry — destroy a friendly (procs its DR), get a spell of its tier (recruit)
 
 export interface EffectDef {
   on: GameEvent;
@@ -256,6 +265,9 @@ export interface CardDef {
   /** Tara → Taragosa: after being granted stats `ascendAt` times in combat, this card ascends to
    *  `ascendInto` at settle — keeping its accumulated (Engraved) stats, like Spirit Pup's transform. */
   ascendAt?: number;
+  /** Bounty Bot: "immune while attacking" for this many combats after it enters play — the attacker takes no
+   *  retaliation on its own swings. Tracked per-instance via `BoardMinion.attackImmuneLeft`. */
+  attackImmuneTurns?: number;
   ascendInto?: string;
   /** Combat: this minion attacks immediately when summoned mid-fight, out of turn order — then joins the
    *  normal rotation (Twilight Whelp's 3/3 Whelp). Drained by the immediate-attack queue in `simulate`. */
@@ -298,7 +310,7 @@ export interface CardDef {
   fodderAura?: { attack: number; health: number };
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
-  chooseOne?: { text: string; effects: EffectDef[] }[];
+  chooseOne?: { text: string; effects: EffectDef[]; target?: 'friendly' | 'any' }[];
   /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
    *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
    *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe
@@ -436,6 +448,9 @@ export interface Minion {
   /** Extra magnitude on this minion's summon-buff (Kennelmaster), grown by Avenge in
    *  combat and carried back to the run board afterwards. */
   summonBonus: number;
+  /** Bounty Bot: swings of "immune while attacking" remaining this combat (>0 → this minion takes no
+   *  retaliation on its own attack, then spends one charge). Seeded fresh each combat from CardDef.attackImmuneTurns. */
+  attackImmuneLeft?: number;
   /** Flowing Monk: flat grant bonus from the triple combine (see BoardMinion.overflowBonus). Static. */
   overflowBonus?: number;
   /** Guel: spells-cast-while-on-board (seeded from the run card) — feeds the live combat text only. */
@@ -581,6 +596,8 @@ export interface CombatResult {
   playerDeferredBattlecries?: { cardId: string; golden: boolean }[];
   /** Free shop rerolls banked from this combat (Gryphon's on-damaged). Added to `freeRolls` in settleCombat. */
   playerFreeRolls?: number;
+  /** Moe: number of upcoming shops that must contain a guaranteed Magnetic offer. Added to the run's counter. */
+  playerGuaranteedAttachments?: number;
   /** Permanent max-Gold increase from this combat (Soulsman's Avenge). Applied to `maxEmbers` in
    *  settleCombat. Absent if 0. */
   playerMaxGoldGain?: number;
@@ -619,8 +636,10 @@ export interface CombatContext {
   readonly bus: CombatBus;
   readonly boards: Record<Side, Minion[]>;
   readonly events: CombatEvent[];
-  /** Spells cast this turn (recruit), frozen at combat start — scales Spirit Worgen's in-combat buff. */
+  /** Spells cast this turn (recruit), frozen at combat start — scales Runescale Drake's Start-of-Combat buff. */
   readonly spellsThisTurn: number;
+  /** Beasts you PLAYED this turn (recruit), frozen at combat start — scales Pack Leader's Start-of-Combat buff. */
+  readonly beastsPlayedThisTurn: number;
   /** The run's spell power at combat start ({attack, health} — hero amplify + card spell bonus). Taragosa's
    *  Growth is a real spell cast, so it inherits this just like a shop-cast Growth does. */
   readonly spellPower: { attack: number; health: number };
@@ -642,7 +661,7 @@ export interface CombatContext {
    *  sees the correct keyword set from the first frame (Broodmother → Taunt on her Whelps).
    *  `golden` summons the token GILDED — doubled base stats + the golden flag (Manasaber's golden
    *  cubs are 0/4) — for summoners whose golden form upgrades the token instead of the count. */
-  summon(side: Side, card: CardDef, nearUid?: string, grantKeywords?: Keyword[], golden?: boolean, attackNow?: boolean): Minion;
+  summon(side: Side, card: CardDef, nearUid?: string, grantKeywords?: Keyword[], golden?: boolean, attackNow?: boolean, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }): Minion;
   /** Flush the attack-on-summon queue immediately (Twilight Whelp: each spawned Whelp attacks
    *  before the next one may spawn, so a full board doesn't block the second if the first dies). */
   flushImmediateAttacks?(): void;
@@ -678,6 +697,8 @@ export interface CombatContext {
   /** Bank `count` free shop rerolls for the player from combat (Gryphon). Player-only; carried back via
    *  CombatResult.playerFreeRolls. */
   grantFreeRolls(count: number, side: Side): void;
+  /** Moe: bank `count` upcoming shops that each guarantee a Magnetic offer (carried back to the run). */
+  grantGuaranteedAttachments(count: number, side: Side): void;
   /** Grant `count` random tavern-tier spells to the player's hand after combat (Sporebat, and a Discover-spell
    *  Battlecry re-fired in combat by Ryme). Player-only. Picks the ACTUAL spell(s) now (the run's tavern tier
    *  is threaded into combat) and routes each through `grantToHand` — so the replay shows the real card flying

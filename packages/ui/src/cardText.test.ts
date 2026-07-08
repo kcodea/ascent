@@ -1,7 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, guelProgressText, monkProgressText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerSpellText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('cardText helpers', () => {
+  it('scTribeBuffPerSpellText shows Runescale Drake’s live Dragon grant (base + per-spell, golden-aware)', () => {
+    expect(scTribeBuffPerSpellText('runescale', false, 0)).toBeNull(); // no spells → printed base is accurate
+    // 2 spells cast → +2/+2 base + 2×+1/+1 = +4/+4 (first group only; the "+1/+1" improve rate is left alone).
+    expect(scTribeBuffPerSpellText('runescale', false, 2)).toContain('{{+4/+4}}');
+    expect(scTribeBuffPerSpellText('runescale', false, 2)).toContain('**+1/+1**');
+    // Golden doubles the grant: (2 + 2) × 2 = +8/+8.
+    expect(scTribeBuffPerSpellText('runescale', true, 2)).toContain('{{+8/+8}}');
+    expect(scTribeBuffPerSpellText('sandbag', false, 3)).toBeNull();
+  });
+  it('escalatingCastText shows Vineweaver Drake’s live Growth grant + next-turn cast count', () => {
+    expect(escalatingCastText('vineweaver', false, 0, 0, 0)).toContain('+3/+4'); // base grant, 1 cast next End of Turn
+    expect(escalatingCastText('vineweaver', false, 2, 0, 0)).toContain('{{3×}}'); // eotTick 2 → next End of Turn casts 3×
+    expect(escalatingCastText('vineweaver', true, 1, 0, 0)).toContain('{{4×}}'); // golden doubles: (1+1)×2 = 4
+    expect(escalatingCastText('vineweaver', false, 0, 2, 2)).toContain('{{+5/+6}}'); // spell power lifts the grant
+    expect(escalatingCastText('sandbag', false, 3, 0, 0)).toBeNull();
+  });
   it("monkProgressText shows Flowing Monk's live grant + countdown to the next step (golden-aware)", () => {
     // 0 overflows: grant +2/+2, 5 to the next step — the current value shows from the very start.
     expect(monkProgressText('monk', false, 0)).toContain('{{+2/+2}}');
@@ -76,9 +92,9 @@ describe('cardText helpers', () => {
     expect(summonImproveText('sandbag', 4, false)).toBeNull(); // not a per-summon-improve card
   });
 
-  it('summonScalingText (Spirit Worgen) shows the live per-summon gain = base + spells cast this turn', () => {
-    expect(summonScalingText('spiritworgen', 3)).toContain('{{+6/+6}}'); // base 3 + 3 spells this turn
-    expect(summonScalingText('spiritworgen', 0)).toBeNull(); // no spells this turn → printed +3/+3
+  it('summonScalingText (Spirit Worgen) greens the per-unit gain = base + spells cast this turn', () => {
+    expect(summonScalingText('spiritworgen', 3)).toContain('{{+5/+5}}'); // base 2 + 3 spells this turn
+    expect(summonScalingText('spiritworgen', 0)).toBeNull(); // no spells this turn → printed +2/+2
     expect(summonScalingText('grim', 3)).toBeNull(); // not a spells-this-turn scaler
   });
 

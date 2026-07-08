@@ -215,9 +215,9 @@ export const MECHS: CardDef[] = [
     attack: 4,
     health: 3,
     keywords: ['SL'],
-    effects: [{ on: 'onKill', do: 'onKillGrantFreeRolls', params: { count: 2 } }],
-    text: '**Slaughter:** gain **2 free refreshes** next shop.',
-    goldenText: '**Slaughter:** gain **4 free refreshes** next shop.',
+    effects: [{ on: 'onKill', do: 'onKillGrantAttachmentRefreshes', params: { count: 1 } }],
+    text: '**Slaughter:** gain **1 free refresh** next turn — that shop has a guaranteed **Attachment** (costs 2).',
+    goldenText: '**Slaughter:** gain **2 free refreshes** next turn — those shops have a guaranteed **Attachment** (costs 2).',
   },
   {
     // Slaughter (on kill): grant 2 Gold into your next shop (golden: 4). A high-Attack finisher that snowballs
@@ -229,9 +229,10 @@ export const MECHS: CardDef[] = [
     attack: 7,
     health: 3,
     keywords: ['SL'],
+    attackImmuneTurns: 2,
     effects: [{ on: 'onKill', do: 'onKillGrantGold', params: { gold: 2 } }],
-    text: '**Slaughter:** gain **2 Gold** next shop.',
-    goldenText: '**Slaughter:** gain **4 Gold** next shop.',
+    text: 'Immune while attacking (first **2** attacks each combat). **Slaughter:** gain **2 Gold** next shop.',
+    goldenText: 'Immune while attacking (first **2** attacks each combat). **Slaughter:** gain **4 Gold** next shop.',
   },
   {
     // Battlecry fetches a Patch Job spell into your hand (a stat spell that scales with Gold spent this turn).
@@ -257,8 +258,23 @@ export const MECHS: CardDef[] = [
     attack: 4,
     health: 7,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeCastRandomStatSpell', params: { count: 4 } }],
-    text: '**Avenge (4):** cast a random spell on your lowest-Health Mech.',
-    goldenText: '**Avenge (4):** cast a random spell on your lowest-Health Mech, **doubled**.',
+    effects: [{ on: 'avenge', do: 'avengeGrantSpell', params: { count: 4, cardId: 'sparkplug' } }],
+    text: '**Avenge (4):** add a **Spark Plug** to your hand.',
+    goldenText: '**Avenge (4):** add **two Spark Plugs** to your hand.',
+  },
+  {
+    // Battlecry: your Magnetic minions ("Attachments") gain +2/+2 wherever they are — baked into every current
+    // Magnetic (board + hand) and every future one (bought/conjured/summoned/Reborn), the Magnetic sibling of
+    // Squirl Scout's Beast aura but with a Health half. Excludes ones already welded into a host. Golden → +4/+4.
+    id: 'scrapherald',
+    name: 'Attachment Mechanic',
+    tribe: 'mech',
+    tier: 3,
+    attack: 2,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryBuffMagnetics', params: { attack: 2, health: 2 } }],
+    text: '**Battlecry:** your **Attachments** have **+2/+2** wherever they are.',
+    goldenText: '**Battlecry:** your **Attachments** have **+4/+4** wherever they are.',
   },
 ];

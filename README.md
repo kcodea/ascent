@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Choreography panel fixes** — the ▶ Preview effects now draw **in front of** the panel (the FX layers are
+  lifted above it while it's open) instead of behind it, and timeline lanes whose anchor can't fire before its
+  moment (`start` cues) grey out their negative side so the limitation reads at a glance.
 - **Combat Choreographer — Phase 4 slice 1 (the 🎬 Choreography panel)** — the combat Score is now a
   live-editable timeline: drag cue chips to retime/reorder, per-cue ms offsets + scales-with-speed/on-off
   toggles, a ▶ mock-stage FX preview that fires a moment's real effects on demand, and Copy/Reset. The

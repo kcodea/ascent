@@ -1,7 +1,7 @@
 import type { MomentKind } from './choreo/kinds';
 import type { Cue } from './choreo/score';
 import { getScore, setCue } from './choreo/score';
-import { clampOffset } from './choreo/timelineMath';
+import { clampOffset, allowsNegative } from './choreo/timelineMath';
 import { CH_COLOR, CH_DESC, AT_DESC } from './choreoLabels';
 
 /**
@@ -60,6 +60,12 @@ export function ChoreoTimeline({ kind, onChange }: { kind: MomentKind; onChange:
             <span className="choreo-lane-name" style={{ color: CH_COLOR[c.ch] }} title={CH_DESC[c.ch]}>{c.ch}</span>
             <span className="choreo-lane-at" title={AT_DESC[c.at]}>{c.at}</span>
             <div className="choreo-lane-track">
+              {!allowsNegative(c.at) && (
+                <div
+                  className="choreo-neg-block"
+                  title={`A ${c.at} cue can't fire before the moment begins — negative offsets aren't possible here, so this side is greyed out.`}
+                />
+              )}
               <div className="choreo-zero" />
               <div
                 className="choreo-chip"

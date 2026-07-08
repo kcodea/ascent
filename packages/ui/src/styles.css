@@ -1420,6 +1420,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Persistent shield/reborn bubbles render here — over the card art but BELOW the badges/tier/effect chrome
    (which sit at z4–9 in the root stacking context). The break burst stays on .pixifx (z110), over the chrome. */
 .pixifx-under { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+/* While the DEV 🎬 Choreography panel (`.sfxmix.choreo` z200) is open, lift both FX layers ABOVE it so the
+   ▶ Preview bursts + persistent aura bubbles render ON TOP of the widget (they're pointer-events:none, so this
+   never steals the panel's clicks). Dev-only; restored when the panel closes. */
+body.choreo-open .pixifx { z-index: 205; }
+body.choreo-open .pixifx-under { z-index: 204; }
 /* Loss-damage tally — the damage counter that assembles above the enemy board on a defeat, plus the
    tier numbers that fly up into it. The Pixi blast bolt (z41) launches from the counter into the Resolve
    bar. Counter z-index sits above the board but below the bolt. */
@@ -1937,6 +1942,11 @@ svg { width: 18px; height: 18px; }
 .choreo-lane-at { flex: 0 0 42px; font-size: 9px; color: #8a7f6d; }
 .choreo-lane-track { position: relative; flex: 1; height: 22px; background: rgba(255,255,255,.03); border-radius: 4px; }
 .choreo-zero { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 0; border-left: 1px solid rgba(255,255,255,.32); }
+/* Greyed "can't go negative" region — the left (before-anchor) half of a lane whose anchor is `start` (a cue
+   can't fire before its moment exists). Hatched + dimmed so the off-limits side reads at a glance. */
+.choreo-neg-block { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; border-radius: 4px 0 0 4px;
+  background: repeating-linear-gradient(-45deg, rgba(255,255,255,.05) 0 5px, rgba(255,255,255,.015) 5px 10px);
+  border-right: 1px dashed rgba(255,255,255,.14); cursor: not-allowed; }
 .choreo-chip { position: absolute; top: 3px; transform: translateX(-50%); height: 16px; display: flex; align-items: center; padding: 0 6px; border-radius: 4px; font-size: 9.5px; font-weight: 800; color: #1c1a17; cursor: grab; white-space: nowrap; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,.45); font-variant-numeric: tabular-nums; }
 .choreo-chip:active { cursor: grabbing; }
 

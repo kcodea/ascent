@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { MomentKind } from './choreo/kinds';
 import type { Channel, Cue } from './choreo/score';
 import { getScore, setCue, resetScore, scoreJson } from './choreo/score';
@@ -28,6 +28,13 @@ const HOLD_KEY: Partial<Record<MomentKind, keyof ChoreoConfig>> = {
 
 export function ChoreographyPanel() {
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('choreo');
+  // While this panel is open, lift the app-wide FX layers (`.pixifx` z110 / `.pixifx-under` z3) ABOVE the panel
+  // (z200) so ▶ Preview's bursts + bubbles draw ON TOP of the widget instead of behind it. The layers are
+  // pointer-events:none, so raising them never steals clicks from the panel. Restored on unmount (dev-only).
+  useEffect(() => {
+    document.body.classList.add('choreo-open');
+    return () => document.body.classList.remove('choreo-open');
+  }, []);
   const [kind, setKind] = useState<MomentKind>('attackExchange');
   const [fireKey, setFireKey] = useState(0);
   const [, force] = useState(0);

@@ -258,6 +258,10 @@ which effect channels fire at which offsets — replacing the current split acro
   **▶ mock-stage FX preview** (`ChoreoPreviewStage.tsx`, overlay mounted app-wide). The **Pacing tuner is
   retired** into the panel. Invisible by default: equivalence tests + final review confirm byte-identical
   timing (incl. the reborn-glow-footprint fix). **Depends:** phase 3.
+  - _Follow-up (2026-07-08, session 26 → devlog):_ ▶ Preview FX now render **in front of** the panel (the
+    app-wide `.pixifx`/`.pixifx-under` layers are lifted above the panel's z200 while it's open, via a
+    `body.choreo-open` class; restored on close), and timeline lanes with a non-negatable anchor (`start`)
+    grey out their negative half (new `allowsNegative()` helper, derived from `clampOffset`).
 - **Phase 4 — Authoring (remaining slices).** Per-target staggers / AOE death ripple; `splitPerTarget`/`chain`
   grouping rules; a separate resolution-order tool; the first real re-choreographs as proof (a Deathrattle
   chain folded into its death moment; shield-break-before-damage-number ordering); and the impact cue's

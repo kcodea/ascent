@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-08 (session 26)
+
+### fix: Choreography preview draws in front + greyed "can't-go-negative" lanes
+
+Two follow-ups from a live pass on the 🎬 Choreography panel:
+
+- **▶ Preview FX now render ON TOP of the panel, not behind it.** The panel (`.sfxmix.choreo`) sits at
+  `z-index: 200`, but the app-wide FX layers are `.pixifx` (z110, burst/impact) and `.pixifx-under` (z3,
+  persistent shield/reborn bubbles) — so every preview effect drew *behind* the widget and was invisible.
+  Fix: while the panel is mounted it adds `body.choreo-open`, and CSS lifts the two layers to z205 / z204
+  (above the panel). Both layers are `pointer-events:none`, so raising them never steals the panel's clicks;
+  the class is removed on unmount, restoring z110 / z3. Dev-only.
+- **Timeline lanes whose anchor can't go negative are now greyed on the negative side.** A `start`-anchored
+  cue can't fire before its moment exists (`clampOffset` clamps it ≥ 0) — a real limitation, not a missing
+  feature. The negative (left-of-0) half of those lanes now shows a hatched, dimmed "not-allowed" block with
+  an explaining tooltip; `contact`/`landed` lanes (which *do* allow the smack-lead) stay fully active. A new
+  `allowsNegative(at)` helper in `timelineMath.ts` derives this from `clampOffset` so the greying and the
+  clamp can never drift apart.
+- **Verified:** typecheck/lint clean; `timelineMath` tests green (added an `allowsNegative` case). Live via
+  DOM evals: opening the panel sets `body.choreo-open` and computes `.pixifx`→205 / `.pixifx-under`→204 (both
+  above the panel's 200); the five `start` lanes render the greyed block while the `contact`/impact lane does
+  not; ▶ Preview fired `impact` (attackExchange) and `setShield` (shieldPop) on the raised layers; closing the
+  panel restored z110 / z3 and cleared the body class.
+
 ## 2026-07-08 (session 25)
 
 ### tweak: drag-feel defaults tuned by eye

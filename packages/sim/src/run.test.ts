@@ -272,23 +272,24 @@ describe('run loop (@game/sim)', () => {
     }
   });
 
-  it('Patch Job: gives +3/+3 per 7 Gold spent this turn', () => {
-    let s: RunState = {
-      ...createRun(1),
-      goldSpentThisTurn: 14, // two 7-Gold steps
+  it('Patch Job: +3/+3 baseline, plus +3/+3 per 7 Gold spent this turn', () => {
+    const mk = (goldSpentThisTurn: number): RunState => ({
+      ...createRun(1), goldSpentThisTurn, embers: 10,
       board: [{ uid: 'm1', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
       hand: [{ uid: 'p1', cardId: 'patchjob', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
-      embers: 10,
-    };
-    s = reduce(s, { type: 'play', uid: 'p1', targetUid: 'm1' }); // 14 Gold → 2 × +3/+3 → +6/+6
-    const m = s.board.find((c) => c.uid === 'm1')!;
-    expect([m.attack, m.health]).toEqual([2 + 6, 3 + 6]);
+    });
+    // 0 Gold spent → the baseline +3/+3.
+    let s = reduce(mk(0), { type: 'play', uid: 'p1', targetUid: 'm1' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2 + 3, 3 + 3]);
+    // 14 Gold spent → baseline + two 7-Gold steps = ×3 → +9/+9.
+    s = reduce(mk(14), { type: 'play', uid: 'p1', targetUid: 'm1' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2 + 9, 3 + 9]);
   });
 
   it('Patch Job display shows the CURRENT total based on Gold spent this turn', () => {
-    expect(spellDisplayText('patchjob', 0, 0, 0, 0)).toBe(CARD_INDEX['patchjob']!.text); // no Gold → the per-step rate
-    expect(spellDisplayText('patchjob', 0, 0, 0, 14)).toContain('{{Now +6/+6.}}'); // 14 Gold → 2 steps → +6/+6
-    expect(spellDisplayText('patchjob', 2, 0, 2, 14)).toContain('{{Now +10/+10.}}'); // + spell power lifts each step (+5 × 2)
+    expect(spellDisplayText('patchjob', 0, 0, 0, 0)).toBe(CARD_INDEX['patchjob']!.text); // no Gold → just the baseline text
+    expect(spellDisplayText('patchjob', 0, 0, 0, 14)).toContain('{{Now +9/+9.}}'); // 14 Gold → baseline + 2 steps = +9/+9
+    expect(spellDisplayText('patchjob', 2, 0, 2, 14)).toContain('{{Now +15/+15.}}'); // + spell power lifts each unit (+5 × 3)
   });
 
   it('Field Mechanic: Battlecry adds a Patch Job to hand', () => {

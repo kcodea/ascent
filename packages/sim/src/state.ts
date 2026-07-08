@@ -124,6 +124,8 @@ export interface BoardCard {
   /** Trail Forager: extra sell value accrued (+1 Gold per Beast played while it's on the board, ×2 golden).
    *  Read by `sellValueOf`; per-instance, persists across turns for the rest of the run. Absent = 0. */
   sellBonus?: number;
+  /** Taragosa's Heir: count of stat-gains seen on your strongest Dragon (every 3rd is mirrored onto the Heir). */
+  heirGainCount?: number;
   /** Gold-spend meter for `goldSpent` effects (Acid, Banksly): accrues the Gold spent while this card is on
    *  the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
    *  remainder), per-instance; absent = 0. */
@@ -370,6 +372,23 @@ export interface RunState {
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
   questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number };
+  /** Dragon Shout rewards. `shoutExtraAlways` = permanent extra Battlecry triggers (Hoardwake / The Hoard Wakes,
+   *  stacks like Drakko). `shoutFirstDoubleEachRound` = the first Shout you play each turn triggers twice (Warm
+   *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
+  shoutExtraAlways?: number;
+  shoutFirstDoubleEachRound?: boolean;
+  shoutFirstUsedThisTurn?: boolean;
+  /** Transient: how many times the LAST played Battlecry fired (Drakko + shout-repeat rewards + charges) — set
+   *  during the play, read by the reducer's Shout quest tick so it counts triggers without re-consuming. */
+  lastShoutFires?: number;
+  /** Transient: how many End-of-Turn effect triggers fired this End of Turn (incl. Chronos/Parliament repeats +
+   *  quest recurring effects) — set by `applyEndOfTurn`, read by the reducer's End-of-Turn quest tick. */
+  lastEotFires?: number;
+  /** Parliament of Flame: permanent extra End-of-Turn triggers (stacks like Chronos). Folds into endOfTurnRepeats. */
+  endOfTurnExtra?: number;
+  /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
+   *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout')[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted

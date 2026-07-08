@@ -28,6 +28,7 @@ export const GameEventSchema = z.enum([
   'spellCast',
   'summonOverflow',
   'goldSpent',
+  'onSell',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -196,6 +197,8 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnCastSpellEscalating',
   'endOfTurnAdjacentConsumeFodder',
   'endOfTurnBuffPerTribePlayed',
+  'endOfTurnBuffWeakestDragon',
+  'onSellGainGold',
   'battlecryDestroyForSpell',
 ]);
 
@@ -270,11 +273,12 @@ export const QuestTierSchema = z.enum(['lesser', 'greater', 'capstone']);
 export const QuestObjectiveEventSchema = z.enum([
   'buy', 'play', 'sell', 'roll', 'summon', 'shout',
   'attack', 'summonCombat', 'slaughter', 'deathrattle',
+  'spendGold', 'endOfTurn', 'tribeStats',
 ]);
 export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
-export const QuestRewardSchema = z.discriminatedUnion('kind', [
+export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('buffBoard'), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict(),
   z.object({
     kind: z.literal('grant'),
@@ -299,7 +303,11 @@ export const QuestRewardSchema = z.discriminatedUnion('kind', [
   }).strict(),
   z.object({ kind: z.literal('recurringGrant'), cards: z.array(z.string().min(1)).min(1) }).strict(),
   z.object({ kind: z.literal('combatFlag'), flag: QuestCombatFlagSchema, amount: z.number().int().nonnegative().optional() }).strict(),
-]);
+  z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
+  z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout']) }).strict(),
+  z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
+]));
 
 export const QuestDefSchema = z.object({
   id: z.string().min(1),
@@ -310,6 +318,7 @@ export const QuestDefSchema = z.object({
     event: QuestObjectiveEventSchema,
     count: z.number().int().positive(),
     tribe: TribeSchema.optional(),
+    filter: z.literal('shout').optional(),
   }).strict(),
   reward: QuestRewardSchema,
 }).strict();

@@ -44,7 +44,8 @@ export type GameEvent =
   | 'cast' // a spell's own effect resolves (its chosen target is in the payload)
   | 'spellCast' // recruit phase: any spell was cast (for spell-tracking minions)
   | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
-  | 'goldSpent'; // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
+  | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
+  | 'onSell'; // recruit phase: this minion is sold (Hoard Whelp — get Gold)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -228,6 +229,8 @@ export type EffectFactoryId =
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
   | 'endOfTurnAdjacentConsumeFodder' // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
   | 'endOfTurnBuffPerTribePlayed' // Spirit Worgen: EoT — gain per Beast/Dragon played this turn, +per spell cast (recruit)
+  | 'endOfTurnBuffWeakestDragon' // Skybound Archivist: EoT — weakest Dragon gains N% of strongest Dragon's stats (recruit)
+  | 'onSellGainGold' // Hoard Whelp: Sell — gain Gold (recruit)
   | 'battlecryDestroyForSpell'; // Graverobber: Battlecry — destroy a friendly (procs its DR), get a spell of its tier (recruit)
 
 export interface EffectDef {
@@ -353,13 +356,19 @@ export type QuestTier = 'lesser' | 'greater' | 'capstone';
  *    `tribe` narrows `attack` / `summonCombat` / `slaughter` to the acting/summoned minion's tribe. */
 export type QuestObjectiveEvent =
   | 'buy' | 'play' | 'sell' | 'roll' | 'summon' | 'shout'
-  | 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle';
-/** A quest objective: reach `count` of `event`. `tribe` narrows a tribe-aware objective to one tribe (e.g.
- *  "Summon 4 Undead", "Slaughter 6 enemies with Beasts"). Live progress lives on the run's `ActiveQuest`. */
+  | 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle'
+  // Dragon set: `spendGold` counts Gold spent (advances by the amount); `endOfTurn` counts End-of-Turn effect
+  // TRIGGERS (Chronos + the Parliament reward multiply it); `tribeStats` counts +Attack/+Health BUFFS granted to
+  // `tribe` (base stats excluded) — advances by (attack + health) per buff.
+  | 'spendGold' | 'endOfTurn' | 'tribeStats';
+/** A quest objective: reach `count` of `event`. `tribe` narrows a tribe-aware objective (e.g. "Summon 4 Undead",
+ *  "Give Dragons 80 stats"). `filter: 'shout'` narrows a `buy` to Battlecry minions ("Buy 3 Shout minions").
+ *  Live progress lives on the run's `ActiveQuest`. */
 export interface QuestObjective {
   event: QuestObjectiveEvent;
   count: number;
   tribe?: Tribe;
+  filter?: 'shout';
 }
 /**
  * What a completed quest grants — a discriminated union; the reward palette grows as content lands:
@@ -383,7 +392,17 @@ export type QuestReward =
   | { kind: 'recurringGrant'; cards: string[] }
   // Arm a run-wide combat modifier consumed by `simulate()` (see QuestCombatMods): Blood Trail, Echoing Coop,
   // Law of Teeth, The Old Hunt. `amount` parameterizes the flag where it needs a magnitude (Old Hunt's aura step).
-  | { kind: 'combatFlag'; flag: QuestCombatFlag; amount?: number };
+  | { kind: 'combatFlag'; flag: QuestCombatFlag; amount?: number }
+  // Dragon Shout rewards: `always` grants a permanent extra Battlecry trigger (Hoardwake / The Hoard Wakes,
+  // stacks like Drakko); `firstEachRound` makes the FIRST Shout you play each turn trigger twice (Warm Embers).
+  | { kind: 'shoutRepeat'; scope: 'always' | 'firstEachRound' }
+  // Parliament of Flame: your End-of-Turn effects trigger an extra time (permanent, stacks like Chronos).
+  | { kind: 'endOfTurnRepeat' }
+  // A run-wide recurring End-of-Turn EFFECT granted by a quest: re-fire your leftmost Shout (Echoing Roar), or
+  // conjure a random Shout minion to hand (The Hoard Wakes). Applied every End of Turn for the rest of the run.
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' }
+  // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
+  | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
 export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt';
@@ -616,6 +635,10 @@ export interface CombatResult {
   /** The Old Hunt: run-wide Beast Attack aura gained this combat (step × Beast attacks). Stacks into
    *  `beastBuyAtk` + applied to existing run-board Beasts in settleCombat. Absent if 0. */
   playerBeastBuyAtkGain?: number;
+  /** Step-tagged timeline of combat quest-objective ticks (one per increment) so the UI can LIVE-TICK quest
+   *  progress during the replay: an entry with `step` ≤ the replay's current step is already counted. `tribes`
+   *  narrows tribe-scoped objectives ("…with Beasts"); deathrattle (Echo) entries carry no tribe. */
+  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle'; tribes: Tribe[] }[];
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
   /** Per-instance state to persist on the run board after combat, keyed by the board

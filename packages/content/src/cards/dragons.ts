@@ -267,4 +267,49 @@ export const DRAGONS: CardDef[] = [
     text: '**Slaughter:** Cast **Growth** (give your minions **+3/+4**).',
     goldenText: '**Slaughter:** Cast **Growth** (give your minions **+6/+8**).',
   },
+
+  // ── Dragon quest reward minions (owner spec 2026-07-08) — `token: true` = reward-exclusive (never in the shop
+  //    or "random Dragon" grants). ────────────────────────────────────────────────────────────────────────────
+  {
+    // Coin Hoard reward — a value bank you cash in on sell.
+    id: 'hoardwhelp',
+    name: 'Hoard Whelp',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 3,
+    health: 2,
+    keywords: [],
+    token: true,
+    effects: [{ on: 'onSell', do: 'onSellGainGold', params: { amount: 6 } }],
+    text: '**Sell:** get **6 Gold**.',
+    goldenText: '**Sell:** get **12 Gold**.',
+  },
+  {
+    // Skybound Pact reward — End of Turn, drags your weakest Dragon up toward your strongest.
+    id: 'skybound',
+    name: 'Skybound Archivist',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 5,
+    health: 4,
+    keywords: [],
+    token: true,
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffWeakestDragon', params: { pct: 20 } }],
+    text: "**End of Turn:** your weakest Dragon gains stats equal to **20%** of your strongest Dragon's stats.",
+    goldenText: "**End of Turn:** your weakest Dragon gains stats equal to **40%** of your strongest Dragon's stats.",
+  },
+  {
+    // Taragosa's Inheritance reward — mirrors your strongest Dragon's growth. Effect is handled in the reducer's
+    // stat-gain diff (recruit phase; combat-gain copy is a follow-up), so no effect factory here.
+    id: 'taragosaheir',
+    name: "Taragosa's Heir",
+    tribe: 'dragon',
+    tier: 6,
+    attack: 7,
+    health: 6,
+    keywords: [],
+    token: true,
+    effects: [],
+    text: 'Every **third** stat gain your **strongest Dragon** receives is copied onto this, permanently.',
+  },
 ];

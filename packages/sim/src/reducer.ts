@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, drummerRepeats, fireOnGainAttack, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -18,6 +18,7 @@ function spendGold(s: RunState, amount: number): void {
   s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
   s.goldSpentThisTurn = (s.goldSpentThisTurn ?? 0) + amount; // per-turn (Patch Job); reset each wave
   applyGoldSpent(s, amount);
+  advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
 }
 
 /** Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). Progresses on every
@@ -114,6 +115,32 @@ export function reduce(state: RunState, action: Action): RunState {
       const prev = before.get(c.uid);
       if (prev !== undefined && c.attack > prev) fireOnGainAttack(next, c);
     }
+    // "Give Dragons N total stats" (Skybound Pact / Taragosa's Inheritance): sum the +Attack/+Health BUFFS a
+    // Dragon present BEFORE and AFTER this action received (base stats of new Dragons are excluded — only gains
+    // on existing Dragons, board + hand). Advances the `tribeStats` objective by that total.
+    const statBefore = new Map([...state.board, ...state.hand].map((c) => [c.uid, { attack: c.attack, health: c.health }]));
+    let dragonStatGain = 0;
+    for (const c of [...next.board, ...next.hand]) {
+      const prev = statBefore.get(c.uid);
+      if (prev === undefined || !isTribe(c, 'dragon')) continue;
+      dragonStatGain += Math.max(0, c.attack - prev.attack) + Math.max(0, c.health - prev.health);
+    }
+    if (dragonStatGain > 0) advanceQuestsBy(next, (o) => o.event === 'tribeStats' && o.tribe === 'dragon', dragonStatGain);
+    // Taragosa's Heir: every THIRD stat-gain your STRONGEST Dragon receives is mirrored onto the Heir permanently
+    // (recruit phase; combat-gain copy is a follow-up). Counts an action where the current strongest Dragon (not
+    // the Heir) gained stats as one gain; every 3rd such gain, the Heir gains the same +Attack/+Health.
+    const heir = next.board.find((c) => c.cardId === 'taragosaheir');
+    if (heir) {
+      const strongest = next.board.filter((c) => c !== heir && isTribe(c, 'dragon'))
+        .reduce<BoardCard | undefined>((a, b) => (!a || b.attack + b.health > a.attack + a.health ? b : a), undefined);
+      const prev = strongest ? statBefore.get(strongest.uid) : undefined;
+      const dA = strongest && prev ? Math.max(0, strongest.attack - prev.attack) : 0;
+      const dH = strongest && prev ? Math.max(0, strongest.health - prev.health) : 0;
+      if (dA > 0 || dH > 0) {
+        heir.heirGainCount = (heir.heirGainCount ?? 0) + 1;
+        if (heir.heirGainCount % 3 === 0) addBuff(heir, "Taragosa's Inheritance", dA, dH);
+      }
+    }
     // Quest objectives (a successful recruit action already means `next !== state`):
     //  • buy / play / sell / roll — the tracked action (`buyQuest` itself is excluded from the map).
     //  • shout — the played card was a Battlecry minion (a "shout").
@@ -123,22 +150,21 @@ export function reduce(state: RunState, action: Action): RunState {
     const questEvent = QUEST_TICK_EVENTS[action.type];
     if (questEvent) advanceQuests(next, (o) => o.event === questEvent);
     if (action.type === 'buy') {
-      // "Buy N <tribe>" (Forager's Trail): narrow the buy tick to the bought minion's tribe (dual-types count
-      // for both). Resolved from the shop offer the action targeted; a spell buy has a tribe too (won't match).
+      // "Buy N <tribe>" (Forager's Trail) / "Buy N Shout minions" (Warm Embers): narrow the buy tick to the
+      // bought minion's tribe (dual-types count) and/or `filter: 'shout'` (has a Battlecry). Resolved from the
+      // shop offer the action targeted.
       const offer = state.shop.find((c) => c.uid === action.uid);
       const bdef = offer ? CARD_INDEX[offer.cardId] : undefined;
       const tribes = bdef ? ([bdef.tribe, bdef.tribe2].filter(Boolean) as Tribe[]) : [];
-      advanceQuests(next, (o) => o.event === 'buy' && (!o.tribe || tribes.includes(o.tribe)));
+      const isShout = !!bdef && hasBattlecry(bdef);
+      advanceQuests(next, (o) => o.event === 'buy' && (!o.tribe || tribes.includes(o.tribe)) && (o.filter !== 'shout' || isShout));
     }
+    // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
+    // objective. `lastShoutFires` was recorded during the play / target resolution (0 if no Shout fired).
+    for (let i = 0; i < (next.lastShoutFires ?? 0); i++) advanceQuests(next, (o) => o.event === 'shout');
     if (action.type === 'play') {
       const played = state.hand.find((c) => c.uid === action.uid);
       const pdef = played ? CARD_INDEX[played.cardId] : undefined;
-      if (pdef && hasBattlecry(pdef)) {
-        // A Shout is a TRIGGER: Drakko the Drummer re-fires the Battlecry, so each fire counts toward the Shout
-        // objective (owner ruling 2026-07-08 — trigger-based counts scale with doublers). 1 without Drakko.
-        const fires = drummerRepeats(next);
-        for (let i = 0; i < fires; i++) advanceQuests(next, (o) => o.event === 'shout');
-      }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
       if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast')) {
         for (const c of next.board) {
@@ -179,6 +205,8 @@ function reduceCore(state: RunState, action: Action): RunState {
   const { lastCombat, ...rest } = state;
   const s = structuredClone(rest) as RunState;
   s.lastCombat = lastCombat;
+  s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
+  s.lastEotFires = 0; // transient per-action End-of-Turn-fire count (set by applyEndOfTurn → read by the EoT quest tick)
 
   switch (action.type) {
     case 'buy': {
@@ -497,6 +525,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value (shared helper).
       if (sold) s.embers += sellValueOf(sold);
+      // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
+      if (sold) fireOnSell(s, sold);
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
       // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
       if (sold && getHero(s.heroId).power.kind === 'sellGold') s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
@@ -721,6 +751,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
+      advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0); // Parliament of Flame: "Trigger N End-of-Turn effects"
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
       // Serve a strength-matched real board from the opponent pool when one exists (getting off the
@@ -1246,6 +1277,7 @@ function advanceCombat(s: RunState): void {
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
+  s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
@@ -1344,11 +1376,18 @@ function advanceCombat(s: RunState): void {
 /** Advance every active, incomplete quest whose objective matches `pred`, by 1; complete + apply the reward at
  *  the threshold. Called once per tracked action (buy/play/sell/roll/shout) and once per newly-summoned minion. */
 function advanceQuests(s: RunState, pred: (o: QuestObjective) => boolean): void {
+  advanceQuestsBy(s, pred, 1);
+}
+
+/** Advance every active, incomplete quest matching `pred` by `amount` (≥1); complete + apply the reward at the
+ *  threshold. Used for amount-based objectives (spendGold, tribeStats, End-of-Turn / Shout trigger counts). */
+function advanceQuestsBy(s: RunState, pred: (o: QuestObjective) => boolean, amount: number): void {
+  if (amount <= 0) return;
   for (const aq of s.activeQuests ?? []) {
     if (aq.completed) continue;
     const def = QUEST_INDEX[aq.questId];
     if (!def || !pred(def.objective)) continue;
-    aq.progress += 1;
+    aq.progress += amount;
     if (aq.progress >= def.objective.count) {
       aq.completed = true;
       applyQuestReward(s, def, true);
@@ -1414,6 +1453,24 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.questFlags ??= {};
       if (r.flag === 'oldHunt') s.questFlags.oldHunt = r.amount ?? 0;
       else s.questFlags[r.flag] = true;
+      break;
+    case 'shoutRepeat':
+      // Hoardwake / The Hoard Wakes (always) → +1 permanent Battlecry trigger (stacks); Warm Embers
+      // (firstEachRound) → the first Shout each turn triggers twice.
+      if (r.scope === 'always') s.shoutExtraAlways = (s.shoutExtraAlways ?? 0) + 1;
+      else s.shoutFirstDoubleEachRound = true;
+      break;
+    case 'endOfTurnRepeat':
+      // Parliament of Flame: your End-of-Turn effects trigger an extra time (stacks, like Chronos).
+      s.endOfTurnExtra = (s.endOfTurnExtra ?? 0) + 1;
+      break;
+    case 'recurringEndOfTurn':
+      // Echoing Roar / The Hoard Wakes: a recurring End-of-Turn effect fired every turn for the rest of the run.
+      (s.questRecurringEndOfTurn ??= []).push(r.effect);
+      break;
+    case 'multi':
+      // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
+      for (const sub of r.rewards) applyQuestReward(s, { ...def, reward: sub }, allowRepeat);
       break;
   }
 }

@@ -1,8 +1,18 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
 import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, reduce, resolveRunRating, runRecord, serialize, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
+import type { Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
+
+/** Combat quest-objective progress landed so far in the live replay (same shape as `CombatResult.playerQuestTally`
+ *  plus a Deathrattle/Echo total). Drives the QuestPanel's live-tick. */
+export interface CombatQuestDelta {
+  attack: number; summonCombat: number; slaughter: number; deathrattle: number;
+  attackByTribe: Partial<Record<Tribe, number>>;
+  summonCombatByTribe: Partial<Record<Tribe, number>>;
+  slaughterByTribe: Partial<Record<Tribe, number>>;
+}
 import { sfx } from './sfx';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
 import { fetchAndRegisterPool, uploadBoards, uploadVictory } from './remoteBoards';
@@ -109,6 +119,11 @@ interface GameStore {
    *  Buffs window so it ticks up in sync with the replay. `null` outside combat (the row reads the run state). */
   combatBuffs: CombatBuffDelta | null;
   setCombatBuffs: (b: CombatBuffDelta | null) => void;
+  /** Combat quest-objective progress landed so far this fight — bridges useCombatReplay → the QuestPanel so
+   *  combat objectives (attack / summonCombat / slaughter / Echo) LIVE-TICK during the replay. `null` outside
+   *  combat (the panel reads only the run state's progress). */
+  combatQuestDelta: CombatQuestDelta | null;
+  setCombatQuestDelta: (d: CombatQuestDelta | null) => void;
   /** Increments on each sell — drives the gold "+1" flash on the Embers chip. */
   sellTick: number;
   /** The card being inspected (right-click) in a centred, enlarged overlay, or null. */
@@ -271,6 +286,7 @@ export const useGame = create<GameStore>((set, get) => ({
   endTurnAnimating: false,
   combatEnemyDeaths: 0,
   combatBuffs: null,
+  combatQuestDelta: null,
   sellTick: 0,
   inspect: null,
   // Boot into the title screen (the front door); the hero picker opens once a mode is chosen.
@@ -386,6 +402,7 @@ export const useGame = create<GameStore>((set, get) => ({
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   setCombatEnemyDeaths: (n) => set({ combatEnemyDeaths: n }),
   setCombatBuffs: (b) => set({ combatBuffs: b }),
+  setCombatQuestDelta: (d) => set({ combatQuestDelta: d }),
   inspectCard: (view) => { sfx.inspect(); set({ inspect: view }); },
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),

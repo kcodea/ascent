@@ -5,6 +5,58 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(content): Dragon quests — the second authored tribe (9 quests + 3 reward minions + Shout/EoT engine)
+
+The Dragon set (owner spec 2026-07-08) leans on Shout / End-of-Turn triggering + Dragon stat-growth. Branch
+`feat/dragon-quests`. Owner forks resolved: "give Dragons N stats" = cumulative BUFFS granted; Taragosa's Heir =
+every-3rd-gain of the strongest Dragon; combat quest panel = live-tick during replay (**UI piece still TODO** — see
+below). Art deferred (owner will wire).
+
+**9 quests** (Hoard Spark unchanged; Warm Embers redefined): *Lesser* — Hoard Spark (Buy 3 Dragons → random Dragon
++ spell), Warm Embers (Buy 3 Shout minions → first Shout each round triggers twice), Coin Hoard (Spend 12 Gold →
+Hoard Whelp). *Greater* — Echoing Roar (Trigger 6 Shouts → EoT: trigger leftmost Shout), Hoardwake Ritual (10
+Shouts → Shouts trigger +1), Skybound Pact (Give Dragons 80 stats → Skybound Archivist). *Capstone* — The Hoard
+Wakes (22 Shouts → Shouts +1 AND EoT: random Shout minion), Parliament of Flame (Trigger 14 EoT effects → EoT
+effects +1), Taragosa's Inheritance (Give Dragons 250 stats → Taragosa's Heir).
+
+**Engine:** new objective events `spendGold` / `endOfTurn` / `tribeStats` + a `buy` `filter: 'shout'`; new reward
+kinds `shoutRepeat` (always / firstEachRound), `endOfTurnRepeat`, `recurringEndOfTurn` (triggerLeftmostShout /
+grantRandomShout), and `multi`. Shout objectives now count each Battlecry FIRE (`playedShoutRepeats` folds in the
+new shout-repeat rewards + records `lastShoutFires`); `endOfTurnRepeats` folds in the Parliament permanent extra;
+`applyEndOfTurn` runs the recurring quest effects + counts EoT triggers; `tribeStats` advances via a board+hand
+stat-gain diff in the reducer. Added `advanceQuestsBy` (+N). New `onSell` effect trigger.
+
+**3 reward minions** (`token: true`): Hoard Whelp (Sell → 6 Gold), Skybound Archivist (EoT: weakest Dragon gains
+20% of the strongest's stats), Taragosa's Heir (every 3rd stat-gain of the strongest Dragon is mirrored on — recruit
+phase; combat-gain copy is a follow-up).
+
+**Verified:** typecheck + lint + build:web clean; **678 tests pass** (+5 Dragon: Hoard Whelp on-sell, Skybound Pact
+stat-diff, Hoardwake shout-repeat, Skybound Archivist EoT, Taragosa's Heir every-3rd; Warm-Embers shout tests
+retargeted to the new Shout-trigger objective).
+
+### feat(ui): combat quest panel live-tick + additive doubler stacking verified
+
+Follow-up on the Dragon quests: the quest panel now **live-ticks combat objectives during the replay**, and the
+"trigger more times" reward stacking is confirmed additive (owner ruling 2026-07-08).
+
+- **Live-tick.** `simulate()` records a step-tagged timeline of every combat quest tick
+  (`CombatResult.playerQuestEvents`: one entry per attack / summonCombat / slaughter / deathrattle, with the
+  acting minion's tribes). `useCombatReplay` folds the timeline up to the current replay step into a `questDelta`
+  (same shape as the tally, so it matches the settled total EXACTLY — no jump), bridged to the store
+  (`combatQuestDelta`) like the existing enemy-death / buff bridges; the QuestPanel adds it to each objective's
+  progress while a fight plays, then clears at settle. The panel already rendered in combat (in-place fights).
+  Refactored the 6 `playerDeathrattles` increment sites through a `bumpDeathrattles` helper so the Echo timeline
+  is recorded in one place.
+- **Additive stacking (owner ruling).** Any Shout/Rally/EoT reward that "triggers an extra time" stacks ADDITIVELY
+  with Drakko / Chronos (and each other, and itself). Confirmed the shout path already does this
+  (`playedShoutRepeats` = base + Drakko + `shoutExtraAlways` + first-each-round + charges): Drakko + Warm Embers =
+  3 fires for the first Shout; golden Drakko + Hoardwake + Warm Embers = 5 first / 4 consecutive — locked by a
+  test. Rally (Law of Teeth + Rallying Offensive) and EoT (Chronos + Parliament via `endOfTurnRepeats`) are
+  additive too.
+
+**Verified:** typecheck + lint + build:web clean; **680 tests pass** (+ the additive-stacking + `playerQuestEvents`
+timeline tests). Live: the QuestPanel folds the combat delta (Blood Trail reads 2/2 = pre-combat 1 + combat 1).
+
 ### balance(content): golden Sword and Bored → Fodder +1/+1 (not +2/+0)
 
 Owner tune — a golden Sword and Bored's Slaughter now gives your Fodder **+1/+1** instead of the ×2 (+2/+0) a plain

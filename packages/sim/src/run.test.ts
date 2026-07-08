@@ -376,6 +376,30 @@ describe('run loop (@game/sim)', () => {
     expect([m.attack, m.health]).toEqual([2 + 10, 3 + 10]); // two +5/+5 casts
   });
 
+  it('The Godfodder Choose One — option 0 buffs Fodder (no target), option 1 defers to a target', () => {
+    // Option 0: buff Fodder run-wide, resolves immediately (per-option target absent → no prompt).
+    let a: RunState = {
+      ...createRun(1),
+      hand: [{ uid: 'g', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }],
+    };
+    a = reduce(a, { type: 'play', uid: 'g' });
+    expect(a.chooseOne).toBeDefined();
+    a = reduce(a, { type: 'chooseOne', index: 0 });
+    expect(a.pendingTarget).toBeUndefined(); // option 0 does NOT prompt for a target
+    expect(a.cardBuffs?.fred?.attack).toBe(1); // the Fodder (Fred) card type enchanted +1/+1
+    // Option 1: consume — defers to a friendly target (per-option target: 'friendly').
+    let b: RunState = {
+      ...createRun(1),
+      board: [{ uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
+      hand: [{ uid: 'g', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }],
+    };
+    b = reduce(b, { type: 'play', uid: 'g' });
+    b = reduce(b, { type: 'chooseOne', index: 1 });
+    expect(b.pendingTarget).toBeDefined(); // option 1 prompts for a target
+    b = reduce(b, { type: 'battlecryTarget', targetUid: 'm' });
+    expect(b.board.find((c) => c.uid === 'm')!.attack).toBeGreaterThan(2); // consumed a Fodder → gained stats
+  });
+
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
     // multiplier. An untargeted spell has no `self`, so `gold(self)` used to throw (undefined.golden) and the

@@ -145,10 +145,13 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: [],
-    target: 'friendly',
-    effects: [{ on: 'onPlay', do: 'battlecryTargetConsumeFodder', params: {} }],
-    text: '**Battlecry:** Target a friendly minion — it consumes a **Fodder**.',
-    goldenText: '**Battlecry:** Target a friendly minion — it consumes **2 Fodder**.',
+    effects: [],
+    chooseOne: [
+      { text: 'Give your **Fodder** **+1/+1**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 1, health: 1 } }] },
+      { text: 'A friendly minion consumes a **Fodder**.', target: 'friendly', effects: [{ on: 'onPlay', do: 'battlecryTargetConsumeFodder', params: {} }] },
+    ],
+    text: '**Choose One:** give your **Fodder** **+1/+1**, or a friendly minion consumes a **Fodder**.',
+    goldenText: '**Choose One:** give your **Fodder** **+2/+2**, or a friendly minion consumes **2 Fodder**.',
   },
   {
     id: 'trickster',

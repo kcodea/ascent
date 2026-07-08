@@ -83,6 +83,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryDiscoverSpell',
   'onBattlecryBuffTribe',
   'onBattlecryBuffFodder',
+  'battlecryBuffFodder',
   'battlecryBuffSpellPower',
   'endOfTurnBuff',
   'endOfTurnMagnetizeMechs',
@@ -240,7 +241,7 @@ export const CardDefSchema = z.object({
   spellAura: z.number().int().positive().optional(),
   fodderAura: z.object({ attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict().optional(),
   chooseOne: z
-    .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema) }).strict())
+    .array(z.object({ text: z.string(), effects: z.array(EffectDefSchema), target: z.enum(['friendly', 'any']).optional() }).strict())
     .min(2)
     .optional(),
   discoverOnPlay: z

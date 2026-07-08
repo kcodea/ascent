@@ -943,6 +943,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** The Godfodder (Choose One, option A) — Battlecry: give your Fodder +atk/+hp run-wide (persistent, the
+   *  same run-wide Fodder enchant as Ritualist / Bane). Golden doubles. */
+  battlecryBuffFodder: (ctx, self, params) => {
+    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+  },
+
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*
    *  +atk/+hp run-wide (same mechanism as Ritualist's End-of-Turn enchant). Golden doubles. Fires once
    *  per Battlecry *fire* (so a Drakko-doubled Battlecry procs it twice — `fireBattlecryTriggered`

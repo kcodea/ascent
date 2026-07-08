@@ -416,7 +416,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       // A *targeted* Choose One (Runic Beetle): once the buff is chosen, defer to the player picking a
       // friendly target for it (via `battlecryTarget`) — but only when a viable target exists (tribe-
       // restricted, never self). With none, resolve now so the grant auto-picks (falls back to self).
-      if (def.target === 'friendly') {
+      // Defer to targeting if the CHOSEN option needs a target — per-option `target` (The Godfodder's consume
+      // option) takes precedence over the card-level `target` (Runic Beetle, whose options both target).
+      const optTarget = option.target ?? def.target;
+      if (optTarget === 'friendly') {
         const hasTarget = def.targetTribe
           ? s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!))
           : s.board.some((c) => c.uid !== card.uid);

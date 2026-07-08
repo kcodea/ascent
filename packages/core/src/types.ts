@@ -109,6 +109,7 @@ export type EffectFactoryId =
   | 'battlecryDiscoverSpell' // Battlecry: Discover a spell (golden: grants the pick + a second random spell) (Black Belt Brian)
   | 'onBattlecryBuffTribe' // when any Battlecry resolves, buff your tribe (Karwind)
   | 'onBattlecryBuffFodder' // when any Battlecry resolves, permanently buff the Fodder card type run-wide (Bane)
+  | 'battlecryBuffFodder' // The Godfodder (Choose One): Battlecry — buff the Fodder card type +atk/+hp run-wide
   | 'battlecryBuffSpellPower' // Battlecry: permanently raise the run-wide spell power (+atk/+hp to spells) (Cinderwing Matron)
   | 'endOfTurnBuff' // End of Turn: buff self (recruit)
   | 'endOfTurnMagnetizeMechs' // End of Turn: merge a token's stats into N friendly Mechs (Combinator)
@@ -303,7 +304,7 @@ export interface CardDef {
   fodderAura?: { attack: number; health: number };
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
-  chooseOne?: { text: string; effects: EffectDef[] }[];
+  chooseOne?: { text: string; effects: EffectDef[]; target?: 'friendly' | 'any' }[];
   /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
    *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
    *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe

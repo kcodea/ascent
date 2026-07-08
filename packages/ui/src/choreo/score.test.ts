@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from './compile';
 import { sfx } from '../sfx';
-import { SCORE, runMomentCues } from './score';
+import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues } from './score';
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
@@ -16,11 +16,11 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('score', () => {
   it('every MomentKind has a cue list (exhaustive score)', () => {
-    for (const cues of Object.values(SCORE)) expect(Array.isArray(cues)).toBe(true);
+    for (const cues of Object.values(SCORE_DEFAULTS)) expect(Array.isArray(cues)).toBe(true);
   });
 
   it('attackExchange scores lunge (start) + impact (contact) — no sfx/float double-firing the smack', () => {
-    expect(SCORE.attackExchange).toEqual(expect.arrayContaining([{ ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact', offset: 0 }]));
+    expect(SCORE_DEFAULTS.attackExchange).toEqual(expect.arrayContaining([{ ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact', offset: 0 }]));
   });
 
   it('runMomentCues fires the sfx channel and routes a real-death shake to onShake', () => {
@@ -48,16 +48,16 @@ describe('score', () => {
 
   it('auraBurst + auraBreak are on every kind; auraReform is on the reborn kind (grouped effects not missed)', () => {
     for (const kind of ['damage', 'death', 'shieldPop', 'poisonTick', 'summon'] as const) {
-      expect(SCORE[kind].some((c) => c.ch === 'auraBurst')).toBe(true);
-      expect(SCORE[kind].some((c) => c.ch === 'auraBreak')).toBe(true);
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'auraBurst')).toBe(true);
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'auraBreak')).toBe(true);
     }
-    expect(SCORE.reborn.some((c) => c.ch === 'auraReform')).toBe(true);
+    expect(SCORE_DEFAULTS.reborn.some((c) => c.ch === 'auraReform')).toBe(true);
   });
 
   it('the migrated aura offsets reproduce the old channel delays', () => {
-    const burst = SCORE.death.find((c) => c.ch === 'auraBurst')!;
-    const brk = SCORE.shieldPop.find((c) => c.ch === 'auraBreak')!;
-    const reform = SCORE.reborn.find((c) => c.ch === 'auraReform')!;
+    const burst = SCORE_DEFAULTS.death.find((c) => c.ch === 'auraBurst')!;
+    const brk = SCORE_DEFAULTS.shieldPop.find((c) => c.ch === 'auraBreak')!;
+    const reform = SCORE_DEFAULTS.reborn.find((c) => c.ch === 'auraReform')!;
     expect(burst.offset ?? 0).toBe(0);
     expect(brk.offset).toBe(300);
     expect(brk.scaled ?? true).toBe(true);
@@ -111,5 +111,24 @@ describe('score', () => {
     cleanup(); vi.advanceTimersByTime(1000);
     expect(c.onShieldBreak).not.toHaveBeenCalled();
     vi.useRealTimers();
+  });
+
+  it('getScore returns defaults when there are no overrides', () => {
+    resetScore();
+    expect(getScore().death.map((c) => c.ch)).toEqual(SCORE_DEFAULTS.death.map((c) => c.ch));
+  });
+  it('setCue overrides one cue field and persists; resetScore clears it', () => {
+    resetScore();
+    setCue('shieldPop', 'auraBreak', { offset: 120 });
+    expect(getCues('shieldPop').find((c) => c.ch === 'auraBreak')!.offset).toBe(120);
+    resetScore();
+    expect(getCues('shieldPop').find((c) => c.ch === 'auraBreak')!.offset).toBe(300);
+  });
+  it('scoreJson round-trips to an effective table reflecting overrides', () => {
+    resetScore();
+    setCue('death', 'auraBurst', { offset: 50 });
+    const json = JSON.parse(scoreJson());
+    expect(json.death.find((c: { ch: string; offset: number }) => c.ch === 'auraBurst').offset).toBe(50);
+    resetScore();
   });
 });

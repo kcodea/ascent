@@ -49,7 +49,7 @@ const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offse
  *  +300ms scaled; `auraReform` = a reborn re-form glow at +460ms fixed wall-clock) each carry their own offset
  *  so a later authoring pass can retime each independently. Each kind gets its OWN array (not a shared
  *  reference) so a future authoring pass can vary one kind's cues without mutating others. */
-export const SCORE: Record<MomentKind, Cue[]> = {
+export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   attackExchange: [
     { ch: 'sfx', at: 'start' }, { ch: 'float', at: 'start' },
     { ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact', offset: 0 },
@@ -61,6 +61,51 @@ export const SCORE: Record<MomentKind, Cue[]> = {
   rally: [...BASE], toHand: [...BASE], maxGold: [...BASE], improve: [...BASE],
   keyword: [...BASE], hpGrant: [...BASE], reveal: [...BASE],
 };
+
+const KEY = 'ascent.choreoScore';
+/** Sparse overrides: kind → channel → partial cue patch. The in-memory `overrides` var is the source of
+ *  truth (works with no localStorage); localStorage is persistence only, read once at module load. */
+type Overrides = Partial<Record<MomentKind, Partial<Record<Channel, Partial<Cue>>>>>;
+let overrides: Overrides = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(KEY) ?? '{}') as Overrides;
+  } catch {
+    return {};
+  }
+})();
+
+/** The effective score: defaults with per-cue overrides merged in (matched by channel within a kind). Builds
+ *  a fresh object each call — callers that read per moment should call it ONCE and iterate the result. */
+export function getScore(): Record<MomentKind, Cue[]> {
+  const out = {} as Record<MomentKind, Cue[]>;
+  for (const kind of Object.keys(SCORE_DEFAULTS) as MomentKind[]) {
+    const ov = overrides[kind];
+    out[kind] = SCORE_DEFAULTS[kind].map((c) => (ov?.[c.ch] ? { ...c, ...ov[c.ch] } : c));
+  }
+  return out;
+}
+export function getCues(kind: MomentKind): Cue[] {
+  return getScore()[kind];
+}
+export function setCue(kind: MomentKind, ch: Channel, patch: Partial<Cue>): void {
+  overrides = { ...overrides, [kind]: { ...overrides[kind], [ch]: { ...overrides[kind]?.[ch], ...patch } } };
+  try {
+    localStorage.setItem(KEY, JSON.stringify(overrides));
+  } catch {
+    /* ignore */
+  }
+}
+export function resetScore(): void {
+  overrides = {};
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* ignore */
+  }
+}
+export function scoreJson(): string {
+  return JSON.stringify(getScore(), null, 2);
+}
 
 export interface CueContext {
   events: CombatEvent[];
@@ -97,7 +142,8 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     if (off <= 0) fn();
     else timers.push(setTimeout(fn, off));
   };
-  for (const cue of SCORE[moment.kind]) {
+  const cues = getScore()[moment.kind];
+  for (const cue of cues) {
     if (cue.enabled === false) continue;
     if (cue.ch === 'sfx') at(cue, () => { const { shake } = playMomentSfx(moment, ctx.events); if (shake) ctx.onShake(); });
     else if (cue.ch === 'float') at(cue, () => {

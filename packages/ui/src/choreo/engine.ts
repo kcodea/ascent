@@ -1,6 +1,6 @@
 import gsap from 'gsap';
 import type { Moment } from './compile';
-import { SCORE } from './score';
+import { getScore } from './score';
 import { playLunge } from './channels/lunge';
 import { hitPower, playContactImpact } from './channels/impact';
 
@@ -27,7 +27,7 @@ export function runAttackExchangeCues(
   ctx: AttackCueCtx,
 ): ReturnType<typeof gsap.timeline> | null {
   if (moment.primary.type !== 'attack') return null;
-  const cues = SCORE[moment.kind];
+  const cues = getScore()[moment.kind];
   if (!cues.some((c) => c.ch === 'lunge' && c.enabled !== false)) return null;
   const impact = cues.find((c) => c.ch === 'impact' && c.at === 'contact' && c.enabled !== false);
   const power = hitPower(moment.primary.swing);

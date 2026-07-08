@@ -3,7 +3,7 @@ import gsap from 'gsap';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from './compile';
 import { sfx } from '../sfx';
-import { SCORE } from './score';
+import { SCORE_DEFAULTS } from './score';
 import { runAttackExchangeCues, runRiseReturn } from './engine';
 
 // Node env (no jsdom) — use a stubbed attacker Element (see lunge.test.ts). `defender` is null here, so the
@@ -42,7 +42,7 @@ describe('runAttackExchangeCues', () => {
   });
 
   it('applies the impact cue offset to the contact fire position (fire-once preserved)', () => {
-    const sc = SCORE.attackExchange.find((c) => c.ch === 'impact')!;
+    const sc = SCORE_DEFAULTS.attackExchange.find((c) => c.ch === 'impact')!;
     const prev = sc.offset; sc.offset = 40; // mutate the in-memory default for this test
     try {
       const hit = vi.spyOn(sfx, 'hit').mockImplementation(() => {});

@@ -8,6 +8,7 @@ import { ShieldTuner } from './ShieldTuner';
 import { TrailTuner } from './TrailTuner';
 import { SmokeTuner } from './SmokeTuner';
 import { PacingTuner } from './PacingTuner';
+import { ChoreographyPanel } from './ChoreographyPanel';
 import { FloatTuner } from './FloatTuner';
 import { LayoutTuner } from './LayoutTuner';
 import { pixiFx } from './pixiFx';
@@ -29,6 +30,7 @@ const TUNERS = [
   { key: 'trail', label: '💨 Trail', C: TrailTuner },
   { key: 'smoke', label: '🌫️ Smoke & Dust', C: SmokeTuner },
   { key: 'pacing', label: '⏱️ Pacing', C: PacingTuner },
+  { key: 'choreo', label: '🎬 Choreography', C: ChoreographyPanel },
   { key: 'float', label: '🔢 Damage Float', C: FloatTuner },
 ] as const;
 

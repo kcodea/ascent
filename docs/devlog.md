@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### fix(ui): Deathrattle skull now pops on a Rise death too
+
+The skull-shatter firing loop skipped every `rise` death, so a unit with **both** Rise and a Deathrattle got
+no skull when it died (even though it procs its rattle then). Dropped the `e.rise` exclusion (owner ruling) —
+the `onDeath` check still gates it, so a pure-Rise unit gets nothing but a Rise+Deathrattle unit now pops the
+skull as it dies (the body still re-forms via the existing reborn path; the card keeps its `dying rising`
+fade-in-place, not `dying dr`). typecheck green.
+
 ### chore(art): refresh art from masters + optimize the remaining PNG minions to WebP
 
 Re-ran the art pipeline against the current masters (`C:\Game Assets\Ascent Art`) to make the in-repo art
@@ -18,6 +26,7 @@ art updates that landed: **Cassen's portrait + hero-power art**. The reward-toke
 Broker, …) and the other un-optimized PNG minions are now WebP. Quest art was verified against the masters (no
 changes) and stays PNG — `optimize-art` doesn't process `art/quests/` (still ~89 MB; a WebP pass there is a
 worthwhile follow-up). Build loads all art (119 Compendium images, 0 broken).
+
 ### tweak(ui): Deathrattle — less debris + louder burst SFX
 
 Owner tuning on the Deathrattle skull FX: fewer flying pieces on the explosion — `DR_GRID` 8 → **6** (fewer,

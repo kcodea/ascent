@@ -4479,13 +4479,21 @@ describe('quests (M3 framework)', () => {
     }
   });
 
-  it('generateQuestOffer: 3 quests of the wave tier — exactly one neutral + 2 distinct tribes', () => {
+  it('generateQuestOffer: 4 quests of the wave tier — exactly one neutral + 3 distinct tribes', () => {
     const offer = generateQuestOffer({ ...createRun(1), wave: 4 });
-    expect(offer.length).toBe(3);
+    expect(offer.length).toBe(4);
     const defs = offer.map((id) => QUEST_INDEX[id]!);
     expect(defs.every((q) => q.tier === 'lesser')).toBe(true);
     expect(defs.filter((q) => q.tribe === 'neutral').length).toBe(1); // neutral always, exactly one
-    expect(new Set(defs.map((q) => q.tribe)).size).toBe(3); // all three tribes distinct
+    expect(new Set(defs.map((q) => q.tribe)).size).toBe(4); // 1 neutral + 3 distinct non-neutral tribes
+    expect(new Set(offer).size).toBe(offer.length); // no duplicate quest within the offer
+  });
+
+  it('never re-offers a quest you already hold', () => {
+    const first = generateQuestOffer({ ...createRun(1), wave: 4 });
+    const taken = first.map((id) => ({ questId: id, progress: 0, completed: false }));
+    const second = generateQuestOffer({ ...createRun(1), wave: 4, activeQuests: taken });
+    expect(second.some((id) => first.includes(id))).toBe(false); // every slot is a fresh, un-taken quest
   });
 
   it('generateQuestOffer is deterministic (seeded off seed + wave) and empty off quest-waves', () => {
@@ -4505,7 +4513,7 @@ describe('quests (M3 framework)', () => {
     s = reduce(s, { type: 'faceOmen' }); // → combat (empty board loses, but survives at 200 Resolve)
     s = reduce(s, { type: 'resolveCombat' }); // → advance to wave 4
     expect(s.wave).toBe(4);
-    expect(s.questOffer?.length).toBe(3);
+    expect(s.questOffer?.length).toBe(4);
     // The shop is rolled UP FRONT now, so it can be inspected (minimized) while choosing the quest.
     expect(s.shop.length).toBeGreaterThan(0);
     // Locked: a normal tavern action is still a no-op (same state reference) while the quest offer is open.

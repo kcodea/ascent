@@ -1,6 +1,7 @@
 import gsap from 'gsap';
 import { sfx } from '../../sfx';
 import { pixiFx } from '../../pixiFx';
+import { getLungeConfig } from '../../lungeConfig';
 
 /** Map an attack's swing damage → the impact's `power` scale (1 = baseline). Ramps gently: a 1-3 dmg chip
  *  stays at the familiar burst, ~8 dmg reads clearly heavier, and it caps at 2× so a 40-damage finisher
@@ -22,8 +23,9 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   pixiFx.impact(r.left + r.width / 2, r.top + r.height / 2, dx, dy, power);
   gsap.killTweensOf(defender);
   const kb = 0.14 * (0.75 + 0.25 * power);
-  gsap.fromTo(defender, { x: 0, y: 0 }, {
-    x: dx * kb, y: dy * kb, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
+  const spin = -Math.sign(leadTilt || 1) * getLungeConfig().defenderSpin; // counter-rotate away from the lead corner
+  gsap.fromTo(defender, { x: 0, y: 0, rotation: 0 }, {
+    x: dx * kb, y: dy * kb, rotation: spin, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
     onComplete: () => gsap.set(defender, { clearProps: 'transform' }),
   });
 }

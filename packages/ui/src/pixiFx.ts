@@ -374,6 +374,10 @@ interface ShieldBubble {
   mini: boolean;          // true while the card is being dragged → shrink to a small trailing sparkle
   pop: number;            // ms elapsed of the coalesce/pop-in on placement (−1 = not popping)
   scaleMul: number;       // current size multiplier (lerps toward 1 or MINI_SCALE; the pop drives it directly)
+  /** Optional live position source, called every FX frame right before render — lets the bubble measure its
+   *  card in Pixi's OWN frame (after GSAP applies the lunge/recoil transform), so a fast-moving unit's aura
+   *  never renders a frame behind the card. Returns null when the card isn't measurable (keeps the last pos). */
+  track: (() => { cx: number; cy: number; w: number; h: number } | null) | null;
 }
 
 // Shield-bubble feel (tunable live via window.__pixiFx in DEV). The shield shader draws into a quad of
@@ -995,7 +999,7 @@ class FxController {
    * `mini` = the card is being dragged → shrink to a small trailing sparkle; when a `mini` bubble is next
    * set with `mini=false` (the card is placed), it coalesces/pops back to full size.
    */
-  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield'): void {
+  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null): void {
     if (!this.ready || !this.shieldLayer) return;
     const key = auraKey(kind, uid);
     let b = this.shields.get(key);
@@ -1030,10 +1034,10 @@ class FxController {
       container.alpha = 0;
       this.shieldLayer.addChild(container);
       b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
-            mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1 };
+            mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1, track };
       this.shields.set(key, b);
     } else {
-      b.cx = cx; b.cy = cy; b.w = w; b.h = h;
+      b.cx = cx; b.cy = cy; b.w = w; b.h = h; b.track = track;
       b.fadeOut = -1; // re-targeted while fading (re-gained) → cancel the fade
       // Dragged (mini) → placed (full): coalesce/pop the bubble back into existence (inverse of the break).
       if (b.mini && !mini) { b.pop = 0; this.shieldPop(cx, cy, w, h, kind); }
@@ -1526,6 +1530,8 @@ class FxController {
     // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.
     for (const [uid, b] of this.shields) {
       b.age += dtMs;
+      // Live-track the card in THIS frame (after GSAP's lunge/recoil transform) so the aura never trails it.
+      if (b.track) { const r = b.track(); if (r) { b.cx = r.cx; b.cy = r.cy; b.w = r.w; b.h = r.h; } }
       // grow-in (gain) and optional fade-out (graceful clear). Taunt "deploys" RIGID — it grows out to full
       // width and LOCKS (it's metal: no overshoot, no bob); shield/reborn fade in + settle gently.
       const tcfg = b.kind === 'taunt' ? getTauntConfig() : null;

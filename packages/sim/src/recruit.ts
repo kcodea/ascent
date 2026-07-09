@@ -1403,13 +1403,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  then the escalation climbs by a FLAT `step` (+2/+2) — the per-cast improvement is always +2/+2. Spell
    *  power is a flat add to every grant (not part of the improvement). `self` is the chosen target. */
   spellBuffTargetEscalating: (ctx, self, params) => {
-    const base = num(params.attack, 2) + ctx.state.frontToBackBonus;
-    const a = base + spellAttackBonus(ctx.state);
-    const h = base + spellHealthBonus(ctx.state);
+    // Attack and Health escalate INDEPENDENTLY (owner 2026-07-09): each stat's grant = its step + that stat's
+    // accumulated escalation + that stat's spell power, and the escalation step itself compounds that stat's spell
+    // power. So with +0/+2 spell power the improvement is +2/+4 per cast, not a symmetric +2/+2.
+    const a = num(params.attack, 2) + ctx.state.frontToBackBonus + spellAttackBonus(ctx.state);
+    const h = num(params.health, 2) + ctx.state.frontToBackBonusH + spellHealthBonus(ctx.state);
     addBuff(self, str(params._source) || 'Front to Back', a, h);
-    // The SCALING now compounds spell power too (owner 2026-07-09): each cast improves by the base step PLUS the
-    // run's Attack spell power, so a spell-power build's Front to Back escalates faster.
     ctx.state.frontToBackBonus += num(params.attack, 2) + spellAttackBonus(ctx.state);
+    ctx.state.frontToBackBonusH += num(params.health, 2) + spellHealthBonus(ctx.state);
   },
 
   /** Eyes of Aresmar — cast: make the targeted minion Golden (like Oner's Gild), but only if its
@@ -2107,13 +2108,13 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
-  // Front to Back (escalating): the printed text carries TWO "+B/+B" groups — the GRANT (slot 0) and the
-  // per-cast IMPROVEMENT (slot 1). The grant = base + accumulated escalation + spell power. The improvement now
-  // COMPOUNDS spell power too (owner 2026-07-09): each cast improves by the base step PLUS the run's Attack spell
-  // power. Slot 0 greens the current grant; slot 1 greens the current improvement step.
+  // Front to Back (escalating): the printed text carries TWO "+A/+H" groups — the GRANT (slot 0) and the per-cast
+  // IMPROVEMENT (slot 1). Attack and Health scale INDEPENDENTLY (owner 2026-07-09): each stat's grant = its step +
+  // its accumulated escalation (`escalation` / `escalationH`) + its spell power; each stat's improvement step = its
+  // printed base + its spell power. So +0/+2 spell power greens the improvement to +2/+4.
   const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
   if (esc) {
     let slot = 0;
@@ -2122,13 +2123,13 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
       const nh = Number(h);
       if (slot++ === 0) {
         const va = na + escalation + bonusA;
-        const vh = nh + escalation + bonusH;
-        return escalation + bonusA > 0 || escalation + bonusH > 0 ? `{{+${va}/+${vh}}}` : m;
+        const vh = nh + escalationH + bonusH;
+        return escalation + bonusA > 0 || escalationH + bonusH > 0 ? `{{+${va}/+${vh}}}` : m;
       }
-      // The improvement step = printed base + Attack spell power (the scalar `frontToBackBonus` grows by this).
+      // The improvement step per stat = printed base + that stat's spell power.
       const ia = na + bonusA;
-      const ih = nh + bonusA;
-      return bonusA > 0 ? `{{+${ia}/+${ih}}}` : m;
+      const ih = nh + bonusH;
+      return bonusA > 0 || bonusH > 0 ? `{{+${ia}/+${ih}}}` : m;
     });
   }
   // Patch Job: the per-step "+a/+h" greens for spell power (it grows per step); and once Gold's been spent this

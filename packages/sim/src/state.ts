@@ -271,9 +271,11 @@ export interface RunState {
   /** Moe: number of upcoming shops that must contain a guaranteed Magnetic offer. Each `rollShop` forces one in
    *  (if none rolled naturally) and decrements this. */
   guaranteedAttachmentShops?: number;
-  /** Front to Back's accumulated escalation: each cast grants +(2 + this + spell power), then this += 2
-   *  (a flat step — the per-cast improvement is always +2/+2). */
+  /** Front to Back's accumulated escalation, INDEPENDENT per stat (owner 2026-07-09): the Attack side lives here,
+   *  the Health side in `frontToBackBonusH`. Each cast grants +(step + this + that stat's spell power) and
+   *  improves this by (step + that stat's spell power). A missing Health field on an old save heals to 0. */
   frontToBackBonus: number;
+  frontToBackBonusH: number;
   /** Fleeting Vigor — a one-shot Start-of-Combat buff banked for the NEXT combat only (your minions enter
    *  that fight at +this; spent in `faceOmen`, win or lose). Absent = none. */
   fleetingVigor?: { attack: number; health: number };
@@ -591,6 +593,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     combatSettled: false,
     freeRolls: 0,
     frontToBackBonus: 0,
+    frontToBackBonusH: 0,
     undeadAttackBonus: 0,
     undeadHealthBonus: 0,
     undeadBuyAtk: 0,

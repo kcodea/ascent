@@ -248,7 +248,8 @@ export type EffectFactoryId =
   | 'battlecryCopyEcho' // Gravetwin: Battlecry — copy a targeted friendly Echo minion's Deathrattle onto itself (recruit)
   | 'spellBloodlust' // Bloodlust: cast — mark a friendly minion to take an immediate immune attack at Start of Combat (recruit)
   | 'copyLeftmostEcho' // Grave Body: Start of Combat / on-summon — copy your leftmost friendly Echo as this minion's combat Deathrattle
-  | 'spellAddTribe'; // Anomaly Reactor: cast — give the target minion an extra tribe (a Mech type) for the run (recruit)
+  | 'spellAddTribe' // Anomaly Reactor: cast — give the target minion an extra tribe (a Mech type) for the run (recruit)
+  | 'onAttackStripKeywords'; // Tauntbreaker: on-attack — strip listed keywords (Taunt / Rise) off the enemy it hits (combat)
 
 export interface EffectDef {
   on: GameEvent;
@@ -730,6 +731,7 @@ export type CombatEvent = (
   | { type: 'death'; target: string; side: Side; rise?: true } // `side` lets the UI count enemy kills (Cassen) without uid-matching; `rise` marks a Rise's FIRST death — shown (the body vacates its slot) but NOT counted as a kill, since it returns
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'keyword'; target: string; keyword: Keyword; source?: string } // a combat effect grants a keyword (Mumi → Rise, Ryme-replayed keyword battlecries) — the UI folds it into the unit's pills
+  | { type: 'keywordLost'; target: string; keyword: Keyword; source?: string } // a combat effect STRIPS a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — the UI drops that pill
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string }
   | { type: 'ascend'; target: string; into: string } // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)

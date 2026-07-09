@@ -74,6 +74,20 @@ describe('simulate (handoff A.3)', () => {
     expect(summonAura).toBe(true);
   });
 
+  it('Tauntbreaker strips Taunt and Rise from the enemy it hits (owner 2026-07-09)', () => {
+    // Tauntbreaker (6/4, Ward + Flurry) attacks the Taunt enemy. Its on-attack strip removes Taunt AND Rise
+    // from that enemy before the damage exchange resolves — so the lethal blow this same swing keeps it dead.
+    const p: BoardMinion[] = [{ cardId: 'tauntbreaker', attack: 6, health: 4 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 3, keywords: ['T', 'R'] }]; // pure wall → Tauntbreaker is the aggressor
+    const r = run(p, e, 1);
+    const lost = r.events.flatMap((ev) => (ev.type === 'keywordLost' ? [ev.keyword] : []));
+    expect(lost).toContain('T'); // Taunt stripped
+    expect(lost).toContain('R'); // Rise stripped
+    // Rise was removed before the killing blow → the enemy does NOT come back.
+    expect(r.events.some((ev) => ev.type === 'reborn')).toBe(false);
+    expect(r.result).toBe('win');
+  });
+
   it('Gravewarden Start of Combat gives a friendly Undead Rise (Reborn)', () => {
     // Gravewarden + Soulsman (both Undead). At combat start the OTHER Undead is granted Reborn — a keyword event.
     const p: BoardMinion[] = [

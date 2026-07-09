@@ -56,6 +56,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ◐ ${n(ev.target)} loses Stealth`;
     case 'keyword':
       return `   ✚ ${n(ev.target)} gains ${ev.keyword}${ev.source ? ` (from ${n(ev.source)})` : ''}`;
+    case 'keywordLost':
+      return `   ✖ ${n(ev.target)} loses ${ev.keyword}${ev.source ? ` (to ${n(ev.source)})` : ''}`;
     case 'venomLost':
       return `   ☣ ${n(ev.target)} spends its Venomous`;
     case 'summon':

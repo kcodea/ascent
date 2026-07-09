@@ -1304,6 +1304,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantUndeadBuyAtk(amount, self.side);
   },
 
+  /** Tauntbreaker — on-attack: strip the listed keywords (Taunt / Rise) off the enemy it hits, so the target
+   *  loses Taunt (stops forcing targeting) and Rise (won't return after it dies). Fires per swing before the
+   *  damage exchange resolves, so removing Rise means a lethal hit this same swing keeps it dead. Flurry hits
+   *  two enemies → each is disarmed in turn. */
+  onAttackStripKeywords: (ctx, self, params, payload) => {
+    const { minion, target } = payload as { minion: Minion; target?: Minion };
+    if (minion !== self || self.dead || !target || target.dead) return;
+    const kws = Array.isArray(params.keywords) ? (params.keywords as Keyword[]) : [];
+    for (const kw of kws) {
+      if (!target.keywords.includes(kw)) continue;
+      target.keywords = target.keywords.filter((k) => k !== kw);
+      if (kw === 'R') target.rebornAvailable = false; // Rise removed → it can't come back this combat
+      ctx.log({ type: 'keywordLost', target: target.uid, keyword: kw, source: self.uid });
+    }
+  },
+
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
    *  Golden doubles the per-proc amount. */

@@ -455,6 +455,8 @@ correctness half — these remain):**
   ever matters (pairs with the async-PvP server-side replay-validation work).
 
 ## Recently shipped (2026-06-29 — session 9; detail in devlog)
+- Front to Back scales Attack and Health **independently** (asymmetric spell power → e.g. +2/+4 per cast).
+- Tauntbreaker (T4 Neutral 6/4, Ward + Flurry) — on attack, strips Taunt + Rise off the enemy it hits.
 - The Godfodder feeds a created Fodder (no longer shop-dependent) + its art; Hex Flayer / Wolves Den /
   Crypt Wolf art wired.
 - Displacement can never swap a minion for a spell (fizzles with no tavern minion).

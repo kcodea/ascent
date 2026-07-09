@@ -148,6 +148,10 @@ function computeFrame(
         u.keywords = [...u.keywords, e.keyword];
         if (e.keyword === 'DS') u.divineShield = true;
       }
+    } else if (e.type === 'keywordLost') {
+      // A combat effect STRIPPED a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — drop the pill.
+      const u = find(e.target);
+      if (u) u.keywords = u.keywords.filter((k) => k !== e.keyword);
     } else if (e.type === 'venomLost') {
       const u = find(e.target);
       if (u) u.keywords = u.keywords.filter((k) => k !== 'V'); // Venomous spent on its first proc
@@ -217,6 +221,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'buff': return { [e.target]: 'buffed' };
     case 'improve': return { [e.target]: 'buffed' };
     case 'keyword': return { [e.target]: 'buffed' }; // a granted keyword pulses like a buff landing
+    case 'keywordLost': return { [e.target]: 'struck' }; // a stripped keyword flinches like a hit
     case 'maxGold': return { [e.target]: 'goldproc' };
     case 'sc': return e.cast ? { [e.source]: 'sccast' } : {}; // only a genuine SoC cast flashes; narration (spell power, etc.) is silent
     case 'death': return { [e.target]: 'dying' };
@@ -245,6 +250,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'improve': return { text: `${n(e.target)}'s summon aura strengthens by +${e.amount}/+${e.amount}.`, kind: 'buff' };
     case 'keyword': return { text: `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` from ${n(e.source)}` : ''}.`, kind: 'buff' };
+    case 'keywordLost': return { text: `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` to ${n(e.source)}` : ''}.`, kind: 'dmg' };
     case 'maxGold': return { text: `${n(e.target)}'s Avenge raises your max Gold by ${e.amount}.`, kind: 'buff' };
     case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Echo.`, kind: 'sc' };
     case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
@@ -266,6 +272,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
     case 'improve': return `${n(e.target)}'s aura strengthens (+${e.amount}/+${e.amount}).`;
     case 'keyword': return `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}!`;
+    case 'keywordLost': return `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}!`;
     case 'maxGold': return `${n(e.target)} raises your max Gold by ${e.amount}!`;
     case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Echo!`;
     case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;

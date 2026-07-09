@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat: Front to Back scales Attack/Health independently · Tauntbreaker (T4 Neutral, strips Taunt + Rise on hit)
+
+Two owner items, one PR:
+
+- **Front to Back — independent Attack/Health scaling.** Previously the escalation was a single number applied to
+  both stats, so a `+0/+2` build (asymmetric spell power) scaled symmetrically. Now a second run-state field
+  `frontToBackBonusH` tracks the Health escalation separately from `frontToBackBonus` (Attack). `spellBuffTargetEscalating`
+  grows each independently (base step + that stat's spell power). So with `+0/+2` spell power the grant goes
+  **+2/+4** on the first cast, and the escalation itself steps **+2/+4** per cast — Attack and Health diverge as
+  intended. `spellDisplayText` gained an `escalationH` parameter (defaults to `escalation` so symmetric builds are
+  unchanged) and greens each stat independently; threaded through `instView`/`liveCardText` (shop/board/hand/Discover)
+  and `Recruit.tsx` (the `live` inputs) so every surface prints the true split value. New asymmetric test in `run.test.ts`;
+  the existing symmetric-spell-power tests are unchanged (same output when both stats scale equally).
+- **Tauntbreaker** — new **T4 Neutral 6/4, Ward + Flurry**. On attack it strips **Taunt** and **Rise** off the enemy
+  it hits: the target loses Taunt (your board can pick past it next swing) and Rise (a lethal blow this same swing
+  keeps it dead — the strip fires before the damage exchange, so `rebornAvailable` is cleared in time). New combat
+  factory `onAttackStripKeywords` (core) reads the enemy target now carried on the `onAttack` bus payload; a new
+  `keywordLost` combat event drops the stripped pill in the replay (UI `useCombatReplay` + harness + narration).
+  Flurry means it disarms two enemies a turn; Ward walls one hit. Note: the strip is on Tauntbreaker's own *attack*
+  — an enemy that dies to Ward retaliation still gets its Rise (it wasn't a target of Tauntbreaker's swing).
+  Combat test in `simulate.test.ts` (enemy loses T+R, does not reborn, player wins).
+
+Verified: `typecheck` + `lint` + `test` (775 pass) + `build:web` green; `harness` determinism ✓.
+
 ### chore(ui): skull-burst sfx quieter still (0.4 → 0.04)
 
 Follow-up to the earlier `4 → 0.4`: still too loud, so `sampleVol.skullburst` → `0.04` — a normal quiet

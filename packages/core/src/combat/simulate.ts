@@ -949,7 +949,7 @@ export function simulate(
       if (!target) break;
       if (s > 0) nextStep(); // each Windfury swing is its own exchange
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s });
-      bus.emit('onAttack', { minion: attacker, side: attacker.side }); // Rally + on-attack effects
+      bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
       if (attacker.side === 'player') {
         bumpQuestTally('attack', attacker); // "Attack N times with Beasts" quests (each swing counts)
         // The Old Hunt: each Beast attack pumps your run-wide Beast Attack aura by `oldHuntStep` — live (every

@@ -62,7 +62,7 @@ export function pickOpponent(
 
 /** A fresh, mutation-safe clone of a snapshot's board for handing to `simulate` (protects the static pool). */
 export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
-  return snap.minions.map((m) => ({
+  const board: BoardMinion[] = snap.minions.map((m) => ({
     cardId: m.cardId,
     attack: m.attack,
     health: m.health,
@@ -70,6 +70,21 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     ...(m.golden ? { golden: true } : {}),
     ...(m.summonBonus ? { summonBonus: m.summonBonus } : {}),
   }));
+  // Enemy hero power — Soren's Reclaim: a board captured from a Soren run arms it, so ONE enemy minion is
+  // destroyed at Start of Combat (its Deathrattle fires) and an exact copy is resummoned when there's room. The
+  // capture doesn't record which minion the player marked, so pick the best deterministic target: the
+  // highest-stat minion that HAS a Deathrattle (the only kind worth reclaiming — a vanilla minion would just be
+  // a tempo loss). Ties break to the earliest slot; if no minion has a Deathrattle, mark nothing.
+  if (snap.heroId === 'soren') {
+    let best = -1, bestScore = -1;
+    for (let i = 0; i < board.length; i++) {
+      if (!CARD_INDEX[board[i]!.cardId]?.effects.some((e) => e.on === 'onDeath')) continue;
+      const score = board[i]!.attack + board[i]!.health;
+      if (score > bestScore) { bestScore = score; best = i; }
+    }
+    if (best >= 0) board[best]!.resummon = true;
+  }
+  return board;
 }
 
 /** A snapshot is servable only if EVERY minion's cardId still exists in the current build. A board captured

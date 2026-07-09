@@ -115,3 +115,26 @@ describe('board snapshot + replay', () => {
     expect(JSON.stringify(buildBootstrapPool([1, 2]))).toBe(JSON.stringify(pool)); // deterministic
   });
 });
+
+import { opponentBoard } from './opponents';
+import type { BoardMinion } from '@game/core';
+
+describe('opponentBoard — enemy Soren Reclaim mark', () => {
+  const mkSnap = (heroId: string, minions: BoardMinion[]): BoardSnapshot =>
+    ({ v: 1, wave: 5, heroId, resolve: 30, tier: 4, triples: 0, tribes: ['undead'], threat: 'horde', power: 0, minions, seed: 1 }) as BoardSnapshot;
+
+  it('marks the highest-stat Deathrattle minion on a Soren board', () => {
+    const board = opponentBoard(mkSnap('soren', [
+      { cardId: 'sandbag', attack: 9, health: 9 },     // biggest, but NO Deathrattle → skipped
+      { cardId: 'pack', attack: 3, health: 2 },        // Deathrattle (summon Pups)
+      { cardId: 'broodmother', attack: 2, health: 5 }, // Deathrattle, higher stats than pack → the pick
+    ]));
+    expect(board.filter((m) => m.resummon).length).toBe(1);
+    expect(board.find((m) => m.resummon)?.cardId).toBe('broodmother');
+  });
+
+  it('marks nothing for a non-Soren hero, or a Soren board with no Deathrattle minion', () => {
+    expect(opponentBoard(mkSnap('warden', [{ cardId: 'pack', attack: 3, health: 2 }])).some((m) => m.resummon)).toBe(false);
+    expect(opponentBoard(mkSnap('soren', [{ cardId: 'sandbag', attack: 9, health: 9 }])).some((m) => m.resummon)).toBe(false);
+  });
+});

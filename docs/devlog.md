@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### fix(combat): enemy Soren hero power fires (Reclaim on captured boards)
+
+Enemy hero powers never fired in combat — Soren's Reclaim (destroy a marked minion at Start of Combat → its
+Deathrattle fires → an exact copy is resummoned) only ran for the player: the resummon loop scanned only
+`boards.player`, and `pendingResummons` / `flushResummons` were hardcoded to the player side. Made the whole
+resummon path **side-generic**: the Start-of-Combat destroy loop now scans both boards, each pending body records
+its `side`, and `flushResummons` reclaims a body the moment ITS side has room (FIFO within a side; player-only
+queues behave exactly as before). Player carry-backs stay player-gated (`applyCombatGains`).
+
+Arming the enemy: `opponentBoard()` reads the captured board's `heroId` and, for a **Soren** board, marks one
+minion `resummon: true`. The capture doesn't record which minion the player actually marked, so it picks the
+best deterministic target — the **highest-stat minion that has a Deathrattle** (the only kind worth reclaiming;
+a vanilla minion would just be a tempo loss), ties to the earliest slot, nothing if the board has no Deathrattle
+minion. **Owner note:** that target heuristic is a judgement call — say if you'd rather it mark differently.
+
+Verified: typecheck + lint + **745 tests** (new: an enemy resummon mark fires its Deathrattle + resummons its
+copy on the enemy side; `opponentBoard` marks the right minion / nothing for non-Soren or no-Deathrattle boards)
++ determinism harness + `build:web`, all green; the 5 existing player-Reclaimer tests still pass (no regression).
 ### fix(combat): side-scope the Undead Aura too (enemy Undead grants now work) + aura audit
 
 Follow-up to the side-scoped Imp Aura (#230): audited every combat aura for enemy-side correctness and fixed the

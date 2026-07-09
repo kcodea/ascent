@@ -437,6 +437,17 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
+  it("an enemy resummon mark (Soren) destroys an enemy minion at Start of Combat + resummons its copy", () => {
+    // The enemy side of the same mechanic: a captured Soren board arms Reclaim on one enemy minion.
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
+    const e: BoardMinion[] = [{ cardId: 'pack', attack: 3, health: 2, resummon: true }]; // enemy Pack Scrounger, marked
+    const r = run(p, e, 7);
+    expect(r.events.filter((ev) => ev.type === 'summon' && ev.side === 'enemy' && ev.minion.cardId === 'pup').length).toBe(2); // its Deathrattle fired
+    const copy = r.events.find((ev) => ev.type === 'summon' && ev.side === 'enemy' && ev.minion.cardId === 'pack');
+    expect(copy).toBeDefined(); // an exact enemy copy was resummoned
+    if (copy && copy.type === 'summon') { expect(copy.minion.attack).toBe(3); expect(copy.minion.health).toBe(2); }
+  });
+
   it("The Reclaimer resummons a marked minion with no Deathrattle when there is room", () => {
     const p: BoardMinion[] = [
       { cardId: 'sandbag', attack: 1, health: 20, resummon: true }, // vanilla, marked

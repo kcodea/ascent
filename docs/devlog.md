@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### chore(ui): quiet the Deathrattle skull-burst sfx (sampleVol 4 → 0.4)
+
+Owner call: the skull-shatter sound was too loud. Dropped its `sampleVol.skullburst` from the earlier 4×
+boost to `0.4` (a normal in-range gain, so it now sits where a DEV mixer slider can reach it — removed the
+stale "caps at 1.0, shows pegged" caveat comment). One-line volume dial; no behavior change.
+
 ### fix(combat): Bone Taxer's max-Gold Deathrattle fired on EVERY death, not its own
 
 Owner/Mike-reported: Bone Taxer handed out far more Gold per turn than it should. Root cause: `deathrattleMaxGold`

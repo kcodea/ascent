@@ -197,8 +197,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   divineshieldbreak: 0.26,
   rebornshatter: 0.5,
   rebornsummon: 0.5,
-  skullburst: 4, // owner-tuned boost (the source clip is quiet; the master limiter tames peaks). NB: the DEV
-                 //   mixer slider caps at 1.0, so 4 shows pegged there — re-tune the constant, not the slider.
+  skullburst: 0.4, // owner-tuned (dialed down from the earlier 4× boost)
   inspect: 0.5,
   upgrade: 0.39,
   roll: 0.69,

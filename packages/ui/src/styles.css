@@ -112,6 +112,69 @@ canvas.spr { image-rendering: pixelated; display: block; }
   .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + var(--z-wb-y, 0px)); }
 }
 
+/* Burning-rope turn timer — a braided fuse pinned to the board's centre divider (`--rope-y`, measured on the
+   warband zone in Recruit) that lights in the final ROPE_SECONDS and burns left→right as the clock runs down:
+   a live flame (halo + hot core + rising embers) with a glowing char edge trailing behind it. Only the flame's
+   transform/opacity animate in a loop (compositor-only, per docs/performance.md); the drop-shadow is static. */
+.rope {
+  position: absolute; left: 50%; top: var(--rope-y, 50%); transform: translate(-50%, -50%);
+  width: 86%; height: calc(8 * var(--u)); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
+  background:
+    repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
+    linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  animation: ropein 0.4s ease both;
+}
+@keyframes ropein { from { opacity: 0; } to { opacity: 1; } }
+.rope-lit {
+  position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px; transition: width 1s linear;
+  background:
+    repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 3px, rgba(12, 7, 3, 0.55) 3px 7px),
+    linear-gradient(to bottom, #3a2517, #140b05);
+  box-shadow: inset calc(-11 * var(--u)) 0 calc(10 * var(--u)) calc(-5 * var(--u)) rgba(255, 135, 45, 0.95);
+}
+/* the live flame, anchored to the burn point and rising from the rope */
+.rope-flame { position: absolute; top: 50%; left: 0; width: 0; height: 0; transform: translate(-50%, -50%); transition: left 1s linear; z-index: 6; pointer-events: none; }
+.rope-flame .fl-glow {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
+  width: calc(58 * var(--u)); height: calc(26 * var(--u)); border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 185, 75, 0.8), rgba(255, 95, 25, 0.3) 45%, transparent 70%);
+  animation: ropeglow 0.5s ease-in-out infinite alternate;
+}
+.rope-flame .fl-body {
+  position: absolute; left: 0; bottom: 0; transform: translateX(-50%); transform-origin: 50% 100%;
+  width: calc(17 * var(--u)); height: calc(18 * var(--u));
+  background: radial-gradient(ellipse at 50% 82%, #fff3b0 0%, #ffd34a 26%, #ff9a2e 56%, #ff5a1e 80%, rgba(255, 70, 20, 0.12) 100%);
+  border-radius: 50% 50% 48% 52% / 70% 70% 36% 36%;
+  filter: drop-shadow(0 0 calc(7 * var(--u)) rgba(255, 140, 40, 0.85));
+  animation: ropeflame 0.16s ease-in-out infinite alternate;
+}
+.rope-flame .fl-core {
+  position: absolute; left: 0; bottom: calc(1 * var(--u)); transform: translateX(-50%); transform-origin: 50% 100%;
+  width: calc(8 * var(--u)); height: calc(11 * var(--u));
+  background: radial-gradient(ellipse at 50% 80%, #fffbe0 0%, #ffe07a 55%, rgba(255, 205, 90, 0.3) 100%);
+  border-radius: 50% 50% 48% 52% / 70% 70% 36% 36%;
+  animation: ropeflame 0.13s ease-in-out infinite alternate-reverse;
+}
+.rope-flame .fl-ember {
+  position: absolute; left: 0; bottom: calc(5 * var(--u)); width: calc(4 * var(--u)); height: calc(4 * var(--u));
+  border-radius: 50%; background: radial-gradient(circle, #ffe3a0, #ff8a2e 70%, transparent);
+  animation: ropeember 1s ease-out infinite;
+}
+@keyframes ropeflame {
+  0% { transform: translateX(-50%) scale(1.05, 0.9) skewX(-5deg); opacity: 0.92; }
+  100% { transform: translateX(-50%) scale(0.93, 1.16) skewX(5deg); opacity: 1; }
+}
+@keyframes ropeglow {
+  0% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.92); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+}
+@keyframes ropeember {
+  0% { transform: translate(-50%, 0) scale(1); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--ex, 0px)), calc(-28 * var(--u))) scale(0.2); opacity: 0; }
+}
+
 /* Layout Lab (dev) — hand + HUD region hooks (shop + warband ride the sizing var above; see the Warband note
    for why scaling never uses a transform). The hand carries no combat units, so it can use the standalone
    `translate` property (it composes with the zone's own `transform: translateX(-50%)` centering). Every var

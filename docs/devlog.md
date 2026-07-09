@@ -34,6 +34,30 @@ Verified: typecheck + lint + **736 tests** + `build:web` all clean; live — Pac
 Compendium, and the wave-4 quest offer fits with equal-height cards. **Note:** a live-verification slip
 overwrote a throwaway Round-1 Continue save (backed up to page memory, then a reload wiped it before restore) —
 recorded the disk-backup lesson in memory.
+### feat(ui): re-add the burning-rope turn timer (final 20s)
+
+Restored the Hearthstone-style **burning rope** that lights in the final **20 seconds** of a recruit turn and
+burns left→right as the clock runs down — a braided golden fuse pinned to the board's centre divider, with a
+live flame (halo + hot core + rising embers) and a glowing char trail behind the burn point. It was dropped in
+the #151 HUD redesign (replaced by the digital `SETUP TIME` plaque, which stays); this brings back the visual
+without removing the plaque. Reused the owner-tuned flame/fuse styling from the original (`0a906e0`).
+
+- **`BurnRope` component** (`Recruit.tsx`) — its own tiny `useTurnSeconds()` subscriber (per `turnClock.ts`),
+  so the per-second tick re-renders ONLY the rope, never the card tree. Renders when `!inCombat && seconds ≤
+  ROPE_SECONDS` (20); the char width + flame position are `((20 − seconds) / 20) × 100%`, and CSS transitions
+  (`width`/`left` 1s linear) glide the flame smoothly between the whole-second updates.
+- **Placement** — a child of the `position: relative` warband zone, absolutely positioned at `top: var(--rope-y)`
+  (the existing, previously-dead layout-effect measurement that offsets the warband-zone top down to the board's
+  centre line at any aspect/resolution), `left: 50%` centered. `--rope-y` was already being measured every render
+  — this is the element it was waiting for.
+- **CSS** (`styles.css`) — the `.rope` / `.rope-lit` / `.rope-flame` (`fl-glow`/`fl-body`/`fl-core`/`fl-ember`)
+  block re-added; `ropein` trimmed to an opacity-only fade so it no longer clobbers the centering transform. Per
+  the perf north-star, only the flame's transform/opacity animate in a loop (compositor-only); the flame's
+  drop-shadow is a static filter, not animated.
+
+Verified: typecheck + lint + **733 tests** + `build:web` all clean; live (throwaway run, player save backed up
+and restored) — the rope sits on the divider, lights at ≤20s and burns proportionally (at 0:09 the flame + char
+sat at 55% = (20−9)/20), flame/embers animate, hidden in combat. Screenshot confirms. UI-only, no rules touched.
 
 ### feat(ui): Deathrattle bone-skull shatter FX
 

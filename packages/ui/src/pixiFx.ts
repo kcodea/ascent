@@ -2,6 +2,7 @@ import { Application, Container, Graphics, Mesh, MeshGeometry, Rectangle, Shader
 import { getTauntConfig } from './tauntConfig';
 import { getSmokeConfig } from './smokeConfig';
 import { getTrailConfig } from './trailConfig';
+import { sfx } from './sfx';
 
 /**
  * Vertex shader for the shield Mesh (WebGL2 / GLSL ES 3.0). Pixi's GlMeshAdaptor binds the global-uniform
@@ -1404,6 +1405,7 @@ class FxController {
    *  a smoke bloom, and a hot flash — all on the fire-and-forget particle system. */
   private burstSkull(s: SkullPop): void {
     const { x, y, scale } = s, disp = scale * this.skullSrcW;
+    sfx.skullBurst(); // the magical bone-shatter, fired exactly as the skull explodes
     // hot flash at the moment of the burst
     this.spawn(this.glowTex!, { x, y, vx: 0, vy: 0, drag: 1, life: 180, fromScale: disp * 0.006, toScale: disp * 0.014, spin: 0, tint: 0xffe6b0, blend: 'add', peakAlpha: 0.7 });
     // the skull image breaking into chunks

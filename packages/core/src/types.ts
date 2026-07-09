@@ -245,7 +245,8 @@ export type EffectFactoryId =
   | 'onSellGainGold' // Hoard Whelp: Sell — gain Gold (recruit)
   | 'battlecryDestroyForSpell' // Graverobber: Battlecry — destroy a friendly (procs its DR), get a spell of its tier (recruit)
   | 'spellTriggerEcho' // Ossuary Rite: cast — trigger a friendly minion's Echo (Deathrattle) out of combat, without destroying it (recruit)
-  | 'battlecryCopyEcho'; // Gravetwin: Battlecry — copy a targeted friendly Echo minion's Deathrattle onto itself (recruit)
+  | 'battlecryCopyEcho' // Gravetwin: Battlecry — copy a targeted friendly Echo minion's Deathrattle onto itself (recruit)
+  | 'spellBloodlust'; // Bloodlust: cast — mark a friendly minion to take an immediate immune attack at Start of Combat (recruit)
 
 export interface EffectDef {
   on: GameEvent;
@@ -560,6 +561,9 @@ export interface BoardMinion {
   /** Perfect Core: accrued "Rally: get a random spell" welded onto this minion. Combat reads it to grant
    *  this-many random spells when this attacks (standalone Perfect Core uses its own effect instead). */
   rallySpellWeld?: number;
+  /** Bloodlust: at Start of Combat this minion takes an immediate out-of-turn attack, immune to retaliation for
+   *  that swing ("cannot die from that attack"). Spell-applied in recruit; consumed by this one combat. */
+  bloodlust?: boolean;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -621,6 +625,8 @@ export interface Minion {
   /** Perfect Core (welded): number of random spells granted when this attacks. Standalone Perfect Core
    *  grants via its own onAttack effect instead, so a host never double-counts. */
   rallySpellWeld?: number;
+  /** Bloodlust: at Start of Combat, take an immediate out-of-turn attack, immune to retaliation for that swing. */
+  bloodlust?: boolean;
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };

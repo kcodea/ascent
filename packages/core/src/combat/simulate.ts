@@ -1271,6 +1271,13 @@ export function simulate(
   // A 0-Attack minion can't attack — it's skipped in the rotation (above). If neither side has a
   // minion that can attack, the fight is a stalemate (a draw) rather than spinning the iteration guard.
   const canAttack = (side: Side): boolean => boards[side].some((m) => !m.dead && m.health > 0 && m.attack > 0);
+  // Bloodlust: each spell-marked minion takes an immediate out-of-turn attack now, immune to retaliation for
+  // that swing ("cannot die from that attack"). Queued like a Whelp strike → drained by flushImmediateAttacks.
+  for (const m of boards.player) {
+    if (!m.bloodlust || m.dead || m.health <= 0 || m.attack <= 0) continue;
+    m.attackImmuneLeft = Math.max(m.attackImmuneLeft ?? 0, 1); // no retaliation on the Bloodlust swing
+    pendingAttackOnSummon.push({ minion: m });
+  }
   flushImmediateAttacks(); // Whelps summoned during Start-of-Combat / Reclaimer strike before the rotation begins
   flushAscensions(); // a Start-of-Combat buff/cast can already push Tara/Spirit Pup over the line — transform before round 1
   let guard = 0;

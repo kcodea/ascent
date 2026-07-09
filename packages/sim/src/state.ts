@@ -118,6 +118,9 @@ export interface BoardCard {
   /** Lord of the Risen's power: a one-combat Rise. The 'R' keyword is added for display + the snapshot;
    *  this flag marks it temporary so `settleCombat` strips it after the next fight. */
   tempReborn?: boolean;
+  /** Bloodlust: a one-combat mark — at the start of the next combat this minion takes an immediate out-of-turn
+   *  attack, immune to retaliation for that swing ("cannot die from that attack"). Stripped post-combat. */
+  bloodlust?: boolean;
   /** The Reclaimer's mark: at the start of the next combat this minion is destroyed (its Deathrattle
    *  fires) and an exact copy is resummoned if there's room. Cleared each turn (re-choose). */
   resummon?: boolean;

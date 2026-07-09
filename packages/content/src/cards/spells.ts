@@ -530,6 +530,21 @@ export const SPELLS: CardDef[] = [
     text: 'You attack **first** next fight.',
   },
   {
+    // Bloodlust: mark a friendly minion — it takes an immediate immune swing at the start of the next combat.
+    id: 'bloodlust',
+    name: 'Bloodlust',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellBloodlust' }],
+    text: "Choose a friendly minion. It attacks immediately at the start of next combat and can't die from that attack.",
+  },
+  {
     // Banked economy: +2 Gold at the start of next turn (the Hoarder channel — bonusEmbersNextTurn).
     id: 'depositbox',
     name: 'Safety Deposit Box',

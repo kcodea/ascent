@@ -1298,6 +1298,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
       c.keywords = c.keywords.filter((k) => k !== 'R');
       c.tempReborn = false;
     }
+    // Bloodlust is a one-combat mark — spent by the fight that just resolved.
+    if (c.bloodlust) c.bloodlust = false;
   }
   // Pre-emptive Assault + Rallying Offensive are spent — each override covers exactly one fight.
   s.attackFirstNext = false;

@@ -375,7 +375,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean };
   /** Dragon Shout rewards. `shoutExtraAlways` = permanent extra Battlecry triggers (Hoardwake / The Hoard Wakes,
    *  stacks like Drakko). `shoutFirstDoubleEachRound` = the first Shout you play each turn triggers twice (Warm
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
@@ -402,6 +402,10 @@ export interface RunState {
   rallyExtraAlways?: number;
   rallyFirstEachCombat?: number;
   sharedCircuitWard?: number;
+  /** Demon quests. `runFodderConsumed` = run-wide Fodder-Consumed totals (count + Σ stats) feeding `consumeFodder`
+   *  / `consumeStats`. `pitWithoutEndImps` = Pit Without End's board-wipe Imp count. */
+  runFodderConsumed?: { count: number; stats: number };
+  pitWithoutEndImps?: number;
   /** Transient: cardIds of the player minions that survived the LAST combat (from CombatResult). Read at the
    *  next shop start to fire a surviving Gravetwin's copied Echo. Reset each wave. */
   lastSurvivorCardIds?: string[];

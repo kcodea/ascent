@@ -612,4 +612,20 @@ export const SPELLS: CardDef[] = [
     text: "Trigger a friendly minion's **Echo** (Deathrattle).",
     token: true,
   },
+  {
+    // Implosion reward (recurring from the Implosion quest). Reward-only spell (token: true). Buffs your Imps
+    // and recasts once per Demon you control (min 1); each cast folds in spell power.
+    id: 'implosion',
+    name: 'Implosion',
+    tribe: 'demon',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellBuffImpsPerDemon', params: { attack: 2, health: 2 } }],
+    text: 'Give your **Imps** **+2/+2**, recast for every Demon you control.',
+    token: true,
+  },
 ];

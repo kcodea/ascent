@@ -5,6 +5,7 @@ import type {
   CombatEvent,
   CombatOutcome,
   CombatResult,
+  EffectDef,
   Keyword,
   Minion,
   MinionSnapshot,
@@ -206,6 +207,10 @@ export function simulate(
   // Spark Permit / Overclocked Core's "first Rally each combat" bonus (spent once per fight).
   let playerRallies = 0;
   let firstPlayerRallyDone = false;
+  // Imps the player summoned this combat — the `summonImp` objective. `pitWithoutEndDone` gates Pit Without End's
+  // board-wipe Imp summon to once per fight.
+  let playerImpsSummoned = 0;
+  let pitWithoutEndDone = false;
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
   let enemyDeaths = 0;
@@ -230,7 +235,7 @@ export function simulate(
   // objective increment. `tribes` lets the panel narrow ("…with Beasts"); an entry with step ≤ the replay's
   // current step is "already counted". Deathrattle (Echo) entries carry no tribe (the Echo objective is
   // tribe-agnostic). Carried back via `CombatResult.playerQuestEvents`.
-  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath' | 'rally'; tribes: Tribe[] }[] = [];
+  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[] = [];
   const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {
     const tribes = tribesFor(m);
     questTally[kind] += 1;
@@ -252,10 +257,14 @@ export function simulate(
     for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'rally', tribes: [] });
   };
   const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe;
+  const isDemon = (m: Minion): boolean => m.tribe === 'demon' || m.tribe2 === 'demon' || !!cards[m.cardId]?.universalTribe;
 
   // Blood Trail: the leftmost living player minion, captured at Start of Combat, "gains Slaughter: get a random
   // Beast" for this fight — each enemy it kills conjures a random Beast to hand (via ctx.grantRandomMinion).
   let bloodTrailMinion: Minion | undefined;
+  // Deep Hunger: the leftmost living Demon, captured at Start of Combat, "gains Slaughter: add 3 Fodder to your
+  // next shop" for this fight — each enemy it kills queues Fodder (fodderGrants carry-back).
+  let deepHungerMinion: Minion | undefined;
 
   const snapshot = (m: Minion): MinionSnapshot => ({
     uid: m.uid,
@@ -532,7 +541,10 @@ export function simulate(
     }
     registerEffects(minion);
     emit({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
-    if (side === 'player') bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
+    if (side === 'player') {
+      bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
+      if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
+    }
     bus.emit('onSummon', { minion, side });
     applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
     // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
@@ -542,19 +554,20 @@ export function simulate(
     return minion;
   }
 
+  function registerEffect(minion: Minion, effect: EffectDef): void {
+    const fn = FACTORIES[effect.do];
+    if (!fn) return; // recruit-phase effects without a combat factory are inert here
+    bus.on(effect.on, (payload) => {
+      // A mid-combat ascension swaps a minion's effects; the CombatBus can't unregister, so a handler whose
+      // effect is no longer in the minion's current set self-disables — the old form's abilities stop firing.
+      if (!minion.effects.includes(effect)) return;
+      // A dead minion fires nothing except its own Deathrattle.
+      if (minion.dead && effect.on !== 'onDeath') return;
+      fn(ctx, minion, effect.params ?? {}, payload);
+    });
+  }
   function registerEffects(minion: Minion): void {
-    for (const effect of minion.effects) {
-      const fn = FACTORIES[effect.do];
-      if (!fn) continue; // recruit-phase effects without a combat factory are inert here
-      bus.on(effect.on, (payload) => {
-        // A mid-combat ascension swaps a minion's effects; the CombatBus can't unregister, so a handler whose
-        // effect is no longer in the minion's current set self-disables — the old form's abilities stop firing.
-        if (!minion.effects.includes(effect)) return;
-        // A dead minion fires nothing except its own Deathrattle.
-        if (minion.dead && effect.on !== 'onDeath') return;
-        fn(ctx, minion, effect.params ?? {}, payload);
-      });
-    }
+    for (const effect of minion.effects) registerEffect(minion, effect);
   }
 
   // --- Mid-combat ascension (Tara → Taragosa, Spirit Pup → Spirit Worgen): when a minion crosses its
@@ -763,6 +776,13 @@ export function simulate(
     if (minion.side === 'player' && throneStep > 0 && deaths.player % throneStep === 0) {
       const lead = boards.player.find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
       if (lead) { nextStep(); bumpDeathrattles(1); fireOwnDeathrattles(lead); }
+    }
+    // Pit Without End: the friendly death that empties your board summons N Imps (a last stand, once per fight).
+    const pitImps = questMods.pitWithoutEndImps ?? 0;
+    if (minion.side === 'player' && pitImps > 0 && !pitWithoutEndDone && countLiving('player') === 0) {
+      pitWithoutEndDone = true;
+      const imp = cards['impscrap'];
+      if (imp) { nextStep(); for (let i = 0; i < pitImps; i++) summonMinion('player', imp, undefined); }
     }
   }
 
@@ -982,6 +1002,8 @@ export function simulate(
             if (questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) {
               ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);
             }
+            // Deep Hunger: the SoC-marked leftmost Demon's kills queue 3 Fodder into your next shop.
+            if (killer === deepHungerMinion && killerAlive) fodderGrants += 3;
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire).
             if (questMods.lawOfTeeth && killerAlive && isBeast(killer)) {
@@ -1070,6 +1092,17 @@ export function simulate(
   //     tally) side-gate themselves, since an enemy snapshot carries no run state. ---
   // Blood Trail: mark the leftmost living player minion — its kills this fight conjure a random Beast (above).
   if (questMods.bloodTrail) bloodTrailMinion = boards.player.find((m) => !m.dead && m.health > 0);
+  // Deep Hunger: mark the leftmost living Demon — its kills queue 3 Fodder into the next shop (below).
+  if (questMods.deepHunger) deepHungerMinion = boards.player.find((m) => !m.dead && m.health > 0 && isDemon(m));
+  // Contract Rewrite: the rightmost living Demon gains a Deathrattle — summon 2 Imps with Ward (Divine Shield).
+  if (questMods.contractRewrite) {
+    const demon = [...boards.player].reverse().find((m) => !m.dead && m.health > 0 && isDemon(m));
+    if (demon) {
+      const eff: EffectDef = { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2, fixed: true, keyword: 'DS' } };
+      demon.effects = [...demon.effects, eff];
+      registerEffect(demon, eff); // register just the new Deathrattle (effects were registered at combat start)
+    }
+  }
   for (const side of ['player', 'enemy'] as const) {
     for (const minion of [...boards[side]]) {
       if (minion.dead || minion.health <= 0) continue;
@@ -1232,6 +1265,7 @@ export function simulate(
     playerDamage,
     playerDeathrattles,
     playerRallies: playerRallies > 0 ? playerRallies : undefined,
+    playerImpsSummoned: playerImpsSummoned > 0 ? playerImpsSummoned : undefined,
     playerDeaths: deaths.player,
     playerSurvivorCardIds: (() => {
       const alive = boards.player.filter((m) => !m.dead && m.health > 0).map((m) => m.cardId);

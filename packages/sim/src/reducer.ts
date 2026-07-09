@@ -126,6 +126,11 @@ export function reduce(state: RunState, action: Action): RunState {
       dragonStatGain += Math.max(0, c.attack - prev.attack) + Math.max(0, c.health - prev.health);
     }
     if (dragonStatGain > 0) advanceQuestsBy(next, (o) => o.event === 'tribeStats' && o.tribe === 'dragon', dragonStatGain);
+    // Demon "Consume N Fodder" / "Consume N total stats": advance by the run-wide Fodder-Consumed delta this action.
+    const fcBefore = state.runFodderConsumed ?? { count: 0, stats: 0 };
+    const fcAfter = next.runFodderConsumed ?? { count: 0, stats: 0 };
+    if (fcAfter.count > fcBefore.count) advanceQuestsBy(next, (o) => o.event === 'consumeFodder', fcAfter.count - fcBefore.count);
+    if (fcAfter.stats > fcBefore.stats) advanceQuestsBy(next, (o) => o.event === 'consumeStats', fcAfter.stats - fcBefore.stats);
     // Taragosa's Heir: every THIRD stat-gain your STRONGEST Dragon receives is mirrored onto the Heir permanently
     // (recruit phase; combat-gain copy is a follow-up). Counts an action where the current strongest Dragon (not
     // the Heir) gained stats as one gain; every 3rd such gain, the Heir gains the same +Attack/+Health.
@@ -188,6 +193,7 @@ export function reduce(state: RunState, action: Action): RunState {
       const cdef = CARD_INDEX[c.cardId];
       const tribes = cdef ? ([cdef.tribe, cdef.tribe2].filter(Boolean) as Tribe[]) : [];
       advanceQuests(next, (o) => o.event === 'summon' && (!o.tribe || tribes.includes(o.tribe)));
+      if (cdef?.imp) advanceQuests(next, (o) => o.event === 'summonImp'); // Imp Census / Implosion — recruit-summoned Imps
     }
   }
   return next;
@@ -1505,6 +1511,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.questFlags ??= {};
       if (r.flag === 'oldHunt') s.questFlags.oldHunt = r.amount ?? 0;
       else if (r.flag === 'sharedCircuit') s.sharedCircuitWard = r.amount ?? 0; // amount = Mechs warded at SoC
+      else if (r.flag === 'pitWithoutEnd') s.pitWithoutEndImps = r.amount ?? 0; // amount = Imps on board wipe
       else s.questFlags[r.flag] = true;
       break;
     case 'shoutRepeat':
@@ -1542,6 +1549,11 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       if (r.scope === 'always') s.rallyExtraAlways = (s.rallyExtraAlways ?? 0) + 1;
       else s.rallyFirstEachCombat = (s.rallyFirstEachCombat ?? 0) + 1;
       break;
+    case 'fodderReward':
+      // Small Offering: queue Fodder into your next shop + a persistent run-wide Fodder buff.
+      for (let i = 0; i < (r.fodder ?? 0); i++) (s.pendingTavern ??= []).push('fred');
+      if ((r.attack ?? 0) > 0 || (r.health ?? 0) > 0) buffFodderRunWide(s, r.attack ?? 0, r.health ?? 0, `Quest: ${def.name}`);
+      break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
       for (const sub of r.rewards) applyQuestReward(s, { ...def, reward: sub }, allowRepeat);
@@ -1572,6 +1584,7 @@ function combatEventCount(result: CombatResult, o: { event: QuestObjectiveEvent;
   if (o.event === 'deathrattle') return result.playerDeathrattles;
   if (o.event === 'friendlyDeath') return result.playerDeaths ?? 0;
   if (o.event === 'rally') return result.playerRallies ?? 0;
+  if (o.event === 'summonImp') return result.playerImpsSummoned ?? 0;
   const t = result.playerQuestTally;
   if (!t) return 0;
   if (o.event === 'attack') return o.tribe ? (t.attackByTribe[o.tribe] ?? 0) : t.attack;
@@ -1624,6 +1637,9 @@ function questCombatMods(s: RunState): QuestCombatMods {
     rallyExtraAlways: s.rallyExtraAlways || undefined,
     rallyFirstEachCombat: s.rallyFirstEachCombat || undefined,
     sharedCircuitWard: s.sharedCircuitWard || undefined,
+    deepHunger: f?.deepHunger,
+    contractRewrite: f?.contractRewrite,
+    pitWithoutEndImps: s.pitWithoutEndImps || undefined,
   };
 }
 

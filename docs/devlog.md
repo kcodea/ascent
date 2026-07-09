@@ -5,6 +5,47 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(content): Demon quests — the fifth (final) authored tribe; all `Test ·` quests retired
+
+The **Demon** quest tribe (Fodder / Imp / Consume engine). With this, **all five tribes + neutral are fully
+authored** — the quest pool no longer contains a single `Test ·` placeholder.
+
+**New objectives.** `consumeFodder` (Fodder Consumed) + `consumeStats` (Σ Attack+Health of Consumed Fodder) — a
+run-wide accumulator (`noteFodderConsumed`, called at all four consume sites) diffed each recruit action like
+`tribeStats`. `summonImp` (Imps summoned) — a combat tally (`playerImpsSummoned` in `summonMinion`) + a recruit
+board-entry tick, with a `summonImp` timeline event for the combat panel live-tick.
+
+**New combat mechanics.** *Deep Hunger* — SoC marks your leftmost Demon; its kills queue 3 Fodder into the next
+shop (like Blood Trail, via the `fodderGrants` carry-back). *Contract Rewrite* — SoC gives your rightmost Demon a
+Deathrattle "summon 2 Imps with Ward" (a runtime-added effect, newly registered on the combat bus via a split-out
+`registerEffect`). *Pit Without End* — the friendly death that empties your board summons 3 Imps (a last stand, once
+per fight). *Run Maw* (`scConsumeWeakestBuffDemons`) — SoC consume your weakest minion, every Demon gains 25% of its
+stats.
+
+**Quests.** *Lesser:* Imp Census (6 Imps → random Demon +repeat), Small Offering (Consume 3 → 2 Fodder + Fodder
++2/+2), Dark Bargain (sell 5 → Contract Imp). *Greater:* Deep Hunger (Consume 12 → flag), Contract Rewrite (spend
+25 → flag), Implosion (11 Imps → recurring Implosion spell). *Capstone:* The True Contract (Consume 20 → Herald),
+Pit Without End (40 Imps → flag), Maw of the Run (Consume 200 stats → Run Maw).
+
+**New cards** (all `token: true`, reward-only). *Contract Imp* (Demon T3 3/4 — Choose One: Fodder or Imps +3/+3).
+*Herald of the Apocalypse* (Demon T6 5/5 — Battlecry: every friendly Demon Consumes a Fodder; new
+`battlecryAllDemonsConsume`). *Run Maw* (Demon T6 10/8). *Implosion* (Demon T5 spell — buff Imps, recast per Demon,
+spell-power-scaled; new `spellBuffImpsPerDemon`).
+
+**New rewards.** `fodderReward` (add N Fodder to the next shop + a persistent Fodder buff); the three Demon combat
+flags. Imp Census / Dark Bargain / Implosion / True Contract / Maw reuse `grant` / `recurringGrant`.
+
+**Verified.** typecheck + lint clean; `npm test` **710 pass** incl. 7 new (Pit Without End board-wipe Imp summon;
+Contract Rewrite Deathrattle summon; Run Maw consume-and-buff; Small Offering consumeFodder + fodderReward via
+Herald; Maw consumeStats; Imp Census summonImp reward; token exclusion). The framework tick test (formerly on the
+retired `q_lesser_demon`) was retargeted to `q_grave_toll` (`summon`). `build:web` clean; live DOM check of all six
+Demon quest cards' derived text.
+
+**Decisions/flags:** (1) "Summon N Imps" counts imp summons in BOTH combat + recruit. (2) Pit Without End = the
+board-wipe death summons 3 Imps (once/combat). (3) Contract Rewrite's Imps carry Ward. (4) Herald = each Demon
+creates+eats one Fodder. (5) Run Maw = +25% of the consumed minion's Attack and Health (floored) per Demon.
+(6) Implosion recasts once per Demon (min 1). Art not wired yet.
+
 ### feat(content): Mech quests (fourth authored tribe) + keyword quests → neutral + Rally/Attachment engine
 
 The **Mech** quest tribe (Attachment + Rally engine) plus a structural change: keyword-triggered quests are now

@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### chore(ui): bigger, less-overlapped hand as the default layout
+
+Owner-tuned the hand in the DEV Layout Lab and baked it as the shipped default: hand card size
+`--z-hand-s` 1 → **1.18** and hand overlap `--z-hand-gap` −0.44 → **−0.16** (less tuck, more of each
+fanned card visible). Because the Layout Lab only applies in dev (`applyLayout` is `import.meta.env.DEV`-
+gated) and production reads the **CSS variable fallbacks**, both were updated in lockstep: the `def`s in
+`layoutConfig.ts` (so the tuner's reset/fresh-dev default matches) and the fallbacks in `styles.css`
+(`.zone[data-zone='hand']` `--ch` and `.row.hand .card` `margin-left`). All other Layout Lab values were
+already at their defaults, so nothing else changed. Verified: typecheck + lint + `build:web` green; values
+were dialed live by the owner.
+
 ### fix(ui): Divine-Shield break burst no longer quietly fades (grace vs. break-cue timing)
 
 Owner-reported: a consumed Divine Shield sometimes shows no gold-shatter burst. Cause: when a shield is

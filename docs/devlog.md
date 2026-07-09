@@ -5,7 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
-### fix(ui): shield / reborn auras now track the card exactly through the lunge + recoil
+### fix(ui): shield / reborn auras also ride the card's lunge TILT (rotation)
+
+Follow-up to the aura-tracking fix: the tracker matched the card's position but not its **rotation**, so as a
+unit lunged (the strike tilts the card) the axis-aligned aura visibly stuck out to one side. The `track`
+callback now also reports the card's rotation — read off the `.unit` transform matrix (`atan2(m.b, m.a)`) — and
+the bubble sets `container.rotation` to match each frame. Also fixed the footprint: a rotated element's
+`getBoundingClientRect` inflates, so the tracker now uses the UNROTATED size (`offsetWidth × the matrix scale`)
+instead, keeping the aura the right size mid-tilt. Non-tracked auras (recruit / taunt) stay rotation 0.
+typecheck + lint + build:web green; reloads clean.
 
 Owner-reported: a unit with a Divine Shield or Reborn aura that's attacked "bounces" from the impact recoil,
 and for a moment the aura detaches from the card. Root cause: the aura tracker (`syncShields`) re-measures

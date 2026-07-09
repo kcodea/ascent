@@ -514,20 +514,28 @@ export function Recruit() {
     const ay = (kind: AuraK): number => (kind === 'taunt' && back ? back.top : 0);
     const set = (
       uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK,
-      track?: (() => { cx: number; cy: number; w: number; h: number } | null),
+      track?: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null),
     ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track);
     // A live position source for a COMBAT front-aura (shield/reborn): re-measures the card's art square each FX
     // frame so the bubble rides the lunge/recoil transform EXACTLY (no cross-rAF trailing). Combat-only, where
     // ax/ay/auraDy are all 0 — so it mirrors the `set` measurement below. null when the card isn't measurable
     // (dying → the burst owns it; mid-remount → keep the last spot).
-    const makeTrack = (uid: string, marker: string) => (): { cx: number; cy: number; w: number; h: number } | null => {
-      const card = document.querySelector<HTMLElement>(`[data-uid="${uid}"] .card.${marker}`);
-      if (!card || card.closest<HTMLElement>('.unit')?.classList.contains('dying')) return null;
-      const el = card.querySelector<HTMLElement>('.archbox') ?? card;
-      const r = el.getBoundingClientRect();
-      if (r.width === 0) return null;
-      return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height };
-    };
+    const makeTrack = (uid: string, marker: string) =>
+      (): { cx: number; cy: number; w: number; h: number; rot: number } | null => {
+        const unit = document.querySelector<HTMLElement>(`.unit[data-uid="${uid}"]`);
+        const card = unit?.querySelector<HTMLElement>(`.card.${marker}`);
+        if (!unit || !card || unit.classList.contains('dying')) return null;
+        const el = card.querySelector<HTMLElement>('.archbox') ?? card;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) return null;
+        // The lunge transform lives on `.unit` (translate + tilt + windup scale). getBoundingClientRect gives the
+        // rotated element's AABB (centre stays true, but w/h inflate), so take the UNROTATED size (offsetWidth ×
+        // the transform's scale) and read the rotation off the matrix so the aura rides the card's tilt exactly.
+        const t = getComputedStyle(unit).transform;
+        let rot = 0, sc = 1;
+        if (t && t !== 'none') { const m = new DOMMatrixReadOnly(t); rot = Math.atan2(m.b, m.a); sc = Math.hypot(m.a, m.b) || 1; }
+        return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: el.offsetWidth * sc, h: el.offsetHeight * sc, rot };
+      };
     // Recruit cards hang their stat badges BELOW the square art tile, so an aura centred on the art alone reads
     // a touch high vs the full card silhouette. Nudge shield/reborn (recruit only; combat units are a clean
     // square, and taunt carries its own tuner offset) — the amount is live-tunable via the DEV Shield tuner.

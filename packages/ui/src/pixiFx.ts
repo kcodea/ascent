@@ -374,10 +374,11 @@ interface ShieldBubble {
   mini: boolean;          // true while the card is being dragged → shrink to a small trailing sparkle
   pop: number;            // ms elapsed of the coalesce/pop-in on placement (−1 = not popping)
   scaleMul: number;       // current size multiplier (lerps toward 1 or MINI_SCALE; the pop drives it directly)
+  rot: number;            // current rotation (rad) — matches the card's live transform (lunge tilt) when tracking
   /** Optional live position source, called every FX frame right before render — lets the bubble measure its
-   *  card in Pixi's OWN frame (after GSAP applies the lunge/recoil transform), so a fast-moving unit's aura
-   *  never renders a frame behind the card. Returns null when the card isn't measurable (keeps the last pos). */
-  track: (() => { cx: number; cy: number; w: number; h: number } | null) | null;
+   *  card in Pixi's OWN frame (after GSAP applies the lunge/recoil transform + rotation), so a fast-moving unit's
+   *  aura never trails or un-rotates from the card. Returns null when the card isn't measurable (keeps the last). */
+  track: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null) | null;
 }
 
 // Shield-bubble feel (tunable live via window.__pixiFx in DEV). The shield shader draws into a quad of
@@ -1034,7 +1035,7 @@ class FxController {
       container.alpha = 0;
       this.shieldLayer.addChild(container);
       b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
-            mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1, track };
+            mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1, rot: 0, track };
       this.shields.set(key, b);
     } else {
       b.cx = cx; b.cy = cy; b.w = w; b.h = h; b.track = track;
@@ -1531,7 +1532,8 @@ class FxController {
     for (const [uid, b] of this.shields) {
       b.age += dtMs;
       // Live-track the card in THIS frame (after GSAP's lunge/recoil transform) so the aura never trails it.
-      if (b.track) { const r = b.track(); if (r) { b.cx = r.cx; b.cy = r.cy; b.w = r.w; b.h = r.h; } }
+      if (b.track) { const r = b.track(); if (r) { b.cx = r.cx; b.cy = r.cy; b.w = r.w; b.h = r.h; b.rot = r.rot; } }
+      else b.rot = 0;
       // grow-in (gain) and optional fade-out (graceful clear). Taunt "deploys" RIGID — it grows out to full
       // width and LOCKS (it's metal: no overshoot, no bob); shield/reborn fade in + settle gently.
       const tcfg = b.kind === 'taunt' ? getTauntConfig() : null;
@@ -1578,6 +1580,7 @@ class FxController {
       b.container.x = b.cx + (tcfg ? tcfg.offsetX : 0); // taunt: live nudge from the DEV tuner
       b.container.y = b.cy + (tcfg ? tcfg.offsetY : 0);
       b.container.scale.set(sx * grow, sy * grow);
+      b.container.rotation = b.rot; // ride the card's lunge tilt (0 for non-tracked / recruit auras)
       b.container.alpha = life; // form-in / fade / mini envelope; the shader owns its internal opacity
       // drive the shield shader
       const u = (b.shader.resources.shieldUniforms as { uniforms: Record<string, number | Float32Array> }).uniforms;

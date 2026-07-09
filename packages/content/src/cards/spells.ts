@@ -540,6 +540,7 @@ export const SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
+    token: true, // reward-exclusive (the Anomalous Reactor quest) — never rolls in the shop / spell Discover / random-spell grants
     cost: 2,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'mech' } }],
@@ -555,6 +556,7 @@ export const SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
+    token: true, // reward-exclusive (the Red Trail quest) — never rolls in the shop / spell Discover / random-spell grants
     cost: 3,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellBloodlust' }],

@@ -4824,6 +4824,16 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.questFlags?.bloodTrail).toBe(true);
   });
 
+  it('unique quest-reward cards are token-flagged out of the shop + spell pools', () => {
+    const buyable = new Set(BUYABLE_CARDS.map((c) => c.id));
+    const spells = new Set(SPELL_CARDS.map((c) => c.id));
+    for (const id of ['bloodlust', 'anomalyreactor', 'gravebody']) {
+      expect(CARD_INDEX[id]).toBeDefined(); // still exists (grantable / summonable)
+      expect(buyable.has(id)).toBe(false); // never rolls as a shop minion
+      expect(spells.has(id)).toBe(false); // never rolls as the offered spell
+    }
+  });
+
   it('Anomaly Reactor gives a minion a Mech type (isTribe + magnetize eligibility)', () => {
     const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
     const spell: BoardCard = { uid: 'sp', cardId: 'anomalyreactor', tribe: 'mech', attack: 0, health: 1, keywords: [], golden: false };

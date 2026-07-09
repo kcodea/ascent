@@ -49,12 +49,14 @@ export function StatusBar() {
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
-      ? `${power.name} · +${spellAmplifyBonus(run.wave)}/+${spellAmplifyBonus(run.wave)} spells`
+      ? `${power.name} · +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)} spells`
       : power.kind === 'quest'
         ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.drakkoBuys}/5`}`
-        : power.kind === 'collision'
-          ? `${power.name} · ${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`
-          : `${power.name} · passive`
+        : power.kind === 'questChronos'
+          ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.eotMinionBuys ?? 0}/4`}`
+          : power.kind === 'collision'
+            ? `${power.name} · ${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`
+            : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'
       : !unlocked

@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Hero batch — 4 reworks + 6 new heroes.** Djinn's Cadence now fires *every* friendly End of Turn; Rohan scales
+  by spells cast; Nadja has 19 Armor; Warden's Aegis buys a minion a permanent Ward for 4 Gold. New: **Disco Dan**
+  (turn-1 Setlist — Discover T6/T4/T2, each locked until that shop tier), **Bagger Ben** (scaling Gold), **Hermit
+  Hank** (2-Gold minions, +2 tavern-ups), **Fi** (an early quest on turn 3), **Herald** (neighbours Consume a Fodder),
+  **Chronos** (buy 4 End-of-Turn minions → a Chronos).
 - **Front to Back scales Attack/Health independently.** A `+0/+2` (asymmetric spell-power) build now escalates
   **+2/+4** per cast instead of symmetrically — the two stats diverge as intended, and every surface prints the
   true split value.

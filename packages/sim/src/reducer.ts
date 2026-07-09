@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, adjacentConsumeFodder, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -49,6 +49,39 @@ function drakkoQuestBuy(s: RunState, card: CardDef): void {
     });
   }
   s.heroPowerSpent = true; // quest complete — stops counting + arms nothing further
+}
+
+/** Chronos hero's Encore quest: buy 4 End-of-Turn minions → get a Chronos (once per game). Mirrors
+ *  `drakkoQuestBuy` — progresses on every PAID buy of a minion that carries an End-of-Turn effect. */
+function chronosQuestBuy(s: RunState, card: CardDef): void {
+  if (s.heroId !== 'chronoshero' || s.heroPowerSpent) return;
+  if (!card.effects.some((e) => e.on === 'endOfTurn')) return;
+  s.eotMinionBuys = (s.eotMinionBuys ?? 0) + 1;
+  if ((s.eotMinionBuys ?? 0) < 4) return;
+  if (s.hand.length < CONFIG.handMax) {
+    s.hand.push({
+      uid: `b${s.uidSeq++}`,
+      cardId: 'chronos',
+      tribe: CARD_INDEX.chronos!.tribe,
+      attack: CARD_INDEX.chronos!.attack,
+      health: CARD_INDEX.chronos!.health,
+      keywords: [...CARD_INDEX.chronos!.keywords],
+      golden: false,
+    });
+  }
+  s.heroPowerSpent = true; // quest complete
+}
+
+/** Shop minion cost for the current hero: Hermit Hank's minions cost 2 Gold; everyone else pays the config
+ *  default. A Moe set-price (`offer.cost`) or a Merchant's Mark override still take priority over this. */
+export function minionCostOf(s: RunState): number {
+  return getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : CONFIG.minionCost;
+}
+
+/** The Gold a tavern-up costs right now: the running `upgradeCost` plus Hermit Hank's +2 surcharge (his
+ *  minions are cheap, but climbing tiers costs more). The single source of truth for the reducer + UI. */
+export function upgradeCostOf(s: RunState): number {
+  return s.upgradeCost + (getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : 0);
 }
 
 /**
@@ -244,6 +277,15 @@ function reduceCore(state: RunState, action: Action): RunState {
     return state;
   }
 
+  // Disco Dan: turn 1 is a pure Setlist — resolve the three locked Discovers, then end the turn straight into
+  // combat. Every shop action (buy / sell / roll / freeze / upgrade / play / hero power) is blocked until turn
+  // 2; Discover, board reordering, and ending the turn (faceOmen) stay open.
+  if (state.heroId === 'discodan' && state.wave === 1
+    && (action.type === 'buy' || action.type === 'sell' || action.type === 'roll' || action.type === 'freeze'
+      || action.type === 'upgrade' || action.type === 'play' || action.type === 'heroPower')) {
+    return state;
+  }
+
   // PERF: `lastCombat` is a large read-only result (the whole prior fight's event log + initial board
   // snapshots) that the reducer never mutates in place — it only ever REPLACES the reference (faceOmen).
   // So deep-clone everything ELSE and share lastCombat by reference, dropping ~80–90% of the per-dispatch
@@ -295,16 +337,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression
       // (deliberately NO applyOnBuy: it's a restoration, not a fresh purchase, so Broker & co. don't re-bake).
       if (offer.held) {
-        if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
-        spendGold(s, CONFIG.minionCost);
+        const heldCost = minionCostOf(s);
+        if (s.embers < heldCost || s.hand.length >= CONFIG.handMax) return state;
+        spendGold(s, heldCost);
         s.shop.splice(i, 1);
         // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
         s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined });
         drakkoQuestBuy(s, card); // a paid buy still progresses Drakko's quest (it used to be skipped)
+        chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
-      const buyCost = offer.cost ?? s.minionCostOverride ?? CONFIG.minionCost; // Moe's set price > Merchant's Mark override > default
+      const buyCost = offer.cost ?? s.minionCostOverride ?? minionCostOf(s); // Moe's set price > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
@@ -356,6 +400,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         conjureToHand(s, CARD_INDEX[card.id] ? [CARD_INDEX[card.id]!] : [], 1);
       }
       drakkoQuestBuy(s, card); // Drakko's quest counts every paid Battlecry buy
+      chronosQuestBuy(s, card); // Chronos's quest counts every paid End-of-Turn buy
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       return s;
     }
@@ -365,6 +410,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       const i = s.hand.findIndex((c) => c.uid === action.uid);
       if (i < 0) return state;
       const card = s.hand[i]!;
+      // Disco Dan: a Setlist minion is locked until you reach its shop tier — unplayable before then.
+      if (card.lockedUntilTier && s.tier < card.lockedUntilTier) return state;
 
       const def = CARD_INDEX[card.cardId];
 
@@ -625,8 +672,9 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'upgrade': {
-      if (s.tier >= CONFIG.maxTier || s.embers < s.upgradeCost) return state;
-      spendGold(s, s.upgradeCost);
+      const cost = upgradeCostOf(s); // includes Hermit Hank's +2 surcharge
+      if (s.tier >= CONFIG.maxTier || s.embers < cost) return state;
+      spendGold(s, cost);
       s.tier += 1;
       s.upgradeCost = s.tier >= CONFIG.maxTier ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
       return s;
@@ -705,9 +753,32 @@ function reduceCore(state: RunState, action: Action): RunState {
         // spent) on a missing target or a minion with no Battlecry to replay.
         if (!card || !replayBattlecry(s, card)) return state;
       } else if (power.kind === 'replayEndOfTurn') {
-        // Dusk: proc a friendly board minion's End of Turn now. No-op on a missing target or a
+        // (legacy) proc a single friendly board minion's End of Turn now. No-op on a missing target or a
         // minion with no End-of-Turn effect.
         if (!card || !replayEndOfTurn(s, card)) return state;
+      } else if (power.kind === 'replayAllEndOfTurn') {
+        // Djinn's Cadence: trigger EVERY friendly board minion's End of Turn now (untargeted). Fires on a
+        // snapshot of the board so a minion an EoT summons doesn't also proc this activation. No-op (no charge
+        // spent) if nothing on board had an End-of-Turn effect to trigger.
+        let any = false;
+        for (const c of [...s.board]) if (replayEndOfTurn(s, c)) any = true;
+        if (!any) return state;
+      } else if (power.kind === 'grantWard') {
+        // Warden's Aegis: give a friendly board minion a PERMANENT Ward (Divine Shield) for 4 Gold. No-op (no
+        // charge/gold spent) on a missing target or one that already has a Ward.
+        if (!card || card.keywords.includes('DS')) return state;
+        card.keywords.push('DS');
+      } else if (power.kind === 'scalingGold') {
+        // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
+        // Untargeted; the once-per-turn charge is spent by the shared block below.
+        s.embers += 1 + s.wave;
+      } else if (power.kind === 'adjacentConsume') {
+        // Herald's Proclaim: the two minions on either side of the targeted friendly minion each Consume a
+        // created Fodder. No-op (no charge spent) on a missing target or one with no neighbours to feed.
+        if (!card) return state;
+        const before = s.fodderEatenSeq;
+        adjacentConsumeFodder(s, card, 1);
+        if (s.fodderEatenSeq === before) return state; // nothing ate (no neighbours) → don't spend the charge
       } else if (power.kind === 'resummon') {
         // The Reclaimer: mark a friendly board minion to be destroyed + resummoned at start of
         // combat (the combat sim does the work). Mark exactly one (clear any previous mark).
@@ -726,9 +797,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card || card.keywords.includes('R')) return state;
         card.keywords.push('R');
         card.tempReborn = true;
-      } else if (power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold') {
-        // Passive powers (Rohan's amplify, Drakko's quest, Cassen's Collision, Robin's Spoils) have no
-        // activation — the work happens elsewhere (spell math / the buy / sell case / settleCombat). Nothing here.
+      } else if (
+        power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
+        || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
+        || power.kind === 'questChronos' || power.kind === 'lesserQuest'
+      ) {
+        // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
+        // settleCombat, the turn-advance quest/discover hooks). Nothing to do on a power click.
         return state;
       } else if (power.kind === 'gainMaxMana') {
         // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
@@ -787,7 +862,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         health: def.health + dcb.health + buyHealthAura(s, def),
         keywords: [...def.keywords],
         golden: false,
+        // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
+        ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
       });
+      s.discoverLockTier = undefined; // consumed — the next queued Discover sets its own (or none)
       takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
@@ -1387,7 +1465,12 @@ function advanceCombat(s: RunState): void {
   // — so the shop sits behind the quest overlay and the pick is shop-informed. An empty offer (no content, or
   // quests disabled) falls through to a normal turn — a content gap never soft-locks. The "quest phase" is just
   // "questOffer is set" (no new phase enum); the modal guard locks every action but buyQuest until it resolves.
-  const questOffer = questTierForWave(s.wave) ? generateQuestOffer(s) : [];
+  // Fi's Errand: an EXTRA, lower-tier quest shop on turn 3 (an off-wave, drawn from the 'lesser' pool). On the
+  // normal quest waves (4/8/12) she gets those as usual; this is a bonus offer, once, ahead of schedule.
+  const fiExtra = getHero(s.heroId).power.kind === 'lesserQuest' && s.wave === 3;
+  const questOffer = fiExtra
+    ? generateQuestOffer(s, 'lesser')
+    : questTierForWave(s.wave) ? generateQuestOffer(s) : [];
   if (questOffer.length > 0) {
     s.questOffer = questOffer;
   } else if (s.frozen) {

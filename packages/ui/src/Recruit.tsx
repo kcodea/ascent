@@ -1133,6 +1133,12 @@ export function Recruit() {
       if (!uid) return;
       const zone = el.closest('[data-zone]')?.getAttribute('data-zone');
       const source: DragSource = zone === 'warband' ? 'board' : zone === 'hand' ? 'hand' : 'shop';
+      // Disco Dan: a Setlist card is locked in hand until you reach its shop tier — it can't be dragged out
+      // or played (the reducer also refuses the play). Grabbing it does nothing until it unlocks.
+      if (source === 'hand') {
+        const hc = run.hand.find((c) => c.uid === uid);
+        if (hc?.lockedUntilTier && run.tier < hc.lockedUntilTier) return;
+      }
       // When the timer's up you can still REORDER your board, but not play / buy / sell — so allow a board
       // drag through, block hand + shop drags.
       if (timeUp && source !== 'board') return;
@@ -2584,6 +2590,8 @@ export function Recruit() {
             // `--fan-rot` var (see `.row.hand .card` in styles.css); it stays fanned through drags.
             const n = run.hand.length;
             const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
+            // Disco Dan's Setlist: a card locked until its shop tier is greyed + shows a padlock (and can't be played).
+            const locked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
             return (
               <Card
                 key={m.uid}
@@ -2598,6 +2606,8 @@ export function Recruit() {
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}
+                locked={locked}
+                lockLabel={locked ? `Tier ${m.lockedUntilTier}` : undefined}
                 forceFull
               />
             );

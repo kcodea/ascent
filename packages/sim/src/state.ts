@@ -3,6 +3,7 @@ import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEve
 import { CARD_INDEX } from '@game/content';
 import { CONFIG } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
+import { queueDiscover } from './recruit';
 import { rollShop, stockPool } from './shop';
 import { selectThreat, type ThreatId } from './threats';
 
@@ -128,6 +129,10 @@ export interface BoardCard {
   /** The Reclaimer's mark: at the start of the next combat this minion is destroyed (its Deathrattle
    *  fires) and an exact copy is resummoned if there's room. Cleared each turn (re-choose). */
   resummon?: boolean;
+  /** Disco Dan: a hand card that cannot be PLAYED until you reach this shop tier (the T6/T4/T2 minions his
+   *  Setlist Discovers on turn 1). Only THIS card is gated — the rest of the hand plays normally. The play
+   *  action no-ops while `state.tier < lockedUntilTier`; the UI shows it locked. Cleared once it unlocks. */
+  lockedUntilTier?: number;
   /** Spells cast while this card has been on the board — drives transform cards (Spirit Pup → Worgen
    *  at 10). Per-instance; ticks only while on the board (the spellCast trigger fires for the board). */
   spellProgress?: number;
@@ -168,7 +173,7 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  */
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean };
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number };
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
  *  (shown in the quest panel); up to 3 accumulate over a run (waves 4/8/12). */
@@ -315,6 +320,8 @@ export interface RunState {
   nextShopBuff?: { attack: number; health: number };
   /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
   drakkoBuys: number;
+  /** Chronos hero: End-of-Turn minions bought this run (his Encore quest grants a Chronos at 4). */
+  eotMinionBuys?: number;
   /** Cassen hero: enemy minions killed since the last Collision payoff — at 5 it grants a minion of the
    *  board's most common tribe (then subtracts 5). Banks across combats until a minion can be granted. */
   cassenKills: number;
@@ -470,6 +477,10 @@ export interface RunState {
   questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments')[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
+  /** Disco Dan's Setlist: the shop tier the CURRENTLY-open Discover's pick will be locked until (its
+   *  `lockedUntilTier`). Set by `openDiscover` from the spec's `lockTier`, read + cleared when the pick
+   *  resolves. Undefined for every normal Discover. */
+  discoverLockTier?: number;
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted
    *  off and opened; `discover` only clears when this is empty. Fed by `queueDiscover` — e.g. a golden
    *  Black Belt Brian queues a 2nd spell Discover, Yazzus multiplies Help Wanted / Sprout, and a
@@ -636,6 +647,14 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
         keywords: [...def.keywords],
         golden: false,
       });
+    }
+  }
+  // Disco Dan's Setlist: turn 1 opens three sequential Discovers — Tier 6 first, then Tier 4, then Tier 2 —
+  // each pick locked in hand until you reach that shop tier. queueDiscover opens the first and stacks the
+  // rest behind it (drained one at a time as each resolves).
+  if (heroId === 'discodan') {
+    for (const tier of [6, 4, 2]) {
+      queueDiscover(state, { kind: 'minion', tier, exactTier: tier, lockTier: tier });
     }
   }
   return state;

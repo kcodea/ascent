@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat: hero batch — 4 reworks + 6 new heroes
+
+Owner batch (2026-07-09). Data-driven throughout (new `HeroPowerKind`s + reducer branches); no bespoke classes.
+
+**Reworks:**
+- **Djinn → Cadence** now triggers EVERY friendly minion's End of Turn (untargeted `replayAllEndOfTurn`), not one.
+- **Rohan → Attunement** now scales by **spells cast** (`spellAmplifyBonus(spellsCast)` = 1 + ⌊casts/5⌋), not by wave.
+  Rewired both call sites (`spellStatBonus`, `StatusBar`).
+- **Nadja** starts with **19 Armor** (keeps Gold Font).
+- **Warden → Aegis** — spend **4 Gold** to give a friendly minion a **permanent Ward** (`grantWard`), replacing Fortify.
+  (Fortify's orphaned tests were repointed to Warden's Aegis / a Growth spell; the Hunter-onGainAttack boundary
+  stays covered by the Growth-spell test.)
+
+**New heroes:**
+- **Disco Dan** (15 armor) — **Setlist**: turn 1 is three sequential Discovers **T6 → T4 → T2**, each pick locked in
+  hand until you reach that shop tier. New per-`BoardCard` `lockedUntilTier` (gates the `play` action + a UI padlock),
+  a `DiscoverSpec.lockTier` threaded through `openDiscover`→the `discover` case via transient `discoverLockTier`, the
+  run-start Setlist in `createRun`, and a turn-1 shop-action lock in `reduce` (only Discover / reorder / faceOmen).
+- **Bagger Ben** (15) — **Bag It**: gain `1 + wave` Gold (turn 1 → 2), climbing +1 each turn; once per turn.
+- **Hermit Hank** (15) — passive: shop minions cost **2 Gold** (`minionCostOf`), tavern-ups cost **2 more** (`upgradeCostOf`).
+- **Fi** (8) — passive: an **extra, lower-tier quest shop on turn 3** (`generateQuestOffer(s, 'lesser')` on the wave-3 advance).
+- **Herald** (15) — **Proclaim**: target a friendly minion — its two neighbours each Consume a created Fodder
+  (new `adjacentConsume`, sharing the extracted `adjacentConsumeFodder` helper with Abyssal Feeder).
+- **Chronos** (hero id `chronoshero`, 8) — **Encore** quest: buy **4 End-of-Turn minions** → get a Chronos (clone of
+  Drakko's quest; `eotMinionBuys`).
+
+Verified: `typecheck` + `lint` + `test` (780 pass, incl. 16 new hero tests) + `build:web` + `harness` all green; live
+smoke via a throwaway `newRun` — Disco Dan's Setlist opens T6→T4→T2, the 3 picks land locked (roll + play both refused
+on turn 1), Nadja shows 19 armor, Hermit Hank buys at 2 Gold.
 ### feat: Front to Back scales Attack/Health independently · Tauntbreaker (T4 Neutral, strips Taunt + Rise on hit)
 
 Two owner items, one PR:

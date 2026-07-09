@@ -27,7 +27,10 @@ const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="wa
 
 // ms to keep a vanished shield bubble alive before fading it — covers a hand→board PLAY (the card unmounts
 // from hand then remounts on the board under the same uid), so the bubble resumes INSTANTLY, no fade+regrow.
-const SHIELD_CLEAR_GRACE = 280;
+// MUST also OUTLAST the choreographer's shield-BREAK cue (`auraBreak`, +300ms scaled — score.ts): when a Divine
+// Shield is consumed the card loses `.dscard` immediately, but the gold-shatter fires 300ms later. If the grace
+// expires first the bubble quietly FADES before the burst can read it (the "shield-break burst not showing" bug).
+const SHIELD_CLEAR_GRACE = 420;
 // The persistent auras the tracker POSITIONS (bubbles that ride each card), each marked by a CSS class on the
 // card and a keyword on the drag view. Combat bursts/breaks/re-forms are the choreographer's (channels/aura.ts,
 // fired off the event log) — the tracker here only keeps each aura riding its card and clears it when the card

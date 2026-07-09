@@ -454,12 +454,14 @@ export type QuestReward =
   | { kind: 'spellRepeat'; scope: 'always' | 'firstEachTurn' }
   | { kind: 'minionCost'; cost: number }
   | { kind: 'slaughterRepeat'; scope: 'firstEachCombat' }
+  // Twin Sun Oath (Dragon capstone): every Shout you TRIGGER buffs your leftmost + rightmost board minion +atk/+hp.
+  | { kind: 'shoutEdgeBuff'; attack: number; health: number }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
 export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit'
-  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack';
+  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -502,6 +504,10 @@ export interface QuestCombatMods {
   /** Author's Hand: your FIRST Slaughter (on-kill) each combat fires this many extra times (additive with Law of
    *  Teeth). */
   slaughterFirstEachCombat?: number;
+  /** Feeding Line (Beast capstone): whenever a Beast Slaughters (fells an enemy by attacking), your NEXT living
+   *  Beast (in board order, after the killer) immediately takes an out-of-turn attack. Can chain (a granted
+   *  attack that slaughters grants another), bounded by the immediate-attack guard. */
+  feedingLine?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

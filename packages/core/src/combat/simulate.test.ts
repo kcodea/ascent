@@ -1514,6 +1514,38 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.filter((e) => e.type === 'toHand').length).toBe(2);
   });
 
+  it('Feeding Line (Beast capstone): a Beast Slaughter gives the next Beast an immediate out-of-turn attack', () => {
+    // Player attacks first (wider). The front Beast kills the enemy 1/1 → Feeding Line grants the SECOND Beast an
+    // immediate attack, before the enemy's first swing. The enemy wall (1 Attack) marks the enemy's turn so we can
+    // check ordering. `feedingLine` is the last simulate arg (QuestCombatMods).
+    const sim = (feedingLine: boolean) =>
+      simulate(
+        [
+          { cardId: 'alley', attack: 10, health: 20 }, // front Beast (Pennycat) — kills the 1/1 on its first swing
+          { cardId: 'alley', attack: 3, health: 20 }, // the NEXT Beast — gets the immediate attack when armed
+          { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }, // width → player attacks first
+        ],
+        [
+          { cardId: 'omen', attack: 1, health: 1 }, // either 1/1 is a one-hit kill for the front Beast → guaranteed
+          { cardId: 'omen', attack: 1, health: 1 }, // turn-1 Slaughter; the survivor's swing marks the enemy's turn
+        ],
+        makeRng(3), CARD_INDEX,
+        0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // spellsThisTurn … spellPowerHp
+        6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, // playerTier … magneticBuyHp
+        feedingLine ? { feedingLine: true } : {},
+      );
+    // Count the second Beast's attacks that land BEFORE the enemy's first swing.
+    const nextBeastEarlyAttacks = (r: ReturnType<typeof sim>): number => {
+      const nextUid = r.initial.player[1]!.uid;
+      const enemyUids = new Set(r.initial.enemy.map((m) => m.uid));
+      const firstEnemyAttack = r.events.findIndex((e) => e.type === 'attack' && enemyUids.has(e.attacker));
+      const cutoff = firstEnemyAttack === -1 ? r.events.length : firstEnemyAttack;
+      return r.events.slice(0, cutoff).filter((e) => e.type === 'attack' && e.attacker === nextUid).length;
+    };
+    expect(nextBeastEarlyAttacks(sim(true))).toBeGreaterThan(0); // armed → it strikes out of turn
+    expect(nextBeastEarlyAttacks(sim(false))).toBe(0); // unarmed → it waits for its normal turn (after the enemy's)
+  });
+
   it('Supporter (Rally): when it attacks, 2 friendly Dragons get +1/+2', () => {
     const a = run(
       [

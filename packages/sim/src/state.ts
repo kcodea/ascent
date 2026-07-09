@@ -385,7 +385,10 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean };
+  /** Twin Sun Oath (Dragon capstone): every Shout you trigger buffs your leftmost + rightmost board minion by
+   *  this much (+atk/+hp), for the rest of the run. Absent = not armed. */
+  shoutEdgeBuff?: { attack: number; health: number };
   /** Dragon Shout rewards. `shoutExtraAlways` = permanent extra Battlecry triggers (Hoardwake / The Hoard Wakes,
    *  stacks like Drakko). `shoutFirstDoubleEachRound` = the first Shout you play each turn triggers twice (Warm
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */

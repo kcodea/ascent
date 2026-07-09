@@ -222,6 +222,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Triggering Shouts give your leftmost and rightmost minion +${r.attack}/+${r.health}`;
     case 'goldFodder':
       return `Every ${r.per} Gold spent adds a Fodder to your shop and gives Fodder +${r.attack}/+${r.health}`;
+    case 'attachmentDeal':
+      return `Attachments cost ${r.cost} Gold, and there's always an Attachment in the shop`;
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

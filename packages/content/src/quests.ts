@@ -89,6 +89,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_shared_circuit', name: 'Shared Circuit', tribe: 'mech', tier: 'capstone', objective: { event: 'playAttachment', count: 12 }, reward: { kind: 'combatFlag', flag: 'sharedCircuit', amount: 3 } },
   { id: 'q_machine_chorus', name: 'Machine Chorus', tribe: 'mech', tier: 'capstone', objective: { event: 'rally', count: 10 }, reward: { kind: 'grant', cards: ['chorusengine'] } },
   { id: 'q_anomalous_reactor', name: 'Anomalous Reactor', tribe: 'mech', tier: 'capstone', objective: { event: 'spendGold', count: 25 }, reward: { kind: 'grant', cards: ['anomalyreactor'] } },
+  { id: 'q_attachment_issues', name: 'Attachment Issues', tribe: 'mech', tier: 'capstone', objective: { event: 'slaughter', count: 20 }, reward: { kind: 'attachmentDeal', cost: 2 } },
   { id: 'q_true_contract', name: 'The True Contract', tribe: 'demon', tier: 'capstone', objective: { event: 'consumeFodder', count: 20 }, reward: { kind: 'grant', cards: ['heraldapoc'] } },
   { id: 'q_pit_without_end', name: 'Pit Without End', tribe: 'demon', tier: 'capstone', objective: { event: 'summonImp', count: 20 }, reward: { kind: 'combatFlag', flag: 'pitWithoutEnd', amount: 3 } },
   { id: 'q_maw_of_the_run', name: 'Maw of the Run', tribe: 'demon', tier: 'capstone', objective: { event: 'consumeStats', count: 100 }, reward: { kind: 'grant', cards: ['runmaw'] } },

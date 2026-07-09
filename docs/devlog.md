@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(content): content batch pt 6a — Attachment Issues (Mech capstone)
+
+New Mech capstone **Attachment Issues** — *Kill 20 enemies* → *"Attachments cost 2 Gold, and there's always an
+Attachment in the shop."* New reward kind `attachmentDeal { cost }` arming two permanent run flags:
+
+- `alwaysAttachmentShop` — `rollShop` guarantees a Magnetic ("Attachment") offer every shop (generalizes Moe's
+  per-shop counter to a permanent version; the shared force-in code now honors both).
+- `attachmentCost` — every Magnetic offer (naturally rolled or forced) is priced at the deal, so the buy path's
+  existing `offer.cost ?? …` charges it AND the shop shows the discounted price. Applied to the current shop on
+  completion for immediacy.
+
+Objective reuses the `slaughter` ("Kill N enemies") event. Test: completing it arms both flags and every rolled
+shop has a Magnetic priced at 2 Gold. Full gauntlet + harness green. **pt 6b next:** the compound (2-part)
+objective primitive for Fried Circuits + Forsaken Will.
+
 ### fix(content): mark Bloodlust / Anomaly Reactor / Grave Body reward-only (token) — were leaking into the shop
 
 Owner catch: unique quest-reward cards must never roll in the shop / spell pool (only real general shop units may).

@@ -1646,6 +1646,14 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'minionCost':
       s.minionCostOverride = r.cost; // Merchant's Mark: shop minions cost this much
       break;
+    case 'attachmentDeal':
+      // Attachment Issues: every shop is guaranteed a Magnetic offer, and every Attachment costs `cost` Gold.
+      s.attachmentCost = r.cost;
+      s.alwaysAttachmentShop = true;
+      // Apply to the CURRENT shop right away: price every Magnetic offer at the deal (the next roll re-applies +
+      // guarantees one). No Magnetic in the current shop → it appears after the next refresh.
+      for (const o of s.shop) if (CARD_INDEX[o.cardId]?.keywords.includes('M')) o.cost = r.cost;
+      break;
     case 'slaughterRepeat':
       s.slaughterFirstEachCombat = (s.slaughterFirstEachCombat ?? 0) + 1; // Author's Hand
       break;

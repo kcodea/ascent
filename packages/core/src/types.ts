@@ -465,6 +465,9 @@ export type QuestReward =
   // Food for Gold (Demon greater): every `per` Gold spent adds a Fodder to your next shop AND bumps the run-wide
   // Fodder aura by +attack/+health.
   | { kind: 'goldFodder'; per: number; attack: number; health: number }
+  // Attachment Issues (Mech capstone): every shop is guaranteed a Magnetic ("Attachment") offer, and every
+  // Attachment in the shop costs `cost` Gold — for the rest of the run.
+  | { kind: 'attachmentDeal'; cost: number }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];

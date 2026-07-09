@@ -446,6 +446,10 @@ export interface RunState {
   spellFirstUsedThisTurn?: boolean;
   minionCostOverride?: number;
   slaughterFirstEachCombat?: number;
+  /** Attachment Issues (Mech capstone): every shop is guaranteed a Magnetic offer (`alwaysAttachmentShop`) and
+   *  every Magnetic offer's price is set to `attachmentCost` Gold — both permanent once armed. */
+  attachmentCost?: number;
+  alwaysAttachmentShop?: boolean;
   /** Transient: cardIds of the player minions that survived the LAST combat (from CombatResult). Read at the
    *  next shop start to fire a surviving Gravetwin's copied Echo. Reset each wave. */
   lastSurvivorCardIds?: string[];

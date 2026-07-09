@@ -81,10 +81,13 @@ export function rollShop(state: RunState): void {
     state.pool[id] -= 1;
     offers.push({ uid: `s${state.uidSeq++}`, cardId: id });
   }
-  // Moe: while the counter is active, this shop must contain a Magnetic (Attachment) offer — force one in if
-  // none rolled naturally (displacing a random offer, returning its copy to the pool). Decrements the counter.
-  if ((state.guaranteedAttachmentShops ?? 0) > 0) {
-    state.guaranteedAttachmentShops! -= 1;
+  // Moe (counter) / Attachment Issues (permanent `alwaysAttachmentShop`): this shop must contain a Magnetic
+  // (Attachment) offer — force one in if none rolled naturally (displacing a random offer, returning its copy to
+  // the pool). The Moe counter decrements; Attachment Issues' flag is permanent.
+  const moeCounter = (state.guaranteedAttachmentShops ?? 0) > 0;
+  if (moeCounter) state.guaranteedAttachmentShops! -= 1;
+  if (moeCounter || state.alwaysAttachmentShop) {
+    const forcedCost = state.attachmentCost ?? 2; // Moe forces at 2 Gold; Attachment Issues uses its deal price
     if (!offers.some((o) => CARD_INDEX[o.cardId]?.keywords.includes('M'))) {
       const magnetics = availableOffers(state).filter((c) => c.keywords.includes('M'));
       if (magnetics.length > 0) {
@@ -92,13 +95,17 @@ export function rollShop(state: RunState): void {
         if (offers.length > 0) {
           const idx = rng.int(offers.length);
           returnToPool(state, offers[idx]!.cardId);
-          offers[idx] = { uid: `s${state.uidSeq++}`, cardId: pick.id, cost: 2 }; // Moe: a guaranteed Attachment at 2 Gold
+          offers[idx] = { uid: `s${state.uidSeq++}`, cardId: pick.id, cost: forcedCost };
         } else {
-          offers.push({ uid: `s${state.uidSeq++}`, cardId: pick.id, cost: 2 });
+          offers.push({ uid: `s${state.uidSeq++}`, cardId: pick.id, cost: forcedCost });
         }
         state.pool[pick.id] -= 1;
       }
     }
+  }
+  // Attachment Issues: price EVERY Magnetic offer (naturally rolled too, not just the forced one) at the deal.
+  if (state.attachmentCost !== undefined) {
+    for (const o of offers) if (o.cost === undefined && CARD_INDEX[o.cardId]?.keywords.includes('M')) o.cost = state.attachmentCost;
   }
   state.shop = offers;
   // Always offer one spell on the right (handoff). Spells are unlimited — not part of the pool — but

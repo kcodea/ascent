@@ -4848,6 +4848,21 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(magnetizesTo('cling', 'alley')).toBe(false);
   });
 
+  it('Attachment Issues arms a permanent 2-Gold Attachment in every shop', () => {
+    const s = settle('q_attachment_issues', { playerQuestTally: { ...zeroTally(), slaughter: 20 } });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.attachmentCost).toBe(2);
+    expect(s.alwaysAttachmentShop).toBe(true);
+    // Every subsequent shop roll contains a Magnetic offer priced at the deal.
+    let t: RunState = { ...s, tier: 6, embers: 20, freeRolls: 0 };
+    for (let i = 0; i < 4; i++) {
+      t = reduce(t, { type: 'roll' });
+      const mag = t.shop.find((o) => CARD_INDEX[o.cardId]?.keywords.includes('M'));
+      expect(mag).toBeDefined();
+      expect(mag!.cost).toBe(2);
+    }
+  });
+
   it('The Red Trail (slaughterKeyword) completes at 5 and schedules the recurring Bloodlust grant', () => {
     const s = settle('q_the_red_trail', { playerQuestTally: { ...zeroTally(), slaughterKeyword: 5 } });
     expect(s.activeQuests![0]!.completed).toBe(true);

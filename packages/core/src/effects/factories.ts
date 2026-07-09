@@ -673,6 +673,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
 
+  /** Grave Body (Start of Combat / on-summon): copy your LEFTMOST living friendly Echo — graft its Deathrattle
+   *  (onDeath) effects onto this minion, so they fire when it dies. Skips self; no-op if no friend has an Echo. */
+  copyLeftmostEcho: (ctx, self) => {
+    if (self.dead || self.health <= 0) return;
+    const lead = ctx.living(self.side).find((m) => m !== self && m.effects.some((e) => e.on === 'onDeath'));
+    if (!lead) return;
+    const echoes = lead.effects
+      .filter((e) => e.on === 'onDeath')
+      .map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
+    ctx.grantDeathrattle(self, echoes);
+  },
+
   /** Rally (Chorus Engine): when THIS minion attacks, buff your living Magnetic ("Attachment") minions +atk/+hp
    *  (welded attachments have merged away, so this hits unwelded ones on the board). Golden doubles. */
   rallyBuffAttachments: (ctx, self, params, payload) => {

@@ -246,7 +246,8 @@ export type EffectFactoryId =
   | 'battlecryDestroyForSpell' // Graverobber: Battlecry — destroy a friendly (procs its DR), get a spell of its tier (recruit)
   | 'spellTriggerEcho' // Ossuary Rite: cast — trigger a friendly minion's Echo (Deathrattle) out of combat, without destroying it (recruit)
   | 'battlecryCopyEcho' // Gravetwin: Battlecry — copy a targeted friendly Echo minion's Deathrattle onto itself (recruit)
-  | 'spellBloodlust'; // Bloodlust: cast — mark a friendly minion to take an immediate immune attack at Start of Combat (recruit)
+  | 'spellBloodlust' // Bloodlust: cast — mark a friendly minion to take an immediate immune attack at Start of Combat (recruit)
+  | 'copyLeftmostEcho'; // Grave Body: Start of Combat / on-summon — copy your leftmost friendly Echo as this minion's combat Deathrattle
 
 export interface EffectDef {
   on: GameEvent;
@@ -468,7 +469,7 @@ export type QuestReward =
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
 export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit'
-  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy';
+  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -518,6 +519,9 @@ export interface QuestCombatMods {
   /** Umbral Energy (Dragon greater): at Start of Combat, give your Dragons +2/+2 for every spell cast this game
    *  (read from the run's `spellsCast`). */
   umbralEnergy?: boolean;
+  /** Empty Graves (Undead capstone): the FIRST friendly death each combat summons a 1/1 Gravebody (which copies
+   *  your leftmost Echo on summon). Once per fight. */
+  emptyGraves?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -867,6 +871,9 @@ export interface CombatContext {
    *  `golden` summons the token GILDED — doubled base stats + the golden flag (Manasaber's golden
    *  cubs are 0/4) — for summoners whose golden form upgrades the token instead of the count. */
   summon(side: Side, card: CardDef, nearUid?: string, grantKeywords?: Keyword[], golden?: boolean, attackNow?: boolean, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }): Minion;
+  /** Graft extra combat Deathrattle (`onDeath`) effects onto a minion mid-fight, registering them so they fire on
+   *  its death (Grave Body copying your leftmost Echo). The effects fire with the grafted minion as `self`. */
+  grantDeathrattle(target: Minion, effects: EffectDef[]): void;
   /** Flush the attack-on-summon queue immediately (Twilight Whelp: each spawned Whelp attacks
    *  before the next one may spawn, so a full board doesn't block the second if the first dies). */
   flushImmediateAttacks?(): void;

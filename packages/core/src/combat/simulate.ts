@@ -233,6 +233,7 @@ export function simulate(
   // board-wipe Imp summon to once per fight.
   let playerImpsSummoned = 0;
   let pitWithoutEndDone = false;
+  let emptyGravesDone = false; // Empty Graves: the first-friendly-death Gravebody summon fires once per fight
   // Author's Hand: its "first Slaughter each combat fires extra" bonus is a one-shot per fight.
   let firstPlayerSlaughterDone = false;
 
@@ -389,6 +390,14 @@ export function simulate(
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
     summon: (side, card, nearUid, grantKeywords, golden, attackNow, copyStats) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats),
+    grantDeathrattle: (target, effects) => {
+      // Graft copied Echoes onto `target` and register them so they fire on its death (Grave Body). Effects were
+      // already registered at combat start for their source; these are fresh copies bound to `target`.
+      for (const e of effects) {
+        target.effects = [...target.effects, e];
+        registerEffect(target, e);
+      }
+    },
     flushImmediateAttacks: () => flushImmediateAttacks(),
     attackNow: (minion, shieldFirst) => {
       // Solaris Fang's Avenge: an existing minion takes a bonus strike out of turn order via the same
@@ -812,6 +821,13 @@ export function simulate(
       pitWithoutEndDone = true;
       const imp = cards['impscrap'];
       if (imp) { nextStep(); for (let i = 0; i < pitImps; i++) summonMinion('player', imp, undefined); }
+    }
+    // Empty Graves: the FIRST friendly death each combat summons a 1/1 Gravebody (which copies your leftmost Echo
+    // on summon via its onSummon `copyLeftmostEcho`). Once per fight.
+    if (minion.side === 'player' && questMods.emptyGraves && !emptyGravesDone) {
+      emptyGravesDone = true;
+      const gb = cards['gravebody'];
+      if (gb) { nextStep(); summonMinion('player', gb, undefined); }
     }
   }
 

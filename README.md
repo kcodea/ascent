@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Mech quests + keyword quests go neutral.** The Mech Attachment/Rally quest set (6 Mech + 3 neutral Rally quests
+  + Scrap Vendor / Chorus Engine / Perfect Core). Adds a `rally` objective (additive doublers, like
+  Shout/Echo), a `playAttachment` objective, a `sell`-by-tribe filter, and "get a random Shout/Echo/Rally/… minion"
+  rewards. **Keyword-triggered quests** (Shout/Echo/Rally/End-of-Turn) are now **neutral** — a keyword reward helps
+  any build — and several now also grant a matching random minion. Retired the last `Test ·` neutral/Mech quests.
 - **Undead quests — the third authored tribe.** 9 quests + 4 reward cards + the **Echo (Deathrattle) engine**. Two
   objective flavors: `deathrattle` counts Echo *triggers* (scales with doublers), the new `friendlyDeath` counts raw
   *deaths* (doesn't). Echo doublers stack **additively** — Sylus + Funeral Engine (permanent) + Grave Contract / Last

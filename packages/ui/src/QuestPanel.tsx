@@ -11,6 +11,7 @@ function combatDeltaFor(o: QuestObjective, d: CombatQuestDelta | null): number {
   switch (o.event) {
     case 'deathrattle': return d.deathrattle;
     case 'friendlyDeath': return d.friendlyDeath;
+    case 'rally': return d.rally;
     case 'attack': return o.tribe ? (d.attackByTribe[o.tribe] ?? 0) : d.attack;
     case 'summonCombat': return o.tribe ? (d.summonCombatByTribe[o.tribe] ?? 0) : d.summonCombat;
     case 'slaughter': return o.tribe ? (d.slaughterByTribe[o.tribe] ?? 0) : d.slaughter;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makeRng, type CombatResult } from '@game/core';
+import { makeRng, type CombatResult, type Keyword } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, SPELL_CARDS } from '@game/content';
 import {
   CONFIG,
@@ -4872,5 +4872,61 @@ describe('Undead quests — combat-objective completion + reward application', (
     expect(s.hand.length).toBe(1); // the conjured Echo minion
     expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
     expect(s.deathrattlesTriggered).toBe(drBefore + 1); // its Echo fired (tallied) out of combat
+  });
+});
+
+describe('Mech/neutral quests — objectives, filtered grants, new rewards, cards', () => {
+  const settleWith = (s: RunState, over: Partial<CombatResult>): RunState =>
+    reduce({ ...s, phase: 'combat', lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, ...over } as CombatResult }, { type: 'resolveCombat' });
+  const mag = (uid: string) => ({ uid, cardId: 'moneybot', tribe: 'mech' as const, attack: 3, health: 3, keywords: ['M'] as Keyword[], golden: false });
+
+  it('playAttachment ticks on playing a Magnetic; Perfect Machine grants Perfect Core', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_perfect_machine', progress: 5, completed: false }], board: [], hand: [mag('h1')] };
+    s = reduce(s, { type: 'play', uid: 'h1' });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.hand.some((c) => c.cardId === 'perfectcore')).toBe(true);
+  });
+
+  it('Scrap Contract counts only Mech sells → grants Scrap Vendor', () => {
+    // A non-Mech sell does NOT advance it; a Mech sell does.
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_scrap_contract', progress: 0, completed: false }],
+      board: [{ uid: 'beast', cardId: 'pack', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }, mag('m1'), mag('m2'), mag('m3')], hand: [] };
+    s = reduce(s, { type: 'sell', uid: 'beast' });
+    expect(s.activeQuests![0]!.progress).toBe(0); // a Beast sale doesn't count
+    s = reduce(s, { type: 'sell', uid: 'm1' });
+    s = reduce(s, { type: 'sell', uid: 'm2' });
+    s = reduce(s, { type: 'sell', uid: 'm3' });
+    expect(s.activeQuests![0]!.completed).toBe(true); // 3 Mech sales
+    expect(s.hand.some((c) => c.cardId === 'scrapvendor')).toBe(true);
+  });
+
+  it('Last Rites (multi) grants a random ECHO minion + arms the first-Echo bonus', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_last_rites', progress: 0, completed: false }] }, { playerDeathrattles: 14 });
+    expect(s.echoFirstEachCombat).toBe(1);
+    expect(s.hand.length).toBe(1);
+    expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
+  });
+
+  it('rally objective + rallyRepeat reward (Spark Permit): 3 Rallies → first-Rally bonus armed', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_spark_permit', progress: 0, completed: false }] }, { playerRallies: 3 });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.rallyFirstEachCombat).toBe(1);
+  });
+
+  it('Infinite Assembly (multi): 30 Rallies → a random Rally minion + permanent Rally doubler', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_infinite_assembly', progress: 0, completed: false }] }, { playerRallies: 30 });
+    expect(s.rallyExtraAlways).toBe(1);
+    expect(s.hand.length).toBe(1);
+    expect(CARD_INDEX[s.hand[0]!.cardId]!.keywords.includes('RL')).toBe(true); // it IS a Rally minion
+  });
+
+  it('Shared Circuit reward records its SoC Ward count; new reward cards are reward-only tokens', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_shared_circuit', progress: 13, completed: false }], board: [], hand: [mag('h1')] };
+    s = reduce(s, { type: 'play', uid: 'h1' }); // 14th attachment
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.sharedCircuitWard).toBe(3);
+    for (const id of ['scrapvendor', 'chorusengine', 'perfectcore']) {
+      expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
+    }
   });
 });

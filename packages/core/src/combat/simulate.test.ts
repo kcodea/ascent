@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulate, makeRng, type BoardMinion, type CombatEvent } from '../index';
+import { simulate, makeRng, type BoardMinion, type CombatEvent, type Keyword } from '../index';
 import { CARD_INDEX } from '@game/content';
 
 /** The health deltas of every `buff` event in a combat (for asserting Deathrattle HP grants). */
@@ -2407,5 +2407,35 @@ describe('Undead quests — Echo doublers stack additively + friendly-death coun
     const big: BoardMinion[] = [{ cardId: 'sandbag', attack: 6, health: 500 }];
     expect(simMods(board, big, 3, {}).playerDeathrattles).toBe(0); // no throne → the surviving Sporeling never Echoes
     expect(simMods(board, big, 3, { boneThroneStep: 7 }).playerDeathrattles).toBeGreaterThanOrEqual(1); // throne fired it
+  });
+});
+
+describe('Mech/neutral quests — Rally doublers stack additively + Shared Circuit', () => {
+  // attackFirst=true so the player's Rally minion strikes ACTIVELY (a retaliation/counter doesn't trigger Rally).
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, true, false, 0, 0, 0, 0, mods);
+
+  // Deathsayer (RL, on-attack) actively one-shots a 0/5 dummy → exactly ONE Rally trigger, isolating the doubler
+  // math. Its Rally (fire leftmost Echo) no-ops here (it's the only minion, no Echo).
+  const p1: BoardMinion[] = [{ cardId: 'deathsayer', attack: 9, health: 50, keywords: ['RL'] as Keyword[] }];
+  const chaff: BoardMinion[] = [{ cardId: 'omen', attack: 0, health: 5 }];
+
+  it('counts a base Rally trigger; Infinite Assembly (rallyExtraAlways) adds one, additively', () => {
+    expect(simMods(p1, chaff, 1, {}).playerRallies).toBe(1); // base
+    expect(simMods(p1, chaff, 1, { rallyExtraAlways: 1 }).playerRallies).toBe(2);
+    expect(simMods(p1, chaff, 1, { rallyExtraAlways: 2 }).playerRallies).toBe(3);
+  });
+
+  it('Spark Permit (rallyFirstEachCombat) adds to the first Rally, and stacks with Infinite Assembly', () => {
+    expect(simMods(p1, chaff, 1, { rallyFirstEachCombat: 1 }).playerRallies).toBe(2);
+    // 1 base + 1 always + 1 first = 3 on the (only) Rally.
+    expect(simMods(p1, chaff, 1, { rallyExtraAlways: 1, rallyFirstEachCombat: 1 }).playerRallies).toBe(3);
+  });
+
+  it('Shared Circuit gives up to N friendly Mechs a Divine Shield at Start of Combat', () => {
+    const mechs: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'drone', attack: 2, health: 5, keywords: [] as Keyword[] }));
+    const r = simMods(mechs, [{ cardId: 'omen', attack: 0, health: 80 }], 3, { sharedCircuitWard: 3 });
+    const shielded = r.events.filter((ev) => ev.type === 'shieldUp');
+    expect(shielded.length).toBe(3); // exactly 3 of the 4 Mechs warded
   });
 });

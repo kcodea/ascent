@@ -157,4 +157,22 @@ export const TOKENS: CardDef[] = [
     text: 'A 3/3 Dragon that attacks immediately when summoned.',
     token: true,
   },
+
+  // --- Mech/neutral quest rewards (2026-07-08). token: true → reward-only. ---
+  {
+    // Perfect Machine reward. A huge all-type Magnetic body: play it standalone as a 10/10 Ward Rally, or weld it
+    // onto any minion (universalTribe magnetic). Its Rally conjures a spell each attack.
+    id: 'perfectcore',
+    name: 'Perfect Core',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 10,
+    health: 10,
+    keywords: ['DS', 'RL', 'M'],
+    universalTribe: true,
+    effects: [{ on: 'onAttack', do: 'rallyGrantSpell' }],
+    text: 'Counts as all tribes. **Ward**, **Magnetic** (attach to any minion). **Rally:** get a random spell.',
+    goldenText: 'Counts as all tribes. **Ward**, **Magnetic** (attach to any minion). **Rally:** get **2** random spells.',
+    token: true,
+  },
 ];

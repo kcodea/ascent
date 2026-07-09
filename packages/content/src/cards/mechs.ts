@@ -277,4 +277,42 @@ export const MECHS: CardDef[] = [
     text: '**Battlecry:** your **Attachments** have **+2/+2** wherever they are.',
     goldenText: '**Battlecry:** your **Attachments** have **+4/+4** wherever they are.',
   },
+
+  // --- Mech quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---
+  {
+    // Scrap Contract reward. A sturdy economy body: banks Gold each turn and, when it dies in combat, coughs up
+    // a Patch Job spell (carried back to hand via the combat deathrattle grant).
+    id: 'scrapvendor',
+    name: 'Scrap Vendor',
+    tribe: 'mech',
+    tier: 2,
+    attack: 2,
+    health: 5,
+    keywords: [],
+    effects: [
+      { on: 'endOfTurn', do: 'endOfTurnBonusGold', params: { amount: 1 } },
+      { on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId: 'patchjob', count: 1 } },
+    ],
+    text: '**End of Turn:** get **1 Gold** next shop. **Deathrattle:** get a **Patch Job**.',
+    goldenText: '**End of Turn:** get **2 Gold** next shop. **Deathrattle:** get **2 Patch Jobs**.',
+    token: true,
+  },
+  {
+    // Machine Chorus reward. A Rally payoff for an Attachment build: each attack pumps your unwelded Attachments
+    // and each kill conjures a fresh Magnetic minion to hand.
+    id: 'chorusengine',
+    name: 'Chorus Engine',
+    tribe: 'mech',
+    tier: 6,
+    attack: 8,
+    health: 6,
+    keywords: ['RL', 'SL'],
+    effects: [
+      { on: 'onAttack', do: 'rallyBuffAttachments', params: { attack: 2, health: 2 } },
+      { on: 'onKill', do: 'onKillGrantMagnetic' },
+    ],
+    text: '**Rally:** improve your **Attachments** by **+2/+2**. **Slaughter:** get an **Attachment**.',
+    goldenText: '**Rally:** improve your **Attachments** by **+4/+4**. **Slaughter:** get **2 Attachments**.',
+    token: true,
+  },
 ];

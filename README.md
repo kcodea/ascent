@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Burning-rope turn timer (re-added).** The Hearthstone-style burning rope is back — it lights in the final 20s
+  of a recruit turn and burns left→right on the board's centre divider (live flame + char trail). The digital
+  `SETUP TIME` plaque stays alongside it.
 - **Compendium: Quest Rewards category + exclusive Spells/Quests filtering.** The codex now has a **Quest Rewards**
   section listing all 24 cards a completed quest grants (the reward-only tokens plus Badgington / Money Bot). Spells
   and Quest Rewards are now **exclusive** filters — selecting either shows only that pool, and neither leaks into a

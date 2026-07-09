@@ -57,6 +57,7 @@ type Zone = 'tavern' | 'warband' | 'hand';
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
+const ROPE_SECONDS = 20; // the burning rope lights + burns over the final 20s of the turn
 
 /** Build the floating drag-card transform with a CONSISTENT function list, so a CSS transition between the
  *  rAF lean and the snap/magslide states interpolates cleanly. tx/ty = top-left offset; rotX/rotY = 3D tilt
@@ -76,6 +77,29 @@ function ShopTimer({ label }: { label: string }) {
       <span className="sc-ic"><Icon name="clock" /></span>
       <span className="sc-v">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
       <span className="sbtip">Time left this turn — at 0 your actions lock; hit End Turn</span>
+    </div>
+  );
+}
+
+/** The burning-rope turn timer — a braided fuse pinned to the board's centre divider (via `--rope-y`, measured
+ *  in the recruit layout effect) that lights in the final `ROPE_SECONDS` and burns left→right as the clock runs
+ *  down (live flame + glowing char trail). Its own tiny clock subscriber, so the per-second tick re-renders only
+ *  this — never the heavy card tree (see turnClock.ts). Hidden during combat. */
+function BurnRope({ inCombat }: { inCombat: boolean }) {
+  const seconds = Math.max(0, useTurnSeconds());
+  if (inCombat || seconds > ROPE_SECONDS) return null;
+  const pct = ((ROPE_SECONDS - seconds) / ROPE_SECONDS) * 100;
+  return (
+    <div className="rope" title={`${seconds}s left`} aria-hidden="true">
+      <div className="rope-lit" style={{ width: `${pct}%` }} />
+      <div className="rope-flame" style={{ left: `${pct}%` }}>
+        <span className="fl-glow" />
+        <span className="fl-body" />
+        <span className="fl-core" />
+        <span className="fl-ember" style={{ '--ex': '-6px', animationDelay: '0s' } as CSSProperties} />
+        <span className="fl-ember" style={{ '--ex': '5px', animationDelay: '0.33s' } as CSSProperties} />
+        <span className="fl-ember" style={{ '--ex': '-1px', animationDelay: '0.66s' } as CSSProperties} />
+      </div>
     </div>
   );
 }
@@ -2432,6 +2456,7 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
+        <BurnRope inCombat={inCombat} />
         <div className="row warband">
           {inCombat ? (
             replay.frame.player.map((u) => (

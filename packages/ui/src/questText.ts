@@ -173,6 +173,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return `Your last friendly death each combat summons ${r.amount ?? 0} Imps`;
         case 'doubleLeftmostAttack':
           return 'Start of Combat: your leftmost minion gains double its Attack';
+        case 'feedingLine':
+          return 'Whenever a Beast Slaughters, your next Beast attacks immediately';
       }
       return '';
     case 'shoutRepeat':
@@ -209,6 +211,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Minions cost ${r.cost} Gold from the shop`;
     case 'slaughterRepeat':
       return 'Your first Slaughter each combat triggers an extra time';
+    case 'shoutEdgeBuff':
+      return `Triggering Shouts give your leftmost and rightmost minion +${r.attack}/+${r.health}`;
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

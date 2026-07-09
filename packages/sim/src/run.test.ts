@@ -4660,6 +4660,25 @@ describe('quests (M3 framework)', () => {
     expect(s.activeQuests![0]!.progress).toBe(2);
   });
 
+  it('Twin Sun Oath: triggering a Shout buffs your leftmost + rightmost board minion +5/+5 (edges only)', () => {
+    const penny = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+    const tank = (uid: string, hp: number): BoardCard => ({ uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: hp, keywords: ['T'], golden: false });
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', shoutEdgeBuff: { attack: 5, health: 5 },
+      board: [tank('L', 40), penny('M'), tank('R', 50)],
+      hand: [penny('h')],
+    };
+    s = reduce(s, { type: 'play', uid: 'h' });
+    // The played Shout (Pennycat) fired one Battlecry → the board's current leftmost + rightmost each gained +5/+5.
+    const L = s.board.find((c) => c.uid === 'L')!;
+    expect([L.attack, L.health]).toEqual([5, 45]); // leftmost, still board[0]
+    const last = s.board[s.board.length - 1]!;
+    expect([last.attack, last.health]).toEqual([6, 6]); // rightmost is the freshly-summoned 1/1 Stray → +5/+5
+    // The pre-existing interior minions ('M', and 'R' which the play pushed off the right edge) are untouched.
+    expect([s.board.find((c) => c.uid === 'M')!.attack, s.board.find((c) => c.uid === 'M')!.health]).toEqual([1, 1]);
+    expect([s.board.find((c) => c.uid === 'R')!.attack, s.board.find((c) => c.uid === 'R')!.health]).toEqual([0, 50]);
+  });
+
   it('shout-repeat rewards stack ADDITIVELY with Drakko + each other + themselves (owner ruling 2026-07-08)', () => {
     // `lastShoutFires` is how many times the played Battlecry fired — the additive total across every source.
     const penny = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });

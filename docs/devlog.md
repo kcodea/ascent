@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(content): two capstone quests — Feeding Line (Beast) + Twin Sun Oath (Dragon)
+
+Two new capstones, each introducing a new engine primitive:
+
+- **Feeding Line** (Beast capstone) — *Kill 18 enemies with Beasts* → reward *"Whenever a Beast Slaughters,
+  your next Beast attacks immediately."* New combat flag `feedingLine` (QuestCombatFlag / QuestCombatMods):
+  in `simulate`, at the Slaughter (on-kill by attack) hook, if a Beast fells an enemy it queues the NEXT living
+  Beast (board order, after the killer) for an immediate out-of-turn attack via `pendingAttackOnSummon` — drained
+  by `flushImmediateAttacks`, so it can chain (a granted attack that slaughters grants the next), bounded by the
+  immediate-attack guard. Objective is the existing tribe-scoped `slaughter` event. Art wired (`q_feeding_line`).
+- **Twin Sun Oath** (Dragon capstone) — *Trigger 16 Shouts* → reward *"Triggering Shouts give your leftmost and
+  rightmost minion +5/+5."* New reward kind `shoutEdgeBuff` + run field `shoutEdgeBuff`; applied in
+  `fireBattlecryTriggered` (once per Battlecry FIRE, so a doubled Shout buffs twice) to the board's current
+  leftmost + rightmost minion (deduped when a single minion is both edges). No art master yet → falls back to the
+  Dragon emblem.
+
+Types + Zod schema extended for both. Tests: a Beast Slaughter grants the next Beast an immediate strike (armed vs
+unarmed, ordered before the enemy's first swing); a triggered Shout buffs both edges and leaves interior minions
+untouched. Full gauntlet + harness green.
+
 ### tweak(ui): fold `improve` (aura-strengthen) beats into the consequence-overlap
 
 Owner-reported: combat visibly stops and waits every time Kennelmaster's Avenge (3) (`avengeImproveSummon`)

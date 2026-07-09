@@ -1061,6 +1061,20 @@ export function simulate(
                 }
               }
             }
+            // Feeding Line (Beast capstone): a Beast's Slaughter gives your NEXT living Beast (in board order,
+            // after the killer) an immediate out-of-turn attack — queued like a Twilight Whelp strike and drained
+            // by flushImmediateAttacks below, so it can chain (a granted attack that slaughters grants the next),
+            // bounded by IMMEDIATE_ATTACK_GUARD.
+            if (questMods.feedingLine && killerAlive && isBeast(killer)) {
+              const side = boards[killer.side];
+              for (let j = side.indexOf(killer) + 1; j < side.length; j++) {
+                const nb = side[j]!;
+                if (!nb.dead && nb.health > 0 && nb.attack > 0 && isBeast(nb)) {
+                  pendingAttackOnSummon.push({ minion: nb });
+                  break;
+                }
+              }
+            }
           }
         }
       }

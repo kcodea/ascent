@@ -2319,6 +2319,16 @@ function fireBattlecryTriggered(state: RunState): void {
       if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
     }
   }
+  // Twin Sun Oath (Dragon capstone): this Shout trigger buffs your leftmost + rightmost board minion. Fires per
+  // Battlecry FIRE (so a doubled Shout buffs twice, matching how the Shout objective counts triggers). A single
+  // board minion is both edges → buffed once (deduped), not twice.
+  const edge = state.shoutEdgeBuff;
+  if (edge && state.board.length > 0) {
+    const left = state.board[0]!;
+    const right = state.board[state.board.length - 1]!;
+    addBuff(left, 'Twin Sun Oath', edge.attack, edge.health);
+    if (right !== left) addBuff(right, 'Twin Sun Oath', edge.attack, edge.health);
+  }
 }
 
 /** Fire a single card's `onGainAttack` recruit effects (Hunter) — called by the reducer boundary for every

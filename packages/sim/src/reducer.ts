@@ -1635,6 +1635,13 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'slaughterRepeat':
       s.slaughterFirstEachCombat = (s.slaughterFirstEachCombat ?? 0) + 1; // Author's Hand
       break;
+    case 'shoutEdgeBuff':
+      // Twin Sun Oath: every Shout you trigger buffs your leftmost + rightmost board minion (stacks if re-armed).
+      s.shoutEdgeBuff = {
+        attack: (s.shoutEdgeBuff?.attack ?? 0) + r.attack,
+        health: (s.shoutEdgeBuff?.health ?? 0) + r.health,
+      };
+      break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
       for (const sub of r.rewards) applyQuestReward(s, { ...def, reward: sub }, allowRepeat);
@@ -1723,6 +1730,7 @@ function questCombatMods(s: RunState): QuestCombatMods {
     pitWithoutEndImps: s.pitWithoutEndImps || undefined,
     doubleLeftmostAttack: f?.doubleLeftmostAttack,
     slaughterFirstEachCombat: s.slaughterFirstEachCombat || undefined,
+    feedingLine: f?.feedingLine,
   };
 }
 

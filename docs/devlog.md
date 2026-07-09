@@ -25,6 +25,31 @@ Types + Zod schema extended for both. Tests: a Beast Slaughter grants the next B
 unarmed, ordered before the enemy's first swing); a triggered Shout buffs both edges and leaves interior minions
 untouched. Full gauntlet + harness green.
 
+### tweak(ui): fold `improve` (aura-strengthen) beats into the consequence-overlap
+
+Owner-reported: combat visibly stops and waits every time Kennelmaster's Avenge (3) (`avengeImproveSummon`)
+bumps his summon-aura — because the `improve` event it logs becomes a beat that blocks for its full
+`beatDelay('improve')` ≈ 520 ms × tempo. Added `'improve'` to `OVERLAP_INTO` (clock.ts) so the ✦ aura-pulse
+rides on the preceding death FX (`overlapMs`, ~140 ms) instead of pausing the fight — same fire-and-forget
+overlap as summon/reborn (#248). Also covers other `improve` pulses (Tara's ascend tally, Baby Cub's Rally
+bump). typecheck + clock tests green (new: `improve` next-beat overlaps to `overlapMs`).
+
+### feat(ui): completed quests move to trophy badges above the hero panel
+
+Owner: *"when a quest completes move it to a badge; badges should go horizontally above the hero panel."*
+A completed quest no longer lingers in the top-left QuestPanel — it now graduates to a **circular trophy
+badge** in a horizontal row directly above the hero panel (in the StatusBar):
+
+- **New `QuestBadges` component** — renders `run.activeQuests.filter(completed)` as circular badges showing
+  the quest **art** (tribe-emblem fallback). Hovering floats a tooltip with the quest name + its **live**
+  reward text (via `questRewardText`), and for ongoing rewards (Warm Embers' Shout charges, a repeatable's
+  `↻ Nt` countdown) a small corner chip + an "Active · …" state line. Ongoing badges get a static colored ring.
+- **QuestPanel** now filters to IN-PROGRESS only (completed quests live as badges).
+- **StatusBar** mounts `<QuestBadges/>` between the player name and the hero row, so it sits directly above the
+  hero panel, left-aligned. Perf-safe (no animated paint props; CSS-only hover tooltip like `.herotip`).
+- Verified live: injected two completed quests into a throwaway in-memory store state — both badges rendered
+  with art + correct tooltips, positioned (top 1046–1102) directly above the hero panel (top 1109). The real
+  saved run was left untouched (raw `setState` doesn't persist).
 ### feat(combat): Perfect Core welds its "Rally: get a random spell" onto the host
 
 Owner: *"Perfect Core should give the minion it attaches to the rally effect of getting a random spell."*
@@ -42,6 +67,19 @@ mirroring the existing Better Bot `rallyMechAtk` weld path end-to-end:
 - **Tests**: welded host grants a spell on attack; Windfury host grants twice. Full gauntlet + harness green.
 
 ## 2026-07-08 (session 27)
+
+### feat(ui): combat consequence-overlap — summon / Reborn play nearly in tandem
+
+Owner-reported: when a Deathrattle-summon unit dies attacking into a Reborn unit, the whole death + summon
+animation played out FIRST, then the Reborn re-form — because the replay blocks on each beat's full linger and
+the sim orders the events `death → summons → reborn` (reborn last). Added **consequence-overlap** to the beat
+clock: when the NEXT beat is a summon or a Reborn re-form (`OVERLAP_INTO`), it starts after a short
+`overlapMs` (default **140 ms**, ÷ combatSpeed) instead of `beatDelay × speed`. The preceding beat's FX are
+fire-and-forget (skull, aura burst, summon pop), so nothing is cut off — the chain just plays nearly in
+tandem. Attacks are engine-driven (scheduler guard), so swing pacing is untouched. `overlapMs` is a new
+`ChoreoConfig` field, live-tunable via a new **overlap** slider in the 🎬 Choreography panel (0 = simultaneous).
+Verified: typecheck + lint + **751 tests** (new: a summon/reborn next-beat overlaps to `overlapMs`, first beat
+and non-consequence beats keep their linger) + build:web green.
 
 ### tweak(ui): hold the board reflow on a Deathrattle death until the skull bursts
 

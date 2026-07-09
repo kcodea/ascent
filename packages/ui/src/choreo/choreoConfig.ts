@@ -63,6 +63,11 @@ export interface ChoreoConfig {
   deathFloatMs: number;
   /** Hold on the LAST beat (death collapse + float) before the replay reports done (ms). */
   finalHold: number;
+  /** Consequence-overlap (ms): a CONSEQUENCE beat (a summon appearing, a Reborn re-forming) starts this many
+   *  ms after the preceding beat instead of waiting its full linger, so it rides on the preceding action's
+   *  fire-and-forget FX — the death → summon → reborn chain plays NEARLY IN TANDEM. Scaled by combatSpeed only
+   *  (not `speed`), like the overlay lifetimes. See `holdMs` (clock.ts). */
+  overlapMs: number;
 }
 
 const DEFAULTS: ChoreoConfig = {
@@ -74,6 +79,8 @@ const DEFAULTS: ChoreoConfig = {
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
   // overlay lifetimes (ms)
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,
+  // consequence-overlap: a summon/reborn rides on the preceding FX after this short gap (nearly in tandem)
+  overlapMs: 140,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -85,6 +92,7 @@ export const CHOREO_RANGES: Record<keyof ChoreoConfig, [number, number, number]>
   dmg: [0, 1200, 10], shield: [0, 1200, 10], shieldUp: [0, 1200, 10], poison: [0, 1200, 10],
   venomLost: [0, 1200, 10], death: [0, 1200, 10],
   floatMs: [400, 3000, 50], deathFloatMs: [300, 2000, 50], finalHold: [200, 2000, 50],
+  overlapMs: [0, 600, 10],
 };
 export const CHOREO_KEYS = Object.keys(DEFAULTS) as (keyof ChoreoConfig)[];
 

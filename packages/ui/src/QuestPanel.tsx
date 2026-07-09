@@ -28,7 +28,9 @@ export function QuestPanel() {
   const run = useGame((s) => s.run);
   const combatQuestDelta = useGame((s) => s.combatQuestDelta); // live combat progress during the replay (null otherwise)
   const [collapsed, setCollapsed] = useState(false);
-  const quests = (run.activeQuests ?? []).filter((aq) => QUEST_INDEX[aq.questId]);
+  // Only IN-PROGRESS quests live here now — a quest MOVES to a trophy badge above the hero panel (QuestBadges)
+  // the moment it completes, where its live ongoing reward state (Shouts used, repeat countdown) is shown.
+  const quests = (run.activeQuests ?? []).filter((aq) => !aq.completed && QUEST_INDEX[aq.questId]);
   if (quests.length === 0) return null;
   return (
     <div className="questframe">

@@ -3,6 +3,7 @@ import { getHero, spellAmplifyBonus } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
+import { QuestBadges } from './QuestBadges';
 import { sfx } from './sfx';
 import { useGame } from './store';
 
@@ -107,6 +108,8 @@ export function StatusBar() {
     <div className="statusbar">
       {/* Player name — a small white box above the hero panel (mirrors the opponent name, top-right). */}
       {playerName && <div className="playername" title="You">{playerName}</div>}
+      {/* Completed-quest trophies — a horizontal row of art circles sitting directly above the hero panel. */}
+      <QuestBadges />
       <div className="statusrow">
         <div
           className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}

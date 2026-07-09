@@ -3,6 +3,25 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-09 (session 28)
+
+### feat(ui): completed quests move to trophy badges above the hero panel
+
+Owner: *"when a quest completes move it to a badge; badges should go horizontally above the hero panel."*
+A completed quest no longer lingers in the top-left QuestPanel — it now graduates to a **circular trophy
+badge** in a horizontal row directly above the hero panel (in the StatusBar):
+
+- **New `QuestBadges` component** — renders `run.activeQuests.filter(completed)` as circular badges showing
+  the quest **art** (tribe-emblem fallback). Hovering floats a tooltip with the quest name + its **live**
+  reward text (via `questRewardText`), and for ongoing rewards (Warm Embers' Shout charges, a repeatable's
+  `↻ Nt` countdown) a small corner chip + an "Active · …" state line. Ongoing badges get a static colored ring.
+- **QuestPanel** now filters to IN-PROGRESS only (completed quests live as badges).
+- **StatusBar** mounts `<QuestBadges/>` between the player name and the hero row, so it sits directly above the
+  hero panel, left-aligned. Perf-safe (no animated paint props; CSS-only hover tooltip like `.herotip`).
+- Verified live: injected two completed quests into a throwaway in-memory store state — both badges rendered
+  with art + correct tooltips, positioned (top 1046–1102) directly above the hero panel (top 1109). The real
+  saved run was left untouched (raw `setState` doesn't persist).
+
 ## 2026-07-08 (session 27)
 
 ### fix(sim): welded keyword (Perfect Core's Ward) no longer leaks onto an aliased minion

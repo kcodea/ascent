@@ -1272,6 +1272,21 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
 .statusbar .playername { align-self: flex-start; margin-left: calc(5 * var(--u)); background: #fff; color: var(--ink); border: 2px solid var(--gold); border-radius: calc(10 * var(--u)); padding: calc(3 * var(--u)) calc(13 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; max-width: calc(260 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 /* stretch so the Embers chip is as tall as the (taller) hero panel */
+/* Completed-quest trophy badges — a horizontal row above the hero panel. A quest moves here from the
+   QuestPanel on completion; hovering floats its live reward state. Overflow visible so the tooltip + chip
+   escape the circle (the art is clipped to the circle on its own element). */
+.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(6 * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; }
+.questbadge { position: relative; width: calc(42 * var(--u)); height: calc(42 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
+.questbadge.ongoing { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 calc(2 * var(--u)) color-mix(in srgb, var(--c) 45%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
+.questbadge-art { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.questbadge-emblem { display: flex; color: var(--c); }
+.questbadge-emblem svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
+.questbadge-chip { position: absolute; bottom: calc(-4 * var(--u)); right: calc(-6 * var(--u)); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: calc(9 * var(--u)); line-height: 1; padding: calc(2 * var(--u)) calc(5 * var(--u)); border-radius: calc(8 * var(--u)); font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) -2px var(--shadow); }
+.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: 220px; display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+.questbadge-tip b { color: var(--acc); font-weight: 800; }
+.questbadge-tip .questbadge-tip-reward { color: #f4f0e6; }
+.questbadge-tip .questbadge-tip-state { color: var(--gold); font-weight: 800; }
+.questbadge:hover .questbadge-tip { opacity: 1; transition-delay: 0.3s; }
 .statusrow { display: flex; align-items: stretch; justify-content: center; gap: 9px; }
 /* Health as a compact WHITE box beside the hero power (replaces the old HP bar): heart + Resolve (+Armor). */
 .hero .hpbox { position: relative; align-self: center; display: flex; align-items: center; gap: calc(7 * var(--u)); background: #fff; border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); padding: calc(9 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14); pointer-events: none; }

@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(ui): a Deathrattle attacker returns to its slot before the skull fires
+
+Owner-reported: a unit with a Deathrattle that dies **attacking** popped its bone-skull mid-lunge (too quick,
+wrong place). The pull-home (`runRiseReturn`) only ran for Rise attackers; a Deathrattle attacker was never
+pulled back, so its skull fired immediately at the mid-flight spot. Generalised the impact-attacker handler
+(useCombatReplay): any attacker that died mid-lunge and is Rise OR has an `onDeath` effect is pulled straight
+home, and its on-death FX fire the moment it **lands** — the Rise spirit burst and/or the Deathrattle skull,
+both in the unit's own slot. The immediate cue-effect skull-fire now skips the impact attacker (deferred to
+`landed`), and the attacker gets `dying dr returning` so its fade + slot reflow hold through the pull-back +
+skull burst (new `.unit.dying.dr.returning` CSS, mirroring the Rise `returning` rule). The pull timing itself
+(0.1s hold + 0.24s pull) is still hardcoded in `engine.ts` — not a panel slider yet. typecheck + lint + **753
+tests** + build:web green.
+
 ### feat(content): content batch pt 5 — Anomaly Reactor spell + Anomalous Reactor quest (instance tribe)
 
 New Mech spell **Anomaly Reactor** (T5, 2 Gold, target a friendly minion): *"Give a friendly minion a Mech type

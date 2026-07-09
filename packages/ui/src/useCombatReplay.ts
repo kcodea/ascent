@@ -570,10 +570,11 @@ export function useCombatReplay(
     // Deathrattle skull-shatter: any dying unit whose card has an onDeath effect (a Deathrattle) fires the
     // painted bone skull — INCLUDING a Rise death. A unit with both Rise + a Deathrattle procs its rattle as it
     // dies (owner ruling), so the skull pops even though the body will re-form; a pure-Rise unit (no onDeath)
-    // still gets nothing.
+    // still gets nothing. EXCEPTION: the impact ATTACKER (it died mid-lunge) is pulled back to its slot first,
+    // and fires its skull at `landed` from the layout effect below — so we skip it here (no mid-lunge skull).
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
-      if (e?.type !== 'death') continue;
+      if (e?.type !== 'death' || e.target === impactAtk) continue;
       if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
@@ -608,17 +609,22 @@ export function useCombatReplay(
       if (impactAtk) {
         for (let i = cur.start; i < cur.end; i++) {
           const e = events[i];
-          if (e?.type !== 'death' || e.target !== impactAtk || !e.rise) continue;
+          if (e?.type !== 'death' || e.target !== impactAtk) continue;
           const el = findEl(impactAtk) as HTMLElement | null;
-          if (el && el.querySelector('.reborncard')) {
-            // pull home → burst the spirit in its slot; measure at LANDING (the taunt-burst rect needs the
-            // unit's viewport spot after the pull-back, not before).
-            runRiseReturn(el, combatSpeed, () => {
-              const r = findEl(impactAtk)?.getBoundingClientRect();
-              const rect = r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null;
-              burstDeathAuras(impactAtk, rect);
-            });
-          }
+          if (!el) continue;
+          // An ATTACKER that died mid-lunge is pulled straight back to its slot, then its on-death FX fire the
+          // moment it LANDS — the Rise spirit burst AND/OR the Deathrattle skull — so both play at HOME, in the
+          // unit's own slot, not mid-flight. (A Rise DEFENDER never gets pulled → the cue effect bursts it in
+          // place immediately; a non-attacking Deathrattle death fires its skull immediately in the cue effect.)
+          const isRise = !!e.rise;
+          const hasDR = !!CARD_INDEX[cardIds.get(impactAtk) ?? '']?.effects?.some((f) => f.on === 'onDeath');
+          if (!isRise && !hasDR) continue;
+          runRiseReturn(el, combatSpeed, () => {
+            const r = findEl(impactAtk)?.getBoundingClientRect();
+            const rect = r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null;
+            if (isRise) burstDeathAuras(impactAtk, rect);                       // spirit release, at home
+            if (hasDR && rect) pixiFx.deathrattle(rect.cx, rect.cy, rect.w);    // bone-skull shatter, at home
+          });
         }
       }
     }
@@ -770,7 +776,10 @@ export function useCombatReplay(
           if (u?.keywords.includes('R')) {
             anims[uid] = uid === impactAtk ? 'dying rising returning' : 'dying rising';
           } else if (CARD_INDEX[cardIds.get(uid) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
-            anims[uid] = 'dying dr'; // Deathrattle: fade the card IN PLACE (no bounce) under the skull burst
+            // Deathrattle: fade the card IN PLACE (no bounce) under the skull burst. A Deathrattle ATTACKER
+            // that died mid-lunge also gets `returning` — the fade DELAYS while GSAP pulls it home, so the
+            // skull pops in its OWN slot (fired at `landed`), not mid-flight.
+            anims[uid] = uid === impactAtk ? 'dying dr returning' : 'dying dr';
           } else {
             anims[uid] = cls;
           }

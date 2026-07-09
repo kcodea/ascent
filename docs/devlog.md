@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(content): content batch pt 1 — Umbral Energy (Dragon) + Food for Gold (Demon)
+
+First (low-risk) slice of the larger owner content batch — two quests that each arm a run-wide modifier, no
+new cards:
+
+- **Umbral Energy** (Dragon greater) — *Kill 13 enemies with Dragons* → new combat flag `umbralEnergy`:
+  at Start of Combat, every living Dragon gains **+2/+2 for every spell cast this game** (reads the run's
+  `spellsCast`, already threaded into `simulate`). Mirrors the existing SoC combat-flag family.
+- **Food for Gold** (Demon greater) — *Consume 18 Fodder* → new reward kind `goldFodder { per, attack, health }`:
+  armed on the run, the Gold-spend chokepoint (`spendGold`) ticks a remainder and **every 7 Gold spent** queues
+  a Fodder into the next shop (`pendingTavern`) + bumps the run-wide Fodder aura via `buffFodderRunWide`.
+
+Types + Zod schema extended (`QuestCombatFlag` += `umbralEnergy`; new `goldFodder` reward). Tests: the SoC
+Dragon buff scales with spellsCast; the 7-Gold threshold bumps the Fodder aura + resets the remainder. Full
+gauntlet + harness green. **Remaining batch** (sequenced): economy/combat-flag quests (Attachment Issues,
+Fried Circuits), The Red Trail + Bloodlust (Slaughter-keyword objective + immune-attack), Empty Graves,
+compound objectives (Forsaken Will), and Echo Warden / Echo Chamber (the summon-doubler — needs a design check).
+
 ### feat(content): two capstone quests — Feeding Line (Beast) + Twin Sun Oath (Dragon)
 
 Two new capstones, each introducing a new engine primitive:

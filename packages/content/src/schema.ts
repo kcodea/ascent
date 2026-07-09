@@ -292,7 +292,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'consumeFodder', 'consumeStats', 'summonImp',
   'winRound', 'castSpell', 'authorsHand',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -337,6 +337,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('minionCost'), cost: z.number().int().nonnegative() }).strict(),
   z.object({ kind: z.literal('slaughterRepeat'), scope: z.enum(['firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('shoutEdgeBuff'), attack: z.number().int(), health: z.number().int() }).strict(),
+  z.object({ kind: z.literal('goldFodder'), per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
 ]));
 

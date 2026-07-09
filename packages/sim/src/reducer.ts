@@ -19,6 +19,15 @@ function spendGold(s: RunState, amount: number): void {
   s.goldSpentThisTurn = (s.goldSpentThisTurn ?? 0) + amount; // per-turn (Patch Job); reset each wave
   applyGoldSpent(s, amount);
   advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
+  // Food for Gold: every `per` Gold spent queues a Fodder into the next shop + bumps the run-wide Fodder aura.
+  if (s.foodForGold) {
+    s.foodForGoldTick = (s.foodForGoldTick ?? 0) + amount;
+    while (s.foodForGoldTick >= s.foodForGold.per) {
+      s.foodForGoldTick -= s.foodForGold.per;
+      (s.pendingTavern ??= []).push('fred');
+      buffFodderRunWide(s, s.foodForGold.attack, s.foodForGold.health, 'Food for Gold');
+    }
+  }
 }
 
 /** Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). Progresses on every
@@ -1642,6 +1651,11 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
         health: (s.shoutEdgeBuff?.health ?? 0) + r.health,
       };
       break;
+    case 'goldFodder':
+      // Food for Gold: arm the per-`per`-Gold Fodder drip (spendGold ticks it). Fresh remainder on arm.
+      s.foodForGold = { per: r.per, attack: r.attack, health: r.health };
+      s.foodForGoldTick = 0;
+      break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
       for (const sub of r.rewards) applyQuestReward(s, { ...def, reward: sub }, allowRepeat);
@@ -1731,6 +1745,7 @@ function questCombatMods(s: RunState): QuestCombatMods {
     doubleLeftmostAttack: f?.doubleLeftmostAttack,
     slaughterFirstEachCombat: s.slaughterFirstEachCombat || undefined,
     feedingLine: f?.feedingLine,
+    umbralEnergy: f?.umbralEnergy,
   };
 }
 

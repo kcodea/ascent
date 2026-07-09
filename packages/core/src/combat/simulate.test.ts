@@ -1514,6 +1514,19 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.filter((e) => e.type === 'toHand').length).toBe(2);
   });
 
+  it('Umbral Energy (Dragon greater): Start of Combat gives Dragons +2/+2 per spell cast this game', () => {
+    // spellsCast (10th arg) = 3 → +6/+6 on the Dragon at SoC; questMods.umbralEnergy is the last arg.
+    const a = simulate(
+      [{ cardId: 'bronzewarden', attack: 3, health: 50 }], // a Dragon
+      [{ cardId: 'omen', attack: 0, health: 50 }],
+      makeRng(1), CARD_INDEX,
+      0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, // spellsThisTurn … spellPowerHp (spellsCast = 3)
+      6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0,
+      { umbralEnergy: true },
+    );
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 6 && e.health === 6)).toBe(true);
+  });
+
   it('Feeding Line (Beast capstone): a Beast Slaughter gives the next Beast an immediate out-of-turn attack', () => {
     // Player attacks first (wider). The front Beast kills the enemy 1/1 → Feeding Line grants the SECOND Beast an
     // immediate attack, before the enemy's first swing. The enemy wall (1 Attack) marks the enemy's turn so we can

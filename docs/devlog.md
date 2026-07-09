@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### chore(art): wire all quest-reward card art
+
+Wired illustrated art for every quest-reward card from `Quests/Quest Reward Related Things` → `art/minions/<cardId>.png`:
+Bone Taxer, Chimerus, Chorus Engine (file `ChorusMachine`), Contract Imp, Crypt Broker, Gravetwin, Herald of the
+Apocalypse, Hoard Whelp, Implosion, Lazarus, Ossuary Rite, Perfect Core, Run Maw, Scrap Vendor, Skybound Archivist
+(file `SkyboundActivist`), Taragosa's Heir, Taurus the Truth Bringer, Trail Forager, Trophy Stalker (spells + minions
+both live in `art/minions/`). Two filenames had minor spelling variance from the card name (noted above) but each is
+the unique reward for its quest, so unambiguous. `build:web` clean (globs resolve); live DOM + screenshot check —
+the reward cards render their new art. **Missing:** Goldcrafter has no file in the folder — still unwired.
+
 ### feat(ui): hover a quest to preview the reward card(s) it grants
 
 Quest-shop cards now float a full preview of any named minion/spell they grant when you hover them (Assembly Line →

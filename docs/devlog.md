@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### chore(art): wire 23 more quest arts (33 → 45 quests illustrated)
+
+Wired the remaining available quest art from `Ascent Art/Quests` → `art/quests/<questId>.png` (matched by
+normalized quest name → id): Assembly Line, Dark Bargain, Spark Permit, Shop License, Gilded Chance, Odd Jobs,
+Kingdom of Bones, Ossuary Rite, Perfect Machine, Blueprint Cache, Deep Hunger, Contract Rewrite, Last Rites,
+Overclocked Core, Dupes, Spell Thesis, Ancient Runes, Shared Circuit, Pit Without End, Parliament of Flame,
+Funeral Engine, Merchant's Mark, Taragosa's Inheritance. Removed two orphan arts for retired quests
+(`q_grave_toll`, `q_trail_rations`). ~14 quests still have no source art (Scrap Contract, Imp Census, Key
+Findings, Implosion, The Pivot Door, Chimerus, The Bone Throne, Death Writes Twice, Machine Chorus, The True
+Contract, Maw of the Run, Infinite Assembly, Impossible Shop, Rulebreaker's Crown) — they render textless until
+art lands (QuestCard guards on `art &&`, so no broken image).
+
+**Broken-PNG investigation (owner's friend reported broken images):** integrity-checked every wired PNG — all 45
+quest + 60 minion arts have a valid header AND a complete `IEND` trailer (0 corrupt/truncated). Live: the
+Compendium loads all 119 card images with **0 broken / 0 pending / 0 failed network requests**, and a real
+wave-4 quest offer renders full art on every card (incl. the newly-wired Dark Bargain). **Root-cause flag:** the
+source PNGs are drastically oversized — **2–2.8 MB each, ~230 MB total** (93 MB quests + 137 MB minions) for
+cards shown at ~200 px. That's the most likely cause of broken images on a lower-memory machine (decoding 100+
+multi-MB PNGs at once can exhaust the browser's image budget) and a serious load-perf liability. Recommended
+follow-up: downscale to ~512 px and/or convert to WebP (would cut the payload ~10–20×).
+
 ### revert(content): Pack Leader back to Start-of-Combat (per owner)
 
 Owner reversed the Pack Leader rework from #226: it should stay a **Start-of-Combat** buff, not the permanent

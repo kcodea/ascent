@@ -180,6 +180,13 @@ export function reduce(state: RunState, action: Action): RunState {
     // objective. `lastShoutFires` was recorded during the play / target resolution (0 if no Shout fired).
     for (let i = 0; i < (next.lastShoutFires ?? 0); i++) advanceQuests(next, (o) => o.event === 'shout');
     if ((next.lastShoutFires ?? 0) > 0) bumpAuthorsHand(next, 'shout', next.lastShoutFires!); // Author's Hand Shout half
+    // An Echo (Deathrattle) is a TRIGGER too: a recruit-phase Echo (Grave Robber's destroy, Gravetwin/Crypt Broker,
+    // Sylus re-fires) counts toward the `deathrattle` objective + Author's Hand's Echo half, just like a combat one.
+    // `lastEchoFires` was accumulated by `fireRecruitDeathrattles` (0 if none fired).
+    if ((next.lastEchoFires ?? 0) > 0) {
+      advanceQuestsBy(next, (o) => o.event === 'deathrattle', next.lastEchoFires!);
+      bumpAuthorsHand(next, 'echo', next.lastEchoFires!);
+    }
     if (action.type === 'play') {
       const played = state.hand.find((c) => c.uid === action.uid);
       const pdef = played ? CARD_INDEX[played.cardId] : undefined;
@@ -232,6 +239,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   const s = structuredClone(rest) as RunState;
   s.lastCombat = lastCombat;
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
+  s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.lastEotFires = 0; // transient per-action End-of-Turn-fire count (set by applyEndOfTurn → read by the EoT quest tick)
 
   switch (action.type) {

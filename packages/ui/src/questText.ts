@@ -100,9 +100,13 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       if (r.randomTribe && (r.randomCount ?? 0) > 0) parts.push(randomMinionPhrase(r.randomTribe, r.randomCount!));
       if ((r.randomSpell ?? 0) > 0) parts.push(r.randomSpell === 1 ? 'a random spell' : `${r.randomSpell} random spells`);
       if (r.randomFilter) parts.push(`a random ${FILTER_NAME[r.randomFilter]} minion${r.randomFilterExactTier ? ' of your tier' : ''}`);
-      for (const id of r.cards ?? []) {
+      // Group duplicate card ids so "['keyfindings','keyfindings']" reads "2 Key Findings" (not "a X + a X").
+      const cardCounts = new Map<string, number>();
+      for (const id of r.cards ?? []) cardCounts.set(id, (cardCounts.get(id) ?? 0) + 1);
+      for (const [id, n] of cardCounts) {
         const kws = r.grantKeywords?.length ? ` with ${keywordPhrase(r.grantKeywords)}` : '';
-        parts.push(`a ${CARD_INDEX[id]?.name ?? 'card'}${kws}`);
+        const name = CARD_INDEX[id]?.name ?? 'card';
+        parts.push(n === 1 ? `a ${name}${kws}` : `${n} ${name}${kws}`);
       }
       let text = parts.length ? (parts[0]!.startsWith('a ') || /^\d/.test(parts[0]!) ? `Get ${parts.join(' + ')}` : parts.join(' + ')) : '';
       if (r.repeatInTurns) {

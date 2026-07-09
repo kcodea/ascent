@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### balance(content): sync quest objective counts to the owner's set + Key Findings spell + all reward art
+
+Synced the quest set to the owner's current spreadsheet — **36 objective-count tweaks** across every tribe (mostly
+lowering thresholds: e.g. Forest Grove 4→5, Trophy Den 9→6, Skybound Pact 80→40, Bone Ledger 12→7, Overclocked Core
+12→5, Pit Without End 40→20, Ancient Runes 70→55). Two reward changes: **Odd Jobs** 8→12 Gold, and **Key Findings**
+(now Attack 7) grants **2 Key Findings** — a new reward-only spell (`keyfindings`, T5, "Discover a minion from your
+tier" via `discoverOnPlay`). Removed **Grave Toll** (dropped from the owner's set). The reward-text helper now groups
+duplicate card grants ("Get 2 Key Findings", not "a X + a X").
+
+**Art:** wired every quest-reward card's art from `Quest Reward Related Things` (incl. the new Key Findings) — **the
+only reward without art is Goldcrafter** (no file in the folder yet).
+
+Verified: typecheck + lint + **719 tests** (updated the framework/Beast/Undead tests to the new counts; retargeted the
+threshold tests off the removed Grave Toll to Forest Grove); `build:web` clean; live — Key Findings quest reads "Get 2
+Key Findings", the card loads its art and opens a 3-minion Discover on play, and the new counts render.
+
 ### fix(quests): show the quest panel in combat + recruit-summoned Imp buff + triple-on-quest-grant + 4 quest arts
 
 Four quest fixes:

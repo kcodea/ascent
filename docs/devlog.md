@@ -23,6 +23,14 @@ mirroring the existing Better Bot `rallyMechAtk` weld path end-to-end:
 
 ## 2026-07-08 (session 27)
 
+### tweak(ui): hold the board reflow on a Deathrattle death until the skull bursts
+
+Owner request: on a Deathrattle death, neighbours shouldn't slide in to fill the empty slot until the skull
+explodes. Added `animation-delay: 0.38s` to `.unit.dying.dr` (styles.css) so `dyingcollapse` — the slot
+width-collapse that drives the reflow — waits ~0.38s (pixiFx's skull pop + hold) before running. The slot
+holds full width while the skull pops (card still fades in place), then collapses on the burst. Only affects
+plain Deathrattle deaths; Rise/`dying rising` units keep their held slot as before. build:web green.
+
 ### fix(sim): welded keyword (Perfect Core's Ward) no longer leaks onto an aliased minion
 
 Owner-reported: a Bounty Bot with **Perfect Core** (which carries the "DS"/Ward keyword) — when the OTHER Bounty
@@ -59,6 +67,7 @@ a run at the cap with `maxGoldBonus: 2` starts the next turn with cap + 2, not c
 Also refreshed **Chronos** minion art from the updated master (2.5 MB PNG → 77 KB WebP).
 
 Verified: typecheck + lint + **747 tests** (new max-Gold persistence test) + `build:web`, all green.
+
 ### fix(ui): Deathrattle skull now pops on a Rise death too
 
 The skull-shatter firing loop skipped every `rise` death, so a unit with **both** Rise and a Deathrattle got

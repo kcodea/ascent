@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### fix(combat): side-scope the Undead Aura too (enemy Undead grants now work) + aura audit
+
+Follow-up to the side-scoped Imp Aura (#230): audited every combat aura for enemy-side correctness and fixed the
+remaining broken one, the **Undead Aura**. Its two in-combat grants — `grantUndeadBuyAtk` (Karthus Slaughter /
+Deathswarmer) and `grantUndeadAura` (Watcher's Lantern) — were player-gated, so an enemy Undead-granter never
+buffed enemy Undead summoned/Reborn afterward. Made the Undead aura a **per-side accumulator** (`undeadAura:
+Record<Side, {attack, health, buyAtk}>`, `buyAtk` = the buy-time slice re-added only to from-base bodies),
+mirroring the Imp fix; the grant helpers advance the granting side's bucket (player-only carry-back), and
+`applyAuras` applies each side's aura to its Undead.
+
+**Aura audit result (answering "do the other enemy auras work now?"):** Imp ✓ (side-scoped, #230), Undead ✓
+(this PR), **Beast + Attachment** are baked only at BUY time (Squirl Scout / Scrap Herald are recruit
+Battlecries — no combat grant path), so the enemy's captured-board snapshot already carries them and there's
+nothing to grant mid-fight; **Fodder** buff is a carry-back only (never read as an in-combat aura). So all
+combat auras are now correct for both sides.
+
+Verified: typecheck + lint + **743 tests** (new: an enemy Karthus's Slaughter aura reaches an enemy Undead that
+Reborns) + determinism harness + `build:web`, all green. Still open: enemy Soren hero power (#7 — separate
+snapshot/opponent/resummon machinery); mid-combat quest doubling parked pending an owner call.
+
 ### chore(art): wire 23 more quest arts (33 → 45 quests illustrated)
 
 Wired the remaining available quest art from `Ascent Art/Quests` → `art/quests/<questId>.png` (matched by

@@ -1087,6 +1087,24 @@ describe('simulate (handoff A.3)', () => {
     expect(imps.some((e) => e.type === 'summon' && e.minion.attack > 1)).toBe(true); // enemy Imps buffed now (were all 1/1)
   });
 
+  it('enemy Undead Aura reaches an enemy Undead Reborn (Karthus Slaughter on the enemy side)', () => {
+    // Enemy Karthus (Slaughter → +3 Attack to enemy Undead, permanent aura). After it kills a player minion, an
+    // enemy Undead that Reborns from base must inherit that aura — previously the aura was gated to the player.
+    const p: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 2, health: 2 },                 // Karthus kills this → Slaughter grants the enemy aura
+      { cardId: 'omen', attack: 50, health: 400, keywords: [] },   // eventually kills the enemy Undead so it Reborns
+    ];
+    const e: BoardMinion[] = [
+      { cardId: 'karthus', attack: 7, health: 30, keywords: ['SL'] }, // survives to keep killing; grants +3 Undead Attack
+      { cardId: 'mumi', attack: 3, health: 2, keywords: ['R'] },      // a Reborn Undead (dies, returns from base)
+    ];
+    const r = run(p, e, 1);
+    const reborns = r.events.filter((ev) => ev.type === 'reborn');
+    expect(reborns.length).toBeGreaterThan(0);
+    // The reborn body reset to base (Attack 3) then re-applied auras → carries the +3 the enemy Karthus granted.
+    expect(reborns.some((ev) => ev.type === 'reborn' && ev.attack > 3)).toBe(true);
+  });
+
   it("Ryme's Deathrattle re-fires an adjacent minion's combat Battlecry (Alleycat → a Stray)", () => {
     // Ryme (the only attacker) strikes the omen, dies to retaliation → its neighbour Alleycat's Battlecry
     // re-fires in combat → a Stray is summoned. (The 0-Attack Alleycat never swings or dies itself.)

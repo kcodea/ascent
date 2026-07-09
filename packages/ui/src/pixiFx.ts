@@ -345,7 +345,7 @@ interface SkullPop { sprite: Sprite; x: number; y: number; scale: number; age: n
 
 // Deathrattle skull-shatter feel — baked from the DEV preview (apps/web/public/fx/skull-shatter-preview.html);
 // tune these constants directly (no live tuner, by design).
-const DR_SKULL_SCALE = 0.75; // skull display width ÷ the dying unit's card width
+const DR_SKULL_SCALE = 0.375; // skull display width ÷ the dying unit's card width
 const DR_POP = 0.45;        // pop bounce + duration
 const DR_SPREAD = 1.85;     // how far fragments + splinters fly
 const DR_SPLINTERS = 0.95;  // bone-splinter count multiplier
@@ -1391,6 +1391,7 @@ class FxController {
     const sprite = this.pool.pop() ?? new Sprite();
     sprite.texture = this.skullTex;
     sprite.anchor.set(0.5);
+    sprite.rotation = 0; // ALWAYS upright — reset the pooled sprite's stale rotation from its prior particle life
     sprite.blendMode = 'normal';
     sprite.tint = 0xffffff;
     sprite.alpha = 1;

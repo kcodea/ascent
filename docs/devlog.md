@@ -5,6 +5,48 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(ui): corner-clack contact + distance-scaled lunge (combat feel)
+
+A presentation-only refinement of the phase-3b attack lunge — the strike now lands as a physical
+"corner clack" and its pace is consistent regardless of how far apart the two units are. Spec/plan:
+[corner-clack-contact-design](superpowers/specs/2026-07-08-corner-clack-contact-design.md) /
+[corner-clack-contact](superpowers/plans/2026-07-08-corner-clack-contact.md). **Zero core/sim/content
+changes — nothing touches fight outcomes.**
+
+- **Root problem.** The lunge drove the attacker `dx * 1.44` — 144% of the way to the defender's
+  *center* — so cards interpenetrated (phasing, not striking); and `strikeDur` was a fixed 0.16 s, so a
+  far-across-the-board attack covered far more pixels in the same time and looked much faster than an
+  adjacent one.
+- **New pure helper `choreo/contactGeometry.ts`.** Given the attacker→defender vector and both cards'
+  sizes it computes: the **surface-contact strike** (`dist − defProjHalf − atkProjHalf + bite`, so the
+  attacker's leading edge/corner meets the defender's surface instead of overshooting center), the
+  **distance-scaled duration** (`travel / targetSpeed`, clamped to `[minStrikeDur, maxStrikeDur]` — px/s
+  stays roughly constant near→far), the **signed lead-tilt**, and the **impact point** (the tilted
+  leading corner — where the two cards actually clack). Fully unit-tested; no DOM/GSAP.
+- **`playLunge` (channels/lunge.ts).** Consumes the geometry: winds up tilting to lead a corner, strikes
+  to the surface point (corner leading), fires the beat-advance at the real contact position, adds a
+  rotational **rebound** off the clack, then the elastic settle. The beat-clock advance stays welded to
+  the true GSAP contact position, so the variable duration needed no scheduler change.
+- **`engine.ts`** measures both card rects, calls `contactGeometry`, and threads `strike`/`strikeDur`/
+  `leadTilt`/`attackerRebound` into the lunge — plus the **impact point** into the impact channel.
+- **`impact.ts`** — the defender **counter-spins** away from the contact corner as it's knocked back
+  (`-sign(leadTilt) * defenderSpin`), and the WebGL **spark now originates at the leading-corner clack
+  point** (passed from the engine) rather than the defender's center, so the flash sprays from where the
+  corners meet.
+- **Tuning loop.** Because the live rAF animation isn't observable from the headless preview, the feel
+  was dialed on an interactive strike previewer that reproduces the real `contactGeometry` math + lunge
+  timeline and sweeps every attacker→defender variation at true pace. Owner-tuned values baked as the
+  `lungeConfig` defaults: `leadTilt 20`, `bite 24`, `targetSpeed 1850`, `minStrikeDur 0.20`,
+  `maxStrikeDur 0.40`, `defenderSpin 15`, `attackerRebound 2.5`. **Accepted (owner):** the defender
+  knockback still scales with attack distance — left as-is.
+- **New dials** on `lungeConfig` (live in the DEV Lunge tuner): `bite`, `leadTilt`, `defenderSpin`,
+  `attackerRebound`, `targetSpeed`, `minStrikeDur`, `maxStrikeDur`; `strikeDist` retired (`strikeDur`
+  kept as the unresolved-elements fallback).
+- **Verified.** Subagent-driven (5 code tasks + two-stage review each + a final whole-branch review that
+  confirmed outcome-neutrality and the intact beat-clock advance); the spark/bake follow-up added two
+  more tests. Full gate green: typecheck + lint + `npm test` (720) + `build:web`; choreo/channel suite 76
+  green.
+
 ### feat(content): Demon quests — the fifth (final) authored tribe; all `Test ·` quests retired
 
 The **Demon** quest tribe (Fodder / Imp / Consume engine). With this, **all five tribes + neutral are fully

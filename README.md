@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Corner-clack combat feel.** The attack lunge now lands as a physical corner strike: a pure
+  `contactGeometry` helper stops the attacker at the defender's surface (no more center-overshoot), tilts it
+  to lead with a corner and rebound, the defender counter-spins, and the impact spark fires from the actual
+  clack point. Strike duration scales with travel distance, so near and far attacks feel equally paced. Tuned
+  on an interactive strike previewer and baked. Presentation-only — no fight-outcome changes.
 - **Demon quests — the fifth and final authored tribe.** The Fodder/Imp/Consume quest set (9 quests + Contract Imp /
   Herald of the Apocalypse / Run Maw / Implosion). Adds `consumeFodder` / `consumeStats` / `summonImp` objectives and
   the Deep Hunger, Contract Rewrite, Pit Without End, and Run Maw combat mechanics. **All five tribes + neutral are

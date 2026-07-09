@@ -260,6 +260,13 @@ which effect channels fire at which offsets — replacing the current split acro
   no longer re-fires that beat's sfx/shake. Accepted nuance: backgrounding the tab mid-lunge resumes the
   lunge in place (GSAP timeline) rather than resetting it. UI-only: 569 tests + build green, live smoke
   on a real combat, zero console errors. **Depends:** phase 3a.
+  - _Feel refinement (2026-07-08, session 26 → devlog; spec/plan: [corner-clack-contact](superpowers/specs/2026-07-08-corner-clack-contact-design.md)):_
+    the lunge lands as a **corner clack** — a pure `contactGeometry` helper stops the attacker at the defender's
+    **surface** (no more center-overshoot), tilts it to lead with a corner, rebounds; the defender counter-spins; and
+    **strike duration scales with travel distance** so near/far attacks feel equally paced. The impact spark now
+    originates at the leading-corner **clack point** (not the defender center). Dials tuned by eye in an interactive
+    strike previewer and baked (leadTilt 20 / bite 24 / targetSpeed 1850 / strike 0.20–0.40 / defenderSpin 15 /
+    rebound 2.5). Outcome-neutral (UI-only). Accepted: defender knockback still scales with distance (owner call).
 - **Phase 3c — aura bursts.** ✅ **shipped 2026-07-07** (→ devlog). The `aura` channel (`choreo/channels/aura.ts`
   — burstDeathAuras/breakShieldAura/reformReborn) + pixiFx `hasAura`/`auraRect` registry queries + the pull-back-driven
   `landed` anchor (`engine.ts` — `runRiseReturn`) land; `syncShields` is reduced to position-tracking + quiet-clear only;

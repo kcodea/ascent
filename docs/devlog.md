@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### chore(art): wire Goldcrafter reward art + re-wire Taragosa's Heir
+
+Wired `GoldCrafter.png` → `goldcrafter.png` (Goldcrafter was the last quest reward with no art) and
+re-copied updated `TaragosasHeir.png` → `taragosaheir.png`, both from `Quests/Quest Reward Related
+Things`. Data-only art drop — no code touched. Verified both are valid PNGs and the preview server was
+restarted so the eager `import.meta.glob` picks up the new file.
+
 ### balance(content): sync quest objective counts to the owner's set + Key Findings spell + all reward art
 
 Synced the quest set to the owner's current spreadsheet — **36 objective-count tweaks** across every tribe (mostly
@@ -30,6 +37,7 @@ Apocalypse, Hoard Whelp, Implosion, Lazarus, Ossuary Rite, Perfect Core, Run Maw
 both live in `art/minions/`). Two filenames had minor spelling variance from the card name (noted above) but each is
 the unique reward for its quest, so unambiguous. `build:web` clean (globs resolve); live DOM + screenshot check —
 the reward cards render their new art. **Missing:** Goldcrafter has no file in the folder — still unwired.
+
 ### fix(quests): show the quest panel in combat + recruit-summoned Imp buff + triple-on-quest-grant + 4 quest arts
 
 Four quest fixes:

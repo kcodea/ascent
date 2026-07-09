@@ -21,6 +21,15 @@ Verified: typecheck + lint + **719 tests** (updated the framework/Beast/Undead t
 threshold tests off the removed Grave Toll to Forest Grove); `build:web` clean; live — Key Findings quest reads "Get 2
 Key Findings", the card loads its art and opens a 3-minion Discover on play, and the new counts render.
 
+### chore(art): wire all quest-reward card art
+
+Wired illustrated art for every quest-reward card from `Quests/Quest Reward Related Things` → `art/minions/<cardId>.png`:
+Bone Taxer, Chimerus, Chorus Engine (file `ChorusMachine`), Contract Imp, Crypt Broker, Gravetwin, Herald of the
+Apocalypse, Hoard Whelp, Implosion, Lazarus, Ossuary Rite, Perfect Core, Run Maw, Scrap Vendor, Skybound Archivist
+(file `SkyboundActivist`), Taragosa's Heir, Taurus the Truth Bringer, Trail Forager, Trophy Stalker (spells + minions
+both live in `art/minions/`). Two filenames had minor spelling variance from the card name (noted above) but each is
+the unique reward for its quest, so unambiguous. `build:web` clean (globs resolve); live DOM + screenshot check —
+the reward cards render their new art. **Missing:** Goldcrafter has no file in the folder — still unwired.
 ### fix(quests): show the quest panel in combat + recruit-summoned Imp buff + triple-on-quest-grant + 4 quest arts
 
 Four quest fixes:

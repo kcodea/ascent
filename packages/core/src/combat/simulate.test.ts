@@ -1514,6 +1514,30 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.filter((e) => e.type === 'toHand').length).toBe(2);
   });
 
+  it('Anomaly Reactor: a minion given a Mech type counts as a Mech in combat (Better Bot rallies it)', () => {
+    const withType = run(
+      [
+        { cardId: 'betterbot', attack: 6, health: 50 }, // Rally: +5 Attack to your OTHER Mechs on attack
+        { cardId: 'alley', attack: 2, health: 50, addedTribes: ['mech'] }, // a Beast GIVEN a Mech type
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }, // width → player attacks first
+      ],
+      [{ cardId: 'omen', attack: 1, health: 200 }],
+      3,
+    );
+    const withoutType = run(
+      [
+        { cardId: 'betterbot', attack: 6, health: 50 },
+        { cardId: 'alley', attack: 2, health: 50 }, // a plain Beast — not a Mech
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 200 }],
+      3,
+    );
+    const rallied = (r: ReturnType<typeof run>) => r.events.some((e) => e.type === 'buff' && e.source === 'Better Bot' && e.attack === 5);
+    expect(rallied(withType)).toBe(true); // the only other Mech is the Anomaly'd Beast → it gets the rally
+    expect(rallied(withoutType)).toBe(false); // no other Mech on the board → the rally lands on nobody
+  });
+
   it('Grave Body: at Start of Combat copies your leftmost Echo (fires it on its own death)', () => {
     const a = run(
       [

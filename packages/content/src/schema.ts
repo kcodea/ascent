@@ -216,6 +216,7 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyGiveHealthToDragons',
   'spellBloodlust',
   'copyLeftmostEcho',
+  'spellAddTribe',
 ]);
 
 export const EffectDefSchema = z.object({

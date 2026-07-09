@@ -41,7 +41,9 @@ import {
   sellValueOf,
   type BoardCard,
   type RunState,
+  isTribe,
 } from './index';
+import { magnetizesTo } from './reducer';
 import type { BoardMinion } from '@game/core';
 import { applyEndOfTurn, applyGoldSpent, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
@@ -4820,6 +4822,20 @@ describe('Beast quests (combat objectives + rewards)', () => {
     const s = settle('q_blood_trail', { enemyDeaths: 2, playerQuestTally: { ...zeroTally(), slaughter: 2, slaughterByTribe: { beast: 2 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questFlags?.bloodTrail).toBe(true);
+  });
+
+  it('Anomaly Reactor gives a minion a Mech type (isTribe + magnetize eligibility)', () => {
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    const spell: BoardCard = { uid: 'sp', cardId: 'anomalyreactor', tribe: 'mech', attack: 0, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, board: [beast], hand: [spell] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'b' });
+    const target = s.board.find((c) => c.uid === 'b')!;
+    expect(target.addedTribes).toContain('mech');
+    expect(isTribe(target, 'mech')).toBe(true);
+    expect(isTribe(target, 'beast')).toBe(true); // keeps its printed tribe too
+    // A Cling Drone (Mech Magnetic) can now weld onto it (couldn't before the added type).
+    expect(magnetizesTo('cling', 'alley', target.addedTribes)).toBe(true);
+    expect(magnetizesTo('cling', 'alley')).toBe(false);
   });
 
   it('The Red Trail (slaughterKeyword) completes at 5 and schedules the recurring Bloodlust grant', () => {

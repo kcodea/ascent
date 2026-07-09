@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(content): content batch pt 5 — Anomaly Reactor spell + Anomalous Reactor quest (instance tribe)
+
+New Mech spell **Anomaly Reactor** (T5, 2 Gold, target a friendly minion): *"Give a friendly minion a Mech type
+in addition to what it is."* + the **Anomalous Reactor** Mech capstone (*Spend 25 Gold* → grant it). Introduces a
+**per-instance added tribe**:
+
+- New `BoardCard.addedTribes` (+ `BoardMinion.addedTribes`). The `spellAddTribe` factory appends the tribe to the
+  target (no-op if it already has it). **`isTribe` honors it** — so every recruit synergy flows automatically:
+  auto-magnetize target picking (`magnetizeTargets` → `isTribe`), tribe auras, Mech buy/aura, tribe counts,
+  dominant-tribe, quests. **`magnetizesTo` gained a `targetAddedTribes` param** (threaded from the reducer + both
+  UI drop-target checks) so you can manually weld Attachments onto the now-Mech minion.
+- **Combat**: `instantiate` folds the added tribe into the minion's free `tribe2` slot, so every combat tribe check
+  (`m.tribe2 === 'mech'` — Rally-Mech, Shared Circuit, …) honors it with no per-check changes. *(Edge: a minion
+  that already prints a `tribe2` can't take a third tribe in combat — rare.)*
+
+Tests: casting Anomaly Reactor makes a Beast read as a Mech (`isTribe`) while keeping Beast, and a Cling Drone can
+now weld onto it; in combat, Better Bot's Mech rally lands on the Anomaly'd Beast (and on nobody without it). Full
+gauntlet + harness green.
+
 ### feat(content): content batch pt 4 — Grave Body card + Empty Graves quest (combat copy-Echo)
 
 Two Undead pieces sharing a new combat primitive — **copying your leftmost Echo as a real combat Deathrattle**:

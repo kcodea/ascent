@@ -1309,7 +1309,7 @@ export function Recruit() {
           ? warbandIndexAt(e.clientX - d.ox + d.w / 2)
           : -1;
       const magMech = magIdx >= 0 ? run.board[magIdx] : undefined;
-      if (magMech && magnetizesTo(d.view.cardId, magMech.cardId)) {
+      if (magMech && magnetizesTo(d.view.cardId, magMech.cardId, magMech.addedTribes)) {
         const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${magMech.uid}"]`);
         if (el) {
           const r = el.getBoundingClientRect();
@@ -1753,7 +1753,7 @@ export function Recruit() {
     !!drag?.active &&
     !magSlide && // once the slide starts, the warband settles (no more shove preview)
     !!magHoverTarget &&
-    magnetizesTo(drag.view.cardId, magHoverTarget.cardId);
+    magnetizesTo(drag.view.cardId, magHoverTarget.cardId, magHoverTarget.addedTribes);
   // Casting a targeted spell from the hand: highlight the friendly minion under the cursor (it's the target),
   // and don't treat it as a board-insertion drag. `castingSpell` itself is defined above (near the drag rAF).
   // The target under the cursor — a board minion, or (for `any` spells) a tavern offer.

@@ -530,6 +530,22 @@ export const SPELLS: CardDef[] = [
     text: 'You attack **first** next fight.',
   },
   {
+    // Anomaly Reactor: give a friendly minion a Mech type in addition to its own — it now counts as a Mech for
+    // every synergy (Magnetic hosts, Mech auras, Rally-Mech, Mech quests) for the rest of the run.
+    id: 'anomalyreactor',
+    name: 'Anomaly Reactor',
+    tribe: 'mech',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'mech' } }],
+    text: 'Give a friendly minion a **Mech** type in addition to what it is.',
+  },
+  {
     // Bloodlust: mark a friendly minion — it takes an immediate immune swing at the start of the next combat.
     id: 'bloodlust',
     name: 'Bloodlust',

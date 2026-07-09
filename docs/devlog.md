@@ -5,6 +5,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### chore(ui): skull-burst sfx quieter still (0.4 → 0.04)
+
+Follow-up to the earlier `4 → 0.4`: still too loud, so `sampleVol.skullburst` → `0.04` — a normal quiet
+gain in line with the other clips. One-line volume dial.
+
 ### tweak(ui): Rally attack — longer wind-up hold + a much brighter yellow pulse
 
 Owner tuning of the Rally attack cue (#265). The wind-up pause now holds **440 ms** (was 240) so the pulse has time

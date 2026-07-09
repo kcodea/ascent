@@ -1528,9 +1528,9 @@ body.choreo-open .pixifx-under { z-index: 204; }
    under the tribes bar so the arena stays clear. */
 .combathud { position: fixed; top: calc(var(--bar-y) + 146 * var(--u)); right: calc(var(--bar-x) + 16 * var(--u)); z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }
 /* Hide the run-buffs window during combat so it never collides with the combat HUD below the opponent frame
-   (buffs aren't actionable mid-replay; it returns in recruit). */
+   (buffs aren't actionable mid-replay; it returns in recruit). The QUEST panel stays visible in combat — its
+   objectives tick up live as the replay plays (the whole point of the combat quest live-tick). */
 .app.combat .buffsframe { display: none; }
-.app.combat .questframe { display: none; }
 .combathud-skip { display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
 .combathud-skip:hover { background: var(--acc-dk); }

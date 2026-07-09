@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(content): mark Bloodlust / Anomaly Reactor / Grave Body reward-only (token) — were leaking into the shop
+
+Owner catch: unique quest-reward cards must never roll in the shop / spell pool (only real general shop units may).
+The three new reward cards from this session's batch (**Bloodlust**, **Anomaly Reactor**, **Grave Body**) were
+missing `token: true`, so — unlike every existing reward card (Gravetwin, Trail Forager, Chorus Engine, …) — they
+were leaking into `BUYABLE_CARDS` / `SPELL_CARDS` (the shop + offered-spell pools). Added `token: true` to all
+three; they're still grantable by their quests + summonable (Empty Graves' Gravebody) since `token` only gates the
+random pools, not grants. Audited every quest-reward card id: the only two without `token` are **Money Bot** and
+**Badgington**, both intentional general shop units. Added a regression test asserting the three are absent from
+both pools while remaining in `CARD_INDEX`.
+
 ### feat(content): content batch pt 5 — Anomaly Reactor spell + Anomalous Reactor quest (instance tribe)
 
 New Mech spell **Anomaly Reactor** (T5, 2 Gold, target a friendly minion): *"Give a friendly minion a Mech type

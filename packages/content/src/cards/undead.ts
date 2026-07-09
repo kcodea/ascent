@@ -154,6 +154,7 @@ export const UNDEAD: CardDef[] = [
     attack: 1,
     health: 1,
     keywords: [],
+    token: true, // reward/token-exclusive (Empty Graves summons it) — never rolls in the shop / Discover / grants
     effects: [
       { on: 'startOfCombat', do: 'copyLeftmostEcho' },
       { on: 'onSummon', do: 'copyLeftmostEcho' },

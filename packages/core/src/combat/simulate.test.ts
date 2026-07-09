@@ -1069,6 +1069,24 @@ describe('simulate (handoff A.3)', () => {
     expect(g.playerImpBuffGain).toEqual({ attack: 4, health: 6 });
   });
 
+  it('a later-summoned Imp inherits the live Imp Aura (2 Imp Kings — no weaker 2nd pair)', () => {
+    // Both Imp Kings die → 4 Imps. The 2nd pair, summoned AFTER the 1st King's +2/+3 buff advanced the aura,
+    // must be summoned WITH that aura (snapshot > base 1/1). Before the fix the aura never advanced, so every
+    // Imp came out at base and the later pair was permanently weaker.
+    const r = run([{ cardId: 'impking', attack: 1, health: 1 }, { cardId: 'impking', attack: 1, health: 1 }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
+    const imps = r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
+    expect(imps.length).toBe(4);
+    expect(imps.some((e) => e.type === 'summon' && e.minion.attack > 1)).toBe(true); // a later Imp carries the aura (all were 1/1 before)
+  });
+
+  it('enemy Imps inherit the enemy Imp Aura (not stuck at 1/1)', () => {
+    // Enemy-side Imp Kings: their buff must reach enemy Imps summoned later too (the aura is side-scoped now).
+    const r = run([{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], [{ cardId: 'impking', attack: 1, health: 1 }, { cardId: 'impking', attack: 1, health: 1 }], 1);
+    const imps = r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
+    expect(imps.length).toBe(4);
+    expect(imps.some((e) => e.type === 'summon' && e.minion.attack > 1)).toBe(true); // enemy Imps buffed now (were all 1/1)
+  });
+
   it("Ryme's Deathrattle re-fires an adjacent minion's combat Battlecry (Alleycat → a Stray)", () => {
     // Ryme (the only attacker) strikes the omen, dies to retaliation → its neighbour Alleycat's Battlecry
     // re-fires in combat → a Stray is summoned. (The 0-Attack Alleycat never swings or dies itself.)

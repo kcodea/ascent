@@ -88,7 +88,8 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
  */
 export function isTribe(card: BoardCard, tribe: Tribe): boolean {
   if (tribe !== 'neutral' && CARD_INDEX[card.cardId]?.universalTribe) return true;
-  return card.tribe === tribe || CARD_INDEX[card.cardId]?.tribe2 === tribe;
+  if (card.tribe === tribe || CARD_INDEX[card.cardId]?.tribe2 === tribe) return true;
+  return (card.addedTribes ?? []).includes(tribe); // Anomaly Reactor: a spell-added tribe (e.g. Mech)
 }
 
 /**
@@ -1054,6 +1055,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  immediate out-of-turn attack, immune to retaliation for that swing. One fight only (stripped at settle). */
   spellBloodlust: (_ctx, self) => {
     self.bloodlust = true;
+  },
+
+  /** Anomaly Reactor (cast, targeted): give the target minion an extra tribe (a Mech type) for the rest of the
+   *  run — honored by every `isTribe` synergy and folded into its combat tribe2. No-op if it's already that tribe. */
+  spellAddTribe: (_ctx, self, params) => {
+    const t = str(params.tribe) as Tribe;
+    if (!t || self.tribe === t || CARD_INDEX[self.cardId]?.tribe2 === t) return;
+    if (!(self.addedTribes ?? []).includes(t)) self.addedTribes = [...(self.addedTribes ?? []), t];
   },
 
   /** Money Maker — End of Turn: every `every` turns on the board, add `count` random card(s) from the

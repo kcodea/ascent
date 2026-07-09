@@ -36,7 +36,10 @@ export function instantiate(
     cardId: card.id,
     name: card.name,
     tribe: card.tribe,
-    tribe2: card.tribe2,
+    // Anomaly Reactor: fold a spell-added instance tribe into the free tribe2 slot, so every combat tribe check
+    // (m.tribe2 === 'mech' — Rally-Mech, Shared Circuit, …) honors it. (A minion that already has a printed
+    // tribe2 keeps it — a rare dual-tribe body can't take a third tribe in combat.)
+    tribe2: card.tribe2 ?? board.addedTribes?.find((t) => t !== card.tribe),
     attack: board.attack,
     health: board.health,
     maxHealth: board.health,

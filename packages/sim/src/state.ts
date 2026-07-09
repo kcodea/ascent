@@ -77,6 +77,10 @@ export interface BoardCard {
   health: number;
   keywords: Keyword[];
   golden: boolean;
+  /** Anomaly Reactor: extra tribes granted to THIS instance beyond its printed tribe(s) (a spell-added Mech
+   *  type). Honored by `isTribe` (recruit synergies / magnetize / auras) and folded into the combat minion's
+   *  `tribe2` at `instantiate`. Absent = none. */
+  addedTribes?: Tribe[];
   /** Per-source recruit-phase stat buffs applied to this instance (Karwind, Nadir, Spirit Fire,
    *  Fortify, …) — drives the inspect-panel breakdown. Base stats are NOT recorded here. */
   buffs?: CardBuff[];

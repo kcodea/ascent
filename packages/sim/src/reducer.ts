@@ -82,7 +82,7 @@ function mergeBuffs(buffs: CardBuff[]): CardBuff[] {
 /** Whether a Magnetic minion can weld onto a target minion: they must share a tribe, counting BOTH
  *  cards' tribes. So Cling Drone (Mech) → any Mech *including* Heckbinder (Demon/Mech); Heckbinder
  *  → a Mech or a Demon; and a Mech-magnetic card can attach onto Heckbinder because it's also a Mech. */
-export function magnetizesTo(magneticCardId: string, targetCardId: string): boolean {
+export function magnetizesTo(magneticCardId: string, targetCardId: string, targetAddedTribes?: Tribe[]): boolean {
   const m = CARD_INDEX[magneticCardId];
   const t = CARD_INDEX[targetCardId];
   if (!m || !t) return false;
@@ -92,7 +92,8 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
   // magnetic welding onto a Chaos Attachment (whose printed tribe is 'neutral', so the tribe match below misses).
   if (t.universalTribe) return true;
   const mag: Tribe[] = [m.tribe, m.tribe2].filter((x): x is Tribe => !!x);
-  const tgt: Tribe[] = [t.tribe, t.tribe2].filter((x): x is Tribe => !!x);
+  // Anomaly Reactor: a spell-added instance tribe (Mech) makes the host a valid weld target too.
+  const tgt: Tribe[] = [t.tribe, t.tribe2, ...(targetAddedTribes ?? [])].filter((x): x is Tribe => !!x);
   return mag.some((x) => tgt.includes(x));
 }
 
@@ -427,7 +428,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // → Mech or Demon.)
       if (card.keywords.includes('M') && action.toIndex !== undefined && action.toIndex < s.board.length) {
         const target = s.board[action.toIndex];
-        if (target && magnetizesTo(card.cardId, target.cardId)) {
+        if (target && magnetizesTo(card.cardId, target.cardId, target.addedTribes)) {
           s.hand.splice(i, 1);
           // Playing a Magnetic minion IS a summon — fire summon-buffs on it BEFORE welding, so the absorbed
           // body carries any tribe summon-buff into the host (Chaos Attachment counts as a Beast → Mama

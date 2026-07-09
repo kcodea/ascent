@@ -247,7 +247,8 @@ export type EffectFactoryId =
   | 'spellTriggerEcho' // Ossuary Rite: cast — trigger a friendly minion's Echo (Deathrattle) out of combat, without destroying it (recruit)
   | 'battlecryCopyEcho' // Gravetwin: Battlecry — copy a targeted friendly Echo minion's Deathrattle onto itself (recruit)
   | 'spellBloodlust' // Bloodlust: cast — mark a friendly minion to take an immediate immune attack at Start of Combat (recruit)
-  | 'copyLeftmostEcho'; // Grave Body: Start of Combat / on-summon — copy your leftmost friendly Echo as this minion's combat Deathrattle
+  | 'copyLeftmostEcho' // Grave Body: Start of Combat / on-summon — copy your leftmost friendly Echo as this minion's combat Deathrattle
+  | 'spellAddTribe'; // Anomaly Reactor: cast — give the target minion an extra tribe (a Mech type) for the run (recruit)
 
 export interface EffectDef {
   on: GameEvent;
@@ -562,6 +563,9 @@ export interface BoardMinion {
   /** Overrides the card's keywords if present (e.g. a granted Poison). */
   keywords?: Keyword[];
   golden?: boolean;
+  /** Anomaly Reactor: extra instance tribes (a spell-added Mech type), folded into the combat minion's `tribe2`
+   *  at `instantiate` when its `tribe2` slot is free. */
+  addedTribes?: Tribe[];
   /** Better Bot: accrued Rally-Mech Attack this minion grants on attack (its own base + every Better Bot
    *  magnetized onto it). Combat reads it to buff other Mechs when this attacks. */
   rallyMechAtk?: number;

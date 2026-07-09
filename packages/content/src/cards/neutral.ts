@@ -314,4 +314,34 @@ export const NEUTRAL: CardDef[] = [
   },
   // Spell Drummer removed from the pool 2026-07-08 (owner call — "for now"). The `rallyCastRandomStatSpell`
   // factory is kept registered so re-adding the card is a data-only change.
+
+  // --- Rulebreaker quest rewards (2026-07-08). token: true → reward-only. ---
+  {
+    // The Pivot Door reward. A board-presence economy aura: while Lazarus is on your board, shop spells cost 1
+    // Gold less (handled in the reducer's spell-buy cost, via spellCostReduction). Golden → 2 less.
+    id: 'lazarus',
+    name: 'Lazarus',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 5,
+    health: 4,
+    keywords: [],
+    effects: [],
+    text: 'While on your board, **shop spells cost 1 less**.',
+    token: true,
+  },
+  {
+    // Impossible Shop reward. A huge body that Engraves your WHOLE board at Start of Combat (before other SoC
+    // effects), so every minion keeps its combat gains for the run.
+    id: 'taurustruth',
+    name: 'Taurus the Truth Bringer',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 12,
+    health: 12,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scEngraveAll' }],
+    text: '**Start of Combat:** all your minions are **Engraved**. This triggers first.',
+    token: true,
+  },
 ];

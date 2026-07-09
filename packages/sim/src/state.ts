@@ -166,6 +166,9 @@ export interface ActiveQuest {
   questId: string;
   progress: number;
   completed: boolean;
+  /** The Author's Hand compound objective: per-key progress toward the shared `count` (Shout / Echo / Rally each).
+   *  `progress` mirrors the min of the three for the panel bar. Absent for normal single-count objectives. */
+  subProgress?: { shout: number; echo: number; rally: number };
 }
 
 export interface RunState {
@@ -375,7 +378,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean };
   /** Dragon Shout rewards. `shoutExtraAlways` = permanent extra Battlecry triggers (Hoardwake / The Hoard Wakes,
    *  stacks like Drakko). `shoutFirstDoubleEachRound` = the first Shout you play each turn triggers twice (Warm
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
@@ -406,6 +409,18 @@ export interface RunState {
    *  / `consumeStats`. `pitWithoutEndImps` = Pit Without End's board-wipe Imp count. */
   runFodderConsumed?: { count: number; stats: number };
   pitWithoutEndImps?: number;
+  /** Rulebreaker (neutral) quest rewards. `dupeFirstBuyEachTurn` = the first minion bought each turn is copied to
+   *  hand (`dupeUsedThisTurn` tracks the per-turn spend). `spellDoubleAlways` = every spell casts twice (Ancient
+   *  Runes); `spellFirstDoubleEachTurn` = the first spell each turn casts twice (Spell Thesis, `spellFirstUsedThisTurn`
+   *  tracks it). `minionCostOverride` = shop minion cost (Merchant's Mark). `slaughterFirstEachCombat` = Author's
+   *  Hand's first-Slaughter doubler (fed into QuestCombatMods). */
+  dupeFirstBuyEachTurn?: boolean;
+  dupeUsedThisTurn?: boolean;
+  spellDoubleAlways?: boolean;
+  spellFirstDoubleEachTurn?: boolean;
+  spellFirstUsedThisTurn?: boolean;
+  minionCostOverride?: number;
+  slaughterFirstEachCombat?: number;
   /** Transient: cardIds of the player minions that survived the LAST combat (from CombatResult). Read at the
    *  next shop start to fire a surviving Gravetwin's copied Echo. Reset each wave. */
   lastSurvivorCardIds?: string[];

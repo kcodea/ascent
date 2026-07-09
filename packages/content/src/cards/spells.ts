@@ -628,4 +628,21 @@ export const SPELLS: CardDef[] = [
     text: 'Give your **Imps** **+2/+2**, recast for every Demon you control.',
     token: true,
   },
+  {
+    // Gilded Chance / Rulebreaker's Crown reward (owner: it's a spell that golds the target). Reward-only.
+    // Makes a friendly minion golden (gild). No tier cap (targetMaxTier defaults to the max tavern tier).
+    id: 'goldcrafter',
+    name: 'Goldcrafter',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellGildTarget' }],
+    text: 'Make a friendly minion **golden**.',
+    token: true,
+  },
 ];

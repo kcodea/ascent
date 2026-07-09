@@ -44,6 +44,11 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_warm_embers', name: 'Warm Embers', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 3, filter: 'shout' }, reward: { kind: 'shoutRepeat', scope: 'firstEachRound' } },
   { id: 'q_grave_contract', name: 'Grave Contract', tribe: 'neutral', tier: 'lesser', objective: { event: 'deathrattle', count: 4 }, reward: { kind: 'echoRepeat', scope: 'firstEachCombat' } },
   { id: 'q_spark_permit', name: 'Spark Permit', tribe: 'neutral', tier: 'lesser', objective: { event: 'rally', count: 3 }, reward: { kind: 'rallyRepeat', scope: 'firstEachCombat' } },
+  // NEUTRAL "Rulebreaker" set (owner spec 2026-07-08): economy / spell / rule-bending payoffs.
+  { id: 'q_shop_license', name: 'Shop License', tribe: 'neutral', tier: 'lesser', objective: { event: 'spendGold', count: 10 }, reward: { kind: 'gainMaxGold', amount: 2 } },
+  { id: 'q_gilded_chance', name: 'Gilded Chance', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 9 }, reward: { kind: 'grant', cards: ['goldcrafter'] } },
+  { id: 'q_key_findings', name: 'Key Findings', tribe: 'neutral', tier: 'lesser', objective: { event: 'attack', count: 8 }, reward: { kind: 'discover' } },
+  { id: 'q_odd_jobs', name: 'Odd Jobs', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 6 }, reward: { kind: 'gainGold', amount: 8 } },
 
   // ── Greater (wave 8) ──
   { id: 'q_apex_hunt', name: 'Apex Hunt', tribe: 'beast', tier: 'greater', objective: { event: 'slaughter', count: 6, tribe: 'beast' }, reward: { kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] } },
@@ -63,11 +68,17 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_hoardwake_ritual', name: 'Hoardwake Ritual', tribe: 'neutral', tier: 'greater', objective: { event: 'shout', count: 10 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'shout' }, { kind: 'shoutRepeat', scope: 'always' }] } },
   { id: 'q_last_rites', name: 'Last Rites', tribe: 'neutral', tier: 'greater', objective: { event: 'deathrattle', count: 14 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'echo' }, { kind: 'echoRepeat', scope: 'firstEachCombat' }] } },
   { id: 'q_overclocked_core', name: 'Overclocked Core', tribe: 'neutral', tier: 'greater', objective: { event: 'rally', count: 12 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'rally' }, { kind: 'rallyRepeat', scope: 'firstEachCombat' }] } },
+  { id: 'q_dupes', name: 'Dupes', tribe: 'neutral', tier: 'greater', objective: { event: 'winRound', count: 4 }, reward: { kind: 'dupeFirstBuy' } },
+  { id: 'q_spell_thesis', name: 'Spell Thesis', tribe: 'neutral', tier: 'greater', objective: { event: 'castSpell', count: 10 }, reward: { kind: 'spellRepeat', scope: 'firstEachTurn' } },
+  { id: 'q_pivot_door', name: 'The Pivot Door', tribe: 'neutral', tier: 'greater', objective: { event: 'sell', count: 10 }, reward: { kind: 'grant', cards: ['lazarus'] } },
+  { id: 'q_merchants_mark', name: "Merchant's Mark", tribe: 'neutral', tier: 'greater', objective: { event: 'spendGold', count: 35 }, reward: { kind: 'minionCost', cost: 2 } },
+  { id: 'q_ancient_runes', name: 'Ancient Runes', tribe: 'neutral', tier: 'greater', objective: { event: 'spendGold', count: 70 }, reward: { kind: 'spellRepeat', scope: 'always' } },
 
   // ── Capstone (wave 12) ──
   { id: 'q_law_of_teeth', name: 'Law of Teeth', tribe: 'beast', tier: 'capstone', objective: { event: 'slaughter', count: 11, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'lawOfTeeth' } },
   { id: 'q_the_old_hunt', name: 'The Old Hunt', tribe: 'beast', tier: 'capstone', objective: { event: 'attack', count: 15, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'oldHunt', amount: 7 } },
   { id: 'q_taragosas_inheritance', name: "Taragosa's Inheritance", tribe: 'dragon', tier: 'capstone', objective: { event: 'tribeStats', count: 250, tribe: 'dragon' }, reward: { kind: 'grant', cards: ['taragosaheir'] } },
+  { id: 'q_chimerus', name: 'Chimerus', tribe: 'dragon', tier: 'capstone', objective: { event: 'attack', count: 16 }, reward: { kind: 'grant', cards: ['chimerus'] } },
   { id: 'q_the_bone_throne', name: 'The Bone Throne', tribe: 'undead', tier: 'capstone', objective: { event: 'friendlyDeath', count: 30 }, reward: { kind: 'boneThrone', every: 7 } },
   { id: 'q_death_writes_twice', name: 'Death Writes Twice', tribe: 'undead', tier: 'capstone', objective: { event: 'deathrattle', count: 20 }, reward: { kind: 'grant', cards: ['gravetwin'] } },
   { id: 'q_shared_circuit', name: 'Shared Circuit', tribe: 'mech', tier: 'capstone', objective: { event: 'playAttachment', count: 14 }, reward: { kind: 'combatFlag', flag: 'sharedCircuit', amount: 3 } },
@@ -81,6 +92,9 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_parliament_of_flame', name: 'Parliament of Flame', tribe: 'neutral', tier: 'capstone', objective: { event: 'endOfTurn', count: 14 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'endOfTurn' }, { kind: 'endOfTurnRepeat' }] } },
   { id: 'q_funeral_engine', name: 'Funeral Engine', tribe: 'neutral', tier: 'capstone', objective: { event: 'deathrattle', count: 20 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'echo', randomFilterExactTier: true }, { kind: 'echoRepeat', scope: 'always' }] } },
   { id: 'q_infinite_assembly', name: 'Infinite Assembly', tribe: 'neutral', tier: 'capstone', objective: { event: 'rally', count: 30 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'rally' }, { kind: 'rallyRepeat', scope: 'always' }] } },
+  { id: 'q_rulebreakers_crown', name: "Rulebreaker's Crown", tribe: 'neutral', tier: 'capstone', objective: { event: 'attack', count: 14 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['goldcrafter'] }, { kind: 'combatFlag', flag: 'doubleLeftmostAttack' }] } },
+  { id: 'q_authors_hand', name: "The Author's Hand", tribe: 'neutral', tier: 'capstone', objective: { event: 'authorsHand', count: 6 }, reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'firstEachRound' }, { kind: 'echoRepeat', scope: 'firstEachCombat' }, { kind: 'rallyRepeat', scope: 'firstEachCombat' }, { kind: 'slaughterRepeat', scope: 'firstEachCombat' }] } },
+  { id: 'q_impossible_shop', name: 'Impossible Shop', tribe: 'neutral', tier: 'capstone', objective: { event: 'spendGold', count: 60 }, reward: { kind: 'grant', cards: ['taurustruth'] } },
 ];
 
 export const QUEST_INDEX: Record<string, QuestDef> = Object.fromEntries(

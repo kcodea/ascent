@@ -2469,3 +2469,29 @@ describe('Demon quests — imp summons + Deep Hunger / Contract Rewrite / Pit Wi
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
   });
 });
+
+describe('Rulebreaker quests — double-leftmost-attack, Chimerus, Taurus engrave-all', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, true, false, 0, 0, 0, 0, mods);
+
+  it("Rulebreaker's Crown doubles the leftmost minion's Attack at Start of Combat", () => {
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 30 }];
+    const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, { doubleLeftmostAttack: true });
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 0)).toBe(true); // +3 = double the 3-Attack lead
+  });
+
+  it('Chimerus (Rally) gives its Health to a friendly Dragon on attack', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'chimerus', attack: 4, health: 8, keywords: ['RL'] as Keyword[] },
+      { cardId: 'hoardwhelp', attack: 2, health: 20 }, // a friendly Dragon (no combat effects)
+    ];
+    const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, {});
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 0 && ev.health === 8)).toBe(true); // +0/+8 = Chimerus's Health
+  });
+
+  it('Taurus the Truth Bringer engraves the whole board at Start of Combat', () => {
+    const p: BoardMinion[] = [{ cardId: 'taurustruth', attack: 12, health: 12, keywords: ['SC'] as Keyword[] }, { cardId: 'sandbag', attack: 2, health: 5 }];
+    const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, {});
+    expect(r.events.some((ev) => ev.type === 'sc' && /engraves the truth/.test(ev.text ?? ''))).toBe(true);
+  });
+});

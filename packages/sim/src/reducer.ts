@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -131,6 +131,9 @@ export function reduce(state: RunState, action: Action): RunState {
     const fcAfter = next.runFodderConsumed ?? { count: 0, stats: 0 };
     if (fcAfter.count > fcBefore.count) advanceQuestsBy(next, (o) => o.event === 'consumeFodder', fcAfter.count - fcBefore.count);
     if (fcAfter.stats > fcBefore.stats) advanceQuestsBy(next, (o) => o.event === 'consumeStats', fcAfter.stats - fcBefore.stats);
+    // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
+    const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
+    if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
     // Taragosa's Heir: every THIRD stat-gain your STRONGEST Dragon receives is mirrored onto the Heir permanently
     // (recruit phase; combat-gain copy is a follow-up). Counts an action where the current strongest Dragon (not
     // the Heir) gained stats as one gain; every 3rd such gain, the Heir gains the same +Attack/+Health.
@@ -175,6 +178,7 @@ export function reduce(state: RunState, action: Action): RunState {
     // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
     // objective. `lastShoutFires` was recorded during the play / target resolution (0 if no Shout fired).
     for (let i = 0; i < (next.lastShoutFires ?? 0); i++) advanceQuests(next, (o) => o.event === 'shout');
+    if ((next.lastShoutFires ?? 0) > 0) bumpAuthorsHand(next, 'shout', next.lastShoutFires!); // Author's Hand Shout half
     if (action.type === 'play') {
       const played = state.hand.find((c) => c.uid === action.uid);
       const pdef = played ? CARD_INDEX[played.cardId] : undefined;
@@ -232,7 +236,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.spell && s.spell.uid === action.uid) {
         const spellDef = CARD_INDEX[s.spell.cardId];
         if (!spellDef) return state;
-        const cost = Math.max(0, (spellDef.cost ?? 0) - s.spellCostMod);
+        const cost = Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s));
         if (s.embers < cost || s.hand.length >= CONFIG.handMax) return state;
         spendGold(s, cost);
         s.hand.push({
@@ -255,7 +259,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // A spell offer sitting in the minion row (Spell Cart's spell shop) buys into the hand at its OWN cost,
       // exactly like the right-hand spell slot — no minion creation / triple.
       if (card.spell) {
-        const sCost = Math.max(0, (card.cost ?? 0) - s.spellCostMod);
+        const sCost = Math.max(0, (card.cost ?? 0) - spellCostReduction(s));
         if (s.embers < sCost || s.hand.length >= CONFIG.handMax) return state;
         spendGold(s, sCost);
         s.shop.splice(i, 1);
@@ -273,7 +277,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
-      const buyCost = offer.cost ?? CONFIG.minionCost; // Moe's guaranteed Attachment carries a set 2-Gold price
+      const buyCost = offer.cost ?? s.minionCostOverride ?? CONFIG.minionCost; // Moe's set price > Merchant's Mark override > default
       if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
@@ -309,6 +313,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (offer.golden) addBuff(bought, 'Golden Touch', card.attack, card.health);
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
+      // Dupes: the FIRST minion you buy each turn is copied into your hand (a fresh base copy, run buffs baked in).
+      if (s.dupeFirstBuyEachTurn && !s.dupeUsedThisTurn && s.hand.length < CONFIG.handMax) {
+        s.dupeUsedThisTurn = true;
+        conjureToHand(s, CARD_INDEX[card.id] ? [CARD_INDEX[card.id]!] : [], 1);
+      }
       drakkoQuestBuy(s, card); // Drakko's quest counts every paid Battlecry buy
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       return s;
@@ -1060,6 +1069,12 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
 function settleCombat(s: RunState, result: CombatResult): void {
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
+  // Dupes: "Win N rounds" advances on a won combat.
+  if (result.result === 'win') advanceQuests(s, (o) => o.event === 'winRound');
+  // The Author's Hand compound objective: its Echo + Rally halves accrue from this combat's tallies (its Shout
+  // half accrues from recruit-phase plays).
+  bumpAuthorsHand(s, 'echo', result.playerDeathrattles);
+  bumpAuthorsHand(s, 'rally', result.playerRallies ?? 0);
   // Attribute this combat's player damage + mechanic procs into the run-wide tallies (→ MVP + most-triggered).
   accumulateContribution((s.runDamage ??= {}), (s.runProcs ??= {}), tallyCombat(result));
   // Accumulate this combat's player Deathrattles into the run-wide "this game" count (Grim scales off it).
@@ -1297,6 +1312,8 @@ function advanceCombat(s: RunState): void {
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
+  s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
+  s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
@@ -1400,6 +1417,24 @@ function advanceCombat(s: RunState): void {
  *  the threshold. Called once per tracked action (buy/play/sell/roll/shout) and once per newly-summoned minion. */
 function advanceQuests(s: RunState, pred: (o: QuestObjective) => boolean): void {
   advanceQuestsBy(s, pred, 1);
+}
+
+/** The Author's Hand compound objective: bump one key (Shout / Echo / Rally) toward the shared `count`; complete
+ *  when all three reach it. `progress` mirrors the min of the three (for the panel bar). */
+function bumpAuthorsHand(s: RunState, key: 'shout' | 'echo' | 'rally', n: number): void {
+  if (n <= 0) return;
+  for (const aq of s.activeQuests ?? []) {
+    if (aq.completed) continue;
+    const def = QUEST_INDEX[aq.questId];
+    if (!def || def.objective.event !== 'authorsHand') continue;
+    const sp = (aq.subProgress ??= { shout: 0, echo: 0, rally: 0 });
+    sp[key] = Math.min(def.objective.count, sp[key] + n);
+    aq.progress = Math.min(sp.shout, sp.echo, sp.rally);
+    if (sp.shout >= def.objective.count && sp.echo >= def.objective.count && sp.rally >= def.objective.count) {
+      aq.completed = true;
+      applyQuestReward(s, def, true);
+    }
+  }
 }
 
 /** Advance every active, incomplete quest matching `pred` by `amount` (≥1); complete + apply the reward at the
@@ -1554,6 +1589,27 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       for (let i = 0; i < (r.fodder ?? 0); i++) (s.pendingTavern ??= []).push('fred');
       if ((r.attack ?? 0) > 0 || (r.health ?? 0) > 0) buffFodderRunWide(s, r.attack ?? 0, r.health ?? 0, `Quest: ${def.name}`);
       break;
+    case 'gainMaxGold':
+      s.maxEmbers += r.amount; // Shop License: permanent +max Gold
+      break;
+    case 'discover':
+      // Key Findings: open a minion Discover of your current tier.
+      openDiscover(s, { kind: 'minion', tier: s.tier });
+      break;
+    case 'dupeFirstBuy':
+      s.dupeFirstBuyEachTurn = true; // Dupes: the first minion bought each turn is copied to hand
+      break;
+    case 'spellRepeat':
+      // Ancient Runes (always) → all spells cast twice; Spell Thesis (firstEachTurn) → first spell each turn twice.
+      if (r.scope === 'always') s.spellDoubleAlways = true;
+      else s.spellFirstDoubleEachTurn = true;
+      break;
+    case 'minionCost':
+      s.minionCostOverride = r.cost; // Merchant's Mark: shop minions cost this much
+      break;
+    case 'slaughterRepeat':
+      s.slaughterFirstEachCombat = (s.slaughterFirstEachCombat ?? 0) + 1; // Author's Hand
+      break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
       for (const sub of r.rewards) applyQuestReward(s, { ...def, reward: sub }, allowRepeat);
@@ -1640,6 +1696,8 @@ function questCombatMods(s: RunState): QuestCombatMods {
     deepHunger: f?.deepHunger,
     contractRewrite: f?.contractRewrite,
     pitWithoutEndImps: s.pitWithoutEndImps || undefined,
+    doubleLeftmostAttack: f?.doubleLeftmostAttack,
+    slaughterFirstEachCombat: s.slaughterFirstEachCombat || undefined,
   };
 }
 

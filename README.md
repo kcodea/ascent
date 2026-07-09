@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Rulebreaker neutral quests.** A 13-quest batch of economy / spell / rule-bending neutral quests (+ Chimerus for
+  Dragons). Adds the `winRound` / `castSpell` / compound `authorsHand` objectives and rule-bending rewards — Dupes
+  (copy your first buy each turn), Merchant's Mark (2g minions), Ancient Runes (spells cast twice), Rulebreaker's
+  Crown (double the leftmost minion's Attack) — plus Goldcrafter / Lazarus / Taurus the Truth Bringer / Chimerus.
 - **Demon quests — the fifth and final authored tribe.** The Fodder/Imp/Consume quest set (9 quests + Contract Imp /
   Herald of the Apocalypse / Run Maw / Implosion). Adds `consumeFodder` / `consumeStats` / `summonImp` objectives and
   the Deep Hunger, Contract Rewrite, Pit Without End, and Run Maw combat mechanics. **All five tribes + neutral are

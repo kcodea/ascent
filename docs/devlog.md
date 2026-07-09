@@ -16,6 +16,26 @@ validator already checks, so they can't drift. `refViewsByUid` now merges the ma
 references aren't effect params, e.g. Feed *consumes* Fodder) with the auto-derived set, so any card that mentions
 another surfaces it on hover. Verified: typecheck + lint + **748 tests** (new: Spark Capacitor → Spark Plug, and
 every card's derived refs resolve to a real card and never include itself) + `build:web`, all green.
+### fix(sim): Shop License's +max Gold is now permanent (above the cap) + refresh Chronos art
+
+**Bug:** Shop License's `gainMaxGold` did `s.maxEmbers += amount`, but the per-wave growth
+`Math.max(maxEmbers, min(cap, maxEmbers + 1))` re-levels a below-cap value to the cap — so a +2 at wave 4 (max
+~7) just reached the 10 cap a couple waves early and the bonus vanished by mid-game. **Fix:** a persistent
+additive `maxGoldBonus` (state) that `gainMaxGold` bumps instead, added on top of the capped `maxEmbers` in the
+turn-start Gold formula and the UI's next-turn Gold projection; the grant also lands in this turn's spendable
+Gold immediately. (Nadja / Mana Font keep working via the existing above-cap `Math.max` path.) Regression test:
+a run at the cap with `maxGoldBonus: 2` starts the next turn with cap + 2, not clamped.
+
+Also refreshed **Chronos** minion art from the updated master (2.5 MB PNG → 77 KB WebP).
+
+Verified: typecheck + lint + **747 tests** (new max-Gold persistence test) + `build:web`, all green.
+### fix(ui): Deathrattle skull now pops on a Rise death too
+
+The skull-shatter firing loop skipped every `rise` death, so a unit with **both** Rise and a Deathrattle got
+no skull when it died (even though it procs its rattle then). Dropped the `e.rise` exclusion (owner ruling) —
+the `onDeath` check still gates it, so a pure-Rise unit gets nothing but a Rise+Deathrattle unit now pops the
+skull as it dies (the body still re-forms via the existing reborn path; the card keeps its `dying rising`
+fade-in-place, not `dying dr`). typecheck green.
 
 ### chore(art): refresh art from masters + optimize the remaining PNG minions to WebP
 
@@ -30,6 +50,7 @@ art updates that landed: **Cassen's portrait + hero-power art**. The reward-toke
 Broker, …) and the other un-optimized PNG minions are now WebP. Quest art was verified against the masters (no
 changes) and stays PNG — `optimize-art` doesn't process `art/quests/` (still ~89 MB; a WebP pass there is a
 worthwhile follow-up). Build loads all art (119 Compendium images, 0 broken).
+
 ### tweak(ui): Deathrattle — less debris + louder burst SFX
 
 Owner tuning on the Deathrattle skull FX: fewer flying pieces on the explosion — `DR_GRID` 8 → **6** (fewer,

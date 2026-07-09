@@ -567,11 +567,13 @@ export function useCombatReplay(
       const e = events[i];
       if (e?.type === 'death' && e.rise && e.target !== impactAtk) burstDeathAuras(e.target, rectOf(e.target));
     }
-    // Deathrattle skull-shatter: any dying unit whose card has an onDeath effect (a Deathrattle) — REAL deaths
-    // only (a Rise body returns, so no shatter). Fires the painted bone skull that pops + explodes over it.
+    // Deathrattle skull-shatter: any dying unit whose card has an onDeath effect (a Deathrattle) fires the
+    // painted bone skull — INCLUDING a Rise death. A unit with both Rise + a Deathrattle procs its rattle as it
+    // dies (owner ruling), so the skull pops even though the body will re-form; a pure-Rise unit (no onDeath)
+    // still gets nothing.
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
-      if (e?.type !== 'death' || e.rise) continue;
+      if (e?.type !== 'death') continue;
       if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);

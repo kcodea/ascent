@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Front to Back scales Attack/Health independently.** A `+0/+2` (asymmetric spell-power) build now escalates
+  **+2/+4** per cast instead of symmetrically — the two stats diverge as intended, and every surface prints the
+  true split value.
+- **New minion — Tauntbreaker** (T4 Neutral 6/4, Ward + Flurry). Its attacks strip **Taunt** and **Rise** off the
+  enemy it hits — break past a Taunt wall and deny the Rise on the same lethal swing. Flurry disarms two a turn.
 - **End-Combat is one synchronized crossfade.** Leaving the arena no longer snaps: the **End Combat** button now
   fades every combat unit + FX out together in one beat, then fades the recruit board + surviving minions back in
   together. Opacity-only, so it stays snappy.

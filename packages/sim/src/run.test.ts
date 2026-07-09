@@ -2113,6 +2113,27 @@ describe('run loop (@game/sim)', () => {
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([9, 9]); // 3/3 + 6/6 (step now compounds spell power)
   });
 
+  it('Front to Back scales Attack and Health INDEPENDENTLY (owner 2026-07-09)', () => {
+    // ASYMMETRIC spell power +0/+2 (Cinderwing-style). Cast 1: a = 2+0+0 = 2, h = 2+0+2 = 4 → +2/+4;
+    // the steps grow independently (Attack +2, Health +4).
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], spellBonus: { attack: 0, health: 2 },
+      board: [oneNeutral('m', { attack: 0, health: 0 })],
+      hand: [
+        { uid: 's1', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+        { uid: 's2', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2, 4]);
+    expect([s.frontToBackBonus, s.frontToBackBonusH]).toEqual([2, 4]); // the escalation steps are independent
+    // Cast 2: a = 2 + 2 + 0 = 4, h = 2 + 4 + 2 = 8 → +4/+8. Target ends at 2/4 + 4/8 = 6/12.
+    s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([6, 12]);
+    // Live text with +0/+2 spell power: grant + improvement both green to +2/+4.
+    expect(spellDisplayText('fronttoback', 0, 0, 2, 0, 0)).toBe('Give a minion **{{+2/+4}}**. Improve this by **{{+2/+4}}**.');
+  });
+
   it('Mana Font raises max Mana permanently but does NOT refill current Mana', () => {
     let s: RunState = {
       ...createRun(1), embers: 2, maxEmbers: 4, shop: [],

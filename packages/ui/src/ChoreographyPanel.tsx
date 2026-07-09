@@ -49,6 +49,7 @@ export function ChoreographyPanel() {
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>🎬 Choreography <span>dev · next moment · drag</span></div>
       <div className="choreo-top">
         <label title={PROP_DESC.tempo}>tempo <input type="range" min={0.5} max={3} step={0.05} value={cfg.speed} onChange={(e) => { setChoreoValue('speed', Number(e.target.value)); refresh(); }} /> {cfg.speed.toFixed(2)}×</label>
+        <label title="Consequence overlap — how soon a summon / Reborn rides on the preceding action's FX. Lower = more in tandem (0 = simultaneous); the full linger is bypassed.">overlap <input type="range" min={0} max={600} step={10} value={cfg.overlapMs} onChange={(e) => { setChoreoValue('overlapMs', Number(e.target.value)); refresh(); }} /> {cfg.overlapMs}ms</label>
         <button className="sfxmix-copy" onClick={() => setFireKey((n) => n + 1)} title={PROP_DESC.preview}>▶ Preview</button>
         <button className="sfxmix-copy" onClick={() => void navigator.clipboard?.writeText(scoreJson())} title={PROP_DESC.copy}>Copy score</button>
         <button className="sfxmix-copy" onClick={() => { resetScore(); resetChoreoConfig(); refresh(); }} title={PROP_DESC.reset}>Reset</button>

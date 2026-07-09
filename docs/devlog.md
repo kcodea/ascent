@@ -39,6 +39,19 @@ mirroring the existing Better Bot `rallyMechAtk` weld path end-to-end:
 
 ## 2026-07-08 (session 27)
 
+### feat(ui): combat consequence-overlap — summon / Reborn play nearly in tandem
+
+Owner-reported: when a Deathrattle-summon unit dies attacking into a Reborn unit, the whole death + summon
+animation played out FIRST, then the Reborn re-form — because the replay blocks on each beat's full linger and
+the sim orders the events `death → summons → reborn` (reborn last). Added **consequence-overlap** to the beat
+clock: when the NEXT beat is a summon or a Reborn re-form (`OVERLAP_INTO`), it starts after a short
+`overlapMs` (default **140 ms**, ÷ combatSpeed) instead of `beatDelay × speed`. The preceding beat's FX are
+fire-and-forget (skull, aura burst, summon pop), so nothing is cut off — the chain just plays nearly in
+tandem. Attacks are engine-driven (scheduler guard), so swing pacing is untouched. `overlapMs` is a new
+`ChoreoConfig` field, live-tunable via a new **overlap** slider in the 🎬 Choreography panel (0 = simultaneous).
+Verified: typecheck + lint + **751 tests** (new: a summon/reborn next-beat overlaps to `overlapMs`, first beat
+and non-consequence beats keep their linger) + build:web green.
+
 ### tweak(ui): hold the board reflow on a Deathrattle death until the skull bursts
 
 Owner request: on a Deathrattle death, neighbours shouldn't slide in to fill the empty slot until the skull

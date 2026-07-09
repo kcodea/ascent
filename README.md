@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **End-Combat is one synchronized crossfade.** Leaving the arena no longer snaps: the **End Combat** button now
+  fades every combat unit + FX out together in one beat, then fades the recruit board + surviving minions back in
+  together. Opacity-only, so it stays snappy.
 - **Quest UI polish.** The Author's Hand quest now shows its objective as three progress lines (Shouts / Echoes /
   Rallies triggered N/6); long quest text now fits inside the choice-box frame (cards grow + level to equal
   height). (Pack Leader stays a Start-of-Combat buff — the #226 permanent-on-play version was reverted per owner.)

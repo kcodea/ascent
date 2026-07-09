@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { CardDef, Keyword, Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
+import type { CardDef, Keyword, QuestReward, Tribe } from '@game/core';
+import { BUYABLE_CARDS, CARD_INDEX, QUEST_DEFS, SPELL_CARDS } from '@game/content';
 import { Card, type CardView } from './Card';
 import { Icon } from './Icon';
 import { useGame } from './store';
@@ -20,8 +20,34 @@ const EVOLUTION_CARDS: CardDef[] = (() => {
   return [...ids].map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
 })();
 
-/** Left-rail category: a real tribe, or the tribe-less "spells" bucket. */
-type Category = Tribe | 'spells';
+/** Quest-reward cards — the token minions/spells a completed quest grants. They're reward-exclusive
+ *  (`token: true`), so they never appear in `BUYABLE_CARDS`/`SPELL_CARDS`; the Compendium surfaces them in
+ *  their own "Quest Rewards" category. Walks every quest's reward (including nested `multi` rewards) for
+ *  concrete `cards` grants, mapping each to the granting quest's tribe (for run-scoping — neutral wins when a
+ *  card is granted by quests of more than one tribe, since neutral quests are always offered). */
+const QUEST_REWARD_CARDS: { card: CardDef; tribe: Tribe }[] = (() => {
+  const byId = new Map<string, Tribe>();
+  const walk = (r: QuestReward, tribe: Tribe): void => {
+    if (r.kind === 'grant' || r.kind === 'recurringGrant') {
+      for (const id of r.cards ?? []) if (byId.get(id) !== 'neutral') byId.set(id, tribe);
+    } else if (r.kind === 'multi') {
+      for (const sub of r.rewards) walk(sub, tribe);
+    }
+  };
+  for (const q of QUEST_DEFS) walk(q.reward, q.tribe);
+  return [...byId]
+    .map(([id, tribe]) => ({ card: CARD_INDEX[id], tribe }))
+    .filter((x): x is { card: CardDef; tribe: Tribe } => !!x.card);
+})();
+const QUEST_REWARD_IDS = new Set(QUEST_REWARD_CARDS.map((x) => x.card.id));
+/** Cards that belong in the MINION gallery: buyable minions + evolution units. A card can *also* be a quest
+ *  reward (Badgington is a normal Tier-4 Beast that Apex Hunt grants) — it then shows in BOTH its tribe and the
+ *  Quest Rewards category. Membership sets keep those overlaps correct instead of hiding a real minion. */
+const MINION_POOL_IDS = new Set([...BUYABLE_CARDS, ...EVOLUTION_CARDS].map((c) => c.id));
+const SPELL_POOL_IDS = new Set(SPELL_CARDS.map((c) => c.id));
+
+/** Left-rail category: a real tribe, the tribe-less "spells" bucket, or the "quests" (quest-reward) bucket. */
+type Category = Tribe | 'spells' | 'quests';
 
 const CAT_META: Record<Category, { label: string; icon: string }> = {
   beast: { label: 'Beasts', icon: 'paw' },
@@ -31,6 +57,7 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
   demon: { label: 'Demons', icon: 'eye' },
   neutral: { label: 'Neutral', icon: 'star' },
   spells: { label: 'Spells', icon: 'sc' },
+  quests: { label: 'Quest Rewards', icon: 'gift' },
 };
 
 const TIERS = [1, 2, 3, 4, 5, 6] as const;
@@ -163,34 +190,47 @@ export function MinionBook() {
   // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
   const tribes: Tribe[] = showTitle ? ALL_TRIBES : run.tribes;
 
-  // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells.
-  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells'], [tribes]);
+  // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells + Quest Rewards.
+  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'quests'], [tribes]);
 
-  // Every eligible card: minions whose tribe is neutral or in `tribes`, plus every tavern spell. Tokens are
-  // excluded — `BUYABLE_CARDS` already drops them.
+  // Every eligible card: minions whose tribe is neutral or in `tribes`, plus every tavern spell and every
+  // quest-reward card whose granting quest is in scope. Buyable tokens are dropped by `BUYABLE_CARDS`; the
+  // quest-reward tokens are re-added here (they're the whole point of the Quest Rewards category).
   const allCards = useMemo(() => {
     const inScope = (c: CardDef): boolean => c.tribe === 'neutral' || tribes.includes(c.tribe);
     const minions = BUYABLE_CARDS.filter(inScope);
     // Evolution units (Spirit Worgen, Taragosa) — shown alongside their tribe's minions though never buyable.
     const evolutions = EVOLUTION_CARDS.filter(inScope);
-    return [...minions, ...evolutions, ...SPELL_CARDS];
+    const rewards = QUEST_REWARD_CARDS.filter((x) => x.tribe === 'neutral' || tribes.includes(x.tribe)).map((x) => x.card);
+    // De-dupe by id: a card can appear in more than one bucket (Badgington is a buyable Beast AND an Apex Hunt
+    // reward). The category filter below re-derives which gallery it shows in from the pool-membership sets.
+    const seen = new Set<string>();
+    const out: CardDef[] = [];
+    for (const c of [...minions, ...evolutions, ...SPELL_CARDS, ...rewards]) {
+      if (!seen.has(c.id)) { seen.add(c.id); out.push(c); }
+    }
+    return out;
   }, [tribes]);
 
   const filtered = useMemo(() => {
-    // Spells are opt-in + additive: they show ONLY when the Spells chip is toggled on, and never narrow the
-    // minion view. Minions filter by the selected TRIBES alone (empty = all tribes); the Spells selection is an
-    // orthogonal "also include spells" axis, not a narrowing category — so by default (nothing selected) the
-    // gallery is minions-only, and turning Spells on adds them to whatever minions are showing.
+    // Spells + Quest Rewards are EXCLUSIVE modes, not additive axes: selecting either shows ONLY that pool
+    // (or both pools, if both are on) and hides the minion gallery entirely. With neither selected, the gallery
+    // is minions-only — spells and quest rewards never leak into a tribe search unless the player toggles them on.
+    // Membership is by pool set (not the `spell` flag), so a minion that's also a reward shows correctly in both.
     const showSpells = cats.has('spells');
-    const tribeSel = [...cats].filter((x): x is Tribe => x !== 'spells');
+    const showQuests = cats.has('quests');
+    const special = showSpells || showQuests;
+    const tribeSel = [...cats].filter((x): x is Tribe => x !== 'spells' && x !== 'quests');
     return allCards
       .filter((c) => {
-        const tierOK = tiers.size === 0 || tiers.has(c.tier);
-        const catOK = c.spell
-          ? showSpells
-          : tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
-        const kwOK = !kw || kw.match(c);
-        return tierOK && catOK && kwOK;
+        if (tiers.size > 0 && !tiers.has(c.tier)) return false;
+        if (kw && !kw.match(c)) return false;
+        if (special) {
+          return (showQuests && QUEST_REWARD_IDS.has(c.id)) || (showSpells && SPELL_POOL_IDS.has(c.id));
+        }
+        // Minion mode: buyable minions + evolutions only, narrowed by the selected tribes.
+        if (!MINION_POOL_IDS.has(c.id)) return false;
+        return tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
       })
       .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
   }, [allCards, tiers, cats, kw]);
@@ -224,7 +264,17 @@ export function MinionBook() {
         <div className="book-head">
           <div className="book-title"><Icon name="house" /> Compendium</div>
           <div className="book-sub">
-            {glossary ? 'Keywords & abilities — click one to see its minions' : `${filtered.length} of ${allCards.length} cards ${showTitle ? 'in the game' : 'findable this run'}${cats.has('spells') ? '' : ' · Spells hidden'}`}
+            {glossary
+              ? 'Keywords & abilities — click one to see its minions'
+              : `${filtered.length} ${
+                  cats.has('spells') && cats.has('quests')
+                    ? 'spells & quest rewards'
+                    : cats.has('quests')
+                      ? 'quest rewards'
+                      : cats.has('spells')
+                        ? 'spells'
+                        : 'minions'
+                } ${showTitle ? 'in the game' : 'findable this run'}`}
           </div>
           <button
             className={`book-gloss${glossary ? ' on' : ''}`}
@@ -304,7 +354,7 @@ export function MinionBook() {
               <button
                 key={c}
                 className={`book-cat${cats.has(c) ? ' on' : ''}`}
-                style={{ '--c': c === 'spells' ? 'var(--acc)' : `var(--t-${c})` } as CSSProperties}
+                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'quests' ? 'var(--gold)' : `var(--t-${c})` } as CSSProperties}
                 onClick={() => toggleCat(c)}
                 aria-pressed={cats.has(c)}
                 title={CAT_META[c].label}

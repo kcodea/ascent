@@ -4861,7 +4861,7 @@ describe('Undead quests — combat-objective completion + reward application', (
 
   it('boneThrone reward (The Bone Throne) records its death step', () => {
     const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_the_bone_throne', progress: 0, completed: false }] }, { playerDeaths: 30 });
-    expect(s.boneThroneStep).toBe(7);
+    expect(s.boneThroneStep).toBe(4); // Avenge (4)
   });
 
   it('a repeatable quest (Ossuary Rite) re-arms and grants once per threshold crossed', () => {
@@ -4902,8 +4902,8 @@ describe('Mech/neutral quests — objectives, filtered grants, new rewards, card
   const mag = (uid: string) => ({ uid, cardId: 'moneybot', tribe: 'mech' as const, attack: 3, health: 3, keywords: ['M'] as Keyword[], golden: false });
 
   it('playAttachment ticks on playing a Magnetic; Perfect Machine grants Perfect Core', () => {
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_perfect_machine', progress: 5, completed: false }], board: [], hand: [mag('h1')] };
-    s = reduce(s, { type: 'play', uid: 'h1' });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_perfect_machine', progress: 4, completed: false }], board: [], hand: [mag('h1')] };
+    s = reduce(s, { type: 'play', uid: 'h1' }); // 5th attachment → completes (count 5)
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.hand.some((c) => c.cardId === 'perfectcore')).toBe(true);
   });
@@ -4966,8 +4966,8 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
   });
 
   it('consumeStats objective (Maw of the Run) counts total Consumed stats → grants Run Maw', () => {
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_maw_of_the_run', progress: 196, completed: false }], board: [demon('d1', 'feed')], hand: [demon('h1', 'heraldapoc')] };
-    s = reduce(s, { type: 'play', uid: 'h1' }); // 2 Fodder Consumed = 4 stats → 196 + 4 = 200
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_maw_of_the_run', progress: 96, completed: false }], board: [demon('d1', 'feed')], hand: [demon('h1', 'heraldapoc')] };
+    s = reduce(s, { type: 'play', uid: 'h1' }); // 2 Fodder Consumed = 4 stats → 96 + 4 = 100
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.hand.some((c) => c.cardId === 'runmaw')).toBe(true);
   });

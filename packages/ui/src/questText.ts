@@ -43,6 +43,12 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Consume ${o.count} total stats`;
     case 'summonImp':
       return `Summon ${o.count} ${o.count === 1 ? 'Imp' : 'Imps'}`;
+    case 'winRound':
+      return `Win ${o.count} ${o.count === 1 ? 'round' : 'rounds'}`;
+    case 'castSpell':
+      return `Cast ${o.count} spells`;
+    case 'authorsHand':
+      return `Trigger Shout, Echo, and Rally ${o.count} times each`;
     case 'sell':
       return `Sell ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'}`;
     case 'summon':
@@ -94,9 +100,13 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       if (r.randomTribe && (r.randomCount ?? 0) > 0) parts.push(randomMinionPhrase(r.randomTribe, r.randomCount!));
       if ((r.randomSpell ?? 0) > 0) parts.push(r.randomSpell === 1 ? 'a random spell' : `${r.randomSpell} random spells`);
       if (r.randomFilter) parts.push(`a random ${FILTER_NAME[r.randomFilter]} minion${r.randomFilterExactTier ? ' of your tier' : ''}`);
-      for (const id of r.cards ?? []) {
+      // Group duplicate card ids so "['keyfindings','keyfindings']" reads "2 Key Findings" (not "a X + a X").
+      const cardCounts = new Map<string, number>();
+      for (const id of r.cards ?? []) cardCounts.set(id, (cardCounts.get(id) ?? 0) + 1);
+      for (const [id, n] of cardCounts) {
         const kws = r.grantKeywords?.length ? ` with ${keywordPhrase(r.grantKeywords)}` : '';
-        parts.push(`a ${CARD_INDEX[id]?.name ?? 'card'}${kws}`);
+        const name = CARD_INDEX[id]?.name ?? 'card';
+        parts.push(n === 1 ? `a ${name}${kws}` : `${n} ${name}${kws}`);
       }
       let text = parts.length ? (parts[0]!.startsWith('a ') || /^\d/.test(parts[0]!) ? `Get ${parts.join(' + ')}` : parts.join(' + ')) : '';
       if (r.repeatInTurns) {
@@ -142,6 +152,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return 'Start of Combat: your rightmost Demon gains "Echo: summon 2 Imps with Ward"';
         case 'pitWithoutEnd':
           return `Your last friendly death each combat summons ${r.amount ?? 0} Imps`;
+        case 'doubleLeftmostAttack':
+          return 'Start of Combat: your leftmost minion gains double its Attack';
       }
       return '';
     case 'shoutRepeat':
@@ -166,6 +178,18 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       if ((r.attack ?? 0) > 0 || (r.health ?? 0) > 0) parts.push(`Fodder gains ${statPhrase(r.attack ?? 0, r.health ?? 0)}`);
       return parts.join('. ');
     }
+    case 'gainMaxGold':
+      return `Gain +${r.amount} max Gold`;
+    case 'discover':
+      return 'Discover a card from your tier';
+    case 'dupeFirstBuy':
+      return 'Get a second copy of the first minion you buy each turn';
+    case 'spellRepeat':
+      return r.scope === 'always' ? 'Your spells cast twice' : 'Your first spell each turn casts twice';
+    case 'minionCost':
+      return `Minions cost ${r.cost} Gold from the shop`;
+    case 'slaughterRepeat':
+      return 'Your first Slaughter each combat triggers an extra time';
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

@@ -198,9 +198,14 @@ look because the engine already produces the data.
   engine) + 4 reward cards. Adds `consumeFodder`/`consumeStats`/`summonImp` objectives, `fodderReward`, and the Deep
   Hunger / Contract Rewrite / Pit Without End / Run Maw combat mechanics. **All five tribes + neutral are now fully
   authored — every `Test ·` placeholder quest is retired.**
-- **Remaining:** wire Undead + Mech + Demon reward-card + quest art; and a **balance/curve retune** — the counter
-  matrix + enemy curve / Line + committed opponent pool want a pass now that all quest content is in. **Size:** M
-  (balance) + art wiring.
+- **✅ Rulebreaker neutral quests + Chimerus (session 26, → devlog):** 12 neutral "Rulebreaker" quests (economy /
+  spell / rule-bending) + 1 Dragon (Chimerus) + 4 cards (Goldcrafter / Lazarus / Taurus the Truth Bringer / Chimerus).
+  Adds `winRound` / `castSpell` / `authorsHand` (compound) objectives; `gainMaxGold` / `discover` / `dupeFirstBuy` /
+  `spellRepeat` / `minionCost` / `slaughterRepeat` rewards; and the double-leftmost-attack, engrave-all, and
+  first-Slaughter-doubler combat mechanics.
+- **Remaining:** wire Undead + Mech + Demon + Rulebreaker reward-card + quest art; and a **balance/curve retune** —
+  the counter matrix + enemy curve / Line + committed opponent pool want a pass now that the quest content is in.
+  **Size:** M (balance) + art wiring.
 
 ### C2. Mastery Minions
 - Normal shop minions that **improve through repeated actions** (not scheduled, not quests) — find, nurture,

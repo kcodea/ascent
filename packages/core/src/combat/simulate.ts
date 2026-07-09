@@ -211,6 +211,8 @@ export function simulate(
   // board-wipe Imp summon to once per fight.
   let playerImpsSummoned = 0;
   let pitWithoutEndDone = false;
+  // Author's Hand: its "first Slaughter each combat fires extra" bonus is a one-shot per fight.
+  let firstPlayerSlaughterDone = false;
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
   let enemyDeaths = 0;
@@ -1012,6 +1014,18 @@ export function simulate(
                 FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
               }
             }
+            // Author's Hand: the FIRST player Slaughter each combat fires an extra time (any tribe; additive with
+            // Law of Teeth). Re-runs only this killer's own on-kill effects, once per combat.
+            const slfe = questMods.slaughterFirstEachCombat ?? 0;
+            if (slfe > 0 && killerAlive && !firstPlayerSlaughterDone) {
+              firstPlayerSlaughterDone = true;
+              for (let r = 0; r < slfe; r++) {
+                for (const effect of killer.effects) {
+                  if (effect.on !== 'onKill') continue;
+                  FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+                }
+              }
+            }
           }
         }
       }
@@ -1094,6 +1108,11 @@ export function simulate(
   if (questMods.bloodTrail) bloodTrailMinion = boards.player.find((m) => !m.dead && m.health > 0);
   // Deep Hunger: mark the leftmost living Demon — its kills queue 3 Fodder into the next shop (below).
   if (questMods.deepHunger) deepHungerMinion = boards.player.find((m) => !m.dead && m.health > 0 && isDemon(m));
+  // Rulebreaker's Crown: at Start of Combat your leftmost living minion gains +Attack equal to its Attack (doubles it).
+  if (questMods.doubleLeftmostAttack) {
+    const lead = boards.player.find((m) => !m.dead && m.health > 0);
+    if (lead && lead.attack > 0) { nextStep(); ctx.buff(lead, lead.attack, 0, lead.uid); }
+  }
   // Contract Rewrite: the rightmost living Demon gains a Deathrattle — summon 2 Imps with Ward (Divine Shield).
   if (questMods.contractRewrite) {
     const demon = [...boards.player].reverse().find((m) => !m.dead && m.health > 0 && isDemon(m));
@@ -1103,10 +1122,21 @@ export function simulate(
       registerEffect(demon, eff); // register just the new Deathrattle (effects were registered at combat start)
     }
   }
+  // Taurus the Truth Bringer "triggers first": run any scEngraveAll BEFORE the normal SoC pass so every minion's
+  // own Start-of-Combat gains are engraved too. Both sides (a captured enemy board's Taurus is live).
   for (const side of ['player', 'enemy'] as const) {
     for (const minion of [...boards[side]]) {
       if (minion.dead || minion.health <= 0) continue;
       for (const effect of minion.effects) {
+        if (effect.on === 'startOfCombat' && effect.do === 'scEngraveAll') { nextStep(); FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, {}); }
+      }
+    }
+  }
+  for (const side of ['player', 'enemy'] as const) {
+    for (const minion of [...boards[side]]) {
+      if (minion.dead || minion.health <= 0) continue;
+      for (const effect of minion.effects) {
+        if (effect.do === 'scEngraveAll') continue; // already ran in the priority pass above
         if (effect.on !== 'startOfCombat') continue;
         const fn = FACTORIES[effect.do];
         if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }

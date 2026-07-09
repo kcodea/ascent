@@ -25,14 +25,19 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Rulebreaker neutral quests.** A 13-quest batch of economy / spell / rule-bending neutral quests (+ Chimerus for
+  Dragons). Adds the `winRound` / `castSpell` / compound `authorsHand` objectives and rule-bending rewards — Dupes
+  (copy your first buy each turn), Merchant's Mark (2g minions), Ancient Runes (spells cast twice), Rulebreaker's
+  Crown (double the leftmost minion's Attack) — plus Goldcrafter / Lazarus / Taurus the Truth Bringer / Chimerus.
 - **Deathrattle bone-skull shatter FX.** When a unit with a Deathrattle dies, a painted bone skull-and-crossbones
   pops up over it and **explodes** into flying bone fragments, splinters, and smoke, while the card fades in place.
   UI-only (no engine change); art at `apps/web/public/fx/skull-crossbones.png`, effect in `pixiFx.deathrattle`.
-- **Corner-clack combat feel.** The attack lunge now lands as a physical corner strike: a pure
+- **Corner-clack combat feel + impact FX.** The attack lunge now lands as a physical corner strike: a pure
   `contactGeometry` helper stops the attacker at the defender's surface (no more center-overshoot), tilts it
   to lead with a corner and rebound, the defender counter-spins, and the impact spark fires from the actual
-  clack point. Strike duration scales with travel distance, so near and far attacks feel equally paced. Tuned
-  on an interactive strike previewer and baked. Presentation-only — no fight-outcome changes.
+  clack point — which also erupts a card-drop-style dust billow and an expanding energy pulse ring. Strike
+  duration scales with travel distance, so near and far attacks feel equally paced. Tuned on an interactive
+  strike previewer and baked. Presentation-only — no fight-outcome changes.
 - **Demon quests — the fifth and final authored tribe.** The Fodder/Imp/Consume quest set (9 quests + Contract Imp /
   Herald of the Apocalypse / Run Maw / Implosion). Adds `consumeFodder` / `consumeStats` / `summonImp` objectives and
   the Deep Hunger, Contract Rewrite, Pit Without End, and Run Maw combat mechanics. **All five tribes + neutral are

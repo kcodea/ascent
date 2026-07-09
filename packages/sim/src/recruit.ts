@@ -258,8 +258,19 @@ function spellCastMult(state: RunState): number {
  */
 export function spellCasts(state: RunState, def: CardDef): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
-  const base = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
-  return base * (state.nextSpellMult ?? 1); // Nimbus: a pending charge makes the next spell cast twice (×3 golden)
+  let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
+  mult *= state.nextSpellMult ?? 1; // Nimbus: a pending charge makes the next spell cast twice (×3 golden)
+  if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
+  // Spell Thesis: the FIRST spell each turn casts twice (consumed here — the per-play cast-count authority).
+  if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) { mult *= 2; state.spellFirstUsedThisTurn = true; }
+  return mult;
+}
+
+/** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
+export function spellCostReduction(state: RunState): number {
+  let n = state.spellCostMod;
+  for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
+  return n;
 }
 
 /**
@@ -2193,14 +2204,18 @@ function makeContext(state: RunState): RecruitContext {
         return undefined;
       }
       const buff = cardBuff(state, card.id); // a conjured Fodder carries Ritualist's run buff
+      // A summoned Imp inherits the run-wide Imp aura (Imp Overseer / Brood Matron / Bane) — so an Imp summoned
+      // out of combat (e.g. Crypt Broker firing an Imp-summoning Echo) carries the buff, like a board/hand Imp.
+      const impA = card.imp ? (state.impBuff?.attack ?? 0) : 0;
+      const impH = card.imp ? (state.impBuff?.health ?? 0) : 0;
       const minion: BoardCard = {
         uid: `b${state.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
         // A summoned minion inherits the run-wide tribe buy-auras too (Squirl Scout's Beast Attack on a Stray,
         // Lantern on an Undead token, Scrap Herald on a magnetized token) — same bake as bought/conjured beasts.
-        attack: card.attack + buff.attack + undeadBuyBonus(state, card),
-        health: card.health + buff.health + buyHealthAura(state, card),
+        attack: card.attack + buff.attack + undeadBuyBonus(state, card) + impA,
+        health: card.health + buff.health + buyHealthAura(state, card) + impH,
         keywords: [...card.keywords],
         golden: false,
       };

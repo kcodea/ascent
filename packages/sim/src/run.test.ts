@@ -43,7 +43,7 @@ import {
   type RunState,
 } from './index';
 import type { BoardMinion } from '@game/core';
-import { applyEndOfTurn, applyGoldSpent } from './recruit';
+import { applyEndOfTurn, applyGoldSpent, spellCasts, spellCostReduction } from './recruit';
 import { rollShop } from './shop';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
@@ -4479,13 +4479,21 @@ describe('quests (M3 framework)', () => {
     }
   });
 
-  it('generateQuestOffer: 3 quests of the wave tier — exactly one neutral + 2 distinct tribes', () => {
+  it('generateQuestOffer: 4 quests of the wave tier — exactly one neutral + 3 distinct tribes', () => {
     const offer = generateQuestOffer({ ...createRun(1), wave: 4 });
-    expect(offer.length).toBe(3);
+    expect(offer.length).toBe(4);
     const defs = offer.map((id) => QUEST_INDEX[id]!);
     expect(defs.every((q) => q.tier === 'lesser')).toBe(true);
     expect(defs.filter((q) => q.tribe === 'neutral').length).toBe(1); // neutral always, exactly one
-    expect(new Set(defs.map((q) => q.tribe)).size).toBe(3); // all three tribes distinct
+    expect(new Set(defs.map((q) => q.tribe)).size).toBe(4); // 1 neutral + 3 distinct non-neutral tribes
+    expect(new Set(offer).size).toBe(offer.length); // no duplicate quest within the offer
+  });
+
+  it('never re-offers a quest you already hold', () => {
+    const first = generateQuestOffer({ ...createRun(1), wave: 4 });
+    const taken = first.map((id) => ({ questId: id, progress: 0, completed: false }));
+    const second = generateQuestOffer({ ...createRun(1), wave: 4, activeQuests: taken });
+    expect(second.some((id) => first.includes(id))).toBe(false); // every slot is a fresh, un-taken quest
   });
 
   it('generateQuestOffer is deterministic (seeded off seed + wave) and empty off quest-waves', () => {
@@ -4505,7 +4513,7 @@ describe('quests (M3 framework)', () => {
     s = reduce(s, { type: 'faceOmen' }); // → combat (empty board loses, but survives at 200 Resolve)
     s = reduce(s, { type: 'resolveCombat' }); // → advance to wave 4
     expect(s.wave).toBe(4);
-    expect(s.questOffer?.length).toBe(3);
+    expect(s.questOffer?.length).toBe(4);
     // The shop is rolled UP FRONT now, so it can be inspected (minimized) while choosing the quest.
     expect(s.shop.length).toBeGreaterThan(0);
     // Locked: a normal tavern action is still a no-op (same state reference) while the quest offer is open.
@@ -4520,20 +4528,20 @@ describe('quests (M3 framework)', () => {
   });
 
   it('an objective ticks on its tracked action and applies its reward at the threshold', () => {
-    // q_grave_toll = objective "Summon 4 Undead" → reward: a random Undead conjured to hand. Playing an Undead
-    // minion that lands cleanly (no Battlecry / summon buff / Magnetic / token-summon) ticks `summon` by exactly 1.
-    const undead = BUYABLE_CARDS.find(
-      (c) => c.tribe === 'undead' && !c.spell && !c.chooseOne && !c.target && !c.keywords.includes('M') && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'),
+    // q_forest_grove = objective "Summon 5 Beasts" → reward: a random Beast to hand. Playing a Beast that lands
+    // cleanly (no Battlecry / summon buff / Magnetic / token-summon) ticks `summon` by exactly 1.
+    const beast = BUYABLE_CARDS.find(
+      (c) => c.tribe === 'beast' && !c.spell && !c.chooseOne && !c.target && !c.keywords.includes('M') && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'),
     )!;
-    const mk = (uid: string): BoardCard => ({ uid, cardId: undead.id, tribe: undead.tribe, attack: undead.attack, health: undead.health, keywords: [...undead.keywords], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_grave_toll', progress: 2, completed: false }], hand: [mk('h1'), mk('h2')], board: [] };
+    const mk = (uid: string): BoardCard => ({ uid, cardId: beast.id, tribe: beast.tribe, attack: beast.attack, health: beast.health, keywords: [...beast.keywords], golden: false });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 3, completed: false }], hand: [mk('h1'), mk('h2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'h1' });
-    expect(s.activeQuests![0]!.progress).toBe(3);
+    expect(s.activeQuests![0]!.progress).toBe(4);
     expect(s.activeQuests![0]!.completed).toBe(false);
     s = reduce(s, { type: 'play', uid: 'h2' });
-    expect(s.activeQuests![0]!.completed).toBe(true); // 4th Undead summoned
-    // Reward: a random Undead conjured to hand (either tribe, matching the grant filter).
-    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return d?.tribe === 'undead' || d?.tribe2 === 'undead'; })).toBe(true);
+    expect(s.activeQuests![0]!.completed).toBe(true); // 5th Beast summoned
+    // Reward: a random Beast conjured to hand.
+    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return d?.tribe === 'beast' || d?.tribe2 === 'beast'; })).toBe(true);
   });
 
   it('a full bot run passes cleanly through the quest turns (no soft-lock)', () => {
@@ -4544,44 +4552,33 @@ describe('quests (M3 framework)', () => {
   });
 
   it('a summon objective counts tokens, not just the played card (Pennycat = 2 toward the goal)', () => {
-    // Forest Grove wants 4 Beast summons. Pennycat (beast, played) + its Stray (beast token) = 2 in ONE play —
-    // the "every minion entering the board" rule; a second play finishes it. Two copies each → no triples.
+    // Forest Grove wants 5 Beast summons. Pennycat (beast, played) + its Stray (beast token) = 2 in ONE play —
+    // the "every minion entering the board" rule. From progress 1, two plays (+2 each) clear the bar. Two copies
+    // each → no triples.
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 0, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 1, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'a1' });
-    expect(s.activeQuests![0]!.progress).toBe(2); // Pennycat + its summoned Stray
+    expect(s.activeQuests![0]!.progress).toBe(3); // 1 + (Pennycat + its summoned Stray)
     expect(s.activeQuests![0]!.completed).toBe(false);
     s = reduce(s, { type: 'play', uid: 'a2' });
-    expect(s.activeQuests![0]!.completed).toBe(true); // 2 more entries clears the 4-Beast bar
+    expect(s.activeQuests![0]!.completed).toBe(true); // 2 more entries clears the 5-Beast bar
   });
 
-  it('Grave Toll: summoning 4 Undead completes the quest and conjures a random Undead to hand', () => {
-    // Two DISTINCT vanilla undead (only Echoes, which don't fire on play), 2 copies each → 4 undead summons
-    // with no triple to collapse the board (a triple reuses a uid, which the summon diff would undercount).
-    const vanilla = BUYABLE_CARDS.filter((c) => (c.tribe === 'undead' || c.tribe2 === 'undead') && !c.target && !c.chooseOne && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'));
-    const picks = [vanilla[0]!, vanilla[0]!, vanilla[1]!, vanilla[1]!];
-    const hand: BoardCard[] = picks.map((def, i) => ({ uid: `u${i}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false }));
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_grave_toll', progress: 0, completed: false }], hand: [...hand], board: [] };
-    for (const c of hand) s = reduce(s, { type: 'play', uid: c.uid });
-    expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return !!d && (d.tribe === 'undead' || d.tribe2 === 'undead'); })).toBe(true);
-  });
-
-  it('a summon objective is tribe-gated: playing NEUTRAL minions does not tick "Summon 4 Undead"', () => {
+  it('a summon objective is tribe-gated: playing NEUTRAL minions does not tick "Summon 5 Beasts"', () => {
     const plain = BUYABLE_CARDS.find((c) => c.tribe === 'neutral' && !c.tribe2 && !c.chooseOne && !c.target && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'));
     if (!plain) return; // no vanilla neutral in the set — skip rather than false-fail
     const mk = (uid: string): BoardCard => ({ uid, cardId: plain.id, tribe: plain.tribe, attack: plain.attack, health: plain.health, keywords: [...plain.keywords], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_grave_toll', progress: 0, completed: false }], hand: [mk('n1'), mk('n2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 0, completed: false }], hand: [mk('n1'), mk('n2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'n1' });
     s = reduce(s, { type: 'play', uid: 'n2' });
-    expect(s.activeQuests![0]!.progress).toBe(0); // neutral summons don't count toward an Undead objective
+    expect(s.activeQuests![0]!.progress).toBe(0); // neutral summons don't count toward a Beast objective
   });
 
-  it('Forest Grove: summoning 4 Beasts grants a random Beast and schedules a repeat', () => {
-    // Pennycat (beast, played) + its Stray (beast token) = 2 Beast summons per play; two plays clear the
-    // 4-Beast bar with no triple.
+  it('Forest Grove: summoning 5 Beasts grants a random Beast and schedules a repeat', () => {
+    // Pennycat (beast, played) + its Stray (beast token) = 2 Beast summons per play; from progress 1, two plays
+    // clear the 5-Beast bar with no triple.
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 0, completed: false }], hand: [mk('m1'), mk('m2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 1, completed: false }], hand: [mk('m1'), mk('m2')], board: [] };
     for (const uid of ['m1', 'm2']) s = reduce(s, { type: 'play', uid });
     expect(s.activeQuests![0]!.completed).toBe(true);
     // Immediate reward: a random Beast landed in hand.
@@ -4751,9 +4748,9 @@ describe('Beast quests (combat objectives + rewards)', () => {
   });
 
   it('Apex Hunt (slaughter WITH Beasts) counts only beast-attributed kills', () => {
-    // 6 slaughters but only 4 by Beasts → the beast-narrowed objective sits at 4/6, incomplete.
-    const s = settle('q_apex_hunt', { playerQuestTally: { ...zeroTally(), slaughter: 6, slaughterByTribe: { beast: 4 } } });
-    expect(s.activeQuests![0]!.progress).toBe(4);
+    // 6 slaughters but only 3 by Beasts → the beast-narrowed objective sits at 3/4, incomplete.
+    const s = settle('q_apex_hunt', { playerQuestTally: { ...zeroTally(), slaughter: 6, slaughterByTribe: { beast: 3 } } });
+    expect(s.activeQuests![0]!.progress).toBe(3);
     expect(s.activeQuests![0]!.completed).toBe(false);
   });
 
@@ -4842,11 +4839,11 @@ describe('Undead quests — combat-objective completion + reward application', (
   });
 
   it('a repeatable quest (Ossuary Rite) re-arms and grants once per threshold crossed', () => {
-    // 25 Echo triggers vs a count-10 repeatable → grants twice, leaves 5 progress, stays active (not completed).
+    // 25 Echo triggers vs a count-8 repeatable → grants 3 times, leaves 1 progress, stays active (not completed).
     const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_ossuary_rite', progress: 0, completed: false }] }, { playerDeathrattles: 25 });
     expect(s.activeQuests![0]!.completed).toBe(false); // re-armed
-    expect(s.activeQuests![0]!.progress).toBe(5); // 25 - 2×10
-    expect(s.hand.filter((c) => c.cardId === 'ossuaryrite').length).toBe(2);
+    expect(s.activeQuests![0]!.progress).toBe(1); // 25 - 3×8
+    expect(s.hand.filter((c) => c.cardId === 'ossuaryrite').length).toBe(3);
   });
 
   it('Grave Robber (sell 5) grants Crypt Broker — a reward-only token, never in the shop', () => {
@@ -4962,5 +4959,111 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     for (const id of ['contractimp', 'heraldapoc', 'runmaw', 'implosion']) {
       expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
     }
+  });
+});
+
+describe('Rulebreaker quests — dupes, spell doubling, compound objective, cost mods', () => {
+  const settleWith = (s: RunState, over: Partial<CombatResult>): RunState =>
+    reduce({ ...s, phase: 'combat', lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, ...over } as CombatResult }, { type: 'resolveCombat' });
+
+  it('Dupes: winRound completes it, then the first minion bought each turn is duplicated', () => {
+    // Complete "Win 4 rounds".
+    let s: RunState = { ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_dupes', progress: 3, completed: false }] };
+    s = settleWith(s, {});
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.dupeFirstBuyEachTurn).toBe(true);
+    // Now a bought minion lands in hand TWICE (bought + dupe), and only for the first buy of the turn.
+    s = { ...s, phase: 'recruit', embers: 20, hand: [], dupeUsedThisTurn: false, shop: [{ uid: 's1', cardId: 'pack' }, { uid: 's2', cardId: 'alley' }] };
+    s = reduce(s, { type: 'buy', uid: 's1' });
+    expect(s.hand.filter((c) => c.cardId === 'pack').length).toBe(2); // bought + dupe
+    s = reduce(s, { type: 'buy', uid: 's2' });
+    expect(s.hand.filter((c) => c.cardId === 'alley').length).toBe(1); // second buy is NOT duped
+  });
+
+  it('The Author\'s Hand compound objective completes when Shout, Echo, AND Rally each reach the count', () => {
+    // Pre-loaded to 6/6/5 — one more Rally (from combat) tips it over and arms all four first-each doublers.
+    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_authors_hand', progress: 5, completed: false, subProgress: { shout: 6, echo: 6, rally: 5 } }] }, { playerRallies: 1 });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.shoutFirstDoubleEachRound).toBe(true);
+    expect(s.echoFirstEachCombat).toBe(1);
+    expect(s.rallyFirstEachCombat).toBe(1);
+    expect(s.slaughterFirstEachCombat).toBe(1);
+  });
+
+  it('spell-doubling rewards fold into the cast count', () => {
+    const spell = SPELL_CARDS.find((c) => !c.singleCast && !c.target)!; // an untargeted spell (base 1 cast)
+    expect(spellCasts({ ...createRun(1) }, spell)).toBe(1);
+    expect(spellCasts({ ...createRun(1), spellDoubleAlways: true }, spell)).toBe(2); // Ancient Runes
+    // Spell Thesis: first spell of the turn doubles, then reverts.
+    const thesis = { ...createRun(1), spellFirstDoubleEachTurn: true, spellFirstUsedThisTurn: false };
+    expect(spellCasts(thesis, spell)).toBe(2);
+    expect(spellCasts(thesis, spell)).toBe(1); // consumed
+  });
+
+  it('Lazarus reduces shop spell cost while on the board; new cards are reward-only tokens', () => {
+    expect(spellCostReduction({ ...createRun(1), spellCostMod: 0, board: [] } as RunState)).toBe(0);
+    const withLaz = { ...createRun(1), spellCostMod: 0, board: [{ uid: 'l', cardId: 'lazarus', tribe: 'neutral' as const, attack: 5, health: 4, keywords: [] as Keyword[], golden: false }] } as RunState;
+    expect(spellCostReduction(withLaz)).toBe(1);
+    for (const id of ['lazarus', 'taurustruth', 'chimerus', 'goldcrafter']) {
+      expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
+    }
+  });
+});
+
+describe('triple: a welded host does not carry Magnetic into its golden', () => {
+  const mk = (uid: string, cardId: string, kw: Keyword[]): BoardCard => ({ uid, cardId, tribe: 'mech', attack: 2, health: 2, keywords: kw, golden: false });
+
+  it('Beatbot/Moe that gained M from attachments triples into a NON-Magnetic golden (it will not play as an Attachment)', () => {
+    // One copy carries a welded 'M' (from receiving attachments); the base card (Beatbot) is not Magnetic.
+    let s: RunState = { ...createRun(1), phase: 'recruit', board: [mk('a', 'beatboxer', ['M'])], hand: [mk('b', 'beatboxer', []), mk('c', 'beatboxer', [])] };
+    s = reduce(s, { type: 'play', uid: 'c' }); // 3rd copy hits the board → triples into a golden
+    const golden = [...s.board, ...s.hand].find((cd) => cd.cardId === 'beatboxer' && cd.golden);
+    expect(golden).toBeDefined();
+    expect(golden!.keywords.includes('M')).toBe(false); // the welded M did NOT carry into the golden
+  });
+
+  it('a genuinely Magnetic base card (Money Bot) still keeps M through a triple', () => {
+    let s: RunState = { ...createRun(1), phase: 'recruit', board: [mk('x', 'moneybot', ['M'])], hand: [mk('y', 'moneybot', ['M']), mk('z', 'moneybot', ['M'])] };
+    s = reduce(s, { type: 'play', uid: 'z' });
+    const golden = [...s.board, ...s.hand].find((cd) => cd.cardId === 'moneybot' && cd.golden);
+    expect(golden!.keywords.includes('M')).toBe(true);
+  });
+});
+
+describe('quest fixes: recruit-summoned Imp buff + triple-on-quest-grant', () => {
+  const mk = (uid: string, cardId: string): BoardCard => {
+    const d = CARD_INDEX[cardId]!;
+    return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false };
+  };
+
+  it('a recruit-summoned Imp inherits the run-wide Imp buff (Crypt Broker / Graverobber path)', () => {
+    // Graverobber destroys Imp King out of combat → its Deathrattle summons Imps in the shop; those Imps must
+    // carry the run-wide Imp aura (impBuff). Compare with vs without the aura to isolate its +3/+3.
+    const impsWith = (impBuff: { attack: number; health: number }): BoardCard[] => {
+      let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', impBuff, board: [mk('ik', 'impking')], hand: [mk('gr', 'graverobber')] };
+      s = reduce(s, { type: 'play', uid: 'gr' });
+      s = reduce(s, { type: 'battlecryTarget', targetUid: 'ik' });
+      return s.board.filter((c) => c.cardId === 'impscrap');
+    };
+    const base = impsWith({ attack: 0, health: 0 });
+    const buffed = impsWith({ attack: 3, health: 3 });
+    expect(base.length).toBeGreaterThan(0);
+    expect(buffed.length).toBe(base.length);
+    expect(buffed[0]!.attack - base[0]!.attack).toBe(3); // the Imp aura landed on the summoned Imp
+    expect(buffed[0]!.health - base[0]!.health).toBe(3);
+  });
+
+  it('completing a quest that grants your 3rd copy triples it into a golden', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit',
+      activeQuests: [{ questId: 'q_dark_bargain', progress: 4, completed: false }], // sell 5 → Get a Contract Imp
+      board: [mk('sellme', 'pack')],
+      hand: [mk('h1', 'contractimp'), mk('h2', 'contractimp')], // two copies already held
+    };
+    s = reduce(s, { type: 'sell', uid: 'sellme' }); // 5th sell → completes → grants the 3rd Contract Imp → triple
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    const copies = [...s.board, ...s.hand].filter((c) => c.cardId === 'contractimp');
+    expect(copies.length).toBe(1); // three combined into one
+    expect(copies[0]!.golden).toBe(true);
   });
 });

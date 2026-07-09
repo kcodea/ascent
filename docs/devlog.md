@@ -27,7 +27,7 @@ it. The dying card **fades in place** (no `dyingpop` bounce) under the burst.
 
 ## 2026-07-08 (session 26)
 
-### feat(ui): corner-clack contact + distance-scaled lunge (combat feel)
+### feat(ui): corner-clack contact + distance-scaled lunge + impact FX (combat feel)
 
 A presentation-only refinement of the phase-3b attack lunge — the strike now lands as a physical
 "corner clack" and its pace is consistent regardless of how far apart the two units are. Spec/plan:
@@ -68,6 +68,123 @@ changes — nothing touches fight outcomes.**
   confirmed outcome-neutrality and the intact beat-clock advance); the spark/bake follow-up added two
   more tests. Full gate green: typecheck + lint + `npm test` (720) + `build:web`; choreo/channel suite 76
   green.
+- **Follow-up (impact FX at the clack point).** Two combat-strike effects now erupt from the same corner
+  contact point: a card-drop-style tan **dust billow** (`pixiFx.impactDust` — radial, its own `imp*` config
+  so it's independent of the card-drop `dust()`) and an expanding white-hot **energy pulse** ring
+  (`pixiFx.impactPulse`, a new thin pulse-ring texture scaled to a target radius). Both fired from
+  `impact.ts` at the contact point, tunable via new dials in the DEV Smoke tuner (`impDust*` / `impPulse*`),
+  seeded from the strike-FX previewer. UI-only; typecheck/lint clean, choreo/impact suites green, no new
+  type-baseline errors.
+
+### chore(art): wire Goldcrafter reward art + re-wire Taragosa's Heir
+
+Wired `GoldCrafter.png` → `goldcrafter.png` (Goldcrafter was the last quest reward with no art) and
+re-copied updated `TaragosasHeir.png` → `taragosaheir.png`, both from `Quests/Quest Reward Related
+Things`. Data-only art drop — no code touched. Verified both are valid PNGs and the preview server was
+restarted so the eager `import.meta.glob` picks up the new file.
+
+### balance(content): sync quest objective counts to the owner's set + Key Findings spell + all reward art
+
+Synced the quest set to the owner's current spreadsheet — **36 objective-count tweaks** across every tribe (mostly
+lowering thresholds: e.g. Forest Grove 4→5, Trophy Den 9→6, Skybound Pact 80→40, Bone Ledger 12→7, Overclocked Core
+12→5, Pit Without End 40→20, Ancient Runes 70→55). Two reward changes: **Odd Jobs** 8→12 Gold, and **Key Findings**
+(now Attack 7) grants **2 Key Findings** — a new reward-only spell (`keyfindings`, T5, "Discover a minion from your
+tier" via `discoverOnPlay`). Removed **Grave Toll** (dropped from the owner's set). The reward-text helper now groups
+duplicate card grants ("Get 2 Key Findings", not "a X + a X").
+
+**Art:** wired every quest-reward card's art from `Quest Reward Related Things` (incl. the new Key Findings) — **the
+only reward without art is Goldcrafter** (no file in the folder yet).
+
+Verified: typecheck + lint + **719 tests** (updated the framework/Beast/Undead tests to the new counts; retargeted the
+threshold tests off the removed Grave Toll to Forest Grove); `build:web` clean; live — Key Findings quest reads "Get 2
+Key Findings", the card loads its art and opens a 3-minion Discover on play, and the new counts render.
+
+### chore(art): wire all quest-reward card art
+
+Wired illustrated art for every quest-reward card from `Quests/Quest Reward Related Things` → `art/minions/<cardId>.png`:
+Bone Taxer, Chimerus, Chorus Engine (file `ChorusMachine`), Contract Imp, Crypt Broker, Gravetwin, Herald of the
+Apocalypse, Hoard Whelp, Implosion, Lazarus, Ossuary Rite, Perfect Core, Run Maw, Scrap Vendor, Skybound Archivist
+(file `SkyboundActivist`), Taragosa's Heir, Taurus the Truth Bringer, Trail Forager, Trophy Stalker (spells + minions
+both live in `art/minions/`). Two filenames had minor spelling variance from the card name (noted above) but each is
+the unique reward for its quest, so unambiguous. `build:web` clean (globs resolve); live DOM + screenshot check —
+the reward cards render their new art. **Missing:** Goldcrafter has no file in the folder — still unwired.
+
+### fix(quests): show the quest panel in combat + recruit-summoned Imp buff + triple-on-quest-grant + 4 quest arts
+
+Four quest fixes:
+- **Quest panel in combat** — the combat quest live-tick logic shipped, but a CSS rule (`.app.combat .questframe {
+  display: none }`) kept the panel hidden during combat, so it never showed. Removed the rule; the panel now sits
+  top-left through combat and ticks objectives up as the replay plays (verified live). The buffs frame stays hidden.
+- **Recruit-summoned Imp buff** — `ctx.summon` baked the tribe buy-auras but NOT the run-wide Imp aura, so an Imp
+  summoned out of combat (e.g. Crypt Broker firing an Imp-summoning Echo) missed Imp Overseer's buff. Now folds
+  `state.impBuff` into a summoned Imp's stats.
+- **Triple on quest grant** — a quest reward that's your 3rd copy didn't combine (`checkTriples` ran in the action
+  cases but not after quest grants). Added a hand-grant-guarded `checkTriples` to both the recruit reduce-wrapper and
+  `settleCombat` (guarded on a hand grant so it never re-triples the action's own board state).
+- **Art** — wired 4 more quest-card arts (`q_bone_ledger`, `q_grave_contract`, `q_grave_robber`, `q_small_offering`).
+
+Verified: typecheck + lint + **722 tests** (+2: the Imp-aura delta on a Graverobber→Imp King summon; a quest grant
+completing a triple); `build:web` clean; live DOM/screenshot — the quest panel renders in combat and the 4 arts load.
+
+### feat(ui): hover a quest to preview the reward card(s) it grants
+
+Quest-shop cards now float a full preview of any named minion/spell they grant when you hover them (Assembly Line →
+Money Bot, Impossible Shop → Taurus, Ossuary Rite → the spell, …). `QuestCard` extracts the granted card ids from
+the reward (`grant.cards` / `recurringGrant.cards`, recursing through `multi`), builds a `CardView` per id, and
+reuses the `Card` component's `.cardref` hover popup (same styling + on-screen flip as the board/hand card previews).
+Random-tribe / random-filter grants have no fixed card, so they simply show no preview. Verified: typecheck + lint +
+710 tests + `build:web` clean; live DOM + screenshot — hovering Assembly Line pops a readable Money Bot card.
+### fix(sim): a welded host (Moe / Beatbot) no longer triples into a Magnetic golden
+
+A minion that receives an attachment gains the `M` keyword (owner ruling — it counts as an Attachment for the
+aura). But `combineIntoGolden` unioned all copies' keywords, so tripling a welded Moe / Beatbot (neither Magnetic
+by base) produced a golden that carried `M` — and then **played as an Attachment** (the play path keys off the
+instance's `M`). Fixed: the triple keeps `M` only if the BASE card is genuinely Magnetic (Better Bot / Money Bot /
+Cling Drone / …). Verified: typecheck + lint + 712 tests (added a regression — a welded Beatbot triples into a
+non-Magnetic golden, while Money Bot keeps `M`); `build:web` clean.
+
+### feat(sim): quest offers → 4, and never re-offer a quest you already hold
+
+`generateQuestOffer` now offers **4** quests (1 neutral + **3** distinct tribes, was 1 + 2) and excludes any quest
+already in `activeQuests`, so you can't be offered a quest you've taken. A `used` set threaded through the picks
+also guarantees no quest appears twice in one offer (closing a latent same-tribe-twice dup when a dominant tribe
+filled two slots). The RNG lives in the separate `TAG.QUEST` stream, so shop/combat determinism is untouched.
+Verified: typecheck + lint + 711 tests (offer test updated to 1 neutral + 3 distinct tribes + a no-re-offer test);
+`build:web` clean; live DOM/screenshot check — the 4-card Quest Shop lays out cleanly.
+### feat(content): Rulebreaker neutral quests + Chimerus — economy / spell / rule-bending payoffs
+
+A 13-quest batch (12 neutral "Rulebreaker" + 1 Dragon) with a wave of new rule-bending mechanics.
+
+**New objectives.** `winRound` (combat wins, ticked in settleCombat), `castSpell` (spells cast — run `spellsCast`
+diff), and `authorsHand` — a **compound** objective (Shout + Echo + Rally each to `count`, tracked in
+`ActiveQuest.subProgress`, bumped from the shout tick + combat echo/rally tallies).
+
+**New rewards.** `gainMaxGold` (Shop License), `discover` (Key Findings → a tier Discover), `dupeFirstBuy` (Dupes →
+first minion bought each turn is copied), `spellRepeat` (Ancient Runes = all spells cast twice; Spell Thesis = first
+spell each turn — both fold into `spellCasts()`), `minionCost` (Merchant's Mark → shop minions cost 2g),
+`slaughterRepeat` + `doubleLeftmostAttack` combat flag (Author's Hand / Rulebreaker's Crown).
+
+**New combat mechanics.** `doubleLeftmostAttack` (SoC leftmost minion +Attack = its Attack), `slaughterFirstEachCombat`
+(first player Slaughter each combat fires extra — split-out so a runtime-added effect registers on the bus),
+`scEngraveAll` (Taurus — engrave the whole board, in a priority "triggers first" SoC pre-pass), and Chimerus's
+`rallyGiveHealthToDragons`.
+
+**Quests.** *Lesser:* Shop License, Gilded Chance, Key Findings, Odd Jobs. *Greater:* Dupes, Spell Thesis, The Pivot
+Door, Merchant's Mark, Ancient Runes. *Capstone:* Rulebreaker's Crown, The Author's Hand, Impossible Shop. *Dragon
+capstone:* Chimerus.
+
+**New cards.** *Goldcrafter* (spell — golds a friendly minion; owner spec). *Lazarus* (Neutral T4 5/4 — board aura:
+shop spells cost 1 less, via `spellCostReduction`). *Taurus the Truth Bringer* (Neutral T6 12/12 — SoC engrave all).
+*Chimerus* (Dragon T6 4/8 — Rally gives its Health to 2 Dragons). All `token: true`.
+
+**Verified.** typecheck + lint clean; `npm test` **717 pass** incl. 7 new (double-leftmost-attack SoC; Chimerus rally;
+Taurus engrave-all; Dupes win→dupe-buy; Author's Hand compound completion arms all 4 first-each doublers; spell-cast
+doubling folds into `spellCasts`; Lazarus cost reduction; token exclusion). `build:web` clean; live DOM check of all
+six greater/capstone Rulebreaker quest cards.
+
+**Decisions/flags:** Goldcrafter is a targeted gild spell (owner-specced). "Discover a card from your tier" = a
+minion Discover at your current tavern tier. Author's Hand progress bar shows the min of the three sub-counts. Art
+not wired.
 
 ### feat(content): Demon quests — the fifth (final) authored tribe; all `Test ·` quests retired
 

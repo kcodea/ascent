@@ -5,7 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
-### chore(ui): bigger, less-overlapped hand as the default layout
+### fix(ui): Divine-Shield break burst is visible again (was additive gold on cream = invisible)
+
+The real cause of the "no gold shatter" (a live spy confirmed `breakShield` DOES find + destroy the bubble
+and spawn 39 particles — the mechanism was fine): every particle in the shield-break burst used `blend: 'add'`,
+and additive gold washes out to near-white on the light "Sunward" cream board — the exact pitfall `impact()`
+already documents. So the shield silently vanished with no visible shatter. Reworked the burst to mirror
+`impact()`: the readable elements (crack flash, fracture lines, main shockwave ring, 22 shrapnel shards) now use
+**normal blend with saturated gold** that paints over cream, with a hot **additive** core/rim/motes layered on
+top for the glassy glint. Verified live: the break now spawns 28 normal-blend + 12 additive particles (was 40
+additive). (The shield riding the lunge TILT is the intended #261 aura-follow behaviour; the burst now shows so
+it visibly shatters instead of quietly disappearing.) typecheck + lint green.
 
 Owner-tuned the hand in the DEV Layout Lab and baked it as the shipped default: hand card size
 `--z-hand-s` 1 → **1.18** and hand overlap `--z-hand-gap` −0.44 → **−0.16** (less tuck, more of each

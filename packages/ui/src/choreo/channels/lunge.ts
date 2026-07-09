@@ -61,7 +61,7 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
       },
     })
     .to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: -5, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' })  // wind up
-    .to(attacker, { x: dx * c.strikeDist, y: dy * c.strikeDist, rotation: 0, scale: 1, duration: c.strikeDur, ease: 'power3.in' })                    // strike
+    .to(attacker, { x: dx * 1.44, y: dy * 1.44, rotation: 0, scale: 1, duration: c.strikeDur, ease: 'power3.in' })                                     // strike (strikeDist retired; Task 3 replaces with contactGeometry)
     .add(onContact, `-=${c.smackLead}`)                                                                                                                // contact — fired smackLead seconds BEFORE the strike completes (the advance)
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });                                                    // settle
   // The impact (smack/FX/recoil) fires at contact + its offset — an ABSOLUTE timeline position so a negative

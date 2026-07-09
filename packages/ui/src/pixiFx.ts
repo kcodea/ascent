@@ -365,6 +365,7 @@ interface ShieldBubble {
 // Shield-bubble feel (tunable live via window.__pixiFx in DEV). The shield shader draws into a quad of
 // half-size BUBBLE_TEX_R; the container is scaled per-unit to fit the card's footprint.
 const BUBBLE_TEX_R = 40;       // shader quad half-size (px) before per-unit scaling
+const PULSE_TEX_R = 50;        // impact pulse-ring texture radius (px); callers scale wantedRadius / PULSE_TEX_R
 const BREATHE_MS = 2600;       // slow pulse period (the shader also breathes on its own clock)
 const FORM_MS = 260;           // grow-in when a shield is gained
 const FADE_MS = 30;            // graceful fade when a shield is cleared without breaking (near-instant)
@@ -397,6 +398,7 @@ class FxController {
   private coinTex: Texture | null = null;       // gold coin (sell sprinkle)
   private bubbleTex: Texture | null = null;     // soft translucent disc — shield body
   private rimTex: Texture | null = null;        // bright ring — shield rim highlight
+  private pulseTex: Texture | null = null;      // thin bright ring — the combat impact energy pulse
   private veinTex: Texture | null = null;       // thin streak — shield energy vein
   private wispTex: Texture | null = null;
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
@@ -487,6 +489,7 @@ class FxController {
     this.coinTex = this.makeCoinTexture(app);
     this.bubbleTex = this.makeBubbleTexture(app);
     this.rimTex = this.makeRimTexture(app);
+    this.pulseTex = this.makePulseRingTexture(app);
     this.veinTex = this.makeVeinTexture(app);
     this.wispTex = this.makeWispTexture(app);
     app.ticker.add(this.update);
@@ -519,6 +522,7 @@ class FxController {
     this.coinTex = null;
     this.bubbleTex = null;
     this.rimTex = null;
+    this.pulseTex = null;
     this.veinTex = null;
     this.wispTex = null;
     this.ready = false;
@@ -619,6 +623,63 @@ class FxController {
         tint: grey,
         blend: 'normal',
         peakAlpha: sm.smokeAlpha * (0.82 + Math.random() * 0.35), // wispy, semi-transparent
+      });
+    }
+  }
+
+  /**
+   * Combat impact DUST — a card-drop-style tan billow erupting radially from the corner clack point (x, y).
+   * Same warm dry-dirt look as `dust()`, but sourced at a point (not a card perimeter) and driven by its own
+   * `imp*` config so it can be tuned independently of the card-drop dust. `power` thickens it a touch on
+   * heavy hits. Fired from the melee `contact` position (see `impact.ts`).
+   */
+  impactDust(x: number, y: number, power = 1): void {
+    if (!this.ready) return;
+    const sm = getSmokeConfig();
+    const n = Math.round(sm.impDustCount * (0.8 + 0.2 * power));
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const speed = sm.impDustSpeed * (0.45 + Math.random() * 0.9);
+      const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans (matches dust())
+      const scale = (sm.impDustSize / 40) * (0.7 + Math.random() * 0.6); // glowTex natural radius ≈ 40px
+      this.spawn(this.glowTex!, {
+        x: x + (Math.random() - 0.5) * 8,
+        y: y + (Math.random() - 0.5) * 8,
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed * 0.7 - (4 + Math.random() * 12), // vertical damped + slight lift → stays flat
+        drag: 0.2,       // dust slows quickly
+        gravity: 130,    // gentle settle — no rising column
+        life: sm.impDustLife * (0.8 + Math.random() * 0.5),
+        fromScale: scale * 0.35,
+        toScale: scale, // billow out as it fades
+        spin: (Math.random() - 0.5) * 1.2,
+        tint: tan,
+        blend: 'normal',
+        peakAlpha: 0.34 * (0.8 + Math.random() * 0.4),
+      });
+    }
+  }
+
+  /**
+   * Combat impact PULSE — one or two thin bright energy rings that expand out of the clack point (x, y) and
+   * fade, an additive "shock" punctuation on every hit. Radius / lifetime / ring-count are `imp*` config;
+   * `power` nudges the radius on heavy hits. Fired from the melee `contact` position (see `impact.ts`).
+   */
+  impactPulse(x: number, y: number, power = 1): void {
+    if (!this.ready || !this.pulseTex) return;
+    const sm = getSmokeConfig();
+    if (sm.impPulseRings < 1) return;
+    const radius = sm.impPulseRadius * (0.9 + 0.1 * power);
+    this.spawn(this.pulseTex, {
+      x, y, vx: 0, vy: 0, drag: 1, life: sm.impPulseDur,
+      fromScale: 0.2, toScale: radius / PULSE_TEX_R, spin: 0,
+      tint: 0xfff0d0, blend: 'add', peakAlpha: 0.85, // warm white-hot energy
+    });
+    if (sm.impPulseRings >= 2) {
+      this.spawn(this.pulseTex, {
+        x, y, vx: 0, vy: 0, drag: 1, life: sm.impPulseDur * 0.9,
+        fromScale: 0.15, toScale: (radius / PULSE_TEX_R) * 0.78, spin: 0,
+        tint: 0xffd24a, blend: 'add', peakAlpha: 0.6,
       });
     }
   }
@@ -1439,6 +1500,17 @@ class FxController {
     const g = new Graphics();
     g.circle(0, 0, BUBBLE_TEX_R - 3).stroke({ width: 7, color: 0xffffff, alpha: 0.22 }); // soft halo
     g.circle(0, 0, BUBBLE_TEX_R - 3).stroke({ width: 3, color: 0xffffff, alpha: 0.6 });  // bright core ring
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return tex;
+  }
+
+  /** The combat impact PULSE ring — a thin bright ring with a soft feather, additive. Natural radius
+   *  PULSE_TEX_R so a caller scales `toScale = wantedRadius / PULSE_TEX_R` to hit an exact on-screen radius. */
+  private makePulseRingTexture(app: Application): Texture {
+    const g = new Graphics();
+    g.circle(0, 0, PULSE_TEX_R).stroke({ width: 9, color: 0xffffff, alpha: 0.16 }); // soft outer feather
+    g.circle(0, 0, PULSE_TEX_R).stroke({ width: 3, color: 0xffffff, alpha: 0.95 }); // crisp bright core
     const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     return tex;

@@ -23,6 +23,8 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   const r = defender.getBoundingClientRect();
   const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   pixiFx.impact(fx.x, fx.y, dx, dy, power);
+  pixiFx.impactDust(fx.x, fx.y, power); // card-drop-style tan billow from the clack point
+  pixiFx.impactPulse(fx.x, fx.y, power); // expanding energy ring(s) from the clack point
   gsap.killTweensOf(defender);
   const kb = 0.14 * (0.75 + 0.25 * power);
   // Counter-rotate away from the lead corner. Keep the `|| 1` fallback here (unlike the lunge rebound's plain

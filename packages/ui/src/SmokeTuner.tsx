@@ -21,6 +21,13 @@ const LABELS: Record<keyof SmokeConfig, string> = {
   dustLife: 'dust · life ms',
   dustGrow: 'dust · grow',
   dustAlpha: 'dust · alpha',
+  impDustCount: 'impact dust · count',
+  impDustSpeed: 'impact dust · speed',
+  impDustLife: 'impact dust · life ms',
+  impDustSize: 'impact dust · size',
+  impPulseRadius: 'pulse · radius',
+  impPulseDur: 'pulse · time ms',
+  impPulseRings: 'pulse · rings',
 };
 
 export function SmokeTuner() {

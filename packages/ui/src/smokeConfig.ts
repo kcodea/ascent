@@ -28,6 +28,20 @@ export interface SmokeConfig {
   dustGrow: number;
   /** Card drop: peak opacity. */
   dustAlpha: number;
+  /** Combat impact — card-drop-style dust erupting from the corner clack point: puff count. */
+  impDustCount: number;
+  /** Combat impact dust: outward billow speed (px/s). */
+  impDustSpeed: number;
+  /** Combat impact dust: base puff lifetime (ms). */
+  impDustLife: number;
+  /** Combat impact dust: puff radius (px). */
+  impDustSize: number;
+  /** Combat impact — energy pulse ring(s) expanding out of the clack point: ring radius (px). */
+  impPulseRadius: number;
+  /** Combat impact energy pulse: ring lifetime (ms). */
+  impPulseDur: number;
+  /** Combat impact energy pulse: number of rings (0 disables the pulse). */
+  impPulseRings: number;
 }
 
 const DEFAULTS: SmokeConfig = {
@@ -42,6 +56,15 @@ const DEFAULTS: SmokeConfig = {
   dustLife: 1180,
   dustGrow: 1.2,
   dustAlpha: 0.32,
+  // Combat impact dust + energy pulse (fired from the corner clack point). Seeded from the strike-FX
+  // previewer (2026-07-08); dial live in the DEV Smoke tuner and re-bake.
+  impDustCount: 18,
+  impDustSpeed: 300,
+  impDustLife: 550,
+  impDustSize: 30,
+  impPulseRadius: 150,
+  impPulseDur: 280,
+  impPulseRings: 1,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -57,6 +80,13 @@ export const SMOKE_RANGES: Record<keyof SmokeConfig, [number, number, number]> =
   dustLife: [100, 1600, 20],
   dustGrow: [0.5, 4, 0.1],
   dustAlpha: [0, 1, 0.01],
+  impDustCount: [0, 30, 1],
+  impDustSpeed: [0, 600, 10],
+  impDustLife: [100, 1200, 20],
+  impDustSize: [4, 60, 1],
+  impPulseRadius: [20, 320, 5],
+  impPulseDur: [100, 700, 10],
+  impPulseRings: [0, 2, 1],
 };
 export const SMOKE_KEYS = Object.keys(DEFAULTS) as (keyof SmokeConfig)[];
 

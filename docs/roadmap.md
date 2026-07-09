@@ -362,10 +362,6 @@ scale, and warband/hand/HUD position. Not yet: (1) a **shop-row position** offse
 its absolute children, or a recruit-only offset); (2) **per-element** movers (individual buttons/badges/panels)
 rather than just the four regions. Both are quick, additive extensions to `layoutConfig.ts` + the CSS hooks.
 
-**Compendium spells-only view:** spells are now opt-in + *additive* (toggling Spells layers them onto the
-minion view), so there's no longer a one-click "browse only spells." If wanted, add a spells-only mode (e.g.
-Spells acts as a narrowing filter when it's the sole selection, or a dedicated header toggle).
-
 **Leaderboard W/L spread for old rows:** the Hall of Champions round-spread only populates for victory runs
 logged *after* the `runs.history` column shipped (per-round order isn't stored on older rows and can't be
 re-derived from the seed alone). Optional follow-up: backfill via replay re-simulation, or fall back to an

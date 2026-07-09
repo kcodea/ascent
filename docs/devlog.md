@@ -52,6 +52,28 @@ it. The dying card **fades in place** (no `dyingpop` bounce) under the burst.
 
 ## 2026-07-08 (session 26)
 
+### feat(ui): Compendium — Quest Rewards category + exclusive Spells/Quests filtering
+
+Added a **Quest Rewards** category to the Compendium left rail (gold-tinted, `gift` icon) that surfaces the
+**24 cards a completed quest grants** — the reward-only tokens (Trail Forager, Crypt Broker, Bone Taxer, Key
+Findings, Goldcrafter, …) plus the two real minions quests also hand out (Badgington, Money Bot). These tokens
+carry `token: true`, so they're absent from `BUYABLE_CARDS`/`SPELL_CARDS` and never appeared in the codex
+before. The list is derived by walking every quest's reward (including nested `multi` rewards) for concrete
+`cards` grants (`QUEST_REWARD_CARDS`, mapped to the granting quest's tribe for run-scoping).
+
+**Behavior change — Spells & Quest Rewards are now EXCLUSIVE modes, not additive axes.** Previously the Spells
+chip *added* spells alongside the minion gallery. Now selecting Spells and/or Quest Rewards shows **only** that
+pool (or both together), and hides minions entirely; with neither selected the gallery is minions-only — spells
+and quest-reward tokens never leak into a tribe search unless the player toggles them on. Membership is decided
+by pool sets (`MINION_POOL_IDS` / `SPELL_POOL_IDS` / `QUEST_REWARD_IDS`), not the raw `spell` flag, so a card
+that is *both* a buyable minion and a quest reward (Badgington: a Tier-4 Beast that Apex Hunt grants) correctly
+shows in **both** its tribe and Quest Rewards. `allCards` is de-duped by id to avoid double-listing those.
+
+Verified: typecheck + lint + **721 tests** + `build:web` all clean; live DOM — the rail shows the new category,
+default view reads "N minions", Quest Rewards reads "24 quest rewards" (matches the unique granted-card count),
+Spells reads "37 spells", both-on reads "63 spells & quest rewards"; Trail Forager (reward token) is hidden in a
+Beasts search while Badgington (real Beast) shows in both Beasts and Quest Rewards. UI-only, no rules touched.
+
 ### feat(ui): corner-clack contact + distance-scaled lunge + impact FX (combat feel)
 
 A presentation-only refinement of the phase-3b attack lunge — the strike now lands as a physical

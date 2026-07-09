@@ -28,6 +28,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Burning-rope turn timer (re-added).** The Hearthstone-style burning rope is back — it lights in the final 20s
   of a recruit turn and burns left→right on the board's centre divider (live flame + char trail). The digital
   `SETUP TIME` plaque stays alongside it.
+- **Compendium: Quest Rewards category + exclusive Spells/Quests filtering.** The codex now has a **Quest Rewards**
+  section listing all 24 cards a completed quest grants (the reward-only tokens plus Badgington / Money Bot). Spells
+  and Quest Rewards are now **exclusive** filters — selecting either shows only that pool, and neither leaks into a
+  tribe (minion) search unless the player toggles it on.
 - **Rulebreaker neutral quests.** A 13-quest batch of economy / spell / rule-bending neutral quests (+ Chimerus for
   Dragons). Adds the `winRound` / `castSpell` / compound `authorsHand` objectives and rule-bending rewards — Dupes
   (copy your first buy each turn), Merchant's Mark (2g minions), Ancient Runes (spells cast twice), Rulebreaker's

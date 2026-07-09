@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### fix(sim): welded keyword (Perfect Core's Ward) no longer leaks onto an aliased minion
+
+Owner-reported: a Bounty Bot with **Perfect Core** (which carries the "DS"/Ward keyword) — when the OTHER Bounty
+Bot was hit, the first one's Ward broke. Root cause (not a combat/UI bug — the shield pipeline is fully
+uid-keyed): `applyWeld` welded the keyword with an **in-place `host.keywords.push(k)`**, and a few minion-copy
+paths shallow-spread a `BoardCard` (`{ ...held }`), so two same-cardId minions could **share** one `keywords`
+array (via displace → sell-back / re-buy). Welding Perfect Core's Ward onto one then wrote 'DS' into the shared
+array, so `instantiate` gave BOTH combat minions a Divine Shield — the "wardless" one silently carried a Ward
+that legitimately broke when hit. Fix: `applyWeld` now assigns a **fresh** array (`host.keywords = [...keywords,
+k]`), and the three shallow-spread copy sites (recruit displace in/out, reducer re-buy) deep-copy `keywords` +
+`buffs`. Regression test: welding 'DS' onto one of two minions that share a `keywords` array leaves the other
+without it. Verified: typecheck + lint + **747 tests** + determinism harness + `build:web`, all green.
 ### feat(ui): auto-derive card-reference hover previews (full pass)
 
 The recruit board/shop/hand hover-preview of referenced cards was driven by a hand-maintained map of ~7 cards, so

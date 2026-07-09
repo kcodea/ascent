@@ -43,7 +43,7 @@ import {
   type RunState,
 } from './index';
 import type { BoardMinion } from '@game/core';
-import { applyEndOfTurn, applyGoldSpent, implosionCasts, spellCasts, spellCostReduction } from './recruit';
+import { applyEndOfTurn, applyGoldSpent, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
@@ -1259,6 +1259,17 @@ describe('run loop (@game/sim)', () => {
     };
     sp = reduce(sp, { type: 'play', uid: 'mag', toIndex: 0 });
     expect(sp.board[0]!.keywords).toContain('W');
+  });
+
+  it('welding a keyword never leaks onto a minion that SHARES its keywords array (Bounty Bot Ward bug)', () => {
+    // Two same-cardId minions whose `keywords` array is aliased (as a shared-reference copy path would produce).
+    const shared: Keyword[] = ['SL'];
+    const a: BoardCard = { uid: 'a', cardId: 'bountybot', tribe: 'mech', attack: 7, health: 3, keywords: shared, golden: false };
+    const b: BoardCard = { uid: 'b', cardId: 'bountybot', tribe: 'mech', attack: 7, health: 3, keywords: shared, golden: false };
+    const s: RunState = { ...createRun(1), board: [a, b] };
+    weldMagnetic(s, a, { source: 'Perfect Core', attack: 0, health: 0, keywords: ['DS'], mana: 0 }); // Ward welds onto A only
+    expect(a.keywords).toContain('DS');
+    expect(b.keywords).not.toContain('DS'); // the alias must NOT gain the Ward
   });
 
   it('Combinator magnetizes a random Magnetic Mech onto 1 friendly Mech at end of turn (golden: 2)', () => {

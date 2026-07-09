@@ -4827,7 +4827,7 @@ describe('Beast quests (combat objectives + rewards)', () => {
   it('unique quest-reward cards are token-flagged out of the shop + spell pools', () => {
     const buyable = new Set(BUYABLE_CARDS.map((c) => c.id));
     const spells = new Set(SPELL_CARDS.map((c) => c.id));
-    for (const id of ['bloodlust', 'anomalyreactor', 'gravebody']) {
+    for (const id of ['bloodlust', 'anomalyreactor', 'gravebody', 'echowarden']) {
       expect(CARD_INDEX[id]).toBeDefined(); // still exists (grantable / summonable)
       expect(buyable.has(id)).toBe(false); // never rolls as a shop minion
       expect(spells.has(id)).toBe(false); // never rolls as the offered spell
@@ -4861,6 +4861,42 @@ describe('Beast quests (combat objectives + rewards)', () => {
       expect(mag).toBeDefined();
       expect(mag!.cost).toBe(2);
     }
+  });
+
+  it('Fried Circuits (compound): completes only when BOTH parts fill; buys escalate the shop-Mech buff', () => {
+    // Pre-fill the spendGold part (20); the combat supplies the slaughter part (10) → both done → complete.
+    const s = settle('q_fried_circuits', { playerQuestTally: { ...zeroTally(), slaughter: 10 } }, {
+      activeQuests: [{ questId: 'q_fried_circuits', progress: 20, completed: false, partProgress: [0, 20] }],
+    });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.friedCircuitsStep).toBe(2);
+    // Escalating buff: buy 1 → remaining Mech offers +2/+2; buy 2 → +4/+4 (cumulative).
+    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 50, friedCircuitsStep: 2, friedCircuitsBuys: 0,
+      shop: [{ uid: 'm1', cardId: 'drone' }, { uid: 'm2', cardId: 'drone' }, { uid: 'm3', cardId: 'drone' }] };
+    t = reduce(t, { type: 'buy', uid: 'm1' });
+    expect(t.shop.find((o) => o.uid === 'm2')!.atk).toBe(2); // +2 after the 1st buy
+    t = reduce(t, { type: 'buy', uid: 'm2' });
+    expect(t.shop.find((o) => o.uid === 'm3')!.atk).toBe(6); // +2 (1st buy) + 4 (2nd buy) = 6
+  });
+
+  it('Fried Circuits (compound): the spendGold part alone does NOT complete it', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 50, freeRolls: 0, activeQuests: [{ questId: 'q_fried_circuits', progress: 0, completed: false }] };
+    for (let i = 0; i < 20; i++) s = reduce(s, { type: 'roll' }); // spend 20 Gold
+    expect(s.activeQuests![0]!.partProgress).toEqual([0, 20]);
+    expect(s.activeQuests![0]!.completed).toBe(false); // slaughter part still empty
+  });
+
+  it('Forsaken Will (compound): completes across spells + combat summons; then spells grow the Undead aura', () => {
+    const s = settle('q_forsaken_will', { playerQuestTally: { ...zeroTally(), summonCombat: 6 } }, {
+      activeQuests: [{ questId: 'q_forsaken_will', progress: 14, completed: false, partProgress: [14, 0] }],
+    });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.forsakenWillAttack).toBe(6);
+    // Casting a spell now grows the Undead Attack aura by +6.
+    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, undeadAttackBonus: 0, forsakenWillAttack: 6,
+      hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    t = reduce(t, { type: 'play', uid: 'sp' });
+    expect(t.undeadAttackBonus).toBe(6);
   });
 
   it('The Red Trail (slaughterKeyword) completes at 5 and schedules the recurring Bloodlust grant', () => {

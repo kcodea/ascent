@@ -299,6 +299,23 @@ export const NEUTRAL: CardDef[] = [
     goldenText: '**Battlecry:** your next Tavern spell casts **three times**.',
   },
   {
+    // Echo Warden: a passive presence special-cased in the combat summon path (simulate's summonMinion) — while
+    // it's alive on your board, every combat summon spawns one extra copy (golden = two). Reward-exclusive
+    // (Echo Chamber quest), so token:true keeps it out of the shop/pool. No effect entry — the doubling is the
+    // engine reading its cardId, like other on-board combat passives.
+    id: 'echowarden',
+    name: 'Echo Warden',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    token: true,
+    effects: [],
+    text: 'Your summons trigger **one more time**.',
+    goldenText: 'Your summons trigger **two more times**.',
+  },
+  {
     // Battlecry Discovers a minion from an active tribe with no presence on your board — a splash into a tribe
     // you're not already building. Falls back to any tribe if you somehow control them all. Golden Discovers
     // twice (from the same uncontrolled tribe), via battlecryDiscoverMinion's golden branch.

@@ -179,6 +179,9 @@ export interface ActiveQuest {
   /** The Author's Hand compound objective: per-key progress toward the shared `count` (Shout / Echo / Rally each).
    *  `progress` mirrors the min of the three for the panel bar. Absent for normal single-count objectives. */
   subProgress?: { shout: number; echo: number; rally: number };
+  /** A general compound objective (`event: 'compound'`): per-part progress, index-aligned with `objective.parts`.
+   *  Each part has its own count; the quest completes when all parts fill. `progress` = Σ part progress (bar). */
+  partProgress?: number[];
 }
 
 export interface RunState {
@@ -450,6 +453,13 @@ export interface RunState {
    *  every Magnetic offer's price is set to `attachmentCost` Gold — both permanent once armed. */
   attachmentCost?: number;
   alwaysAttachmentShop?: boolean;
+  /** Fried Circuits (Mech capstone): armed step + purchase counter — each minion bought buffs every Mech shop
+   *  offer by `friedCircuitsStep × buys` (escalating). */
+  friedCircuitsStep?: number;
+  friedCircuitsBuys?: number;
+  /** Forsaken Will (Undead greater): armed — each spell cast grants your Undead aura +this Attack (folds into
+   *  `undeadAttackBonus`, which applies in the shop AND combat). */
+  forsakenWillAttack?: number;
   /** Transient: cardIds of the player minions that survived the LAST combat (from CombatResult). Read at the
    *  next shop start to fire a surviving Gravetwin's copied Echo. Reset each wave. */
   lastSurvivorCardIds?: string[];

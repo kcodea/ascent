@@ -145,6 +145,9 @@ export function reduce(state: RunState, action: Action): RunState {
     // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
     const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
     if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
+    // Forsaken Will: each spell cast permanently grows your Undead Attack aura (folds into `undeadAttackBonus`,
+    // which applies in the shop AND is threaded into combat).
+    if (spellCastDelta > 0 && next.forsakenWillAttack) next.undeadAttackBonus += next.forsakenWillAttack * spellCastDelta;
     // Taragosa's Heir: every THIRD stat-gain your STRONGEST Dragon receives is mirrored onto the Heir permanently
     // (recruit phase; combat-gain copy is a follow-up). Counts an action where the current strongest Dragon (not
     // the Heir) gained stats as one gain; every 3rd such gain, the Heir gains the same +Attack/+Health.
@@ -305,6 +308,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
+      // Fried Circuits: each minion bought buffs every Mech OFFER remaining in the shop, escalating by step per
+      // purchase (buy 1 → +step, buy 2 → +2·step, …). The buff bakes into the offer's atk/hp when it's bought.
+      if (s.friedCircuitsStep) {
+        s.friedCircuitsBuys = (s.friedCircuitsBuys ?? 0) + 1;
+        const amt = s.friedCircuitsStep * s.friedCircuitsBuys;
+        for (const o of s.shop) {
+          const d = CARD_INDEX[o.cardId];
+          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech')) { o.atk = (o.atk ?? 0) + amt; o.hp = (o.hp ?? 0) + amt; }
+        }
+      }
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
       // Run-wide tribe ATTACK aura baked at buy: Undead (Lantern/Toxin Tender) + Beast (Squirl Scout), via the
       // shared helper so every tribe is handled. Applied ONCE, through addBuff below (which also records the
@@ -1482,9 +1495,33 @@ function advanceQuestsBy(s: RunState, pred: (o: QuestObjective) => boolean, amou
   for (const aq of s.activeQuests ?? []) {
     if (aq.completed) continue;
     const def = QUEST_INDEX[aq.questId];
-    if (!def || !pred(def.objective)) continue;
+    if (!def) continue;
+    if (def.objective.event === 'compound') {
+      // Route the tick to whichever compound parts match this predicate (a compound can mix recruit + combat events).
+      advanceCompound(s, aq, def, (def.objective.parts ?? []).map((p) => (pred(p as QuestObjective) ? amount : 0)));
+      continue;
+    }
+    if (!pred(def.objective)) continue;
     aq.progress += amount;
     resolveQuestThreshold(s, aq, def);
+  }
+}
+
+/** Advance a compound quest's parts by the per-part `amounts` (index-aligned with `objective.parts`); complete +
+ *  apply the reward once EVERY part has filled. `progress` = Σ part progress (the panel renders per-part lines). */
+function advanceCompound(s: RunState, aq: ActiveQuest, def: QuestDef, amounts: number[]): void {
+  const parts = def.objective.parts ?? [];
+  const pp = (aq.partProgress ??= parts.map(() => 0));
+  let changed = false;
+  parts.forEach((part, i) => {
+    const add = amounts[i] ?? 0;
+    if (add > 0 && pp[i]! < part.count) { pp[i] = Math.min(part.count, pp[i]! + add); changed = true; }
+  });
+  if (!changed) return;
+  aq.progress = pp.reduce((a, b) => a + b, 0);
+  if (parts.every((part, i) => (pp[i] ?? 0) >= part.count)) {
+    aq.completed = true;
+    applyQuestReward(s, def, true);
   }
 }
 
@@ -1654,6 +1691,13 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // guarantees one). No Magnetic in the current shop → it appears after the next refresh.
       for (const o of s.shop) if (CARD_INDEX[o.cardId]?.keywords.includes('M')) o.cost = r.cost;
       break;
+    case 'friedCircuits':
+      s.friedCircuitsStep = r.step; // Fried Circuits: each buy buffs shop Mechs by step × buys (escalating)
+      s.friedCircuitsBuys = 0;
+      break;
+    case 'undeadSpellAura':
+      s.forsakenWillAttack = r.attack; // Forsaken Will: each spell cast grants your Undead aura +attack
+      break;
     case 'slaughterRepeat':
       s.slaughterFirstEachCombat = (s.slaughterFirstEachCombat ?? 0) + 1; // Author's Hand
       break;
@@ -1716,6 +1760,10 @@ function advanceCombatQuests(s: RunState, result: CombatResult): void {
     if (aq.completed) continue;
     const def = QUEST_INDEX[aq.questId];
     if (!def) continue;
+    if (def.objective.event === 'compound') {
+      advanceCompound(s, aq, def, (def.objective.parts ?? []).map((p) => combatEventCount(result, p)));
+      continue;
+    }
     const inc = combatEventCount(result, def.objective);
     if (inc <= 0) continue;
     aq.progress += inc;

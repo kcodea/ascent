@@ -392,15 +392,21 @@ export type QuestObjectiveEvent =
   | 'consumeFodder' | 'consumeStats' | 'summonImp'
   // Rulebreaker (neutral) set: `winRound` counts combat wins; `castSpell` counts spells cast; `authorsHand` is the
   // compound Shout+Echo+Rally objective (each must reach `count`; per-key progress in `ActiveQuest.subProgress`).
-  | 'winRound' | 'castSpell' | 'authorsHand';
+  | 'winRound' | 'castSpell' | 'authorsHand'
+  // Compound (Fried Circuits / Forsaken Will): a general multi-part objective — `QuestObjective.parts` holds the
+  // sub-objectives (each its own event + count), and the quest completes when ALL parts fill.
+  | 'compound';
 /** A quest objective: reach `count` of `event`. `tribe` narrows a tribe-aware objective (e.g. "Summon 4 Undead",
  *  "Give Dragons 80 stats"). `filter: 'shout'` narrows a `buy` to Battlecry minions ("Buy 3 Shout minions").
- *  Live progress lives on the run's `ActiveQuest`. */
+ *  `event: 'compound'` uses `parts` (each a normal objective) — all parts must fill. Live progress lives on the
+ *  run's `ActiveQuest` (`partProgress` for compound). */
 export interface QuestObjective {
   event: QuestObjectiveEvent;
   count: number;
   tribe?: Tribe;
   filter?: 'shout';
+  /** Compound objective only: the sub-objectives (each its own event + count). All must fill to complete. */
+  parts?: { event: QuestObjectiveEvent; count: number; tribe?: Tribe }[];
 }
 /**
  * What a completed quest grants — a discriminated union; the reward palette grows as content lands:
@@ -468,6 +474,12 @@ export type QuestReward =
   // Attachment Issues (Mech capstone): every shop is guaranteed a Magnetic ("Attachment") offer, and every
   // Attachment in the shop costs `cost` Gold — for the rest of the run.
   | { kind: 'attachmentDeal'; cost: number }
+  // Fried Circuits (Mech capstone): each minion you buy buffs every Mech OFFER in the shop, escalating by `step`
+  // per purchase (buy 1 → +step, buy 2 → +2·step, …).
+  | { kind: 'friedCircuits'; step: number }
+  // Forsaken Will (Undead greater): each spell you cast permanently grants your Undead aura +`attack` Attack
+  // (applies in the shop AND combat, like Lantern of Souls).
+  | { kind: 'undeadSpellAura'; attack: number }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];

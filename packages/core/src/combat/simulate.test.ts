@@ -1538,6 +1538,29 @@ describe('simulate (handoff A.3)', () => {
     expect(rallied(withoutType)).toBe(false); // no other Mech on the board → the rally lands on nobody
   });
 
+  it('Echo Warden: a friendly Echo Warden makes your combat summons trigger one more time', () => {
+    const footmen = (r: ReturnType<typeof run>) => r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'footman').length;
+    const withWarden = run(
+      [
+        { cardId: 'echowarden', attack: 0, health: 50 }, // survives → doubles your summons
+        { cardId: 'deathlesshand', attack: 2, health: 1 }, // Deathrattle: summon a Footman
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 20, health: 50 }],
+      1,
+    );
+    const without = run(
+      [
+        { cardId: 'deathlesshand', attack: 2, health: 1 },
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 20, health: 50 }],
+      1,
+    );
+    expect(footmen(withWarden)).toBe(2); // 1 Deathrattle summon → +1 extra copy from Echo Warden
+    expect(footmen(without)).toBe(1);
+  });
+
   it('Grave Body: at Start of Combat copies your leftmost Echo (fires it on its own death)', () => {
     const a = run(
       [

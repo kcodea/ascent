@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(content): content batch pt 6b + 7 — compound objectives + Echo Warden (batch complete)
+
+Finishes the owner content batch.
+
+**Compound (multi-part) objectives** — a general primitive: `objective.event: 'compound'` with `parts[]` (each a
+normal objective + count); the quest completes when ALL parts fill. Per-part progress in `ActiveQuest.partProgress`;
+`advanceQuestsBy` (recruit events) + `advanceCombatQuests` (combat events) both route ticks to matching parts via a
+shared `advanceCompound`. Panel renders one live line per part.
+- **Fried Circuits** (Mech capstone) — *Kill 10 enemies **and** spend 20 Gold* → each minion bought buffs every
+  Mech shop OFFER by `step × buys` (escalating +2/+2, +4/+4, …), baked into the offer's atk/hp.
+- **Forsaken Will** (Undead greater) — *Cast 14 spells **and** summon 6 in combat* → each spell cast permanently
+  grows your Undead Attack aura (`undeadAttackBonus`, applies in shop + combat).
+
+**Echo Warden** (Neutral T4 4/5, reward-only) + **Echo Chamber** (Neutral greater, *Summon 12 in combat* → grant it):
+"Your summons trigger one more time" — a passive read in `simulate`'s summon chokepoint (`summonMinion`): each
+player summon spawns one extra copy (golden = two; stacks per Warden), guarded by a `doubled` flag so the copy never
+re-triggers. Echo Warden is `token`-flagged out of the pool (added to the reward-only regression test).
+
+Types + Zod extended (compound objective + `parts`, `partProgress`, `friedCircuits`/`undeadSpellAura` rewards,
+`compound` event). Tests: compound completes only when both parts fill (and not from one alone); Fried Circuits' buys
+escalate the shop-Mech buff; Forsaken Will grows the aura per spell; Echo Warden doubles a combat summon. Full
+gauntlet (772) + harness green.
+
 ### feat(content): content batch pt 6a — Attachment Issues (Mech capstone)
 
 New Mech capstone **Attachment Issues** — *Kill 20 enemies* → *"Attachments cost 2 Gold, and there's always an

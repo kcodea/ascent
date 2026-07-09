@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### fix(combat): side-scoped Imp Aura — enemy Imps buff correctly + no weaker 2nd summon pair
+
+Two Imp-aura bugs, one root cause. In `simulate()` the Imp Aura was a player-only scalar (`impAtkBonus`/
+`impHpBonus`) that `grantImpBuff` never advanced — it only accumulated the run-state carry-back. So (a) an Imp
+summoned LATER in a fight read the start-of-combat aura, missing a buff an earlier Imp King had already granted
+(the reported "2nd pair of Imps is weaker than the 1st"), and (b) the enemy side had no aura at all and the
+carry-back was hard-gated to the player, so enemy Imps spawned at base 1/1 every fight.
+
+Fix: made the Imp Aura a **per-side live accumulator** (`impAura: Record<Side, {attack,health}>`) — the player's
+seeds from run state, the enemy's from 0, and `grantImpBuff(side)` now advances the granting side's bucket (still
+carrying back only the player's, since the enemy is regenerated each wave). `applyAuras` applies `impAura[m.side]`
+to any Imp on either side, so Imps summoned later — player or enemy — inherit every buff granted so far. Two Imp
+Kings now yield four identical Imps; enemy Imp Kings buff their own Imps. Determinism preserved (harness ✓).
+
+Verified: typecheck + lint + **738 tests** (new: later-summoned player Imp carries the aura; enemy Imps inherit
+the enemy aura) + determinism harness + `build:web`, all green. Follow-ups still open from the batch: enemy Soren
+hero power (separate snapshot/opponent/resummon machinery); broader non-Imp enemy auras (Undead/Beast dynamic
+grants) if wanted; mid-combat quest doubling parked pending an owner call.
 ### fix: Implosion cast count + Steward live copy + Grave Robber Echo counts for quests
 
 Three owner-reported fixes (part 1 of a bug batch):

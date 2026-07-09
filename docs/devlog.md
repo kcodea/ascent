@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### revert(content): Pack Leader back to Start-of-Combat (per owner)
+
+Owner reversed the Pack Leader rework from #226: it should stay a **Start-of-Combat** buff, not the permanent
+recruit-time aura. Restored its final spec — *"**Start of Combat:** Give your **Beasts** **+2/+2**. Improve this
+by **+2/+2** for every Beast played."* (golden +4/+4) — i.e. the `scTribeBuffPerPlayed` combat effect that scales
+with Beasts played this turn. Surgical partial revert: restored `beasts.ts` / `recruit.ts` / `schema.ts` /
+`core/types.ts` / `run.test.ts` to their pre-#226 state (the `onSummonTribeAura` primitive is gone again), while
+**keeping** #226's quest-UI changes (Author's Hand 3-line objective + quest-card fit). The `scTribeBuffPerPlayed`
+live-text helper was never removed, so the live grant re-wires automatically. Verified: typecheck + lint + **736
+tests** (the two SoC Pack Leader tests are back and green) + `build:web`; live — the Compendium shows the SoC text.
+
 ### feat: Author's Hand 3-line objective + quest-card fit + Pack Leader permanent-on-play
 
 Three owner-requested changes (quests UI + one card rework):

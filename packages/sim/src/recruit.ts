@@ -561,6 +561,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.summonBonus = (self.summonBonus ?? 0) + base;
   },
 
+  /** Pack Leader — whenever you summon a friendly minion of `tribe` (played from hand OR summoned as a token),
+   *  give your `tribe` +atk/+hp PERMANENTLY, wherever they are: buffs every current one (board + hand) AND stacks
+   *  the grant into the tribe's run-wide buy aura, so future ones (bought / conjured / summoned / Reborn) carry
+   *  it too — the persistent, per-summon sibling of Squirl Scout's one-shot Beast aura. The triggering minion is
+   *  already on the board, so it's included. Skips Pack Leader's own entry. Golden doubles the grant. Beast is the
+   *  only tribe wired here (the one with a Health buy-aura); other tribes would just need their own channels. */
+  onSummonTribeAura: (ctx, self, params, { minion }) => {
+    if (minion === self) return;
+    const tribe = str(params.tribe);
+    if (tribe && !isTribe(minion, tribe as Tribe)) return;
+    const a = num(params.attack, 2) * gold(self);
+    const h = num(params.health, 2) * gold(self);
+    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
+      if (isTribe(card, tribe as Tribe)) addBuff(card, nameOf(self), a, h);
+    }
+    if (tribe === 'beast') {
+      ctx.state.beastBuyAtk = (ctx.state.beastBuyAtk ?? 0) + a;
+      ctx.state.beastBuyHp = (ctx.state.beastBuyHp ?? 0) + h;
+    }
+  },
+
   /** Imp Overseer — Battlecry: give your Imps a persistent +atk/+hp run-wide (board + hand + future copies)
    *  via the shared imp enchant (`impBuff`). Golden doubles. */
   battlecryBuffImps: (ctx, self, params) => {

@@ -6,7 +6,7 @@ import { CARD_INDEX } from '@game/content';
 import { Card, type CardView } from './Card';
 import { Icon } from './Icon';
 import { questArt } from './art';
-import { questObjectiveText, questRewardText } from './questText';
+import { questObjectiveLines, questRewardText } from './questText';
 
 const TIER_LABEL: Record<QuestDef['tier'], string> = { lesser: 'Lesser', greater: 'Greater', capstone: 'Capstone' };
 /** Each tribe's emblem glyph — the canonical set (mirrors Card.tsx's footer icons). */
@@ -90,7 +90,9 @@ export function QuestCard({ quest, onBuy }: { quest: QuestDef; onBuy: () => void
       <div className="questcard-body">
         <div className="questcard-sect">
           <div className="questcard-lbl"><Icon name="target" /> Objective</div>
-          <div className="questcard-txt">{questObjectiveText(quest.objective)}</div>
+          {questObjectiveLines(quest.objective).map((line, i) => (
+            <div className="questcard-txt" key={i}>{line}</div>
+          ))}
         </div>
         <div className="questcard-sect reward">
           <div className="questcard-lbl"><Icon name="gift" /> Reward</div>

@@ -76,6 +76,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scSummonCopy',
   'scTribeBuffPerSpell',
   'scTribeBuffPerPlayed',
+  'onSummonTribeAura',
   'scTribeBuffImproving',
   'battlecryBuffTribe',
   'battlecrySummon',

@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Quest UI polish + Pack Leader rework.** The Author's Hand quest now shows its objective as three progress
+  lines (Shouts / Echoes / Rallies triggered N/6); long quest text now fits inside the choice-box frame (cards
+  grow + level to equal height). Pack Leader now permanently buffs your Beasts +2/+2 each time you play a Beast
+  (was a temporary Start-of-Combat buff).
 - **Burning-rope turn timer (re-added).** The Hearthstone-style burning rope is back — it lights in the final 20s
   of a recruit turn and burns left→right on the board's centre divider (live flame + char trail). The digital
   `SETUP TIME` plaque stays alongside it.

@@ -956,6 +956,16 @@ export function simulate(
           }
         }
       }
+      // Perfect Core (welded Rally): each time this host attacks, add N random spells to your hand after combat
+      // (N = accrued rallySpellWeld, stacks via magnetize; golden already baked at weld time). Mirrors the
+      // standalone `rallyGrantSpell` factory — a standalone Perfect Core grants via its own effect instead, so no
+      // double-count. Fires per swing (a Windfury host grants twice if it survives the first).
+      if (attacker.rallySpellWeld && attacker.rallySpellWeld > 0) {
+        const pool = ctx.allCards().filter((c) => c.spell && !c.token);
+        if (pool.length > 0) {
+          for (let i = 0; i < attacker.rallySpellWeld; i++) ctx.grantToHand(ctx.rng.pick(pool).id, attacker.side, attacker.uid);
+        }
+      }
 
       const targetWasAlive = !target.dead && target.health > 0;
       const targetCouldReborn = target.rebornAvailable; // a Reborn target that "dies" returns to life
@@ -1117,6 +1127,7 @@ export function simulate(
       ascendProgress: minion.ascendProgress,
       sourceUid: minion.sourceUid,
       rallyMechAtk: weldedRally > 0 ? weldedRally : undefined,
+      rallySpellWeld: minion.rallySpellWeld, // welded-only already (no card component); carry the copy exactly
       buffs: minion.buffs,
     };
     minion.rebornAvailable = false; // force a true death (skip Reborn) so the Deathrattle fires

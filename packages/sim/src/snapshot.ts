@@ -133,6 +133,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.golden ? { golden: true } : {}),
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
     ...(c.rallyMechAtk ? { rallyMechAtk: c.rallyMechAtk } : {}),
+    ...(c.rallySpellWeld ? { rallySpellWeld: c.rallySpellWeld } : {}),
     // Per-minion accruals, so a board served as an opponent is as strong as the board it was captured from
     // (combat seeds both from the BoardMinion — see minion.ts): Sergeant's improved Deathrattle HP-grant and
     // Tara's ascend progress. Without these a served Sergeant/Tara fought weaker than the real board did.

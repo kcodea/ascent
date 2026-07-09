@@ -101,6 +101,9 @@ export interface BoardCard {
   /** Better Bot: accrued Rally-Mech Attack welded onto this card (5 per Better Bot magnetized, golden ×2).
    *  Carried into combat where, when this attacks, your other Mechs get +this Attack. */
   rallyMechAtk?: number;
+  /** Perfect Core: accrued "Rally: get a random spell" welded onto this card (1 per Perfect Core magnetized,
+   *  golden ×2). Carried into combat where, when this attacks, you get this-many random spells. */
+  rallySpellWeld?: number;
   /** Harry Botter: accrued spell-power aura welded onto this card (1 per Harry Botter magnetized, golden ×2).
    *  Read by `spellStatBonus` alongside the card's own `spellAura`, so a welded host keeps boosting spells. */
   spellAuraBonus?: number;

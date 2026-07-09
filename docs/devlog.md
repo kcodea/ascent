@@ -21,6 +21,21 @@ badge** in a horizontal row directly above the hero panel (in the StatusBar):
 - Verified live: injected two completed quests into a throwaway in-memory store state — both badges rendered
   with art + correct tooltips, positioned (top 1046–1102) directly above the hero panel (top 1109). The real
   saved run was left untouched (raw `setState` doesn't persist).
+### feat(combat): Perfect Core welds its "Rally: get a random spell" onto the host
+
+Owner: *"Perfect Core should give the minion it attaches to the rally effect of getting a random spell."*
+Standalone Perfect Core already grants a random spell when it attacks (its own `onAttack` →
+`rallyGrantSpell` effect, golden → 2). Now welding Perfect Core onto a host transfers that Rally too —
+mirroring the existing Better Bot `rallyMechAtk` weld path end-to-end:
+
+- **New carried field `rallySpellWeld`** on `BoardCard` (sim), `BoardMinion` + `Minion` (core). Welded-only —
+  a standalone Perfect Core still fires via its own effect, so a host never double-counts.
+- **Weld** (`recruit.ts`): `MagnetPayload.rallySpell` → `applyWeld` accumulates `host.rallySpellWeld` (stacks
+  per Perfect Core, golden ×2). The reducer's manual-weld payload derives it from the magnetic def's
+  `rallyGrantSpell` effect (`golden ? 2 : 1`).
+- **Combat** (`minion.ts` carries it in; `simulate.ts` grants N random non-token spells to hand per swing —
+  a Windfury host fires twice). Resummon `copyBoard` and the board `snapshot` preserve it.
+- **Tests**: welded host grants a spell on attack; Windfury host grants twice. Full gauntlet + harness green.
 
 ## 2026-07-08 (session 27)
 

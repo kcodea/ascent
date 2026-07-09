@@ -436,6 +436,9 @@ function reduceCore(state: RunState, action: Action): RunState {
             mana,
             // Better Bot: weld its Rally (+5 Attack to other Mechs on attack, golden ×2) onto the host — stacks.
             rallyMechAtk: (mDef?.rallyMechAtk ?? 0) * (card.golden ? 2 : 1) || undefined,
+            // Perfect Core: weld its "Rally: get a random spell" onto the host (golden grants 2) — stacks.
+            rallySpell:
+              (mDef?.effects?.some((e) => e.do === 'rallyGrantSpell') ? (card.golden ? 2 : 1) : 0) || undefined,
             // Spell-power aura (def.spellAura — no card carries it in the current set): welds onto the host — stacks.
             spellAura: (mDef?.spellAura ?? 0) * (card.golden ? 2 : 1) + (card.spellAuraBonus ?? 0) || undefined,
             // Heckbinder: weld its Fodder aura (+1/+2 to new Fodder, golden ×2) onto the host — stacks, and

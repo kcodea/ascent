@@ -1489,6 +1489,31 @@ describe('simulate (handoff A.3)', () => {
     expect(rallies).toBe(2); // two swings → two rallies (the old once-per-attack code fired only one)
   });
 
+  it('Perfect Core (welded Rally): a host with rallySpellWeld grants a random spell to hand on attack', () => {
+    const a = run(
+      [
+        { cardId: 'drone', attack: 6, health: 50, rallySpellWeld: 1 }, // a welded host (Perfect Core magnetized on)
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }, // width → player attacks first
+      ],
+      [{ cardId: 'omen', attack: 1, health: 200 }],
+      3,
+    );
+    // The host attacked → a spell flew to the player's hand (a `toHand` event; the run loop adds it post-replay).
+    expect(a.events.some((e) => e.type === 'toHand')).toBe(true);
+  });
+
+  it('Perfect Core (welded Rally) fires PER SWING — a Windfury host grants twice', () => {
+    const a = run(
+      [
+        { cardId: 'drone', attack: 6, health: 50, keywords: ['W'], rallySpellWeld: 1 }, // Windfury → two swings
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }, // width → player attacks first
+      ],
+      [{ cardId: 'omen', attack: 0, health: 11 }], // dies to the two 6-damage swings (12 ≥ 11)
+      3,
+    );
+    expect(a.events.filter((e) => e.type === 'toHand').length).toBe(2);
+  });
+
   it('Supporter (Rally): when it attacks, 2 friendly Dragons get +1/+2', () => {
     const a = run(
       [

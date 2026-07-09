@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(content): content batch pt 3 — The Red Trail (Slaughter-keyword objective)
+
+New Beast greater quest **The Red Trail** — *Trigger 5 Slaughters* → *"End of Turn: get Bloodlust"* (the pt-2
+spell, granted recurringly). Introduces the **Slaughter-KEYWORD objective** `slaughterKeyword`, distinct from
+`slaughter` ("Kill N enemies", any kill):
+
+- `simulate` tallies `slaughterKeyword` when a player minion **with an on-kill effect** fells an enemy (one per
+  kill — the primary trigger, not doubler re-fires); tribe-agnostic. Carried back on `playerQuestTally` + a
+  step-tagged `playerQuestEvents` entry so the quest panel live-ticks it during the replay.
+- Wired through `QuestObjectiveEvent` + Zod, `combatEventCount` (reducer application), `CombatQuestDelta` +
+  `useCombatReplay`'s live accumulator (excluded from the by-tribe breakdown), and `questText` ("Trigger N
+  Slaughters"). The Red Trail's reward reuses the existing `recurringGrant`.
+
+Tests: a Karthus (on-kill) kill counts as a Slaughter trigger while a vanilla Pennycat kill does not (both count
+for "Kill N enemies"); The Red Trail completes at 5 and schedules the recurring Bloodlust. Full gauntlet green.
+
 ### fix(sim): Implosion's ×N badge reflects Nimbus/spell-recast multipliers (+ spellCasts is now pure)
 
 Owner: *"nimbus should stack with other related recasts, just not himself — it would 2× the recasts of Implosion's

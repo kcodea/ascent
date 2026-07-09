@@ -29,6 +29,9 @@ export function questObjectiveText(o: QuestObjective): string {
       // "Kill N enemies" — this objective counts any enemy a friendly minion fells by attacking, NOT the
       // Slaughter keyword. The word "Slaughter" is reserved for the keyword-trigger objective (The Red Trail).
       return `Kill ${o.count} ${o.count === 1 ? 'enemy' : 'enemies'}${withTribe}`;
+    case 'slaughterKeyword':
+      // "Trigger N Slaughters" — the Slaughter KEYWORD firing (a minion with an on-kill effect scoring a kill).
+      return `Trigger ${o.count} ${o.count === 1 ? 'Slaughter' : 'Slaughters'}`;
     case 'summonCombat':
       return `Summon ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'} in combat`;
     case 'deathrattle':

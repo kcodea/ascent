@@ -4812,7 +4812,7 @@ describe('Beast quests (combat objectives + rewards)', () => {
     events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
     initial: { player: [], enemy: [] }, ...over,
   });
-  const zeroTally = () => ({ attack: 0, summonCombat: 0, slaughter: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {} });
+  const zeroTally = () => ({ attack: 0, summonCombat: 0, slaughter: 0, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {} });
   const settle = (quest: string, over: Partial<CombatResult>, extra?: Partial<RunState>): RunState =>
     reduce({ ...createRun(1), phase: 'combat', combatSettled: false, lastCombat: combatWith(over), activeQuests: [{ questId: quest, progress: 0, completed: false }], ...extra }, { type: 'resolveCombat' });
 
@@ -4820,6 +4820,12 @@ describe('Beast quests (combat objectives + rewards)', () => {
     const s = settle('q_blood_trail', { enemyDeaths: 2, playerQuestTally: { ...zeroTally(), slaughter: 2, slaughterByTribe: { beast: 2 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questFlags?.bloodTrail).toBe(true);
+  });
+
+  it('The Red Trail (slaughterKeyword) completes at 5 and schedules the recurring Bloodlust grant', () => {
+    const s = settle('q_the_red_trail', { playerQuestTally: { ...zeroTally(), slaughterKeyword: 5 } });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.questRecurringGrants).toContain('bloodlust');
   });
 
   it('Apex Hunt (slaughter WITH Beasts) counts only beast-attributed kills', () => {

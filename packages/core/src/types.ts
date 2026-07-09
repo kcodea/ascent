@@ -545,6 +545,9 @@ export interface BoardMinion {
   /** Better Bot: accrued Rally-Mech Attack this minion grants on attack (its own base + every Better Bot
    *  magnetized onto it). Combat reads it to buff other Mechs when this attacks. */
   rallyMechAtk?: number;
+  /** Perfect Core: accrued "Rally: get a random spell" welded onto this minion. Combat reads it to grant
+   *  this-many random spells when this attacks (standalone Perfect Core uses its own effect instead). */
+  rallySpellWeld?: number;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -603,6 +606,9 @@ export interface Minion {
   sourceUid?: string;
   /** Better Bot: total Rally-Mech Attack granted to other Mechs when this attacks (own base + welds). */
   rallyMechAtk?: number;
+  /** Perfect Core (welded): number of random spells granted when this attacks. Standalone Perfect Core
+   *  grants via its own onAttack effect instead, so a host never double-counts. */
+  rallySpellWeld?: number;
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };

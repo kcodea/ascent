@@ -329,6 +329,9 @@ export interface MagnetPayload {
   mana: number;
   /** Better Bot: Rally-Mech Attack this magnetic carries onto its host (already golden-baked). */
   rallyMechAtk?: number;
+  /** Perfect Core: number of "Rally: get a random spell" grants this magnetic carries onto its host
+   *  (already golden-baked). */
+  rallySpell?: number;
   /** Heckbinder: Fodder aura this magnetic carries onto its host (already golden-baked). */
   fodderAura?: { attack: number; health: number };
   /** Spell-power aura this magnetic carries onto its host (already golden-baked; no card in the current set). */
@@ -350,6 +353,7 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
   }
   if (mag.mana > 0) host.manaBonus = (host.manaBonus ?? 0) + mag.mana * mult;
   if (mag.rallyMechAtk) host.rallyMechAtk = (host.rallyMechAtk ?? 0) + mag.rallyMechAtk * mult;
+  if (mag.rallySpell) host.rallySpellWeld = (host.rallySpellWeld ?? 0) + mag.rallySpell * mult;
   if (mag.spellAura) host.spellAuraBonus = (host.spellAuraBonus ?? 0) + mag.spellAura * mult;
   if (mag.fodderAura) {
     const cur = (host.fodderAuraBonus ??= { attack: 0, health: 0 });

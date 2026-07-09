@@ -122,17 +122,19 @@ export function simulate(
     enemy: { attack: 0, health: 0 },
   };
 
+  // The Undead Aura is side-scoped for the same reason: an enemy Karthus / Deathswarmer / Watcher grants its
+  // Undead aura IN COMBAT (via grantUndeadBuyAtk / grantUndeadAura), and Undead the enemy summons/Reborns after
+  // must inherit it — just like the player's. `buyAtk` is the Attack slice baked at buy time (player) or accrued
+  // in-combat (enemy), re-added only to a from-base body; `attack`/`health` (Lantern) apply to all Undead.
+  const undeadAura: Record<Side, { attack: number; health: number; buyAtk: number }> = {
+    player: { attack: undeadAttackBonus, health: undeadHealthBonus, buyAtk: undeadBuyAtk },
+    enemy: { attack: 0, health: 0, buyAtk: 0 },
+  };
+
   // Each aura yields the +atk/+hp it grants a given minion (0/0 = doesn't apply). `bakedAtk` is the slice of
   // Attack already folded into run-board stats at buy time (re-added only to a from-base body). The Imp Aura is
   // handled separately (side-scoped, above) so it applies to both sides.
   const AURAS: { label: string; grant: (m: Minion) => { attack: number; health: number; bakedAtk?: number; bakedHp?: number } }[] = [
-    {
-      label: 'Undead Aura',
-      grant: (m) =>
-        isUndeadMinion(m)
-          ? { attack: undeadAttackBonus, health: undeadHealthBonus, bakedAtk: undeadBuyAtk }
-          : { attack: 0, health: 0 },
-    },
     {
       // Squirl Scout — run-wide Beast Attack aura, all baked at buy time (no combat-gained slice), so it's
       // re-added only to from-base bodies (summoned/Reborn Beasts); starting Beasts already carry it.
@@ -162,8 +164,16 @@ export function simulate(
       if (ia.attack > 0) m.attack = Math.max(0, m.attack + ia.attack);
       if (ia.health > 0) { m.health += ia.health; m.maxHealth += ia.health; }
     }
-    // The other aggregate run-wide auras (Undead / Beast / Attachment) are keyed to the PLAYER's run state — an
-    // enemy snapshot has no run state, so it doesn't inherit these (its starting stats already bake them in).
+    // Undead Aura is side-scoped too: apply each side's Undead aura to its Undead. The `buyAtk` slice is baked at
+    // buy time, so it's re-added only to a from-base body (summoned/Reborn); the attack/health (Lantern) apply to all.
+    if (isUndeadMinion(m)) {
+      const ua = undeadAura[m.side];
+      const a = ua.attack + (fromBase ? ua.buyAtk : 0);
+      if (a > 0) m.attack = Math.max(0, m.attack + a);
+      if (ua.health > 0) { m.health += ua.health; m.maxHealth += ua.health; }
+    }
+    // The remaining aggregate auras (Beast / Attachment) are baked at buy time on the PLAYER's board — an enemy
+    // snapshot already carries them in its starting stats and has no combat grant path, so they stay player-only.
     if (isPlayer) {
       for (const aura of AURAS) {
         const g = aura.grant(m);
@@ -474,22 +484,19 @@ export function simulate(
       fodderBuffGain.health += health;
     },
     grantUndeadBuyAtk: (amount, side) => {
-      if (side !== 'player') return; // enemies have no run state
-      undeadBuyAtkGain += amount; // carry-back delta → CombatResult.playerUndeadBuyAtkGain
-      // Keep the LIVE aura value current so Undead summoned / Reborn LATER this fight inherit the gain too
-      // (applyAuras re-adds `undeadBuyAtk` to every from-base body). Karthus / Forsaken Weaver route through
-      // here, so this fixes "a Spear Warden summoned after the aura pumped misses it".
-      undeadBuyAtk += amount;
+      // Advance the granting SIDE's live Undead buy-aura so Undead summoned / Reborn LATER this fight inherit it
+      // (applyAuras re-adds it to every from-base body). Karthus / Forsaken Weaver route through here — on the
+      // enemy side too, so a captured board's Undead-granter now buffs enemy Undead it summons afterward.
+      undeadAura[side].buyAtk += amount;
+      if (side === 'player') undeadBuyAtkGain += amount; // carry-back delta (enemy is regenerated each wave)
     },
     grantUndeadAura: (attack, health, side) => {
-      // Watcher casting Lantern of Souls: bump the run-wide Undead aura (+Attack/+Health to your Undead
-      // EVERYWHERE) — the SAME channel a shop-cast Lantern uses. Live (so Undead summoned/Reborn later this
-      // fight inherit it via applyAuras) + carried back via CombatResult.playerUndeadAuraGain. Player-only.
-      if (side !== 'player') return;
-      undeadAuraGain.attack += attack;
-      undeadAuraGain.health += health;
-      undeadAttackBonus += attack;
-      undeadHealthBonus += health;
+      // Watcher casting Lantern of Souls: bump the granting side's run-wide Undead aura (+Attack/+Health to its
+      // Undead EVERYWHERE) — the SAME channel a shop-cast Lantern uses. Live (so Undead summoned/Reborn later this
+      // fight inherit it via applyAuras); the player's carries back via CombatResult.playerUndeadAuraGain.
+      undeadAura[side].attack += attack;
+      undeadAura[side].health += health;
+      if (side === 'player') { undeadAuraGain.attack += attack; undeadAuraGain.health += health; }
     },
     castSpell: (side) => {
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)

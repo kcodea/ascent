@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(ui): shield / reborn auras now track the card exactly through the lunge + recoil
+
+Owner-reported: a unit with a Divine Shield or Reborn aura that's attacked "bounces" from the impact recoil,
+and for a moment the aura detaches from the card. Root cause: the aura tracker (`syncShields`) re-measures
+every frame, but on a SEPARATE rAF loop from Pixi's renderer — so during a fast lunge/recoil the bubble could
+render one frame behind the card. Fix: `setShield` now accepts an optional `track` callback; the bubble calls
+it in pixiFx's OWN ticker (after GSAP has applied the frame's transform) to refresh its position right before
+render, so the aura rides the card exactly. Recruit hands the FRONT auras (shield/reborn) a live tracker
+during combat only (recruit + the back-layer taunt keep the per-render push — no fast transforms to chase).
+typecheck + lint + **766 tests** + build:web green; live: reloads clean, no console errors.
+
 ### fix(content): mark Bloodlust / Anomaly Reactor / Grave Body reward-only (token) — were leaking into the shop
 
 Owner catch: unique quest-reward cards must never roll in the shop / spell pool (only real general shop units may).

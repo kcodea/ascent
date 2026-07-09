@@ -2439,3 +2439,33 @@ describe('Mech/neutral quests — Rally doublers stack additively + Shared Circu
     expect(shielded.length).toBe(3); // exactly 3 of the 4 Mechs warded
   });
 });
+
+describe('Demon quests — imp summons + Deep Hunger / Contract Rewrite / Pit Without End / Run Maw', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, true, false, 0, 0, 0, 0, mods);
+
+  it('Pit Without End summons N Imps when your board is wiped (once, tallied as Imp summons)', () => {
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 1 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 9 }];
+    const r = simMods(p, e, 1, { pitWithoutEndImps: 3 });
+    expect(r.playerImpsSummoned).toBe(3); // the 3 Imps the board-wipe conjured
+  });
+
+  it('Contract Rewrite gives the rightmost Demon a Deathrattle that summons 2 Imps', () => {
+    const p: BoardMinion[] = [{ cardId: 'feed', attack: 2, health: 1 }]; // Soulfeeder (Demon) — dies to the wall
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 20 }];
+    const r = simMods(p, e, 1, { contractRewrite: true });
+    expect(r.playerImpsSummoned).toBeGreaterThanOrEqual(2);
+  });
+
+  it('Run Maw consumes your weakest minion at Start of Combat and hands Demons 25% of its stats', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'runmaw', attack: 10, health: 8 },
+      { cardId: 'acid', attack: 8, health: 8 }, // Korok — a Demon
+      { cardId: 'sandbag', attack: 4, health: 4 }, // the weakest → consumed
+    ];
+    const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, {});
+    // 25% of the 4/4 sandbag = +1/+1 to each Demon (Run Maw + Korok).
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
+  });
+});

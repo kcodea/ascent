@@ -37,6 +37,12 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Trigger ${o.count} ${o.count === 1 ? 'Rally' : 'Rallies'}`;
     case 'playAttachment':
       return `Play ${o.count} ${o.count === 1 ? 'Attachment' : 'Attachments'}`;
+    case 'consumeFodder':
+      return `Consume ${o.count} Fodder`;
+    case 'consumeStats':
+      return `Consume ${o.count} total stats`;
+    case 'summonImp':
+      return `Summon ${o.count} ${o.count === 1 ? 'Imp' : 'Imps'}`;
     case 'sell':
       return `Sell ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'}`;
     case 'summon':
@@ -130,6 +136,12 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return `Whenever a Beast attacks, improve your Beast Attack aura by +${r.amount ?? 0}`;
         case 'sharedCircuit':
           return `Start of Combat: give ${r.amount ?? 0} friendly Mechs Ward`;
+        case 'deepHunger':
+          return 'Start of Combat: your leftmost Demon gains "Slaughter: add 3 Fodder to your next shop"';
+        case 'contractRewrite':
+          return 'Start of Combat: your rightmost Demon gains "Echo: summon 2 Imps with Ward"';
+        case 'pitWithoutEnd':
+          return `Your last friendly death each combat summons ${r.amount ?? 0} Imps`;
       }
       return '';
     case 'shoutRepeat':
@@ -148,6 +160,12 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Every ${r.every} friendly deaths, trigger your leftmost Echo`;
     case 'rallyRepeat':
       return r.scope === 'always' ? 'Your Rallies trigger an extra time' : 'Your first Rally each combat triggers twice';
+    case 'fodderReward': {
+      const parts: string[] = [];
+      if (r.fodder) parts.push(`Add ${r.fodder} Fodder to your next shop`);
+      if ((r.attack ?? 0) > 0 || (r.health ?? 0) > 0) parts.push(`Fodder gains ${statPhrase(r.attack ?? 0, r.health ?? 0)}`);
+      return parts.join('. ');
+    }
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

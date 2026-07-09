@@ -666,6 +666,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
 
+  /** Start of Combat (Run Maw): Consume your weakest OTHER friendly minion (destroy it — no Deathrattle, no
+   *  Avenge, like a sacrifice), then every friendly Demon gains 25% of its Attack + Health (floored). Golden
+   *  buffs at 50%. */
+  scConsumeWeakestBuffDemons: (ctx, self, params) => {
+    const friends = ctx.living(self.side).filter((m) => m !== self);
+    if (friends.length === 0) return;
+    const weakest = friends.reduce((a, b) => (b.attack + b.health < a.attack + a.health ? b : a));
+    const pct = num(params.pct, 25) * mul(self);
+    const ga = Math.floor((weakest.attack * pct) / 100);
+    const gh = Math.floor((weakest.health * pct) / 100);
+    weakest.dead = true; // consumed — destroyed without firing its Deathrattle / Avenge
+    weakest.health = 0;
+    ctx.log({ type: 'death', target: weakest.uid, side: self.side });
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe === 'demon' || m.tribe2 === 'demon' || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, ga, gh, self.uid);
+    }
+  },
+
   /** Mechanical Jouster — Rally: when THIS minion attacks, add a random Magnetic Mech to your hand after
    *  combat (golden 2 per attack). Mirrors Junkyard Titan's grant pool, filtered to Mech magnetics; fires on
    *  this minion's own attack (Windfury → per hit). */

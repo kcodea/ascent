@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Demon quests — the fifth and final authored tribe.** The Fodder/Imp/Consume quest set (9 quests + Contract Imp /
+  Herald of the Apocalypse / Run Maw / Implosion). Adds `consumeFodder` / `consumeStats` / `summonImp` objectives and
+  the Deep Hunger, Contract Rewrite, Pit Without End, and Run Maw combat mechanics. **All five tribes + neutral are
+  now fully authored — no `Test ·` placeholder quests remain.**
 - **Mech quests + keyword quests go neutral.** The Mech Attachment/Rally quest set (6 Mech + 3 neutral Rally quests
   + Scrap Vendor / Chorus Engine / Perfect Core). Adds a `rally` objective (additive doublers, like
   Shout/Echo), a `playAttachment` objective, a `sell`-by-tribe filter, and "get a random Shout/Echo/Rally/… minion"

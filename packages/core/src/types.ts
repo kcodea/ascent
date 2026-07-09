@@ -124,6 +124,7 @@ export type EffectFactoryId =
   | 'rallyImproveSummonAura' // Baby Cub: Rally bumps a friendly Den Mother's summon aura (summonBonus), carried back
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
+  | 'scConsumeWeakestBuffDemons' // Run Maw: Start of Combat — consume your weakest minion, Demons gain 25% of its stats (Demon)
   | 'rallyGrantSpell' // Perfect Core: Rally (on-attack) — add a random spell to hand after combat (Mech)
   | 'rallyBuffAttachments' // Chorus Engine: Rally — buff your Magnetic ("Attachment") minions +atk/+hp in combat (Mech)
   | 'onKillGrantMagnetic' // Chorus Engine: Slaughter (on-kill) — add a random Magnetic minion to hand after combat (Mech)
@@ -193,6 +194,8 @@ export type EffectFactoryId =
   | 'deathrattleReplayAdjacentBattlecry' // Ryme: Deathrattle — re-fire an adjacent minion's Battlecry in combat
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
   | 'endOfTurnBonusGold' // Scrap Vendor: End of Turn — bank Gold into your next shop (recruit)
+  | 'battlecryAllDemonsConsume' // Herald of the Apocalypse: Battlecry — every friendly Demon Consumes a Fodder (recruit)
+  | 'spellBuffImpsPerDemon' // Implosion: cast — buff your Imps +atk/+hp, recast once per Demon you control (recruit)
   | 'onSellGetEchoAndTrigger' // Crypt Broker: Sell — get a random Echo minion + trigger its Deathrattle (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
@@ -375,7 +378,10 @@ export type QuestObjectiveEvent =
   | 'friendlyDeath'
   // Mech/neutral set: `rally` counts player Rally (on-attack) TRIGGERS incl. doubler re-fires (like `shout`);
   // `playAttachment` counts Magnetic ("Attachment") minions you play.
-  | 'rally' | 'playAttachment';
+  | 'rally' | 'playAttachment'
+  // Demon set: `consumeFodder` counts Fodder Consumed; `consumeStats` counts the total stats (Attack+Health) of
+  // Consumed Fodder; `summonImp` counts Imps summoned (combat + recruit).
+  | 'consumeFodder' | 'consumeStats' | 'summonImp';
 /** A quest objective: reach `count` of `event`. `tribe` narrows a tribe-aware objective (e.g. "Summon 4 Undead",
  *  "Give Dragons 80 stats"). `filter: 'shout'` narrows a `buy` to Battlecry minions ("Buy 3 Shout minions").
  *  Live progress lives on the run's `ActiveQuest`. */
@@ -431,11 +437,14 @@ export type QuestReward =
   // Law of Teeth); `firstEachCombat` = the FIRST Rally you trigger each combat fires an extra time (Spark
   // Permit / Overclocked Core, additive with itself + `always`).
   | { kind: 'rallyRepeat'; scope: 'always' | 'firstEachCombat' }
+  // Demon (Small Offering): add `fodder` Fodder to your next shop AND give your Fodder a persistent +atk/+hp.
+  | { kind: 'fodderReward'; fodder?: number; attack?: number; health?: number }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
-export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit';
+export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit'
+  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -467,6 +476,12 @@ export interface QuestCombatMods {
   rallyFirstEachCombat?: number;
   /** Shared Circuit: >0 arms it — at Start of Combat, give this many friendly Mechs a Divine Shield (Ward). */
   sharedCircuitWard?: number;
+  /** Deep Hunger: at Start of Combat your leftmost Demon gains "Slaughter: add 3 Fodder to your next shop". */
+  deepHunger?: boolean;
+  /** Contract Rewrite: at Start of Combat your rightmost Demon gains "Echo: summon 2 Imps with Ward". */
+  contractRewrite?: boolean;
+  /** Pit Without End: >0 arms it — the friendly death that empties your board summons this many Imps (once). */
+  pitWithoutEndImps?: number;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -673,6 +688,9 @@ export interface CombatResult {
   /** Player Rally (on-attack) triggers this combat, incl. doubler re-fires (Law of Teeth / Rallying Offensive /
    *  Infinite Assembly / Spark Permit) — feeds the `rally` quest objective. Optional (missing → 0). */
   playerRallies?: number;
+  /** Imps the player summoned this combat (Imp King / Brood Matron / Pit Without End / Contract Rewrite) — feeds
+   *  the `summonImp` objective. Optional (missing → 0). */
+  playerImpsSummoned?: number;
   /** cardIds of the player minions still ALIVE at combat end — Gravetwin reads this to fire its copied Echo next
    *  shop only when it survived. Absent when nothing survived. */
   playerSurvivorCardIds?: string[];
@@ -697,7 +715,7 @@ export interface CombatResult {
   /** Step-tagged timeline of combat quest-objective ticks (one per increment) so the UI can LIVE-TICK quest
    *  progress during the replay: an entry with `step` ≤ the replay's current step is already counted. `tribes`
    *  narrows tribe-scoped objectives ("…with Beasts"); deathrattle (Echo) entries carry no tribe. */
-  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath' | 'rally'; tribes: Tribe[] }[];
+  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[];
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
   /** Per-instance state to persist on the run board after combat, keyed by the board

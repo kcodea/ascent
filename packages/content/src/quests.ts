@@ -34,7 +34,11 @@ export const QUEST_DEFS: QuestDef[] = [
   // Mechs/Attachments) are `mech`; the keyword-only Rally quests are `neutral`.
   { id: 'q_assembly_line', name: 'Assembly Line', tribe: 'mech', tier: 'lesser', objective: { event: 'buy', count: 4, tribe: 'mech' }, reward: { kind: 'grant', cards: ['moneybot'], repeatInTurns: 2 } },
   { id: 'q_scrap_contract', name: 'Scrap Contract', tribe: 'mech', tier: 'lesser', objective: { event: 'sell', count: 3, tribe: 'mech' }, reward: { kind: 'grant', cards: ['scrapvendor'] } },
-  { id: 'q_lesser_demon', name: 'Test · First Rite', tribe: 'demon', tier: 'lesser', objective: { event: 'play', count: 2 }, reward: { kind: 'buffBoard', attack: 2, health: 0 } },
+  // DEMON — the Fodder / Imp / Consume engine (owner spec 2026-07-08). `consumeFodder`/`consumeStats` count Fodder
+  // Consumed; `summonImp` counts Imps summoned (combat + recruit).
+  { id: 'q_imp_census', name: 'Imp Census', tribe: 'demon', tier: 'lesser', objective: { event: 'summonImp', count: 6 }, reward: { kind: 'grant', randomTribe: 'demon', randomCount: 1, repeatInTurns: 2 } },
+  { id: 'q_small_offering', name: 'Small Offering', tribe: 'demon', tier: 'lesser', objective: { event: 'consumeFodder', count: 3 }, reward: { kind: 'fodderReward', fodder: 2, attack: 2, health: 2 } },
+  { id: 'q_dark_bargain', name: 'Dark Bargain', tribe: 'demon', tier: 'lesser', objective: { event: 'sell', count: 5 }, reward: { kind: 'grant', cards: ['contractimp'] } },
   // NEUTRAL — the always-offered, build-agnostic slot: keyword-triggered quests (Shout / Echo / Rally) reassigned
   // from their tribes since they help ANY build with that keyword.
   { id: 'q_warm_embers', name: 'Warm Embers', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 3, filter: 'shout' }, reward: { kind: 'shoutRepeat', scope: 'firstEachRound' } },
@@ -52,7 +56,9 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_ossuary_rite', name: 'Ossuary Rite', tribe: 'undead', tier: 'greater', objective: { event: 'deathrattle', count: 10 }, reward: { kind: 'grant', cards: ['ossuaryrite'] }, repeatable: true },
   { id: 'q_perfect_machine', name: 'Perfect Machine', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 6 }, reward: { kind: 'grant', cards: ['perfectcore'] } },
   { id: 'q_blueprint_cache', name: 'Blueprint Cache', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 8 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantRandomAttachments' } },
-  { id: 'q_greater_demon', name: 'Test · Dark Pact', tribe: 'demon', tier: 'greater', objective: { event: 'play', count: 3 }, reward: { kind: 'buffBoard', attack: 3, health: 1 } },
+  { id: 'q_deep_hunger', name: 'Deep Hunger', tribe: 'demon', tier: 'greater', objective: { event: 'consumeFodder', count: 12 }, reward: { kind: 'combatFlag', flag: 'deepHunger' } },
+  { id: 'q_contract_rewrite', name: 'Contract Rewrite', tribe: 'demon', tier: 'greater', objective: { event: 'spendGold', count: 25 }, reward: { kind: 'combatFlag', flag: 'contractRewrite' } },
+  { id: 'q_implosion', name: 'Implosion', tribe: 'demon', tier: 'greater', objective: { event: 'summonImp', count: 11 }, reward: { kind: 'recurringGrant', cards: ['implosion'] } },
   // NEUTRAL greater: "get a random <keyword> minion" + the keyword doubler (owner spec 2026-07-08).
   { id: 'q_hoardwake_ritual', name: 'Hoardwake Ritual', tribe: 'neutral', tier: 'greater', objective: { event: 'shout', count: 10 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'shout' }, { kind: 'shoutRepeat', scope: 'always' }] } },
   { id: 'q_last_rites', name: 'Last Rites', tribe: 'neutral', tier: 'greater', objective: { event: 'deathrattle', count: 14 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'echo' }, { kind: 'echoRepeat', scope: 'firstEachCombat' }] } },
@@ -66,7 +72,9 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_death_writes_twice', name: 'Death Writes Twice', tribe: 'undead', tier: 'capstone', objective: { event: 'deathrattle', count: 20 }, reward: { kind: 'grant', cards: ['gravetwin'] } },
   { id: 'q_shared_circuit', name: 'Shared Circuit', tribe: 'mech', tier: 'capstone', objective: { event: 'playAttachment', count: 14 }, reward: { kind: 'combatFlag', flag: 'sharedCircuit', amount: 3 } },
   { id: 'q_machine_chorus', name: 'Machine Chorus', tribe: 'mech', tier: 'capstone', objective: { event: 'rally', count: 20 }, reward: { kind: 'grant', cards: ['chorusengine'] } },
-  { id: 'q_capstone_demon', name: 'Test · Damnation', tribe: 'demon', tier: 'capstone', objective: { event: 'play', count: 4 }, reward: { kind: 'buffBoard', attack: 4, health: 2 } },
+  { id: 'q_true_contract', name: 'The True Contract', tribe: 'demon', tier: 'capstone', objective: { event: 'consumeFodder', count: 20 }, reward: { kind: 'grant', cards: ['heraldapoc'] } },
+  { id: 'q_pit_without_end', name: 'Pit Without End', tribe: 'demon', tier: 'capstone', objective: { event: 'summonImp', count: 40 }, reward: { kind: 'combatFlag', flag: 'pitWithoutEnd', amount: 3 } },
+  { id: 'q_maw_of_the_run', name: 'Maw of the Run', tribe: 'demon', tier: 'capstone', objective: { event: 'consumeStats', count: 200 }, reward: { kind: 'grant', cards: ['runmaw'] } },
   // NEUTRAL capstone: the keyword-doubler + random-keyword-minion payoffs (owner spec 2026-07-08).
   { id: 'q_echoing_coop', name: 'Echoing Coop', tribe: 'neutral', tier: 'capstone', objective: { event: 'deathrattle', count: 11 }, reward: { kind: 'combatFlag', flag: 'echoingCoop' } },
   { id: 'q_the_hoard_wakes', name: 'The Hoard Wakes', tribe: 'neutral', tier: 'capstone', objective: { event: 'shout', count: 22 }, reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'recurringEndOfTurn', effect: 'grantRandomShout' }] } },

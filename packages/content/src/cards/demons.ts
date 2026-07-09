@@ -268,4 +268,53 @@ export const DEMONS: CardDef[] = [
     text: '**End of Turn:** adjacent minions each **Consume** a Fodder.',
     goldenText: '**End of Turn:** adjacent minions each **Consume** 2 Fodder.',
   },
+
+  // --- Demon quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---
+  {
+    // Dark Bargain reward. Choose One: pump your Fodder or your Imps by +3/+3 (golden +6/+6).
+    id: 'contractimp',
+    name: 'Contract Imp',
+    tribe: 'demon',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      { text: 'Give your **Fodder** **+3/+3**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 3, health: 3 } }] },
+      { text: 'Give your **Imps** **+3/+3**.', effects: [{ on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 3, health: 3 } }] },
+    ],
+    text: '**Choose One:** give your **Fodder** **+3/+3**, or give your **Imps** **+3/+3**.',
+    goldenText: '**Choose One:** give your **Fodder** **+6/+6**, or give your **Imps** **+6/+6**.',
+    token: true,
+  },
+  {
+    // The True Contract reward. Battlecry: every friendly Demon Consumes a Fodder at once — a board-wide feed.
+    id: 'heraldapoc',
+    name: 'Herald of the Apocalypse',
+    tribe: 'demon',
+    tier: 6,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryAllDemonsConsume' }],
+    text: '**Battlecry:** all of your Demons **Consume** a Fodder.',
+    goldenText: '**Battlecry:** all of your Demons **Consume** 2 Fodder.',
+    token: true,
+  },
+  {
+    // Maw of the Run reward. Start of Combat: sacrifice your weakest minion and hand 25% of its stats to every
+    // Demon (golden 50%). A payoff that turns a spare body into a board-wide Demon buff.
+    id: 'runmaw',
+    name: 'Run Maw',
+    tribe: 'demon',
+    tier: 6,
+    attack: 10,
+    health: 8,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scConsumeWeakestBuffDemons', params: { pct: 25 } }],
+    text: '**Start of Combat:** consume your weakest minion, then your Demons gain **25%** of its stats.',
+    goldenText: '**Start of Combat:** consume your weakest minion, then your Demons gain **50%** of its stats.',
+    token: true,
+  },
 ];

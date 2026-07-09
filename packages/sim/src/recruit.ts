@@ -180,6 +180,18 @@ export function gildMinion(card: BoardCard): void {
  * from any source (tavern, summon, Discover, conjure) carry it — and applies it to the Fodder already on
  * the board / in the hand right now. `source` labels the buff in the inspect breakdown.
  */
+/** Record one Consumed Fodder's stats — the per-turn tally (Abhorrent Horror's SoC window) AND the run-wide
+ *  totals the Demon quests read (`consumeFodder` count + `consumeStats` = Σ attack+health). Called at every
+ *  consume site. */
+export function noteFodderConsumed(state: RunState, fa: number, fh: number): void {
+  state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
+  state.fodderConsumedThisTurn.attack += fa;
+  state.fodderConsumedThisTurn.health += fh;
+  state.runFodderConsumed ??= { count: 0, stats: 0 };
+  state.runFodderConsumed.count += 1;
+  state.runFodderConsumed.stats += fa + fh;
+}
+
 export function buffFodderRunWide(state: RunState, a: number, h: number, source: string): void {
   state.cardBuffs ??= {};
   for (const def of Object.values(CARD_INDEX)) {
@@ -714,9 +726,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(target, 'Consume', fa * mult, fh * mult);
       fire(ctx, 'onConsume', { minion: target });
       eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-      ctx.state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
-      ctx.state.fodderConsumedThisTurn.attack += fa;
-      ctx.state.fodderConsumedThisTurn.health += fh;
+      noteFodderConsumed(ctx.state, fa, fh);
     }
     if (eaten.length > 0) {
       // APPEND (not replace): Drakko re-fires this Battlecry, so each fire's Fodder must accumulate — else
@@ -747,15 +757,49 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         addBuff(target, 'Consume', fa * mult, fh * mult);
         fire(ctx, 'onConsume', { minion: target });
         eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-        ctx.state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
-        ctx.state.fodderConsumedThisTurn.attack += fa;
-        ctx.state.fodderConsumedThisTurn.health += fh;
+        noteFodderConsumed(ctx.state, fa, fh);
       }
     }
     if (eaten.length > 0) {
       ctx.state.fodderEaten = [...(ctx.state.fodderEaten ?? []), ...eaten];
       ctx.state.fodderEatenSeq += 1;
     }
+  },
+
+  /** Herald of the Apocalypse — Battlecry: EVERY friendly Demon Consumes a created Fodder (Fred) — each gains its
+   *  enchanted stats × its own fodder multiplier and fires the onConsume pipeline. Golden → each Consumes 2. */
+  battlecryAllDemonsConsume: (ctx, self) => {
+    const fodder = CARD_INDEX.fred;
+    if (!fodder) return;
+    const demons = ctx.state.board.filter((c) => isTribe(c, 'demon'));
+    if (demons.length === 0) return;
+    const cb = cardBuff(ctx.state, fodder.id);
+    const fa = fodder.attack + cb.attack;
+    const fh = fodder.health + cb.health;
+    const count = gold(self); // golden → each Demon Consumes 2
+    const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
+    for (const target of demons) {
+      const mult = fodderMultiplier(target);
+      for (let i = 0; i < count; i++) {
+        addBuff(target, 'Consume', fa * mult, fh * mult);
+        fire(ctx, 'onConsume', { minion: target });
+        eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
+        noteFodderConsumed(ctx.state, fa, fh);
+      }
+    }
+    if (eaten.length > 0) {
+      ctx.state.fodderEaten = [...(ctx.state.fodderEaten ?? []), ...eaten];
+      ctx.state.fodderEatenSeq += 1;
+    }
+  },
+
+  /** Implosion (cast) — give your Imps +atk/+hp run-wide, RECAST once per Demon you control (min 1). Each cast
+   *  folds in the run's spell power (like every stat spell). Untargeted. */
+  spellBuffImpsPerDemon: (ctx, _self, params) => {
+    const casts = Math.max(1, ctx.state.board.filter((c) => isTribe(c, 'demon')).length);
+    const a = num(params.attack, 2) + spellAttackBonus(ctx.state);
+    const h = num(params.health, 2) + spellHealthBonus(ctx.state);
+    for (let i = 0; i < casts; i++) buffImpsRunWide(ctx.state, a, h, 'Implosion');
   },
 
   /** Pactstone Acolyte / Ravening Glutton: on any friendly consume, grow. */
@@ -1480,9 +1524,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(self, 'Consume', fa * mult, fh * mult);
       fire(ctx, 'onConsume', { minion: self });
       eaten.push({ eaterUid: self.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-      ctx.state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
-      ctx.state.fodderConsumedThisTurn.attack += fa;
-      ctx.state.fodderConsumedThisTurn.health += fh;
+      noteFodderConsumed(ctx.state, fa, fh);
     }
     if (eaten.length > 0) {
       ctx.state.fodderEaten = eaten;
@@ -2477,9 +2519,7 @@ export function consumeTavernFodder(state: RunState): void {
     // so the UI can float the +X/+X on the eater (the shop-phase buff float).
     eaten.push({ eaterUid: eater.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
     // Track raw fodder stats (pre-multiplier) for Abhorrent Horror's SoC window.
-    state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
-    state.fodderConsumedThisTurn.attack += fa;
-    state.fodderConsumedThisTurn.health += fh;
+    noteFodderConsumed(state, fa, fh);
   }
   state.rngCursor = rng.state();
   // Record the consume for the UI to replay (show the Fodder, swirl it into the eater).

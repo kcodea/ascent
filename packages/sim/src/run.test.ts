@@ -4520,22 +4520,20 @@ describe('quests (M3 framework)', () => {
   });
 
   it('an objective ticks on its tracked action and applies its reward at the threshold', () => {
-    // A minion that plays cleanly onto the board (no Battlecry / summon buff / Magnetic / target), so `play`
-    // just lands it at base stats — then the quest reward is the only stat change.
-    const plain = BUYABLE_CARDS.find(
-      (c) => !c.chooseOne && !c.target && !c.keywords.includes('M') && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'),
+    // q_grave_toll = objective "Summon 4 Undead" → reward: a random Undead conjured to hand. Playing an Undead
+    // minion that lands cleanly (no Battlecry / summon buff / Magnetic / token-summon) ticks `summon` by exactly 1.
+    const undead = BUYABLE_CARDS.find(
+      (c) => c.tribe === 'undead' && !c.spell && !c.chooseOne && !c.target && !c.keywords.includes('M') && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'),
     )!;
-    const mk = (uid: string): BoardCard => ({ uid, cardId: plain.id, tribe: plain.tribe, attack: plain.attack, health: plain.health, keywords: [...plain.keywords], golden: false });
-    // q_lesser_demon = objective play×2 → reward +2/+0 to the board (a surviving `Test ·` buffBoard quest).
-    let s: RunState = { ...createRun(1), phase: 'recruit', activeQuests: [{ questId: 'q_lesser_demon', progress: 0, completed: false }], hand: [mk('h1'), mk('h2')], board: [] };
+    const mk = (uid: string): BoardCard => ({ uid, cardId: undead.id, tribe: undead.tribe, attack: undead.attack, health: undead.health, keywords: [...undead.keywords], golden: false });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_grave_toll', progress: 2, completed: false }], hand: [mk('h1'), mk('h2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'h1' });
-    expect(s.activeQuests![0]!.progress).toBe(1);
+    expect(s.activeQuests![0]!.progress).toBe(3);
     expect(s.activeQuests![0]!.completed).toBe(false);
     s = reduce(s, { type: 'play', uid: 'h2' });
-    expect(s.activeQuests![0]!.completed).toBe(true);
-    // Reward (+2/+0) landed on every board minion.
-    expect(s.board.length).toBe(2);
-    expect(s.board.every((c) => c.attack === plain.attack + 2 && c.health === plain.health)).toBe(true);
+    expect(s.activeQuests![0]!.completed).toBe(true); // 4th Undead summoned
+    // Reward: a random Undead conjured to hand (either tribe, matching the grant filter).
+    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return d?.tribe === 'undead' || d?.tribe2 === 'undead'; })).toBe(true);
   });
 
   it('a full bot run passes cleanly through the quest turns (no soft-lock)', () => {
@@ -4926,6 +4924,42 @@ describe('Mech/neutral quests — objectives, filtered grants, new rewards, card
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.sharedCircuitWard).toBe(3);
     for (const id of ['scrapvendor', 'chorusengine', 'perfectcore']) {
+      expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
+    }
+  });
+});
+
+describe('Demon quests — consume/imp objectives, fodder reward, flags, cards', () => {
+  const settleWith = (s: RunState, over: Partial<CombatResult>): RunState =>
+    reduce({ ...s, phase: 'combat', lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, ...over } as CombatResult }, { type: 'resolveCombat' });
+  const demon = (uid: string, cardId: string) => ({ uid, cardId, tribe: 'demon' as const, attack: 2, health: 2, keywords: [] as Keyword[], golden: false });
+
+  it('consumeFodder objective + fodderReward (Small Offering): Herald feeds every Demon', () => {
+    // Board Demon + Herald (played) = 2 Demons each Consume a Fodder → +2 Consumed.
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_small_offering', progress: 1, completed: false }], board: [demon('d1', 'feed')], hand: [demon('h1', 'heraldapoc')] };
+    s = reduce(s, { type: 'play', uid: 'h1' });
+    expect(s.activeQuests![0]!.completed).toBe(true); // 1 + 2 Consumed ≥ 3
+    expect((s.pendingTavern ?? []).filter((id) => id === 'fred').length).toBe(2); // reward queued 2 Fodder
+  });
+
+  it('consumeStats objective (Maw of the Run) counts total Consumed stats → grants Run Maw', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_maw_of_the_run', progress: 196, completed: false }], board: [demon('d1', 'feed')], hand: [demon('h1', 'heraldapoc')] };
+    s = reduce(s, { type: 'play', uid: 'h1' }); // 2 Fodder Consumed = 4 stats → 196 + 4 = 200
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.hand.some((c) => c.cardId === 'runmaw')).toBe(true);
+  });
+
+  it('summonImp objective (Imp Census) reads the combat imp tally → grants a random Demon', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_imp_census', progress: 0, completed: false }] }, { playerImpsSummoned: 6 });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return d?.tribe === 'demon' || d?.tribe2 === 'demon'; })).toBe(true);
+  });
+
+  it('Pit Without End (summonImp) arms its board-wipe Imp count; new cards are reward-only tokens', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_pit_without_end', progress: 39, completed: false }] }, { playerImpsSummoned: 1 });
+    expect(s.activeQuests![0]!.completed).toBe(true); // 39 + 1 = 40
+    expect(s.pitWithoutEndImps).toBe(3);
+    for (const id of ['contractimp', 'heraldapoc', 'runmaw', 'implosion']) {
       expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
     }
   });

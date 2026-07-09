@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Hero batch — 4 reworks + 6 new heroes.** Djinn's Cadence now fires *every* friendly End of Turn; Rohan scales
+  by spells cast; Nadja has 19 Armor; Warden's Aegis buys a minion a permanent Ward for 4 Gold. New: **Disco Dan**
+  (turn-1 Setlist — Discover T6/T4/T2, each locked until that shop tier), **Bagger Ben** (scaling Gold), **Hermit
+  Hank** (2-Gold minions, +2 tavern-ups), **Fi** (an early quest on turn 3), **Herald** (neighbours Consume a Fodder),
+  **Chronos** (buy 4 End-of-Turn minions → a Chronos).
 - **End-Combat is one synchronized crossfade.** Leaving the arena no longer snaps: the **End Combat** button now
   fades every combat unit + FX out together in one beat, then fades the recruit board + surviving minions back in
   together. Opacity-only, so it stays snappy.

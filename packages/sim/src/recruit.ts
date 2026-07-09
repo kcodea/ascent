@@ -775,29 +775,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  gaining its enchanted stats × the eater's fodder multiplier and firing the normal onConsume pipeline.
    *  Golden → each neighbor Consumes 2. Mirrors The Godfodder's consume, applied to both neighbors. */
   endOfTurnAdjacentConsumeFodder: (ctx, self) => {
-    const idx = ctx.state.board.indexOf(self);
-    if (idx < 0) return;
-    const neighbors = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((m): m is BoardCard => !!m);
-    const fodder = CARD_INDEX.fred;
-    if (!fodder || neighbors.length === 0) return;
-    const cb = cardBuff(ctx.state, fodder.id);
-    const fa = fodder.attack + cb.attack;
-    const fh = fodder.health + cb.health;
-    const count = gold(self); // golden → each neighbor Consumes 2
-    const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
-    for (const target of neighbors) {
-      const mult = fodderMultiplier(target);
-      for (let i = 0; i < count; i++) {
-        addBuff(target, 'Consume', fa * mult, fh * mult);
-        fire(ctx, 'onConsume', { minion: target });
-        eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-        noteFodderConsumed(ctx.state, fa, fh);
-      }
-    }
-    if (eaten.length > 0) {
-      ctx.state.fodderEaten = [...(ctx.state.fodderEaten ?? []), ...eaten];
-      ctx.state.fodderEatenSeq += 1;
-    }
+    adjacentConsumeFodder(ctx.state, self, gold(self)); // golden → each neighbor Consumes 2
   },
 
   /** Herald of the Apocalypse — Battlecry: EVERY friendly Demon Consumes a created Fodder (Fred) — each gains its
@@ -2041,6 +2019,10 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
       filter: spec.filter ? discoverFilter(spec.filter) : undefined,
       topTierFirst: spec.topTierFirst,
     });
+    // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
+    // locked hand card (only set if the offer actually opened).
+    if (state.discover) state.discoverLockTier = spec.lockTier;
+    else state.discoverLockTier = undefined;
   }
 }
 
@@ -2071,7 +2053,7 @@ export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
  */
 export function spellStatBonus(state: RunState): number {
   let bonus = 0;
-  if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.wave);
+  if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.spellsCast);
   // Spell-power auras: +1/+1 per `def.spellAura` point on a board card (golden ×2 — no card in the current
   // set carries it), PLUS any aura welded onto a host Mech (`spellAuraBonus`, set by `applyWeld`). Generic
   // over `def.spellAura` so future aura cards fold in automatically.
@@ -2564,6 +2546,38 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def);
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild
   return { attack, health };
+}
+
+/**
+ * Both board-adjacent neighbours of `center` each Consume `count` created Fodder (Fred) — gaining its
+ * enchanted stats × the eater's fodder multiplier and firing the normal onConsume pipeline. Shared by
+ * Abyssal Feeder's End-of-Turn (`center` = the Feeder) and Herald's hero power (`center` = the targeted
+ * minion). `center` itself does NOT consume — only the minions on either side.
+ */
+export function adjacentConsumeFodder(state: RunState, center: BoardCard, count: number): void {
+  const idx = state.board.indexOf(center);
+  if (idx < 0 || count <= 0) return;
+  const neighbors = [state.board[idx - 1], state.board[idx + 1]].filter((m): m is BoardCard => !!m);
+  const fodder = CARD_INDEX.fred;
+  if (!fodder || neighbors.length === 0) return;
+  const ctx = makeContext(state);
+  const cb = cardBuff(state, fodder.id);
+  const fa = fodder.attack + cb.attack;
+  const fh = fodder.health + cb.health;
+  const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
+  for (const target of neighbors) {
+    const mult = fodderMultiplier(target);
+    for (let i = 0; i < count; i++) {
+      addBuff(target, 'Consume', fa * mult, fh * mult);
+      fire(ctx, 'onConsume', { minion: target });
+      eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
+      noteFodderConsumed(state, fa, fh);
+    }
+  }
+  if (eaten.length > 0) {
+    state.fodderEaten = [...(state.fodderEaten ?? []), ...eaten];
+    state.fodderEatenSeq += 1;
+  }
 }
 
 /**

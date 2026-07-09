@@ -386,12 +386,15 @@ function reduceCore(state: RunState, action: Action): RunState {
           ...(tribe ? { tribe } : {}),
           ...(dop.topTierFirst ? { topTierFirst: true } : {}),
         };
-        // Nimbus ("your next Tavern spell casts twice") DOES apply to a Discover-spell — open the Discover once
-        // per cast (2, or 3 with a golden Nimbus), the extras queued behind the first. Yazzus (aimed-only) still
-        // doesn't; `singleCast` never multiplies. The charge is spent here, like every other spell.
-        const casts = def.singleCast ? 1 : (s.nextSpellMult ?? 1);
+        // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
+        // queued behind the first. `spellCasts` folds in Nimbus (nextSpellMult), Ancient Runes (spellDoubleAlways)
+        // and Spell Thesis (first-spell-each-turn); Yazzus is aimed-only so it's auto-excluded (a Discover spell is
+        // untargeted). `singleCast` never multiplies. Bug fix (owner 2026-07-09): the old code read only
+        // `nextSpellMult`, so Ancient Runes' "spells cast twice" silently did nothing for Discover spells.
+        const casts = def.singleCast ? 1 : spellCasts(s, def);
         for (let n = 0; n < casts; n++) queueDiscover(s, { ...spec });
-        if (!def.singleCast) s.nextSpellMult = undefined;
+        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         return s;
       }
 

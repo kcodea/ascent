@@ -345,9 +345,11 @@ export interface MagnetPayload {
 function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
   addBuff(host, mag.source, mag.attack * mult, mag.health * mult);
   for (const k of mag.keywords) {
-    // Include M (owner ruling 2026-07-08): a minion that receives a Magnetic weld IS now an Attachment, so it
-    // gains the M keyword — and thus the run-wide + combat "Attachment aura" (Scrap Herald) reaches it too. The
-    // aura is baked once when it first gains M (see bakeAttachmentAura in weldMagnetic).
+    // The Attachment (M) keyword does NOT transfer to the host (owner ruling 2026-07-09, reversing 2026-07-08):
+    // welding an attachment onto a minion must not turn that minion into a Magnetic/Attachment itself (a Herald
+    // was showing up as Magnetic). The host still inherits the Scrap Herald *aura* — see `bakeAttachmentAura`,
+    // now decoupled from the keyword. Every OTHER welded keyword (Ward, Reborn, Rally, …) still rides along.
+    if (k === 'M') continue;
     // Assign a FRESH array rather than push in place: some copy paths shallow-spread a BoardCard and thus SHARE
     // its `keywords` array, so an in-place push would leak the welded keyword (e.g. Perfect Core's Ward) onto the
     // aliased minion — two same-cardId minions then both carry a Divine Shield in combat (owner-reported bug).
@@ -374,28 +376,27 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  * magnetized — onto the host AND each copy Beatboxer mimics onto itself — stacks the Cling improvement.
  */
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0): void {
-  const hostWasM = host.keywords.includes('M');
   applyWeld(host, mag, 1);
-  bakeAttachmentAura(state, host, hostWasM);
+  bakeAttachmentAura(state, host);
   let totalClings = clings; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
-      const bbWasM = bb.keywords.includes('M');
       const mult = bb.golden ? 2 : 1;
       applyWeld(bb, mag, mult);
-      bakeAttachmentAura(state, bb, bbWasM);
+      bakeAttachmentAura(state, bb);
       totalClings += clings * mult; // Beatboxer magnetizes Cling copies onto itself — those stack too
     }
   }
   if (totalClings > 0) improveClingDrones(state, totalClings);
 }
 
-/** A minion that just RECEIVED its first attachment (a welded Magnetic → it gained M) is now an Attachment —
- *  bake the run-wide Attachment aura (Scrap Herald's `magneticBuyAtk`/`magneticBuyHp`) into it ONCE, so
- *  "your Attachments have +X/+Y wherever they are" reaches minions that GAINED Magnetic, not just those
- *  printed with it (owner ruling 2026-07-08 — Banksly and any welded host). No-op if it was already Magnetic. */
-function bakeAttachmentAura(state: RunState, card: BoardCard, wasMagnetic: boolean): void {
-  if (wasMagnetic || !card.keywords.includes('M')) return;
+/** A minion that RECEIVES an attachment inherits the run-wide Attachment aura (Scrap Herald's
+ *  `magneticBuyAtk`/`magneticBuyHp`) ONCE, so "your Attachments have +X/+Y wherever they are" reaches welded
+ *  hosts too — WITHOUT the host gaining the M keyword (owner ruling 2026-07-09; see applyWeld). Skips minions
+ *  printed as Magnetic (they already got the aura at buy) and hosts already baked on an earlier weld. */
+function bakeAttachmentAura(state: RunState, card: BoardCard): void {
+  if (CARD_INDEX[card.cardId]?.keywords.includes('M')) return; // printed Magnetic → aura applied at buy time
+  if (card.buffs?.some((b) => b.source === 'Attachment')) return; // already baked on a previous weld
   const a = state.magneticBuyAtk ?? 0;
   const h = state.magneticBuyHp ?? 0;
   if (a > 0 || h > 0) addBuff(card, 'Attachment', a, h);
@@ -1406,7 +1407,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = base + spellAttackBonus(ctx.state);
     const h = base + spellHealthBonus(ctx.state);
     addBuff(self, str(params._source) || 'Front to Back', a, h);
-    ctx.state.frontToBackBonus += num(params.attack, 2);
+    // The SCALING now compounds spell power too (owner 2026-07-09): each cast improves by the base step PLUS the
+    // run's Attack spell power, so a spell-power build's Front to Back escalates faster.
+    ctx.state.frontToBackBonus += num(params.attack, 2) + spellAttackBonus(ctx.state);
   },
 
   /** Eyes of Aresmar — cast: make the targeted minion Golden (like Oner's Gild), but only if its
@@ -2108,9 +2111,9 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Front to Back (escalating): the printed text carries TWO "+B/+B" groups — the GRANT (slot 0) and the
-  // per-cast IMPROVEMENT (slot 1). The grant = base + accumulated escalation + spell power. The improvement
-  // is a FLAT +2/+2 (the constant escalation step) — spell power is a flat add to every grant, NOT a per-cast
-  // increment, so it never inflates "Improve this by". Slot 0 greens above its printed base; slot 1 is fixed.
+  // per-cast IMPROVEMENT (slot 1). The grant = base + accumulated escalation + spell power. The improvement now
+  // COMPOUNDS spell power too (owner 2026-07-09): each cast improves by the base step PLUS the run's Attack spell
+  // power. Slot 0 greens the current grant; slot 1 greens the current improvement step.
   const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
   if (esc) {
     let slot = 0;
@@ -2122,8 +2125,10 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
         const vh = nh + escalation + bonusH;
         return escalation + bonusA > 0 || escalation + bonusH > 0 ? `{{+${va}/+${vh}}}` : m;
       }
-      // The per-cast improvement is the constant escalation step — always the printed +2/+2.
-      return m;
+      // The improvement step = printed base + Attack spell power (the scalar `frontToBackBonus` grows by this).
+      const ia = na + bonusA;
+      const ih = nh + bonusA;
+      return bonusA > 0 ? `{{+${ia}/+${ih}}}` : m;
     });
   }
   // Patch Job: the per-step "+a/+h" greens for spell power (it grows per step); and once Gold's been spent this

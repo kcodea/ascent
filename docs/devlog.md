@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(ui): hover a quest to preview the reward card(s) it grants
+
+Quest-shop cards now float a full preview of any named minion/spell they grant when you hover them (Assembly Line →
+Money Bot, Impossible Shop → Taurus, Ossuary Rite → the spell, …). `QuestCard` extracts the granted card ids from
+the reward (`grant.cards` / `recurringGrant.cards`, recursing through `multi`), builds a `CardView` per id, and
+reuses the `Card` component's `.cardref` hover popup (same styling + on-screen flip as the board/hand card previews).
+Random-tribe / random-filter grants have no fixed card, so they simply show no preview. Verified: typecheck + lint +
+710 tests + `build:web` clean; live DOM + screenshot — hovering Assembly Line pops a readable Money Bot card.
 ### fix(sim): a welded host (Moe / Beatbot) no longer triples into a Magnetic golden
 
 A minion that receives an attachment gains the `M` keyword (owner ruling — it counts as an Attachment for the

@@ -388,6 +388,10 @@ export interface RunState {
   /** Transient: how many times the LAST played Battlecry fired (Drakko + shout-repeat rewards + charges) — set
    *  during the play, read by the reducer's Shout quest tick so it counts triggers without re-consuming. */
   lastShoutFires?: number;
+  /** Transient: how many Echoes (Deathrattles) fired OUT OF COMBAT this action (Grave Robber / Gravetwin / Crypt
+   *  Broker / Sylus re-fires) — accumulated by `fireRecruitDeathrattles`, drained by the reducer's `deathrattle`
+   *  quest tick so a recruit-phase Echo counts toward Echo quests just like a combat one. */
+  lastEchoFires?: number;
   /** Transient: how many End-of-Turn effect triggers fired this End of Turn (incl. Chronos/Parliament repeats +
    *  quest recurring effects) — set by `applyEndOfTurn`, read by the reducer's End-of-Turn quest tick. */
   lastEotFires?: number;

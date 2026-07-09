@@ -23,6 +23,25 @@ Verified: typecheck + lint + **738 tests** (new: later-summoned player Imp carri
 the enemy aura) + determinism harness + `build:web`, all green. Follow-ups still open from the batch: enemy Soren
 hero power (separate snapshot/opponent/resummon machinery); broader non-Imp enemy auras (Undead/Beast dynamic
 grants) if wanted; mid-combat quest doubling parked pending an owner call.
+### fix: Implosion cast count + Steward live copy + Grave Robber Echo counts for quests
+
+Three owner-reported fixes (part 1 of a bug batch):
+
+- **Implosion casts 1 + your Demons** (was `Math.max(1, demons)` — 5 with 5 Demons, should be 6). New shared
+  `implosionCasts(state)` = `1 + Demons` drives the effect, the card's **×N cast badge** (via a `spellCastCount`
+  UI helper), and its live text; each cast still folds spell power, and the printed "+2/+2" now greens to
+  "+{2+power}/+{2+power}" in `spellDisplayText`. So the card shows both how many times it casts and what it grants.
+- **Steward of Spells** now names the actual spell it will copy on hover — new `stewardText` helper reads the
+  run's `lastSpellCastId`, so "…get a copy of {{Growth}}" (2 copies golden), falling back to the printed text
+  until a spell has been cast. Threaded `lastSpellName` through `instView`/`liveCardText` + the shop offer path.
+- **Grave Robber's out-of-combat Echo now counts toward Echo (`deathrattle`) quests** (Grave Contract, Ossuary
+  Rite, Author's Hand, …). `fireRecruitDeathrattles` records the Echoes it fires (base + Sylus re-fires) into a
+  new transient `lastEchoFires`; the reducer drains it into the `deathrattle` quest tick + Author's Hand's Echo
+  half — mirroring the existing `lastShoutFires` pattern. Also covers Gravetwin / Crypt Broker / Sylus procs.
+
+Verified: typecheck + lint + **740 tests** (new: Implosion cast count + Imp buff, Graverobber Echo→quest,
+stewardText) + `build:web`, all green. The remaining batch items (imp aura stale value, enemy auras/Imps, enemy
+Soren hero power) land in a follow-up combat-sim PR; mid-combat quest doubling is parked pending an owner call.
 
 ### revert(content): Pack Leader back to Start-of-Combat (per owner)
 

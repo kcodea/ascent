@@ -4,7 +4,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
   escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
-  sergeantText, soulsmanText, squirlScoutText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
+  sergeantText, soulsmanText, squirlScoutText, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   taragosaText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -25,6 +25,8 @@ export interface LiveTextParams {
   squirlScoutBuff?: number;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
   goldSpent?: number;
+  /** Name of the most recent spell cast this run (`lastSpellCastId` → name) — Steward of Spells shows what it copies. */
+  lastSpellName?: string;
 }
 
 /**
@@ -52,6 +54,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
+            stewardText(c.id, p.golden, p.lastSpellName) ??
             tallyBuffText(c.id, p.deathrattlesTriggered) ??
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
@@ -93,7 +96,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -107,6 +110,7 @@ export function instView(
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: inst.eotTick, sellBonus: inst.sellBonus,
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
+    lastSpellName: live?.lastSpellName,
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

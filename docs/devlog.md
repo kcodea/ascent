@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(ui): Skip combat gets the crossfade — everything pauses, mutes, and fades out together
+
+Skip used to hard-cut the replay to the resolved board (an instant jump + a burst of the remaining beats' audio).
+Now it's a controlled transition that reuses the End-Combat crossfade: on Skip, **all motion freezes** (the GSAP
+global timeline pauses every lunge/settle; both Pixi tickers stop, holding their particles/bubbles in place) and
+**all audio is killed** (`stopAllAudio` snaps a new master mute bus to 0 and blocks new sounds), everything holds a
+beat so it visibly pauses, then **all units + all FX fade out together** (the `.combatout` opacity beat), the replay
+jumps to the resolved board under cover of opacity 0, and that final board **fades back in together** (`.combatin`).
+Audio stays muted through the resolved screen and un-mutes when the fight is left (or the next one begins) — a
+replacement one-shot will play in the Skip's place later (owner).
+
+- `sfx.ts`: a master **mute bus** (`GainNode`, limiter → bus → destination) + `stopAllAudio()` / `resumeAudio()`;
+  `tone`/`playSample` also early-out while suspended so nothing schedules during the fade.
+- `pixiFx.ts`: `setPaused()` — stops/starts the ticker so live particles + shield/reborn bubbles freeze in place
+  (the canvas opacity is faded separately by CSS, which doesn't need the ticker).
+- `Recruit.tsx`: `skipCombat` (freeze → pause-beat → fade-out → `replay.skip()` → fade-in) reusing the
+  `.combatout`/`.combatin` classes; an effect un-mutes audio whenever combat is left.
+
+Verified: typecheck + lint + 774 tests + `build:web` green; dev server serves with zero console errors. The exact
+pause/fade timing is **for live eyeball** (the preview can't show rAF fades). Replacement Skip sound: pending owner.
+
 ### chore(ui): skull-burst sfx quieter still (0.4 → 0.04)
 
 Follow-up to the earlier `4 → 0.4`: still too loud, so `sampleVol.skullburst` → `0.04` — a normal quiet

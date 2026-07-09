@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Skip combat fades out gracefully.** Skipping the replay no longer hard-cuts: everything freezes and mutes for a
+  beat, all units + FX fade out together, then the resolved board fades back in — the same crossfade as End Combat.
 - **Rally attack reads louder.** The wind-up pause when a Rally fires holds longer, and its yellow trigger pulse is
   much brighter (a wide triple-layer gold halo) — the Rally is worth noticing.
 - **End-Combat is one synchronized crossfade.** Leaving the arena no longer snaps: the **End Combat** button now

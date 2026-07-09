@@ -7,7 +7,7 @@ import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
-import { sfx } from './sfx';
+import { sfx, stopAllAudio, resumeAudio } from './sfx';
 import { pixiFx, discoverFx, tauntFx } from './pixiFx';
 import { getDragFeel } from './dragFeel';
 import { getFlipConfig } from './flipConfig';
@@ -463,6 +463,10 @@ export function Recruit() {
   // 'in' fades the recruit board + survivors back together — one synchronized two-beat transition (see the CSS
   // `.app.combatout`/`.combatin`), so nothing snaps or staggers when you leave the arena.
   const [combatOutro, setCombatOutro] = useState<null | 'out' | 'in'>(null);
+  // Skip-combat uses the SAME crossfade (everything fades out together), but instead of swapping to the shop it
+  // freezes the replay, kills all audio, jumps to the resolved board under cover of opacity 0, then fades that
+  // final board back in. A replacement one-shot will play in its place later (owner).
+  const [skipFade, setSkipFade] = useState<null | 'freeze' | 'out' | 'in'>(null);
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
@@ -709,6 +713,12 @@ export function Recruit() {
     };
   }, [inCombat, run.lastCombat]);
 
+  // A Skip mutes ALL audio (stopAllAudio) and leaves it muted through the resolved-combat screen; un-mute once
+  // the fight is left (back to the shop) so the next fight — and the shop — has sound again.
+  useEffect(() => {
+    if (!inCombat) resumeAudio();
+  }, [inCombat]);
+
   // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
   // view — so the Resolve hit lands and is visible before the "End Combat" button returns you to the shop.
   // On a LOSS we defer settle to the loss-damage sequence below (so Resolve drops on the blast impact, not
@@ -731,6 +741,28 @@ export function Recruit() {
       return 'out';
     });
   }, [dispatch]);
+
+  // Skip the replay — the same synchronized fade as End Combat, but it stays IN combat: freeze all motion
+  // (GSAP) + kill all audio, hold a beat so everything visibly pauses and fades out together, then jump the
+  // replay to the resolved board under cover of opacity 0 and fade that back in. Audio stays muted (a
+  // replacement one-shot goes here later); it un-mutes when the fight is left / the next fight begins.
+  const skipCombat = useCallback((): void => {
+    setSkipFade((s) => {
+      if (s) return s; // already skipping
+      stopAllAudio();
+      gsap.globalTimeline.pause();  // freeze every lunge/settle mid-motion — everything visibly pauses…
+      pixiFx.setPaused(true); tauntFx.setPaused(true); // …and freeze the Pixi particles/bubbles too
+      window.setTimeout(() => setSkipFade('out'), 150);      // …for a moment, then it all fades out together
+      window.setTimeout(() => {
+        gsap.globalTimeline.resume();
+        pixiFx.setPaused(false); tauntFx.setPaused(false);
+        replay.skip();              // jump to the resolved board while faded out
+        setSkipFade('in');          // fade the final board back in together
+        window.setTimeout(() => setSkipFade(null), 260);
+      }, 150 + 220);
+      return 'freeze';              // hold the frozen frame at full opacity during the pause, before the fade
+    });
+  }, [replay]);
 
   // Loss-damage sequence — runs ONCE when a defeat's replay finishes. Surviving enemy tiers + the
   // opponent's tavern tier fly up into a damage counter above the enemy board (clamped to the round cap),
@@ -2325,7 +2357,7 @@ export function Recruit() {
     <div
       className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
-      }${combatOutro === 'out' ? ' combatout' : combatOutro === 'in' ? ' combatin' : ''}`}
+      }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}`}
       onPointerDown={onBoardPointerDown}
     >
       {/* The BEHIND-cards taunt FX layer — first child so its canvas paints above the board surface but
@@ -2438,7 +2470,7 @@ export function Recruit() {
           replay-speed slider stacked beneath it. */}
       {inCombat && !replay.done && (
         <div className="combathud">
-          <button className="combathud-skip" onClick={replay.skip} title="Skip the combat replay">
+          <button className="combathud-skip" onClick={skipCombat} title="Skip the combat replay">
             <Icon name="sword" /> Skip
           </button>
           <div className="combatspeed" title="Combat replay speed">

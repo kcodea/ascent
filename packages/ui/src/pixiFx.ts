@@ -1100,6 +1100,15 @@ class FxController {
     if (this.shieldLayer) this.shieldLayer.visible = visible;
   }
 
+  /** Freeze/thaw ALL Pixi motion — stops the ticker, so every live particle + the bubble breathing holds its
+   *  last frame in place. Used by the Skip-combat fade so nothing keeps moving while the board pauses + fades
+   *  out (the canvas opacity is faded separately via CSS, which doesn't need the ticker running). */
+  setPaused(paused: boolean): void {
+    if (!this.app) return;
+    if (paused) this.app.ticker.stop();
+    else this.app.ticker.start();
+  }
+
   /**
    * The shield SHATTERS (a hit absorbed): a quick crack-flash + fracture lines, then a small explosion —
    * an energy shockwave ring, a spray of golden shrapnel shards, and a few energy motes. The persistent

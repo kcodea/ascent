@@ -125,6 +125,8 @@ export type EffectFactoryId =
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
   | 'scConsumeWeakestBuffDemons' // Run Maw: Start of Combat — consume your weakest minion, Demons gain 25% of its stats (Demon)
+  | 'scEngraveAll' // Taurus the Truth Bringer: Start of Combat — Engrave ALL your minions (triggers first) (neutral)
+  | 'rallyGiveHealthToDragons' // Chimerus: Rally — give this minion's Health to 2 friendly Dragons (Dragon)
   | 'rallyGrantSpell' // Perfect Core: Rally (on-attack) — add a random spell to hand after combat (Mech)
   | 'rallyBuffAttachments' // Chorus Engine: Rally — buff your Magnetic ("Attachment") minions +atk/+hp in combat (Mech)
   | 'onKillGrantMagnetic' // Chorus Engine: Slaughter (on-kill) — add a random Magnetic minion to hand after combat (Mech)
@@ -381,7 +383,10 @@ export type QuestObjectiveEvent =
   | 'rally' | 'playAttachment'
   // Demon set: `consumeFodder` counts Fodder Consumed; `consumeStats` counts the total stats (Attack+Health) of
   // Consumed Fodder; `summonImp` counts Imps summoned (combat + recruit).
-  | 'consumeFodder' | 'consumeStats' | 'summonImp';
+  | 'consumeFodder' | 'consumeStats' | 'summonImp'
+  // Rulebreaker (neutral) set: `winRound` counts combat wins; `castSpell` counts spells cast; `authorsHand` is the
+  // compound Shout+Echo+Rally objective (each must reach `count`; per-key progress in `ActiveQuest.subProgress`).
+  | 'winRound' | 'castSpell' | 'authorsHand';
 /** A quest objective: reach `count` of `event`. `tribe` narrows a tribe-aware objective (e.g. "Summon 4 Undead",
  *  "Give Dragons 80 stats"). `filter: 'shout'` narrows a `buy` to Battlecry minions ("Buy 3 Shout minions").
  *  Live progress lives on the run's `ActiveQuest`. */
@@ -439,12 +444,22 @@ export type QuestReward =
   | { kind: 'rallyRepeat'; scope: 'always' | 'firstEachCombat' }
   // Demon (Small Offering): add `fodder` Fodder to your next shop AND give your Fodder a persistent +atk/+hp.
   | { kind: 'fodderReward'; fodder?: number; attack?: number; health?: number }
+  // Rulebreaker (neutral) rewards. `gainMaxGold` raises max Gold. `discover` opens a minion Discover at your tier.
+  // `dupeFirstBuy` = the first minion you buy each turn is duplicated to hand. `spellRepeat` = your spells cast
+  // twice (`always` = Ancient Runes; `firstEachTurn` = Spell Thesis). `minionCost` overrides shop minion cost.
+  // `slaughterRepeat` = your first Slaughter each combat fires an extra time (Author's Hand).
+  | { kind: 'gainMaxGold'; amount: number }
+  | { kind: 'discover' }
+  | { kind: 'dupeFirstBuy' }
+  | { kind: 'spellRepeat'; scope: 'always' | 'firstEachTurn' }
+  | { kind: 'minionCost'; cost: number }
+  | { kind: 'slaughterRepeat'; scope: 'firstEachCombat' }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
 export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit'
-  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd';
+  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -482,6 +497,11 @@ export interface QuestCombatMods {
   contractRewrite?: boolean;
   /** Pit Without End: >0 arms it — the friendly death that empties your board summons this many Imps (once). */
   pitWithoutEndImps?: number;
+  /** Rulebreaker's Crown: at Start of Combat your leftmost minion gains +Attack equal to its Attack (doubles it). */
+  doubleLeftmostAttack?: boolean;
+  /** Author's Hand: your FIRST Slaughter (on-kill) each combat fires this many extra times (additive with Law of
+   *  Teeth). */
+  slaughterFirstEachCombat?: number;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

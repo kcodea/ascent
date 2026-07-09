@@ -442,6 +442,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Start of Combat (Taurus the Truth Bringer): Engrave EVERY friendly minion (self included) — each keeps its
+   *  combat stat-gains (carried back via `playerPermaBuffs`). "Triggers first": it runs in a priority SoC pass
+   *  before the others, so later Start-of-Combat buffs are engraved too. */
+  scEngraveAll: (ctx, self) => {
+    for (const m of ctx.boards[self.side]) {
+      if (m.dead || m.health <= 0) continue;
+      if (!m.keywords.includes('EG')) m.keywords.push('EG');
+    }
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} engraves the truth` });
+  },
+
   // --- Undead (combat-time Deathrattle / on-death value) ---
 
   /** Deathrattle: buff a random living friend (both stats). */
@@ -638,6 +649,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       }
     }
     for (const m of friends) ctx.buff(m, attack, health, self.uid);
+  },
+
+  /** Rally (Chimerus): when THIS minion attacks, give up to 2 friendly Dragons +Health equal to its own Health
+   *  (golden gives 2× its Health). A random pick when more than 2 Dragons are eligible. */
+  rallyGiveHealthToDragons: (ctx, self, _params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const amt = self.health * mul(self);
+    if (amt <= 0) return;
+    const pickable = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'dragon' || m.tribe2 === 'dragon' || ctx.getCard(m.cardId)?.universalTribe));
+    for (let i = 0; i < 2 && pickable.length > 0; i++) {
+      const m = ctx.rng.pick(pickable);
+      pickable.splice(pickable.indexOf(m), 1);
+      ctx.buff(m, 0, amt, self.uid);
+    }
   },
 
   /** Rally (Perfect Core): when THIS minion attacks, add a random spell to your hand after combat (golden → 2). */

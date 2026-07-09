@@ -43,7 +43,7 @@ import {
   type RunState,
 } from './index';
 import type { BoardMinion } from '@game/core';
-import { applyEndOfTurn, applyGoldSpent } from './recruit';
+import { applyEndOfTurn, applyGoldSpent, spellCasts, spellCostReduction } from './recruit';
 import { rollShop } from './shop';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
@@ -4960,6 +4960,54 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     expect(s.activeQuests![0]!.completed).toBe(true); // 39 + 1 = 40
     expect(s.pitWithoutEndImps).toBe(3);
     for (const id of ['contractimp', 'heraldapoc', 'runmaw', 'implosion']) {
+      expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
+    }
+  });
+});
+
+describe('Rulebreaker quests — dupes, spell doubling, compound objective, cost mods', () => {
+  const settleWith = (s: RunState, over: Partial<CombatResult>): RunState =>
+    reduce({ ...s, phase: 'combat', lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, ...over } as CombatResult }, { type: 'resolveCombat' });
+
+  it('Dupes: winRound completes it, then the first minion bought each turn is duplicated', () => {
+    // Complete "Win 4 rounds".
+    let s: RunState = { ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_dupes', progress: 3, completed: false }] };
+    s = settleWith(s, {});
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.dupeFirstBuyEachTurn).toBe(true);
+    // Now a bought minion lands in hand TWICE (bought + dupe), and only for the first buy of the turn.
+    s = { ...s, phase: 'recruit', embers: 20, hand: [], dupeUsedThisTurn: false, shop: [{ uid: 's1', cardId: 'pack' }, { uid: 's2', cardId: 'alley' }] };
+    s = reduce(s, { type: 'buy', uid: 's1' });
+    expect(s.hand.filter((c) => c.cardId === 'pack').length).toBe(2); // bought + dupe
+    s = reduce(s, { type: 'buy', uid: 's2' });
+    expect(s.hand.filter((c) => c.cardId === 'alley').length).toBe(1); // second buy is NOT duped
+  });
+
+  it('The Author\'s Hand compound objective completes when Shout, Echo, AND Rally each reach the count', () => {
+    // Pre-loaded to 6/6/5 — one more Rally (from combat) tips it over and arms all four first-each doublers.
+    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_authors_hand', progress: 5, completed: false, subProgress: { shout: 6, echo: 6, rally: 5 } }] }, { playerRallies: 1 });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.shoutFirstDoubleEachRound).toBe(true);
+    expect(s.echoFirstEachCombat).toBe(1);
+    expect(s.rallyFirstEachCombat).toBe(1);
+    expect(s.slaughterFirstEachCombat).toBe(1);
+  });
+
+  it('spell-doubling rewards fold into the cast count', () => {
+    const spell = SPELL_CARDS.find((c) => !c.singleCast && !c.target)!; // an untargeted spell (base 1 cast)
+    expect(spellCasts({ ...createRun(1) }, spell)).toBe(1);
+    expect(spellCasts({ ...createRun(1), spellDoubleAlways: true }, spell)).toBe(2); // Ancient Runes
+    // Spell Thesis: first spell of the turn doubles, then reverts.
+    const thesis = { ...createRun(1), spellFirstDoubleEachTurn: true, spellFirstUsedThisTurn: false };
+    expect(spellCasts(thesis, spell)).toBe(2);
+    expect(spellCasts(thesis, spell)).toBe(1); // consumed
+  });
+
+  it('Lazarus reduces shop spell cost while on the board; new cards are reward-only tokens', () => {
+    expect(spellCostReduction({ ...createRun(1), spellCostMod: 0, board: [] } as RunState)).toBe(0);
+    const withLaz = { ...createRun(1), spellCostMod: 0, board: [{ uid: 'l', cardId: 'lazarus', tribe: 'neutral' as const, attack: 5, health: 4, keywords: [] as Keyword[], golden: false }] } as RunState;
+    expect(spellCostReduction(withLaz)).toBe(1);
+    for (const id of ['lazarus', 'taurustruth', 'chimerus', 'goldcrafter']) {
       expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
     }
   });

@@ -312,4 +312,18 @@ export const DRAGONS: CardDef[] = [
     effects: [],
     text: 'Every **third** stat gain your **strongest Dragon** receives is copied onto this, permanently.',
   },
+  {
+    // Chimerus quest reward (Dragon capstone). Rally: each attack hands its own Health to 2 friendly Dragons —
+    // a tanky body that turns its bulk into board-wide Dragon Health. Golden gives 2× its Health.
+    id: 'chimerus',
+    name: 'Chimerus',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 4,
+    health: 8,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGiveHealthToDragons' }],
+    text: "**Rally:** give this minion's Health to 2 friendly Dragons.",
+    token: true,
+  },
 ];

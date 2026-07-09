@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Quest UI polish + Pack Leader rework.** The Author's Hand quest now shows its objective as three progress
+  lines (Shouts / Echoes / Rallies triggered N/6); long quest text now fits inside the choice-box frame (cards
+  grow + level to equal height). Pack Leader now permanently buffs your Beasts +2/+2 each time you play a Beast
+  (was a temporary Start-of-Combat buff).
 - **Compendium: Quest Rewards category + exclusive Spells/Quests filtering.** The codex now has a **Quest Rewards**
   section listing all 24 cards a completed quest grants (the reward-only tokens plus Badgington / Money Bot). Spells
   and Quest Rewards are now **exclusive** filters — selecting either shows only that pool, and neither leaks into a

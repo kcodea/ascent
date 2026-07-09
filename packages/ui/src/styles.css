@@ -198,13 +198,16 @@ canvas.spr { image-rendering: pixelated; display: block; }
    stays full-opacity + shows a live accent-coloured chip — it's active, not spent. */
 .quest-row.ongoing .quest-prog { color: var(--acc); }
 .quest-row .quest-sub { font-family: var(--font-ui); font-weight: 600; font-size: calc(10.5 * var(--u)); color: var(--ink3); line-height: 1.15; }
+/* Author's Hand compound objective — one line per sub-tally (Shouts / Echoes / Rallies), then the reward. */
+.quest-row .quest-objline { font-variant-numeric: tabular-nums; }
+.quest-row .quest-objline.reward { margin-top: calc(2 * var(--u)); color: var(--acc-dk); }
 
 /* Quest offer cards — the tribe-hued, clickable quest offers, shown in the Discover-style quest overlay. */
 /* Art-forward, tribe-framed offer card (matches the reference): a top tribe emblem, CRISP full-bleed art (no
    wash-out — only a short top scrim for the title), dark inset objective/reward panels, and a bottom gem.
    Slots into the tavern `.row`, a touch taller than a shop card. Layers: art(0) < top-scrim(1) < text(2) <
    emblem/gem(5). */
-.questcard { position: relative; flex: 0 0 auto; width: var(--cw); height: calc(var(--cw) * 1.62); display: flex; flex-direction: column; text-align: left; padding: 0; border: none; border-radius: 15px; overflow: visible; background: radial-gradient(125% 85% at 50% 18%, color-mix(in srgb, var(--c) 24%, #14100c), #100b08); font-family: var(--font-ui); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 5px rgba(0, 0, 0, 0.5), 0 12px 26px -10px rgba(0, 0, 0, 0.75), 0 0 20px -6px color-mix(in srgb, var(--c) 55%, transparent); }
+.questcard { position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.62); display: flex; flex-direction: column; text-align: left; padding: 0; border: none; border-radius: 15px; overflow: visible; background: radial-gradient(125% 85% at 50% 18%, color-mix(in srgb, var(--c) 24%, #14100c), #100b08); font-family: var(--font-ui); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 5px rgba(0, 0, 0, 0.5), 0 12px 26px -10px rgba(0, 0, 0, 0.75), 0 0 20px -6px color-mix(in srgb, var(--c) 55%, transparent); }
 .questcard:hover { transform: translateY(-8px); filter: brightness(1.05); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 6px rgba(0, 0, 0, 0.45), 0 18px 32px -10px rgba(0, 0, 0, 0.75), 0 0 42px -4px color-mix(in srgb, var(--c) 88%, transparent); }
 .questcard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: 13px; z-index: 0; }
 .questcard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: 13px 13px 0 0; background: linear-gradient(180deg, rgba(8, 6, 4, 0.74) 0%, rgba(8, 6, 4, 0.3) 46%, transparent 100%); z-index: 1; pointer-events: none; }
@@ -216,11 +219,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .questcard-head { position: relative; z-index: 2; padding: 34px 14px 0; text-align: center; }
 .questcard-tier { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #fff); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
 .questcard-name { font-family: var(--font-title); font-weight: 800; font-size: 23px; line-height: 1.05; color: #fff; text-shadow: 0 2px 7px rgba(0, 0, 0, 0.8); margin-top: 3px; }
-.questcard-body { position: relative; z-index: 2; margin-top: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-.questcard-sect { background: rgba(11, 8, 6, 0.82); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: 10px; padding: 8px 11px; }
+.questcard-body { position: relative; z-index: 2; margin-top: auto; padding: 12px; display: flex; flex-direction: column; gap: 7px; }
+.questcard-sect { background: rgba(11, 8, 6, 0.82); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: 10px; padding: 7px 10px; }
 .questcard-lbl { display: flex; align-items: center; gap: 5px; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 72%, #fff); margin-bottom: 4px; }
 .questcard-lbl svg { width: 14px; height: 14px; color: var(--c); }
-.questcard-txt { font-weight: 700; font-size: 14.5px; line-height: 1.22; color: #f1ece3; }
+/* Sized to fit the longest quest text (Author's Hand: a 3-line objective + a 4-part reward) inside the card.
+   `overflow-wrap` breaks any long token; the card itself grows to fit via `min-height` (below), and the modal
+   row's `align-items: stretch` levels every card to the tallest — so text never spills past the frame. */
+.questcard-txt { font-weight: 700; font-size: 13px; line-height: 1.2; color: #f1ece3; overflow-wrap: anywhere; }
+.questcard-sect + .questcard-txt, .questcard-txt + .questcard-txt { margin-top: 2px; }
 /* Per-round track (replaces the old fill bar): one dash per course round. A win prints a green ✓, a loss a
    red ✕; rounds not yet played show a faint dash, the current round a lit-orange dash. Setup rounds (1–2)
    read quieter and get a small gap after (marking where the scored climb begins). */

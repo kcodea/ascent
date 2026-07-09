@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### feat: Author's Hand 3-line objective + quest-card fit + Pack Leader permanent-on-play
+
+Three owner-requested changes (quests UI + one card rework):
+
+- **The Author's Hand — a 3-line objective.** The compound Shout/Echo/Rally objective now renders as three
+  progress lines — "Shouts triggered 0/6", "Echoes triggered 0/6", "Rallies triggered 0/6" — instead of one
+  "Trigger Shout, Echo, and Rally 6 times each". New `questObjectiveLines(o, sub?)` helper (returns `string[]`;
+  single line for every other objective) drives both the quest **choice box** (QuestCard, 0/N when untaken) and
+  the active-quest **panel** (QuestPanel, live per-key counts from the reducer's existing `subProgress`). Unit-
+  tested. The data model already tracked the three sub-tallies, so this is UI-only.
+
+- **Quest text fits the choice box.** Long quest text (worst case: Author's Hand's 3-line objective + 4-part
+  reward) used to spill past the card frame. The card's fixed `height` is now `min-height`, so the modal row's
+  `align-items: stretch` grows every card to the tallest and levels them; text shrank to 13px with
+  `overflow-wrap: anywhere`. Verified live at a real wave-4 offer: all four cards equal height, **zero overflow**.
+
+- **Pack Leader — permanent, not Start-of-Combat.** Reworked from a temporary Start-of-Combat buff (that scaled
+  with Beasts played that turn) to: **"After you play a Beast, give your Beasts +2/+2 permanently."** New recruit
+  `onSummon` primitive `onSummonTribeAura` — each Beast summoned buffs every current Beast (board + hand) and
+  stacks into the run-wide `beastBuyAtk`/`beastBuyHp` aura so future Beasts carry it "wherever they are" (the
+  Squirl Scout aura pattern, but per-summon and permanent). Skips Pack Leader's own entry; golden doubles to
+  +4/+4. The old `scTribeBuffPerPlayed` combat effect is now unused (kept as a retired dial). The two old SoC
+  tests were rewritten for the new behavior. **Owner call to confirm:** "increase stats for Beasts played" was
+  read as "buff ALL your Beasts +2/+2 per Beast played" (not "Pack Leader itself grows" / "only the new Beast").
+
+Verified: typecheck + lint + **736 tests** + `build:web` all clean; live — Pack Leader's new text renders in the
+Compendium, and the wave-4 quest offer fits with equal-height cards. **Note:** a live-verification slip
+overwrote a throwaway Round-1 Continue save (backed up to page memory, then a reload wiped it before restore) —
+recorded the disk-backup lesson in memory.
+
 ### feat(ui): Deathrattle bone-skull shatter FX
 
 When a unit with a Deathrattle (`onDeath` effect) dies in combat, a painted bone skull-and-crossbones pops up

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { QuestObjective } from '@game/core';
 import { QUEST_INDEX } from '@game/content';
 import { Icon } from './Icon';
-import { questObjectiveText, questProgressText, questRewardText } from './questText';
+import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText } from './questText';
 import { useGame, type CombatQuestDelta } from './store';
 
 /** Live combat progress for a quest objective (during the replay), mirroring the reducer's `combatEventCount`. */
@@ -62,14 +62,29 @@ export function QuestPanel() {
             // once taken → the reward (its effect / ongoing state) is what matters.
             const rewardTxt = questRewardText(r, { completed: aq.completed, shoutCharges: charges, repeatTurns });
             const repeat = def.repeatable ? ' · Repeatable' : '';
-            const sub = (aq.completed ? rewardTxt : `${questObjectiveText(def.objective)} → ${rewardTxt}`) + repeat;
+            // The Author's Hand compound objective breaks into three live progress lines (Shouts / Echoes /
+            // Rallies each toward the count); every other objective stays a single "objective → reward" line.
+            const compound = !aq.completed && def.objective.event === 'authorsHand';
             return (
               <div className={`quest-row${ongoing ? ' ongoing' : aq.completed ? ' done' : ''}`} key={aq.questId}>
                 <div className="quest-row-head">
                   <span className="quest-name">{def.name}</span>
                   <span className="quest-prog">{chip}</span>
                 </div>
-                <div className="quest-sub">{sub}</div>
+                <div className="quest-sub">
+                  {aq.completed ? (
+                    `${rewardTxt}${repeat}`
+                  ) : compound ? (
+                    <>
+                      {questObjectiveLines(def.objective, aq.subProgress).map((l, i) => (
+                        <div className="quest-objline" key={i}>{l}</div>
+                      ))}
+                      <div className="quest-objline reward">→ {rewardTxt}{repeat}</div>
+                    </>
+                  ) : (
+                    `${questObjectiveText(def.objective)} → ${rewardTxt}${repeat}`
+                  )}
+                </div>
               </div>
             );
           })}

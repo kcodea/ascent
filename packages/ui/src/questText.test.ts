@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { QuestObjective, QuestReward } from '@game/core';
-import { questObjectiveText, questRewardText } from './questText';
+import { questObjectiveLines, questObjectiveText, questRewardText } from './questText';
 
 describe('questText — objectives', () => {
   const cases: [QuestObjective, string][] = [
@@ -17,6 +17,26 @@ describe('questText — objectives', () => {
   for (const [o, text] of cases) {
     it(`${o.event}${o.tribe ? `/${o.tribe}` : ''} → "${text}"`, () => expect(questObjectiveText(o)).toBe(text));
   }
+});
+
+describe('questObjectiveLines — compound objectives', () => {
+  it('a normal objective is a single line', () => {
+    expect(questObjectiveLines({ event: 'deathrattle', count: 14 })).toEqual(['Trigger 14 Echoes']);
+  });
+  it("Author's Hand breaks into 3 progress lines, 0/N when untaken", () => {
+    expect(questObjectiveLines({ event: 'authorsHand', count: 6 })).toEqual([
+      'Shouts triggered 0/6',
+      'Echoes triggered 0/6',
+      'Rallies triggered 0/6',
+    ]);
+  });
+  it("Author's Hand fills live sub-progress (clamped to the count)", () => {
+    expect(questObjectiveLines({ event: 'authorsHand', count: 6 }, { shout: 2, echo: 6, rally: 9 })).toEqual([
+      'Shouts triggered 2/6',
+      'Echoes triggered 6/6',
+      'Rallies triggered 6/6',
+    ]);
+  });
 });
 
 describe('questText — rewards', () => {

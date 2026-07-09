@@ -317,29 +317,40 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'F')!.attack).toBe(7); // the Feeder itself doesn't consume
   });
 
-  it('Pack Leader: Start of Combat buffs Beasts +2/+2, improved +2/+2 per Beast played this turn', () => {
+  it('Pack Leader: playing a Beast permanently buffs your Beasts +2/+2 (wherever they are)', () => {
     let s: RunState = {
       ...createRun(1),
-      playedThisTurn: ['alley', 'alley'], // 2 Beasts played this recruit turn (frozen into the fight)
       board: [
         { uid: 'pl', cardId: 'packleader', tribe: 'beast', attack: 2, health: 4, keywords: [], golden: false },
-        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+        { uid: 'b1', cardId: 'babycub', tribe: 'beast', attack: 4, health: 5, keywords: ['C'], golden: false },
       ],
+      hand: [{ uid: 'b2', cardId: 'babycub', tribe: 'beast', attack: 4, health: 5, keywords: ['C'], golden: false }],
     };
-    s = reduce(s, { type: 'faceOmen' }); // grant = base 2 + 2 × 2 played = +6/+6
-    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 6 && e.health === 6)).toBe(true);
+    s = reduce(s, { type: 'play', uid: 'b2' });
+    const b1 = s.board.find((c) => c.uid === 'b1')!;
+    const b2 = s.board.find((c) => c.uid === 'b2')!;
+    expect([b1.attack, b1.health]).toEqual([6, 7]); // existing Beast gained +2/+2 permanently
+    expect([b2.attack, b2.health]).toEqual([6, 7]); // the just-played Beast got it too
+    expect([s.beastBuyAtk, s.beastBuyHp]).toEqual([2, 2]); // future Beasts carry it "wherever they are"
   });
 
-  it('Pack Leader with no Beasts played this turn grants only the base +2/+2', () => {
+  it('Pack Leader ignores a non-Beast play; golden doubles the grant to +4/+4', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
-        { uid: 'pl', cardId: 'packleader', tribe: 'beast', attack: 2, health: 4, keywords: [], golden: false },
-        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false },
+        { uid: 'pl', cardId: 'packleader', tribe: 'beast', attack: 4, health: 8, keywords: [], golden: true },
+        { uid: 'b1', cardId: 'babycub', tribe: 'beast', attack: 4, health: 5, keywords: ['C'], golden: false },
+      ],
+      hand: [
+        { uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 5, keywords: [], golden: false },
+        { uid: 'b2', cardId: 'babycub', tribe: 'beast', attack: 4, health: 5, keywords: ['C'], golden: false },
       ],
     };
-    s = reduce(s, { type: 'faceOmen' });
-    expect(s.lastCombat!.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+    s = reduce(s, { type: 'play', uid: 'm' }); // a Mech — no trigger
+    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(4);
+    s = reduce(s, { type: 'play', uid: 'b2' }); // a Beast — golden Pack Leader grants +4/+4
+    expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(8);
+    expect(s.beastBuyAtk).toBe(4);
   });
 
   it('Graverobber: Battlecry destroys a targeted friendly, procs its Deathrattle + grants a spell of its tier', () => {

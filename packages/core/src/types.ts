@@ -101,7 +101,8 @@ export type EffectFactoryId =
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
   | 'scTribeBuffPerSpell' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
   | 'scTribeBuffPerPlayed' // (retired dial) Start of Combat — buff Beasts +N/+N, +M per Beast played this turn
-  | 'scTribeBuffImproving' // Pack Leader: Start of Combat — buff Beasts +M/+M (base + accrued), improve permanently
+  | 'onSummonTribeAura' // Pack Leader: whenever you summon a <tribe>, give your <tribe> +N/+N permanently (wherever they are)
+  | 'scTribeBuffImproving' // Pack Leader (old): Start of Combat — buff Beasts +M/+M (base + accrued), improve permanently
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
   | 'battlecrySummon'

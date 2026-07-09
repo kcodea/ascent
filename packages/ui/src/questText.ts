@@ -68,6 +68,23 @@ export function questObjectiveText(o: QuestObjective): string {
   }
 }
 
+/** The objective as one or more display lines. Most objectives are a single line (`questObjectiveText`); the
+ *  Author's Hand compound objective breaks into three progress lines — "Shouts triggered 0/6", "Echoes
+ *  triggered 0/6", "Rallies triggered 0/6" — each showing its own sub-tally (0 in the shop, live in the panel).
+ *  `sub` (the reducer's per-key `subProgress`) fills the current counts; omit it (or pass zeros) for an untaken
+ *  quest so the choice box reads "0/N". */
+export function questObjectiveLines(o: QuestObjective, sub?: { shout: number; echo: number; rally: number }): string[] {
+  if (o.event === 'authorsHand') {
+    const n = (v: number): string => `${Math.min(v, o.count)}/${o.count}`;
+    return [
+      `Shouts triggered ${n(sub?.shout ?? 0)}`,
+      `Echoes triggered ${n(sub?.echo ?? 0)}`,
+      `Rallies triggered ${n(sub?.rally ?? 0)}`,
+    ];
+  }
+  return [questObjectiveText(o)];
+}
+
 /** "a random Beast" / "2 random Undead" (Undead invariant). */
 function randomMinionPhrase(tribe: Tribe, n: number): string {
   const noun = n === 1 ? TRIBE_SINGULAR[tribe] : TRIBE_PLURAL[tribe];

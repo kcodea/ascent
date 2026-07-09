@@ -332,8 +332,9 @@ export const BEASTS: CardDef[] = [
   },
   {
     // Start of Combat: buff your Beasts +2/+2, improved +2/+2 for each Beast you played this recruit turn
-    // (frozen at combat start, threaded into the sim like spellsThisTurn). A go-wide Beast SoC payoff that
-    // rewards a busy beast turn. Golden doubles the whole grant. Live grant via scTribeBuffPerPlayedText.
+    // Whenever you play a Beast, your whole pack grows +2/+2 PERMANENTLY (wherever they are) — a persistent
+    // go-wide payoff baked into stats in the recruit phase (not a temporary Start-of-Combat buff), so it snowballs
+    // across the run and carries into every fight. Golden doubles the grant. Recruit effect: onSummonTribeAura.
     id: 'packleader',
     name: 'Pack Leader',
     tribe: 'beast',
@@ -341,9 +342,9 @@ export const BEASTS: CardDef[] = [
     attack: 2,
     health: 4,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scTribeBuffPerPlayed', params: { tribe: 'beast', attack: 2, health: 2, perPlayed: 2 } }],
-    text: '**Start of Combat:** Give your **Beasts** **+2/+2**. Improve this by **+2/+2** for every Beast played.',
-    goldenText: '**Start of Combat:** Give your **Beasts** **+4/+4**. Improve this by **+4/+4** for every Beast played.',
+    effects: [{ on: 'onSummon', do: 'onSummonTribeAura', params: { tribe: 'beast', attack: 2, health: 2 } }],
+    text: 'After you play a **Beast**, give your **Beasts** **+2/+2** permanently.',
+    goldenText: 'After you play a **Beast**, give your **Beasts** **+4/+4** permanently.',
   },
   {
     // Battlecry: give a RANDOM friendly minion +3/+3, once per Beast you own — a spread go-wide payoff that

@@ -5040,3 +5040,41 @@ describe('triple: a welded host does not carry Magnetic into its golden', () => 
     expect(golden!.keywords.includes('M')).toBe(true);
   });
 });
+
+describe('quest fixes: recruit-summoned Imp buff + triple-on-quest-grant', () => {
+  const mk = (uid: string, cardId: string): BoardCard => {
+    const d = CARD_INDEX[cardId]!;
+    return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false };
+  };
+
+  it('a recruit-summoned Imp inherits the run-wide Imp buff (Crypt Broker / Graverobber path)', () => {
+    // Graverobber destroys Imp King out of combat → its Deathrattle summons Imps in the shop; those Imps must
+    // carry the run-wide Imp aura (impBuff). Compare with vs without the aura to isolate its +3/+3.
+    const impsWith = (impBuff: { attack: number; health: number }): BoardCard[] => {
+      let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', impBuff, board: [mk('ik', 'impking')], hand: [mk('gr', 'graverobber')] };
+      s = reduce(s, { type: 'play', uid: 'gr' });
+      s = reduce(s, { type: 'battlecryTarget', targetUid: 'ik' });
+      return s.board.filter((c) => c.cardId === 'impscrap');
+    };
+    const base = impsWith({ attack: 0, health: 0 });
+    const buffed = impsWith({ attack: 3, health: 3 });
+    expect(base.length).toBeGreaterThan(0);
+    expect(buffed.length).toBe(base.length);
+    expect(buffed[0]!.attack - base[0]!.attack).toBe(3); // the Imp aura landed on the summoned Imp
+    expect(buffed[0]!.health - base[0]!.health).toBe(3);
+  });
+
+  it('completing a quest that grants your 3rd copy triples it into a golden', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit',
+      activeQuests: [{ questId: 'q_dark_bargain', progress: 4, completed: false }], // sell 5 → Get a Contract Imp
+      board: [mk('sellme', 'pack')],
+      hand: [mk('h1', 'contractimp'), mk('h2', 'contractimp')], // two copies already held
+    };
+    s = reduce(s, { type: 'sell', uid: 'sellme' }); // 5th sell → completes → grants the 3rd Contract Imp → triple
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    const copies = [...s.board, ...s.hand].filter((c) => c.cardId === 'contractimp');
+    expect(copies.length).toBe(1); // three combined into one
+    expect(copies[0]!.golden).toBe(true);
+  });
+});

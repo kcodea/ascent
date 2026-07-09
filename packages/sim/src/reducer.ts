@@ -111,6 +111,7 @@ export function reduce(state: RunState, action: Action): RunState {
   // them; the diff is ≤7 entries and `fireOnGainAttack` bails fast for non-reactors, so it's effectively free.
   if (next !== state && state.phase === 'recruit') {
     const before = new Map(state.board.map((c) => [c.uid, c.attack]));
+    const handBefore = next.hand.length; // grows if a quest completing this action grants a card → triple-check
     for (const c of next.board) {
       const prev = before.get(c.uid);
       if (prev !== undefined && c.attack > prev) fireOnGainAttack(next, c);
@@ -199,6 +200,10 @@ export function reduce(state: RunState, action: Action): RunState {
       advanceQuests(next, (o) => o.event === 'summon' && (!o.tribe || tribes.includes(o.tribe)));
       if (cdef?.imp) advanceQuests(next, (o) => o.event === 'summonImp'); // Imp Census / Implosion — recruit-summoned Imps
     }
+    // A quest that completed this action may have granted a card to hand — if so, check for a triple (a quest
+    // reward that's your 3rd copy combines into a golden). Guarded on a hand grant so it never re-triples the
+    // action's own board state (the buy/play cases already handle their triples).
+    if (next.hand.length > handBefore) checkTriples(next);
   }
   return next;
 }
@@ -1235,7 +1240,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // ── Quests: combat-phase objectives + combat-armed reward carry-backs ─────────────────────────────────
   // Advance combat objectives (attack / summonCombat / slaughter / deathrattle) from this fight's tally, +N,
   // tribe-narrowed. Completing here applies the reward straight into the post-combat state (grants → hand).
+  const handBeforeQuests = s.hand.length;
   advanceCombatQuests(s, result);
+  // A combat-completed quest may have granted a card to hand — if so, check for a triple (your 3rd copy → golden).
+  if (s.hand.length > handBeforeQuests) checkTriples(s);
   // The Old Hunt: the Beast Attack aura pumped this combat is permanent — fold it into the run + apply to
   // current run-board/hand Beasts (so they keep the gain without re-buying).
   if (result.playerBeastBuyAtkGain) grantTribeAura(s, 'beast', result.playerBeastBuyAtkGain, 0, 'The Old Hunt');

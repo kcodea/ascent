@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### fix(sim): a welded host (Moe / Beatbot) no longer triples into a Magnetic golden
+
+A minion that receives an attachment gains the `M` keyword (owner ruling — it counts as an Attachment for the
+aura). But `combineIntoGolden` unioned all copies' keywords, so tripling a welded Moe / Beatbot (neither Magnetic
+by base) produced a golden that carried `M` — and then **played as an Attachment** (the play path keys off the
+instance's `M`). Fixed: the triple keeps `M` only if the BASE card is genuinely Magnetic (Better Bot / Money Bot /
+Cling Drone / …). Verified: typecheck + lint + 712 tests (added a regression — a welded Beatbot triples into a
+non-Magnetic golden, while Money Bot keeps `M`); `build:web` clean.
+
 ### feat(sim): quest offers → 4, and never re-offer a quest you already hold
 
 `generateQuestOffer` now offers **4** quests (1 neutral + **3** distinct tribes, was 1 + 2) and excludes any quest

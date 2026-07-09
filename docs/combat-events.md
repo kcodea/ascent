@@ -55,6 +55,19 @@ above are the authoritative per-type payload/meaning.)*
 Source: `simulate()` in `packages/core/src/combat/simulate.ts`. Section comments there cite the
 handoff's **A.3** combat-resolution rules; step numbers below reference those comments.
 
+```mermaid
+flowchart TD
+    A[Setup — clone boards, auras, handlers] --> B[Reclaimer destruction — marked minion dies first]
+    B --> C[Start-of-Combat casts — player then enemy, left to right]
+    C --> D[First-attacker rule — more minions goes first]
+    D --> E[Pre-loop flushes — immediate attacks, ascensions]
+    E --> F[Alternating attack loop — sides alternate, left to right]
+    F -->|one swing per pass| F
+    F -->|a side reaches 0 living| G[Outcome — win / lose / draw]
+    G --> H[Loss damage — on a loss only]
+    H --> I[Carry-back tallies — persist to run board]
+```
+
 1. **Setup.** Instantiate both boards from `BoardMinion[]` (clone — never mutate a shared `CardDef`),
    apply run-wide auras (Undead/Imp aggregate auras + per-card enchants) to the player's starting
    minions, register every minion's effect handlers on the `CombatBus`.
@@ -96,6 +109,21 @@ handoff's **A.3** combat-resolution rules; step numbers below reference those co
 ## 3. The exchange micro-order (`performAttack`, per swing)
 
 One call = one swing (Windfury = 2 swings, each its own step — see §4). Order:
+
+```mermaid
+flowchart TD
+    R[Reveal — attacker loses Stealth] --> T[Choose target — Taunts first, else random]
+    T --> E[Emit attack, fire onAttack — wind-up, Rally triggers]
+    E --> P1[Phase 1: apply all damage — cleave, main, retaliation at once]
+    P1 --> P2[Phase 2: deaths resolve — damage order, rattles and Rise]
+    P2 --> K[On-kill rewards — after every death in the clash]
+    K --> RA[Re-attack on kill — Gnasher recurses if alive]
+    RA -->|if main target died| T
+```
+
+The Phase 1 → Phase 2 split above is the load-bearing rule: **all** damage in a clash applies
+(Phase 1) before **any** death resolves (Phase 2), so a mutual kill sees the full post-exchange
+board before either Deathrattle fires.
 
 1. **Reveal.** If the attacker has Stealth, it's lost now (becomes targetable) — emits `reveal`.
 2. **Target chosen.** Random among living, non-Stealthed defenders; Taunts first if any exist.

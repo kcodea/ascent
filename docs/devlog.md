@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### docs: combat order-of-operations flowcharts in combat-events.md
+
+Added two Mermaid `flowchart TD` diagrams to [combat-events.md](combat-events.md) so the combat
+resolution order reads at a glance, not just as prose:
+
+- **§2 — combat lifecycle:** the nine top-level steps (Setup → Reclaimer destruction → Start-of-Combat
+  casts → first-attacker rule → pre-loop flushes → the alternating attack loop → outcome → loss damage
+  → carry-back tallies), with the attack loop's per-swing self-edge and its "a side reaches 0 living"
+  exit edge drawn explicitly.
+- **§3 — exchange micro-order:** the per-swing `performAttack` sequence (reveal → choose target → emit
+  attack → Phase 1 apply-all-damage → Phase 2 deaths-resolve → on-kill rewards → Gnasher re-attack),
+  with the re-attack edge looping back to target selection on a main-target kill. A short callout under
+  it restates the load-bearing Phase 1 → Phase 2 rule (all damage applies before any death resolves).
+- **Verified:** both blocks rendered via `@mermaid-js/mermaid-cli` (v11.16) to SVG with no parse errors;
+  GitHub renders `mermaid` fences natively. Docs-only — no engine/UI/behavior change.
+
 ### fix: Choreography preview draws in front + greyed "can't-go-negative" lanes
 
 Two follow-ups from a live pass on the 🎬 Choreography panel:

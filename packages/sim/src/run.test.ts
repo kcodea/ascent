@@ -5020,3 +5020,23 @@ describe('Rulebreaker quests — dupes, spell doubling, compound objective, cost
     }
   });
 });
+
+describe('triple: a welded host does not carry Magnetic into its golden', () => {
+  const mk = (uid: string, cardId: string, kw: Keyword[]): BoardCard => ({ uid, cardId, tribe: 'mech', attack: 2, health: 2, keywords: kw, golden: false });
+
+  it('Beatbot/Moe that gained M from attachments triples into a NON-Magnetic golden (it will not play as an Attachment)', () => {
+    // One copy carries a welded 'M' (from receiving attachments); the base card (Beatbot) is not Magnetic.
+    let s: RunState = { ...createRun(1), phase: 'recruit', board: [mk('a', 'beatboxer', ['M'])], hand: [mk('b', 'beatboxer', []), mk('c', 'beatboxer', [])] };
+    s = reduce(s, { type: 'play', uid: 'c' }); // 3rd copy hits the board → triples into a golden
+    const golden = [...s.board, ...s.hand].find((cd) => cd.cardId === 'beatboxer' && cd.golden);
+    expect(golden).toBeDefined();
+    expect(golden!.keywords.includes('M')).toBe(false); // the welded M did NOT carry into the golden
+  });
+
+  it('a genuinely Magnetic base card (Money Bot) still keeps M through a triple', () => {
+    let s: RunState = { ...createRun(1), phase: 'recruit', board: [mk('x', 'moneybot', ['M'])], hand: [mk('y', 'moneybot', ['M']), mk('z', 'moneybot', ['M'])] };
+    s = reduce(s, { type: 'play', uid: 'z' });
+    const golden = [...s.board, ...s.hand].find((cd) => cd.cardId === 'moneybot' && cd.golden);
+    expect(golden!.keywords.includes('M')).toBe(true);
+  });
+});

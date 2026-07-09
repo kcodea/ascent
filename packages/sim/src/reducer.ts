@@ -960,8 +960,12 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // the breakdown stays consistent with the stats.
   const kept = [...combined].sort((a, b) => (b.attack + b.health) - (a.attack + a.health)).slice(0, 2);
   const goldenBuffs = mergeBuffs(kept.flatMap((c) => c.buffs ?? []));
-  const keywords = [...new Set(combined.flatMap((c) => c.keywords))];
   const def = CARD_INDEX[tripleId]!;
+  // A host that RECEIVED attachments gains the 'M' keyword (owner ruling — it counts as an Attachment for the
+  // aura), but that must NOT carry into its triple: a golden Moe / Beatboxer is a normal minion, not an
+  // Attachment, so it should never magnetize when played. Keep 'M' only if the BASE card is genuinely Magnetic
+  // (Better Bot / Money Bot / Cling Drone / …).
+  const keywords = [...new Set(combined.flatMap((c) => c.keywords))].filter((k) => k !== 'M' || def.keywords.includes('M'));
   // A summon-buff card (Kennelmaster / Bristleback Matron) carries its accrued buff
   // through the triple: the golden's summonBonus = its base buff + the two highest
   // bonuses combined, so the granted magnitude (base + summonBonus) is the SUM of the

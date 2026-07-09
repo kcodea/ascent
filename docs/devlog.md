@@ -13,6 +13,14 @@ the reward (`grant.cards` / `recurringGrant.cards`, recursing through `multi`), 
 reuses the `Card` component's `.cardref` hover popup (same styling + on-screen flip as the board/hand card previews).
 Random-tribe / random-filter grants have no fixed card, so they simply show no preview. Verified: typecheck + lint +
 710 tests + `build:web` clean; live DOM + screenshot — hovering Assembly Line pops a readable Money Bot card.
+### fix(sim): a welded host (Moe / Beatbot) no longer triples into a Magnetic golden
+
+A minion that receives an attachment gains the `M` keyword (owner ruling — it counts as an Attachment for the
+aura). But `combineIntoGolden` unioned all copies' keywords, so tripling a welded Moe / Beatbot (neither Magnetic
+by base) produced a golden that carried `M` — and then **played as an Attachment** (the play path keys off the
+instance's `M`). Fixed: the triple keeps `M` only if the BASE card is genuinely Magnetic (Better Bot / Money Bot /
+Cling Drone / …). Verified: typecheck + lint + 712 tests (added a regression — a welded Beatbot triples into a
+non-Magnetic golden, while Money Bot keeps `M`); `build:web` clean.
 
 ### feat(sim): quest offers → 4, and never re-offer a quest you already hold
 

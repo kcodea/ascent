@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(sim): quest offers → 4, and never re-offer a quest you already hold
+
+`generateQuestOffer` now offers **4** quests (1 neutral + **3** distinct tribes, was 1 + 2) and excludes any quest
+already in `activeQuests`, so you can't be offered a quest you've taken. A `used` set threaded through the picks
+also guarantees no quest appears twice in one offer (closing a latent same-tribe-twice dup when a dominant tribe
+filled two slots). The RNG lives in the separate `TAG.QUEST` stream, so shop/combat determinism is untouched.
+Verified: typecheck + lint + 711 tests (offer test updated to 1 neutral + 3 distinct tribes + a no-re-offer test);
+`build:web` clean; live DOM/screenshot check — the 4-card Quest Shop lays out cleanly.
 ### feat(content): Rulebreaker neutral quests + Chimerus — economy / spell / rule-bending payoffs
 
 A 13-quest batch (12 neutral "Rulebreaker" + 1 Dragon) with a wave of new rule-bending mechanics.

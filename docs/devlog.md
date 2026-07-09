@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix: Front to Back scaling folds in spell power · Ancient Runes now doubles Discover spells · Attachment keyword no longer transfers to the host
+
+Three owner-reported items:
+
+- **Front to Back — scaling compounds spell power.** `spellBuffTargetEscalating` now grows `frontToBackBonus` by
+  the base step **+ the run's Attack spell power** each cast (was a flat +2), so a spell-power build's Front to
+  Back escalates faster. The live text's "Improve this by" greens to the current step (step + spell power).
+- **Ancient Runes bug.** The Discover-spell play path computed its cast count from `nextSpellMult` only, so
+  `spellDoubleAlways` (Ancient Runes) and `spellFirstDoubleEachTurn` (Spell Thesis) silently did nothing for
+  Discover spells (Sprout, Help Wanted, Tribe Portal…). Now it uses `spellCasts(s, def)` — Nimbus **and** Ancient
+  Runes **and** Spell Thesis all multiply the Discovers; Yazzus stays excluded (aimed-only, and Discovers are
+  untargeted). The path also consumes the Spell Thesis freebie like every other cast site.
+- **Attachment (M) keyword no longer transfers to a welded host** (reverses the 2026-07-08 ruling — a Herald was
+  showing up as Magnetic). `applyWeld` skips `M`; every other welded keyword (Ward/Reborn/Rally/…) still rides
+  along. The Scrap Herald **aura** still reaches welded hosts — `bakeAttachmentAura` is now decoupled from the
+  keyword (bakes once per host, skipping printed-Magnetic minions). Updated the tests that codified the old ruling.
+
+Full gauntlet (773) + harness green.
 ### feat(ui): End-Combat is one synchronized crossfade (units + FX out together, board + survivors in together)
 
 Leaving the arena used to snap: the combat units unmounted instantly while their Pixi FX (shield/reborn bubbles,

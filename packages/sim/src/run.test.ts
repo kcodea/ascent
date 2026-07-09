@@ -1358,7 +1358,7 @@ describe('run loop (@game/sim)', () => {
     expect(drone.attack).toBe(4); // 2 + 2
     expect(drone.health).toBe(3); // 1 + 2
     expect(drone.keywords).toContain('DS');
-    expect(drone.keywords).toContain('M'); // the welded host IS now an Attachment (owner ruling 2026-07-08)
+    expect(drone.keywords).not.toContain('M'); // the Attachment keyword does NOT transfer to the host (owner ruling 2026-07-09)
   });
 
   it('a Mech Magnetic can weld onto a Chaos Attachment host (the all-type body counts as a Mech)', () => {
@@ -1402,11 +1402,11 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sym', toIndex: 0 }); // weld onto the host
     const host = s.board.find((c) => c.uid === 'host')!;
     expect(host.keywords).toContain('R'); // Reborn rides along on the weld
-    expect(host.keywords).toContain('M'); // the welded host IS now an Attachment (owner ruling 2026-07-08)
+    expect(host.keywords).not.toContain('M'); // …but the Attachment keyword does NOT (owner ruling 2026-07-09)
     expect([host.attack, host.health]).toEqual([6, 6]); // 5/5 host + the Attachment's 1/1
   });
 
-  it('a welded host becomes an Attachment and inherits the run-wide Attachment aura (owner ruling 2026-07-08)', () => {
+  it('a welded host inherits the run-wide Attachment aura but does NOT gain the M keyword (owner ruling 2026-07-09)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       magneticBuyAtk: 2, magneticBuyHp: 3, // Scrap Herald's run-wide Attachment aura is active
@@ -1415,9 +1415,21 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'cl', toIndex: 0 }); // weld the Magnetic onto the host
     const host = s.board.find((c) => c.uid === 'host')!;
-    expect(host.keywords).toContain('M'); // now an Attachment → picks up the aura
-    // 5/5 host + Cling 2/2 (weld) + Attachment aura +2/+3 (baked once, on first becoming Magnetic) = 9/10.
+    expect(host.keywords).not.toContain('M'); // the host does NOT become an Attachment itself
+    // …but STILL inherits the aura (decoupled from the keyword): 5/5 host + Cling 2/2 (weld) + aura +2/+3 = 9/10.
     expect([host.attack, host.health]).toEqual([9, 10]);
+  });
+
+  it('Ancient Runes ("spells cast twice") now doubles a Discover-spell too (bug fix 2026-07-09)', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 4, embers: 0, shop: [],
+      spellDoubleAlways: true, // Ancient Runes reward is active
+      board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'tp', cardId: 'tribeportal', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'tp' });
+    expect(s.discover).toBeDefined(); // first Discover opens…
+    expect(s.discoverQueue?.length ?? 0).toBe(1); // …and the 2nd is queued (Ancient Runes doubled the cast)
   });
 
   it('Nimbus doubles a Discover-spell: Tribe Portal under a Nimbus charge opens two Discovers', () => {
@@ -2069,25 +2081,24 @@ describe('run loop (@game/sim)', () => {
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([6, 7]); // 2/3 + 4/4
   });
 
-  it('Front to Back adds spell power (Rohan) on top of its flat escalation', () => {
+  it('Front to Back adds spell power to both the grant AND the escalation step (owner 2026-07-09)', () => {
     // Rohan's amplify is +1 at wave 1 → first cast is +(step 2 + escalation 0 + power 1) = +3/+3.
     const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
-    expect(s.frontToBackBonus).toBe(2); // the escalation climbs by a FLAT 2 (spell power is not part of it)
-    // The grant (slot 0) scales with escalation + spell power; the improvement (slot 1) is a constant +2/+2
-    // — spell power is a flat add to every grant, NOT a per-cast increment, so it never inflates "Improve".
+    expect(s.frontToBackBonus).toBe(3); // the escalation now climbs by step 2 + spell power 1
+    // The grant (slot 0) scales with escalation + spell power; the improvement (slot 1) now ALSO folds in spell power.
     expect(spellDisplayText('fronttoback', 0, 0)).toBe('Give a minion **+2/+2**. Improve this by **+2/+2**.'); // base — no boost
-    // +1 spell power, no escalation: grant 2+0+1=3 green; improve stays +2/+2.
-    expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **+2/+2**.');
-    // Escalated (+2) AND +1 power: grant 2+2+1=5 green; improve stays +2/+2.
-    expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **+2/+2**.');
-    // Escalated only (+4), no power: grant 2+4=6 green; improve stays +2/+2.
+    // +1 spell power, no escalation: grant 2+0+1=3 green; improve step 2+1=3 green.
+    expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **{{+3/+3}}**.');
+    // Escalated (+2) AND +1 power: grant 2+2+1=5 green; improve step 2+1=3 green.
+    expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **{{+3/+3}}**.');
+    // Escalated only (+4), no power: grant 2+4=6 green; improve stays +2/+2 (no spell power).
     expect(spellDisplayText('fronttoback', 0, 4)).toBe('Give a minion **{{+6/+6}}**. Improve this by **+2/+2**.');
   });
 
-  it('Front to Back: two casts grow by a flat +2 step (plus flat spell power on each grant)', () => {
-    // +1 spell power (Rohan), two casts on the same target. Cast 1: +(2+0+1)=+3/+3. Cast 2: +(2+2+1)=+5/+5.
-    // The escalation step is a flat +2 (spell power adds +1 to each grant, but not to the step).
+  it('Front to Back: two casts — the escalation step now compounds spell power', () => {
+    // +1 spell power (Rohan), two casts on the same target. Cast 1: +(2+0+1)=+3/+3; the step grows by 2+1=3.
+    // Cast 2: +(step 2 + escalation 3 + power 1) = +6/+6. So the target ends at 3/3 + 6/6 = 9/9.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], heroId: 'rohan',
       board: [oneNeutral('m', { attack: 0, health: 0 })],
@@ -2099,7 +2110,7 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' });
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // +3/+3
     s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' });
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([8, 8]); // 3/3 + 5/5 (grew by step 2 + power 1)
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([9, 9]); // 3/3 + 6/6 (step now compounds spell power)
   });
 
   it('Mana Font raises max Mana permanently but does NOT refill current Mana', () => {

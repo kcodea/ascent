@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### feat(ui): Deathrattle skull-burst sound effect
+
+The bone-skull shatter now fires a magical burst SFX **exactly when it explodes** — a new sourced clip
+(`packages/ui/src/audio/skullburst.mp3`, owner-supplied) played via `sfx.skullBurst()` from
+`pixiFx.burstSkull()`. Deduped (60 ms throttle) so several simultaneous Deathrattle shatters collapse into one
+play, and mixer-tunable (`skullburst` key, default gain 0.5). typecheck + lint + **746 tests** + build green.
+
 ### feat(ui): Compendium "Quests" tab — browse every quest's objective + art
 
 Added a **Quests** category to the Compendium: a read-only gallery of all quest DEFINITIONS (tier · tribe, name,

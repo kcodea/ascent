@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Rally attack reads louder.** The wind-up pause when a Rally fires holds longer, and its yellow trigger pulse is
+  much brighter (a wide triple-layer gold halo) — the Rally is worth noticing.
 - **End-Combat is one synchronized crossfade.** Leaving the arena no longer snaps: the **End Combat** button now
   fades every combat unit + FX out together in one beat, then fades the recruit board + surviving minions back in
   together. Opacity-only, so it stays snappy.

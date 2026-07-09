@@ -17,8 +17,9 @@ export interface AttackCueCtx {
   onRallyPulse?: () => void;
 }
 
-/** ms the lunge holds at the top of the wind-up when a Rally fires, so its yellow pulse reads before the strike. */
-const RALLY_PAUSE_MS = 240;
+/** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
+ *  flare + release before the strike (a longer beat than a normal swing — the Rally is worth reading). */
+const RALLY_PAUSE_MS = 440;
 
 /**
  * The choreo playback engine (phase 3b) — runs an `attackExchange` moment's cues: score-driven (reads

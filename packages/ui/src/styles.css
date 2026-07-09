@@ -798,12 +798,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* Rally pulse — the same flash + ring as a normal trigger pulse, forced YELLOW (a Rally fired as this unit
    attacks, timed to the wind-up pause). Overrides the tribe-coloured `var(--c)` with a bright gold. */
 .card.compact .cgem.pulsing.rally::before {
-  background: radial-gradient(circle, #fff2b0 0%, transparent 72%);
-  box-shadow: 0 0 12px 4px rgba(255, 246, 214, 0.98), 0 0 22px 9px rgba(255, 205, 40, 0.72);
+  background: radial-gradient(circle, #fffbdc 0%, #ffd23c 52%, transparent 76%);
+  box-shadow: 0 0 20px 7px rgba(255, 250, 224, 1), 0 0 40px 16px rgba(255, 214, 66, 1), 0 0 66px 28px rgba(255, 190, 30, 0.75);
 }
 .card.compact .cgem.pulsing.rally::after {
-  background: radial-gradient(circle, #ffe27a 0%, rgba(255, 200, 40, 0.55) 45%, transparent 70%);
-  box-shadow: 0 0 16px 6px rgba(255, 244, 210, 0.95), 0 0 34px 16px rgba(255, 200, 40, 0.72);
+  background: radial-gradient(circle, #fff2ad 0%, rgba(255, 210, 58, 0.85) 45%, transparent 72%);
+  box-shadow: 0 0 26px 10px rgba(255, 249, 220, 1), 0 0 56px 26px rgba(255, 208, 52, 0.95), 0 0 92px 46px rgba(255, 190, 30, 0.55);
 }
 @keyframes cgemglow {
   0% { opacity: 0; transform: scale(0.9); }

@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### tweak(ui): Rally attack — longer wind-up hold + a much brighter yellow pulse
+
+Owner tuning of the Rally attack cue (#265). The wind-up pause now holds **440 ms** (was 240) so the pulse has time
+to flare + release its ring before the strike, and the forced-gold pulse is **much brighter**: both the flash
+(`::before`) and the ring (`::after`) gained a third, wide gold halo layer (out to 66/92 px) with a full-alpha core
+(`rgba(255,214,66,1)` / `rgba(255,208,52,0.95)`) over the old two-layer `rgba(255,205,40,0.72)`. Still
+compositor-only — the halos are static box-shadows, animated purely via opacity/transform (per the perf rules), so
+no per-frame repaint. `RALLY_PAUSE_MS` in `choreo/engine.ts`; `.cgem.pulsing.rally::before/::after` in `styles.css`.
+Verified: typecheck + lint + `build:web` green; live computed-style probe confirms the new three-layer halo applies;
+zero console errors.
+
 ### chore(ui): quiet the Deathrattle skull-burst sfx (sampleVol 4 → 0.4)
 
 Owner call: the skull-shatter sound was too loud. Dropped its `sampleVol.skullburst` from the earlier 4×

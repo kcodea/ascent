@@ -113,8 +113,18 @@ export function simulate(
   const isUndeadMinion = (m: Minion): boolean =>
     m.tribe === 'undead' || m.tribe2 === 'undead' || !!cards[m.cardId]?.universalTribe;
 
+  // The Imp Aura is PER-SIDE (unlike the other aggregate auras, which are the player's run state). The player's
+  // seeds from run state (impAtkBonus/impHpBonus); each side's in-combat imp-buffers (Imp King / Brood Matron via
+  // `grantImpBuff`) then accrue onto their OWN side, so Imps summoned LATER inherit the gain — for both sides.
+  // Fixes: enemy Imps spawning at 1/1 (enemy had no aura), and a later-summoned player Imp missing an earlier buff.
+  const impAura: Record<Side, { attack: number; health: number }> = {
+    player: { attack: impAtkBonus, health: impHpBonus },
+    enemy: { attack: 0, health: 0 },
+  };
+
   // Each aura yields the +atk/+hp it grants a given minion (0/0 = doesn't apply). `bakedAtk` is the slice of
-  // Attack already folded into run-board stats at buy time (re-added only to a from-base body).
+  // Attack already folded into run-board stats at buy time (re-added only to a from-base body). The Imp Aura is
+  // handled separately (side-scoped, above) so it applies to both sides.
   const AURAS: { label: string; grant: (m: Minion) => { attack: number; health: number; bakedAtk?: number; bakedHp?: number } }[] = [
     {
       label: 'Undead Aura',
@@ -141,17 +151,19 @@ export function simulate(
           ? { attack: 0, health: 0, bakedAtk: magneticBuyAtk, bakedHp: magneticBuyHp }
           : { attack: 0, health: 0 },
     },
-    {
-      label: 'Imp Aura',
-      grant: (m) =>
-        cards[m.cardId]?.imp ? { attack: impAtkBonus, health: impHpBonus } : { attack: 0, health: 0 },
-    },
   ];
 
   const applyAuras = (m: Minion, fromBase: boolean): void => {
     const isPlayer = m.side === 'player';
-    // Aggregate run-wide auras (Undead / Imp) are keyed to the PLAYER's run state — an enemy snapshot has no
-    // run state, so it doesn't inherit these.
+    // Imp Aura is SIDE-SCOPED, so it applies to both sides' Imps — an enemy Imp King's buff reaches enemy Imps
+    // summoned later, exactly like the player's. (Applied regardless of `fromBase`: it's all live, none baked.)
+    if (cards[m.cardId]?.imp) {
+      const ia = impAura[m.side];
+      if (ia.attack > 0) m.attack = Math.max(0, m.attack + ia.attack);
+      if (ia.health > 0) { m.health += ia.health; m.maxHealth += ia.health; }
+    }
+    // The other aggregate run-wide auras (Undead / Beast / Attachment) are keyed to the PLAYER's run state — an
+    // enemy snapshot has no run state, so it doesn't inherit these (its starting stats already bake them in).
     if (isPlayer) {
       for (const aura of AURAS) {
         const g = aura.grant(m);
@@ -450,9 +462,11 @@ export function simulate(
       }
     },
     grantImpBuff: (attack, health, side) => {
-      if (side !== 'player') return; // enemies have no run state
-      impBuffGain.attack += attack;
-      impBuffGain.health += health;
+      // Advance the granting SIDE's live Imp Aura so Imps summoned later this fight inherit it (both sides).
+      impAura[side].attack += attack;
+      impAura[side].health += health;
+      // Only the player carries the buff back into run state (the enemy is regenerated each wave).
+      if (side === 'player') { impBuffGain.attack += attack; impBuffGain.health += health; }
     },
     grantFodderBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state

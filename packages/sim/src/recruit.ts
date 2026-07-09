@@ -266,6 +266,13 @@ export function spellCasts(state: RunState, def: CardDef): number {
   return mult;
 }
 
+/** Implosion's cast count: once by default, plus one more per Demon you control (so 1 + your Demons). Shared by
+ *  the effect (spellBuffImpsPerDemon) and the UI (the ×N badge + live text), so the printed number always matches
+ *  what actually resolves. */
+export function implosionCasts(state: RunState): number {
+  return 1 + state.board.filter((c) => isTribe(c, 'demon')).length;
+}
+
 /** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
 export function spellCostReduction(state: RunState): number {
   let n = state.spellCostMod;
@@ -450,7 +457,13 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   let reaper = 0;
   for (const c of ctx.state.board) if (c.cardId === 'sylus' && c.uid !== minion.uid) reaper += c.golden ? 2 : 1;
   for (let r = 0; r < reaper; r++) fireOnce(); // Sylus re-fires read the same tally (value at death)
-  if (hasDR) ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
+  if (hasDR) {
+    ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
+    // Record the Echo triggers (base + Sylus re-fires) so the reducer's `deathrattle` quest tick counts this
+    // out-of-combat Echo like a combat one (Grave Contract / Ossuary Rite / Author's Hand, …). Accumulates across
+    // multiple fires in one action (e.g. several Gravetwins on turn-open).
+    ctx.state.lastEchoFires = (ctx.state.lastEchoFires ?? 0) + 1 + reaper;
+  }
 }
 
 /**
@@ -804,10 +817,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Implosion (cast) — give your Imps +atk/+hp run-wide, RECAST once per Demon you control (min 1). Each cast
-   *  folds in the run's spell power (like every stat spell). Untargeted. */
+  /** Implosion (cast) — give your Imps +atk/+hp run-wide, casting once by default and once MORE per Demon you
+   *  control (so 1 + your Demons total). Each cast folds in the run's spell power (like every stat spell).
+   *  Untargeted. Display count via `implosionCasts` / live text via `implosionText`. */
   spellBuffImpsPerDemon: (ctx, _self, params) => {
-    const casts = Math.max(1, ctx.state.board.filter((c) => isTribe(c, 'demon')).length);
+    const casts = implosionCasts(ctx.state);
     const a = num(params.attack, 2) + spellAttackBonus(ctx.state);
     const h = num(params.health, 2) + spellHealthBonus(ctx.state);
     for (let i = 0; i < casts; i++) buffImpsRunWide(ctx.state, a, h, 'Implosion');
@@ -2122,6 +2136,14 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (scBuff) {
     const a = Number((scBuff.params as { attack?: number } | undefined)?.attack ?? 2);
     const h = Number((scBuff.params as { health?: number } | undefined)?.health ?? 1);
+    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+  }
+  // Implosion: its per-Demon "+A/+B" Imp buff folds spell power onto both stats (each cast). The cast COUNT
+  // (1 + your Demons) rides on the ×N badge via `implosionCasts`, so the text only greens the per-cast grant.
+  const impBuff = def.effects.find((e) => e.do === 'spellBuffImpsPerDemon');
+  if (impBuff) {
+    const a = Number((impBuff.params as { attack?: number } | undefined)?.attack ?? 2);
+    const h = Number((impBuff.params as { health?: number } | undefined)?.health ?? 2);
     return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
   const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');

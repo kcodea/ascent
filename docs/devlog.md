@@ -25,6 +25,43 @@ source PNGs are drastically oversized — **2–2.8 MB each, ~230 MB total** (93
 cards shown at ~200 px. That's the most likely cause of broken images on a lower-memory machine (decoding 100+
 multi-MB PNGs at once can exhaust the browser's image budget) and a serious load-perf liability. Recommended
 follow-up: downscale to ~512 px and/or convert to WebP (would cut the payload ~10–20×).
+### fix(combat): side-scoped Imp Aura — enemy Imps buff correctly + no weaker 2nd summon pair
+
+Two Imp-aura bugs, one root cause. In `simulate()` the Imp Aura was a player-only scalar (`impAtkBonus`/
+`impHpBonus`) that `grantImpBuff` never advanced — it only accumulated the run-state carry-back. So (a) an Imp
+summoned LATER in a fight read the start-of-combat aura, missing a buff an earlier Imp King had already granted
+(the reported "2nd pair of Imps is weaker than the 1st"), and (b) the enemy side had no aura at all and the
+carry-back was hard-gated to the player, so enemy Imps spawned at base 1/1 every fight.
+
+Fix: made the Imp Aura a **per-side live accumulator** (`impAura: Record<Side, {attack,health}>`) — the player's
+seeds from run state, the enemy's from 0, and `grantImpBuff(side)` now advances the granting side's bucket (still
+carrying back only the player's, since the enemy is regenerated each wave). `applyAuras` applies `impAura[m.side]`
+to any Imp on either side, so Imps summoned later — player or enemy — inherit every buff granted so far. Two Imp
+Kings now yield four identical Imps; enemy Imp Kings buff their own Imps. Determinism preserved (harness ✓).
+
+Verified: typecheck + lint + **738 tests** (new: later-summoned player Imp carries the aura; enemy Imps inherit
+the enemy aura) + determinism harness + `build:web`, all green. Follow-ups still open from the batch: enemy Soren
+hero power (separate snapshot/opponent/resummon machinery); broader non-Imp enemy auras (Undead/Beast dynamic
+grants) if wanted; mid-combat quest doubling parked pending an owner call.
+### fix: Implosion cast count + Steward live copy + Grave Robber Echo counts for quests
+
+Three owner-reported fixes (part 1 of a bug batch):
+
+- **Implosion casts 1 + your Demons** (was `Math.max(1, demons)` — 5 with 5 Demons, should be 6). New shared
+  `implosionCasts(state)` = `1 + Demons` drives the effect, the card's **×N cast badge** (via a `spellCastCount`
+  UI helper), and its live text; each cast still folds spell power, and the printed "+2/+2" now greens to
+  "+{2+power}/+{2+power}" in `spellDisplayText`. So the card shows both how many times it casts and what it grants.
+- **Steward of Spells** now names the actual spell it will copy on hover — new `stewardText` helper reads the
+  run's `lastSpellCastId`, so "…get a copy of {{Growth}}" (2 copies golden), falling back to the printed text
+  until a spell has been cast. Threaded `lastSpellName` through `instView`/`liveCardText` + the shop offer path.
+- **Grave Robber's out-of-combat Echo now counts toward Echo (`deathrattle`) quests** (Grave Contract, Ossuary
+  Rite, Author's Hand, …). `fireRecruitDeathrattles` records the Echoes it fires (base + Sylus re-fires) into a
+  new transient `lastEchoFires`; the reducer drains it into the `deathrattle` quest tick + Author's Hand's Echo
+  half — mirroring the existing `lastShoutFires` pattern. Also covers Gravetwin / Crypt Broker / Sylus procs.
+
+Verified: typecheck + lint + **740 tests** (new: Implosion cast count + Imp buff, Graverobber Echo→quest,
+stewardText) + `build:web`, all green. The remaining batch items (imp aura stale value, enemy auras/Imps, enemy
+Soren hero power) land in a follow-up combat-sim PR; mid-combat quest doubling is parked pending an owner call.
 
 ### revert(content): Pack Leader back to Start-of-Combat (per owner)
 

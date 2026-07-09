@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### tweak(ui): fold `improve` (aura-strengthen) beats into the consequence-overlap
+
+Owner-reported: combat visibly stops and waits every time Kennelmaster's Avenge (3) (`avengeImproveSummon`)
+bumps his summon-aura — because the `improve` event it logs becomes a beat that blocks for its full
+`beatDelay('improve')` ≈ 520 ms × tempo. Added `'improve'` to `OVERLAP_INTO` (clock.ts) so the ✦ aura-pulse
+rides on the preceding death FX (`overlapMs`, ~140 ms) instead of pausing the fight — same fire-and-forget
+overlap as summon/reborn (#248). Also covers other `improve` pulses (Tara's ascend tally, Baby Cub's Rally
+bump). typecheck + clock tests green (new: `improve` next-beat overlaps to `overlapMs`).
+
 ### feat(ui): completed quests move to trophy badges above the hero panel
 
 Owner: *"when a quest completes move it to a badge; badges should go horizontally above the hero panel."*

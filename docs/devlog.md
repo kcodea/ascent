@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### tweak(ui): Deathrattle skull — smaller + always upright
+
+Owner feedback: `DR_SKULL_SCALE` 0.75 → **0.375** (halved again). Also fixed the skull popping at random
+angles — the pop sprite is drawn from the shared particle pool and never had its `rotation` reset, so it
+inherited a stale angle from its prior particle life; `deathrattle()` now sets `sprite.rotation = 0` so the
+skull is **perfectly upright every time** (the flying fragments still spin, as debris). typecheck green.
+
 ### feat(ui): Deathrattle skull-burst sound effect
 
 The bone-skull shatter now fires a magical burst SFX **exactly when it explodes** — a new sourced clip

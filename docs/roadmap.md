@@ -311,10 +311,10 @@ Iterative timing/juice polish on the live arena, one PR each. **Shipped:** Death
 tuning; consequence-overlap (summon/reborn/improve ride the preceding beat via `overlapMs`); shield/reborn auras
 track the card's lunge position **and** rotation; Deathrattle attacker returns home before triggering; shield-break
 burst made visible on cream (normal-blend gold); Rally attack (wind-up pause + yellow trigger pulse); **End-Combat
-one synchronized crossfade** (units + FX fade out together → board + survivors fade in together; → devlog).
-**Remaining:** a dying unit should begin *leaving the board* in tandem with the other units' Deathrattle/Reborn
-effects (currently the `.dr` collapse hold can trail them) — needs live tuning against the #245 skull-in-own-slot
-hold so we don't regress it.
+one synchronized crossfade** (units + FX fade out together → board + survivors fade in together; → devlog);
+**dying unit leaves the board in tandem** with the other units' Deathrattle/Reborn effects (`.dr` collapse hold
+0.38s→0.14s = `overlapMs`; returning attacker synced to landing; lightly revises #245's skull-in-own-slot hold per
+owner call; → devlog). **Remaining:** none queued — next feel items are the owner's call.
 
 ## Cross-cutting threads (ongoing, alongside the phases)
 

@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Deaths leave the board in tandem with other effects.** A Deathrattle unit's empty slot no longer *waits* for
+  the other units' summon/reborn effects before collapsing — it begins vacating as those effects begin (the skull
+  keeps bursting in place over the sliding neighbours).
 - **End-Combat is one synchronized crossfade.** Leaving the arena no longer snaps: the **End Combat** button now
   fades every combat unit + FX out together in one beat, then fades the recruit board + surviving minions back in
   together. Opacity-only, so it stays snappy.

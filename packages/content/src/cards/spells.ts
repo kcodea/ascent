@@ -645,4 +645,21 @@ export const SPELLS: CardDef[] = [
     text: 'Make a friendly minion **golden**.',
     token: true,
   },
+  {
+    // Key Findings reward (owner spec: "Get 2 Key Findings"). Reward-only spell (token: true). On play it opens a
+    // Discover for a minion of your current tavern tier (discoverOnPlay with no tier override = current tier).
+    id: 'keyfindings',
+    name: 'Key Findings',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [],
+    discoverOnPlay: {},
+    text: 'Discover a minion from your tier.',
+    token: true,
+  },
 ];

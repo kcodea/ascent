@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### chore(art): refresh art from masters + optimize the remaining PNG minions to WebP
+
+Re-ran the art pipeline against the current masters (`C:\Game Assets\Ascent Art`) to make the in-repo art
+current, and optimized everything still sitting as raw PNG. Staged every matching master back into
+`art/{minions,heroes,powers}` as `<id>.png` (Minions 2.0 updates, the reward-token art, all hero portraits +
+powers) and ran `npm run optimize-art` (512px, WebP q85) — idempotent, so an unchanged master re-encodes to
+identical bytes and produces no diff.
+
+Net effect: **88 files, 183 MB → 4.3 MB (−97.6%)**; the minions art dir alone went **137 MB → 11 MB**. Genuine
+art updates that landed: **Cassen's portrait + hero-power art**. The reward-token minions (Bone Taxer, Crypt
+Broker, …) and the other un-optimized PNG minions are now WebP. Quest art was verified against the masters (no
+changes) and stays PNG — `optimize-art` doesn't process `art/quests/` (still ~89 MB; a WebP pass there is a
+worthwhile follow-up). Build loads all art (119 Compendium images, 0 broken).
+
 ### feat(ui): Compendium "Quests" tab — browse every quest's objective + art
 
 Added a **Quests** category to the Compendium: a read-only gallery of all quest DEFINITIONS (tier · tribe, name,

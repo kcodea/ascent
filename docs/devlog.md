@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### fix(quests): show the quest panel in combat + recruit-summoned Imp buff + triple-on-quest-grant + 4 quest arts
+
+Four quest fixes:
+- **Quest panel in combat** — the combat quest live-tick logic shipped, but a CSS rule (`.app.combat .questframe {
+  display: none }`) kept the panel hidden during combat, so it never showed. Removed the rule; the panel now sits
+  top-left through combat and ticks objectives up as the replay plays (verified live). The buffs frame stays hidden.
+- **Recruit-summoned Imp buff** — `ctx.summon` baked the tribe buy-auras but NOT the run-wide Imp aura, so an Imp
+  summoned out of combat (e.g. Crypt Broker firing an Imp-summoning Echo) missed Imp Overseer's buff. Now folds
+  `state.impBuff` into a summoned Imp's stats.
+- **Triple on quest grant** — a quest reward that's your 3rd copy didn't combine (`checkTriples` ran in the action
+  cases but not after quest grants). Added a hand-grant-guarded `checkTriples` to both the recruit reduce-wrapper and
+  `settleCombat` (guarded on a hand grant so it never re-triples the action's own board state).
+- **Art** — wired 4 more quest-card arts (`q_bone_ledger`, `q_grave_contract`, `q_grave_robber`, `q_small_offering`).
+
+Verified: typecheck + lint + **722 tests** (+2: the Imp-aura delta on a Graverobber→Imp King summon; a quest grant
+completing a triple); `build:web` clean; live DOM/screenshot — the quest panel renders in combat and the 4 arts load.
+
 ### feat(ui): hover a quest to preview the reward card(s) it grants
 
 Quest-shop cards now float a full preview of any named minion/spell they grant when you hover them (Assembly Line →

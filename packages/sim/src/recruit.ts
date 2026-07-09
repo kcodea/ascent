@@ -2204,14 +2204,18 @@ function makeContext(state: RunState): RecruitContext {
         return undefined;
       }
       const buff = cardBuff(state, card.id); // a conjured Fodder carries Ritualist's run buff
+      // A summoned Imp inherits the run-wide Imp aura (Imp Overseer / Brood Matron / Bane) — so an Imp summoned
+      // out of combat (e.g. Crypt Broker firing an Imp-summoning Echo) carries the buff, like a board/hand Imp.
+      const impA = card.imp ? (state.impBuff?.attack ?? 0) : 0;
+      const impH = card.imp ? (state.impBuff?.health ?? 0) : 0;
       const minion: BoardCard = {
         uid: `b${state.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
         // A summoned minion inherits the run-wide tribe buy-auras too (Squirl Scout's Beast Attack on a Stray,
         // Lantern on an Undead token, Scrap Herald on a magnetized token) — same bake as bought/conjured beasts.
-        attack: card.attack + buff.attack + undeadBuyBonus(state, card),
-        health: card.health + buff.health + buyHealthAura(state, card),
+        attack: card.attack + buff.attack + undeadBuyBonus(state, card) + impA,
+        health: card.health + buff.health + buyHealthAura(state, card) + impH,
         keywords: [...card.keywords],
         golden: false,
       };

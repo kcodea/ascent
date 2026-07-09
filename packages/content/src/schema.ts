@@ -294,6 +294,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'rally', 'playAttachment',
   'consumeFodder', 'consumeStats', 'summonImp',
   'winRound', 'castSpell', 'authorsHand',
+  'compound',
 ]);
 export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves']);
 
@@ -341,6 +342,9 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('slaughterRepeat'), scope: z.enum(['firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('shoutEdgeBuff'), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('goldFodder'), per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
+  z.object({ kind: z.literal('attachmentDeal'), cost: z.number().int().nonnegative() }).strict(),
+  z.object({ kind: z.literal('friedCircuits'), step: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('undeadSpellAura'), attack: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
 ]));
 
@@ -354,6 +358,11 @@ export const QuestDefSchema = z.object({
     count: z.number().int().positive(),
     tribe: TribeSchema.optional(),
     filter: z.literal('shout').optional(),
+    parts: z.array(z.object({
+      event: QuestObjectiveEventSchema,
+      count: z.number().int().positive(),
+      tribe: TribeSchema.optional(),
+    }).strict()).min(2).optional(),
   }).strict(),
   reward: QuestRewardSchema,
   repeatable: z.boolean().optional(),

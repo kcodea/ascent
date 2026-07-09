@@ -78,7 +78,7 @@ export function questObjectiveText(o: QuestObjective): string {
  *  triggered 0/6", "Rallies triggered 0/6" — each showing its own sub-tally (0 in the shop, live in the panel).
  *  `sub` (the reducer's per-key `subProgress`) fills the current counts; omit it (or pass zeros) for an untaken
  *  quest so the choice box reads "0/N". */
-export function questObjectiveLines(o: QuestObjective, sub?: { shout: number; echo: number; rally: number }): string[] {
+export function questObjectiveLines(o: QuestObjective, sub?: { shout: number; echo: number; rally: number }, partProgress?: number[]): string[] {
   if (o.event === 'authorsHand') {
     const n = (v: number): string => `${Math.min(v, o.count)}/${o.count}`;
     return [
@@ -86,6 +86,10 @@ export function questObjectiveLines(o: QuestObjective, sub?: { shout: number; ec
       `Echoes triggered ${n(sub?.echo ?? 0)}`,
       `Rallies triggered ${n(sub?.rally ?? 0)}`,
     ];
+  }
+  // Compound (Fried Circuits / Forsaken Will): one line per part with its own live fraction.
+  if (o.event === 'compound' && o.parts) {
+    return o.parts.map((p, i) => `${questObjectiveText(p)} · ${Math.min(partProgress?.[i] ?? 0, p.count)}/${p.count}`);
   }
   return [questObjectiveText(o)];
 }
@@ -222,6 +226,12 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Triggering Shouts give your leftmost and rightmost minion +${r.attack}/+${r.health}`;
     case 'goldFodder':
       return `Every ${r.per} Gold spent adds a Fodder to your shop and gives Fodder +${r.attack}/+${r.health}`;
+    case 'attachmentDeal':
+      return `Attachments cost ${r.cost} Gold, and there's always an Attachment in the shop`;
+    case 'friedCircuits':
+      return `Each minion you buy buffs shop Mechs +${r.step}/+${r.step}, improving by +${r.step}/+${r.step} each purchase`;
+    case 'undeadSpellAura':
+      return `Casting a spell gives your Undead +${r.attack} Attack (in the shop and combat)`;
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

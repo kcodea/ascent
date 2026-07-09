@@ -538,7 +538,7 @@ export function simulate(
    * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
    * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }, doubled = false): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
     const minion = instantiate(
@@ -589,6 +589,14 @@ export function simulate(
     // already returned above, so only minions actually placed on the board reach here.
     // `attackNow` is the per-summon override (Steadfast Champion's Spear Warden) — same queue as the card flag.
     if ((card.attackOnSummon || attackNow) && !minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion });
+    // Echo Warden: while it's on your board, "your summons trigger one more time" — each successful summon spawns
+    // an extra copy (the copy carries `doubled=true`, so it never re-triggers). Golden Echo Warden adds two; each
+    // Echo Warden stacks. Player-side only (it's a player reward). A full board short-circuits above (no room).
+    if (!doubled && side === 'player') {
+      let extra = 0;
+      for (const m of boards[side]) if (m !== minion && !m.dead && m.health > 0 && m.cardId === 'echowarden') extra += m.golden ? 2 : 1;
+      for (let k = 0; k < extra; k++) summonMinion(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, true);
+    }
     return minion;
   }
 

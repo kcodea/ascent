@@ -65,9 +65,9 @@ export function QuestPanel() {
             // once taken → the reward (its effect / ongoing state) is what matters.
             const rewardTxt = questRewardText(r, { completed: aq.completed, shoutCharges: charges, repeatTurns });
             const repeat = def.repeatable ? ' · Repeatable' : '';
-            // The Author's Hand compound objective breaks into three live progress lines (Shouts / Echoes /
-            // Rallies each toward the count); every other objective stays a single "objective → reward" line.
-            const compound = !aq.completed && def.objective.event === 'authorsHand';
+            // The Author's Hand + general compound objectives break into one live progress line per part; every
+            // other objective stays a single "objective → reward" line.
+            const compound = !aq.completed && (def.objective.event === 'authorsHand' || def.objective.event === 'compound');
             return (
               <div className={`quest-row${ongoing ? ' ongoing' : aq.completed ? ' done' : ''}`} key={aq.questId}>
                 <div className="quest-row-head">
@@ -79,7 +79,7 @@ export function QuestPanel() {
                     `${rewardTxt}${repeat}`
                   ) : compound ? (
                     <>
-                      {questObjectiveLines(def.objective, aq.subProgress).map((l, i) => (
+                      {questObjectiveLines(def.objective, aq.subProgress, aq.partProgress).map((l, i) => (
                         <div className="quest-objline" key={i}>{l}</div>
                       ))}
                       <div className="quest-objline reward">→ {rewardTxt}{repeat}</div>

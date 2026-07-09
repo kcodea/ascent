@@ -16,6 +16,7 @@ function combatDeltaFor(o: QuestObjective, d: CombatQuestDelta | null): number {
     case 'attack': return o.tribe ? (d.attackByTribe[o.tribe] ?? 0) : d.attack;
     case 'summonCombat': return o.tribe ? (d.summonCombatByTribe[o.tribe] ?? 0) : d.summonCombat;
     case 'slaughter': return o.tribe ? (d.slaughterByTribe[o.tribe] ?? 0) : d.slaughter;
+    case 'slaughterKeyword': return d.slaughterKeyword;
     default: return 0;
   }
 }

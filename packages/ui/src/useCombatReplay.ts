@@ -728,7 +728,7 @@ export function useCombatReplay(
   // exactly with the settled tally. Same shape as `playerQuestTally` (total + by-tribe per kind).
   const questDelta = useMemo(() => {
     const d = {
-      attack: 0, summonCombat: 0, slaughter: 0, deathrattle: 0, friendlyDeath: 0, rally: 0, summonImp: 0,
+      attack: 0, summonCombat: 0, slaughter: 0, slaughterKeyword: 0, deathrattle: 0, friendlyDeath: 0, rally: 0, summonImp: 0,
       attackByTribe: {} as Partial<Record<Tribe, number>>,
       summonCombatByTribe: {} as Partial<Record<Tribe, number>>,
       slaughterByTribe: {} as Partial<Record<Tribe, number>>,
@@ -739,7 +739,7 @@ export function useCombatReplay(
     for (const e of qe) {
       if (e.step > curStep) continue; // not replayed yet
       d[e.kind] += 1;
-      if (e.kind !== 'deathrattle' && e.kind !== 'friendlyDeath' && e.kind !== 'rally' && e.kind !== 'summonImp') { // these carry no tribe breakdown
+      if (e.kind !== 'deathrattle' && e.kind !== 'friendlyDeath' && e.kind !== 'rally' && e.kind !== 'summonImp' && e.kind !== 'slaughterKeyword') { // these carry no tribe breakdown
         const by = e.kind === 'attack' ? d.attackByTribe : e.kind === 'summonCombat' ? d.summonCombatByTribe : d.slaughterByTribe;
         for (const t of e.tribes) by[t] = (by[t] ?? 0) + 1;
       }

@@ -1514,6 +1514,23 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.filter((e) => e.type === 'toHand').length).toBe(2);
   });
 
+  it('The Red Trail (slaughterKeyword): only kills by an on-kill (Slaughter) minion count', () => {
+    const a = run(
+      [
+        { cardId: 'karthus', attack: 10, health: 50 }, // has an on-kill effect → its kill IS a Slaughter trigger
+        { cardId: 'alley', attack: 10, health: 50 },   // vanilla → its kill is NOT a Slaughter trigger
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }, // width → player attacks first
+      ],
+      [
+        { cardId: 'omen', attack: 0, health: 1 },
+        { cardId: 'omen', attack: 0, health: 1 },
+      ],
+      1,
+    );
+    expect(a.playerQuestTally?.slaughter).toBe(2); // both kills count for the "Kill N enemies" objective…
+    expect(a.playerQuestTally?.slaughterKeyword).toBe(1); // …but only Karthus's for "Trigger N Slaughters"
+  });
+
   it('Bloodlust: a marked minion takes an immediate immune attack at Start of Combat', () => {
     const a = simulate(
       [

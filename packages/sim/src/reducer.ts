@@ -1696,6 +1696,7 @@ function combatEventCount(result: CombatResult, o: { event: QuestObjectiveEvent;
   if (o.event === 'attack') return o.tribe ? (t.attackByTribe[o.tribe] ?? 0) : t.attack;
   if (o.event === 'summonCombat') return o.tribe ? (t.summonCombatByTribe[o.tribe] ?? 0) : t.summonCombat;
   if (o.event === 'slaughter') return o.tribe ? (t.slaughterByTribe[o.tribe] ?? 0) : t.slaughter;
+  if (o.event === 'slaughterKeyword') return t.slaughterKeyword; // The Red Trail — tribe-agnostic
   return 0;
 }
 

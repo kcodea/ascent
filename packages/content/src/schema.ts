@@ -287,7 +287,7 @@ export const CardDefSchema = z.object({
 export const QuestTierSchema = z.enum(['lesser', 'greater', 'capstone']);
 export const QuestObjectiveEventSchema = z.enum([
   'buy', 'play', 'sell', 'roll', 'summon', 'shout',
-  'attack', 'summonCombat', 'slaughter', 'deathrattle',
+  'attack', 'summonCombat', 'slaughter', 'slaughterKeyword', 'deathrattle',
   'spendGold', 'endOfTurn', 'tribeStats', 'friendlyDeath',
   'rally', 'playAttachment',
   'consumeFodder', 'consumeStats', 'summonImp',

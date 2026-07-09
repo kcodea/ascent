@@ -54,6 +54,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_pack_mentality', name: 'Pack Mentality', tribe: 'beast', tier: 'greater', objective: { event: 'summonCombat', count: 7, tribe: 'beast' }, reward: { kind: 'scalingTribeAura', tribe: 'beast', attack: 3, health: 1, per: 5, event: 'summonCombat', stepAttack: 3, stepHealth: 1 } },
   { id: 'q_trophy_den', name: 'Trophy Den', tribe: 'beast', tier: 'greater', objective: { event: 'attack', count: 13, tribe: 'beast' }, reward: { kind: 'grant', cards: ['trophystalker'] } },
   { id: 'q_feed_the_alpha', name: 'Feed the Alpha', tribe: 'beast', tier: 'greater', objective: { event: 'sell', count: 5 }, reward: { kind: 'recurringGrant', cards: ['feedalpha'] } },
+  { id: 'q_the_red_trail', name: 'The Red Trail', tribe: 'beast', tier: 'greater', objective: { event: 'slaughterKeyword', count: 5 }, reward: { kind: 'recurringGrant', cards: ['bloodlust'] } },
   { id: 'q_echoing_roar', name: 'Echoing Roar', tribe: 'dragon', tier: 'greater', objective: { event: 'shout', count: 6 }, reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostShout' } },
   { id: 'q_skybound_pact', name: 'Skybound Pact', tribe: 'dragon', tier: 'greater', objective: { event: 'tribeStats', count: 40, tribe: 'dragon' }, reward: { kind: 'grant', cards: ['skybound'] } },
   { id: 'q_umbral_energy', name: 'Umbral Energy', tribe: 'dragon', tier: 'greater', objective: { event: 'slaughter', count: 13, tribe: 'dragon' }, reward: { kind: 'combatFlag', flag: 'umbralEnergy' } },

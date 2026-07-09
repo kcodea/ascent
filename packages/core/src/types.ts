@@ -372,6 +372,9 @@ export type QuestTier = 'lesser' | 'greater' | 'capstone';
 export type QuestObjectiveEvent =
   | 'buy' | 'play' | 'sell' | 'roll' | 'summon' | 'shout'
   | 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle'
+  // The Red Trail: `slaughterKeyword` counts Slaughter-KEYWORD triggers — a player minion with an on-kill effect
+  // felling an enemy by attacking (distinct from `slaughter`, which counts ANY kill and reads "Kill N enemies").
+  | 'slaughterKeyword'
   // Dragon set: `spendGold` counts Gold spent (advances by the amount); `endOfTurn` counts End-of-Turn effect
   // TRIGGERS (Chronos + the Parliament reward multiply it); `tribeStats` counts +Attack/+Health BUFFS granted to
   // `tribe` (base stats excluded) — advances by (attack + health) per buff.
@@ -749,6 +752,8 @@ export interface CombatResult {
     attack: number;
     summonCombat: number;
     slaughter: number;
+    /** The Red Trail: Slaughter-KEYWORD triggers (a kill by a minion with an on-kill effect). Tribe-agnostic. */
+    slaughterKeyword: number;
     attackByTribe: Partial<Record<Tribe, number>>;
     summonCombatByTribe: Partial<Record<Tribe, number>>;
     slaughterByTribe: Partial<Record<Tribe, number>>;
@@ -759,7 +764,7 @@ export interface CombatResult {
   /** Step-tagged timeline of combat quest-objective ticks (one per increment) so the UI can LIVE-TICK quest
    *  progress during the replay: an entry with `step` ≤ the replay's current step is already counted. `tribes`
    *  narrows tribe-scoped objectives ("…with Beasts"); deathrattle (Echo) entries carry no tribe. */
-  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[];
+  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'slaughterKeyword' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[];
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
   /** Per-instance state to persist on the run board after combat, keyed by the board

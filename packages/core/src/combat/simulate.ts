@@ -244,7 +244,7 @@ export function simulate(
   // summoned minion's tribe(s); universal-tribe minions count for every tribe). Beast quest objectives read
   // these post-combat. The Echo (Deathrattle) objective reuses `playerDeathrattles`.
   const questTally = {
-    attack: 0, summonCombat: 0, slaughter: 0,
+    attack: 0, summonCombat: 0, slaughter: 0, slaughterKeyword: 0,
     attackByTribe: {} as Partial<Record<Tribe, number>>,
     summonCombatByTribe: {} as Partial<Record<Tribe, number>>,
     slaughterByTribe: {} as Partial<Record<Tribe, number>>,
@@ -259,7 +259,7 @@ export function simulate(
   // objective increment. `tribes` lets the panel narrow ("…with Beasts"); an entry with step ≤ the replay's
   // current step is "already counted". Deathrattle (Echo) entries carry no tribe (the Echo objective is
   // tribe-agnostic). Carried back via `CombatResult.playerQuestEvents`.
-  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[] = [];
+  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'slaughterKeyword' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[] = [];
   const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {
     const tribes = tribesFor(m);
     questTally[kind] += 1;
@@ -279,6 +279,12 @@ export function simulate(
     if (n <= 0) return;
     playerRallies += n;
     for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'rally', tribes: [] });
+  };
+  // The Red Trail: a Slaughter-KEYWORD trigger — a player minion with an on-kill effect felling an enemy. One per
+  // kill (the primary trigger; doubler re-fires aren't counted). Tribe-agnostic.
+  const bumpSlaughterKeyword = (): void => {
+    questTally.slaughterKeyword += 1;
+    questEvents.push({ step: stepN, kind: 'slaughterKeyword', tribes: [] });
   };
   const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe;
   const isDemon = (m: Minion): boolean => m.tribe === 'demon' || m.tribe2 === 'demon' || !!cards[m.cardId]?.universalTribe;
@@ -1034,6 +1040,7 @@ export function simulate(
           // (credited to the KILLER's tribe for "with Beasts").
           if (killer.side === 'player' && m.side === 'enemy') {
             bumpQuestTally('slaughter', killer);
+            if (killer.effects.some((e) => e.on === 'onKill')) bumpSlaughterKeyword(); // The Red Trail: a Slaughter-keyword trigger
             const killerAlive = !killer.dead && killer.health > 0;
             // Blood Trail: the SoC-marked leftmost minion's kills conjure a random Beast to hand.
             if (questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) {
@@ -1370,7 +1377,7 @@ export function simulate(
       return alive.length > 0 ? alive : undefined;
     })(),
     enemyDeaths,
-    playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0) ? questTally : undefined,
+    playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0 || questTally.slaughterKeyword > 0) ? questTally : undefined,
     playerQuestEvents: questEvents.length > 0 ? questEvents : undefined,
     playerBeastBuyAtkGain: beastBuyAtkGain > 0 ? beastBuyAtkGain : undefined,
     initial,

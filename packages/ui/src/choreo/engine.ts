@@ -40,11 +40,18 @@ export function runAttackExchangeCues(
   const atkRect = attacker.getBoundingClientRect();
   const defRect = defender?.getBoundingClientRect() ?? { width: 0, height: 0 };
   const geo = contactGeometry(dx, dy, atkRect, defRect, cfg);
+  // The impact FX originates at the real clack point — the attacker's leading corner (rest center + the
+  // geometry's contact offset) — instead of the defender's center, so the spark sprays from where the two
+  // corners meet.
+  const impactAt = {
+    x: atkRect.left + atkRect.width / 2 + geo.contact.x,
+    y: atkRect.top + atkRect.height / 2 + geo.contact.y,
+  };
   return playLunge({
     attacker, dx, dy, speed: ctx.combatSpeed,
     strike: geo.strike, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed, geo.leadTilt) : undefined,
+    onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed, geo.leadTilt, impactAt) : undefined,
     impactOffsetMs: impact?.offset ?? 0,
   });
 }

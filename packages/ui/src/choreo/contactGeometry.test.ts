@@ -26,4 +26,15 @@ describe('contactGeometry', () => {
     expect(contactGeometry(200, -300, card(), card(), cfg).leadTilt).toBe(7);
     expect(contactGeometry(-200, -300, card(), card(), cfg).leadTilt).toBe(-7);
   });
+  it('contact point is the leading corner — it projects past the strike center toward the defender', () => {
+    const g = contactGeometry(0, -300, card(), card(), cfg);
+    const nx = 0;
+    const ny = -1; // straight-up approach axis
+    const strikeProj = g.strike.x * nx + g.strike.y * ny;
+    const contactProj = g.contact.x * nx + g.contact.y * ny;
+    // the tilted leading corner pokes further along the axis than the card center's strike stop
+    expect(contactProj).toBeGreaterThan(strikeProj);
+    // and it's laterally offset from the center line (a corner, not the face midpoint)
+    expect(Math.abs(g.contact.x - g.strike.x)).toBeGreaterThan(0);
+  });
 });

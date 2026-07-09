@@ -47,14 +47,14 @@ const DEFAULTS: LungeConfig = {
   windupDur: 0.37,   // longer, weightier wind-up (tuned by eye in the DEV Lunge tuner)
   windupDepth: 0.1,
   windupScale: 1.2,  // swell +20% during the wind-up, then return to 1 on the strike
-  strikeDur: 0.16,   // still drives every strike today; Task 3 makes it the unresolved-elements fallback
-  bite: 6,
-  leadTilt: 7,
-  defenderSpin: 6,
-  attackerRebound: 5,
-  targetSpeed: 1600,
-  minStrikeDur: 0.1,
-  maxStrikeDur: 0.28,
+  strikeDur: 0.16,   // fallback only (used when elements are unresolved); live strikes derive from distance
+  bite: 24,          // corner-clack dials below tuned by eye in the strike previewer (2026-07-08)
+  leadTilt: 20,
+  defenderSpin: 15,
+  attackerRebound: 2.5,
+  targetSpeed: 1850,
+  minStrikeDur: 0.2,
+  maxStrikeDur: 0.4,
   smackLead: 0.005,  // smack ~5ms before the strike lands (near-on-contact)
   settleDur: 1.06,   // a slower, springier elastic return to rest
   attackGap: 0.22,   // shorter breather between swings (the inter-attack pause)

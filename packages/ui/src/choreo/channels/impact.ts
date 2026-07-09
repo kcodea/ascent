@@ -10,18 +10,19 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
 
 /**
  * Impact channel (choreographer phase 3b) — the melee "smack": the hit sound, a WebGL flash + spark spray
- * at the defender fired along the blow direction, and the defender's knockback-and-recover tween — now with a
- * counter-rotation away from the contact corner (opposite the attacker's lead-tilt) folded into that recoil.
- * Fired from the lunge's `contact` GSAP position (see `engine.ts`) — a verbatim extraction of the former inline
- * callback inside `playAttackLunge`. `dx`/`dy` is the attacker→defender vector; `power` scales the FX +
- * knockback with the swing's damage (see `hitPower`). No-op FX/recoil when there's no defender (still
- * fires the hit sound).
+ * fired along the blow direction, and the defender's knockback-and-recover tween — now with a counter-rotation
+ * away from the contact corner (opposite the attacker's lead-tilt) folded into that recoil. The spark
+ * originates at `contact` (the attacker's leading-corner clack point, computed in `engine.ts`) when provided,
+ * falling back to the defender's center otherwise. Fired from the lunge's `contact` GSAP position (see
+ * `engine.ts`). `dx`/`dy` is the attacker→defender vector; `power` scales the FX + knockback with the swing's
+ * damage (see `hitPower`). No-op FX/recoil when there's no defender (still fires the hit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, leadTilt = 0): void {
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, leadTilt = 0, contact?: { x: number; y: number }): void {
   sfx.hit();
   if (!defender) return;
   const r = defender.getBoundingClientRect();
-  pixiFx.impact(r.left + r.width / 2, r.top + r.height / 2, dx, dy, power);
+  const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  pixiFx.impact(fx.x, fx.y, dx, dy, power);
   gsap.killTweensOf(defender);
   const kb = 0.14 * (0.75 + 0.25 * power);
   // Counter-rotate away from the lead corner. Keep the `|| 1` fallback here (unlike the lunge rebound's plain

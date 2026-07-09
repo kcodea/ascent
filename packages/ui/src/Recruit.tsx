@@ -303,10 +303,11 @@ export function Recruit() {
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
   // Mirrors the reducer's turn-start `embers` formula (see reducer.ts ~1039).
   const goldManaBonus = boardManaBonus(run);
+  const maxGoldBonus = run.maxGoldBonus ?? 0; // Shop License's permanent above-cap bonus
   const nextTurnGold =
-    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + goldManaBonus + (run.bonusEmbersNextTurn ?? 0);
+    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + maxGoldBonus + goldManaBonus + (run.bonusEmbersNextTurn ?? 0);
   const afterNextGold =
-    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + goldManaBonus;
+    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + maxGoldBonus + goldManaBonus;
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);

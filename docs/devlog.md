@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### fix(sim): Shop License's +max Gold is now permanent (above the cap) + refresh Chronos art
+
+**Bug:** Shop License's `gainMaxGold` did `s.maxEmbers += amount`, but the per-wave growth
+`Math.max(maxEmbers, min(cap, maxEmbers + 1))` re-levels a below-cap value to the cap — so a +2 at wave 4 (max
+~7) just reached the 10 cap a couple waves early and the bonus vanished by mid-game. **Fix:** a persistent
+additive `maxGoldBonus` (state) that `gainMaxGold` bumps instead, added on top of the capped `maxEmbers` in the
+turn-start Gold formula and the UI's next-turn Gold projection; the grant also lands in this turn's spendable
+Gold immediately. (Nadja / Mana Font keep working via the existing above-cap `Math.max` path.) Regression test:
+a run at the cap with `maxGoldBonus: 2` starts the next turn with cap + 2, not clamped.
+
+Also refreshed **Chronos** minion art from the updated master (2.5 MB PNG → 77 KB WebP).
+
+Verified: typecheck + lint + **747 tests** (new max-Gold persistence test) + `build:web`, all green.
+
 ### chore(art): refresh art from masters + optimize the remaining PNG minions to WebP
 
 Re-ran the art pipeline against the current masters (`C:\Game Assets\Ascent Art`) to make the in-repo art

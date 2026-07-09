@@ -1117,42 +1117,52 @@ class FxController {
     if (kind === 'reborn') { this.rebornShatter(cx, cy, w, h); return; } // wispy spirit release, not shards
     const rad = Math.max(w, h) * 0.5 * AURA[kind].margin;
 
-    // 1) CRACK — a bright white-gold flash at the bubble's footprint + a few fracture lines snapping across.
+    // NB: additive gold washes out to near-white on the light "Sunward" cream board (the burst was invisible —
+    // see impact()'s same note). So the READABLE elements below use NORMAL blend with SATURATED gold that paints
+    // over cream; a hot additive core/rim layers on top for the glassy glint.
+
+    // 1) CRACK — a saturated-gold flash (normal, paints over cream) + a hot additive core glint.
     this.spawn(this.bubbleTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 150, fromScale: rad / BUBBLE_TEX_R,
-      toScale: (rad / BUBBLE_TEX_R) * 1.18, spin: 0, tint: 0xfff3c8, blend: 'add',
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 190, fromScale: rad / BUBBLE_TEX_R,
+      toScale: (rad / BUBBLE_TEX_R) * 1.22, spin: 0, tint: 0xeca310, blend: 'normal', peakAlpha: 0.92,
+    });
+    this.spawn(this.bubbleTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 150, fromScale: (rad / BUBBLE_TEX_R) * 0.5,
+      toScale: (rad / BUBBLE_TEX_R) * 1.0, spin: 0, tint: 0xfff3c8, blend: 'add', // hot glint core
     });
     for (let i = 0; i < 4; i++) {
       const a = Math.random() * Math.PI;
       this.spawn(this.veinTex!, {
-        x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 130, fromScale: (rad / 26) * 1.1, toScale: rad / 26,
-        spin: 0, rotation: a, tint: 0xffffff, blend: 'add', peakAlpha: 0.95,
+        x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 140, fromScale: (rad / 26) * 1.1, toScale: rad / 26,
+        spin: 0, rotation: a, tint: 0xb87608, blend: 'normal', peakAlpha: 0.92, // dark-gold fracture lines
       });
     }
 
-    // 2) SHOCKWAVE — two additive rings expanding past the bubble edge and fading (a bigger pop).
+    // 2) SHOCKWAVE — a saturated-gold ring expanding past the bubble edge (normal, reads on cream) + a fainter
+    //    hot additive rim for the glassy pop.
     this.spawn(this.rimTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 460, fromScale: (rad / BUBBLE_TEX_R) * 0.85,
-      toScale: (rad / BUBBLE_TEX_R) * 2.1, spin: 0, tint: 0xffe27a, blend: 'add', peakAlpha: 0.95,
+      toScale: (rad / BUBBLE_TEX_R) * 2.1, spin: 0, tint: 0xe09410, blend: 'normal', peakAlpha: 0.9,
     });
-    this.spawn(this.bubbleTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 300, fromScale: (rad / BUBBLE_TEX_R),
-      toScale: (rad / BUBBLE_TEX_R) * 1.6, spin: 0, tint: 0xfff0c0, blend: 'add', peakAlpha: 0.7,
+    this.spawn(this.rimTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 360, fromScale: (rad / BUBBLE_TEX_R) * 0.85,
+      toScale: (rad / BUBBLE_TEX_R) * 1.9, spin: 0, tint: 0xffe27a, blend: 'add', peakAlpha: 0.7,
     });
 
-    // 3) SHRAPNEL — golden shards flung radially out of the rim (reuses the pooled shard textures).
+    // 3) SHRAPNEL — golden shards flung radially out of the rim (normal + saturated golds so they read as debris
+    //    over the cream, not washed-out glints).
     const shards = 22;
     for (let i = 0; i < shards; i++) {
       const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
       const speed = 320 + Math.random() * 640;
       const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
       const warm = Math.random();
-      const tint = warm < 0.5 ? 0xffd24a : warm < 0.85 ? 0xffe9a8 : 0xfff6d8;
+      const tint = warm < 0.5 ? 0xd18a10 : warm < 0.85 ? 0xefac20 : 0xffcb4a;
       this.spawn(tex, {
         x: cx + Math.cos(a) * rad * 0.7, y: cy + Math.sin(a) * rad * 0.7,
         vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
         life: 420 + Math.random() * 360, fromScale: 0.9 + Math.random() * 0.7, toScale: 0.05,
-        spin: (Math.random() - 0.5) * 10, rotation: a, tint, blend: 'add',
+        spin: (Math.random() - 0.5) * 10, rotation: a, tint, blend: 'normal',
       });
     }
 

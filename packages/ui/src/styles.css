@@ -1564,8 +1564,11 @@ body.choreo-open .pixifx-under { z-index: 204; }
    (~0.34s: 0.1s contact hold + 0.24s pull, see useCombatReplay), so it fades at HOME, not mid-lunge. */
 .unit.dying.rising.returning .card { animation: dyingfade 0.42s ease 0.3s both; }
 /* Deathrattle death: the card fades IN PLACE (no dyingpop bounce) while the bone-skull FX pops + shatters
-   over it (pixiFx.deathrattle). Reuses the Rise fade; the slot still collapses so the board reflows. */
+   over it (pixiFx.deathrattle). Reuses the Rise fade. The slot collapse (board reflow) is DELAYED until the
+   skull BURSTS (~0.38s = pixiFx's pop + hold) so neighbours don't slide in to fill the gap until the
+   explosion — the slot holds full width while the skull pops, then collapses on the burst. */
 .unit.dying.dr .card { width: var(--cw); animation: dyingfade 0.42s ease forwards; }
+.unit.dying.dr { animation-delay: 0.38s; }
 @keyframes dyingfade {
   from { opacity: 1; }
   to { opacity: 0; }

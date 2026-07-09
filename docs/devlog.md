@@ -18,6 +18,19 @@ art updates that landed: **Cassen's portrait + hero-power art**. The reward-toke
 Broker, …) and the other un-optimized PNG minions are now WebP. Quest art was verified against the masters (no
 changes) and stays PNG — `optimize-art` doesn't process `art/quests/` (still ~89 MB; a WebP pass there is a
 worthwhile follow-up). Build loads all art (119 Compendium images, 0 broken).
+### tweak(ui): Deathrattle skull — smaller + always upright
+
+Owner feedback: `DR_SKULL_SCALE` 0.75 → **0.375** (halved again). Also fixed the skull popping at random
+angles — the pop sprite is drawn from the shared particle pool and never had its `rotation` reset, so it
+inherited a stale angle from its prior particle life; `deathrattle()` now sets `sprite.rotation = 0` so the
+skull is **perfectly upright every time** (the flying fragments still spin, as debris). typecheck green.
+
+### feat(ui): Deathrattle skull-burst sound effect
+
+The bone-skull shatter now fires a magical burst SFX **exactly when it explodes** — a new sourced clip
+(`packages/ui/src/audio/skullburst.mp3`, owner-supplied) played via `sfx.skullBurst()` from
+`pixiFx.burstSkull()`. Deduped (60 ms throttle) so several simultaneous Deathrattle shatters collapse into one
+play, and mixer-tunable (`skullburst` key, default gain 0.5). typecheck + lint + **746 tests** + build green.
 
 ### feat(ui): Compendium "Quests" tab — browse every quest's objective + art
 

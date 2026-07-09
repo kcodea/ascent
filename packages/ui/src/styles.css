@@ -272,8 +272,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
    emblem/gem(5). */
 .questcard { position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.62); display: flex; flex-direction: column; text-align: left; padding: 0; border: none; border-radius: 15px; overflow: visible; background: radial-gradient(125% 85% at 50% 18%, color-mix(in srgb, var(--c) 24%, #14100c), #100b08); font-family: var(--font-ui); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 5px rgba(0, 0, 0, 0.5), 0 12px 26px -10px rgba(0, 0, 0, 0.75), 0 0 20px -6px color-mix(in srgb, var(--c) 55%, transparent); }
 .questcard:hover { transform: translateY(-8px); filter: brightness(1.05); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 6px rgba(0, 0, 0, 0.45), 0 18px 32px -10px rgba(0, 0, 0, 0.75), 0 0 42px -4px color-mix(in srgb, var(--c) 88%, transparent); }
-/* Read-only quest cards in the Compendium's Quests tab — a reference view, not a take-a-quest button. */
-.questcard.readonly { cursor: default; }
+/* Read-only quest cards in the Compendium's Quests tab — a reference view, not a take-a-quest button. Use the
+   game's custom default cursor (NOT the bare `default` keyword, which shows the Windows arrow). */
+.questcard.readonly { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .questcard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: 13px; z-index: 0; }
 .questcard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: 13px 13px 0 0; background: linear-gradient(180deg, rgba(8, 6, 4, 0.74) 0%, rgba(8, 6, 4, 0.3) 46%, transparent 100%); z-index: 1; pointer-events: none; }
 /* Tribe emblem (top) + gem (bottom): tribe-hued, overhanging the frame. */

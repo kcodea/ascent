@@ -2,6 +2,7 @@ import { Application, Container, Graphics, Mesh, MeshGeometry, Rectangle, Shader
 import { getTauntConfig } from './tauntConfig';
 import { getSmokeConfig } from './smokeConfig';
 import { getTrailConfig } from './trailConfig';
+import { sfx } from './sfx';
 
 /**
  * Vertex shader for the shield Mesh (WebGL2 / GLSL ES 3.0). Pixi's GlMeshAdaptor binds the global-uniform
@@ -344,7 +345,7 @@ interface SkullPop { sprite: Sprite; x: number; y: number; scale: number; age: n
 
 // Deathrattle skull-shatter feel — baked from the DEV preview (apps/web/public/fx/skull-shatter-preview.html);
 // tune these constants directly (no live tuner, by design).
-const DR_SKULL_SCALE = 0.75; // skull display width ÷ the dying unit's card width
+const DR_SKULL_SCALE = 0.375; // skull display width ÷ the dying unit's card width
 const DR_POP = 0.45;        // pop bounce + duration
 const DR_SPREAD = 1.85;     // how far fragments + splinters fly
 const DR_SPLINTERS = 0.95;  // bone-splinter count multiplier
@@ -1390,6 +1391,7 @@ class FxController {
     const sprite = this.pool.pop() ?? new Sprite();
     sprite.texture = this.skullTex;
     sprite.anchor.set(0.5);
+    sprite.rotation = 0; // ALWAYS upright — reset the pooled sprite's stale rotation from its prior particle life
     sprite.blendMode = 'normal';
     sprite.tint = 0xffffff;
     sprite.alpha = 1;
@@ -1404,6 +1406,7 @@ class FxController {
    *  a smoke bloom, and a hot flash — all on the fire-and-forget particle system. */
   private burstSkull(s: SkullPop): void {
     const { x, y, scale } = s, disp = scale * this.skullSrcW;
+    sfx.skullBurst(); // the magical bone-shatter, fired exactly as the skull explodes
     // hot flash at the moment of the burst
     this.spawn(this.glowTex!, { x, y, vx: 0, vy: 0, drag: 1, life: 180, fromScale: disp * 0.006, toScale: disp * 0.014, spin: 0, tint: 0xffe6b0, blend: 'add', peakAlpha: 0.7 });
     // the skull image breaking into chunks

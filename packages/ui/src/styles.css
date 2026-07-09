@@ -1569,6 +1569,11 @@ body.choreo-open .pixifx-under { z-index: 204; }
    explosion — the slot holds full width while the skull pops, then collapses on the burst. */
 .unit.dying.dr .card { width: var(--cw); animation: dyingfade 0.42s ease forwards; }
 .unit.dying.dr { animation-delay: 0.38s; }
+/* A Deathrattle ATTACKER that died mid-lunge (`dying dr returning`): GSAP pulls it home (~0.34s), THEN the
+   skull fires at `landed` and pops+bursts (~another 0.38s). Hold the card's fade AND the slot reflow through
+   all of that, so the skull plays in the unit's OWN slot and neighbours don't slide in until it bursts. */
+.unit.dying.dr.returning .card { width: var(--cw); animation: dyingfade 0.42s ease 0.6s both; }
+.unit.dying.dr.returning { animation-delay: 0.72s; }
 @keyframes dyingfade {
   from { opacity: 1; }
   to { opacity: 0; }

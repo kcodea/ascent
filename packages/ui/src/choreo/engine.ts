@@ -12,7 +12,13 @@ export interface AttackCueCtx {
    *  (the `contact` anchor), retiring the former `clock.ts` smack-lead weld (two independently-computed
    *  formulas that merely agreed in value; now there is exactly one timeline event both key off). */
   advance: () => void;
+  /** Set when a RALLY fires as this unit attacks → the lunge holds a beat at the top of the wind-up and calls
+   *  this (flash the attacker's yellow Rally trigger pulse) before the strike. Absent = a normal swing. */
+  onRallyPulse?: () => void;
 }
+
+/** ms the lunge holds at the top of the wind-up when a Rally fires, so its yellow pulse reads before the strike. */
+const RALLY_PAUSE_MS = 240;
 
 /**
  * The choreo playback engine (phase 3b) — runs an `attackExchange` moment's cues: score-driven (reads
@@ -53,6 +59,8 @@ export function runAttackExchangeCues(
     onContact: () => ctx.advance(),
     onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed, geo.leadTilt, impactAt) : undefined,
     impactOffsetMs: impact?.offset ?? 0,
+    onRallyPulse: ctx.onRallyPulse,
+    rallyPauseMs: RALLY_PAUSE_MS,
   });
 }
 

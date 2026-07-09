@@ -352,6 +352,7 @@ export interface CombatReplay {
   handGrantsShown: string[];
   /** uids whose effect fired in the current window — their trigger medallion pulses. */
   triggerUids: Set<string>;
+  rallyPulseUids: Set<string>;
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -387,6 +388,7 @@ export function useCombatReplay(
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
+  const [rallyPulse, setRallyPulse] = useState<Set<string>>(new Set()); // uids mid-attack whose Rally fired → YELLOW medallion pulse (fired from the lunge's wind-up pause)
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
@@ -421,6 +423,7 @@ export function useCombatReplay(
     setFloats([]);
     setDeathFloats([]);
     setTriggers(new Set());
+    setRallyPulse(new Set());
     setFinished(false);
     setAttackUid(null);
     gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
@@ -497,7 +500,9 @@ export function useCombatReplay(
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e) continue;
-      if ((e.type === 'sc' || e.type === 'buff' || e.type === 'rally') && e.source) trig.add(e.source);
+      // NB: `rally` is intentionally NOT here — a Rally that fires as a unit attacks pulses YELLOW from the
+      // lunge's wind-up pause instead (see the attack layout effect), so it reads at the swing, not beat-start.
+      if ((e.type === 'sc' || e.type === 'buff') && e.source) trig.add(e.source);
       else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
       else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);
       // A death whose unit has a Deathrattle/Avenge effect: its trigger just fired (the cleanest signal —
@@ -639,8 +644,18 @@ export function useCombatReplay(
       const d = center(cur.primary.defender);
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
+        // A Rally that fires as THIS unit attacks (source = attacker) → the lunge pauses at the top of the
+        // wind-up and flashes the attacker's YELLOW trigger pulse before the strike (signals the Rally).
+        const atkUid = cur.primary.attacker;
+        let rallies = false;
+        for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
+          onRallyPulse: rallies ? () => {
+            sfx.triggerPulse();
+            setRallyPulse((prev) => new Set(prev).add(atkUid));
+            window.setTimeout(() => setRallyPulse((prev) => { const n = new Set(prev); n.delete(atkUid); return n; }), 1150);
+          } : undefined,
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
       } else {
@@ -831,6 +846,7 @@ export function useCombatReplay(
   return {
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     triggerUids: triggers,
+    rallyPulseUids: rallyPulse,
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, skip: () => setBeatIdx(beats.length),
   };

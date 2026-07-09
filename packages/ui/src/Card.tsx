@@ -129,6 +129,7 @@ export const Card = memo(function Card({
   electrify,
   karwind,
   pulse,
+  pulseRally,
   glow,
   popDelay,
   refCards,
@@ -171,6 +172,9 @@ export const Card = memo(function Card({
   /** Pulse the trigger medallion — a brief glow + a slow ring of energy when this unit's effect
    *  *officially* fires (a Deathrattle, a Battlecry, a cadence card paying off, …). */
   pulse?: boolean;
+  /** Pulse the trigger medallion YELLOW — a Rally fired as this unit attacks. Same ring as `pulse`, forced
+   *  yellow; takes precedence over `pulse`. */
+  pulseRally?: boolean;
   /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
    *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
   glow?: boolean;
@@ -356,7 +360,7 @@ export const Card = memo(function Card({
             <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}`}>{card.attack}</span>
             <span className={`hp${statCls(card.health, card.baseHealth, card.floorHealth)}`}>{card.health}</span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span className={`cgem${pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
+            <span className={`cgem${pulseRally ? ' pulsing rally' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
           </>
         )}
       </div>

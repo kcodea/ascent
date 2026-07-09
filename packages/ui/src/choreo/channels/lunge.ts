@@ -26,6 +26,11 @@ export interface LungeCtx {
   /** ms the impact fires relative to contact; negative = earlier (before connection), positive = later.
    *  Rides the lunge timeline, so it scales with `speed` like the rest of the lunge. Default 0 (on contact). */
   impactOffsetMs?: number;
+  /** A RALLY fired as this unit attacks → hold this many ms at the top of the wind-up (a brief pause before
+   *  the strike) and fire `onRallyPulse` at its start, so the yellow trigger pulse reads before the swing. */
+  rallyPauseMs?: number;
+  /** Fired at the wind-up pause (see `rallyPauseMs`) — the caller flashes the attacker's yellow Rally pulse. */
+  onRallyPulse?: () => void;
 }
 
 /**
@@ -38,7 +43,7 @@ export interface LungeCtx {
  * Returns the built timeline (seekable via `.progress()` in tests, without needing real time to pass).
  */
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
-  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, onContact, onImpact, impactOffsetMs = 0 } = ctx;
+  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, onContact, onImpact, impactOffsetMs = 0, onRallyPulse, rallyPauseMs = 0 } = ctx;
   const c = getLungeConfig();
   const rest = attacker.getBoundingClientRect();
   const cx0 = rest.left + rest.width / 2;
@@ -50,27 +55,32 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
     : attacker.classList.contains('reborncard') || attacker.querySelector('.reborncard')
       ? 'blue'
       : 'wind';
+  // A Rally on this attack holds the wound-up pose briefly (the yellow pulse reads), before the strike.
+  const rallyPauseS = onRallyPulse ? rallyPauseMs / 1000 : 0;
   let trailLast = { x: cx0, y: cy0 };
-  const trailCutoff = c.windupDur + strikeDur;
+  const trailCutoff = c.windupDur + rallyPauseS + strikeDur;
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
-  const tl = gsap
-    .timeline({
-      onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }),
-      onUpdate: () => {
-        if (tl.time() > trailCutoff) return; // no trail on the elastic settle
-        const cx = cx0 + Number(gsap.getProperty(attacker, 'x'));
-        const cy = cy0 + Number(gsap.getProperty(attacker, 'y'));
-        const tdx = cx - trailLast.x;
-        const tdy = cy - trailLast.y;
-        if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {
-          pixiFx.trail(cx, cy, tdx, tdy, variant);
-          trailLast = { x: cx, y: cy };
-        }
-      },
-    })
-    .to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: leadTilt, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' })  // wind up, tilt to lead a corner
-    .to(attacker, { x: strike.x, y: strike.y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: 'power3.in' })                                       // strike to the surface, corner leading
+  const tl = gsap.timeline({
+    onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }),
+    onUpdate: () => {
+      if (tl.time() > trailCutoff) return; // no trail on the elastic settle
+      const cx = cx0 + Number(gsap.getProperty(attacker, 'x'));
+      const cy = cy0 + Number(gsap.getProperty(attacker, 'y'));
+      const tdx = cx - trailLast.x;
+      const tdy = cy - trailLast.y;
+      if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {
+        pixiFx.trail(cx, cy, tdx, tdy, variant);
+        trailLast = { x: cx, y: cy };
+      }
+    },
+  });
+  tl.to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: leadTilt, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' }); // wind up, tilt to lead a corner
+  if (rallyPauseS > 0) {
+    tl.call(onRallyPulse!);            // fire the yellow Rally pulse at the top of the wind-up…
+    tl.to({}, { duration: rallyPauseS }); // …then hold the wound-up pose for a beat before striking
+  }
+  tl.to(attacker, { x: strike.x, y: strike.y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: 'power3.in' })                                       // strike to the surface, corner leading
     .add(onContact, `-=${c.smackLead}`)                                                                                                                      // contact — the beat advance, smackLead before the strike completes
     .to(attacker, { rotation: -Math.sign(leadTilt) * attackerRebound, duration: 0.06, ease: 'power2.out' })                                                 // rotational rebound off the clack (leadTilt 0 → no lead, no rebound)
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });                                                        // settle
@@ -78,7 +88,7 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   // offset lands EARLIER than contact (the smack-lead), clamped to ≥ 0 (can't precede the timeline). It rides
   // this (speed-timeScaled) timeline, so the smack stays killed/seekable with the lunge and scales with speed.
   if (onImpact) {
-    const contactAt = c.windupDur + strikeDur - c.smackLead;
+    const contactAt = c.windupDur + rallyPauseS + strikeDur - c.smackLead;
     tl.add(onImpact, Math.max(0, contactAt + impactOffsetMs / 1000));
   }
   tl.timeScale(speed);

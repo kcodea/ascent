@@ -5,7 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
-### fix(ui): Divine-Shield break burst is visible again (was additive gold on cream = invisible)
+### feat(ui): Rally attack — a wind-up pause + a yellow trigger pulse
+
+Owner request: when a unit with **Rally** attacks, it should pause briefly at the top of the wind-up while its
+trigger medallion pulses **yellow** (same ring as Bard's trigger pulse), signalling the Rally fired — before
+the strike continues. Wired through the lunge so the pulse is timed to the swing, not the beat start:
+- `playLunge` gains `rallyPauseMs` + `onRallyPulse`: after the wind-up it holds the wound-up pose for
+  `RALLY_PAUSE_MS` (240 ms, engine.ts) and fires the pulse at the pause start; the contact/impact/trail cutoffs
+  all shift by the pause so nothing desyncs.
+- `useCombatReplay` detects a `rally` event whose `source` is the attacker, passes `onRallyPulse` to
+  `runAttackExchangeCues`, and drives a new `rallyPulseUids` state (yellow pulse, cleared after ~1.15 s). Rally
+  is **removed** from the beat-start trigger-pulse set so it no longer double-pulses at wind-up start.
+- `Card`/`Unit` gain a `pulseRally` prop → `.cgem.pulsing.rally` (new CSS: the flash + ring forced bright gold).
+  Fires once per Rally trigger, so a Flurry/Windfury unit pulses on each rallying swing.
+typecheck + lint + **767 tests** + build:web green; live: board mounts fresh with no errors (the HMR
+hook-order crash while editing is an added-`useState` artifact, gone on a full reload).
 
 The real cause of the "no gold shatter" (a live spy confirmed `breakShield` DOES find + destroy the bubble
 and spawn 39 particles — the mechanism was fine): every particle in the shield-break burst used `blend: 'add'`,

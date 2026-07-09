@@ -1574,16 +1574,19 @@ body.choreo-open .pixifx-under { z-index: 204; }
    (~0.34s: 0.1s contact hold + 0.24s pull, see useCombatReplay), so it fades at HOME, not mid-lunge. */
 .unit.dying.rising.returning .card { animation: dyingfade 0.42s ease 0.3s both; }
 /* Deathrattle death: the card fades IN PLACE (no dyingpop bounce) while the bone-skull FX pops + shatters
-   over it (pixiFx.deathrattle). Reuses the Rise fade. The slot collapse (board reflow) is DELAYED until the
-   skull BURSTS (~0.38s = pixiFx's pop + hold) so neighbours don't slide in to fill the gap until the
-   explosion — the slot holds full width while the skull pops, then collapses on the burst. */
+   over it (pixiFx.deathrattle). Reuses the Rise fade. The slot collapse (board reflow) starts in TANDEM with
+   the other units' consequence effects — `overlapMs` (0.14s), the same window a summon/reborn rides on (see
+   clock.ts) — so this unit begins leaving the board as those effects begin, not after them. The skull itself
+   is a fire-and-forget FX at captured coords, so it keeps popping in place while the neighbours glide in. */
 .unit.dying.dr .card { width: var(--cw); animation: dyingfade 0.42s ease forwards; }
-.unit.dying.dr { animation-delay: 0.38s; }
+.unit.dying.dr { animation-delay: 0.14s; }
 /* A Deathrattle ATTACKER that died mid-lunge (`dying dr returning`): GSAP pulls it home (~0.34s), THEN the
-   skull fires at `landed` and pops+bursts (~another 0.38s). Hold the card's fade AND the slot reflow through
-   all of that, so the skull plays in the unit's OWN slot and neighbours don't slide in until it bursts. */
-.unit.dying.dr.returning .card { width: var(--cw); animation: dyingfade 0.42s ease 0.6s both; }
-.unit.dying.dr.returning { animation-delay: 0.72s; }
+   skull fires at `landed`. It can't collapse at the 0.14s overlap without abandoning the return-home (it must
+   land in its OWN slot), so its exit starts the moment it lands + its skull fires (~0.34s) — fade and slot
+   collapse synced there — instead of holding through the whole burst (was 0.72s). The skull (captured coords)
+   keeps bursting in place while the neighbours glide in, matching the in-place `.dr` case above. */
+.unit.dying.dr.returning .card { width: var(--cw); animation: dyingfade 0.42s ease 0.34s both; }
+.unit.dying.dr.returning { animation-delay: 0.34s; }
 @keyframes dyingfade {
   from { opacity: 1; }
   to { opacity: 0; }

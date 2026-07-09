@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### tweak(ui): a dying unit begins leaving the board in tandem with the other units' effects
+
+Follow-up to the consequence-overlap work. A Deathrattle death holds its board slot (empty gap) while its bone-skull
+plays, but that hold (#245: 0.38s in place / 0.72s for a returning attacker) meant the gap *trailed* the other
+units' consequence effects — a summon/reborn rides on the preceding beat at `overlapMs` (0.14s), so the dying unit
+"waited" for those effects before its slot collapsed. Now the exit starts **in tandem** with them.
+
+- `.unit.dying.dr` collapse delay 0.38s → **0.14s** (matches `overlapMs`) — the in-place Deathrattle unit begins
+  vacating its slot as the other units' effects begin, not after. The skull is a fire-and-forget FX at captured
+  coords, so it keeps popping in place while the neighbours glide in.
+- `.unit.dying.dr.returning` (a Deathrattle attacker that died mid-lunge) can't collapse at 0.14s without
+  abandoning the return-home (it must land in its own slot), so its fade **and** collapse now sync to the landing
+  (~0.34s, when its skull fires) instead of holding through the whole burst (was 0.6s fade / 0.72s collapse).
+
+This lightly revises #245 (neighbours now slide in *during* the skull rather than after it) — a deliberate call per
+the owner: the dying unit's exit should start with the other effects. CSS-only; typecheck + lint + 772 tests +
+`build:web` green. **For live eyeball** — the exact feel is a timing judgement (the preview can't show rAF fades).
+
 ### feat(ui): End-Combat is one synchronized crossfade (units + FX out together, board + survivors in together)
 
 Leaving the arena used to snap: the combat units unmounted instantly while their Pixi FX (shield/reborn bubbles,

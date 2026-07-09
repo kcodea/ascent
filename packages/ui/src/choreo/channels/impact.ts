@@ -10,8 +10,9 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
 
 /**
  * Impact channel (choreographer phase 3b) — the melee "smack": the hit sound, a WebGL flash + spark spray
- * at the defender fired along the blow direction, and the defender's knockback-and-recover tween. Fired
- * from the lunge's `contact` GSAP position (see `engine.ts`) — a verbatim extraction of the former inline
+ * at the defender fired along the blow direction, and the defender's knockback-and-recover tween — now with a
+ * counter-rotation away from the contact corner (opposite the attacker's lead-tilt) folded into that recoil.
+ * Fired from the lunge's `contact` GSAP position (see `engine.ts`) — a verbatim extraction of the former inline
  * callback inside `playAttackLunge`. `dx`/`dy` is the attacker→defender vector; `power` scales the FX +
  * knockback with the swing's damage (see `hitPower`). No-op FX/recoil when there's no defender (still
  * fires the hit sound).
@@ -23,7 +24,10 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   pixiFx.impact(r.left + r.width / 2, r.top + r.height / 2, dx, dy, power);
   gsap.killTweensOf(defender);
   const kb = 0.14 * (0.75 + 0.25 * power);
-  const spin = -Math.sign(leadTilt || 1) * getLungeConfig().defenderSpin; // counter-rotate away from the lead corner
+  // Counter-rotate away from the lead corner. Keep the `|| 1` fallback here (unlike the lunge rebound's plain
+  // Math.sign) so a leadTilt-0 strike still gives the defender some reaction — this dial governs the ATTACKER's
+  // lead, not the defender's jolt, so don't "harmonize" the two sites or the defender stops reacting at tilt 0.
+  const spin = -Math.sign(leadTilt || 1) * getLungeConfig().defenderSpin;
   gsap.fromTo(defender, { x: 0, y: 0, rotation: 0 }, {
     x: dx * kb, y: dy * kb, rotation: spin, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
     onComplete: () => gsap.set(defender, { clearProps: 'transform' }),

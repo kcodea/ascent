@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Burning-rope turn timer (re-added).** The Hearthstone-style burning rope is back — it lights in the final 20s
+  of a recruit turn and burns left→right on the board's centre divider (live flame + char trail). The digital
+  `SETUP TIME` plaque stays alongside it.
 - **Rulebreaker neutral quests.** A 13-quest batch of economy / spell / rule-bending neutral quests (+ Chimerus for
   Dragons). Adds the `winRound` / `castSpell` / compound `authorsHand` objectives and rule-bending rewards — Dupes
   (copy your first buy each turn), Merchant's Mark (2g minions), Ancient Runes (spells cast twice), Rulebreaker's

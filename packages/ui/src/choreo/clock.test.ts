@@ -39,4 +39,14 @@ describe('holdMs — reproduces the legacy scheduler numbers for non-attack tran
     // Were the old weld still present, this would equal the lunge connection time, not beatDelay('dmg').
     expect(holdMs(M('dmg'), M('attack'), 1)).toBeCloseTo(beatDelay('dmg') * cfg.speed, 5);
   });
+
+  it('a CONSEQUENCE beat (summon/reborn) rides on the preceding beat — overlapMs ÷ combatSpeed, not the full linger', () => {
+    const cfg = getChoreoConfig();
+    // With a beat on screen, a summon/reborn overlaps: a short overlapMs (÷ combatSpeed), NOT beatDelay×speed.
+    expect(holdMs(M('summon'), M('dmg'), 1)).toBeCloseTo(cfg.overlapMs, 5);
+    expect(holdMs(M('reborn'), M('summon'), 1)).toBeCloseTo(cfg.overlapMs, 5);
+    expect(holdMs(M('reborn'), M('summon'), 2)).toBeCloseTo(cfg.overlapMs / 2, 5);
+    // No beat on screen (the very first beat) → no overlap; the normal linger applies.
+    expect(holdMs(M('summon'), undefined, 1)).toBeCloseTo(beatDelay('summon') * cfg.speed, 5);
+  });
 });

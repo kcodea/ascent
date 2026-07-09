@@ -414,6 +414,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
         if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
+        if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(i, 1);
         // A spell that conjures minions (Undead Army, Summon Stone) can hand you a 3rd copy — combine it.
         checkTriples(s);
@@ -513,6 +514,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const casts = spellCasts(s, def);
         for (let n = 0; n < casts; n++) castSpell(s, { ...def, effects: option.effects }, undefined);
         if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(hi, 1);
         s.chooseOne = undefined;
         checkTriples(s);

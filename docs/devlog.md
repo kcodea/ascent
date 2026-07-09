@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(sim): Implosion's ×N badge reflects Nimbus/spell-recast multipliers (+ spellCasts is now pure)
+
+Owner: *"nimbus should stack with other related recasts, just not himself — it would 2× the recasts of Implosion's
+per-Demon recasts."* The **mechanic already stacked** (the reducer resolves `spellCasts × implosionCasts`, so
+Nimbus's pending double already made Implosion cast `2 × (1 + your Demons)` times — 6 with two Demons), but the
+**×N badge showed only `implosionCasts`** (3), ignoring the multiplier — a live-text defect. And Nimbus does not
+compound with itself: `nextSpellMult` is SET (`1 + golden`), not multiplied, so a second Nimbus doesn't stack.
+
+- `spellCastCount` (Recruit) now shows `spellCasts(run, def) × implosionCasts(run)` for Implosion — matching what
+  actually resolves (Nimbus / Ancient Runes / Spell Thesis all fold in).
+- **`spellCasts` is now side-effect free** (it previously consumed Spell Thesis's "first spell each turn" freebie
+  as a side effect — unsafe to call from the render path, which the badge does). The two reducer cast sites now
+  set `spellFirstUsedThisTurn` after casting instead. Removes a latent render-mutation bug affecting every spell
+  badge.
+
+Tests: Nimbus × Implosion resolves 6 casts (`impBuff +12/+12`) and consumes the Nimbus charge; `spellCasts` reads
+the Spell-Thesis double without consuming it; the reducer consumes it once on the real cast. Full gauntlet green.
+
 ### feat(content): content batch pt 2 — Bloodlust spell
 
 New buyable spell **Bloodlust** (neutral, tier 4, 3 Gold, target a friendly minion): *"It attacks immediately

@@ -261,8 +261,9 @@ export function spellCasts(state: RunState, def: CardDef): number {
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
   mult *= state.nextSpellMult ?? 1; // Nimbus: a pending charge makes the next spell cast twice (×3 golden)
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
-  // Spell Thesis: the FIRST spell each turn casts twice (consumed here — the per-play cast-count authority).
-  if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) { mult *= 2; state.spellFirstUsedThisTurn = true; }
+  // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
+  // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
+  if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
   return mult;
 }
 

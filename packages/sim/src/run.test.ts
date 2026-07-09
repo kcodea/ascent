@@ -5069,10 +5069,30 @@ describe('Rulebreaker quests — dupes, spell doubling, compound objective, cost
     const spell = SPELL_CARDS.find((c) => !c.singleCast && !c.target)!; // an untargeted spell (base 1 cast)
     expect(spellCasts({ ...createRun(1) }, spell)).toBe(1);
     expect(spellCasts({ ...createRun(1), spellDoubleAlways: true }, spell)).toBe(2); // Ancient Runes
-    // Spell Thesis: first spell of the turn doubles, then reverts.
-    const thesis = { ...createRun(1), spellFirstDoubleEachTurn: true, spellFirstUsedThisTurn: false };
-    expect(spellCasts(thesis, spell)).toBe(2);
-    expect(spellCasts(thesis, spell)).toBe(1); // consumed
+    // Spell Thesis: first spell of the turn doubles. `spellCasts` is now READ-ONLY (safe for the UI badge) — it
+    // reports 2 while the freebie is unused and 1 once used; the reducer's cast site sets `spellFirstUsedThisTurn`.
+    expect(spellCasts({ ...createRun(1), spellFirstDoubleEachTurn: true, spellFirstUsedThisTurn: false }, spell)).toBe(2);
+    expect(spellCasts({ ...createRun(1), spellFirstDoubleEachTurn: true, spellFirstUsedThisTurn: false }, spell)).toBe(2); // pure — reading again doesn't consume it
+    expect(spellCasts({ ...createRun(1), spellFirstDoubleEachTurn: true, spellFirstUsedThisTurn: true }, spell)).toBe(1); // already used this turn
+  });
+
+  it('Nimbus multiplies Implosion’s per-Demon recasts (2× the recasts), and the reducer consumes Spell Thesis once', () => {
+    const mk = (uid: string, cardId: string, tribe: BoardCard['tribe']): BoardCard => ({ uid, cardId, tribe, attack: 2, health: 2, keywords: [], golden: false });
+    // 2 Demons → Implosion resolves 1 + 2 = 3 times; Nimbus's pending double makes it 6.
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', embers: 20,
+      board: [mk('d1', 'feed', 'demon'), mk('d2', 'feed', 'demon')],
+      hand: [mk('imp', 'implosion', 'neutral')],
+      nextSpellMult: 2,
+    };
+    s = reduce(s, { type: 'play', uid: 'imp' });
+    expect(s.impBuff).toEqual({ attack: 12, health: 12 }); // 6 casts × +2/+2
+    expect(s.nextSpellMult).toBeUndefined(); // Nimbus charge spent
+
+    // Spell Thesis: the reducer consumes the freebie once (the read-only spellCasts no longer does).
+    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, spellFirstDoubleEachTurn: true, board: [mk('d1', 'feed', 'demon')], hand: [mk('g', 'emberpouch', 'neutral')] };
+    t = reduce(t, { type: 'play', uid: 'g' });
+    expect(t.spellFirstUsedThisTurn).toBe(true);
   });
 
   it('Lazarus reduces shop spell cost while on the board; new cards are reward-only tokens', () => {

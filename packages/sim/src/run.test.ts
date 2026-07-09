@@ -43,7 +43,7 @@ import {
   type RunState,
 } from './index';
 import type { BoardMinion } from '@game/core';
-import { applyEndOfTurn, applyGoldSpent, spellCasts, spellCostReduction } from './recruit';
+import { applyEndOfTurn, applyGoldSpent, implosionCasts, spellCasts, spellCostReduction } from './recruit';
 import { rollShop } from './shop';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
@@ -401,6 +401,32 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
     expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 2); // +1/+1 fired twice (once + one Sylus)
+  });
+
+  it("Graverobber's out-of-combat Echo counts toward a deathrattle (Echo) quest", () => {
+    let s: RunState = {
+      ...createRun(1),
+      activeQuests: [{ questId: 'q_grave_contract', progress: 0, completed: false }], // objective: trigger 4 Echoes
+      board: [{ uid: 't', cardId: 'broodmother', tribe: 'dragon', attack: 2, health: 5, keywords: [], golden: false }], // has a Deathrattle
+      hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'g' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 't' }); // destroy → its Echo fires out of combat
+    expect(s.activeQuests![0]!.progress).toBe(1); // the recruit-phase Echo ticked the quest (was 0 before this fix)
+  });
+
+  it('Implosion casts 1 + your Demons times, buffing your Imps each cast', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'd1', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false },
+        { uid: 'd2', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false },
+      ],
+      hand: [{ uid: 'imp', cardId: 'implosion', tribe: 'demon', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    expect(implosionCasts(s)).toBe(3); // 1 base + 2 Demons
+    s = reduce(s, { type: 'play', uid: 'imp' }); // playing a spell casts it
+    expect(s.impBuff).toEqual({ attack: 6, health: 6 }); // 3 casts × +2/+2
   });
 
   it('reward-exclusive spells (Feed the Alpha) never enter the shop spell pool', () => {

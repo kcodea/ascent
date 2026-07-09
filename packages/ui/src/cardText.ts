@@ -348,6 +348,15 @@ export function trailForagerText(cardId: string, golden: boolean, sellBonus: num
   return src.replace(/\*\*\d+g\*\*/, `{{${value}g}}`);
 }
 
+/** Steward of Spells — name the ACTUAL spell it will copy at End of Turn (the run's most recent spell cast,
+ *  `lastSpellCastId` → its name), so mousing over it shows exactly what you'll get. Null until a spell has been
+ *  cast this run (then the printed "…the most recent spell cast" is the honest fallback). */
+export function stewardText(cardId: string, golden: boolean, lastSpellName: string | undefined): string | null {
+  if (cardId !== 'stewardofspells' || !lastSpellName) return null;
+  const name = `{{${lastSpellName}}}`;
+  return golden ? `**End of Turn:** get **2** copies of ${name}.` : `**End of Turn:** get a copy of ${name}.`;
+}
+
 /**
  * Squirl Scout's grant snowballs: each played raises the run-wide `squirlScoutBuff` by 3 (×2 golden). Surface
  * the grant a play NOW would make — (squirlScoutBuff + step) — green, in place of the FIRST printed "+N/+N"

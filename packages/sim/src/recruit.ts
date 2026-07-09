@@ -258,8 +258,19 @@ function spellCastMult(state: RunState): number {
  */
 export function spellCasts(state: RunState, def: CardDef): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
-  const base = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
-  return base * (state.nextSpellMult ?? 1); // Nimbus: a pending charge makes the next spell cast twice (×3 golden)
+  let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
+  mult *= state.nextSpellMult ?? 1; // Nimbus: a pending charge makes the next spell cast twice (×3 golden)
+  if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
+  // Spell Thesis: the FIRST spell each turn casts twice (consumed here — the per-play cast-count authority).
+  if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) { mult *= 2; state.spellFirstUsedThisTurn = true; }
+  return mult;
+}
+
+/** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
+export function spellCostReduction(state: RunState): number {
+  let n = state.spellCostMod;
+  for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
+  return n;
 }
 
 /**

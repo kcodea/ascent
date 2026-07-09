@@ -5,6 +5,41 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(content): Rulebreaker neutral quests + Chimerus — economy / spell / rule-bending payoffs
+
+A 13-quest batch (12 neutral "Rulebreaker" + 1 Dragon) with a wave of new rule-bending mechanics.
+
+**New objectives.** `winRound` (combat wins, ticked in settleCombat), `castSpell` (spells cast — run `spellsCast`
+diff), and `authorsHand` — a **compound** objective (Shout + Echo + Rally each to `count`, tracked in
+`ActiveQuest.subProgress`, bumped from the shout tick + combat echo/rally tallies).
+
+**New rewards.** `gainMaxGold` (Shop License), `discover` (Key Findings → a tier Discover), `dupeFirstBuy` (Dupes →
+first minion bought each turn is copied), `spellRepeat` (Ancient Runes = all spells cast twice; Spell Thesis = first
+spell each turn — both fold into `spellCasts()`), `minionCost` (Merchant's Mark → shop minions cost 2g),
+`slaughterRepeat` + `doubleLeftmostAttack` combat flag (Author's Hand / Rulebreaker's Crown).
+
+**New combat mechanics.** `doubleLeftmostAttack` (SoC leftmost minion +Attack = its Attack), `slaughterFirstEachCombat`
+(first player Slaughter each combat fires extra — split-out so a runtime-added effect registers on the bus),
+`scEngraveAll` (Taurus — engrave the whole board, in a priority "triggers first" SoC pre-pass), and Chimerus's
+`rallyGiveHealthToDragons`.
+
+**Quests.** *Lesser:* Shop License, Gilded Chance, Key Findings, Odd Jobs. *Greater:* Dupes, Spell Thesis, The Pivot
+Door, Merchant's Mark, Ancient Runes. *Capstone:* Rulebreaker's Crown, The Author's Hand, Impossible Shop. *Dragon
+capstone:* Chimerus.
+
+**New cards.** *Goldcrafter* (spell — golds a friendly minion; owner spec). *Lazarus* (Neutral T4 5/4 — board aura:
+shop spells cost 1 less, via `spellCostReduction`). *Taurus the Truth Bringer* (Neutral T6 12/12 — SoC engrave all).
+*Chimerus* (Dragon T6 4/8 — Rally gives its Health to 2 Dragons). All `token: true`.
+
+**Verified.** typecheck + lint clean; `npm test` **717 pass** incl. 7 new (double-leftmost-attack SoC; Chimerus rally;
+Taurus engrave-all; Dupes win→dupe-buy; Author's Hand compound completion arms all 4 first-each doublers; spell-cast
+doubling folds into `spellCasts`; Lazarus cost reduction; token exclusion). `build:web` clean; live DOM check of all
+six greater/capstone Rulebreaker quest cards.
+
+**Decisions/flags:** Goldcrafter is a targeted gild spell (owner-specced). "Discover a card from your tier" = a
+minion Discover at your current tavern tier. Author's Hand progress bar shows the min of the three sub-counts. Art
+not wired.
+
 ### feat(content): Demon quests — the fifth (final) authored tribe; all `Test ·` quests retired
 
 The **Demon** quest tribe (Fodder / Imp / Consume engine). With this, **all five tribes + neutral are fully

@@ -43,6 +43,12 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Consume ${o.count} total stats`;
     case 'summonImp':
       return `Summon ${o.count} ${o.count === 1 ? 'Imp' : 'Imps'}`;
+    case 'winRound':
+      return `Win ${o.count} ${o.count === 1 ? 'round' : 'rounds'}`;
+    case 'castSpell':
+      return `Cast ${o.count} spells`;
+    case 'authorsHand':
+      return `Trigger Shout, Echo, and Rally ${o.count} times each`;
     case 'sell':
       return `Sell ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'}`;
     case 'summon':
@@ -142,6 +148,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return 'Start of Combat: your rightmost Demon gains "Echo: summon 2 Imps with Ward"';
         case 'pitWithoutEnd':
           return `Your last friendly death each combat summons ${r.amount ?? 0} Imps`;
+        case 'doubleLeftmostAttack':
+          return 'Start of Combat: your leftmost minion gains double its Attack';
       }
       return '';
     case 'shoutRepeat':
@@ -166,6 +174,18 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       if ((r.attack ?? 0) > 0 || (r.health ?? 0) > 0) parts.push(`Fodder gains ${statPhrase(r.attack ?? 0, r.health ?? 0)}`);
       return parts.join('. ');
     }
+    case 'gainMaxGold':
+      return `Gain +${r.amount} max Gold`;
+    case 'discover':
+      return 'Discover a card from your tier';
+    case 'dupeFirstBuy':
+      return 'Get a second copy of the first minion you buy each turn';
+    case 'spellRepeat':
+      return r.scope === 'always' ? 'Your spells cast twice' : 'Your first spell each turn casts twice';
+    case 'minionCost':
+      return `Minions cost ${r.cost} Gold from the shop`;
+    case 'slaughterRepeat':
+      return 'Your first Slaughter each combat triggers an extra time';
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

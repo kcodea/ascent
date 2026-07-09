@@ -212,6 +212,8 @@ export const EffectFactoryIdSchema = z.enum([
   'scConsumeWeakestBuffDemons',
   'battlecryAllDemonsConsume',
   'spellBuffImpsPerDemon',
+  'scEngraveAll',
+  'rallyGiveHealthToDragons',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -288,8 +290,9 @@ export const QuestObjectiveEventSchema = z.enum([
   'spendGold', 'endOfTurn', 'tribeStats', 'friendlyDeath',
   'rally', 'playAttachment',
   'consumeFodder', 'consumeStats', 'summonImp',
+  'winRound', 'castSpell', 'authorsHand',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -327,6 +330,12 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('rallyRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('fodderReward'), fodder: z.number().int().nonnegative().optional(), attack: z.number().int().nonnegative().optional(), health: z.number().int().nonnegative().optional() }).strict(),
+  z.object({ kind: z.literal('gainMaxGold'), amount: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('discover') }).strict(),
+  z.object({ kind: z.literal('dupeFirstBuy') }).strict(),
+  z.object({ kind: z.literal('spellRepeat'), scope: z.enum(['always', 'firstEachTurn']) }).strict(),
+  z.object({ kind: z.literal('minionCost'), cost: z.number().int().nonnegative() }).strict(),
+  z.object({ kind: z.literal('slaughterRepeat'), scope: z.enum(['firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
 ]));
 

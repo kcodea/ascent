@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(ui): End-Combat is one synchronized crossfade (units + FX out together, board + survivors in together)
+
+Leaving the arena used to snap: the combat units unmounted instantly while their Pixi FX (shield/reborn bubbles,
+lingering particles) faded on their own clock, and the returning survivors/shop popped in per-card. Now the
+**End Combat** button runs a single two-beat crossfade — everything out together, then everything in together.
+
+- New `combatOutro` state (`'out' | 'in' | null`) in `Recruit`. The button's click no longer dispatches
+  `resolveCombat` directly; it calls `endCombat`, which sets `'out'`, waits the fade-out (200 ms), THEN dispatches
+  `resolveCombat` (the phase swap happens under cover of opacity 0) and flips to `'in'`, clearing after the fade-in.
+- CSS `.app.combatout` fades **every** combat unit row AND every FX canvas (`.pixifx`, `.pixifx-under`,
+  `.taunt-back`) to zero together in one 0.2 s opacity beat; `.app.combatin` fades the recruit board + FX back in
+  together (`boardfadein` 0.26 s). Opacity-only, so it's compositor-cheap — no paint-property animation, no hitch.
+  Both phases key off the same rows/canvases, so units and their effects can't drift out of sync.
+- The returning **shop** cards now also take `suppressPop={returningFromCombat}` (survivors already did), so nothing
+  cardpops out of step with the container fade — the whole board arrives at the exact same instant.
+
+Verified: typecheck + lint + 772 tests + `build:web` all green; dev server serves with no console errors. The
+crossfade timing is for live eyeball (the preview pane can't show rAF-driven fades reliably).
+
 ### feat(content): content batch pt 6b + 7 — compound objectives + Echo Warden (batch complete)
 
 Finishes the owner content batch.

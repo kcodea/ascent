@@ -1601,6 +1601,22 @@ body.choreo-open .pixifx-under { z-index: 204; }
   to { opacity: 1; transform: scale(1); }
 }
 
+/* End-Combat crossfade (see `combatOutro` in Recruit): leaving the arena is one synchronized transition,
+   not an abrupt snap. `.combatout` fades every combat unit row AND every FX canvas (particles + shield/reborn
+   bubbles + the taunt bulwark) to zero together in one 0.2s beat; then the phase swaps to the shop under cover
+   of opacity 0 and `.combatin` fades the recruit board + surviving minions back in together. Opacity-only, so
+   it's compositor-cheap and never hitches. Both phases key off the SAME rows/canvases, so units and their FX
+   can't drift out of sync. */
+.app.combatout .zone .row,
+.app.combatout .pixifx,
+.app.combatout .pixifx-under,
+.app.combatout .taunt-back { opacity: 0; transition: opacity 0.2s ease; }
+.app.combatin .zone .row,
+.app.combatin .pixifx,
+.app.combatin .pixifx-under,
+.app.combatin .taunt-back { animation: boardfadein 0.26s ease both; }
+@keyframes boardfadein { from { opacity: 0; } to { opacity: 1; } }
+
 /* ===================== in-place combat (shop closes → enemies arrive) =====================
    Combat plays out on the recruit board itself: the top half (tavern offers, the control
    bar, the timer, the rope and the hand) "closes up" and leaves, then the enemy team

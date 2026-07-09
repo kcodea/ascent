@@ -459,6 +459,10 @@ export function Recruit() {
   const inCombat = run.phase === 'combat';
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
+  // End-Combat crossfade: 'out' fades every combat unit + FX canvas away together, then the phase swaps and
+  // 'in' fades the recruit board + survivors back together — one synchronized two-beat transition (see the CSS
+  // `.app.combatout`/`.combatin`), so nothing snaps or staggers when you leave the arena.
+  const [combatOutro, setCombatOutro] = useState<null | 'out' | 'in'>(null);
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
@@ -712,6 +716,21 @@ export function Recruit() {
   useEffect(() => {
     if (fighting && replay.done && !run.combatSettled && replay.result !== 'lose') dispatch({ type: 'settleCombat' });
   }, [fighting, replay.done, run.combatSettled, replay.result, dispatch]);
+
+  // Leaving the arena: fade EVERYTHING out together (units + FX) for one beat, THEN swap to the shop and fade
+  // the recruit board + survivors back in together — a single synchronized crossfade instead of an abrupt
+  // snap. `resolveCombat` is deferred to the end of the fade-out so the swap happens under cover of opacity 0.
+  const endCombat = useCallback((): void => {
+    setCombatOutro((o) => {
+      if (o) return o; // already transitioning — ignore a double-click
+      window.setTimeout(() => {
+        dispatch({ type: 'resolveCombat' });
+        setCombatOutro('in');
+        window.setTimeout(() => setCombatOutro(null), 260); // clear once the fade-in has played
+      }, 200); // fade-out duration (matches the CSS .combatout transition)
+      return 'out';
+    });
+  }, [dispatch]);
 
   // Loss-damage sequence — runs ONCE when a defeat's replay finishes. Surviving enemy tiers + the
   // opponent's tavern tier fly up into a damage counter above the enemy board (clamped to the round cap),
@@ -2306,7 +2325,7 @@ export function Recruit() {
     <div
       className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
-      }`}
+      }${combatOutro === 'out' ? ' combatout' : combatOutro === 'in' ? ' combatin' : ''}`}
       onPointerDown={onBoardPointerDown}
     >
       {/* The BEHIND-cards taunt FX layer — first child so its canvas paints above the board surface but
@@ -2404,7 +2423,7 @@ export function Recruit() {
                 {/* On a loss, hold "End Combat" until the loss-damage blast finishes (so the player can't
                     skip past the Resolve hit); win/draw show it immediately. */}
                 {(replay.result !== 'lose' || lossPhase === 'done') && (
-                  <button className="btn big endturn" onClick={() => dispatch({ type: 'resolveCombat' })}>
+                  <button className="btn big endturn" onClick={endCombat}>
                     <Icon name="up" />
                     End Combat
                   </button>
@@ -2482,6 +2501,7 @@ export function Recruit() {
                 targeted={(heroArmed && heroTargetsTavern && aim?.targetUid === o.uid) || castTargetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
                 tripleReady={tripleReadyUids.has(o.uid)}
+                suppressPop={returningFromCombat}
                 onPointerDown={heroArmed ? undefined : onCardPointerDown}
               />
             </Fragment>

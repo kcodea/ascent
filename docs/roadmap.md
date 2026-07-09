@@ -306,6 +306,16 @@ which effect channels fire at which offsets — replacing the current split acro
   predicate/key-based rules to express `chain`/`splitPerTarget` — expect the interface in `compile.ts` to
   widen past simple type-set fields. **Depends:** phase 4 slice 1.
 
+### Combat feel-pass (owner thread, sessions 27–28)
+Iterative timing/juice polish on the live arena, one PR each. **Shipped:** Deathrattle bone-skull shatter +
+tuning; consequence-overlap (summon/reborn/improve ride the preceding beat via `overlapMs`); shield/reborn auras
+track the card's lunge position **and** rotation; Deathrattle attacker returns home before triggering; shield-break
+burst made visible on cream (normal-blend gold); Rally attack (wind-up pause + yellow trigger pulse); **End-Combat
+one synchronized crossfade** (units + FX fade out together → board + survivors fade in together; → devlog).
+**Remaining:** a dying unit should begin *leaving the board* in tandem with the other units' Deathrattle/Reborn
+effects (currently the `.dr` collapse hold can trail them) — needs live tuning against the #245 skull-in-own-slot
+hold so we don't regress it.
+
 ## Cross-cutting threads (ongoing, alongside the phases)
 
 ### Balance & power outliers

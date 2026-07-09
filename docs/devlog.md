@@ -42,6 +42,67 @@ Attachment in the shop."* New reward kind `attachmentDeal { cost }` arming two p
 Objective reuses the `slaughter` ("Kill N enemies") event. Test: completing it arms both flags and every rolled
 shop has a Magnetic priced at 2 Gold. Full gauntlet + harness green. **pt 6b next:** the compound (2-part)
 objective primitive for Fried Circuits + Forsaken Will.
+### feat(ui): Rally attack — a wind-up pause + a yellow trigger pulse
+
+Owner request: when a unit with **Rally** attacks, it should pause briefly at the top of the wind-up while its
+trigger medallion pulses **yellow** (same ring as Bard's trigger pulse), signalling the Rally fired — before
+the strike continues. Wired through the lunge so the pulse is timed to the swing, not the beat start:
+- `playLunge` gains `rallyPauseMs` + `onRallyPulse`: after the wind-up it holds the wound-up pose for
+  `RALLY_PAUSE_MS` (240 ms, engine.ts) and fires the pulse at the pause start; the contact/impact/trail cutoffs
+  all shift by the pause so nothing desyncs.
+- `useCombatReplay` detects a `rally` event whose `source` is the attacker, passes `onRallyPulse` to
+  `runAttackExchangeCues`, and drives a new `rallyPulseUids` state (yellow pulse, cleared after ~1.15 s). Rally
+  is **removed** from the beat-start trigger-pulse set so it no longer double-pulses at wind-up start.
+- `Card`/`Unit` gain a `pulseRally` prop → `.cgem.pulsing.rally` (new CSS: the flash + ring forced bright gold).
+  Fires once per Rally trigger, so a Flurry/Windfury unit pulses on each rallying swing.
+typecheck + lint + **767 tests** + build:web green; live: board mounts fresh with no errors (the HMR
+hook-order crash while editing is an added-`useState` artifact, gone on a full reload).
+
+The real cause of the "no gold shatter" (a live spy confirmed `breakShield` DOES find + destroy the bubble
+and spawn 39 particles — the mechanism was fine): every particle in the shield-break burst used `blend: 'add'`,
+and additive gold washes out to near-white on the light "Sunward" cream board — the exact pitfall `impact()`
+already documents. So the shield silently vanished with no visible shatter. Reworked the burst to mirror
+`impact()`: the readable elements (crack flash, fracture lines, main shockwave ring, 22 shrapnel shards) now use
+**normal blend with saturated gold** that paints over cream, with a hot **additive** core/rim/motes layered on
+top for the glassy glint. Verified live: the break now spawns 28 normal-blend + 12 additive particles (was 40
+additive). (The shield riding the lunge TILT is the intended #261 aura-follow behaviour; the burst now shows so
+it visibly shatters instead of quietly disappearing.) typecheck + lint green.
+
+Owner-tuned the hand in the DEV Layout Lab and baked it as the shipped default: hand card size
+`--z-hand-s` 1 → **1.18** and hand overlap `--z-hand-gap` −0.44 → **−0.16** (less tuck, more of each
+fanned card visible). Because the Layout Lab only applies in dev (`applyLayout` is `import.meta.env.DEV`-
+gated) and production reads the **CSS variable fallbacks**, both were updated in lockstep: the `def`s in
+`layoutConfig.ts` (so the tuner's reset/fresh-dev default matches) and the fallbacks in `styles.css`
+(`.zone[data-zone='hand']` `--ch` and `.row.hand .card` `margin-left`). All other Layout Lab values were
+already at their defaults, so nothing else changed. Verified: typecheck + lint + `build:web` green; values
+were dialed live by the owner.
+
+### fix(ui): Divine-Shield break burst no longer quietly fades (grace vs. break-cue timing)
+
+Owner-reported: a consumed Divine Shield sometimes shows no gold-shatter burst. Cause: when a shield is
+consumed the card loses `.dscard` immediately, so `syncShields` schedules the bubble to clear after
+`SHIELD_CLEAR_GRACE`; but the choreographer's gold-shatter (`auraBreak` cue) fires **+300ms** later. With the
+grace at **280ms** (< 300 at combat speed 1) the bubble started FADING before the burst could read it — a quiet
+fade instead of a shatter. Bumped `SHIELD_CLEAR_GRACE` 280 → **420ms** so the bubble always outlives the break
+cue and bursts properly. build:web green. (Rotation of the shield aura rides the same `container.rotation` path
+as reborn from #261 — asked the owner to re-verify after reload.)
+
+Follow-up to the aura-tracking fix: the tracker matched the card's position but not its **rotation**, so as a
+unit lunged (the strike tilts the card) the axis-aligned aura visibly stuck out to one side. The `track`
+callback now also reports the card's rotation — read off the `.unit` transform matrix (`atan2(m.b, m.a)`) — and
+the bubble sets `container.rotation` to match each frame. Also fixed the footprint: a rotated element's
+`getBoundingClientRect` inflates, so the tracker now uses the UNROTATED size (`offsetWidth × the matrix scale`)
+instead, keeping the aura the right size mid-tilt. Non-tracked auras (recruit / taunt) stay rotation 0.
+typecheck + lint + build:web green; reloads clean.
+
+Owner-reported: a unit with a Divine Shield or Reborn aura that's attacked "bounces" from the impact recoil,
+and for a moment the aura detaches from the card. Root cause: the aura tracker (`syncShields`) re-measures
+every frame, but on a SEPARATE rAF loop from Pixi's renderer — so during a fast lunge/recoil the bubble could
+render one frame behind the card. Fix: `setShield` now accepts an optional `track` callback; the bubble calls
+it in pixiFx's OWN ticker (after GSAP has applied the frame's transform) to refresh its position right before
+render, so the aura rides the card exactly. Recruit hands the FRONT auras (shield/reborn) a live tracker
+during combat only (recruit + the back-layer taunt keep the per-render push — no fast transforms to chase).
+typecheck + lint + **766 tests** + build:web green; live: reloads clean, no console errors.
 
 ### fix(content): mark Bloodlust / Anomaly Reactor / Grave Body reward-only (token) — were leaking into the shop
 

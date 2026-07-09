@@ -27,7 +27,10 @@ const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="wa
 
 // ms to keep a vanished shield bubble alive before fading it — covers a hand→board PLAY (the card unmounts
 // from hand then remounts on the board under the same uid), so the bubble resumes INSTANTLY, no fade+regrow.
-const SHIELD_CLEAR_GRACE = 280;
+// MUST also OUTLAST the choreographer's shield-BREAK cue (`auraBreak`, +300ms scaled — score.ts): when a Divine
+// Shield is consumed the card loses `.dscard` immediately, but the gold-shatter fires 300ms later. If the grace
+// expires first the bubble quietly FADES before the burst can read it (the "shield-break burst not showing" bug).
+const SHIELD_CLEAR_GRACE = 420;
 // The persistent auras the tracker POSITIONS (bubbles that ride each card), each marked by a CSS class on the
 // card and a keyword on the drag view. Combat bursts/breaks/re-forms are the choreographer's (channels/aura.ts,
 // fired off the event log) — the tracker here only keeps each aura riding its card and clears it when the card
@@ -512,8 +515,30 @@ export function Recruit() {
     const back = tauntBackRef.current?.getBoundingClientRect();
     const ax = (kind: AuraK): number => (kind === 'taunt' && back ? back.left : 0);
     const ay = (kind: AuraK): number => (kind === 'taunt' && back ? back.top : 0);
-    const set = (uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK): void =>
-      auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind);
+    const set = (
+      uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK,
+      track?: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null),
+    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track);
+    // A live position source for a COMBAT front-aura (shield/reborn): re-measures the card's art square each FX
+    // frame so the bubble rides the lunge/recoil transform EXACTLY (no cross-rAF trailing). Combat-only, where
+    // ax/ay/auraDy are all 0 — so it mirrors the `set` measurement below. null when the card isn't measurable
+    // (dying → the burst owns it; mid-remount → keep the last spot).
+    const makeTrack = (uid: string, marker: string) =>
+      (): { cx: number; cy: number; w: number; h: number; rot: number } | null => {
+        const unit = document.querySelector<HTMLElement>(`.unit[data-uid="${uid}"]`);
+        const card = unit?.querySelector<HTMLElement>(`.card.${marker}`);
+        if (!unit || !card || unit.classList.contains('dying')) return null;
+        const el = card.querySelector<HTMLElement>('.archbox') ?? card;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) return null;
+        // The lunge transform lives on `.unit` (translate + tilt + windup scale). getBoundingClientRect gives the
+        // rotated element's AABB (centre stays true, but w/h inflate), so take the UNROTATED size (offsetWidth ×
+        // the transform's scale) and read the rotation off the matrix so the aura rides the card's tilt exactly.
+        const t = getComputedStyle(unit).transform;
+        let rot = 0, sc = 1;
+        if (t && t !== 'none') { const m = new DOMMatrixReadOnly(t); rot = Math.atan2(m.b, m.a); sc = Math.hypot(m.a, m.b) || 1; }
+        return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: el.offsetWidth * sc, h: el.offsetHeight * sc, rot };
+      };
     // Recruit cards hang their stat badges BELOW the square art tile, so an aura centred on the art alone reads
     // a touch high vs the full card silhouette. Nudge shield/reborn (recruit only; combat units are a clean
     // square, and taunt carries its own tuner offset) — the amount is live-tunable via the DEV Shield tuner.
@@ -548,7 +573,10 @@ export function Recruit() {
         if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key)) {
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
-        set(uid, r.left + r.width / 2, r.top + r.height / 2 + auraDy(r.height, cfg.kind), r.width, r.height, false, cfg.kind);
+        // In combat, hand the FRONT auras (shield/reborn) a live tracker so they ride the lunge/recoil exactly;
+        // recruit + taunt keep the per-render push (no fast transforms to chase there).
+        const track = inCombatRef.current && cfg.kind !== 'taunt' ? makeTrack(uid, cfg.marker) : undefined;
+        set(uid, r.left + r.width / 2, r.top + r.height / 2 + auraDy(r.height, cfg.kind), r.width, r.height, false, cfg.kind, track);
       }
       if (d?.active && dragUid && draggedHas) {
         seen.add(ckey(cfg.kind, dragUid));
@@ -2434,6 +2462,7 @@ export function Recruit() {
                 anim={replay.anims[u.uid]}
                 floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
+                rallyPulse={replay.rallyPulseUids.has(u.uid)}
               />
             ))
           ) : (
@@ -2484,6 +2513,7 @@ export function Recruit() {
                 anim={replay.anims[u.uid]}
                 floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
+                rallyPulse={replay.rallyPulseUids.has(u.uid)}
               />
             ))
           ) : (

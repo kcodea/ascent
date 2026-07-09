@@ -374,6 +374,11 @@ interface ShieldBubble {
   mini: boolean;          // true while the card is being dragged → shrink to a small trailing sparkle
   pop: number;            // ms elapsed of the coalesce/pop-in on placement (−1 = not popping)
   scaleMul: number;       // current size multiplier (lerps toward 1 or MINI_SCALE; the pop drives it directly)
+  rot: number;            // current rotation (rad) — matches the card's live transform (lunge tilt) when tracking
+  /** Optional live position source, called every FX frame right before render — lets the bubble measure its
+   *  card in Pixi's OWN frame (after GSAP applies the lunge/recoil transform + rotation), so a fast-moving unit's
+   *  aura never trails or un-rotates from the card. Returns null when the card isn't measurable (keeps the last). */
+  track: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null) | null;
 }
 
 // Shield-bubble feel (tunable live via window.__pixiFx in DEV). The shield shader draws into a quad of
@@ -995,7 +1000,7 @@ class FxController {
    * `mini` = the card is being dragged → shrink to a small trailing sparkle; when a `mini` bubble is next
    * set with `mini=false` (the card is placed), it coalesces/pops back to full size.
    */
-  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield'): void {
+  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null): void {
     if (!this.ready || !this.shieldLayer) return;
     const key = auraKey(kind, uid);
     let b = this.shields.get(key);
@@ -1030,10 +1035,10 @@ class FxController {
       container.alpha = 0;
       this.shieldLayer.addChild(container);
       b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
-            mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1 };
+            mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1, rot: 0, track };
       this.shields.set(key, b);
     } else {
-      b.cx = cx; b.cy = cy; b.w = w; b.h = h;
+      b.cx = cx; b.cy = cy; b.w = w; b.h = h; b.track = track;
       b.fadeOut = -1; // re-targeted while fading (re-gained) → cancel the fade
       // Dragged (mini) → placed (full): coalesce/pop the bubble back into existence (inverse of the break).
       if (b.mini && !mini) { b.pop = 0; this.shieldPop(cx, cy, w, h, kind); }
@@ -1112,42 +1117,52 @@ class FxController {
     if (kind === 'reborn') { this.rebornShatter(cx, cy, w, h); return; } // wispy spirit release, not shards
     const rad = Math.max(w, h) * 0.5 * AURA[kind].margin;
 
-    // 1) CRACK — a bright white-gold flash at the bubble's footprint + a few fracture lines snapping across.
+    // NB: additive gold washes out to near-white on the light "Sunward" cream board (the burst was invisible —
+    // see impact()'s same note). So the READABLE elements below use NORMAL blend with SATURATED gold that paints
+    // over cream; a hot additive core/rim layers on top for the glassy glint.
+
+    // 1) CRACK — a saturated-gold flash (normal, paints over cream) + a hot additive core glint.
     this.spawn(this.bubbleTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 150, fromScale: rad / BUBBLE_TEX_R,
-      toScale: (rad / BUBBLE_TEX_R) * 1.18, spin: 0, tint: 0xfff3c8, blend: 'add',
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 190, fromScale: rad / BUBBLE_TEX_R,
+      toScale: (rad / BUBBLE_TEX_R) * 1.22, spin: 0, tint: 0xeca310, blend: 'normal', peakAlpha: 0.92,
+    });
+    this.spawn(this.bubbleTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 150, fromScale: (rad / BUBBLE_TEX_R) * 0.5,
+      toScale: (rad / BUBBLE_TEX_R) * 1.0, spin: 0, tint: 0xfff3c8, blend: 'add', // hot glint core
     });
     for (let i = 0; i < 4; i++) {
       const a = Math.random() * Math.PI;
       this.spawn(this.veinTex!, {
-        x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 130, fromScale: (rad / 26) * 1.1, toScale: rad / 26,
-        spin: 0, rotation: a, tint: 0xffffff, blend: 'add', peakAlpha: 0.95,
+        x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 140, fromScale: (rad / 26) * 1.1, toScale: rad / 26,
+        spin: 0, rotation: a, tint: 0xb87608, blend: 'normal', peakAlpha: 0.92, // dark-gold fracture lines
       });
     }
 
-    // 2) SHOCKWAVE — two additive rings expanding past the bubble edge and fading (a bigger pop).
+    // 2) SHOCKWAVE — a saturated-gold ring expanding past the bubble edge (normal, reads on cream) + a fainter
+    //    hot additive rim for the glassy pop.
     this.spawn(this.rimTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 460, fromScale: (rad / BUBBLE_TEX_R) * 0.85,
-      toScale: (rad / BUBBLE_TEX_R) * 2.1, spin: 0, tint: 0xffe27a, blend: 'add', peakAlpha: 0.95,
+      toScale: (rad / BUBBLE_TEX_R) * 2.1, spin: 0, tint: 0xe09410, blend: 'normal', peakAlpha: 0.9,
     });
-    this.spawn(this.bubbleTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 300, fromScale: (rad / BUBBLE_TEX_R),
-      toScale: (rad / BUBBLE_TEX_R) * 1.6, spin: 0, tint: 0xfff0c0, blend: 'add', peakAlpha: 0.7,
+    this.spawn(this.rimTex!, {
+      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 360, fromScale: (rad / BUBBLE_TEX_R) * 0.85,
+      toScale: (rad / BUBBLE_TEX_R) * 1.9, spin: 0, tint: 0xffe27a, blend: 'add', peakAlpha: 0.7,
     });
 
-    // 3) SHRAPNEL — golden shards flung radially out of the rim (reuses the pooled shard textures).
+    // 3) SHRAPNEL — golden shards flung radially out of the rim (normal + saturated golds so they read as debris
+    //    over the cream, not washed-out glints).
     const shards = 22;
     for (let i = 0; i < shards; i++) {
       const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
       const speed = 320 + Math.random() * 640;
       const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
       const warm = Math.random();
-      const tint = warm < 0.5 ? 0xffd24a : warm < 0.85 ? 0xffe9a8 : 0xfff6d8;
+      const tint = warm < 0.5 ? 0xd18a10 : warm < 0.85 ? 0xefac20 : 0xffcb4a;
       this.spawn(tex, {
         x: cx + Math.cos(a) * rad * 0.7, y: cy + Math.sin(a) * rad * 0.7,
         vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
         life: 420 + Math.random() * 360, fromScale: 0.9 + Math.random() * 0.7, toScale: 0.05,
-        spin: (Math.random() - 0.5) * 10, rotation: a, tint, blend: 'add',
+        spin: (Math.random() - 0.5) * 10, rotation: a, tint, blend: 'normal',
       });
     }
 
@@ -1526,6 +1541,9 @@ class FxController {
     // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.
     for (const [uid, b] of this.shields) {
       b.age += dtMs;
+      // Live-track the card in THIS frame (after GSAP's lunge/recoil transform) so the aura never trails it.
+      if (b.track) { const r = b.track(); if (r) { b.cx = r.cx; b.cy = r.cy; b.w = r.w; b.h = r.h; b.rot = r.rot; } }
+      else b.rot = 0;
       // grow-in (gain) and optional fade-out (graceful clear). Taunt "deploys" RIGID — it grows out to full
       // width and LOCKS (it's metal: no overshoot, no bob); shield/reborn fade in + settle gently.
       const tcfg = b.kind === 'taunt' ? getTauntConfig() : null;
@@ -1572,6 +1590,7 @@ class FxController {
       b.container.x = b.cx + (tcfg ? tcfg.offsetX : 0); // taunt: live nudge from the DEV tuner
       b.container.y = b.cy + (tcfg ? tcfg.offsetY : 0);
       b.container.scale.set(sx * grow, sy * grow);
+      b.container.rotation = b.rot; // ride the card's lunge tilt (0 for non-tracked / recruit auras)
       b.container.alpha = life; // form-in / fade / mini envelope; the shader owns its internal opacity
       // drive the shield shader
       const u = (b.shader.resources.shieldUniforms as { uniforms: Record<string, number | Float32Array> }).uniforms;

@@ -1049,6 +1049,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.attackFirstNext = true;
   },
 
+  /** Bloodlust (cast, targeted): mark the target minion so that at the start of the next combat it takes an
+   *  immediate out-of-turn attack, immune to retaliation for that swing. One fight only (stripped at settle). */
+  spellBloodlust: (_ctx, self) => {
+    self.bloodlust = true;
+  },
+
   /** Money Maker — End of Turn: every `every` turns on the board, add `count` random card(s) from the
    *  `cards` id-list to your hand (a Gold Pouch or Safety Deposit Box). Golden doubles the count. Mirrors
    *  Frontdrake's cadence (`eotTick` advances once per turn on proc 0; Chronos repeats ride the same tick).

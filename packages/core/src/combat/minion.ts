@@ -57,6 +57,7 @@ export function instantiate(
     // Perfect Core (welded): the host grants this-many random spells on attack. Welded portion only —
     // a standalone Perfect Core grants via its own onAttack `rallyGrantSpell` effect, so no double-count.
     rallySpellWeld: board.rallySpellWeld && board.rallySpellWeld > 0 ? board.rallySpellWeld : undefined,
+    bloodlust: board.bloodlust, // Bloodlust: an immediate immune attack at Start of Combat (one combat)
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
     buffs: board.buffs, // recruit-phase buff breakdown, carried into the snapshot for the combat inspect
     side,

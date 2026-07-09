@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(content): content batch pt 2 — Bloodlust spell
+
+New buyable spell **Bloodlust** (neutral, tier 4, 3 Gold, target a friendly minion): *"It attacks immediately
+at the start of next combat and can't die from that attack."* Also the reward "Red Trail" grants (wired when
+The Red Trail quest lands). New primitive:
+
+- **One-combat per-minion mark** `bloodlust` on `BoardCard` → `BoardMinion`/`Minion` (carried by `instantiate`).
+  New recruit spell factory `spellBloodlust` sets it on the target. At Start of Combat, `simulate` queues each
+  marked player minion for an immediate out-of-turn attack (via `pendingAttackOnSummon` → `flushImmediateAttacks`)
+  with `attackImmuneLeft ≥ 1` so it takes no retaliation on that swing ("can't die from that attack"). Reuses
+  Bounty Bot's immunity mechanism. The mark is stripped post-combat (alongside `tempShield`/`tempReborn`), so it
+  fires exactly once. Persists across save/load (full `JSON.stringify`).
+
+Core `EffectFactoryId` + Zod enum extended. Test: a marked 2-HP minion swings at SoC before the enemy's first
+attack and survives the 5-Attack retaliation (immune). Full gauntlet + harness green.
+
 ### feat(content): content batch pt 1 — Umbral Energy (Dragon) + Food for Gold (Demon)
 
 First (low-risk) slice of the larger owner content batch — two quests that each arm a run-wide modifier, no

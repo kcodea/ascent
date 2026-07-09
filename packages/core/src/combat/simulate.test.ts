@@ -1514,6 +1514,27 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.filter((e) => e.type === 'toHand').length).toBe(2);
   });
 
+  it('Bloodlust: a marked minion takes an immediate immune attack at Start of Combat', () => {
+    const a = simulate(
+      [
+        { cardId: 'alley', attack: 3, health: 2, bloodlust: true }, // 2 HP — dies to the 5-atk retaliation WITHOUT immunity
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] },
+      ],
+      [
+        { cardId: 'omen', attack: 5, health: 50 }, // 5-Attack retaliator; a wider enemy → the enemy swings first
+        { cardId: 'omen', attack: 0, health: 50 }, // after the SoC Bloodlust strike, so `pre` holds only that swing
+        { cardId: 'omen', attack: 0, health: 50 },
+      ],
+      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, {},
+    );
+    const blmUid = a.initial.player[0]!.uid;
+    const enemyUids = new Set(a.initial.enemy.map((m) => m.uid));
+    const firstEnemyAtk = a.events.findIndex((e) => e.type === 'attack' && enemyUids.has(e.attacker));
+    const pre = a.events.slice(0, firstEnemyAtk === -1 ? a.events.length : firstEnemyAtk);
+    expect(pre.some((e) => e.type === 'attack' && e.attacker === blmUid)).toBe(true); // immediate SoC swing
+    expect(pre.some((e) => e.type === 'death' && e.target === blmUid)).toBe(false); // immune — no retaliation death
+  });
+
   it('Umbral Energy (Dragon greater): Start of Combat gives Dragons +2/+2 per spell cast this game', () => {
     // spellsCast (10th arg) = 3 → +6/+6 on the Dragon at SoC; questMods.umbralEnergy is the last arg.
     const a = simulate(

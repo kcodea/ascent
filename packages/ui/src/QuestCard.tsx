@@ -79,7 +79,7 @@ export function QuestCard({ quest, onBuy }: { quest: QuestDef; onBuy: () => void
       onClick={onBuy}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}
-      title={`${quest.name} — take this quest (free)`}
+      aria-label={`${quest.name} — take this quest (free)`}
     >
       {art && <img className="questcard-art" src={art} alt="" aria-hidden />}
       <span className="questcard-emblem" aria-hidden><Icon name={TRIBE_ICON[quest.tribe]} /></span>

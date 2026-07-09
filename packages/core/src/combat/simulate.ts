@@ -807,18 +807,22 @@ export function simulate(
   // next time the board has room — i.e. after a friend dies — never mid-summon-cascade. So its own
   // tokens win the immediate scramble and the original returns later. `anchor` is the dead body it
   // was killed from, so the copy comes back in (or next to) its original slot.
-  const pendingResummons: { anchor: Minion; board: BoardMinion }[] = [];
+  const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side }[] = [];
   function flushResummons(): void {
-    while (pendingResummons.length > 0 && living('player').length < 7) {
+    // Reclaim each pending body the moment ITS side has room again (an enemy Soren board resummons on the
+    // enemy side, exactly like the player's Reclaimer). FIFO within a side; player-only queues behave as before.
+    for (let i = 0; i < pendingResummons.length; ) {
+      const { anchor, board, side } = pendingResummons[i]!;
+      if (living(side).length >= 7) { i++; continue; }
+      pendingResummons.splice(i, 1);
       nextStep(); // each reclaimed body re-entering is its own moment
-      const { anchor, board } = pendingResummons.shift()!;
-      const copy = instantiate(board, 'player', cards, mkUid);
-      applyCombatGains(copy); // re-apply per-card stacks banked this fight (its own destroy + other deaths)
-      const at = boards.player.indexOf(anchor);
-      boards.player.splice(at >= 0 ? at + 1 : boards.player.length, 0, copy);
+      const copy = instantiate(board, side, cards, mkUid);
+      applyCombatGains(copy); // re-apply per-card stacks banked this fight (player-gated inside; enemy has no run)
+      const at = boards[side].indexOf(anchor);
+      boards[side].splice(at >= 0 ? at + 1 : boards[side].length, 0, copy);
       registerEffects(copy);
-      emit({ type: 'summon', minion: snapshot(copy), side: 'player', index: boards.player.indexOf(copy), source: anchor.uid });
-      bus.emit('onSummon', { minion: copy, side: 'player' });
+      emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
+      bus.emit('onSummon', { minion: copy, side });
       applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too
     }
   }
@@ -1083,7 +1087,7 @@ export function simulate(
   //     priority over its own tokens: they win the immediate scramble, and it reclaims its spot later.
   //     If the board already has room after the Deathrattle, the flush right below brings it back at
   //     once (so on a non-full board it still rejoins before the normal Start of Combat effects). ---
-  for (const minion of [...boards.player]) {
+  for (const minion of [...boards.player, ...boards.enemy]) {
     if (!minion.resummon || minion.dead || minion.health <= 0) continue;
     // Capture the full combat state for an exact copy (stats + granted keywords + golden + every
     // per-instance field). `sourceUid` rides along so the copy's carry-backs (Kennelmaster's Avenge,
@@ -1110,7 +1114,7 @@ export function simulate(
     };
     minion.rebornAvailable = false; // force a true death (skip Reborn) so the Deathrattle fires
     killOrReborn(minion); // tokens summon now and may overflow the board
-    pendingResummons.push({ anchor: minion, board: copyBoard });
+    pendingResummons.push({ anchor: minion, board: copyBoard, side: minion.side });
   }
   flushResummons(); // non-full board → the original rejoins immediately; full board → it waits
 

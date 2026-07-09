@@ -60,9 +60,12 @@ const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at
 const ROPE_SECONDS = 20; // the burning rope lights + burns over the final 20s of the turn
 
 /** The cast count a spell shows (its ×N badge + cast-spark replay): Implosion resolves 1 + your Demons times
- *  (per-Demon recast, read off the live board); every other spell uses the run-wide `spellCasts` multiplier. */
+ *  (per-Demon recast, read off the live board), and that whole count is MULTIPLIED by the run-wide spell-recast
+ *  multiplier (Nimbus / Ancient Runes / Spell Thesis) — matching what the reducer actually resolves (spellCasts ×
+ *  implosionCasts). Every other spell just uses the run-wide `spellCasts` multiplier. `spellCasts` is side-effect
+ *  free, so calling it here to preview the count is safe. */
 const spellCastCount = (run: Parameters<typeof spellCasts>[0], def: Parameters<typeof spellCasts>[1]): number =>
-  def.id === 'implosion' ? implosionCasts(run) : spellCasts(run, def);
+  def.id === 'implosion' ? spellCasts(run, def) * implosionCasts(run) : spellCasts(run, def);
 
 /** Build the floating drag-card transform with a CONSISTENT function list, so a CSS transition between the
  *  rAF lean and the snap/magslide states interpolates cleanly. tx/ty = top-left offset; rotX/rotY = 3D tilt

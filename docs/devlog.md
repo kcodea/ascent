@@ -5,6 +5,56 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 26)
 
+### feat(content): Mech quests (fourth authored tribe) + keyword quests → neutral + Rally/Attachment engine
+
+The **Mech** quest tribe (Attachment + Rally engine) plus a structural change: keyword-triggered quests are now
+**neutral** (build-agnostic), since a Shout / Echo / Rally / End-of-Turn reward helps ANY build with that keyword,
+not just one tribe.
+
+**New engine primitives.**
+- **`rally` objective** — counts player Rally (on-attack) TRIGGERS, incl. doubler re-fires, like `shout`/`deathrattle`.
+  `simulate` folds every Rally doubler through one `playerRallyExtras` helper (Law of Teeth + Rallying Offensive +
+  Infinite Assembly `rallyExtraAlways` + Spark Permit/Overclocked Core `rallyFirstEachCombat`) — **additive**, and
+  tallied via `CombatResult.playerRallies` + a `rally` timeline event for the combat panel live-tick.
+- **`playAttachment` objective** — counts Magnetic ("Attachment") minions you play.
+- **`sell` tribe filter** — "Sell N Mechs" (the sell tick now narrows by the sold minion's tribe; untribed sells
+  still count for Grave Robber / Feed the Alpha).
+- **Filtered random-minion grants** — `grant.randomFilter` conjures a random Shout / End-of-Turn / Echo / Rally /
+  Attachment minion (≤ tier, or exactly-tier via `randomFilterExactTier`). Powers the "get a random X minion" rewards.
+- **`rallyRepeat`** reward (always / firstEachCombat), **`sharedCircuit`** combat flag (SoC give N Mechs a Ward),
+  **`grantRandomAttachments`** recurring End-of-Turn (get 2 random Attachments each turn).
+
+**Quests.** *Mech:* Assembly Line (buy 4 Mechs → Money Bot + a repeat), Scrap Contract (sell 3 Mechs → Scrap Vendor),
+Perfect Machine (play 6 Attachments → Perfect Core), Blueprint Cache (play 8 → recurring 2 Attachments/turn), Shared
+Circuit (play 14 → SoC 3 Mechs Ward), Machine Chorus (20 Rallies → Chorus Engine). *Neutral (new):* Spark Permit
+(3 Rallies → first-Rally doubler), Overclocked Core (12 Rallies → random Rally minion + first-Rally), Infinite
+Assembly (30 Rallies → random Rally minion + permanent Rally doubler).
+
+**Re-tribed to neutral** (2026-07-08 owner call): Warm Embers, Grave Contract, Hoardwake Ritual, Last Rites, Echoing
+Coop, The Hoard Wakes, Parliament of Flame, Funeral Engine — several now ALSO grant a random keyword minion
+(Hoardwake→Shout, Last Rites→Echo, Parliament→End-of-Turn, Funeral Engine→Echo-of-your-tier). **Retired** the 6 `Test ·`
+neutral + Mech placeholder quests (now real content).
+
+**New cards** (all `token: true`, reward-only). *Scrap Vendor* (Mech T2 2/5 — EoT Gold next shop + Deathrattle→Patch
+Kit). *Chorus Engine* (Mech T6 8/6 — Rally buffs your unwelded Attachments, Slaughter conjures a Magnetic — new
+`rallyBuffAttachments`/`onKillGrantMagnetic`). *Perfect Core* (All-Types T4 10/10 — Ward, Magnetic-to-any via
+universalTribe, Rally→random spell — new `rallyGrantSpell`). *Patch Kit* (**INVENTED**, flagged — Mech T1 0/3
+Magnetic, Scrap Vendor's Deathrattle token).
+
+**Verified.** typecheck + lint clean; `npm test` **703 pass** incl. 9 new (additive Rally doubler stacking on an
+active-attack harness; Shared Circuit wards exactly N Mechs; playAttachment ticks on a Magnetic play; Scrap Contract
+counts only Mech sells; Last Rites/Infinite Assembly multi-grants conjure a real Echo/Rally minion; rallyRepeat +
+sharedCircuit reward application; new cards excluded from the buyable pool). Fixed a real regression the new
+`patchkit` token surfaced: Combinator's magnetic-roll pool wasn't excluding tokens (it now filters `!token && !spell`,
+matching every other magnetic pool) — a 0-attack Patch Kit could otherwise be welded. `build:web` clean; live DOM
+check of all new quest cards' derived text.
+
+**Decisions/flags:** (1) **Patch Kit invented** — pick its real body and I'll swap it. (2) "Attachment" = Magnetic
+(M) minion throughout. (3) Perfect Core's "attach to ANY minion" = universalTribe Magnetic (welds onto any non-neutral;
+a pure-neutral host is the one gap). (4) "random Echo minion of your tier" (Funeral Engine) = exactly current tier
+with a ≤-tier fallback. (5) Chorus Engine's Rally buffs UNwelded Attachments (welded ones have merged away). Art not
+wired yet.
+
 ### feat(content): Undead quests — the third authored tribe (9 quests + 4 reward cards + Echo-doubler engine)
 
 The Undead quest tribe: the **Echo (Deathrattle)** engine. Nine quests across the three tiers, plus four reward

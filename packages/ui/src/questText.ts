@@ -13,6 +13,8 @@ const EVENT_NOUN: Partial<Record<QuestObjectiveEvent, string>> = { play: 'minion
 /** Plural tribe noun for objective text ("Summon 4 Undead"). Undead is invariant. */
 const TRIBE_PLURAL: Record<Tribe, string> = { beast: 'Beasts', dragon: 'Dragons', undead: 'Undead', mech: 'Mechs', demon: 'Demons', neutral: 'minions' };
 const TRIBE_SINGULAR: Record<Tribe, string> = { beast: 'Beast', dragon: 'Dragon', undead: 'Undead', mech: 'Mech', demon: 'Demon', neutral: 'minion' };
+/** Display name for a `grant.randomFilter` minion class ("a random Echo minion"). */
+const FILTER_NAME: Record<'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment', string> = { shout: 'Shout', endOfTurn: 'End of Turn', echo: 'Echo', rally: 'Rally', attachment: 'Attachment' };
 /** Keyword → its Sunward display name (for "a Badgington with Flurry and Ward"). */
 const KEYWORD_NAME: Partial<Record<Keyword, string>> = { W: 'Flurry', DS: 'Ward', V: 'Toxin', T: 'Taunt', RL: 'Rally', SL: 'Slaughter', R: 'Rise', C: 'Cleave', ST: 'Stealth', IMM: 'Immune' };
 
@@ -31,6 +33,12 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Trigger ${o.count} ${o.count === 1 ? 'Echo' : 'Echoes'}`;
     case 'friendlyDeath':
       return `Have ${o.count} friendly ${o.count === 1 ? 'minion' : 'minions'} die`;
+    case 'rally':
+      return `Trigger ${o.count} ${o.count === 1 ? 'Rally' : 'Rallies'}`;
+    case 'playAttachment':
+      return `Play ${o.count} ${o.count === 1 ? 'Attachment' : 'Attachments'}`;
+    case 'sell':
+      return `Sell ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'}`;
     case 'summon':
       return `Summon ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'}`;
     case 'buy':
@@ -79,6 +87,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       const parts: string[] = [];
       if (r.randomTribe && (r.randomCount ?? 0) > 0) parts.push(randomMinionPhrase(r.randomTribe, r.randomCount!));
       if ((r.randomSpell ?? 0) > 0) parts.push(r.randomSpell === 1 ? 'a random spell' : `${r.randomSpell} random spells`);
+      if (r.randomFilter) parts.push(`a random ${FILTER_NAME[r.randomFilter]} minion${r.randomFilterExactTier ? ' of your tier' : ''}`);
       for (const id of r.cards ?? []) {
         const kws = r.grantKeywords?.length ? ` with ${keywordPhrase(r.grantKeywords)}` : '';
         parts.push(`a ${CARD_INDEX[id]?.name ?? 'card'}${kws}`);
@@ -119,6 +128,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return 'Beast Slaughters and Rallies trigger an extra time';
         case 'oldHunt':
           return `Whenever a Beast attacks, improve your Beast Attack aura by +${r.amount ?? 0}`;
+        case 'sharedCircuit':
+          return `Start of Combat: give ${r.amount ?? 0} friendly Mechs Ward`;
       }
       return '';
     case 'shoutRepeat':
@@ -126,13 +137,17 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'endOfTurnRepeat':
       return 'Your End-of-Turn effects trigger an extra time';
     case 'recurringEndOfTurn':
-      return r.effect === 'triggerLeftmostShout' ? 'End of Turn: trigger your leftmost Shout' : 'End of Turn: get a random Shout minion';
+      return r.effect === 'triggerLeftmostShout' ? 'End of Turn: trigger your leftmost Shout'
+        : r.effect === 'grantRandomAttachments' ? 'End of Turn: get 2 random Attachments'
+        : 'End of Turn: get a random Shout minion';
     case 'gainGold':
       return `Get ${r.amount} Gold`;
     case 'echoRepeat':
       return r.scope === 'always' ? 'Your Echoes trigger an extra time' : 'Your first Echo each combat triggers twice';
     case 'boneThrone':
       return `Every ${r.every} friendly deaths, trigger your leftmost Echo`;
+    case 'rallyRepeat':
+      return r.scope === 'always' ? 'Your Rallies trigger an extra time' : 'Your first Rally each combat triggers twice';
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

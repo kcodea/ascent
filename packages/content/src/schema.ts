@@ -205,6 +205,10 @@ export const EffectFactoryIdSchema = z.enum([
   'onSellGetEchoAndTrigger',
   'spellTriggerEcho',
   'battlecryCopyEcho',
+  'rallyGrantSpell',
+  'rallyBuffAttachments',
+  'onKillGrantMagnetic',
+  'endOfTurnBonusGold',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -279,8 +283,9 @@ export const QuestObjectiveEventSchema = z.enum([
   'buy', 'play', 'sell', 'roll', 'summon', 'shout',
   'attack', 'summonCombat', 'slaughter', 'deathrattle',
   'spendGold', 'endOfTurn', 'tribeStats', 'friendlyDeath',
+  'rally', 'playAttachment',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -290,6 +295,8 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
     randomTribe: TribeSchema.optional(),
     randomCount: z.number().int().positive().optional(),
     randomSpell: z.number().int().positive().optional(),
+    randomFilter: z.enum(['shout', 'endOfTurn', 'echo', 'rally', 'attachment']).optional(),
+    randomFilterExactTier: z.boolean().optional(),
     cards: z.array(z.string().min(1)).optional(),
     grantKeywords: z.array(KeywordSchema).optional(),
     repeatInTurns: z.number().int().positive().optional(),
@@ -310,10 +317,11 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('combatFlag'), flag: QuestCombatFlagSchema, amount: z.number().int().nonnegative().optional() }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
-  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout']) }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments']) }).strict(),
   z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('rallyRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
 ]));
 

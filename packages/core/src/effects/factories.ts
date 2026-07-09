@@ -640,6 +640,32 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) ctx.buff(m, attack, health, self.uid);
   },
 
+  /** Rally (Perfect Core): when THIS minion attacks, add a random spell to your hand after combat (golden → 2). */
+  rallyGrantSpell: (ctx, self, _params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const pool = ctx.allCards().filter((c) => c.spell && !c.token);
+    if (pool.length === 0) return;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+  },
+
+  /** Rally (Chorus Engine): when THIS minion attacks, buff your living Magnetic ("Attachment") minions +atk/+hp
+   *  (welded attachments have merged away, so this hits unwelded ones on the board). Golden doubles. */
+  rallyBuffAttachments: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    for (const m of ctx.living(self.side)) if (m !== self && m.keywords.includes('M')) ctx.buff(m, a, h, self.uid);
+  },
+
+  /** Slaughter (Chorus Engine): when THIS minion kills, add a random Magnetic ("Attachment") minion to your hand
+   *  after combat (golden → 2). Attacker-guarded (fires on the kill even if it then dies). */
+  onKillGrantMagnetic: (ctx, self, _params, payload) => {
+    if ((payload as { attacker?: Minion }).attacker !== self) return;
+    const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
+    if (pool.length === 0) return;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+  },
+
   /** Mechanical Jouster — Rally: when THIS minion attacks, add a random Magnetic Mech to your hand after
    *  combat (golden 2 per attack). Mirrors Junkyard Titan's grant pool, filtered to Mech magnetics; fires on
    *  this minion's own attack (Windfury → per hit). */

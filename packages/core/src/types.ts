@@ -124,6 +124,9 @@ export type EffectFactoryId =
   | 'rallyImproveSummonAura' // Baby Cub: Rally bumps a friendly Den Mother's summon aura (summonBonus), carried back
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
+  | 'rallyGrantSpell' // Perfect Core: Rally (on-attack) — add a random spell to hand after combat (Mech)
+  | 'rallyBuffAttachments' // Chorus Engine: Rally — buff your Magnetic ("Attachment") minions +atk/+hp in combat (Mech)
+  | 'onKillGrantMagnetic' // Chorus Engine: Slaughter (on-kill) — add a random Magnetic minion to hand after combat (Mech)
   | 'avengeBonusGold' // Bone Taxer: Avenge (X) grants +amount Gold into your next shop, carried back (Undead)
   | 'deathrattleMaxGold' // Bone Taxer: Echo — permanently raise your max Gold by +amount, carried back (Undead)
   | 'avengeGrantSpell' // Arcane Weaver: Avenge (X) adds a copy of a spell to your hand after combat (Dragon)
@@ -189,6 +192,7 @@ export type EffectFactoryId =
   | 'avengeBuffImps' // Brood Matron: Avenge (X) — buff all friendly Imps +atk/+hp (combat)
   | 'deathrattleReplayAdjacentBattlecry' // Ryme: Deathrattle — re-fire an adjacent minion's Battlecry in combat
   | 'battlecryBonusGoldNextTurn' // Hoarder: Battlecry — gain extra Gold next turn (recruit)
+  | 'endOfTurnBonusGold' // Scrap Vendor: End of Turn — bank Gold into your next shop (recruit)
   | 'onSellGetEchoAndTrigger' // Crypt Broker: Sell — get a random Echo minion + trigger its Deathrattle (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
@@ -368,7 +372,10 @@ export type QuestObjectiveEvent =
   | 'spendGold' | 'endOfTurn' | 'tribeStats'
   // Undead set: `friendlyDeath` counts friendly minions that DIE in combat — a raw entity-death count, so unlike
   // `deathrattle` (Echo TRIGGERS, which Sylus/doublers multiply) it does NOT scale with echo doublers.
-  | 'friendlyDeath';
+  | 'friendlyDeath'
+  // Mech/neutral set: `rally` counts player Rally (on-attack) TRIGGERS incl. doubler re-fires (like `shout`);
+  // `playAttachment` counts Magnetic ("Attachment") minions you play.
+  | 'rally' | 'playAttachment';
 /** A quest objective: reach `count` of `event`. `tribe` narrows a tribe-aware objective (e.g. "Summon 4 Undead",
  *  "Give Dragons 80 stats"). `filter: 'shout'` narrows a `buy` to Battlecry minions ("Buy 3 Shout minions").
  *  Live progress lives on the run's `ActiveQuest`. */
@@ -388,7 +395,10 @@ export interface QuestObjective {
  */
 export type QuestReward =
   | { kind: 'buffBoard'; attack: number; health: number }
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  // `randomFilter` conjures a random buyable MINION matching a keyword/effect class (a Shout=Battlecry, an
+  // End-of-Turn, an Echo=Deathrattle, a Rally, or an Attachment=Magnetic) — ≤ current tier, or EXACTLY current
+  // tier when `randomFilterExactTier` (fallback ≤ tier if none). Powers the Mech/neutral "get a random X minion".
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterExactTier?: boolean; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
@@ -408,7 +418,7 @@ export type QuestReward =
   | { kind: 'endOfTurnRepeat' }
   // A run-wide recurring End-of-Turn EFFECT granted by a quest: re-fire your leftmost Shout (Echoing Roar), or
   // conjure a random Shout minion to hand (The Hoard Wakes). Applied every End of Turn for the rest of the run.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' }
   // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
   | { kind: 'gainGold'; amount: number }
   // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks
@@ -417,11 +427,15 @@ export type QuestReward =
   | { kind: 'echoRepeat'; scope: 'always' | 'firstEachCombat' }
   // The Bone Throne: every `every` friendly deaths in combat, trigger your leftmost Echo (permanent).
   | { kind: 'boneThrone'; every: number }
+  // Mech/neutral Rally rewards: `always` = a permanent extra Rally trigger (Infinite Assembly, stacks like
+  // Law of Teeth); `firstEachCombat` = the FIRST Rally you trigger each combat fires an extra time (Spark
+  // Permit / Overclocked Core, additive with itself + `always`).
+  | { kind: 'rallyRepeat'; scope: 'always' | 'firstEachCombat' }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
-export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt';
+export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -445,6 +459,14 @@ export interface QuestCombatMods {
   echoFirstEachCombat?: number;
   /** The Bone Throne: >0 arms it — every this-many friendly deaths in combat, trigger your leftmost Echo. */
   boneThroneStep?: number;
+  /** Infinite Assembly: every Rally (on-attack) trigger fires this many extra times (stacks with Law of Teeth +
+   *  Rallying Offensive + Spark Permit — all additive). */
+  rallyExtraAlways?: number;
+  /** Spark Permit / Overclocked Core: the FIRST Rally you trigger each combat fires this many extra times (on
+   *  top of `rallyExtraAlways` for that first Rally). Additive across both quests. */
+  rallyFirstEachCombat?: number;
+  /** Shared Circuit: >0 arms it — at Start of Combat, give this many friendly Mechs a Divine Shield (Ward). */
+  sharedCircuitWard?: number;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -648,6 +670,9 @@ export interface CombatResult {
    *  Undead `friendlyDeath` quest objective. Unlike `playerDeathrattles` this does NOT scale with echo doublers.
    *  Optional for back-compat with hand-built test fixtures (missing → 0). */
   playerDeaths?: number;
+  /** Player Rally (on-attack) triggers this combat, incl. doubler re-fires (Law of Teeth / Rallying Offensive /
+   *  Infinite Assembly / Spark Permit) — feeds the `rally` quest objective. Optional (missing → 0). */
+  playerRallies?: number;
   /** cardIds of the player minions still ALIVE at combat end — Gravetwin reads this to fire its copied Echo next
    *  shop only when it survived. Absent when nothing survived. */
   playerSurvivorCardIds?: string[];
@@ -672,7 +697,7 @@ export interface CombatResult {
   /** Step-tagged timeline of combat quest-objective ticks (one per increment) so the UI can LIVE-TICK quest
    *  progress during the replay: an entry with `step` ≤ the replay's current step is already counted. `tribes`
    *  narrows tribe-scoped objectives ("…with Beasts"); deathrattle (Echo) entries carry no tribe. */
-  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath'; tribes: Tribe[] }[];
+  playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath' | 'rally'; tribes: Tribe[] }[];
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
   /** Per-instance state to persist on the run board after combat, keyed by the board

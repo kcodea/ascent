@@ -189,9 +189,14 @@ look because the engine already produces the data.
   which scale); additive echo doublers folded through `playerEchoExtras` (Sylus + `echoExtraAlways` + `echoFirstEachCombat`);
   The Bone Throne's every-N-deaths trigger; `gainGold`/`echoRepeat`/`boneThrone` rewards; **repeatable quests**
   (`QuestDef.repeatable`); and reward cards Bone Taxer / Ossuary Rite / Gravetwin / Crypt Broker. Art NOT wired yet.
-- **Remaining:** author **Mech + Demon + neutral** quests; retire the surviving `Test ·` quests; wire Undead
-  reward-card + quest art; and a **balance/curve retune** (quests are pure power-add → the enemy curve / Line +
-  committed opponent pool want a pass). **Size:** ongoing (content) + M (balance).
+- **✅ Mech tribe + neutral keyword quests (session 26, → devlog):** 6 Mech quests (Attachment + Rally engine) + 3
+  neutral Rally quests + 4 reward cards. Adds the `rally` (Rally-trigger, additive doublers via `playerRallyExtras`)
+  + `playAttachment` objectives, `sell` tribe filter, `grant.randomFilter` (random Shout/Echo/Rally/… minion),
+  `rallyRepeat` / `sharedCircuit` / `grantRandomAttachments` rewards. **Re-tribed** all keyword-triggered quests
+  (Shout/Echo/Rally/EoT) to `neutral` and retired the 6 `Test ·` placeholders.
+- **Remaining:** author **Demon** quests (last tribe on `Test ·`); **spec Patch Kit's** real body (invented
+  placeholder); wire Undead + Mech reward-card + quest art; and a **balance/curve retune** (quests are pure power-add
+  → the enemy curve / Line + committed opponent pool want a pass). **Size:** ongoing (content) + M (balance).
 
 ### C2. Mastery Minions
 - Normal shop minions that **improve through repeated actions** (not scheduled, not quests) — find, nurture,

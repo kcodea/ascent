@@ -396,12 +396,18 @@ export interface RunState {
   echoExtraAlways?: number;
   echoFirstEachCombat?: number;
   boneThroneStep?: number;
+  /** Mech/neutral Rally rewards (fold into QuestCombatMods). `rallyExtraAlways` = permanent extra Rally triggers
+   *  (Infinite Assembly). `rallyFirstEachCombat` = extra fires for the first Rally each combat (Spark Permit /
+   *  Overclocked Core, additive). `sharedCircuitWard` = Shared Circuit's SoC Ward count. */
+  rallyExtraAlways?: number;
+  rallyFirstEachCombat?: number;
+  sharedCircuitWard?: number;
   /** Transient: cardIds of the player minions that survived the LAST combat (from CombatResult). Read at the
    *  next shop start to fire a surviving Gravetwin's copied Echo. Reset each wave. */
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments')[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted

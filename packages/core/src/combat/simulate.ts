@@ -202,6 +202,10 @@ export function simulate(
   // Grave Contract / Last Rites: their "first Echo each combat fires extra" bonus is a one-shot per fight —
   // this flips true the first time a player Echo actually triggers so the bonus is spent exactly once.
   let firstPlayerEchoDone = false;
+  // Player Rally (on-attack) triggers this combat — the `rally` quest objective. `firstPlayerRallyDone` gates
+  // Spark Permit / Overclocked Core's "first Rally each combat" bonus (spent once per fight).
+  let playerRallies = 0;
+  let firstPlayerRallyDone = false;
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
   let enemyDeaths = 0;
@@ -226,7 +230,7 @@ export function simulate(
   // objective increment. `tribes` lets the panel narrow ("…with Beasts"); an entry with step ≤ the replay's
   // current step is "already counted". Deathrattle (Echo) entries carry no tribe (the Echo objective is
   // tribe-agnostic). Carried back via `CombatResult.playerQuestEvents`.
-  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath'; tribes: Tribe[] }[] = [];
+  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'deathrattle' | 'friendlyDeath' | 'rally'; tribes: Tribe[] }[] = [];
   const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {
     const tribes = tribesFor(m);
     questTally[kind] += 1;
@@ -239,6 +243,13 @@ export function simulate(
     if (n <= 0) return;
     playerDeathrattles += n;
     for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'deathrattle', tribes: [] });
+  };
+  // Player Rally (on-attack) triggers — the `rally` objective + live-tick timeline. Each fire (base + doubler
+  // re-fires) counts one Rally trigger, matching the Shout/Echo convention.
+  const bumpRally = (n: number): void => {
+    if (n <= 0) return;
+    playerRallies += n;
+    for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'rally', tribes: [] });
   };
   const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe;
 
@@ -615,6 +626,20 @@ export function simulate(
     return bonus;
   }
 
+  // How many EXTRA times a player minion's Rally (on-attack effects) fires beyond the base trigger — every
+  // Rally doubler folded in ADDITIVELY: Law of Teeth (Beast RL) + Rallying Offensive (`playerRallyDouble`) +
+  // Infinite Assembly (`rallyExtraAlways`) + Spark Permit / Overclocked Core (`rallyFirstEachCombat`, the FIRST
+  // player Rally of the fight only). Consumes the first-rally bonus once; call only for a player RL attacker.
+  function playerRallyExtras(attacker: Minion): number {
+    let extra = 0;
+    if (questMods.lawOfTeeth && isBeast(attacker)) extra += 1;
+    if (playerRallyDouble) extra += 1;
+    extra += questMods.rallyExtraAlways ?? 0;
+    const first = questMods.rallyFirstEachCombat ?? 0;
+    if (first > 0 && !firstPlayerRallyDone) { extra += first; firstPlayerRallyDone = true; }
+    return extra;
+  }
+
   function fireOwnDeathrattles(minion: Minion): void {
     const fireOnce = (): void => {
       for (const effect of minion.effects) {
@@ -858,22 +883,20 @@ export function simulate(
           beastBuyAtkGain += oldHuntStep;
           for (const m of boards.player) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, oldHuntStep, 0, 'The Old Hunt');
         }
-        // Law of Teeth: a Beast's Rally triggers one extra time — re-run only THIS attacker's own on-attack
-        // effects once more (direct call, not via the bus, so other minions' Rallies don't double-fire).
-        if (questMods.lawOfTeeth && attacker.keywords.includes('RL') && isBeast(attacker) && !attacker.dead && attacker.health > 0) {
-          for (const effect of attacker.effects) {
-            if (effect.on !== 'onAttack') continue;
-            FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side });
+        // A player Rally (RL minion attacking) is a quest TRIGGER — count the base fire (the bus.emit above),
+        // then re-run this attacker's OWN on-attack effects once per additive doubler (Law of Teeth / Rallying
+        // Offensive / Infinite Assembly / Spark Permit — see playerRallyExtras). Direct calls, not via the bus,
+        // so other minions' on-attack watchers (Raptor, Crypt Drake, Taragosa…) don't double-fire. Per swing.
+        if (attacker.keywords.includes('RL') && !attacker.dead && attacker.health > 0) {
+          bumpRally(1);
+          const extras = playerRallyExtras(attacker);
+          for (let r = 0; r < extras && !attacker.dead && attacker.health > 0; r++) {
+            for (const effect of attacker.effects) {
+              if (effect.on !== 'onAttack') continue;
+              FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side });
+            }
           }
-        }
-      }
-      // Rallying Offensive ("your Rallys trigger twice next combat"): re-run only THIS attacker's OWN
-      // on-attack (Rally) effects one more time — invoked directly, not via the bus, so other minions'
-      // on-attack watchers (Raptor, Crypt Drake, Taragosa…) don't double-fire. Player-side, RL only, per swing.
-      if (playerRallyDouble && attacker.side === 'player' && attacker.keywords.includes('RL') && !attacker.dead && attacker.health > 0) {
-        for (const effect of attacker.effects) {
-          if (effect.on !== 'onAttack') continue;
-          FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side });
+          bumpRally(extras);
         }
       }
       // Better Bot (Rally): each time this attacks — once per swing, so a Windfury body rallies TWICE if it
@@ -1057,6 +1080,21 @@ export function simulate(
       }
     }
   }
+  // Shared Circuit: at Start of Combat, give up to N friendly Mechs (leftmost first, skipping any already
+  // shielded) a Divine Shield (Ward). Mirrors the shield-grant used elsewhere (divineShield + DS + shieldUp).
+  if ((questMods.sharedCircuitWard ?? 0) > 0) {
+    let left = questMods.sharedCircuitWard!;
+    for (const m of boards.player) {
+      if (left <= 0) break;
+      if (m.dead || m.health <= 0 || m.divineShield) continue;
+      if (m.tribe !== 'mech' && m.tribe2 !== 'mech') continue;
+      nextStep();
+      m.divineShield = true;
+      if (!m.keywords.includes('DS')) m.keywords.push('DS');
+      emit({ type: 'shieldUp', target: m.uid });
+      left--;
+    }
+  }
   // Echoing Coop: trigger every one of your minions' Echoes (Deathrattles) once at Start of Combat — without
   // killing the body. Routes through `fireOwnDeathrattles`, so **Sylus the Reaper doubles them** just like a
   // real death (owner ruling 2026-07-08). Fires after the normal Start-of-Combat casts so summons/buffs see the
@@ -1193,6 +1231,7 @@ export function simulate(
     result,
     playerDamage,
     playerDeathrattles,
+    playerRallies: playerRallies > 0 ? playerRallies : undefined,
     playerDeaths: deaths.player,
     playerSurvivorCardIds: (() => {
       const alive = boards.player.filter((m) => !m.dead && m.health > 0).map((m) => m.cardId);

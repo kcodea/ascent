@@ -814,6 +814,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.embers += num(params.amount, 6) * gold(self);
   },
 
+  /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard
+   *  bonus-Gold channel so it survives the per-turn embers reset. */
+  endOfTurnBonusGold: (ctx, self, params) => {
+    ctx.state.bonusEmbersNextTurn = (ctx.state.bonusEmbersNextTurn ?? 0) + num(params.amount, 1) * gold(self);
+  },
+
   /** Skybound Archivist — End of Turn: your WEAKEST Dragon gains stats = `pct`% of your STRONGEST Dragon's stats
    *  (golden doubles the pct). Weakest/strongest by Attack+Health; needs ≥2 distinct Dragons. */
   endOfTurnBuffWeakestDragon: (ctx, self, params) => {
@@ -919,7 +925,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const proc = num(payload.proc, 0);
     // The build's Magnetic Mechs (Cling, Money Bot, Better Bot…), sorted by id so the pick is deterministic.
     const magnetics = Object.values(CARD_INDEX)
-      .filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M'))
+      .filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell)
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     if (magnetics.length === 0) return;
     // Roll the magnetic mech on a distinct stream (the trailing tag separates it from the host shuffle).
@@ -2560,11 +2566,13 @@ export function applyEndOfTurn(state: RunState): void {
 
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
- *  hand (The Hoard Wakes). */
-function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout'): void {
+ *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache). */
+function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments'): void {
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) replayBattlecry(state, leftmost);
+  } else if (effect === 'grantRandomAttachments') {
+    conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else {
     conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && hasBattlecry(c)), 1);
   }

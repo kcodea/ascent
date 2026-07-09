@@ -97,7 +97,7 @@ export function magnetizesTo(magneticCardId: string, targetCardId: string): bool
 /** Recruit actions a quest objective can watch → the objective event they count. `buyQuest` is deliberately
  *  absent (buying a quest isn't a "buy" objective). */
 const QUEST_TICK_EVENTS: Partial<Record<Action['type'], QuestObjectiveEvent>> = {
-  play: 'play', sell: 'sell', roll: 'roll', // `buy` is handled separately (tribe-narrowed for "Buy N Beasts")
+  play: 'play', roll: 'roll', // `buy` + `sell` are handled separately (tribe-narrowed: "Buy N Beasts" / "Sell N Mechs")
 };
 
 export function reduce(state: RunState, action: Action): RunState {
@@ -149,6 +149,14 @@ export function reduce(state: RunState, action: Action): RunState {
     //    a play that immediately completes a triple counts as its NET board delta (the golden), not three.
     const questEvent = QUEST_TICK_EVENTS[action.type];
     if (questEvent) advanceQuests(next, (o) => o.event === questEvent);
+    // Sell narrowed by the SOLD minion's tribe (Scrap Contract: "Sell 3 Mechs"); an untribed sell objective
+    // (Grave Robber / Feed the Alpha) still ticks on any sell. The card is gone from `next` — read it from `state`.
+    if (action.type === 'sell') {
+      const soldCard = state.board.find((c) => c.uid === action.uid) ?? state.hand.find((c) => c.uid === action.uid);
+      const sdef = soldCard ? CARD_INDEX[soldCard.cardId] : undefined;
+      const stribes = sdef ? ([sdef.tribe, sdef.tribe2].filter(Boolean) as Tribe[]) : [];
+      advanceQuests(next, (o) => o.event === 'sell' && (!o.tribe || stribes.includes(o.tribe)));
+    }
     if (action.type === 'buy') {
       // "Buy N <tribe>" (Forager's Trail) / "Buy N Shout minions" (Warm Embers): narrow the buy tick to the
       // bought minion's tribe (dual-types count) and/or `filter: 'shout'` (has a Battlecry). Resolved from the
@@ -165,6 +173,9 @@ export function reduce(state: RunState, action: Action): RunState {
     if (action.type === 'play') {
       const played = state.hand.find((c) => c.uid === action.uid);
       const pdef = played ? CARD_INDEX[played.cardId] : undefined;
+      // Play an Attachment (a Magnetic minion — whether it welds onto a Mech or stands alone): "Play N
+      // Attachments" (Perfect Machine / Blueprint Cache / Shared Circuit).
+      if (pdef?.keywords.includes('M')) advanceQuests(next, (o) => o.event === 'playAttachment');
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
       if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast')) {
         for (const c of next.board) {
@@ -1420,6 +1431,28 @@ function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number): void {
   conjureToHand(s, pool, reps);
 }
 
+/** Whether a card matches a reward's minion "class" filter (a Shout=Battlecry, an End-of-Turn, an Echo=Deathrattle,
+ *  a Rally=RL keyword, or an Attachment=Magnetic). Shared by the filtered grant + the recurring-attachment EoT. */
+function matchesFilter(c: (typeof BUYABLE_CARDS)[number], filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'): boolean {
+  switch (filter) {
+    case 'shout': return hasBattlecry(c);
+    case 'endOfTurn': return c.effects.some((e) => e.on === 'endOfTurn');
+    case 'echo': return c.effects.some((e) => e.on === 'onDeath');
+    case 'rally': return c.keywords.includes('RL');
+    case 'attachment': return c.keywords.includes('M');
+  }
+}
+
+/** Conjure `reps` random buyable minions matching a class filter into the hand. `exactTier` restricts to the
+ *  CURRENT tavern tier (fallback ≤ tier if none there); otherwise ≤ current tier. Powers the "get a random
+ *  Shout / End-of-Turn / Echo / Rally / Attachment minion" rewards. */
+function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment', reps: number, exactTier = false): void {
+  const base = BUYABLE_CARDS.filter((c) => matchesFilter(c, filter));
+  let pool = base.filter((c) => (exactTier ? c.tier === s.tier : c.tier <= s.tier));
+  if (pool.length === 0) pool = base.filter((c) => c.tier <= s.tier); // exact-tier gap → fall back to ≤ tier
+  conjureToHand(s, pool, reps);
+}
+
 /**
  * Apply a completed quest's reward. `allowRepeat` gates the delayed re-grant so the repeat fire itself doesn't
  * schedule another (Trail Rations). Keep in lockstep with the `QuestReward` union in @game/core:
@@ -1437,6 +1470,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'grant':
       if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!);
       if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!); // Hoard Spark's random spell
+      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, 1, r.randomFilterExactTier); // "a random Shout/Echo/Rally/… minion"
       for (const id of r.cards ?? []) {
         const before = s.hand.length;
         conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
@@ -1467,9 +1501,10 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       (s.questRecurringGrants ??= []).push(...r.cards);
       break;
     case 'combatFlag':
-      // Blood Trail / Echoing Coop / Law of Teeth / The Old Hunt: arm the run-wide combat modifier.
+      // Blood Trail / Echoing Coop / Law of Teeth / The Old Hunt / Shared Circuit: arm the run-wide combat mod.
       s.questFlags ??= {};
       if (r.flag === 'oldHunt') s.questFlags.oldHunt = r.amount ?? 0;
+      else if (r.flag === 'sharedCircuit') s.sharedCircuitWard = r.amount ?? 0; // amount = Mechs warded at SoC
       else s.questFlags[r.flag] = true;
       break;
     case 'shoutRepeat':
@@ -1501,6 +1536,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // The Bone Throne: every `every` friendly deaths in combat, trigger your leftmost Echo (permanent).
       s.boneThroneStep = r.every;
       break;
+    case 'rallyRepeat':
+      // Infinite Assembly (always) → +1 permanent Rally trigger; Spark Permit / Overclocked Core
+      // (firstEachCombat) → the first Rally each combat fires one extra time (additive across both).
+      if (r.scope === 'always') s.rallyExtraAlways = (s.rallyExtraAlways ?? 0) + 1;
+      else s.rallyFirstEachCombat = (s.rallyFirstEachCombat ?? 0) + 1;
+      break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
       for (const sub of r.rewards) applyQuestReward(s, { ...def, reward: sub }, allowRepeat);
@@ -1530,6 +1571,7 @@ function grantTribeAura(s: RunState, tribe: Tribe, attack: number, health: numbe
 function combatEventCount(result: CombatResult, o: { event: QuestObjectiveEvent; tribe?: Tribe }): number {
   if (o.event === 'deathrattle') return result.playerDeathrattles;
   if (o.event === 'friendlyDeath') return result.playerDeaths ?? 0;
+  if (o.event === 'rally') return result.playerRallies ?? 0;
   const t = result.playerQuestTally;
   if (!t) return 0;
   if (o.event === 'attack') return o.tribe ? (t.attackByTribe[o.tribe] ?? 0) : t.attack;
@@ -1579,6 +1621,9 @@ function questCombatMods(s: RunState): QuestCombatMods {
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,
     boneThroneStep: s.boneThroneStep || undefined,
+    rallyExtraAlways: s.rallyExtraAlways || undefined,
+    rallyFirstEachCombat: s.rallyFirstEachCombat || undefined,
+    sharedCircuitWard: s.sharedCircuitWard || undefined,
   };
 }
 

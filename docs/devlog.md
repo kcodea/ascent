@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### feat(ui): auto-derive card-reference hover previews (full pass)
+
+The recruit board/shop/hand hover-preview of referenced cards was driven by a hand-maintained map of ~7 cards, so
+a card like **Spark Capacitor** ("Avenge (4): add a Spark Plug to your hand") showed no preview of Spark Plug.
+New `referencedCardIds(card)` in `@game/content` derives every card a card names in its effects — summoned
+tokens (`tokenId`), granted/transformed cards (`avengeGrantSpell` / `spellCastTransform` /
+`deathrattleGrantCardToHand` / …), and the `ascendInto` target — reusing the SAME ref-param map the card
+validator already checks, so they can't drift. `refViewsByUid` now merges the manual map (Fodder/Imp cards whose
+references aren't effect params, e.g. Feed *consumes* Fodder) with the auto-derived set, so any card that mentions
+another surfaces it on hover. Verified: typecheck + lint + **748 tests** (new: Spark Capacitor → Spark Plug, and
+every card's derived refs resolve to a real card and never include itself) + `build:web`, all green.
+
 ### chore(art): refresh art from masters + optimize the remaining PNG minions to WebP
 
 Re-ran the art pipeline against the current masters (`C:\Game Assets\Ascent Art`) to make the in-repo art

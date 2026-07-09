@@ -46,6 +46,8 @@ let lastShieldBreak = 0;
 /** Timestamps (ms) of the last reborn shatter / summon sounds — dedupe simultaneous reborns on a beat. */
 let lastRebornShatter = 0;
 let lastRebornSummon = 0;
+/** Timestamp (ms) of the last Deathrattle skull-burst sound — dedupes simultaneous shatters on a beat. */
+let lastSkullBurst = 0;
 
 // A master limiter every sound routes through, so overlapping clips (landing + voiceline + summon, etc.)
 // can never sum past full scale and hard-clip the output. Configured limiter-style: catch anything above the
@@ -195,6 +197,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   divineshieldbreak: 0.26,
   rebornshatter: 0.5,
   rebornsummon: 0.5,
+  skullburst: 0.5,
   inspect: 0.5,
   upgrade: 0.39,
   roll: 0.69,
@@ -371,6 +374,17 @@ export const sfx = {
     if (playSample('rebornsummon', sampleVol.rebornsummon)) return;
     tone({ freq: 300, dur: 0.26, type: 'sine', vol: 0.12, slideTo: 620 });
   },
+  // A Deathrattle skull SHATTERS into bone (the pixiFx.deathrattle burst) — the sourced "skullburst" clip;
+  // synth magic-burst fallback until it decodes. DEDUPED: several Deathrattle units can burst near-together,
+  // so a short throttle collapses simultaneous shatters into one play.
+  skullBurst: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastSkullBurst < 60) return;
+    lastSkullBurst = now;
+    if (playSample('skullburst', sampleVol.skullburst)) return;
+    tone({ freq: 900, dur: 0.18, type: 'sawtooth', vol: 0.12, slideTo: 200 });
+    tone({ freq: 1400, dur: 0.14, type: 'triangle', vol: 0.07, delay: 0.02, slideTo: 500 });
+  },
   temper: () => {
     tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1 });
     tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04 });
@@ -416,7 +430,7 @@ export const sfx = {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
-  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {

@@ -46,6 +46,7 @@ describe('holdMs — reproduces the legacy scheduler numbers for non-attack tran
     expect(holdMs(M('summon'), M('dmg'), 1)).toBeCloseTo(cfg.overlapMs, 5);
     expect(holdMs(M('reborn'), M('summon'), 1)).toBeCloseTo(cfg.overlapMs, 5);
     expect(holdMs(M('reborn'), M('summon'), 2)).toBeCloseTo(cfg.overlapMs / 2, 5);
+    expect(holdMs(M('improve'), M('death'), 1)).toBeCloseTo(cfg.overlapMs, 5); // Kennelmaster's Avenge aura bump
     // No beat on screen (the very first beat) → no overlap; the normal linger applies.
     expect(holdMs(M('summon'), undefined, 1)).toBeCloseTo(beatDelay('summon') * cfg.speed, 5);
   });

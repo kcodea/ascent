@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Compendium: Quest Rewards category + exclusive Spells/Quests filtering.** The codex now has a **Quest Rewards**
+  section listing all 24 cards a completed quest grants (the reward-only tokens plus Badgington / Money Bot). Spells
+  and Quest Rewards are now **exclusive** filters — selecting either shows only that pool, and neither leaks into a
+  tribe (minion) search unless the player toggles it on.
 - **Rulebreaker neutral quests.** A 13-quest batch of economy / spell / rule-bending neutral quests (+ Chimerus for
   Dragons). Adds the `winRound` / `castSpell` / compound `authorsHand` objectives and rule-bending rewards — Dupes
   (copy your first buy each turn), Merchant's Mark (2g minions), Ancient Runes (spells cast twice), Rulebreaker's

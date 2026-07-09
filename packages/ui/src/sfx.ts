@@ -197,7 +197,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   divineshieldbreak: 0.26,
   rebornshatter: 0.5,
   rebornsummon: 0.5,
-  skullburst: 0.4, // owner-tuned (dialed down from the earlier 4× boost)
+  skullburst: 0.04, // owner-tuned (dialed well down — the shatter reads without dominating)
   inspect: 0.5,
   upgrade: 0.39,
   roll: 0.69,

@@ -3,6 +3,28 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-08 (session 27)
+
+### feat(ui): Deathrattle bone-skull shatter FX
+
+When a unit with a Deathrattle (`onDeath` effect) dies in combat, a painted bone skull-and-crossbones pops up
+over it with an elastic overshoot, then **explodes** — the skull image grid-shatters into bone fragments
+(gravity + spin), sharp bone splinters scatter, a hot flash punches the moment, and smoke blooms up through
+it. The dying card **fades in place** (no `dyingpop` bounce) under the burst.
+
+- **Art:** `apps/web/public/fx/skull-crossbones.png` (owner-supplied painted skull on black). `pixiFx.loadSkull()`
+  loads it once, keys the black → alpha (suppressing the faint purple rim), crops to the content bbox, and
+  grid-slices (`DR_GRID` = 8) into fragment sub-textures + their offsets from center.
+- **`pixiFx.deathrattle(x, y, size)`** (`packages/ui/src/pixiFx.ts`) — self-contained on the FX ticker: a
+  `SkullPop` runs the elastic pop (+ a wind-up jiggle) then `burstSkull` fans out fragment / splinter / smoke /
+  flash particles through the existing spawner. Feel baked as `DR_*` constants (skull scale 1.5, pop 0.45,
+  spread 1.85, splinters 0.95, smoke 0.75), tuned by eye in a throwaway canvas preview — no live tuner by design.
+- **Wiring** (`useCombatReplay.ts`) — UI-side detection only, **no engine change**: a real (non-Rise) death whose
+  card has an `onDeath` effect fires `pixiFx.deathrattle` at the unit's rect (both sides) and gets a `dying dr`
+  class so the card fades in place (`.unit.dying.dr .card` reuses the Rise `dyingfade`, styles.css).
+- **Verified:** typecheck / lint / 722 tests / build green. Live visual verification is the owner's — the FX
+  needs a focused tab (the degenerate preview pane can't decode the texture or run rAF).
+
 ## 2026-07-08 (session 26)
 
 ### feat(ui): corner-clack contact + distance-scaled lunge (combat feel)

@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
+import { Application, Container, Graphics, Mesh, MeshGeometry, Rectangle, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
 import { getTauntConfig } from './tauntConfig';
 import { getSmokeConfig } from './smokeConfig';
 import { getTrailConfig } from './trailConfig';
@@ -338,6 +338,19 @@ interface Particle {
   stretchX: number;  // X-axis scale multiplier (1 = uniform) — elongates streak wisps along their heading
 }
 
+/** A live Deathrattle skull "pop" — the whole bone skull-and-crossbones scaling in with an elastic
+ *  overshoot; when its pop+hold elapses it BURSTS into fragment/splinter/smoke particles (see `burstSkull`). */
+interface SkullPop { sprite: Sprite; x: number; y: number; scale: number; age: number; }
+
+// Deathrattle skull-shatter feel — baked from the DEV preview (apps/web/public/fx/skull-shatter-preview.html);
+// tune these constants directly (no live tuner, by design).
+const DR_SKULL_SCALE = 1.5; // skull display width ÷ the dying unit's card width
+const DR_POP = 0.45;        // pop bounce + duration
+const DR_SPREAD = 1.85;     // how far fragments + splinters fly
+const DR_SPLINTERS = 0.95;  // bone-splinter count multiplier
+const DR_SMOKE = 0.75;      // smoke plume amount
+const DR_GRID = 8;          // shatter fragment grid (cells per axis)
+
 /**
  * A persistent divine-shield bubble bound to one unit (by uid). Unlike particles (fire-and-forget),
  * it lives until the shield breaks or is cleared, breathing on the ticker and tracking the unit's
@@ -401,6 +414,11 @@ class FxController {
   private pulseTex: Texture | null = null;      // thin bright ring — the combat impact energy pulse
   private veinTex: Texture | null = null;       // thin streak — shield energy vein
   private wispTex: Texture | null = null;
+  private skullTex: Texture | null = null;         // the alpha-keyed bone skull-and-crossbones (Deathrattle FX)
+  private skullSrcW = 1;
+  private skullSrcH = 1;
+  private skullFrags: { tex: Texture; dx: number; dy: number }[] = []; // grid sub-textures + px offset from center
+  private readonly skullPops: SkullPop[] = [];
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
   private shieldApp: Application | null = null;  // OPTIONAL 2nd canvas for the persistent bubbles, mounted at a
   private underParent: HTMLElement | null = null; // low z (below the card badges) so the chrome reads on top; the
@@ -492,6 +510,7 @@ class FxController {
     this.pulseTex = this.makePulseRingTexture(app);
     this.veinTex = this.makeVeinTexture(app);
     this.wispTex = this.makeWispTexture(app);
+    void this.loadSkull(); // async: the Deathrattle bone skull, alpha-keyed + grid-sliced for the shatter
     app.ticker.add(this.update);
     this.ready = true;
   }
@@ -502,6 +521,12 @@ class FxController {
     for (const p of this.live) p.sprite.destroy();
     this.live.length = 0;
     this.pool.length = 0;
+    for (const s of this.skullPops) s.sprite.destroy();
+    this.skullPops.length = 0;
+    for (const f of this.skullFrags) f.tex.destroy();
+    this.skullFrags.length = 0;
+    this.skullTex?.destroy(true);
+    this.skullTex = null;
     for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
     this.shields.clear();
     this.shieldGeo?.destroy();
@@ -1305,6 +1330,116 @@ class FxController {
   }
 
   /** Pull a sprite from the pool (or make one), configure it as a live particle. */
+  /** Load + alpha-key the painted skull-and-crossbones (`/fx/skull-crossbones.png`, drawn on black) into a
+   *  tight texture + a grid of fragment sub-textures for the Deathrattle shatter. Fire-and-forget from init;
+   *  a `deathrattle()` before it resolves simply no-ops. */
+  private async loadSkull(): Promise<void> {
+    if (typeof document === 'undefined') return;
+    try {
+      const img = new Image();
+      img.src = '/fx/skull-crossbones.png';
+      await new Promise<void>((resolve, reject) => {
+        if (img.complete && img.naturalWidth) return resolve();
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('skull image failed to load'));
+      });
+      const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
+      const g = c.getContext('2d'); if (!g) return;
+      g.drawImage(img, 0, 0, S, S);
+      const d = g.getImageData(0, 0, S, S), p = d.data;
+      let minX = S, minY = S, maxX = 0, maxY = 0;
+      for (let i = 0; i < S * S; i++) {
+        const r = p[i * 4]!, gg = p[i * 4 + 1]!, b = p[i * 4 + 2]!, m = Math.max(r, gg, b);
+        let a = Math.max(0, Math.min(1, (m - 14) / 46));   // key the black background → alpha
+        if (b > r && m < 80) a *= 0.3;                      // suppress the faint purple rim glow
+        p[i * 4 + 3] = a * 255;
+        if (a > 0.5) { const px = i % S, py = (i / S) | 0; if (px < minX) minX = px; if (px > maxX) maxX = px; if (py < minY) minY = py; if (py > maxY) maxY = py; }
+      }
+      g.putImageData(d, 0, 0);
+      // crop to the content bounding box (small pad) → a tight skull, so display sizing tracks the visible art
+      const pad = 6, bx = Math.max(0, minX - pad), by = Math.max(0, minY - pad);
+      const bw = Math.min(S, maxX + pad) - bx, bh = Math.min(S, maxY + pad) - by;
+      if (bw <= 0 || bh <= 0) return;
+      const tight = document.createElement('canvas'); tight.width = bw; tight.height = bh;
+      const tg = tight.getContext('2d'); if (!tg) return;
+      tg.drawImage(c, bx, by, bw, bh, 0, 0, bw, bh);
+      const base = Texture.from(tight);
+      this.skullTex = base; this.skullSrcW = bw; this.skullSrcH = bh;
+      // grid-slice into fragment sub-textures (only cells that carry ink), each with its offset from center
+      const G = DR_GRID, cw = bw / G, ch = bh / G, td = tg.getImageData(0, 0, bw, bh).data;
+      this.skullFrags = [];
+      for (let cy = 0; cy < G; cy++) for (let cx = 0; cx < G; cx++) {
+        let ink = 0;
+        for (let y = cy * ch | 0; y < (cy + 1) * ch && y < bh; y += 3) for (let x = cx * cw | 0; x < (cx + 1) * cw && x < bw; x += 3) if (td[((y * bw) + x) * 4 + 3]! > 60) ink++;
+        if (ink < 3) continue;
+        const fx = cx * cw, fy = cy * ch, fw = Math.min(cw, bw - fx), fh = Math.min(ch, bh - fy);
+        const tex = new Texture({ source: base.source, frame: new Rectangle(fx, fy, fw, fh) });
+        this.skullFrags.push({ tex, dx: fx + fw / 2 - bw / 2, dy: fy + fh / 2 - bh / 2 });
+      }
+    } catch (e) {
+      console.error('[pixiFx] skull load failed — Deathrattle FX disabled:', e);
+    }
+  }
+
+  /** Deathrattle death FX: a painted bone skull-and-crossbones pops up over the dying unit, then EXPLODES —
+   *  the skull image shatters into bone fragments (gravity + spin), splinters scatter, and smoke blooms.
+   *  `(x, y)` = the unit's viewport center; `size` ≈ its card width. No-op until the skull texture loads. */
+  deathrattle(x: number, y: number, size: number): void {
+    if (!this.ready || !this.skullTex || !this.layer) return;
+    const scale = (size * DR_SKULL_SCALE) / this.skullSrcW; // maps the tight skull texture → display px
+    const sprite = this.pool.pop() ?? new Sprite();
+    sprite.texture = this.skullTex;
+    sprite.anchor.set(0.5);
+    sprite.blendMode = 'normal';
+    sprite.tint = 0xffffff;
+    sprite.alpha = 1;
+    sprite.x = x; sprite.y = y;
+    sprite.scale.set(0.001);
+    sprite.visible = true;
+    this.layer.addChild(sprite);
+    this.skullPops.push({ sprite, x, y, scale, age: 0 });
+  }
+
+  /** Fire the shatter at the end of a skull's pop: grid fragments flung with gravity/spin, bone splinters,
+   *  a smoke bloom, and a hot flash — all on the fire-and-forget particle system. */
+  private burstSkull(s: SkullPop): void {
+    const { x, y, scale } = s, disp = scale * this.skullSrcW;
+    // hot flash at the moment of the burst
+    this.spawn(this.glowTex!, { x, y, vx: 0, vy: 0, drag: 1, life: 180, fromScale: disp * 0.006, toScale: disp * 0.014, spin: 0, tint: 0xffe6b0, blend: 'add', peakAlpha: 0.7 });
+    // the skull image breaking into chunks
+    for (const f of this.skullFrags) {
+      const wx = x + f.dx * scale, wy = y + f.dy * scale, ddx = wx - x, ddy = wy - y, dl = Math.hypot(ddx, ddy) || 1;
+      const sp = (150 + Math.random() * 180) * DR_SPREAD;
+      this.spawn(f.tex, {
+        x: wx, y: wy, vx: ddx / dl * sp + (Math.random() - 0.5) * 80, vy: ddy / dl * sp - (90 + Math.random() * 100),
+        drag: 0.9, gravity: 1000, life: 820 + Math.random() * 560, fromScale: scale, toScale: scale,
+        spin: (Math.random() - 0.5) * 10, tint: 0xffffff, blend: 'normal', peakAlpha: 1,
+      });
+    }
+    // sharp bone splinters
+    const nspl = Math.round(15 * DR_SPLINTERS);
+    for (let i = 0; i < nspl; i++) {
+      const a = Math.random() * 6.28, sp = (280 + Math.random() * 280) * DR_SPREAD;
+      this.spawn(this.shardRectTex!, {
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 70, drag: 0.85, gravity: 1100, life: 620 + Math.random() * 540,
+        fromScale: 0.9 + Math.random() * 0.9, toScale: 0.1, spin: (Math.random() - 0.5) * 16, rotation: a,
+        tint: 0xece0c4, blend: 'normal', peakAlpha: 1,
+      });
+    }
+    // smoke bloom rising through it
+    const nsm = Math.round(28 * DR_SMOKE);
+    for (let i = 0; i < nsm; i++) {
+      const a = Math.random() * 6.28;
+      this.spawn(this.glowTex!, {
+        x: x + (Math.random() - 0.5) * disp * 0.5, y: y + (Math.random() - 0.5) * disp * 0.4,
+        vx: Math.cos(a) * 40 * Math.random(), vy: -(45 + Math.random() * 85), drag: 0.6, gravity: 0,
+        life: 840 + Math.random() * 660, fromScale: disp * 0.004 * (0.7 + Math.random() * 0.5),
+        toScale: disp * 0.011 * (0.7 + Math.random() * 0.6), spin: (Math.random() - 0.5) * 1.2,
+        tint: Math.random() < 0.5 ? 0x514741 : 0x6b6058, blend: 'normal', peakAlpha: 0.34 * (0.8 + Math.random() * 0.4),
+      });
+    }
+  }
+
   private spawn(
     tex: Texture,
     // `maxLife` is derived (spawn sets it to cfg.life) — omitting it here is what lets every call site skip it.
@@ -1363,6 +1498,26 @@ class FxController {
       const sc = p.fromScale + (p.toScale - p.fromScale) * t;
       s.scale.set(sc * p.stretchX, sc);
       s.alpha = p.peakAlpha * (1 - t * t); // ease-out fade from its peak (lingers, then drops)
+    }
+
+    // Deathrattle skulls: elastic pop-in (+ a tiny wind-up jiggle), then BURST into the shatter particles.
+    for (let i = this.skullPops.length - 1; i >= 0; i--) {
+      const sp = this.skullPops[i]!;
+      sp.age += dtMs;
+      const POP = 320 * (0.6 + 0.4 * DR_POP), HOLD = 130;
+      if (sp.age < POP + HOLD) {
+        const k = Math.min(1, sp.age / POP);
+        const e = k >= 1 ? 1 : Math.pow(2, -10 * k) * Math.sin((k - 0.075) * (2 * Math.PI / 0.32)) + 1; // elastic-out
+        const jig = sp.age > POP ? 1 + Math.sin((sp.age - POP) / HOLD * Math.PI) * 0.03 : 1;
+        sp.sprite.scale.set(sp.scale * (0.2 + 0.8 * e) * jig);
+        sp.sprite.y = sp.y - Math.min(1, sp.age / POP) * 12; // pops upward a touch
+      } else {
+        this.burstSkull(sp);
+        sp.sprite.visible = false;
+        this.layer?.removeChild(sp.sprite);
+        this.pool.push(sp.sprite);
+        this.skullPops.splice(i, 1);
+      }
     }
 
     // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.

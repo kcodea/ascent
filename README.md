@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Deathrattle bone-skull shatter FX.** When a unit with a Deathrattle dies, a painted bone skull-and-crossbones
+  pops up over it and **explodes** into flying bone fragments, splinters, and smoke, while the card fades in place.
+  UI-only (no engine change); art at `apps/web/public/fx/skull-crossbones.png`, effect in `pixiFx.deathrattle`.
 - **Corner-clack combat feel.** The attack lunge now lands as a physical corner strike: a pure
   `contactGeometry` helper stops the attacker at the defender's surface (no more center-overshoot), tilts it
   to lead with a corner and rebound, the defender counter-spins, and the impact spark fires from the actual

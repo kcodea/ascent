@@ -387,8 +387,14 @@ in the 3-of-N. Unwired threads: TitanHP power-master matches no hero; Nadja has 
 replay). Headless `npm run track` aggregator over persisted replays → per-minion offer/buy/play/sell +
 win-rate-when-present, per-hero/tribe rollups. Pairs naturally with A7's run-history store.
 
+**Per-mechanic combat FX (owner thread):** the first is shipped — the **Deathrattle bone-skull shatter**
+(`pixiFx.deathrattle`; a painted skull pops + explodes into bone fragments/splinters/smoke, card fades in
+place; session 27 → devlog). Same playbook for the rest: pick a mechanic, agree the look on a cheap preview,
+bake it as a `pixiFx` effect + wire the UI-side detection. Candidates: shield-break, poison/toxin kill,
+summon, big buff, Rally/Echo. (Divine Shield, Reborn, Taunt auras already done.)
+
 **FX / juice (M4, ongoing):** PixiJS WebGL effects layer is live (hit-impact, gold sprinkle, dust, trigger
-pulse, Discover burst, loss-damage blast, Taunt bulwark). Next candidates: death burst, Pixi SoC/Blaster
+pulse, Discover burst, loss-damage blast, Taunt bulwark, Deathrattle skull-shatter). Next candidates: Pixi SoC/Blaster
 projectiles (replace SVG bolts), Ward-break shimmer; mid-combat **ascension UI** (engine emits `ascend`
 already — fold into `useCombatReplay` + a level-up burst + SFX); Spirit Pup→Worgen mid-combat ascension;
 live Buffs window for the remaining run-buffs (Undead-attack/Fodder-Imp/Mama Bear/Guel tick only at settle).

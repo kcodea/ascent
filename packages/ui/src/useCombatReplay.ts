@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { pixiFx } from './pixiFx';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact } from './combatBeats';
@@ -566,8 +567,17 @@ export function useCombatReplay(
       const e = events[i];
       if (e?.type === 'death' && e.rise && e.target !== impactAtk) burstDeathAuras(e.target, rectOf(e.target));
     }
+    // Deathrattle skull-shatter: any dying unit whose card has an onDeath effect (a Deathrattle) — REAL deaths
+    // only (a Rise body returns, so no shatter). Fires the painted bone skull that pops + explodes over it.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (e?.type !== 'death' || e.rise) continue;
+      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
+      const r = rectOf(e.target);
+      if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
+    }
     return () => { timers.forEach((id) => window.clearTimeout(id)); stop(); };
-  }, [active, beatIdx, beats, events, findEl]);
+  }, [active, beatIdx, beats, events, findEl, cardIds]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
@@ -755,7 +765,13 @@ export function useCombatReplay(
         // styles.css) since its spirit bursts over it and the body re-forms in that same slot next beat.
         if (cls === 'dying') {
           const u = frame.player.find((x) => x.uid === uid) ?? frame.enemy.find((x) => x.uid === uid);
-          anims[uid] = u?.keywords.includes('R') ? (uid === impactAtk ? 'dying rising returning' : 'dying rising') : cls;
+          if (u?.keywords.includes('R')) {
+            anims[uid] = uid === impactAtk ? 'dying rising returning' : 'dying rising';
+          } else if (CARD_INDEX[cardIds.get(uid) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
+            anims[uid] = 'dying dr'; // Deathrattle: fade the card IN PLACE (no bounce) under the skull burst
+          } else {
+            anims[uid] = cls;
+          }
           continue;
         }
         anims[uid] = cls;

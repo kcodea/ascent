@@ -18,6 +18,14 @@ art updates that landed: **Cassen's portrait + hero-power art**. The reward-toke
 Broker, …) and the other un-optimized PNG minions are now WebP. Quest art was verified against the masters (no
 changes) and stays PNG — `optimize-art` doesn't process `art/quests/` (still ~89 MB; a WebP pass there is a
 worthwhile follow-up). Build loads all art (119 Compendium images, 0 broken).
+### tweak(ui): Deathrattle — less debris + louder burst SFX
+
+Owner tuning on the Deathrattle skull FX: fewer flying pieces on the explosion — `DR_GRID` 8 → **6** (fewer,
+chunkier fragments) and `DR_SPLINTERS` 0.95 → **0.45** (roughly half the bone splinters). And the burst sound
+is boosted — `skullburst` sample gain 0.5 → **4** (the source clip is quiet; the master limiter tames peaks).
+NB: the DEV SFX-mixer slider caps at 1.0, so `skullburst` reads pegged there — tune the constant, not the
+slider. typecheck green.
+
 ### tweak(ui): Deathrattle skull — smaller + always upright
 
 Owner feedback: `DR_SKULL_SCALE` 0.75 → **0.375** (halved again). Also fixed the skull popping at random

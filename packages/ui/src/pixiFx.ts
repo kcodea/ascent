@@ -348,9 +348,9 @@ interface SkullPop { sprite: Sprite; x: number; y: number; scale: number; age: n
 const DR_SKULL_SCALE = 0.375; // skull display width ÷ the dying unit's card width
 const DR_POP = 0.45;        // pop bounce + duration
 const DR_SPREAD = 1.85;     // how far fragments + splinters fly
-const DR_SPLINTERS = 0.95;  // bone-splinter count multiplier
+const DR_SPLINTERS = 0.45;  // bone-splinter count multiplier (owner: less debris)
 const DR_SMOKE = 0.75;      // smoke plume amount
-const DR_GRID = 8;          // shatter fragment grid (cells per axis)
+const DR_GRID = 6;          // shatter fragment grid (cells per axis) — fewer, chunkier pieces (owner: less debris)
 
 /**
  * A persistent divine-shield bubble bound to one unit (by uid). Unlike particles (fire-and-forget),

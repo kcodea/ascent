@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### feat(ui): Compendium "Quests" tab — browse every quest's objective + art
+
+Added a **Quests** category to the Compendium: a read-only gallery of all quest DEFINITIONS (tier · tribe, name,
+objective, reward, and art), scoped like the cards (a run's tribes + neutral; the whole set from the title) and
+narrowed by the tribe rail, sorted lesser → greater → capstone. Distinct from the existing **Quest Rewards**
+category (whose key was renamed `quests` → `rewards` to free the name) — that one shows the reward *cards*, this
+one shows the quests themselves. Reuses `QuestCard` with a new `readOnly` prop (no take-a-quest click / cursor;
+the reward-preview hover still works). The tier bar (1–6) is hidden in this tab since quests use
+lesser/greater/capstone pools. Verified live: the tab shows all 60 quests with art + the new "Kill N enemies"
+objective wording, and the tribe rail filters correctly (Beasts → the 10 Beast quests, ordered by pool).
+
+Typecheck + lint + **746 tests** + `build:web` all green. UI-only. (This is the reference tab; the separate
+completed-quest badges by the hero panel — a circle per completed quest with live reward state on hover — are the
+next piece, along with the queued new quests + cards.)
+
 ### balance(content): sync quest counts to the owner's list + "Slaughter" → "Kill" wording
 
 Phase 1 of a quest re-sync (owner's full spreadsheet, 2026-07-09). Data + wording only; the 5 brand-new quests

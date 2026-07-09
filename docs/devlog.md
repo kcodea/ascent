@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### tweak(ui): Deathrattle — less debris + louder burst SFX
+
+Owner tuning on the Deathrattle skull FX: fewer flying pieces on the explosion — `DR_GRID` 8 → **6** (fewer,
+chunkier fragments) and `DR_SPLINTERS` 0.95 → **0.45** (roughly half the bone splinters). And the burst sound
+is boosted — `skullburst` sample gain 0.5 → **4** (the source clip is quiet; the master limiter tames peaks).
+NB: the DEV SFX-mixer slider caps at 1.0, so `skullburst` reads pegged there — tune the constant, not the
+slider. typecheck green.
+
 ### tweak(ui): Deathrattle skull — smaller + always upright
 
 Owner feedback: `DR_SKULL_SCALE` 0.75 → **0.375** (halved again). Also fixed the skull popping at random

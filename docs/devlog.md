@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### chore(art): rewire art from the updated masters (minions / heroes / quests / rewards)
+
+Owner refreshed a batch of art masters. Re-ran the WebP pipeline over the four master folders
+(`Minions`, `Quests`, `Quests/Quest Reward Related Things`, `Heroes` + `Heroes/Hero Powers`) → 247 files
+resolved to `packages/ui/src/art/{minions,heroes,powers,quests}/<id>.webp`; **97 changed** (81 new, 16 updated),
+the rest byte-identical. Matched by card **name** with a card-**id** fallback (art is keyed by id), plus a small
+verified alias set for unambiguous filename drift (Pup1/Pup2 variants, `Supporterr`→supporter, `JenkinsAndFi`→jenkins,
+`SkyboundActivist`→skybound, quest typos/`The`-prefix: Trophy Den / The Bone Throne / Impossible Shop / Taragosa's
+Inheritance). New-hero portraits (Bagger Ben, Disco Dan, Fi, Herald, Hermit Hank, Chronos) + the new Tauntbreaker
+minion art landed ahead of their merges, so they light up when those PRs land.
+
+**Not wired (reported to owner):** `SharedCircuit.png` is a **corrupt PNG** (libpng read error — needs re-export);
+8 UUID-named quest files are un-attributed; and ~16 masters name a card/quest that doesn't exist under that name on
+`main` — either concept-renames I won't guess at (`Alleycat`, `Fodder`, `TrainingDummy`, `ChaosMagnetic`,
+`TaurusTheAncient`, `ChorusMachine`, …) or art ahead of the content (`FirstTracks`, `GraveToll`, `ToothAndTempo`, …).
+Per the name-match rule I left these unwired rather than mis-attribute them.
 ### feat: hero batch — 4 reworks + 6 new heroes
 
 Owner batch (2026-07-09). Data-driven throughout (new `HeroPowerKind`s + reducer branches); no bespoke classes.

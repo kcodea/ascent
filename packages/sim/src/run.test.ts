@@ -1210,6 +1210,15 @@ describe('run loop (@game/sim)', () => {
     expect(s.embers).toBe(s.maxEmbers + 1);
   });
 
+  it('gainMaxGold (Shop License) is a PERMANENT +max Gold above the cap', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'combat', maxEmbers: CONFIG.embersCap, maxGoldBonus: 2, board: [],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
+    };
+    s = reduce(s, { type: 'resolveCombat' }); // next turn's Gold = capped max + the permanent bonus…
+    expect(s.embers).toBe(CONFIG.embersCap + 2); // …NOT clamped back to the cap (the bug was it got absorbed)
+  });
+
   it('Money Bot magnetized into a Mech passes on its mana; selling the host removes it (survives a triple)', () => {
     let s: RunState = {
       ...createRun(1),

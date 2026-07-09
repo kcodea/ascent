@@ -1323,7 +1323,7 @@ function advanceCombat(s: RunState): void {
   // Money Bot & co. raise the effective max above the base curve while on the board — added on
   // top of the cap (a deliberate economy card), recomputed each turn so selling it removes it.
   // Hoarder's Battlecry banks bonus Gold for this turn (consumed now).
-  s.embers = s.maxEmbers + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
+  s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
   s.heroReady = true;
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
@@ -1611,7 +1611,8 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       if ((r.attack ?? 0) > 0 || (r.health ?? 0) > 0) buffFodderRunWide(s, r.attack ?? 0, r.health ?? 0, `Quest: ${def.name}`);
       break;
     case 'gainMaxGold':
-      s.maxEmbers += r.amount; // Shop License: permanent +max Gold
+      s.maxGoldBonus = (s.maxGoldBonus ?? 0) + r.amount; // Shop License: permanent +max Gold, above the cap
+      s.embers += r.amount; // reflect the raised max in THIS turn's spendable Gold too
       break;
     case 'discover':
       // Key Findings: open a minion Discover of your current tier.

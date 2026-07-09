@@ -45,6 +45,25 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   deathrattleBuffCardTypeRunWide: 'cardId',
 };
 
+/** Every card id a card names in its effects — the tokens it summons (`tokenId`), the cards it grants /
+ *  transforms into (`spellCastTransform`, `avengeGrantSpell`, `deathrattleGrantCardToHand`, …), and its
+ *  `ascendInto` target. Powers the UI's hover-preview of referenced cards so any card that mentions another card
+ *  in its text ("add a Spark Plug", "summon 2 Whelps") surfaces it — reusing the exact ref-param map the
+ *  validator checks, so the two never drift. Excludes the card itself. */
+export function referencedCardIds(card: CardDef): string[] {
+  const ids = new Set<string>();
+  if (card.ascendInto) ids.add(card.ascendInto);
+  const effects = [...card.effects, ...(card.chooseOne?.flatMap((o) => o.effects) ?? [])];
+  for (const effect of effects) {
+    const params = (effect.params ?? {}) as Record<string, unknown>;
+    if (TOKEN_REF_EFFECTS.has(effect.do) && typeof params.tokenId === 'string') ids.add(params.tokenId);
+    const cardKey = CARD_REF_EFFECTS[effect.do];
+    if (cardKey && typeof params[cardKey] === 'string') ids.add(params[cardKey] as string);
+  }
+  ids.delete(card.id);
+  return [...ids];
+}
+
 /** Validate every card against the schema + cross-reference every token/card id an effect names; throws on
  *  the first problem. Keeps a typo'd summon/grant target from surfacing at runtime instead of in `npm test`. */
 export function validateCards(cards: CardDef[] = ALL_CARDS): void {

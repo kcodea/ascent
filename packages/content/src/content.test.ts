@@ -1,9 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_CARDS, CARD_INDEX, QUEST_DEFS, QUEST_INDEX, validateCards, validateQuests } from './index';
+import { ALL_CARDS, CARD_INDEX, QUEST_DEFS, QUEST_INDEX, referencedCardIds, validateCards, validateQuests } from './index';
 
 describe('content', () => {
   it('all cards pass schema validation', () => {
     expect(() => validateCards()).not.toThrow();
+  });
+
+  describe('referencedCardIds — cards named in effects (hover-preview source)', () => {
+    it("derives Spark Capacitor's Spark Plug (avengeGrantSpell)", () => {
+      expect(referencedCardIds(CARD_INDEX['sparkcapacitor']!)).toContain('sparkplug');
+    });
+    it('every referenced id resolves to a real card, and never lists the card itself', () => {
+      for (const c of ALL_CARDS) {
+        const refs = referencedCardIds(c);
+        expect(refs).not.toContain(c.id);
+        for (const id of refs) expect(CARD_INDEX[id], `${c.id} → ${id}`).toBeDefined();
+      }
+    });
   });
 
   it('all quests pass schema validation + have unique ids', () => {

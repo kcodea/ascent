@@ -187,6 +187,10 @@ export interface RunState {
   phase: Phase;
   embers: number;
   maxEmbers: number;
+  /** Permanent max-Gold bonus ABOVE the per-wave curve/cap (Shop License's `gainMaxGold`). Unlike a raw
+   *  `maxEmbers` bump — which the per-wave `Math.max(maxEmbers, min(cap, …))` re-levels to the cap when it's
+   *  below it — this is added on top of the capped value every turn, so a below-cap grant stays permanent. */
+  maxGoldBonus?: number;
   /** Total max-Gold Soulsman has earned this run (cumulative across combats) — surfaced on Soulsman's
    *  card as a "gained X Gold" metric. Absent on old saves = 0. */
   soulsmanGold?: number;

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import { CARD_INDEX, QUEST_INDEX } from '@game/content';
+import { CARD_INDEX, QUEST_INDEX, referencedCardIds } from '@game/content';
 import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
@@ -303,10 +303,11 @@ export function Recruit() {
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
   // Mirrors the reducer's turn-start `embers` formula (see reducer.ts ~1039).
   const goldManaBonus = boardManaBonus(run);
+  const maxGoldBonus = run.maxGoldBonus ?? 0; // Shop License's permanent above-cap bonus
   const nextTurnGold =
-    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + goldManaBonus + (run.bonusEmbersNextTurn ?? 0);
+    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + maxGoldBonus + goldManaBonus + (run.bonusEmbersNextTurn ?? 0);
   const afterNextGold =
-    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + goldManaBonus;
+    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + maxGoldBonus + goldManaBonus;
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [overZone, setOverZone] = useState<Zone | null>(null);
@@ -1026,8 +1027,13 @@ export function Recruit() {
   const refViewsByUid = useMemo(() => {
     const m = new Map<string, CardView[]>();
     const add = (uid: string, cardId: string): void => {
-      const refs = CARD_REFERENCES[cardId];
-      if (refs) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs, run.impBuff)));
+      // The manual map first (Fodder/Imp cards whose references aren't effect params — e.g. Feed *consumes*
+      // Fodder), then every card the effects actually name (summoned tokens, granted/transformed cards) so ANY
+      // card that mentions another in its text surfaces it. De-duped, manual order wins.
+      const def = CARD_INDEX[cardId];
+      const refs = [...new Set([...(CARD_REFERENCES[cardId] ?? []), ...(def ? referencedCardIds(def) : [])])]
+        .filter((id) => CARD_INDEX[id]);
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs, run.impBuff)));
     };
     for (const c of run.board) add(c.uid, c.cardId);
     for (const c of run.hand) add(c.uid, c.cardId);

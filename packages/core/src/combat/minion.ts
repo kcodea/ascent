@@ -54,6 +54,9 @@ export function instantiate(
     spellProgress: board.spellProgress, // Guel: seed the per-instance spell tally for the live combat text
     sourceUid: board.sourceUid,
     rallyMechAtk: rallyMechAtk > 0 ? rallyMechAtk : undefined,
+    // Perfect Core (welded): the host grants this-many random spells on attack. Welded portion only —
+    // a standalone Perfect Core grants via its own onAttack `rallyGrantSpell` effect, so no double-count.
+    rallySpellWeld: board.rallySpellWeld && board.rallySpellWeld > 0 ? board.rallySpellWeld : undefined,
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
     buffs: board.buffs, // recruit-phase buff breakdown, carried into the snapshot for the combat inspect
     side,

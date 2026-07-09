@@ -200,8 +200,9 @@ it. The dying card **fades in place** (no `dyingpop` bounce) under the burst.
   grid-slices (`DR_GRID` = 8) into fragment sub-textures + their offsets from center.
 - **`pixiFx.deathrattle(x, y, size)`** (`packages/ui/src/pixiFx.ts`) — self-contained on the FX ticker: a
   `SkullPop` runs the elastic pop (+ a wind-up jiggle) then `burstSkull` fans out fragment / splinter / smoke /
-  flash particles through the existing spawner. Feel baked as `DR_*` constants (skull scale 1.5, pop 0.45,
-  spread 1.85, splinters 0.95, smoke 0.75), tuned by eye in a throwaway canvas preview — no live tuner by design.
+  flash particles through the existing spawner. Feel baked as `DR_*` constants (skull scale ~~1.5~~ **0.75**
+  (owner: halved the skull size), pop 0.45, spread 1.85, splinters 0.95, smoke 0.75), tuned by eye in a
+  throwaway canvas preview — no live tuner by design.
 - **Wiring** (`useCombatReplay.ts`) — UI-side detection only, **no engine change**: a real (non-Rise) death whose
   card has an `onDeath` effect fires `pixiFx.deathrattle` at the unit's rect (both sides) and gets a `dying dr`
   class so the card fades in place (`.unit.dying.dr .card` reuses the Rise `dyingfade`, styles.css).

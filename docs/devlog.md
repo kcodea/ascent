@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-08 (session 27)
 
+### balance(content): sync quest counts to the owner's list + "Slaughter" → "Kill" wording
+
+Phase 1 of a quest re-sync (owner's full spreadsheet, 2026-07-09). Data + wording only; the 5 brand-new quests
+(Anomalous Reactor, Fried Circuits, Forsaken Will, The Red Trail, Empty Graves) + 3 new reward cards land in
+follow-up PRs since they need new engine primitives.
+
+- **Terminology (owner ruling):** a quest says "Slaughter" ONLY when it counts Slaughter-KEYWORD triggers; the
+  existing `slaughter` objective counts *any* enemy a friendly minion fells by attacking, so its display text is
+  now **"Kill N enemies"** (Blood Trail, Apex Hunt, Law of Teeth). "Trigger N Slaughters" is reserved for the new
+  keyword-trigger objective (The Red Trail, next phase).
+- **10 count/param syncs:** Trophy Den attack 6→13, Law of Teeth kill 7→12, The Old Hunt attack 13→25 + aura step
+  7→10, Hoardwake Ritual shout 8→9, The Hoard Wakes shout 12→13, The Bone Throne Avenge 7→4 (reward text now
+  "Avenge (4): trigger your leftmost Echo"), Perfect Machine attach 6→5, Blueprint Cache attach 8→4, Infinite
+  Assembly rally 8→7, Maw of the Run stats 200→100. All 60 existing quests kept; no removals.
+- **Art:** all 45 available quest arts were already wired; nothing new for the existing set (15 remain art-less
+  for lack of a source file). Source art for the 5 new quests + Bloodlust exists and will wire with those quests.
+
+Verified: typecheck + lint + **746 tests** (updated the slaughter→Kill objective-text cases + the Bone Throne /
+Perfect Machine / Maw of the Run count-dependent tests) + `build:web`, all green. Deferred to the new-quest
+phase: Blueprint Cache's reward mechanic (owner wants "attach 2 Cling Drones to random Mechs" instead of the
+current "get 2 random Attachments").
+
 ### fix(combat): enemy Soren hero power fires (Reclaim on captured boards)
 
 Enemy hero powers never fired in combat — Soren's Reclaim (destroy a marked minion at Start of Combat → its

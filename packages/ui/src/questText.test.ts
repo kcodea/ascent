@@ -7,9 +7,9 @@ describe('questText — objectives', () => {
   const cases: [QuestObjective, string][] = [
     [{ event: 'summon', count: 4, tribe: 'beast' }, 'Summon 4 Beasts'],
     [{ event: 'buy', count: 4, tribe: 'beast' }, 'Buy 4 Beasts'],
-    [{ event: 'slaughter', count: 2 }, 'Slaughter 2 enemies'],
-    [{ event: 'slaughter', count: 6, tribe: 'beast' }, 'Slaughter 6 enemies with Beasts'],
-    [{ event: 'slaughter', count: 1 }, 'Slaughter 1 enemy'],
+    [{ event: 'slaughter', count: 2 }, 'Kill 2 enemies'],
+    [{ event: 'slaughter', count: 6, tribe: 'beast' }, 'Kill 6 enemies with Beasts'],
+    [{ event: 'slaughter', count: 1 }, 'Kill 1 enemy'],
     [{ event: 'summonCombat', count: 8 }, 'Summon 8 minions in combat'],
     [{ event: 'summonCombat', count: 14, tribe: 'beast' }, 'Summon 14 Beasts in combat'],
     [{ event: 'attack', count: 12, tribe: 'beast' }, 'Attack 12 times with Beasts'],

@@ -26,7 +26,9 @@ export function questObjectiveText(o: QuestObjective): string {
     case 'attack':
       return `Attack ${o.count} times${withTribe}`;
     case 'slaughter':
-      return `Slaughter ${o.count} ${o.count === 1 ? 'enemy' : 'enemies'}${withTribe}`;
+      // "Kill N enemies" — this objective counts any enemy a friendly minion fells by attacking, NOT the
+      // Slaughter keyword. The word "Slaughter" is reserved for the keyword-trigger objective (The Red Trail).
+      return `Kill ${o.count} ${o.count === 1 ? 'enemy' : 'enemies'}${withTribe}`;
     case 'summonCombat':
       return `Summon ${o.count} ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'} in combat`;
     case 'deathrattle':
@@ -186,7 +188,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'echoRepeat':
       return r.scope === 'always' ? 'Your Echoes trigger an extra time' : 'Your first Echo each combat triggers twice';
     case 'boneThrone':
-      return `Every ${r.every} friendly deaths, trigger your leftmost Echo`;
+      return `Avenge (${r.every}): trigger your leftmost Echo`;
     case 'rallyRepeat':
       return r.scope === 'always' ? 'Your Rallies trigger an extra time' : 'Your first Rally each combat triggers twice';
     case 'fodderReward': {

@@ -5,7 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
-### fix(ui): shield / reborn auras also ride the card's lunge TILT (rotation)
+### fix(ui): Divine-Shield break burst no longer quietly fades (grace vs. break-cue timing)
+
+Owner-reported: a consumed Divine Shield sometimes shows no gold-shatter burst. Cause: when a shield is
+consumed the card loses `.dscard` immediately, so `syncShields` schedules the bubble to clear after
+`SHIELD_CLEAR_GRACE`; but the choreographer's gold-shatter (`auraBreak` cue) fires **+300ms** later. With the
+grace at **280ms** (< 300 at combat speed 1) the bubble started FADING before the burst could read it — a quiet
+fade instead of a shatter. Bumped `SHIELD_CLEAR_GRACE` 280 → **420ms** so the bubble always outlives the break
+cue and bursts properly. build:web green. (Rotation of the shield aura rides the same `container.rotation` path
+as reborn from #261 — asked the owner to re-verify after reload.)
 
 Follow-up to the aura-tracking fix: the tracker matched the card's position but not its **rotation**, so as a
 unit lunged (the strike tilts the card) the axis-aligned aura visibly stuck out to one side. The `track`

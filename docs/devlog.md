@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(combat): Bone Taxer's max-Gold Deathrattle fired on EVERY death, not its own
+
+Owner/Mike-reported: Bone Taxer handed out far more Gold per turn than it should. Root cause: `deathrattleMaxGold`
+was the ONLY Deathrattle factory missing the standard `payload.minion !== self` guard (and it didn't even receive
+`payload`). The `onDeath` bus fires for every death, so Bone Taxer's "+1 max Gold" echo triggered on **every**
+friendly death — and even on enemy deaths — compounding `maxEmbers` across a run (5 friendlies die → +5 max Gold
+from one Bone Taxer; it even granted +1 while surviving). Added the self-guard; the echo-doubler re-fires pass
+`{ minion: self }`, so Sylus/Funeral Engine still double it correctly. Max Gold above 10 stays intended — only the
+phantom extra triggers are removed. Test: a surviving Bone Taxer grants 0; its own death grants exactly +1. Full
+gauntlet (774) + harness green.
+
 ### fix: Front to Back scaling folds in spell power · Ancient Runes now doubles Discover spells · Attachment keyword no longer transfers to the host
 
 Three owner-reported items:

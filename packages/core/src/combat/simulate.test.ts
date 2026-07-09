@@ -1575,6 +1575,23 @@ describe('simulate (handoff A.3)', () => {
     expect(footmen).toBe(2); // deathlesshand's own Echo + Grave Body's copied one
   });
 
+  it("Bone Taxer's max-Gold Deathrattle fires only on ITS OWN death (not every friendly/enemy death)", () => {
+    // Bone Taxer SURVIVES while the enemy dies to it → NO max Gold (the bug granted +1 on any death).
+    const survive = run(
+      [{ cardId: 'bonetaxer', attack: 2, health: 50 }, { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }],
+      [{ cardId: 'omen', attack: 0, health: 50 }],
+      1,
+    );
+    expect(survive.playerMaxGoldGain).toBeUndefined();
+    // Bone Taxer dies itself → exactly +1 (was +2: it also fired on the sandbag's death).
+    const die = run(
+      [{ cardId: 'bonetaxer', attack: 1, health: 1 }, { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }],
+      [{ cardId: 'omen', attack: 20, health: 50 }],
+      1,
+    );
+    expect(die.playerMaxGoldGain).toBe(1);
+  });
+
   it('Empty Graves: the first friendly death each combat summons a Gravebody', () => {
     const a = simulate(
       [

@@ -922,7 +922,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Bone Taxer): permanently raise your max Gold by `amount` (golden doubles). Player-side
    *  carry-back via `CombatResult.playerMaxGoldGain` → applied to maxEmbers in settleCombat. */
-  deathrattleMaxGold: (ctx, self, params) => {
+  deathrattleMaxGold: (ctx, self, params, payload) => {
+    // Fire ONLY on THIS minion's own death. The onDeath bus emits for every death, so without this guard Bone
+    // Taxer granted max Gold on EVERY friendly death (owner-reported: "far more gold per turn"). The echo-doubler
+    // re-fires pass `{ minion: self }`, so this still honors Sylus/Funeral Engine.
+    if ((payload as MinionPayload).minion !== self) return;
     const gain = num(params.amount, 1) * mul(self);
     ctx.grantMaxGold(gain, self.side);
     if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });

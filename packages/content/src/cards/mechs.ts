@@ -281,7 +281,7 @@ export const MECHS: CardDef[] = [
   // --- Mech quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---
   {
     // Scrap Contract reward. A sturdy economy body: banks Gold each turn and, when it dies in combat, coughs up
-    // a Patch Kit attachment (carried back to hand via the combat deathrattle grant).
+    // a Patch Job spell (carried back to hand via the combat deathrattle grant).
     id: 'scrapvendor',
     name: 'Scrap Vendor',
     tribe: 'mech',
@@ -291,10 +291,10 @@ export const MECHS: CardDef[] = [
     keywords: [],
     effects: [
       { on: 'endOfTurn', do: 'endOfTurnBonusGold', params: { amount: 1 } },
-      { on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId: 'patchkit', count: 1 } },
+      { on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId: 'patchjob', count: 1 } },
     ],
-    text: '**End of Turn:** get **1 Gold** next shop. **Deathrattle:** get a **Patch Kit**.',
-    goldenText: '**End of Turn:** get **2 Gold** next shop. **Deathrattle:** get **2 Patch Kits**.',
+    text: '**End of Turn:** get **1 Gold** next shop. **Deathrattle:** get a **Patch Job**.',
+    goldenText: '**End of Turn:** get **2 Gold** next shop. **Deathrattle:** get **2 Patch Jobs**.',
     token: true,
   },
   {

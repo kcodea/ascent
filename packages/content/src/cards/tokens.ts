@@ -175,18 +175,4 @@ export const TOKENS: CardDef[] = [
     goldenText: 'Counts as all tribes. **Ward**, **Magnetic** (attach to any minion). **Rally:** get **2** random spells.',
     token: true,
   },
-  {
-    // Scrap Vendor's Deathrattle token — INVENTED (not specced in the handoff; flagged for the owner). A small
-    // Magnetic repair patch: weld it onto a Mech for +0/+3.
-    id: 'patchkit',
-    name: 'Patch Kit',
-    tribe: 'mech',
-    tier: 1,
-    attack: 0,
-    health: 3,
-    keywords: ['M'],
-    effects: [],
-    text: '**Magnetic.** Weld onto a Mech for **+0/+3**.',
-    token: true,
-  },
 ];

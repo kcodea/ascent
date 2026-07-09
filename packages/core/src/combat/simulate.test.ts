@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulate, makeRng, type BoardMinion, type CombatEvent } from '../index';
+import { simulate, makeRng, type BoardMinion, type CombatEvent, type Keyword } from '../index';
 import { CARD_INDEX } from '@game/content';
 
 /** The health deltas of every `buff` event in a combat (for asserting Deathrattle HP grants). */
@@ -2417,7 +2417,7 @@ describe('Mech/neutral quests — Rally doublers stack additively + Shared Circu
 
   // Deathsayer (RL, on-attack) actively one-shots a 0/5 dummy → exactly ONE Rally trigger, isolating the doubler
   // math. Its Rally (fire leftmost Echo) no-ops here (it's the only minion, no Echo).
-  const p1: BoardMinion[] = [{ cardId: 'deathsayer', attack: 9, health: 50, keywords: ['RL'] }];
+  const p1: BoardMinion[] = [{ cardId: 'deathsayer', attack: 9, health: 50, keywords: ['RL'] as Keyword[] }];
   const chaff: BoardMinion[] = [{ cardId: 'omen', attack: 0, health: 5 }];
 
   it('counts a base Rally trigger; Infinite Assembly (rallyExtraAlways) adds one, additively', () => {
@@ -2433,7 +2433,7 @@ describe('Mech/neutral quests — Rally doublers stack additively + Shared Circu
   });
 
   it('Shared Circuit gives up to N friendly Mechs a Divine Shield at Start of Combat', () => {
-    const mechs: BoardMinion[] = Array.from({ length: 4 }, (_, i) => ({ cardId: 'drone', attack: 2, health: 5, keywords: [] as string[] }));
+    const mechs: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'drone', attack: 2, health: 5, keywords: [] as Keyword[] }));
     const r = simMods(mechs, [{ cardId: 'omen', attack: 0, health: 80 }], 3, { sharedCircuitWard: 3 });
     const shielded = r.events.filter((ev) => ev.type === 'shieldUp');
     expect(shielded.length).toBe(3); // exactly 3 of the 4 Mechs warded

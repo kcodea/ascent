@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makeRng, type CombatResult } from '@game/core';
+import { makeRng, type CombatResult, type Keyword } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, SPELL_CARDS } from '@game/content';
 import {
   CONFIG,
@@ -4878,7 +4878,7 @@ describe('Undead quests — combat-objective completion + reward application', (
 describe('Mech/neutral quests — objectives, filtered grants, new rewards, cards', () => {
   const settleWith = (s: RunState, over: Partial<CombatResult>): RunState =>
     reduce({ ...s, phase: 'combat', lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, ...over } as CombatResult }, { type: 'resolveCombat' });
-  const mag = (uid: string) => ({ uid, cardId: 'moneybot', tribe: 'mech' as const, attack: 3, health: 3, keywords: ['M'], golden: false });
+  const mag = (uid: string) => ({ uid, cardId: 'moneybot', tribe: 'mech' as const, attack: 3, health: 3, keywords: ['M'] as Keyword[], golden: false });
 
   it('playAttachment ticks on playing a Magnetic; Perfect Machine grants Perfect Core', () => {
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_perfect_machine', progress: 5, completed: false }], board: [], hand: [mag('h1')] };
@@ -4925,7 +4925,7 @@ describe('Mech/neutral quests — objectives, filtered grants, new rewards, card
     s = reduce(s, { type: 'play', uid: 'h1' }); // 14th attachment
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.sharedCircuitWard).toBe(3);
-    for (const id of ['scrapvendor', 'chorusengine', 'perfectcore', 'patchkit']) {
+    for (const id of ['scrapvendor', 'chorusengine', 'perfectcore']) {
       expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
     }
   });

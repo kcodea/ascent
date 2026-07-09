@@ -194,9 +194,9 @@ look because the engine already produces the data.
   + `playAttachment` objectives, `sell` tribe filter, `grant.randomFilter` (random Shout/Echo/Rally/… minion),
   `rallyRepeat` / `sharedCircuit` / `grantRandomAttachments` rewards. **Re-tribed** all keyword-triggered quests
   (Shout/Echo/Rally/EoT) to `neutral` and retired the 6 `Test ·` placeholders.
-- **Remaining:** author **Demon** quests (last tribe on `Test ·`); **spec Patch Kit's** real body (invented
-  placeholder); wire Undead + Mech reward-card + quest art; and a **balance/curve retune** (quests are pure power-add
-  → the enemy curve / Line + committed opponent pool want a pass). **Size:** ongoing (content) + M (balance).
+- **Remaining:** author **Demon** quests (last tribe on `Test ·`); wire Undead + Mech reward-card + quest art; and a
+  **balance/curve retune** (quests are pure power-add → the enemy curve / Line + committed opponent pool want a
+  pass). **Size:** ongoing (content) + M (balance).
 
 ### C2. Mastery Minions
 - Normal shop minions that **improve through repeated actions** (not scheduled, not quests) — find, nurture,

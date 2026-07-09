@@ -35,25 +35,24 @@ Coop, The Hoard Wakes, Parliament of Flame, Funeral Engine — several now ALSO 
 (Hoardwake→Shout, Last Rites→Echo, Parliament→End-of-Turn, Funeral Engine→Echo-of-your-tier). **Retired** the 6 `Test ·`
 neutral + Mech placeholder quests (now real content).
 
-**New cards** (all `token: true`, reward-only). *Scrap Vendor* (Mech T2 2/5 — EoT Gold next shop + Deathrattle→Patch
-Kit). *Chorus Engine* (Mech T6 8/6 — Rally buffs your unwelded Attachments, Slaughter conjures a Magnetic — new
+**New cards** (all `token: true`, reward-only). *Scrap Vendor* (Mech T2 2/5 — EoT Gold next shop + Deathrattle→a Patch
+Job spell). *Chorus Engine* (Mech T6 8/6 — Rally buffs your unwelded Attachments, Slaughter conjures a Magnetic — new
 `rallyBuffAttachments`/`onKillGrantMagnetic`). *Perfect Core* (All-Types T4 10/10 — Ward, Magnetic-to-any via
-universalTribe, Rally→random spell — new `rallyGrantSpell`). *Patch Kit* (**INVENTED**, flagged — Mech T1 0/3
-Magnetic, Scrap Vendor's Deathrattle token).
+universalTribe, Rally→random spell — new `rallyGrantSpell`). (Scrap Vendor's Deathrattle grants the existing **Patch
+Job** spell.)
 
 **Verified.** typecheck + lint clean; `npm test` **703 pass** incl. 9 new (additive Rally doubler stacking on an
 active-attack harness; Shared Circuit wards exactly N Mechs; playAttachment ticks on a Magnetic play; Scrap Contract
 counts only Mech sells; Last Rites/Infinite Assembly multi-grants conjure a real Echo/Rally minion; rallyRepeat +
-sharedCircuit reward application; new cards excluded from the buyable pool). Fixed a real regression the new
-`patchkit` token surfaced: Combinator's magnetic-roll pool wasn't excluding tokens (it now filters `!token && !spell`,
-matching every other magnetic pool) — a 0-attack Patch Kit could otherwise be welded. `build:web` clean; live DOM
-check of all new quest cards' derived text.
+sharedCircuit reward application; new cards excluded from the buyable pool). Also hardened Combinator's magnetic-roll pool to
+exclude tokens/spells (`!token && !spell`, matching every other magnetic pool). `build:web` clean; live DOM check of
+all new quest cards' derived text.
 
-**Decisions/flags:** (1) **Patch Kit invented** — pick its real body and I'll swap it. (2) "Attachment" = Magnetic
-(M) minion throughout. (3) Perfect Core's "attach to ANY minion" = universalTribe Magnetic (welds onto any non-neutral;
-a pure-neutral host is the one gap). (4) "random Echo minion of your tier" (Funeral Engine) = exactly current tier
-with a ≤-tier fallback. (5) Chorus Engine's Rally buffs UNwelded Attachments (welded ones have merged away). Art not
-wired yet.
+**Decisions/flags** (owner resolved 2026-07-09): (1) Scrap Vendor's Deathrattle grants the existing **Patch Job**
+spell (not an invented token). (2) "Attachment" = Magnetic (M) minion throughout. (3) Perfect Core's "attach to ANY
+minion" = universalTribe Magnetic (welds onto any non-neutral; a pure-neutral host is the one gap) — confirmed fine.
+(4) "random Echo minion of your tier" (Funeral Engine) = exactly current tier with a ≤-tier fallback — confirmed.
+(5) Chorus Engine's Rally buffs UNwelded Attachments (welded ones have merged away). Art not wired yet.
 
 ### feat(content): Undead quests — the third authored tribe (9 quests + 4 reward cards + Echo-doubler engine)
 

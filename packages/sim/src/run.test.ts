@@ -4660,6 +4660,16 @@ describe('quests (M3 framework)', () => {
     expect(s.activeQuests![0]!.progress).toBe(2);
   });
 
+  it('Food for Gold: every 7 Gold spent bumps the run-wide Fodder aura (+ queues a Fodder via pendingTavern)', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 50, freeRolls: 0, foodForGold: { per: 7, attack: 1, health: 1 }, foodForGoldTick: 0 };
+    for (let i = 0; i < 6; i++) s = reduce(s, { type: 'roll' }); // 6 Gold spent — below the 7 threshold
+    expect(s.cardBuffs?.fred).toBeUndefined();
+    expect(s.foodForGoldTick).toBe(6);
+    s = reduce(s, { type: 'roll' }); // 7th Gold → crosses the threshold once
+    expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 }); // the run-wide Fodder aura bumped +1/+1
+    expect(s.foodForGoldTick).toBe(0); // 7 − 7 = 0 remainder (the Fodder was queued to the shop via pendingTavern)
+  });
+
   it('Twin Sun Oath: triggering a Shout buffs your leftmost + rightmost board minion +5/+5 (edges only)', () => {
     const penny = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
     const tank = (uid: string, hp: number): BoardCard => ({ uid, cardId: 'sandbag', tribe: 'neutral', attack: 0, health: hp, keywords: ['T'], golden: false });

@@ -385,7 +385,11 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean };
+  /** Food for Gold (Demon greater): armed reward — every `per` Gold spent adds a Fodder to the next shop and
+   *  bumps the run-wide Fodder aura by +attack/+health. `foodForGoldTick` carries the sub-`per` Gold remainder. */
+  foodForGold?: { per: number; attack: number; health: number };
+  foodForGoldTick?: number;
   /** Twin Sun Oath (Dragon capstone): every Shout you trigger buffs your leftmost + rightmost board minion by
    *  this much (+atk/+hp), for the rest of the run. Absent = not armed. */
   shoutEdgeBuff?: { attack: number; health: number };

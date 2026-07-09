@@ -1163,6 +1163,17 @@ export function simulate(
     const lead = boards.player.find((m) => !m.dead && m.health > 0);
     if (lead && lead.attack > 0) { nextStep(); ctx.buff(lead, lead.attack, 0, lead.uid); }
   }
+  // Umbral Energy: at Start of Combat give every living Dragon +2/+2 for every spell cast this game (spellsCast).
+  if (questMods.umbralEnergy && spellsCast > 0) {
+    const amt = 2 * spellsCast;
+    let stepped = false;
+    for (const m of boards.player) {
+      if (m.dead || m.health <= 0) continue;
+      if (m.tribe !== 'dragon' && m.tribe2 !== 'dragon' && !cards[m.cardId]?.universalTribe) continue;
+      if (!stepped) { nextStep(); stepped = true; }
+      ctx.buff(m, amt, amt, m.uid);
+    }
+  }
   // Contract Rewrite: the rightmost living Demon gains a Deathrattle — summon 2 Imps with Ward (Divine Shield).
   if (questMods.contractRewrite) {
     const demon = [...boards.player].reverse().find((m) => !m.dead && m.health > 0 && isDemon(m));

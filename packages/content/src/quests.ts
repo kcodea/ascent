@@ -56,11 +56,13 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_feed_the_alpha', name: 'Feed the Alpha', tribe: 'beast', tier: 'greater', objective: { event: 'sell', count: 5 }, reward: { kind: 'recurringGrant', cards: ['feedalpha'] } },
   { id: 'q_echoing_roar', name: 'Echoing Roar', tribe: 'dragon', tier: 'greater', objective: { event: 'shout', count: 6 }, reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostShout' } },
   { id: 'q_skybound_pact', name: 'Skybound Pact', tribe: 'dragon', tier: 'greater', objective: { event: 'tribeStats', count: 40, tribe: 'dragon' }, reward: { kind: 'grant', cards: ['skybound'] } },
+  { id: 'q_umbral_energy', name: 'Umbral Energy', tribe: 'dragon', tier: 'greater', objective: { event: 'slaughter', count: 13, tribe: 'dragon' }, reward: { kind: 'combatFlag', flag: 'umbralEnergy' } },
   { id: 'q_kingdom_of_bones', name: 'Kingdom of Bones', tribe: 'undead', tier: 'greater', objective: { event: 'friendlyDeath', count: 11 }, reward: { kind: 'grant', cards: ['bonetaxer'] } },
   { id: 'q_ossuary_rite', name: 'Ossuary Rite', tribe: 'undead', tier: 'greater', objective: { event: 'deathrattle', count: 8 }, reward: { kind: 'grant', cards: ['ossuaryrite'] }, repeatable: true },
   { id: 'q_perfect_machine', name: 'Perfect Machine', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 5 }, reward: { kind: 'grant', cards: ['perfectcore'] } },
   { id: 'q_blueprint_cache', name: 'Blueprint Cache', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 4 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantRandomAttachments' } },
   { id: 'q_deep_hunger', name: 'Deep Hunger', tribe: 'demon', tier: 'greater', objective: { event: 'consumeFodder', count: 8 }, reward: { kind: 'combatFlag', flag: 'deepHunger' } },
+  { id: 'q_food_for_gold', name: 'Food for Gold', tribe: 'demon', tier: 'greater', objective: { event: 'consumeFodder', count: 18 }, reward: { kind: 'goldFodder', per: 7, attack: 1, health: 1 } },
   { id: 'q_contract_rewrite', name: 'Contract Rewrite', tribe: 'demon', tier: 'greater', objective: { event: 'spendGold', count: 20 }, reward: { kind: 'combatFlag', flag: 'contractRewrite' } },
   { id: 'q_implosion', name: 'Implosion', tribe: 'demon', tier: 'greater', objective: { event: 'summonImp', count: 10 }, reward: { kind: 'recurringGrant', cards: ['implosion'] } },
   // NEUTRAL greater: "get a random <keyword> minion" + the keyword doubler (owner spec 2026-07-08).

@@ -285,7 +285,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < CONFIG.minionCost || s.hand.length >= CONFIG.handMax) return state;
         spendGold(s, CONFIG.minionCost);
         s.shop.splice(i, 1);
-        s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}` });
+        // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
+        s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined });
         drakkoQuestBuy(s, card); // a paid buy still progresses Drakko's quest (it used to be skipped)
         checkTriples(s); // a restored copy can still complete a triple
         return s;

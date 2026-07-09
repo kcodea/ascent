@@ -343,7 +343,10 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
     // Include M (owner ruling 2026-07-08): a minion that receives a Magnetic weld IS now an Attachment, so it
     // gains the M keyword — and thus the run-wide + combat "Attachment aura" (Scrap Herald) reaches it too. The
     // aura is baked once when it first gains M (see bakeAttachmentAura in weldMagnetic).
-    if (!host.keywords.includes(k)) host.keywords.push(k);
+    // Assign a FRESH array rather than push in place: some copy paths shallow-spread a BoardCard and thus SHARE
+    // its `keywords` array, so an in-place push would leak the welded keyword (e.g. Perfect Core's Ward) onto the
+    // aliased minion — two same-cardId minions then both carry a Divine Shield in combat (owner-reported bug).
+    if (!host.keywords.includes(k)) host.keywords = [...host.keywords, k];
   }
   if (mag.mana > 0) host.manaBonus = (host.manaBonus ?? 0) + mag.mana * mult;
   if (mag.rallyMechAtk) host.rallyMechAtk = (host.rallyMechAtk ?? 0) + mag.rallyMechAtk * mult;
@@ -2408,7 +2411,9 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   if (!def) return false;
   let incoming: BoardCard;
   if (offer.held) {
-    incoming = { ...offer.held, uid: `b${state.uidSeq++}` }; // a previously-displaced minion returns intact
+    // Deep-copy the mutable arrays so the restored minion never SHARES `keywords`/`buffs` with anything (a
+    // shared array + an in-place weld/buff would leak onto the alias — the Bounty Bot Ward bug).
+    incoming = { ...offer.held, uid: `b${state.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined }; // a previously-displaced minion returns intact
   } else {
     incoming = {
       uid: `b${state.uidSeq++}`,
@@ -2423,7 +2428,7 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   }
   state.board[bi] = incoming;
   // The displaced minion → the tavern, its FULL state stashed on the offer (restored on buy / swap-back).
-  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion } };
+  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion, keywords: [...boardMinion.keywords], buffs: boardMinion.buffs ? [...boardMinion.buffs] : undefined } };
   return true;
 }
 

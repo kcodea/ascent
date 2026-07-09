@@ -37,4 +37,21 @@ describe('playContactImpact', () => {
     expect(impact).toHaveBeenCalledWith(0, 0, 10, 0, 1.5); // stubbed 0×0 rect at (0,0)
     expect(gsap.getTweensOf(el).length).toBeGreaterThan(0);
   });
+
+  it('fires the impact FX at the given contact point, not the defender center', () => {
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    const impact = vi.spyOn(pixiFx, 'impact').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 0, -10, 1, 1, 7, { x: 42, y: 99 });
+    expect(impact).toHaveBeenCalledWith(42, 99, 0, -10, 1); // the passed contact point, not the rect center
+  });
+
+  it('counter-rotates the defender opposite the lead tilt on impact', () => {
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    vi.spyOn(pixiFx, 'impact').mockImplementation(() => {});
+    const el = fakeDefender();
+    playContactImpact(el, 0, -10, 1, 1, 7); // attacker led with +7° → defender spins negative
+    const tween = gsap.getTweensOf(el)[0];
+    expect(tween).toBeDefined();
+    expect(tween.vars.rotation).toBeLessThan(0);
+  });
 });

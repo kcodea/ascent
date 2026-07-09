@@ -1475,6 +1475,9 @@ body.choreo-open .pixifx-under { z-index: 204; }
 /* A Rise ATTACKER dying to retaliation: hold the fade while GSAP pulls the unit back to its slot
    (~0.34s: 0.1s contact hold + 0.24s pull, see useCombatReplay), so it fades at HOME, not mid-lunge. */
 .unit.dying.rising.returning .card { animation: dyingfade 0.42s ease 0.3s both; }
+/* Deathrattle death: the card fades IN PLACE (no dyingpop bounce) while the bone-skull FX pops + shatters
+   over it (pixiFx.deathrattle). Reuses the Rise fade; the slot still collapses so the board reflows. */
+.unit.dying.dr .card { width: var(--cw); animation: dyingfade 0.42s ease forwards; }
 @keyframes dyingfade {
   from { opacity: 1; }
   to { opacity: 0; }

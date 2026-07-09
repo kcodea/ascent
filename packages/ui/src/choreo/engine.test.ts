@@ -9,7 +9,7 @@ import { runAttackExchangeCues, runRiseReturn } from './engine';
 // Node env (no jsdom) — use a stubbed attacker Element (see lunge.test.ts). `defender` is null here, so the
 // impact channel skips getBoundingClientRect; the attacker stub only needs the fields playLunge reads.
 const fakeEl = (): Element => ({
-  getBoundingClientRect: () => ({ left: 0, top: 0, width: 0, height: 0 }),
+  getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 100 }),
   classList: { contains: () => false },
   querySelector: () => null,
 }) as unknown as Element;
@@ -56,6 +56,13 @@ describe('runAttackExchangeCues', () => {
       expect(hit).toHaveBeenCalledTimes(1);
       expect(advance).toHaveBeenCalledTimes(1);
     } finally { sc.offset = prev; }
+  });
+
+  it('scales the timeline duration with attack distance (far strike takes longer)', () => {
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    const near = runAttackExchangeCues(attackMoment(5), fakeEl(), null, 0, 200, { combatSpeed: 1, advance: vi.fn() });
+    const far = runAttackExchangeCues(attackMoment(5), fakeEl(), null, 0, 3000, { combatSpeed: 1, advance: vi.fn() });
+    expect(far!.duration()).toBeGreaterThan(near!.duration());
   });
 });
 

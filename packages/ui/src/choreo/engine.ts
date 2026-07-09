@@ -3,6 +3,8 @@ import type { Moment } from './compile';
 import { getScore } from './score';
 import { playLunge } from './channels/lunge';
 import { hitPower, playContactImpact } from './channels/impact';
+import { getLungeConfig } from '../lungeConfig';
+import { contactGeometry } from './contactGeometry';
 
 export interface AttackCueCtx {
   combatSpeed: number;
@@ -34,10 +36,22 @@ export function runAttackExchangeCues(
   // The advance always fires AT contact (the beat clock stays welded to connection); the smack fires at
   // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
   // playLunge places it on its own timeline, so it stays killed/seekable with the lunge and scales with speed.
+  const cfg = getLungeConfig();
+  const atkRect = attacker.getBoundingClientRect();
+  const defRect = defender?.getBoundingClientRect() ?? { width: 0, height: 0 };
+  const geo = contactGeometry(dx, dy, atkRect, defRect, cfg);
+  // The impact FX originates at the real clack point — the attacker's leading corner (rest center + the
+  // geometry's contact offset) — instead of the defender's center, so the spark sprays from where the two
+  // corners meet.
+  const impactAt = {
+    x: atkRect.left + atkRect.width / 2 + geo.contact.x,
+    y: atkRect.top + atkRect.height / 2 + geo.contact.y,
+  };
   return playLunge({
     attacker, dx, dy, speed: ctx.combatSpeed,
+    strike: geo.strike, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed) : undefined,
+    onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed, geo.leadTilt, impactAt) : undefined,
     impactOffsetMs: impact?.offset ?? 0,
   });
 }

@@ -3,7 +3,78 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-08 (session 27)
+
+### feat(ui): Deathrattle bone-skull shatter FX
+
+When a unit with a Deathrattle (`onDeath` effect) dies in combat, a painted bone skull-and-crossbones pops up
+over it with an elastic overshoot, then **explodes** — the skull image grid-shatters into bone fragments
+(gravity + spin), sharp bone splinters scatter, a hot flash punches the moment, and smoke blooms up through
+it. The dying card **fades in place** (no `dyingpop` bounce) under the burst.
+
+- **Art:** `apps/web/public/fx/skull-crossbones.png` (owner-supplied painted skull on black). `pixiFx.loadSkull()`
+  loads it once, keys the black → alpha (suppressing the faint purple rim), crops to the content bbox, and
+  grid-slices (`DR_GRID` = 8) into fragment sub-textures + their offsets from center.
+- **`pixiFx.deathrattle(x, y, size)`** (`packages/ui/src/pixiFx.ts`) — self-contained on the FX ticker: a
+  `SkullPop` runs the elastic pop (+ a wind-up jiggle) then `burstSkull` fans out fragment / splinter / smoke /
+  flash particles through the existing spawner. Feel baked as `DR_*` constants (skull scale 1.5, pop 0.45,
+  spread 1.85, splinters 0.95, smoke 0.75), tuned by eye in a throwaway canvas preview — no live tuner by design.
+- **Wiring** (`useCombatReplay.ts`) — UI-side detection only, **no engine change**: a real (non-Rise) death whose
+  card has an `onDeath` effect fires `pixiFx.deathrattle` at the unit's rect (both sides) and gets a `dying dr`
+  class so the card fades in place (`.unit.dying.dr .card` reuses the Rise `dyingfade`, styles.css).
+- **Verified:** typecheck / lint / 722 tests / build green. Live visual verification is the owner's — the FX
+  needs a focused tab (the degenerate preview pane can't decode the texture or run rAF).
+
 ## 2026-07-08 (session 26)
+
+### feat(ui): corner-clack contact + distance-scaled lunge + impact FX (combat feel)
+
+A presentation-only refinement of the phase-3b attack lunge — the strike now lands as a physical
+"corner clack" and its pace is consistent regardless of how far apart the two units are. Spec/plan:
+[corner-clack-contact-design](superpowers/specs/2026-07-08-corner-clack-contact-design.md) /
+[corner-clack-contact](superpowers/plans/2026-07-08-corner-clack-contact.md). **Zero core/sim/content
+changes — nothing touches fight outcomes.**
+
+- **Root problem.** The lunge drove the attacker `dx * 1.44` — 144% of the way to the defender's
+  *center* — so cards interpenetrated (phasing, not striking); and `strikeDur` was a fixed 0.16 s, so a
+  far-across-the-board attack covered far more pixels in the same time and looked much faster than an
+  adjacent one.
+- **New pure helper `choreo/contactGeometry.ts`.** Given the attacker→defender vector and both cards'
+  sizes it computes: the **surface-contact strike** (`dist − defProjHalf − atkProjHalf + bite`, so the
+  attacker's leading edge/corner meets the defender's surface instead of overshooting center), the
+  **distance-scaled duration** (`travel / targetSpeed`, clamped to `[minStrikeDur, maxStrikeDur]` — px/s
+  stays roughly constant near→far), the **signed lead-tilt**, and the **impact point** (the tilted
+  leading corner — where the two cards actually clack). Fully unit-tested; no DOM/GSAP.
+- **`playLunge` (channels/lunge.ts).** Consumes the geometry: winds up tilting to lead a corner, strikes
+  to the surface point (corner leading), fires the beat-advance at the real contact position, adds a
+  rotational **rebound** off the clack, then the elastic settle. The beat-clock advance stays welded to
+  the true GSAP contact position, so the variable duration needed no scheduler change.
+- **`engine.ts`** measures both card rects, calls `contactGeometry`, and threads `strike`/`strikeDur`/
+  `leadTilt`/`attackerRebound` into the lunge — plus the **impact point** into the impact channel.
+- **`impact.ts`** — the defender **counter-spins** away from the contact corner as it's knocked back
+  (`-sign(leadTilt) * defenderSpin`), and the WebGL **spark now originates at the leading-corner clack
+  point** (passed from the engine) rather than the defender's center, so the flash sprays from where the
+  corners meet.
+- **Tuning loop.** Because the live rAF animation isn't observable from the headless preview, the feel
+  was dialed on an interactive strike previewer that reproduces the real `contactGeometry` math + lunge
+  timeline and sweeps every attacker→defender variation at true pace. Owner-tuned values baked as the
+  `lungeConfig` defaults: `leadTilt 20`, `bite 24`, `targetSpeed 1850`, `minStrikeDur 0.20`,
+  `maxStrikeDur 0.40`, `defenderSpin 15`, `attackerRebound 2.5`. **Accepted (owner):** the defender
+  knockback still scales with attack distance — left as-is.
+- **New dials** on `lungeConfig` (live in the DEV Lunge tuner): `bite`, `leadTilt`, `defenderSpin`,
+  `attackerRebound`, `targetSpeed`, `minStrikeDur`, `maxStrikeDur`; `strikeDist` retired (`strikeDur`
+  kept as the unresolved-elements fallback).
+- **Verified.** Subagent-driven (5 code tasks + two-stage review each + a final whole-branch review that
+  confirmed outcome-neutrality and the intact beat-clock advance); the spark/bake follow-up added two
+  more tests. Full gate green: typecheck + lint + `npm test` (720) + `build:web`; choreo/channel suite 76
+  green.
+- **Follow-up (impact FX at the clack point).** Two combat-strike effects now erupt from the same corner
+  contact point: a card-drop-style tan **dust billow** (`pixiFx.impactDust` — radial, its own `imp*` config
+  so it's independent of the card-drop `dust()`) and an expanding white-hot **energy pulse** ring
+  (`pixiFx.impactPulse`, a new thin pulse-ring texture scaled to a target radius). Both fired from
+  `impact.ts` at the contact point, tunable via new dials in the DEV Smoke tuner (`impDust*` / `impPulse*`),
+  seeded from the strike-FX previewer. UI-only; typecheck/lint clean, choreo/impact suites green, no new
+  type-baseline errors.
 
 ### chore(art): wire Goldcrafter reward art + re-wire Taragosa's Heir
 

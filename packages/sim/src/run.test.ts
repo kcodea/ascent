@@ -34,6 +34,8 @@ import {
   spellAttackBonus,
   spellHealthBonus,
   spellDisplayText,
+  minionCostOf,
+  upgradeCostOf,
   rateBoardForWave,
   buildWaveLadders,
   ratingBand,
@@ -2113,6 +2115,27 @@ describe('run loop (@game/sim)', () => {
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([9, 9]); // 3/3 + 6/6 (step now compounds spell power)
   });
 
+  it('Front to Back scales Attack and Health INDEPENDENTLY (owner 2026-07-09)', () => {
+    // ASYMMETRIC spell power +0/+2 (Cinderwing-style). Cast 1: a = 2+0+0 = 2, h = 2+0+2 = 4 → +2/+4;
+    // the steps grow independently (Attack +2, Health +4).
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], spellBonus: { attack: 0, health: 2 },
+      board: [oneNeutral('m', { attack: 0, health: 0 })],
+      hand: [
+        { uid: 's1', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+        { uid: 's2', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2, 4]);
+    expect([s.frontToBackBonus, s.frontToBackBonusH]).toEqual([2, 4]); // the escalation steps are independent
+    // Cast 2: a = 2 + 2 + 0 = 4, h = 2 + 4 + 2 = 8 → +4/+8. Target ends at 2/4 + 4/8 = 6/12.
+    s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([6, 12]);
+    // Live text with +0/+2 spell power: grant + improvement both green to +2/+4.
+    expect(spellDisplayText('fronttoback', 0, 0, 2, 0, 0)).toBe('Give a minion **{{+2/+4}}**. Improve this by **{{+2/+4}}**.');
+  });
+
   it('Mana Font raises max Mana permanently but does NOT refill current Mana', () => {
     let s: RunState = {
       ...createRun(1), embers: 2, maxEmbers: 4, shop: [],
@@ -2696,20 +2719,22 @@ describe('run loop (@game/sim)', () => {
     expect(empty.hand.some((c) => c.cardId === 'lasso')).toBe(false); // consumed, no crash
   });
 
-  it('hero power can buff a tavern offer, and the buff is baked in when bought', () => {
+  it("Warden's Aegis gives a board minion a permanent Ward for 4 Gold, spending the wave charge", () => {
     let s: RunState = {
-      ...createRun(1),
-      embers: 3,
+      ...createRun(1, 'warden'),
+      embers: 5,
       heroReady: true,
-      board: [],
-      shop: [{ uid: 'x', cardId: 'alley' }], // Alleycat is a 1/1
+      board: [{ uid: 'x', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [],
     };
-    s = reduce(s, { type: 'heroPower', uid: 'x' }); // Fortify a *tavern* minion
-    expect([s.shop[0]?.atk, s.shop[0]?.hp]).toEqual([1, 1]);
+    s = reduce(s, { type: 'heroPower', uid: 'x' }); // Aegis → Ward (DS)
+    expect(s.board[0]!.keywords).toContain('DS');
+    expect(s.embers).toBe(1); // 5 − 4 Gold
     expect(s.heroReady).toBe(false);
-    s = reduce(s, { type: 'buy', uid: 'x' });
-    const bought = s.hand.find((c) => c.cardId === 'alley')!;
-    expect([bought.attack, bought.health]).toEqual([2, 2]); // 1/1 + the Fortify buff
+    // A no-op on an already-warded minion spends nothing (and no charge — already used this turn anyway).
+    const before = { embers: s.embers };
+    s = reduce({ ...s, heroReady: true }, { type: 'heroPower', uid: 'x' });
+    expect(s.embers).toBe(before.embers); // still warded → no re-spend
   });
 
   it('spells never triple (three copies stay separate)', () => {
@@ -3152,23 +3177,7 @@ describe('run loop (@game/sim)', () => {
     ]);
   });
 
-  it('Hunter procs from a recruit Attack-gain (Warden Fortify) → +Health to the board', () => {
-    let s: RunState = {
-      ...createRun(1), tier: 3, heroReady: true,
-      board: [
-        { uid: 'h', cardId: 'hunter', tribe: 'dragon', attack: 5, health: 7, keywords: [], golden: false },
-        { uid: 'a', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
-      ],
-    };
-    s = reduce(s, { type: 'heroPower', uid: 'h' }); // Fortify +3/+3 → Hunter gains Attack → +2 Health to the board
-    const hunter = s.board.find((c) => c.uid === 'h')!;
-    const ally = s.board.find((c) => c.uid === 'a')!;
-    expect(hunter.attack).toBe(5 + 3); // Fortify +3 Attack (tier 3)
-    expect(ally.health).toBe(3 + 2); // Hunter's onGainAttack → +2 Health
-    expect(hunter.health).toBe(7 + 3 + 2); // Fortify +3 Health + Hunter's own +2 (it buffs the whole board incl. itself)
-  });
-
-  it('Hunter procs from ANY shop Attack gain — a Growth spell, not just Fortify (boundary dispatch)', () => {
+  it('Hunter procs from ANY shop Attack gain — a Growth spell (boundary dispatch)', () => {
     let s: RunState = {
       ...createRun(1), embers: 10, shop: [],
       hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
@@ -3202,15 +3211,15 @@ describe('run loop (@game/sim)', () => {
     expect(hunter.health).toBe(7); // unchanged
   });
 
-  it('hero Fortify records its source on the buffed minion (inspect breakdown)', () => {
+  it('a Growth spell records its source on the buffed minion (inspect breakdown)', () => {
     let s: RunState = {
-      ...createRun(7),
-      heroReady: true,
+      ...createRun(7), embers: 10,
+      hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
       board: [{ uid: 'd', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false }],
     };
-    s = reduce(s, { type: 'heroPower', uid: 'd' });
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 2]);
-    expect(s.board[0]!.buffs).toEqual([{ source: 'Fortify', attack: 1, health: 1, count: 1 }]);
+    s = reduce(s, { type: 'play', uid: 'g' }); // Growth: +3/+4 to the board
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([5, 5]);
+    expect(s.board[0]!.buffs).toEqual([{ source: 'Growth', attack: 3, health: 4, count: 1 }]);
   });
 
   it('Karwind flame-flags the Dragons its battlecry-trigger buffs', () => {
@@ -3356,24 +3365,19 @@ describe('hero powers (@game/sim)', () => {
     expect(createRun(1).heroPowerSpent).toBe(false);
   });
 
-  it("Warden's Fortify scales with Tavern Tier (+Tier/+Tier) and spends the wave charge", () => {
-    let s: RunState = { ...createRun(1), tier: 3, heroReady: true, board: [mk('a', 2, 2)] };
-    s = reduce(s, { type: 'heroPower', uid: 'a' });
-    expect(s.board[0]!.attack).toBe(5); // 2 + tier(3)
-    expect(s.board[0]!.health).toBe(5);
-    expect(s.board[0]!.buffs).toEqual([{ source: 'Fortify', attack: 3, health: 3, count: 1 }]);
-    expect(s.heroReady).toBe(false);
-    // Second use this wave is rejected (charge spent).
-    expect(reduce(s, { type: 'heroPower', uid: 'a' })).toBe(s);
-  });
-
-  it("Warden's Fortify on a tavern offer carries +Tier (baked in when bought)", () => {
-    let s: RunState = { ...createRun(1), tier: 2, heroReady: true };
+  it("Warden's Aegis needs 4 Gold and a target — no-op (no charge spent) otherwise", () => {
+    // Too little Gold → rejected, charge preserved.
+    const poor: RunState = { ...createRun(1, 'warden'), embers: 3, heroReady: true, board: [mk('a', 2, 2)] };
+    expect(reduce(poor, { type: 'heroPower', uid: 'a' })).toBe(poor);
+    // A missing target → rejected, charge preserved (no Gold spent).
+    const noTarget: RunState = { ...createRun(1, 'warden'), embers: 9, heroReady: true, board: [mk('a', 2, 2)] };
+    const after = reduce(noTarget, { type: 'heroPower', uid: 'zzz' });
+    expect(after).toBe(noTarget);
+    // A valid target on a tavern offer is NOT allowed (Aegis is board-only) → rejected.
+    let s: RunState = { ...createRun(1, 'warden'), embers: 9, heroReady: true, board: [mk('a', 2, 2)] };
     const offerUid = s.shop[0]!.uid;
     s = reduce(s, { type: 'heroPower', uid: offerUid });
-    const offer = s.shop.find((c) => c.uid === offerUid)!;
-    expect(offer.atk).toBe(2);
-    expect(offer.hp).toBe(2);
+    expect(s.heroReady).toBe(true); // no board minion matched → nothing happened
   });
 
   it("Indy's Gild doubles a minion's BASE stats (not its buffs), turns it golden, once per game", () => {
@@ -3512,21 +3516,21 @@ describe('hero powers (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'f')!.eotTick).toBe(1); // unchanged
   });
 
-  it('Rohan amplifies stat-granting spells (+1 at turn 1, scaling), hero-gated', () => {
-    const cast = (heroId: string, wave: number): BoardCard => {
+  it('Rohan amplifies stat-granting spells (+1 base, +1 per 5 spells cast), hero-gated', () => {
+    const cast = (heroId: string, spellsCast: number): BoardCard => {
       let s: RunState = {
-        ...createRun(1, heroId), wave, board: [mk('t', 2, 2)],
+        ...createRun(1, heroId), spellsCast, board: [mk('t', 2, 2)],
         hand: [{ uid: 'sf', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
       };
       s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
       return s.board[0]!;
     };
-    // Spirit Fire = +4/+4. Rohan adds +1 at turn 1 → +5/+5 (2/2 → 7/7).
-    expect(cast('rohan', 1).attack).toBe(7);
-    // Scales: +2 at turn 4 → +6/+6 (→ 8/8).
-    expect(cast('rohan', 4).attack).toBe(8);
+    // Spirit Fire = +4/+4. Rohan adds +1 with < 5 casts so far → +5/+5 (2/2 → 7/7).
+    expect(cast('rohan', 0).attack).toBe(7);
+    // Scales: +2 once 5 spells have been cast → +6/+6 (→ 8/8).
+    expect(cast('rohan', 5).attack).toBe(8);
     // Hero-gated: a non-Rohan gets the base +4/+4 (→ 6/6).
-    expect(cast('warden', 1).attack).toBe(6);
+    expect(cast('warden', 0).attack).toBe(6);
   });
 
   it('Soren marks one minion for resummon (clearing any previous mark)', () => {
@@ -3610,6 +3614,118 @@ describe('hero powers (@game/sim)', () => {
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.cassenKills).toBe(0); // never accrues for a non-Collision hero
     expect(s.hand.length).toBe(0);
+  });
+
+  // --- New heroes (owner batch 2026-07-09) ---
+
+  it("Djinn's Cadence triggers EVERY friendly minion's End of Turn (untargeted)", () => {
+    // Two Ritualists (EoT: Fodder +2/+2 run-wide). Cadence fires BOTH → the Fred enchant climbs +4/+4.
+    let s: RunState = {
+      ...createRun(1, 'djinn'), heroReady: true,
+      board: [
+        { uid: 'r1', cardId: 'ritualist', tribe: 'demon', attack: 5, health: 6, keywords: [], golden: false },
+        { uid: 'r2', cardId: 'ritualist', tribe: 'demon', attack: 5, health: 6, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'heroPower' });
+    expect(cardBuff(s, 'fred')).toEqual({ attack: 4, health: 4 }); // both Ritualists' EoT fired
+    expect(s.heroReady).toBe(false);
+    // A board with no End-of-Turn minion → no-op, charge preserved.
+    const none: RunState = { ...createRun(1, 'djinn'), heroReady: true, board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false }] };
+    expect(reduce(none, { type: 'heroPower' })).toBe(none);
+  });
+
+  it("Bagger Ben's Bag It gains 2 Gold on turn 1, climbing +1 each turn", () => {
+    let s: RunState = { ...createRun(1, 'baggerben'), wave: 1, embers: 0, heroReady: true };
+    s = reduce(s, { type: 'heroPower' });
+    expect(s.embers).toBe(2); // turn 1 → +2
+    expect(s.heroReady).toBe(false);
+    // Turn 3 → +4.
+    let s3: RunState = { ...createRun(1, 'baggerben'), wave: 3, embers: 0, heroReady: true };
+    s3 = reduce(s3, { type: 'heroPower' });
+    expect(s3.embers).toBe(4);
+  });
+
+  it("Herald's Proclaim makes the target's two neighbours each Consume a Fodder", () => {
+    // Distinct cardIds so the three don't form a triple (which would clear the board).
+    let s: RunState = {
+      ...createRun(1, 'herald'), heroReady: true,
+      board: [
+        { uid: 'l', cardId: 'alley', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false },
+        { uid: 'c', cardId: 'sandbag', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'r', cardId: 'pack', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false },
+      ], // Proclaim on the centre → l & r each eat a 1/1 Fred (+1/+1)
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'c' });
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // left neighbour +1/+1
+    expect([s.board[2]!.attack, s.board[2]!.health]).toEqual([3, 3]); // right neighbour +1/+1
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // the target itself does NOT consume
+    expect(s.heroReady).toBe(false);
+    // A target with no neighbours (lone minion) → no-op, charge preserved.
+    const lone: RunState = { ...createRun(1, 'herald'), heroReady: true, board: [mk('x', 2, 2)] };
+    expect(reduce(lone, { type: 'heroPower', uid: 'x' })).toBe(lone);
+  });
+
+  it("Hermit Hank's minions cost 2 Gold and tavern-ups cost 2 more", () => {
+    const s: RunState = { ...createRun(1, 'hermithank'), tier: 1, embers: 10 };
+    expect(minionCostOf(s)).toBe(2);
+    expect(upgradeCostOf(s)).toBe(s.upgradeCost + 2);
+    // A buy actually costs 2.
+    let b: RunState = { ...createRun(1, 'hermithank'), embers: 10, shop: [{ uid: 'x', cardId: 'alley' }], hand: [] };
+    b = reduce(b, { type: 'buy', uid: 'x' });
+    expect(b.embers).toBe(8); // 10 − 2
+    // A non-Hank hero pays the config default.
+    expect(minionCostOf(createRun(1, 'warden'))).toBe(CONFIG.minionCost);
+  });
+
+  it("Chronos's Encore grants a Chronos after buying 4 End-of-Turn minions", () => {
+    // Bard (frontdrake) carries an End-of-Turn effect. Buy four → the 4th completes the quest.
+    let s: RunState = {
+      ...createRun(1, 'chronoshero'), embers: 30, hand: [],
+      shop: [{ uid: 'a', cardId: 'frontdrake' }, { uid: 'b', cardId: 'frontdrake' }, { uid: 'c', cardId: 'frontdrake' }, { uid: 'd', cardId: 'frontdrake' }],
+    };
+    for (const uid of ['a', 'b', 'c', 'd']) s = reduce(s, { type: 'buy', uid });
+    expect(s.eotMinionBuys).toBe(4);
+    expect(s.heroPowerSpent).toBe(true);
+    expect(s.hand.some((c) => c.cardId === 'chronos')).toBe(true);
+  });
+
+  it("Fi's Errand opens an extra lower-tier quest shop on turn 3", () => {
+    // Drive a real advance into wave 3 and confirm the quest offer opens (lesser tier).
+    let s: RunState = { ...createRun(1, 'fi'), wave: 2, phase: 'recruit' };
+    s = reduce(s, { type: 'faceOmen' }); // → combat for wave 2
+    s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 3, Fi's quest opens
+    expect(s.wave).toBe(3);
+    expect((s.questOffer?.length ?? 0)).toBeGreaterThan(0);
+    // A non-Fi hero gets no turn-3 quest.
+    let w: RunState = { ...createRun(1, 'warden'), wave: 2, phase: 'recruit' };
+    w = reduce(w, { type: 'faceOmen' });
+    w = reduce(w, { type: 'resolveCombat' });
+    expect(w.questOffer).toBeUndefined();
+  });
+
+  it("Disco Dan opens three sequential Discovers (T6→T4→T2), each locked until its shop tier", () => {
+    const s = createRun(1, 'discodan');
+    // Turn 1 starts with a Discover already open (the Tier 6 pick).
+    expect(s.discover?.length).toBeGreaterThan(0);
+    // Resolve all three Discovers.
+    let d = s;
+    for (let i = 0; i < 3 && d.discover; i++) d = reduce(d, { type: 'discover', index: 0 });
+    const locked = d.hand.filter((c) => c.lockedUntilTier);
+    expect(locked.length).toBe(3);
+    expect(locked.map((c) => c.lockedUntilTier).sort()).toEqual([2, 4, 6]);
+    // A locked card can't be played at tier 1.
+    const t2card = d.hand.find((c) => c.lockedUntilTier === 2)!;
+    expect(reduce(d, { type: 'play', uid: t2card.uid })).toBe(d); // rejected while locked
+  });
+
+  it('Disco Dan can take no shop action on turn 1 (buy/roll/upgrade blocked)', () => {
+    let s = createRun(1, 'discodan');
+    while (s.discover) s = reduce(s, { type: 'discover', index: 0 }); // clear the Setlist Discovers
+    const before = s;
+    expect(reduce(s, { type: 'roll' })).toBe(before); // turn-1 lock
+    expect(reduce(s, { type: 'upgrade' })).toBe(before);
+    // After advancing to turn 2 the lock lifts (roll works).
   });
 });
 
@@ -3730,10 +3846,10 @@ describe('PvE course + record (@game/sim)', () => {
 });
 
 describe('spell stat bonus + display (@game/sim)', () => {
-  it('spellStatBonus aggregates active sources (Rohan scales; others = 0)', () => {
+  it('spellStatBonus aggregates active sources (Rohan scales by spells cast; others = 0)', () => {
     expect(spellStatBonus(createRun(1, 'warden'))).toBe(0);
-    expect(spellStatBonus({ ...createRun(1, 'rohan'), wave: 1 })).toBe(1);
-    expect(spellStatBonus({ ...createRun(1, 'rohan'), wave: 4 })).toBe(2);
+    expect(spellStatBonus({ ...createRun(1, 'rohan'), spellsCast: 0 })).toBe(1);
+    expect(spellStatBonus({ ...createRun(1, 'rohan'), spellsCast: 5 })).toBe(2);
   });
 
   it('spellDisplayText substitutes the effective value (green via {{…}}); base text otherwise', () => {

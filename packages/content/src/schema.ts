@@ -217,6 +217,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellBloodlust',
   'copyLeftmostEcho',
   'spellAddTribe',
+  'onAttackStripKeywords',
 ]);
 
 export const EffectDefSchema = z.object({

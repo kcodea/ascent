@@ -5,6 +5,75 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### chore(art): rewire art from the updated masters (minions / heroes / quests / rewards)
+
+Owner refreshed a batch of art masters. Re-ran the WebP pipeline over the four master folders
+(`Minions`, `Quests`, `Quests/Quest Reward Related Things`, `Heroes` + `Heroes/Hero Powers`) → 247 files
+resolved to `packages/ui/src/art/{minions,heroes,powers,quests}/<id>.webp`; **97 changed** (81 new, 16 updated),
+the rest byte-identical. Matched by card **name** with a card-**id** fallback (art is keyed by id), plus a small
+verified alias set for unambiguous filename drift (Pup1/Pup2 variants, `Supporterr`→supporter, `JenkinsAndFi`→jenkins,
+`SkyboundActivist`→skybound, quest typos/`The`-prefix: Trophy Den / The Bone Throne / Impossible Shop / Taragosa's
+Inheritance). New-hero portraits (Bagger Ben, Disco Dan, Fi, Herald, Hermit Hank, Chronos) + the new Tauntbreaker
+minion art landed ahead of their merges, so they light up when those PRs land.
+
+**Not wired (reported to owner):** `SharedCircuit.png` is a **corrupt PNG** (libpng read error — needs re-export);
+8 UUID-named quest files are un-attributed; and ~16 masters name a card/quest that doesn't exist under that name on
+`main` — either concept-renames I won't guess at (`Alleycat`, `Fodder`, `TrainingDummy`, `ChaosMagnetic`,
+`TaurusTheAncient`, `ChorusMachine`, …) or art ahead of the content (`FirstTracks`, `GraveToll`, `ToothAndTempo`, …).
+Per the name-match rule I left these unwired rather than mis-attribute them.
+### feat: hero batch — 4 reworks + 6 new heroes
+
+Owner batch (2026-07-09). Data-driven throughout (new `HeroPowerKind`s + reducer branches); no bespoke classes.
+
+**Reworks:**
+- **Djinn → Cadence** now triggers EVERY friendly minion's End of Turn (untargeted `replayAllEndOfTurn`), not one.
+- **Rohan → Attunement** now scales by **spells cast** (`spellAmplifyBonus(spellsCast)` = 1 + ⌊casts/5⌋), not by wave.
+  Rewired both call sites (`spellStatBonus`, `StatusBar`).
+- **Nadja** starts with **19 Armor** (keeps Gold Font).
+- **Warden → Aegis** — spend **4 Gold** to give a friendly minion a **permanent Ward** (`grantWard`), replacing Fortify.
+  (Fortify's orphaned tests were repointed to Warden's Aegis / a Growth spell; the Hunter-onGainAttack boundary
+  stays covered by the Growth-spell test.)
+
+**New heroes:**
+- **Disco Dan** (15 armor) — **Setlist**: turn 1 is three sequential Discovers **T6 → T4 → T2**, each pick locked in
+  hand until you reach that shop tier. New per-`BoardCard` `lockedUntilTier` (gates the `play` action + a UI padlock),
+  a `DiscoverSpec.lockTier` threaded through `openDiscover`→the `discover` case via transient `discoverLockTier`, the
+  run-start Setlist in `createRun`, and a turn-1 shop-action lock in `reduce` (only Discover / reorder / faceOmen).
+- **Bagger Ben** (15) — **Bag It**: gain `1 + wave` Gold (turn 1 → 2), climbing +1 each turn; once per turn.
+- **Hermit Hank** (15) — passive: shop minions cost **2 Gold** (`minionCostOf`), tavern-ups cost **2 more** (`upgradeCostOf`).
+- **Fi** (8) — passive: an **extra, lower-tier quest shop on turn 3** (`generateQuestOffer(s, 'lesser')` on the wave-3 advance).
+- **Herald** (15) — **Proclaim**: target a friendly minion — its two neighbours each Consume a created Fodder
+  (new `adjacentConsume`, sharing the extracted `adjacentConsumeFodder` helper with Abyssal Feeder).
+- **Chronos** (hero id `chronoshero`, 8) — **Encore** quest: buy **4 End-of-Turn minions** → get a Chronos (clone of
+  Drakko's quest; `eotMinionBuys`).
+
+Verified: `typecheck` + `lint` + `test` (780 pass, incl. 16 new hero tests) + `build:web` + `harness` all green; live
+smoke via a throwaway `newRun` — Disco Dan's Setlist opens T6→T4→T2, the 3 picks land locked (roll + play both refused
+on turn 1), Nadja shows 19 armor, Hermit Hank buys at 2 Gold.
+### feat: Front to Back scales Attack/Health independently · Tauntbreaker (T4 Neutral, strips Taunt + Rise on hit)
+
+Two owner items, one PR:
+
+- **Front to Back — independent Attack/Health scaling.** Previously the escalation was a single number applied to
+  both stats, so a `+0/+2` build (asymmetric spell power) scaled symmetrically. Now a second run-state field
+  `frontToBackBonusH` tracks the Health escalation separately from `frontToBackBonus` (Attack). `spellBuffTargetEscalating`
+  grows each independently (base step + that stat's spell power). So with `+0/+2` spell power the grant goes
+  **+2/+4** on the first cast, and the escalation itself steps **+2/+4** per cast — Attack and Health diverge as
+  intended. `spellDisplayText` gained an `escalationH` parameter (defaults to `escalation` so symmetric builds are
+  unchanged) and greens each stat independently; threaded through `instView`/`liveCardText` (shop/board/hand/Discover)
+  and `Recruit.tsx` (the `live` inputs) so every surface prints the true split value. New asymmetric test in `run.test.ts`;
+  the existing symmetric-spell-power tests are unchanged (same output when both stats scale equally).
+- **Tauntbreaker** — new **T4 Neutral 6/4, Ward + Flurry**. On attack it strips **Taunt** and **Rise** off the enemy
+  it hits: the target loses Taunt (your board can pick past it next swing) and Rise (a lethal blow this same swing
+  keeps it dead — the strip fires before the damage exchange, so `rebornAvailable` is cleared in time). New combat
+  factory `onAttackStripKeywords` (core) reads the enemy target now carried on the `onAttack` bus payload; a new
+  `keywordLost` combat event drops the stripped pill in the replay (UI `useCombatReplay` + harness + narration).
+  Flurry means it disarms two enemies a turn; Ward walls one hit. Note: the strip is on Tauntbreaker's own *attack*
+  — an enemy that dies to Ward retaliation still gets its Rise (it wasn't a target of Tauntbreaker's swing).
+  Combat test in `simulate.test.ts` (enemy loses T+R, does not reborn, player wins).
+
+Verified: `typecheck` + `lint` + `test` (775 pass) + `build:web` green; `harness` determinism ✓.
+
 ### chore(ui): skull-burst sfx quieter still (0.4 → 0.04)
 
 Follow-up to the earlier `4 → 0.4`: still too loud, so `sampleVol.skullburst` → `0.04` — a normal quiet

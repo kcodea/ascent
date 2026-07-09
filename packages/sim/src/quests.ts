@@ -42,8 +42,8 @@ function dominantTribe(s: RunState): Tribe | null {
  * appear twice in one offer. Returns quest ids (0–4). An EMPTY result (no content for the tier) signals "no
  * quest phase" — the caller falls through to a normal turn, so a content gap can't soft-lock.
  */
-export function generateQuestOffer(s: RunState): string[] {
-  const tier = questTierForWave(s.wave);
+export function generateQuestOffer(s: RunState, forcedTier?: QuestTier): string[] {
+  const tier = forcedTier ?? questTierForWave(s.wave);
   if (!tier) return [];
   const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
   // Never re-offer a quest you already hold (taken/active/completed), and never repeat a quest within one offer.

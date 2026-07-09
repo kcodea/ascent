@@ -202,6 +202,21 @@ export const NEUTRAL: CardDef[] = [
     goldenText: '**Deathrattle:** deal **6** damage to ALL minions.',
   },
   {
+    // Anti-defensive tech — its attacks disarm what they hit: the struck enemy loses Taunt (so your board can
+    // pick past it next swing) and Rise (so a lethal blow keeps it dead). Ward walls one hit; Flurry means it
+    // disarms TWO enemies a turn. The strip resolves in combat via `onAttackStripKeywords` (core), which fires
+    // per swing before the damage exchange, so removing Rise this swing means the same hit can finish it.
+    id: 'tauntbreaker',
+    name: 'Tauntbreaker',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 6,
+    health: 4,
+    keywords: ['DS', 'W'],
+    effects: [{ on: 'onAttack', do: 'onAttackStripKeywords', params: { keywords: ['T', 'R'] } }],
+    text: 'After this attacks, the enemy it hits loses **Taunt** and **Rise**.',
+  },
+  {
     // Spell-Discover Battlecry — opens a Discover of three random spells (the normal Discover only offers
     // minions). Resolved in @game/sim's recruit factory `battlecryDiscoverSpell`, which queues the
     // Discover(s) via `queueDiscover` (RunState.discoverQueue). Golden Discovers TWICE; with a Drakko the

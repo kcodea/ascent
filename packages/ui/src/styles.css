@@ -638,6 +638,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .tierbadge[data-tier="4"] { background: var(--tier-4); }
 .tierbadge[data-tier="5"] { background: var(--tier-5); }
 .tierbadge[data-tier="6"] { background: var(--tier-6); }
+/* Disco Dan's Setlist lock — a greyed, desaturated card with a padlock ribbon + the tier it unlocks at. */
+.card.locked { filter: grayscale(0.72) brightness(0.82); cursor: not-allowed; }
+.cardlock { position: absolute; inset: 0; z-index: 8; display: grid; place-content: center; gap: 4px; justify-items: center;
+  pointer-events: none; color: #fff; font-family: var(--font-ui); font-weight: 800; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
+.cardlock-ico { font-size: 34px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.cardlock b { font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; background: var(--ink); padding: 2px 9px; border-radius: 8px; }
 /* Taunt signifies via its silver bulwark Pixi AURA (behind the card) — no badge. */
 /* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth); edge stays tribe-coloured. */
 .card.stealth { opacity: 0.8; }

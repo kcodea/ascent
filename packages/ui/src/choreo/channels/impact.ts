@@ -15,7 +15,7 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
  * knockback with the swing's damage (see `hitPower`). No-op FX/recoil when there's no defender (still
  * fires the hit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number): void {
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, leadTilt = 0): void {
   sfx.hit();
   if (!defender) return;
   const r = defender.getBoundingClientRect();

@@ -6,7 +6,7 @@ import { CARD_INDEX } from '@game/content';
 import { Card, type CardView } from './Card';
 import { Icon } from './Icon';
 import { questArt } from './art';
-import { questObjectiveLines, questRewardText } from './questText';
+import { questObjectiveLines, questObjectiveText, questRewardText } from './questText';
 
 const TIER_LABEL: Record<QuestDef['tier'], string> = { lesser: 'Lesser', greater: 'Greater', capstone: 'Capstone' };
 /** Each tribe's emblem glyph — the canonical set (mirrors Card.tsx's footer icons). */
@@ -41,7 +41,7 @@ function cardViewOf(id: string): CardView | null {
  * Hovering a quest that grants a named minion/spell floats a full preview of that card (reusing the Card hover
  * popup), so the player sees exactly what they'll get.
  */
-export function QuestCard({ quest, onBuy }: { quest: QuestDef; onBuy: () => void }) {
+export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef; onBuy: () => void; readOnly?: boolean }) {
   const c = quest.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${quest.tribe})`;
   const art = questArt(quest.id);
   const rewardCards = rewardCardIds(quest.reward).map(cardViewOf).filter((v): v is CardView => v !== null);
@@ -74,12 +74,12 @@ export function QuestCard({ quest, onBuy }: { quest: QuestDef; onBuy: () => void
 
   return (
     <button
-      className={`questcard${art ? ' has-art' : ''}`}
+      className={`questcard${art ? ' has-art' : ''}${readOnly ? ' readonly' : ''}`}
       style={{ '--c': c } as CSSProperties}
-      onClick={onBuy}
+      onClick={readOnly ? undefined : onBuy}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}
-      aria-label={`${quest.name} — take this quest (free)`}
+      aria-label={readOnly ? `${quest.name} — ${questObjectiveText(quest.objective)}` : `${quest.name} — take this quest (free)`}
     >
       {art && <img className="questcard-art" src={art} alt="" aria-hidden />}
       <span className="questcard-emblem" aria-hidden><Icon name={TRIBE_ICON[quest.tribe]} /></span>

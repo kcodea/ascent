@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import type { CardDef, Keyword, QuestReward, Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, QUEST_DEFS, SPELL_CARDS } from '@game/content';
 import { Card, type CardView } from './Card';
+import { QuestCard } from './QuestCard';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
@@ -46,8 +47,9 @@ const QUEST_REWARD_IDS = new Set(QUEST_REWARD_CARDS.map((x) => x.card.id));
 const MINION_POOL_IDS = new Set([...BUYABLE_CARDS, ...EVOLUTION_CARDS].map((c) => c.id));
 const SPELL_POOL_IDS = new Set(SPELL_CARDS.map((c) => c.id));
 
-/** Left-rail category: a real tribe, the tribe-less "spells" bucket, or the "quests" (quest-reward) bucket. */
-type Category = Tribe | 'spells' | 'quests';
+/** Left-rail category: a real tribe, the tribe-less "spells" bucket, the "rewards" (quest-reward cards) bucket,
+ *  or the "quests" bucket (the quest DEFINITIONS themselves — objective + art, rendered as QuestCards). */
+type Category = Tribe | 'spells' | 'rewards' | 'quests';
 
 const CAT_META: Record<Category, { label: string; icon: string }> = {
   beast: { label: 'Beasts', icon: 'paw' },
@@ -57,7 +59,8 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
   demon: { label: 'Demons', icon: 'eye' },
   neutral: { label: 'Neutral', icon: 'star' },
   spells: { label: 'Spells', icon: 'sc' },
-  quests: { label: 'Quest Rewards', icon: 'gift' },
+  rewards: { label: 'Quest Rewards', icon: 'gift' },
+  quests: { label: 'Quests', icon: 'target' },
 };
 
 const TIERS = [1, 2, 3, 4, 5, 6] as const;
@@ -190,8 +193,20 @@ export function MinionBook() {
   // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
   const tribes: Tribe[] = showTitle ? ALL_TRIBES : run.tribes;
 
-  // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells + Quest Rewards.
-  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'quests'], [tribes]);
+  // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells, Quest Rewards,
+  // and Quests (the quest definitions themselves).
+  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'rewards', 'quests'], [tribes]);
+
+  // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
+  // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
+  const questTierOrder = { lesser: 0, greater: 1, capstone: 2 } as const;
+  const questsToShow = useMemo(() => {
+    const tribeSel = [...cats].filter((x): x is Tribe => x !== 'spells' && x !== 'quests' && x !== 'rewards');
+    return QUEST_DEFS
+      .filter((q) => q.tribe === 'neutral' || tribes.includes(q.tribe))
+      .filter((q) => tribeSel.length === 0 || tribeSel.includes(q.tribe))
+      .sort((a, b) => questTierOrder[a.tier] - questTierOrder[b.tier] || a.name.localeCompare(b.name));
+  }, [tribes, cats]);
 
   // Every eligible card: minions whose tribe is neutral or in `tribes`, plus every tavern spell and every
   // quest-reward card whose granting quest is in scope. Buyable tokens are dropped by `BUYABLE_CARDS`; the
@@ -217,16 +232,17 @@ export function MinionBook() {
     // (or both pools, if both are on) and hides the minion gallery entirely. With neither selected, the gallery
     // is minions-only — spells and quest rewards never leak into a tribe search unless the player toggles them on.
     // Membership is by pool set (not the `spell` flag), so a minion that's also a reward shows correctly in both.
+    if (cats.has('quests')) return []; // the Quests tab renders quest DEFINITIONS (below), not cards
     const showSpells = cats.has('spells');
-    const showQuests = cats.has('quests');
-    const special = showSpells || showQuests;
-    const tribeSel = [...cats].filter((x): x is Tribe => x !== 'spells' && x !== 'quests');
+    const showRewards = cats.has('rewards');
+    const special = showSpells || showRewards;
+    const tribeSel = [...cats].filter((x): x is Tribe => x !== 'spells' && x !== 'quests' && x !== 'rewards');
     return allCards
       .filter((c) => {
         if (tiers.size > 0 && !tiers.has(c.tier)) return false;
         if (kw && !kw.match(c)) return false;
         if (special) {
-          return (showQuests && QUEST_REWARD_IDS.has(c.id)) || (showSpells && SPELL_POOL_IDS.has(c.id));
+          return (showRewards && QUEST_REWARD_IDS.has(c.id)) || (showSpells && SPELL_POOL_IDS.has(c.id));
         }
         // Minion mode: buyable minions + evolutions only, narrowed by the selected tribes.
         if (!MINION_POOL_IDS.has(c.id)) return false;
@@ -266,15 +282,17 @@ export function MinionBook() {
           <div className="book-sub">
             {glossary
               ? 'Keywords & abilities — click one to see its minions'
-              : `${filtered.length} ${
-                  cats.has('spells') && cats.has('quests')
-                    ? 'spells & quest rewards'
-                    : cats.has('quests')
-                      ? 'quest rewards'
-                      : cats.has('spells')
-                        ? 'spells'
-                        : 'minions'
-                } ${showTitle ? 'in the game' : 'findable this run'}`}
+              : cats.has('quests')
+                ? `${questsToShow.length} quests ${showTitle ? 'in the game' : 'available this run'}`
+                : `${filtered.length} ${
+                    cats.has('spells') && cats.has('rewards')
+                      ? 'spells & quest rewards'
+                      : cats.has('rewards')
+                        ? 'quest rewards'
+                        : cats.has('spells')
+                          ? 'spells'
+                          : 'minions'
+                  } ${showTitle ? 'in the game' : 'findable this run'}`}
           </div>
           <button
             className={`book-gloss${glossary ? ' on' : ''}`}
@@ -327,7 +345,9 @@ export function MinionBook() {
           </div>
         ) : (
           <>
-        {/* Tier filters across the top (multi-select); the active keyword filter rides at the far right. */}
+        {/* Tier filters across the top (multi-select); the active keyword filter rides at the far right. Hidden in
+            the Quests tab — quests use lesser/greater/capstone pools, not the 1–6 card tiers. */}
+        {!cats.has('quests') && (
         <div className="book-tiers">
           <span className="book-axislabel">Tier</span>
           {TIERS.map((t) => (
@@ -346,6 +366,7 @@ export function MinionBook() {
             </button>
           )}
         </div>
+        )}
 
         <div className="book-main">
           {/* Tribe + Spells filters down the left (multi-select). */}
@@ -354,7 +375,7 @@ export function MinionBook() {
               <button
                 key={c}
                 className={`book-cat${cats.has(c) ? ' on' : ''}`}
-                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'quests' ? 'var(--gold)' : `var(--t-${c})` } as CSSProperties}
+                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : `var(--t-${c})` } as CSSProperties}
                 onClick={() => toggleCat(c)}
                 aria-pressed={cats.has(c)}
                 title={CAT_META[c].label}
@@ -365,8 +386,20 @@ export function MinionBook() {
             ))}
           </div>
 
-          {/* The scrolling gallery — all matching cards in one vertically-scrollable grid. */}
-          {filtered.length > 0 ? (
+          {/* The scrolling gallery — cards, or (in the Quests tab) the quest DEFINITIONS as read-only QuestCards. */}
+          {cats.has('quests') ? (
+            questsToShow.length > 0 ? (
+              <div className="book-grid">
+                {questsToShow.map((q) => (
+                  <div className="book-cell" key={q.id}>
+                    <QuestCard quest={q} onBuy={() => {}} readOnly />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="book-empty">No quests for these tribes.</div>
+            )
+          ) : filtered.length > 0 ? (
             <div className="book-grid">
               {filtered.map((c) => (
                 <div className="book-cell" key={c.id}>

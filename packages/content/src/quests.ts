@@ -85,6 +85,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_twin_sun_oath', name: 'Twin Sun Oath', tribe: 'dragon', tier: 'capstone', objective: { event: 'shout', count: 16 }, reward: { kind: 'shoutEdgeBuff', attack: 5, health: 5 } },
   { id: 'q_the_bone_throne', name: 'The Bone Throne', tribe: 'undead', tier: 'capstone', objective: { event: 'friendlyDeath', count: 15 }, reward: { kind: 'boneThrone', every: 4 } },
   { id: 'q_death_writes_twice', name: 'Death Writes Twice', tribe: 'undead', tier: 'capstone', objective: { event: 'deathrattle', count: 12 }, reward: { kind: 'grant', cards: ['gravetwin'] } },
+  { id: 'q_empty_graves', name: 'Empty Graves', tribe: 'undead', tier: 'capstone', objective: { event: 'friendlyDeath', count: 25 }, reward: { kind: 'combatFlag', flag: 'emptyGraves' } },
   { id: 'q_shared_circuit', name: 'Shared Circuit', tribe: 'mech', tier: 'capstone', objective: { event: 'playAttachment', count: 12 }, reward: { kind: 'combatFlag', flag: 'sharedCircuit', amount: 3 } },
   { id: 'q_machine_chorus', name: 'Machine Chorus', tribe: 'mech', tier: 'capstone', objective: { event: 'rally', count: 10 }, reward: { kind: 'grant', cards: ['chorusengine'] } },
   { id: 'q_true_contract', name: 'The True Contract', tribe: 'demon', tier: 'capstone', objective: { event: 'consumeFodder', count: 20 }, reward: { kind: 'grant', cards: ['heraldapoc'] } },

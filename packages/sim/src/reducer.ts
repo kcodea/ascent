@@ -1751,6 +1751,7 @@ function questCombatMods(s: RunState): QuestCombatMods {
     slaughterFirstEachCombat: s.slaughterFirstEachCombat || undefined,
     feedingLine: f?.feedingLine,
     umbralEnergy: f?.umbralEnergy,
+    emptyGraves: f?.emptyGraves,
   };
 }
 

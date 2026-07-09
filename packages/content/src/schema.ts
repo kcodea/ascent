@@ -215,6 +215,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scEngraveAll',
   'rallyGiveHealthToDragons',
   'spellBloodlust',
+  'copyLeftmostEcho',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -293,7 +294,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'consumeFodder', 'consumeStats', 'summonImp',
   'winRound', 'castSpell', 'authorsHand',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [

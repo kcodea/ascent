@@ -1514,6 +1514,33 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.filter((e) => e.type === 'toHand').length).toBe(2);
   });
 
+  it('Grave Body: at Start of Combat copies your leftmost Echo (fires it on its own death)', () => {
+    const a = run(
+      [
+        { cardId: 'deathlesshand', attack: 2, health: 1 }, // leftmost — Deathrattle: summon a Footman
+        { cardId: 'gravebody', attack: 1, health: 1 },     // copies deathlesshand's Echo at Start of Combat
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 20, health: 50 }], // 20 Attack → both die to retaliation on their swings
+      1,
+    );
+    const footmen = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'footman').length;
+    expect(footmen).toBe(2); // deathlesshand's own Echo + Grave Body's copied one
+  });
+
+  it('Empty Graves: the first friendly death each combat summons a Gravebody', () => {
+    const a = simulate(
+      [
+        { cardId: 'alley', attack: 1, health: 1 }, // dies to the 20-Attack retaliation → first friendly death
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] },
+      ],
+      [{ cardId: 'omen', attack: 20, health: 50 }],
+      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0,
+      { emptyGraves: true },
+    );
+    expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'gravebody')).toBe(true);
+  });
+
   it('The Red Trail (slaughterKeyword): only kills by an on-kill (Slaughter) minion count', () => {
     const a = run(
       [

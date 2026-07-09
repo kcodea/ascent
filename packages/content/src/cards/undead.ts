@@ -144,6 +144,23 @@ export const UNDEAD: CardDef[] = [
     goldenText: '**Deathrattle:** give **two** friendly **Undead** **Rise**.',
   },
   {
+    // Grave Body: at Start of Combat (or when summoned mid-fight — Empty Graves' token), copy the Deathrattle of
+    // your leftmost living friendly Echo onto itself. Same factory on both triggers; a board minion uses SoC, a
+    // mid-combat summon uses onSummon (never both). The reward card for the Undead "Empty Graves" quest.
+    id: 'gravebody',
+    name: 'Grave Body',
+    tribe: 'undead',
+    tier: 3,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [
+      { on: 'startOfCombat', do: 'copyLeftmostEcho' },
+      { on: 'onSummon', do: 'copyLeftmostEcho' },
+    ],
+    text: 'Copy your leftmost **Echo** when summoned.',
+  },
+  {
     // Engraved: stat gains carry back to the run board. Gains +3/+3 per friendly summon in combat.
     // Overflow summons (board full) also buff your Undead +2/+2. Golden doubles both gains.
     id: 'thunderingabomination',

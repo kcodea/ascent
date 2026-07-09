@@ -4919,6 +4919,12 @@ describe('Undead quests — combat-objective completion + reward application', (
     expect(s.boneThroneStep).toBe(4); // Avenge (4)
   });
 
+  it('Empty Graves completes at 25 friendly deaths and arms the combat flag', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_empty_graves', progress: 0, completed: false }] }, { playerDeaths: 25 });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.questFlags?.emptyGraves).toBe(true);
+  });
+
   it('a repeatable quest (Ossuary Rite) re-arms and grants once per threshold crossed', () => {
     // 25 Echo triggers vs a count-8 repeatable → grants 3 times, leaves 1 progress, stays active (not completed).
     const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_ossuary_rite', progress: 0, completed: false }] }, { playerDeathrattles: 25 });

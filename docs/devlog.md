@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(content): content batch pt 4 — Grave Body card + Empty Graves quest (combat copy-Echo)
+
+Two Undead pieces sharing a new combat primitive — **copying your leftmost Echo as a real combat Deathrattle**:
+
+- **Grave Body** (Undead T3 1/1) — *"Copy your leftmost Echo when summoned."* New combat factory `copyLeftmostEcho`
+  (registered on both `startOfCombat` — for a played Grave Body on the board — and `onSummon` — for one summoned
+  mid-fight): finds the leftmost living friendly minion with an `onDeath` effect and grafts its Echo onto Grave
+  Body via the new `ctx.grantDeathrattle(target, effects)` (appends + registers the effects so they fire on the
+  grafted minion's death). Distinct from Gravetwin's recruit-delayed copy — this is a live combat Deathrattle.
+- **Empty Graves** (Undead capstone) — *Have 25 friendly minions die* → new combat flag `emptyGraves`: the FIRST
+  friendly death each combat summons a 1/1 **Gravebody** (the same card), which copies your leftmost Echo on
+  summon. Once per fight. *(Interpreted "first empty board space" as the first friendly death — the slot it
+  opens — mirroring Pit Without End's death hook.)*
+
+Wired through `EffectFactoryId` + `CombatContext` + Zod, `QuestCombatFlag`/`QuestCombatMods`, `questCombatMods`
+(reducer), and `questText`. Tests: Grave Body's SoC copy makes both it and the source summon a Footman on death
+(2 total); Empty Graves summons a Gravebody on the first friendly death; the quest completes at 25 and arms the
+flag. Full gauntlet + harness green.
+
 ### feat(content): content batch pt 3 — The Red Trail (Slaughter-keyword objective)
 
 New Beast greater quest **The Red Trail** — *Trigger 5 Slaughters* → *"End of Turn: get Bloodlust"* (the pt-2

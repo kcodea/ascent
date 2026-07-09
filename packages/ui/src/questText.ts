@@ -180,6 +180,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return 'Whenever a Beast Slaughters, your next Beast attacks immediately';
         case 'umbralEnergy':
           return 'Start of Combat: give your Dragons +2/+2 for every spell cast this game';
+        case 'emptyGraves':
+          return 'Your first friendly death each combat summons a 1/1 Gravebody that copies your leftmost Echo';
       }
       return '';
     case 'shoutRepeat':

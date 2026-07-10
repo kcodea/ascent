@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### fix(ui): Layout Lab — Hand "Card size" actually resizes cards + new Shop X/Y offsets
+
+Two Layout Lab (dev tuner) fixes:
+
+- **Hand "Card size" now scales the hand cards** (was: it only slid the hand up/down). Root cause: `--cw`/`--ccw`
+  (the compact-card width vars) are declared only on `:root`, computed from the root `--ch` — a custom property
+  inherits its already-substituted value, so the hand zone's `--ch` override never recomputed card width. The lever
+  only inflated `--ch` → `--hand-tuck` (a translateY), sliding the hand. Fix: the hand zone now (a) keeps `--ch`
+  FIXED at the shipped 1.18× basis (row height / resting tuck / hover-pop floor unchanged) and (b) drives `--cw`/
+  `--ccw` off the ROOT basis (`--ch-base * --card-scale`) × the lever, so at the default **1** a hand card is
+  pixel-identical to a shop/warband card and dragging the lever genuinely resizes it. Verified live: hand card =
+  233px at 1 (== shop), 327px at 1.4. (The lever `def` moved 1.18 → 1 to match.)
+- **New Shop row "X offset" / "Y offset" levers** (`--z-shop-x` / `--z-shop-y`) applied as `top`/`left` on the
+  tavern zone (combat-safe layout offset, mirroring the Warband pattern — a transform would fight the combat units'
+  GSAP lunges). Because the shop cards AND the enemy warband render in the *same* tavern zone, these move both
+  together (shop cards ⇄ opponent board stay aligned by construction), while the shop buttons — a separate
+  `.shopbar` — never move. Verified live: shop cards shift +120/+40, buttons stay at 0/0.
+
+typecheck / lint / build:web green.
+
 ### balance: quest-reward card retune (8 cards) + Tradesman rerolls cost 2
 
 A pass over eight quest-reward tokens plus a Tradesman economy tweak (owner spec 2026-07-10).

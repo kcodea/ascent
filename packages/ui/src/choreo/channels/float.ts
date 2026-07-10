@@ -66,6 +66,7 @@ export function spawnFloats(
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (e?.type === 'buff') {
+      if (e.source !== e.target) continue; // buff-OTHER: rendered as a tendril + badge flash, not a float
       const cur = buffByTarget.get(e.target) ?? { a: 0, h: 0, id: i };
       cur.a += e.attack;
       cur.h += e.health;

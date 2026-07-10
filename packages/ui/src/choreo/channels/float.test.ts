@@ -39,9 +39,10 @@ describe('spawnFloats', () => {
   });
 
   it('buff events sum per target into one float, not one per source event', () => {
+    // self-buffs (source === target) keep their float; buff-others get a tendril instead (see suppression suite).
     const evs: CombatEvent[] = [
-      { type: 'buff', target: 'b', attack: 1, health: 1, source: 'x' },
-      { type: 'buff', target: 'b', attack: 2, health: 0, source: 'y' },
+      { type: 'buff', target: 'b', attack: 1, health: 1, source: 'b' },
+      { type: 'buff', target: 'b', attack: 2, health: 0, source: 'b' },
     ];
     const { floats } = spawnFloats(moment(evs), evs, noEl, null);
     expect(floats).toEqual([{ id: 0, uid: 'b', text: '+3/+1', kind: 'buff' }]);
@@ -52,5 +53,22 @@ describe('spawnFloats', () => {
     const { floats, deathFloats } = spawnFloats(moment(evs), evs, noEl, null);
     expect(floats).toEqual([]);
     expect(deathFloats).toEqual([]);
+  });
+});
+
+const M = (start: number, end: number): Moment =>
+  ({ start, end, primary: { type: 'buff' } as CombatEvent, stepGroups: [[start]], kind: 'buffWave' });
+
+describe('spawnFloats — buff float suppression', () => {
+  it('does NOT emit a +N float for a buff-other (source !== target)', () => {
+    const events = [{ type: 'buff', source: 'A', target: 'x', attack: 1, health: 1 }] as CombatEvent[];
+    const { floats } = spawnFloats(M(0, 1), events, noEl, null);
+    expect(floats.filter((f) => f.kind === 'buff')).toEqual([]);
+  });
+  it('STILL emits a +N float for a self-buff (source === target)', () => {
+    const events = [{ type: 'buff', source: 'S', target: 'S', attack: 3, health: 3 }] as CombatEvent[];
+    const { floats } = spawnFloats(M(0, 1), events, noEl, null);
+    expect(floats.filter((f) => f.kind === 'buff')).toHaveLength(1);
+    expect(floats.find((f) => f.kind === 'buff')?.text).toBe('+3/+3');
   });
 });

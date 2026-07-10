@@ -362,6 +362,10 @@ export interface CombatReplay {
   /** uids whose effect fired in the current window — their trigger medallion pulses. */
   triggerUids: Set<string>;
   rallyPulseUids: Set<string>;
+  /** While a buff tendril is in flight to this unit, its PRE-buff displayed stats (held until the strike). */
+  statHoldFor: (uid: string) => { atk: number; hp: number } | undefined;
+  /** On the strike, which badge(s) just changed → flash them. Cleared shortly after. */
+  statFlashFor: (uid: string) => { atk: boolean; hp: boolean } | undefined;
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -426,6 +430,10 @@ export function useCombatReplay(
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
   const [rallyPulse, setRallyPulse] = useState<Set<string>>(new Set()); // uids mid-attack whose Rally fired → YELLOW medallion pulse (fired from the lunge's wind-up pause)
+  // Buff-tendril hold/flash: while a buff tendril flies to a target, HOLD its displayed Attack/Health at the
+  // PRE-buff value; on strike, release (delete → real value shows) and flash the changed badge(s). Keyed by uid.
+  const [statHold, setStatHold] = useState<Map<string, { atk: number; hp: number }>>(new Map());
+  const [statFlash, setStatFlash] = useState<Map<string, { atk: boolean; hp: boolean }>>(new Map());
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
@@ -440,6 +448,10 @@ export function useCombatReplay(
   // toggle doesn't re-run the effect and re-fire that beat's sfx/shake — sfx is only per-call deduped).
   const combatSpeedRef = useRef(combatSpeed);
   combatSpeedRef.current = combatSpeed;
+  // Mirror of the per-beat `frame` (declared far below via useMemo) so the cue effect can look up a target's
+  // live stats WITHOUT depending on `frame` directly (which would reorder/re-trigger the effect). Assigned
+  // right after the `frame` useMemo.
+  const frameRef = useRef<{ player: UnitFrame[]; enemy: UnitFrame[] } | null>(null);
   const [projectiles, setProjectiles] = useState<{ id: number; x: number; y: number; dx: number; dy: number; kind?: string }[]>([]);
   // A card a combat effect just granted to the hand (Arcane Weaver → Spirit Fire) — shown flying to the
   // hand for the duration of its beat, so the player sees it happen instead of it just appearing later.
@@ -467,6 +479,8 @@ export function useCombatReplay(
     setProjectiles([]);
     setShake(0);
     setHandGrant(null);
+    setStatHold(new Map());
+    setStatFlash(new Map());
   }, [combat]);
 
   // uid → cardId for the whole fight (initial boards + everything summoned) — used to spot which dying
@@ -606,6 +620,10 @@ export function useCombatReplay(
       onShieldBreak: (uid) => breakShieldAura(uid),
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
       onBuffCasts: (casts) => {
+        // Per-TARGET aggregate: sum the buff deltas across every cast landing on it (two different sources →
+        // same target must sum), and remember the (first) firing preset's travelMs to time the strike.
+        const perTarget = new Map<string, { atk: number; hp: number; travelMs: number }>();
+        // Fire one tendril per cast (unchanged), and accumulate the per-target aggregate.
         for (const c of casts) {
           const sEl = findEl(c.source); const tEl = findEl(c.target);
           if (!sEl || !tEl) continue;
@@ -619,7 +637,26 @@ export function useCombatReplay(
             { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 },
             preset,
           );
-          // Task 4 adds: schedule held-value release + badge flash at (preset.travelMs / combatSpeed).
+          const agg = perTarget.get(c.target);
+          if (agg) { agg.atk += c.attack; agg.hp += c.health; }
+          else perTarget.set(c.target, { atk: c.attack, hp: c.health, travelMs: preset.travelMs });
+        }
+        // Find a target's live stats without referencing `frame` directly (via frameRef mirror).
+        const unitOf = (uid: string) =>
+          frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
+        // Per target: HOLD its pre-buff value now (frame already reflects the buff, so pre = post − delta),
+        // then at the strike release the hold + flash the changed badge(s).
+        for (const [target, { atk: sumAtk, hp: sumHp, travelMs }] of perTarget) {
+          const tgt = unitOf(target);
+          const held = { atk: (tgt?.attack ?? 0) - sumAtk, hp: (tgt?.health ?? 0) - sumHp };
+          setStatHold((m) => new Map(m).set(target, held));
+          const strikeMs = travelMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
+          timers.push(window.setTimeout(() => {
+            setStatHold((m) => { const n = new Map(m); n.delete(target); return n; });
+            setStatFlash((m) => new Map(m).set(target, { atk: sumAtk !== 0, hp: sumHp !== 0 }));
+            timers.push(window.setTimeout(() =>
+              setStatFlash((m) => { const n = new Map(m); n.delete(target); return n; }), 360));
+          }, strikeMs));
         }
       },
     });
@@ -784,6 +821,7 @@ export function useCombatReplay(
     () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart, names) : { player: [], enemy: [] }),
     [combat, events, processedEnd, beatStart, names],
   );
+  frameRef.current = frame;
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.
@@ -906,6 +944,8 @@ export function useCombatReplay(
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
+    statHoldFor: (uid: string) => statHold.get(uid),
+    statFlashFor: (uid: string) => statFlash.get(uid),
     done, result: combat ? combat.result : null, shaking,
     beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, skip: () => setBeatIdx(beats.length),
   };

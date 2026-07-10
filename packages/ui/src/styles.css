@@ -704,7 +704,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* hero-power tooltip — same dark pill as the keyword tip, popping above the corner tray */
 .herotip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: 248px; background: var(--ink); color: #fff; border-radius: 12px; padding: 11px 14px; font-size: 12px; line-height: 1.45; font-weight: 600; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .herotip b { color: var(--acc); }
-.hero:hover .herotip { opacity: 1; transition-delay: 0.35s; }
+.heropanel:hover .herotip { opacity: 1; transition-delay: 0.35s; }
 /* embers projection — hover the Embers chip to see the next two waves' starting Embers */
 .emberproj { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); min-width: 158px; background: var(--ink); color: #fff; border-radius: 12px; padding: 9px 12px; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .emberproj .ept { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); margin-bottom: 6px; text-align: center; }
@@ -1344,15 +1344,31 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .statusbar .hero .htxt { min-width: 0; }
 .statusbar .hero .nm { font-size: calc(20 * var(--u)); line-height: 1.1; }
 .statusbar .hero .pw { font-size: calc(13 * var(--u)); white-space: normal; line-height: 1.26; }
-/* power button + Resolve are the bottom row — left-align them in their cells (override the single-row
-   margin-left:auto) and shrink to suit the compact frame */
-.statusbar .hero .hpwrap { margin-left: 0; justify-self: start; }
-.statusbar .heropowerbtn { width: calc(54 * var(--u)); height: calc(54 * var(--u)); }
-.statusbar .heropowerbtn svg { width: calc(28 * var(--u)); height: calc(28 * var(--u)); }
-.statusbar .hero .hpbox { justify-self: stretch; align-self: center; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
+/* Resolve is the bottom row — it now spans BOTH columns (the hero power moved out to its own `.heropanel`), so
+   it centres under the portrait + name. */
+.statusbar .hero .hpbox { grid-column: 1 / -1; justify-self: center; align-self: center; padding: calc(6 * var(--u)) calc(14 * var(--u)); }
 .statusbar .hero .hpbox svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); }
 .statusbar .hero .hpbox .hpval { font-size: calc(23 * var(--u)); }
 .statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
+/* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
+   the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
+.statusbar .heropanel {
+  position: relative; align-self: stretch; pointer-events: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u));
+  background: var(--card); border: 2px solid var(--line); border-radius: calc(18 * var(--u));
+  padding: calc(9 * var(--u)) calc(15 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14);
+}
+body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-reaching hand drop through */
+.statusbar .heropanel.ready { border-color: var(--acc); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 2px color-mix(in srgb, var(--acc) 55%, transparent), 0 0 22px -4px var(--acc); }
+.statusbar .heropanel.armed { border-color: var(--acc-dk); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 3px var(--acc), 0 0 24px 0 var(--acc); }
+.statusbar .heropanel.passive { opacity: 0.9; }
+.statusbar .heropanel .hpwrap { margin-left: 0; }
+.statusbar .heropanel .heropowerbtn { width: calc(82 * var(--u)); height: calc(82 * var(--u)); }
+.statusbar .heropanel .heropowerbtn svg { width: calc(40 * var(--u)); height: calc(40 * var(--u)); }
+/* The power name under the button — dims for a passive, brightens to the accent when the power is usable. */
+.statusbar .hplabel { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em; color: var(--ink2); text-align: center; max-width: calc(104 * var(--u)); line-height: 1.15; }
+.statusbar .heropanel.ready .hplabel { color: var(--acc-dk); }
 /* Embers chip scaled to fill the (hero-tall) chip */
 .statusbar .chip { padding: calc(11 * var(--u)) calc(16 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(11 * var(--u)); }
 .statusbar .chip .ic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(16 * var(--u)); }

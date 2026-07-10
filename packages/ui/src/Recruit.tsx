@@ -756,27 +756,25 @@ export function Recruit() {
     setSkipFade((s) => {
       if (s) return s; // already skipping
       const FADE = 260, HOLD = 900, IN = 300;
-      // 1) Freeze AND fade at the same instant — no visible held frame. GSAP lunges/settles + both Pixi tickers
-      //    (particles + shield/reborn/taunt bubbles) stop; `.combatfrozen` pauses every remaining CSS animation;
-      //    `.combatout` fades every combat visual to 0; and clearParticles wipes any live dust/spark/trail so
-      //    nothing can linger on the canvas as it goes. Kill all audio too (a replacement one-shot goes here later).
-      skipPhaseRef.current = 'suppress'; // wipe all auras + stop syncShields churning them at stale positions
+      // 1) Freeze the UNITS (GSAP) + fade everything out together, no held frame. We do NOT pause the Pixi tickers
+      //    — a paused ticker stalls a bubble's alpha at 0, so it later POPS in — they keep running while the auras
+      //    fade out via canvas opacity; transient dust is wiped, `.combatout` fades the rows, and syncShields stops
+      //    churning ('suppress'). Kill all audio too (a replacement one-shot goes here later).
+      skipPhaseRef.current = 'suppress';
       stopAllAudio();
       gsap.globalTimeline.pause();
-      pixiFx.setPaused(true); tauntFx.setPaused(true);
       pixiFx.clearParticles(); tauntFx.clearParticles();
-      pixiFx.clearAllShields(); tauntFx.clearAllShields();
-      pixiFx.setVisible(false, FADE); tauntFx.setVisible(false, FADE); // fade the app-wide FX canvases (auras/dust) out with the board
-      // 2) Once faded out, settle the simulation's END STATE under cover of opacity 0 (resume the tickers so the
-      //    surviving board + its auras render live), wipe any transient the settle re-fired, then hold ~1s…
+      pixiFx.setVisible(false, FADE); tauntFx.setVisible(false, FADE); // fade the FX canvases (auras/dust) out with the board
+      // 2) Once faded out (canvas at 0), jump to the resolved board + wipe the now-hidden auras so it re-registers fresh.
       window.setTimeout(() => {
         gsap.globalTimeline.resume();
-        pixiFx.setPaused(false); tauntFx.setPaused(false);
         replay.skip();
         pixiFx.clearParticles(); tauntFx.clearParticles();
+        pixiFx.clearAllShields(); tauntFx.clearAllShields();
       }, FADE);
-      // 3) …then fade the clean end state back in. Flip to 'settle' FIRST so the very next syncShields registers
-      //    the resolved board's auras at their settled slots (born formed, no deploy dust) — they fade in WITH it.
+      // 3) …hold, then flip to 'settle' so syncShields registers the resolved board's auras ONCE (settled slots,
+      //    born formed, no deploy dust) and fade the canvas back in — the auras fade in WITH the board (tickers are
+      //    live, so each bubble is at full alpha immediately — no pop).
       window.setTimeout(() => {
         pixiFx.clearParticles(); tauntFx.clearParticles(); // final wipe so only the settled board's auras remain
         skipPhaseRef.current = 'settle';

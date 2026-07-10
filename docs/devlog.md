@@ -47,8 +47,12 @@ replacement one-shot will play in the Skip's place later (owner).
   hold): `clearAllShields()` wipes every bubble up front and `syncShields` early-returns, so **nothing exists** to
   churn or flash while the board is mid-transition. **`'settle'`** (fade-in): `syncShields` registers the resolved
   board's auras **once**, at their settled slots, **born fully-formed** (`setShield(..., instant)` → no grow-in) and
-  **without the deploy dust**. Verified in Chrome: `n = 0` bubbles through the whole freeze/hold, then at fade-in all
-  three types register `OK` (correct slots) with live-particle count `0`.
+  **without the deploy dust**. A last piece: we no longer **pause the Pixi tickers** during the skip — a paused
+  ticker stalls a bubble's `container.alpha` at 0, so when it resumed the aura **popped** into view (a "spawn").
+  The tickers stay live (redundant to pause: all particles + bubbles are already cleared/suppressed), so each
+  registered bubble is at full alpha immediately and simply fades in with the **canvas opacity** ramp. Verified in
+  Chrome: through the freeze/hold `n = 0` bubbles / canvases at 0; at fade-in all three types read `alpha 1` while
+  the canvas opacity steps `0.12 → 0.45 → 0.79 → 1` — a clean fade, no pop, correct slots, zero stray dust.
 
 Verified **in a real focused Chrome tab** (via the claude-in-chrome integration, driving `window.useGame`): through
 the whole hold, all three FX canvases + the unit rows sample at opacity `0` (was `1` — the leak), the board is clean

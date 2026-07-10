@@ -298,7 +298,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'winRound', 'castSpell', 'authorsHand',
   'compound',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'runeWarding', 'runeFury', 'runeSlaying']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -352,6 +352,8 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('runeStructure') }).strict(),
   z.object({ kind: z.literal('runeConsume'), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('goldPouchValue'), value: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeSummoning') }).strict(),
+  z.object({ kind: z.literal('runeEmpowerment') }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
 ]));
 

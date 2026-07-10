@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: 3 more runes + 2 heroes (Coran, Jenkins)
+
+**Runes** (added to the Runeforge pool — it now offers a random 5 of **11**, each with art):
+- **Rune of Summoning** (5): each spell cast permanently improves your Imps +1/+1 (run-wide via `buffImpsRunWide`,
+  hooked in `castSpell`).
+- **Rune of Forthcoming** (3): always attack first — a combat flag folded into the `attackFirst` sim argument (both
+  the real + odds sims), no core change.
+- **Rune of Empowerment** (4): your hero power triggers twice — a `runeEmpowerment` flag threaded as a `reps`
+  multiplier into the value/generate hero powers (scalingGold / gainMaxMana / fortify / dynamiteDig). **Dormant for
+  Runesmith** (his power is the passive Runeforge); forward-wired for a future forge-hero with an active power.
+
+**Heroes** (both 30 HP / 10 armor, with art):
+- **Coran — Pathfinder** (passive): skips the Lesser quest, and the Greater + Capstone quest shops arrive early, on
+  turns **6 & 10** (vs 8 & 12). His schedule replaces the normal 4/8/12 in `advanceCombat`.
+- **Jenkins — Dynamite Dig** (active, untargeted): spend **1 Gold** to Discover a minion of your tier, the cost
+  climbing **+1 each use** (1, 2, 3, …) via `heroPowerUses`. StatusBar shows the live escalating cost + gates
+  affordability on it.
+
+New reward kinds (`runeSummoning` / `runeEmpowerment`) + combat flag (`runeForthcoming`) + power kinds
+(`pathfinder` / `dynamiteDig`) are zod-validated. 6 new tests (each new rune's flag, Summoning in play, Coran's
+turn-4/6/10 schedule, Jenkins's escalating-cost Discover). typecheck / lint / 816 tests / build green.
+
 ### feat(ui): art for Runesmith + all 8 runes, and a Runeforge card polish
 
 Wired the hero portrait + rune art (owner-supplied). Converted the ~2 MB source PNGs to **512×512 webp** (~28–45 KB

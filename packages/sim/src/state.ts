@@ -402,7 +402,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -420,6 +420,11 @@ export interface RunState {
   runeConsume?: { attack: number; health: number };
   /** Rune of Pillaging: your Gold Pouches (the Gold Pouch spell) are worth this many Gold. Absent = default 1. */
   goldPouchValue?: number;
+  /** Rune of Summoning: each spell cast improves your Imps +1/+1 (run-wide, via the Imp enchant). */
+  runeSummoning?: boolean;
+  /** Rune of Empowerment: your hero power's effect triggers twice. (Dormant for Runesmith, whose power is the
+   *  passive Runeforge — activates for a future forge-hero with an ACTIVE power.) */
+  runeEmpowerment?: boolean;
   /** Food for Gold (Demon greater): armed reward — every `per` Gold spent adds a Fodder to the next shop and
    *  bumps the run-wide Fodder aura by +attack/+health. `foodForGoldTick` carries the sub-`per` Gold remainder. */
   foodForGold?: { per: number; attack: number; health: number };

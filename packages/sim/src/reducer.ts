@@ -803,6 +803,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
       const card = s.board.find((c) => c.uid === action.uid);
+      // Rune of Empowerment: the hero power's effect triggers twice. Threaded into the value/generate powers
+      // below (a targeted single-application power like Ward/Gild can't meaningfully double). Dormant today —
+      // Runesmith (the only forge hero) has a passive power — but forward-wired for future active forge heroes.
+      const reps = s.runeEmpowerment ? 2 : 1;
 
       if (power.kind === 'gild') {
         // Indy: make a friendly board minion Golden — doubles its BASE stats (recorded as a "Gild" buff so the
@@ -834,7 +838,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'scalingGold') {
         // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
         // Untargeted; the once-per-turn charge is spent by the shared block below.
-        s.embers += 1 + s.wave;
+        s.embers += (1 + s.wave) * reps;
+      } else if (power.kind === 'dynamiteDig') {
+        // Jenkins: Discover a minion of your CURRENT tier for a Gold cost that climbs 1 each use (1, 2, 3, …).
+        // Untargeted; the escalating cost + the whole-game use count are handled here (not the shared block).
+        const digCost = 1 + heroUses;
+        if (s.embers < digCost) return state; // can't afford this use → no charge spent
+        spendGold(s, digCost);
+        s.heroPowerUses = heroUses + 1; // escalate the next use's cost
+        for (let r = 0; r < reps; r++) { // Empowerment: two Discovers (the 2nd queues behind the 1st)
+          if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+          else queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+        }
       } else if (power.kind === 'adjacentConsume') {
         // Herald's Proclaim: the two minions on either side of the targeted friendly minion each Consume a
         // created Fodder. No-op (no charge spent) on a missing target or one with no neighbours to feed.
@@ -864,6 +879,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
+        || power.kind === 'pathfinder'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover hooks). Nothing to do on a power click.
@@ -871,7 +887,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'gainMaxMana') {
         // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
         // action.uid. Doesn't return, so the shared spend logic below charges the once-per-turn charge.
-        s.maxEmbers += 1;
+        s.maxEmbers += reps;
       } else if (power.kind === 'goldenGild') {
         // Gildmaster: if you have 2 copies of a minion (a "double"), combine them into one golden copy in
         // your hand — a discounted triple (you then play the golden for the triple reward). Untargeted: it
@@ -890,7 +906,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
-        const amt = s.tier;
+        const amt = s.tier * reps;
         if (card) addBuff(card, 'Fortify', amt, amt); // raises Attack → the reduce() boundary fires Hunter's onGainAttack
         else {
           const offer = s.shop.find((c) => c.uid === action.uid);
@@ -1015,13 +1031,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
       }).length;
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
           if (r.result === 'win') win++;
           else if (r.result === 'draw') draw++;
           else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
@@ -1541,10 +1557,13 @@ function advanceCombat(s: RunState): void {
   // "questOffer is set" (no new phase enum); the modal guard locks every action but buyQuest until it resolves.
   // Fi's Errand: an EXTRA, lower-tier quest shop on turn 3 (an off-wave, drawn from the 'lesser' pool). On the
   // normal quest waves (4/8/12) she gets those as usual; this is a bonus offer, once, ahead of schedule.
-  const fiExtra = getHero(s.heroId).power.kind === 'lesserQuest' && s.wave === 3;
-  const questOffer = fiExtra
-    ? generateQuestOffer(s, 'lesser')
-    : questTierForWave(s.wave) ? generateQuestOffer(s) : [];
+  const hp = getHero(s.heroId).power.kind;
+  const fiExtra = hp === 'lesserQuest' && s.wave === 3;
+  // Coran (Pathfinder): his OWN quest schedule replaces the normal 4/8/12 — no Lesser, Greater on turn 6, Capstone
+  // on turn 10. Returns `null` off his quest turns so the normal schedule is skipped entirely for him.
+  const coranTier = hp === 'pathfinder' ? (s.wave === 6 ? 'greater' : s.wave === 10 ? 'capstone' : null) : undefined;
+  const questTier = fiExtra ? 'lesser' : coranTier !== undefined ? coranTier : questTierForWave(s.wave);
+  const questOffer = questTier ? generateQuestOffer(s, questTier) : [];
   // Runesmith: the Runeforge opens exactly once, on turn 6 — offer a random 5 of the runes for the player to buy
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
   const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 6 && !s.heroPowerSpent;
@@ -1897,6 +1916,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'goldPouchValue':
       s.goldPouchValue = r.value; // Rune of Pillaging: your Gold Pouches are worth this much
+      break;
+    case 'runeSummoning':
+      s.runeSummoning = true; // Rune of Summoning: each spell cast improves your Imps +1/+1
+      break;
+    case 'runeEmpowerment':
+      s.runeEmpowerment = true; // Rune of Empowerment: your hero power triggers twice
       break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.

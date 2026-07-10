@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { CombatResult } from '@game/core';
-import { CARD_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
+import { CARD_INDEX, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { reduce } from './reducer';
 
@@ -20,7 +20,7 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(8);
+    expect(RUNES.length).toBe(11);
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -91,6 +91,11 @@ describe('Runeforge — each rune applies its effect on purchase', () => {
     expect(s.hand.some((c) => c.cardId === 'pillager')).toBe(true);
     expect(s.goldPouchValue).toBe(2);
   });
+  it('Summoning / Forthcoming / Empowerment arm their flags', () => {
+    expect(buyRune('rune_summoning').runeSummoning).toBe(true);
+    expect(buyRune('rune_forthcoming').questFlags?.runeForthcoming).toBe(true);
+    expect(buyRune('rune_empowerment').runeEmpowerment).toBe(true);
+  });
 });
 
 describe('Runeforge — rune effects fire in play', () => {
@@ -120,5 +125,50 @@ describe('Runeforge — rune effects fire in play', () => {
       } as CombatResult,
     }, { type: 'settleCombat' }); // settle WITHOUT advancing, so bonusEmbersNextTurn isn't yet spent into next turn
     expect(s.bonusEmbersNextTurn).toBe(6); // 3 slaughters × 2
+  });
+
+  it('Summoning: casting a spell improves your Imps +1/+1 (run-wide)', () => {
+    let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 5, runeSummoning: true,
+      hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'gp' }); // cast one spell
+    expect(s.impBuff).toEqual({ attack: 1, health: 1 });
+  });
+});
+
+describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
+  const atCombat = (heroId: string, wave: number): RunState => ({
+    ...createRun(1, heroId), wave, phase: 'combat',
+    lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
+  });
+
+  it('Coran: no Lesser quest on turn 4', () => {
+    const s = reduce(atCombat('coran', 3), { type: 'resolveCombat' }); // → turn 4
+    expect(s.wave).toBe(4);
+    expect(s.questOffer).toBeUndefined();
+  });
+  it('Coran: the Greater quest shop opens on turn 6', () => {
+    const s = reduce(atCombat('coran', 5), { type: 'resolveCombat' }); // → turn 6
+    expect(s.wave).toBe(6);
+    expect(s.questOffer?.length).toBeGreaterThan(0);
+    expect(QUEST_INDEX[s.questOffer![0]!]?.tier).toBe('greater');
+  });
+  it('Coran: the Capstone quest shop opens on turn 10', () => {
+    const s = reduce(atCombat('coran', 9), { type: 'resolveCombat' }); // → turn 10
+    expect(s.wave).toBe(10);
+    expect(QUEST_INDEX[s.questOffer![0]!]?.tier).toBe('capstone');
+  });
+
+  it('Jenkins: Dynamite Dig opens a tier Discover, spends 1 Gold, and the cost climbs each use', () => {
+    let s: RunState = { ...createRun(1, 'jenkins'), wave: 3, tier: 2, phase: 'recruit', embers: 10, heroReady: true };
+    s = reduce(s, { type: 'heroPower' });
+    expect(s.discover).toBeDefined(); // a minion Discover opened
+    expect(s.embers).toBe(9); // first use costs 1
+    expect(s.heroPowerUses).toBe(1);
+    // Resolve the Discover + recharge, then the second use costs 2.
+    s = reduce(s, { type: 'discover', index: 0 });
+    s = { ...s, heroReady: true, embers: 10 };
+    s = reduce(s, { type: 'heroPower' });
+    expect(s.embers).toBe(8); // second use costs 2
+    expect(s.heroPowerUses).toBe(2);
   });
 });

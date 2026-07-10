@@ -8,23 +8,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 ### feat(ui): Skip combat gets the crossfade — everything pauses, mutes, and fades out together
 
 Skip used to hard-cut the replay to the resolved board (an instant jump + a burst of the remaining beats' audio).
-Now it's a controlled transition that reuses the End-Combat crossfade: on Skip, **all motion freezes** (the GSAP
-global timeline pauses every lunge/settle; both Pixi tickers stop, holding their particles/bubbles in place) and
-**all audio is killed** (`stopAllAudio` snaps a new master mute bus to 0 and blocks new sounds), everything holds a
-beat so it visibly pauses, then **all units + all FX fade out together** (the `.combatout` opacity beat), the replay
-jumps to the resolved board under cover of opacity 0, and that final board **fades back in together** (`.combatin`).
-Audio stays muted through the resolved screen and un-mutes when the fight is left (or the next one begins) — a
+Now it's a controlled transition that reuses the End-Combat crossfade and lands on **whatever end state the
+simulation reached** (win / loss / tie survivors). The full sequence on Skip:
+
+1. **Everything freezes in place** — the GSAP global timeline pauses every lunge/settle; **both** Pixi tickers stop
+   (particles, shield/reborn bubbles, **and the taunt bulwark**); and `.combatfrozen` pauses every remaining CSS
+   animation (unit idle pulses, etc.). Nothing moves.
+2. **All audio is killed** — `stopAllAudio` snaps a new master mute bus to 0 and blocks new sounds from scheduling.
+3. A held beat, then **everything fades out together** — unit rows, all three FX canvases, the loose transient
+   overlays (SoC bolts + damage/death floats, hard-hidden since a transition can't fade a mid-animation opacity),
+   and the control bar.
+4. Under cover of opacity 0, the replay jumps to the resolved board (tickers resume so the surviving board + its
+   auras render live), it **holds ~1 s on black**, then the end state **fades back in together** — with the End
+   Combat / Summary buttons — so the player reviews the result on a clean board.
+
+Audio stays muted through the resolved screen and un-mutes when the fight is left (or the next begins) — a
 replacement one-shot will play in the Skip's place later (owner).
 
 - `sfx.ts`: a master **mute bus** (`GainNode`, limiter → bus → destination) + `stopAllAudio()` / `resumeAudio()`;
   `tone`/`playSample` also early-out while suspended so nothing schedules during the fade.
-- `pixiFx.ts`: `setPaused()` — stops/starts the ticker so live particles + shield/reborn bubbles freeze in place
-  (the canvas opacity is faded separately by CSS, which doesn't need the ticker).
-- `Recruit.tsx`: `skipCombat` (freeze → pause-beat → fade-out → `replay.skip()` → fade-in) reusing the
-  `.combatout`/`.combatin` classes; an effect un-mutes audio whenever combat is left.
+- `pixiFx.ts`: `setPaused()` — stops/starts the ticker so live particles + bubbles + the taunt bulwark freeze in
+  place (the canvas opacity is faded separately by CSS, which doesn't need the ticker).
+- `Recruit.tsx`: `skipCombat` (freeze → fade-out → resume + `replay.skip()` under cover → ~1 s hold → fade-in);
+  `.combatfrozen` (freeze phases) + a broadened `.combatout`/`.combatin` covering every combat visual + the
+  control bar; an effect un-mutes audio whenever combat is left.
 
-Verified: typecheck + lint + 774 tests + `build:web` green; dev server serves with zero console errors. The exact
-pause/fade timing is **for live eyeball** (the preview can't show rAF fades). Replacement Skip sound: pending owner.
+Verified: typecheck + lint + 774 tests + `build:web` green; a live computed-style probe confirms every combat
+layer (rows, canvases, bolts, floats, control bar) resolves to opacity 0 under the fade; zero console errors. The
+exact pause/hold/fade timing is **for live eyeball**. Replacement Skip sound: pending owner.
 
 ### chore(ui): skull-burst sfx quieter still (0.4 → 0.04)
 

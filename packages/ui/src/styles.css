@@ -1607,15 +1607,30 @@ body.choreo-open .pixifx-under { z-index: 204; }
    of opacity 0 and `.combatin` fades the recruit board + surviving minions back in together. Opacity-only, so
    it's compositor-cheap and never hitches. Both phases key off the SAME rows/canvases, so units and their FX
    can't drift out of sync. */
+/* The rows + FX canvases + the control bar aren't animated, so a plain opacity transition fades them cleanly. */
 .app.combatout .zone .row,
 .app.combatout .pixifx,
 .app.combatout .pixifx-under,
-.app.combatout .taunt-back { opacity: 0; transition: opacity 0.2s ease; }
+.app.combatout .taunt-back,
+.app.combatout .combathud,
+.app.combatout .combatctl { opacity: 0; transition: opacity 0.2s ease; }
 .app.combatin .zone .row,
 .app.combatin .pixifx,
 .app.combatin .pixifx-under,
-.app.combatin .taunt-back { animation: boardfadein 0.26s ease both; }
+.app.combatin .taunt-back,
+.app.combatin .combatctl { animation: boardfadein 0.26s ease both; }
 @keyframes boardfadein { from { opacity: 0; } to { opacity: 1; } }
+/* Skip-combat freeze: while the replay is frozen (GSAP + both Pixi tickers are paused in JS), also stop every
+   CSS-driven combat animation — the units' idle pulses etc. — so LITERALLY everything holds still as it fades.
+   (End Combat never sets this — it has no live FX to stop.) */
+.app.combatfrozen .zone .row,
+.app.combatfrozen .zone .row * { animation-play-state: paused !important; }
+/* The loose transient overlays (SoC bolts, damage/death floats) drive their OWN opacity keyframes — a transition
+   can't fade a property that's mid-animation, so we hard-hide them the instant the fade begins (`!important`
+   beats the running animation). They're sub-second anyway, so they simply vanish with the rest. */
+.app.combatout .proj,
+.app.combatout .deathfloat,
+.app.combatout .float { opacity: 0 !important; }
 
 /* ===================== in-place combat (shop closes → enemies arrive) =====================
    Combat plays out on the recruit board itself: the top half (tavern offers, the control

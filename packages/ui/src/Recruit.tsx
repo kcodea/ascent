@@ -749,18 +749,26 @@ export function Recruit() {
   const skipCombat = useCallback((): void => {
     setSkipFade((s) => {
       if (s) return s; // already skipping
+      // 1) FREEZE everything in place — GSAP lunges/settles, both Pixi tickers (particles + shield/reborn/taunt
+      //    bubbles), and (via `.combatfrozen`) every CSS animation still running (SoC bolts, floats, idle pulses).
+      //    Kill all audio too (a replacement one-shot goes here later).
       stopAllAudio();
-      gsap.globalTimeline.pause();  // freeze every lunge/settle mid-motion — everything visibly pauses…
-      pixiFx.setPaused(true); tauntFx.setPaused(true); // …and freeze the Pixi particles/bubbles too
-      window.setTimeout(() => setSkipFade('out'), 150);      // …for a moment, then it all fades out together
+      gsap.globalTimeline.pause();
+      pixiFx.setPaused(true); tauntFx.setPaused(true);
+      const FREEZE = 160, FADE = 220, HOLD = 900, IN = 300;
+      // 2) after a beat frozen at full opacity, fade EVERYTHING out together (units + every FX)…
+      window.setTimeout(() => setSkipFade('out'), FREEZE);
+      // 3) …once faded out, settle the simulation's END STATE under cover of opacity 0 (resume the tickers so the
+      //    surviving board + its auras render live), then hold ~1s on black…
       window.setTimeout(() => {
         gsap.globalTimeline.resume();
         pixiFx.setPaused(false); tauntFx.setPaused(false);
-        replay.skip();              // jump to the resolved board while faded out
-        setSkipFade('in');          // fade the final board back in together
-        window.setTimeout(() => setSkipFade(null), 260);
-      }, 150 + 220);
-      return 'freeze';              // hold the frozen frame at full opacity during the pause, before the fade
+        replay.skip();
+      }, FREEZE + FADE);
+      // 4) …then fade the end state back in together (End Combat / Summary buttons are already there once done).
+      window.setTimeout(() => setSkipFade('in'), FREEZE + FADE + HOLD);
+      window.setTimeout(() => setSkipFade(null), FREEZE + FADE + HOLD + IN);
+      return 'freeze';
     });
   }, [replay]);
 
@@ -2357,7 +2365,9 @@ export function Recruit() {
     <div
       className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
-      }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}`}
+      }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
+        skipFade === 'freeze' || skipFade === 'out' ? ' combatfrozen' : ''
+      }`}
       onPointerDown={onBoardPointerDown}
     >
       {/* The BEHIND-cards taunt FX layer — first child so its canvas paints above the board surface but

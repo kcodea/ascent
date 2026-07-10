@@ -1,8 +1,9 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import { CARD_INDEX, QUEST_INDEX, referencedCardIds } from '@game/content';
+import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
+import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
@@ -471,6 +472,7 @@ export function Recruit() {
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
+  const [forgeMin, setForgeMin] = useState(false); // the Runeforge overlay is minimized (inspect the board behind it)
   const [logTab, setLogTab] = useState<'gains' | 'procs' | 'log'>('gains'); // Permanent gains · Procs · blow-by-blow log
   // Per-card stat snapshot (attack + health) for the recruit-phase buff flash + the +X/+X float (declared
   // up here so the combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
@@ -666,14 +668,15 @@ export function Recruit() {
   // float in front of the overlay. (Inspect / hero-select / end-of-run sit above the FX canvas already.)
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so keep the behind-card shields showing then.
-    const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || run.chooseOne;
+    const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne;
     pixiFx.setShieldsVisible(!modalCovering);
     tauntFx.setShieldsVisible(!modalCovering);
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, questMin]);
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, questMin, run.runeforgeOffer, forgeMin]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
   useEffect(() => { setQuestMin(false); }, [run.questOffer]);
+  useEffect(() => { setForgeMin(false); }, [run.runeforgeOffer]);
   // Mount the BEHIND-cards taunt FX layer into its div inside `.app` (once). Its canvas paints above the
   // board surface but below the card rows, so the silver bulwark sits behind each taunt minion.
   useEffect(() => {
@@ -1650,7 +1653,7 @@ export function Recruit() {
   // writes turnClock directly, so ticking never re-renders Recruit. The reset effect above runs first
   // on a new turn (effect order), so the clock is back at full time before this re-schedules.
   useEffect(() => {
-    if (run.phase !== 'recruit' || run.discover || run.questOffer || heroSelecting || overlayOpen) return;
+    if (run.phase !== 'recruit' || run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen) return;
     let id = 0;
     const tick = (): void => {
       const cur = turnClock.get();
@@ -1662,7 +1665,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, 1000);
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, heroSelecting, overlayOpen, run.wave]);
+  }, [run.phase, run.discover, run.questOffer, run.runeforgeOffer, heroSelecting, overlayOpen, run.wave]);
 
   // Flash a card green AND float its +X/+X when its stats jump in the recruit phase (a buff landed).
   useEffect(() => {
@@ -2436,7 +2439,7 @@ export function Recruit() {
               can't afford / time up. Uses the same helper the reducer charges with, so the shown cost is accurate. */}
           <button
             className="shopbtn"
-            disabled={run.tier >= CONFIG.maxTier || run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer}
+            disabled={run.tier >= CONFIG.maxTier || run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
             onClick={() => dispatch({ type: 'upgrade' })}
           >
             <span className="sb-l">Upgrade Tavern</span>
@@ -2447,7 +2450,7 @@ export function Recruit() {
           {/* Reroll — free rolls show 0. */}
           <button
             className="shopbtn"
-            disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer}
+            disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
             onClick={() => dispatch({ type: 'roll' })}
           >
             <span className="sb-l">Reroll</span>
@@ -2458,7 +2461,7 @@ export function Recruit() {
           {/* Freeze — toggle; tinted blue, filling solid blue while the tavern is frozen. */}
           <button
             className={`shopbtn freeze${run.frozen ? ' on' : ''}`}
-            disabled={timeUp || eotAnimating || !!run.questOffer}
+            disabled={timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
             onClick={() => dispatch({ type: 'freeze' })}
           >
             <span className="sb-l">Freeze</span>
@@ -2468,7 +2471,7 @@ export function Recruit() {
           {/* End Turn — the primary action, styled amber; mirrors the standalone right-edge button. */}
           <button
             className={`shopbtn endturn${timeUp ? ' urgent' : ''}`}
-            disabled={eotAnimating || !!run.questOffer}
+            disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
             onClick={endTurn}
           >
             <span className="sb-l">End Turn</span>
@@ -3020,6 +3023,37 @@ export function Recruit() {
               })}
             </div>
             <span className="disc-gem disc-gem-bot" aria-hidden="true" />
+          </div>
+        </div>
+      )}
+
+      {/* Runeforge (Runesmith, turn 6): a stone/engraved shop. Buy ONE of the 5 offered runes (or Skip), then it
+          closes and the shop begins. A minimize toggle lets you inspect the board behind it. */}
+      {run.runeforgeOffer && (
+        <button
+          className="disc-toggle forge-toggle"
+          onClick={() => setForgeMin((m) => !m)}
+          title={forgeMin ? 'Return to the Runeforge' : 'Inspect the board, then return to the forge'}
+        >
+          {forgeMin
+            ? <><Icon name="up" /> Return to the Runeforge · {run.runeforgeOffer.length} runes</>
+            : <><Icon name="eye" /> Inspect the board</>}
+        </button>
+      )}
+      {run.runeforgeOffer && !forgeMin && (
+        <div className="discover-ov forge-ov" role="dialog" aria-label="The Runeforge">
+          <div className="disc-panel forge-panel">
+            <div className="disc-banner forge-banner"><Icon name="anvil" /><span className="disp">Runeforge</span></div>
+            <div className="disc-sub forge-sub">Forge one Rune into your run — it lasts the whole climb</div>
+            <div className="disc-cards forge-cards">
+              {run.runeforgeOffer.map((id, i) => {
+                const rune = RUNE_INDEX[id];
+                return rune ? (
+                  <RuneCard key={id} rune={rune} affordable={run.embers >= rune.cost} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
+                ) : null;
+              })}
+            </div>
+            <button className="forge-skip" onClick={() => dispatch({ type: 'skipRuneforge' })}>Leave the forge without a Rune</button>
           </div>
         </div>
       )}

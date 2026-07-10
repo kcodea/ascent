@@ -47,6 +47,20 @@ run (the event-log ordering — the replay's source of truth — is confirmed; U
 
 ## 2026-07-10 (session 29)
 
+### feat(ui): the Runeforge — stone/engraved rune shop + rune badges (Runesmith is live)
+
+The presentation half (on the engine PR). A new **Runeforge overlay** (`Recruit.tsx`) opens on turn 6 for Runesmith
+— a **stone/engraved** variant of the Discover/Quest panel (cold slate backdrop, a chiseled stone banner with
+engraved uppercase title + anvil sigil, deliberately unlike the warm gold Quest shop). It shows the 5 offered runes
+as **`RuneCard`** tablets (carved slab, a rune sigil, name, a Gold cost badge, the effect text; greyed + "Not
+enough Gold" when unaffordable), a **"Leave the forge without a Rune"** skip, and a minimize toggle to inspect the
+board. Buying dispatches `buyRune`; skip dispatches `skipRuneforge`. The bought rune then shows as a **stone-toned
+run-buff badge** alongside completed quests above the hero panel (`QuestBadges`), hover revealing its effect. Wired
+`runeforgeOffer` into the modal-cover / timer-pause / shop-button-disable gates (same treatment as `questOffer`),
+and **removed `HeroDef.wip`** so Runesmith now appears in the hero picker. typecheck / lint / build green. (Live
+screenshot pending — the browser tooling was disconnected this session; the panel reuses the proven quest-offer
+render path, so the risk is purely visual polish.)
+
 ### feat(sim): Runesmith hero + the Runeforge — engine + 8 runes (UI is a follow-up)
 
 The engine half of a new hero. **Runesmith** (30 HP / 8 Armor, `runeforge` power): on turn 6 the **Runeforge**

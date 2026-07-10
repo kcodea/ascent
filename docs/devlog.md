@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### balance + content: quest-count retune (20 quests) · Anomaly Reactor now lets you CHOOSE the added type
+
+Two owner asks in one PR.
+
+**Quest retune** — a pass over 20 quest objectives/rewards to shorten the long tail flagged by the turns-to-complete
+estimate (most were sitting a few turns over their phase budget of ~13 / ~9 / ~5 for lesser / greater / capstone):
+Blood Trail slaughter 2→6, Shop License spend 10→15, Odd Jobs reward 12→10 gold, Contract Rewrite spend 20→25,
+Skybound Pact 40→25 Dragon stats, Food for Gold consume 18→16, Dupes win 4→3, Ancient Runes spend 55→50, Echoing
+Coop Echo 7→10, Machine Chorus rally 10→6, The Author's Hand 6→5 each, Law of Teeth slaughter 12→8, The Old Hunt
+25→20 attacks, Empty Graves 25→20 deaths, Pit Without End 20→17 imps, The Hoard Wakes 13→10 shouts, Attachment
+Issues 20→14, Twin Sun Oath 16→15, and **Impossible Shop → renamed "Taurus Ascension"** with its spend cut 60→40.
+Umbral Energy (13) and Feeding Line (18) were already at the requested values (no change). Content-only edit; two
+tests re-baselined (Blood Trail's tally, and the assertions whose fixtures now sit above the lower thresholds still
+pass unchanged).
+
+**Anomaly Reactor rework** — the spell was "give a friendly minion a **Mech** type"; now it's **"Target a minion,
+then choose an extra type to give it"** — the player picks *which* of the five tribes (Beast / Dragon / Undead / Mech
+/ Demon) to bolt on, on top of what the minion already is. Implemented by keeping the spell **targeted** (the native
+drag picks the minion) and adding a 5-option `chooseOne`: on play, a targeted Choose-One spell captures its
+`targetUid` and opens the picker (spell stays in hand); the chosen option's `spellAddTribe` then casts on that stored
+target and consumes the spell. New plumbing: `chooseOne.targetUid` on `RunState`, the targeted-spell branch in the
+`play` reducer (fizzles with no valid target), and the target-aware cast in the `chooseOne` reducer (fizzles-but-
+consumes if the target was sold mid-pick). The `spellAddTribe` factory already read `params.tribe`, so no factory
+change. Verified live on a throwaway run: drag → 5-option modal renders, pick Mech → target gains `addedTribes:
+['mech']`, spell consumed; unit tests cover Mech and a non-Mech (Dragon) pick plus the mid-flow "still in hand, not
+yet applied" state. Full gauntlet green (typecheck / lint / 792 tests / build).
+
 ### balance: loss-damage cap ramps 5 → 10 → 15 → 20 → uncapped
 
 Reworked `lossDamageCap(wave)` (the most Resolve a single loss can cost) from the old flat-by-3 curve to an

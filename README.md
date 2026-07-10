@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Deathrattle summons read cleaner.** A Deathrattle's tokens now wait for the bone-skull to pop and *burst*
+  (and an attacker to settle home) before they appear, instead of popping in over the FX. The taunt death-burst
+  effect + sound are removed for now.
 - **Snappier combat stat gains.** An `onDamaged` buff (Target Dummy taking a hit) no longer splits the clash —
   the whole exchange lands first (both hits, at their real pre-buff values), the units settle, then the `+N`
   floats on a cadence cut to a third. Presentation-only; the numbers still float at the same speed.

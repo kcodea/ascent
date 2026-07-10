@@ -13,15 +13,14 @@ import { sfx } from '../../sfx';
  *  burst). Reads pixiFx's registry for which kinds are live. Shield/reborn bursts read their bubble's OWN
  *  stored coords (they render on the same viewport-fixed front layer they're stored on). The taunt burst,
  *  however, draws on the FRONT (viewport) layer while its persistent bulwark lives on the back `tauntFx`
- *  canvas (whose bubble coords are `.app`-relative) — so it needs the dying card's VIEWPORT rect passed in
- *  (`tauntRect`), exactly as the old syncShields fed it a fresh getBoundingClientRect. Null → sfx only. */
-export function burstDeathAuras(uid: string, tauntRect: { cx: number; cy: number; w: number; h: number } | null = null): void {
+ *  canvas (whose bubble coords are `.app`-relative). The taunt burst is disabled for now, so its viewport rect
+ *  (`_tauntRect`) is unused — the param stays so callers + the signature are ready when the burst returns. */
+export function burstDeathAuras(uid: string, _tauntRect: { cx: number; cy: number; w: number; h: number } | null = null): void {
   if (pixiFx.hasAura(uid, 'shield')) { pixiFx.breakShield(uid, 'shield'); sfx.shieldBreak(); }
   if (pixiFx.hasAura(uid, 'reborn')) { pixiFx.breakShield(uid, 'reborn'); sfx.rebornShatter(); }
   if (tauntFx.hasAura(uid, 'taunt')) {
-    tauntFx.clearShield(uid, 'taunt'); // drop the back-canvas bulwark…
-    if (tauntRect) pixiFx.tauntBurst(tauntRect.cx, tauntRect.cy, tauntRect.w, tauntRect.h); // …burst in FRONT (viewport coords)
-    sfx.shieldBreak();
+    tauntFx.clearShield(uid, 'taunt'); // drop the back-canvas bulwark. Burst FX + sfx removed for now (per owner);
+    // the bulwark still needs clearing here so a dead taunt's aura never orphans (see syncShields reconcile).
   }
 }
 

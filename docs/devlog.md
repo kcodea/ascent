@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### tweak(ui): Deathrattle summons wait for the skull to read + taunt burst removed
+
+Presentation-only combat-replay pacing so a Deathrattle's summons don't pop in over the skull, plus removal
+of the taunt-death burst FX/sfx. No core/sim/outcome changes.
+
+- **Consequence-overlap gap `140 → 240ms` (`choreo/choreoConfig.ts`).** The generic gap before a
+  summon/reborn/improve rides in after its trigger's FX.
+- **Deathrattle summon read-lead (`useCombatReplay.ts`).** The `overlapMs` gap is measured from the IMPACT's
+  start, but a Deathrattle's bone-skull doesn't BURST until ~380ms (defender) / ~720ms (attacker, after the
+  ~0.34s pull-home) — matching the `.dying.dr` / `.dying.dr.returning` CSS delays + pixiFx's skull POP+HOLD.
+  So at 240ms the tokens popped ON TOP of the skull. `deathrattleSummonLead` holds a summon beat that follows
+  a Deathrattle death until the proc has read, THEN the `overlapMs` gap lands as a real post-proc pause:
+  **defender ≈ 620ms, attacker ≈ 960ms** to the summon. Scoped to Deathrattle→summon transitions (keyed off
+  the dying unit's `onDeath` effect + whether it was the impact attacker); ordinary summons/rebirths keep the
+  plain 240ms overlap. Scaled by combatSpeed like the rest of the clock.
+- **Taunt death-burst removed (`choreo/channels/aura.ts`).** `pixiFx.tauntBurst` + its `sfx.shieldBreak()` are
+  gone for now (per owner). The persistent bulwark is still `clearShield`'d on death so a dead taunt's aura
+  never orphans; the viewport-rect param stays wired for an easy revival. Two now-redundant taunt tests merged.
+- **Known follow-up (deferred to its own session):** the **Violet Whelp** immediate-attack ordering — its
+  Deathrattle `summon` is emitted mid-cascade, so it interleaves with other deaths. Fixing it cleanly is an
+  ENGINE change (defer an `attackOnSummon` token's summon + strike to the immediate-attack flush) that
+  re-baselines combat goldens and shifts a same-clash-buff rules edge — deliberately NOT done here. See
+  roadmap.
+- **Verified.** typecheck + lint + `npm test` (788) + `build:web` green; dialed live by the owner.
+
 ### tweak(ui): Target Dummy's +N no longer splits the clash + a snappier buff cadence
 
 Two presentation-only combat-replay tweaks so an `onDamaged` stat gain (Target Dummy taking a hit, an

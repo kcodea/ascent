@@ -79,8 +79,9 @@ const DEFAULTS: ChoreoConfig = {
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
   // overlay lifetimes (ms)
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,
-  // consequence-overlap: a summon/reborn rides on the preceding FX after this short gap (nearly in tandem)
-  overlapMs: 140,
+  // consequence-overlap: a summon/reborn rides on the preceding FX after this short gap (nearly in tandem) —
+  // long enough that a Deathrattle's skull/burst reads before its summons pop in.
+  overlapMs: 240,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

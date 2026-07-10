@@ -11,7 +11,7 @@ describe('choreoConfig', () => {
     expect(c.floatMs).toBe(1500);
     expect(c.deathFloatMs).toBe(1000);
     expect(c.finalHold).toBe(900);
-    expect(c.overlapMs).toBe(140);
+    expect(c.overlapMs).toBe(240);
   });
   it('beatDelay falls back to 300 for an unlisted type (matches the former pacing behavior)', () => {
     expect(beatDelay('dmg')).toBe(460);

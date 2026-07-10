@@ -316,6 +316,15 @@ one synchronized crossfade** (units + FX fade out together → board + survivors
 effects (currently the `.dr` collapse hold can trail them) — needs live tuning against the #245 skull-in-own-slot
 hold so we don't regress it.
 
+**Violet Whelp immediate-attack ordering (ENGINE — its own session).** A `attackOnSummon` token (whelpling, via
+Violet Whelp / Whelpmother) has its Deathrattle `summon` emitted *mid-cascade*, so it interleaves with the other
+units' deaths; its strike already flushes after the cascade. Every death + Deathrattle in a clash should resolve
+before the Whelp's summon **and** attack. This can't be a presentation-only reorder (the strike is non-commutative,
+and deferring only the visual summon desyncs when another same-clash Deathrattle buffs the fresh Whelp). Fix in
+`simulate.ts`: defer an `attackOnSummon` token's summon + strike together to `flushImmediateAttacks` (no new
+keyword — the flag already exists). Re-baselines combat goldens and shifts a same-clash-buff rules edge, so it's
+core/sim work — do it deliberately, not as late-night polish.
+
 ## Cross-cutting threads (ongoing, alongside the phases)
 
 ### Balance & power outliers

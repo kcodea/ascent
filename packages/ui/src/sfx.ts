@@ -58,6 +58,25 @@ function out(a: AudioContext): AudioNode {
   return master ?? a.destination;
 }
 
+// A master mute bus (limiter → bus → destination) whose gain is snapped to 0 to kill ALL audio at once —
+// used by the Skip-combat fade, which cuts the replay short and must silence everything instantly (a
+// replacement one-shot will play in its place later). `audioSuspended` also gates NEW sounds from scheduling
+// while suspended, so nothing sneaks in during the fade; `resumeAudio()` restores the bus for the next fight.
+let bus: GainNode | null = null;
+let audioSuspended = false;
+/** Kill all audio immediately (Skip-combat): ramp the master bus to 0 and block new sounds until resumed. */
+export function stopAllAudio(): void {
+  audioSuspended = true;
+  const a = audio();
+  if (a && bus) { bus.gain.cancelScheduledValues(a.currentTime); bus.gain.setTargetAtTime(0, a.currentTime, 0.008); }
+}
+/** Un-mute the master bus + allow sounds again (called when the fight is left / a new fight begins). */
+export function resumeAudio(): void {
+  audioSuspended = false;
+  const a = audio();
+  if (a && bus) { bus.gain.cancelScheduledValues(a.currentTime); bus.gain.setTargetAtTime(1, a.currentTime, 0.008); }
+}
+
 function audio(): AudioContext | null {
   try {
     const isNew = !ctx;
@@ -71,7 +90,10 @@ function audio(): AudioContext | null {
       master.ratio.value = 20;     // max ratio: anything above threshold is held down hard
       master.attack.value = 0.001; // 1ms — fast enough that even a torture-test sum stays under 0 dBFS
       master.release.value = 0.25;
-      master.connect(ctx.destination);
+      bus = ctx.createGain();
+      bus.gain.value = audioSuspended ? 0 : 1; // the master mute bus (see stopAllAudio) — silences the whole mix
+      master.connect(bus);
+      bus.connect(ctx.destination);
       prefetchSamples(); // decode the mp3 SFX once the context exists (first user gesture)
     }
     return ctx;
@@ -129,7 +151,7 @@ function prefetchSamples(): void {
  *  so the caller can fall back to a synth blip while the sample finishes decoding. `delay` (s) schedules the
  *  start later on the audio clock (sample-accurate) — used to stagger a token's clip after the summon cue. */
 function playSample(name: string, vol = 0.6, delay = 0): boolean {
-  if (isHidden()) return false; // don't play while the tab is backgrounded (avoids a burst on tab-in)
+  if (isHidden() || audioSuspended) return false; // backgrounded, or hard-muted by a Skip-combat fade
   const a = audio();
   if (!a || muted) return false;
   const buf = buffers.get(name);
@@ -153,7 +175,7 @@ interface ToneOpts {
 }
 
 function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0 }: ToneOpts): void {
-  if (isHidden()) return; // don't play while the tab is backgrounded (avoids a burst on tab-in)
+  if (isHidden() || audioSuspended) return; // backgrounded, or hard-muted by a Skip-combat fade
   const a = audio();
   if (!a || muted) return;
   const t0 = a.currentTime + delay;

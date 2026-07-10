@@ -5,6 +5,60 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### feat(ui): Skip combat gets the crossfade — everything pauses, mutes, and fades out together
+
+Skip used to hard-cut the replay to the resolved board (an instant jump + a burst of the remaining beats' audio).
+Now it's a controlled transition that reuses the End-Combat crossfade and lands on **whatever end state the
+simulation reached** (win / loss / tie survivors). The full sequence on Skip:
+
+1. **Everything freezes AND fades at the same instant** — no held-visible frame (an earlier cut showed a frozen
+   snapshot for ~160 ms, so dust/reborn-aura/taunt-shields were briefly visible before fading; removed). The GSAP
+   global timeline pauses every lunge/settle; **both** Pixi tickers stop (particles, shield/reborn bubbles, **and
+   the taunt bulwark**); `.combatfrozen` pauses every remaining CSS animation; `clearParticles()` wipes any live
+   dust/spark/trail/skull so nothing can linger; and `.combatout` fades every combat visual to 0 — all together.
+2. **All audio is killed** — `stopAllAudio` snaps a new master mute bus to 0 and blocks new sounds from scheduling.
+3. Everything fades out together — unit rows, all three FX canvases, the loose transient overlays (SoC bolts +
+   damage/death floats, hard-hidden since a transition can't fade a mid-animation opacity), and the control bar.
+4. Under cover of opacity 0, the replay jumps to the resolved board (tickers resume so the surviving board + its
+   auras render live; `clearParticles` again to wipe anything the settle re-fired), it **holds ~1 s**, then the end
+   state **fades back in together** — with the End Combat / Summary buttons — for a clean review.
+
+Audio stays muted through the resolved screen and un-mutes when the fight is left (or the next begins) — a
+replacement one-shot will play in the Skip's place later (owner).
+
+- `sfx.ts`: a master **mute bus** (`GainNode`, limiter → bus → destination) + `stopAllAudio()` / `resumeAudio()`;
+  `tone`/`playSample` also early-out while suspended so nothing schedules during the fade.
+- `pixiFx.ts`: `setPaused()` freezes the ticker; `clearParticles()` wipes transient FX; **`setVisible(visible, ms)`**
+  fades the whole FX layer in/out. **Root-cause fix (found via live Chrome debugging):** the FX canvases (`.pixifx`
+  particles/dust + `.pixifx-under` shield/reborn bubbles) are mounted **app-wide at BODY level, outside `.app`**, so
+  the `.app.combatout` CSS could never fade them — the dust, Divine-Shield, reborn, and taunt auras leaked through
+  the Skip. `setVisible()` sets the canvas opacity directly, stepping it each frame via **rAF** (a CSS transition is
+  unreliable on a live WebGL canvas; rAF also keeps running while the Pixi/GSAP tickers are paused for the freeze),
+  so the auras/dust fade *with* the board. (Debugging caveat: the claude-in-chrome automation tab is `hidden`, which
+  throttles rAF + transitions to zero — only instant DOM changes verify there; the fade is confirmed by DOM/opacity
+  probes + reasoned from the standard rAF behaviour, and needs a foreground-tab eyeball.)
+- `Recruit.tsx`: `skipCombat` (freeze + hide FX + fade cards → resume + `replay.skip()` under cover → ~0.9 s hold →
+  restore + fade in); `.combatfrozen` pauses stray CSS animations; `.combatout`/`.combatin` fade the rows + control
+  bar; an effect un-mutes audio + restores the FX layer whenever combat is left.
+- **Aura re-bloom / stray-position fix (all effect types).** Instrumenting `__pixiFx.shields` in a real skip showed
+  the resolved board's **shield / reborn / taunt** bubbles were destroyed + recreated (`formIn` reset → a grow-in),
+  each taunt fired a **deploy dust**, and — worse — a recreated bubble could be measured mid-fade and flash at a
+  **stale/corner position** before snapping to its slot. Fix: a two-phase `skipPhaseRef`. **`'suppress'`** (freeze +
+  hold): `clearAllShields()` wipes every bubble up front and `syncShields` early-returns, so **nothing exists** to
+  churn or flash while the board is mid-transition. **`'settle'`** (fade-in): `syncShields` registers the resolved
+  board's auras **once**, at their settled slots, **born fully-formed** (`setShield(..., instant)` → no grow-in) and
+  **without the deploy dust**. A last piece: we no longer **pause the Pixi tickers** during the skip — a paused
+  ticker stalls a bubble's `container.alpha` at 0, so when it resumed the aura **popped** into view (a "spawn").
+  The tickers stay live (redundant to pause: all particles + bubbles are already cleared/suppressed), so each
+  registered bubble is at full alpha immediately and simply fades in with the **canvas opacity** ramp. Verified in
+  Chrome: through the freeze/hold `n = 0` bubbles / canvases at 0; at fade-in all three types read `alpha 1` while
+  the canvas opacity steps `0.12 → 0.45 → 0.79 → 1` — a clean fade, no pop, correct slots, zero stray dust.
+
+Verified **in a real focused Chrome tab** (via the claude-in-chrome integration, driving `window.useGame`): through
+the whole hold, all three FX canvases + the unit rows sample at opacity `0` (was `1` — the leak), the board is clean
+(no dust/aura remnants), and the resolved board fades back in correctly. typecheck + lint + 774 tests + `build:web`
+green. Timing dials (`FADE 260 / HOLD 900 / IN 300` ms) are **for live eyeball**. Replacement Skip sound: pending owner.
+
 ### balance(heroes): armor tuning + Herald cost + renames (Yirin / Tradesman) + Bagger Ben live worth
 
 Owner hero-tuning pass:

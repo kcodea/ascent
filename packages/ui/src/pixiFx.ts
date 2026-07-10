@@ -433,6 +433,7 @@ class FxController {
   private readonly shields = new Map<string, ShieldBubble>();
   private readonly live: Particle[] = [];
   private readonly pool: Sprite[] = [];
+  private fadeRaf = 0; // in-flight setVisible fade (rAF) — cancelled if a new fade starts
 
   /** Mount the overlay canvas into `parent` (a fixed, full-viewport, pointer-events:none div).
    *  Lazily creates the PixiJS Application on first call and reuses it thereafter. */
@@ -1000,7 +1001,7 @@ class FxController {
    * `mini` = the card is being dragged → shrink to a small trailing sparkle; when a `mini` bubble is next
    * set with `mini=false` (the card is placed), it coalesces/pops back to full size.
    */
-  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null): void {
+  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null, instant = false): void {
     if (!this.ready || !this.shieldLayer) return;
     const key = auraKey(kind, uid);
     let b = this.shields.get(key);
@@ -1034,7 +1035,9 @@ class FxController {
       container.addChild(mesh);
       container.alpha = 0;
       this.shieldLayer.addChild(container);
-      b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
+      // `instant` (a Skip settling the resolved board) → born fully-formed: skip the grow-in so the aura
+      // doesn't visibly re-bloom as the board fades back in.
+      b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: instant ? 1e6 : 0, fadeOut: -1,
             mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1, rot: 0, track };
       this.shields.set(key, b);
     } else {
@@ -1079,6 +1082,14 @@ class FxController {
     if (b && b.fadeOut < 0) b.fadeOut = 0;
   }
 
+  /** Instantly destroy EVERY persistent aura bubble (no graceful fade) — used by the Skip transition to wipe the
+   *  board's auras up front, so none can flash at a stale/wrong position while the resolved board re-registers
+   *  them fresh. */
+  clearAllShields(): void {
+    for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
+    this.shields.clear();
+  }
+
   /** True if a persistent aura bubble of this kind is currently registered for `uid` (the choreographer's
    *  aura channel consults this to decide which of a dying unit's auras to burst — pixiFx's registry is the
    *  source of truth for which auras a unit carries; the Score decides when). */
@@ -1098,6 +1109,50 @@ class FxController {
    *  Choose One sit below the FX canvas with a translucent backdrop, so bubbles would otherwise show over it). */
   setShieldsVisible(visible: boolean): void {
     if (this.shieldLayer) this.shieldLayer.visible = visible;
+  }
+
+  /** Freeze/thaw ALL Pixi motion — stops the ticker, so every live particle + the bubble breathing holds its
+   *  last frame in place. Used by the Skip-combat fade so nothing keeps moving while the board pauses + fades
+   *  out (the canvas opacity is faded separately via CSS, which doesn't need the ticker running). */
+  setPaused(paused: boolean): void {
+    if (!this.app) return;
+    if (paused) this.app.ticker.stop();
+    else this.app.ticker.start();
+  }
+
+  /** Fade the WHOLE FX layer (both canvases) in/out over `ms` — used by the Skip transition so every particle +
+   *  persistent aura bubble fades WITH the board. The canvases are mounted app-wide at BODY level (outside
+   *  `.app`), so a CSS `.app.combatout` selector can't reach them; and a CSS *transition* never progresses on a
+   *  live WebGL canvas (the render loop defeats it — an inline `opacity:0` stays computed `1` under a transition,
+   *  but holds under `transition:none`). So we step the opacity ourselves each frame via rAF (which keeps running
+   *  even while the Pixi/GSAP tickers are paused for the freeze). `ms = 0` = an instant set. */
+  setVisible(visible: boolean, ms = 260): void {
+    const canvases = [this.app?.canvas, this.shieldApp?.canvas].filter(Boolean) as HTMLCanvasElement[];
+    if (!canvases.length) return;
+    for (const c of canvases) c.style.transition = 'none'; // the fade is rAF-driven, not CSS
+    cancelAnimationFrame(this.fadeRaf);
+    const to = visible ? 1 : 0;
+    if (ms <= 0) { for (const c of canvases) c.style.opacity = String(to); return; }
+    const from = Number.parseFloat(canvases[0].style.opacity || '1');
+    let start = 0;
+    const step = (now: number): void => {
+      if (!start) start = now;
+      const k = Math.min(1, (now - start) / ms);
+      const o = String(from + (to - from) * k);
+      for (const c of canvases) c.style.opacity = o;
+      if (k < 1) this.fadeRaf = requestAnimationFrame(step);
+    };
+    this.fadeRaf = requestAnimationFrame(step);
+  }
+
+  /** Instantly clear every TRANSIENT effect (dust, sparks, trails, skull pops) — recycled to the pool — so
+   *  nothing lingers on the canvas mid-transition. Used by the Skip fade. Persistent aura bubbles are untouched
+   *  (they fade with the canvas opacity, then re-resolve with the settled board). */
+  clearParticles(): void {
+    for (const p of this.live) { p.sprite.visible = false; this.layer?.removeChild(p.sprite); this.pool.push(p.sprite); }
+    this.live.length = 0;
+    for (const sp of this.skullPops) { sp.sprite.visible = false; this.layer?.removeChild(sp.sprite); this.pool.push(sp.sprite); }
+    this.skullPops.length = 0;
   }
 
   /**

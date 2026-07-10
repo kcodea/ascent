@@ -7,7 +7,7 @@ import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
-import { sfx } from './sfx';
+import { sfx, stopAllAudio, resumeAudio } from './sfx';
 import { pixiFx, discoverFx, tauntFx } from './pixiFx';
 import { getDragFeel } from './dragFeel';
 import { getFlipConfig } from './flipConfig';
@@ -464,6 +464,10 @@ export function Recruit() {
   // 'in' fades the recruit board + survivors back together — one synchronized two-beat transition (see the CSS
   // `.app.combatout`/`.combatin`), so nothing snaps or staggers when you leave the arena.
   const [combatOutro, setCombatOutro] = useState<null | 'out' | 'in'>(null);
+  // Skip-combat uses the SAME crossfade (everything fades out together), but instead of swapping to the shop it
+  // freezes the replay, kills all audio, jumps to the resolved board under cover of opacity 0, then fades that
+  // final board back in. A replacement one-shot will play in its place later (owner).
+  const [skipFade, setSkipFade] = useState<null | 'out' | 'in'>(null);
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
@@ -502,10 +506,16 @@ export function Recruit() {
   const pendingClearRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) to fade a vanished bubble
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
   const fightingRef = useRef(fighting); fightingRef.current = fighting;
+  // Skip-transition aura control. 'suppress' (freeze + hold): syncShields does NOTHING — every bubble is wiped
+  // up front and none re-register, so nothing can churn/flash at a stale position while the board is mid-fade.
+  // 'settle' (fade-in): the RESOLVED board's auras register ONCE, at their settled slots, born fully-formed +
+  // without the taunt deploy dust — so they fade in cleanly with the board. Any effect type (shield/reborn/taunt).
+  const skipPhaseRef = useRef<null | 'suppress' | 'settle'>(null);
   const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
   const prevDragActiveRef = useRef(false);
   // (`dragRef` is declared lower down for spell-targeting and already mirrors `drag`; syncShields reads it.)
   const syncShields = useCallback((): void => {
+    if (skipPhaseRef.current === 'suppress') return; // Skip freeze/hold: no aura reconcile at all (all bubbles wiped)
     const seen = new Set<string>(); // composite keys `${kind} ${uid}` (a unit can carry both auras)
     const now = performance.now();
     // Mid-animation (combat / a live drag / post-drop settle)? Only THEN is a vanished aura possibly
@@ -523,7 +533,7 @@ export function Recruit() {
     const set = (
       uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK,
       track?: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null),
-    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track);
+    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track, skipPhaseRef.current === 'settle');
     // A live position source for a COMBAT front-aura (shield/reborn): re-measures the card's art square each FX
     // frame so the bubble rides the lunge/recoil transform EXACTLY (no cross-rAF trailing). Combat-only, where
     // ax/ay/auraDy are all 0 — so it mirrors the `set` measurement below. null when the card isn't measurable
@@ -575,7 +585,7 @@ export function Recruit() {
         seen.add(key);
         // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that
         // disperses outward, fired on the FRONT layer (viewport coords) so it reads around the card.
-        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key)) {
+        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key) && skipPhaseRef.current !== 'settle') {
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
         // In combat, hand the FRONT auras (shield/reborn) a live tracker so they ride the lunge/recoil exactly;
@@ -710,6 +720,12 @@ export function Recruit() {
     };
   }, [inCombat, run.lastCombat]);
 
+  // A Skip mutes ALL audio (stopAllAudio) and leaves it muted through the resolved-combat screen; un-mute once
+  // the fight is left (back to the shop) so the next fight — and the shop — has sound again.
+  useEffect(() => {
+    if (!inCombat) { skipPhaseRef.current = null; resumeAudio(); pixiFx.setVisible(true, 0); tauntFx.setVisible(true, 0); } // instant-restore after a Skip
+  }, [inCombat]);
+
   // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
   // view — so the Resolve hit lands and is visible before the "End Combat" button returns you to the shop.
   // On a LOSS we defer settle to the loss-damage sequence below (so Resolve drops on the blast impact, not
@@ -732,6 +748,44 @@ export function Recruit() {
       return 'out';
     });
   }, [dispatch]);
+
+  // Skip the replay — the same synchronized fade as End Combat, but it stays IN combat: freeze all motion
+  // (GSAP) + kill all audio, hold a beat so everything visibly pauses and fades out together, then jump the
+  // replay to the resolved board under cover of opacity 0 and fade that back in. Audio stays muted (a
+  // replacement one-shot goes here later); it un-mutes when the fight is left / the next fight begins.
+  const skipCombat = useCallback((): void => {
+    setSkipFade((s) => {
+      if (s) return s; // already skipping
+      const FADE = 260, HOLD = 900, IN = 300;
+      // 1) Freeze the UNITS (GSAP) + fade everything out together, no held frame. We do NOT pause the Pixi tickers
+      //    — a paused ticker stalls a bubble's alpha at 0, so it later POPS in — they keep running while the auras
+      //    fade out via canvas opacity; transient dust is wiped, `.combatout` fades the rows, and syncShields stops
+      //    churning ('suppress'). Kill all audio too (a replacement one-shot goes here later).
+      skipPhaseRef.current = 'suppress';
+      stopAllAudio();
+      gsap.globalTimeline.pause();
+      pixiFx.clearParticles(); tauntFx.clearParticles();
+      pixiFx.setVisible(false, FADE); tauntFx.setVisible(false, FADE); // fade the FX canvases (auras/dust) out with the board
+      // 2) Once faded out (canvas at 0), jump to the resolved board + wipe the now-hidden auras so it re-registers fresh.
+      window.setTimeout(() => {
+        gsap.globalTimeline.resume();
+        replay.skip();
+        pixiFx.clearParticles(); tauntFx.clearParticles();
+        pixiFx.clearAllShields(); tauntFx.clearAllShields();
+      }, FADE);
+      // 3) …hold, then flip to 'settle' so syncShields registers the resolved board's auras ONCE (settled slots,
+      //    born formed, no deploy dust) and fade the canvas back in — the auras fade in WITH the board (tickers are
+      //    live, so each bubble is at full alpha immediately — no pop).
+      window.setTimeout(() => {
+        pixiFx.clearParticles(); tauntFx.clearParticles(); // final wipe so only the settled board's auras remain
+        skipPhaseRef.current = 'settle';
+        pixiFx.setVisible(true, IN); tauntFx.setVisible(true, IN); // fade the end-state auras in WITH the board
+        setSkipFade('in');
+      }, FADE + HOLD);
+      window.setTimeout(() => { skipPhaseRef.current = null; setSkipFade(null); }, FADE + HOLD + IN);
+      return 'out';
+    });
+  }, [replay]);
 
   // Loss-damage sequence — runs ONCE when a defeat's replay finishes. Surviving enemy tiers + the
   // opponent's tavern tier fly up into a damage counter above the enemy board (clamped to the round cap),
@@ -2336,7 +2390,9 @@ export function Recruit() {
     <div
       className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
-      }${combatOutro === 'out' ? ' combatout' : combatOutro === 'in' ? ' combatin' : ''}`}
+      }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
+        skipFade === 'out' ? ' combatfrozen' : ''
+      }`}
       onPointerDown={onBoardPointerDown}
     >
       {/* The BEHIND-cards taunt FX layer — first child so its canvas paints above the board surface but
@@ -2450,7 +2506,7 @@ export function Recruit() {
           replay-speed slider stacked beneath it. */}
       {inCombat && !replay.done && (
         <div className="combathud">
-          <button className="combathud-skip" onClick={replay.skip} title="Skip the combat replay">
+          <button className="combathud-skip" onClick={skipCombat} title="Skip the combat replay">
             <Icon name="sword" /> Skip
           </button>
           <div className="combatspeed" title="Combat replay speed">

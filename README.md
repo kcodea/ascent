@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Skip combat fades out gracefully.** Skipping the replay no longer hard-cuts: everything freezes and mutes for a
+  beat, all units + FX fade out together, then the resolved board fades back in — the same crossfade as End Combat.
 - **Hero batch — 4 reworks + 6 new heroes.** Djinn's Cadence now fires *every* friendly End of Turn; Rohan scales
   by spells cast; Nadja has 19 Armor; Warden's Aegis buys a minion a permanent Ward for 4 Gold. New: **Disco Dan**
   (turn-1 Setlist — Discover T6/T4/T2, each locked until that shop tier), **Bagger Ben** (scaling Gold), **Hermit

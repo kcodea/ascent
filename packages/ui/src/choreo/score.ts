@@ -3,6 +3,7 @@ import type { Moment } from './compile';
 import type { MomentKind } from './kinds';
 import { playMomentSfx } from './channels/sfx';
 import { spawnFloats, type Float, type DeathFloat } from './channels/float';
+import { groupBuffCasts } from './channels/buffCast';
 
 /**
  * The Score (choreographer phase 3) — per moment KIND, the ordered cues (channels + when they fire) that a
@@ -14,7 +15,7 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -57,7 +58,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   ],
   damage: [...BASE], shieldPop: [...BASE], poisonTick: [...BASE],
   death: [...BASE], riseDeath: [...BASE], scCast: [...BASE],
-  summon: [...BASE], buffWave: [...BASE], reborn: withReform(), ascend: [...BASE],
+  summon: [...BASE], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }], reborn: withReform(), ascend: [...BASE],
   rally: [...BASE], toHand: [...BASE], maxGold: [...BASE], improve: [...BASE],
   keyword: [...BASE], hpGrant: [...BASE], reveal: [...BASE],
 };
@@ -127,6 +128,9 @@ export interface CueContext {
   onShieldBreak: (uid: string) => void;
   /** A unit was reborn this moment (uid) → schedule the re-form glow. */
   onReborn: (uid: string) => void;
+  /** This moment's buff-OTHER casts (source !== target), grouped per (source,target). The replay fires a
+   *  tendril per cast (Task 4 adds the held-value release / badge flash at the strike). */
+  onBuffCasts: (casts: import('./channels/buffCast').BuffCast[]) => void;
 }
 
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
@@ -162,6 +166,10 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     });
     else if (cue.ch === 'auraReform') at(cue, () => {  // reborn: re-form glow
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn') ctx.onReborn(e.target); }
+    });
+    else if (cue.ch === 'buffCast') at(cue, () => {
+      const casts = groupBuffCasts(moment, ctx.events);
+      if (casts.length) ctx.onBuffCasts(casts);
     });
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.
   }

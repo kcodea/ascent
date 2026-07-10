@@ -132,7 +132,15 @@ look because the engine already produces the data.
 
 ## Phase B — UX polish (parallelizable; slot any time)
 
-### B0. FX follow-ups (from the Echo skull poof, session 29)
+### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
+- **Buff tendrils — on-attack buffers.** Buffs absorbed into an attack's windup (on-attack ally-buffers like
+  Crypt Drake, Growth-on-attack) classify as an `attackExchange` moment, which carries no `buffCast` cue — so
+  they don't throw a tendril yet. Iteration 1 targets Start-of-Combat / standalone buff waves. To extend: add a
+  `buffCast` cue to `attackExchange` **contact-timed** (fire at the strike, not the windup start), so the buff
+  tendril lands with the hit.
+- **Buff tendrils — the other styles.** The `style` field + renderer seam are ready for `lightning` and `beam`
+  variants (only `tendril` is built). And `neutral` has no dedicated preset (falls to the beast-green
+  `default`) — tune one if neutral buffers should read distinctly.
 - **Watch the Echo particle budget.** ~107 pooled sprites per Echo (was ~64). Fine solo; profile a clash where
   several Echoes fire at once before adding more.
 - **Extract an FX preview kit — only after a *second* effect exists.** `purple-skull-preview.html` is ~70%

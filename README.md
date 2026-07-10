@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Buff tendrils.** When a unit buffs another unit in combat, an energy tendril shoots to each buffed ally,
+  strikes, flashes, and the target's stat badge holds then flashes-and-ticks to its new value on the hit. A
+  reusable, preset-driven effect system — the owner tuned a distinct tendril for each tribe (green Beast, gold
+  Mech, red Dragon, purple Demon, icy Undead), tuned live on a preset-aware preview rig. Presentation-only.
 - **Violet Whelp resolves as one beat.** An attack-on-summon Whelp (Violet Whelp / Whelpmother Deathrattles)
   no longer pops in *between* the other units' deaths in a clash. All deaths + their Deathrattle effects now
   resolve first; then the Whelp summons **and** strikes as a single discrete beat. Engine fix in `simulate.ts`

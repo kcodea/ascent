@@ -669,6 +669,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* stats above base read green, below base read red */
 .atk.up, .hp.up { background: #1aa86f; }
 .atk.down, .hp.down { background: #d23b2b; }
+/* A buff just landed here → the changed stat badge pops once (transform/opacity only — no paint props, per the
+   60fps rule). The combat replay adds `.statflash` for one strike, then removes it. The badges are positioned
+   via absolute left/right/bottom (no base transform), so a scale animation composes cleanly without shifting them. */
+.card .atk.statflash, .card .hp.statflash { animation: statflash 0.34s ease-out; }
+@keyframes statflash {
+  0%   { transform: scale(1); opacity: 1; }
+  30%  { transform: scale(1.5); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 /* Dual-type minion: split the art panel + footer down the middle, one tribe hue each side
    (driven by --c / --c2; set when a CardView carries a second tribe). */
 .card.dual .art { background: linear-gradient(100deg, color-mix(in srgb, var(--c) 20%, var(--card)) 0 47%, color-mix(in srgb, var(--c2) 20%, var(--card)) 53% 100%); }

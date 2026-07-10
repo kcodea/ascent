@@ -2554,6 +2554,8 @@ export function Recruit() {
                 floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.has(u.uid)}
+                statHold={replay.statHoldFor(u.uid)}
+                statFlash={replay.statFlashFor(u.uid)}
               />
             ))
           ) : (
@@ -2606,6 +2608,8 @@ export function Recruit() {
                 floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.has(u.uid)}
+                statHold={replay.statHoldFor(u.uid)}
+                statFlash={replay.statFlashFor(u.uid)}
               />
             ))
           ) : (

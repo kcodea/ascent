@@ -397,6 +397,55 @@ const DR_DRAG_EMBER = perFrameDrag(0.82);
  *  Every glow-particle scale tuned in the preview is multiplied by this to land at the same on-screen size. */
 const DR_GLOW_K = 128 / 80;
 
+// ── Buff Tendril (empowerment FX) ───────────────────────────────────────────────────────────────────
+// A unit that buffs ANOTHER unit shoots an energy "tendril" (quadratic curve + eased sine wobble, drawn as
+// a tapered ribbon) that travels to the target, fires a strike flash + motes on arrival, then retracts.
+// Ports the math from the owner-approved preview (apps/web/public/fx/buff-tendril-preview.html); every dial
+// lives in `cfg` (a structural mirror of BuffPresetCfg) so any preset drives it. The owner tunes the LOOK on
+// the preview rig; task 2.2 bakes the tuned numbers into the presets.
+
+/** Renderer-facing tendril config (structural match of BuffPresetCfg — pixiFx stays import-light). */
+export interface TendrilCfg {
+  blend: 'add' | 'normal' | 'screen';
+  curve: number; wobbleAmp: number; wobbleFreq: number; travelMs: number; retractMs: number;
+  baseWidth: number; tipWidth: number; coreAlpha: number; glowWidth: number; glowAlpha: number;
+  flashSize: number; flashMs: number; moteCount: number; moteSpeed: number; moteLife: number;
+  pulseSize: number; pulseAlpha: number; pulseMs: number;
+  colorCore: string; colorGlow: string; colorFlash: string; colorMote: string;
+}
+
+/** '#rrggbb' (or '#rgb') → 0xRRGGBB for the Pixi `tint` number. Defaults to white on a malformed string. */
+const hexNum = (hex: string): number => {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]! : h;
+  const n = Number.parseInt(full, 16);
+  return Number.isNaN(n) ? 0xffffff : n;
+};
+
+/** Ease-out cubic for the travelling ribbon head (matches the preview's `easeOut`). */
+const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
+
+/** The strike motes decelerate hard: the preview's per-frame `v *= 0.86` → per-second (see `perFrameDrag`). */
+const TENDRIL_MOTE_DRAG = perFrameDrag(0.86);
+
+/** glowTex natural radius (px) at scale 1 — px dials ÷ this = sprite scale — so preview px radii transfer 1:1. */
+const TENDRIL_GLOW_R = 40;
+
+/** One live buff tendril: a per-frame-rebuilt tapered ribbon `Graphics` travelling from `from`→`to` along a
+ *  quadratic curve (`ctl` control point, `perp` = the from→to normal for the wobble), plus its `cfg`, an `age`
+ *  (ms), and a `struck` latch so the strike flash + motes fire exactly once on arrival. Not pooled — the ribbon
+ *  is a Graphics rebuilt each frame (canvas geometry, not a CSS paint prop), destroyed when the tendril ends. */
+interface Tendril {
+  g: Graphics;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  ctl: { x: number; y: number };
+  perp: { x: number; y: number };
+  cfg: TendrilCfg;
+  age: number;
+  struck: boolean;
+}
+
 /**
  * A persistent divine-shield bubble bound to one unit (by uid). Unlike particles (fire-and-forget),
  * it lives until the shield breaks or is cleared, breathing on the ticker and tracking the unit's
@@ -469,6 +518,7 @@ class FxController {
   private skullSrcW = 1;
   private skullSrcH = 1;
   private readonly skullPops: SkullPop[] = [];
+  private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
   private shieldApp: Application | null = null;  // OPTIONAL 2nd canvas for the persistent bubbles, mounted at a
   private underParent: HTMLElement | null = null; // low z (below the card badges) so the chrome reads on top; the
@@ -574,6 +624,8 @@ class FxController {
     this.pool.length = 0;
     for (const s of this.skullPops) { s.sprite.destroy(); s.glow.destroy(); }
     this.skullPops.length = 0;
+    for (const td of this.tendrils) { td.g.destroy(); }
+    this.tendrils.length = 0;
     this.skullTex?.destroy(true);
     this.skullTex = null;
     for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
@@ -1192,6 +1244,9 @@ class FxController {
       for (const s of [sp.sprite, sp.glow]) { s.visible = false; this.layer?.removeChild(s); this.pool.push(s); }
     }
     this.skullPops.length = 0;
+    // Tendril ribbons are Graphics (not pooled) — destroy them outright.
+    for (const td of this.tendrils) { this.layer?.removeChild(td.g); td.g.destroy(); }
+    this.tendrils.length = 0;
   }
 
   /**
@@ -1565,6 +1620,137 @@ class FxController {
     }
   }
 
+  /**
+   * BUFF TENDRIL: a unit at `from` empowers a unit at `to` — a caster pulse fires at the source, then a
+   * curved, tapered energy ribbon travels (head easing out over `cfg.travelMs`) to the target, strikes with a
+   * flash + scattered motes on arrival, and retracts/fades over `cfg.retractMs`. Config-driven (all dials from
+   * `cfg`), so any preset drives the look. Ports the preview's path/ribbon/strike math (see the block-comment
+   * on `TendrilCfg`). No-op until the overlay is ready.
+   *
+   * NB (units): `flashSize`/`pulseSize` are PX RADII, 1:1 with the preview rig — a value ÷ `TENDRIL_GLOW_R`
+   * (glowTex natural radius) is the sprite scale, so the owner's pasted preview JSON needs NO bake conversion.
+   */
+  buffTendril(from: { x: number; y: number }, to: { x: number; y: number }, cfg: TendrilCfg): void {
+    if (!this.ready || !this.glowTex || !this.layer) return;
+
+    // Caster pulse at the source, once per launch — an additive glow that blooms and fades (preview `pulse`).
+    // `pulseSize` is a px radius → ÷ TENDRIL_GLOW_R gives the sprite scale.
+    if (cfg.pulseMs > 0) {
+      const pulseScale = cfg.pulseSize / TENDRIL_GLOW_R;
+      this.spawn(this.glowTex, {
+        x: from.x, y: from.y, vx: 0, vy: 0, drag: 1, life: cfg.pulseMs,
+        fromScale: pulseScale, toScale: pulseScale, spin: 0,
+        tint: hexNum(cfg.colorGlow), blend: cfg.blend, peakAlpha: cfg.pulseAlpha,
+      });
+    }
+
+    // Quadratic control point: the midpoint pushed PERPENDICULAR to the from→to line by curve·dist·0.5 (preview
+    // `controlPoint`). `perp` is reused for the sine wobble offset in `sampleTendril`.
+    const mx = (from.x + to.x) / 2;
+    const my = (from.y + to.y) / 2;
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const perp = { x: -dy / len, y: dx / len };
+    const off = len * cfg.curve * 0.5;
+    const ctl = { x: mx + perp.x * off, y: my + perp.y * off };
+
+    // The ribbon is a Graphics rebuilt each frame in `update` (additive, matching the preview's 'lighter'). It
+    // is NOT drawn to full length now — `update` reveals it up to the travelling head.
+    const g = new Graphics();
+    g.blendMode = cfg.blend;
+    this.layer.addChild(g);
+    this.tendrils.push({
+      g, from: { x: from.x, y: from.y }, to: { x: to.x, y: to.y }, ctl, perp, cfg, age: 0, struck: false,
+    });
+  }
+
+  /** Sample ~24 points along the tendril's quadratic curve, up to head fraction `head` (0..1). The sine wobble
+   *  is enveloped by sin(π·t) so both ends pin. Mirrors the preview's `samplePath`/`tendrilPoint`. */
+  private sampleTendril(td: Tendril, head: number): { x: number; y: number; t: number }[] {
+    const { from, to, ctl, perp, cfg } = td;
+    const N = 24;
+    const upto = Math.max(0.0001, head);
+    const pts: { x: number; y: number; t: number }[] = [];
+    for (let i = 0; i <= N; i++) {
+      const t = (i / N) * upto;
+      const mt = 1 - t;
+      const bx = mt * mt * from.x + 2 * mt * t * ctl.x + t * t * to.x;
+      const by = mt * mt * from.y + 2 * mt * t * ctl.y + t * t * to.y;
+      const env = Math.sin(Math.PI * t);
+      const w = Math.sin(t * cfg.wobbleFreq * Math.PI * 2) * cfg.wobbleAmp * env;
+      pts.push({ x: bx + perp.x * w, y: by + perp.y * w, t });
+    }
+    return pts;
+  }
+
+  /** Offset each path point by ±halfWidth along its normal → a tapered ribbon polygon (base width at the
+   *  source, tapering to `tipWidth/baseWidth` of it at the head). Returns a flat [x0,y0,x1,y1,…] point list. */
+  private buildRibbonPoly(pts: { x: number; y: number }[], maxWidth: number, ratio: number): number[] {
+    const n = pts.length;
+    if (n < 2) return [];
+    const left: number[] = [];
+    const right: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const prev = pts[Math.max(0, i - 1)]!;
+      const next = pts[Math.min(n - 1, i + 1)]!;
+      let tx = next.x - prev.x;
+      let ty = next.y - prev.y;
+      const tl = Math.hypot(tx, ty) || 1;
+      tx /= tl; ty /= tl;
+      const nx = -ty; // normal
+      const ny = tx;
+      const f = i / (n - 1);
+      const hw = maxWidth * (1 + (ratio - 1) * f) * 0.5; // half-width, tapering base→tip
+      const p = pts[i]!;
+      left.push(p.x + nx * hw, p.y + ny * hw);
+      right.push(p.x - nx * hw, p.y - ny * hw);
+    }
+    // left edge forward, then right edge backward → one closed ribbon polygon
+    const poly = left.slice();
+    for (let i = n - 1; i >= 0; i--) poly.push(right[i * 2]!, right[i * 2 + 1]!);
+    return poly;
+  }
+
+  /** Rebuild a tendril's ribbon: a soft-glow underlay (`glowWidth`) beneath a bright core (`baseWidth`), both
+   *  tapered by the same tip ratio. `fade` (0..1) fades the whole ribbon during retract. */
+  private rebuildRibbon(g: Graphics, pts: { x: number; y: number; t: number }[], cfg: TendrilCfg, fade: number): void {
+    g.clear();
+    if (pts.length < 2 || fade <= 0) return;
+    const ratio = cfg.tipWidth / Math.max(0.0001, cfg.baseWidth);
+    const glow = this.buildRibbonPoly(pts, cfg.glowWidth, ratio);
+    if (glow.length >= 6) g.poly(glow).fill({ color: hexNum(cfg.colorGlow), alpha: Math.max(0, cfg.glowAlpha * fade) });
+    const core = this.buildRibbonPoly(pts, cfg.baseWidth, ratio);
+    if (core.length >= 6) g.poly(core).fill({ color: hexNum(cfg.colorCore), alpha: Math.max(0, cfg.coreAlpha * fade) });
+  }
+
+  /** The strike on arrival: a radial bloom at the target + `moteCount` motes flung outward, shrinking to
+   *  nothing (preview `strike`). Fired once per tendril when its head first reaches `to`. */
+  private tendrilStrike(td: Tendril): void {
+    const { to, cfg } = td;
+    if (cfg.flashMs > 0) {
+      // `flashSize` is a px radius → ÷ TENDRIL_GLOW_R gives the sprite scale; grows ×1.4 as it fades.
+      const flashScale = cfg.flashSize / TENDRIL_GLOW_R;
+      this.spawn(this.glowTex!, {
+        x: to.x, y: to.y, vx: 0, vy: 0, drag: 1, life: cfg.flashMs,
+        fromScale: flashScale, toScale: flashScale * 1.4, spin: 0, // grows a touch as it fades (preview grow 1.4)
+        tint: hexNum(cfg.colorFlash), blend: cfg.blend, peakAlpha: 1,
+      });
+    }
+    const n = Math.round(cfg.moteCount);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = cfg.moteSpeed * (0.5 + Math.random() * 0.7);
+      this.spawn(this.glowTex!, {
+        x: to.x, y: to.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        drag: TENDRIL_MOTE_DRAG, life: cfg.moteLife * (0.7 + Math.random() * 0.6),
+        // ~7px-radius motes on the glowTex (preview mote base size 7), shrinking to nothing.
+        fromScale: (7 / TENDRIL_GLOW_R) * (0.6 + Math.random() * 0.8), toScale: 0.02, spin: 0,
+        tint: hexNum(cfg.colorMote), blend: cfg.blend, peakAlpha: 1,
+      });
+    }
+  }
+
   private spawn(
     tex: Texture,
     // `maxLife` is derived (spawn sets it to cfg.life) — omitting it here is what lets every call site skip it.
@@ -1647,6 +1833,36 @@ class FxController {
         for (const s of [sp.sprite, sp.glow]) { s.visible = false; this.layer?.removeChild(s); this.pool.push(s); }
         this.skullPops.splice(i, 1);
       }
+    }
+
+    // Buff tendrils: reveal the tapered ribbon up to the travelling head, strike on arrival, then retract+fade.
+    for (let i = this.tendrils.length - 1; i >= 0; i--) {
+      const td = this.tendrils[i]!;
+      td.age += dtMs;
+      const travel = Math.max(1, td.cfg.travelMs);
+      const head = easeOutCubic(Math.min(1, td.age / travel));
+
+      // Fire the strike ONCE the moment the head first reaches the target.
+      if (!td.struck && td.age >= travel) { td.struck = true; this.tendrilStrike(td); }
+
+      // Retract/dissolve after arrival: the tail slides toward the target and the whole ribbon fades out.
+      let tail = 0;
+      let fade = 1;
+      if (td.struck) {
+        const rt = Math.min(1, (td.age - travel) / Math.max(1, td.cfg.retractMs));
+        tail = rt;
+        fade = 1 - rt;
+      }
+      if (td.struck && td.age >= travel + td.cfg.retractMs) {
+        this.layer?.removeChild(td.g);
+        td.g.destroy();
+        this.tendrils.splice(i, 1);
+        continue;
+      }
+
+      let pts = this.sampleTendril(td, head);
+      if (tail > 0) pts = pts.filter((p) => p.t >= tail * head); // drop points behind the retracting tail
+      this.rebuildRibbon(td.g, pts, td.cfg, fade);
     }
 
     // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.

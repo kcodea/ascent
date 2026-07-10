@@ -21,13 +21,17 @@ interface UnitProps {
   /** Pulse the trigger medallion YELLOW — a Rally fired as this unit attacks (fired mid-lunge, at the
    *  wind-up pause, so it's timed to the strike rather than the beat start). Takes precedence over `triggered`. */
   rallyPulse?: boolean;
+  /** While a buff tendril flies to this unit, hold its displayed stats at the PRE-buff value (released on strike). */
+  statHold?: { atk: number; hp: number };
+  /** On the strike, which badge(s) changed → flash them via the `.statflash` class. */
+  statFlash?: { atk: boolean; hp: boolean };
 }
 
 const sameKeywords = (a: string[], b: string[]): boolean =>
   a === b || (a.length === b.length && a.every((k, i) => k === b[i]));
 
 /** A combat unit — the same Card as recruit, wrapped for animations, floats, and the DS ring. */
-function UnitInner({ u, side, anim, floats, triggered, rallyPulse }: UnitProps) {
+function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, statFlash }: UnitProps) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
@@ -57,7 +61,12 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse }: UnitProps) 
     ?? engraveTallyText(u.cardId, u.permaGain)
     ?? def?.text ?? '';
   const view: CardView = {
-    name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2, attack: u.attack, health: Math.max(0, u.health),
+    name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2,
+    // Buff-tendril: hold the pre-buff value while the tendril flies; on strike, release + flash the changed badge(s).
+    attack: statHold?.atk ?? u.attack,
+    health: statHold ? statHold.hp : Math.max(0, u.health),
+    flashAtk: statFlash?.atk,
+    flashHp: statFlash?.hp,
     keywords: u.keywords, golden: u.golden,
     text: liveText,
     // The chain is already golden-aware, so for a golden unit whose live text resolved, feed it to
@@ -94,6 +103,8 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.anim === b.anim &&
   a.triggered === b.triggered &&
   a.rallyPulse === b.rallyPulse &&
+  a.statHold === b.statHold &&
+  a.statFlash === b.statFlash &&
   a.floats === b.floats &&
   a.u.uid === b.u.uid &&
   a.u.attack === b.u.attack &&

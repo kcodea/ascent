@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Purple Skull Poof — Deathrattle FX preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #17131f; color: #e8e2f2; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* a fake "card" so the skull is sized against something the size of a real unit */
+  #card { width: 132px; height: 184px; border-radius: 10px; background: linear-gradient(160deg,#2b2438,#1d1828); border: 2px solid #3d3350; box-shadow: 0 8px 30px rgba(0,0,0,.5); position: relative; z-index: 0; }
+  #card::after { content: "unit"; position: absolute; inset: auto 0 8px; text-align: center; color: #5c5170; font-size: 11px; letter-spacing: .12em; }
+  #panel { width: 300px; padding: 14px 16px; overflow-y: auto; background: #100d16; border-left: 1px solid #2c2438; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #cba6f0; }
+  .sub { color: #6f6485; font-size: 11px; margin-bottom: 14px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #6f6485; margin: 16px 0 6px; border-top: 1px solid #2c2438; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 54px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  label { color: #b3a8c6; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #cba6f0; }
+  input[type=color] { width: 100%; height: 24px; border: 1px solid #3d3350; background: none; border-radius: 4px; padding: 0; cursor: pointer; }
+  .val { text-align: right; color: #cba6f0; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #7a4fbf; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #9265d8; }
+  button.ghost { background: #241d31; color: #b3a8c6; }
+  button.ghost:hover { background: #2f2740; }
+  textarea { width: 100%; height: 130px; margin-top: 10px; background: #0a0810; color: #9fe6c4; border: 1px solid #2c2438; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #55496b; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage"><div id="card"></div><canvas id="cv"></canvas></div>
+  <div id="panel">
+    <h1>Purple Skull Poof</h1>
+    <div class="sub">Deathrattle FX — pop, hold, poof into smoke.<br />Click the stage to re-fire.</div>
+    <div id="controls"></div>
+    <button id="fire">FIRE ☠ (space)</button>
+    <button id="loop" class="ghost">Auto-loop: off</button>
+    <button id="reset" class="ghost">Reset to defaults</button>
+    <h2>Baked values</h2>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Tune, then paste this back to Claude to bake into pixiFx.ts.</div>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Standalone preview of the proposed Deathrattle FX. Mirrors the math that will
+// live in pixiFx.ts (spawn/particle tick), but on a plain 2D canvas so it runs
+// with zero build. Numbers here map 1:1 onto the DR_* constants in the spec.
+// ---------------------------------------------------------------------------
+
+const CARD_W = 132; // matches the fake card above; the real call passes the unit's card width
+
+const DEFAULTS = {
+  skullScale: 0.375,   // DR_SKULL_SCALE — skull display width ÷ card width
+  popMs:      320,     // elastic pop-in duration
+  holdMs:     130,     // jiggle hold before the burst
+  rise:       12,      // px the skull drifts up during the pop
+  glowAlpha:  0.5,     // additive glow sprite behind the skull
+  glowSize:   1.9,     // glow radius ÷ skull width
+
+  dissolveMs:   200,   // the skull's own scale-up + fade (the "poof")
+  dissolveGrow: 1.6,   // how much it scales up as it fades
+
+  flashMs:   150,
+  flashSize: 1.5,
+
+  spread:  1.85,       // DR_SPREAD — velocity multiplier for smoke + embers
+  smoke:   0.75,       // DR_SMOKE — particle count multiplier (base 28)
+  smokeOut: 0.65,      // 0 = rises like a campfire, 1 = blasts outward
+  smokeLife: 900,
+  embers:  1.0,        // DR_EMBERS — count multiplier (base 14)
+  emberLife: 500,
+
+  cFill:  '#cba6f0',   // the skull glyph
+  cGlow:  '#b478f0',   // baked text-shadow + the flash
+  cSmokeA:'#4a3a5e',
+  cSmokeB:'#6b5580',
+  cEmberA:'#cba6f0',
+  cEmberB:'#e0c4ff',
+};
+const RANGES = {
+  skullScale: [0.15, 0.8, 0.005], popMs: [120, 800, 10], holdMs: [0, 500, 10], rise: [0, 40, 1],
+  glowAlpha: [0, 1, 0.02], glowSize: [1, 4, 0.05],
+  dissolveMs: [60, 600, 10], dissolveGrow: [1, 3, 0.05],
+  flashMs: [0, 500, 10], flashSize: [0, 4, 0.05],
+  spread: [0.2, 4, 0.05], smoke: [0, 2.5, 0.05], smokeOut: [0, 1, 0.02], smokeLife: [300, 2200, 20],
+  embers: [0, 3, 0.05], emberLife: [150, 1500, 10],
+};
+const GROUPS = [
+  ['Skull pop',   ['skullScale','popMs','holdMs','rise','glowAlpha','glowSize']],
+  ['The poof',    ['dissolveMs','dissolveGrow','flashMs','flashSize']],
+  ['Smoke',       ['smoke','smokeOut','smokeLife']],
+  ['Embers',      ['embers','emberLife','spread']],
+  ['Colours',     ['cFill','cGlow','cSmokeA','cSmokeB','cEmberA','cEmberB']],
+];
+
+const KEY = 'ascent.purpleSkullPreview';
+let C = { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) || '{}')) };
+
+// --- the skull texture: ☠ drawn with a baked text-shadow stack ---------------
+let skullTex = null, skullW = 0;
+function buildSkullTex() {
+  const px = 256, pad = Math.round(px * 0.42); // room for the glow
+  const c = document.createElement('canvas');
+  c.width = c.height = px + pad * 2;
+  const g = c.getContext('2d');
+  g.font = `${px}px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2", serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = C.cFill;
+  // three shadowed passes ≈ the CSS text-shadow stack on .float.rally.sym
+  const passes = [[C.cGlow, px * 0.31, 0.95], [C.cGlow, px * 0.17, 0.9], [C.cFill, px * 0.06, 1]];
+  for (const [col, blur, a] of passes) {
+    g.globalAlpha = a; g.shadowColor = col; g.shadowBlur = blur;
+    g.fillText('☠', c.width / 2, c.height / 2);
+  }
+  g.globalAlpha = 1; g.shadowBlur = 0;
+  g.fillText('☠', c.width / 2, c.height / 2); // crisp core
+  skullTex = c; skullW = c.width;
+}
+
+// --- radial glow sprite (stands in for pixiFx's glowTex) ---------------------
+const glowTex = (() => {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, s, s);
+  return c;
+})();
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+
+const parts = [];  // fire-and-forget particles
+const pops = [];   // live skull pops
+const rnd = () => Math.random();
+const hex = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+
+function spawn(p) { parts.push({ age: 0, spin: 0, rot: 0, drag: 0.9, blend: 'lighter', ...p }); }
+
+function fire(x, y) {
+  const scale = (CARD_W * C.skullScale) / skullW;
+  pops.push({ x, y, scale, age: 0 });
+}
+
+function burst(s) {
+  const { x, y, scale } = s, disp = scale * skullW;
+  // 1) the skull itself dissolves — scales up + fades (THE poof)
+  spawn({ tex: skullTex, x, y, vx: 0, vy: -14, drag: 0.86, life: C.dissolveMs,
+          from: scale, to: scale * C.dissolveGrow, peak: 1, blend: 'source-over', tint: null });
+  // 2) flash
+  if (C.flashMs > 0) spawn({ tex: glowTex, x, y, vx: 0, vy: 0, drag: 1, life: C.flashMs,
+          from: disp * 0.006 * C.flashSize, to: disp * 0.016 * C.flashSize, peak: 0.75, tint: C.cGlow });
+  // 3) purple smoke plume — biased outward by smokeOut
+  const nsm = Math.round(28 * C.smoke);
+  for (let i = 0; i < nsm; i++) {
+    const a = rnd() * 6.28, sp = (55 + rnd() * 95) * C.spread;
+    const out = C.smokeOut;
+    spawn({ tex: glowTex, blend: 'source-over',
+      x: x + (rnd() - 0.5) * disp * 0.5, y: y + (rnd() - 0.5) * disp * 0.4,
+      vx: Math.cos(a) * sp * out, vy: Math.sin(a) * sp * out - (1 - out) * (45 + rnd() * 85),
+      drag: 0.6, life: C.smokeLife * (0.75 + rnd() * 0.5),
+      from: disp * 0.004 * (0.7 + rnd() * 0.5), to: disp * 0.012 * (0.7 + rnd() * 0.6),
+      spin: (rnd() - 0.5) * 1.2, peak: 0.34 * (0.8 + rnd() * 0.4),
+      tint: rnd() < 0.5 ? C.cSmokeA : C.cSmokeB });
+  }
+  // 4) glowing purple embers — radial, high drag, shrink to nothing
+  const nem = Math.round(14 * C.embers);
+  for (let i = 0; i < nem; i++) {
+    const a = rnd() * 6.28, sp = (240 + rnd() * 300) * C.spread;
+    spawn({ tex: glowTex, blend: 'lighter',
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      drag: 0.82, life: C.emberLife * (0.7 + rnd() * 0.6),
+      from: disp * 0.0045 * (0.6 + rnd() * 0.8), to: 0.001, spin: 0, peak: 1,
+      tint: rnd() < 0.5 ? C.cEmberA : C.cEmberB });
+  }
+}
+
+let last = performance.now();
+function tick(now) {
+  const dtMs = Math.min(50, now - last); last = now;
+  const dt = dtMs / 1000;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  // pops: elastic scale-in + upward drift + hold jiggle, then burst
+  for (let i = pops.length - 1; i >= 0; i--) {
+    const sp = pops[i]; sp.age += dtMs;
+    if (sp.age < C.popMs + C.holdMs) {
+      const k = Math.min(1, sp.age / C.popMs);
+      const e = k >= 1 ? 1 : Math.pow(2, -10 * k) * Math.sin((k - 0.075) * (2 * Math.PI / 0.32)) + 1;
+      const jig = sp.age > C.popMs ? 1 + Math.sin((sp.age - C.popMs) / C.holdMs * Math.PI) * 0.03 : 1;
+      const sc = sp.scale * (0.2 + 0.8 * e) * jig;
+      const y = sp.y - Math.min(1, sp.age / C.popMs) * C.rise;
+      // additive glow behind
+      if (C.glowAlpha > 0) {
+        const gw = skullW * sc * C.glowSize;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = C.glowAlpha * Math.min(1, k * 1.5);
+        drawTinted(glowTex, sp.x, y, gw, gw, 0, C.cGlow);
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.drawImage(skullTex, sp.x - skullW * sc / 2, y - skullW * sc / 2, skullW * sc, skullW * sc);
+    } else {
+      burst({ ...sp, y: sp.y - C.rise });
+      pops.splice(i, 1);
+    }
+  }
+
+  // particles
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.age += dtMs;
+    const t = p.age / p.life;
+    if (t >= 1) { parts.splice(i, 1); continue; }
+    const dk = Math.pow(p.drag, dt * 60); p.vx *= dk; p.vy *= dk;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.spin * dt;
+    const sc = p.from + (p.to - p.from) * t;
+    ctx.globalCompositeOperation = p.blend;
+    ctx.globalAlpha = Math.max(0, p.peak * (1 - t * t));
+    const w = (p.tex === skullTex ? skullW : glowTex.width) * sc;
+    if (p.tint) drawTinted(p.tex, p.x, p.y, w, w, p.rot, p.tint);
+    else ctx.drawImage(p.tex, p.x - w / 2, p.y - w / 2, w, w);
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  requestAnimationFrame(tick);
+}
+
+// tint a white sprite by multiplying — cheap stand-in for Pixi's sprite.tint
+const tintCache = new Map();
+function drawTinted(tex, x, y, w, h, rot, color) {
+  const key = color;
+  let t = tintCache.get(key);
+  if (!t) {
+    t = document.createElement('canvas'); t.width = tex.width; t.height = tex.height;
+    const g = t.getContext('2d');
+    g.drawImage(tex, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color; g.fillRect(0, 0, t.width, t.height);
+    tintCache.set(key, t);
+  }
+  if (rot) { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.drawImage(t, -w/2, -h/2, w, h); ctx.restore(); }
+  else ctx.drawImage(t, x - w / 2, y - h / 2, w, h);
+}
+
+// --- UI ---------------------------------------------------------------------
+const controls = document.getElementById('controls'), out = document.getElementById('out');
+function label(k) { return k.replace(/([A-Z])/g, ' $1').toLowerCase(); }
+function build() {
+  controls.innerHTML = '';
+  for (const [title, keys] of GROUPS) {
+    const h = document.createElement('h2'); h.textContent = title; controls.appendChild(h);
+    for (const k of keys) {
+      const row = document.createElement('div'); row.className = 'row';
+      const l = document.createElement('label'); l.textContent = label(k);
+      row.appendChild(l);
+      if (k.startsWith('c') && typeof C[k] === 'string') {
+        const inp = document.createElement('input'); inp.type = 'color'; inp.value = C[k];
+        inp.style.gridColumn = '1 / -1';
+        inp.oninput = () => { C[k] = inp.value; tintCache.clear(); buildSkullTex(); save(); };
+        row.appendChild(inp);
+      } else {
+        const [mn, mx, st] = RANGES[k];
+        const inp = document.createElement('input'); inp.type = 'range';
+        inp.min = mn; inp.max = mx; inp.step = st; inp.value = C[k];
+        const v = document.createElement('span'); v.className = 'val'; v.textContent = C[k];
+        inp.oninput = () => { C[k] = parseFloat(inp.value); v.textContent = C[k]; save(); };
+        l.style.gridColumn = '1 / -1';
+        row.style.gridTemplateColumns = '1fr 54px';
+        row.appendChild(inp); row.appendChild(v);
+      }
+      controls.appendChild(row);
+    }
+  }
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(C)); out.value = JSON.stringify(C, null, 2); }
+
+const stage = document.getElementById('stage');
+function centre() { const r = cv.getBoundingClientRect(); return [r.width / 2, r.height / 2 - 10]; }
+document.getElementById('fire').onclick = () => fire(...centre());
+stage.onclick = (e) => { const r = cv.getBoundingClientRect(); fire(e.clientX - r.left, e.clientY - r.top); };
+addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); fire(...centre()); } });
+let loopId = null;
+document.getElementById('loop').onclick = (e) => {
+  if (loopId) { clearInterval(loopId); loopId = null; e.target.textContent = 'Auto-loop: off'; }
+  else { loopId = setInterval(() => fire(...centre()), 1600); e.target.textContent = 'Auto-loop: ON'; }
+};
+document.getElementById('reset').onclick = () => { C = { ...DEFAULTS }; tintCache.clear(); buildSkullTex(); build(); save(); };
+
+buildSkullTex(); build(); save(); resize();
+requestAnimationFrame((t) => { last = t; tick(t); });
+setTimeout(() => fire(...centre()), 300);
+</script>
+</body>
+</html>

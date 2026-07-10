@@ -6,12 +6,21 @@
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #14170f; color: #e6ecdc; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
-  #stage { flex: 1; position: relative; display: grid; place-items: center; }
+  /* The STAGE matches the REAL combat board: a light warm cream (#e4dccf). The rig used to
+     draw over near-black, which lied about how additive glows read — they popped in the rig
+     but washed out on the actual cream board. Now the preview is honest. */
+  body { margin: 0; background: #e4dccf; color: #e6ecdc; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #e4dccf; }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  /* a fake "card" behind the target so the tendril is sized against a real unit */
-  #card { width: 132px; height: 184px; border-radius: 10px; background: linear-gradient(160deg,#2f3322,#1e2116); border: 2px solid #444d2f; box-shadow: 0 8px 30px rgba(0,0,0,.5); position: relative; z-index: 0; }
-  #card::after { content: "target unit"; position: absolute; inset: auto 0 8px; text-align: center; color: #6b7550; font-size: 11px; letter-spacing: .12em; }
+  /* Fake reference cards: the real game cards are near-white (#fffdf8) with dark ART. We show
+     BOTH surfaces the tendril/glow composites over — a bright card AND a darker art swatch —
+     so the owner can judge how the blend reads on each. */
+  #cards { display: flex; gap: 22px; align-items: center; z-index: 0; }
+  #card { width: 132px; height: 184px; border-radius: 10px; background: #fffdf8; border: 1px solid #e7dcc7; box-shadow: 0 6px 22px rgba(60,45,20,.18); position: relative; }
+  #card::after { content: "target unit"; position: absolute; inset: auto 0 8px; text-align: center; color: #b3a687; font-size: 11px; letter-spacing: .12em; }
+  /* a darker "card art" swatch — additive washes look different over dark art vs bright card */
+  #cardArt { width: 132px; height: 184px; border-radius: 10px; background: linear-gradient(160deg,#3a3326,#211d14); border: 1px solid #e7dcc7; box-shadow: 0 6px 22px rgba(60,45,20,.18); position: relative; }
+  #cardArt::after { content: "card art"; position: absolute; inset: auto 0 8px; text-align: center; color: #8a7f63; font-size: 11px; letter-spacing: .12em; }
   #panel { width: 306px; padding: 14px 16px; overflow-y: auto; background: #0e100a; border-left: 1px solid #2b3020; }
   h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #c8e070; }
   .sub { color: #7a8556; font-size: 11px; margin-bottom: 12px; }
@@ -36,7 +45,7 @@
 </style>
 </head>
 <body>
-  <div id="stage"><div id="card"></div><canvas id="cv"></canvas></div>
+  <div id="stage"><div id="cards"><div id="card"></div><div id="cardArt"></div></div><canvas id="cv"></canvas></div>
   <div id="panel">
     <h1>Buff Tendril</h1>
     <div class="sub">Empowerment FX — a unit shoots an energy tendril to the unit it buffs, strikes, flashes.<br />Drag the source/target dots · click the stage to re-fire.</div>
@@ -77,6 +86,10 @@
 // --- dial schema ------------------------------------------------------------
 const DEFAULTS = {
   style: 'tendril',   // fixed for now; 'lightning'/'beam' are future variants (disabled dropdown)
+  blend: 'normal',    // 'add' | 'normal' | 'screen' — compositing mode. Maps to canvas
+                      // globalCompositeOperation (lighter/source-over/screen) and to the
+                      // engine's BuffPresetCfg.blend. 'add' washes out on the cream board;
+                      // 'normal'/'screen' read better — that's why this dial exists.
 
   // Path
   curve:      0.28,   // 0..1 — perpendicular bow of the control point, as a fraction of source→target distance
@@ -133,7 +146,7 @@ const RANGES = {
 };
 
 const GROUPS = [
-  ['Shape',   ['style']],
+  ['Shape',   ['style','blend']],
   ['Path',    ['curve','wobbleAmp','wobbleFreq','travelMs','retractMs']],
   ['Ribbon',  ['baseWidth','tipWidth','coreAlpha','glowWidth','glowAlpha']],
   ['Strike',  ['flashSize','flashMs','moteCount','moteSpeed','moteLife']],
@@ -166,6 +179,13 @@ if (!REG || !REG.presets || typeof REG.presets !== 'object' || !Object.keys(REG.
   REG = seedRegistry();
 }
 if (!REG.presets[REG.active]) REG.active = Object.keys(REG.presets)[0];
+
+// Backfill DEFAULTS into EVERY preset (not just the active one) so newly-added fields like
+// `blend` are present in old saved registries and round-trip into the exported JSON. Old
+// presets that predate `blend` therefore fall back to 'normal' rather than exporting undefined.
+for (const name of Object.keys(REG.presets)) {
+  REG.presets[name] = { ...DEFAULTS, ...REG.presets[name] };
+}
 
 // C is the live, editable copy of the active preset (missing keys fall back to DEFAULTS).
 let C = { ...DEFAULTS, ...REG.presets[REG.active] };
@@ -257,6 +277,17 @@ function samplePath(s, e, head) {
   return pts;
 }
 
+// Map the preset `blend` enum onto a canvas globalCompositeOperation. Mirrors what the engine
+// does with BuffPresetCfg.blend when compositing the ribbon, pulse, flash + motes.
+function blendOp() {
+  switch (C.blend) {
+    case 'add':    return 'lighter';
+    case 'screen': return 'screen';
+    case 'normal':
+    default:       return 'source-over';
+  }
+}
+
 // Draw a tapered ribbon along `pts` with the given max width + style.
 function drawRibbon(pts, maxWidth, color, alpha, blend) {
   if (pts.length < 2 || alpha <= 0 || maxWidth <= 0) return;
@@ -280,7 +311,8 @@ function drawRibbon(pts, maxWidth, color, alpha, blend) {
 
 // --- fire-and-forget particle system ---------------------------------------
 const parts = [];   // pulses, flashes, motes
-function spawn(p) { parts.push({ age: 0, drag: 1, blend: 'lighter', ...p }); }
+// Capture the current blend mode at spawn time (engine applies cfg.blend to pulse/flash/motes).
+function spawn(p) { parts.push({ age: 0, drag: 1, blend: blendOp(), ...p }); }
 
 // --- live tendrils ----------------------------------------------------------
 const bolts = [];   // one per source→target pair, per fire
@@ -348,10 +380,11 @@ function tick(now) {
     // apply retract: drop points behind the tail fraction
     if (tail > 0) pts = pts.filter((p) => p.t >= tail * head);
     if (pts.length >= 2) {
+      const op = blendOp();
       // soft-glow underlay
-      drawRibbon(pts, C.glowWidth, C.colorGlow, C.glowAlpha * fade, 'lighter');
+      drawRibbon(pts, C.glowWidth, C.colorGlow, C.glowAlpha * fade, op);
       // bright core
-      drawRibbon(pts, C.baseWidth, C.colorCore, C.coreAlpha * fade, 'lighter');
+      drawRibbon(pts, C.baseWidth, C.colorCore, C.coreAlpha * fade, op);
     }
   }
 
@@ -437,6 +470,17 @@ function build() {
           const o = document.createElement('option'); o.value = o.textContent = opt; sel.appendChild(o);
         }
         sel.value = C.style || 'tendril';
+        row.appendChild(sel);
+      } else if (k === 'blend') {
+        // ENABLED enum dropdown — picks the compositing mode. Maps to canvas
+        // globalCompositeOperation in the renderer and to BuffPresetCfg.blend in the engine.
+        const sel = document.createElement('select');
+        sel.style.gridColumn = '1 / -1';
+        for (const opt of ['add', 'normal', 'screen']) {
+          const o = document.createElement('option'); o.value = o.textContent = opt; sel.appendChild(o);
+        }
+        sel.value = C.blend || 'normal';
+        sel.onchange = () => { C.blend = sel.value; save(); };
         row.appendChild(sel);
       } else if (k.startsWith('color') && typeof C[k] === 'string') {
         const inp = document.createElement('input'); inp.type = 'color'; inp.value = C[k];

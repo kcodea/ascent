@@ -3,17 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { buffPreset, BUFF_PRESETS } from './buffPresets';
 
 describe('buffPreset resolver — most-specific wins', () => {
-  it('returns the per-card preset when the card is mapped', () => {
-    expect(buffPreset('kennel', 'beast')).toBe('kennelmaster');
+  it('maps every Beast-tribe buffer to the beast-tribe preset (by tribe, regardless of card)', () => {
+    expect(buffPreset('kennel', 'beast')).toBe('beast-tribe');
+    expect(buffPreset('someUnmappedBeast', 'beast')).toBe('beast-tribe');
   });
-  it('falls back to the per-tribe preset when only the tribe is mapped', () => {
-    expect(buffPreset('someUnmappedCard', 'beast')).toBe('default');
-  });
-  it('falls back to default when neither card nor tribe is mapped', () => {
+  it('falls back to default when the tribe is not mapped', () => {
     expect(buffPreset('nope', 'dragon')).toBe('default');
+    expect(buffPreset('anything', 'undead')).toBe('default');
   });
   it('every preset name the resolver can return exists in BUFF_PRESETS', () => {
-    for (const name of ['default', 'kennelmaster']) expect(BUFF_PRESETS[name]).toBeDefined();
+    for (const name of ['default', 'beast-tribe']) expect(BUFF_PRESETS[name]).toBeDefined();
   });
   it('every preset is a complete tendril config (style + colors + numeric dials)', () => {
     for (const cfg of Object.values(BUFF_PRESETS)) {

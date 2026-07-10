@@ -21,28 +21,30 @@ export interface BuffPresetCfg {
   colorCore: string; colorGlow: string; colorFlash: string; colorMote: string;
 }
 
-/** Owner-tuned on the preview rig (2026-07-10, the "newdefault" preset). `flashSize`/`pulseSize` are PX RADII
- *  (1:1 with the preview — the engine divides by the glow basis). Widths/alphas/durations transfer directly.
- *  `default` shares these values until it gets its own tuned look; only the Kennelmaster card fires in the
- *  iteration-1 slice, so `default` is not yet exercised live. */
+/** Owner-tuned on the preview rig (2026-07-10, the "beast-tribe" preset — normal blend, cream-accurate).
+ *  `flashSize`/`pulseSize` are PX RADII (1:1 with the preview — the engine divides by the glow basis).
+ *  Widths/alphas/durations/colors transfer directly. `default` (the fallback for non-Beast buffers) shares
+ *  these values until it gets its own tuned look; in the iteration-1 slice only Beast buffers fire, so
+ *  `default` is not yet exercised live. */
 const BASE: BuffPresetCfg = {
   style: 'tendril', blend: 'normal',
   curve: 1, wobbleAmp: 29.5, wobbleFreq: 1.4, travelMs: 570, retractMs: 150,
-  baseWidth: 8, tipWidth: 1.5, coreAlpha: 0.3, glowWidth: 26, glowAlpha: 0.44,
+  baseWidth: 8, tipWidth: 1.5, coreAlpha: 0.7, glowWidth: 34, glowAlpha: 0.22,
   flashSize: 99, flashMs: 430, moteCount: 34, moteSpeed: 590, moteLife: 700,
   pulseSize: 98, pulseAlpha: 0.68, pulseMs: 630,
-  colorCore: '#ffffff', colorGlow: '#17c200', colorFlash: '#71fe34', colorMote: '#3ebd0f',
+  colorCore: '#00cc03', colorGlow: '#8bfe7c', colorFlash: '#71fe34', colorMote: '#3ebd0f',
 };
 
 export const BUFF_PRESETS: Record<string, BuffPresetCfg> = {
   default: { ...BASE },
-  kennelmaster: { ...BASE },
+  'beast-tribe': { ...BASE },
 };
 
-/** Card-id / tribe → preset-name assignment. Most-specific wins (see `buffPreset`). */
+/** Card-id / tribe → preset-name assignment. Most-specific wins (see `buffPreset`). Every Beast-tribe buffer
+ *  uses the `beast-tribe` look (owner ruling 2026-07-10); no per-card overrides yet. */
 const BUFF_ASSIGN: { byCard: Record<string, string>; byTribe: Partial<Record<Tribe, string>> } = {
-  byCard: { kennel: 'kennelmaster' },
-  byTribe: {},
+  byCard: {},
+  byTribe: { beast: 'beast-tribe' },
 };
 
 /** Resolve the preset name for a buff source: per-card → per-tribe → 'default'. A name is only returned if it

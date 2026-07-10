@@ -3649,7 +3649,7 @@ describe('hero powers (@game/sim)', () => {
   it("Herald's Proclaim makes the target's two neighbours each Consume a Fodder", () => {
     // Distinct cardIds so the three don't form a triple (which would clear the board).
     let s: RunState = {
-      ...createRun(1, 'herald'), heroReady: true,
+      ...createRun(1, 'herald'), heroReady: true, embers: 5,
       board: [
         { uid: 'l', cardId: 'alley', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false },
         { uid: 'c', cardId: 'sandbag', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false },
@@ -3661,8 +3661,12 @@ describe('hero powers (@game/sim)', () => {
     expect([s.board[2]!.attack, s.board[2]!.health]).toEqual([3, 3]); // right neighbour +1/+1
     expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // the target itself does NOT consume
     expect(s.heroReady).toBe(false);
-    // A target with no neighbours (lone minion) → no-op, charge preserved.
-    const lone: RunState = { ...createRun(1, 'herald'), heroReady: true, board: [mk('x', 2, 2)] };
+    expect(s.embers).toBe(3); // Proclaim costs 2 Gold (5 − 2)
+    // Too little Gold → no-op, charge preserved.
+    const poor: RunState = { ...createRun(1, 'herald'), heroReady: true, embers: 1, board: [mk('a', 2, 2), mk('b', 3, 3)] };
+    expect(reduce(poor, { type: 'heroPower', uid: 'a' })).toBe(poor);
+    // A target with no neighbours (lone minion) → no-op, charge + Gold preserved.
+    const lone: RunState = { ...createRun(1, 'herald'), heroReady: true, embers: 5, board: [mk('x', 2, 2)] };
     expect(reduce(lone, { type: 'heroPower', uid: 'x' })).toBe(lone);
   });
 
@@ -3763,13 +3767,17 @@ describe('PvE course + record (@game/sim)', () => {
     expect(s.phase).toBe('gameover');
   });
 
-  it('Armor: heroes start with 15 (Warden / Robin / Chaos / Drakko start with 8)', () => {
-    expect(getHero('warden').armor).toBe(8);
+  it('Armor: per-hero starting values (a balance dial) carry into the run', () => {
+    // A strong power tends to carry less armor. Values as of the 2026-07-09 tuning pass.
+    expect(getHero('warden').armor).toBe(12);
+    expect(getHero('soren').armor).toBe(8);
+    expect(getHero('cassen').armor).toBe(8);
+    expect(getHero('darah').armor).toBe(12);
+    expect(getHero('herald').armor).toBe(10);
+    expect(getHero('hermithank').armor).toBe(8); // Tradesman
+    expect(getHero('nadja').armor).toBe(19);
     expect(getHero('robin').armor).toBe(8);
-    expect(getHero('chaos').armor).toBe(8);
-    expect(getHero('drakko').armor).toBe(8);
     expect(getHero('indy').armor).toBe(15);
-    expect(getHero('darah').armor).toBe(15);
     const s = createRun(1, 'indy');
     expect(s.armor).toBe(15);
     expect(s.maxArmor).toBe(15);

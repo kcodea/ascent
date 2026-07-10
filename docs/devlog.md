@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### balance(heroes): armor tuning + Herald cost + renames (Yirin / Tradesman) + Bagger Ben live worth
+
+Owner hero-tuning pass:
+
+- **Armor dials:** Warden 8→12, Darah 15→12, Soren 15→8, Cassen 15→8, Herald 15→10, Tradesman (Hermit Hank) 15→8.
+- **Herald's Proclaim** now costs **2 Gold** (was free) — the reducer already handles `power.cost` generically
+  (affordability gate + spend), so only the def changed. Test updated to assert the 2-Gold spend + a too-poor no-op.
+- **Renames (display-name only, ids kept stable so saves/references/art keys don't break):** Rohan → **Yirin** (new
+  art wired: `Yirin.png` → `heroes/rohan.webp`), Hermit Hank → **Tradesman**.
+- **Bagger Ben's Bag It** now shows its live worth: the power line reads `Bag It · +N Gold` and the hover tooltip
+  "Click to gain N Gold. The payout grows +1 each turn." (N = 1 + wave, matching the reducer). Added a `scalingGold`
+  case to the StatusBar power line + note.
+- **Yirin's Attunement** now shows a progress counter toward its next improvement: the power line reads
+  `Attunement · +N/+N · M/5` and the tooltip "M/5 spells cast toward the next +1/+1" (M = `spellsCast % 5`), so the
+  player can see how close the next +1/+1 step is.
+
+The armor test was rewritten to assert the new per-hero spread. Verified live: every armor value, Yirin's name + art,
+Tradesman's name, Herald's 2-Gold cost badge, and Bagger Ben's worth scaling with the wave (+2 at w1, +4 at w3).
+`lint` + `test` (782) + `build:web` green.
 ### fix(ui): quest-badge tooltip no longer clips off-screen · practice hero grid fits without scrolling
 
 Two UI fixes:

@@ -457,6 +457,10 @@ export type QuestReward =
   | { kind: 'runeConsume'; attack: number; health: number }
   // Rune of Pillaging half: your Gold Pouches are worth `value` Gold for the rest of the run.
   | { kind: 'goldPouchValue'; value: number }
+  // Rune of Summoning: each spell you cast permanently improves your Imps +1/+1 wherever they are.
+  | { kind: 'runeSummoning' }
+  // Rune of Empowerment: your hero power's effect triggers twice.
+  | { kind: 'runeEmpowerment' }
   // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
   | { kind: 'gainGold'; amount: number }
   // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks
@@ -503,7 +507,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves'
   // Runes (Runesmith): runeWarding = Start of Combat give your leftmost minion Ward; runeFury = your Avenges
   // trigger twice; runeSlaying = every Slaughter this combat banks +2 Gold for next turn (read at settle).
-  | 'runeWarding' | 'runeFury' | 'runeSlaying';
+  | 'runeWarding' | 'runeFury' | 'runeSlaying'
+  // Rune of Forthcoming: you always attack first in combat.
+  | 'runeForthcoming';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {

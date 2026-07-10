@@ -2650,6 +2650,8 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
+  // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant).
+  if (state.runeSummoning) buffImpsRunWide(state, 1, 1, 'Rune of Summoning');
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;

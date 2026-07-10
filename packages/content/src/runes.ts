@@ -66,6 +66,27 @@ export const RUNES: RuneDef[] = [
     text: 'Your **Avenges** trigger twice.',
     reward: { kind: 'combatFlag', flag: 'runeFury' },
   },
+  {
+    id: 'rune_summoning',
+    name: 'Rune of Summoning',
+    cost: 5,
+    text: 'Casting spells improve your **Imps** by **+1/+1** wherever they are.',
+    reward: { kind: 'runeSummoning' },
+  },
+  {
+    id: 'rune_forthcoming',
+    name: 'Rune of Forthcoming',
+    cost: 3,
+    text: '**Always attack first.**',
+    reward: { kind: 'combatFlag', flag: 'runeForthcoming' },
+  },
+  {
+    id: 'rune_empowerment',
+    name: 'Rune of Empowerment',
+    cost: 4,
+    text: 'Your **hero power** triggers twice.',
+    reward: { kind: 'runeEmpowerment' },
+  },
 ];
 
 export const RUNE_INDEX: Record<string, RuneDef> = Object.fromEntries(

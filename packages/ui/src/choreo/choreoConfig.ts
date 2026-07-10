@@ -73,7 +73,7 @@ export interface ChoreoConfig {
 const DEFAULTS: ChoreoConfig = {
   speed: 1.5,
   // action beats (ms) — mirror the former DELAY table exactly, so defaults = current behaviour.
-  attack: 353, sc: 720, summon: 440, buff: 420, reborn: 640, improve: 520, rally: 720, toHand: 820,
+  attack: 353, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 820,
   maxGold: 560, hpGrant: 0,
   // result beats (ms)
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,

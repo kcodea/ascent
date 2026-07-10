@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Snappier combat stat gains.** An `onDamaged` buff (Target Dummy taking a hit) no longer splits the clash —
+  the whole exchange lands first (both hits, at their real pre-buff values), the units settle, then the `+N`
+  floats on a cadence cut to a third. Presentation-only; the numbers still float at the same speed.
 - **Lunge Strike Effects tuner + strike-point control.** A new 💥 Dev-menu panel controls the whole combat
   strike-impact package in one place — flash, shockwave, heavy ring, sparks, smoke, dust billow, and energy
   pulse (previously hardcoded), plus a `corner depth` dial for where the attacker's leading corner lands

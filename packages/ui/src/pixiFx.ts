@@ -368,8 +368,10 @@ const DR_EMBER_LIFE = 470;
 // the CSS Rally float read as one family.
 const DR_FILL = '#cfa9fe';    // the ☠ glyph itself (baked into the texture, so the sprite draws untinted)
 const DR_GLOW = 0xb478f0;     // the baked text-shadow, the glow sprite, and the flash
-const DR_SMOKE_A = 0x4a3a5e;
-const DR_SMOKE_B = 0x6b5580;
+// Smoke reads on 'normal' blend (the one layer that can darken the board), so these are true mid-violets, not
+// the near-black originals — the plume looks like PURPLE smoke, never a black cloud.
+const DR_SMOKE_A = 0x7a5fa6;
+const DR_SMOKE_B = 0x9d84c4;
 const DR_EMBER_A = 0xcba6f0;
 const DR_EMBER_B = 0xe0c4ff;
 

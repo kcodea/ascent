@@ -35,7 +35,10 @@ no fight outcome or timing changed.
   up ×3 and fades over 150ms — without this it would simply vanish, and *this* is the poof the eye actually
   reads); a **purple flash** pulses; a **purple smoke plume** blasts radially outward (`DR_SMOKE_OUT = 1`);
   and ~42 **glowing purple embers** scatter with heavy drag and shrink to nothing. `sfx.skullBurst()` fires at
-  the same instant as before.
+  the same instant as before. The smoke is the only `'normal'`-blend layer (the flash + embers are additive, so
+  they can only brighten); its tints were first the tuned-but-near-black `0x4a3a5e`/`0x6b5580`, which read as a
+  **black cloud** on the dark board, so they were lifted to true mid-violets (`0x7a5fa6`/`0x9d84c4`) — the plume
+  now looks like purple smoke, not soot. (Same fix mirrored in the preview defaults.)
 - **Drag conversion — the subtle one.** The DEV preview integrates drag *per frame* (`v *= drag^(dt·60)`);
   the engine integrates it *per second* (`v *= drag^dt`). Pasting the tuned dials straight across would have
   made every particle drift far further than previewed. `perFrameDrag(d) = d ** 60` converts them, so the

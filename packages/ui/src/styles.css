@@ -2249,6 +2249,27 @@ svg { width: 18px; height: 18px; }
 .carcard { background: rgba(20, 30, 50, 0.5); border: 1.5px solid rgba(196, 160, 92, 0.35); border-radius: 16px; padding: 6px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
 .carcard .carsec { margin: 8px 0 2px; }
 
+/* Board Log — the per-round "winningest board" panel (a full-width carcard above the columns). */
+.boardlog { margin-bottom: 4px; }
+.bl-rounds { display: flex; flex-wrap: wrap; gap: 6px; }
+.bl-round { position: relative; width: 38px; height: 38px; border-radius: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.28); border: 2px solid rgba(255, 255, 255, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.bl-round:hover { border-color: var(--acc); color: var(--acc); }
+.bl-round.has { color: #fff; border-color: rgba(196, 160, 92, 0.6); }
+.bl-round.has::after { content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--acc); }
+.bl-round.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+.bl-round.on::after { background: #fff; }
+.bl-detail { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.bl-record { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.82); }
+.bl-record .bl-stat b { font-weight: 900; font-size: 20px; color: #fff; margin-right: 4px; }
+.bl-record .bl-stat.w b { color: #7ee0a0; }
+.bl-record .bl-stat.t b { color: #e9d58a; }
+.bl-record .bl-stat.l b { color: #f08a8a; }
+.bl-record .bl-wr { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-weight: 900; font-size: 17px; color: var(--acc); }
+.bl-record .bl-wr svg { width: 17px; height: 17px; color: var(--acc); }
+.bl-warband { display: flex; flex-wrap: wrap; gap: 10px; }
+.bl-note { font-family: var(--font-ui); font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.bl-empty { padding: 14px 2px; color: rgba(255, 255, 255, 0.6); font-family: var(--font-ui); font-weight: 700; font-size: 15px; }
+
 /* Left — Profile + Insights + hero record (one panel). Header block centered; the lists below full-width. */
 .carprofilecard { align-items: center; text-align: center; }
 .carprofilecard .carsec, .carprofilecard .carinsights, .carprofilecard .carherorows { align-self: stretch; text-align: left; }

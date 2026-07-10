@@ -4258,16 +4258,17 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
       const s: RunState = { ...createRun(1), wave: 1, board: [] };
       const next = reduce(s, { type: 'faceOmen' });
       expect(next.lastCombat!.result).toBe('lose');
-      expect(next.lastCombat!.playerDamage).toBe(10); // raw 12 capped to 10 at wave 1
+      expect(next.lastCombat!.playerDamage).toBe(5); // raw 12 capped to 5 at wave 1
     } finally {
       OPPONENT_POOL.length = 0;
     }
   });
 
-  it('lossDamageCap ramps by round: 10 (≤8), 15 (9–12), 20 (13–15), uncapped (16+)', () => {
-    expect([1, 5, 8].map(lossDamageCap)).toEqual([10, 10, 10]);
-    expect([9, 11, 12].map(lossDamageCap)).toEqual([15, 15, 15]);
-    expect([13, 14, 15].map(lossDamageCap)).toEqual([20, 20, 20]);
+  it('lossDamageCap ramps by round: 5 (1–3), 10 (4–7), 15 (8–11), 20 (12–15), uncapped (16+)', () => {
+    expect([1, 2, 3].map(lossDamageCap)).toEqual([5, 5, 5]);
+    expect([4, 6, 7].map(lossDamageCap)).toEqual([10, 10, 10]);
+    expect([8, 10, 11].map(lossDamageCap)).toEqual([15, 15, 15]);
+    expect([12, 14, 15].map(lossDamageCap)).toEqual([20, 20, 20]);
     expect([16, 17, 30].map(lossDamageCap)).toEqual([Infinity, Infinity, Infinity]);
   });
 

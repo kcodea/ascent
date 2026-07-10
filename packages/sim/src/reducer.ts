@@ -96,9 +96,9 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
 }
 
 /** Loss-damage cap by round — the most Resolve a single loss can cost, ramping up as the course escalates:
- *  10 through round 8, 15 through round 12, 20 through round 15, then UNCAPPED (full damage) for the finale. */
+ *  5 (rounds 1–3), 10 (4–7), 15 (8–11), 20 (12–15), then UNCAPPED (full damage) for the finale (16–17). */
 export function lossDamageCap(wave: number): number {
-  return wave <= 8 ? 10 : wave <= 12 ? 15 : wave <= 15 ? 20 : Infinity;
+  return wave <= 3 ? 5 : wave <= 7 ? 10 : wave <= 11 ? 15 : wave <= 15 ? 20 : Infinity;
 }
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect

@@ -4264,10 +4264,12 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     }
   });
 
-  it('lossDamageCap rises by round: 5 (≤3), 10 (4–6), 15 (7+)', () => {
+  it('lossDamageCap ramps by round: 5 (1–3), 10 (4–7), 15 (8–11), 20 (12–15), uncapped (16+)', () => {
     expect([1, 2, 3].map(lossDamageCap)).toEqual([5, 5, 5]);
-    expect([4, 5, 6].map(lossDamageCap)).toEqual([10, 10, 10]);
-    expect([7, 12, 30].map(lossDamageCap)).toEqual([15, 15, 15]);
+    expect([4, 6, 7].map(lossDamageCap)).toEqual([10, 10, 10]);
+    expect([8, 10, 11].map(lossDamageCap)).toEqual([15, 15, 15]);
+    expect([12, 14, 15].map(lossDamageCap)).toEqual([20, 20, 20]);
+    expect([16, 17, 30].map(lossDamageCap)).toEqual([Infinity, Infinity, Infinity]);
   });
 
   it('Practice mode: a loss costs no Resolve (unlimited health), and the run keeps going through the course', () => {

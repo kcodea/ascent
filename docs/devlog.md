@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### balance: loss-damage cap ramps 5 → 10 → 15 → 20 → uncapped
+
+Reworked `lossDamageCap(wave)` (the most Resolve a single loss can cost) from the old flat-by-3 curve to an
+escalating one per the owner: **5** (rounds 1–3), **10** (4–7), **15** (8–11), **20** (12–15), then **uncapped**
+(full damage) for the finale (rounds 16–17). `Infinity` flows through the existing
+`Math.min(playerDamage, cap)` cleanly; the HudBar shows "No cap" instead of "Max −∞" for the uncapped rounds, and
+the loss-tally's "Max Damage" label self-suppresses when uncapped (`rawTotal > Infinity` is false). Tests updated;
+verified live that the HUD reads Max −10 / −15 / −20 / No cap across the bands.
+
 ### fix: Perfect Core's welded Rally now works (combat + triples) · Forsaken Will behaves like the Weaver
 
 Two owner-reported bugs:

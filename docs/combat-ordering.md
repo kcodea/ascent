@@ -132,17 +132,16 @@ Each fallen body runs `killOrReborn` as its own step. Two paths:
 
 ### After the exchange — the three flushes
 
-10. **`flushImmediateAttacks()`** — drains the out-of-turn strike queue. Each queued minion:
-    `shieldUp` (Solaris Avenge, if paired) → `attack` → `dmg` …. Chains via a guard, so a granted
-    attack that slaughters can grant the next. Sources: Whelp strikes, Bloodlust, Solaris Fang's
-    Avenge, Feeding Line.
-
-    > 🚧 **In flight — Violet Whelp ordering.** On `main` today an `attackOnSummon` token's **summon**
-    > lands *inline, mid-cascade* (so it can interleave with the other units' deaths); only its
-    > **strike** defers to this flush. The active engine task defers the token's **whole summon +
-    > strike** here, so the entire clash's deaths + Deathrattles resolve first, then the token summons
-    > and swings as one discrete beat. Update this section when that PR merges. See
-    > [roadmap.md](roadmap.md).
+10. **`flushImmediateAttacks()`** — drains the out-of-turn strike queue. Chains via a guard, so a
+    granted attack that slaughters can grant the next. Two kinds of queued item:
+    - **A deferred attack-on-summon token** (Whelp): `summon` → `attack` → `dmg` …. The token's
+      *whole* summon defers here (owner ruling 2026-07-10), so the entire clash's deaths + Deathrattles
+      resolve first, then the token summons **and** strikes as one discrete beat — never interleaved
+      with the other units' deaths. Multi-token rattles run each in turn (summon + strike before the
+      next lands, so the board-cap "room after the first attacked" logic still holds). Consequence: the
+      token is off-board for the rest of the cascade, so a same-clash Deathrattle can't buff it before
+      it exists — which also keeps the buff/summon event order consistent for the replay's frame fold.
+    - **A queued strike** (Bloodlust, Solaris Fang's Avenge — `shieldUp` then strike, Feeding Line).
 
 11. **`flushResummons()`** — a Reclaimer body reclaims a slot freed this exchange.
 12. **`flushAscensions()`** — a unit that crossed its threshold transforms → `ascend`.
@@ -159,7 +158,7 @@ Each fallen body runs `killOrReborn` as its own step. Two paths:
 | **Windfury** (Flurry · `W`) | A Flurry minion attacks | `attack` × 2 | The whole exchange runs twice; each swing its own step. 2nd only if it survives the 1st. |
 | **Reborn** (Rise · `R`) | First death | `death` → `summon` → `reborn` | Die → Deathrattle → return at base Attack / 1 HP, to the *right* of what it summoned. Fails at 7 living. |
 | **Deathrattle** (Echo · `onDeath`) | True death (or a Rise's death) | `death` → `summon` · `buff` | Fires *before* a Rise body returns. Echo doublers (Sylus) re-fire it in place. |
-| **Attack-on-summon** (Whelp · `attackOnSummon`) | Summoned by a Deathrattle | `summon` (inline) … `attack` (flush) | **Today:** summon lands mid-cascade, strike defers to the flush. **In-flight PR** defers the *whole* summon+strike (see §3.10). |
+| **Attack-on-summon** (Whelp · `attackOnSummon`) | Summoned by a Deathrattle | `summon` → `attack` | **Deferred:** the *whole* summon + strike land together at the flush, after the cascade — off-board meanwhile (see §3.10). |
 | **On-kill** (Slaughter · `onKill`) | Fells a body while attacking | `summon` · `buff` · `toHand` | After *all* Phase-2 deaths. Only when `killer === attacker` — a defender's retaliation kill doesn't count. |
 | **Stealth** (`ST`) | Attacks for the first time | `reveal` | Lost the instant it swings, before the `attack` lands. |
 | **On-damaged buff** (Target Dummy · `onDamaged`) | Takes a hit | `dmg` → `buff` | Phase 1. The replay slides the `buff` to the clash's tail so it never splits the damage. |
@@ -180,5 +179,8 @@ Each fallen body runs `killOrReborn` as its own step. Two paths:
   gap, then it re-inserts to the right of those summons — at base Attack, 1 HP.
 - **Recruit effects don't emit.** Battlecry, buff-on-summon, and Consume bake into stats during the
   shop phase. Combat only replays combat-time effects.
+- **Attack-on-summon defers.** A Whelp's whole summon + strike waits for `flushImmediateAttacks` after
+  the cascade — so it's off-board for same-clash buffs, and its `summon` never interleaves with the
+  other units' deaths.
 - **Immediate attacks share one queue.** Whelps, Bloodlust, Solaris Avenge, and Feeding Line all route
   through `pendingAttackOnSummon` → `flushImmediateAttacks`, out of turn order.

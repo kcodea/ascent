@@ -530,8 +530,9 @@ export const SPELLS: CardDef[] = [
     text: 'You attack **first** next fight.',
   },
   {
-    // Anomaly Reactor: give a friendly minion a Mech type in addition to its own — it now counts as a Mech for
-    // every synergy (Magnetic hosts, Mech auras, Rally-Mech, Mech quests) for the rest of the run.
+    // Anomaly Reactor: target a friendly minion, then CHOOSE an extra type to bolt on — it now counts as that
+    // type in addition to its own for every synergy (auras, Rally-of-a-type, tribe quests, Magnetic hosts, …)
+    // for the rest of the run. The drag picks the target; the Choose One picks the type.
     id: 'anomalyreactor',
     name: 'Anomaly Reactor',
     tribe: 'mech',
@@ -543,8 +544,15 @@ export const SPELLS: CardDef[] = [
     token: true, // reward-exclusive (the Anomalous Reactor quest) — never rolls in the shop / spell Discover / random-spell grants
     cost: 2,
     target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'mech' } }],
-    text: 'Give a friendly minion a **Mech** type in addition to what it is.',
+    effects: [],
+    chooseOne: [
+      { text: 'Add **Beast**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'beast' } }] },
+      { text: 'Add **Dragon**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'dragon' } }] },
+      { text: 'Add **Undead**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'undead' } }] },
+      { text: 'Add **Mech**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'mech' } }] },
+      { text: 'Add **Demon**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'demon' } }] },
+    ],
+    text: 'Target a minion, then choose an extra **type** to give it — on top of what it already is.',
   },
   {
     // Bloodlust: mark a friendly minion — it takes an immediate immune swing at the start of the next combat.

@@ -12,23 +12,27 @@ the dying unit and **shattered** — a 6×6 grid of image fragments flung with g
 splinters and a grey smoke bloom. It never matched the rest of the combat language: the purple `☠` Rally float
 (`.float.rally.sym`) already reads as "an Echo fired," and the bone shatter read as debris.
 
-Rebuilt it as a **purple glowing skull that pops up and poofs**. Presentation-only — `pixiFx.deathrattle(x, y,
-size)` keeps its exact signature and call sites, the sim event log is untouched, and no fight outcome or timing
-changed.
+Rebuilt it as a **purple glowing skull-and-crossbones that pops up and poofs**. Presentation-only —
+`pixiFx.deathrattle(x, y, size)` keeps its exact signature and call sites, the sim event log is untouched, and
+no fight outcome or timing changed.
 
 - **Texture** (`loadSkull()` → `buildSkullTex()`, `pixiFx.ts`). The `/fx/skull-crossbones.png` fetch,
   alpha-key, bbox-crop, and grid-slice are all gone (~40 lines, plus the `Rectangle` import and the
-  `skullFrags` field). The `☠` glyph is now drawn to an offscreen canvas at 256px, filled `#cfa9fe`, through
-  three `shadowColor`/`shadowBlur` passes that **bake the CSS `text-shadow` stack from `.float.rally.sym`
-  into the texture** — so the glow travels with the sprite through the pop *and* the dissolve, which is what
-  sells "glowing" rather than "flat purple." Synchronous, so there's no longer an async window where an early
-  `deathrattle()` no-ops. Emoji (`💀`) is deliberately avoided: Windows renders it as a full-colour bitmap that
-  ignores the fill colour.
+  `skullFrags` field). The art is now the **vendored `skull-crossbones.svg`** — a two-path, single-fill,
+  white-on-transparent silhouette, its paths **inlined into `pixiFx.ts`** (no runtime fetch). It's rendered
+  to an offscreen canvas via `Path2D`, filled `#cfa9fe`, through three `shadowColor`/`shadowBlur` passes that
+  **bake the CSS `text-shadow` stack from `.float.rally.sym` into the texture** — so the glow travels with the
+  sprite through the pop *and* the dissolve, which is what sells "glowing" rather than "flat purple."
+  Synchronous, so there's no longer an async window where an early `deathrattle()` no-ops. The silhouette is
+  **tall** (864×1048); the Pixi sprite scales uniformly, so its aspect is preserved and `DR_SKULL_SCALE` sizes
+  it by width against the card (the crossbones hang below the skull). The dead PNG is deleted. (An intermediate
+  build used the `☠` Unicode glyph; the owner A/B'd it against the SVG in the preview and picked the SVG. Emoji
+  like `💀` stays off the table — Windows renders it as a full-colour bitmap that ignores the fill colour.)
 - **Pop** (unchanged beat, new material). The elastic pop-in, upward drift, and hold jiggle are as they were,
-  but the skull now sits over an **additive glow sprite** that tracks its display size, so it blooms against
-  the dark board instead of sitting flat on it.
+  but the skull now sits over an **additive glow sprite** sized off its display **long edge**, so the tall
+  silhouette blooms evenly against the dark board instead of sitting flat on it.
 - **Poof** (`burstSkull()` rewritten). No fragments, no splinters, no gravity. The skull **dissolves** (scales
-  up ×3 and fades over 220ms — without this it would simply vanish, and *this* is the poof the eye actually
+  up ×3 and fades over 150ms — without this it would simply vanish, and *this* is the poof the eye actually
   reads); a **purple flash** pulses; a **purple smoke plume** blasts radially outward (`DR_SMOKE_OUT = 1`);
   and ~42 **glowing purple embers** scatter with heavy drag and shrink to nothing. `sfx.skullBurst()` fires at
   the same instant as before.
@@ -41,14 +45,14 @@ changed.
 - **Preview-first** (`apps/web/public/fx/purple-skull-preview.html`, new). Per the project's FX rule — agree
   the look on a cheap preview *before* wiring the feature — a standalone `file://`-openable canvas rig running
   the same particle math, with sliders for every `DR_*` dial and a JSON bake box. Owner tuned it, pasted the
-  values back, and only then was `pixiFx.ts` touched. The rig hardens against a silent blank page:
+  values back, and only then was `pixiFx.ts` touched. The rig gained a **shape switcher** (SVG silhouette vs a
+  live glyph text field) so the two could be A/B'd in place. It hardens against a silent blank page:
   `localStorage` throws on some `file://` origins and was killing the script on line 1; uncaught errors now
-  paint an on-page banner; and a diagnostic line reports canvas size / live pops / live particles / whether
-  the system font actually has a `☠` glyph.
+  paint an on-page banner; and a diagnostic line reports canvas size / live pops / live particles / a
+  glyph-coverage check (in glyph mode).
 - **Particle budget.** ~107 sprites per Echo (1 dissolve + 1 flash + 63 smoke + 42 embers) vs ~64 before
   (36 fragments + 7 splinters + 21 smoke). All pooled, all `transform`/`alpha`-only, no paint properties
   animated. Worth watching if several Echoes land in one clash.
-- `/fx/skull-crossbones.png` is left on disk, now unreferenced — removing an LFS asset is its own PR.
 
 Verified: `npm run typecheck`, `npm run lint`, `npm test` (792 pass, 32 files), `npm run build:web` all green;
 owner previewed the tuned rig, then the live fight on the worktree dev server.

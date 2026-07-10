@@ -133,8 +133,6 @@ look because the engine already produces the data.
 ## Phase B — UX polish (parallelizable; slot any time)
 
 ### B0. FX follow-ups (from the Echo skull poof, session 29)
-- **Delete `apps/web/public/fx/skull-crossbones.png`.** Unreferenced since the Echo skull became a glyph
-  texture. Its own PR — it's an LFS asset.
 - **Watch the Echo particle budget.** ~107 pooled sprites per Echo (was ~64). Fine solo; profile a clash where
   several Echoes fire at once before adding more.
 - **Extract an FX preview kit — only after a *second* effect exists.** `purple-skull-preview.html` is ~70%

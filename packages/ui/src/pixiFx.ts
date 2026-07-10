@@ -347,22 +347,22 @@ interface SkullPop { sprite: Sprite; glow: Sprite; x: number; y: number; scale: 
 // ── Echo (Deathrattle) skull-poof feel ──────────────────────────────────────────────────────────────
 // Baked from the DEV preview (apps/web/public/fx/purple-skull-preview.html); tune there, paste here.
 // No live tuner, by design.
-const DR_SKULL_SCALE = 0.435; // skull display width ÷ the dying unit's card width
+const DR_SKULL_SCALE = 0.54;  // skull display width ÷ the dying unit's card width
 const DR_POP_MS = 320;        // elastic pop-in duration
 const DR_HOLD_MS = 130;       // jiggle hold before the poof
 const DR_RISE = 12;           // px the skull drifts up during the pop
-const DR_GLOW_ALPHA = 0.12;   // the additive glow sprite behind the skull
-const DR_GLOW_SIZE = 1.7;     // glow diameter ÷ skull display width
-const DR_DISSOLVE_MS = 220;   // the skull's own scale-up + fade — the "poof" the eye reads
+const DR_GLOW_ALPHA = 0.36;   // the additive glow sprite behind the skull
+const DR_GLOW_SIZE = 1.7;     // glow diameter ÷ skull display long edge
+const DR_DISSOLVE_MS = 150;   // the skull's own scale-up + fade — the "poof" the eye reads
 const DR_DISSOLVE_GROW = 3;   // how much it scales up as it goes
 const DR_FLASH_MS = 220;
 const DR_FLASH_SIZE = 4;
-const DR_SPREAD = 3;          // velocity multiplier for smoke + embers
+const DR_SPREAD = 3.25;       // velocity multiplier for smoke + embers
 const DR_SMOKE = 2.25;        // smoke count multiplier (base 28)
 const DR_SMOKE_OUT = 1;       // 0 = rises like a campfire, 1 = blasts purely outward
-const DR_SMOKE_LIFE = 400;
+const DR_SMOKE_LIFE = 300;
 const DR_EMBERS = 3;          // ember count multiplier (base 14)
-const DR_EMBER_LIFE = 320;
+const DR_EMBER_LIFE = 470;
 
 // Palette — the skull glyph + its glow are lifted from `.float.rally.sym` in styles.css, so the Pixi FX and
 // the CSS Rally float read as one family.
@@ -373,10 +373,14 @@ const DR_SMOKE_B = 0x6b5580;
 const DR_EMBER_A = 0xcba6f0;
 const DR_EMBER_B = 0xe0c4ff;
 
-/** The skull glyph, and the font stack that has to contain it (a miss renders as tofu). Emoji (💀) is
- *  deliberately avoided: Windows draws it as a full-colour bitmap that ignores the fill colour. */
-const DR_GLYPH = '☠';
-const DR_FONT = '"Segoe UI Symbol", "Segoe UI Emoji", "Apple Symbols", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif';
+/** The skull silhouette — two filled paths, one colour, no strokes (from `apps/web/public/fx/skull-crossbones.svg`).
+ *  Inlined so the texture builds with no runtime fetch. Fill + glow are applied in `buildSkullTex`, exactly as a
+ *  glyph would be — the shape being vector art rather than a font character changes nothing downstream. */
+const DR_SVG_W = 864, DR_SVG_H = 1048;
+const DR_SVG_PATHS = [
+  'M415.161 0.62099C465.652 -2.94079 532.087 9.12835 578.218 28.8911C698.628 80.4778 759.338 192.8 736.431 321.604C733.664 337.186 730.033 349.137 725.263 364.297C720.371 379.838 712.209 391.802 712.735 408.145C713.427 429.633 725.838 441.299 733.688 459.485C739.37 472.661 738.342 488.19 732.519 501.252C721.246 526.532 699.852 541.821 672.623 545.905C656.758 548.286 638.456 548.825 623.675 554.722C598.246 564.868 599.575 581.026 599.667 603.296L599.808 635.822C599.875 653.995 598.038 670.68 577.618 677.838C568.403 681.065 550.058 685.363 541.033 681.028C525.621 673.631 535.951 645.006 531.487 632.974C530.342 629.937 528.003 627.5 525.021 626.227C520.827 624.384 514.832 624.653 511.495 627.794C498.729 639.808 517.6 685.228 494.222 689.882C422.882 704.1 453.706 660.448 443.891 632.074C440.664 627.66 436.09 623.973 430.475 624.972C407.082 629.147 428.136 672.627 413.615 686.147C408.829 690.598 404.375 692 397.967 692.154C387.133 691.664 371.222 693.795 363.182 685.884C353.245 674.819 358.345 654.754 357.494 640.757C356.963 632.038 352.828 623.514 342.905 625.137C321.314 628.682 339.202 665.31 327.619 677.648C324.314 681.175 320.062 682.889 315.157 682.951C301.969 682.087 285.378 680.152 275.181 670.968C262.754 659.775 264.843 645.453 264.541 630.672C264.245 616.185 265.27 600.345 264.471 585.955C262.201 545.06 209.934 551.079 181.813 543.792C157.883 537.822 138.484 520.532 130.048 497.349C122.631 476.964 128 460.433 139.287 443.042C147.171 430.894 153.014 415.265 151.069 400.763C149.52 389.22 143.166 376.676 139.305 365.358C108.474 274.988 120.64 170.599 186.707 98.673C245.172 33.9628 328.774 5.05836 415.161 0.62099ZM301.744 455.699C354.876 440.193 396.86 401.535 379.763 341.433C375.37 325.991 365.064 313.638 350.968 306.432C335.181 297.954 300.554 293.502 282.796 295.735C273.3 296.735 265.839 297.749 256.56 300.242C214.222 311.617 201.905 352.145 206.665 391.693C213.922 451.989 244.332 469.738 301.744 455.699ZM582.48 459.516C600.389 461.127 618.881 460.768 633.08 448.395C650.801 432.953 656.17 408.05 658.111 386.38C662.936 332.62 634.005 297.15 579.51 295.686C573.173 295.516 566.339 295.102 559.794 295.748C537.494 297.585 511.446 301.282 496.163 319.522C483.494 334.645 479.582 355.218 481.082 374.493C485.007 425.101 536.771 453.825 582.48 459.516ZM433.23 531.809L433.867 532.336C441.454 538.71 448.63 549.413 459.615 547.925C477.733 545.47 476.465 516.34 473.912 503.517C469.895 483.383 460.882 459.888 444.754 446.488C440.756 443.398 436.457 442.102 431.498 441.983C424.817 443.069 419.772 445.119 415.047 450.333C396.741 470.548 386.177 502.836 389.687 529.868C391.084 540.62 398.249 549.327 409.362 547.723C419.374 546.762 425.717 532.207 433.23 531.809Z',
+  'M89.4462 570.013C98.2128 568.537 110.914 571.648 118.832 575.102C135.433 582.162 147.388 596.265 150.956 613.001C152.652 620.613 152.807 627.208 155.704 634.691C164.38 657.098 187.177 664.9 208.42 674.012L257.807 695.01L432.273 768.69C488.209 744.404 544.903 721.189 601.114 697.404L651.919 675.653C662.585 671.06 674.331 666.314 684.389 660.956C695.696 654.936 706.572 642.511 709.654 630.558C712.526 619.443 712.081 610.197 718.115 599.492C725.705 586.045 736.66 577.251 752.279 572.505C766.63 568.029 782.308 569.198 795.723 575.745C824.214 589.37 836.3 621.752 821.296 648.464C838.957 653.767 853.314 664.734 860.132 681.293C871.761 709.529 856.187 741.22 825.758 751.44C809.19 757.006 790.593 755.102 775.307 747.025C769.646 744.036 764.568 739.223 758.45 736.847C749.223 733.259 736.758 732.42 727.027 734.986C710.367 739.37 693.275 747.851 677.413 754.465L588.988 792.052C572.616 799.07 553.881 807.558 537.319 813.73C579.663 831.036 622.138 848.078 664.731 864.839L698.431 878.133C704.811 880.644 713.953 884.698 720.457 886.229C753.601 894.049 755.316 872.659 777.931 861.471C791.914 854.533 808.28 853.118 823.376 857.552C838.388 862.193 850.808 872.236 857.894 885.463C867.599 903.32 865.596 926.688 852.875 942.787C845.599 951.991 838.1 956.946 827.309 961.961C832.04 969.762 835.168 976.137 836.503 985.115C838.787 999.793 834.547 1014.71 824.764 1026.39C814.516 1038.76 800.853 1045.24 784.474 1047.23C774.057 1048.48 762.573 1046.77 752.986 1042.82C739.205 1037.2 728.428 1026.62 723.068 1013.48C717.604 999.86 716.682 988.44 702.286 979.162C693.085 973.241 683.178 969.162 673.218 964.514C656.388 956.652 639.473 948.936 622.485 941.379C559.339 913.467 495.924 886.113 432.234 859.309C421.79 863.241 408.053 869.523 397.607 873.945L324.821 905.096C283.931 922.5 243.29 940.412 202.91 958.832C190.068 964.753 169.394 973.228 158.71 981.361C145.38 991.502 145.144 1006.21 138.292 1019.18C131.707 1031.65 118.406 1041.1 104.111 1045.19C88.4699 1049.6 71.6003 1048.01 57.2159 1040.76C43.698 1033.77 33.6645 1022.08 29.2874 1008.21C23.7567 990.516 28.001 977.288 36.9128 961.906C4.87425 947.98 -9.08868 915.984 6.22421 885.684C12.9282 872.714 24.8646 862.757 39.4079 858.017C59.7045 851.446 82.2161 855.812 98.0472 869.395C104.483 874.967 109.092 881.575 117.25 885.004C128.293 889.695 139.06 888.28 149.863 884.116C161.74 879.542 173.602 874.961 185.46 870.368C215.641 858.605 245.738 846.658 275.752 834.52C291.977 827.943 310.896 819.689 327.072 813.798C303.43 804.777 275.034 791.807 251.548 781.734L181.081 751.918C156.334 741.507 124.998 723.724 99.0399 740.356C92.256 744.704 86.8202 748.586 78.9586 751.262C64.2229 756.382 47.9173 755.812 33.6318 749.676C19.572 743.559 8.71016 732.432 3.46409 718.776C-1.75451 704.741 -0.683303 689.327 6.43427 676.045C14.1434 661.452 26.6739 653.663 42.6294 648.537C25.0903 612.162 46.9966 574.942 89.4462 570.013Z',
+];
 
 /** The DEV preview integrates drag PER FRAME (`v *= drag^(dt·60)`); this engine integrates it PER SECOND
  *  (`v *= drag^dt`, see `update`). Raising the preview's dial to the 60th power makes the two identical at
@@ -1434,30 +1438,40 @@ class FxController {
   }
 
   /** Pull a sprite from the pool (or make one), configure it as a live particle. */
-  /** Build the Echo skull texture: the ☠ glyph drawn purple with its CSS `text-shadow` glow stack BAKED IN,
-   *  so the glow travels with the sprite through the pop and the dissolve. Synchronous (no asset fetch) —
-   *  a `deathrattle()` before it exists simply no-ops, as before. The canvas keeps its glow padding, so the
-   *  texture is square and `skullSrcW` is the full padded box (display sizing tracks it, not the glyph). */
+  /** Build the Echo skull texture: the vendored ☠ silhouette drawn purple with the `.float.rally.sym`
+   *  `text-shadow` glow stack BAKED IN, so the glow travels with the sprite through the pop and the dissolve.
+   *  Synchronous (no asset fetch) — a `deathrattle()` before it exists simply no-ops. The canvas keeps its glow
+   *  padding, and `skullSrcW`/`skullSrcH` are the full padded box; the Pixi sprite scales uniformly, so the
+   *  tall silhouette's aspect is preserved and display sizing tracks its width (see `deathrattle`). */
   private buildSkullTex(): void {
     if (typeof document === 'undefined') return;
     try {
-      const px = 256, pad = Math.round(px * 0.42); // room for the blur to fall off inside the texture
+      const box = 256, pad = Math.round(box * 0.42); // long edge, plus room for the blur to fall off
+      const aspect = DR_SVG_W / DR_SVG_H;
+      const cw = aspect < 1 ? box * aspect : box;
+      const ch = aspect < 1 ? box : box / aspect;
       const c = document.createElement('canvas');
-      c.width = c.height = px + pad * 2;
+      c.width = Math.round(cw + pad * 2);
+      c.height = Math.round(ch + pad * 2);
       const g = c.getContext('2d'); if (!g) return;
-      g.font = `${px}px ${DR_FONT}`;
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
       g.fillStyle = DR_FILL;
+      const paths = DR_SVG_PATHS.map((d) => new Path2D(d));
+      const draw = (): void => {
+        g.save();
+        g.translate(pad, pad);
+        g.scale(cw / DR_SVG_W, ch / DR_SVG_H);
+        for (const p of paths) g.fill(p);
+        g.restore();
+      };
       const glow = `#${DR_GLOW.toString(16).padStart(6, '0')}`;
       // Three shadowed passes ≈ the text-shadow stack on `.float.rally.sym`, then a crisp core.
-      const passes: [string, number, number][] = [[glow, px * 0.31, 0.95], [glow, px * 0.17, 0.9], [DR_FILL, px * 0.06, 1]];
+      const passes: [string, number, number][] = [[glow, box * 0.31, 0.95], [glow, box * 0.17, 0.9], [DR_FILL, box * 0.06, 1]];
       for (const [col, blur, a] of passes) {
         g.globalAlpha = a; g.shadowColor = col; g.shadowBlur = blur;
-        g.fillText(DR_GLYPH, c.width / 2, c.height / 2);
+        draw();
       }
       g.globalAlpha = 1; g.shadowBlur = 0;
-      g.fillText(DR_GLYPH, c.width / 2, c.height / 2);
+      draw();
       this.skullTex = Texture.from(c);
       this.skullSrcW = c.width;
       this.skullSrcH = c.height;
@@ -1621,8 +1635,9 @@ class FxController {
         const y = sp.y - k * DR_RISE; // pops upward a touch
         sp.sprite.scale.set(sc);
         sp.sprite.y = y;
-        // the glow tracks the skull's display size (glowTex is 80px wide at scale 1)
-        sp.glow.scale.set((this.skullSrcW * sc * DR_GLOW_SIZE) / 80);
+        // the glow tracks the skull's display LONG edge (glowTex is 80px wide at scale 1), so a tall
+        // silhouette still blooms evenly rather than being sized off its narrow width
+        sp.glow.scale.set((Math.max(this.skullSrcW, this.skullSrcH) * sc * DR_GLOW_SIZE) / 80);
         sp.glow.y = y;
         sp.glow.alpha = DR_GLOW_ALPHA * Math.min(1, k * 1.5);
       } else {

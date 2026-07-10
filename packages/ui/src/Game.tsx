@@ -101,7 +101,10 @@ export function Game() {
       <PixiFxLayer />
       {phase === 'gameover' && <EndScreen won={false} />}
       {phase === 'victory' && <EndScreen won={true} />}
-      <StatusBar />
+      {/* Keyed on run identity like Recruit: the StatusBar's `prevHp` ref tracks Resolve across the run to
+          float a "−X" when a wave breaks through. Without a key it persists across a new-run pick, so its ref
+          holds the PREVIOUS run's HP — picking a hero with lower starting HP then floats a phantom "−X". */}
+      <StatusBar key={`sb:${runKey}`} />
       {showBook && <MinionBook />}
       <Inspect />
       <button className="gearbtn" onPointerDown={() => setMenuOpen(true)} title="Settings (Esc)" aria-label="Settings">

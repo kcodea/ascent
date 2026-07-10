@@ -293,7 +293,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
   // minimized to read the board without any action invalidating the pending pick.
-  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge') {
+  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge') {
     return state;
   }
 
@@ -756,6 +756,21 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'rerollRuneforge': {
+      // Re-roll the offered runes ONCE, for 2 Gold — a fresh 3 drawn from the runes NOT currently shown (so it's
+      // always a different set). Seeded off a salted stream so it's deterministic + distinct from the first roll.
+      if (!s.runeforgeOffer || s.runeforgeRerolled || s.embers < 2) return state;
+      spendGold(s, 2);
+      const current = new Set(s.runeforgeOffer);
+      const pool = RUNES.map((rn) => rn.id).filter((id) => !current.has(id));
+      const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 1));
+      const picks: string[] = [];
+      while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+      s.runeforgeOffer = picks;
+      s.runeforgeRerolled = true;
+      return s;
+    }
+
     case 'reposition': {
       const i = s.board.findIndex((c) => c.uid === action.uid);
       if (i < 0) return state;
@@ -803,10 +818,6 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
       const card = s.board.find((c) => c.uid === action.uid);
-      // Rune of Empowerment: the hero power's effect triggers twice. Threaded into the value/generate powers
-      // below (a targeted single-application power like Ward/Gild can't meaningfully double). Dormant today —
-      // Runesmith (the only forge hero) has a passive power — but forward-wired for future active forge heroes.
-      const reps = s.runeEmpowerment ? 2 : 1;
 
       if (power.kind === 'gild') {
         // Indy: make a friendly board minion Golden — doubles its BASE stats (recorded as a "Gild" buff so the
@@ -838,7 +849,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'scalingGold') {
         // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
         // Untargeted; the once-per-turn charge is spent by the shared block below.
-        s.embers += (1 + s.wave) * reps;
+        s.embers += 1 + s.wave;
       } else if (power.kind === 'dynamiteDig') {
         // Jenkins: Discover a minion of your CURRENT tier for a Gold cost that climbs 1 each use (1, 2, 3, …).
         // Untargeted; the escalating cost + the whole-game use count are handled here (not the shared block).
@@ -846,10 +857,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < digCost) return state; // can't afford this use → no charge spent
         spendGold(s, digCost);
         s.heroPowerUses = heroUses + 1; // escalate the next use's cost
-        for (let r = 0; r < reps; r++) { // Empowerment: two Discovers (the 2nd queues behind the 1st)
-          if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
-          else queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
-        }
+        openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
       } else if (power.kind === 'adjacentConsume') {
         // Herald's Proclaim: the two minions on either side of the targeted friendly minion each Consume a
         // created Fodder. No-op (no charge spent) on a missing target or one with no neighbours to feed.
@@ -887,7 +895,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'gainMaxMana') {
         // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
         // action.uid. Doesn't return, so the shared spend logic below charges the once-per-turn charge.
-        s.maxEmbers += reps;
+        s.maxEmbers += 1;
       } else if (power.kind === 'goldenGild') {
         // Gildmaster: if you have 2 copies of a minion (a "double"), combine them into one golden copy in
         // your hand — a discounted triple (you then play the golden for the triple reward). Untargeted: it
@@ -906,7 +914,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
-        const amt = s.tier * reps;
+        const amt = s.tier;
         if (card) addBuff(card, 'Fortify', amt, amt); // raises Attack → the reduce() boundary fires Hunter's onGainAttack
         else {
           const offer = s.shop.find((c) => c.uid === action.uid);
@@ -1571,7 +1579,7 @@ function advanceCombat(s: RunState): void {
     const pool = RUNES.map((rn) => rn.id);
     const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
     const picks: string[] = [];
-    while (picks.length < 5 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+    while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
     s.runeforgeOffer = picks;
   }
   if (questOffer.length > 0) {
@@ -1919,9 +1927,6 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeSummoning':
       s.runeSummoning = true; // Rune of Summoning: each spell cast improves your Imps +1/+1
-      break;
-    case 'runeEmpowerment':
-      s.runeEmpowerment = true; // Rune of Empowerment: your hero power triggers twice
       break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.

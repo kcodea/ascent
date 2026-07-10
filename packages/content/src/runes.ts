@@ -80,13 +80,6 @@ export const RUNES: RuneDef[] = [
     text: '**Always attack first.**',
     reward: { kind: 'combatFlag', flag: 'runeForthcoming' },
   },
-  {
-    id: 'rune_empowerment',
-    name: 'Rune of Empowerment',
-    cost: 4,
-    text: 'Your **hero power** triggers twice.',
-    reward: { kind: 'runeEmpowerment' },
-  },
 ];
 
 export const RUNE_INDEX: Record<string, RuneDef> = Object.fromEntries(

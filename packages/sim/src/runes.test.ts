@@ -20,17 +20,36 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(11);
+    expect(RUNES.length).toBe(10);
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
-  it('opens on turn 6 for Runesmith with a random 5 distinct runes', () => {
+  it('opens on turn 6 for Runesmith with a random 3 distinct runes', () => {
     const s = reduce(atWave5Combat(), { type: 'resolveCombat' });
     expect(s.wave).toBe(6);
     expect(s.runeforgeOffer).toBeDefined();
-    expect(s.runeforgeOffer!.length).toBe(5);
-    expect(new Set(s.runeforgeOffer).size).toBe(5); // no duplicates
+    expect(s.runeforgeOffer!.length).toBe(3);
+    expect(new Set(s.runeforgeOffer).size).toBe(3); // no duplicates
     for (const id of s.runeforgeOffer!) expect(RUNE_INDEX[id]).toBeDefined();
+  });
+
+  it('rerollRuneforge spends 2 Gold once and swaps in a fresh, non-overlapping trio', () => {
+    const s = reduce(atWave5Combat(), { type: 'resolveCombat' });
+    const before = s.runeforgeOffer!;
+    const r = reduce(s, { type: 'rerollRuneforge' });
+    expect(r.embers).toBe(s.embers - 2);
+    expect(r.runeforgeRerolled).toBe(true);
+    expect(r.runeforgeOffer!.length).toBe(3);
+    expect(new Set(r.runeforgeOffer).size).toBe(3);
+    // the fresh trio shares no rune with the original offer (drawn from the leftovers)
+    for (const id of r.runeforgeOffer!) expect(before).not.toContain(id);
+    // a second re-roll is a no-op (once per visit)
+    expect(reduce(r, { type: 'rerollRuneforge' })).toBe(r);
+  });
+
+  it("rerollRuneforge you can't afford is a no-op", () => {
+    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 1, runeforgeOffer: ['rune_warding', 'rune_fury', 'rune_slaying'] };
+    expect(reduce(s, { type: 'rerollRuneforge' })).toBe(s);
   });
 
   it('does NOT open for a non-Runesmith hero', () => {
@@ -91,10 +110,9 @@ describe('Runeforge — each rune applies its effect on purchase', () => {
     expect(s.hand.some((c) => c.cardId === 'pillager')).toBe(true);
     expect(s.goldPouchValue).toBe(2);
   });
-  it('Summoning / Forthcoming / Empowerment arm their flags', () => {
+  it('Summoning / Forthcoming arm their flags', () => {
     expect(buyRune('rune_summoning').runeSummoning).toBe(true);
     expect(buyRune('rune_forthcoming').questFlags?.runeForthcoming).toBe(true);
-    expect(buyRune('rune_empowerment').runeEmpowerment).toBe(true);
   });
 });
 

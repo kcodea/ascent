@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, type ShopCard } from '@game/sim';
+import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { combatGains } from './combatGains';
@@ -1134,10 +1134,14 @@ export function Recruit() {
       const zone = el.closest('[data-zone]')?.getAttribute('data-zone');
       const source: DragSource = zone === 'warband' ? 'board' : zone === 'hand' ? 'hand' : 'shop';
       // Disco Dan: a Setlist card is locked in hand until you reach its shop tier — it can't be dragged out
-      // or played (the reducer also refuses the play). Grabbing it does nothing until it unlocks.
+      // or played (the reducer also refuses the play). Read the LIVE run from the store (not this callback's
+      // closed-over `run`, which is only refreshed on [timeUp, inCombat]): so an upgrade unlocks the card the
+      // SAME turn, and a stale run left over from a previous hero can't false-lock a uid-colliding card
+      // (both runs start uidSeq at 0, so a fresh buy can share a locked Setlist card's uid).
       if (source === 'hand') {
-        const hc = run.hand.find((c) => c.uid === uid);
-        if (hc?.lockedUntilTier && run.tier < hc.lockedUntilTier) return;
+        const liveRun = useGame.getState().run;
+        const hc = liveRun.hand.find((c) => c.uid === uid);
+        if (hc?.lockedUntilTier && liveRun.tier < hc.lockedUntilTier) return;
       }
       // When the timer's up you can still REORDER your board, but not play / buy / sell — so allow a board
       // drag through, block hand + shop drags.
@@ -2371,15 +2375,16 @@ export function Recruit() {
         {/* Action tray — the turn's actions grouped into one control bar (Upgrade Tavern · Reroll · Freeze ·
             End Turn), framed by shopbutton.webp. */}
         <div className="shoprow actiontray">
-          {/* Tavern Up — cost = upgradeCost; disabled at max tier / can't afford / time up. */}
+          {/* Tavern Up — cost = upgradeCostOf(run) (includes Hermit Hank's +2 surcharge); disabled at max tier /
+              can't afford / time up. Uses the same helper the reducer charges with, so the shown cost is accurate. */}
           <button
             className="shopbtn"
-            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp || eotAnimating || !!run.questOffer}
+            disabled={run.tier >= CONFIG.maxTier || run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer}
             onClick={() => dispatch({ type: 'upgrade' })}
           >
             <span className="sb-l">Upgrade Tavern</span>
             <span className="sb-ic"><Icon name="star" /></span>
-            <span className="sb-v">{run.tier < CONFIG.maxTier ? run.upgradeCost : '★'}</span>
+            <span className="sb-v">{run.tier < CONFIG.maxTier ? upgradeCostOf(run) : '★'}</span>
             <span className="sbtip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : `Upgrade Tavern — to tier ${run.tier + 1}`}</span>
           </button>
           {/* Reroll — free rolls show 0. */}

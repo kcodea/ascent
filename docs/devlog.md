@@ -24,6 +24,51 @@ Owner hero-tuning pass:
 The armor test was rewritten to assert the new per-hero spread. Verified live: every armor value, Yirin's name + art,
 Tradesman's name, Herald's 2-Gold cost badge, and Bagger Ben's worth scaling with the wave (+2 at w1, +4 at w3).
 `lint` + `test` (782) + `build:web` green.
+### fix(ui): quest-badge tooltip no longer clips off-screen · practice hero grid fits without scrolling
+
+Two UI fixes:
+
+- **Completed-quest badge tooltip ran off the left edge.** The badges sit flush-left (bottom-left, above the hero
+  panel), but `.questbadge-tip` was centered over the badge (`left: 50%; translateX(-50%)`), so its left half went
+  off-screen and the quest text was clipped ("Start"→"of Combat", "random"→"dom"). Re-anchored it to open up-and-right
+  (`left: 0`, no transform) with a `max-width: calc(100vw - 24px)` safety, so the full text always shows. Verified: the
+  Blood Trail tooltip now reads in full, its box fully within the viewport (left 33 / right 253 at 1280px).
+- **Practice hero-select scrolled.** Practice offers EVERY hero (now 20), which overflowed at the full 333px card size.
+  Added a `dense` grid variant (`HeroSelect` tags `.hsrow` when >6 heroes): compact 156px cards, smaller art/type,
+  power text clamped to 3 lines, the "Choose" pill dropped (the whole card is a button), and a trimmed header via
+  `:has()`. All 20 now fit in 3 rows (7+7+6) with no scroll at 1280×800. Ascent (3 heroes) keeps the big cards.
+
+`lint` + `test` (782) + `build:web` green; both verified live.
+### fix(ui): Hermit Hank's Upgrade Tavern button shows the real (surcharged) cost
+
+The reducer charges `upgradeCostOf(s)` for a tavern-up (Hermit Hank pays +2 over the base), but the Upgrade Tavern
+button rendered the raw `run.upgradeCost` — so a Hank player saw the base price (e.g. 5) yet was charged 7, and the
+button's affordability gate used the base too. Pointed both the shown value and the `disabled` check at
+`upgradeCostOf(run)` — the same helper the reducer uses — so the display, the enable/disable, and the charge all
+agree. Non-Hank heroes are unchanged (the surcharge is 0). Verified live: Hank shows **7** (base 5 + 2), Warden shows
+**5**, and upgrading charges 7. (Related, not fixed here: Hank's shop *minions* cost 2 but show no cost badge — a
+separate per-offer display gap.) `lint` + `test` (782) + `build:web` green.
+### fix(ui): Disco Dan locked cards — unlock on the same-turn tavern-up + no cross-run carry-over
+
+Two owner-reported Disco Dan bugs, both a **stale closure** in `Recruit`'s `onCardPointerDown` (its deps are
+`[timeUp, inCombat]`, so it captures a `run` that only refreshes on those — not on tavern-up or a hero swap):
+
+- **Locked card stayed locked for one extra turn after upgrading.** The reducer's play guard already used the live
+  `s.tier`, but the UI's drag guard read the stale closed-over `run.tier`, so the card wasn't draggable until the
+  callback happened to recreate (next combat). Fix: the guard now reads `useGame.getState().run` (live), matching how
+  the same callback already reads `endTurnAnimating`. Verified live: at turn 2 / tier 1, upgrading to tier 2 makes the
+  tier-2 Setlist card play the **same turn**.
+- **Picking Disco Dan, then a different hero, left cards unplayable on turn 1.** `Recruit` is deliberately kept mounted
+  across phases (combat plays out in place), so on a hero swap it kept the *previous* run's closures. Disco Dan's
+  locked hand cards (uids `b4/b5/b6`) then collided with the new hero's freshly-bought card uids (both runs start
+  `uidSeq` at 0), so a normal card got false-locked by the stale guard. Fix: `Game` now keys `<Recruit>` on the run
+  identity (`seed:heroId` — stable within a run, so combat-in-place is untouched; changes only when the run itself
+  changes), giving a clean mount on every new run. The live-`getState` guard fixes it independently too; the key is
+  the broader defense against cross-run closure carry-over. Verified live: disco dan → warden → a uid-colliding bought
+  card plays normally.
+
+Verified: `lint` + `test` (782) + `build:web` green; both scenarios driven end-to-end in the live preview (real
+pointer-drag, card lands on the board).
 
 ### chore(art): rewire art from the updated masters (minions / heroes / quests / rewards)
 

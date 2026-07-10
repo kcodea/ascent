@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(ui): Skip fade — stop fighting the aura system (no orphaned bulwarks, no pop)
+
+Follow-up to #274. The Skip fade grew a pile of aura-management machinery (`skipPhaseRef` suppress/settle,
+`clearAllShields`, a `setShield(instant)` flag, ticker pausing, a synchronous re-register) trying to stop the
+resolved board's auras re-blooming — and it kept producing new artifacts: a taunt bulwark popping in, then
+**orphaned taunt bulwarks floating with no unit** (a dead unit's aura left at a stale slot; compounded by paused
+tickers never letting `clearShield`'s fade finish). The fix is to **delete all of it** and let `syncShields`
+(the continuous aura reconcile) do its job: a dead unit's bubble clears on its normal grace — which expires
+*during* the 900 ms hold, so no orphan survives to the fade-in — and survivors' auras simply persist. Skip now
+only: kills audio, freezes the units (GSAP), fades the FX **canvas** out (an rAF opacity fade, since CSS
+transitions don't take on a live WebGL canvas), jumps to the resolved board under cover, wipes transient dust,
+then fades the canvas back in. Net −22 lines. Verified in a real Chrome tab across win/loss: every aura bubble
+maps to a live unit at every sample (no `*ORPHAN*`), and a frozen fade-in frame shows the survivors' auras on
+their units with **zero** floaters (vs the ~5 in the bug report). typecheck + lint + 782 tests + `build:web` green.
+
 ### feat(ui): Skip combat gets the crossfade — everything pauses, mutes, and fades out together
 
 Skip used to hard-cut the replay to the resolved board (an instant jump + a burst of the remaining beats' audio).

@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### fix(ui): board fight-tracking recorded nothing — drop the self-fight skip
+
+The `board_results` ledger stayed empty in real play. Cause: the recording hook skipped fights where the served
+board's `author` matched your player name — but ASCENT is single-player and the shared pool is mostly (early on:
+entirely) your OWN uploads, so you almost always face your own boards → every result was skipped. Confirmed against
+the live DB: 24 pool boards, all one author, 0 result rows. Dropped the self-skip: a served board is always a PAST
+run's snapshot (never your live board), so counting it is a legitimate datapoint. Verified live end-to-end — a
+driven run now writes rows to `board_results`, and the Career Board Log reads "1 Fights · 1 Wins · 100% win rate"
+for the served board's round. typecheck / lint / build green.
+
 ### tweak(ui): Deathrattle summons wait for the skull to read + taunt burst removed
 
 Presentation-only combat-replay pacing so a Deathrattle's summons don't pop in over the skull, plus removal

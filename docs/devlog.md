@@ -11,16 +11,17 @@ Skip used to hard-cut the replay to the resolved board (an instant jump + a burs
 Now it's a controlled transition that reuses the End-Combat crossfade and lands on **whatever end state the
 simulation reached** (win / loss / tie survivors). The full sequence on Skip:
 
-1. **Everything freezes in place** — the GSAP global timeline pauses every lunge/settle; **both** Pixi tickers stop
-   (particles, shield/reborn bubbles, **and the taunt bulwark**); and `.combatfrozen` pauses every remaining CSS
-   animation (unit idle pulses, etc.). Nothing moves.
+1. **Everything freezes AND fades at the same instant** — no held-visible frame (an earlier cut showed a frozen
+   snapshot for ~160 ms, so dust/reborn-aura/taunt-shields were briefly visible before fading; removed). The GSAP
+   global timeline pauses every lunge/settle; **both** Pixi tickers stop (particles, shield/reborn bubbles, **and
+   the taunt bulwark**); `.combatfrozen` pauses every remaining CSS animation; `clearParticles()` wipes any live
+   dust/spark/trail/skull so nothing can linger; and `.combatout` fades every combat visual to 0 — all together.
 2. **All audio is killed** — `stopAllAudio` snaps a new master mute bus to 0 and blocks new sounds from scheduling.
-3. A held beat, then **everything fades out together** — unit rows, all three FX canvases, the loose transient
-   overlays (SoC bolts + damage/death floats, hard-hidden since a transition can't fade a mid-animation opacity),
-   and the control bar.
+3. Everything fades out together — unit rows, all three FX canvases, the loose transient overlays (SoC bolts +
+   damage/death floats, hard-hidden since a transition can't fade a mid-animation opacity), and the control bar.
 4. Under cover of opacity 0, the replay jumps to the resolved board (tickers resume so the surviving board + its
-   auras render live), it **holds ~1 s on black**, then the end state **fades back in together** — with the End
-   Combat / Summary buttons — so the player reviews the result on a clean board.
+   auras render live; `clearParticles` again to wipe anything the settle re-fired), it **holds ~1 s**, then the end
+   state **fades back in together** — with the End Combat / Summary buttons — for a clean review.
 
 Audio stays muted through the resolved screen and un-mutes when the fight is left (or the next begins) — a
 replacement one-shot will play in the Skip's place later (owner).

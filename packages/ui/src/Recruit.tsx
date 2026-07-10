@@ -466,7 +466,7 @@ export function Recruit() {
   // Skip-combat uses the SAME crossfade (everything fades out together), but instead of swapping to the shop it
   // freezes the replay, kills all audio, jumps to the resolved board under cover of opacity 0, then fades that
   // final board back in. A replacement one-shot will play in its place later (owner).
-  const [skipFade, setSkipFade] = useState<null | 'freeze' | 'out' | 'in'>(null);
+  const [skipFade, setSkipFade] = useState<null | 'out' | 'in'>(null);
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
@@ -749,26 +749,27 @@ export function Recruit() {
   const skipCombat = useCallback((): void => {
     setSkipFade((s) => {
       if (s) return s; // already skipping
-      // 1) FREEZE everything in place — GSAP lunges/settles, both Pixi tickers (particles + shield/reborn/taunt
-      //    bubbles), and (via `.combatfrozen`) every CSS animation still running (SoC bolts, floats, idle pulses).
-      //    Kill all audio too (a replacement one-shot goes here later).
+      const FADE = 260, HOLD = 900, IN = 300;
+      // 1) Freeze AND fade at the same instant — no visible held frame. GSAP lunges/settles + both Pixi tickers
+      //    (particles + shield/reborn/taunt bubbles) stop; `.combatfrozen` pauses every remaining CSS animation;
+      //    `.combatout` fades every combat visual to 0; and clearParticles wipes any live dust/spark/trail so
+      //    nothing can linger on the canvas as it goes. Kill all audio too (a replacement one-shot goes here later).
       stopAllAudio();
       gsap.globalTimeline.pause();
       pixiFx.setPaused(true); tauntFx.setPaused(true);
-      const FREEZE = 160, FADE = 220, HOLD = 900, IN = 300;
-      // 2) after a beat frozen at full opacity, fade EVERYTHING out together (units + every FX)…
-      window.setTimeout(() => setSkipFade('out'), FREEZE);
-      // 3) …once faded out, settle the simulation's END STATE under cover of opacity 0 (resume the tickers so the
-      //    surviving board + its auras render live), then hold ~1s on black…
+      pixiFx.clearParticles(); tauntFx.clearParticles();
+      // 2) Once faded out, settle the simulation's END STATE under cover of opacity 0 (resume the tickers so the
+      //    surviving board + its auras render live), wipe any transient the settle re-fired, then hold ~1s…
       window.setTimeout(() => {
         gsap.globalTimeline.resume();
         pixiFx.setPaused(false); tauntFx.setPaused(false);
         replay.skip();
-      }, FREEZE + FADE);
-      // 4) …then fade the end state back in together (End Combat / Summary buttons are already there once done).
-      window.setTimeout(() => setSkipFade('in'), FREEZE + FADE + HOLD);
-      window.setTimeout(() => setSkipFade(null), FREEZE + FADE + HOLD + IN);
-      return 'freeze';
+        pixiFx.clearParticles(); tauntFx.clearParticles();
+      }, FADE);
+      // 3) …then fade the clean end state back in together (End Combat / Summary buttons come with it).
+      window.setTimeout(() => setSkipFade('in'), FADE + HOLD);
+      window.setTimeout(() => setSkipFade(null), FADE + HOLD + IN);
+      return 'out';
     });
   }, [replay]);
 
@@ -2366,7 +2367,7 @@ export function Recruit() {
       className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
-        skipFade === 'freeze' || skipFade === 'out' ? ' combatfrozen' : ''
+        skipFade === 'out' ? ' combatfrozen' : ''
       }`}
       onPointerDown={onBoardPointerDown}
     >

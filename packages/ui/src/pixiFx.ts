@@ -1109,6 +1109,16 @@ class FxController {
     else this.app.ticker.start();
   }
 
+  /** Instantly clear every TRANSIENT effect (dust, sparks, trails, skull pops) — recycled to the pool — so
+   *  nothing lingers on the canvas mid-transition. Used by the Skip fade. Persistent aura bubbles are untouched
+   *  (they fade with the canvas opacity, then re-resolve with the settled board). */
+  clearParticles(): void {
+    for (const p of this.live) { p.sprite.visible = false; this.layer?.removeChild(p.sprite); this.pool.push(p.sprite); }
+    this.live.length = 0;
+    for (const sp of this.skullPops) { sp.sprite.visible = false; this.layer?.removeChild(sp.sprite); this.pool.push(sp.sprite); }
+    this.skullPops.length = 0;
+  }
+
   /**
    * The shield SHATTERS (a hit absorbed): a quick crack-flash + fracture lines, then a small explosion —
    * an energy shockwave ring, a spray of golden shrapnel shards, and a few energy motes. The persistent

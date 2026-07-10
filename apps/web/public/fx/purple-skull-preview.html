@@ -41,6 +41,8 @@
     <h2>Baked values</h2>
     <textarea id="out" readonly></textarea>
     <div class="hint">Tune, then paste this back to Claude to bake into pixiFx.ts.</div>
+    <div class="hint" id="diag">booting…</div>
+    <div class="hint" id="glyphcheck"></div>
   </div>
 
 <script>
@@ -96,8 +98,25 @@ const GROUPS = [
   ['Colours',     ['cFill','cGlow','cSmokeA','cSmokeB','cEmberA','cEmberB']],
 ];
 
+// Any uncaught error would otherwise leave a silent blank page — surface it loudly instead.
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
 const KEY = 'ascent.purpleSkullPreview';
-let C = { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) || '{}')) };
+// localStorage throws on some file:// origins — never let persistence kill the preview.
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } },
+  set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* no persistence, fine */ } },
+};
+let C = { ...DEFAULTS, ...store.get() };
+
+const diag = document.getElementById('diag');
+const GLYPH = '☠';
+const FONT_STACK = '"Segoe UI Symbol", "Segoe UI Emoji", "Apple Symbols", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif';
 
 // --- the skull texture: ☠ drawn with a baked text-shadow stack ---------------
 let skullTex = null, skullW = 0;
@@ -106,7 +125,7 @@ function buildSkullTex() {
   const c = document.createElement('canvas');
   c.width = c.height = px + pad * 2;
   const g = c.getContext('2d');
-  g.font = `${px}px "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2", serif`;
+  g.font = `${px}px ${FONT_STACK}`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = C.cFill;
   // three shadowed passes ≈ the CSS text-shadow stack on .float.rally.sym
@@ -231,6 +250,7 @@ function tick(now) {
     else ctx.drawImage(p.tex, p.x - w / 2, p.y - w / 2, w, w);
   }
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  diag.textContent = `canvas ${Math.round(cv.width)}×${Math.round(cv.height)} · pops ${pops.length} · parts ${parts.length} · skullTex ${skullW}px`;
   requestAnimationFrame(tick);
 }
 
@@ -281,7 +301,7 @@ function build() {
     }
   }
 }
-function save() { localStorage.setItem(KEY, JSON.stringify(C)); out.value = JSON.stringify(C, null, 2); }
+function save() { store.set(C); out.value = JSON.stringify(C, null, 2); }
 
 const stage = document.getElementById('stage');
 function centre() { const r = cv.getBoundingClientRect(); return [r.width / 2, r.height / 2 - 10]; }
@@ -294,6 +314,17 @@ document.getElementById('loop').onclick = (e) => {
   else { loopId = setInterval(() => fire(...centre()), 1600); e.target.textContent = 'Auto-loop: ON'; }
 };
 document.getElementById('reset').onclick = () => { C = { ...DEFAULTS }; tintCache.clear(); buildSkullTex(); build(); save(); };
+
+// Does the system font actually have ☠? (A missing glyph renders as tofu — same width as U+FFFF.)
+(() => {
+  const g = document.createElement('canvas').getContext('2d');
+  g.font = `64px ${FONT_STACK}`;
+  const a = g.measureText(GLYPH).width, b = g.measureText('￿').width;
+  const el = document.getElementById('glyphcheck');
+  el.textContent = Math.abs(a - b) < 0.5
+    ? `⚠ no ${GLYPH} glyph in your fonts — you're seeing tofu, not a skull`
+    : `glyph ${GLYPH} ok (${a.toFixed(0)}px @64)`;
+})();
 
 buildSkullTex(); build(); save(); resize();
 requestAnimationFrame((t) => { last = t; tick(t); });

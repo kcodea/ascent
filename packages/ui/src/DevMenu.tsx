@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
+import { StrikeFxTuner } from './StrikeFxTuner';
 import { TauntTuner } from './TauntTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
@@ -22,6 +23,7 @@ const TUNERS = [
   { key: 'layout', label: '📐 Scale & Layout', C: LayoutTuner },
   { key: 'sfx', label: '🔊 SFX Mixer', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
+  { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
   { key: 'taunt', label: '🛡️ Taunt', C: TauntTuner },
   { key: 'drag', label: '🎴 Drag Feel', C: DragTuner },
   { key: 'flip', label: '🔀 Reposition', C: FlipTuner },

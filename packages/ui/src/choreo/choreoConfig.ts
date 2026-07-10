@@ -68,6 +68,13 @@ export interface ChoreoConfig {
    *  fire-and-forget FX — the death → summon → reborn chain plays NEARLY IN TANDEM. Scaled by combatSpeed only
    *  (not `speed`), like the overlay lifetimes. See `holdMs` (clock.ts). */
   overlapMs: number;
+  /** Aftermath hold (ms): after a swing's impact, the wait BEFORE its aftermath (shield-break → deathrattle →
+   *  reborn) begins — so the attacker's settle finishes first. ≈ `lungeConfig.settleDur`. Scaled by
+   *  combatSpeed only. See `holdMs` (clock.ts). */
+  aftermathHold: number;
+  /** Aftermath stagger (ms): the brief gap between consecutive aftermath effects (and between phases) once the
+   *  aftermath has begun. Kept small ("very brief"). Scaled by combatSpeed only. */
+  aftermathStagger: number;
 }
 
 const DEFAULTS: ChoreoConfig = {
@@ -81,6 +88,8 @@ const DEFAULTS: ChoreoConfig = {
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,
   // consequence-overlap: a summon/reborn rides on the preceding FX after this short gap (nearly in tandem)
   overlapMs: 140,
+  // aftermath cadence: wait ≈ the settle before the aftermath, then a brief stagger between its effects
+  aftermathHold: 340, aftermathStagger: 80,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -93,6 +102,7 @@ export const CHOREO_RANGES: Record<keyof ChoreoConfig, [number, number, number]>
   venomLost: [0, 1200, 10], death: [0, 1200, 10],
   floatMs: [400, 3000, 50], deathFloatMs: [300, 2000, 50], finalHold: [200, 2000, 50],
   overlapMs: [0, 600, 10],
+  aftermathHold: [0, 1000, 10], aftermathStagger: [0, 400, 10],
 };
 export const CHOREO_KEYS = Object.keys(DEFAULTS) as (keyof ChoreoConfig)[];
 

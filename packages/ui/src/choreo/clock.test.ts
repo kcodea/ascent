@@ -40,14 +40,26 @@ describe('holdMs — reproduces the legacy scheduler numbers for non-attack tran
     expect(holdMs(M('dmg'), M('attack'), 1)).toBeCloseTo(beatDelay('dmg') * cfg.speed, 5);
   });
 
-  it('a CONSEQUENCE beat (summon/reborn) rides on the preceding beat — overlapMs ÷ combatSpeed, not the full linger', () => {
+  it('a swing aftermath: the FIRST consequence after an impact waits aftermathHold (the settle)', () => {
     const cfg = getChoreoConfig();
-    // With a beat on screen, a summon/reborn overlaps: a short overlapMs (÷ combatSpeed), NOT beatDelay×speed.
-    expect(holdMs(M('summon'), M('dmg'), 1)).toBeCloseTo(cfg.overlapMs, 5);
-    expect(holdMs(M('reborn'), M('summon'), 1)).toBeCloseTo(cfg.overlapMs, 5);
-    expect(holdMs(M('reborn'), M('summon'), 2)).toBeCloseTo(cfg.overlapMs / 2, 5);
-    expect(holdMs(M('improve'), M('death'), 1)).toBeCloseTo(cfg.overlapMs, 5); // Kennelmaster's Avenge aura bump
-    // No beat on screen (the very first beat) → no overlap; the normal linger applies.
+    expect(holdMs(M('summon'), M('dmg'), 1)).toBeCloseTo(cfg.aftermathHold, 5);   // deathrattle token
+    expect(holdMs(M('reborn'), M('death'), 1)).toBeCloseTo(cfg.aftermathHold, 5); // a reborn right after a death
+    expect(holdMs(M('improve'), M('death'), 1)).toBeCloseTo(cfg.aftermathHold, 5);// Kennelmaster's Avenge aura bump
+    expect(holdMs(M('summon'), M('dmg'), 2)).toBeCloseTo(cfg.aftermathHold / 2, 5); // ÷ combatSpeed
+  });
+
+  it('within the aftermath: consecutive consequences stagger by aftermathStagger', () => {
+    const cfg = getChoreoConfig();
+    expect(holdMs(M('reborn'), M('summon'), 1)).toBeCloseTo(cfg.aftermathStagger, 5);
+    expect(holdMs(M('buff'), M('summon'), 1)).toBeCloseTo(cfg.aftermathStagger, 5);
+    expect(holdMs(M('reborn'), M('summon'), 2)).toBeCloseTo(cfg.aftermathStagger / 2, 5);
+  });
+
+  it('a consequence after a NON-impact action keeps the legacy overlap (not the aftermath cadence)', () => {
+    const cfg = getChoreoConfig();
+    // shown is a start-of-combat cast (not an impact, not an aftermath beat) → summon/reborn ride via overlapMs.
+    expect(holdMs(M('summon'), M('sc'), 1)).toBeCloseTo(cfg.overlapMs, 5);
+    // No beat on screen (the very first beat) → no overlap/aftermath; the normal linger applies.
     expect(holdMs(M('summon'), undefined, 1)).toBeCloseTo(beatDelay('summon') * cfg.speed, 5);
   });
 });

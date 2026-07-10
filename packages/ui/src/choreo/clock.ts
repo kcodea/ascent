@@ -22,10 +22,22 @@ import { getChoreoConfig, beatDelay } from './choreoConfig';
  *  untouched. */
 const OVERLAP_INTO = new Set<string>(['summon', 'reborn', 'improve']);
 
+/** The AFTERMATH consequence beats that follow a swing's impact — deathrattle summons, reborns, on-death
+ *  buffs, aura improves, ascends, gold gains, hand grants. After the impact these wait `aftermathHold` (so
+ *  the attacker's settle finishes first), then stagger by `aftermathStagger` as they resolve in order. */
+const AFTERMATH_TYPES = new Set<string>(['summon', 'reborn', 'buff', 'improve', 'ascend', 'maxGold', 'toHand', 'hpGrant']);
+
 export function holdMs(next: Moment, shown: Moment | undefined, combatSpeed: number): number {
   const cfg = getChoreoConfig();
   const c = getLungeConfig();
   const spd = combatSpeed > 0 ? combatSpeed : 1;
+  // The aftermath of a swing: the FIRST consequence after the impact waits for the attacker's settle; the
+  // rest stagger briefly as they resolve in order. (A consequence that follows a non-impact action — e.g. a
+  // Start-of-Combat summon — falls through to the overlap/linger below, unchanged.)
+  if (shown && AFTERMATH_TYPES.has(next.primary.type)) {
+    if (RESULT_TYPES.has(shown.primary.type)) return cfg.aftermathHold / spd; // wait for the settle
+    if (AFTERMATH_TYPES.has(shown.primary.type)) return cfg.aftermathStagger / spd; // brief stagger within the aftermath
+  }
   if (shown && OVERLAP_INTO.has(next.primary.type)) return cfg.overlapMs / spd; // ride on the preceding FX
   let d = beatDelay(next.primary.type) * cfg.speed;
   if (shown && RESULT_TYPES.has(shown.primary.type) && next.primary.type === 'attack') {

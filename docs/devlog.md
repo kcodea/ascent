@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(content): Ossuary Rite quest — recurring End-of-Turn grant instead of a self-feeding loop
+
+Owner-reported: the Ossuary Rite quest (`q_ossuary_rite`, "trigger 8 Echoes") granted an Ossuary Rite and was
+`repeatable: true` — but casting Ossuary Rite triggers an Echo (a deathrattle), which feeds the same objective, so a
+board with enough Echo minions re-completed the quest every action and the hand filled with Ossuary Rites forever.
+Per the owner: keep the objective ("trigger 8 Echoes") but change the reward to a recurring **End of Turn: get an
+Ossuary Rite** (the existing `recurringGrant` kind, as Feed the Alpha uses) and drop `repeatable`. Now the quest
+completes exactly once and hands out one Ossuary Rite per turn — bounded, no loop. Test rewritten (25 Echoes → completes
+once, arms `questRecurringGrants`, ≤1 Ossuary Rite from the settle). `typecheck` + `lint` + `test` (782) + `build:web` green.
+
 ### feat(ui): Skip combat gets the crossfade — everything pauses, mutes, and fades out together
 
 Skip used to hard-cut the replay to the resolved board (an instant jump + a burst of the remaining beats' audio).
